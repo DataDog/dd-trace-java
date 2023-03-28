@@ -2,8 +2,8 @@ package datadog.trace.instrumentation.testng
 
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.base.TestFrameworkTest
+import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.bootstrap.instrumentation.civisibility.TestEventsHandler
 import org.example.TestError
 import org.example.TestFailed
 import org.example.TestFailedAndSucceed
@@ -37,11 +37,11 @@ abstract class TestNGTest extends TestFrameworkTest {
       long testModuleId
       long testSuiteId
       trace(2, true) {
-        testModuleId = testModuleSpan(it, 0, TestEventsHandler.TEST_PASS)
-        testSuiteId = testSuiteSpan(it, 1, testModuleId, testModuleId, "org.example.TestSucceed", TestEventsHandler.TEST_PASS)
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSucceed", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceed", "test_succeed", TestEventsHandler.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceed", "test_succeed", CIConstants.TEST_PASS)
       }
     })
   }
@@ -58,11 +58,11 @@ abstract class TestNGTest extends TestFrameworkTest {
       long testModuleId
       long testSuiteId
       trace(2, true) {
-        testModuleId = testModuleSpan(it, 0, TestEventsHandler.TEST_PASS)
-        testSuiteId = testSuiteSpan(it, 1, testModuleId, testModuleId, "org.example.TestInheritance", TestEventsHandler.TEST_PASS)
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestInheritance", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestInheritance", "test_succeed", TestEventsHandler.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestInheritance", "test_succeed", CIConstants.TEST_PASS)
       }
     })
   }
@@ -83,11 +83,11 @@ abstract class TestNGTest extends TestFrameworkTest {
       long testModuleId
       long testSuiteId
       trace(2, true) {
-        testModuleId = testModuleSpan(it, 0, TestEventsHandler.TEST_FAIL)
-        testSuiteId = testSuiteSpan(it, 1, testModuleId, testModuleId, "org.example.TestFailed", TestEventsHandler.TEST_FAIL)
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_FAIL)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestFailed", CIConstants.TEST_FAIL)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailed", "test_failed", TestEventsHandler.TEST_FAIL, null, exception)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailed", "test_failed", CIConstants.TEST_FAIL, null, exception)
       }
     })
 
@@ -111,23 +111,23 @@ abstract class TestNGTest extends TestFrameworkTest {
       long testModuleId
       long testSuiteId
       trace(2, true) {
-        testModuleId = testModuleSpan(it, 0, TestEventsHandler.TEST_FAIL)
-        testSuiteId = testSuiteSpan(it, 1, testModuleId, testModuleId, "org.example.TestFailedWithSuccessPercentage", TestEventsHandler.TEST_FAIL)
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_FAIL)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestFailedWithSuccessPercentage", CIConstants.TEST_FAIL)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestEventsHandler.TEST_FAIL, null, exception)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", CIConstants.TEST_FAIL, null, exception)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestEventsHandler.TEST_FAIL, null, exception)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", CIConstants.TEST_FAIL, null, exception)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestEventsHandler.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestEventsHandler.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestEventsHandler.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", CIConstants.TEST_PASS)
       }
     })
 
@@ -147,11 +147,11 @@ abstract class TestNGTest extends TestFrameworkTest {
       long testModuleId
       long testSuiteId
       trace(2, true) {
-        testModuleId = testModuleSpan(it, 0, TestEventsHandler.TEST_FAIL)
-        testSuiteId = testSuiteSpan(it, 1, testModuleId, testModuleId, "org.example.TestError", TestEventsHandler.TEST_FAIL)
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_FAIL)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestError", CIConstants.TEST_FAIL)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestError", "test_error", TestEventsHandler.TEST_FAIL, null, exception)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestError", "test_error", CIConstants.TEST_FAIL, null, exception)
       }
     })
 
@@ -171,11 +171,11 @@ abstract class TestNGTest extends TestFrameworkTest {
       long testModuleId
       long testSuiteId
       trace(2, true) {
-        testModuleId = testModuleSpan(it, 0, TestEventsHandler.TEST_SKIP)
-        testSuiteId = testSuiteSpan(it, 1, testModuleId, testModuleId, "org.example.TestSkipped", TestEventsHandler.TEST_SKIP)
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_SKIP)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSkipped", CIConstants.TEST_SKIP)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkipped", "test_skipped", TestEventsHandler.TEST_SKIP, testTags)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags)
       }
     })
 
@@ -195,14 +195,14 @@ abstract class TestNGTest extends TestFrameworkTest {
       long testModuleId
       long testSuiteId
       trace(2, true) {
-        testModuleId = testModuleSpan(it, 0, TestEventsHandler.TEST_PASS)
-        testSuiteId = testSuiteSpan(it, 1, testModuleId, testModuleId, "org.example.TestParameterized", TestEventsHandler.TEST_PASS)
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestParameterized", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterized", "parameterized_test_succeed", TestEventsHandler.TEST_PASS, testTags_0)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterized", "parameterized_test_succeed", CIConstants.TEST_PASS, testTags_0)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterized", "parameterized_test_succeed", TestEventsHandler.TEST_PASS, testTags_1)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterized", "parameterized_test_succeed", CIConstants.TEST_PASS, testTags_1)
       }
     })
 
@@ -223,12 +223,12 @@ abstract class TestNGTest extends TestFrameworkTest {
       long testModuleId
       long testSuiteId
       trace(2, true) {
-        testModuleId = testModuleSpan(it, 0, TestEventsHandler.TEST_PASS)
-        testSuiteId = testSuiteSpan(it, 1, testModuleId, testModuleId, "org.example.TestSucceedGroups", TestEventsHandler.TEST_PASS,
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSucceedGroups", CIConstants.TEST_PASS,
           null, null, false, ["classGroup", "parentGroup"])
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedGroups", "test_succeed", TestEventsHandler.TEST_PASS,
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedGroups", "test_succeed", CIConstants.TEST_PASS,
           null, null, false, ["classGroup", "testCaseGroup", "parentGroup"])
       }
     })
@@ -246,14 +246,14 @@ abstract class TestNGTest extends TestFrameworkTest {
       long testModuleId
       long testSuiteId
       trace(2, true) {
-        testModuleId = testModuleSpan(it, 0, TestEventsHandler.TEST_SKIP)
-        testSuiteId = testSuiteSpan(it, 1, testModuleId, testModuleId, "org.example.TestSkippedClass", TestEventsHandler.TEST_SKIP)
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_SKIP)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSkippedClass", CIConstants.TEST_SKIP)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_class_another_skipped", TestEventsHandler.TEST_SKIP, testTags)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_class_another_skipped", CIConstants.TEST_SKIP, testTags)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_class_skipped", TestEventsHandler.TEST_SKIP, testTags)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_class_skipped", CIConstants.TEST_SKIP, testTags)
       }
     })
 
@@ -274,14 +274,14 @@ abstract class TestNGTest extends TestFrameworkTest {
       long testModuleId
       long testSuiteId
       trace(2, true) {
-        testModuleId = testModuleSpan(it, 0, TestEventsHandler.TEST_PASS)
-        testSuiteId = testSuiteSpan(it, 1, testModuleId, testModuleId, "org.example.TestSucceedAndSkipped", TestEventsHandler.TEST_PASS)
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSucceedAndSkipped", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", TestEventsHandler.TEST_SKIP, testTags)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", TestEventsHandler.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", CIConstants.TEST_PASS)
       }
     })
 
@@ -301,17 +301,17 @@ abstract class TestNGTest extends TestFrameworkTest {
       long testModuleId
       long testSuiteId
       trace(2, true) {
-        testModuleId = testModuleSpan(it, 0, TestEventsHandler.TEST_FAIL)
-        testSuiteId = testSuiteSpan(it, 1, testModuleId, testModuleId, "org.example.TestFailedAndSucceed", TestEventsHandler.TEST_FAIL)
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_FAIL)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestFailedAndSucceed", CIConstants.TEST_FAIL)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_another_succeed", TestEventsHandler.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_another_succeed", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_failed", TestEventsHandler.TEST_FAIL, null, exception)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_failed", CIConstants.TEST_FAIL, null, exception)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_succeed", TestEventsHandler.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_succeed", CIConstants.TEST_PASS)
       }
     })
 
@@ -331,14 +331,14 @@ abstract class TestNGTest extends TestFrameworkTest {
       long testModuleId
       long testSuiteId
       trace(2, true) {
-        testModuleId = testModuleSpan(it, 0, TestEventsHandler.TEST_FAIL)
-        testSuiteId = testSuiteSpan(it, 1, testModuleId, testModuleId, "org.example.TestFailedSuiteTearDown", TestEventsHandler.TEST_FAIL, null, exception)
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_FAIL)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestFailedSuiteTearDown", CIConstants.TEST_FAIL, null, exception)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedSuiteTearDown", "test_another_succeed", TestEventsHandler.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedSuiteTearDown", "test_another_succeed", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedSuiteTearDown", "test_succeed", TestEventsHandler.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedSuiteTearDown", "test_succeed", CIConstants.TEST_PASS)
       }
     })
 
@@ -358,15 +358,15 @@ abstract class TestNGTest extends TestFrameworkTest {
       long testModuleId
       long testSuiteId
       trace(2, true) {
-        testModuleId = testModuleSpan(it, 0, TestEventsHandler.TEST_FAIL)
-        testSuiteId = testSuiteSpan(it, 1, testModuleId, testModuleId, "org.example.TestFailedSuiteSetup", TestEventsHandler.TEST_FAIL, null, exception)
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_FAIL)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestFailedSuiteSetup", CIConstants.TEST_FAIL, null, exception)
       }
       // if suite set up fails, TestNG will report that suite's test cases as skipped
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedSuiteSetup", "test_another_succeed", TestEventsHandler.TEST_SKIP, testTags)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedSuiteSetup", "test_another_succeed", CIConstants.TEST_SKIP, testTags)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedSuiteSetup", "test_succeed", TestEventsHandler.TEST_SKIP, testTags)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedSuiteSetup", "test_succeed", CIConstants.TEST_SKIP, testTags)
       }
     })
 
@@ -388,18 +388,18 @@ abstract class TestNGTest extends TestFrameworkTest {
       long firstSuiteId
       long secondSuiteId
       trace(3, true) {
-        testModuleId = testModuleSpan(it, 0, TestEventsHandler.TEST_PASS)
-        firstSuiteId = testSuiteSpan(it, 1, testModuleId, testModuleId, "org.example.TestSucceed", TestEventsHandler.TEST_PASS)
-        secondSuiteId = testSuiteSpan(it, 2, testModuleId, testModuleId, "org.example.TestSucceedAndSkipped", TestEventsHandler.TEST_PASS)
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        firstSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSucceed", CIConstants.TEST_PASS)
+        secondSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestSucceedAndSkipped", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, firstSuiteId, "org.example.TestSucceed", "test_succeed", TestEventsHandler.TEST_PASS)
+        testSpan(it, 0, testModuleId, firstSuiteId, "org.example.TestSucceed", "test_succeed", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", TestEventsHandler.TEST_SKIP, testTags)
+        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", TestEventsHandler.TEST_PASS)
+        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", CIConstants.TEST_PASS)
       }
     })
 
@@ -420,21 +420,21 @@ abstract class TestNGTest extends TestFrameworkTest {
       long firstSuiteId
       long secondSuiteId
       trace(3, true) {
-        testModuleId = testModuleSpan(it, 0, TestEventsHandler.TEST_FAIL)
-        firstSuiteId = testSuiteSpan(it, 2, testModuleId, testModuleId, "org.example.TestSucceed", TestEventsHandler.TEST_PASS)
-        secondSuiteId = testSuiteSpan(it, 1, testModuleId, testModuleId, "org.example.TestFailedAndSucceed", TestEventsHandler.TEST_FAIL)
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_FAIL)
+        firstSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestSucceed", CIConstants.TEST_PASS)
+        secondSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestFailedAndSucceed", CIConstants.TEST_FAIL)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_another_succeed", TestEventsHandler.TEST_PASS)
+        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_another_succeed", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_failed", TestEventsHandler.TEST_FAIL, null, exception)
+        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_failed", CIConstants.TEST_FAIL, null, exception)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_succeed", TestEventsHandler.TEST_PASS)
+        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_succeed", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, firstSuiteId, "org.example.TestSucceed", "test_succeed", TestEventsHandler.TEST_PASS)
+        testSpan(it, 0, testModuleId, firstSuiteId, "org.example.TestSucceed", "test_succeed", CIConstants.TEST_PASS)
       }
     })
 
@@ -455,15 +455,15 @@ abstract class TestNGTest extends TestFrameworkTest {
       long topLevelSuiteId
       long nestedSuiteId
       trace(3, true) {
-        testModuleId = testModuleSpan(it, 0, TestEventsHandler.TEST_PASS)
-        topLevelSuiteId = testSuiteSpan(it, 1, testModuleId, testModuleId, "org.example.TestSucceedNested", TestEventsHandler.TEST_PASS)
-        nestedSuiteId = testSuiteSpan(it, 2, testModuleId, testModuleId, 'org.example.TestSucceedNested$NestedSuite', TestEventsHandler.TEST_PASS)
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        topLevelSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSucceedNested", CIConstants.TEST_PASS)
+        nestedSuiteId = testSuiteSpan(it, 2, testModuleId, 'org.example.TestSucceedNested$NestedSuite', CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, nestedSuiteId, 'org.example.TestSucceedNested$NestedSuite', "test_succeed_nested", TestEventsHandler.TEST_PASS)
+        testSpan(it, 0, testModuleId, nestedSuiteId, 'org.example.TestSucceedNested$NestedSuite', "test_succeed_nested", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, topLevelSuiteId, "org.example.TestSucceedNested", "test_succeed", TestEventsHandler.TEST_PASS)
+        testSpan(it, 0, testModuleId, topLevelSuiteId, "org.example.TestSucceedNested", "test_succeed", CIConstants.TEST_PASS)
       }
     })
   }
@@ -481,15 +481,15 @@ abstract class TestNGTest extends TestFrameworkTest {
       long topLevelSuiteId
       long nestedSuiteId
       trace(3, true) {
-        testModuleId = testModuleSpan(it, 0, TestEventsHandler.TEST_PASS)
-        topLevelSuiteId = testSuiteSpan(it, 1, testModuleId, testModuleId, "org.example.TestSkippedNested", TestEventsHandler.TEST_SKIP)
-        nestedSuiteId = testSuiteSpan(it, 2, testModuleId, testModuleId, 'org.example.TestSkippedNested$NestedSuite', TestEventsHandler.TEST_PASS)
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        topLevelSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSkippedNested", CIConstants.TEST_SKIP)
+        nestedSuiteId = testSuiteSpan(it, 2, testModuleId, 'org.example.TestSkippedNested$NestedSuite', CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, nestedSuiteId, 'org.example.TestSkippedNested$NestedSuite', "test_succeed_nested", TestEventsHandler.TEST_PASS)
+        testSpan(it, 0, testModuleId, nestedSuiteId, 'org.example.TestSkippedNested$NestedSuite', "test_succeed_nested", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, topLevelSuiteId, "org.example.TestSkippedNested", "test_succeed", TestEventsHandler.TEST_SKIP, testTags)
+        testSpan(it, 0, testModuleId, topLevelSuiteId, "org.example.TestSkippedNested", "test_succeed", CIConstants.TEST_SKIP, testTags)
       }
     })
 

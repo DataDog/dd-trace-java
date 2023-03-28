@@ -1,21 +1,21 @@
 package datadog.trace.civisibility.git.info;
 
-import static datadog.trace.civisibility.git.GitInfo.DD_GIT_BRANCH;
-import static datadog.trace.civisibility.git.GitInfo.DD_GIT_COMMIT_AUTHOR_DATE;
-import static datadog.trace.civisibility.git.GitInfo.DD_GIT_COMMIT_AUTHOR_EMAIL;
-import static datadog.trace.civisibility.git.GitInfo.DD_GIT_COMMIT_AUTHOR_NAME;
-import static datadog.trace.civisibility.git.GitInfo.DD_GIT_COMMIT_COMMITTER_DATE;
-import static datadog.trace.civisibility.git.GitInfo.DD_GIT_COMMIT_COMMITTER_EMAIL;
-import static datadog.trace.civisibility.git.GitInfo.DD_GIT_COMMIT_COMMITTER_NAME;
-import static datadog.trace.civisibility.git.GitInfo.DD_GIT_COMMIT_MESSAGE;
-import static datadog.trace.civisibility.git.GitInfo.DD_GIT_COMMIT_SHA;
-import static datadog.trace.civisibility.git.GitInfo.DD_GIT_REPOSITORY_URL;
-import static datadog.trace.civisibility.git.GitInfo.DD_GIT_TAG;
+import static datadog.trace.api.civisibility.git.GitInfo.DD_GIT_BRANCH;
+import static datadog.trace.api.civisibility.git.GitInfo.DD_GIT_COMMIT_AUTHOR_DATE;
+import static datadog.trace.api.civisibility.git.GitInfo.DD_GIT_COMMIT_AUTHOR_EMAIL;
+import static datadog.trace.api.civisibility.git.GitInfo.DD_GIT_COMMIT_AUTHOR_NAME;
+import static datadog.trace.api.civisibility.git.GitInfo.DD_GIT_COMMIT_COMMITTER_DATE;
+import static datadog.trace.api.civisibility.git.GitInfo.DD_GIT_COMMIT_COMMITTER_EMAIL;
+import static datadog.trace.api.civisibility.git.GitInfo.DD_GIT_COMMIT_COMMITTER_NAME;
+import static datadog.trace.api.civisibility.git.GitInfo.DD_GIT_COMMIT_MESSAGE;
+import static datadog.trace.api.civisibility.git.GitInfo.DD_GIT_COMMIT_SHA;
+import static datadog.trace.api.civisibility.git.GitInfo.DD_GIT_REPOSITORY_URL;
+import static datadog.trace.api.civisibility.git.GitInfo.DD_GIT_TAG;
 
-import datadog.trace.civisibility.git.CommitInfo;
-import datadog.trace.civisibility.git.GitInfo;
+import datadog.trace.api.civisibility.git.CommitInfo;
+import datadog.trace.api.civisibility.git.GitInfo;
+import datadog.trace.api.civisibility.git.PersonInfo;
 import datadog.trace.civisibility.git.GitUtils;
-import datadog.trace.civisibility.git.PersonInfo;
 
 public class UserSuppliedGitInfoBuilder {
   public GitInfo build() {

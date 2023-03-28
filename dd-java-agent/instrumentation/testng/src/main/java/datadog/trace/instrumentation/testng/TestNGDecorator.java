@@ -1,9 +1,14 @@
 package datadog.trace.instrumentation.testng;
 
-import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.AbstractTestDecorator;
+import java.nio.file.Paths;
 
-public class TestNGDecorator extends TestDecorator {
+public class TestNGDecorator extends AbstractTestDecorator {
   public static final TestNGDecorator DECORATE = new TestNGDecorator();
+
+  public TestNGDecorator() {
+    super(Paths.get("").toAbsolutePath());
+  }
 
   @Override
   public String testFramework() {

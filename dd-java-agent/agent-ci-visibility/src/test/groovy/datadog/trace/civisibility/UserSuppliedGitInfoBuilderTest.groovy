@@ -1,6 +1,6 @@
 package datadog.trace.civisibility
 
-import datadog.trace.civisibility.git.GitInfo
+import datadog.trace.api.civisibility.git.GitInfo
 import datadog.trace.civisibility.git.info.UserSuppliedGitInfoBuilder
 import org.junit.Rule
 import org.junit.contrib.java.lang.system.EnvironmentVariables

@@ -1,6 +1,6 @@
 package datadog.trace.civisibility.git.info;
 
-import datadog.trace.civisibility.git.GitInfo;
+import datadog.trace.api.civisibility.git.GitInfo;
 import datadog.trace.civisibility.git.LocalFSGitInfoExtractor;
 import java.nio.file.Paths;
 

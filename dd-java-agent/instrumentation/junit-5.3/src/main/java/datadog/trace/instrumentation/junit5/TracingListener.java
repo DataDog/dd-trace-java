@@ -2,7 +2,8 @@ package datadog.trace.instrumentation.junit5;
 
 import static datadog.trace.instrumentation.junit5.JUnit5Decorator.DECORATE;
 
-import datadog.trace.bootstrap.instrumentation.civisibility.TestEventsHandler;
+import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.events.TestEventsHandler;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;
@@ -35,7 +36,7 @@ public class TracingListener implements TestExecutionListener {
       testEngine.getVersion().ifPresent(version -> versions.put(testEngine.getId(), version));
     }
     versionsByEngineId = Collections.unmodifiableMap(versions);
-    testEventsHandler = new TestEventsHandler(DECORATE);
+    testEventsHandler = InstrumentationBridge.getTestEventsHandler(DECORATE);
   }
 
   @Override

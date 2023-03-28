@@ -1,8 +1,11 @@
 package datadog.trace.civisibility;
 
+import datadog.trace.api.civisibility.CIProviderInfo;
+import java.nio.file.Path;
+
 public class CIProviderInfoFactory {
 
-  public static CIProviderInfo createCIProviderInfo() {
+  public static CIProviderInfo createCIProviderInfo(Path currentPath) {
     // CI and Git information is obtained
     // from different environment variables
     // depending on which CI server is running the build.
@@ -29,7 +32,7 @@ public class CIProviderInfoFactory {
     } else if (System.getenv(BuddyInfo.BUDDY) != null) {
       return new BuddyInfo();
     } else {
-      return new UnknownCIInfo();
+      return new UnknownCIInfo(currentPath);
     }
   }
 }

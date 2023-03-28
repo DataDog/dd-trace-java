@@ -3,9 +3,14 @@ package datadog.trace.civisibility;
 import static datadog.trace.util.Strings.toJson;
 
 import datadog.trace.api.DDTags;
+import datadog.trace.api.civisibility.CIInfo;
+import datadog.trace.api.civisibility.CIProviderInfo;
+import datadog.trace.api.civisibility.CITagsProvider;
+import datadog.trace.api.civisibility.git.GitInfo;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.civisibility.git.GitInfo;
 import datadog.trace.civisibility.git.GitUtils;
+import datadog.trace.civisibility.git.info.CILocalGitInfoBuilder;
+import datadog.trace.civisibility.git.info.UserSuppliedGitInfoBuilder;
 import java.util.HashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -15,11 +20,32 @@ public class CITagsProviderImpl implements CITagsProvider {
 
   private static final Logger log = LoggerFactory.getLogger(CITagsProviderImpl.class);
 
-  private final Map<String, String> ciTags;
+  private static final String GIT_FOLDER_NAME = ".git";
 
-  public CITagsProviderImpl(
-      CIInfo ciInfo, GitInfo ciGitInfo, GitInfo localGitInfo, GitInfo userSuppliedGitInfo) {
-    ciTags =
+  private final String gitFolder;
+
+  public CITagsProviderImpl() {
+    this(GIT_FOLDER_NAME);
+  }
+
+  CITagsProviderImpl(String gitFolder) {
+    this.gitFolder = gitFolder;
+  }
+
+  @Override
+  public Map<String, String> getCiTags(CIProviderInfo ciProviderInfo) {
+    CIInfo ciInfo = ciProviderInfo.buildCIInfo();
+    GitInfo ciGitInfo = ciProviderInfo.buildCIGitInfo();
+
+    String repoRoot = ciInfo.getCiWorkspace();
+
+    CILocalGitInfoBuilder ciLocalGitInfoBuilder = new CILocalGitInfoBuilder();
+    GitInfo localGitInfo = ciLocalGitInfoBuilder.build(repoRoot, gitFolder);
+
+    UserSuppliedGitInfoBuilder userSuppliedGitInfoBuilder = new UserSuppliedGitInfoBuilder();
+    GitInfo userSuppliedGitInfo = userSuppliedGitInfoBuilder.build();
+
+    Map<String, String> ciTags =
         new CITagsBuilder()
             .withCiProviderName(ciInfo.getCiProviderName())
             .withCiPipelineId(ciInfo.getCiPipelineId())
@@ -65,10 +91,7 @@ public class CITagsProviderImpl implements CITagsProvider {
                 + " env var, and must be a full-length git SHA)");
       }
     }
-  }
 
-  @Override
-  public Map<String, String> getCiTags() {
     return ciTags;
   }
 

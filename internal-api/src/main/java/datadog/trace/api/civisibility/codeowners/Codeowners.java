@@ -12,4 +12,8 @@ import javax.annotation.Nullable;
 public interface Codeowners {
   @Nullable
   Collection<String> getOwners(@Nonnull String path);
+
+  interface Factory {
+    Codeowners createCodeowners(String repoRoot);
+  }
 }
