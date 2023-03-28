@@ -77,10 +77,10 @@ public interface Sampler {
             log.debug("Force Sampling Priority to: SAMPLER_KEEP.");
             sampler =
                 new ForcePrioritySampler(PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT);
-            log.debug("Sampler in use: ForcePrioritySampler, " + "Forced Priority: SAMPLER_KEEP");
+            log.debug("Sampler in use: ForcePrioritySampler, Forced Priority: SAMPLER_KEEP");
           } else if (DROP.equalsIgnoreCase(config.getPrioritySamplingForce())) {
             log.debug("Force Sampling Priority to: SAMPLER_DROP.");
-            log.debug("Sampler in use: ForcePrioritySampler, " + "Forced Priority: SAMPLER_DROP");
+            log.debug("Sampler in use: ForcePrioritySampler, Forced Priority: SAMPLER_DROP");
             sampler =
                 new ForcePrioritySampler(PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT);
           } else {

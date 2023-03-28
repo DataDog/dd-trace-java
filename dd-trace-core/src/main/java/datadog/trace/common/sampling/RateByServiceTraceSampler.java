@@ -41,7 +41,10 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
 
     final RateSamplersByEnvAndService rates = serviceRates;
     RateSampler sampler = rates.getSampler(env, serviceName);
-    log.debug("RateByServiceTraceSampler for {} service current sampling rate: {}",serviceName,sampler.getSampleRate());
+    log.debug(
+        "Sampler in use: RateByServiceTraceSampler for {} service current sampling rate: {}",
+        serviceName,
+        sampler.getSampleRate());
     if (sampler.sample(span)) {
       span.setSamplingPriority(
           PrioritySampling.SAMPLER_KEEP,
@@ -79,6 +82,10 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
               envAndService.service,
               service ->
                   RateByServiceTraceSampler.createRateSampler(entry.getValue().doubleValue()));
+          log.debug(
+              "Sampler in use: Updated sampling rate for {} to {}",
+              envAndService.service,
+              entry.getValue().doubleValue());
         }
       }
       serviceRates = new RateSamplersByEnvAndService(updatedEnvServiceRates);
@@ -120,13 +127,20 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
     public RateSampler getSampler(String env, String service) {
       Map<String, RateSampler> serviceRates = envServiceRates.get(env);
       if (serviceRates == null) {
+        log.debug("Sampler in use: No sampling rate available for {} service", service);
         return DEFAULT;
       }
       RateSampler sampler = serviceRates.get(service);
-      log.debug(
-          "Sampler in use: RateSampler for {} with sampling rate of{}",
-          service,
-          sampler.getSampleRate());
+      if (sampler == null) {
+        log.debug(
+            "Sampler in use: DEFAULT sampling priority used because a Rate sampler couldn't be found for {} service",
+            service);
+      } else {
+        log.debug(
+            "Sampler in use: RateSampler for {} service with sampling rate of {}",
+            service,
+            sampler.getSampleRate());
+      }
       return null == sampler ? DEFAULT : sampler;
     }
   }
