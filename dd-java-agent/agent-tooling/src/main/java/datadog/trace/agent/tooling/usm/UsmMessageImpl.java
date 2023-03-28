@@ -5,6 +5,7 @@ import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
 import datadog.trace.bootstrap.instrumentation.api.UsmConnection;
 import datadog.trace.bootstrap.instrumentation.api.UsmMessage;
+import java.net.InetAddress;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,12 +88,15 @@ public abstract class UsmMessageImpl {
       }
       offset += ipReservedSize;
 
-      byte[] dstIPBuffer = connection.getDstIP().getAddress();
-      // if IPv4 (4 bytes long), encode it into low part of the reserved space
-      if (dstIPBuffer.length == 4) {
-        pointer.write(offset + Long.BYTES, dstIPBuffer, 0, dstIPBuffer.length);
-      } else {
-        pointer.write(offset, dstIPBuffer, 0, dstIPBuffer.length);
+      InetAddress dstIP = connection.getDstIP();
+      if (dstIP != null) {
+        byte[] dstIPBuffer = dstIP.getAddress();
+        // if IPv4 (4 bytes long), encode it into low part of the reserved space
+        if (dstIPBuffer.length == 4) {
+          pointer.write(offset + Long.BYTES, dstIPBuffer, 0, dstIPBuffer.length);
+        } else {
+          pointer.write(offset, dstIPBuffer, 0, dstIPBuffer.length);
+        }
       }
 
       offset += ipReservedSize;
@@ -132,11 +136,11 @@ public abstract class UsmMessageImpl {
               + connection.getSrcIP().toString()
               + " src port: "
               + connection.getSrcPort());
-      log.debug(
-          "dst host: "
-              + connection.getDstIP().toString()
-              + " dst port: "
-              + connection.getDstPort());
+
+      InetAddress dstIP = connection.getDstIP();
+      if (dstIP != null) {
+        log.debug("dst host: " + dstIP.toString() + " dst port: " + connection.getDstPort());
+      }
     }
 
     @Override
