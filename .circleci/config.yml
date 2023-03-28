@@ -488,6 +488,10 @@ jobs:
             - setup_testcontainers
 
       - run:
+          name: Split test projects and prepare gradle targets
+          command: .circleci/expand_gradle_targets.sh << parameters.gradleTarget >>
+
+      - run:
           name: Run tests
           command: >-
             if [[ << parameters.profile >> ]] && [[ << parameters.testJvm >> != "ibm8" ]] && [[ << parameters.testJvm >> != "oracle8" ]];
@@ -498,9 +502,8 @@ jobs:
             MAVEN_OPTS="-Xms64M -Xmx512M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms<< parameters.maxDaemonHeapSize >> -Xmx<< parameters.maxDaemonHeapSize >> $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
             ./gradlew
-            << parameters.gradleTarget >>
+            $(<gradleTargets)
             << parameters.gradleParameters >>
-            -PtaskPartitionCount=${CIRCLE_NODE_TOTAL} -PtaskPartition=${CIRCLE_NODE_INDEX}
             <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
             << pipeline.parameters.gradle_flags >>
             --max-workers=<< parameters.maxWorkers >>

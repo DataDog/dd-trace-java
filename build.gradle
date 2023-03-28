@@ -82,6 +82,9 @@ repositories {
   gradlePluginPortal()
 }
 
+// This plugin needs to be applied after $buildDir has been changed for CI.
+apply plugin: 'task-timing'
+
 tasks.register("latestDepTest")
 
 nexusPublishing {
@@ -146,30 +149,33 @@ allprojects {
   }
 }
 
-allprojects { project ->
-  project.ext {
-    activePartition = true
-  }
-  final boolean shouldUseTaskPartitions = project.rootProject.hasProperty("taskPartitionCount") && project.rootProject.hasProperty("taskPartition")
-  if (shouldUseTaskPartitions) {
-    final int taskPartitionCount = project.rootProject.property("taskPartitionCount") as int
-    final int taskPartition = project.rootProject.property("taskPartition") as int
-    final currentTaskPartition = project.path.hashCode() % taskPartitionCount
-    project.setProperty("activePartition", currentTaskPartition == taskPartition)
+void registerWriteProjectsTask(String taskName, Closure<Set<Project>> includedProjectsProvider) {
+  tasks.register("writeProjects_${taskName}") { task ->
+    final includedProjects = includedProjectsProvider.call()
+    task.doLast {
+      buildDir.mkdirs()
+      final resultFile = new File(buildDir, "gradle-project-list")
+      resultFile.text = includedProjects.collect { it.path}.join("\n") + "\n"
+    }
   }
 }
 
+void testAggregate(String taskName, List<String> includePrefixes, List<String> excludePrefixes) {
+  final includedProjects = {
+    subprojects.findAll(subproject -> {
+      final path = subproject.path
+      final validPrefix = includePrefixes.any { path.startsWith(it) } && !excludePrefixes.any { path.startsWith(it) }
+      final isTestTask = subproject.tasks.findByName("test") != null
+      return validPrefix && isTestTask
+    })
+  }
 
-def testAggregate(String taskName, includePrefixes, excludePrefixes) {
+  registerWriteProjectsTask(taskName, includedProjects)
+
   tasks.register(taskName) { aggTest ->
-    subprojects { subproject ->
-      if (subproject.property("activePartition") && includePrefixes.any { subproject.path.startsWith(it) } && !excludePrefixes.any { subproject.path.startsWith(it) }) {
-        println(subproject.path)
-        def testTask = subproject.tasks.findByName("test")
-        if (testTask != null) {
-          aggTest.dependsOn(testTask)
-        }
-      }
+    includedProjects.call().each { subproject ->
+      final testTask = subproject.tasks.findByName("test")
+      aggTest.dependsOn(testTask)
     }
   }
 }
@@ -179,3 +185,9 @@ testAggregate("instrumentationTest", [":dd-java-agent:instrumentation"], [])
 testAggregate("profilingTest", [":dd-java-agent:agent-profiling"], [])
 testAggregate("debuggerTest", [":dd-java-agent:agent-debugger"], [])
 testAggregate("baseTest", [":"], [":dd-java-agent:instrumentation", ":dd-smoke-tests", ":dd-java-agent:agent-profiling"])
+
+registerWriteProjectsTask("latestDepTest", {
+    subprojects.findAll(subproject -> {
+    subproject.tasks.findByName("latestDepTest") != null
+  })
+})

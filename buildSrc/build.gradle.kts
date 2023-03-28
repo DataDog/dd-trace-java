@@ -18,6 +18,10 @@ gradlePlugin {
       id = "call-site-instrumentation"
       implementationClass = "CallSiteInstrumentationPlugin"
     }
+    create("task-timing-plugin") {
+      id = "task-timing"
+      implementationClass = "TaskTimingPlugin"
+    }
   }
 }
 

@@ -12,6 +12,12 @@ mkdir -p $TEST_RESULTS_DIR >/dev/null 2>&1
 
 echo "saving test results"
 mkdir -p $TEST_RESULTS_DIR
+mkdir -p $TEST_RESULTS_DIR/root
+
+for f in $(find workspace/build/gradle-project-tests -name '*.xml') ; do
+  cp -- "$f" "$TEST_RESULTS_DIR/root/$(basename -- "$f")"
+done
+
 find workspace/**/build/test-results -name \*.xml -exec sh -c '
   file=$(echo "$0" | rev | cut -d "/" -f 1,2,5 | rev | tr "/" "_")
   cp "$0" "$1/$file"' {} $TEST_RESULTS_DIR \;
