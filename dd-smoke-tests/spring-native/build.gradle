@@ -28,7 +28,8 @@ if (testJvm != null && testJvm.toLowerCase(Locale.ROOT).startsWith('graalvm')) {
     environment += [
       "GRADLE_OPTS" : "-Dorg.gradle.jvmargs='-Xmx512M'",
       "JAVA_HOME": testJvmHome,
-      "GRAALVM_HOME": testJvmHome
+      "GRAALVM_HOME": testJvmHome,
+      "DD_TRACE_METHODS" : "datadog.smoketest.springboot.controller.WebController[sayHello]"
     ]
     commandLine "$rootDir/${gradlewCommand}", "nativeCompile", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PagentPath=${project(':dd-java-agent').tasks.shadowJar.archivePath}"
 

@@ -21,6 +21,7 @@ repositories {
 
 dependencies {
   implementation(group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.7.1+')
+  compileOnly(group: 'com.datadoghq', name: 'dd-java-agent', version: '1.0.0')
 }
 
 if (hasProperty('agentPath')) {
