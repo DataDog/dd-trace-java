@@ -6,93 +6,53 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.CIInfo;
 import datadog.trace.api.civisibility.CIProviderInfo;
 import datadog.trace.api.civisibility.CITagsProvider;
-import datadog.trace.api.civisibility.git.GitInfo;
+import datadog.trace.api.git.GitInfo;
+import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.civisibility.git.GitUtils;
-import datadog.trace.civisibility.git.info.CILocalGitInfoBuilder;
-import datadog.trace.civisibility.git.info.UserSuppliedGitInfoBuilder;
 import java.util.HashMap;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class CITagsProviderImpl implements CITagsProvider {
 
-  private static final Logger log = LoggerFactory.getLogger(CITagsProviderImpl.class);
-
-  private static final String GIT_FOLDER_NAME = ".git";
-
-  private final String gitFolder;
+  private final GitInfoProvider gitInfoProvider;
 
   public CITagsProviderImpl() {
-    this(GIT_FOLDER_NAME);
+    this(GitInfoProvider.INSTANCE);
   }
 
-  CITagsProviderImpl(String gitFolder) {
-    this.gitFolder = gitFolder;
+  CITagsProviderImpl(GitInfoProvider gitInfoProvider) {
+    this.gitInfoProvider = gitInfoProvider;
   }
 
   @Override
   public Map<String, String> getCiTags(CIProviderInfo ciProviderInfo) {
     CIInfo ciInfo = ciProviderInfo.buildCIInfo();
-    GitInfo ciGitInfo = ciProviderInfo.buildCIGitInfo();
-
     String repoRoot = ciInfo.getCiWorkspace();
+    GitInfo gitInfo = gitInfoProvider.getGitInfo(repoRoot);
 
-    CILocalGitInfoBuilder ciLocalGitInfoBuilder = new CILocalGitInfoBuilder();
-    GitInfo localGitInfo = ciLocalGitInfoBuilder.build(repoRoot, gitFolder);
-
-    UserSuppliedGitInfoBuilder userSuppliedGitInfoBuilder = new UserSuppliedGitInfoBuilder();
-    GitInfo userSuppliedGitInfo = userSuppliedGitInfoBuilder.build();
-
-    Map<String, String> ciTags =
-        new CITagsBuilder()
-            .withCiProviderName(ciInfo.getCiProviderName())
-            .withCiPipelineId(ciInfo.getCiPipelineId())
-            .withCiPipelineName(ciInfo.getCiPipelineName())
-            .withCiStageName(ciInfo.getCiStageName())
-            .withCiJobName(ciInfo.getCiJobName())
-            .withCiPipelineNumber(ciInfo.getCiPipelineNumber())
-            .withCiPipelineUrl(ciInfo.getCiPipelineUrl())
-            .withCiJorUrl(ciInfo.getCiJobUrl())
-            .withCiWorkspacePath(ciInfo.getCiWorkspace())
-            .withCiEnvVars(ciInfo.getCiEnvVars())
-            .withGitRepositoryUrl(userSuppliedGitInfo, ciGitInfo, localGitInfo)
-            .withGitCommit(userSuppliedGitInfo, ciGitInfo, localGitInfo)
-            .withGitBranch(userSuppliedGitInfo, ciGitInfo, localGitInfo)
-            .withGitTag(userSuppliedGitInfo, ciGitInfo, localGitInfo)
-            .withGitCommitAuthorName(userSuppliedGitInfo, ciGitInfo, localGitInfo)
-            .withGitCommitAuthorEmail(userSuppliedGitInfo, ciGitInfo, localGitInfo)
-            .withGitCommitAuthorDate(userSuppliedGitInfo, ciGitInfo, localGitInfo)
-            .withGitCommitCommitterName(userSuppliedGitInfo, ciGitInfo, localGitInfo)
-            .withGitCommitCommitterEmail(userSuppliedGitInfo, ciGitInfo, localGitInfo)
-            .withGitCommitCommitterDate(userSuppliedGitInfo, ciGitInfo, localGitInfo)
-            .withGitCommitMessage(userSuppliedGitInfo, ciGitInfo, localGitInfo)
-            .build();
-
-    if (!userSuppliedGitInfo.isEmpty()) {
-      // if there is any git metadata supplied by the user, we want to check that repo URL and
-      // commit SHA are valid
-      String resolvedRepoUrl = ciTags.get(Tags.GIT_REPOSITORY_URL);
-      if (resolvedRepoUrl == null || resolvedRepoUrl.isEmpty()) {
-        log.error(
-            "Could not resolve git repository URL (can be provided via "
-                + GitInfo.DD_GIT_REPOSITORY_URL
-                + " env var)");
-      }
-
-      String resolvedCommitSha = ciTags.get(Tags.GIT_COMMIT_SHA);
-      if (!GitUtils.isValidCommitSha(resolvedCommitSha)) {
-        log.error(
-            "Git commit SHA could not be resolved or is invalid: "
-                + resolvedCommitSha
-                + " (can be provided via "
-                + GitInfo.DD_GIT_COMMIT_SHA
-                + " env var, and must be a full-length git SHA)");
-      }
-    }
-
-    return ciTags;
+    return new CITagsBuilder()
+        .withCiProviderName(ciInfo.getCiProviderName())
+        .withCiPipelineId(ciInfo.getCiPipelineId())
+        .withCiPipelineName(ciInfo.getCiPipelineName())
+        .withCiStageName(ciInfo.getCiStageName())
+        .withCiJobName(ciInfo.getCiJobName())
+        .withCiPipelineNumber(ciInfo.getCiPipelineNumber())
+        .withCiPipelineUrl(ciInfo.getCiPipelineUrl())
+        .withCiJorUrl(ciInfo.getCiJobUrl())
+        .withCiWorkspacePath(ciInfo.getCiWorkspace())
+        .withCiEnvVars(ciInfo.getCiEnvVars())
+        .withGitRepositoryUrl(gitInfo)
+        .withGitCommit(gitInfo)
+        .withGitBranch(gitInfo)
+        .withGitTag(gitInfo)
+        .withGitCommitAuthorName(gitInfo)
+        .withGitCommitAuthorEmail(gitInfo)
+        .withGitCommitAuthorDate(gitInfo)
+        .withGitCommitCommitterName(gitInfo)
+        .withGitCommitCommitterEmail(gitInfo)
+        .withGitCommitCommitterDate(gitInfo)
+        .withGitCommitMessage(gitInfo)
+        .build();
   }
 
   public static class CITagsBuilder {
@@ -142,148 +102,52 @@ public class CITagsProviderImpl implements CITagsProvider {
       return putTagValue(DDTags.CI_ENV_VARS, toJson(ciEnvVars));
     }
 
-    public CITagsBuilder withGitRepositoryUrl(
-        final GitInfo userSuppliedGitInfo, final GitInfo ciGitInfo, final GitInfo localGitInfo) {
-      return putTagValue(
-          Tags.GIT_REPOSITORY_URL,
-          userSuppliedGitInfo.getRepositoryURL(),
-          ciGitInfo.getRepositoryURL(),
-          localGitInfo.getRepositoryURL());
+    public CITagsBuilder withGitRepositoryUrl(final GitInfo gitInfo) {
+      return putTagValue(Tags.GIT_REPOSITORY_URL, gitInfo.getRepositoryURL());
     }
 
-    public CITagsBuilder withGitCommit(
-        final GitInfo userSuppliedGitInfo, final GitInfo ciGitInfo, final GitInfo localGitInfo) {
-      return putTagValue(
-          Tags.GIT_COMMIT_SHA,
-          userSuppliedGitInfo.getCommit().getSha(),
-          ciGitInfo.getCommit().getSha(),
-          localGitInfo.getCommit().getSha());
+    public CITagsBuilder withGitCommit(final GitInfo gitInfo) {
+      return putTagValue(Tags.GIT_COMMIT_SHA, gitInfo.getCommit().getSha());
     }
 
-    public CITagsBuilder withGitBranch(
-        final GitInfo userSuppliedGitInfo, final GitInfo ciGitInfo, final GitInfo localGitInfo) {
-      return putTagValue(
-          Tags.GIT_BRANCH,
-          userSuppliedGitInfo.getBranch(),
-          ciGitInfo.getBranch(),
-          localGitInfo.getBranch());
+    public CITagsBuilder withGitBranch(final GitInfo gitInfo) {
+      return putTagValue(Tags.GIT_BRANCH, gitInfo.getBranch());
     }
 
-    public CITagsBuilder withGitTag(
-        final GitInfo userSuppliedGitInfo, final GitInfo ciGitInfo, final GitInfo localGitInfo) {
-      return putTagValue(
-          Tags.GIT_TAG, userSuppliedGitInfo.getTag(), ciGitInfo.getTag(), localGitInfo.getTag());
+    public CITagsBuilder withGitTag(final GitInfo gitInfo) {
+      return putTagValue(Tags.GIT_TAG, gitInfo.getTag());
     }
 
-    public CITagsBuilder withGitCommitAuthorName(
-        final GitInfo userSuppliedGitInfo, final GitInfo ciGitInfo, final GitInfo localGitInfo) {
-      final String userSuppliedGitAuthorName =
-          userSuppliedGitInfo.getCommit().getAuthor().getName();
-      final String ciGitAuthorName = ciGitInfo.getCommit().getAuthor().getName();
-      final String localGitAuthorName =
-          isCommitShaEquals(ciGitInfo, localGitInfo)
-              ? localGitInfo.getCommit().getAuthor().getName()
-              : null;
-      return putTagValue(
-          Tags.GIT_COMMIT_AUTHOR_NAME,
-          userSuppliedGitAuthorName,
-          ciGitAuthorName,
-          localGitAuthorName);
+    public CITagsBuilder withGitCommitAuthorName(final GitInfo gitInfo) {
+      return putTagValue(Tags.GIT_COMMIT_AUTHOR_NAME, gitInfo.getCommit().getAuthor().getName());
     }
 
-    public CITagsBuilder withGitCommitAuthorEmail(
-        final GitInfo userSuppliedGitInfo, final GitInfo ciGitInfo, final GitInfo localGitInfo) {
-      final String userSuppliedGitAuthorEmail =
-          userSuppliedGitInfo.getCommit().getAuthor().getEmail();
-      final String ciGitAuthorEmail = ciGitInfo.getCommit().getAuthor().getEmail();
-      final String localGitAuthorEmail =
-          isCommitShaEquals(ciGitInfo, localGitInfo)
-              ? localGitInfo.getCommit().getAuthor().getEmail()
-              : null;
-      return putTagValue(
-          Tags.GIT_COMMIT_AUTHOR_EMAIL,
-          userSuppliedGitAuthorEmail,
-          ciGitAuthorEmail,
-          localGitAuthorEmail);
+    public CITagsBuilder withGitCommitAuthorEmail(final GitInfo gitInfo) {
+      return putTagValue(Tags.GIT_COMMIT_AUTHOR_EMAIL, gitInfo.getCommit().getAuthor().getEmail());
     }
 
-    public CITagsBuilder withGitCommitAuthorDate(
-        final GitInfo userSuppliedGitInfo, final GitInfo ciGitInfo, final GitInfo localGitInfo) {
-      final String userSuppliedGitAuthorDate =
-          userSuppliedGitInfo.getCommit().getAuthor().getIso8601Date();
-      final String ciGitAuthorDate = ciGitInfo.getCommit().getAuthor().getIso8601Date();
-      final String localGitAuthorDate =
-          isCommitShaEquals(ciGitInfo, localGitInfo)
-              ? localGitInfo.getCommit().getAuthor().getIso8601Date()
-              : null;
+    public CITagsBuilder withGitCommitAuthorDate(final GitInfo gitInfo) {
       return putTagValue(
-          Tags.GIT_COMMIT_AUTHOR_DATE,
-          userSuppliedGitAuthorDate,
-          ciGitAuthorDate,
-          localGitAuthorDate);
+          Tags.GIT_COMMIT_AUTHOR_DATE, gitInfo.getCommit().getAuthor().getIso8601Date());
     }
 
-    public CITagsBuilder withGitCommitCommitterName(
-        final GitInfo userSuppliedGitInfo, final GitInfo ciGitInfo, final GitInfo localGitInfo) {
-      final String userSuppliedGitCommitterName =
-          userSuppliedGitInfo.getCommit().getCommitter().getName();
-      final String ciGitCommitterName = ciGitInfo.getCommit().getCommitter().getName();
-      final String localGitCommitterName =
-          isCommitShaEquals(ciGitInfo, localGitInfo)
-              ? localGitInfo.getCommit().getCommitter().getName()
-              : null;
+    public CITagsBuilder withGitCommitCommitterName(final GitInfo gitInfo) {
       return putTagValue(
-          Tags.GIT_COMMIT_COMMITTER_NAME,
-          userSuppliedGitCommitterName,
-          ciGitCommitterName,
-          localGitCommitterName);
+          Tags.GIT_COMMIT_COMMITTER_NAME, gitInfo.getCommit().getCommitter().getName());
     }
 
-    public CITagsBuilder withGitCommitCommitterEmail(
-        final GitInfo userSuppliedGitInfo, final GitInfo ciGitInfo, final GitInfo localGitInfo) {
-      final String userSuppliedGitCommitterEmail =
-          userSuppliedGitInfo.getCommit().getCommitter().getEmail();
-      final String ciGitCommitterEmail = ciGitInfo.getCommit().getCommitter().getEmail();
-      final String localCommitterEmail =
-          isCommitShaEquals(ciGitInfo, localGitInfo)
-              ? localGitInfo.getCommit().getCommitter().getEmail()
-              : null;
+    public CITagsBuilder withGitCommitCommitterEmail(final GitInfo gitInfo) {
       return putTagValue(
-          Tags.GIT_COMMIT_COMMITTER_EMAIL,
-          userSuppliedGitCommitterEmail,
-          ciGitCommitterEmail,
-          localCommitterEmail);
+          Tags.GIT_COMMIT_COMMITTER_EMAIL, gitInfo.getCommit().getCommitter().getEmail());
     }
 
-    public CITagsBuilder withGitCommitCommitterDate(
-        final GitInfo userSuppliedGitInfo, final GitInfo ciGitInfo, final GitInfo localGitInfo) {
-      final String userSuppliedGitCommitterDate =
-          userSuppliedGitInfo.getCommit().getCommitter().getIso8601Date();
-      final String ciGitCommitterDate = ciGitInfo.getCommit().getCommitter().getIso8601Date();
-      final String localGitCommitterDate =
-          isCommitShaEquals(ciGitInfo, localGitInfo)
-              ? localGitInfo.getCommit().getCommitter().getIso8601Date()
-              : null;
+    public CITagsBuilder withGitCommitCommitterDate(final GitInfo gitInfo) {
       return putTagValue(
-          Tags.GIT_COMMIT_COMMITTER_DATE,
-          userSuppliedGitCommitterDate,
-          ciGitCommitterDate,
-          localGitCommitterDate);
+          Tags.GIT_COMMIT_COMMITTER_DATE, gitInfo.getCommit().getCommitter().getIso8601Date());
     }
 
-    public CITagsBuilder withGitCommitMessage(
-        final GitInfo userSuppliedGitInfo, final GitInfo ciGitInfo, final GitInfo localGitInfo) {
-      final String userSuppliedGitCommitMessage = userSuppliedGitInfo.getCommit().getFullMessage();
-      final String ciGitCommitMessage = ciGitInfo.getCommit().getFullMessage();
-      final String localGitCommitMessage =
-          isCommitShaEquals(ciGitInfo, localGitInfo)
-              ? localGitInfo.getCommit().getFullMessage()
-              : null;
-      return putTagValue(
-          Tags.GIT_COMMIT_MESSAGE,
-          userSuppliedGitCommitMessage,
-          ciGitCommitMessage,
-          localGitCommitMessage);
+    public CITagsBuilder withGitCommitMessage(final GitInfo gitInfo) {
+      return putTagValue(Tags.GIT_COMMIT_MESSAGE, gitInfo.getCommit().getFullMessage());
     }
 
     public Map<String, String> build() {
@@ -303,12 +167,6 @@ public class CITagsProviderImpl implements CITagsProvider {
         }
       }
       return this;
-    }
-
-    private boolean isCommitShaEquals(GitInfo ciGitInfo, GitInfo localGitInfo) {
-      final String ciGitCommit = ciGitInfo.getCommit().getSha();
-      final String localFSGitCommit = localGitInfo.getCommit().getSha();
-      return ciGitCommit == null || ciGitCommit.equalsIgnoreCase(localFSGitCommit);
     }
   }
 }

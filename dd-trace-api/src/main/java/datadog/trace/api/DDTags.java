@@ -44,4 +44,7 @@ public class DDTags {
   public static final String MEASURED = "_dd.measured";
   public static final String PID_TAG = "process_id";
   public static final String SCHEMA_VERSION_TAG_KEY = "_dd.trace_span_attribute_schema";
+
+  public static final String INTERNAL_GIT_REPOSITORY_URL = "_dd.git.repository_url";
+  public static final String INTERNAL_GIT_COMMIT_SHA = "_dd.git.commit.sha";
 }

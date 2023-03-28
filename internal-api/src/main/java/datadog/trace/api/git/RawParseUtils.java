@@ -1,4 +1,4 @@
-package datadog.trace.civisibility.git;
+package datadog.trace.api.git;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
