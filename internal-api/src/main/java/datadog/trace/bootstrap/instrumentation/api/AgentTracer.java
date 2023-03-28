@@ -426,12 +426,12 @@ public class AgentTracer {
     }
 
     @Override
-    public <T> void setConsumeCheckpoint(String type, String source,
+    public void setConsumeCheckpoint(String type, String source,
         DataStreamsContextCarrier setter) {
     }
 
     @Override
-    public <T> void setProduceCheckpoint(String type, String source,
+    public void setProduceCheckpoint(String type, String target,
         DataStreamsContextCarrier setter) {
 
     }
