@@ -983,6 +983,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {
+    if (type == null || type.isEmpty() || source == null || source.isEmpty()) {
+      log.warn("setConsumeCheckpoint should be called with non-empty type and source");
+      return;
+    }
+
     AgentSpan span = activeSpan();
     if (span == null) {
       log.warn("SetConsumeCheckpoint is called with no active span");
@@ -1003,6 +1008,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void setProduceCheckpoint(String type, String target, DataStreamsContextCarrier carrier) {
+    if (type == null || type.isEmpty() || target == null || target.isEmpty()) {
+      log.warn("SetProduceCheckpoint should be called with non-empty type and target");
+      return;
+    }
+
     AgentSpan span = activeSpan();
     if (span == null) {
       log.warn("SetProduceCheckpoint is called with no active span");
