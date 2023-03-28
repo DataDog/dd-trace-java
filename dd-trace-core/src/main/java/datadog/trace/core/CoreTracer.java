@@ -995,8 +995,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
     sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
-    sortedTags.put(TYPE_TAG, type);
     sortedTags.put(TOPIC_TAG, source);
+    sortedTags.put(TYPE_TAG, type);
 
     setDataStreamCheckpoint(span, sortedTags);
   }
@@ -1011,8 +1011,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
     sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-    sortedTags.put(TYPE_TAG, type);
     sortedTags.put(TOPIC_TAG, target);
+    sortedTags.put(TYPE_TAG, type);
 
     injectPathwayContext(span, carrier, DataStreamsContextCarrierAdapter.INSTANCE, sortedTags);
   }
