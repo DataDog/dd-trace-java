@@ -1,11 +1,11 @@
-package datadog.trace.civisibility.git
+package datadog.trace.api.git
 
 
-import datadog.trace.test.util.DDSpecification
+import spock.lang.Specification
 
 import java.nio.charset.StandardCharsets
 
-class RawParseUtilsTest extends DDSpecification {
+class RawParseUtilsTest extends Specification {
 
   def "test decode no fallback"() {
     setup:

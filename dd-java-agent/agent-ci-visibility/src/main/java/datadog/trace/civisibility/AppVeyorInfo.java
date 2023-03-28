@@ -1,14 +1,14 @@
 package datadog.trace.civisibility;
 
-import static datadog.trace.civisibility.git.GitUtils.normalizeBranch;
-import static datadog.trace.civisibility.git.GitUtils.normalizeTag;
+import static datadog.trace.api.git.GitUtils.normalizeBranch;
+import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.PathUtils.expandTilde;
 
 import datadog.trace.api.civisibility.CIInfo;
 import datadog.trace.api.civisibility.CIProviderInfo;
-import datadog.trace.api.civisibility.git.CommitInfo;
-import datadog.trace.api.civisibility.git.GitInfo;
-import datadog.trace.api.civisibility.git.PersonInfo;
+import datadog.trace.api.git.CommitInfo;
+import datadog.trace.api.git.GitInfo;
+import datadog.trace.api.git.PersonInfo;
 
 class AppVeyorInfo implements CIProviderInfo {
 

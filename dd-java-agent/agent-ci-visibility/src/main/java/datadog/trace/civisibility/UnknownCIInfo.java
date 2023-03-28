@@ -4,7 +4,7 @@ import static datadog.trace.civisibility.utils.CIUtils.findParentPathBackwards;
 
 import datadog.trace.api.civisibility.CIInfo;
 import datadog.trace.api.civisibility.CIProviderInfo;
-import datadog.trace.api.civisibility.git.GitInfo;
+import datadog.trace.api.git.GitInfo;
 import java.nio.file.Path;
 
 /**

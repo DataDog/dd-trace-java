@@ -1,7 +1,6 @@
-package datadog.trace.civisibility
+package datadog.trace.api.git
 
-import datadog.trace.api.civisibility.git.GitInfo
-import datadog.trace.civisibility.git.info.UserSuppliedGitInfoBuilder
+
 import org.junit.Rule
 import org.junit.contrib.java.lang.system.EnvironmentVariables
 import spock.lang.Specification
@@ -18,7 +17,7 @@ class UserSuppliedGitInfoBuilderTest extends Specification {
 
   def "test no user supplied git info"() {
     when:
-    def gitInfo = new UserSuppliedGitInfoBuilder().build()
+    def gitInfo = new UserSuppliedGitInfoBuilder().build(null)
 
     then:
     gitInfo.isEmpty()
@@ -29,7 +28,7 @@ class UserSuppliedGitInfoBuilderTest extends Specification {
     environmentVariables.set(envVariable, value)
 
     when:
-    def gitInfo = new UserSuppliedGitInfoBuilder().build()
+    def gitInfo = new UserSuppliedGitInfoBuilder().build(null)
 
     then:
     !gitInfo.isEmpty()
@@ -55,7 +54,7 @@ class UserSuppliedGitInfoBuilderTest extends Specification {
     environmentVariables.set(GitInfo.DD_GIT_BRANCH, "origin/myBranch")
 
     when:
-    def gitInfo = new UserSuppliedGitInfoBuilder().build()
+    def gitInfo = new UserSuppliedGitInfoBuilder().build(null)
 
     then:
     !gitInfo.isEmpty()
@@ -67,7 +66,7 @@ class UserSuppliedGitInfoBuilderTest extends Specification {
     environmentVariables.set(GitInfo.DD_GIT_BRANCH, "refs/tags/myTag")
 
     when:
-    def gitInfo = new UserSuppliedGitInfoBuilder().build()
+    def gitInfo = new UserSuppliedGitInfoBuilder().build(null)
 
     then:
     !gitInfo.isEmpty()
@@ -81,7 +80,7 @@ class UserSuppliedGitInfoBuilderTest extends Specification {
     environmentVariables.set(GitInfo.DD_GIT_BRANCH, "refs/tags/myTag")
 
     when:
-    def gitInfo = new UserSuppliedGitInfoBuilder().build()
+    def gitInfo = new UserSuppliedGitInfoBuilder().build(null)
 
     then:
     !gitInfo.isEmpty()

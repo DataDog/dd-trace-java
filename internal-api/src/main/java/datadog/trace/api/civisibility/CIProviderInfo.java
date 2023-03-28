@@ -1,6 +1,6 @@
 package datadog.trace.api.civisibility;
 
-import datadog.trace.api.civisibility.git.GitInfo;
+import datadog.trace.api.git.GitInfo;
 import java.nio.file.Path;
 
 public interface CIProviderInfo {
