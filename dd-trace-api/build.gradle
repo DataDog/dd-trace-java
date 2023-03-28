@@ -23,6 +23,8 @@ excludedClassesCoverage += [
   'datadog.trace.api.experimental.ProfilingScope',
   'datadog.trace.api.experimental.ProfilingContext',
   'datadog.trace.api.experimental.ProfilingContextSetter.NoOp',
+  'datadog.trace.api.datastreams.DataStreamsCheckpointer',
+  'datadog.trace.api.datastreams.DataStreamsContextCarrier',
   'datadog.appsec.api.blocking.*',
 ]
 
