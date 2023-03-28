@@ -11,7 +11,7 @@ import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
 import graphql.schema.GraphQLOutputType;
 import graphql.schema.GraphQLTypeUtil;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 public class InstrumentedDataFetcher implements DataFetcher<Object> {
   private final DataFetcher<?> dataFetcher;
@@ -52,8 +52,8 @@ public class InstrumentedDataFetcher implements DataFetcher<Object> {
         fieldSpan.finish();
         throw e;
       }
-      if (dataValue instanceof CompletableFuture<?>) {
-        return ((CompletableFuture<?>) dataValue)
+      if (dataValue instanceof CompletionStage<?>) {
+        return ((CompletionStage<?>) dataValue)
             .whenComplete(
                 (result, throwable) -> {
                   DECORATE.onError(fieldSpan, throwable);
