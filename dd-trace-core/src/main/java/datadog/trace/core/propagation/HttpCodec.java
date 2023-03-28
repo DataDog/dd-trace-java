@@ -196,7 +196,7 @@ public class HttpCodec {
     String decoded = value;
     try {
       decoded = URLDecoder.decode(value, "UTF-8");
-    } catch (final UnsupportedEncodingException e) {
+    } catch (final UnsupportedEncodingException | IllegalArgumentException e) {
       log.debug("Failed to decode value - {}", value);
     }
     return decoded;
