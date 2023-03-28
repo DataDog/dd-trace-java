@@ -453,7 +453,7 @@ public class MoshiSnapshotHelper {
           case TIMEOUT:
             {
               jsonWriter.name(NOT_CAPTURED_REASON);
-              jsonWriter.value(FIELD_COUNT_REASON);
+              jsonWriter.value(TIMEOUT_REASON);
               break;
             }
           default:
