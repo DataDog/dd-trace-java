@@ -154,7 +154,11 @@ public class DD128bTraceId implements DDTraceId {
 
   @Override
   public int hashCode() {
-    return 31 * Long.hashCode(this.highOrderBits) + Long.hashCode(this.lowOrderBits);
+    return (int)
+        (this.highOrderBits
+            ^ (this.highOrderBits >>> 32)
+            ^ this.lowOrderBits
+            ^ (this.lowOrderBits >>> 32));
   }
 
   @Override
