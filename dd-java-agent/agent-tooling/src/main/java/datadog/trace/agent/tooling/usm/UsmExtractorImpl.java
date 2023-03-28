@@ -10,8 +10,6 @@ import datadog.trace.bootstrap.instrumentation.api.UsmMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// TODO: maybe move to a separate module: "agent-usm" (similar to agent-iast, agent-debugger, etc...
-// under the dd-java-agent)
 public class UsmExtractorImpl implements UsmExtractor {
   private static final Logger log = LoggerFactory.getLogger(UsmExtractorImpl.class);
 
