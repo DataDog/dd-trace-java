@@ -15,6 +15,7 @@ public class ReflectiveMethodVisitor {
   private static Method visitIntInsnMethod;
   private static Method visitLdcInsnMethod;
 
+  @SuppressWarnings("unchecked")
   public static ReflectiveMethodVisitor wrap(Object mv) throws NoSuchMethodException {
     if (null == methodVisitorClass) {
       methodVisitorClass = mv.getClass();
@@ -60,7 +61,7 @@ public class ReflectiveMethodVisitor {
     } else if (value >= Short.MIN_VALUE && value <= Short.MAX_VALUE) {
       visitIntInsnMethod.invoke(mv, Opcodes.SIPUSH, value);
     } else {
-      visitLdcInsnMethod.invoke(mv, Integer.valueOf(value));
+      visitLdcInsnMethod.invoke(mv, value);
     }
   }
 }

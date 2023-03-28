@@ -262,9 +262,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
     }
 
     TestCoverageProbes probes = span.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY);
-//    if (probes != null) {
-      probes.report();
-//    }
+    probes.report();
 
     final AgentScope scope = AgentTracer.activeScope();
     if (scope != null) {

@@ -2,7 +2,6 @@ package datadog.trace.api.civisibility.events.impl;
 
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
