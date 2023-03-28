@@ -17,7 +17,6 @@ import datadog.trace.api.internal.util.HexStringUtils;
 public class DD128bTraceId implements DDTraceId {
   public static final DD128bTraceId ZERO =
       new DD128bTraceId(0, 0, "00000000000000000000000000000000");
-  private static final long L63BITS_MASK = 0xffffffffffffffffL;
   /** Represents the high-order 64 bits of the 128-bit trace id. */
   private final long highOrderBits;
   /** Represents the low-order 64 bits of the 128-bit trace id. */
@@ -137,8 +136,7 @@ public class DD128bTraceId implements DDTraceId {
 
   @Override
   public long toLong() {
-    // Return only 63-bit of LSB
-    return this.lowOrderBits & L63BITS_MASK;
+    return this.lowOrderBits;
   }
 
   @Override
