@@ -7,6 +7,7 @@ import okhttp3.Request
 import okhttp3.RequestBody
 import spock.util.concurrent.PollingConditions
 
+import java.util.concurrent.TimeoutException
 import java.util.function.Function
 import java.util.function.Predicate
 
@@ -58,7 +59,7 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     when: 'logs are read'
     String startMsg = null
     String errorMsg = null
-    checkLog {
+    checkLogPostExit {
       if (it.contains("Not starting IAST subsystem")) {
         errorMsg = it
       }
@@ -93,7 +94,7 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     response.body().contentType().toString().contains("text/plain")
     response.code() == 200
 
-    checkLog()
+    checkLogPostExit()
     !logHasErrors
   }
 
@@ -343,7 +344,7 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
 
   private boolean hasVulnerabilityInLogs(final Predicate<?> predicate) {
     def found = false
-    checkLog { final String log ->
+    checkLogPostExit { final String log ->
       final index = log.indexOf(TAG_NAME)
       if (index >= 0) {
         final vulnerabilities = parseVulnerabilities(log, index)
@@ -356,14 +357,20 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
   private void hasTainted(final Closure<Boolean> matcher) {
     final slurper = new JsonSlurper()
     final tainteds = []
-    checkLog { String log ->
-      final index = log.indexOf('tainted=')
-      if (index >= 0) {
-        final tainted = slurper.parse(new StringReader(log.substring(index + 8)))
-        tainteds.add(tainted)
+    try {
+      processTestLogLines { String log ->
+        final index = log.indexOf('tainted=')
+        if (index >= 0) {
+          final tainted = slurper.parse(new StringReader(log.substring(index + 8)))
+          tainteds.add(tainted)
+          if (matcher.call(tainted)) {
+            return true // found
+          }
+        }
       }
+    } catch (TimeoutException toe) {
+      throw new AssertionError("No matching tainted found. Tainteds found: ${tainteds}")
     }
-    assert tainteds.any(matcher)
   }
 
   private static Collection<?> parseVulnerabilities(final String log, final int startIndex) {

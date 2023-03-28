@@ -34,7 +34,7 @@ import static datadog.trace.instrumentation.servlet3.TestServlet3.SERVLET_TIMEOU
 abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> {
 
   @Shared
-  def accessLogValue = (server as TomcatServer).accessLogValue
+  TestAccessLogValve accessLogValue
 
   class TomcatServer implements HttpServer {
     def port = 0
@@ -106,6 +106,7 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
   }
 
   def setup() {
+    accessLogValue = (server as TomcatServer).accessLogValue
     accessLogValue.loggedIds.clear()
   }
 

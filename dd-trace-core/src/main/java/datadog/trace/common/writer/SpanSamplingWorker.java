@@ -153,16 +153,17 @@ public interface SpanSamplingWorker extends AutoCloseable {
               // dropped all spans because none of the spans sampled
               healthMetrics.onFailedPublish(samplingPriority);
               log.debug(
-                  "Trace is empty after single span sampling. Counted but dropping trace: {}",
+                  "Trace is empty. None of the spans have been sampled by single span sampling. Counted but dropping trace: {}",
                   trace);
             } else {
               healthMetrics.onPartialPublish(unsampledSpans.size());
               log.debug(
-                  "Unsampled spans dropped after single span sampling because Dropping Policy is active or the queue is full. Counted partial trace: {}",
+                  "Unsampled spans dropped after single span sampling because Dropping Policy is active (droppingPolicy.active()={}) or the queue is full. Counted partial trace: {}",
+                  droppingPolicy.active(),
                   sampledSpans);
             }
           } else {
-            // published all sampled and unsampled spans
+            log.debug("Entire trace has been published: {}", trace);
             healthMetrics.onPublish(trace, samplingPriority);
           }
           afterOnEvent();

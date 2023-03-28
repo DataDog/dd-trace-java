@@ -2,11 +2,12 @@
 "ddsource":"dd_debugger",
 "debugger":\{
 "diagnostics":\{
-"probeId":"\d",
+"probeId":"1",\
+"probeVersion":2\,
 "status":"RECEIVED"
 \}
 \},
-"message":"Received probe \d.",
+"message":"Received probe ProbeId\{id='1', version=2\}.",
 "service":"service-name",
 "timestamp":\d+
 \}\]

@@ -1,10 +1,13 @@
 package com.datadog.debugger.probe;
 
+import static java.util.Collections.singletonList;
+
 import com.datadog.debugger.agent.Generated;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -13,7 +16,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Stream;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
@@ -41,40 +43,22 @@ public abstract class ProbeDefinition {
 
   protected final String language;
   protected final String id;
-  protected final boolean active;
+  protected final int version;
   protected final Tag[] tags;
   protected final Map<String, String> tagMap = new HashMap<>();
   protected final Where where;
   protected final MethodLocation evaluateAt;
-  // transient for no serialization
-  protected final transient List<ProbeDefinition> additionalProbes = new ArrayList<>();
 
-  public ProbeDefinition(
-      String language,
-      String id,
-      boolean active,
-      String[] tagStrs,
-      Where where,
-      MethodLocation evaluateAt) {
-    this.language = language;
-    this.id = id;
-    this.active = active;
-    tags = Tag.fromStrings(tagStrs);
-    initTagMap(tagMap, tags);
-    this.where = where;
-    this.evaluateAt = evaluateAt;
+  protected ProbeDefinition(
+      String language, ProbeId probeId, String[] tagStrs, Where where, MethodLocation evaluateAt) {
+    this(language, probeId, Tag.fromStrings(tagStrs), where, evaluateAt);
   }
 
   protected ProbeDefinition(
-      String language,
-      String id,
-      boolean active,
-      Tag[] tags,
-      Where where,
-      MethodLocation evaluateAt) {
+      String language, ProbeId probeId, Tag[] tags, Where where, MethodLocation evaluateAt) {
     this.language = language;
-    this.id = id;
-    this.active = active;
+    this.id = probeId != null ? probeId.getId() : null;
+    this.version = probeId != null ? probeId.getVersion() : 0;
     this.tags = tags;
     initTagMap(tagMap, tags);
     this.where = where;
@@ -85,12 +69,12 @@ public abstract class ProbeDefinition {
     return id;
   }
 
-  public String getLanguage() {
-    return language;
+  public ProbeId getProbeId() {
+    return new ProbeId(id, version);
   }
 
-  public boolean isActive() {
-    return active;
+  public String getLanguage() {
+    return language;
   }
 
   public Tag[] getTags() {
@@ -123,19 +107,6 @@ public abstract class ProbeDefinition {
     return evaluateAt;
   }
 
-  public void addAdditionalProbe(ProbeDefinition probe) {
-    additionalProbes.add(probe);
-  }
-
-  public List<ProbeDefinition> getAdditionalProbes() {
-    return additionalProbes;
-  }
-
-  public Stream<String> getAllProbeIds() {
-    return Stream.concat(Stream.of(this), getAdditionalProbes().stream())
-        .map(ProbeDefinition::getId);
-  }
-
   private static void initTagMap(Map<String, String> tagMap, Tag[] tags) {
     tagMap.clear();
     if (tags != null) {
@@ -145,16 +116,24 @@ public abstract class ProbeDefinition {
     }
   }
 
+  public void instrument(
+      ClassLoader classLoader,
+      ClassNode classNode,
+      MethodNode methodNode,
+      List<DiagnosticMessage> diagnostics) {
+    instrument(classLoader, classNode, methodNode, diagnostics, singletonList(getId()));
+  }
+
   public abstract void instrument(
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics);
+      List<DiagnosticMessage> diagnostics,
+      List<String> probeIds);
 
   public abstract static class Builder<T extends Builder> {
     protected String language = LANGUAGE;
-    protected String probeId;
-    protected boolean active = true;
+    protected ProbeId probeId;
     protected String[] tagStrs;
     protected Where where;
     protected MethodLocation evaluateAt = MethodLocation.DEFAULT;
@@ -164,13 +143,13 @@ public abstract class ProbeDefinition {
       return (T) this;
     }
 
-    public T probeId(String probeId) {
-      this.probeId = probeId;
+    public T probeId(String id, int version) {
+      this.probeId = new ProbeId(id, version);
       return (T) this;
     }
 
-    public T active(boolean active) {
-      this.active = active;
+    public T probeId(ProbeId probeId) {
+      this.probeId = probeId;
       return (T) this;
     }
 

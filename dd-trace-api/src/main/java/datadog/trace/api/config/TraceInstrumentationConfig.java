@@ -19,6 +19,11 @@ public final class TraceInstrumentationConfig {
   public static final String TRACE_EXECUTORS_ALL = "trace.executors.all";
   public static final String TRACE_EXECUTORS = "trace.executors";
   public static final String TRACE_METHODS = "trace.methods";
+  /*
+  format for measure.methods is the same as for trace.methods:
+  https://docs.datadoghq.com/tracing/trace_collection/custom_instrumentation/java/
+   */
+  public static final String MEASURE_METHODS = "measure.methods";
   public static final String TRACE_CLASSES_EXCLUDE = "trace.classes.exclude";
   public static final String TRACE_CLASSES_EXCLUDE_FILE = "trace.classes.exclude.file";
   public static final String TRACE_CLASSLOADERS_EXCLUDE = "trace.classloaders.exclude";
@@ -40,6 +45,8 @@ public final class TraceInstrumentationConfig {
 
   public static final String JDBC_PREPARED_STATEMENT_CLASS_NAME =
       "trace.jdbc.prepared.statement.class.name";
+
+  public static final String DB_DBM_PROPAGATION_MODE_MODE = "dbm.propagation.mode";
 
   public static final String JDBC_CONNECTION_CLASS_NAME = "trace.jdbc.connection.class.name";
 

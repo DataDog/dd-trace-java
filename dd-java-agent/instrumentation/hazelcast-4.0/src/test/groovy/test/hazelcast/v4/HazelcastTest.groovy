@@ -468,7 +468,7 @@ class HazelcastV1ForkedTest extends HazelcastTest {
 
   @Override
   String service() {
-    return datadog.trace.api.Config.get().getServiceName() + "-hazelcast"
+    return datadog.trace.api.Config.get().getServiceName()
   }
 
   @Override

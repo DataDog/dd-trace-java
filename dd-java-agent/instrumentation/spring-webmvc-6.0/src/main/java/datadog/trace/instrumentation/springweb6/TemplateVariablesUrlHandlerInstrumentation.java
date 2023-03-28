@@ -9,15 +9,22 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import java.util.Set;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /** Obtain template and matrix variables for AbstractUrlHandlerMapping */
 @AutoService(Instrumenter.class)
-public class TemplateVariablesUrlHandlerInstrumentation extends Instrumenter.AppSec
+public class TemplateVariablesUrlHandlerInstrumentation extends Instrumenter.Default
     implements Instrumenter.ForSingleType {
 
   public TemplateVariablesUrlHandlerInstrumentation() {
     super("spring-web");
+  }
+
+  @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    return enabledSystems.contains(TargetSystem.APPSEC)
+        || enabledSystems.contains(TargetSystem.IAST);
   }
 
   @Override

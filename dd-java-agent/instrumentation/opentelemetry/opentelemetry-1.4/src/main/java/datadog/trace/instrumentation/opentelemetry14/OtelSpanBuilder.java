@@ -36,6 +36,7 @@ public class OtelSpanBuilder implements SpanBuilder {
   @Override
   public SpanBuilder setNoParent() {
     this.delegate.asChildOf(null);
+    this.delegate.ignoreActiveSpan();
     return this;
   }
 

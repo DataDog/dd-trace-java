@@ -16,10 +16,7 @@ import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.debugger.CapturedStackFrame;
-import datadog.trace.bootstrap.debugger.DebuggerContext;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.*;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
@@ -148,7 +145,7 @@ public class DebuggerSinkTest {
   @Test
   public void addDiagnostics() throws URISyntaxException, IOException {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
-    sink.addReceived("1");
+    sink.addReceived(new ProbeId("1", 2));
     String fixtureContent = getFixtureContent(SINK_FIXTURE_PREFIX + "/diagnosticsRegex.txt");
     String regex = fixtureContent.replaceAll("\\n", "");
     sink.flush(sink);
@@ -162,7 +159,7 @@ public class DebuggerSinkTest {
     when(config.getDebuggerUploadBatchSize()).thenReturn(100);
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     for (String probeId : Arrays.asList("1", "2")) {
-      sink.addReceived(probeId);
+      sink.addReceived(new ProbeId(probeId, 1));
     }
 
     String fixtureContent =
@@ -184,7 +181,7 @@ public class DebuggerSinkTest {
     }
     String largeMessage = largeMessageBuilder.toString();
     for (int i = 0; i < 100; i++) {
-      sink.getProbeDiagnosticsSink().addError(String.valueOf(i), largeMessage);
+      sink.getProbeDiagnosticsSink().addError(new ProbeId(String.valueOf(i), i), largeMessage);
     }
     sink.flush(sink);
     verify(batchUploader, times(2))
@@ -202,7 +199,7 @@ public class DebuggerSinkTest {
       tooLargeMessageBuilder.append("f");
     }
     String tooLargeMessage = tooLargeMessageBuilder.toString();
-    sink.getProbeDiagnosticsSink().addError("1", tooLargeMessage);
+    sink.getProbeDiagnosticsSink().addError(new ProbeId("1", 1), tooLargeMessage);
     sink.flush(sink);
     verifyNoInteractions(batchUploader);
   }
@@ -216,7 +213,7 @@ public class DebuggerSinkTest {
       tooLargeMessageBuilder.append("\uD80C\uDCF0"); // 4 bytes
     }
     String tooLargeMessage = tooLargeMessageBuilder.toString();
-    sink.getProbeDiagnosticsSink().addError("1", tooLargeMessage);
+    sink.getProbeDiagnosticsSink().addError(new ProbeId("1", 1), tooLargeMessage);
     sink.flush(sink);
     verifyNoInteractions(batchUploader);
   }
@@ -345,7 +342,7 @@ public class DebuggerSinkTest {
     DiagnosticMessage info = new DiagnosticMessage(DiagnosticMessage.Kind.INFO, "info message");
     DiagnosticMessage warn = new DiagnosticMessage(DiagnosticMessage.Kind.WARN, "info message");
     DiagnosticMessage error = new DiagnosticMessage(DiagnosticMessage.Kind.ERROR, "info message");
-    sink.addDiagnostics(PROBE_ID, Arrays.asList(info, warn, error));
+    sink.addDiagnostics(new ProbeId(PROBE_ID, 1), Arrays.asList(info, warn, error));
     // ensure just that the code is executed to have coverage (just logging)
   }
 

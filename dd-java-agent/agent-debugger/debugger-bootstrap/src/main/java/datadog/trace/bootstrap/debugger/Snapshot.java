@@ -82,11 +82,6 @@ public class Snapshot {
       return;
     }
     snapshotStatuses.put(probe.id, new SnapshotStatus(probe.captureSnapshot, true, probe));
-    for (ProbeDetails additionalProbe : probe.additionalProbes) {
-      snapshotStatuses.put(
-          additionalProbe.id,
-          new SnapshotStatus(additionalProbe.captureSnapshot, true, additionalProbe));
-    }
   }
 
   public void setEntry(CapturedContext context) {
@@ -207,9 +202,6 @@ public class Snapshot {
       stack.add(CapturedStackFrame.from(ste));
     }
     summaryBuilder.addStack(stack);
-    for (ProbeDetails additionalProbe : this.probe.additionalProbes) {
-      additionalProbe.summaryBuilder.addStack(stack);
-    }
   }
 
   public enum Kind {
@@ -235,66 +227,51 @@ public class Snapshot {
         new ProbeDetails(ITW_PROBE_ID, ProbeLocation.UNKNOWN);
 
     private final String id;
+    private final int version;
     private final ProbeLocation location;
     private final MethodLocation evaluateAt;
     private final transient boolean captureSnapshot;
     private final DebuggerScript script;
-    private final transient List<ProbeDetails> additionalProbes;
     private final String tags;
     private final transient SummaryBuilder summaryBuilder;
 
     public ProbeDetails(String id, ProbeLocation location) {
       this(
           id,
+          0,
           location,
           MethodLocation.DEFAULT,
           true,
           null,
           null,
-          new SnapshotSummaryBuilder(location),
-          Collections.emptyList());
+          new SnapshotSummaryBuilder(location));
     }
 
     public ProbeDetails(
         String id,
+        int version,
         ProbeLocation location,
         MethodLocation evaluateAt,
         boolean captureSnapshot,
         DebuggerScript<Boolean> script,
         String tags,
         SummaryBuilder summaryBuilder) {
-      this(
-          id,
-          location,
-          evaluateAt,
-          captureSnapshot,
-          script,
-          tags,
-          summaryBuilder,
-          Collections.emptyList());
-    }
-
-    public ProbeDetails(
-        String id,
-        ProbeLocation location,
-        MethodLocation evaluateAt,
-        boolean captureSnapshot,
-        DebuggerScript<Boolean> script,
-        String tags,
-        SummaryBuilder summaryBuilder,
-        List<ProbeDetails> additionalProbes) {
       this.id = id;
+      this.version = version;
       this.location = location;
       this.evaluateAt = evaluateAt;
       this.captureSnapshot = captureSnapshot;
       this.script = script;
-      this.additionalProbes = additionalProbes;
       this.tags = tags;
       this.summaryBuilder = summaryBuilder;
     }
 
     public String getId() {
       return id;
+    }
+
+    public int getVersion() {
+      return version;
     }
 
     public ProbeLocation getLocation() {
@@ -597,7 +574,9 @@ public class Snapshot {
 
     private void checkUndefined(String expr, Object target, String name, String msg) {
       if (target == Values.UNDEFINED_OBJECT) {
-        addEvaluationError(expr, msg + name);
+        String errorMsg = msg + name;
+        addEvaluationError(expr, errorMsg);
+        throw new RuntimeException(errorMsg);
       }
     }
 
@@ -851,6 +830,9 @@ public class Snapshot {
         if (!script.execute(capture)) {
           return false;
         }
+      } catch (RuntimeException ex) {
+        LOG.debug("Evaluation error: ", ex);
+        return false;
       } finally {
         LOG.debug("Script for probe[{}] evaluated in {}ns", probeId, (System.nanoTime() - startTs));
       }

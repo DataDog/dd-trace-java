@@ -376,7 +376,7 @@ class Elasticsearch2TransportClientV1ForkedTest extends Elasticsearch2TransportC
 
   @Override
   String service() {
-    return Config.get().getServiceName() + "-elasticsearch"
+    return Config.get().getServiceName()
   }
 
   @Override

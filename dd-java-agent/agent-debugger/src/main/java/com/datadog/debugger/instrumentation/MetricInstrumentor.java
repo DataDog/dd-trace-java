@@ -45,11 +45,13 @@ public class MetricInstrumentor extends Instrumentor {
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics) {
-    super(metricProbe, classLoader, classNode, methodNode, diagnostics);
+      List<DiagnosticMessage> diagnostics,
+      List<String> probeIds) {
+    super(metricProbe, classLoader, classNode, methodNode, diagnostics, probeIds);
     this.metricProbe = metricProbe;
   }
 
+  @Override
   public void instrument() {
     if (isLineProbe) {
       fillLineMap();

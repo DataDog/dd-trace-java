@@ -195,7 +195,7 @@ class CouchbaseAsyncClientV1ForkedTest extends CouchbaseAsyncClientTest {
 
   @Override
   String service() {
-    return Config.get().getServiceName() + "-couchbase"
+    return Config.get().getServiceName()
   }
 
   @Override

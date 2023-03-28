@@ -2,6 +2,7 @@ package com.datadog.debugger.agent;
 
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
@@ -32,7 +33,7 @@ public class ProbeInstrumentationTest {
     public void addSnapshot(Snapshot snapshot) {}
 
     @Override
-    public void addDiagnostics(String probeId, List<DiagnosticMessage> messages) {
+    public void addDiagnostics(ProbeId probeId, List<DiagnosticMessage> messages) {
       for (DiagnosticMessage msg : messages) {
         System.out.println(msg);
       }

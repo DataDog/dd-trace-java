@@ -51,6 +51,8 @@ import org.slf4j.LoggerFactory;
 public final class DatadogProfiler {
   private static final Logger log = LoggerFactory.getLogger(DatadogProfiler.class);
 
+  private static final int[] EMPTY = new int[0];
+
   private static final String SERVICE = "_dd.trace.service";
   private static final String OPERATION = "_dd.trace.operation";
   private static final String RESOURCE = "_dd.trace.resource";
@@ -408,5 +410,12 @@ public final class DatadogProfiler {
       return contextSetter.encode(constant.toString());
     }
     return 0;
+  }
+
+  public int[] snapshot() {
+    if (contextSetter != null) {
+      return contextSetter.snapshotTags();
+    }
+    return EMPTY;
   }
 }

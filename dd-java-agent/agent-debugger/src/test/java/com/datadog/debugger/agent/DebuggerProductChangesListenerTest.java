@@ -3,7 +3,6 @@ package com.datadog.debugger.agent;
 import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.lenient;
 
 import com.datadog.debugger.probe.LogProbe;
@@ -214,11 +213,9 @@ public class DebuggerProductChangesListenerTest {
     acceptLogProbe(listener, logProbe);
     listener.commit(pollingHinter);
     LogProbe receivedProbe = acceptor.getConfiguration().getLogProbes().iterator().next();
-    receivedProbe.addAdditionalProbe(createLogProbe(UUID.randomUUID().toString()));
     listener.commit(pollingHinter);
     LogProbe receivedProbe2 = acceptor.getConfiguration().getLogProbes().iterator().next();
     assertNotSame(receivedProbe, receivedProbe2);
-    assertTrue(receivedProbe2.getAdditionalProbes().isEmpty());
   }
 
   byte[] toContent(Configuration configuration) {
@@ -289,7 +286,7 @@ public class DebuggerProductChangesListenerTest {
 
   LogProbe createLogProbeWithSnapshot(String id) {
     return LogProbe.builder()
-        .probeId(id)
+        .probeId(id, 0)
         .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
         .captureSnapshot(true)
         .build();
@@ -297,7 +294,7 @@ public class DebuggerProductChangesListenerTest {
 
   MetricProbe createMetricProbe(String id) {
     return MetricProbe.builder()
-        .probeId(id)
+        .probeId(id, 0)
         .kind(MetricProbe.MetricKind.COUNT)
         .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
         .build();
@@ -306,7 +303,7 @@ public class DebuggerProductChangesListenerTest {
   LogProbe createLogProbe(String id) {
     final String LOG_LINE = "hello {world}";
     return LogProbe.builder()
-        .probeId(id)
+        .probeId(id, 0)
         .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
         .template(LOG_LINE, parseTemplate(LOG_LINE))
         .build();
@@ -314,7 +311,7 @@ public class DebuggerProductChangesListenerTest {
 
   SpanProbe createSpanProbe(String id) {
     return SpanProbe.builder()
-        .probeId(id)
+        .probeId(id, 0)
         .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
         .build();
   }

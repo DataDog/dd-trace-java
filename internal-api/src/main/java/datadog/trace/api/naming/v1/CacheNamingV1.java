@@ -13,6 +13,6 @@ public class CacheNamingV1 implements NamingSchema.ForCache {
   @Nonnull
   @Override
   public String service(@Nonnull String ddService, @Nonnull String cacheSystem) {
-    return ddService + "-" + cacheSystem;
+    return ddService;
   }
 }

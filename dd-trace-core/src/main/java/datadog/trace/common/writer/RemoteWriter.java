@@ -83,9 +83,11 @@ public abstract class RemoteWriter implements Writer {
         final int samplingPriority = root.samplingPriority();
         switch (traceProcessingWorker.publish(root, samplingPriority, trace)) {
           case ENQUEUED_FOR_SERIALIZATION:
+            log.debug("Enqueued for serialization: {}", trace);
             healthMetrics.onPublish(trace, samplingPriority);
             break;
           case ENQUEUED_FOR_SINGLE_SPAN_SAMPLING:
+            log.debug("Enqueued for single span sampling: {}", trace);
             break;
           case DROPPED_BY_POLICY:
             handleDroppedTrace("Dropping policy is active", trace, samplingPriority);

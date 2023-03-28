@@ -40,6 +40,13 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
   public TestEventsHandlerImpl(TestDecorator testDecorator) {
     this.testDecorator = testDecorator;
+
+    Config config = Config.get();
+    Long sessionId = config.getCiVisibilitySessionId();
+    Long moduleId = config.getCiVisibilityModuleId();
+    if (sessionId != null && moduleId != null) {
+      testModuleContext = new ParentProcessTestContext(sessionId, moduleId);
+    }
   }
 
   @Override

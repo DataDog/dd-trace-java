@@ -87,7 +87,7 @@ abstract class RediscalaClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "Set"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -173,7 +173,7 @@ class RediscalaClientV1ForkedTest extends RediscalaClientTest {
 
   @Override
   String service() {
-    return Config.get().getServiceName() + "-redis"
+    return Config.get().getServiceName()
   }
 
   @Override

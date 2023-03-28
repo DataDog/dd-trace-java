@@ -35,6 +35,13 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
             return Book.getById(bookId)
           }
         }))
+        .type(newTypeWiring("Book").dataFetcher("isbn", new DataFetcher<String>() {
+          @Override
+          String get(DataFetchingEnvironment environment) throws Exception {
+            Book book = environment.getSource()
+            return book.getIsbn()
+          }
+        }))
         .type(newTypeWiring("Book").dataFetcher("author", new DataFetcher<Author>() {
           @Override
           Author get(DataFetchingEnvironment environment) throws Exception {
@@ -68,10 +75,11 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
       '      firstName\n' +
       '      lastName\n' +
       '    }\n' +
+      '    isbn\n' +
       '  }\n' +
       '}'
     def expectedQuery = 'query findBookById {\n' +
-      '  bookById(id: ?) {\n' +
+      '  bookById(id: {String}) {\n' +
       '    id\n' +
       '    name\n' +
       '    pageCount\n' +
@@ -79,6 +87,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
       '      firstName\n' +
       '      lastName\n' +
       '    }\n' +
+      '    isbn\n' +
       '  }\n' +
       '}\n'
 
@@ -88,7 +97,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
     result.getErrors().isEmpty()
 
     assertTraces(1) {
-      trace(6) {
+      trace(7) {
         span {
           operationName operation()
           resourceName operation()
@@ -98,14 +107,28 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
           parent()
           tags {
             "$Tags.COMPONENT" "graphql-java"
-            "graphql.query" expectedQuery
+            "graphql.source" expectedQuery
             "graphql.operation.name" "findBookById"
             defaultTags()
           }
         }
         span {
           operationName "graphql.field"
-          resourceName "graphql.field"
+          resourceName "Book.isbn"
+          childOf(span(0))
+          spanType DDSpanTypes.GRAPHQL
+          errored false
+          measured true
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            "graphql.type" "ID!"
+            "graphql.coordinates" "Book.isbn"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "graphql.field"
+          resourceName "Book.author"
           childOf(span(0))
           spanType DDSpanTypes.GRAPHQL
           errored false
@@ -113,12 +136,13 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "graphql-java"
             "graphql.type" "Author"
+            "graphql.coordinates" "Book.author"
             defaultTags()
           }
         }
         span {
           operationName "graphql.field"
-          resourceName "graphql.field"
+          resourceName "Query.bookById"
           childOf(span(0))
           spanType DDSpanTypes.GRAPHQL
           errored false
@@ -126,13 +150,14 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "graphql-java"
             "graphql.type" "Book"
+            "graphql.coordinates" "Query.bookById"
             defaultTags()
           }
         }
         span {
           operationName "getBookById"
           resourceName "book"
-          childOf(span(2))
+          childOf(span(3))
           spanType null
           errored false
           measured false
@@ -179,7 +204,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
       '  }\n' +
       '}'
     def expectedQuery = 'query findBookById {\n' +
-      '  bookById(id: ?) {\n' +
+      '  bookById(id: {String}) {\n' +
       '    id\n' +
       '    title\n' +
       '    color\n' +
@@ -202,7 +227,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
           parent()
           tags {
             "$Tags.COMPONENT" "graphql-java"
-            "graphql.query" expectedQuery
+            "graphql.source" expectedQuery
             "graphql.operation.name" null
             "error.message" { it.contains("Field 'title' in type 'Book' is undefined") }
             "error.message" { it.contains("(and 1 more errors)") }
@@ -261,7 +286,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
           parent()
           tags {
             "$Tags.COMPONENT" "graphql-java"
-            "graphql.query" query
+            "graphql.source" query
             "graphql.operation.name" null
             "error.message" { it.toLowerCase().startsWith("invalid syntax") }
             defaultTags()
@@ -295,7 +320,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
       '  }\n' +
       '}'
     def expectedQuery = 'query findBookById {\n' +
-      '  bookById(id: ?) {\n' +
+      '  bookById(id: {String}) {\n' +
       '    id\n' +
       '    cover\n' +
       '  }\n' +
@@ -316,7 +341,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
           parent()
           tags {
             "$Tags.COMPONENT" "graphql-java"
-            "graphql.query" expectedQuery
+            "graphql.source" expectedQuery
             "graphql.operation.name" "findBookById"
             "error.message" "Exception while fetching data (/bookById/cover) : TEST"
             defaultTags()
@@ -324,7 +349,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
         }
         span {
           operationName "graphql.field"
-          resourceName "graphql.field"
+          resourceName "Book.cover"
           childOf(span(0))
           spanType DDSpanTypes.GRAPHQL
           errored true
@@ -332,6 +357,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "graphql-java"
             "graphql.type" "String"
+            "graphql.coordinates" "Book.cover"
             "error.type" "java.lang.IllegalStateException"
             "error.message" "TEST"
             "error.stack" String
@@ -340,7 +366,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
         }
         span {
           operationName "graphql.field"
-          resourceName "graphql.field"
+          resourceName "Query.bookById"
           childOf(span(0))
           spanType DDSpanTypes.GRAPHQL
           errored false
@@ -348,6 +374,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "graphql-java"
             "graphql.type" "Book"
+            "graphql.coordinates" "Query.bookById"
             defaultTags()
           }
         }

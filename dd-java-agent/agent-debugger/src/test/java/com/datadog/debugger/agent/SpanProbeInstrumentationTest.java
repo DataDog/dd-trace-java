@@ -167,7 +167,7 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
   private static SpanProbe createSpan(
       String id, String typeName, String methodName, String signature, String[] tags) {
     return SpanProbe.builder()
-        .probeId(id)
+        .probeId(id, 0)
         .where(typeName, methodName, signature)
         .tags(tags)
         .build();
@@ -175,6 +175,10 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
 
   private static SpanProbe createSpan(
       String id, String sourceFile, int lineFrom, int lineTill, String[] tags) {
-    return SpanProbe.builder().probeId(id).where(sourceFile, lineFrom, lineTill).tags(tags).build();
+    return SpanProbe.builder()
+        .probeId(id, 0)
+        .where(sourceFile, lineFrom, lineTill)
+        .tags(tags)
+        .build();
   }
 }

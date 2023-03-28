@@ -1,5 +1,6 @@
 package com.datadog.debugger.agent;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.lenient;
 
@@ -9,6 +10,7 @@ import com.datadog.debugger.agent.ProbeStatus.ProbeException;
 import com.datadog.debugger.agent.ProbeStatus.Status;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -23,7 +25,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class ProbeStatusTest {
 
   private static final String SERVICE_NAME = "service-name";
-  private static final String PROBE_ID = "probe-id";
+  private static final ProbeId PROBE_ID = new ProbeId("probe-id", 42);
   private static final String RECEIVED_MESSAGE = "Received probe " + PROBE_ID + ".";
   private static final String INSTALLED_MESSAGE = "Installed probe " + PROBE_ID + ".";
   private static final String ERROR_MESSAGE = "Error installing probe " + PROBE_ID + ".";
@@ -45,6 +47,14 @@ class ProbeStatusTest {
             SERVICE_NAME, RECEIVED_MESSAGE, new Diagnostics(PROBE_ID, Status.RECEIVED, null));
     ProbeStatus actual = builder.receivedMessage(PROBE_ID);
     assertEquals(expected, actual);
+  }
+
+  @Test
+  void builderReceivedNullSafe() {
+    assertDoesNotThrow(
+        () -> {
+          builder.receivedMessage(null);
+        });
   }
 
   @Test

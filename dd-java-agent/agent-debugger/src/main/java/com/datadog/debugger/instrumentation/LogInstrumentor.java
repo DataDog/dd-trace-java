@@ -59,12 +59,14 @@ public final class LogInstrumentor extends Instrumentor {
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics) {
-    super(logProbe, classLoader, classNode, methodNode, diagnostics);
+      List<DiagnosticMessage> diagnostics,
+      List<String> probeIds) {
+    super(logProbe, classLoader, classNode, methodNode, diagnostics, probeIds);
     this.capture = logProbe.getCapture();
     captureFullState = logProbe.isCaptureSnapshot();
   }
 
+  @Override
   public void instrument() {
     if (isLineProbe) {
       fillLineMap();
@@ -319,11 +321,6 @@ public final class LogInstrumentor extends Instrumentor {
   }
 
   private void pushProbesIds(InsnList insnList) {
-    List<String> probeIds = new ArrayList<>();
-    probeIds.add(definition.getId());
-    for (ProbeDefinition def : definition.getAdditionalProbes()) {
-      probeIds.add(def.getId());
-    }
     ldc(insnList, probeIds.size()); // array size
     // stack [int]
     insnList.add(new TypeInsnNode(Opcodes.ANEWARRAY, STRING_TYPE.getInternalName()));
