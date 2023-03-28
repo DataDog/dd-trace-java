@@ -240,7 +240,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
           parent()
           tags {
             "$Tags.COMPONENT" "graphql-java"
-            "graphql.query" expectedQuery
+            "graphql.source" expectedQuery
             "graphql.operation.name" "findBookHashById"
             defaultTags()
           }
@@ -252,7 +252,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
           spanType DDSpanTypes.GRAPHQL
           errored false
           measured true
-          duration( (nanos)-> nanos >= TimeUnit.MILLISECONDS.toNanos(DELAY_IN_HASHID_RESOLVER_MS))
+          duration((nanos) -> nanos >= TimeUnit.MILLISECONDS.toNanos(DELAY_IN_HASHID_RESOLVER_MS))
           tags {
             "$Tags.COMPONENT" "graphql-java"
             "graphql.type" "Int!"
