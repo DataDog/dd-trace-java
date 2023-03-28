@@ -34,7 +34,8 @@ public class CiVisibilityApmProtocolInterceptor implements TraceInterceptor {
 
   private boolean isSupportedByApmProtocol(MutableSpan span) {
     String spanType = span.getSpanType();
-    return !DDSpanTypes.TEST_MODULE_END.equals(spanType)
+    return !DDSpanTypes.TEST_SESSION_END.equals(spanType)
+        && !DDSpanTypes.TEST_MODULE_END.equals(spanType)
         && !DDSpanTypes.TEST_SUITE_END.equals(spanType);
   }
 

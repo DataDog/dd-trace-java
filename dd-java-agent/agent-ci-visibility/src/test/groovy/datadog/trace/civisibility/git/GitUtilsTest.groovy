@@ -1,6 +1,6 @@
 package datadog.trace.civisibility.git
 
-
+import datadog.trace.api.civisibility.git.PersonInfo
 import datadog.trace.test.util.DDSpecification
 
 class GitUtilsTest extends DDSpecification {

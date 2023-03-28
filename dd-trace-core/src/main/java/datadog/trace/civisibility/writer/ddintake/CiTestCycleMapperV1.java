@@ -99,6 +99,13 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
         parentId = null;
         version = 1;
 
+      } else if (InternalSpanTypes.TEST_SESSION_END.equals(span.getType())) {
+        type = InternalSpanTypes.TEST_SESSION_END;
+        traceId = null;
+        spanId = null;
+        parentId = null;
+        version = 1;
+
       } else {
         type = SPAN_TYPE;
         traceId = span.getTraceId().toLong();

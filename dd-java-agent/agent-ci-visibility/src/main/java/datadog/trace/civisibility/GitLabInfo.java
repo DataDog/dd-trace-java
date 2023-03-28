@@ -5,10 +5,12 @@ import static datadog.trace.civisibility.git.GitUtils.normalizeBranch;
 import static datadog.trace.civisibility.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.PathUtils.expandTilde;
 
-import datadog.trace.civisibility.git.CommitInfo;
-import datadog.trace.civisibility.git.GitInfo;
+import datadog.trace.api.civisibility.CIInfo;
+import datadog.trace.api.civisibility.CIProviderInfo;
+import datadog.trace.api.civisibility.git.CommitInfo;
+import datadog.trace.api.civisibility.git.GitInfo;
+import datadog.trace.api.civisibility.git.PersonInfo;
 import datadog.trace.civisibility.git.GitUtils;
-import datadog.trace.civisibility.git.PersonInfo;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 
 @SuppressForbidden
