@@ -160,9 +160,7 @@ public class DDTestImpl implements DDTest {
     }
 
     TestCoverageProbes probes = span.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY);
-    //    if (probes != null) {
     probes.report();
-    //    }
 
     scope.close();
 
