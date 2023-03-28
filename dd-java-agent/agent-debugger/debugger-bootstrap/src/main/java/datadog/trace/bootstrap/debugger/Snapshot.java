@@ -794,6 +794,10 @@ public class Snapshot {
       if (shouldEvaluate) {
         status.condition = executeScript(probeDetails.getScript(), this, probeId);
         status.hasConditionErrors = handleEvalErrors(status.errors);
+        if (status.hasConditionErrors && throwable != null) {
+          status.errors.add(
+              new EvaluationError("uncaught exception", throwable.type + ": " + throwable.message));
+        }
         if (status.condition) {
           switch (methodLocation) {
             case ENTRY:
