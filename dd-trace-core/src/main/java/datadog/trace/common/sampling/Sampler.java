@@ -61,8 +61,15 @@ public interface Sampler {
                     traceSamplingRules,
                     config.getTraceSampleRate(),
                     config.getTraceRateLimit());
+            log.debug(
+                "Sampler in use: RuleBasedTraceSampler, "
+                    + "Trace Rate limit from config: {}, Trace sample rate"
+                    + " from config: {}",
+                config.getTraceRateLimit(),
+                config.getTraceSampleRate());
           } catch (final IllegalArgumentException e) {
             log.error("Invalid sampler configuration. Using AllSampler", e);
+            log.debug("Sampler in use: AllSampler");
             sampler = new AllSampler();
           }
         } else if (config.isPrioritySamplingEnabled()) {
@@ -70,18 +77,23 @@ public interface Sampler {
             log.debug("Force Sampling Priority to: SAMPLER_KEEP.");
             sampler =
                 new ForcePrioritySampler(PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT);
+            log.debug("Sampler in use: ForcePrioritySampler, " + "Forced Priority: SAMPLER_KEEP");
           } else if (DROP.equalsIgnoreCase(config.getPrioritySamplingForce())) {
             log.debug("Force Sampling Priority to: SAMPLER_DROP.");
+            log.debug("Sampler in use: ForcePrioritySampler, " + "Forced Priority: SAMPLER_DROP");
             sampler =
                 new ForcePrioritySampler(PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT);
           } else {
             sampler = new RateByServiceTraceSampler();
+            log.debug("Sampler in use: RateByServiceTraceSampler");
           }
         } else {
           sampler = new AllSampler();
+          log.debug("Sampler in use: AllSampler");
         }
       } else {
         sampler = new AllSampler();
+        log.debug("Sampler in use: AllSampler");
       }
       return sampler;
     }

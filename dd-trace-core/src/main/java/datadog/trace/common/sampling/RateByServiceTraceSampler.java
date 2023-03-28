@@ -41,7 +41,7 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
 
     final RateSamplersByEnvAndService rates = serviceRates;
     RateSampler sampler = rates.getSampler(env, serviceName);
-
+    log.debug("RateByServiceTraceSampler for {} service current sampling rate: {}",serviceName,sampler.getSampleRate());
     if (sampler.sample(span)) {
       span.setSamplingPriority(
           PrioritySampling.SAMPLER_KEEP,
@@ -123,6 +123,10 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
         return DEFAULT;
       }
       RateSampler sampler = serviceRates.get(service);
+      log.debug(
+          "Sampler in use: RateSampler for {} with sampling rate of{}",
+          service,
+          sampler.getSampleRate());
       return null == sampler ? DEFAULT : sampler;
     }
   }
