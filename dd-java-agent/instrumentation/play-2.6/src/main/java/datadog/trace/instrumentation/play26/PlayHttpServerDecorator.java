@@ -127,7 +127,26 @@ public class PlayHttpServerDecorator
         }
       }
       if (!defOption.isEmpty()) {
-        final String path = defOption.get().path();
+        String path = defOption.get().path();
+
+        // This is a workaround to add a `/` separator if it is missing when split route file is in
+        // use.
+        //
+        // https://www.playframework.com/documentation/2.8.x/sbtSubProjects#Splitting-the-route-file
+        // PlayFramework routes compiler generates play.api.routing.HandlerDef.path without a slash
+        // separator.
+        //
+        // https://github.com/playframework/playframework/blob/main/dev-mode/routes-compiler/src/main/twirl/play/routes/compiler/inject/forwardsRouter.scala.twirl#L70
+        String rawPath = request.path();
+        int i = 0;
+        int m = Math.min(path.length(), rawPath.length());
+        while (i < m && path.charAt(i) == rawPath.charAt(i)) {
+          i++;
+        }
+        if (i < path.length() && path.charAt(i) != '/' && rawPath.charAt(i) == '/') {
+          path = path.substring(0, i) + '/' + path.substring(i);
+        }
+
         HTTP_RESOURCE_DECORATOR.withRoute(span, request.method(), path);
       }
     }
