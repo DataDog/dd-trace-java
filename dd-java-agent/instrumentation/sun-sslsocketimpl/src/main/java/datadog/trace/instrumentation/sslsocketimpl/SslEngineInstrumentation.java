@@ -31,7 +31,7 @@ public final class SslEngineInstrumentation extends Instrumenter.Usm
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
 
   private static final Logger log =
-      LoggerFactory.getLogger(SslSocketImplStreamsInstrumentation.class);
+      LoggerFactory.getLogger(SslEngineInstrumentation.class);
 
   public SslEngineInstrumentation() {
     super("sslengine");
@@ -98,6 +98,7 @@ public final class SslEngineInstrumentation extends Instrumenter.Usm
         UsmMessage message =
             UsmMessageFactory.Supplier.getPlainMessage(connection, thiz.getPeerHost(), b, 0, b.length);
         UsmExtractor.Supplier.send(message);
+        System.out.println("sent a wrap message" );
        }
     }
   }
@@ -134,6 +135,7 @@ public final class SslEngineInstrumentation extends Instrumenter.Usm
           UsmMessage message =
               UsmMessageFactory.Supplier.getPlainMessage(connection,thiz.getPeerHost(), b, 0, b.length);
           UsmExtractor.Supplier.send(message);
+          System.out.println("sent an unwrap message" );
         }
         else{
           System.out.println("[unwrap] invalid dst buffer, produced: " + result.bytesProduced() + " dst limit: " + dst.limit());

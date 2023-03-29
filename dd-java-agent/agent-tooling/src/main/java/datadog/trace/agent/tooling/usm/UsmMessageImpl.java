@@ -252,10 +252,10 @@ public abstract class UsmMessageImpl {
     public PlainUsmMessage(UsmConnection connection, String hostname, byte[] buffer, int bufferOffset, int len) {
       super(MessageType.PLAIN, connection);
 
-      log.debug("hostname: " + hostname);
+      log.debug("Peer host: " + hostname);
       // check the buffer is not larger than max allowed,
       if (hostname.length() > MAX_HOSTNAME_SIZE) {
-        log.warn("got hostname that exceeds the max size " +hostname);
+        log.warn("Got hostname that exceeds the max size " + hostname);
       }
       pointer.write(offset, hostname.getBytes(), 0, Integer.min(hostname.length(),MAX_HOSTNAME_SIZE));
       offset += MAX_HOSTNAME_SIZE;
@@ -293,7 +293,7 @@ public abstract class UsmMessageImpl {
 
     @Override
     public int dataSize() {
-      // max buffer preceded by the actual length [4 bytes] of the buffer
+      // 64 bytes (max_hostname_size) + actual payload length + actual payload
       return MAX_HOSTNAME_SIZE + MAX_HTTPS_BUFFER_SIZE + Integer.BYTES;
     }
   }
