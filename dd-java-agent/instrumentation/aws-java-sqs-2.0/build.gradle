@@ -6,6 +6,7 @@ muzzle {
     versions = "[2.0.0,)"
     extraDependency 'com.amazonaws:amazon-sqs-java-messaging-lib:2.0.0'
     assertInverse = true
+    skipVersions += '2.20.34' // broken jar on maven central
   }
 }
 
