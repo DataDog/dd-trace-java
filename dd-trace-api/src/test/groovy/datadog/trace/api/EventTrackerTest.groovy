@@ -1,6 +1,6 @@
 package datadog.trace.api
 
-import datadog.trace.api.datastreams.DataStreamsCheckpointer
+import datadog.trace.api.experimental.DataStreamsCheckpointer
 import datadog.trace.api.experimental.Profiling
 import datadog.trace.api.interceptor.TraceInterceptor
 import datadog.trace.api.internal.InternalTracer

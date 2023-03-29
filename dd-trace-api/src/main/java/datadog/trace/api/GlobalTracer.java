@@ -1,6 +1,5 @@
 package datadog.trace.api;
 
-import datadog.trace.api.datastreams.DataStreamsCheckpointer;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.InternalTracer;
 import java.util.ArrayList;
@@ -28,11 +27,6 @@ public class GlobalTracer {
         @Override
         public boolean addTraceInterceptor(TraceInterceptor traceInterceptor) {
           return false;
-        }
-
-        @Override
-        public DataStreamsCheckpointer getDataStreamsCheckpointer() {
-          return null;
         }
       };
 

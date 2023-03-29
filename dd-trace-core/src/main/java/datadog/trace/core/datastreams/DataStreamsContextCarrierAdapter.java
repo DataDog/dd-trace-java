@@ -1,6 +1,6 @@
 package datadog.trace.core.datastreams;
 
-import datadog.trace.api.datastreams.DataStreamsContextCarrier;
+import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation.KeyClassifier;
 import java.util.Map;

@@ -1,6 +1,5 @@
 package datadog.trace.api;
 
-import datadog.trace.api.datastreams.DataStreamsCheckpointer;
 import datadog.trace.api.interceptor.TraceInterceptor;
 
 /** A class with Datadog tracer features. */
@@ -22,11 +21,4 @@ public interface Tracer {
    * @return false if an interceptor with same priority exists.
    */
   boolean addTraceInterceptor(TraceInterceptor traceInterceptor);
-
-  /**
-   * Return the global instance of the DataStreams checkpointer.
-   *
-   * @return DataStreamsCheckpointer instance.
-   */
-  DataStreamsCheckpointer getDataStreamsCheckpointer();
 }

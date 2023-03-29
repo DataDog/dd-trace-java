@@ -2,7 +2,7 @@ package datadog.trace.core.datastreams
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.api.WellKnownTags
-import datadog.trace.api.datastreams.DataStreamsContextCarrier
+import datadog.trace.api.experimental.DataStreamsContextCarrier
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint

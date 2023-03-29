@@ -1,4 +1,4 @@
-package datadog.trace.api.datastreams;
+package datadog.trace.api.experimental;
 
 import java.util.Map.Entry;
 import java.util.Set;
