@@ -40,6 +40,14 @@ class TelemetryCollectorsTest extends DDSpecification {
     ConfigCollector.get() == [key1: 'replaced', key2: 'value2']
   }
 
+  def "no metrics - drain empty list"() {
+    when:
+    MetricCollector.get().prepareRequestMetrics()
+
+    then:
+    MetricCollector.get().drain().isEmpty()
+  }
+
   def "put-get waf metrics"() {
     when:
     MetricCollector.get().wafInit('waf_ver1', 'rules.1')
