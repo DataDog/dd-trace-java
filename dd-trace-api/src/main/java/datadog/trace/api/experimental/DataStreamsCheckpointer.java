@@ -40,12 +40,8 @@ final class NoOp implements DataStreamsCheckpointer {
   public static final DataStreamsCheckpointer INSTANCE = new NoOp();
 
   @Override
-  public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {
-
-  }
+  public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {}
 
   @Override
-  public void setProduceCheckpoint(String type, String target, DataStreamsContextCarrier carrier) {
-
-  }
+  public void setProduceCheckpoint(String type, String target, DataStreamsContextCarrier carrier) {}
 }
