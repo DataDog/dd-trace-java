@@ -2,7 +2,9 @@ package datadog.trace.core.datastreams
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.api.WellKnownTags
+import datadog.trace.api.datastreams.DataStreamsContextCarrier
 import datadog.trace.api.time.ControllableTimeSource
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint
 import datadog.trace.common.metrics.EventListener
 import datadog.trace.common.metrics.Sink
@@ -43,6 +45,29 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
 
     cleanup:
     dataStreams.close()
+  }
+
+  def "Context carrier adapter test"() {
+    given:
+    def adapter = new DataStreamsContextCarrierAdapter()
+    def carrier = new CustomContextCarrier()
+    def keyName = "keyName"
+    def keyValue = "keyValue"
+    def extracted = ""
+
+    when:
+    adapter.set(carrier, keyName, keyValue)
+    adapter.forEachKey(carrier, new AgentPropagation.KeyClassifier() {
+      @Override
+      boolean accept(String key, String value) {
+        if (key == keyName) {
+          extracted = value
+          return true
+        }
+      }
+    })
+    then:
+    extracted == keyValue
   }
 
   def "Write group after a delay"() {
@@ -539,5 +564,20 @@ class CapturingPayloadWriter implements DatastreamsPayloadWriter {
   void close() {
     // Stop accepting new buckets so any late submissions by the reporting thread aren't seen
     accepting = false
+  }
+}
+
+class CustomContextCarrier implements DataStreamsContextCarrier {
+
+  private Map<String, Object> data = new HashMap<>()
+
+  @Override
+  Set<Map.Entry<String, Object>> entries() {
+    return data.entrySet()
+  }
+
+  @Override
+  void set(String key, String value) {
+    data.put(key, value)
   }
 }
