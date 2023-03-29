@@ -58,14 +58,14 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     when:
     adapter.set(carrier, keyName, keyValue)
     adapter.forEachKey(carrier, new AgentPropagation.KeyClassifier() {
-      @Override
-      boolean accept(String key, String value) {
-        if (key == keyName) {
-          extracted = value
-          return true
+        @Override
+        boolean accept(String key, String value) {
+          if (key == keyName) {
+            extracted = value
+            return true
+          }
         }
-      }
-    })
+      })
     then:
     extracted == keyValue
   }
