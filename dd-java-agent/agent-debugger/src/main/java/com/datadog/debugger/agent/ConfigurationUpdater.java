@@ -4,6 +4,7 @@ import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.util.ExceptionHelper;
@@ -34,6 +35,7 @@ public class ConfigurationUpdater
   public static final int MAX_ALLOWED_METRIC_PROBES = 100;
   public static final int MAX_ALLOWED_LOG_PROBES = 100;
   private static final int MAX_ALLOWED_SPAN_PROBES = 100;
+  private static final int MAX_ALLOWED_SPAN_DECORATION_PROBES = 100;
   private static final double RATE_LIMIT_PER_SNAPSHOT_PROBE = 1.0;
   private static final double RATE_LIMIT_PER_LOG_PROBE = 5000.0;
 
@@ -122,11 +124,14 @@ public class ConfigurationUpdater
         filterProbes(configuration::getLogProbes, MAX_ALLOWED_LOG_PROBES);
     Collection<SpanProbe> spanProbes =
         filterProbes(configuration::getSpanProbes, MAX_ALLOWED_SPAN_PROBES);
+    Collection<SpanDecorationProbe> spanDecorationProbes =
+        filterProbes(configuration::getSpanDecorationProbes, MAX_ALLOWED_SPAN_DECORATION_PROBES);
     return new Configuration(
         serviceName,
         metricProbes,
         logProbes,
         spanProbes,
+        spanDecorationProbes,
         configuration.getAllowList(),
         configuration.getDenyList(),
         configuration.getSampling());
