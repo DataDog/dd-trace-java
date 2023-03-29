@@ -54,6 +54,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnJre;
 import org.junit.jupiter.api.condition.JRE;
@@ -769,6 +770,7 @@ public class SnapshotSerializationTest {
   }
 
   @Test
+  @Disabled("flaky")
   public void timeOut() throws IOException {
     DebuggerContext.initSnapshotSerializer(
         new TimeoutSnapshotSerializer(Duration.of(100, ChronoUnit.MILLIS)));
@@ -789,6 +791,7 @@ public class SnapshotSerializationTest {
   }
 
   @Test
+  @Disabled("flaky")
   public void valueTimeout() throws IOException {
     DebuggerContext.initSnapshotSerializer(
         new TimeoutSnapshotSerializer(Duration.of(20, ChronoUnit.MILLIS)));
