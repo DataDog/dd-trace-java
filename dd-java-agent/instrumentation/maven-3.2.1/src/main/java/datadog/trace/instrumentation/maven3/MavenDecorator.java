@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.maven3;
 
-import datadog.trace.bootstrap.instrumentation.decorator.AbstractTestDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.TestDecoratorImpl;
 import java.nio.file.Path;
 
-public class MavenDecorator extends AbstractTestDecorator {
+public class MavenDecorator extends TestDecoratorImpl {
 
   public MavenDecorator(Path currentPath) {
     super(currentPath);

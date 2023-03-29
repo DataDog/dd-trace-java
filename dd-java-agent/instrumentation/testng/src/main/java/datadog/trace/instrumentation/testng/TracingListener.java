@@ -1,10 +1,11 @@
 package datadog.trace.instrumentation.testng;
 
-import static datadog.trace.instrumentation.testng.TestNGDecorator.DECORATE;
-
 import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import java.lang.reflect.Method;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import org.testng.IConfigurationListener;
 import org.testng.IExecutionListener;
@@ -18,11 +19,10 @@ public class TracingListener extends TestNGClassListener
 
   private final TestEventsHandler testEventsHandler;
 
-  private final String version;
-
   public TracingListener(final String version) {
-    this.version = version;
-    testEventsHandler = InstrumentationBridge.getTestEventsHandler(DECORATE);
+    Path currentPath = Paths.get("").toAbsolutePath();
+    TestDecorator decorator = new TestNGDecorator(currentPath, version);
+    testEventsHandler = InstrumentationBridge.getTestEventsHandler(decorator);
   }
 
   @Override
@@ -37,7 +37,7 @@ public class TracingListener extends TestNGClassListener
 
   @Override
   public void onExecutionStart() {
-    testEventsHandler.onTestModuleStart(version);
+    // ignore
   }
 
   @Override
@@ -50,7 +50,7 @@ public class TracingListener extends TestNGClassListener
     String testSuiteName = testClass.getName();
     Class<?> testSuiteClass = testClass.getRealClass();
     List<String> groups = TestNGUtils.getGroups(testClass);
-    testEventsHandler.onTestSuiteStart(testSuiteName, testSuiteClass, version, groups);
+    testEventsHandler.onTestSuiteStart(testSuiteName, testSuiteClass, groups);
   }
 
   @Override
@@ -90,7 +90,7 @@ public class TracingListener extends TestNGClassListener
     Method testMethod = TestNGUtils.getTestMethod(result);
 
     testEventsHandler.onTestStart(
-        testSuiteName, testName, testParameters, groups, version, testClass, testMethod);
+        testSuiteName, testName, testParameters, groups, testClass, testMethod);
   }
 
   @Override

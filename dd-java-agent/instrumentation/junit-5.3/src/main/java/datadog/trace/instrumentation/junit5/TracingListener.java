@@ -1,21 +1,17 @@
 package datadog.trace.instrumentation.junit5;
 
-import static datadog.trace.instrumentation.junit5.JUnit5Decorator.DECORATE;
-
 import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import java.lang.reflect.Method;
-import java.util.Collections;
-import java.util.HashMap;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
-import org.junit.platform.engine.TestEngine;
+import org.junit.jupiter.api.Test;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.TestSource;
 import org.junit.platform.engine.TestTag;
-import org.junit.platform.engine.UniqueId;
 import org.junit.platform.engine.support.descriptor.ClassSource;
 import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.launcher.TestExecutionListener;
@@ -26,25 +22,19 @@ public class TracingListener implements TestExecutionListener {
 
   private final TestEventsHandler testEventsHandler;
 
-  private final Map<String, String> versionsByEngineId;
-
   private volatile TestPlan testPlan;
 
-  public TracingListener(final Iterable<TestEngine> testEngines) {
-    final Map<String, String> versions = new HashMap<>();
-    for (TestEngine testEngine : testEngines) {
-      testEngine.getVersion().ifPresent(version -> versions.put(testEngine.getId(), version));
-    }
-    versionsByEngineId = Collections.unmodifiableMap(versions);
-    testEventsHandler = InstrumentationBridge.getTestEventsHandler(DECORATE);
+  public TracingListener() {
+    Package testPackage = Test.class.getPackage();
+    String version = testPackage != null ? testPackage.getImplementationVersion() : null;
+    Path currentPath = Paths.get("").toAbsolutePath();
+    TestDecorator decorator = new JUnit5Decorator(currentPath, version);
+    testEventsHandler = InstrumentationBridge.getTestEventsHandler(decorator);
   }
 
   @Override
   public void testPlanExecutionStarted(final TestPlan testPlan) {
     this.testPlan = testPlan;
-
-    String versions = getVersions(testPlan);
-    testEventsHandler.onTestModuleStart(versions);
   }
 
   @Override
@@ -79,10 +69,9 @@ public class TracingListener implements TestExecutionListener {
     Class<?> testClass = JUnit5Utils.getJavaClass(testIdentifier);
     String testSuiteName =
         testClass != null ? testClass.getName() : testIdentifier.getLegacyReportingName();
-    String version = getVersion(testIdentifier);
     List<String> tags =
         testIdentifier.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
-    testEventsHandler.onTestSuiteStart(testSuiteName, testClass, version, tags);
+    testEventsHandler.onTestSuiteStart(testSuiteName, testClass, tags);
   }
 
   private void containerExecutionFinished(
@@ -129,13 +118,11 @@ public class TracingListener implements TestExecutionListener {
     List<String> tags =
         testIdentifier.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
 
-    String version = getVersion(testIdentifier);
-
     Class<?> testClass = JUnit5Utils.getTestClass(methodSource);
     Method testMethod = JUnit5Utils.getTestMethod(methodSource);
 
     testEventsHandler.onTestStart(
-        testSuitName, testName, testParameters, tags, version, testClass, testMethod);
+        testSuitName, testName, testParameters, tags, testClass, testMethod);
   }
 
   private void testCaseExecutionFinished(
@@ -182,11 +169,10 @@ public class TracingListener implements TestExecutionListener {
     Class<?> testClass = JUnit5Utils.getJavaClass(testIdentifier);
     String testSuiteName =
         testClass != null ? testClass.getName() : testIdentifier.getLegacyReportingName();
-    String version = getVersion(testIdentifier);
     List<String> tags =
         testIdentifier.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
 
-    testEventsHandler.onTestSuiteStart(testSuiteName, testClass, version, tags);
+    testEventsHandler.onTestSuiteStart(testSuiteName, testClass, tags);
     testEventsHandler.onTestSuiteSkip(testSuiteName, testClass, reason);
 
     for (TestIdentifier child : testPlan.getChildren(testIdentifier)) {
@@ -203,37 +189,11 @@ public class TracingListener implements TestExecutionListener {
     String testParameters = JUnit5Utils.getParameters(methodSource, testIdentifier);
     List<String> tags =
         testIdentifier.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
-    String version = getVersion(testIdentifier);
 
     Class<?> testClass = JUnit5Utils.getTestClass(methodSource);
     Method testMethod = JUnit5Utils.getTestMethod(methodSource);
 
     testEventsHandler.onTestIgnore(
-        testSuiteName, testName, testParameters, tags, version, testClass, testMethod, reason);
-  }
-
-  private String getVersions(final TestPlan testPlan) {
-    StringBuilder versions = new StringBuilder();
-    for (TestIdentifier root : testPlan.getRoots()) {
-      Set<TestIdentifier> rootChildren = testPlan.getChildren(root);
-      if (rootChildren.isEmpty()) {
-        continue;
-      }
-      String version = getVersion(root);
-      if (version != null) {
-        if (versions.length() > 0) {
-          versions.append(',');
-        }
-        versions.append(version);
-      }
-    }
-    return versions.length() > 0 ? versions.toString() : null;
-  }
-
-  private String getVersion(final TestIdentifier testIdentifier) {
-    return UniqueId.parse(testIdentifier.getUniqueId())
-        .getEngineId()
-        .map(versionsByEngineId::get)
-        .orElse(null);
+        testSuiteName, testName, testParameters, tags, testClass, testMethod, reason);
   }
 }

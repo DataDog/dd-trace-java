@@ -1,27 +1,16 @@
 package datadog.trace.instrumentation.testng;
 
-import datadog.trace.bootstrap.instrumentation.decorator.AbstractTestDecorator;
-import java.nio.file.Paths;
+import datadog.trace.bootstrap.instrumentation.decorator.TestDecoratorImpl;
+import java.nio.file.Path;
 
-public class TestNGDecorator extends AbstractTestDecorator {
-  public static final TestNGDecorator DECORATE = new TestNGDecorator();
+public class TestNGDecorator extends TestDecoratorImpl {
 
-  public TestNGDecorator() {
-    super(Paths.get("").toAbsolutePath());
-  }
-
-  @Override
-  public String testFramework() {
-    return "testng";
+  public TestNGDecorator(Path currentPath, String testFrameworkVersion) {
+    super(currentPath, "testng", "testng", testFrameworkVersion);
   }
 
   @Override
   protected String[] instrumentationNames() {
     return new String[] {"testng"};
-  }
-
-  @Override
-  public String component() {
-    return "testng";
   }
 }

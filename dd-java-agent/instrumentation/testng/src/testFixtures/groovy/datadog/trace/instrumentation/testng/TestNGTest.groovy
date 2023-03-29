@@ -504,12 +504,12 @@ abstract class TestNGTest extends TestFrameworkTest {
 
   @Override
   String expectedTestFramework() {
-    return TestNGDecorator.DECORATE.testFramework()
+    return "testng"
   }
 
   @Override
   String component() {
-    return TestNGDecorator.DECORATE.component()
+    return "testng"
   }
 
   abstract String assertionErrorMessage()

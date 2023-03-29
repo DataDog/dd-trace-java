@@ -17,16 +17,20 @@ import java.nio.file.Paths;
 import java.util.Map;
 import javax.annotation.Nullable;
 
-public abstract class AbstractTestDecorator extends BaseDecorator implements TestDecorator {
+public abstract class TestDecoratorImpl extends BaseDecorator implements TestDecorator {
 
   private static final UTF8BytesString CIAPP_TEST_ORIGIN = UTF8BytesString.create("ciapp-test");
 
   private final String modulePath;
+  private final String component;
+  private final String testFramework;
+  private final String testFrameworkVersion;
   private final Map<String, String> ciTags;
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
 
-  protected AbstractTestDecorator(Path currentPath) {
+  public TestDecoratorImpl(
+      Path currentPath, String component, String testFramework, String testFrameworkVersion) {
     CIProviderInfo ciProviderInfo = InstrumentationBridge.getCIProviderInfo(currentPath);
     ciTags = InstrumentationBridge.getCiTags(ciProviderInfo);
 
@@ -39,9 +43,11 @@ public abstract class AbstractTestDecorator extends BaseDecorator implements Tes
         repoRoot != null && currentPath.startsWith(repoRoot)
             ? Paths.get(repoRoot).relativize(currentPath).toString()
             : null;
-  }
 
-  protected abstract String testFramework();
+    this.component = component;
+    this.testFramework = testFramework;
+    this.testFrameworkVersion = testFrameworkVersion;
+  }
 
   protected String testType() {
     return TEST_TYPE;
@@ -90,12 +96,13 @@ public abstract class AbstractTestDecorator extends BaseDecorator implements Tes
 
   @Override
   public CharSequence component() {
-    return null;
+    return component;
   }
 
   @Override
   public AgentSpan afterStart(final AgentSpan span) {
-    span.setTag(Tags.TEST_FRAMEWORK, testFramework());
+    span.setTag(Tags.TEST_FRAMEWORK, testFramework);
+    span.setTag(Tags.TEST_FRAMEWORK_VERSION, testFrameworkVersion);
     span.setTag(Tags.TEST_TYPE, testType());
     span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP);
     span.setTag(Tags.RUNTIME_NAME, runtimeName());

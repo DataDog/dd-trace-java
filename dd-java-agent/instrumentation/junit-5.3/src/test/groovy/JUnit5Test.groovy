@@ -3,7 +3,6 @@ import datadog.trace.agent.test.base.TestFrameworkTest
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.instrumentation.junit5.JUnit5Decorator
 import org.example.TestAssumption
 import org.example.TestAssumptionAndSucceed
 import org.example.TestAssumptionLegacy
@@ -595,7 +594,7 @@ class JUnit5Test extends TestFrameworkTest {
 
   @Override
   String expectedTestFramework() {
-    return JUnit5Decorator.DECORATE.testFramework()
+    return "junit5"
   }
 
   @Override
@@ -605,6 +604,6 @@ class JUnit5Test extends TestFrameworkTest {
 
   @Override
   String component() {
-    return JUnit5Decorator.DECORATE.component()
+    return "junit"
   }
 }

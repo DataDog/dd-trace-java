@@ -32,6 +32,11 @@ dependencies {
       strictly '1.7.2'
     }
   }
+  testImplementation(group: 'org.junit.jupiter', name: 'junit-jupiter-api') {
+    version {
+      strictly '5.8.2'
+    }
+  }
   testImplementation(group: 'org.junit.jupiter', name: 'junit-jupiter-engine') {
     version {
       strictly '5.8.2'

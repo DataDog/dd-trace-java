@@ -8,15 +8,11 @@ import javax.annotation.Nullable;
 
 // FIXME move testSuiteDescriptor, testDescriptor classes to interface level?
 public interface TestEventsHandler {
-  void onTestModuleStart(@Nullable String version);
 
-  void onTestModuleFinish();
+  void onTestModuleFinish(); // FIXME rename to close?
 
   void onTestSuiteStart(
-      String testSuiteName,
-      @Nullable Class<?> testClass,
-      @Nullable String version,
-      @Nullable Collection<String> categories);
+      String testSuiteName, @Nullable Class<?> testClass, @Nullable Collection<String> categories);
 
   void onTestSuiteFinish(String testSuiteName, @Nullable Class<?> testClass);
 
@@ -29,7 +25,6 @@ public interface TestEventsHandler {
       String testName,
       @Nullable String testParameters,
       @Nullable Collection<String> categories,
-      @Nullable String version,
       @Nullable Class<?> testClass,
       @Nullable Method testMethod);
 
@@ -46,12 +41,9 @@ public interface TestEventsHandler {
       String testName,
       @Nullable String testParameters,
       @Nullable List<String> categories,
-      @Nullable String version,
       @Nullable Class<?> testClass,
       @Nullable Method testMethod,
       @Nullable String reason);
-
-  boolean isTestSuiteInProgress();
 
   interface Factory {
     TestEventsHandler create(TestDecorator decorator);

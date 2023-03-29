@@ -1,27 +1,15 @@
 package datadog.trace.instrumentation.junit4;
 
-import datadog.trace.bootstrap.instrumentation.decorator.AbstractTestDecorator;
-import java.nio.file.Paths;
+import datadog.trace.bootstrap.instrumentation.decorator.TestDecoratorImpl;
+import java.nio.file.Path;
 
-public class JUnit4Decorator extends AbstractTestDecorator {
-  public static final JUnit4Decorator DECORATE = new JUnit4Decorator();
-
-  public JUnit4Decorator() {
-    super(Paths.get("").toAbsolutePath());
-  }
-
-  @Override
-  public String testFramework() {
-    return "junit4";
+public class JUnit4Decorator extends TestDecoratorImpl {
+  public JUnit4Decorator(Path currentPath, String testFrameworkVersion) {
+    super(currentPath, "junit", "junit4", testFrameworkVersion);
   }
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[] {"junit", "junit-4", "junit-4-suite-events"};
-  }
-
-  @Override
-  public String component() {
-    return "junit";
+    return new String[] {"junit", "junit-4"};
   }
 }

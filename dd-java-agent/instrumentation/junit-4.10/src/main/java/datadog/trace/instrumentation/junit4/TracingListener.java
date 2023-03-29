@@ -1,10 +1,11 @@
 package datadog.trace.instrumentation.junit4;
 
-import static datadog.trace.instrumentation.junit4.JUnit4Decorator.DECORATE;
-
 import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import java.lang.reflect.Method;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import junit.runner.Version;
 import org.junit.Ignore;
@@ -19,16 +20,11 @@ public class TracingListener extends RunListener {
 
   private final TestEventsHandler testEventsHandler;
 
-  private final String version;
-
   public TracingListener() {
-    version = Version.id();
-    testEventsHandler = InstrumentationBridge.getTestEventsHandler(DECORATE);
-  }
-
-  @Override
-  public void testRunStarted(Description description) {
-    testEventsHandler.onTestModuleStart(version);
+    String version = Version.id();
+    Path currentPath = Paths.get("").toAbsolutePath();
+    TestDecorator decorator = new JUnit4Decorator(currentPath, version);
+    testEventsHandler = InstrumentationBridge.getTestEventsHandler(decorator);
   }
 
   @Override
@@ -48,7 +44,7 @@ public class TracingListener extends RunListener {
     String testSuiteName = junitTestClass.getName();
     Class<?> testClass = junitTestClass.getJavaClass();
     List<String> categories = JUnit4Utils.getCategories(testClass, null);
-    testEventsHandler.onTestSuiteStart(testSuiteName, testClass, version, categories);
+    testEventsHandler.onTestSuiteStart(testSuiteName, testClass, categories);
   }
 
   public void testSuiteFinished(final TestClass junitTestClass) {
@@ -76,7 +72,7 @@ public class TracingListener extends RunListener {
     List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);
 
     testEventsHandler.onTestStart(
-        testSuiteName, testName, testParameters, categories, version, testClass, testMethod);
+        testSuiteName, testName, testParameters, categories, testClass, testMethod);
   }
 
   @Override
@@ -148,29 +144,17 @@ public class TracingListener extends RunListener {
       Class<?> testClass = description.getTestClass();
       String testSuiteName = testClass.getName();
 
-      if (testEventsHandler.isTestSuiteInProgress()) {
-        // if assumption fails during suite setup,
-        // JUnit will call testIgnored instead of testAssumptionFailure
+      List<String> categories = JUnit4Utils.getCategories(testClass, null);
 
-        testEventsHandler.onTestSuiteSkip(testSuiteName, testClass, reason);
-        List<Method> testMethods = JUnit4Utils.getTestMethods(description.getTestClass());
-        for (Method testMethod : testMethods) {
-          testIgnored(description, testMethod, reason);
-        }
+      testEventsHandler.onTestSuiteStart(testSuiteName, testClass, categories);
+      testEventsHandler.onTestSuiteSkip(testSuiteName, testClass, reason);
 
-      } else {
-        List<String> categories = JUnit4Utils.getCategories(testClass, null);
-
-        testEventsHandler.onTestSuiteStart(testSuiteName, testClass, version, categories);
-        testEventsHandler.onTestSuiteSkip(testSuiteName, testClass, reason);
-
-        List<Method> testMethods = JUnit4Utils.getTestMethods(testClass);
-        for (Method testMethod : testMethods) {
-          testIgnored(description, testMethod, reason);
-        }
-
-        testEventsHandler.onTestSuiteFinish(testSuiteName, testClass);
+      List<Method> testMethods = JUnit4Utils.getTestMethods(testClass);
+      for (Method testMethod : testMethods) {
+        testIgnored(description, testMethod, reason);
       }
+
+      testEventsHandler.onTestSuiteFinish(testSuiteName, testClass);
     }
   }
 
@@ -183,13 +167,6 @@ public class TracingListener extends RunListener {
     List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);
 
     testEventsHandler.onTestIgnore(
-        testSuiteName,
-        testName,
-        testParameters,
-        categories,
-        version,
-        testClass,
-        testMethod,
-        reason);
+        testSuiteName, testName, testParameters, categories, testClass, testMethod, reason);
   }
 }

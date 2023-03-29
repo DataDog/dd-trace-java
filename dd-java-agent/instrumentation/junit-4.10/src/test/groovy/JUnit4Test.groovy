@@ -3,7 +3,6 @@ import datadog.trace.agent.test.base.TestFrameworkTest
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.instrumentation.junit4.JUnit4Decorator
 import junit.runner.Version
 import org.example.TestAssumption
 import org.example.TestAssumptionAndSucceed
@@ -426,7 +425,7 @@ class JUnit4Test extends TestFrameworkTest {
 
   @Override
   String expectedTestFramework() {
-    return JUnit4Decorator.DECORATE.testFramework()
+    return "junit4"
   }
 
   @Override
@@ -436,6 +435,6 @@ class JUnit4Test extends TestFrameworkTest {
 
   @Override
   String component() {
-    return JUnit4Decorator.DECORATE.component()
+    return "junit"
   }
 }
