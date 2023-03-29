@@ -49,6 +49,7 @@ public class MetricCollector {
   }
 
   public void wafRequestBlocked() {
+    wafTriggeredRequestCounter.increment(); // Blocked requests are also triggered
     wafBlockedRequestCounter.increment();
   }
 

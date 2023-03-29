@@ -47,7 +47,6 @@ class MetricPeriodicActionSpecification extends DDSpecification {
     MetricCollector.get().wafRequest()
     MetricCollector.get().wafRequestBlocked()
     MetricCollector.get().wafRequest()
-    MetricCollector.get().wafRequestTriggered()
 
     when:
     MetricCollector.get().prepareRequestMetrics()
