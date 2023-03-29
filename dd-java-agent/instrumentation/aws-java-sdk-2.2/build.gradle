@@ -5,6 +5,7 @@ muzzle {
     module = "aws-core"
     versions = "[2.2.0,)"
     assertInverse = true
+    skipVersions += '2.20.34' // broken jar on maven central
   }
 }
 
