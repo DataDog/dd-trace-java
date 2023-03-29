@@ -34,6 +34,7 @@ import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.bootstrap.debugger.SnapshotSummaryBuilder;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
+import datadog.trace.test.util.Flaky;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
@@ -54,7 +55,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnJre;
 import org.junit.jupiter.api.condition.JRE;
@@ -770,10 +770,10 @@ public class SnapshotSerializationTest {
   }
 
   @Test
-  @Disabled("flaky")
+  @Flaky
   public void timeOut() throws IOException {
     DebuggerContext.initSnapshotSerializer(
-        new TimeoutSnapshotSerializer(Duration.of(100, ChronoUnit.MILLIS)));
+        new TimeoutSnapshotSerializer(Duration.of(150, ChronoUnit.MILLIS)));
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();
     Snapshot.CapturedContext context = new Snapshot.CapturedContext();
@@ -783,7 +783,7 @@ public class SnapshotSerializationTest {
     context.addArguments(new Snapshot.CapturedValue[] {arg1, arg2, arg3});
     snapshot.setEntry(context);
     String buffer = adapter.toJson(snapshot);
-    System.out.println(buffer);
+    System.out.println("timeout: " + buffer);
     Map<String, Object> json = MoshiHelper.createGenericAdapter().fromJson(buffer);
     Map<String, Object> capturesJson = (Map<String, Object>) json.get(CAPTURES);
     Map<String, Object> entryJson = (Map<String, Object>) capturesJson.get(ENTRY);
@@ -791,7 +791,7 @@ public class SnapshotSerializationTest {
   }
 
   @Test
-  @Disabled("flaky")
+  @Flaky
   public void valueTimeout() throws IOException {
     DebuggerContext.initSnapshotSerializer(
         new TimeoutSnapshotSerializer(Duration.of(20, ChronoUnit.MILLIS)));
