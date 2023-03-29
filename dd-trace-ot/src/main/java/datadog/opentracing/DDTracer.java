@@ -440,7 +440,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
 
   @Override
   public DataStreamsCheckpointer getDataStreamsCheckpointer() {
-    return null;
+    return tracer.getDataStreamsCheckpointer();
   }
 
   @Override
