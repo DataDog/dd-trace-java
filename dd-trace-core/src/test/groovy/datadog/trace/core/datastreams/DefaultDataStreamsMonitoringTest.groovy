@@ -56,8 +56,8 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     def extracted = ""
 
     when:
-    adapter.set(carrier, keyName, keyValue)
-    adapter.forEachKey(carrier, new AgentPropagation.KeyClassifier() {
+    DataStreamsContextCarrierAdapter.INSTANCE.set(carrier, keyName, keyValue)
+    DataStreamsContextCarrierAdapter.INSTANCE.forEachKey(carrier, new AgentPropagation.KeyClassifier() {
         @Override
         boolean accept(String key, String value) {
           if (key == keyName) {
