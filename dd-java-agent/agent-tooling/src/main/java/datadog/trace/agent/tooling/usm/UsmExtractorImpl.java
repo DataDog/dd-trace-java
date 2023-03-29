@@ -20,6 +20,7 @@ public class UsmExtractorImpl implements UsmExtractor {
   }
 
   public void send(UsmMessage message) {
+    log.debug("sending message of type: " + message.getClass().getName());
     if (message.validate()) {
       BaseUsmMessage bm = (BaseUsmMessage) message;
 
@@ -31,7 +32,7 @@ public class UsmExtractorImpl implements UsmExtractor {
               Pointer.nativeValue(bm.getBufferPtr()));
       log.debug("ioctl result: " + String.format("%08x", res.intValue()));
     } else {
-      log.debug("INVALID MESSAGE: " + message.getClass().toString());
+      log.debug("INVALID MESSAGE: " + message.getClass().getName());
     }
   }
 

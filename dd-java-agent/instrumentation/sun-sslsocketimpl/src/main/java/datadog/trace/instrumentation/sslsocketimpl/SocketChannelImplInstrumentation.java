@@ -32,7 +32,7 @@ public final class SocketChannelImplInstrumentation extends Instrumenter.Usm
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 
   private static final Logger log =
-      LoggerFactory.getLogger(SslSocketImplStreamsInstrumentation.class);
+      LoggerFactory.getLogger(SocketChannelImplInstrumentation.class);
 
   public SocketChannelImplInstrumentation() {
     super("nio-socketchannel", "socketchannel");
