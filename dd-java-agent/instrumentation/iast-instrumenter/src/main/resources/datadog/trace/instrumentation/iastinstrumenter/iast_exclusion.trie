@@ -183,9 +183,6 @@
 # https://github.com/spring-projects/spring-petclinic
 0 org.springframework.samples.*
 2 org.springframework.web.context.request.*
-2 org.springframework.web.util.WebUtils
-# Need for ServletRequestCallSite.getInputStream()
-2 org.springframework.http.server.*
 1 org.synchronoss.*
 1 org.terracotta.*
 1 org.testcontainers.*

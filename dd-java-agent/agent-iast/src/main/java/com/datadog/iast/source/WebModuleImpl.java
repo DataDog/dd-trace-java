@@ -21,9 +21,41 @@ public class WebModuleImpl implements WebModule {
   }
 
   @Override
+  public void onParameterName(
+      @Nullable final String paramName, @Nonnull final Object iastRequestContext) {
+    if (!(iastRequestContext instanceof IastRequestContext)) {
+      return;
+    }
+    final IastRequestContext ctx = (IastRequestContext) iastRequestContext;
+    if (!canBeTainted(paramName)) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    taintedObjects.taintInputString(
+        paramName, new Source(SourceTypes.REQUEST_PARAMETER_NAME, paramName, null));
+  }
+
+  @Override
   public void onParameterValue(
       @Nullable final String paramName, @Nullable final String paramValue) {
     onNamed(paramName, paramValue, SourceTypes.REQUEST_PARAMETER_VALUE);
+  }
+
+  @Override
+  public void onParameterValue(
+      @Nullable final String paramName,
+      @Nullable final String paramValue,
+      @Nonnull final Object iastRequestContext) {
+    if (!(iastRequestContext instanceof IastRequestContext)) {
+      return;
+    }
+    final IastRequestContext ctx = (IastRequestContext) iastRequestContext;
+    if (!canBeTainted(paramValue)) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    taintedObjects.taintInputString(
+        paramValue, new Source(SourceTypes.REQUEST_PARAMETER_VALUE, paramName, paramValue));
   }
 
   @Override
@@ -44,6 +76,16 @@ public class WebModuleImpl implements WebModule {
   }
 
   @Override
+  public void onHeaderName(@Nullable String name, @Nonnull Object iastRequestContext) {
+    if (!canBeTainted(name)) {
+      return;
+    }
+    ((IastRequestContext) iastRequestContext)
+        .getTaintedObjects()
+        .taintInputString(name, new Source(SourceTypes.REQUEST_HEADER_NAME, name, name));
+  }
+
+  @Override
   public void onHeaderNames(@Nullable final Collection<String> headerNames) {
     onNamed(headerNames, SourceTypes.REQUEST_HEADER_NAME);
   }
@@ -51,6 +93,19 @@ public class WebModuleImpl implements WebModule {
   @Override
   public void onHeaderValue(@Nullable final String headerName, @Nullable final String headerValue) {
     onNamed(headerName, headerValue, SourceTypes.REQUEST_HEADER_VALUE);
+  }
+
+  @Override
+  public void onHeaderValue(
+      final @Nullable String name,
+      final @Nullable String value,
+      final @Nonnull Object iastRequestContext) {
+    if (!canBeTainted(value)) {
+      return;
+    }
+    ((IastRequestContext) iastRequestContext)
+        .getTaintedObjects()
+        .taintInputString(value, new Source(SourceTypes.REQUEST_HEADER_VALUE, name, value));
   }
 
   @Override

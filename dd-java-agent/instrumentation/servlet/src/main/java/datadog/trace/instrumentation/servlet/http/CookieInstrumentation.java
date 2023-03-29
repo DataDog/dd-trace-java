@@ -40,34 +40,26 @@ public class CookieInstrumentation extends Instrumenter.Iast implements Instrume
   }
 
   public static class GetNameAdvice {
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterGetName(
         @Advice.This final Object self, @Advice.Return final String result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        try {
-          module.taintIfInputIsTainted(SourceTypes.REQUEST_COOKIE_NAME, result, result, self);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("afterGetName threw", e);
-        }
+        module.taintIfInputIsTainted(SourceTypes.REQUEST_COOKIE_NAME, result, result, self);
       }
     }
   }
 
   public static class GetValueAdvice {
 
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterGetValue(
         @Advice.This final Object self,
         @Advice.FieldValue("name") final String name,
         @Advice.Return final String result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        try {
-          module.taintIfInputIsTainted(SourceTypes.REQUEST_COOKIE_VALUE, name, result, self);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("getValue threw", e);
-        }
+        module.taintIfInputIsTainted(SourceTypes.REQUEST_COOKIE_VALUE, name, result, self);
       }
     }
   }

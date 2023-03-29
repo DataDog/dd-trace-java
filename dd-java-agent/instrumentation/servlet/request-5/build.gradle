@@ -9,7 +9,6 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'call-site-instrumentation'
 
 // jakarta.servlet-api dependencies are compiled with Java 11 and
 // the gradle muzzle tasks uses the JVM gradle is running with
@@ -42,6 +41,9 @@ task relocatedJavaxJar(type: ShadowJar) {
   include '**/BufferedReaderWrapper.class'
   include '**/ServletBlockingHelper.class'
   include '**/AbstractServletInputStreamWrapper.class'
+  include '**/HttpServletGetInputStreamAdvice.class'
+  include 'datadog/trace/instrumentation/servlet/request/*Advice.class'
+  include 'datadog/trace/instrumentation/servlet/request/TaintEnumerable*.class'
 
   includeEmptyDirs = false
 }
@@ -50,9 +52,11 @@ dependencies {
   implementation files(relocatedJavaxJar.outputs.files)
   compileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   testImplementation group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 
   javaxClassesToRelocate project(':dd-java-agent:instrumentation:servlet-common'), {
+    transitive = false
+  }
+  javaxClassesToRelocate project(':dd-java-agent:instrumentation:servlet'), {
     transitive = false
   }
   javaxClassesToRelocate project(':dd-java-agent:instrumentation:servlet:request-3'), {

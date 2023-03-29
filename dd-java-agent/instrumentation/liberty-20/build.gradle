@@ -45,7 +45,7 @@ dependencies {
   // use the above instead of:
   //  webappImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-3'))
   // because using testFixtures() causes some early evaluation of dependencies
-  webappRuntimeOnly deps.groovy
+  webappImplementation deps.groovy
 }
 compileWebappJava.dependsOn ':dd-java-agent:instrumentation:servlet:request-3:testFixturesJar'
 

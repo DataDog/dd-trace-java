@@ -275,8 +275,6 @@
 2 org.springframework.expression.*
 2 org.springframework.format.*
 2 org.springframework.http.*
-# Need for IAST: calls ServletRequest methods instrumented at callsite
-0 org.springframework.http.server.ServletServerHttpRequest
 # Need for IAST: we instrument these classes
 0 org.springframework.http.HttpHeaders
 0 org.springframework.http.ReadOnlyHttpHeaders
@@ -317,8 +315,7 @@
 0 org.springframework.web.context.support.XmlWebApplicationContext
 0 org.springframework.web.reactive.*
 0 org.springframework.web.servlet.*
-# Included for IAST
-0 org.springframework.web.util.WebUtils
+
 2 org.xml.*
 2 org.yaml.snakeyaml.*
 # saves ~0.5s skipping instrumentation of almost ~470 classes

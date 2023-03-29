@@ -253,6 +253,8 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
     then:
     1 * mod.onRequestPathParameter('id', '123', _)
+    _ * mod.onHeaderValue(_, _)
+    _ * mod.onQueryString(_)
     0 * mod._
 
     cleanup:
@@ -293,6 +295,8 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     1 * mod.onRequestMatrixParameter('var', 'x', _)
     1 * mod.onRequestMatrixParameter('var', 'y', _)
     1 * mod.onRequestMatrixParameter('var', 'z', _)
+    _ * mod.onHeaderValue(_, _)
+    _ * mod.onQueryString(_)
     0 * mod._
 
     cleanup:
