@@ -2,13 +2,19 @@ package datadog.trace.api.civisibility.events.impl;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.util.Strings.toJson;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DisableTestTrace;
 import datadog.trace.api.civisibility.CIConstants;
+import datadog.trace.api.civisibility.DDTest;
+import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.codeowners.Codeowners;
 import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
+import datadog.trace.api.civisibility.source.MethodLinesResolver;
+import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -17,6 +23,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.Strings;
 import java.lang.reflect.Method;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -35,6 +42,8 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
   private final ConcurrentMap<TestSuiteDescriptor, TestContext> testSuiteContexts =
       new ConcurrentHashMap<>();
+
+  private final ConcurrentMap<TestDescriptor, DDTest> inProgressTests = new ConcurrentHashMap<>();
 
   private final TestDecorator testDecorator;
 
@@ -234,47 +243,122 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       return;
     }
 
-    final AgentSpan span = startSpan(testDecorator.component() + ".test", null);
-    final AgentScope scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
+    //    final AgentSpan span = startSpan(testDecorator.component() + ".test", null);
+    //    final AgentScope scope = activateSpan(span);
+    //    scope.setAsyncPropagation(true);
+    //
+    //    testDecorator.afterTestStart(
+    //        span, testSuiteName, testName, testParameters, version, testClass, testMethod,
+    // categories);
+    //
+    //    // setting status here optimistically, will rewrite if failure is encountered
+    //    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_PASS);
 
-    testDecorator.afterTestStart(
-        span, testSuiteName, testName, testParameters, version, testClass, testMethod, categories);
+    TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
+    TestContext testSuiteContext = testSuiteContexts.get(testSuiteDescriptor);
 
-    // setting status here optimistically, will rewrite if failure is encountered
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_PASS);
+    Long sessionId = testModuleContext.getParentId();
+    long moduleId = testModuleContext.getId();
+    long suiteId = testSuiteContext.getId();
+
+    // FIXME ugly injection
+    String modulePath = testDecorator.getModulePath();
+    SourcePathResolver sourcePathResolver = testDecorator.getSourcePathResolver();
+    Codeowners codeowners = testDecorator.getCodeowners();
+    MethodLinesResolver methodLinesResolver = InstrumentationBridge.getMethodLinesResolver();
+    DDTest test =
+        new DDTestImpl(
+            sessionId,
+            moduleId,
+            suiteId,
+            modulePath,
+            testSuiteName,
+            testName,
+            null,
+            testClass,
+            testMethod,
+            Config.get(),
+            testDecorator,
+            sourcePathResolver,
+            methodLinesResolver,
+            codeowners);
+
+    if (testParameters != null) {
+      test.setTag(Tags.TEST_PARAMETERS, testParameters);
+    }
+    if (version != null) {
+      test.setTag(Tags.TEST_FRAMEWORK_VERSION, version);
+    }
+    if (categories != null && !categories.isEmpty()) {
+      String json = toJson(Collections.singletonMap("category", toJson(categories)), true);
+      test.setTag(Tags.TEST_TRAITS, json);
+    }
+
+    TestDescriptor testDescriptor = new TestDescriptor(testSuiteName, testClass, testName);
+    inProgressTests.put(testDescriptor, test);
   }
 
   @Override
-  public void onTestFinish(final String testSuiteName, final Class<?> testClass) {
+  public void onTestSkip(
+      String testSuiteName, Class<?> testClass, String testName, @Nullable String reason) {
+    TestDescriptor testDescriptor = new TestDescriptor(testSuiteName, testClass, testName);
+    DDTest test = inProgressTests.get(testDescriptor);
+    if (test == null) {
+      // FIXME log?
+      return;
+    }
+    test.setSkipReason(reason);
+  }
+
+  @Override
+  public void onTestFailure(
+      String testSuiteName, Class<?> testClass, String testName, @Nullable Throwable throwable) {
+    TestDescriptor testDescriptor = new TestDescriptor(testSuiteName, testClass, testName);
+    DDTest test = inProgressTests.get(testDescriptor);
+    if (test == null) {
+      // FIXME log?
+      return;
+    }
+    test.setErrorInfo(throwable);
+  }
+
+  @Override
+  public void onTestFinish(
+      final String testSuiteName, final Class<?> testClass, final String testName) {
     if (skipTrace(testClass)) {
       return;
     }
 
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (!isTestSpan(span)) {
+    //    final AgentSpan span = AgentTracer.activeSpan();
+    //    if (!isTestSpan(span)) {
+    //      return;
+    //    }
+    //
+    //    final AgentScope scope = AgentTracer.activeScope();
+    //    if (scope != null) {
+    //      scope.close();
+    //    }
+    //
+    //    beforeTestFinish(testSuiteName, testClass, span);
+    //    testDecorator.beforeFinish(span);
+    //    span.finish();
+
+    TestDescriptor testDescriptor = new TestDescriptor(testSuiteName, testClass, testName);
+    DDTest test = inProgressTests.remove(testDescriptor);
+    if (test == null) {
+      // FIXME log a debug message?
       return;
     }
 
-    final AgentScope scope = AgentTracer.activeScope();
-    if (scope != null) {
-      scope.close();
-    }
-
-    beforeTestFinish(testSuiteName, testClass, span);
-    testDecorator.beforeFinish(span);
-    span.finish();
+    String status = test.end(null);
+    beforeTestFinish(testSuiteName, testClass, status);
   }
 
-  private void beforeTestFinish(String testSuiteName, Class<?> testClass, AgentSpan span) {
+  // FIXME move to test
+  private void beforeTestFinish(String testSuiteName, Class<?> testClass, String testCaseStatus) {
     TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
     TestContext testSuiteContext = testSuiteContexts.get(testSuiteDescriptor);
     if (testSuiteContext != null) {
-      span.setTag(Tags.TEST_SUITE_ID, testSuiteContext.getId());
-      span.setTag(Tags.TEST_MODULE_ID, testModuleContext.getId());
-      span.setTag(Tags.TEST_SESSION_ID, testModuleContext.getParentId());
-
-      String testCaseStatus = (String) span.getTag(Tags.TEST_STATUS);
       testSuiteContext.reportChildStatus(testCaseStatus);
 
     } else {
@@ -296,20 +380,67 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       return;
     }
 
-    final AgentSpan span = startSpan("junit.test", null);
-    final AgentScope scope = activateSpan(span);
+    //    final AgentSpan span = startSpan("junit.test", null); // FIXME junit.test ?
+    //    final AgentScope scope = activateSpan(span);
+    //
+    //    testDecorator.afterTestStart(
+    //        span, testSuiteName, testName, testParameters, version, testClass, testMethod,
+    // categories);
+    //
+    //    onSkip(reason);
+    //
+    //    beforeTestFinish(testSuiteName, testClass, span);
+    //    testDecorator.beforeFinish(span);
+    //
+    //    scope.close();
+    //    // set duration to 1 ns, because duration==0 has a special treatment
+    //    span.finishWithDuration(1L);
 
-    testDecorator.afterTestStart(
-        span, testSuiteName, testName, testParameters, version, testClass, testMethod, categories);
+    // FIXME duplicates what is available in onTestStart
+    TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
+    TestContext testSuiteContext = testSuiteContexts.get(testSuiteDescriptor);
 
-    onSkip(reason);
+    Long sessionId = testModuleContext.getParentId();
+    long moduleId = testModuleContext.getId();
+    long suiteId = testSuiteContext.getId();
 
-    beforeTestFinish(testSuiteName, testClass, span);
-    testDecorator.beforeFinish(span);
+    // FIXME ugly injection
+    String modulePath = testDecorator.getModulePath();
+    SourcePathResolver sourcePathResolver = testDecorator.getSourcePathResolver();
+    Codeowners codeowners = testDecorator.getCodeowners();
+    MethodLinesResolver methodLinesResolver = InstrumentationBridge.getMethodLinesResolver();
+    DDTest test =
+        new DDTestImpl(
+            sessionId,
+            moduleId,
+            suiteId,
+            modulePath,
+            testSuiteName,
+            testName,
+            null,
+            testClass,
+            testMethod,
+            Config.get(),
+            testDecorator,
+            sourcePathResolver,
+            methodLinesResolver,
+            codeowners);
 
-    scope.close();
-    // set duration to 1 ns, because duration==0 has a special treatment
-    span.finishWithDuration(1L);
+    if (testParameters != null) {
+      test.setTag(Tags.TEST_PARAMETERS, testParameters);
+    }
+    if (version != null) {
+      test.setTag(Tags.TEST_FRAMEWORK_VERSION, version);
+    }
+    if (categories != null && !categories.isEmpty()) {
+      String json = toJson(Collections.singletonMap("category", toJson(categories)), true);
+      test.setTag(Tags.TEST_TRAITS, json);
+    }
+
+    test.setSkipReason(reason);
+
+    String status = test.end(null);
+    beforeTestFinish(testSuiteName, testClass, status);
   }
 
   @Override

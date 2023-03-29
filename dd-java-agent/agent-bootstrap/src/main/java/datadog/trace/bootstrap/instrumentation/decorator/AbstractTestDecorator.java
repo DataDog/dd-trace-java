@@ -9,14 +9,12 @@ import datadog.trace.api.civisibility.CIProviderInfo;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.codeowners.Codeowners;
 import datadog.trace.api.civisibility.decorator.TestDecorator;
-import datadog.trace.api.civisibility.source.MethodLinesResolver;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
@@ -157,7 +155,6 @@ public abstract class AbstractTestDecorator extends BaseDecorator implements Tes
     String resolvedModuleName = moduleName != null ? moduleName : modulePath;
     span.setResourceName(resolvedModuleName);
     span.setTag(Tags.TEST_MODULE, resolvedModuleName);
-    span.setTag(Tags.TEST_BUNDLE, resolvedModuleName);
     span.setTag(Tags.TEST_COMMAND, startCommand);
 
     // Version can be null. The testing framework version extraction is best-effort basis.
@@ -181,7 +178,6 @@ public abstract class AbstractTestDecorator extends BaseDecorator implements Tes
     span.setResourceName(testSuiteName);
     span.setTag(Tags.TEST_SUITE, testSuiteName);
     span.setTag(Tags.TEST_MODULE, modulePath);
-    span.setTag(Tags.TEST_BUNDLE, modulePath);
 
     // Version can be null. The testing framework version extraction is best-effort basis.
     if (version != null) {
@@ -205,71 +201,19 @@ public abstract class AbstractTestDecorator extends BaseDecorator implements Tes
     afterStart(span);
   }
 
+  // FIXME remove the getters below, this should be done differently
   @Override
-  public void afterTestStart(
-      final AgentSpan span,
-      final String testSuiteName,
-      final String testName,
-      final @Nullable String testParameters,
-      final @Nullable String version,
-      final @Nullable Class<?> testClass,
-      final @Nullable Method testMethod,
-      final @Nullable Collection<String> categories) {
-
-    span.setSpanType(InternalSpanTypes.TEST);
-    span.setTag(Tags.SPAN_KIND, testSpanKind());
-
-    span.setResourceName(testSuiteName + "." + testName);
-    span.setTag(Tags.TEST_NAME, testName);
-    span.setTag(Tags.TEST_SUITE, testSuiteName);
-    span.setTag(Tags.TEST_MODULE, modulePath);
-    span.setTag(Tags.TEST_BUNDLE, modulePath);
-
-    if (testParameters != null) {
-      span.setTag(Tags.TEST_PARAMETERS, testParameters);
-    }
-
-    // Version can be null. The testing framework version extraction is best-effort basis.
-    if (version != null) {
-      span.setTag(Tags.TEST_FRAMEWORK_VERSION, version);
-    }
-
-    if (categories != null && !categories.isEmpty()) {
-      span.setTag(
-          Tags.TEST_TRAITS, toJson(Collections.singletonMap("category", toJson(categories)), true));
-    }
-
-    if (Config.get().isCiVisibilitySourceDataEnabled()) {
-      populateSourceDataTags(span, testClass, testMethod);
-    }
-
-    afterStart(span);
+  public String getModulePath() {
+    return modulePath;
   }
 
-  private void populateSourceDataTags(AgentSpan span, Class<?> testClass, Method testMethod) {
-    if (testClass == null) {
-      return;
-    }
+  @Override
+  public SourcePathResolver getSourcePathResolver() {
+    return sourcePathResolver;
+  }
 
-    String sourcePath = sourcePathResolver.getSourcePath(testClass);
-    if (sourcePath == null || sourcePath.isEmpty()) {
-      return;
-    }
-
-    span.setTag(Tags.TEST_SOURCE_FILE, sourcePath);
-
-    if (testMethod != null) {
-      MethodLinesResolver methodLinesResolver = InstrumentationBridge.getMethodLinesResolver();
-      MethodLinesResolver.MethodLines testMethodLines = methodLinesResolver.getLines(testMethod);
-      if (testMethodLines.isValid()) {
-        span.setTag(Tags.TEST_SOURCE_START, testMethodLines.getStartLineNumber());
-        span.setTag(Tags.TEST_SOURCE_END, testMethodLines.getFinishLineNumber());
-      }
-    }
-
-    Collection<String> testCodeOwners = codeowners.getOwners(sourcePath);
-    if (testCodeOwners != null) {
-      span.setTag(Tags.TEST_CODEOWNERS, toJson(testCodeOwners));
-    }
+  @Override
+  public Codeowners getCodeowners() {
+    return codeowners;
   }
 }

@@ -174,7 +174,6 @@ abstract class TestFrameworkTest extends AgentTestRunner {
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_TEST_MODULE
         "$Tags.TEST_TYPE" TestDecorator.TEST_TYPE
         "$Tags.TEST_MODULE" resource ? resource : dummyModule
-        "$Tags.TEST_BUNDLE" resource ? resource : dummyModule
         "$Tags.TEST_FRAMEWORK" testFramework
         if (testFrameworkVersion) {
           "$Tags.TEST_FRAMEWORK_VERSION" testFrameworkVersion
@@ -243,7 +242,6 @@ abstract class TestFrameworkTest extends AgentTestRunner {
         "$Tags.TEST_TYPE" TestDecorator.TEST_TYPE
         "$Tags.TEST_MODULE_ID" testModuleId
         "$Tags.TEST_MODULE" dummyModule
-        "$Tags.TEST_BUNDLE" dummyModule
         "$Tags.TEST_SUITE" testSuite
         "$Tags.TEST_FRAMEWORK" testFramework
         if (testFrameworkVersion) {
@@ -318,7 +316,6 @@ abstract class TestFrameworkTest extends AgentTestRunner {
           "$Tags.TEST_SUITE_ID" testSuiteId
         }
         "$Tags.TEST_MODULE" dummyModule
-        "$Tags.TEST_BUNDLE" dummyModule
         "$Tags.TEST_SUITE" testSuite
         "$Tags.TEST_NAME" testName
         "$Tags.TEST_FRAMEWORK" testFramework

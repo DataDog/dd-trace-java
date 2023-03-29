@@ -144,19 +144,23 @@ public class TracingListener implements TestExecutionListener {
       return;
     }
 
-    Throwable throwable = testExecutionResult.getThrowable().orElse(null);
-    if (throwable != null) {
-      if (JUnit5Utils.isAssumptionFailure(throwable)) {
-        testEventsHandler.onSkip(throwable.getMessage());
-      } else {
-        testEventsHandler.onFailure(throwable);
-      }
-    }
-
     MethodSource methodSource = (MethodSource) testSource;
     String testSuiteName = methodSource.getClassName();
     Class<?> testClass = JUnit5Utils.getTestClass(methodSource);
-    testEventsHandler.onTestFinish(testSuiteName, testClass);
+    String testName = methodSource.getMethodName();
+
+    Throwable throwable = testExecutionResult.getThrowable().orElse(null);
+    if (throwable != null) {
+      if (JUnit5Utils.isAssumptionFailure(throwable)) {
+        //        testEventsHandler.onSkip(throwable.getMessage());
+        testEventsHandler.onTestSkip(testSuiteName, testClass, testName, throwable.getMessage());
+      } else {
+        //        testEventsHandler.onFailure(throwable);
+        testEventsHandler.onTestFailure(testSuiteName, testClass, testName, throwable);
+      }
+    }
+
+    testEventsHandler.onTestFinish(testSuiteName, testClass, testName);
   }
 
   @Override

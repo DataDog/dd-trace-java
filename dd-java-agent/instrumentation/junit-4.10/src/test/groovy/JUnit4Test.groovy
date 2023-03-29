@@ -126,7 +126,7 @@ class JUnit4Test extends TestFrameworkTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSkipped", CIConstants.TEST_SKIP)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null)
       }
     })
 
@@ -147,10 +147,10 @@ class JUnit4Test extends TestFrameworkTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSkippedClass", CIConstants.TEST_SKIP, testTags, null)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_class_another_skipped", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_class_another_skipped", CIConstants.TEST_SKIP, testTags, null)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_class_skipped", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_class_skipped", CIConstants.TEST_SKIP, testTags, null)
       }
     })
 
@@ -171,7 +171,7 @@ class JUnit4Test extends TestFrameworkTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSucceedAndSkipped", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null)
       }
       trace(1) {
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", CIConstants.TEST_PASS)
@@ -305,7 +305,7 @@ class JUnit4Test extends TestFrameworkTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSuiteSetUpAssumption", CIConstants.TEST_SKIP)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSuiteSetUpAssumption", "test_succeed", CIConstants.TEST_SKIP, null, null, true)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSuiteSetUpAssumption", "test_succeed", CIConstants.TEST_SKIP, null, null)
       }
     })
   }
@@ -352,7 +352,7 @@ class JUnit4Test extends TestFrameworkTest {
         testSpan(it, 0, testModuleId, firstSuiteId, "org.example.TestSucceed", "test_succeed", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null)
       }
       trace(1) {
         testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", CIConstants.TEST_PASS)

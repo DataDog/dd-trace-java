@@ -95,17 +95,22 @@ public class TracingListener extends TestNGClassListener
   public void onTestSuccess(final ITestResult result) {
     final String testSuiteName = result.getInstanceName();
     final Class<?> testClass = TestNGUtils.getTestClass(result);
-    testEventsHandler.onTestFinish(testSuiteName, testClass);
+    String testName =
+        (result.getTestName() != null) ? result.getTestName() : result.getMethod().getMethodName();
+    testEventsHandler.onTestFinish(testSuiteName, testClass, testName);
   }
 
   @Override
   public void onTestFailure(final ITestResult result) {
-    final Throwable throwable = result.getThrowable();
-    testEventsHandler.onFailure(throwable);
-
     final String testSuiteName = result.getInstanceName();
     final Class<?> testClass = TestNGUtils.getTestClass(result);
-    testEventsHandler.onTestFinish(testSuiteName, testClass);
+    String testName =
+        (result.getTestName() != null) ? result.getTestName() : result.getMethod().getMethodName();
+
+    final Throwable throwable = result.getThrowable();
+    testEventsHandler.onTestFailure(testSuiteName, testClass, testName, throwable);
+
+    testEventsHandler.onTestFinish(testSuiteName, testClass, testName);
   }
 
   @Override
@@ -115,13 +120,16 @@ public class TracingListener extends TestNGClassListener
 
   @Override
   public void onTestSkipped(final ITestResult result) {
+    final String testSuiteName = result.getInstanceName();
+    final Class<?> testClass = TestNGUtils.getTestClass(result);
+    String testName =
+        (result.getTestName() != null) ? result.getTestName() : result.getMethod().getMethodName();
+
     // Typically the way of skipping a TestNG test is throwing a SkipException
     Throwable throwable = result.getThrowable();
     String reason = throwable != null ? throwable.getMessage() : null;
-    testEventsHandler.onSkip(reason);
+    testEventsHandler.onTestSkip(testSuiteName, testClass, testName, reason);
 
-    final String testSuiteName = result.getInstanceName();
-    final Class<?> testClass = TestNGUtils.getTestClass(result);
-    testEventsHandler.onTestFinish(testSuiteName, testClass);
+    testEventsHandler.onTestFinish(testSuiteName, testClass, testName);
   }
 }

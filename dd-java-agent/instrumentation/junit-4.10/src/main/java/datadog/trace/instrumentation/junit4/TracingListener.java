@@ -83,13 +83,26 @@ public class TracingListener extends RunListener {
   public void testFinished(final Description description) {
     String testSuiteName = description.getClassName();
     Class<?> testClass = description.getTestClass();
-    testEventsHandler.onTestFinish(testSuiteName, testClass);
+    Method testMethod = JUnit4Utils.getTestMethod(description);
+    String testName = JUnit4Utils.getTestName(description, testMethod);
+    testEventsHandler.onTestFinish(testSuiteName, testClass, testName);
   }
 
   // same callback is executed both for test cases and test suites (for setup/teardown errors)
   @Override
   public void testFailure(final Failure failure) {
-    testEventsHandler.onFailure(failure.getException());
+    Description description = failure.getDescription();
+    if (JUnit4Utils.isTestSuiteDescription(description)) {
+      Throwable throwable = failure.getException();
+      testEventsHandler.onFailure(throwable);
+    } else {
+      String testSuiteName = description.getClassName();
+      Class<?> testClass = description.getTestClass();
+      Method testMethod = JUnit4Utils.getTestMethod(description);
+      String testName = JUnit4Utils.getTestName(description, testMethod);
+      Throwable throwable = failure.getException();
+      testEventsHandler.onTestFailure(testSuiteName, testClass, testName, throwable);
+    }
   }
 
   @Override
@@ -102,14 +115,21 @@ public class TracingListener extends RunListener {
       reason = null;
     }
 
-    testEventsHandler.onSkip(reason);
-
     Description description = failure.getDescription();
     if (JUnit4Utils.isTestSuiteDescription(description)) {
+      testEventsHandler.onSkip(reason);
+
       List<Method> testMethods = JUnit4Utils.getTestMethods(description.getTestClass());
       for (Method testMethod : testMethods) {
         testIgnored(description, testMethod, reason);
       }
+    } else {
+      String testSuiteName = description.getClassName();
+      Class<?> testClass = description.getTestClass();
+      Method testMethod = JUnit4Utils.getTestMethod(description);
+      String testName = JUnit4Utils.getTestName(description, testMethod);
+
+      testEventsHandler.onTestSkip(testSuiteName, testClass, testName, reason);
     }
   }
 

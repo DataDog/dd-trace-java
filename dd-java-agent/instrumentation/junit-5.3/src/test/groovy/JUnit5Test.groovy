@@ -218,7 +218,7 @@ class JUnit5Test extends TestFrameworkTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSkipped", CIConstants.TEST_SKIP)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null)
       }
     })
 
@@ -239,16 +239,16 @@ class JUnit5Test extends TestFrameworkTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSkippedClass", CIConstants.TEST_SKIP, testTags)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_case_skipped", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_case_skipped", CIConstants.TEST_SKIP, testTags, null)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_factory_skipped", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_factory_skipped", CIConstants.TEST_SKIP, testTags, null)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_parameterized_skipped", CIConstants.TEST_SKIP, parameterizedTestTags, null, true)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_parameterized_skipped", CIConstants.TEST_SKIP, parameterizedTestTags, null)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_repeated_skipped", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_repeated_skipped", CIConstants.TEST_SKIP, testTags, null)
       }
     })
 
@@ -312,7 +312,7 @@ class JUnit5Test extends TestFrameworkTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSucceedAndSkipped", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null)
       }
       trace(1) {
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", CIConstants.TEST_PASS)
@@ -425,7 +425,7 @@ class JUnit5Test extends TestFrameworkTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSuiteSetUpAssumption", CIConstants.TEST_SKIP, testTags)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSuiteSetUpAssumption", "test_succeed", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSuiteSetUpAssumption", "test_succeed", CIConstants.TEST_SKIP, testTags, null)
       }
     })
 
@@ -475,7 +475,7 @@ class JUnit5Test extends TestFrameworkTest {
         testSpan(it, 0, testModuleId, firstSuiteId, "org.example.TestSucceed", "test_succeed", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null)
       }
       trace(1) {
         testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", CIConstants.TEST_PASS)
@@ -556,10 +556,10 @@ class JUnit5Test extends TestFrameworkTest {
         nestedSuiteId = testSuiteSpan(it, 2, testModuleId, 'org.example.TestSkippedNested$NestedSuite', CIConstants.TEST_SKIP, testTags)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, nestedSuiteId, 'org.example.TestSkippedNested$NestedSuite', "test_succeed_nested", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, nestedSuiteId, 'org.example.TestSkippedNested$NestedSuite', "test_succeed_nested", CIConstants.TEST_SKIP, testTags, null)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, topLevelSuiteId, "org.example.TestSkippedNested", "test_succeed", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, topLevelSuiteId, "org.example.TestSkippedNested", "test_succeed", CIConstants.TEST_SKIP, testTags, null)
       }
     })
 
