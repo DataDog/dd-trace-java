@@ -27,6 +27,8 @@ public interface PropagationModule extends IastModule {
   void taintIfInputIsTainted(
       byte origin, @Nullable List<Map.Entry<String, String>> toTaint, @Nullable Object input);
 
+  void taintIfAnyInputIsTainted(@Nullable Object toTaint, @Nullable Object... inputs);
+
   void taint(byte origin, @Nullable Object... toTaint);
 
   void taint(byte origin, @Nullable Collection<Object> toTaint);
