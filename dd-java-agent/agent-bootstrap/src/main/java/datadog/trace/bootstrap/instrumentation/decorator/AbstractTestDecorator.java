@@ -1,8 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static datadog.trace.util.Strings.toJson;
-
-import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.CIInfo;
 import datadog.trace.api.civisibility.CIProviderInfo;
@@ -17,8 +14,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Map;
 import javax.annotation.Nullable;
 
@@ -50,14 +45,6 @@ public abstract class AbstractTestDecorator extends BaseDecorator implements Tes
 
   protected String testType() {
     return TEST_TYPE;
-  }
-
-  protected String testSpanKind() {
-    return Tags.SPAN_KIND_TEST;
-  }
-
-  protected String testSuiteSpanKind() {
-    return Tags.SPAN_KIND_TEST_SUITE;
   }
 
   protected String testModuleSpanKind() {
@@ -165,43 +152,7 @@ public abstract class AbstractTestDecorator extends BaseDecorator implements Tes
     afterStart(span);
   }
 
-  @Override
-  public void afterTestSuiteStart(
-      final AgentSpan span,
-      final String testSuiteName,
-      final @Nullable Class<?> testClass,
-      final @Nullable String version,
-      final @Nullable Collection<String> categories) {
-    span.setSpanType(InternalSpanTypes.TEST_SUITE_END);
-    span.setTag(Tags.SPAN_KIND, testSuiteSpanKind());
-
-    span.setResourceName(testSuiteName);
-    span.setTag(Tags.TEST_SUITE, testSuiteName);
-    span.setTag(Tags.TEST_MODULE, modulePath);
-
-    // Version can be null. The testing framework version extraction is best-effort basis.
-    if (version != null) {
-      span.setTag(Tags.TEST_FRAMEWORK_VERSION, version);
-    }
-
-    if (categories != null && !categories.isEmpty()) {
-      span.setTag(
-          Tags.TEST_TRAITS, toJson(Collections.singletonMap("category", toJson(categories)), true));
-    }
-
-    if (testClass != null) {
-      if (Config.get().isCiVisibilitySourceDataEnabled()) {
-        String sourcePath = sourcePathResolver.getSourcePath(testClass);
-        if (sourcePath != null && !sourcePath.isEmpty()) {
-          span.setTag(Tags.TEST_SOURCE_FILE, sourcePath);
-        }
-      }
-    }
-
-    afterStart(span);
-  }
-
-  // FIXME remove the getters below, this should be done differently
+  // FIXME remove the getters below, this should be done differently....
   @Override
   public String getModulePath() {
     return modulePath;

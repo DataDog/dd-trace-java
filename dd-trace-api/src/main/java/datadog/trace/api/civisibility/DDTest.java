@@ -14,6 +14,5 @@ public interface DDTest {
 
   void setSkipReason(String skipReason);
 
-  // FIXME either it should not return status at all, or should use an enum
-  String end(@Nullable Long endTime);
+  void end(@Nullable Long endTime);
 }

@@ -20,11 +20,9 @@ public interface TestEventsHandler {
 
   void onTestSuiteFinish(String testSuiteName, @Nullable Class<?> testClass);
 
-  // FIXME rename to onTestSuiteSkip
-  void onSkip(@Nullable String reason);
+  void onTestSuiteSkip(String testSuiteName, Class<?> testClass, @Nullable String reason);
 
-  // FIXME rename to onTestSuiteFailure
-  void onFailure(@Nullable Throwable throwable);
+  void onTestSuiteFailure(String testSuiteName, Class<?> testClass, @Nullable Throwable throwable);
 
   void onTestStart(
       String testSuiteName,

@@ -91,25 +91,26 @@ public class TracingListener implements TestExecutionListener {
       return;
     }
 
+    Class<?> testClass = JUnit5Utils.getJavaClass(testIdentifier);
+    String testSuiteName =
+        testClass != null ? testClass.getName() : testIdentifier.getLegacyReportingName();
+
     Throwable throwable = testExecutionResult.getThrowable().orElse(null);
     if (throwable != null) {
       if (JUnit5Utils.isAssumptionFailure(throwable)) {
 
         String reason = throwable.getMessage();
-        testEventsHandler.onSkip(reason);
+        testEventsHandler.onTestSuiteSkip(testSuiteName, testClass, reason);
 
         for (TestIdentifier child : testPlan.getChildren(testIdentifier)) {
           executionSkipped(child, reason);
         }
 
       } else {
-        testEventsHandler.onFailure(throwable);
+        testEventsHandler.onTestSuiteFailure(testSuiteName, testClass, throwable);
       }
     }
 
-    Class<?> testClass = JUnit5Utils.getJavaClass(testIdentifier);
-    String testSuiteName =
-        testClass != null ? testClass.getName() : testIdentifier.getLegacyReportingName();
     testEventsHandler.onTestSuiteFinish(testSuiteName, testClass);
   }
 
@@ -186,7 +187,7 @@ public class TracingListener implements TestExecutionListener {
         testIdentifier.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
 
     testEventsHandler.onTestSuiteStart(testSuiteName, testClass, version, tags);
-    testEventsHandler.onSkip(reason);
+    testEventsHandler.onTestSuiteSkip(testSuiteName, testClass, reason);
 
     for (TestIdentifier child : testPlan.getChildren(testIdentifier)) {
       executionSkipped(child, reason);

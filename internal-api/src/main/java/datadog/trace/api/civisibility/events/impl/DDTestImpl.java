@@ -24,10 +24,12 @@ import javax.annotation.Nullable;
 public class DDTestImpl implements DDTest {
 
   private final AgentSpan span;
+  private final TestContext suiteContext;
   private final TestDecorator testDecorator;
 
   public DDTestImpl(
-      Long sessionId,
+      TestContext suiteContext,
+      Long sessionId, // FIXME remove extra arguments?
       Long moduleId,
       Long suiteId,
       String modulePath,
@@ -41,6 +43,7 @@ public class DDTestImpl implements DDTest {
       SourcePathResolver sourcePathResolver,
       MethodLinesResolver methodLinesResolver,
       Codeowners codeowners) {
+    this.suiteContext = suiteContext;
     if (startTime != null) {
       span = startSpan(testDecorator.component() + ".test", null, startTime);
     } else {
@@ -127,7 +130,7 @@ public class DDTestImpl implements DDTest {
   }
 
   @Override
-  public String end(@Nullable Long endTime) {
+  public void end(@Nullable Long endTime) {
     final AgentScope scope = AgentTracer.activeScope();
     if (scope == null) {
       throw new IllegalStateException(
@@ -146,8 +149,8 @@ public class DDTestImpl implements DDTest {
 
     scope.close();
 
-    // FIXME report status to test suite (see
-    // datadog.trace.api.civisibility.events.impl.TestEventsHandlerImpl.beforeTestFinish)
+    String status = (String) span.getTag(Tags.TEST_STATUS);
+    suiteContext.reportChildStatus(status);
 
     testDecorator.beforeFinish(span);
 
@@ -156,7 +159,5 @@ public class DDTestImpl implements DDTest {
     } else {
       span.finish();
     }
-
-    return (String) span.getTag(Tags.TEST_STATUS);
   }
 }

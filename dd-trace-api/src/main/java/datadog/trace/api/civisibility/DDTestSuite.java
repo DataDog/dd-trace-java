@@ -1,5 +1,6 @@
 package datadog.trace.api.civisibility;
 
+import java.lang.reflect.Method;
 import javax.annotation.Nullable;
 
 // FIXME add Javadoc
@@ -12,9 +13,9 @@ public interface DDTestSuite {
 
   void setErrorInfo(Throwable error);
 
-  void setSkipReason(String skipReason);
+  void setSkipReason(String skipReason); // FIXME should not be returning status ????
 
   void end(@Nullable Long endTime);
 
-  DDTest testStart(String testName, @Nullable Long startTime);
+  DDTest testStart(String testName, @Nullable Method testMethod, @Nullable Long startTime);
 }

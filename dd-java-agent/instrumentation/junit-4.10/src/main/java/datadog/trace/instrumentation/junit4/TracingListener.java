@@ -92,12 +92,12 @@ public class TracingListener extends RunListener {
   @Override
   public void testFailure(final Failure failure) {
     Description description = failure.getDescription();
+    String testSuiteName = description.getClassName();
+    Class<?> testClass = description.getTestClass();
     if (JUnit4Utils.isTestSuiteDescription(description)) {
       Throwable throwable = failure.getException();
-      testEventsHandler.onFailure(throwable);
+      testEventsHandler.onTestSuiteFailure(testSuiteName, testClass, throwable);
     } else {
-      String testSuiteName = description.getClassName();
-      Class<?> testClass = description.getTestClass();
       Method testMethod = JUnit4Utils.getTestMethod(description);
       String testName = JUnit4Utils.getTestName(description, testMethod);
       Throwable throwable = failure.getException();
@@ -116,16 +116,17 @@ public class TracingListener extends RunListener {
     }
 
     Description description = failure.getDescription();
+    String testSuiteName = description.getClassName();
+    Class<?> testClass = description.getTestClass();
+
     if (JUnit4Utils.isTestSuiteDescription(description)) {
-      testEventsHandler.onSkip(reason);
+      testEventsHandler.onTestSuiteSkip(testSuiteName, testClass, reason);
 
       List<Method> testMethods = JUnit4Utils.getTestMethods(description.getTestClass());
       for (Method testMethod : testMethods) {
         testIgnored(description, testMethod, reason);
       }
     } else {
-      String testSuiteName = description.getClassName();
-      Class<?> testClass = description.getTestClass();
       Method testMethod = JUnit4Utils.getTestMethod(description);
       String testName = JUnit4Utils.getTestName(description, testMethod);
 
@@ -144,23 +145,24 @@ public class TracingListener extends RunListener {
 
     } else if (JUnit4Utils.isTestSuiteDescription(description)) {
 
+      Class<?> testClass = description.getTestClass();
+      String testSuiteName = testClass.getName();
+
       if (testEventsHandler.isTestSuiteInProgress()) {
         // if assumption fails during suite setup,
         // JUnit will call testIgnored instead of testAssumptionFailure
 
-        testEventsHandler.onSkip(reason);
+        testEventsHandler.onTestSuiteSkip(testSuiteName, testClass, reason);
         List<Method> testMethods = JUnit4Utils.getTestMethods(description.getTestClass());
         for (Method testMethod : testMethods) {
           testIgnored(description, testMethod, reason);
         }
 
       } else {
-        Class<?> testClass = description.getTestClass();
-        String testSuiteName = testClass.getName();
         List<String> categories = JUnit4Utils.getCategories(testClass, null);
 
         testEventsHandler.onTestSuiteStart(testSuiteName, testClass, version, categories);
-        testEventsHandler.onSkip(reason);
+        testEventsHandler.onTestSuiteSkip(testSuiteName, testClass, reason);
 
         List<Method> testMethods = JUnit4Utils.getTestMethods(testClass);
         for (Method testMethod : testMethods) {

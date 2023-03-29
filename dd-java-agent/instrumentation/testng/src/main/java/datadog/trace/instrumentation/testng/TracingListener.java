@@ -68,7 +68,9 @@ public class TracingListener extends TestNGClassListener
   @Override
   public void onConfigurationFailure(ITestResult result) {
     // suite setup or suite teardown failed
-    testEventsHandler.onFailure(result.getThrowable());
+    String testSuiteName = result.getInstanceName();
+    Class<?> testClass = TestNGUtils.getTestClass(result);
+    testEventsHandler.onTestSuiteFailure(testSuiteName, testClass, result.getThrowable());
   }
 
   @Override

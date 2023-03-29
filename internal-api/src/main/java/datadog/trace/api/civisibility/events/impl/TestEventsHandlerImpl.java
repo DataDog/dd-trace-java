@@ -1,22 +1,17 @@
 package datadog.trace.api.civisibility.events.impl;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.util.Strings.toJson;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DisableTestTrace;
-import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
-import datadog.trace.api.civisibility.InstrumentationBridge;
-import datadog.trace.api.civisibility.codeowners.Codeowners;
+import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
-import datadog.trace.api.civisibility.source.MethodLinesResolver;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.api.config.CiVisibilityConfig;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -40,7 +35,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   private final ConcurrentMap<TestSuiteDescriptor, Integer> testSuiteNestedCallCounters =
       new ConcurrentHashMap<>();
 
-  private final ConcurrentMap<TestSuiteDescriptor, TestContext> testSuiteContexts =
+  private final ConcurrentMap<TestSuiteDescriptor, DDTestSuite> inProgressTestSuites =
       new ConcurrentHashMap<>();
 
   private final ConcurrentMap<TestDescriptor, DDTest> inProgressTests = new ConcurrentHashMap<>();
@@ -128,17 +123,32 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       return;
     }
 
-    AgentSpan moduleSpan = testModuleContext.getSpan();
-    AgentSpan.Context moduleSpanContext = moduleSpan != null ? moduleSpan.context() : null;
+    // FIXME ugly injection
+    String modulePath = testDecorator.getModulePath();
+    SourcePathResolver sourcePathResolver = testDecorator.getSourcePathResolver();
 
-    final AgentSpan span = startSpan(testDecorator.component() + ".test_suite", moduleSpanContext);
-    final AgentScope scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
+    DDTestSuite testSuite =
+        new DDTestSuiteImpl(
+            testModuleContext,
+            modulePath,
+            testSuiteName,
+            testClass,
+            null,
+            Config.get(),
+            testDecorator,
+            sourcePathResolver);
 
-    TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    testSuiteContexts.put(testSuiteDescriptor, new SpanTestContext(span));
+    if (version != null) {
+      testSuite.setTag(Tags.TEST_FRAMEWORK_VERSION, version);
+    }
 
-    testDecorator.afterTestSuiteStart(span, testSuiteName, testClass, version, categories);
+    if (categories != null && !categories.isEmpty()) {
+      testSuite.setTag(
+          Tags.TEST_TRAITS, toJson(Collections.singletonMap("category", toJson(categories)), true));
+    }
+
+    TestSuiteDescriptor descriptor = new TestSuiteDescriptor(testSuiteName, testClass);
+    inProgressTestSuites.put(descriptor, testSuite);
   }
 
   @Override
@@ -151,28 +161,9 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       return;
     }
 
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (!isTestSuiteSpan(AgentTracer.activeSpan())) {
-      return;
-    }
-
-    final AgentScope scope = AgentTracer.activeScope();
-    if (scope != null) {
-      scope.close();
-    }
-
     TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    TestContext testSuiteContext = testSuiteContexts.remove(testSuiteDescriptor);
-
-    span.setTag(Tags.TEST_STATUS, testSuiteContext.getStatus());
-    testModuleContext.reportChildStatus(testSuiteContext.getStatus());
-
-    span.setTag(Tags.TEST_SUITE_ID, testSuiteContext.getId());
-    span.setTag(Tags.TEST_MODULE_ID, testModuleContext.getId());
-    span.setTag(Tags.TEST_SESSION_ID, testModuleContext.getParentId());
-
-    testDecorator.beforeFinish(span);
-    span.finish();
+    DDTestSuite testSuite = inProgressTestSuites.remove(testSuiteDescriptor);
+    testSuite.end(null);
   }
 
   private boolean tryTestSuiteStart(String testSuiteName, Class<?> testClass) {
@@ -195,33 +186,26 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   }
 
   @Override
-  public void onSkip(final @Nullable String reason) {
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (!isTestSuiteSpan(span) && !isTestSpan(span)) {
+  public void onTestSuiteSkip(String testSuiteName, Class<?> testClass, @Nullable String reason) {
+    TestSuiteDescriptor descriptor = new TestSuiteDescriptor(testSuiteName, testClass);
+    DDTestSuite testSuite = inProgressTestSuites.get(descriptor);
+    if (testSuite == null) {
+      // FIXME log?
       return;
     }
-
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
-
-    if (reason != null) {
-      span.setTag(Tags.TEST_SKIP_REASON, reason);
-    }
+    testSuite.setSkipReason(reason);
   }
 
   @Override
-  public void onFailure(final @Nullable Throwable throwable) {
-    if (throwable == null) {
+  public void onTestSuiteFailure(
+      String testSuiteName, Class<?> testClass, @Nullable Throwable throwable) {
+    TestSuiteDescriptor descriptor = new TestSuiteDescriptor(testSuiteName, testClass);
+    DDTestSuite testSuite = inProgressTestSuites.get(descriptor);
+    if (testSuite == null) {
+      // FIXME log?
       return;
     }
-
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (!isTestSuiteSpan(span) && !isTestSpan(span)) {
-      return;
-    }
-
-    span.setError(true);
-    span.addThrowable(throwable);
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_FAIL);
+    testSuite.setErrorInfo(throwable);
   }
 
   @Override
@@ -237,51 +221,9 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       return;
     }
 
-    // If there is an active span that represents a test
-    // we don't want to generate another child test span.
-    if (isTestSpan(AgentTracer.activeSpan())) {
-      return;
-    }
-
-    //    final AgentSpan span = startSpan(testDecorator.component() + ".test", null);
-    //    final AgentScope scope = activateSpan(span);
-    //    scope.setAsyncPropagation(true);
-    //
-    //    testDecorator.afterTestStart(
-    //        span, testSuiteName, testName, testParameters, version, testClass, testMethod,
-    // categories);
-    //
-    //    // setting status here optimistically, will rewrite if failure is encountered
-    //    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_PASS);
-
     TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    TestContext testSuiteContext = testSuiteContexts.get(testSuiteDescriptor);
-
-    Long sessionId = testModuleContext.getParentId();
-    long moduleId = testModuleContext.getId();
-    long suiteId = testSuiteContext.getId();
-
-    // FIXME ugly injection
-    String modulePath = testDecorator.getModulePath();
-    SourcePathResolver sourcePathResolver = testDecorator.getSourcePathResolver();
-    Codeowners codeowners = testDecorator.getCodeowners();
-    MethodLinesResolver methodLinesResolver = InstrumentationBridge.getMethodLinesResolver();
-    DDTest test =
-        new DDTestImpl(
-            sessionId,
-            moduleId,
-            suiteId,
-            modulePath,
-            testSuiteName,
-            testName,
-            null,
-            testClass,
-            testMethod,
-            Config.get(),
-            testDecorator,
-            sourcePathResolver,
-            methodLinesResolver,
-            codeowners);
+    DDTestSuite testSuite = inProgressTestSuites.get(testSuiteDescriptor);
+    DDTest test = testSuite.testStart(testName, testMethod, null);
 
     if (testParameters != null) {
       test.setTag(Tags.TEST_PARAMETERS, testParameters);
@@ -329,41 +271,13 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       return;
     }
 
-    //    final AgentSpan span = AgentTracer.activeSpan();
-    //    if (!isTestSpan(span)) {
-    //      return;
-    //    }
-    //
-    //    final AgentScope scope = AgentTracer.activeScope();
-    //    if (scope != null) {
-    //      scope.close();
-    //    }
-    //
-    //    beforeTestFinish(testSuiteName, testClass, span);
-    //    testDecorator.beforeFinish(span);
-    //    span.finish();
-
     TestDescriptor testDescriptor = new TestDescriptor(testSuiteName, testClass, testName);
     DDTest test = inProgressTests.remove(testDescriptor);
     if (test == null) {
       // FIXME log a debug message?
       return;
     }
-
-    String status = test.end(null);
-    beforeTestFinish(testSuiteName, testClass, status);
-  }
-
-  // FIXME move to test
-  private void beforeTestFinish(String testSuiteName, Class<?> testClass, String testCaseStatus) {
-    TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    TestContext testSuiteContext = testSuiteContexts.get(testSuiteDescriptor);
-    if (testSuiteContext != null) {
-      testSuiteContext.reportChildStatus(testCaseStatus);
-
-    } else {
-      log.debug("Could not find test suite for name {} and class {}", testSuiteName, testClass);
-    }
+    test.end(null);
   }
 
   @Override
@@ -380,51 +294,10 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       return;
     }
 
-    //    final AgentSpan span = startSpan("junit.test", null); // FIXME junit.test ?
-    //    final AgentScope scope = activateSpan(span);
-    //
-    //    testDecorator.afterTestStart(
-    //        span, testSuiteName, testName, testParameters, version, testClass, testMethod,
-    // categories);
-    //
-    //    onSkip(reason);
-    //
-    //    beforeTestFinish(testSuiteName, testClass, span);
-    //    testDecorator.beforeFinish(span);
-    //
-    //    scope.close();
-    //    // set duration to 1 ns, because duration==0 has a special treatment
-    //    span.finishWithDuration(1L);
-
     // FIXME duplicates what is available in onTestStart
     TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    TestContext testSuiteContext = testSuiteContexts.get(testSuiteDescriptor);
-
-    Long sessionId = testModuleContext.getParentId();
-    long moduleId = testModuleContext.getId();
-    long suiteId = testSuiteContext.getId();
-
-    // FIXME ugly injection
-    String modulePath = testDecorator.getModulePath();
-    SourcePathResolver sourcePathResolver = testDecorator.getSourcePathResolver();
-    Codeowners codeowners = testDecorator.getCodeowners();
-    MethodLinesResolver methodLinesResolver = InstrumentationBridge.getMethodLinesResolver();
-    DDTest test =
-        new DDTestImpl(
-            sessionId,
-            moduleId,
-            suiteId,
-            modulePath,
-            testSuiteName,
-            testName,
-            null,
-            testClass,
-            testMethod,
-            Config.get(),
-            testDecorator,
-            sourcePathResolver,
-            methodLinesResolver,
-            codeowners);
+    DDTestSuite testSuite = inProgressTestSuites.get(testSuiteDescriptor);
+    DDTest test = testSuite.testStart(testName, testMethod, null);
 
     if (testParameters != null) {
       test.setTag(Tags.TEST_PARAMETERS, testParameters);
@@ -439,8 +312,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
     test.setSkipReason(reason);
 
-    String status = test.end(null);
-    beforeTestFinish(testSuiteName, testClass, status);
+    test.end(null);
   }
 
   @Override
