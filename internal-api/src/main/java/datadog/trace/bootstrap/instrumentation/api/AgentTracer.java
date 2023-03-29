@@ -330,7 +330,7 @@ public class AgentTracer {
 
     @Override
     public DataStreamsCheckpointer getDataStreamsCheckpointer() {
-      return null;
+      return this;
     }
 
     @Override
