@@ -12,8 +12,7 @@ public class DataStreamsContextCarrierAdapter
   public static final DataStreamsContextCarrierAdapter INSTANCE =
       new DataStreamsContextCarrierAdapter();
 
-  private  DataStreamsContextCarrierAdapter(){
-  }
+  private DataStreamsContextCarrierAdapter() {}
 
   @Override
   public void set(DataStreamsContextCarrier carrier, String key, String value) {

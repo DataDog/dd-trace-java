@@ -49,7 +49,6 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
 
   def "Context carrier adapter test"() {
     given:
-    def adapter = new DataStreamsContextCarrierAdapter()
     def carrier = new CustomContextCarrier()
     def keyName = "keyName"
     def keyValue = "keyValue"
