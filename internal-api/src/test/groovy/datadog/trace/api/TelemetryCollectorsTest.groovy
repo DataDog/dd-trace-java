@@ -103,33 +103,6 @@ class TelemetryCollectorsTest extends DDSpecification {
     requestBlockedMetric.counter == 1
     requestBlockedMetric.triggered        // true
     requestBlockedMetric.blocked          // true
-
-
-    //    def init = (MetricCollector.WafInitRawMetric)metrics[0]
-    //    init.counter == 1
-    //    init.wafVersion == 'waf_ver1'
-    //    init.rulesVersion == 'rules.1'
-
-    //metrics[0] == new MetricCollector.WafInitRawMetric(1, 'waf_ver1', 'rules.1')
-    //metrics[0] == new MetricCollector.WafInitRawMetric(counter: 1, wafVersion: 'waf_ver1', rulesVersion: 'rules.1')
-
-
-    //            == [MetricCollector.WafInitRawMetric
-    //                                      [
-    //                    'metricName': 'waf.init',
-    //                    'namespace': 'appsec',
-    //                    'wafVersion': 'waf_ver1',
-    //                    'rulesVersion': 'rules.1',
-    //                    'counter': 1
-    //            ]
-    //    ]
-
-    //    wafVersion = "waf_ver1"
-    //    rulesVersion = "rules.1"
-    //    metricName = "waf.init"
-    //    timestamp = 1680081130462
-    //    counter = 1
-    //    namespace = "appsec"
   }
 
   def "hide pii configuration data"() {
