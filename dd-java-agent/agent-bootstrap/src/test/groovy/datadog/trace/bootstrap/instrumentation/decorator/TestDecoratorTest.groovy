@@ -2,12 +2,8 @@ package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.trace.api.DDTags
 import datadog.trace.api.civisibility.CIInfo
-import datadog.trace.api.civisibility.CIProviderInfo
 import datadog.trace.api.civisibility.CITagsProvider
 import datadog.trace.api.civisibility.InstrumentationBridge
-import datadog.trace.api.civisibility.codeowners.Codeowners
-import datadog.trace.api.civisibility.source.MethodLinesResolver
-import datadog.trace.api.civisibility.source.SourcePathResolver
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -65,23 +61,11 @@ class TestDecoratorTest extends BaseDecoratorTest {
     def ciInfo = Stub(CIInfo)
     ciInfo.ciWorkspace >> rootPath.toString()
 
-    def ciProviderInfo = Stub(CIProviderInfo)
-    ciProviderInfo.buildCIInfo() >> ciInfo
-    InstrumentationBridge.setCIProviderInfoFactory({ path -> ciProviderInfo })
-
     def ciTagsProvider = Stub(CITagsProvider)
     ciTagsProvider.getCiTags(_) >> ["sample-ci-key": "sample-ci-value"]
     InstrumentationBridge.ciTagsProvider = ciTagsProvider
 
-    def codeowners = Stub(Codeowners)
-    InstrumentationBridge.codeownersFactory = { repoRoot -> codeowners }
-
-    def sourcePathResolver = Stub(SourcePathResolver)
-    InstrumentationBridge.sourcePathResolverFactory = { repoRoot -> sourcePathResolver }
-
-    InstrumentationBridge.methodLinesResolver = Stub(MethodLinesResolver)
-
-    return new TestDecoratorImpl(currentPath) {
+    return new AbstractTestDecorator(currentPath) {
         @Override
         protected String testFramework() {
           return "test-framework"

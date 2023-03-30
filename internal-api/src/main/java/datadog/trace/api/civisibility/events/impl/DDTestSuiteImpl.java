@@ -7,7 +7,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestSuite;
-import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.codeowners.Codeowners;
 import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.source.MethodLinesResolver;
@@ -20,26 +19,41 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.lang.reflect.Method;
 import javax.annotation.Nullable;
 
+// FIXME move to agent ci-visibility if possible?
 public class DDTestSuiteImpl implements DDTestSuite {
 
+  private final String moduleName;
+  private final String testSuiteName;
+  private final Class<?> testClass;
   private final AgentSpan span;
   private final TestContext context;
   private final TestContext moduleContext;
-  private final Class<?> testClass;
+  private final Config config;
   private final TestDecorator testDecorator;
+  private final SourcePathResolver sourcePathResolver;
+  private final Codeowners codeowners;
+  private final MethodLinesResolver methodLinesResolver;
 
   public DDTestSuiteImpl(
       TestContext moduleContext,
-      String modulePath,
+      String moduleName,
       String testSuiteName,
-      Class<?> testClass,
+      @Nullable Class<?> testClass,
       @Nullable Long startTime,
       Config config,
       TestDecorator testDecorator,
-      SourcePathResolver sourcePathResolver) {
-    this.testDecorator = testDecorator;
-
+      SourcePathResolver sourcePathResolver,
+      Codeowners codeowners,
+      MethodLinesResolver methodLinesResolver) {
+    this.moduleName = moduleName;
     this.moduleContext = moduleContext;
+    this.testSuiteName = testSuiteName;
+    this.config = config;
+    this.testDecorator = testDecorator;
+    this.sourcePathResolver = sourcePathResolver;
+    this.codeowners = codeowners;
+    this.methodLinesResolver = methodLinesResolver;
+
     AgentSpan moduleSpan = this.moduleContext.getSpan();
     AgentSpan.Context moduleSpanContext = moduleSpan != null ? moduleSpan.context() : null;
 
@@ -56,7 +70,7 @@ public class DDTestSuiteImpl implements DDTestSuite {
 
     span.setResourceName(testSuiteName);
     span.setTag(Tags.TEST_SUITE, testSuiteName);
-    span.setTag(Tags.TEST_MODULE, modulePath);
+    span.setTag(Tags.TEST_MODULE, moduleName);
 
     span.setTag(Tags.TEST_SUITE_ID, context.getId());
     span.setTag(Tags.TEST_MODULE_ID, moduleContext.getId());
@@ -78,9 +92,6 @@ public class DDTestSuiteImpl implements DDTestSuite {
     scope.setAsyncPropagation(true);
   }
 
-  // FIXME move setTag / setErrorInfo / setSkipReason to a common superclass? (they're the same in
-  // test, and probably module/session too)
-
   @Override
   public void setTag(String key, Object value) {
     span.setTag(key, value);
@@ -96,13 +107,10 @@ public class DDTestSuiteImpl implements DDTestSuite {
   @Override
   public void setSkipReason(String skipReason) {
     span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
-
     if (skipReason != null) {
       span.setTag(Tags.TEST_SKIP_REASON, skipReason);
     }
   }
-
-  // FIXME also end??? common for test / suite / module, etc
 
   @Override
   public void end(@Nullable Long endTime) {
@@ -139,26 +147,16 @@ public class DDTestSuiteImpl implements DDTestSuite {
 
   @Override
   public DDTest testStart(String testName, @Nullable Method testMethod, @Nullable Long startTime) {
-    long suiteId = span.getSpanId();
-    Long moduleId = (Long) span.getTag(Tags.TEST_MODULE_ID);
-    Long sessionId = (Long) span.getTag(Tags.TEST_SESSION_ID);
-
-    // FIXME ugly injection
-    SourcePathResolver sourcePathResolver = testDecorator.getSourcePathResolver();
-    Codeowners codeowners = testDecorator.getCodeowners();
-    MethodLinesResolver methodLinesResolver = InstrumentationBridge.getMethodLinesResolver();
     return new DDTestImpl(
         context,
-        sessionId,
-        moduleId,
-        suiteId,
-        (String) span.getTag(Tags.TEST_MODULE),
-        (String) span.getTag(Tags.TEST_SUITE),
+        moduleContext,
+        moduleName,
+        testSuiteName,
         testName,
         startTime,
         testClass,
         testMethod,
-        Config.get(), // use config of this suite
+        config,
         testDecorator,
         sourcePathResolver,
         methodLinesResolver,

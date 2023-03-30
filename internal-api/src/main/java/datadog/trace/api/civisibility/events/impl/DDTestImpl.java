@@ -29,10 +29,8 @@ public class DDTestImpl implements DDTest {
 
   public DDTestImpl(
       TestContext suiteContext,
-      Long sessionId, // FIXME remove extra arguments?
-      Long moduleId,
-      Long suiteId,
-      String modulePath,
+      TestContext moduleContext,
+      String moduleName,
       String testSuiteName,
       String testName,
       @Nullable Long startTime,
@@ -59,7 +57,11 @@ public class DDTestImpl implements DDTest {
     span.setResourceName(testSuiteName + "." + testName);
     span.setTag(Tags.TEST_NAME, testName);
     span.setTag(Tags.TEST_SUITE, testSuiteName);
-    span.setTag(Tags.TEST_MODULE, modulePath);
+    span.setTag(Tags.TEST_MODULE, moduleName);
+
+    long suiteId = suiteContext.getId();
+    Long moduleId = moduleContext.getId();
+    Long sessionId = moduleContext.getParentId();
 
     span.setTag(Tags.TEST_SUITE_ID, suiteId);
     span.setTag(Tags.TEST_MODULE_ID, moduleId);
@@ -123,7 +125,6 @@ public class DDTestImpl implements DDTest {
   @Override
   public void setSkipReason(String skipReason) {
     span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
-
     if (skipReason != null) {
       span.setTag(Tags.TEST_SKIP_REASON, skipReason);
     }

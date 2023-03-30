@@ -1,26 +1,16 @@
 package datadog.trace.instrumentation.maven3;
 
-import datadog.trace.bootstrap.instrumentation.decorator.TestDecoratorImpl;
-import java.nio.file.Path;
+import datadog.trace.bootstrap.instrumentation.decorator.AbstractTestDecorator;
+import java.util.Map;
 
-public class MavenDecorator extends TestDecoratorImpl {
+public class MavenDecorator extends AbstractTestDecorator {
 
-  public MavenDecorator(Path currentPath) {
-    super(currentPath);
-  }
-
-  @Override
-  public String testFramework() {
-    return null;
+  public MavenDecorator(Map<String, String> ciTags) {
+    super("maven", null, null, ciTags);
   }
 
   @Override
   protected String[] instrumentationNames() {
     return new String[] {"maven"};
-  }
-
-  @Override
-  public String component() {
-    return "maven";
   }
 }

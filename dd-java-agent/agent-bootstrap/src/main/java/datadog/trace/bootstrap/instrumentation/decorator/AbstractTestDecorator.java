@@ -1,52 +1,33 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
 import datadog.trace.api.DDTags;
-import datadog.trace.api.civisibility.CIInfo;
-import datadog.trace.api.civisibility.CIProviderInfo;
-import datadog.trace.api.civisibility.InstrumentationBridge;
-import datadog.trace.api.civisibility.codeowners.Codeowners;
 import datadog.trace.api.civisibility.decorator.TestDecorator;
-import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Map;
 import javax.annotation.Nullable;
 
-public abstract class TestDecoratorImpl extends BaseDecorator implements TestDecorator {
+public abstract class AbstractTestDecorator extends BaseDecorator implements TestDecorator {
 
   private static final UTF8BytesString CIAPP_TEST_ORIGIN = UTF8BytesString.create("ciapp-test");
 
-  private final String modulePath;
   private final String component;
   private final String testFramework;
   private final String testFrameworkVersion;
   private final Map<String, String> ciTags;
-  private final SourcePathResolver sourcePathResolver;
-  private final Codeowners codeowners;
 
-  public TestDecoratorImpl(
-      Path currentPath, String component, String testFramework, String testFrameworkVersion) {
-    CIProviderInfo ciProviderInfo = InstrumentationBridge.getCIProviderInfo(currentPath);
-    ciTags = InstrumentationBridge.getCiTags(ciProviderInfo);
-
-    CIInfo ciInfo = ciProviderInfo.buildCIInfo();
-    String repoRoot = ciInfo.getCiWorkspace();
-    sourcePathResolver = InstrumentationBridge.getSourcePathResolver(repoRoot);
-    codeowners = InstrumentationBridge.getCodeowners(repoRoot);
-
-    modulePath =
-        repoRoot != null && currentPath.startsWith(repoRoot)
-            ? Paths.get(repoRoot).relativize(currentPath).toString()
-            : null;
-
+  public AbstractTestDecorator(
+      String component,
+      String testFramework,
+      String testFrameworkVersion,
+      Map<String, String> ciTags) {
     this.component = component;
     this.testFramework = testFramework;
     this.testFrameworkVersion = testFrameworkVersion;
+    this.ciTags = ciTags;
   }
 
   protected String testType() {
@@ -146,9 +127,8 @@ public abstract class TestDecoratorImpl extends BaseDecorator implements TestDec
     span.setSpanType(InternalSpanTypes.TEST_MODULE_END);
     span.setTag(Tags.SPAN_KIND, testModuleSpanKind());
 
-    String resolvedModuleName = moduleName != null ? moduleName : modulePath;
-    span.setResourceName(resolvedModuleName);
-    span.setTag(Tags.TEST_MODULE, resolvedModuleName);
+    span.setResourceName(moduleName);
+    span.setTag(Tags.TEST_MODULE, moduleName);
     span.setTag(Tags.TEST_COMMAND, startCommand);
 
     // Version can be null. The testing framework version extraction is best-effort basis.
@@ -157,21 +137,5 @@ public abstract class TestDecoratorImpl extends BaseDecorator implements TestDec
     }
 
     afterStart(span);
-  }
-
-  // FIXME remove the getters below, this should be done differently....
-  @Override
-  public String getModulePath() {
-    return modulePath;
-  }
-
-  @Override
-  public SourcePathResolver getSourcePathResolver() {
-    return sourcePathResolver;
-  }
-
-  @Override
-  public Codeowners getCodeowners() {
-    return codeowners;
   }
 }

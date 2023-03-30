@@ -2,6 +2,7 @@ package datadog.trace.api.civisibility.events;
 
 import datadog.trace.api.civisibility.decorator.TestDecorator;
 import java.lang.reflect.Method;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import javax.annotation.Nullable;
@@ -9,7 +10,9 @@ import javax.annotation.Nullable;
 // FIXME move testSuiteDescriptor, testDescriptor classes to interface level?
 public interface TestEventsHandler {
 
-  void onTestModuleFinish(); // FIXME rename to close?
+  void onTestModuleStart();
+
+  void onTestModuleFinish();
 
   void onTestSuiteStart(
       String testSuiteName, @Nullable Class<?> testClass, @Nullable Collection<String> categories);
@@ -46,6 +49,6 @@ public interface TestEventsHandler {
       @Nullable String reason);
 
   interface Factory {
-    TestEventsHandler create(TestDecorator decorator);
+    TestEventsHandler create(Path currentPath, TestDecorator testDecorator);
   }
 }

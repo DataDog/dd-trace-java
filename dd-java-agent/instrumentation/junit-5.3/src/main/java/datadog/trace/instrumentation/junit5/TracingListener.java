@@ -7,6 +7,7 @@ import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.platform.engine.TestExecutionResult;
@@ -25,16 +26,18 @@ public class TracingListener implements TestExecutionListener {
   private volatile TestPlan testPlan;
 
   public TracingListener() {
+    Path currentPath = Paths.get("").toAbsolutePath();
     Package testPackage = Test.class.getPackage();
     String version = testPackage != null ? testPackage.getImplementationVersion() : null;
-    Path currentPath = Paths.get("").toAbsolutePath();
-    TestDecorator decorator = new JUnit5Decorator(currentPath, version);
-    testEventsHandler = InstrumentationBridge.getTestEventsHandler(decorator);
+    Map<String, String> ciTags = InstrumentationBridge.getCiTags(currentPath);
+    TestDecorator decorator = new JUnit5Decorator(version, ciTags);
+    testEventsHandler = InstrumentationBridge.getTestEventsHandler(currentPath, decorator);
   }
 
   @Override
   public void testPlanExecutionStarted(final TestPlan testPlan) {
     this.testPlan = testPlan;
+    testEventsHandler.onTestModuleStart();
   }
 
   @Override
@@ -140,10 +143,8 @@ public class TracingListener implements TestExecutionListener {
     Throwable throwable = testExecutionResult.getThrowable().orElse(null);
     if (throwable != null) {
       if (JUnit5Utils.isAssumptionFailure(throwable)) {
-        //        testEventsHandler.onSkip(throwable.getMessage());
         testEventsHandler.onTestSkip(testSuiteName, testClass, testName, throwable.getMessage());
       } else {
-        //        testEventsHandler.onFailure(throwable);
         testEventsHandler.onTestFailure(testSuiteName, testClass, testName, throwable);
       }
     }

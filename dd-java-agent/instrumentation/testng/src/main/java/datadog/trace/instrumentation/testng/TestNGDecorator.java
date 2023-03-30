@@ -1,12 +1,12 @@
 package datadog.trace.instrumentation.testng;
 
-import datadog.trace.bootstrap.instrumentation.decorator.TestDecoratorImpl;
-import java.nio.file.Path;
+import datadog.trace.bootstrap.instrumentation.decorator.AbstractTestDecorator;
+import java.util.Map;
 
-public class TestNGDecorator extends TestDecoratorImpl {
+public class TestNGDecorator extends AbstractTestDecorator {
 
-  public TestNGDecorator(Path currentPath, String testFrameworkVersion) {
-    super(currentPath, "testng", "testng", testFrameworkVersion);
+  public TestNGDecorator(String version, Map<String, String> ciTags) {
+    super("testng", "testng", version, ciTags);
   }
 
   @Override

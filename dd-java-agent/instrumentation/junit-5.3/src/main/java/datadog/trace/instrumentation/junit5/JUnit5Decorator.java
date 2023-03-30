@@ -1,11 +1,11 @@
 package datadog.trace.instrumentation.junit5;
 
-import datadog.trace.bootstrap.instrumentation.decorator.TestDecoratorImpl;
-import java.nio.file.Path;
+import datadog.trace.bootstrap.instrumentation.decorator.AbstractTestDecorator;
+import java.util.Map;
 
-public class JUnit5Decorator extends TestDecoratorImpl {
-  public JUnit5Decorator(Path currentPath, String testFrameworkVersion) {
-    super(currentPath, "junit", "junit5", testFrameworkVersion);
+public class JUnit5Decorator extends AbstractTestDecorator {
+  public JUnit5Decorator(String testFrameworkVersion, Map<String, String> ciTags) {
+    super("junit", "junit5", testFrameworkVersion, ciTags);
   }
 
   @Override

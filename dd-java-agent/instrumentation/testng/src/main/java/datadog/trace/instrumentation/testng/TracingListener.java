@@ -7,6 +7,7 @@ import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Map;
 import org.testng.IConfigurationListener;
 import org.testng.IExecutionListener;
 import org.testng.ITestClass;
@@ -21,8 +22,9 @@ public class TracingListener extends TestNGClassListener
 
   public TracingListener(final String version) {
     Path currentPath = Paths.get("").toAbsolutePath();
-    TestDecorator decorator = new TestNGDecorator(currentPath, version);
-    testEventsHandler = InstrumentationBridge.getTestEventsHandler(decorator);
+    Map<String, String> ciTags = InstrumentationBridge.getCiTags(currentPath);
+    TestDecorator decorator = new TestNGDecorator(version, ciTags);
+    testEventsHandler = InstrumentationBridge.getTestEventsHandler(currentPath, decorator);
   }
 
   @Override
@@ -37,7 +39,7 @@ public class TracingListener extends TestNGClassListener
 
   @Override
   public void onExecutionStart() {
-    // ignore
+    testEventsHandler.onTestModuleStart();
   }
 
   @Override
@@ -111,7 +113,6 @@ public class TracingListener extends TestNGClassListener
 
     final Throwable throwable = result.getThrowable();
     testEventsHandler.onTestFailure(testSuiteName, testClass, testName, throwable);
-
     testEventsHandler.onTestFinish(testSuiteName, testClass, testName);
   }
 
@@ -131,7 +132,6 @@ public class TracingListener extends TestNGClassListener
     Throwable throwable = result.getThrowable();
     String reason = throwable != null ? throwable.getMessage() : null;
     testEventsHandler.onTestSkip(testSuiteName, testClass, testName, reason);
-
     testEventsHandler.onTestFinish(testSuiteName, testClass, testName);
   }
 }

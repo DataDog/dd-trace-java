@@ -2,10 +2,9 @@ package datadog.trace.agent.test.base
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
-import datadog.trace.api.civisibility.CIInfo
-import datadog.trace.api.civisibility.CIProviderInfo
 import datadog.trace.api.civisibility.CITagsProvider
 import datadog.trace.api.civisibility.InstrumentationBridge
 import datadog.trace.api.civisibility.codeowners.Codeowners
@@ -45,28 +44,23 @@ abstract class TestFrameworkTest extends AgentTestRunner {
     def rootPath = currentPath.parent
     dummyModule = rootPath.relativize(currentPath)
 
-    def ciInfo = CIInfo.builder().ciWorkspace(rootPath.toString()).build()
-
-    def ciProviderInfo = Stub(CIProviderInfo)
-    ciProviderInfo.buildCIInfo() >> ciInfo
-    InstrumentationBridge.setCIProviderInfoFactory({ path -> ciProviderInfo })
-
     def ciTagsProvider = Stub(CITagsProvider)
     ciTagsProvider.getCiTags(_) >> [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
     InstrumentationBridge.ciTagsProvider = ciTagsProvider
 
     def sourcePathResolver = Stub(SourcePathResolver)
     sourcePathResolver.getSourcePath(_) >> DUMMY_SOURCE_PATH
-    InstrumentationBridge.sourcePathResolverFactory = { repoRoot -> sourcePathResolver }
 
     def codeowners = Stub(Codeowners)
     codeowners.getOwners(DUMMY_SOURCE_PATH) >> DUMMY_CODE_OWNERS
-    InstrumentationBridge.codeownersFactory = { repoRoot -> codeowners }
 
-    InstrumentationBridge.methodLinesResolver = Stub(MethodLinesResolver)
-    InstrumentationBridge.methodLinesResolver.getLines(_) >> new MethodLinesResolver.MethodLines(DUMMY_TEST_METHOD_START, DUMMY_TEST_METHOD_END)
+    def methodLinesResolver = Stub(MethodLinesResolver)
+    methodLinesResolver.getLines(_) >> new MethodLinesResolver.MethodLines(DUMMY_TEST_METHOD_START, DUMMY_TEST_METHOD_END)
 
-    InstrumentationBridge.setTestEventsHandlerFactory { decorator -> new TestEventsHandlerImpl(decorator) }
+    InstrumentationBridge.setTestEventsHandlerFactory { path, testDecorator ->
+      return new TestEventsHandlerImpl(dummyModule, Config.get(), testDecorator, sourcePathResolver, codeowners, methodLinesResolver)
+    }
+
     InstrumentationBridge.setBuildEventsHandlerFactory { decorator -> new BuildEventsHandlerImpl<>() }
   }
 

@@ -7,8 +7,11 @@ import datadog.trace.api.DisableTestTrace;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestModule;
 import datadog.trace.api.civisibility.DDTestSuite;
+import datadog.trace.api.civisibility.codeowners.Codeowners;
 import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
+import datadog.trace.api.civisibility.source.MethodLinesResolver;
+import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.lang.reflect.Method;
 import java.util.Collection;
@@ -20,11 +23,20 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// FIXME if the only reason for having this in internal-api is to use inside instrumentation tests,
+//  could we maybe move it to agent-ci-visibility, and add it as test dependency???
 public class TestEventsHandlerImpl implements TestEventsHandler {
 
   private static final Logger log = LoggerFactory.getLogger(TestEventsHandlerImpl.class);
 
-  private final DDTestModule testModule;
+  private final String moduleName;
+  private final Config config;
+  private final TestDecorator testDecorator;
+  private final SourcePathResolver sourcePathResolver;
+  private final Codeowners codeowners;
+  private final MethodLinesResolver methodLinesResolver;
+
+  private volatile DDTestModule testModule;
 
   private final ConcurrentMap<TestSuiteDescriptor, Integer> testSuiteNestedCallCounters =
       new ConcurrentHashMap<>();
@@ -34,15 +46,32 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
   private final ConcurrentMap<TestDescriptor, DDTest> inProgressTests = new ConcurrentHashMap<>();
 
-  public TestEventsHandlerImpl(TestDecorator testDecorator) {
-    // FIXME ugly injection
-    String modulePath = testDecorator.getModulePath();
-    testModule = new DDTestModuleImpl(modulePath, Config.get(), testDecorator);
+  public TestEventsHandlerImpl(
+      String moduleName,
+      Config config,
+      TestDecorator testDecorator,
+      SourcePathResolver sourcePathResolver,
+      Codeowners codeowners,
+      MethodLinesResolver methodLinesResolver) {
+    this.moduleName = moduleName;
+    this.config = config;
+    this.testDecorator = testDecorator;
+    this.sourcePathResolver = sourcePathResolver;
+    this.codeowners = codeowners;
+    this.methodLinesResolver = methodLinesResolver;
+  }
+
+  @Override
+  public void onTestModuleStart() {
+    testModule =
+        new DDTestModuleImpl(
+            moduleName, config, testDecorator, sourcePathResolver, codeowners, methodLinesResolver);
   }
 
   @Override
   public void onTestModuleFinish() {
     testModule.end(null);
+    testModule = null;
   }
 
   @Override
@@ -54,7 +83,8 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       return;
     }
 
-    if (!tryTestSuiteStart(testSuiteName, testClass)) {
+    TestSuiteDescriptor descriptor = new TestSuiteDescriptor(testSuiteName, testClass);
+    if (!tryTestSuiteStart(descriptor)) {
       return;
     }
 
@@ -65,7 +95,6 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
           Tags.TEST_TRAITS, toJson(Collections.singletonMap("category", toJson(categories)), true));
     }
 
-    TestSuiteDescriptor descriptor = new TestSuiteDescriptor(testSuiteName, testClass);
     inProgressTestSuites.put(descriptor, testSuite);
   }
 
@@ -75,27 +104,22 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       return;
     }
 
-    if (!tryTestSuiteFinish(testSuiteName, testClass)) {
+    TestSuiteDescriptor descriptor = new TestSuiteDescriptor(testSuiteName, testClass);
+    if (!tryTestSuiteFinish(descriptor)) {
       return;
     }
 
-    TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    DDTestSuite testSuite = inProgressTestSuites.remove(testSuiteDescriptor);
+    DDTestSuite testSuite = inProgressTestSuites.remove(descriptor);
     testSuite.end(null);
   }
 
-  private boolean tryTestSuiteStart(String testSuiteName, Class<?> testClass) {
-    TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    Integer counter = testSuiteNestedCallCounters.merge(testSuiteDescriptor, 1, Integer::sum);
-    return counter == 1;
+  private boolean tryTestSuiteStart(TestSuiteDescriptor descriptor) {
+    return testSuiteNestedCallCounters.merge(descriptor, 1, Integer::sum) == 1;
   }
 
-  private boolean tryTestSuiteFinish(String testSuiteName, Class<?> testClass) {
-    TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    Integer counter =
-        testSuiteNestedCallCounters.merge(
-            testSuiteDescriptor, -1, (a, b) -> a + b > 0 ? a + b : null);
-    return counter == null;
+  private boolean tryTestSuiteFinish(TestSuiteDescriptor descriptor) {
+    return testSuiteNestedCallCounters.merge(descriptor, -1, (a, b) -> a + b > 0 ? a + b : null)
+        == null;
   }
 
   @Override
@@ -103,7 +127,10 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
     TestSuiteDescriptor descriptor = new TestSuiteDescriptor(testSuiteName, testClass);
     DDTestSuite testSuite = inProgressTestSuites.get(descriptor);
     if (testSuite == null) {
-      // FIXME log?
+      log.debug(
+          "Ignoring skip event, could not find test suite with name {} and class {}",
+          testSuiteName,
+          testClass);
       return;
     }
     testSuite.setSkipReason(reason);
@@ -115,7 +142,10 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
     TestSuiteDescriptor descriptor = new TestSuiteDescriptor(testSuiteName, testClass);
     DDTestSuite testSuite = inProgressTestSuites.get(descriptor);
     if (testSuite == null) {
-      // FIXME log?
+      log.debug(
+          "Ignoring fail event, could not find test suite with name {} and class {}",
+          testSuiteName,
+          testClass);
       return;
     }
     testSuite.setErrorInfo(throwable);
@@ -133,8 +163,8 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       return;
     }
 
-    TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    DDTestSuite testSuite = inProgressTestSuites.get(testSuiteDescriptor);
+    TestSuiteDescriptor suiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
+    DDTestSuite testSuite = inProgressTestSuites.get(suiteDescriptor);
     DDTest test = testSuite.testStart(testName, testMethod, null);
 
     if (testParameters != null) {
@@ -145,17 +175,21 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       test.setTag(Tags.TEST_TRAITS, json);
     }
 
-    TestDescriptor testDescriptor = new TestDescriptor(testSuiteName, testClass, testName);
-    inProgressTests.put(testDescriptor, test);
+    TestDescriptor descriptor = new TestDescriptor(testSuiteName, testClass, testName);
+    inProgressTests.put(descriptor, test);
   }
 
   @Override
   public void onTestSkip(
       String testSuiteName, Class<?> testClass, String testName, @Nullable String reason) {
-    TestDescriptor testDescriptor = new TestDescriptor(testSuiteName, testClass, testName);
-    DDTest test = inProgressTests.get(testDescriptor);
+    TestDescriptor descriptor = new TestDescriptor(testSuiteName, testClass, testName);
+    DDTest test = inProgressTests.get(descriptor);
     if (test == null) {
-      // FIXME log?
+      log.debug(
+          "Ignoring skip event, could not find test with name {}, suite name{} and class {}",
+          testName,
+          testSuiteName,
+          testClass);
       return;
     }
     test.setSkipReason(reason);
@@ -164,10 +198,14 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   @Override
   public void onTestFailure(
       String testSuiteName, Class<?> testClass, String testName, @Nullable Throwable throwable) {
-    TestDescriptor testDescriptor = new TestDescriptor(testSuiteName, testClass, testName);
-    DDTest test = inProgressTests.get(testDescriptor);
+    TestDescriptor descriptor = new TestDescriptor(testSuiteName, testClass, testName);
+    DDTest test = inProgressTests.get(descriptor);
     if (test == null) {
-      // FIXME log?
+      log.debug(
+          "Ignoring fail event, could not find test with name {}, suite name{} and class {}",
+          testName,
+          testSuiteName,
+          testClass);
       return;
     }
     test.setErrorInfo(throwable);
@@ -176,14 +214,14 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   @Override
   public void onTestFinish(
       final String testSuiteName, final Class<?> testClass, final String testName) {
-    if (skipTrace(testClass)) {
-      return;
-    }
-
-    TestDescriptor testDescriptor = new TestDescriptor(testSuiteName, testClass, testName);
-    DDTest test = inProgressTests.remove(testDescriptor);
+    TestDescriptor descriptor = new TestDescriptor(testSuiteName, testClass, testName);
+    DDTest test = inProgressTests.remove(descriptor);
     if (test == null) {
-      // FIXME log a debug message?
+      log.debug(
+          "Ignoring finish event, could not find test with name {}, suite name{} and class {}",
+          testName,
+          testSuiteName,
+          testClass);
       return;
     }
     test.end(null);
@@ -198,26 +236,9 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       final @Nullable Class<?> testClass,
       final @Nullable Method testMethod,
       final @Nullable String reason) {
-    if (skipTrace(testClass)) {
-      return;
-    }
-
-    // FIXME duplicates what is available in onTestStart
-    TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    DDTestSuite testSuite = inProgressTestSuites.get(testSuiteDescriptor);
-    DDTest test = testSuite.testStart(testName, testMethod, null);
-
-    if (testParameters != null) {
-      test.setTag(Tags.TEST_PARAMETERS, testParameters);
-    }
-    if (categories != null && !categories.isEmpty()) {
-      String json = toJson(Collections.singletonMap("category", toJson(categories)), true);
-      test.setTag(Tags.TEST_TRAITS, json);
-    }
-
-    test.setSkipReason(reason);
-
-    test.end(null);
+    onTestStart(testSuiteName, testName, testParameters, categories, testClass, testMethod);
+    onTestSkip(testSuiteName, testClass, testName, reason);
+    onTestFinish(testSuiteName, testClass, testName);
   }
 
   private static boolean skipTrace(final Class<?> testClass) {

@@ -178,6 +178,11 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       String lifecyclePhase = mojoExecution.getLifecyclePhase();
       String moduleName = projectName + " " + lifecyclePhase;
       buildEventsHandler.onTestModuleFinish(session, moduleName);
+
+      System.clearProperty(
+          Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_SESSION_ID));
+      System.clearProperty(
+          Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_ID));
     }
   }
 
@@ -196,6 +201,11 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       Exception exception = event.getException();
       buildEventsHandler.onTestModuleFail(session, moduleName, exception);
       buildEventsHandler.onTestModuleFinish(session, moduleName);
+
+      System.clearProperty(
+          Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_SESSION_ID));
+      System.clearProperty(
+          Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_ID));
     }
   }
 }

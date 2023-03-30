@@ -7,6 +7,7 @@ import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Map;
 import junit.runner.Version;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -21,10 +22,16 @@ public class TracingListener extends RunListener {
   private final TestEventsHandler testEventsHandler;
 
   public TracingListener() {
-    String version = Version.id();
     Path currentPath = Paths.get("").toAbsolutePath();
-    TestDecorator decorator = new JUnit4Decorator(currentPath, version);
-    testEventsHandler = InstrumentationBridge.getTestEventsHandler(decorator);
+    String version = Version.id();
+    Map<String, String> ciTags = InstrumentationBridge.getCiTags(currentPath);
+    TestDecorator decorator = new JUnit4Decorator(version, ciTags);
+    testEventsHandler = InstrumentationBridge.getTestEventsHandler(currentPath, decorator);
+  }
+
+  @Override
+  public void testRunStarted(Description description) {
+    testEventsHandler.onTestModuleStart();
   }
 
   @Override

@@ -1,7 +1,8 @@
 package datadog.trace.api.civisibility;
 
+import java.nio.file.Path;
 import java.util.Map;
 
 public interface CITagsProvider {
-  Map<String, String> getCiTags(CIProviderInfo ciProviderInfo);
+  Map<String, String> getCiTags(Path path);
 }

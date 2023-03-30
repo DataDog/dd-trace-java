@@ -1,11 +1,11 @@
 package datadog.trace.instrumentation.junit4;
 
-import datadog.trace.bootstrap.instrumentation.decorator.TestDecoratorImpl;
-import java.nio.file.Path;
+import datadog.trace.bootstrap.instrumentation.decorator.AbstractTestDecorator;
+import java.util.Map;
 
-public class JUnit4Decorator extends TestDecoratorImpl {
-  public JUnit4Decorator(Path currentPath, String testFrameworkVersion) {
-    super(currentPath, "junit", "junit4", testFrameworkVersion);
+public class JUnit4Decorator extends AbstractTestDecorator {
+  public JUnit4Decorator(String testFrameworkVersion, Map<String, String> ciTags) {
+    super("junit", "junit4", testFrameworkVersion, ciTags);
   }
 
   @Override

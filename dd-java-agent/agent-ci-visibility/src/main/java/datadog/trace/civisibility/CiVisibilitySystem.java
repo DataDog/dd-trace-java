@@ -1,10 +1,15 @@
 package datadog.trace.civisibility;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.CIInfo;
+import datadog.trace.api.civisibility.CIProviderInfo;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.codeowners.Codeowners;
+import datadog.trace.api.civisibility.decorator.TestDecorator;
+import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.events.impl.BuildEventsHandlerImpl;
 import datadog.trace.api.civisibility.events.impl.TestEventsHandlerImpl;
+import datadog.trace.api.civisibility.source.MethodLinesResolver;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.codeowners.CodeownersProvider;
@@ -14,6 +19,8 @@ import datadog.trace.civisibility.source.BestEfforSourcePathResolver;
 import datadog.trace.civisibility.source.CompilerAidedSourcePathResolver;
 import datadog.trace.civisibility.source.MethodLinesResolverImpl;
 import datadog.trace.civisibility.source.RepoIndexSourcePathResolver;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,34 +31,49 @@ public class CiVisibilitySystem {
   private static final String GIT_FOLDER_NAME = ".git";
 
   public static void start() {
-    final Config config = Config.get();
-    if (!config.isCiVisibilityEnabled()) {
+    if (!Config.get().isCiVisibilityEnabled()) {
       LOGGER.debug("CI Visibility is disabled");
       return;
     }
 
-    InstrumentationBridge.setCIProviderInfoFactory(CIProviderInfoFactory::createCIProviderInfo);
     InstrumentationBridge.setCiTagsProvider(new CITagsProviderImpl());
-    InstrumentationBridge.setMethodLinesResolver(new MethodLinesResolverImpl());
-
-    CodeownersProvider codeownersProvider = new CodeownersProvider();
-    Codeowners emptyCodeowners = path -> null;
-    InstrumentationBridge.setCodeownersFactory(
-        repoRoot -> repoRoot != null ? codeownersProvider.build(repoRoot) : emptyCodeowners);
-
-    SourcePathResolver emptySourcePathResolver = clazz -> null;
-    InstrumentationBridge.setSourcePathResolverFactory(
-        repoRoot ->
-            repoRoot != null
-                ? new BestEfforSourcePathResolver(
-                    new CompilerAidedSourcePathResolver(repoRoot),
-                    new RepoIndexSourcePathResolver(repoRoot))
-                : emptySourcePathResolver);
-
-    InstrumentationBridge.setTestEventsHandlerFactory(TestEventsHandlerImpl::new);
+    InstrumentationBridge.setTestEventsHandlerFactory(CiVisibilitySystem::createTestEventsHandler);
     InstrumentationBridge.setBuildEventsHandlerFactory(BuildEventsHandlerImpl::new);
 
     GitInfoProvider.INSTANCE.registerGitInfoBuilder(new CIProviderGitInfoBuilder());
     GitInfoProvider.INSTANCE.registerGitInfoBuilder(new CILocalGitInfoBuilder(GIT_FOLDER_NAME));
+  }
+
+  private static TestEventsHandler createTestEventsHandler(
+      Path currentPath, TestDecorator testDecorator) {
+    CIProviderInfo ciProviderInfo = CIProviderInfoFactory.createCIProviderInfo(currentPath);
+    CIInfo ciInfo = ciProviderInfo.buildCIInfo();
+    String repoRoot = ciInfo.getCiWorkspace();
+
+    String moduleName;
+    SourcePathResolver sourcePathResolver;
+    Codeowners codeowners;
+    if (repoRoot != null) {
+      moduleName = Paths.get(repoRoot).relativize(currentPath).toString();
+      sourcePathResolver =
+          new BestEfforSourcePathResolver(
+              new CompilerAidedSourcePathResolver(repoRoot),
+              new RepoIndexSourcePathResolver(repoRoot));
+      codeowners = new CodeownersProvider().build(repoRoot);
+    } else {
+      moduleName = currentPath.toString();
+      sourcePathResolver = clazz -> null;
+      codeowners = path -> null;
+    }
+
+    MethodLinesResolver methodLinesResolver = new MethodLinesResolverImpl();
+
+    return new TestEventsHandlerImpl(
+        moduleName,
+        Config.get(),
+        testDecorator,
+        sourcePathResolver,
+        codeowners,
+        methodLinesResolver);
   }
 }

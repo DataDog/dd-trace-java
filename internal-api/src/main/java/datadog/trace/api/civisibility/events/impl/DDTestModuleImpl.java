@@ -6,7 +6,9 @@ import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTestModule;
 import datadog.trace.api.civisibility.DDTestSuite;
+import datadog.trace.api.civisibility.codeowners.Codeowners;
 import datadog.trace.api.civisibility.decorator.TestDecorator;
+import datadog.trace.api.civisibility.source.MethodLinesResolver;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -14,15 +16,36 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.Strings;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+// FIXME move to agent ci-visibility if possible?
 public class DDTestModuleImpl implements DDTestModule {
 
+  private static final Logger log = LoggerFactory.getLogger(DDTestModuleImpl.class);
+
+  private final String moduleName;
+  private final Config config;
+  private final TestDecorator testDecorator;
+  private final SourcePathResolver sourcePathResolver;
+  private final Codeowners codeowners;
+  private final MethodLinesResolver methodLinesResolver;
   private final TestContext context;
   private final AgentSpan span;
-  private final TestDecorator testDecorator;
 
-  public DDTestModuleImpl(String moduleName, Config config, TestDecorator testDecorator) {
+  public DDTestModuleImpl(
+      String moduleName,
+      Config config,
+      TestDecorator testDecorator,
+      SourcePathResolver sourcePathResolver,
+      Codeowners codeowners,
+      MethodLinesResolver methodLinesResolver) {
+    this.moduleName = moduleName;
+    this.config = config;
     this.testDecorator = testDecorator;
+    this.sourcePathResolver = sourcePathResolver;
+    this.codeowners = codeowners;
+    this.methodLinesResolver = methodLinesResolver;
 
     // fallbacks to System.getProperty below are needed for cases when
     // system variables are set after config was initialized
@@ -67,12 +90,11 @@ public class DDTestModuleImpl implements DDTestModule {
     }
   }
 
-  // FIXME move setTag / setErrorInfo / setSkipReason to a common superclass? (they're the same in
-  // test, and probably module/session too)
-
   @Override
   public void setTag(String key, Object value) {
     if (span == null) {
+      log.debug(
+          "Ignoring tag {} with value {}: there is no local span for test module", key, value);
       return;
     }
     span.setTag(key, value);
@@ -81,6 +103,7 @@ public class DDTestModuleImpl implements DDTestModule {
   @Override
   public void setErrorInfo(Throwable error) {
     if (span == null) {
+      log.debug("Ignoring error, there is no local span for test module", error);
       return;
     }
     span.setError(true);
@@ -91,6 +114,7 @@ public class DDTestModuleImpl implements DDTestModule {
   @Override
   public void setSkipReason(String skipReason) {
     if (span == null) {
+      log.debug("Ignoring skip reason {}: there is no local span for test module", skipReason);
       return;
     }
     span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
@@ -102,6 +126,7 @@ public class DDTestModuleImpl implements DDTestModule {
   @Override
   public void end(@Nullable Long endTime) {
     if (span == null) {
+      log.debug("Ignoring module end call: there is no local span for test module");
       return;
     }
     span.setTag(Tags.TEST_STATUS, context.getStatus());
@@ -112,16 +137,16 @@ public class DDTestModuleImpl implements DDTestModule {
   @Override
   public DDTestSuite testSuiteStart(
       String testSuiteName, @Nullable Class<?> testClass, @Nullable Long startTime) {
-    String modulePath = testDecorator.getModulePath();
-    SourcePathResolver sourcePathResolver = testDecorator.getSourcePathResolver();
     return new DDTestSuiteImpl(
         context,
-        modulePath,
+        moduleName,
         testSuiteName,
         testClass,
-        null,
-        Config.get(), // FIXME use config that was supplied in module constructor
+        startTime,
+        config,
         testDecorator,
-        sourcePathResolver);
+        sourcePathResolver,
+        codeowners,
+        methodLinesResolver);
   }
 }

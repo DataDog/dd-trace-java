@@ -1,7 +1,5 @@
 package datadog.trace.api.civisibility.decorator;
 
-import datadog.trace.api.civisibility.codeowners.Codeowners;
-import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import javax.annotation.Nullable;
 
@@ -26,11 +24,4 @@ public interface TestDecorator {
   CharSequence component();
 
   AgentSpan beforeFinish(final AgentSpan span);
-
-  // FIXME remove the getters below, this should be done differently
-  String getModulePath();
-
-  SourcePathResolver getSourcePathResolver();
-
-  Codeowners getCodeowners();
 }

@@ -9,6 +9,7 @@ import datadog.trace.api.civisibility.CITagsProvider;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -25,7 +26,8 @@ public class CITagsProviderImpl implements CITagsProvider {
   }
 
   @Override
-  public Map<String, String> getCiTags(CIProviderInfo ciProviderInfo) {
+  public Map<String, String> getCiTags(Path path) {
+    CIProviderInfo ciProviderInfo = CIProviderInfoFactory.createCIProviderInfo(path);
     CIInfo ciInfo = ciProviderInfo.buildCIInfo();
     String repoRoot = ciInfo.getCiWorkspace();
     GitInfo gitInfo = gitInfoProvider.getGitInfo(repoRoot);
