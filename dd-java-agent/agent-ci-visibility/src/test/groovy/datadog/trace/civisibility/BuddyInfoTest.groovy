@@ -21,4 +21,8 @@ class BuddyInfoTest extends CITagsProviderImplTest {
     map.put(BuddyInfo.BUDDY_GIT_COMMIT, "0000000000000000000000000000000000000000")
     return map
   }
+
+  boolean isWorkspaceAwareCi() {
+    false
+  }
 }

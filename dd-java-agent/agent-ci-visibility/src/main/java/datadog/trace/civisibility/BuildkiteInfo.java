@@ -59,11 +59,6 @@ class BuildkiteInfo implements CIProviderInfo {
         .build();
   }
 
-  @Override
-  public boolean isCI() {
-    return true;
-  }
-
   private PersonInfo buildGitCommitAuthor() {
     return new PersonInfo(
         System.getenv(BUILDKITE_GIT_AUTHOR_NAME), System.getenv(BUILDKITE_GIT_AUTHOR_EMAIL));

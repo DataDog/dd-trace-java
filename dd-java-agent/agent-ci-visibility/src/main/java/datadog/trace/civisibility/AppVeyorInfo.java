@@ -73,11 +73,6 @@ class AppVeyorInfo implements CIProviderInfo {
         .build();
   }
 
-  @Override
-  public boolean isCI() {
-    return true;
-  }
-
   private String buildGitBranch(final String repoProvider) {
     if ("github".equals(repoProvider)) {
       String branch = System.getenv(APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH);

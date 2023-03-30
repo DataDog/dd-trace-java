@@ -56,11 +56,6 @@ class JenkinsInfo implements CIProviderInfo {
         .build();
   }
 
-  @Override
-  public boolean isCI() {
-    return true;
-  }
-
   private String buildGitRepositoryUrl() {
     return System.getenv(JENKINS_GIT_REPOSITORY_URL) != null
         ? System.getenv(JENKINS_GIT_REPOSITORY_URL)

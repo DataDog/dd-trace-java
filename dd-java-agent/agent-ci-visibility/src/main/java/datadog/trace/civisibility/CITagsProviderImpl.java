@@ -30,7 +30,7 @@ public class CITagsProviderImpl implements CITagsProvider {
   @Override
   public Map<String, String> getCiTags(Path path) {
     CIProviderInfo ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(path);
-    CIInfo ciInfo = new BuddyInfo().buildCIInfo();
+    CIInfo ciInfo = ciProviderInfo.buildCIInfo();
     String repoRoot = ciInfo.getCiWorkspace();
     GitInfo gitInfo = gitInfoProvider.getGitInfo(repoRoot);
 

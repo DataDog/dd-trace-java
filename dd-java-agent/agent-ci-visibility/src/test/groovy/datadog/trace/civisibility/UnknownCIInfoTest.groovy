@@ -1,6 +1,5 @@
 package datadog.trace.civisibility
 
-
 import datadog.trace.api.git.GitInfoProvider
 import datadog.trace.api.git.UserSuppliedGitInfoBuilder
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -16,6 +15,14 @@ class UnknownCIInfoTest extends CITagsProviderImplTest {
   @Override
   String getProviderName() {
     return UnknownCIInfo.UNKNOWN_PROVIDER_NAME
+  }
+
+  Map<String, String> buildRemoteGitInfoEmpty() {
+    return new HashMap<String, String>()
+  }
+
+  Map<String, String> buildRemoteGitInfoMismatchLocalGit() {
+    return new HashMap<String, String>()
   }
 
   def "test info is set properly from local workspace"() {
@@ -44,25 +51,20 @@ class UnknownCIInfoTest extends CITagsProviderImplTest {
 
   def "test workspace is null if target folder does not exist"() {
     when:
-    def ciProviderInfo = new UnknownCIInfo("this-target-folder-does-not-exist", workspaceForTests)
-
     GitInfoProvider gitInfoProvider = new GitInfoProvider()
     gitInfoProvider.registerGitInfoBuilder(new UserSuppliedGitInfoBuilder())
     gitInfoProvider.registerGitInfoBuilder(new CIProviderGitInfoBuilder())
-    gitInfoProvider.registerGitInfoBuilder(new CILocalGitInfoBuilder(GIT_FOLDER_FOR_TESTS))
-    def ciTagsProvider = new CITagsProviderImpl(gitInfoProvider)
+    gitInfoProvider.registerGitInfoBuilder(new CILocalGitInfoBuilder("this-target-folder-does-not-exist"))
+    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory("this-target-folder-does-not-exist")
+    def ciTagsProvider = new CITagsProviderImpl(gitInfoProvider, ciProviderInfoFactory)
 
-    def ciTags = ciTagsProvider.getCiTags(ciProviderInfo)
+    def ciTags = ciTagsProvider.getCiTags(workspaceForTests)
 
     then:
     ciTags.get("$Tags.CI_WORKSPACE_PATH") == null
   }
 
-  def "test isCi is false"() {
-    when:
-    def provider = new UnknownCIInfo(workspaceForTests)
-
-    then:
-    !provider.isCI()
+  boolean isCi() {
+    false
   }
 }

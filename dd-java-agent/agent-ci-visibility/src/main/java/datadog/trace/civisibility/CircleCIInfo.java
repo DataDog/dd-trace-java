@@ -50,11 +50,6 @@ class CircleCIInfo implements CIProviderInfo {
         .build();
   }
 
-  @Override
-  public boolean isCI() {
-    return true;
-  }
-
   private String buildPipelineUrl(final String pipelineId) {
     if (pipelineId == null) {
       return null;

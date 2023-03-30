@@ -63,11 +63,6 @@ class BuddyInfo implements CIProviderInfo {
     return String.format("%s/%s", pipelineId, pipelineNumber);
   }
 
-  @Override
-  public boolean isCI() {
-    return true;
-  }
-
   private PersonInfo buildGitCommiter() {
     return new PersonInfo(
         System.getenv(BUDDY_GIT_COMMIT_AUTHOR), System.getenv(BUDDY_GIT_COMMIT_EMAIL));

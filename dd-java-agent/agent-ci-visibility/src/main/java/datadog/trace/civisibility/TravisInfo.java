@@ -55,11 +55,6 @@ class TravisInfo implements CIProviderInfo {
         .build();
   }
 
-  @Override
-  public boolean isCI() {
-    return true;
-  }
-
   private String buildGitBranch() {
     final String fromBranch = System.getenv(TRAVIS_GIT_PR_BRANCH);
     if (fromBranch != null && !fromBranch.isEmpty()) {

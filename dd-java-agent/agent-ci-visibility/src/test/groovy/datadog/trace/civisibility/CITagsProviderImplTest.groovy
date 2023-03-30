@@ -13,6 +13,7 @@ import org.junit.contrib.java.lang.system.EnvironmentVariables
 import org.junit.contrib.java.lang.system.RestoreSystemProperties
 import spock.lang.Specification
 
+import java.nio.file.Path
 import java.nio.file.Paths
 
 abstract class CITagsProviderImplTest extends Specification {
@@ -46,11 +47,13 @@ abstract class CITagsProviderImplTest extends Specification {
 
     when:
     def ciTagsProvider = ciTagsProvider()
-    def tags = ciTagsProvider.getCiTags(Paths.get(localFSGitWorkspace))
+    def tags = ciTagsProvider.getCiTags(getWorkspacePath())
 
     then:
-    def tagMismatches = ciSpec.getTagMismatches(tags)
-    assert tagMismatches.isEmpty()
+    if (isCi()) {
+      def tagMismatches = ciSpec.getTagMismatches(tags)
+      assert tagMismatches.isEmpty()
+    }
 
     where:
     ciSpec << CISpecExtractor.extract(getProviderName())
@@ -66,7 +69,7 @@ abstract class CITagsProviderImplTest extends Specification {
 
     when:
     def ciTagsProvider = ciTagsProvider()
-    def tags = ciTagsProvider.getCiTags(Paths.get(localFSGitWorkspace))
+    def tags = ciTagsProvider.getCiTags(getWorkspacePath())
 
     then:
     tags.get(Tags.GIT_COMMIT_SHA) == "1234567890123456789012345678901234567890"
@@ -82,7 +85,7 @@ abstract class CITagsProviderImplTest extends Specification {
 
     when:
     def ciTagsProvider = ciTagsProvider()
-    def tags = ciTagsProvider.getCiTags(Paths.get(localFSGitWorkspace))
+    def tags = ciTagsProvider.getCiTags(getWorkspacePath())
 
     then:
     tags.get(Tags.GIT_REPOSITORY_URL) == "local supplied repo url"
@@ -96,19 +99,21 @@ abstract class CITagsProviderImplTest extends Specification {
 
     when:
     def ciTagsProvider = ciTagsProvider()
-    def tags = ciTagsProvider.getCiTags(Paths.get(localFSGitWorkspace))
+    def tags = ciTagsProvider.getCiTags(getWorkspacePath())
 
     then:
-    tags.get(Tags.GIT_REPOSITORY_URL) == "https://some-host/some-user/some-repo.git"
-    tags.get(Tags.GIT_BRANCH) == "master"
-    tags.get(Tags.GIT_COMMIT_SHA) == "0797c248e019314fc1d91a483e859b32f4509953"
-    tags.get(Tags.GIT_COMMIT_AUTHOR_NAME) == "John Doe"
-    tags.get(Tags.GIT_COMMIT_AUTHOR_EMAIL) == "john@doe.com"
-    tags.get(Tags.GIT_COMMIT_AUTHOR_DATE) == "2021-02-12T13:47:48.000Z"
-    tags.get(Tags.GIT_COMMIT_COMMITTER_NAME) == "Jane Doe"
-    tags.get(Tags.GIT_COMMIT_COMMITTER_EMAIL) == "jane@doe.com"
-    tags.get(Tags.GIT_COMMIT_COMMITTER_DATE) == "2021-02-12T13:48:44.000Z"
-    tags.get(Tags.GIT_COMMIT_MESSAGE) == "This is a commit message\n"
+    if (isWorkspaceAwareCi()) {
+      tags.get(Tags.GIT_REPOSITORY_URL) == "https://some-host/some-user/some-repo.git"
+      tags.get(Tags.GIT_BRANCH) == "master"
+      tags.get(Tags.GIT_COMMIT_SHA) == "0797c248e019314fc1d91a483e859b32f4509953"
+      tags.get(Tags.GIT_COMMIT_AUTHOR_NAME) == "John Doe"
+      tags.get(Tags.GIT_COMMIT_AUTHOR_EMAIL) == "john@doe.com"
+      tags.get(Tags.GIT_COMMIT_AUTHOR_DATE) == "2021-02-12T13:47:48.000Z"
+      tags.get(Tags.GIT_COMMIT_COMMITTER_NAME) == "Jane Doe"
+      tags.get(Tags.GIT_COMMIT_COMMITTER_EMAIL) == "jane@doe.com"
+      tags.get(Tags.GIT_COMMIT_COMMITTER_DATE) == "2021-02-12T13:48:44.000Z"
+      tags.get(Tags.GIT_COMMIT_MESSAGE) == "This is a commit message\n"
+    }
   }
 
   def "test avoid setting local git info if remote commit does not match"() {
@@ -121,17 +126,19 @@ abstract class CITagsProviderImplTest extends Specification {
     def ciTagsProvider = ciTagsProvider()
 
     then:
-    def tags = ciTagsProvider.getCiTags(Paths.get(localFSGitWorkspace))
-    tags.get(Tags.GIT_REPOSITORY_URL) == "https://some-host/some-user/some-repo.git"
-    tags.get(Tags.GIT_BRANCH) == "master"
-    tags.get(Tags.GIT_COMMIT_SHA) == "0000000000000000000000000000000000000000"
-    !tags.get(Tags.GIT_COMMIT_AUTHOR_NAME)
-    !tags.get(Tags.GIT_COMMIT_AUTHOR_EMAIL)
-    !tags.get(Tags.GIT_COMMIT_AUTHOR_DATE)
-    !tags.get(Tags.GIT_COMMIT_COMMITTER_NAME)
-    !tags.get(Tags.GIT_COMMIT_COMMITTER_EMAIL)
-    !tags.get(Tags.GIT_COMMIT_COMMITTER_DATE)
-    !tags.get(Tags.GIT_COMMIT_MESSAGE)
+    if (isCi()) {
+      def tags = ciTagsProvider.getCiTags(getWorkspacePath())
+      tags.get(Tags.GIT_REPOSITORY_URL) == "https://some-host/some-user/some-repo.git"
+      tags.get(Tags.GIT_BRANCH) == "master"
+      tags.get(Tags.GIT_COMMIT_SHA) == "0000000000000000000000000000000000000000"
+      !tags.get(Tags.GIT_COMMIT_AUTHOR_NAME)
+      !tags.get(Tags.GIT_COMMIT_AUTHOR_EMAIL)
+      !tags.get(Tags.GIT_COMMIT_AUTHOR_DATE)
+      !tags.get(Tags.GIT_COMMIT_COMMITTER_NAME)
+      !tags.get(Tags.GIT_COMMIT_COMMITTER_EMAIL)
+      !tags.get(Tags.GIT_COMMIT_COMMITTER_DATE)
+      !tags.get(Tags.GIT_COMMIT_MESSAGE)
+    }
   }
 
   abstract String getProviderName()
@@ -156,5 +163,17 @@ abstract class CITagsProviderImplTest extends Specification {
   def "resolve"(workspace) {
     def resolvedWS = Paths.get(getClass().getClassLoader().getResource(workspace).toURI()).toFile().getAbsolutePath()
     return resolvedWS
+  }
+
+  Path getWorkspacePath() {
+    return Paths.get(localFSGitWorkspace)
+  }
+
+  boolean isCi() {
+    true
+  }
+
+  boolean isWorkspaceAwareCi() {
+    true
   }
 }

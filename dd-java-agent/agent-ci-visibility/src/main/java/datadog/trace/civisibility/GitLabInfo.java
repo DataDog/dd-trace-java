@@ -66,11 +66,6 @@ class GitLabInfo implements CIProviderInfo {
         .build();
   }
 
-  @Override
-  public boolean isCI() {
-    return true;
-  }
-
   private String buildPipelineUrl() {
     final String pipelineUrl = System.getenv(GITLAB_PIPELINE_URL);
     if (pipelineUrl == null || pipelineUrl.isEmpty()) {

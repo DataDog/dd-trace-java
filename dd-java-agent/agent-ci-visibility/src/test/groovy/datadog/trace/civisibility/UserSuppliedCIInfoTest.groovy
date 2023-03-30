@@ -6,4 +6,8 @@ class UserSuppliedCIInfoTest extends CITagsProviderImplTest {
   String getProviderName() {
     return "usersupplied"
   }
+
+  boolean isCi() {
+    false
+  }
 }
