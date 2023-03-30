@@ -58,10 +58,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
-  }
 
-  @Override
-  public void onTestModuleStart() {
     testModule =
         new DDTestModuleImpl(
             null,
@@ -72,6 +69,22 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
             sourcePathResolver,
             codeowners,
             methodLinesResolver);
+  }
+
+  @Override
+  public void onTestModuleStart() {
+    if (testModule == null) {
+      testModule =
+          new DDTestModuleImpl(
+              null,
+              moduleName,
+              null,
+              config,
+              testDecorator,
+              sourcePathResolver,
+              codeowners,
+              methodLinesResolver);
+    }
   }
 
   @Override
