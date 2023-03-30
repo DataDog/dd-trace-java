@@ -40,7 +40,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
     HttpServletRequestWrapper | _
   }
 
-  def 'test getHeaders'(final Class<? extends HttpServletRequest> clazz) {
+  void 'test getHeaders'() {
     setup:
     final iastModule = Mock(WebModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -53,8 +53,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
 
     then:
     result == ['value1', 'value2']
-    1 * iastModule.onHeaderValue('headers', 'value1')
-    1 * iastModule.onHeaderValue('headers', 'value2')
+    1 * iastModule.onHeaderValues('headers', ['value1', 'value2'])
 
     where:
     clazz                     | _
@@ -62,20 +61,21 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
     HttpServletRequestWrapper | _
   }
 
-  def 'test getHeaderNames'(final Class<? extends HttpServletRequest> clazz) {
+  void 'test getHeaderNames'() {
     setup:
     final iastModule = Mock(WebModule)
     InstrumentationBridge.registerIastModule(iastModule)
+    final headers = ['header1', 'header2']
     final testSuite = new TestHttpServletRequestCallSiteSuite(Mock(clazz) {
-      getHeaderNames() >> Collections.enumeration(['header'])
+      getHeaderNames() >> Collections.enumeration(headers)
     })
 
     when:
     final result = testSuite.getHeaderNames()?.toList()
 
     then:
-    result == ['header']
-    1 * iastModule.onHeaderName('header')
+    result == headers
+    1 * iastModule.onHeaderNames(headers)
 
     where:
     clazz                     | _

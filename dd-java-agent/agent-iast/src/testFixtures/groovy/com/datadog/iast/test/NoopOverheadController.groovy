@@ -1,4 +1,4 @@
-package com.datadog.iast
+package com.datadog.iast.test
 
 import com.datadog.iast.overhead.Operation
 import com.datadog.iast.overhead.OverheadController

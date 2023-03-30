@@ -96,9 +96,12 @@ excludedClassesCoverage += [
   "datadog.trace.api.cache.FixedSizeWeakKeyCache",
   // Interface with default method
   "datadog.trace.api.StatsDClientManager",
+  "datadog.trace.api.iast.Taintable",
   // a stub
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration",
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration.NoOp",
+  // debug
+  'datadog.trace.api.iast.Taintable.DebugLogger',
 ]
 
 excludedClassesBranchCoverage = [

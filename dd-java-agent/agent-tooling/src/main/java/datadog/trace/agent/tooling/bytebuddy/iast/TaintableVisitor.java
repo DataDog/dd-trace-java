@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.iast;
 
+import datadog.trace.api.iast.Taintable;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -14,10 +15,13 @@ import net.bytebuddy.jar.asm.ClassVisitor;
 import net.bytebuddy.jar.asm.FieldVisitor;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
+import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.pool.TypePool;
 import net.bytebuddy.utility.OpenedClassReader;
 
 public class TaintableVisitor implements AsmVisitorWrapper {
+
+  public static volatile boolean DEBUG = false;
 
   private static final String INTERFACE_NAME = "datadog/trace/api/iast/Taintable";
   private static final String SOURCE_CLASS_NAME = "L" + INTERFACE_NAME + "$Source;";
@@ -97,7 +101,11 @@ public class TaintableVisitor implements AsmVisitorWrapper {
       if (addTaintable) {
         addField();
         addGetter();
-        addSetter();
+        if (!DEBUG) {
+          addSetter();
+        } else {
+          addSetterDebug();
+        }
       }
     }
 
@@ -115,7 +123,7 @@ public class TaintableVisitor implements AsmVisitorWrapper {
     private void addField() {
       final FieldVisitor fv =
           cv.visitField(
-              Opcodes.ACC_PRIVATE | Opcodes.ACC_TRANSIENT,
+              Opcodes.ACC_PRIVATE | Opcodes.ACC_TRANSIENT | Opcodes.ACC_VOLATILE,
               FIELD_NAME,
               SOURCE_CLASS_NAME,
               null,
@@ -144,6 +152,61 @@ public class TaintableVisitor implements AsmVisitorWrapper {
       mv.visitFieldInsn(Opcodes.PUTFIELD, owner, FIELD_NAME, SOURCE_CLASS_NAME);
       mv.visitInsn(Opcodes.RETURN);
       mv.visitMaxs(2, 2);
+      mv.visitEnd();
+    }
+
+    private void addSetterDebug() {
+      final MethodVisitor mv =
+          cv.visitMethod(
+              Opcodes.ACC_PUBLIC, SETTER_NAME, "(" + SOURCE_CLASS_NAME + ")V", null, null);
+      mv.visitCode();
+      mv.visitVarInsn(Opcodes.ALOAD, 0);
+      mv.visitVarInsn(Opcodes.ALOAD, 1);
+      mv.visitFieldInsn(Opcodes.PUTFIELD, owner, FIELD_NAME, SOURCE_CLASS_NAME);
+
+      mv.visitMethodInsn(
+          Opcodes.INVOKESTATIC,
+          Type.getInternalName(Taintable.DebugLogger.class),
+          "getLogger",
+          "()Lorg/slf4j/Logger;",
+          false);
+
+      mv.visitLdcInsn("taint: {}[{}] {}");
+      mv.visitInsn(Opcodes.ICONST_3);
+      mv.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
+      mv.visitInsn(Opcodes.DUP);
+      mv.visitInsn(Opcodes.ICONST_0);
+      mv.visitVarInsn(Opcodes.ALOAD, 0);
+      mv.visitMethodInsn(
+          Opcodes.INVOKEVIRTUAL, "java/lang/Object", "getClass", "()Ljava/lang/Class;", false);
+      mv.visitMethodInsn(
+          Opcodes.INVOKEVIRTUAL, "java/lang/Class", "getSimpleName", "()Ljava/lang/String;", false);
+      mv.visitInsn(Opcodes.AASTORE);
+      mv.visitInsn(Opcodes.DUP);
+      mv.visitInsn(Opcodes.ICONST_1);
+      mv.visitVarInsn(Opcodes.ALOAD, 0);
+      mv.visitMethodInsn(
+          Opcodes.INVOKESTATIC,
+          "java/lang/System",
+          "identityHashCode",
+          "(Ljava/lang/Object;)I",
+          false);
+      mv.visitMethodInsn(
+          Opcodes.INVOKESTATIC, "java/lang/Integer", "toHexString", "(I)Ljava/lang/String;", false);
+      mv.visitInsn(Opcodes.AASTORE);
+      mv.visitInsn(Opcodes.DUP);
+      mv.visitInsn(Opcodes.ICONST_2);
+      mv.visitVarInsn(Opcodes.ALOAD, 0);
+      mv.visitInsn(Opcodes.AASTORE);
+      mv.visitMethodInsn(
+          Opcodes.INVOKEINTERFACE,
+          "org/slf4j/Logger",
+          "debug",
+          "(Ljava/lang/String;[Ljava/lang/Object;)V",
+          true);
+
+      mv.visitInsn(Opcodes.RETURN);
+      mv.visitMaxs(8, 2);
       mv.visitEnd();
     }
   }

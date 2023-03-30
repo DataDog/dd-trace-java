@@ -1,14 +1,14 @@
-package com.datadog.iast
+package com.datadog.iast.test
 
+import com.datadog.iast.IastRequestContext
 import com.datadog.iast.model.Source
 import com.datadog.iast.taint.TaintedObjects
-import com.datadog.iast.telemetry.NoOpTelemetry
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor
 import datadog.trace.api.gateway.CallbackProvider
 import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContextSlot
-import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -17,9 +17,7 @@ import datadog.trace.core.DDSpan
 
 import java.util.function.Supplier
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
-
-class IastAgentTestRunner extends AgentTestRunner {
+class IastAgentTestRunner extends AgentTestRunner implements IastRequestContextPreparationTrait {
   public static final EMPTY_SOURCE = new Source(SourceTypes.NONE, '', '')
 
   void configurePreAgent() {
@@ -27,19 +25,23 @@ class IastAgentTestRunner extends AgentTestRunner {
     injectSysConfig('dd.iast.enabled', 'true')
   }
 
+  protected Closure getRequestEndAction() { }
+
   void setupSpec() {
-    // Register the Instrumentation Gateway callbacks
-    def ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.IAST)
-    IastSystem.start(ss, new NoopOverheadController(), new NoOpTelemetry())
+    TaintableVisitor.DEBUG = true
+    iastSystemSetup(requestEndAction)
   }
 
   void cleanupSpec() {
-    get().getSubscriptionService(RequestContextSlot.IAST).reset()
-    InstrumentationBridge.clearIastModules()
+    iastSystemCleanup()
   }
 
-  protected TaintedObjects getTaintedObjects() {
+  protected TaintedObjects getLocalTaintedObjects() {
     IastRequestContext.get().taintedObjects
+  }
+
+  protected TaintedObjectCollection getLocalTaintedObjectCollection() {
+    new TaintedObjectCollection(localTaintedObjects)
   }
 
   protected DDSpan runUnderIastTrace(Closure cl) {

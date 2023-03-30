@@ -1,6 +1,7 @@
 package datadog.trace.api.iast.propagation;
 
 import datadog.trace.api.iast.IastModule;
+import datadog.trace.api.iast.Taintable;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -30,4 +31,8 @@ public interface PropagationModule extends IastModule {
   void taint(byte origin, @Nullable Object... toTaint);
 
   void taint(byte origin, @Nullable Collection<Object> toTaint);
+
+  void taint(@Nullable Taintable t, byte origin, @Nullable String name, @Nullable String value);
+
+  boolean isTainted(@Nullable Object obj);
 }
