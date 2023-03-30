@@ -1,5 +1,5 @@
 import datadog.trace.agent.test.asserts.ListWriterAssert
-import datadog.trace.agent.test.base.TestFrameworkTest
+import datadog.trace.agent.test.base.CiVisibilityTest
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -32,7 +32,7 @@ import org.opentest4j.AssertionFailedError
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
 @DisableTestTrace(reason = "avoid self-tracing")
-class JUnit5Test extends TestFrameworkTest {
+class JUnit5Test extends CiVisibilityTest {
 
   def "test success generate spans"() {
     setup:

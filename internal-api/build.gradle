@@ -69,23 +69,6 @@ excludedClassesCoverage += [
   "datadog.trace.api.civisibility.CIInfo.Builder",
   "datadog.trace.api.civisibility.InstrumentationBridge",
   "datadog.trace.api.civisibility.source.MethodLinesResolver.MethodLines",
-  "datadog.trace.api.civisibility.events.impl.AbstractTestContext",
-  // POJO
-  "datadog.trace.api.civisibility.events.impl.BuildEventsHandlerImpl",
-  // tested with integration tests in instr modules
-  "datadog.trace.api.civisibility.events.impl.BuildEventsHandlerImpl.SessionContext",
-  // POJO
-  "datadog.trace.api.civisibility.events.impl.ParentProcessTestContext",
-  // POJO
-  "datadog.trace.api.civisibility.events.impl.SpanTestContext",
-  // POJO
-  "datadog.trace.api.civisibility.events.impl.TestEventsHandlerImpl",
-  // tested with integration tests in instr modules
-  "datadog.trace.api.civisibility.events.impl.TestModuleDescriptor",
-  // POJO
-  "datadog.trace.api.civisibility.events.impl.TestSuiteDescriptor",
-  // POJO
-  "datadog.trace.api.civisibility.events.BuildEventsHandler.ModuleAndSessionId",
   // POJO
   "datadog.trace.api.git.GitInfo",
   // POJO

@@ -1,18 +1,20 @@
 package datadog.trace.civisibility;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.CIInfo;
-import datadog.trace.api.civisibility.CIProviderInfo;
 import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.ci.CIInfo;
+import datadog.trace.api.civisibility.ci.CIProviderInfo;
 import datadog.trace.api.civisibility.codeowners.Codeowners;
 import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
-import datadog.trace.api.civisibility.events.impl.BuildEventsHandlerImpl;
-import datadog.trace.api.civisibility.events.impl.TestEventsHandlerImpl;
 import datadog.trace.api.civisibility.source.MethodLinesResolver;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.api.git.GitInfoProvider;
+import datadog.trace.civisibility.ci.CIProviderInfoFactory;
+import datadog.trace.civisibility.ci.CITagsProviderImpl;
 import datadog.trace.civisibility.codeowners.CodeownersProvider;
+import datadog.trace.civisibility.events.BuildEventsHandlerImpl;
+import datadog.trace.civisibility.events.TestEventsHandlerImpl;
 import datadog.trace.civisibility.git.CILocalGitInfoBuilder;
 import datadog.trace.civisibility.git.CIProviderGitInfoBuilder;
 import datadog.trace.civisibility.source.BestEfforSourcePathResolver;

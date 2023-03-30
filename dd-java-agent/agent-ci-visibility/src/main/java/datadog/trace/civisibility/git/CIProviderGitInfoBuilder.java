@@ -1,9 +1,9 @@
 package datadog.trace.civisibility.git;
 
-import datadog.trace.api.civisibility.CIProviderInfo;
+import datadog.trace.api.civisibility.ci.CIProviderInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoBuilder;
-import datadog.trace.civisibility.CIProviderInfoFactory;
+import datadog.trace.civisibility.ci.CIProviderInfoFactory;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import javax.annotation.Nullable;

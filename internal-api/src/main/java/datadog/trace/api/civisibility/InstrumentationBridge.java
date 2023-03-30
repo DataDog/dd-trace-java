@@ -1,5 +1,6 @@
 package datadog.trace.api.civisibility;
 
+import datadog.trace.api.civisibility.ci.CITagsProvider;
 import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
