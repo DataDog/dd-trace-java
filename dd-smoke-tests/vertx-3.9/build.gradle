@@ -6,6 +6,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   testImplementation project(':dd-smoke-tests')
+  testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
 }
 
 def appDir = "$projectDir/application"

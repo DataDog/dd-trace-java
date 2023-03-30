@@ -1,6 +1,9 @@
 package datadog.trace.api.iast.propagation;
 
 import datadog.trace.api.iast.IastModule;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import javax.annotation.Nullable;
 
 public interface PropagationModule extends IastModule {
@@ -12,5 +15,19 @@ public interface PropagationModule extends IastModule {
   void taintIfInputIsTainted(
       byte origin, @Nullable String name, @Nullable String toTaint, @Nullable Object input);
 
+  void taintIfInputIsTainted(
+      byte origin,
+      @Nullable String name,
+      @Nullable Collection<String> toTaint,
+      @Nullable Object input);
+
+  void taintIfInputIsTainted(
+      byte origin, @Nullable Collection<String> toTaint, @Nullable Object input);
+
+  void taintIfInputIsTainted(
+      byte origin, @Nullable List<Map.Entry<String, String>> toTaint, @Nullable Object input);
+
   void taint(byte origin, @Nullable Object... toTaint);
+
+  void taint(byte origin, @Nullable Collection<Object> toTaint);
 }
