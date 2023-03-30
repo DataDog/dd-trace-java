@@ -119,7 +119,7 @@ class PayloadDispatcherTest extends DDSpecification {
     when:
     dispatcher.addTrace(trace)
     then:
-    1 * healthMetrics.onFailedPublish(PrioritySampling.UNSET)
+    1 * healthMetrics.onFailedPublish(PrioritySampling.UNSET,_)
   }
 
   def "trace and span counts are reset after access"() {

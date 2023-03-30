@@ -103,6 +103,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     AbstractContinuation continuation =
         new SingleContinuation(this, span, ScopeSource.INSTRUMENTATION.id());
     continuation.register();
+    healthMetrics.onCaptureContinuation();
     return continuation;
   }
 
@@ -122,6 +123,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     // DQH - This check could go before the check above, since depth limit checking is fast
     final int currentDepth = scopeStack.depth();
     if (depthLimit <= currentDepth) {
+      healthMetrics.onScopeStackOverflow();
       log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
       return AgentTracer.NoopAgentScope.INSTANCE;
     }
@@ -137,8 +139,8 @@ public final class ContinuableScopeManager implements AgentScopeManager {
                 : DEFAULT_ASYNC_PROPAGATING;
 
     final ContinuableScope scope = new ContinuableScope(this, span, source, asyncPropagation);
-
     scopeStack.push(scope);
+    healthMetrics.onActivateScope();
 
     return scope;
   }
@@ -188,6 +190,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
     final int currentDepth = scopeStack.depth();
     if (depthLimit <= currentDepth) {
+      healthMetrics.onScopeStackOverflow();
       log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
       return AgentTracer.NoopAgentScope.INSTANCE;
     }
