@@ -1,0 +1,24 @@
+muzzle {
+  pass {
+    group = "org.apache.spark"
+    module = "spark-core_2.12"
+    versions = "[2.4.0,)"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+dependencies {
+  compileOnly group: 'org.apache.spark', name: 'spark-core_2.12', version: '2.4.0'
+
+  testImplementation group: 'org.apache.spark', name: 'spark-core_2.12', version: '2.4.0'
+  testImplementation group: 'org.apache.spark', name: 'spark-sql_2.12', version: '2.4.0' // Needed to instantiate spark in tests
+}
