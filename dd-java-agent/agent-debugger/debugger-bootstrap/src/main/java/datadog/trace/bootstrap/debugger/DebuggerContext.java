@@ -292,10 +292,18 @@ public class DebuggerContext {
         shouldCommit = true;
       }
       if (entryStatus.shouldReportError()) {
+        if (entryContext.getThrowable() != null) {
+          // report also uncaught exception
+          snapshot.setEntry(entryContext);
+        }
         snapshot.addEvaluationErrors(entryStatus.errors);
         shouldCommit = true;
       }
       if (exitStatus.shouldReportError()) {
+        if (exitContext.getThrowable() != null) {
+          // report also uncaught exception
+          snapshot.setExit(exitContext);
+        }
         snapshot.addEvaluationErrors(exitStatus.errors);
         shouldCommit = true;
       }

@@ -1324,6 +1324,37 @@ public class CapturedSnapshotTest {
     Assertions.assertEquals(DebuggerContext.SkipCause.CONDITION, listener.cause);
   }
 
+  @Test
+  public void uncaughtExceptionConditionLocalVar() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot05";
+    LogProbe probe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "main", "(String)")
+            .when(new ProbeCondition(DSL.when(DSL.gt(DSL.ref("after"), DSL.value(0))), "after > 0"))
+            .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    try {
+      Reflect.on(testClass).call("main", "triggerUncaughtException").get();
+      Assertions.fail("should not reach this code");
+    } catch (ReflectException ex) {
+      Assertions.assertEquals("oops", ex.getCause().getCause().getMessage());
+    }
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertCaptureThrowable(
+        snapshot.getCaptures().getReturn(),
+        "java.lang.IllegalStateException",
+        "oops",
+        "CapturedSnapshot05.triggerUncaughtException",
+        7);
+    Assertions.assertEquals(2, snapshot.getEvaluationErrors().size());
+    Assertions.assertEquals(
+        "Cannot find symbol: after", snapshot.getEvaluationErrors().get(0).getMessage());
+    Assertions.assertEquals(
+        "java.lang.IllegalStateException: oops",
+        snapshot.getEvaluationErrors().get(1).getMessage());
+  }
+
   private DebuggerTransformerTest.TestSnapshotListener setupInstrumentTheWorldTransformer(
       String excludeFileName) {
     Config config = mock(Config.class);
