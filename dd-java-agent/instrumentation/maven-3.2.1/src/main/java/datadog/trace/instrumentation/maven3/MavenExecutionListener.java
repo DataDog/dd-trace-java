@@ -6,7 +6,7 @@ import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.Strings;
-import java.io.File;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -35,8 +35,10 @@ public class MavenExecutionListener extends AbstractExecutionListener {
     MavenSession session = event.getSession();
 
     MavenProject currentProject = session.getCurrentProject();
-    File projectRoot = currentProject.getBasedir();
-    TestDecorator mavenDecorator = new MavenDecorator(projectRoot.toPath());
+    Path projectRoot = currentProject.getBasedir().toPath();
+
+    Map<String, String> ciTags = InstrumentationBridge.getCiTags(projectRoot);
+    TestDecorator mavenDecorator = new MavenDecorator(ciTags);
 
     String projectName = currentProject.getName();
     String startCommand = MavenUtils.getCommandLine(session);

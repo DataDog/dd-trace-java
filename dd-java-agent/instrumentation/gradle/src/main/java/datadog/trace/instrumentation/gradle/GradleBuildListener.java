@@ -8,6 +8,7 @@ import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.util.Strings;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.Map;
 import org.gradle.BuildAdapter;
 import org.gradle.BuildResult;
 import org.gradle.api.Project;
@@ -35,7 +36,8 @@ public class GradleBuildListener extends BuildAdapter {
     }
     Gradle gradle = settings.getGradle();
     Path projectRoot = settings.getRootDir().toPath();
-    TestDecorator gradleDecorator = new GradleDecorator(projectRoot);
+    Map<String, String> ciTags = InstrumentationBridge.getCiTags(projectRoot);
+    TestDecorator gradleDecorator = new GradleDecorator(ciTags);
     ProjectDescriptor rootProject = settings.getRootProject();
     String projectName = rootProject.getName();
     String startCommand = GradleUtils.recreateStartCommand(settings.getStartParameter());

@@ -65,7 +65,14 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   public void onTestModuleStart() {
     testModule =
         new DDTestModuleImpl(
-            moduleName, config, testDecorator, sourcePathResolver, codeowners, methodLinesResolver);
+            null,
+            moduleName,
+            null,
+            config,
+            testDecorator,
+            sourcePathResolver,
+            codeowners,
+            methodLinesResolver);
   }
 
   @Override

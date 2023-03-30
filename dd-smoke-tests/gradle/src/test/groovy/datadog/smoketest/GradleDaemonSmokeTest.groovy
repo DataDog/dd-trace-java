@@ -125,7 +125,6 @@ class GradleDaemonSmokeTest extends Specification {
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
           it["test.module"] == ":test" // task path
-          it["test.bundle"] == ":test" // task path
         }
       }
     }
@@ -179,7 +178,6 @@ class GradleDaemonSmokeTest extends Specification {
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
           it["test.module"] == ":test" // task path
-          it["test.bundle"] == ":test" // task path
         }
       }
     }
@@ -232,7 +230,6 @@ class GradleDaemonSmokeTest extends Specification {
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
           it["test.module"] == ":submodule-a:test" // task path
-          it["test.bundle"] == ":submodule-a:test" // task path
         }
       }
     }
@@ -248,7 +245,6 @@ class GradleDaemonSmokeTest extends Specification {
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
           it["test.module"] == ":submodule-b:test" // task path
-          it["test.bundle"] == ":submodule-b:test" // task path
         }
       }
     }
@@ -309,7 +305,6 @@ class GradleDaemonSmokeTest extends Specification {
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
           it["test.module"] == ":test" // task path
-          it["test.bundle"] == ":test" // task path
         }
       }
     }
@@ -361,7 +356,6 @@ class GradleDaemonSmokeTest extends Specification {
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
           it["test.module"] == ":test" // task path
-          it["test.bundle"] == ":test" // task path
           it["test.skip_reason"] == "NO-SOURCE"
         }
       }

@@ -1,14 +1,9 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.trace.api.DDTags
-import datadog.trace.api.civisibility.CIInfo
-import datadog.trace.api.civisibility.CITagsProvider
-import datadog.trace.api.civisibility.InstrumentationBridge
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
-
-import java.nio.file.Paths
 
 class TestDecoratorTest extends BaseDecoratorTest {
 
@@ -24,7 +19,8 @@ class TestDecoratorTest extends BaseDecoratorTest {
     then:
     1 * span.setTag(Tags.COMPONENT, "test-component")
     1 * span.setSpanType(decorator.spanType())
-    1 * span.setTag(Tags.TEST_FRAMEWORK, decorator.testFramework())
+    1 * span.setTag(Tags.TEST_FRAMEWORK, "test-framework")
+    1 * span.setTag(Tags.TEST_FRAMEWORK_VERSION, "test-framework-version")
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
     1 * span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP)
     1 * span.setTag(Tags.RUNTIME_NAME, decorator.runtimeName())
@@ -34,7 +30,8 @@ class TestDecoratorTest extends BaseDecoratorTest {
     1 * span.setTag(Tags.OS_PLATFORM, decorator.osPlatform())
     1 * span.setTag(Tags.OS_VERSION, decorator.osVersion())
     1 * span.setTag(DDTags.ORIGIN_KEY, decorator.origin())
-    1 * span.setTag("sample-ci-key", "sample-ci-value")
+    1 * span.setTag("ci-tag-1", "value")
+    1 * span.setTag("ci-tag-2", "another value")
 
     _ * span.setTag(_, _) // Want to allow other calls from child implementations.
     _ * span.setServiceName(_)
@@ -55,41 +52,16 @@ class TestDecoratorTest extends BaseDecoratorTest {
 
   @Override
   def newDecorator() {
-    def rootPath = Paths.get("/dummy/root")
-    def currentPath = Paths.get("/dummy/root/module")
-
-    def ciInfo = Stub(CIInfo)
-    ciInfo.ciWorkspace >> rootPath.toString()
-
-    def ciTagsProvider = Stub(CITagsProvider)
-    ciTagsProvider.getCiTags(_) >> ["sample-ci-key": "sample-ci-value"]
-    InstrumentationBridge.ciTagsProvider = ciTagsProvider
-
-    return new AbstractTestDecorator(currentPath) {
-        @Override
-        protected String testFramework() {
-          return "test-framework"
-        }
-
-        @Override
-        protected String[] instrumentationNames() {
-          return ["test1", "test2"]
-        }
-
-        @Override
-        protected CharSequence spanType() {
-          return "test-type"
-        }
-
-        @Override
-        protected String testSpanKind() {
-          return "test-type"
-        }
-
-        @Override
-        CharSequence component() {
-          return "test-component"
-        }
+    return new AbstractTestDecorator("test-component", "test-framework", "test-framework-version", ["ci-tag-1": "value", "ci-tag-2": "another value"]) {
+      @Override
+      protected String[] instrumentationNames() {
+        return ["test1", "test2"]
       }
+
+      @Override
+      protected CharSequence spanType() {
+        return "test-type"
+      }
+    }
   }
 }

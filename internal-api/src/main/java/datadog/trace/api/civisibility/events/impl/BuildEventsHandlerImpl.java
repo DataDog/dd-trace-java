@@ -1,11 +1,10 @@
 package datadog.trace.api.civisibility.events.impl;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-
-import datadog.trace.api.civisibility.CIConstants;
+import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.DDTestModule;
+import datadog.trace.api.civisibility.DDTestSession;
 import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -13,9 +12,9 @@ import java.util.concurrent.ConcurrentMap;
 
 public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
 
-  private final ConcurrentMap<T, SessionContext> testSessionContexts = new ConcurrentHashMap<>();
+  private final ConcurrentMap<T, DDTestSession> inProgressTestSessions = new ConcurrentHashMap<>();
 
-  private final ConcurrentMap<TestModuleDescriptor<T>, TestContext> testModuleContexts =
+  private final ConcurrentMap<TestModuleDescriptor<T>, DDTestModule> inProgressTestModules =
       new ConcurrentHashMap<>();
 
   @Override
@@ -26,53 +25,39 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
       final String startCommand,
       final String buildSystemName,
       final String buildSystemVersion) {
-    AgentSpan span = startSpan(sessionDecorator.component() + ".test_session");
-
-    TestContext context = new SpanTestContext(span);
-    testSessionContexts.put(sessionKey, new SessionContext(context, sessionDecorator));
-
-    sessionDecorator.afterTestSessionStart(
-        span, projectName, startCommand, buildSystemName, buildSystemVersion);
+    DDTestSession testSession =
+        new DDTestSessionImpl(projectName, Config.get(), sessionDecorator, null, null, null);
+    testSession.setTag(Tags.TEST_COMMAND, startCommand);
+    testSession.setTag(Tags.TEST_TOOLCHAIN, buildSystemName + ":" + buildSystemVersion);
+    inProgressTestSessions.put(sessionKey, testSession);
   }
 
   @Override
   public void onTestFrameworkDetected(
       final T sessionKey, final String frameworkName, final String frameworkVersion) {
-    AgentSpan span = getTestSessionSpan(sessionKey);
-    span.setTag(Tags.TEST_FRAMEWORK, frameworkName);
-    span.setTag(Tags.TEST_FRAMEWORK_VERSION, frameworkVersion);
+    DDTestSession testSession = getTestSession(sessionKey);
+    testSession.setTag(Tags.TEST_FRAMEWORK, frameworkName);
+    testSession.setTag(Tags.TEST_FRAMEWORK_VERSION, frameworkVersion);
   }
 
   @Override
   public void onTestSessionFail(final T sessionKey, final Throwable throwable) {
-    AgentSpan span = getTestSessionSpan(sessionKey);
-    span.setError(true);
-    span.addThrowable(throwable);
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_FAIL);
+    DDTestSession testSession = getTestSession(sessionKey);
+    testSession.setErrorInfo(throwable);
   }
 
-  private AgentSpan getTestSessionSpan(T sessionKey) {
-    SessionContext sessionContext = testSessionContexts.get(sessionKey);
-    AgentSpan span = sessionContext.context.getSpan();
-    if (span == null) {
+  private DDTestSession getTestSession(T sessionKey) {
+    DDTestSession testSession = inProgressTestSessions.get(sessionKey);
+    if (testSession == null) {
       throw new IllegalStateException("Could not find session span for key: " + sessionKey);
     }
-    return span;
+    return testSession;
   }
 
   @Override
   public void onTestSessionFinish(final T sessionKey) {
-    SessionContext sessionContext = testSessionContexts.remove(sessionKey);
-    AgentSpan span = sessionContext.context.getSpan();
-    if (span == null) {
-      throw new IllegalStateException("Could not find session span for key: " + sessionKey);
-    }
-
-    span.setTag(Tags.TEST_STATUS, sessionContext.context.getStatus());
-    span.setTag(Tags.TEST_SESSION_ID, sessionContext.context.getId());
-
-    sessionContext.decorator.beforeFinish(span);
-    span.finish();
+    DDTestSession testSession = inProgressTestSessions.remove(sessionKey);
+    testSession.end(null);
   }
 
   @Override
@@ -81,32 +66,24 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
       final String moduleName,
       String startCommand,
       Map<String, Object> additionalTags) {
-    SessionContext sessionContext = testSessionContexts.get(sessionKey);
-    AgentSpan sessionSpan = sessionContext.context.getSpan();
-    if (sessionSpan == null) {
-      throw new IllegalStateException("Could not find session span for key: " + sessionKey);
-    }
 
-    AgentSpan span =
-        startSpan(sessionContext.decorator.component() + ".test_module", sessionSpan.context());
-    // will overwrite in case of skip/failure
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_PASS);
+    DDTestSession testSession = inProgressTestSessions.get(sessionKey);
+    DDTestModule testModule = testSession.testModuleStart(moduleName, null);
+    testModule.setTag(Tags.TEST_COMMAND, startCommand);
 
     if (additionalTags != null) {
       for (Map.Entry<String, Object> e : additionalTags.entrySet()) {
         String tag = e.getKey();
         Object value = e.getValue();
-        span.setTag(tag, value);
+        testModule.setTag(tag, value);
       }
     }
 
     TestModuleDescriptor<T> testModuleDescriptor =
         new TestModuleDescriptor<>(sessionKey, moduleName);
-    testModuleContexts.put(testModuleDescriptor, new SpanTestContext(span));
+    inProgressTestModules.put(testModuleDescriptor, testModule);
 
-    sessionContext.decorator.afterTestModuleStart(span, moduleName, null, startCommand);
-
-    return new ModuleAndSessionId(span.getSpanId(), sessionSpan.getSpanId());
+    return ((DDTestModuleImpl) testModule).getModuleAndSessionId();
   }
 
   @Override
@@ -115,74 +92,47 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
       final String moduleName,
       final String frameworkName,
       final String frameworkVersion) {
-    AgentSpan span = getTestModuleSpan(sessionKey, moduleName);
-    span.setTag(Tags.TEST_FRAMEWORK, frameworkName);
-    span.setTag(Tags.TEST_FRAMEWORK_VERSION, frameworkVersion);
+    DDTestModule testModule = getTestModule(sessionKey, moduleName);
+    testModule.setTag(Tags.TEST_FRAMEWORK, frameworkName);
+    testModule.setTag(Tags.TEST_FRAMEWORK_VERSION, frameworkVersion);
   }
 
   @Override
   public void onTestModuleSkip(final T sessionKey, final String moduleName, final String reason) {
-    AgentSpan span = getTestModuleSpan(sessionKey, moduleName);
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
-    span.setTag(Tags.TEST_SKIP_REASON, reason);
+    DDTestModule testModule = getTestModule(sessionKey, moduleName);
+    testModule.setSkipReason(reason);
   }
 
   @Override
   public void onTestModuleFail(
       final T sessionKey, final String moduleName, final Throwable throwable) {
-    AgentSpan span = getTestModuleSpan(sessionKey, moduleName);
-    span.setError(true);
-    span.addThrowable(throwable);
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_FAIL);
+    DDTestModule testModule = getTestModule(sessionKey, moduleName);
+    testModule.setErrorInfo(throwable);
   }
 
-  private AgentSpan getTestModuleSpan(final T sessionKey, final String moduleName) {
+  private DDTestModule getTestModule(final T sessionKey, final String moduleName) {
     TestModuleDescriptor<T> testModuleDescriptor =
         new TestModuleDescriptor<>(sessionKey, moduleName);
-    TestContext testModuleContext = testModuleContexts.get(testModuleDescriptor);
-    final AgentSpan span = testModuleContext.getSpan();
-    if (span == null) {
+    DDTestModule testModule = inProgressTestModules.get(testModuleDescriptor);
+    if (testModule == null) {
       throw new IllegalStateException(
-          "Could not find module span for session key "
-              + sessionKey
-              + " and module name "
-              + moduleName);
+          "Could not find module for session key " + sessionKey + " and module name " + moduleName);
     }
-    return span;
+    return testModule;
   }
 
   @Override
   public void onTestModuleFinish(T sessionKey, String moduleName) {
     TestModuleDescriptor<T> testModuleDescriptor =
         new TestModuleDescriptor<>(sessionKey, moduleName);
-    TestContext testModuleContext = testModuleContexts.remove(testModuleDescriptor);
-
-    final AgentSpan span = testModuleContext.getSpan();
-    if (span == null) {
+    DDTestModule testModule = inProgressTestModules.remove(testModuleDescriptor);
+    if (testModule == null) {
       throw new IllegalStateException(
           "Could not find module span for session key "
               + sessionKey
               + " and module name "
               + moduleName);
     }
-
-    span.setTag(Tags.TEST_MODULE_ID, testModuleContext.getId());
-
-    SessionContext sessionContext = testSessionContexts.get(sessionKey);
-    span.setTag(Tags.TEST_SESSION_ID, sessionContext.context.getId());
-    sessionContext.context.reportChildStatus(testModuleContext.getStatus());
-
-    sessionContext.decorator.beforeFinish(span);
-    span.finish();
-  }
-
-  private static final class SessionContext {
-    private final TestContext context;
-    private final TestDecorator decorator;
-
-    private SessionContext(TestContext context, TestDecorator decorator) {
-      this.context = context;
-      this.decorator = decorator;
-    }
+    testModule.end(null);
   }
 }

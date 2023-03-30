@@ -8,6 +8,7 @@ import datadog.trace.api.civisibility.DDTestModule;
 import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.codeowners.Codeowners;
 import datadog.trace.api.civisibility.decorator.TestDecorator;
+import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.civisibility.source.MethodLinesResolver;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.api.config.CiVisibilityConfig;
@@ -25,21 +26,26 @@ public class DDTestModuleImpl implements DDTestModule {
   private static final Logger log = LoggerFactory.getLogger(DDTestModuleImpl.class);
 
   private final String moduleName;
+  private final AgentSpan span;
+  private final TestContext context;
+  @Nullable private final TestContext sessionContext;
   private final Config config;
   private final TestDecorator testDecorator;
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
   private final MethodLinesResolver methodLinesResolver;
-  private final TestContext context;
-  private final AgentSpan span;
 
+  // FIXME use two different constructors????
   public DDTestModuleImpl(
+      @Nullable TestContext sessionContext,
       String moduleName,
+      @Nullable Long startTime,
       Config config,
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver) {
+    this.sessionContext = sessionContext;
     this.moduleName = moduleName;
     this.config = config;
     this.testDecorator = testDecorator;
@@ -75,7 +81,15 @@ public class DDTestModuleImpl implements DDTestModule {
       span = null;
 
     } else {
-      span = startSpan(testDecorator.component() + ".test_module");
+      AgentSpan sessionSpan = sessionContext != null ? sessionContext.getSpan() : null;
+      AgentSpan.Context sessionSpanContext = sessionSpan != null ? sessionSpan.context() : null;
+
+      if (startTime != null) {
+        span = startSpan(testDecorator.component() + ".test_module", sessionSpanContext, startTime);
+      } else {
+        span = startSpan(testDecorator.component() + ".test_module", sessionSpanContext);
+      }
+
       context = new SpanTestContext(span);
 
       span.setSpanType(InternalSpanTypes.TEST_MODULE_END);
@@ -85,6 +99,11 @@ public class DDTestModuleImpl implements DDTestModule {
       span.setTag(Tags.TEST_MODULE, moduleName);
 
       span.setTag(Tags.TEST_MODULE_ID, context.getId());
+
+      if (sessionContext != null) {
+        span.setTag(Tags.TEST_SESSION_ID, sessionContext.getId());
+        span.setTag(Tags.TEST_STATUS, CIConstants.TEST_PASS);
+      }
 
       testDecorator.afterStart(span);
     }
@@ -129,6 +148,9 @@ public class DDTestModuleImpl implements DDTestModule {
       log.debug("Ignoring module end call: there is no local span for test module");
       return;
     }
+    if (sessionContext != null) {
+      sessionContext.reportChildStatus(context.getStatus());
+    }
     span.setTag(Tags.TEST_STATUS, context.getStatus());
     testDecorator.beforeFinish(span);
     span.finish();
@@ -148,5 +170,10 @@ public class DDTestModuleImpl implements DDTestModule {
         sourcePathResolver,
         codeowners,
         methodLinesResolver);
+  }
+
+  public BuildEventsHandler.ModuleAndSessionId getModuleAndSessionId() {
+    return new BuildEventsHandler.ModuleAndSessionId(
+        context.getId(), sessionContext != null ? sessionContext.getId() : context.getParentId());
   }
 }

@@ -7,7 +7,6 @@ import java.util.Collection;
 import java.util.List;
 import javax.annotation.Nullable;
 
-// FIXME move testSuiteDescriptor, testDescriptor classes to interface level?
 public interface TestEventsHandler {
 
   void onTestModuleStart();

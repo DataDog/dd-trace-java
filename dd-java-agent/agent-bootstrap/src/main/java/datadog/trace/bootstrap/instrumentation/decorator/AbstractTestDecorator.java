@@ -4,11 +4,9 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Map;
-import javax.annotation.Nullable;
 
 public abstract class AbstractTestDecorator extends BaseDecorator implements TestDecorator {
 
@@ -32,14 +30,6 @@ public abstract class AbstractTestDecorator extends BaseDecorator implements Tes
 
   protected String testType() {
     return TEST_TYPE;
-  }
-
-  protected String testModuleSpanKind() {
-    return Tags.SPAN_KIND_TEST_MODULE;
-  }
-
-  protected String testSessionSpanKind() {
-    return Tags.SPAN_KIND_TEST_SESSION;
   }
 
   protected String runtimeName() {
@@ -99,43 +89,5 @@ public abstract class AbstractTestDecorator extends BaseDecorator implements Tes
     }
 
     return super.afterStart(span);
-  }
-
-  @Override
-  public void afterTestSessionStart(
-      final AgentSpan span,
-      final String projectName,
-      final String startCommand,
-      final String buildSystemName,
-      final String buildSystemVersion) {
-    span.setSpanType(InternalSpanTypes.TEST_SESSION_END);
-    span.setTag(Tags.SPAN_KIND, testSessionSpanKind());
-
-    span.setResourceName(projectName);
-    span.setTag(Tags.TEST_COMMAND, startCommand);
-    span.setTag(Tags.TEST_TOOLCHAIN, buildSystemName + ":" + buildSystemVersion);
-
-    afterStart(span);
-  }
-
-  @Override
-  public void afterTestModuleStart(
-      final AgentSpan span,
-      final @Nullable String moduleName,
-      final @Nullable String version,
-      final @Nullable String startCommand) {
-    span.setSpanType(InternalSpanTypes.TEST_MODULE_END);
-    span.setTag(Tags.SPAN_KIND, testModuleSpanKind());
-
-    span.setResourceName(moduleName);
-    span.setTag(Tags.TEST_MODULE, moduleName);
-    span.setTag(Tags.TEST_COMMAND, startCommand);
-
-    // Version can be null. The testing framework version extraction is best-effort basis.
-    if (version != null) {
-      span.setTag(Tags.TEST_FRAMEWORK_VERSION, version);
-    }
-
-    afterStart(span);
   }
 }
