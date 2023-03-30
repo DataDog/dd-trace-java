@@ -2,10 +2,10 @@ package datadog.trace.core.propagation
 
 import datadog.trace.api.DD128bTraceId
 import datadog.trace.api.DD64bTraceId
-import datadog.trace.api.DDId
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.config.TracerConfig
+import datadog.trace.api.internal.util.LongStringUtils
 import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.api.sampling.PrioritySampling
@@ -263,7 +263,7 @@ class DatadogHttpExtractorTest extends DDSpecification {
     traceId = DD128bTraceId.fromHex(hexId)
     is128bTrace = traceId.toHighOrderLong() != 0
     expectedTraceId = is128bTrace ? traceId : DD64bTraceId.from(traceId.toLong())
-    additionalHeader = is128bTrace ? [(DATADOG_TAGS_KEY.toUpperCase()) : '_dd.p.tid=' + DDId.toHexStringPadded(traceId.toHighOrderLong(), 16)] : [:]
+    additionalHeader = is128bTrace ? [(DATADOG_TAGS_KEY.toUpperCase()) : '_dd.p.tid=' + LongStringUtils.toHexStringPadded(traceId.toHighOrderLong(), 16)] : [:]
   }
 
   def "extract http headers with invalid non-numeric ID"() {

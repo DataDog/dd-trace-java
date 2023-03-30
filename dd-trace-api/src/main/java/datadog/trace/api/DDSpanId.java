@@ -1,6 +1,6 @@
 package datadog.trace.api;
 
-import datadog.trace.api.internal.util.HexStringUtils;
+import datadog.trace.api.internal.util.LongStringUtils;
 
 /** Class with methods for working with the unsigned 64 bit id used for Span ids. */
 public final class DDSpanId {
@@ -22,7 +22,7 @@ public final class DDSpanId {
    * @throws NumberFormatException
    */
   public static long from(String s) throws NumberFormatException {
-    return DDId.parseUnsignedLong(s);
+    return LongStringUtils.parseUnsignedLong(s);
   }
 
   /**
@@ -33,7 +33,7 @@ public final class DDSpanId {
    * @throws NumberFormatException
    */
   public static long fromHex(String s) throws NumberFormatException {
-    return DDId.parseUnsignedLongHex(s);
+    return LongStringUtils.parseUnsignedLongHex(s);
   }
 
   /**
@@ -48,7 +48,7 @@ public final class DDSpanId {
    */
   public static long fromHex(String s, int start, int len, boolean lowerCaseOnly)
       throws NumberFormatException {
-    return HexStringUtils.parseUnsignedLongHex(s, start, len, lowerCaseOnly);
+    return LongStringUtils.parseUnsignedLongHex(s, start, len, lowerCaseOnly);
   }
 
   /**
@@ -82,6 +82,6 @@ public final class DDSpanId {
    */
   public static String toHexStringPadded(long id) {
     // TODO Cache here? https://github.com/DataDog/dd-trace-java/issues/4236
-    return DDId.toHexStringPadded(id, 16);
+    return LongStringUtils.toHexStringPadded(id, 16);
   }
 }

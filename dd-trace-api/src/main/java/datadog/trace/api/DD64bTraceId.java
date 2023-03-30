@@ -1,5 +1,7 @@
 package datadog.trace.api;
 
+import datadog.trace.api.internal.util.LongStringUtils;
+
 /**
  * Class encapsulating the unsigned 64 bit id used for Traceids.
  *
@@ -43,7 +45,7 @@ public class DD64bTraceId implements DDTraceId {
    * @throws NumberFormatException
    */
   public static DD64bTraceId from(String s) throws NumberFormatException {
-    return DD64bTraceId.create(DDId.parseUnsignedLong(s), s);
+    return DD64bTraceId.create(LongStringUtils.parseUnsignedLong(s), s);
   }
 
   /**
@@ -55,7 +57,7 @@ public class DD64bTraceId implements DDTraceId {
    * @throws NumberFormatException
    */
   public static DD64bTraceId fromHex(String s) throws NumberFormatException {
-    return DD64bTraceId.create(DDId.parseUnsignedLongHex(s), null);
+    return DD64bTraceId.create(LongStringUtils.parseUnsignedLongHex(s), null);
   }
 
   static DD64bTraceId create(long id, String str) {
@@ -95,7 +97,7 @@ public class DD64bTraceId implements DDTraceId {
     // This race condition is intentional and benign.
     // The worst that can happen is that an identical value is produced and written into the field.
     if (hexStr == null) {
-      this.hexStr = hexStr = DDId.toHexStringPadded(this.id, 32);
+      this.hexStr = hexStr = LongStringUtils.toHexStringPadded(this.id, 32);
     }
     return hexStr;
   }
@@ -105,7 +107,7 @@ public class DD64bTraceId implements DDTraceId {
     if (size > 16) {
       return toHexString();
     }
-    return DDId.toHexStringPadded(this.id, size);
+    return LongStringUtils.toHexStringPadded(this.id, size);
   }
 
   @Override

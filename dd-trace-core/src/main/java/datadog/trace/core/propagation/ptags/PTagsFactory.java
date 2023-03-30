@@ -5,8 +5,7 @@ import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.DECISION_MAKER_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_ID_TAG;
 
-import datadog.trace.api.DDId;
-import datadog.trace.api.internal.util.HexStringUtils;
+import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.core.propagation.PropagationTags;
@@ -115,7 +114,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       if (traceIdTagValue != null) {
         CharSequence traceIdHighOrderBitsHex = traceIdTagValue.forType(TagElement.Encoding.DATADOG);
         this.traceIdHighOrderBits =
-            HexStringUtils.parseUnsignedLongHex(
+            LongStringUtils.parseUnsignedLongHex(
                 traceIdHighOrderBitsHex, 0, traceIdHighOrderBitsHex.length(), true);
       }
       this.traceIdHighOrderBitsHexTagValue = traceIdTagValue;
@@ -189,7 +188,8 @@ public class PTagsFactory implements PropagationTags.Factory {
     public void updateTraceIdHighOrderBits(long highOrderBits) {
       if (traceIdHighOrderBits != highOrderBits) {
         traceIdHighOrderBits = highOrderBits;
-        traceIdHighOrderBitsHexTagValue = TagValue.from(DDId.toHexStringPadded(highOrderBits, 16));
+        traceIdHighOrderBitsHexTagValue =
+            TagValue.from(LongStringUtils.toHexStringPadded(highOrderBits, 16));
         clearCachedHeader(DATADOG);
       }
     }

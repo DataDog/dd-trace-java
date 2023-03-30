@@ -1,9 +1,9 @@
 package datadog.trace.core.propagation
 
 import datadog.trace.api.DD128bTraceId
-import datadog.trace.api.DDId
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.internal.util.LongStringUtils
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpanContext
@@ -213,7 +213,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     if (traceId.toHighOrderLong() == 0) {
       1 * carrier.put(DATADOG_TAGS_KEY, '_dd.p.dm=-4,_dd.p.anytag=value')
     } else {
-      def tId = DDId.toHexStringPadded(traceId.toHighOrderLong(), 16)
+      def tId = LongStringUtils.toHexStringPadded(traceId.toHighOrderLong(), 16)
       1 * carrier.put(DATADOG_TAGS_KEY, "_dd.p.dm=-4,_dd.p.tid=${tId},_dd.p.anytag=value")
     }
     0 * _

@@ -1,6 +1,6 @@
 import datadog.opentracing.DDTracer
-import datadog.trace.api.DDId
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.internal.util.LongStringUtils
 import io.opentracing.util.ThreadLocalScopeManager
 
 import static datadog.trace.api.sampling.PrioritySampling.*
@@ -120,7 +120,7 @@ class OT31ApiTest extends DDSpecification {
     }
     def traceId = span.delegate.context.traceId as DDTraceId
     if (traceId.toHighOrderLong() != 0) {
-      datadogTags << "_dd.p.tid=" + DDId.toHexStringPadded(traceId.toHighOrderLong(), 16)
+      datadogTags << "_dd.p.tid=" + LongStringUtils.toHexStringPadded(traceId.toHighOrderLong(), 16)
     }
     if (!datadogTags.empty) {
       expectedTextMap.put("x-datadog-tags", datadogTags.join(','))

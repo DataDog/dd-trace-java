@@ -1,6 +1,6 @@
 package datadog.trace.api;
 
-import datadog.trace.api.internal.util.HexStringUtils;
+import datadog.trace.api.internal.util.LongStringUtils;
 
 /**
  * Class encapsulating the unsigned 128-bit id used for TraceIds.
@@ -86,12 +86,13 @@ public class DD128bTraceId implements DDTraceId {
     long highOrderBits, lowOrderBits;
     if (length > 16) {
       int highOrderLength = length - 16;
-      highOrderBits = HexStringUtils.parseUnsignedLongHex(s, start, highOrderLength, lowerCaseOnly);
+      highOrderBits =
+          LongStringUtils.parseUnsignedLongHex(s, start, highOrderLength, lowerCaseOnly);
       lowOrderBits =
-          HexStringUtils.parseUnsignedLongHex(s, start + highOrderLength, 16, lowerCaseOnly);
+          LongStringUtils.parseUnsignedLongHex(s, start + highOrderLength, 16, lowerCaseOnly);
     } else {
       highOrderBits = 0;
-      lowOrderBits = HexStringUtils.parseUnsignedLongHex(s, start, length, lowerCaseOnly);
+      lowOrderBits = LongStringUtils.parseUnsignedLongHex(s, start, length, lowerCaseOnly);
     }
     // Extract hexadecimal string representation to cache
     String hexStr = null;
@@ -121,7 +122,8 @@ public class DD128bTraceId implements DDTraceId {
     // This race condition is intentional and benign.
     // The worst that can happen is that an identical value is produced and written into the field.
     if (hexString == null) {
-      this.hexStr = hexString = DDId.toHexStringPadded(this.highOrderBits, this.lowOrderBits, 32);
+      this.hexStr =
+          hexString = LongStringUtils.toHexStringPadded(this.highOrderBits, this.lowOrderBits, 32);
     }
     return hexString;
   }
@@ -129,7 +131,7 @@ public class DD128bTraceId implements DDTraceId {
   @Override
   public String toHexStringPadded(int size) {
     if (size <= 16) {
-      return DDId.toHexStringPadded(this.lowOrderBits, 16);
+      return LongStringUtils.toHexStringPadded(this.lowOrderBits, 16);
     }
     return toHexString();
   }

@@ -1,5 +1,7 @@
 package datadog.trace.api;
 
+import datadog.trace.api.internal.util.LongStringUtils;
+
 /**
  * Class encapsulating the id used for TraceIds.
  *
@@ -33,7 +35,7 @@ public interface DDTraceId {
    * @throws NumberFormatException If the given {@link String} does not represent a valid number.
    */
   static DDTraceId from(String s) throws NumberFormatException {
-    return DD64bTraceId.create(DDId.parseUnsignedLong(s), s);
+    return DD64bTraceId.create(LongStringUtils.parseUnsignedLong(s), s);
   }
 
   /**

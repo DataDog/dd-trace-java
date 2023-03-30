@@ -1,17 +1,17 @@
-package datadog.trace.api
+package datadog.trace.api.internal.util
 
 import spock.lang.Specification
 
-class DDIdTest extends Specification {
+class HexStringUtilsTest extends Specification {
   def "test hexadecimal String representations #highOrderBits | #lowOrderBits [#size]"() {
     when:
-    def highOrder = highOrderSize == 0 ? "" : DDId.toHexStringPadded(highOrderBits, highOrderSize)
-    def lowOrder = DDId.toHexStringPadded(lowOrderBits, lowOrderSize)
-    def lowOrderOnly = DDId.toHexStringPadded(lowOrderBits, size)
+    def highOrder = highOrderSize == 0 ? "" : LongStringUtils.toHexStringPadded(highOrderBits, highOrderSize)
+    def lowOrder = LongStringUtils.toHexStringPadded(lowOrderBits, lowOrderSize)
+    def lowOrderOnly = LongStringUtils.toHexStringPadded(lowOrderBits, size)
 
     then:
-    DDId.toHexStringPadded(highOrderBits, lowOrderBits, size) == highOrder + lowOrder
-    DDId.toHexStringPadded(0L, lowOrderBits, size) == lowOrderOnly
+    LongStringUtils.toHexStringPadded(highOrderBits, lowOrderBits, size) == highOrder + lowOrder
+    LongStringUtils.toHexStringPadded(0L, lowOrderBits, size) == lowOrderOnly
 
     where:
     highOrderBits        | lowOrderBits         | size
