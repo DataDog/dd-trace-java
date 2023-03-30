@@ -50,7 +50,6 @@ public class ConfigurationUpdater
   private final TransformerSupplier transformerSupplier;
   private DebuggerTransformer currentTransformer;
   private final Map<String, ProbeDefinition> appliedDefinitions = new ConcurrentHashMap<>();
-  private final EnvironmentAndVersionChecker envAndVersionCheck;
   private final DebuggerSink sink;
   private final ClassesToRetransformFinder finder;
   private final String serviceName;
@@ -76,7 +75,6 @@ public class ConfigurationUpdater
       ClassesToRetransformFinder finder) {
     this.instrumentation = instrumentation;
     this.transformerSupplier = transformerSupplier;
-    this.envAndVersionCheck = new EnvironmentAndVersionChecker(config);
     this.serviceName = TagsHelper.sanitize(config.getServiceName());
     this.sink = sink;
     this.finder = finder;
@@ -138,10 +136,7 @@ public class ConfigurationUpdater
     if (probes == null) {
       return Collections.emptyList();
     }
-    return probes.stream()
-        .filter(envAndVersionCheck::isEnvAndVersionMatch)
-        .limit(maxAllowedProbes)
-        .collect(Collectors.toList());
+    return probes.stream().limit(maxAllowedProbes).collect(Collectors.toList());
   }
 
   private void handleProbesChanges(ConfigurationComparer changes) {
