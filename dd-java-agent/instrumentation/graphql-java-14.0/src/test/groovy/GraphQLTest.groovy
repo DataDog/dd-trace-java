@@ -117,7 +117,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
       trace(7) {
         span {
           operationName operation()
-          resourceName operation()
+          resourceName "findBookById"
           spanType DDSpanTypes.GRAPHQL
           errored false
           measured true
@@ -454,7 +454,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
       trace(6) {
         span {
           operationName operation()
-          resourceName operation()
+          resourceName "findBookById"
           spanType DDSpanTypes.GRAPHQL
           errored true
           measured true
