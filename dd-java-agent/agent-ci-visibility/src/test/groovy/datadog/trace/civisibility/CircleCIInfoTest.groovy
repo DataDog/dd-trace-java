@@ -1,13 +1,6 @@
 package datadog.trace.civisibility
 
-import datadog.trace.api.civisibility.CIProviderInfo
-
 class CircleCIInfoTest extends CITagsProviderImplTest {
-
-  @Override
-  CIProviderInfo instanceProvider() {
-    return new CircleCIInfo()
-  }
 
   @Override
   String getProviderName() {

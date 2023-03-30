@@ -1,13 +1,6 @@
 package datadog.trace.civisibility
 
-import datadog.trace.api.civisibility.CIProviderInfo
-
 class TravisInfoTest extends CITagsProviderImplTest {
-
-  @Override
-  CIProviderInfo instanceProvider() {
-    return new TravisInfo()
-  }
 
   @Override
   String getProviderName() {

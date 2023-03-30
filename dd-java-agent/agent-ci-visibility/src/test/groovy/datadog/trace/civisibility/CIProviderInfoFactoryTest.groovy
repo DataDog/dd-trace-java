@@ -38,7 +38,8 @@ class CIProviderInfoFactoryTest extends Specification {
     environmentVariables.set(ciKeySelector, "true")
 
     when:
-    def ciProviderInfo = CIProviderInfoFactory.createCIProviderInfo(Paths.get("").toAbsolutePath())
+    def ciProviderInfoFactory = new CIProviderInfoFactory()
+    def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(Paths.get("").toAbsolutePath())
 
     then:
     ciProviderInfo.class == ciInfoClass

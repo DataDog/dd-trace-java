@@ -1,13 +1,6 @@
 package datadog.trace.civisibility
 
-import datadog.trace.api.civisibility.CIProviderInfo
-
 class BitBucketInfoTest extends CITagsProviderImplTest {
-
-  @Override
-  CIProviderInfo instanceProvider() {
-    return new BitBucketInfo()
-  }
 
   @Override
   String getProviderName() {

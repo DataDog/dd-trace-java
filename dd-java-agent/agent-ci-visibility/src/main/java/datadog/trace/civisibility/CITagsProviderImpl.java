@@ -16,19 +16,21 @@ import java.util.Map;
 public class CITagsProviderImpl implements CITagsProvider {
 
   private final GitInfoProvider gitInfoProvider;
+  private final CIProviderInfoFactory ciProviderInfoFactory;
 
   public CITagsProviderImpl() {
-    this(GitInfoProvider.INSTANCE);
+    this(GitInfoProvider.INSTANCE, new CIProviderInfoFactory());
   }
 
-  CITagsProviderImpl(GitInfoProvider gitInfoProvider) {
+  CITagsProviderImpl(GitInfoProvider gitInfoProvider, CIProviderInfoFactory ciProviderInfoFactory) {
     this.gitInfoProvider = gitInfoProvider;
+    this.ciProviderInfoFactory = ciProviderInfoFactory;
   }
 
   @Override
   public Map<String, String> getCiTags(Path path) {
-    CIProviderInfo ciProviderInfo = CIProviderInfoFactory.createCIProviderInfo(path);
-    CIInfo ciInfo = ciProviderInfo.buildCIInfo();
+    CIProviderInfo ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(path);
+    CIInfo ciInfo = new BuddyInfo().buildCIInfo();
     String repoRoot = ciInfo.getCiWorkspace();
     GitInfo gitInfo = gitInfoProvider.getGitInfo(repoRoot);
 

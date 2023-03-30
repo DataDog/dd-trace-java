@@ -1,6 +1,6 @@
 package datadog.trace.civisibility
 
-import datadog.trace.api.civisibility.CIProviderInfo
+
 import datadog.trace.api.git.GitInfoProvider
 import datadog.trace.api.git.UserSuppliedGitInfoBuilder
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -11,12 +11,7 @@ import java.nio.file.Paths
 
 class UnknownCIInfoTest extends CITagsProviderImplTest {
 
-  def workspaceForTests = Paths.get(getClass().getClassLoader().getResource(CITagsProviderImplTest.CI_WORKSPACE_PATH_FOR_TESTS).toURI())
-
-  @Override
-  CIProviderInfo instanceProvider() {
-    return new UnknownCIInfo(CITagsProviderImplTest.GIT_FOLDER_FOR_TESTS, workspaceForTests)
-  }
+  def workspaceForTests = Paths.get(getClass().getClassLoader().getResource(CI_WORKSPACE_PATH_FOR_TESTS).toURI())
 
   @Override
   String getProviderName() {
@@ -40,9 +35,8 @@ class UnknownCIInfoTest extends CITagsProviderImplTest {
     ]
 
     when:
-    def ciProviderInfo = instanceProvider()
     def ciTagsProvider = ciTagsProvider()
-    def ciTags = ciTagsProvider.getCiTags(ciProviderInfo)
+    def ciTags = ciTagsProvider.getCiTags(workspaceForTests)
 
     then:
     ciTags == expectedTags
@@ -66,7 +60,7 @@ class UnknownCIInfoTest extends CITagsProviderImplTest {
 
   def "test isCi is false"() {
     when:
-    def provider = instanceProvider()
+    def provider = new UnknownCIInfo(workspaceForTests)
 
     then:
     !provider.isCI()

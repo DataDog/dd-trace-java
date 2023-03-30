@@ -12,7 +12,8 @@ public class CIProviderGitInfoBuilder implements GitInfoBuilder {
   @Override
   public GitInfo build(@Nullable String repositoryPath) {
     Path currentPath = repositoryPath != null ? Paths.get(repositoryPath) : null;
-    CIProviderInfo ciProviderInfo = CIProviderInfoFactory.createCIProviderInfo(currentPath);
+    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory();
+    CIProviderInfo ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(currentPath);
     return ciProviderInfo.buildCIGitInfo();
   }
 }

@@ -45,11 +45,22 @@ class BuddyInfo implements CIProviderInfo {
     String pipelineNumber = System.getenv(BUDDY_PIPELINE_EXECUTION_ID);
     return CIInfo.builder()
         .ciProviderName(BUDDY_PROVIDER_NAME)
-        .ciPipelineId(String.format("%s/%s", System.getenv(BUDDY_PIPELINE_ID), pipelineNumber))
+        .ciPipelineId(getPipelineId(pipelineNumber))
         .ciPipelineName(System.getenv(BUDDY_PIPELINE_NAME))
         .ciPipelineNumber(pipelineNumber)
         .ciPipelineUrl(System.getenv(BUDDY_PIPELINE_EXECUTION_URL))
         .build();
+  }
+
+  private static String getPipelineId(String pipelineNumber) {
+    String pipelineId = System.getenv(BUDDY_PIPELINE_ID);
+    if (pipelineId == null) {
+      return pipelineNumber;
+    }
+    if (pipelineNumber == null) {
+      return pipelineId;
+    }
+    return String.format("%s/%s", pipelineId, pipelineNumber);
   }
 
   @Override

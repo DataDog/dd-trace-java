@@ -45,7 +45,17 @@ class AppVeyorInfo implements CIProviderInfo {
             buildGitCommit(),
             buildGitCommitAuthor(),
             PersonInfo.NOOP,
-            String.format("%s%n%s", messageSubject, messageBody)));
+            getCommitMessage(messageSubject, messageBody)));
+  }
+
+  private static String getCommitMessage(String messageSubject, String messageBody) {
+    if (messageSubject == null) {
+      return messageBody;
+    }
+    if (messageBody == null) {
+      return messageSubject;
+    }
+    return String.format("%s%n%s", messageSubject, messageBody);
   }
 
   @Override

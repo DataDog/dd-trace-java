@@ -46,7 +46,8 @@ public class CiVisibilitySystem {
 
   private static TestEventsHandler createTestEventsHandler(
       Path currentPath, TestDecorator testDecorator) {
-    CIProviderInfo ciProviderInfo = CIProviderInfoFactory.createCIProviderInfo(currentPath);
+    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory();
+    CIProviderInfo ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(currentPath);
     CIInfo ciInfo = ciProviderInfo.buildCIInfo();
     String repoRoot = ciInfo.getCiWorkspace();
 
