@@ -26,6 +26,7 @@ import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.Config;
+import datadog.trace.api.MetricCollector;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.gateway.Flow;
 import io.sqreen.powerwaf.Additive;
@@ -175,6 +176,8 @@ public class PowerWAFModule implements AppSecModule {
       new PowerWAFInitializationResultReporter();
   private final PowerWAFStatsReporter statsReporter = new PowerWAFStatsReporter();
 
+  private String currentRulesVersion;
+
   @Override
   public void config(AppSecModuleConfigurer appSecConfigService)
       throws AppSecModuleActivationException {
@@ -263,6 +266,17 @@ public class PowerWAFModule implements AppSecModule {
 
       initReport = newPwafCtx.getRuleSetInfo();
       Collection<Address<?>> addresses = getUsedAddresses(newPwafCtx);
+
+      // Update current rules' version if need
+      if (initReport != null && initReport.fileVersion != null) {
+        currentRulesVersion = initReport.fileVersion;
+      }
+
+      if (prevContextAndAddresses == null) {
+        MetricCollector.get().wafInit(Powerwaf.LIB_VERSION, currentRulesVersion);
+      } else {
+        MetricCollector.get().wafUpdates(currentRulesVersion);
+      }
 
       Map<String, RuleInfo> rulesInfoMap;
       if (ruleConfig.getRules() != null && !ruleConfig.getRules().isEmpty()) {
@@ -483,6 +497,15 @@ public class PowerWAFModule implements AppSecModule {
         }
         Collection<AppSecEvent100> events = buildEvents(resultWithData, ctxAndAddr.rulesInfoMap);
         reqCtx.reportEvents(events, null);
+
+        if (flow.isBlocking()) {
+          MetricCollector.get().wafRequestBlocked();
+        } else {
+          MetricCollector.get().wafRequestTriggered();
+        }
+
+      } else {
+        MetricCollector.get().wafRequest();
       }
     }
 

@@ -42,6 +42,7 @@ public class TelemetryServiceImpl implements TelemetryService {
   private final int maxElementsPerReq;
   private final int maxDepsPerReq;
   private final int heartbeatIntervalMs;
+  private final int metricsIntervalMs;
   private final BlockingQueue<KeyValue> configurations = new LinkedBlockingQueue<>();
   private final BlockingQueue<Integration> integrations = new LinkedBlockingQueue<>();
   private final BlockingQueue<Dependency> dependencies = new LinkedBlockingQueue<>();
@@ -65,11 +66,13 @@ public class TelemetryServiceImpl implements TelemetryService {
   public TelemetryServiceImpl(
       Supplier<RequestBuilder> requestBuilderSupplier,
       TimeSource timeSource,
-      int heartBeatIntervalSec) {
+      int heartBeatIntervalSec,
+      int metricsIntervalSec) {
     this(
         requestBuilderSupplier,
         timeSource,
         heartBeatIntervalSec,
+        metricsIntervalSec,
         MAX_ELEMENTS_PER_REQUEST,
         MAX_DEPENDENCIES_PER_REQUEST);
   }
@@ -79,11 +82,13 @@ public class TelemetryServiceImpl implements TelemetryService {
       Supplier<RequestBuilder> requestBuilderSupplier,
       TimeSource timeSource,
       int heartBeatIntervalSec,
+      int metricsIntervalSec,
       int maxElementsPerReq,
       int maxDepsPerReq) {
     this.requestBuilderSupplier = requestBuilderSupplier;
     this.timeSource = timeSource;
     this.heartbeatIntervalMs = heartBeatIntervalSec * 1000; // we use time in milliseconds
+    this.metricsIntervalMs = metricsIntervalSec * 1000;
     this.openTracingIntegrationEnabled = false;
     this.openTelemetryIntegrationEnabled = false;
     this.maxElementsPerReq = maxElementsPerReq;
@@ -231,6 +236,11 @@ public class TelemetryServiceImpl implements TelemetryService {
   @Override
   public int getHeartbeatInterval() {
     return heartbeatIntervalMs;
+  }
+
+  @Override
+  public int getMetricsInterval() {
+    return metricsIntervalMs;
   }
 
   private void warnAboutExclusiveIntegrations() {
