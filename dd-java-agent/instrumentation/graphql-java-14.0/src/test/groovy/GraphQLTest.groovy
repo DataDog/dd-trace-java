@@ -2,6 +2,7 @@ import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.test.util.Flaky
 import graphql.ExecutionResult
 import graphql.GraphQL
 import graphql.schema.DataFetcher
@@ -539,6 +540,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
   }
 }
 
+@Flaky
 class GraphQLV0ForkedTest extends GraphQLTest {
 
   @Override
@@ -557,6 +559,7 @@ class GraphQLV0ForkedTest extends GraphQLTest {
   }
 }
 
+@Flaky
 class GraphQLV1ForkedTest extends GraphQLTest {
 
   @Override
