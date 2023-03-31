@@ -46,7 +46,6 @@ public class TestNG64ClassListenerInstrumentation extends Instrumenter.CiVisibil
       packageName + ".TestNGUtils",
       packageName + ".TestNGMethod",
       packageName + ".TestNGClassListener",
-      packageName + ".TestNGDecorator",
       packageName + ".TracingListener"
     };
   }

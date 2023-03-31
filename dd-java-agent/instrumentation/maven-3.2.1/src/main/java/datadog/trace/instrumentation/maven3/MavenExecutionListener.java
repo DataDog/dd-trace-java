@@ -28,7 +28,7 @@ public class MavenExecutionListener extends AbstractExecutionListener {
   private static final String SYSTEM_PROPERTY_VARIABLES_CONFIG = "systemPropertyVariables";
 
   private final BuildEventsHandler<MavenSession> buildEventsHandler =
-      InstrumentationBridge.getBuildEventsHandler();
+      InstrumentationBridge.createBuildEventsHandler();
 
   @Override
   public void sessionStarted(ExecutionEvent event) {
@@ -37,8 +37,8 @@ public class MavenExecutionListener extends AbstractExecutionListener {
     MavenProject currentProject = session.getCurrentProject();
     Path projectRoot = currentProject.getBasedir().toPath();
 
-    Map<String, String> ciTags = InstrumentationBridge.getCiTags(projectRoot);
-    TestDecorator mavenDecorator = new MavenDecorator(ciTags);
+    TestDecorator mavenDecorator =
+        InstrumentationBridge.createTestDecorator("maven", null, null, projectRoot);
 
     String projectName = currentProject.getName();
     String startCommand = MavenUtils.getCommandLine(session);

@@ -35,11 +35,7 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JUnit4Decorator",
-      packageName + ".TracingListener",
-      packageName + ".JUnit4Utils"
-    };
+    return new String[] {packageName + ".TracingListener", packageName + ".JUnit4Utils"};
   }
 
   @Override

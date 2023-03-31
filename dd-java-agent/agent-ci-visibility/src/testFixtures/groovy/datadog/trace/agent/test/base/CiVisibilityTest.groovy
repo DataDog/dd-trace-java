@@ -6,7 +6,6 @@ import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.civisibility.InstrumentationBridge
-import datadog.trace.api.civisibility.ci.CITagsProvider
 import datadog.trace.api.civisibility.codeowners.Codeowners
 import datadog.trace.api.civisibility.decorator.TestDecorator
 import datadog.trace.api.civisibility.source.MethodLinesResolver
@@ -14,6 +13,7 @@ import datadog.trace.api.civisibility.source.SourcePathResolver
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.civisibility.TestDecoratorImpl
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl
 import datadog.trace.civisibility.events.TestEventsHandlerImpl
 import datadog.trace.core.DDSpan
@@ -44,10 +44,6 @@ abstract class CiVisibilityTest extends AgentTestRunner {
     def rootPath = currentPath.parent
     dummyModule = rootPath.relativize(currentPath)
 
-    def ciTagsProvider = Stub(CITagsProvider)
-    ciTagsProvider.getCiTags(_) >> [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
-    InstrumentationBridge.ciTagsProvider = ciTagsProvider
-
     def sourcePathResolver = Stub(SourcePathResolver)
     sourcePathResolver.getSourcePath(_) >> DUMMY_SOURCE_PATH
 
@@ -57,11 +53,17 @@ abstract class CiVisibilityTest extends AgentTestRunner {
     def methodLinesResolver = Stub(MethodLinesResolver)
     methodLinesResolver.getLines(_) >> new MethodLinesResolver.MethodLines(DUMMY_TEST_METHOD_START, DUMMY_TEST_METHOD_END)
 
-    InstrumentationBridge.setTestEventsHandlerFactory { path, testDecorator ->
-      return new TestEventsHandlerImpl(dummyModule, Config.get(), testDecorator, sourcePathResolver, codeowners, methodLinesResolver)
+    InstrumentationBridge.registerTestDecoratorFactory { component, testFramework, testFrameworkVersion, path ->
+      Map<String, String> ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
+      new TestDecoratorImpl(component, testFramework, testFrameworkVersion, ciTags)
     }
 
-    InstrumentationBridge.setBuildEventsHandlerFactory { decorator -> new BuildEventsHandlerImpl<>() }
+    InstrumentationBridge.registerTestEventsHandlerFactory { component, testFramework, testFrameworkVersion, path ->
+      def testDecorator = InstrumentationBridge.createTestDecorator(component, testFramework, testFrameworkVersion, path)
+      new TestEventsHandlerImpl(dummyModule, Config.get(), testDecorator, sourcePathResolver, codeowners, methodLinesResolver)
+    }
+
+    InstrumentationBridge.registerBuildEventsHandlerFactory { decorator -> new BuildEventsHandlerImpl<>() }
   }
 
   @Override

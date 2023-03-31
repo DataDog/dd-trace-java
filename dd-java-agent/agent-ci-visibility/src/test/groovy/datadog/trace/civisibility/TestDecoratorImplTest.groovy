@@ -1,11 +1,12 @@
-package datadog.trace.bootstrap.instrumentation.decorator
+package datadog.trace.civisibility
 
 import datadog.trace.api.DDTags
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import spock.lang.Specification
 
-class TestDecoratorTest extends BaseDecoratorTest {
+class TestDecoratorImplTest extends Specification {
 
   def span = Mock(AgentSpan)
 
@@ -18,7 +19,6 @@ class TestDecoratorTest extends BaseDecoratorTest {
 
     then:
     1 * span.setTag(Tags.COMPONENT, "test-component")
-    1 * span.setSpanType(decorator.spanType())
     1 * span.setTag(Tags.TEST_FRAMEWORK, "test-framework")
     1 * span.setTag(Tags.TEST_FRAMEWORK_VERSION, "test-framework-version")
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
@@ -50,18 +50,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     0 * _
   }
 
-  @Override
-  def newDecorator() {
-    return new AbstractTestDecorator("test-component", "test-framework", "test-framework-version", ["ci-tag-1": "value", "ci-tag-2": "another value"]) {
-      @Override
-      protected String[] instrumentationNames() {
-        return ["test1", "test2"]
-      }
-
-      @Override
-      protected CharSequence spanType() {
-        return "test-type"
-      }
-    }
+  static newDecorator() {
+    new TestDecoratorImpl("test-component", "test-framework", "test-framework-version", ["ci-tag-1": "value", "ci-tag-2": "another value"])
   }
 }

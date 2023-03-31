@@ -1,13 +1,11 @@
 package datadog.trace.instrumentation.testng;
 
 import datadog.trace.api.civisibility.InstrumentationBridge;
-import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.Map;
 import org.testng.IConfigurationListener;
 import org.testng.IExecutionListener;
 import org.testng.ITestClass;
@@ -22,9 +20,8 @@ public class TracingListener extends TestNGClassListener
 
   public TracingListener(final String version) {
     Path currentPath = Paths.get("").toAbsolutePath();
-    Map<String, String> ciTags = InstrumentationBridge.getCiTags(currentPath);
-    TestDecorator decorator = new TestNGDecorator(version, ciTags);
-    testEventsHandler = InstrumentationBridge.getTestEventsHandler(currentPath, decorator);
+    testEventsHandler =
+        InstrumentationBridge.createTestEventsHandler("testng", "testng", version, currentPath);
   }
 
   @Override

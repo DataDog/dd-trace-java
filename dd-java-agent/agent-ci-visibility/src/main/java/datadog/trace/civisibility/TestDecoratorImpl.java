@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.decorator;
+package datadog.trace.civisibility;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.decorator.TestDecorator;
@@ -8,7 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Map;
 
-public abstract class AbstractTestDecorator extends BaseDecorator implements TestDecorator {
+public class TestDecoratorImpl implements TestDecorator {
 
   private static final UTF8BytesString CIAPP_TEST_ORIGIN = UTF8BytesString.create("ciapp-test");
 
@@ -17,7 +17,7 @@ public abstract class AbstractTestDecorator extends BaseDecorator implements Tes
   private final String testFrameworkVersion;
   private final Map<String, String> ciTags;
 
-  public AbstractTestDecorator(
+  public TestDecoratorImpl(
       String component,
       String testFramework,
       String testFrameworkVersion,
@@ -61,11 +61,6 @@ public abstract class AbstractTestDecorator extends BaseDecorator implements Tes
   }
 
   @Override
-  protected CharSequence spanType() {
-    return null;
-  }
-
-  @Override
   public CharSequence component() {
     return component;
   }
@@ -83,11 +78,17 @@ public abstract class AbstractTestDecorator extends BaseDecorator implements Tes
     span.setTag(Tags.OS_PLATFORM, osPlatform());
     span.setTag(Tags.OS_VERSION, osVersion());
     span.setTag(DDTags.ORIGIN_KEY, CIAPP_TEST_ORIGIN);
+    span.setTag(Tags.COMPONENT, component());
 
     for (final Map.Entry<String, String> ciTag : ciTags.entrySet()) {
       span.setTag(ciTag.getKey(), ciTag.getValue());
     }
 
-    return super.afterStart(span);
+    return span;
+  }
+
+  @Override
+  public AgentSpan beforeFinish(AgentSpan span) {
+    return span;
   }
 }

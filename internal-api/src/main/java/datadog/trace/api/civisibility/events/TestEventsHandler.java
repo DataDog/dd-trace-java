@@ -1,6 +1,5 @@
 package datadog.trace.api.civisibility.events;
 
-import datadog.trace.api.civisibility.decorator.TestDecorator;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -48,6 +47,7 @@ public interface TestEventsHandler {
       @Nullable String reason);
 
   interface Factory {
-    TestEventsHandler create(Path currentPath, TestDecorator testDecorator);
+    TestEventsHandler create(
+        String component, String testFramework, String testFrameworkVersion, Path path);
   }
 }

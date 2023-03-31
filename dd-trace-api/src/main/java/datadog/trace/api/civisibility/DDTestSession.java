@@ -2,7 +2,10 @@ package datadog.trace.api.civisibility;
 
 import javax.annotation.Nullable;
 
-/** This interface represents a test session, i.e. running tests for a project. */
+/**
+ * This interface represents a test session. Test session usually corresponds to execution of a
+ * single test command issued by a user or by a CI script
+ */
 public interface DDTestSession {
 
   /**

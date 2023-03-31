@@ -1,13 +1,11 @@
 package datadog.trace.instrumentation.junit5;
 
 import datadog.trace.api.civisibility.InstrumentationBridge;
-import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.platform.engine.TestExecutionResult;
@@ -26,12 +24,11 @@ public class TracingListener implements TestExecutionListener {
   private volatile TestPlan testPlan;
 
   public TracingListener() {
-    Path currentPath = Paths.get("").toAbsolutePath();
     Package testPackage = Test.class.getPackage();
     String version = testPackage != null ? testPackage.getImplementationVersion() : null;
-    Map<String, String> ciTags = InstrumentationBridge.getCiTags(currentPath);
-    TestDecorator decorator = new JUnit5Decorator(version, ciTags);
-    testEventsHandler = InstrumentationBridge.getTestEventsHandler(currentPath, decorator);
+    Path currentPath = Paths.get("").toAbsolutePath();
+    testEventsHandler =
+        InstrumentationBridge.createTestEventsHandler("junit", "junit5", version, currentPath);
   }
 
   @Override

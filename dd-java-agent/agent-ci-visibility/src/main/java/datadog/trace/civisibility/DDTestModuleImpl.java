@@ -37,7 +37,6 @@ public class DDTestModuleImpl implements DDTestModule {
   private final Codeowners codeowners;
   private final MethodLinesResolver methodLinesResolver;
 
-  // FIXME use two different constructors????
   public DDTestModuleImpl(
       @Nullable TestContext sessionContext,
       String moduleName,
@@ -79,6 +78,7 @@ public class DDTestModuleImpl implements DDTestModule {
     }
 
     if (sessionId != null && moduleId != null) {
+      // we do not create a local span, because it was created in the parent process
       context = new ParentProcessTestContext(sessionId, moduleId);
       span = null;
 

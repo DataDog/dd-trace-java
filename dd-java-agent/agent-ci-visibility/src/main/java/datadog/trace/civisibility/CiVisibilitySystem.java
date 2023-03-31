@@ -1,6 +1,8 @@
 package datadog.trace.civisibility;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.CIVisibility;
+import datadog.trace.api.civisibility.DDTestSession;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.ci.CIInfo;
 import datadog.trace.api.civisibility.ci.CIProviderInfo;
@@ -23,6 +25,7 @@ import datadog.trace.civisibility.source.MethodLinesResolverImpl;
 import datadog.trace.civisibility.source.RepoIndexSourcePathResolver;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,38 +41,48 @@ public class CiVisibilitySystem {
       return;
     }
 
-    InstrumentationBridge.setCiTagsProvider(new CITagsProviderImpl());
-    InstrumentationBridge.setTestEventsHandlerFactory(CiVisibilitySystem::createTestEventsHandler);
-    InstrumentationBridge.setBuildEventsHandlerFactory(BuildEventsHandlerImpl::new);
+    InstrumentationBridge.registerTestEventsHandlerFactory(
+        CiVisibilitySystem::createTestEventsHandler);
+    InstrumentationBridge.registerBuildEventsHandlerFactory(BuildEventsHandlerImpl::new);
+    InstrumentationBridge.registerTestDecoratorFactory(CiVisibilitySystem::createTestDecorator);
 
     GitInfoProvider.INSTANCE.registerGitInfoBuilder(new CIProviderGitInfoBuilder());
     GitInfoProvider.INSTANCE.registerGitInfoBuilder(new CILocalGitInfoBuilder(GIT_FOLDER_NAME));
+
+    CIVisibility.registerSessionFactory(CiVisibilitySystem::createTestSession);
+  }
+
+  private static DDTestSession createTestSession(
+      String projectName, String component, Long startTime) {
+    Path path = Paths.get("").toAbsolutePath();
+    String repoRoot = getRepositoryRoot(path);
+
+    SourcePathResolver sourcePathResolver = getSourcePathResolver(repoRoot);
+    Codeowners codeowners = getCodeowners(repoRoot);
+    MethodLinesResolver methodLinesResolver = new MethodLinesResolverImpl();
+    TestDecorator testDecorator = createTestDecorator(component, null, null, path);
+
+    return new DDTestSessionImpl(
+        projectName,
+        startTime,
+        Config.get(),
+        testDecorator,
+        sourcePathResolver,
+        codeowners,
+        methodLinesResolver);
   }
 
   private static TestEventsHandler createTestEventsHandler(
-      Path currentPath, TestDecorator testDecorator) {
-    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory();
-    CIProviderInfo ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(currentPath);
-    CIInfo ciInfo = ciProviderInfo.buildCIInfo();
-    String repoRoot = ciInfo.getCiWorkspace();
+      String component, String testFramework, String testFrameworkVersion, Path path) {
+    String repoRoot = getRepositoryRoot(path);
+    String moduleName =
+        (repoRoot != null) ? Paths.get(repoRoot).relativize(path).toString() : path.toString();
 
-    String moduleName;
-    SourcePathResolver sourcePathResolver;
-    Codeowners codeowners;
-    if (repoRoot != null) {
-      moduleName = Paths.get(repoRoot).relativize(currentPath).toString();
-      sourcePathResolver =
-          new BestEfforSourcePathResolver(
-              new CompilerAidedSourcePathResolver(repoRoot),
-              new RepoIndexSourcePathResolver(repoRoot));
-      codeowners = new CodeownersProvider().build(repoRoot);
-    } else {
-      moduleName = currentPath.toString();
-      sourcePathResolver = clazz -> null;
-      codeowners = path -> null;
-    }
-
+    SourcePathResolver sourcePathResolver = getSourcePathResolver(repoRoot);
+    Codeowners codeowners = getCodeowners(repoRoot);
     MethodLinesResolver methodLinesResolver = new MethodLinesResolverImpl();
+    TestDecorator testDecorator =
+        createTestDecorator(component, testFramework, testFrameworkVersion, path);
 
     return new TestEventsHandlerImpl(
         moduleName,
@@ -78,5 +91,35 @@ public class CiVisibilitySystem {
         sourcePathResolver,
         codeowners,
         methodLinesResolver);
+  }
+
+  private static TestDecorator createTestDecorator(
+      String component, String testFramework, String testFrameworkVersion, Path path) {
+    Map<String, String> ciTags = new CITagsProviderImpl().getCiTags(path);
+    return new TestDecoratorImpl(component, testFramework, testFrameworkVersion, ciTags);
+  }
+
+  private static String getRepositoryRoot(Path path) {
+    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory();
+    CIProviderInfo ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(path);
+    CIInfo ciInfo = ciProviderInfo.buildCIInfo();
+    return ciInfo.getCiWorkspace();
+  }
+
+  private static SourcePathResolver getSourcePathResolver(String repoRoot) {
+    if (repoRoot != null) {
+      return new BestEfforSourcePathResolver(
+          new CompilerAidedSourcePathResolver(repoRoot), new RepoIndexSourcePathResolver(repoRoot));
+    } else {
+      return clazz -> null;
+    }
+  }
+
+  private static Codeowners getCodeowners(String repoRoot) {
+    if (repoRoot != null) {
+      return new CodeownersProvider().build(repoRoot);
+    } else {
+      return path -> null;
+    }
   }
 }

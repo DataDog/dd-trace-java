@@ -17,7 +17,6 @@ import datadog.trace.civisibility.context.SpanTestContext;
 import datadog.trace.civisibility.context.TestContext;
 import javax.annotation.Nullable;
 
-// FIXME provide a way for the customers to instantiate this class
 public class DDTestSessionImpl implements DDTestSession {
 
   private final AgentSpan span;
@@ -30,6 +29,7 @@ public class DDTestSessionImpl implements DDTestSession {
 
   public DDTestSessionImpl(
       String projectName,
+      @Nullable Long startTime,
       Config config,
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
@@ -37,11 +37,16 @@ public class DDTestSessionImpl implements DDTestSession {
       MethodLinesResolver methodLinesResolver) {
     this.config = config;
     this.testDecorator = testDecorator;
-
-    span = startSpan(testDecorator.component() + ".test_session");
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
+
+    if (startTime != null) {
+      span = startSpan(testDecorator.component() + ".test_session", startTime);
+    } else {
+      span = startSpan(testDecorator.component() + ".test_session");
+    }
+
     context = new SpanTestContext(span);
 
     span.setSpanType(InternalSpanTypes.TEST_SESSION_END);
