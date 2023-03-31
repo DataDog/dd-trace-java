@@ -145,7 +145,10 @@ public class DDTestImpl implements DDTest {
               + "it is possible that end() was called multiple times "
               + "or an operation that was started by the test is still in progress; "
               + "active scope span is: "
-              + scopeSpan);
+              + scopeSpan
+              + "; "
+              + "expected span is: "
+              + span);
     }
 
     scope.close();

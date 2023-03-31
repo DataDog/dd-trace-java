@@ -59,6 +59,8 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
 
+    // some framework/build system combinations fire "onTestModuleStart" event, some cannot do it,
+    // hence creating a module here
     testModule =
         new DDTestModuleImpl(
             null,
@@ -73,6 +75,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
   @Override
   public void onTestModuleStart() {
+    // needed to support JVMs that run tests for multiple modules, e.g. Maven in non-forking mode
     if (testModule == null) {
       testModule =
           new DDTestModuleImpl(
