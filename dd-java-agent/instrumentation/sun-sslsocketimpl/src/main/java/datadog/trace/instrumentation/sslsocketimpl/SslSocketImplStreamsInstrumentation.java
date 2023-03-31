@@ -6,17 +6,12 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
-import datadog.trace.bootstrap.instrumentation.api.UsmConnection;
-import datadog.trace.bootstrap.instrumentation.api.UsmExtractor;
-import datadog.trace.bootstrap.instrumentation.api.UsmMessage;
-import datadog.trace.bootstrap.instrumentation.api.UsmMessageFactory;
-import java.io.FilterInputStream;
-import java.io.FilterOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.Inet6Address;
 import javax.net.ssl.SSLSocket;
+
+import datadog.trace.bootstrap.instrumentation.sslsocket.UsmFilterInputStream;
+import datadog.trace.bootstrap.instrumentation.sslsocket.UsmFilterOutputStream;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -56,29 +51,11 @@ public final class SslSocketImplStreamsInstrumentation extends Instrumenter.Usm
   }
 
   public static final class GetOutputStreamAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void getOutputStream(
         @Advice.This final SSLSocket socket,
         @Advice.Return(readOnly = false) OutputStream retValue) {
-      retValue =
-          new FilterOutputStream(retValue) {
-            @Override
-            public void write(byte[] b, int off, int len) throws IOException {
-              boolean isIPv6 = socket.getLocalAddress() instanceof Inet6Address;
-              UsmConnection connection =
-                  new UsmConnection(
-                      socket.getLocalAddress(),
-                      socket.getLocalPort(),
-                      socket.getInetAddress(),
-                      socket.getPort(),
-                      isIPv6);
-              UsmMessage message =
-                  UsmMessageFactory.Supplier.getRequestMessage(connection, b, off, len);
-              UsmExtractor.Supplier.send(message);
-              super.write(b, off, len);
-            }
-          };
+      retValue = new UsmFilterOutputStream(retValue, socket);
     }
   }
 
@@ -87,24 +64,7 @@ public final class SslSocketImplStreamsInstrumentation extends Instrumenter.Usm
     public static void getInputStream(
         @Advice.This final SSLSocket socket,
         @Advice.Return(readOnly = false) InputStream retValue) {
-      retValue =
-          new FilterInputStream(retValue) {
-            @Override
-            public int read(byte[] b, int off, int len) throws IOException {
-              boolean isIPv6 = socket.getLocalAddress() instanceof Inet6Address;
-              UsmConnection connection =
-                  new UsmConnection(
-                      socket.getLocalAddress(),
-                      socket.getLocalPort(),
-                      socket.getInetAddress(),
-                      socket.getPort(),
-                      isIPv6);
-              UsmMessage message =
-                  UsmMessageFactory.Supplier.getRequestMessage(connection, b, off, len);
-              UsmExtractor.Supplier.send(message);
-              return super.read(b, off, len);
-            }
-          };
+      retValue = new UsmFilterInputStream(retValue, socket);
     }
   }
 }

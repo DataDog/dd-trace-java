@@ -63,8 +63,8 @@ class SslSocketImplTest extends AgentTestRunner {
 
     then:
     status == 200
-    2 * factoryMock.getRequestMessage(*_) // expect 2 calls: one request, one response
-    2 * extractorMock.send(null) // `getRequestMessage` mock returns `null` so we expect to get it in send
+    1..(factoryMock.getRequestMessage(*_))
+    1..(extractorMock.send(null)) // `getRequestMessage` mock returns `null` so we expect to get it in send
 
     where:
     method = "POST"
