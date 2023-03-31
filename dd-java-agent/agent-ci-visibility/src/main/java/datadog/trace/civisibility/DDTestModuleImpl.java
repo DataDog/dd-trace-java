@@ -57,29 +57,29 @@ public class DDTestModuleImpl implements DDTestModule {
     // fallbacks to System.getProperty below are needed for cases when
     // system variables are set after config was initialized
 
-    Long sessionId = config.getCiVisibilitySessionId();
-    if (sessionId == null) {
+    Long parentProcessSessionId = config.getCiVisibilitySessionId();
+    if (parentProcessSessionId == null) {
       String systemProp =
           System.getProperty(
               Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_SESSION_ID));
       if (systemProp != null) {
-        sessionId = Long.parseLong(systemProp);
+        parentProcessSessionId = Long.parseLong(systemProp);
       }
     }
 
-    Long moduleId = config.getCiVisibilityModuleId();
-    if (moduleId == null) {
+    Long parentProcessModuleId = config.getCiVisibilityModuleId();
+    if (parentProcessModuleId == null) {
       String systemProp =
           System.getProperty(
               Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_ID));
       if (systemProp != null) {
-        moduleId = Long.parseLong(systemProp);
+        parentProcessModuleId = Long.parseLong(systemProp);
       }
     }
 
-    if (sessionId != null && moduleId != null) {
+    if (parentProcessSessionId != null && parentProcessModuleId != null) {
       // we do not create a local span, because it was created in the parent process
-      context = new ParentProcessTestContext(sessionId, moduleId);
+      context = new ParentProcessTestContext(parentProcessSessionId, parentProcessModuleId);
       span = null;
 
     } else {
@@ -92,7 +92,8 @@ public class DDTestModuleImpl implements DDTestModule {
         span = startSpan(testDecorator.component() + ".test_module", sessionSpanContext);
       }
 
-      context = new SpanTestContext(span);
+      Long sessionId = sessionContext != null ? sessionContext.getId() : null;
+      context = new SpanTestContext(span, sessionId);
 
       span.setSpanType(InternalSpanTypes.TEST_MODULE_END);
       span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST_MODULE);
@@ -101,9 +102,9 @@ public class DDTestModuleImpl implements DDTestModule {
       span.setTag(Tags.TEST_MODULE, moduleName);
 
       span.setTag(Tags.TEST_MODULE_ID, context.getId());
+      span.setTag(Tags.TEST_SESSION_ID, sessionId);
 
       if (sessionContext != null) {
-        span.setTag(Tags.TEST_SESSION_ID, sessionContext.getId());
         span.setTag(Tags.TEST_STATUS, CIConstants.TEST_PASS);
       }
 

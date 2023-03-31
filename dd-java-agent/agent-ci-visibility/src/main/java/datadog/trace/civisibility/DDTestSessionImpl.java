@@ -47,7 +47,7 @@ public class DDTestSessionImpl implements DDTestSession {
       span = startSpan(testDecorator.component() + ".test_session");
     }
 
-    context = new SpanTestContext(span);
+    context = new SpanTestContext(span, null);
 
     span.setSpanType(InternalSpanTypes.TEST_SESSION_END);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST_SESSION);
