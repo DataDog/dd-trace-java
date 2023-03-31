@@ -83,3 +83,11 @@ project.afterEvaluate {
     }
   }
 }
+
+if (!project.property("activePartition")) {
+  project.afterEvaluate {
+    tasks.withType(Test).configureEach {
+      enabled = false
+    }
+  }
+}
