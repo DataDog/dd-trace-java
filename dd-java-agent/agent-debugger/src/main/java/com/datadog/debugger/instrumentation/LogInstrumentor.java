@@ -18,12 +18,12 @@ import static org.objectweb.asm.Type.VOID_TYPE;
 import static org.objectweb.asm.Type.getType;
 
 import com.datadog.debugger.probe.LogProbe;
-import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Where;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.Limits;
+import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import java.util.ArrayList;
 import java.util.List;
@@ -272,7 +272,7 @@ public final class LogInstrumentor extends Instrumentor {
       throwableListVar = declareThrowableList(insnList);
     }
     insnList.add(contextInitLabel);
-    if (definition.getEvaluateAt() == ProbeDefinition.MethodLocation.EXIT) {
+    if (definition.getEvaluateAt() == MethodLocation.EXIT) {
       // if evaluation is at exit, skip collecting data at enter
     } else {
       pushProbesIds(insnList);

@@ -20,6 +20,7 @@ import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
 import datadog.trace.bootstrap.debugger.Limits;
+import datadog.trace.bootstrap.debugger.MethodLocation;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
@@ -207,7 +208,7 @@ public class ConfigurationTest {
     List<LogProbe> logProbes0 = new ArrayList<>(config0.getLogProbes());
     LogProbe snapshotProbe0 = logProbes0.get(0);
     assertEquals("java.lang.String", snapshotProbe0.getWhere().getTypeName());
-    assertEquals(ProbeDefinition.MethodLocation.ENTRY, snapshotProbe0.getEvaluateAt());
+    assertEquals(MethodLocation.ENTRY, snapshotProbe0.getEvaluateAt());
     assertEquals(2, snapshotProbe0.getTags().length);
     assertTrue(snapshotProbe0.isCaptureSnapshot());
     assertEquals("tag1:value1", snapshotProbe0.getTags()[0].toString());
@@ -345,7 +346,7 @@ public class ConfigurationTest {
             Limits.DEFAULT_FIELD_COUNT)
         .tags("tag1:value1", "tag2:value2")
         .sampling(42.0)
-        .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
+        .evaluateAt(MethodLocation.ENTRY)
         .build();
   }
 
@@ -360,7 +361,7 @@ public class ConfigurationTest {
         .language("java")
         .probeId(id, 0)
         .where(typeName, methodName, signature)
-        .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
+        .evaluateAt(MethodLocation.ENTRY)
         .metricName(metricName)
         .kind(metricKind)
         .tags("tag1:value1", "tag2:value2")
@@ -374,7 +375,7 @@ public class ConfigurationTest {
         .probeId(id, 0)
         .captureSnapshot(false)
         .where(typeName, methodName, signature)
-        .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
+        .evaluateAt(MethodLocation.ENTRY)
         .template(template, parseTemplate(template))
         .tags("tag1:value1", "tag2:value2")
         .build();
@@ -386,7 +387,7 @@ public class ConfigurationTest {
         .language("java")
         .probeId(id, 0)
         .where(typeName, methodName, signature)
-        .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
+        .evaluateAt(MethodLocation.ENTRY)
         .tags("tag1:value1", "tag2:value2")
         .build();
   }
@@ -402,7 +403,7 @@ public class ConfigurationTest {
         .language("java")
         .probeId(id, 0)
         .where(typeName, methodName, signature)
-        .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
+        .evaluateAt(MethodLocation.ENTRY)
         .tags("tag1:value1", "tag2:value2")
         .targetSpan(targetSpan)
         .decorate(decoration)

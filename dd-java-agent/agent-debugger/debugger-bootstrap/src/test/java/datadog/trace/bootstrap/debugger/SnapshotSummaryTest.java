@@ -40,7 +40,7 @@ public class SnapshotSummaryTest {
             UUID.randomUUID().toString(),
             0,
             PROBE_LOCATION,
-            Snapshot.MethodLocation.EXIT,
+            MethodLocation.EXIT,
             true,
             null,
             null,
@@ -48,11 +48,7 @@ public class SnapshotSummaryTest {
     Snapshot snapshot = new Snapshot(Thread.currentThread(), probeDetails);
     CapturedContext entry = new CapturedContext();
     entry.evaluate(
-        probeDetails.getId(),
-        probeDetails,
-        getClass().getTypeName(),
-        -1,
-        Snapshot.MethodLocation.ENTRY);
+        probeDetails.getId(), probeDetails, getClass().getTypeName(), -1, MethodLocation.ENTRY);
     snapshot.setEntry(entry);
     assertEquals("SomeClass.someMethod()", snapshot.buildSummary());
 
@@ -68,11 +64,7 @@ public class SnapshotSummaryTest {
         });
     exit.addLocals(new Snapshot.CapturedValue[] {CapturedValue.of("@return", "double", 2.0)});
     exit.evaluate(
-        probeDetails.getId(),
-        probeDetails,
-        getClass().getTypeName(),
-        -1,
-        Snapshot.MethodLocation.EXIT);
+        probeDetails.getId(), probeDetails, getClass().getTypeName(), -1, MethodLocation.EXIT);
     snapshot.setExit(exit);
     assertEquals(
         "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c], arg4={foo=bar}): 2.0",
@@ -86,7 +78,7 @@ public class SnapshotSummaryTest {
             UUID.randomUUID().toString(),
             0,
             PROBE_LOCATION,
-            Snapshot.MethodLocation.EXIT,
+            MethodLocation.EXIT,
             true,
             null,
             null,
@@ -94,11 +86,7 @@ public class SnapshotSummaryTest {
     Snapshot snapshot = new Snapshot(Thread.currentThread(), probeDetails);
     CapturedContext entry = new CapturedContext();
     entry.evaluate(
-        probeDetails.getId(),
-        probeDetails,
-        getClass().getTypeName(),
-        -1,
-        Snapshot.MethodLocation.ENTRY);
+        probeDetails.getId(), probeDetails, getClass().getTypeName(), -1, MethodLocation.ENTRY);
     snapshot.setEntry(entry);
     assertEquals("SomeClass.someMethod()", snapshot.buildSummary());
 
@@ -117,11 +105,7 @@ public class SnapshotSummaryTest {
           Snapshot.CapturedValue.of("arg3", List.class.getTypeName(), Arrays.asList("a", "b", "c"))
         });
     exit.evaluate(
-        probeDetails.getId(),
-        probeDetails,
-        getClass().getTypeName(),
-        -1,
-        Snapshot.MethodLocation.EXIT);
+        probeDetails.getId(), probeDetails, getClass().getTypeName(), -1, MethodLocation.EXIT);
     snapshot.setExit(exit);
     assertEquals(
         "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c]): 2.0\n"
@@ -156,11 +140,7 @@ public class SnapshotSummaryTest {
         });
     snapshot.addLine(lineCapture, 23);
     lineCapture.evaluate(
-        probeDetails.getId(),
-        probeDetails,
-        getClass().getTypeName(),
-        -1,
-        Snapshot.MethodLocation.DEFAULT);
+        probeDetails.getId(), probeDetails, getClass().getTypeName(), -1, MethodLocation.DEFAULT);
     commit(snapshot);
 
     // this is intentionally different from PROBE_DETAILS, the stacktrace should take precedence
@@ -202,11 +182,7 @@ public class SnapshotSummaryTest {
           Snapshot.CapturedValue.of("arg2", "int", 42),
         });
     lineCapture.evaluate(
-        probeDetails.getId(),
-        probeDetails,
-        getClass().getTypeName(),
-        -1,
-        Snapshot.MethodLocation.DEFAULT);
+        probeDetails.getId(), probeDetails, getClass().getTypeName(), -1, MethodLocation.DEFAULT);
     snapshot.addLine(lineCapture, 13);
     assertEquals("SomeFile:[13](arg1=this is a string, arg2=42)", snapshot.buildSummary());
   }

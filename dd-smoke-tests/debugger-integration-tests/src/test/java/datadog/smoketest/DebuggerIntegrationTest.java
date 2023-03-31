@@ -190,9 +190,6 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
     System.out.println(bodyStr);
     Snapshot snapshot = adapter.fromJson(bodyStr).get(0).getDebugger().getSnapshot();
     assertEquals("123356536", snapshot.getProbe().getId());
-    assertEquals(
-        "ProbeCondition{dslExpression='argStr == \"foobar\"'}",
-        snapshot.getProbe().getScript().toString());
     assertFullMethodCaptureArgs(snapshot.getCaptures().getEntry());
   }
 

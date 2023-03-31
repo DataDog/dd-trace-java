@@ -1,6 +1,7 @@
 package com.datadog.debugger.probe;
 
 import com.datadog.debugger.agent.Generated;
+import com.datadog.debugger.agent.LogMessageTemplateSummaryBuilder;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.instrumentation.LogInstrumentor;
@@ -10,7 +11,9 @@ import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.Limits;
+import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.bootstrap.debugger.Snapshot;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -320,6 +323,47 @@ public class LogProbe extends ProbeDefinition {
       List<String> probeIds) {
     new LogInstrumentor(this, classLoader, classNode, methodNode, diagnostics, probeIds)
         .instrument();
+  }
+
+  @Override
+  public void evaluate(
+      Snapshot.CapturedContext context,
+      Snapshot.CapturedContext.Status status,
+      MethodLocation methodLocation) {
+    boolean shouldEvaluate = resolveEvaluateAt(methodLocation);
+    if (!shouldEvaluate) {
+      return;
+    }
+    status.setCondition(executeScript(this.probeCondition, context, id));
+    status.setConditionErrors(context.handleEvalErrors(status.getErrors()));
+    Snapshot.CapturedThrowable throwable = context.getThrowable();
+    if (status.hasConditionErrors() && throwable != null) {
+      status.addError(
+          new Snapshot.EvaluationError(
+              "uncaught exception", throwable.getType() + ": " + throwable.getMessage()));
+    }
+    if (status.getCondition()) {
+      if (summaryBuilder == null) {
+        summaryBuilder = new LogMessageTemplateSummaryBuilder(segments);
+      }
+      switch (methodLocation) {
+        case ENTRY:
+          this.summaryBuilder.addEntry(context);
+          break;
+        case EXIT:
+          summaryBuilder.addExit(context);
+          break;
+        case DEFAULT:
+          summaryBuilder.addLine(context);
+          break;
+      }
+      status.setLogTemplateErrors(context.handleEvalErrors(status.getErrors()));
+    }
+  }
+
+  @Override
+  public boolean hasCondition() {
+    return probeCondition != null;
   }
 
   @Generated

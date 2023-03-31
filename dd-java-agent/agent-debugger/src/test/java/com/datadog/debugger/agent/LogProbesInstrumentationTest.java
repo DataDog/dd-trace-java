@@ -12,10 +12,9 @@ import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
-import com.datadog.debugger.probe.ProbeDefinition;
-import com.datadog.debugger.probe.Where;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
+import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import java.io.IOException;
@@ -27,7 +26,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import org.joor.Reflect;
 import org.junit.jupiter.api.AfterEach;
@@ -88,7 +86,7 @@ public class LogProbesInstrumentationTest {
                 CLASS_NAME,
                 "main",
                 "int (java.lang.String)")
-            .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
+            .evaluateAt(MethodLocation.EXIT)
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -332,7 +330,7 @@ public class LogProbesInstrumentationTest {
         createProbeBuilder(LOG_ID, LOG_TEMPLATE, CLASS_NAME, "doit", "int (java.lang.String)")
             .when(
                 new ProbeCondition(DSL.when(DSL.eq(DSL.ref("arg"), DSL.value("5"))), "arg == '5'"))
-            .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
+            .evaluateAt(MethodLocation.ENTRY)
             .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
             .captureSnapshot(true)
             .build();
@@ -530,23 +528,8 @@ public class LogProbesInstrumentationTest {
           typeName = result.getTypeName();
           methodName = result.getMethodName();
         }
-        List<String> lines =
-            Arrays.stream(probe.getWhere().getSourceLines())
-                .map(Where.SourceLine::toString)
-                .collect(Collectors.toList());
-
-        Snapshot.ProbeLocation location =
-            new Snapshot.ProbeLocation(typeName, methodName, sourceFile, lines);
-
-        return new Snapshot.ProbeDetails(
-            id,
-            0,
-            location,
-            ProbeDefinition.MethodLocation.convert(probe.getEvaluateAt()),
-            probe.isCaptureSnapshot(),
-            null,
-            probe.concatTags(),
-            new LogMessageTemplateSummaryBuilder(probe));
+        probe.buildLocation(typeName, methodName);
+        return probe;
       }
     }
     return null;

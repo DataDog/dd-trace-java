@@ -455,10 +455,9 @@ public class ConfigurationUpdaterTest {
     Snapshot.ProbeDetails probeDetails =
         configurationUpdater.resolve(PROBE_ID.getId(), String.class);
     Assertions.assertEquals(PROBE_ID.getId(), probeDetails.getId());
-    Assertions.assertEquals(PROBE_ID.getVersion(), probeDetails.getVersion());
     Assertions.assertEquals("java.lang.String", probeDetails.getLocation().getType());
     Assertions.assertEquals("concat", probeDetails.getLocation().getMethod());
-    Assertions.assertNotNull(probeDetails.getScript());
+    Assertions.assertNotNull(((LogProbe) probeDetails).getProbeCondition());
   }
 
   @Test

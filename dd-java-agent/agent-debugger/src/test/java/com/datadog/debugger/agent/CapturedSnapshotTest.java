@@ -16,8 +16,6 @@ import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
-import com.datadog.debugger.probe.ProbeDefinition;
-import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.MoshiHelper;
 import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.datadog.debugger.util.SerializerWithLimits;
@@ -47,7 +45,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import org.jetbrains.kotlin.cli.common.ExitCode;
 import org.jetbrains.kotlin.cli.common.arguments.K2JVMCompilerArguments;
@@ -804,7 +801,7 @@ public class CapturedSnapshotTest {
                                 DSL.eq(DSL.ref("arg"), DSL.value("5")),
                                 DSL.gt(DSL.ref(ValueReferences.DURATION_REF), DSL.value(0L))))),
                     "(fld == 11 && typed.fld.fld.msg == \"hello\") && (arg == '5' && @duration > 0)"))
-            .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
+            .evaluateAt(MethodLocation.EXIT)
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -824,7 +821,7 @@ public class CapturedSnapshotTest {
         createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", "int (java.lang.String)", "35")
             .when(
                 new ProbeCondition(DSL.when(DSL.eq(DSL.ref("arg"), DSL.value("5"))), "arg == '5'"))
-            .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
+            .evaluateAt(MethodLocation.EXIT)
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -1007,14 +1004,14 @@ public class CapturedSnapshotTest {
     LogProbe probe1 =
         createProbeBuilder(PROBE_ID1, CLASS_NAME, "doit", "int (java.lang.String)")
             .when(new ProbeCondition(DSL.when(DSL.TRUE), "true"))
-            .evaluateAt(ProbeDefinition.MethodLocation.DEFAULT)
+            .evaluateAt(MethodLocation.DEFAULT)
             .build();
     LogProbe probe2 =
         createProbeBuilder(PROBE_ID2, CLASS_NAME, "doit", "int (java.lang.String)")
             .when(
                 new ProbeCondition(
                     DSL.when(DSL.gt(DSL.ref("@duration"), DSL.value(0))), "@duration > 0"))
-            .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
+            .evaluateAt(MethodLocation.EXIT)
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener =
         installProbes(CLASS_NAME, probe1, probe2);
@@ -1279,7 +1276,7 @@ public class CapturedSnapshotTest {
         createProbeBuilder(PROBE_ID, CLASS_NAME, "main", "int (java.lang.String)")
             .when(
                 new ProbeCondition(DSL.when(DSL.eq(DSL.ref("arg"), DSL.value("1"))), "arg == '1'"))
-            .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
+            .evaluateAt(MethodLocation.ENTRY)
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbes);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -1296,7 +1293,7 @@ public class CapturedSnapshotTest {
             .when(
                 new ProbeCondition(
                     DSL.when(DSL.eq(DSL.ref("@return"), DSL.value(3))), "@return == 3"))
-            .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
+            .evaluateAt(MethodLocation.EXIT)
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbes);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -1313,7 +1310,7 @@ public class CapturedSnapshotTest {
             .when(
                 new ProbeCondition(
                     DSL.when(DSL.eq(DSL.ref("@return"), DSL.value(0))), "@return == 0"))
-            .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
+            .evaluateAt(MethodLocation.EXIT)
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbes);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -1330,7 +1327,7 @@ public class CapturedSnapshotTest {
     LogProbe probe =
         createProbeBuilder(PROBE_ID, CLASS_NAME, "main", "(String)")
             .when(new ProbeCondition(DSL.when(DSL.gt(DSL.ref("after"), DSL.value(0))), "after > 0"))
-            .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
+            .evaluateAt(MethodLocation.EXIT)
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -1448,23 +1445,8 @@ public class CapturedSnapshotTest {
           typeName = result.getTypeName();
           methodName = result.getMethodName();
         }
-        List<String> lines =
-            Arrays.stream(probe.getWhere().getSourceLines())
-                .map(Where.SourceLine::toString)
-                .collect(Collectors.toList());
-
-        Snapshot.ProbeLocation location =
-            new Snapshot.ProbeLocation(typeName, methodName, sourceFile, lines);
-
-        return new Snapshot.ProbeDetails(
-            id,
-            0,
-            location,
-            ProbeDefinition.MethodLocation.convert(probe.getEvaluateAt()),
-            true,
-            probe.getProbeCondition(),
-            probe.concatTags(),
-            new SnapshotSummaryBuilder(location));
+        probe.buildLocation(typeName, methodName);
+        return probe;
       }
     }
     return null;
