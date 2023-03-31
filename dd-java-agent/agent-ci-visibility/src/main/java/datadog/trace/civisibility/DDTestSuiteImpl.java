@@ -135,15 +135,15 @@ public class DDTestSuiteImpl implements DDTestSuite {
 
     testDecorator.beforeFinish(span);
 
+    String status = context.getStatus();
+    span.setTag(Tags.TEST_STATUS, status);
+    moduleContext.reportChildStatus(status);
+
     if (endTime != null) {
       span.finish(endTime);
     } else {
       span.finish();
     }
-
-    String status = context.getStatus();
-    span.setTag(Tags.TEST_STATUS, status);
-    moduleContext.reportChildStatus(status);
   }
 
   @Override

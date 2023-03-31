@@ -82,7 +82,12 @@ public class DDTestSessionImpl implements DDTestSession {
   public void end(@Nullable Long endTime) {
     span.setTag(Tags.TEST_STATUS, context.getStatus());
     testDecorator.beforeFinish(span);
-    span.finish();
+
+    if (endTime != null) {
+      span.finish(endTime);
+    } else {
+      span.finish();
+    }
   }
 
   @Override

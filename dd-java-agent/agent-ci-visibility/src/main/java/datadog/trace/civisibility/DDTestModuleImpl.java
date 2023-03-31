@@ -156,7 +156,12 @@ public class DDTestModuleImpl implements DDTestModule {
     }
     span.setTag(Tags.TEST_STATUS, context.getStatus());
     testDecorator.beforeFinish(span);
-    span.finish();
+
+    if (endTime != null) {
+      span.finish(endTime);
+    } else {
+      span.finish();
+    }
   }
 
   @Override
