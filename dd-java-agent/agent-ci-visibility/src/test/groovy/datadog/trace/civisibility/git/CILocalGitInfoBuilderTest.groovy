@@ -43,7 +43,6 @@ class CILocalGitInfoBuilderTest extends Specification {
   }
 
   def resolve(workspace) {
-    def resolvedWS = Paths.get(getClass().getClassLoader().getResource(workspace).toURI()).toFile().getAbsolutePath()
-    return resolvedWS
+    Paths.get(getClass().getClassLoader().getResource(workspace).toURI()).toFile().getAbsolutePath()
   }
 }

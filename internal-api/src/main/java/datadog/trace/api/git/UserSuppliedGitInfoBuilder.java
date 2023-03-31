@@ -13,6 +13,7 @@ import static datadog.trace.api.git.GitInfo.DD_GIT_REPOSITORY_URL;
 import static datadog.trace.api.git.GitInfo.DD_GIT_TAG;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -77,7 +78,7 @@ public class UserSuppliedGitInfoBuilder implements GitInfoBuilder {
         log.error(
             "Could not resolve git repository URL (can be provided via "
                 + GitInfo.DD_GIT_REPOSITORY_URL
-                + " env var)");
+                + " env var, " + GeneralConfig.TAGS + " config property or by embedding git metadata at build time)");
       }
 
       String commitSha = gitInfo.getCommit().getSha();
@@ -87,7 +88,7 @@ public class UserSuppliedGitInfoBuilder implements GitInfoBuilder {
                 + commitSha
                 + " (can be provided via "
                 + GitInfo.DD_GIT_COMMIT_SHA
-                + " env var, and must be a full-length git SHA)");
+                + " env var, " + GeneralConfig.TAGS + " config property or by embedding git metadata at build time; must be a full-length SHA_");
       }
     }
 
