@@ -15,15 +15,14 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.*;
 
 @AutoService(Instrumenter.class)
-public class DubboInstrumentation extends Instrumenter.Tracing
+public class DubboConsumerInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
-  public DubboInstrumentation() {
+  public DubboConsumerInstrumentation() {
     super("apache-dubbo");
   }
 
-//  public static final String CLASS_NAME = "org.apache.dubbo.rpc.Filter";
-  public static final String CLASS_NAME = "org.apache.dubbo.monitor.support.MonitorFilter";
+  public static final String CLASS_NAME = "org.apache.dubbo.rpc.protocol.AbstractInvoker";
 
   @Override
   public String hierarchyMarkerType() {
@@ -33,8 +32,6 @@ public class DubboInstrumentation extends Instrumenter.Tracing
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named(CLASS_NAME));
-//    return implementsInterface(named(CLASS_NAME));
-//    return implementsInterface(named(CLASS_NAME)).and(not(named("org.apache.dubbo.monitor.dubbo.MetricsFilter")));
   }
 
   @Override
@@ -43,27 +40,18 @@ public class DubboInstrumentation extends Instrumenter.Tracing
         isMethod()
             .and(isPublic())
             .and(nameStartsWith("invoke"))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("org.apache.dubbo.rpc.Invoker")))
-            .and(takesArgument(1, named("org.apache.dubbo.rpc.Invocation"))),
-        packageName + ".RequestAdvice");
-//    transformation.applyAdvice(
-//        isMethod()
-//            .and(isPublic())
-//            .and(nameStartsWith("onResponse"))
-//            .and(takesArguments(3))
-//            .and(takesArgument(0, named("org.apache.dubbo.rpc.Result")))
-//            .and(takesArgument(1, named("org.apache.dubbo.rpc.Invoker")))
-//            .and(takesArgument(2, named("org.apache.dubbo.rpc.Invocation"))),
-//        packageName + ".ResponseAdvice");
+            .and(takesArguments(1))
+            .and(takesArgument(0, named("org.apache.dubbo.rpc.Invocation"))),
+        packageName + ".DubboConsumerAdvice");
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[]{
         packageName + ".DubboDecorator",
-//        packageName + ".ResponseAdvice",
-        packageName + ".RequestAdvice",
+        packageName + ".HostAndPort",
+        packageName + ".DubboConstants",
+        packageName + ".DubboConsumerAdvice",
         packageName + ".DubboHeadersExtractAdapter",
         packageName + ".DubboHeadersInjectAdapter"
     };
@@ -71,7 +59,6 @@ public class DubboInstrumentation extends Instrumenter.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-//    return singletonMap("org.apache.dubbo.rpc.Invocation", AgentSpan.class.getName());
     return singletonMap("org.apache.dubbo.rpc.RpcContext", AgentSpan.class.getName());
   }
 }
