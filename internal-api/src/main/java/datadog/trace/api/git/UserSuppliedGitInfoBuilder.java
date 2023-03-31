@@ -78,7 +78,9 @@ public class UserSuppliedGitInfoBuilder implements GitInfoBuilder {
         log.error(
             "Could not resolve git repository URL (can be provided via "
                 + GitInfo.DD_GIT_REPOSITORY_URL
-                + " env var, " + GeneralConfig.TAGS + " config property or by embedding git metadata at build time)");
+                + " env var, "
+                + GeneralConfig.TAGS
+                + " config property or by embedding git metadata at build time)");
       }
 
       String commitSha = gitInfo.getCommit().getSha();
@@ -88,7 +90,9 @@ public class UserSuppliedGitInfoBuilder implements GitInfoBuilder {
                 + commitSha
                 + " (can be provided via "
                 + GitInfo.DD_GIT_COMMIT_SHA
-                + " env var, " + GeneralConfig.TAGS + " config property or by embedding git metadata at build time; must be a full-length SHA_");
+                + " env var, "
+                + GeneralConfig.TAGS
+                + " config property or by embedding git metadata at build time; must be a full-length SHA_");
       }
     }
 
