@@ -3,22 +3,16 @@ package datadog.smoketest.springboot.controller;
 import datadog.smoketest.springboot.TestBean;
 import ddtest.client.sources.Hasher;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.io.File;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.bind.annotation.*;
+
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.websocket.server.PathParam;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.MatrixVariable;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
+import java.security.Principal;
 
 @RestController
 public class IastWebController {
@@ -148,5 +142,11 @@ public class IastWebController {
 
   private interface Operation<E> {
     E run() throws Throwable;
+  }
+
+
+  @GetMapping("/jwt")
+  public String jwt(Principal userPrincipal) {
+    return "ok User Principal name: " + userPrincipal.getName();
   }
 }
