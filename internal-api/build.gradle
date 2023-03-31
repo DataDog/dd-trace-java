@@ -65,10 +65,11 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.TagContext.HttpHeaders",
   "datadog.trace.bootstrap.instrumentation.api.ForwardedTagContext",
   "datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities",
-  "datadog.trace.api.civisibility.CIInfo",
-  "datadog.trace.api.civisibility.CIInfo.Builder",
+  "datadog.trace.api.civisibility.ci.CIInfo",
+  "datadog.trace.api.civisibility.ci.CIInfo.Builder",
   "datadog.trace.api.civisibility.InstrumentationBridge",
   "datadog.trace.api.civisibility.source.MethodLinesResolver.MethodLines",
+  "datadog.trace.api.civisibility.events.BuildEventsHandler.ModuleAndSessionId",
   // POJO
   "datadog.trace.api.git.GitInfo",
   // POJO
