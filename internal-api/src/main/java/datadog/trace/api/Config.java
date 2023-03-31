@@ -1898,8 +1898,7 @@ public class Config {
     // don't want to put this logic (which will evolve) in the public ProfilingConfig, and can't
     // access Platform there
     // we encountered AsyncGetCallTrace bugs when ZGC is enabled
-    return false
-        && Platform.activeGarbageCollector() != Z
+    return Platform.activeGarbageCollector() != Z
         && (Platform.isJ9()
             || Platform.isJavaVersionAtLeast(17, 0, 5)
             || (Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 17))
