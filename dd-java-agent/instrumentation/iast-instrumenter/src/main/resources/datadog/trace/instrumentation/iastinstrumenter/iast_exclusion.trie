@@ -37,6 +37,7 @@
 1 com.timgroup.statsd.*
 
 # -------- Libraries --------
+1 akka.*
 1 antlr.*
 1 brave.*
 1 ch.qos.*

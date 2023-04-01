@@ -8,6 +8,7 @@ import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.source.WebModule;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -59,6 +60,11 @@ public class WebModuleImpl implements WebModule {
   }
 
   @Override
+  public void onCookieNames(@Nullable Iterable<String> cookieNames) {
+    onNamed(cookieNames, SourceTypes.REQUEST_COOKIE_NAME);
+  }
+
+  @Override
   public void onCookieValue(@Nullable final String cookieName, @Nullable final String cookieValue) {
     onNamed(cookieName, cookieValue, SourceTypes.REQUEST_COOKIE_VALUE);
   }
@@ -90,37 +96,49 @@ public class WebModuleImpl implements WebModule {
     taintedObjects.taintInputString(value, new Source(source, name, value));
   }
 
-  private static void onNamed(@Nullable final Collection<String> names, final byte source) {
-    if (names == null || names.isEmpty()) {
+  private static void onNamed(@Nullable final Iterable<String> names, final byte source) {
+    if (names == null) {
       return;
     }
+    Iterator<String> iterator = names.iterator();
+    if (!iterator.hasNext()) {
+      return;
+    }
+
     final IastRequestContext ctx = IastRequestContext.get();
     if (ctx == null) {
       return;
     }
     final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    for (final String name : names) {
+    do {
+      String name = iterator.next();
       if (canBeTainted(name)) {
         taintedObjects.taintInputString(name, new Source(source, name, name));
       }
-    }
+    } while (iterator.hasNext());
   }
 
   private static void onNamed(
-      @Nullable final String name, @Nullable final Collection<String> values, final byte source) {
-    if (values == null || values.isEmpty()) {
+      @Nullable final String name, @Nullable final Iterable<String> values, final byte source) {
+    if (values == null) {
       return;
     }
+    Iterator<String> iterator = values.iterator();
+    if (!iterator.hasNext()) {
+      return;
+    }
+
     final IastRequestContext ctx = IastRequestContext.get();
     if (ctx == null) {
       return;
     }
     final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    for (final String value : values) {
+    do {
+      String value = iterator.next();
       if (canBeTainted(value)) {
         taintedObjects.taintInputString(value, new Source(source, name, value));
       }
-    }
+    } while (iterator.hasNext());
   }
 
   private static void onNamed(
