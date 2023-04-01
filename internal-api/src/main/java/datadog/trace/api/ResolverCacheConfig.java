@@ -6,26 +6,36 @@ public enum ResolverCacheConfig {
   /** Memoizing and outlining for large enterprise apps. */
   LARGE {
     @Override
+    public int noMatchesSize() {
+      return 65536;
+    }
+
+    @Override
     public int memoPoolSize() {
-      return 32768;
+      return 4096;
     }
 
     @Override
     public int outlinePoolSize() {
-      return 512;
+      return 256;
     }
 
     @Override
     public int typePoolSize() {
-      return 128;
+      return 64;
     }
   },
 
   /** Memoizing and outlining for the average sized app. */
   MEMOS {
     @Override
+    public int noMatchesSize() {
+      return 16384;
+    }
+
+    @Override
     public int memoPoolSize() {
-      return 8192;
+      return 2048;
     }
 
     @Override
@@ -41,6 +51,11 @@ public enum ResolverCacheConfig {
 
   /** Outlining only for the average sized app, no memoizing. */
   NO_MEMOS {
+    @Override
+    public int noMatchesSize() {
+      return 0;
+    }
+
     @Override
     public int memoPoolSize() {
       return 0;
@@ -60,6 +75,11 @@ public enum ResolverCacheConfig {
   /** Outlining only for small microservice apps. */
   SMALL {
     @Override
+    public int noMatchesSize() {
+      return 0;
+    }
+
+    @Override
     public int memoPoolSize() {
       return 0;
     }
@@ -78,6 +98,11 @@ public enum ResolverCacheConfig {
   /** The old {@code DDCachingPoolStrategy} behaviour. */
   LEGACY {
     @Override
+    public int noMatchesSize() {
+      return 0;
+    }
+
+    @Override
     public int memoPoolSize() {
       return 0;
     }
@@ -92,6 +117,8 @@ public enum ResolverCacheConfig {
       return 64;
     }
   };
+
+  public abstract int noMatchesSize();
 
   public abstract int memoPoolSize();
 

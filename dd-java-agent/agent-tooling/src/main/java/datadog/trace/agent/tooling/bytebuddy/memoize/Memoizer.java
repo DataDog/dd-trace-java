@@ -77,6 +77,7 @@ public final class Memoizer {
   public static void resetState() {
     // no need to reset the state if we haven't added any external matchers
     if (matchers.size() > INTERNAL_MATCHERS) {
+      NoMatchFilter.clear();
       Memoizer.clear();
     }
   }
@@ -143,11 +144,22 @@ public final class Memoizer {
 
     @Override
     protected boolean doMatch(TypeDescription target) {
-      if ("java.lang.Object".equals(target.getName()) || target.isPrimitive()) {
+      String targetName = target.getName();
+      if (NoMatchFilter.contains(targetName)
+          || "java.lang.Object".equals(targetName)
+          || target.isPrimitive()) {
         return false;
       } else {
         return doMemoize(target, localMemosHolder.get()).get(matcherId);
       }
+    }
+  }
+
+  static BitSet memoizeHierarchy(TypeDescription type, Map<String, BitSet> localMemos) {
+    if (NoMatchFilter.contains(type.getName())) {
+      return NO_MATCH;
+    } else {
+      return doMemoize(type, localMemos);
     }
   }
 
@@ -169,10 +181,10 @@ public final class Memoizer {
     try {
       TypeDescription.Generic superType = type.getSuperClass();
       if (null != superType && !"java.lang.Object".equals(superType.getTypeName())) {
-        inherit(doMemoize(superType.asErasure(), localMemos), memo);
+        inherit(memoizeHierarchy(superType.asErasure(), localMemos), memo);
       }
       for (TypeDescription.Generic intf : type.getInterfaces()) {
-        inherit(doMemoize(intf.asErasure(), localMemos), memo);
+        inherit(memoizeHierarchy(intf.asErasure(), localMemos), memo);
       }
       for (AnnotationDescription ann : type.getDeclaredAnnotations()) {
         record(annotationMatcherIds, ann.getAnnotationType(), memo);
@@ -199,8 +211,10 @@ public final class Memoizer {
       }
     }
 
+    // we're only interested in the type if there's at least one external match
     if (memo.nextSetBit(INTERNAL_MATCHERS) < 0) {
-      memo = NO_MATCH; // we're only interested if there's at least one external match
+      NoMatchFilter.add(name);
+      return NO_MATCH;
     }
 
     memos.share(name, null, null, memo);

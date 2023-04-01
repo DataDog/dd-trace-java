@@ -288,6 +288,10 @@ public class InstrumenterConfig {
     return excludedCodeSources;
   }
 
+  public int getResolverNoMatchesSize() {
+    return resolverCacheConfig.noMatchesSize();
+  }
+
   public boolean isResolverMemoizingEnabled() {
     return resolverCacheConfig.memoPoolSize() > 0;
   }
