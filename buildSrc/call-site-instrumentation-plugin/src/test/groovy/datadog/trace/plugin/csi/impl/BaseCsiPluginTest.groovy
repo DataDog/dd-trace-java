@@ -37,7 +37,8 @@ abstract class BaseCsiPluginTest extends Specification {
 
   protected static File fetchClass(final Class<?> clazz) {
     final folder = Paths.get(clazz.getResource('/').toURI()).resolve('../../')
-    final classFile = clazz.getName().replaceAll('\\.', File.separator) + '.class'
+    final fileSeparatorPattern = File.separator == "\\" ? "\\\\" : File.separator
+    final classFile = clazz.getName().replaceAll('\\.', fileSeparatorPattern) + '.class'
     final groovy = folder.resolve('groovy/test').resolve(classFile)
     if (Files.exists(groovy)) {
       return groovy.toFile()
