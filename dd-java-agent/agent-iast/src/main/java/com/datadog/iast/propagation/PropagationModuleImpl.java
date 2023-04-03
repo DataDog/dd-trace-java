@@ -147,6 +147,19 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
+  public boolean isTainted(@Nullable Object obj) {
+    if (obj instanceof Taintable) {
+      return ((Taintable) obj).$DD$isTainted();
+    }
+
+    if (obj == null) {
+      return false;
+    }
+    final TaintedObjects taintedObjects = lazyTaintedObjects();
+    return taintedObjects.get(obj) != null;
+  }
+
+  @Override
   public void taint(final byte origin, @Nullable final Collection<Object> toTaintCollection) {
     if (toTaintCollection == null || toTaintCollection.isEmpty()) {
       return;
@@ -156,6 +169,15 @@ public class PropagationModuleImpl implements PropagationModule {
     for (final Object toTaint : toTaintCollection) {
       taintObject(taintedObjects, toTaint, source);
     }
+  }
+
+  @Override
+  public void taint(
+      @Nullable Taintable t, byte origin, @Nullable String name, @Nullable String value) {
+    if (t == null) {
+      return;
+    }
+    t.$$DD$setSource(new Source(origin, name, value));
   }
 
   private static void taintObject(
@@ -187,8 +209,7 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   private static class LazyTaintedObjects implements TaintedObjects {
-
-    private volatile boolean fetched = false;
+    private boolean fetched = false;
     private TaintedObjects taintedObjects;
 
     @Override

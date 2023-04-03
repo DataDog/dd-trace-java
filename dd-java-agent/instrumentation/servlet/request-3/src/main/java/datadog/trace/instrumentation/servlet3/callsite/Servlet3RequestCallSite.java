@@ -22,12 +22,7 @@ public class Servlet3RequestCallSite {
     final WebModule module = InstrumentationBridge.WEB;
     if (module != null) {
       try {
-        for (Map.Entry<String, String[]> entry : map.entrySet()) {
-          module.onParameterName(entry.getKey());
-          for (String value : entry.getValue()) {
-            module.onParameterValue(entry.getKey(), value);
-          }
-        }
+        module.onParameterValues(map);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetParameter threw", e);
       }

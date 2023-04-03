@@ -45,10 +45,10 @@ public class HttpServletRequestCallSite {
       "java.util.Enumeration javax.servlet.http.HttpServletRequest.getHeaders(java.lang.String)")
   @CallSite.After(
       "java.util.Enumeration javax.servlet.http.HttpServletRequestWrapper.getHeaders(java.lang.String)")
-  public static Enumeration<?> afterGetHeaders(
+  public static Enumeration<String> afterGetHeaders(
       @CallSite.This final HttpServletRequest self,
       @CallSite.Argument final String headerName,
-      @CallSite.Return final Enumeration<?> enumeration)
+      @CallSite.Return final Enumeration<String> enumeration)
       throws Throwable {
     if (enumeration == null) {
       return null;
@@ -58,15 +58,15 @@ public class HttpServletRequestCallSite {
       return enumeration;
     }
     try {
-      final List<Object> headerValues = new ArrayList<>();
+      final List<String> headerValues = new ArrayList<>();
       while (enumeration.hasMoreElements()) {
-        final Object headerValue = enumeration.nextElement();
+        final String headerValue = enumeration.nextElement();
         headerValues.add(headerValue);
-        try {
-          module.onHeaderValue(headerName, (String) headerValue);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("afterGetHeaders threw", e);
-        }
+      }
+      try {
+        module.onHeaderValues(headerName, headerValues);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterGetHeaders threw", e);
       }
       return Collections.enumeration(headerValues);
     } catch (final Throwable e) {
@@ -79,9 +79,9 @@ public class HttpServletRequestCallSite {
   @CallSite.After("java.util.Enumeration javax.servlet.http.HttpServletRequest.getHeaderNames()")
   @CallSite.After(
       "java.util.Enumeration javax.servlet.http.HttpServletRequestWrapper.getHeaderNames()")
-  public static Enumeration<?> afterGetHeaderNames(
+  public static Enumeration<String> afterGetHeaderNames(
       @CallSite.This final HttpServletRequest self,
-      @CallSite.Return final Enumeration<?> enumeration)
+      @CallSite.Return final Enumeration<String> enumeration)
       throws Throwable {
     if (enumeration == null) {
       return null;
@@ -91,15 +91,15 @@ public class HttpServletRequestCallSite {
       return enumeration;
     }
     try {
-      final List<Object> headerNames = new ArrayList<>();
+      final List<String> headerNames = new ArrayList<>();
       while (enumeration.hasMoreElements()) {
-        final Object headerName = enumeration.nextElement();
+        final String headerName = enumeration.nextElement();
         headerNames.add(headerName);
-        try {
-          module.onHeaderName((String) headerName);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("afterGetHeaderNames threw", e);
-        }
+      }
+      try {
+        module.onHeaderNames(headerNames);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterGetHeaderNames threw", e);
       }
       return Collections.enumeration(headerNames);
     } catch (final Throwable e) {
