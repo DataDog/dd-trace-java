@@ -10,10 +10,10 @@ class ShedlockTest extends AgentTestRunner {
   def "should not disable shedlock"() {
     setup:
     def context = new AnnotationConfigApplicationContext(ShedlockConfig)
-    def task = context.getBean(ShedLockedTask)
     JdbcTemplate jdbcTemplate = new JdbcTemplate(context.getBean(DataSource))
     jdbcTemplate.execute("CREATE TABLE shedlock(name VARCHAR(64) NOT NULL PRIMARY KEY, lock_until TIMESTAMP NOT NULL,\n" +
       "    locked_at TIMESTAMP NOT NULL, locked_by VARCHAR(255) NOT NULL);")
+    def task = context.getBean(ShedLockedTask)
 
     expect: "lock is held for more than one second"
     !task.awaitInvocation(1000, TimeUnit.MILLISECONDS)
