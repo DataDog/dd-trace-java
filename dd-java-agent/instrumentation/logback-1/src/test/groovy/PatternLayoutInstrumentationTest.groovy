@@ -14,7 +14,7 @@ class PatternLayoutInstrumentationTest extends AgentTestRunner {
 
     where:
     pattern | expectation
-    "%-5level [%thread]: %message%n" | "%-5level [%thread]:- %X{dd.trace_id} %X{dd.span_id} - %message%n"
-    "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n" | "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} -- %X{dd.trace_id} %X{dd.span_id} - %msg%n"
+    "%-5level [%thread]: %message%n" | "%-5level [%thread]: %message [datadog trace_id=%X{dd.trace_id} span_id=%X{dd.span_id}]%n"
+    "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n" | "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg [datadog trace_id=%X{dd.trace_id} span_id=%X{dd.span_id}]%n"
   }
 }

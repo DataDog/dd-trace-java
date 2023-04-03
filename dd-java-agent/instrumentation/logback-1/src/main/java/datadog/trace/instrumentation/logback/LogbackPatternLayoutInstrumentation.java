@@ -36,15 +36,11 @@ public class LogbackPatternLayoutInstrumentation extends Instrumenter.Tracing
   public static class SetPatternAdvice {
     @Advice.OnMethodEnter
     public static void onEnter(@Advice.Argument(value = 0, readOnly = false) String pattern) {
-      String patternAddition = "- %X{dd.trace_id} %X{dd.span_id} -";
+      String patternAddition = " [datadog trace_id=%X{dd.trace_id} span_id=%X{dd.span_id}]";
       boolean addTraceId = !pattern.contains("%X{dd.trace_id}");
       if (addTraceId) {
-        int messageIndex = pattern.lastIndexOf(" ");
-        if (messageIndex == -1) {
-          messageIndex = pattern.lastIndexOf("\t");
-        }
-        pattern =
-            pattern.substring(0, messageIndex) + patternAddition + pattern.substring(messageIndex);
+        int insertAt = pattern.lastIndexOf("%n");
+        pattern = pattern.substring(0, insertAt) + patternAddition + pattern.substring(insertAt);
       }
     }
   }
