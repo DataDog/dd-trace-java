@@ -1,4 +1,4 @@
-package datadog.trace.api.civisibility.git;
+package datadog.trace.api.git;
 
 import java.util.Objects;
 

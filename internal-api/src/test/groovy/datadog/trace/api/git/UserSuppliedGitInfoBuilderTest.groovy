@@ -1,15 +1,11 @@
-package datadog.trace.civisibility
+package datadog.trace.api.git
 
-import datadog.trace.api.civisibility.git.GitInfo
-import datadog.trace.civisibility.git.info.UserSuppliedGitInfoBuilder
-import org.junit.Rule
-import org.junit.contrib.java.lang.system.EnvironmentVariables
-import spock.lang.Specification
+import datadog.trace.api.config.GeneralConfig
+import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.test.util.DDSpecification
+import datadog.trace.util.Strings
 
-class UserSuppliedGitInfoBuilderTest extends Specification {
-
-  @Rule
-  public final EnvironmentVariables environmentVariables = new EnvironmentVariables()
+class UserSuppliedGitInfoBuilderTest extends DDSpecification {
 
   def setup() {
     // Clear all environment variables to avoid clashes between
@@ -18,7 +14,7 @@ class UserSuppliedGitInfoBuilderTest extends Specification {
 
   def "test no user supplied git info"() {
     when:
-    def gitInfo = new UserSuppliedGitInfoBuilder().build()
+    def gitInfo = new UserSuppliedGitInfoBuilder().build(null)
 
     then:
     gitInfo.isEmpty()
@@ -29,7 +25,7 @@ class UserSuppliedGitInfoBuilderTest extends Specification {
     environmentVariables.set(envVariable, value)
 
     when:
-    def gitInfo = new UserSuppliedGitInfoBuilder().build()
+    def gitInfo = new UserSuppliedGitInfoBuilder().build(null)
 
     then:
     !gitInfo.isEmpty()
@@ -55,7 +51,7 @@ class UserSuppliedGitInfoBuilderTest extends Specification {
     environmentVariables.set(GitInfo.DD_GIT_BRANCH, "origin/myBranch")
 
     when:
-    def gitInfo = new UserSuppliedGitInfoBuilder().build()
+    def gitInfo = new UserSuppliedGitInfoBuilder().build(null)
 
     then:
     !gitInfo.isEmpty()
@@ -67,7 +63,7 @@ class UserSuppliedGitInfoBuilderTest extends Specification {
     environmentVariables.set(GitInfo.DD_GIT_BRANCH, "refs/tags/myTag")
 
     when:
-    def gitInfo = new UserSuppliedGitInfoBuilder().build()
+    def gitInfo = new UserSuppliedGitInfoBuilder().build(null)
 
     then:
     !gitInfo.isEmpty()
@@ -81,11 +77,39 @@ class UserSuppliedGitInfoBuilderTest extends Specification {
     environmentVariables.set(GitInfo.DD_GIT_BRANCH, "refs/tags/myTag")
 
     when:
-    def gitInfo = new UserSuppliedGitInfoBuilder().build()
+    def gitInfo = new UserSuppliedGitInfoBuilder().build(null)
 
     then:
     !gitInfo.isEmpty()
     gitInfo.branch == null
     gitInfo.tag == "myProvidedTag"
+  }
+
+  def "git info is extracted from global tags"() {
+    setup:
+    injectEnvConfig(Strings.toEnvVar(GeneralConfig.TAGS), Tags.GIT_REPOSITORY_URL + ":repo_url," + Tags.GIT_COMMIT_SHA + ":commit_sha")
+
+    when:
+    def gitInfo = new UserSuppliedGitInfoBuilder().build(null)
+
+    then:
+    !gitInfo.isEmpty()
+    gitInfo.repositoryURL == "repo_url"
+    gitInfo.commit.sha == "commit_sha"
+  }
+
+  def "global tags have lower priority than dedicated environment variables"() {
+    setup:
+    injectEnvConfig(Strings.toEnvVar(GeneralConfig.TAGS), Tags.GIT_REPOSITORY_URL + ":repo_url," + Tags.GIT_COMMIT_SHA + ":commit_sha")
+    injectEnvConfig(GitInfo.DD_GIT_REPOSITORY_URL, "overridden_repo_url")
+    injectEnvConfig(GitInfo.DD_GIT_COMMIT_SHA, "overridden_commit_sha")
+
+    when:
+    def gitInfo = new UserSuppliedGitInfoBuilder().build(null)
+
+    then:
+    !gitInfo.isEmpty()
+    gitInfo.repositoryURL == "overridden_repo_url"
+    gitInfo.commit.sha == "overridden_commit_sha"
   }
 }

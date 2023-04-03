@@ -1,9 +1,8 @@
-package datadog.trace.civisibility.git;
+package datadog.trace.api.git;
 
-import static datadog.trace.civisibility.git.RawParseUtils.decode;
-import static datadog.trace.civisibility.git.RawParseUtils.nextLF;
+import static datadog.trace.api.git.RawParseUtils.decode;
+import static datadog.trace.api.git.RawParseUtils.nextLF;
 
-import datadog.trace.api.civisibility.git.PersonInfo;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
@@ -22,7 +21,7 @@ public class GitUtils {
   private static final Pattern REFS_TAGS_PATTERN = Pattern.compile("refs/tags/", Pattern.LITERAL);
   private static final Pattern TAGS_PATTERN = Pattern.compile("tags/", Pattern.LITERAL);
 
-  private static final Logger log = LoggerFactory.getLogger(LocalFSGitInfoExtractor.class);
+  private static final Logger log = LoggerFactory.getLogger(GitUtils.class);
 
   /**
    * Normalizes Git tag references:

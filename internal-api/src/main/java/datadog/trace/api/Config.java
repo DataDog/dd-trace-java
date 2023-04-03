@@ -287,6 +287,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL;
 import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_HEADER;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_RESOLVER_ENABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_GIT_METADATA_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
@@ -487,6 +488,8 @@ public class Config {
   private final boolean traceAnalyticsEnabled;
   private final String traceClientIpHeader;
   private final boolean traceClientIpResolverEnabled;
+
+  private final boolean traceGitMetadataEnabled;
 
   private final Map<String, String> traceSamplingServiceRules;
   private final Map<String, String> traceSamplingOperationRules;
@@ -1093,6 +1096,8 @@ public class Config {
 
     traceClientIpResolverEnabled =
         configProvider.getBoolean(TRACE_CLIENT_IP_RESOLVER_ENABLED, true);
+
+    traceGitMetadataEnabled = configProvider.getBoolean(TRACE_GIT_METADATA_ENABLED, true);
 
     traceSamplingServiceRules = configProvider.getMergedMap(TRACE_SAMPLING_SERVICE_RULES);
     traceSamplingOperationRules = configProvider.getMergedMap(TRACE_SAMPLING_OPERATION_RULES);
@@ -1793,6 +1798,10 @@ public class Config {
   // or clientIpEnabled)
   public boolean isTraceClientIpResolverEnabled() {
     return traceClientIpResolverEnabled;
+  }
+
+  public boolean isTraceGitMetadataEnabled() {
+    return traceGitMetadataEnabled;
   }
 
   public Map<String, String> getTraceSamplingServiceRules() {

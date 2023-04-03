@@ -60,6 +60,7 @@ import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.civisibility.interceptor.CiVisibilityApmProtocolInterceptor;
 import datadog.trace.civisibility.interceptor.CiVisibilityTraceInterceptor;
+import datadog.trace.common.GitMetadataTraceInterceptor;
 import datadog.trace.common.metrics.MetricsAggregator;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
@@ -468,12 +469,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     assert baggageMapping != null;
 
     this.timeSource = timeSource == null ? SystemTimeSource.INSTANCE : timeSource;
-    this.startTimeNano = this.timeSource.getCurrentTimeNanos();
-    this.startNanoTicks = this.timeSource.getNanoTicks();
-    this.clockSyncPeriod = Math.max(1_000_000L, SECONDS.toNanos(config.getClockSyncPeriod()));
-    this.lastSyncTicks = startNanoTicks;
+    startTimeNano = this.timeSource.getCurrentTimeNanos();
+    startNanoTicks = this.timeSource.getNanoTicks();
+    clockSyncPeriod = Math.max(1_000_000L, SECONDS.toNanos(config.getClockSyncPeriod()));
+    lastSyncTicks = startNanoTicks;
 
-    this.endpointCheckpointer = EndpointCheckpointerHolder.create();
+    endpointCheckpointer = EndpointCheckpointerHolder.create();
     this.serviceName = serviceName;
     this.sampler = sampler;
     this.injector = injector;
@@ -496,21 +497,21 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.statsDClient = StatsDClient.NO_OP;
     }
 
-    this.monitoring =
+    monitoring =
         config.isHealthMetricsEnabled()
             ? new MonitoringImpl(this.statsDClient, 10, SECONDS)
             : Monitoring.DISABLED;
-    this.healthMetrics =
+    healthMetrics =
         config.isHealthMetricsEnabled()
             ? new TracerHealthMetrics(this.statsDClient)
             : HealthMetrics.NO_OP;
-    this.healthMetrics.start();
-    this.performanceMonitoring =
+    healthMetrics.start();
+    performanceMonitoring =
         config.isPerfMetricsEnabled()
             ? new MonitoringImpl(this.statsDClient, 10, SECONDS)
             : Monitoring.DISABLED;
 
-    this.traceWriteTimer = performanceMonitoring.newThreadLocalTimer("trace.write");
+    traceWriteTimer = performanceMonitoring.newThreadLocalTimer("trace.write");
     if (scopeManager == null) {
       this.scopeManager =
           new ContinuableScopeManager(
@@ -518,14 +519,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               config.isScopeStrictMode(),
               config.isScopeInheritAsyncPropagation(),
               profilingContextIntegration,
-              this.healthMetrics);
+              healthMetrics);
     } else {
       this.scopeManager = scopeManager;
     }
 
-    this.externalAgentLauncher = new ExternalAgentLauncher(config);
+    externalAgentLauncher = new ExternalAgentLauncher(config);
 
-    this.disableSamplingMechanismValidation = config.isSamplingMechanismValidationDisabled();
+    disableSamplingMechanismValidation = config.isSamplingMechanismValidationDisabled();
 
     if (sharedCommunicationObjects == null) {
       sharedCommunicationObjects = new SharedCommunicationObjects();
@@ -541,7 +542,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.writer = writer;
     }
 
-    this.pendingTraceBuffer =
+    pendingTraceBuffer =
         strictTraceWrites
             ? PendingTraceBuffer.discarding()
             : PendingTraceBuffer.delaying(this.timeSource);
@@ -584,11 +585,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       }
     }
 
+    if (config.isTraceGitMetadataEnabled()) {
+      addTraceInterceptor(GitMetadataTraceInterceptor.INSTANCE);
+    }
+
     this.instrumentationGateway = instrumentationGateway;
-    this.callbackProviderAppSec =
-        instrumentationGateway.getCallbackProvider(RequestContextSlot.APPSEC);
-    this.callbackProviderIast = instrumentationGateway.getCallbackProvider(RequestContextSlot.IAST);
-    this.universalCallbackProvider = instrumentationGateway.getUniversalCallbackProvider();
+    callbackProviderAppSec = instrumentationGateway.getCallbackProvider(RequestContextSlot.APPSEC);
+    callbackProviderIast = instrumentationGateway.getCallbackProvider(RequestContextSlot.IAST);
+    universalCallbackProvider = instrumentationGateway.getUniversalCallbackProvider();
 
     injectors = HttpCodec.allInjectorsFor(config, invertMap(baggageMapping));
 
@@ -939,7 +943,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return trace;
   }
 
-  @SuppressWarnings("unchecked")
   void setSamplingPriorityIfNecessary(final DDSpan rootSpan) {
     // There's a race where multiple threads can see PrioritySampling.UNSET here
     // This check skips potential complex sampling priority logic when we know its redundant
@@ -973,7 +976,24 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public boolean addTraceInterceptor(final TraceInterceptor interceptor) {
-    return interceptors.add(interceptor);
+    if (interceptors.add(interceptor)) {
+      return true;
+    } else {
+      Comparator<? super TraceInterceptor> interceptorComparator = interceptors.comparator();
+      if (interceptorComparator != null) {
+        TraceInterceptor anotherInterceptor =
+            interceptors.stream()
+                .filter(i -> interceptorComparator.compare(i, interceptor) == 0)
+                .findFirst()
+                .orElse(null);
+        log.warn(
+            "Interceptor {} will NOT be registered with the tracer, "
+                + "as already registered interceptor {} is considered its duplicate",
+            interceptor,
+            anotherInterceptor);
+      }
+      return false;
+    }
   }
 
   @Override
@@ -1036,12 +1056,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void registerCheckpointer(EndpointCheckpointer implementation) {
-    this.endpointCheckpointer.register(implementation);
+    endpointCheckpointer.register(implementation);
   }
 
   @Override
   public SubscriptionService getSubscriptionService(RequestContextSlot slot) {
-    return (SubscriptionService) this.instrumentationGateway.getCallbackProvider(slot);
+    return (SubscriptionService) instrumentationGateway.getCallbackProvider(slot);
   }
 
   @Override
@@ -1109,7 +1129,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public TraceSegment getTraceSegment() {
-    AgentSpan.Context ctx = this.activeSpan().context();
+    AgentSpan.Context ctx = activeSpan().context();
     if (ctx instanceof DDSpanContext) {
       return ((DDSpanContext) ctx).getTraceSegment();
     }

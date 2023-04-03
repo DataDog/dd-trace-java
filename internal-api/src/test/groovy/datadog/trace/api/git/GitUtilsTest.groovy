@@ -1,9 +1,9 @@
-package datadog.trace.civisibility.git
+package datadog.trace.api.git
 
-import datadog.trace.api.civisibility.git.PersonInfo
-import datadog.trace.test.util.DDSpecification
 
-class GitUtilsTest extends DDSpecification {
+import spock.lang.Specification
+
+class GitUtilsTest extends Specification {
 
   static janeDoePersonInfo = new PersonInfo("Jane Doe", "jane.doe@email.com")
 
