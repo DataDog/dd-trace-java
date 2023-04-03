@@ -14,9 +14,7 @@ echo "saving test results"
 mkdir -p $TEST_RESULTS_DIR
 mkdir -p $TEST_RESULTS_DIR/root
 
-for f in $(find workspace/build/gradle-project-tests -name '*.xml') ; do
-  cp -- "$f" "$TEST_RESULTS_DIR/root/$(basename -- "$f")"
-done
+cp workspace/build/gradle-project-tests/gradle-tasks-test-report.xml $TEST_RESULTS_DIR/root/
 
 find workspace/**/build/test-results -name \*.xml -exec sh -c '
   file=$(echo "$0" | rev | cut -d "/" -f 1,2,5 | rev | tr "/" "_")

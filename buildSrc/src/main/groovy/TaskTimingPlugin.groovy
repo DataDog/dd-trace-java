@@ -73,24 +73,28 @@ abstract class TaskTimingPlugin implements Plugin<Project> {
 
     private void generateResultsXML() {
       REPORTS_DIR.mkdirs()
-
+      final reportFile = new File(REPORTS_DIR, "gradle-tasks-test-report.xml")
+      final StringBuilder sb = new StringBuilder()
+      sb.append("""<?xml version="1.0" encoding="UTF-8"?>\n""")
       for (project in timings.values()) {
-        final reportFile = new File(REPORTS_DIR, "${project.project}.xml")
-
+        if (project.project.isEmpty()) {
+          continue;
+        }
         final totalTime = project.tasks.collect { it.millis }.sum()
         final totalFailures = project.tasks.count { it.failed }
-
-        final testCasesString = project.tasks.collect { state ->
-          """|  <testcase name="${state.task}" file="${project.project}" classnane="${project.project}" time="${state.millis / 1000f}">"
-             |  </testcase>""".stripMargin()
-        }.join("\n")
-
-        final text = """|<?xml version="1.0" encoding="UTF-8"?>
-                     |<testsuite id="${project.project}" name="${project.project}" tests="${project.tasks.size()}" time="${totalTime / 1000f}" failures="${totalFailures}">
-                     |${testCasesString}
-                     |</testsuite>\n""".stripMargin()
-        reportFile.text = text
+        sb.append("""<testsuite id="${project.project}" name="${project.project}" tests="${project.tasks.size()}" time="${totalTime / 1000f}" failures="${totalFailures}">\n""")
+        for (task in project.tasks) {
+          sb.append("""  <testcase name="${task.task}" file="${project.project}" classnane="${project.project}" time="${task.millis / 1000f}">\n""")
+          if (task.failed) {
+            sb.append("""    <failure message="Gradle task failed" type="failure">\n""")
+            sb.append("""    Gradle task failed\n""")
+            sb.append("""    </failure>\n""")
+          }
+          sb.append("""  </testcase>\n""")
+        }
+        sb.append("""</testsuite>\n""")
       }
+      reportFile.text = sb.toString()
     }
   }
 
