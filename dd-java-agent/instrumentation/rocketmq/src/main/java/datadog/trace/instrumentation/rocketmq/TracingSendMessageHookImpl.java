@@ -23,7 +23,10 @@ final class TracingSendMessageHookImpl implements SendMessageHook {
       return;
     }
     AgentScope scope = rocketMqDecorator.start(context);
-    context.setMqTraceContext(scope);
+    Object o = context.getMqTraceContext();
+    if( o == null){
+      context.setMqTraceContext(scope);
+    }
   }
 
   @Override
@@ -32,6 +35,8 @@ final class TracingSendMessageHookImpl implements SendMessageHook {
       return;
     }
     AgentScope scope = (AgentScope) context.getMqTraceContext();
-    rocketMqDecorator.end(context, scope);
+    if (scope != null) {
+      rocketMqDecorator.end(context, scope);
+    }
   }
 }
