@@ -9,7 +9,7 @@ muzzle {
   pass {
     group = "redis.clients"
     module = "jedis"
-    versions = "[3.0.0,)"
+    versions = "[3.0.0,4.0.0)"
   }
 }
 

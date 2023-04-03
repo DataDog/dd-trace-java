@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.jedis40;
+package redis.clients.jedis;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
@@ -6,9 +6,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
-import redis.clients.jedis.commands.ProtocolCommand;
 
-public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorator<ProtocolCommand> {
+public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Connection> {
   public static final JedisClientDecorator DECORATE = new JedisClientDecorator();
 
   private static final String REDIS = "redis";
@@ -44,26 +43,19 @@ public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorato
   }
 
   @Override
-  protected String dbUser(final ProtocolCommand session) {
+  protected String dbUser(final Connection connection) {
     return null;
   }
 
   @Override
-  protected String dbInstance(final ProtocolCommand session) {
+  protected String dbInstance(final Connection connection) {
     return null;
   }
 
   @Override
-  protected String dbHostname(ProtocolCommand protocolCommand) {
-    // As the instrumentation is on the Connection object to retrieve the current host
-    // should be a matter of calling the getHostAndPort on the instrumented Connection object.
-    // Binding a variable to the `this` of the instrumented method by using `@Advice.This`
-    // annotation to the onEnter method in JedisInstrumentation should allow this
-    // To support this some changes may to how the Decorator is instantiated. Unsure if the host and
-    // port
-    // can change per thread/invocation.
-
-    return null;
+  protected String dbHostname(Connection connection) {
+    // getHostAndPort is protected hence the decorator sits in the same package
+    return connection.getHostAndPort().getHost();
   }
 
   @Override
