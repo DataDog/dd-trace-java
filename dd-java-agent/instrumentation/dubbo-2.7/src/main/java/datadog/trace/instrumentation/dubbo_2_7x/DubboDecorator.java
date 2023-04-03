@@ -47,12 +47,12 @@ public class DubboDecorator extends BaseDecorator {
     log.debug("isConsumer:{},invocation{}",isConsumer,invocation.getClass().getName());
 
     String methodName = invocation.getMethodName();
-    String resourceName = generateOperationName(url,invocation);
+    String resourceName = generateOperationName(invoker,url,invocation);
     if (!isConsumer&& META_RESOURCE.equals(invoker.getInterface().getName())){
       log.debug("skip span because dubbo resourceName:{}",META_RESOURCE);
       return activeSpan();
     }
-    String shortUrl = generateRequestURL(url,invocation);
+    String shortUrl = generateRequestURL(invoker,url,invocation);
     if (log.isDebugEnabled()) {
       log.debug("isConsumer:{},method:{},resourceName:{},shortUrl:{},longUrl:{},version:{}",
           isConsumer,
@@ -102,9 +102,9 @@ public class DubboDecorator extends BaseDecorator {
   }
 
 
-  private String providerResourceName(Invocation invocation){
+  private String providerResourceName(Invoker invoker,Invocation invocation){
     StringBuilder operationName = new StringBuilder();
-    operationName.append(invocation.getInvoker().getInterface().getName());
+    operationName.append(invoker.getInterface().getName());
     operationName.append("." + invocation.getMethodName() + "(");
     for (Class<?> classes : invocation.getParameterTypes()) {
       operationName.append(classes.getSimpleName() + ",");
@@ -116,7 +116,7 @@ public class DubboDecorator extends BaseDecorator {
     return operationName.toString();
   }
 
-  private String generateOperationName(URL requestURL, Invocation invocation) {
+  private String generateOperationName(Invoker invoker,URL requestURL, Invocation invocation) {
     boolean isConsumer = isConsumerSide(requestURL);
     if (isConsumer) {
       StringBuilder operationName = new StringBuilder();
@@ -134,17 +134,17 @@ public class DubboDecorator extends BaseDecorator {
       operationName.append(")");
       return operationName.toString();
     }else{
-      return providerResourceName(invocation);
+      return providerResourceName(invoker,invocation);
     }
 
   }
 
-  private String generateRequestURL(URL url, Invocation invocation) {
+  private String generateRequestURL(Invoker invoker,URL url, Invocation invocation) {
     StringBuilder requestURL = new StringBuilder();
     requestURL.append(url.getProtocol() + "://");
     requestURL.append(url.getHost());
     requestURL.append(":" + url.getPort() + "/");
-    requestURL.append(generateOperationName(url, invocation));
+    requestURL.append(generateOperationName(invoker,url, invocation));
     return requestURL.toString();
   }
 
