@@ -30,14 +30,20 @@ class TraceGenerator {
     List<CoreSpan> trace = new ArrayList<>(size)
     long traceId = ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE)
     for (int i = 0; i < size; ++i) {
-      trace.add(randomSpan(traceId, lowCardinality))
+      def spanType = "type-" + ThreadLocalRandom.current().nextInt(lowCardinality ? 1 : 100)
+      trace.add(randomSpan(traceId, lowCardinality, spanType, Collections.emptyMap()))
     }
     return trace
   }
 
   private static final IdGenerationStrategy ID_GENERATION_STRATEGY = IdGenerationStrategy.fromName("RANDOM")
 
-  private static CoreSpan randomSpan(long traceId, boolean lowCardinality) {
+  static CoreSpan generateRandomSpan(CharSequence type, Map<String, Object> extraTags) {
+    long traceId = ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE)
+    return randomSpan(traceId, true, type, extraTags)
+  }
+
+  private static CoreSpan randomSpan(long traceId, boolean lowCardinality, CharSequence type, Map<String, Object> extraTags) {
     ThreadLocalRandom random = ThreadLocalRandom.current()
     Map<String, String> baggage = new HashMap<>()
     if (random.nextBoolean()) {
@@ -47,7 +53,7 @@ class TraceGenerator {
         baggage.put("tag.2", "qux")
       }
     }
-    Map<String, Object> tags = new HashMap<>()
+    Map<String, Object> tags = new HashMap<>(extraTags)
     int tagCount = random.nextInt(0, 20)
     for (int i = 0; i < tagCount; ++i) {
       tags.put("tag." + i, random.nextBoolean() ? "foo" : randomString(2000))
@@ -55,10 +61,10 @@ class TraceGenerator {
       tags.put("tag.2." + i, random.nextBoolean())
       switch (random.nextInt(8)) {
         case 0:
-          tags.put("tag.3." + i , BigDecimal.valueOf(random.nextDouble()))
+          tags.put("tag.3." + i, BigDecimal.valueOf(random.nextDouble()))
           break
         case 1:
-          tags.put("tag.3." + i , BigInteger.valueOf(random.nextLong()))
+          tags.put("tag.3." + i, BigInteger.valueOf(random.nextLong()))
           break
         default:
           break
@@ -84,6 +90,7 @@ class TraceGenerator {
       }
       tags.put(name, metric)
     }
+
     return new PojoSpan(
       "service-" + random.nextInt(lowCardinality ? 1 : 10),
       "operation-" + random.nextInt(lowCardinality ? 1 : 100),
@@ -96,7 +103,7 @@ class TraceGenerator {
       random.nextInt(2),
       baggage,
       tags,
-      "type-" + random.nextInt(lowCardinality ? 1 : 100),
+      type,
       random.nextBoolean(),
       PrioritySampling.SAMPLER_KEEP,
       200,
@@ -132,7 +139,7 @@ class TraceGenerator {
     private final long start
     private final long duration
     private final int error
-    private final String type
+    private final CharSequence type
     private final boolean measured
     private final Metadata metadata
     private short httpStatusCode
@@ -150,7 +157,7 @@ class TraceGenerator {
     int error,
     Map<String, String> baggage,
     Map<String, Object> tags,
-    String type,
+    CharSequence type,
     boolean measured,
     int samplingPriority,
     int statusCode,
@@ -280,6 +287,7 @@ class TraceGenerator {
 
     @Override
     PojoSpan removeTag(String tag) {
+      metadata.getTags().remove(tag)
       return this
     }
 
@@ -304,7 +312,7 @@ class TraceGenerator {
     }
 
     @Override
-    CharSequence getOrigin(){
+    CharSequence getOrigin() {
       return metadata.getOrigin()
     }
 
@@ -317,8 +325,8 @@ class TraceGenerator {
     }
 
     @Override
-    String getType() {
-      return type
+    CharSequence getType() {
+      return this.type
     }
 
     @Override

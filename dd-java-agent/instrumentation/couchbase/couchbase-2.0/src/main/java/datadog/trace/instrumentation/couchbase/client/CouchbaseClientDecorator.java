@@ -1,23 +1,26 @@
 package datadog.trace.instrumentation.couchbase.client;
 
-import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
-
+import datadog.trace.api.Config;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 
-class CouchbaseClientDecorator extends DatabaseClientDecorator {
-  public static final CouchbaseClientDecorator DECORATE = new CouchbaseClientDecorator();
-
+class CouchbaseClientDecorator extends DBTypeProcessingDatabaseClientDecorator {
   private static final CharSequence COUCHBASE_CLIENT = UTF8BytesString.create("couchbase-client");
+  private static final String DB_TYPE = "couchbase";
 
-  @Override
-  public AgentSpan afterStart(AgentSpan span) {
-    span.setServiceName(dbType());
-    span.setTag(DB_TYPE, dbType());
-    return super.afterStart(span);
-  }
+  private static final String SERVICE_NAME =
+      SpanNaming.instance()
+          .namingSchema()
+          .database()
+          .service(Config.get().getServiceName(), DB_TYPE);
+
+  public static final CharSequence OPERATION_NAME =
+      UTF8BytesString.create(SpanNaming.instance().namingSchema().database().operation(DB_TYPE));
+
+  public static final CouchbaseClientDecorator DECORATE = new CouchbaseClientDecorator();
 
   @Override
   protected String[] instrumentationNames() {
@@ -26,7 +29,7 @@ class CouchbaseClientDecorator extends DatabaseClientDecorator {
 
   @Override
   protected String service() {
-    return "couchbase";
+    return SERVICE_NAME;
   }
 
   @Override
@@ -58,4 +61,7 @@ class CouchbaseClientDecorator extends DatabaseClientDecorator {
   protected String dbHostname(Object o) {
     return null;
   }
+
+  @Override
+  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
 }

@@ -1,5 +1,6 @@
 package com.datadog.debugger.el.values;
 
+import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.el.Value;
@@ -28,7 +29,7 @@ class ListValueTest {
     }
     assertThrows(IllegalArgumentException.class, () -> listValue.get(-1));
     assertThrows(IllegalArgumentException.class, () -> listValue.get(stringList.size()));
-    assertEquals("List", listValue.prettyPrint());
+    assertEquals("List", print(listValue));
   }
 
   @Test
@@ -37,7 +38,7 @@ class ListValueTest {
     assertTrue(listValue.isEmpty());
 
     assertThrows(IllegalArgumentException.class, () -> listValue.get(-1));
-    assertEquals("null", listValue.prettyPrint());
+    assertEquals("null", print(listValue));
   }
 
   @Test
@@ -60,7 +61,7 @@ class ListValueTest {
     }
     assertThrows(IllegalArgumentException.class, () -> listValue.get(-1));
     assertThrows(IllegalArgumentException.class, () -> listValue.get(array.length));
-    assertEquals("java.lang.Object[]", listValue.prettyPrint());
+    assertEquals("java.lang.Object[]", print(listValue));
   }
 
   @Test
@@ -82,6 +83,6 @@ class ListValueTest {
     }
     assertThrows(IllegalArgumentException.class, () -> listValue.get(-1));
     assertThrows(IllegalArgumentException.class, () -> listValue.get(intArray.length));
-    assertEquals("int[][]", listValue.prettyPrint());
+    assertEquals("int[][]", print(listValue));
   }
 }

@@ -18,7 +18,7 @@ import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class Netty38ClientTest extends HttpClientTest {
+abstract class Netty38ClientTest extends HttpClientTest {
 
   @Shared
   def clientConfig = new AsyncHttpClientConfig.Builder()
@@ -51,10 +51,6 @@ class Netty38ClientTest extends HttpClientTest {
     return NettyHttpClientDecorator.DECORATE.component()
   }
 
-  @Override
-  String expectedOperationName() {
-    return "netty.client.request"
-  }
 
   @Override
   boolean testRedirects() {
@@ -118,3 +114,40 @@ class Netty38ClientTest extends HttpClientTest {
     method = "GET"
   }
 }
+
+class Netty38ClientV0ForkedTest extends Netty38ClientTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "netty.client.request"
+  }
+}
+
+class Netty38ClientV1ForkedTest extends Netty38ClientTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "http.client.request"
+  }
+}
+

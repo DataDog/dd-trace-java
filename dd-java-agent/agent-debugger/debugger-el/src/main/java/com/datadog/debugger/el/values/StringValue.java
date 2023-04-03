@@ -1,6 +1,7 @@
 package com.datadog.debugger.el.values;
 
 import com.datadog.debugger.el.Literal;
+import com.datadog.debugger.el.Visitor;
 
 /** A string {@linkplain com.datadog.debugger.el.Value} */
 public final class StringValue extends Literal<String> {
@@ -27,7 +28,7 @@ public final class StringValue extends Literal<String> {
   }
 
   @Override
-  public String prettyPrint() {
-    return "\"" + value + "\"";
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
   }
 }

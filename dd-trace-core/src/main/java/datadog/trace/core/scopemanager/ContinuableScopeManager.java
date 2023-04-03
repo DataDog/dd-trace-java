@@ -6,21 +6,17 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.StatsDClient;
 import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.AgentTaskScheduler;
-import java.util.ArrayDeque;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -28,9 +24,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,49 +34,51 @@ import org.slf4j.LoggerFactory;
  * ScopeInterceptors to provide additional functionality.
  */
 public final class ContinuableScopeManager implements AgentScopeManager {
-
   static final Logger log = LoggerFactory.getLogger(ContinuableScopeManager.class);
-  final ScopeStackThreadLocal tlsScopeStack;
-
   static final long iterationKeepAlive =
       SECONDS.toMillis(Config.get().getScopeIterationKeepAlive());
-
   volatile ConcurrentMap<ScopeStack, ContinuableScope> rootIterationScopes;
-
   final List<ScopeListener> scopeListeners;
   final List<ExtendedScopeListener> extendedScopeListeners;
-  final StatsDClient statsDClient;
-  private final HealthMetrics healthMetrics;
-
+  final boolean strictMode;
+  private final ScopeStackThreadLocal tlsScopeStack;
   private final int depthLimit;
-  private final boolean strictMode;
   private final boolean inheritAsyncPropagation;
+  final HealthMetrics healthMetrics;
 
+  /**
+   * Constructor with NOOP Profiling and HealthMetrics implementations.
+   *
+   * @param depthLimit The maximum scope depth limit, <code>0</code> for unlimited.
+   * @param strictMode Whether check if the closed spans are the active ones or not.
+   * @param inheritAsyncPropagation Whether the next span should inherit the active span
+   *     asyncPropagation flag.
+   */
   public ContinuableScopeManager(
-      final int depthLimit,
-      final StatsDClient statsDClient,
-      final boolean strictMode,
-      final boolean inheritAsyncPropagation,
-      final HealthMetrics healthMetrics) {
+      final int depthLimit, final boolean strictMode, final boolean inheritAsyncPropagation) {
     this(
         depthLimit,
-        statsDClient,
         strictMode,
         inheritAsyncPropagation,
         ProfilingContextIntegration.NoOp.INSTANCE,
-        healthMetrics);
+        HealthMetrics.NO_OP);
   }
 
+  /**
+   * Default constructor.
+   *
+   * @param depthLimit The maximum scope depth limit, <code>0</code> for unlimited.
+   * @param strictMode Whether check if the closed spans are the active ones or not.
+   * @param inheritAsyncPropagation Whether the next span should inherit the active span
+   *     asyncPropagation flag.
+   */
   public ContinuableScopeManager(
       final int depthLimit,
-      final StatsDClient statsDClient,
       final boolean strictMode,
       final boolean inheritAsyncPropagation,
       final ProfilingContextIntegration profilingContextIntegration,
       final HealthMetrics healthMetrics) {
-
     this.depthLimit = depthLimit == 0 ? Integer.MAX_VALUE : depthLimit;
-    this.statsDClient = statsDClient;
     this.strictMode = strictMode;
     this.inheritAsyncPropagation = inheritAsyncPropagation;
     this.scopeListeners = new CopyOnWriteArrayList<>();
@@ -104,8 +99,9 @@ public final class ContinuableScopeManager implements AgentScopeManager {
   }
 
   @Override
-  public AgentScope.Continuation captureSpan(final AgentSpan span, final ScopeSource source) {
-    Continuation continuation = new SingleContinuation(this, span, source.id());
+  public AgentScope.Continuation captureSpan(final AgentSpan span) {
+    AbstractContinuation continuation =
+        new SingleContinuation(this, span, ScopeSource.INSTRUMENTATION.id());
     continuation.register();
     return continuation;
   }
@@ -148,12 +144,12 @@ public final class ContinuableScopeManager implements AgentScopeManager {
   }
 
   /**
-   * Creates a new scope when a {@link Continuation} is activated.
+   * Creates a new scope when a {@link AbstractContinuation} is activated.
    *
    * @param continuation {@code null} if a continuation is re-used
    */
   ContinuableScope continueSpan(
-      final Continuation continuation, final AgentSpan span, final byte source) {
+      final AbstractContinuation continuation, final AgentSpan span, final byte source) {
 
     final ContinuableScope scope;
     if (continuation != null) {
@@ -281,210 +277,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     }
   }
 
-  private static class ContinuableScope implements AgentScope, AttachableWrapper {
-    private final ContinuableScopeManager scopeManager;
-
-    final AgentSpan span; // package-private so scopeManager can access it directly
-
-    /** Flag to propagate this scope across async boundaries. */
-    private boolean isAsyncPropagating;
-
-    private final byte flags;
-
-    private short referenceCount = 1;
-
-    private volatile Object wrapper;
-    private static final AtomicReferenceFieldUpdater<ContinuableScope, Object>
-        WRAPPER_FIELD_UPDATER =
-            AtomicReferenceFieldUpdater.newUpdater(ContinuableScope.class, Object.class, "wrapper");
-
-    ContinuableScope(
-        final ContinuableScopeManager scopeManager,
-        final AgentSpan span,
-        final byte source,
-        final boolean isAsyncPropagating) {
-      this.scopeManager = scopeManager;
-      this.span = span;
-      this.flags = source;
-      this.isAsyncPropagating = isAsyncPropagating;
-    }
-
-    @Override
-    public final void close() {
-      final ScopeStack scopeStack = scopeManager.scopeStack();
-
-      // fast check first, only perform slower check when there's an inconsistency with the stack
-      if (!scopeStack.checkTop(this) && !scopeStack.checkOverdueScopes(this)) {
-        if (log.isDebugEnabled()) {
-          log.debug(
-              "Tried to close {} scope when not on top.  Current top: {}", this, scopeStack.top);
-        }
-
-        scopeManager.statsDClient.incrementCounter("scope.close.error");
-
-        if (source() == ScopeSource.MANUAL.id()) {
-          scopeManager.statsDClient.incrementCounter("scope.user.close.error");
-
-          if (scopeManager.strictMode) {
-            throw new RuntimeException("Tried to close scope when not on top");
-          }
-        }
-      }
-
-      final boolean alive = decrementReferences();
-      if (!alive) {
-        cleanup(scopeStack);
-      }
-    }
-
-    void cleanup(final ScopeStack scopeStack) {
-      scopeStack.cleanup();
-    }
-
-    /*
-     * Exists to allow stack unwinding to do a delayed call to close when the close is
-     * finished properly.  e.g. When the scope is back on the top of the stack.
-     *
-     * DQH - If we clean-up the delegation code & notification semantics at later time,
-     * I would hope this becomes unnecessary.
-     */
-    final void onProperClose() {
-      for (final ScopeListener listener : scopeManager.scopeListeners) {
-        try {
-          listener.afterScopeClosed();
-        } catch (Exception e) {
-          log.debug("ScopeListener threw exception in close()", e);
-        }
-      }
-
-      for (final ExtendedScopeListener listener : scopeManager.extendedScopeListeners) {
-        try {
-          listener.afterScopeClosed();
-        } catch (Exception e) {
-          log.debug("ScopeListener threw exception in close()", e);
-        }
-      }
-    }
-
-    final void incrementReferences() {
-      ++referenceCount;
-    }
-
-    /** Decrements ref count -- returns true if the scope is still alive */
-    final boolean decrementReferences() {
-      return --referenceCount > 0;
-    }
-
-    final void clearReferences() {
-      referenceCount = 0;
-    }
-
-    /** Returns true if the scope is still alive (non-zero ref count) */
-    final boolean alive() {
-      return referenceCount > 0;
-    }
-
-    @Override
-    public final boolean isAsyncPropagating() {
-      return isAsyncPropagating;
-    }
-
-    @Override
-    public final AgentSpan span() {
-      return span;
-    }
-
-    @Override
-    public final void setAsyncPropagation(final boolean value) {
-      isAsyncPropagating = value;
-    }
-
-    /**
-     * The continuation returned must be closed or activated or the trace will not finish.
-     *
-     * @return The new continuation, or null if this scope is not async propagating.
-     */
-    @Override
-    public final ContinuableScopeManager.Continuation capture() {
-      return isAsyncPropagating
-          ? new SingleContinuation(scopeManager, span, source()).register()
-          : null;
-    }
-
-    /**
-     * The continuation returned must be closed or activated or the trace will not finish.
-     *
-     * @return The new continuation, or null if this scope is not async propagating.
-     */
-    @Override
-    public final ContinuableScopeManager.Continuation captureConcurrent() {
-      return isAsyncPropagating
-          ? new ConcurrentContinuation(scopeManager, span, source()).register()
-          : null;
-    }
-
-    @Override
-    public final String toString() {
-      return super.toString() + "->" + span;
-    }
-
-    public final void afterActivated() {
-      for (final ScopeListener listener : scopeManager.scopeListeners) {
-        try {
-          listener.afterScopeActivated();
-        } catch (Throwable e) {
-          log.debug("ScopeListener threw exception in afterActivated()", e);
-        }
-      }
-
-      for (final ExtendedScopeListener listener : scopeManager.extendedScopeListeners) {
-        try {
-          listener.afterScopeActivated(
-              span.getTraceId(), span.getLocalRootSpan().getSpanId(), span.context().getSpanId());
-        } catch (Throwable e) {
-          log.debug("ExtendedScopeListener threw exception in afterActivated()", e);
-        }
-      }
-    }
-
-    @Override
-    public byte source() {
-      return (byte) (flags & 0x7F);
-    }
-
-    @Override
-    public void attachWrapper(@Nonnull Object wrapper) {
-      WRAPPER_FIELD_UPDATER.set(this, wrapper);
-    }
-
-    @Override
-    public Object getWrapper() {
-      return WRAPPER_FIELD_UPDATER.get(this);
-    }
-  }
-
-  private static final class ContinuingScope extends ContinuableScope {
-    /** Continuation that created this scope. */
-    private final ContinuableScopeManager.Continuation continuation;
-
-    ContinuingScope(
-        final ContinuableScopeManager scopeManager,
-        final AgentSpan span,
-        final byte source,
-        final boolean isAsyncPropagating,
-        final ContinuableScopeManager.Continuation continuation) {
-      super(scopeManager, span, source, isAsyncPropagating);
-      this.continuation = continuation;
-    }
-
-    @Override
-    void cleanup(final ScopeStack scopeStack) {
-      super.cleanup(scopeStack);
-
-      continuation.cancelFromContinuedScopeClose();
-    }
-  }
-
   static final class ScopeStackThreadLocal extends ThreadLocal<ScopeStack> {
 
     private final ProfilingContextIntegration profilingContextIntegration;
@@ -496,303 +288,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     @Override
     protected ScopeStack initialValue() {
       return new ScopeStack(profilingContextIntegration);
-    }
-  }
-
-  /**
-   * The invariant is that the top of a non-empty stack is always active. Anytime a scope is closed,
-   * cleanup() is called to ensure the invariant
-   */
-  static final class ScopeStack {
-
-    private final ProfilingContextIntegration profilingContextIntegration;
-    private final ArrayDeque<ContinuableScope> stack = new ArrayDeque<>(); // previous scopes
-
-    ContinuableScope top; // current scope
-
-    // set by background task when a root iteration scope remains unclosed for too long
-    volatile ContinuableScope overdueRootScope;
-
-    ScopeStack(ProfilingContextIntegration profilingContextIntegration) {
-      this.profilingContextIntegration = profilingContextIntegration;
-    }
-
-    ContinuableScope active() {
-      // avoid attaching further spans to the root scope when it's been marked as overdue
-      return top != overdueRootScope ? top : null;
-    }
-
-    /** Removes and closes all scopes up to the nearest live scope */
-    void cleanup() {
-      ContinuableScope curScope = top;
-      boolean changedTop = false;
-      while (curScope != null && !curScope.alive()) {
-        // no longer alive -- trigger listener & null out
-        curScope.onProperClose();
-        changedTop = true;
-        curScope = stack.poll();
-      }
-      if (curScope != null && curScope == overdueRootScope) {
-        // we know this scope is the last on the stack and is overdue
-        curScope.onProperClose();
-        overdueRootScope = null;
-        top = null;
-      } else if (changedTop) {
-        top = curScope;
-        if (curScope != null) {
-          curScope.afterActivated();
-        }
-      }
-      if (top == null) {
-        onBecomeEmpty();
-      } else {
-        onTopChanged(top);
-      }
-    }
-
-    /** Marks a new scope as current, pushing the previous onto the stack */
-    void push(final ContinuableScope scope) {
-      onTopChanged(scope);
-      if (top != null) {
-        stack.push(top);
-      } else {
-        onBecomeNonEmpty();
-      }
-      top = scope;
-      scope.afterActivated();
-    }
-
-    /** Fast check to see if the expectedScope is on top */
-    boolean checkTop(final ContinuableScope expectedScope) {
-      return expectedScope.equals(top);
-    }
-
-    /**
-     * Slower check to see if overdue scopes ahead of the expected scope are all ITERATION scopes.
-     * These represent iterations that are now out-of-scope and can be finished ready for cleanup.
-     */
-    final boolean checkOverdueScopes(final ContinuableScope expectedScope) {
-      // we already know 'top' isn't the expected scope, so just need to check its source
-      if (top == null || top.source() != ScopeSource.ITERATION.id()) {
-        return false;
-      }
-      // avoid calling close() as we're already in that method, instead just clear any
-      // remaining references so the scope gets removed in the subsequent cleanup() call
-      top.clearReferences();
-      top.span.finishWithEndToEnd();
-      // now do the same for any previous iteration scopes ahead of the expected scope
-      for (ContinuableScope scope : stack) {
-        if (scope.source() != ScopeSource.ITERATION.id()) {
-          return expectedScope.equals(scope);
-        } else {
-          scope.clearReferences();
-          scope.span.finishWithEndToEnd();
-        }
-      }
-      return false; // we didn't find the expected scope
-    }
-
-    /** Returns the current depth, including the top scope */
-    int depth() {
-      return top != null ? 1 + stack.size() : 0;
-    }
-
-    // DQH - regrettably needed for pre-existing tests
-    void clear() {
-      stack.clear();
-      top = null;
-    }
-
-    private void onTopChanged(ContinuableScope top) {
-      long spanId = top.span.getSpanId();
-      AgentSpan rootSpan = top.span.getLocalRootSpan();
-      long rootSpanId = rootSpan == null ? spanId : rootSpan.getSpanId();
-      profilingContextIntegration.setContext(rootSpanId, spanId);
-    }
-
-    /** Notifies context thread listeners that this thread has a context now */
-    private void onBecomeNonEmpty() {
-      profilingContextIntegration.onAttach();
-    }
-
-    /** Notifies context thread listeners that this thread no longer has a context */
-    private void onBecomeEmpty() {
-      profilingContextIntegration.setContext(0, 0);
-      profilingContextIntegration.onDetach();
-    }
-  }
-
-  /**
-   * This class must not be a nested class of ContinuableScope to avoid an unconstrained chain of
-   * references (using too much memory).
-   */
-  private abstract static class Continuation implements AgentScope.Continuation {
-
-    final ContinuableScopeManager scopeManager;
-    final AgentSpan spanUnderScope;
-    final byte source;
-    final AgentTrace trace;
-
-    public Continuation(
-        ContinuableScopeManager scopeManager, AgentSpan spanUnderScope, byte source) {
-      this.scopeManager = scopeManager;
-      this.spanUnderScope = spanUnderScope;
-      this.source = source;
-      this.trace = spanUnderScope.context().getTrace();
-    }
-
-    Continuation register() {
-      trace.registerContinuation(this);
-      return this;
-    }
-
-    // Called by ContinuableScopeManager when a continued scope is closed
-    // Can't use cancel() for SingleContinuation because of the "used" check
-    abstract void cancelFromContinuedScopeClose();
-  }
-
-  /**
-   * This class must not be a nested class of ContinuableScope to avoid an unconstrained chain of
-   * references (using too much memory).
-   */
-  private static final class SingleContinuation extends Continuation {
-    private static final AtomicIntegerFieldUpdater<SingleContinuation> USED =
-        AtomicIntegerFieldUpdater.newUpdater(SingleContinuation.class, "used");
-    private volatile int used = 0;
-
-    private SingleContinuation(
-        final ContinuableScopeManager scopeManager,
-        final AgentSpan spanUnderScope,
-        final byte source) {
-      super(scopeManager, spanUnderScope, source);
-    }
-
-    @Override
-    public AgentScope activate() {
-      if (USED.compareAndSet(this, 0, 1)) {
-        return scopeManager.continueSpan(this, spanUnderScope, source);
-      } else {
-        log.debug(
-            "Failed to activate continuation. Reusing a continuation not allowed. Spans may be reported separately.");
-        return scopeManager.continueSpan(null, spanUnderScope, source);
-      }
-    }
-
-    @Override
-    public void cancel() {
-      if (USED.compareAndSet(this, 0, 1)) {
-        trace.cancelContinuation(this);
-      } else {
-        log.debug("Failed to close continuation {}. Already used.", this);
-      }
-    }
-
-    @Override
-    public AgentSpan getSpan() {
-      return spanUnderScope;
-    }
-
-    @Override
-    void cancelFromContinuedScopeClose() {
-      trace.cancelContinuation(this);
-    }
-
-    @Override
-    public String toString() {
-      return getClass().getSimpleName()
-          + "@"
-          + Integer.toHexString(hashCode())
-          + "->"
-          + spanUnderScope;
-    }
-  }
-
-  /**
-   * This class must not be a nested class of ContinuableScope to avoid an unconstrained chain of
-   * references (using too much memory).
-   *
-   * <p>This {@link Continuation} differs from the {@link SingleContinuation} in that if it is
-   * activated, it needs to be canceled in addition to the returned {@link AgentScope} being closed.
-   * This is to allow multiple concurrent threads that activate the continuation to race in a safe
-   * way, and close the scopes without fear of closing the related {@link AgentSpan} prematurely.
-   */
-  private static final class ConcurrentContinuation extends Continuation {
-    private static final int START = 1;
-    private static final int CLOSED = Integer.MIN_VALUE >> 1;
-    private static final int BARRIER = Integer.MIN_VALUE >> 2;
-    private volatile int count = START;
-
-    private static final AtomicIntegerFieldUpdater<ConcurrentContinuation> COUNT =
-        AtomicIntegerFieldUpdater.newUpdater(ConcurrentContinuation.class, "count");
-
-    public ConcurrentContinuation(
-        ContinuableScopeManager scopeManager, AgentSpan spanUnderScope, byte source) {
-      super(scopeManager, spanUnderScope, source);
-    }
-
-    private boolean tryActivate() {
-      int current = COUNT.incrementAndGet(this);
-      if (current < START) {
-        COUNT.decrementAndGet(this);
-      }
-      return current > START;
-    }
-
-    private boolean tryClose() {
-      int current = COUNT.get(this);
-      if (current < BARRIER) {
-        return false;
-      }
-      // Now decrement the counter
-      current = COUNT.decrementAndGet(this);
-      // Try to close this if we are between START and BARRIER
-      while (current < START && current > BARRIER) {
-        if (COUNT.compareAndSet(this, current, CLOSED)) {
-          return true;
-        }
-        current = COUNT.get(this);
-      }
-      return false;
-    }
-
-    @Override
-    public AgentScope activate() {
-      if (tryActivate()) {
-        return scopeManager.continueSpan(this, spanUnderScope, source);
-      } else {
-        return null;
-      }
-    }
-
-    @Override
-    public void cancel() {
-      if (tryClose()) {
-        trace.cancelContinuation(this);
-      }
-      log.debug("t_id={} -> canceling continuation {}", spanUnderScope.getTraceId(), this);
-    }
-
-    @Override
-    public AgentSpan getSpan() {
-      return spanUnderScope;
-    }
-
-    @Override
-    void cancelFromContinuedScopeClose() {
-      cancel();
-    }
-
-    @Override
-    public String toString() {
-      int c = COUNT.get(this);
-      String s = c < BARRIER ? "CANCELED" : String.valueOf(c);
-      return getClass().getSimpleName()
-          + "@"
-          + Integer.toHexString(hashCode())
-          + "("
-          + s
-          + ")->"
-          + spanUnderScope;
     }
   }
 

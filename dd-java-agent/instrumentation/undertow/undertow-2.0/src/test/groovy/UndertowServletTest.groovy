@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import io.undertow.Undertow
 import io.undertow.UndertowOptions
 import io.undertow.server.handlers.PathHandler
@@ -9,18 +10,9 @@ import io.undertow.servlet.api.DeploymentManager
 import io.undertow.servlet.api.ServletContainer
 import io.undertow.servlet.api.ServletInfo
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.*
 
-class UndertowServletTest extends HttpServerTest<Undertow> {
+abstract class UndertowServletTest extends HttpServerTest<Undertow> {
   private static final CONTEXT = "ctx"
 
   class UndertowServer implements HttpServer {
@@ -87,7 +79,7 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
 
   @Override
   String expectedOperationName() {
-    return 'servlet.request'
+    return operation()
   }
 
   @Override
@@ -140,4 +132,10 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
       throw new UnsupportedOperationException("responseSpan not implemented for " + endpoint)
     }
   }
+}
+
+class UndertowServletV0ForkedTest extends UndertowServletTest implements TestingGenericHttpNamingConventions.ServerV0 {
+}
+
+class UndertowServletV1ForkedTest extends UndertowServletTest implements TestingGenericHttpNamingConventions.ServerV1 {
 }

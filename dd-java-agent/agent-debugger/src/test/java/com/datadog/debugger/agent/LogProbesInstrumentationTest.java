@@ -3,10 +3,13 @@ package com.datadog.debugger.agent;
 import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 
+import com.datadog.debugger.el.DSL;
+import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -315,6 +318,120 @@ public class LogProbesInstrumentationTest {
         snapshot.buildSummary());
   }
 
+  @Test
+  public void conditionWithLogTemplateEvalError() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    final String LOG_TEMPLATE = "log line with arg={typoArg}";
+    LogProbe logProbes =
+        createProbeBuilder(LOG_ID, LOG_TEMPLATE, CLASS_NAME, "doit", "int (java.lang.String)")
+            .when(
+                new ProbeCondition(DSL.when(DSL.eq(DSL.ref("arg"), DSL.value("5"))), "arg == '5'"))
+            .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
+            .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
+            .captureSnapshot(true)
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbes);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "5").get();
+    Assert.assertEquals(3, result);
+    Assert.assertEquals(1, listener.snapshots.size());
+    Snapshot snapshot = listener.snapshots.get(0);
+    Assert.assertNotNull(snapshot.getCaptures().getEntry());
+    Assert.assertEquals(2, snapshot.getCaptures().getEntry().getArguments().size());
+    Assert.assertEquals(1, snapshot.getEvaluationErrors().size());
+    Assert.assertEquals(
+        "Cannot find symbol: typoArg", snapshot.getEvaluationErrors().get(0).getMessage());
+  }
+
+  @Test
+  public void mergedMethodTemplateMainNoErrorAdditionalLogError()
+      throws IOException, URISyntaxException {
+    List<Snapshot> snapshots =
+        doMergedMethodTemplateMixLogError(
+            "this is log line #1 with arg={arg}", "this is log line #2 with arg={typoArg}");
+    Snapshot snapshot0 = snapshots.get(0);
+    assertEquals(LOG_ID1, snapshot0.getProbe().getId());
+    assertNotNull(snapshot0.getCaptures().getEntry());
+    assertNotNull(snapshot0.getCaptures().getReturn());
+    assertNull(snapshot0.getEvaluationErrors());
+    assertEquals("this is log line #1 with arg=1", snapshot0.buildSummary());
+    Snapshot snapshot1 = snapshots.get(1);
+    assertEquals(LOG_ID2, snapshot1.getProbe().getId());
+    assertNotNull(snapshot1.getCaptures().getEntry());
+    assertNotNull(snapshot1.getCaptures().getReturn());
+    assertEquals("this is log line #2 with arg=UNDEFINED", snapshot1.buildSummary());
+    assertEquals(1, snapshot1.getEvaluationErrors().size());
+    assertEquals(
+        "Cannot find symbol: typoArg", snapshot1.getEvaluationErrors().get(0).getMessage());
+  }
+
+  @Test
+  public void mergedMethodTemplateMainLogErrorAdditionalNoError()
+      throws IOException, URISyntaxException {
+    List<Snapshot> snapshots =
+        doMergedMethodTemplateMixLogError(
+            "this is log line #1 with arg={typoArg}", "this is log line #2 with arg={arg}");
+    Snapshot snapshot0 = snapshots.get(0);
+    assertEquals(LOG_ID1, snapshot0.getProbe().getId());
+    assertNotNull(snapshot0.getCaptures().getEntry());
+    assertNotNull(snapshot0.getCaptures().getReturn());
+    assertEquals("this is log line #1 with arg=UNDEFINED", snapshot0.buildSummary());
+    assertEquals(1, snapshot0.getEvaluationErrors().size());
+    assertEquals(
+        "Cannot find symbol: typoArg", snapshot0.getEvaluationErrors().get(0).getMessage());
+    Snapshot snapshot1 = snapshots.get(1);
+    assertEquals(LOG_ID2, snapshot1.getProbe().getId());
+    assertNotNull(snapshot1.getCaptures().getEntry());
+    assertNotNull(snapshot1.getCaptures().getReturn());
+    assertEquals("this is log line #2 with arg=1", snapshot1.buildSummary());
+    assertNull(snapshot1.getEvaluationErrors());
+  }
+
+  @Test
+  public void mergedMethodTemplateMainLogErrorAdditionalLogError()
+      throws IOException, URISyntaxException {
+    List<Snapshot> snapshots =
+        doMergedMethodTemplateMixLogError(
+            "this is log line #1 with arg={typoArg1}", "this is log line #2 with arg={typoArg2}");
+    Snapshot snapshot0 = snapshots.get(0);
+    assertEquals(LOG_ID1, snapshot0.getProbe().getId());
+    assertNotNull(snapshot0.getCaptures().getEntry());
+    assertNotNull(snapshot0.getCaptures().getReturn());
+    assertEquals("this is log line #1 with arg=UNDEFINED", snapshot0.buildSummary());
+    assertEquals(1, snapshot0.getEvaluationErrors().size());
+    assertEquals(
+        "Cannot find symbol: typoArg1", snapshot0.getEvaluationErrors().get(0).getMessage());
+    Snapshot snapshot1 = snapshots.get(1);
+    assertEquals(LOG_ID2, snapshot1.getProbe().getId());
+    assertNotNull(snapshot1.getCaptures().getEntry());
+    assertNotNull(snapshot1.getCaptures().getReturn());
+    assertEquals("this is log line #2 with arg=UNDEFINED", snapshot1.buildSummary());
+    assertEquals(1, snapshot1.getEvaluationErrors().size());
+    assertEquals(
+        "Cannot find symbol: typoArg2", snapshot1.getEvaluationErrors().get(0).getMessage());
+  }
+
+  private List<Snapshot> doMergedMethodTemplateMixLogError(
+      String mainTemplate, String additionalTemplate) throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    LogProbe logProbe1 =
+        createProbeBuilder(LOG_ID1, mainTemplate, CLASS_NAME, "main", "int (java.lang.String)")
+            .captureSnapshot(true)
+            .build();
+    LogProbe logProbe2 =
+        createProbeBuilder(
+                LOG_ID2, additionalTemplate, CLASS_NAME, "main", "int (java.lang.String)")
+            .captureSnapshot(true)
+            .build();
+    logProbe1.addAdditionalProbe(logProbe2);
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe1);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    Assert.assertEquals(3, result);
+    Assert.assertEquals(2, listener.snapshots.size());
+    return listener.snapshots;
+  }
+
   private DebuggerTransformerTest.TestSnapshotListener installSingleProbe(
       String template, String typeName, String methodName, String signature, String... lines) {
     LogProbe logProbe = createProbe(LOG_ID, template, typeName, methodName, signature, lines);
@@ -415,7 +532,7 @@ public class LogProbesInstrumentationTest {
         return new Snapshot.ProbeDetails(
             id,
             location,
-            Snapshot.MethodLocation.DEFAULT,
+            ProbeDefinition.MethodLocation.convert(probe.getEvaluateAt()),
             probe.isCaptureSnapshot(),
             null,
             probe.concatTags(),
@@ -426,7 +543,7 @@ public class LogProbesInstrumentationTest {
                         new Snapshot.ProbeDetails(
                             relatedProbe.getId(),
                             location,
-                            Snapshot.MethodLocation.DEFAULT,
+                            ProbeDefinition.MethodLocation.convert(relatedProbe.getEvaluateAt()),
                             ((LogProbe) relatedProbe).isCaptureSnapshot(),
                             relatedProbe instanceof LogProbe
                                 ? ((LogProbe) relatedProbe).getProbeCondition()

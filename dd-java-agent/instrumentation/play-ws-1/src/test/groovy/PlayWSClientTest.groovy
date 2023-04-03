@@ -1,3 +1,4 @@
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import play.libs.ws.StandaloneWSClient
 import play.libs.ws.StandaloneWSRequest
 import play.libs.ws.StandaloneWSResponse
@@ -12,8 +13,7 @@ import spock.lang.Timeout
 
 import java.util.concurrent.TimeUnit
 
-@Timeout(5)
-class PlayJavaWSClientTest extends PlayWSClientTestBase {
+abstract class PlayJavaWSClientTest extends PlayWSClientTestBase {
   @Shared
   StandaloneWSClient wsClient
 
@@ -133,4 +133,14 @@ class PlayScalaStreamedWSClientTest extends PlayWSClientTestBase {
   def cleanupSpec() {
     wsClient?.close()
   }
+}
+
+@Timeout(5)
+class PlayJavaWSClientV0ForkedTest extends  PlayJavaWSClientTest {
+
+}
+
+@Timeout(5)
+class PlayJavaWSClientV1ForkedTest extends PlayJavaWSClientTest implements TestingGenericHttpNamingConventions.ClientV1 {
+
 }

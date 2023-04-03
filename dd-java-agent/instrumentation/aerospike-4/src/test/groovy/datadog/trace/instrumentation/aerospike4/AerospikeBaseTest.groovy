@@ -1,7 +1,8 @@
 package datadog.trace.instrumentation.aerospike4
 
-import datadog.trace.agent.test.AgentTestRunner
+
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -12,7 +13,7 @@ import static datadog.trace.agent.test.utils.PortUtils.waitForPortToOpen
 import static java.util.concurrent.TimeUnit.SECONDS
 import static org.testcontainers.containers.wait.strategy.Wait.forLogMessage
 
-abstract class AerospikeBaseTest extends AgentTestRunner {
+abstract class AerospikeBaseTest extends VersionedNamingTestBase {
 
   @Shared
   def aerospike
@@ -43,8 +44,8 @@ abstract class AerospikeBaseTest extends AgentTestRunner {
 
   def aerospikeSpan(TraceAssert trace, int index, String methodName, Object parentSpan = null) {
     trace.span {
-      serviceName "aerospike"
-      operationName "aerospike.query"
+      serviceName service()
+      operationName operation()
       resourceName methodName
       spanType DDSpanTypes.AEROSPIKE
       if (parentSpan == null) {

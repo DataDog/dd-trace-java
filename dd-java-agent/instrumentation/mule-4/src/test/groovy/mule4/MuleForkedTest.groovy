@@ -96,7 +96,7 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
     assertTraces(1) {
       trace(2) {
         span(0) {
-          operationName "grizzly.request"
+          operationName operation()
           resourceName "GET /client-request"
           spanType DDSpanTypes.HTTP_SERVER
           tags {
@@ -153,7 +153,7 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
     assertTraces(1) {
       trace(1 + names.size()) { traceAssert ->
         traceAssert.span(0) {
-          operationName "grizzly.request"
+          operationName operation()
           resourceName "PUT /pfe-request"
           spanType DDSpanTypes.HTTP_SERVER
           tags {
@@ -190,5 +190,21 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
         }
       }
     }
+  }
+
+  //test for v1 will be added once grizzly will support v1 naming
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "grizzly.request"
   }
 }

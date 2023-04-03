@@ -17,7 +17,7 @@ public abstract class CallSiteFactory {
 
   public static AdviceGenerator adviceGenerator(
       @Nonnull final File targetFolder, @Nonnull final TypeResolver typeResolver) {
-    return new FreemarkerAdviceGenerator(targetFolder, pointcutParser(), typeResolver);
+    return new AdviceGeneratorImpl(targetFolder, pointcutParser(), typeResolver);
   }
 
   public static SpecificationBuilder specificationBuilder() {

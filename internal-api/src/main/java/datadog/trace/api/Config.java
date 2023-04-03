@@ -2,6 +2,8 @@ package datadog.trace.api;
 
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TracerConfig;
+import datadog.trace.api.iast.telemetry.Verbosity;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
@@ -41,6 +43,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
@@ -101,9 +104,9 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REDIS_COMMAND_ARGS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_INITIAL_POLL_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_POLL_INTERVAL_SECONDS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY_ID;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
@@ -130,6 +133,7 @@ import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
 import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
+import static datadog.trace.api.Platform.GC.Z;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
@@ -196,6 +200,7 @@ import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_MAX_CONCURRENT_REQUESTS;
 import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING;
+import static datadog.trace.api.config.IastConfig.IAST_TELEMETRY_VERBOSITY;
 import static datadog.trace.api.config.IastConfig.IAST_VULNERABILITIES_PER_REQUEST;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_HASH_ALGORITHMS;
@@ -251,9 +256,9 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_ENABLED;
-import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_INITIAL_POLL_INTERVAL;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_MAX_PAYLOAD_SIZE;
+import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_POLL_INTERVAL_SECONDS;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY_ID;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL;
@@ -343,6 +348,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RULES;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_RULES;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES;
+import static datadog.trace.api.config.TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA;
 import static datadog.trace.api.config.TracerConfig.TRACE_STRICT_WRITES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
@@ -350,7 +356,6 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 import static datadog.trace.util.Strings.toEnvVar;
-
 
 /**
  * Config reads values with the following priority: 1) system properties, 2) environment variables,
@@ -417,6 +422,8 @@ public class Config {
   private final boolean prioritySamplingEnabled;
   private final String prioritySamplingForce;
   private final boolean traceResolverEnabled;
+
+  private final int spanAttributeSchemaVersion;
   private final Map<String, String> serviceMapping;
   private final Map<String, String> tags;
   private final Map<String, String> spanTags;
@@ -535,6 +542,7 @@ public class Config {
   private final int iastVulnerabilitiesPerRequest;
   private final float iastRequestSampling;
   private final boolean iastDebugEnabled;
+  private final Verbosity iastTelemetryVerbosity;
 
   private final boolean ciVisibilityAgentlessEnabled;
   private final String ciVisibilityAgentlessUrl;
@@ -544,7 +552,7 @@ public class Config {
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
   private final String remoteConfigUrl;
-  private final int remoteConfigInitialPollInterval;
+  private final int remoteConfigPollIntervalSeconds;
   private final long remoteConfigMaxPayloadSize;
   private final String remoteConfigTargetsKeyId;
   private final String remoteConfigTargetsKey;
@@ -836,6 +844,8 @@ public class Config {
 
     baggageMapping = configProvider.getMergedMap(BAGGAGE_MAPPING);
 
+    spanAttributeSchemaVersion = schemaVersionFromConfig();
+
     httpServerPathResourceNameMapping =
         configProvider.getOrderedMap(TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING);
 
@@ -910,19 +920,19 @@ public class Config {
       // * dd.propagation.style.(extract|inject)
       Set<PropagationStyle> deprecatedExtract =
           getSettingsSetFromEnvironment(
-              PROPAGATION_STYLE_EXTRACT, PropagationStyle::valueOfConfigName);
+              PROPAGATION_STYLE_EXTRACT, PropagationStyle::valueOfConfigName, true);
       Set<PropagationStyle> deprecatedInject =
           getSettingsSetFromEnvironment(
-              PROPAGATION_STYLE_INJECT, PropagationStyle::valueOfConfigName);
+              PROPAGATION_STYLE_INJECT, PropagationStyle::valueOfConfigName, true);
       Set<TracePropagationStyle> common =
           getSettingsSetFromEnvironment(
-              TRACE_PROPAGATION_STYLE, TracePropagationStyle::valueOfDisplayName);
+              TRACE_PROPAGATION_STYLE, TracePropagationStyle::valueOfDisplayName, false);
       Set<TracePropagationStyle> extract =
           getSettingsSetFromEnvironment(
-              TRACE_PROPAGATION_STYLE_EXTRACT, TracePropagationStyle::valueOfDisplayName);
+              TRACE_PROPAGATION_STYLE_EXTRACT, TracePropagationStyle::valueOfDisplayName, false);
       Set<TracePropagationStyle> inject =
           getSettingsSetFromEnvironment(
-              TRACE_PROPAGATION_STYLE_INJECT, TracePropagationStyle::valueOfDisplayName);
+              TRACE_PROPAGATION_STYLE_INJECT, TracePropagationStyle::valueOfDisplayName, false);
       String extractOrigin = TRACE_PROPAGATION_STYLE_EXTRACT;
       String injectOrigin = TRACE_PROPAGATION_STYLE_INJECT;
       // Check if we should use the common setting for extraction
@@ -1227,6 +1237,8 @@ public class Config {
             configProvider.getString(IAST_WEAK_CIPHER_ALGORITHMS));
     iastDeduplicationEnabled =
         configProvider.getBoolean(IAST_DEDUPLICATION_ENABLED, DEFAULT_IAST_DEDUPLICATION_ENABLED);
+    iastTelemetryVerbosity =
+        configProvider.getEnum(IAST_TELEMETRY_VERBOSITY, Verbosity.class, Verbosity.INFORMATION);
 
     ciVisibilityAgentlessEnabled =
         configProvider.getBoolean(
@@ -1258,9 +1270,9 @@ public class Config {
         configProvider.getBoolean(
             REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED, DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED);
     remoteConfigUrl = configProvider.getString(REMOTE_CONFIG_URL);
-    remoteConfigInitialPollInterval =
+    remoteConfigPollIntervalSeconds =
         configProvider.getInteger(
-            REMOTE_CONFIG_INITIAL_POLL_INTERVAL, DEFAULT_REMOTE_CONFIG_INITIAL_POLL_INTERVAL);
+            REMOTE_CONFIG_POLL_INTERVAL_SECONDS, DEFAULT_REMOTE_CONFIG_POLL_INTERVAL_SECONDS);
     remoteConfigMaxPayloadSize =
         configProvider.getInteger(
             REMOTE_CONFIG_MAX_PAYLOAD_SIZE, DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE)
@@ -1520,6 +1532,10 @@ public class Config {
 
   public boolean isIastDeduplicationEnabled() {
     return iastDeduplicationEnabled;
+  }
+
+  public int getSpanAttributeSchemaVersion() {
+    return spanAttributeSchemaVersion;
   }
 
   public Map<String, String> getServiceMapping() {
@@ -1861,10 +1877,12 @@ public class Config {
   public static boolean isDatadogProfilerSafeInCurrentEnvironment() {
     // don't want to put this logic (which will evolve) in the public ProfilingConfig, and can't
     // access Platform there
-    return Platform.isJ9()
-        || Platform.isJavaVersionAtLeast(17, 0, 5)
-        || (Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 17))
-        || (Platform.isJavaVersion(8) && Platform.isJavaVersionAtLeast(8, 0, 352));
+    // we encountered AsyncGetCallTrace bugs when ZGC is enabled
+    return Platform.activeGarbageCollector() != Z
+        && (Platform.isJ9()
+            || Platform.isJavaVersionAtLeast(17, 0, 5)
+            || (Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 17))
+            || (Platform.isJavaVersion(8) && Platform.isJavaVersionAtLeast(8, 0, 352)));
   }
 
   public boolean isCrashTrackingAgentless() {
@@ -1952,6 +1970,10 @@ public class Config {
     return iastRequestSampling;
   }
 
+  public Verbosity getIastTelemetryVerbosity() {
+    return iastTelemetryVerbosity;
+  }
+
   public boolean isCiVisibilityEnabled() {
     return instrumenterConfig.isCiVisibilityEnabled();
   }
@@ -1988,8 +2010,8 @@ public class Config {
     return remoteConfigUrl;
   }
 
-  public int getRemoteConfigInitialPollInterval() {
-    return remoteConfigInitialPollInterval;
+  public int getRemoteConfigPollIntervalSeconds() {
+    return remoteConfigPollIntervalSeconds;
   }
 
   public String getRemoteConfigTargetsKeyId() {
@@ -2476,6 +2498,27 @@ public class Config {
     return aasTags;
   }
 
+  private int schemaVersionFromConfig() {
+    String versionStr =
+        configProvider.getString(TRACE_SPAN_ATTRIBUTE_SCHEMA, "v" + SpanNaming.SCHEMA_MIN_VERSION);
+    Matcher matcher = Pattern.compile("^v?(0|[1-9]\\d*)$").matcher(versionStr);
+    int parsedVersion = -1;
+    if (matcher.matches()) {
+      parsedVersion = Integer.parseInt(matcher.group(1));
+    }
+    if (parsedVersion < SpanNaming.SCHEMA_MIN_VERSION
+        || parsedVersion > SpanNaming.SCHEMA_MAX_VERSION) {
+      log.warn(
+          "Invalid attribute schema version {} invalid or out of range [v{}, v{}]. Defaulting to v{}",
+          versionStr,
+          SpanNaming.SCHEMA_MIN_VERSION,
+          SpanNaming.SCHEMA_MAX_VERSION,
+          SpanNaming.SCHEMA_MIN_VERSION);
+      parsedVersion = SpanNaming.SCHEMA_MIN_VERSION;
+    }
+    return parsedVersion;
+  }
+
   public String getFinalProfilingUrl() {
     if (profilingUrl != null) {
       // when profilingUrl is set we use it regardless of apiKey/agentless config
@@ -2635,9 +2678,11 @@ public class Config {
     return Config.get().isTraceAnalyticsIntegrationEnabled(integrationNames, defaultEnabled);
   }
 
-  private <T> Set<T> getSettingsSetFromEnvironment(String name, Function<String, T> mapper) {
+  private <T> Set<T> getSettingsSetFromEnvironment(
+      String name, Function<String, T> mapper, boolean splitOnWS) {
     final String value = configProvider.getString(name, "");
-    return convertStringSetToSet(name, parseStringIntoSetOfNonEmptyStrings(value), mapper);
+    return convertStringSetToSet(
+        name, parseStringIntoSetOfNonEmptyStrings(value, splitOnWS), mapper);
   }
 
   private <F, T> Set<T> convertSettingsSet(Set<F> fromSet, Function<F, Iterable<T>> mapper) {
@@ -2692,6 +2737,12 @@ public class Config {
 
   @Nonnull
   private static Set<String> parseStringIntoSetOfNonEmptyStrings(final String str) {
+    return parseStringIntoSetOfNonEmptyStrings(str, true);
+  }
+
+  @Nonnull
+  private static Set<String> parseStringIntoSetOfNonEmptyStrings(
+      final String str, boolean splitOnWS) {
     // Using LinkedHashSet to preserve original string order
     final Set<String> result = new LinkedHashSet<>();
     // Java returns single value when splitting an empty string. We do not need that value, so
@@ -2700,7 +2751,7 @@ public class Config {
     int i = 0;
     for (; i < str.length(); ++i) {
       char c = str.charAt(i);
-      if (Character.isWhitespace(c) || c == ',') {
+      if (c == ',' || (splitOnWS && Character.isWhitespace(c))) {
         if (i - start - 1 > 0) {
           result.add(str.substring(start, i));
         }
@@ -3090,8 +3141,8 @@ public class Config {
         + remoteConfigEnabled
         + ", remoteConfigUrl="
         + remoteConfigUrl
-        + ", remoteConfigInitialPollInterval="
-        + remoteConfigInitialPollInterval
+        + ", remoteConfigPollIntervalSeconds="
+        + remoteConfigPollIntervalSeconds
         + ", remoteConfigMaxPayloadSize="
         + remoteConfigMaxPayloadSize
         + ", remoteConfigIntegrityCheckEnabled="

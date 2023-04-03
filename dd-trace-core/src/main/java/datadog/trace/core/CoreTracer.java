@@ -11,6 +11,7 @@ import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.ExternalAgentLauncher;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Monitoring;
@@ -50,6 +51,7 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.civisibility.interceptor.CiVisibilityApmProtocolInterceptor;
 import datadog.trace.civisibility.interceptor.CiVisibilityTraceInterceptor;
 import datadog.trace.common.metrics.MetricsAggregator;
 import datadog.trace.common.sampling.PrioritySampler;
@@ -500,16 +502,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     this.traceWriteTimer = performanceMonitoring.newThreadLocalTimer("trace.write");
     if (scopeManager == null) {
-      ContinuableScopeManager csm =
+      this.scopeManager =
           new ContinuableScopeManager(
               config.getScopeDepthLimit(),
-              this.statsDClient,
               config.isScopeStrictMode(),
               config.isScopeInheritAsyncPropagation(),
               profilingContextIntegration,
               this.healthMetrics);
-      this.scopeManager = csm;
-
     } else {
       this.scopeManager = scopeManager;
     }
@@ -565,6 +564,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE);
       if (config.isCiVisibilityAgentlessEnabled()) {
         addTraceInterceptor(DDIntakeTraceInterceptor.INSTANCE);
+      } else {
+        DDAgentFeaturesDiscovery featuresDiscovery =
+            sharedCommunicationObjects.featuresDiscovery(config);
+        if (!featuresDiscovery.supportsEvpProxy()) {
+          // CI Test Cycle protocol is not available
+          addTraceInterceptor(CiVisibilityApmProtocolInterceptor.INSTANCE);
+        }
       }
     }
 
@@ -702,8 +708,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public AgentScope.Continuation captureSpan(final AgentSpan span, ScopeSource source) {
-    return scopeManager.captureSpan(span, source);
+  public AgentScope.Continuation captureSpan(final AgentSpan span) {
+    return scopeManager.captureSpan(span);
   }
 
   @Override
@@ -1381,7 +1387,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               requestContextDataIast,
               pathwayContext,
               disableSamplingMechanismValidation,
-              propagationTags);
+              propagationTags,
+              profilingContextIntegration);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`

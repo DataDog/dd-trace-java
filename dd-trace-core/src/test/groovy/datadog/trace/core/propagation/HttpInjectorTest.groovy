@@ -11,7 +11,7 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.test.DDCoreSpecification
 
-import static datadog.trace.api.TracePropagationStyle.B3
+import static datadog.trace.api.TracePropagationStyle.B3SINGLE
 import static datadog.trace.api.TracePropagationStyle.B3MULTI
 import static datadog.trace.api.TracePropagationStyle.DATADOG
 import static datadog.trace.core.propagation.B3HttpCodec.B3_KEY
@@ -78,7 +78,7 @@ class HttpInjectorTest extends DDCoreSpecification {
         1 * carrier.put(B3HttpCodec.SAMPLING_PRIORITY_KEY, "1")
       }
     }
-    if (styles.contains(B3)) {
+    if (styles.contains(B3SINGLE)) {
       if (samplingPriority != UNSET) {
         1 * carrier.put(B3_KEY, traceId.toString() + "-" + spanId.toString() + "-1")
       } else {
@@ -92,21 +92,21 @@ class HttpInjectorTest extends DDCoreSpecification {
 
     where:
     // spotless:off
-    styles                 | samplingPriority | samplingMechanism | origin
-    [DATADOG, B3]          | UNSET            | UNKNOWN           | null
-    [DATADOG, B3]          | SAMPLER_KEEP     | DEFAULT           | "saipan"
-    [DATADOG]              | UNSET            | UNKNOWN           | null
-    [DATADOG]              | SAMPLER_KEEP     | DEFAULT           | "saipan"
-    [B3]                   | UNSET            | UNKNOWN           | null
-    [B3]                   | SAMPLER_KEEP     | DEFAULT           | "saipan"
-    [B3, DATADOG]          | SAMPLER_KEEP     | DEFAULT           | "saipan"
-    [DATADOG, B3MULTI, B3] | UNSET            | UNKNOWN           | null
-    [DATADOG, B3MULTI, B3] | SAMPLER_KEEP     | DEFAULT           | "saipan"
-    [DATADOG, B3MULTI]     | UNSET            | UNKNOWN           | null
-    [DATADOG, B3MULTI]     | SAMPLER_KEEP     | DEFAULT           | "saipan"
-    [B3MULTI]              | UNSET            | UNKNOWN           | null
-    [B3MULTI]              | SAMPLER_KEEP     | DEFAULT           | "saipan"
-    [B3MULTI, DATADOG]     | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    styles                       | samplingPriority | samplingMechanism | origin
+    [DATADOG, B3SINGLE]          | UNSET            | UNKNOWN           | null
+    [DATADOG, B3SINGLE]          | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    [DATADOG]                    | UNSET            | UNKNOWN           | null
+    [DATADOG]                    | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    [B3SINGLE]                   | UNSET            | UNKNOWN           | null
+    [B3SINGLE]                   | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    [B3SINGLE, DATADOG]          | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    [DATADOG, B3MULTI, B3SINGLE] | UNSET            | UNKNOWN           | null
+    [DATADOG, B3MULTI, B3SINGLE] | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    [DATADOG, B3MULTI]           | UNSET            | UNKNOWN           | null
+    [DATADOG, B3MULTI]           | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    [B3MULTI]                    | UNSET            | UNKNOWN           | null
+    [B3MULTI]                    | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    [B3MULTI, DATADOG]           | SAMPLER_KEEP     | DEFAULT           | "saipan"
     // spotless:on
   }
 
@@ -165,7 +165,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       if (samplingPriority != UNSET) {
         1 * carrier.put(B3HttpCodec.SAMPLING_PRIORITY_KEY, "1")
       }
-    } else if (style == B3) {
+    } else if (style == B3SINGLE) {
       if (samplingPriority != UNSET) {
         1 * carrier.put(B3_KEY, traceId.toString() + "-" + spanId.toString() + "-1")
       } else {
@@ -179,16 +179,16 @@ class HttpInjectorTest extends DDCoreSpecification {
 
     where:
     // spotless:off
-    style   | samplingPriority | samplingMechanism | origin
-    DATADOG | UNSET            | UNKNOWN           | null
-    DATADOG | SAMPLER_KEEP     | DEFAULT           | null
-    DATADOG | SAMPLER_KEEP     | DEFAULT           | "saipan"
-    B3      | UNSET            | UNKNOWN           | null
-    B3      | SAMPLER_KEEP     | DEFAULT           | null
-    B3      | SAMPLER_KEEP     | DEFAULT           | "saipan"
-    B3MULTI | UNSET            | UNKNOWN           | null
-    B3MULTI | SAMPLER_KEEP     | DEFAULT           | null
-    B3MULTI | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    style    | samplingPriority | samplingMechanism | origin
+    DATADOG  | UNSET            | UNKNOWN           | null
+    DATADOG  | SAMPLER_KEEP     | DEFAULT           | null
+    DATADOG  | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    B3SINGLE | UNSET            | UNKNOWN           | null
+    B3SINGLE | SAMPLER_KEEP     | DEFAULT           | null
+    B3SINGLE | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    B3MULTI  | UNSET            | UNKNOWN           | null
+    B3MULTI  | SAMPLER_KEEP     | DEFAULT           | null
+    B3MULTI  | SAMPLER_KEEP     | DEFAULT           | "saipan"
     // spotless:on
   }
 }

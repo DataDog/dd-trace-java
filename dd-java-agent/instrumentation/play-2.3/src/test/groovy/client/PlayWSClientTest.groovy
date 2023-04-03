@@ -1,6 +1,7 @@
 package client
 
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingNettyHttpNamingConventions
 import datadog.trace.instrumentation.netty38.client.NettyHttpClientDecorator
 import play.GlobalSettings
 import play.libs.ws.WS
@@ -10,7 +11,7 @@ import spock.lang.Shared
 
 import java.util.concurrent.TimeUnit
 
-class PlayWSClientTest extends HttpClientTest {
+class PlayWSClientTest extends HttpClientTest implements TestingNettyHttpNamingConventions.ClientV0 {
   @Shared
   def application = new FakeApplication(
   new File("."),
@@ -56,10 +57,6 @@ class PlayWSClientTest extends HttpClientTest {
     return NettyHttpClientDecorator.DECORATE.component()
   }
 
-  @Override
-  String expectedOperationName() {
-    return "netty.client.request"
-  }
 
   @Override
   boolean testRedirects() {

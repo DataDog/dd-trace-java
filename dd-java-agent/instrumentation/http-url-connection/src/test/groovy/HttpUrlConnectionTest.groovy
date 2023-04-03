@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlConnectionDecorator
@@ -10,10 +11,9 @@ import sun.net.www.protocol.https.HttpsURLConnectionImpl
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
-import static datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlState.OPERATION_NAME
 
 @Timeout(5)
-class HttpUrlConnectionTest extends HttpClientTest {
+abstract class HttpUrlConnectionTest extends HttpClientTest {
 
   static final RESPONSE = "Hello."
   static final STATUS = 200
@@ -48,7 +48,7 @@ class HttpUrlConnectionTest extends HttpClientTest {
 
   @Override
   CharSequence component() {
-    return HttpUrlConnectionDecorator.DECORATE.component()
+    return HttpUrlConnectionDecorator.HTTP_URL_CONNECTION
   }
 
   @Override
@@ -102,7 +102,7 @@ class HttpUrlConnectionTest extends HttpClientTest {
           if (renameService) {
             serviceName "localhost"
           }
-          operationName OPERATION_NAME
+          operationName operation()
           resourceName "GET $url.path"
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
@@ -122,7 +122,7 @@ class HttpUrlConnectionTest extends HttpClientTest {
           if (renameService) {
             serviceName "localhost"
           }
-          operationName OPERATION_NAME
+          operationName operation()
           resourceName "GET $url.path"
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
@@ -192,7 +192,7 @@ class HttpUrlConnectionTest extends HttpClientTest {
           if (renameService) {
             serviceName "localhost"
           }
-          operationName OPERATION_NAME
+          operationName operation()
           resourceName "GET $url.path"
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
@@ -212,7 +212,7 @@ class HttpUrlConnectionTest extends HttpClientTest {
           if (renameService) {
             serviceName "localhost"
           }
-          operationName OPERATION_NAME
+          operationName operation()
           resourceName "GET $url.path"
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
@@ -267,7 +267,7 @@ class HttpUrlConnectionTest extends HttpClientTest {
           if (renameService) {
             serviceName "localhost"
           }
-          operationName OPERATION_NAME
+          operationName operation()
           resourceName "GET $url.path"
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
@@ -338,7 +338,7 @@ class HttpUrlConnectionTest extends HttpClientTest {
           if (renameService) {
             serviceName "localhost"
           }
-          operationName OPERATION_NAME
+          operationName operation()
           resourceName "POST $url.path"
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
@@ -373,4 +373,9 @@ class HttpUrlConnectionTest extends HttpClientTest {
     then:
     instance != null
   }
+}
+
+class HttpUrlConnectionV0ForkedTest extends HttpUrlConnectionTest implements TestingGenericHttpNamingConventions.ClientV0 {}
+
+class HttpUrlConnectionV1ForkedTest extends HttpUrlConnectionTest implements TestingGenericHttpNamingConventions.ClientV1 {
 }

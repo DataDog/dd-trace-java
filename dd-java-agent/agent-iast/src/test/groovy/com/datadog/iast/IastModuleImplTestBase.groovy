@@ -3,6 +3,7 @@ package com.datadog.iast
 import com.datadog.iast.HasDependencies.Dependencies
 import com.datadog.iast.overhead.Operation
 import com.datadog.iast.overhead.OverheadController
+import com.datadog.iast.telemetry.IastTelemetry
 import datadog.trace.api.Config
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -22,6 +23,8 @@ class IastModuleImplTestBase extends DDSpecification {
 
   protected AgentTracer.TracerAPI tracer = Mock(AgentTracer.TracerAPI)
 
+  protected IastTelemetry telemetry = Mock(IastTelemetry)
+
   // TODO replace by mock an fix all mock assertions (0 * _ will usually fail)
   protected StackWalker stackWalker = StackWalkerFactory.INSTANCE
 
@@ -35,8 +38,8 @@ class IastModuleImplTestBase extends DDSpecification {
     AgentTracer.forceRegister(ORIGINAL_TRACER)
   }
 
-  protected <E extends IastModuleBase> E registerDependencies(final E module) {
-    module.registerDependencies(new Dependencies(Config.get(), reporter, overheadController, stackWalker))
+  protected <E extends HasDependencies> E registerDependencies(final E module) {
+    module.registerDependencies(new Dependencies(Config.get(), reporter, overheadController, telemetry, stackWalker))
     return module
   }
 }

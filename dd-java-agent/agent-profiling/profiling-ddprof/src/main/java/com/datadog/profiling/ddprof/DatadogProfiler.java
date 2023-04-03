@@ -5,8 +5,6 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getCStack;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getContextAttributes;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getCpuInterval;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getLogLevel;
-import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getMemleakCapacity;
-import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getMemleakInterval;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSafeMode;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSchedulingEvent;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSchedulingEventInterval;
@@ -17,6 +15,7 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallInterval
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isAllocationProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isCpuProfilerEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isMemoryLeakProfilingEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isSpanNameContextAttributeEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isWallClockProfilerEnabled;
 import static com.datadog.profiling.utils.ProfilingMode.ALLOCATION;
 import static com.datadog.profiling.utils.ProfilingMode.CPU;
@@ -151,6 +150,9 @@ public final class DatadogProfiler {
       profilingModes.add(WALL);
     }
     this.orderedContextAttributes = new ArrayList<>(contextAttributes);
+    if (isSpanNameContextAttributeEnabled(configProvider)) {
+      orderedContextAttributes.add(0, "operation");
+    }
     this.contextSetter = new ContextSetter(profiler, orderedContextAttributes);
     try {
       // sanity test - force load Datadog profiler to catch it not being available early
@@ -267,6 +269,10 @@ public final class DatadogProfiler {
     throw new IllegalStateException("Datadog profiler session has already been started");
   }
 
+  void dump(Path path) {
+    profiler.dump(path);
+  }
+
   String cmdStartProfiling(Path file) throws IllegalStateException {
     // 'start' = start, 'jfr=7' = store in JFR format ready for concatenation
     StringBuilder cmd = new StringBuilder("start,jfr=7");
@@ -303,45 +309,90 @@ public final class DatadogProfiler {
       }
     }
     cmd.append(",loglevel=").append(getLogLevel(configProvider));
-    if (profilingModes.contains(ALLOCATION)) {
-      // allocation profiling is enabled
-      cmd.append(",alloc=").append(getAllocationInterval(configProvider)).append('b');
-    }
-    if (profilingModes.contains(MEMLEAK)) {
-      // memleak profiling is enabled
-      cmd.append(",memleak=")
-          .append(getMemleakInterval(configProvider))
-          .append('b')
-          .append(",memleakcap=")
-          .append(getMemleakCapacity(configProvider))
-          .append('b');
+    if (profilingModes.contains(ALLOCATION) || profilingModes.contains(MEMLEAK)) {
+      // allocation profiling or live heap profiling is enabled
+      cmd.append(",memory=").append(getAllocationInterval(configProvider)).append('b');
+      cmd.append(':');
+      if (profilingModes.contains(ALLOCATION)) {
+        cmd.append('a');
+      }
+      if (profilingModes.contains(MEMLEAK)) {
+        cmd.append('l');
+      }
     }
     String cmdString = cmd.toString();
     log.debug("Datadog profiler command line: {}", cmdString);
     return cmdString;
   }
 
-  public void setContext(long spanId, long rootSpanId) {
+  public int operationNameOffset() {
+    return offsetOf("operation");
+  }
+
+  public int offsetOf(String attribute) {
+    return contextSetter.offsetOf(attribute);
+  }
+
+  public void setSpanContext(long spanId, long rootSpanId) {
     if (profiler != null) {
       try {
         profiler.setContext(spanId, rootSpanId);
+      } catch (IllegalStateException e) {
+        log.warn("Failed to clear context", e);
+      }
+    }
+  }
+
+  public void clearSpanContext() {
+    if (profiler != null) {
+      try {
+        profiler.setContext(0L, 0L);
       } catch (IllegalStateException e) {
         log.warn("Failed to set context", e);
       }
     }
   }
 
-  public boolean setContextValue(String attribute, String value) {
+  public boolean setContextValue(int offset, int encoding) {
+    if (contextSetter != null && offset >= 0) {
+      return contextSetter.setContextValue(offset, encoding);
+    }
+    return false;
+  }
+
+  public boolean setContextValue(int offset, CharSequence value) {
+    if (contextSetter != null && offset >= 0) {
+      int encoding = encode(value);
+      return contextSetter.setContextValue(offset, encoding);
+    }
+    return false;
+  }
+
+  public boolean setContextValue(String attribute, CharSequence value) {
     if (contextSetter != null) {
-      return contextSetter.setContextValue(attribute, value);
+      return setContextValue(contextSetter.offsetOf(attribute), value);
     }
     return false;
   }
 
   public boolean clearContextValue(String attribute) {
     if (contextSetter != null) {
-      return contextSetter.clearContextValue(attribute);
+      return clearContextValue(contextSetter.offsetOf(attribute));
     }
     return false;
+  }
+
+  public boolean clearContextValue(int offset) {
+    if (contextSetter != null && offset >= 0) {
+      return contextSetter.clearContextValue(offset);
+    }
+    return false;
+  }
+
+  int encode(CharSequence constant) {
+    if (constant != null && profiler != null) {
+      return contextSetter.encode(constant.toString());
+    }
+    return 0;
   }
 }

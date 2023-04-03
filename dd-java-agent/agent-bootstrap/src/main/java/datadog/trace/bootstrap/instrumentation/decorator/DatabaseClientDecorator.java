@@ -3,21 +3,46 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.naming.NamingSchema;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.function.Function;
 
 public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorator {
 
+  private static class NamingEntry {
+    private final String service;
+    private final CharSequence operation;
+
+    private NamingEntry(String service, CharSequence operation) {
+      this.service = service;
+      this.operation = operation;
+    }
+
+    public String getService() {
+      return service;
+    }
+
+    public CharSequence getOperation() {
+      return operation;
+    }
+  }
+
   // The total number of entries in the cache will normally be less than 4, since
   // most applications only have one or two DBs, and "jdbc" itself is also used as
   // one DB_TYPE, but set the cache size to 16 to help avoid collisions.
-  private static final DDCache<CharSequence, CharSequence> CACHE = DDCaches.newFixedSizeCache(16);
-  private static final Function<CharSequence, CharSequence> APPEND_OPERATION =
-      new Functions.Suffix(".query");
+  private static final DDCache<String, NamingEntry> CACHE = DDCaches.newFixedSizeCache(16);
+  private static final Function<String, NamingEntry> APPEND_OPERATION =
+      dbType -> {
+        final NamingSchema.ForDatabase schema = SpanNaming.instance().namingSchema().database();
+        return new NamingEntry(
+            schema.service(Config.get().getServiceName(), dbType),
+            UTF8BytesString.create(schema.operation(dbType)));
+      };
 
   protected abstract String dbType();
 
@@ -61,8 +86,13 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
   }
 
   protected void processDatabaseType(AgentSpan span, String dbType) {
-    span.setServiceName(dbType);
-    span.setOperationName(CACHE.computeIfAbsent(dbType, APPEND_OPERATION));
     span.setTag(DB_TYPE, dbType);
+    postProcessServiceAndOperationName(span, dbType);
+  }
+
+  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {
+    final NamingEntry namingEntry = CACHE.computeIfAbsent(dbType, APPEND_OPERATION);
+    span.setServiceName(namingEntry.getService());
+    span.setOperationName(namingEntry.getOperation());
   }
 }

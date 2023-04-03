@@ -16,8 +16,6 @@ dependency_cache_keys: &dependency_cache_keys
     - dd-trace-java-dep-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
     # New branches fall back on main build caches
     - dd-trace-java-dep-v1-master-{{ checksum "_circle_ci_cache_base_id" }}-
-    # Fall back on the previous cache scheme to not start from scratch when switching
-    - dd-trace-java-v4-master-
 
 dependency_cache_paths: &dependency_cache_paths
   paths:
@@ -46,9 +44,6 @@ build_cache_paths: &build_cache_paths
     # Gradle version specific cache for incremental builds. Needs to match version in
     # gradle/wrapper/gradle-wrapper.properties
     - ~/.gradle/caches/7.5.47-20220929220000+0000
-    # Save the downloaded distribution. Needs to match version in
-    # gradle/wrapper/gradle-wrapper.properties
-    - ~/.gradle/wrapper/dists/gradle-7.5.47-all
 
 test_matrix: &test_matrix
   parameters:
@@ -64,7 +59,7 @@ system_test_matrix: &system_test_matrix
 
 agent_integration_tests_modules: &agent_integration_tests_modules "dd-trace-core|communication|internal-api|utils"
 core_modules: &core_modules "dd-java-agent|dd-trace-core|communication|internal-api|telemetry|utils|dd-java-agent/agent-bootstrap|dd-java-agent/agent-installer|dd-java-agent/agent-tooling|dd-java-agent/agent-builder|dd-java-agent/appsec|dd-java-agent/agent-crashtracking"
-instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation|dd-java-agent/agent-tooling|dd-java-agent/agent-installer|dd-java-agent/agent-builder|dd-java-agent/agent-bootstrap|dd-java-agent/appsec|dd-trace-core|dd-trace-api|internal-api"
+instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation|dd-java-agent/agent-tooling|dd-java-agent/agent-installer|dd-java-agent/agent-builder|dd-java-agent/agent-bootstrap|dd-java-agent/appsec|dd-java-agent/testing|dd-trace-core|dd-trace-api|internal-api"
 iast_modules: &iast_modules "dd-java-agent/agent-iast|internal-api|utils/test-utils"
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
@@ -202,15 +197,12 @@ jobs:
       - restore_cache:
           <<: *dependency_cache_keys
 
-      - restore_cache:
-          <<: *build_cache_keys
-
       - run:
           name: Build Project
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew clean compile shadowJar test -PskipTests -PskipBuildSrcTest
+            ./gradlew clean compile shadowJar test -PskipTests
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
             --rerun-tasks
@@ -242,7 +234,8 @@ jobs:
             - .gradle
             - workspace
 
-      # Save a full dependency cache when building on master or a base project branch
+      # Save a full dependency cache when building on master or a base project branch.
+      # We avoid this in PRs to speed up builds at the cost of downloading new dependencies a few more times.
       - when:
           condition:
             matches:
@@ -252,21 +245,6 @@ jobs:
             - save_cache:
                 key: dd-trace-java-dep-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
                 <<: *dependency_cache_paths
-
-      # This part is now disable to speed up builds at the cost of downloading new dependencies a few more times
-      #
-      ## Save a full dependency the first time any other PR branch is built (will be skipped
-      ## during other runs since the cache name will already exist)
-      #- when:
-      #    condition:
-      #      not:
-      #        matches:
-      #          pattern: "^(master|project/.+)$"
-      #          value: << pipeline.git.branch >>
-      #    steps:
-      #      - save_cache:
-      #          key: dd-trace-java-dep-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-base
-      #          <<: *dependency_cache_paths
 
       # Save the small build cache
       - save_cache:
@@ -286,7 +264,7 @@ jobs:
           name: Run spotless
           command: >-
             JAVA_HOME=$JAVA_11_HOME
-            ./gradlew spotlessCheck -PskipBuildSrcTest
+            ./gradlew spotlessCheck
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
 
@@ -308,7 +286,7 @@ jobs:
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew check -PskipTests
+            ./gradlew check -PskipTests -PrunBuildSrcTests
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
 
@@ -373,9 +351,6 @@ jobs:
       - image: *default_container
 
     parameters:
-      testTask:
-        type: string
-        default: "test"
       testJvm:
         type: string
         default: ""
@@ -387,7 +362,6 @@ jobs:
         default: ""
       gradleTarget:
         type: string
-        default: ""
       triggeredBy:
         type: string
         default: ".*"
@@ -419,9 +393,10 @@ jobs:
       - when:
           condition:
             or:
-              - equal: ["smoke", << parameters.stage >>]
-              - equal: ["instrumentation", << parameters.stage >>]
+              - equal: ["core", << parameters.stage >>]
               - equal: ["flaky", << parameters.stage >>]
+              - equal: ["instrumentation", << parameters.stage >>]
+              - equal: ["smoke", << parameters.stage >>]
           steps:
             - setup_testcontainers
 
@@ -435,8 +410,9 @@ jobs:
             
             MAVEN_OPTS="-Xms64M -Xmx512M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms<< parameters.maxDaemonHeapSize >> -Xmx<< parameters.maxDaemonHeapSize >> $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
-            ./gradlew <<# parameters.gradleTarget >><< parameters.gradleTarget >>:<</ parameters.gradleTarget >><< parameters.testTask >> << parameters.gradleParameters >>
-            -PskipBuildSrcTest
+            ./gradlew
+            << parameters.gradleTarget >>
+            << parameters.gradleParameters >>
             <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
             << pipeline.parameters.gradle_flags >>
             --max-workers=<< parameters.maxWorkers >>
@@ -622,12 +598,6 @@ jobs:
 
       - setup_code
 
-      - restore_cache:
-          <<: *dependency_cache_keys
-
-      - restore_cache:
-          <<: *build_cache_keys
-
       - run:
           name: Install good version of docker-compose
           command: |
@@ -706,6 +676,7 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
       name: z_test_<< matrix.testJvm >>_base
       triggeredBy: *core_modules
+      gradleTarget: ":baseTest"
       gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests"
       stage: core
       maxWorkers: 6
@@ -717,8 +688,8 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
       name: z_test_8_base
       triggeredBy: *core_modules
+      gradleTarget: :baseTest jacocoTestReport jacocoTestCoverageVerification
       gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests"
-      testTask: test jacocoTestReport jacocoTestCoverageVerification
       stage: core
       maxWorkers: 6
       testJvm: "8"
@@ -727,7 +698,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: z_test_<< matrix.testJvm >>_inst
-      gradleTarget: ":dd-java-agent:instrumentation"
+      gradleTarget: ":instrumentationTest"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
@@ -739,7 +710,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: z_test_8_inst
-      gradleTarget: ":dd-java-agent:instrumentation"
+      gradleTarget: ":instrumentationTest"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
@@ -750,8 +721,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: test_8_inst_latest
-      testTask: latestDepTest
-      gradleTarget: ":dd-java-agent:instrumentation"
+      gradleTarget: "latestDepTest"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
@@ -762,6 +732,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: z_test_8_flaky
+      gradleTarget: "test"
       gradleParameters: "-PrunFlakyTests"
       continueOnFailure: true
       triggeredBy: *core_modules
@@ -773,7 +744,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       maxWorkers: 4
-      gradleTarget: ":dd-java-agent:agent-profiling"
+      gradleTarget: ":profilingTest"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *profiling_modules
       stage: profiling
@@ -786,7 +757,7 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
       maxWorkers: 4
       name: test_<< matrix.testJvm >>_iast
-      gradleTarget: ":dd-java-agent:agent-iast"
+      gradleTarget: ":dd-java-agent:agent-iast:test"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *iast_modules
       stage: iast
@@ -798,7 +769,7 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
       name: test_<< matrix.testJvm >>_debugger
       maxWorkers: 4
-      gradleTarget: ":dd-java-agent:agent-debugger"
+      gradleTarget: ":debuggerTest"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *debugger_modules
       stage: debugger
@@ -809,7 +780,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: z_test_<< matrix.testJvm >>_smoke
-      gradleTarget: "stageMainDist :dd-smoke-test"
+      gradleTarget: "stageMainDist :smokeTest"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
       maxWorkers: 8
@@ -820,7 +791,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: test_IBM11_smoke
-      gradleTarget: "stageMainDist :dd-smoke-test"
+      gradleTarget: "stageMainDist :smokeTest"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
       maxWorkers: 8
@@ -830,7 +801,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: test_IBM17_smoke
-      gradleTarget: "stageMainDist :dd-smoke-test"
+      gradleTarget: "stageMainDist :smokeTest"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
       maxWorkers: 8
@@ -840,7 +811,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: test_GRAALVM11_smoke
-      gradleTarget: "stageMainDist :dd-smoke-test:spring-native"
+      gradleTarget: "stageMainDist :dd-smoke-test:spring-native:test"
       stage: smoke
       testJvm: "GRAALVM11"
 
@@ -848,7 +819,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: test_GRAALVM17_smoke
-      gradleTarget: "stageMainDist :dd-smoke-test:spring-native"
+      gradleTarget: "stageMainDist :dd-smoke-test:spring-native:test"
       stage: smoke
       testJvm: "GRAALVM17"
 
@@ -857,7 +828,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: z_test_8_smoke
-      gradleTarget: "stageMainDist :dd-smoke-test"
+      gradleTarget: "stageMainDist :smokeTest"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
       maxWorkers: 8
@@ -886,7 +857,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       triggeredBy: *agent_integration_tests_modules
-      testTask: traceAgentTest
+      gradleTarget: traceAgentTest
       testJvm: "8"
 
   - test_published_artifacts:

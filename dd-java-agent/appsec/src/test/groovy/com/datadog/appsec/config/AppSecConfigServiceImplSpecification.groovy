@@ -250,14 +250,17 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       listeners.savedWafDataDeserializer.deserialize('{"rules_data":[{"id":"foo","type":"","data":[]}]}'.bytes), null)
     listeners.savedWafRulesOverrideListener.accept(
       'ignored config key',
-      listeners.savedWafRulesOverrideDeserializer.deserialize('{"rules_override": [{"id": "foo", "enabled":false}]}'.bytes), null)
+      listeners.savedWafRulesOverrideDeserializer.deserialize('{"rules_override": [{"rules_target":[{"rule_id": "foo"}], "enabled":false}]}'.bytes), null)
     listeners.savedConfEndListener.onConfigurationEnd()
 
     then:
     1 * subconfigListener.onNewSubconfig({ CurrentAppSecConfig casc ->
       casc.ddConfig == AppSecConfig.valueOf([version: '2.0'])
-      casc.mergedRuleToggling == [foo: false]
-      casc.getMergedAsmData() == [[data:[], id: 'foo', type: '']]
+      casc.mergedUpdateConfig.rawConfig['rules_override'] == [[
+          rules_target: [[rule_id: 'foo']],
+          enabled: false
+        ]]
+      casc.mergedAsmData == [[data:[], id: 'foo', type: '']]
     }, _)
     0 * _._
 
@@ -314,7 +317,8 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
   void 'configuration pull out'() {
     AppSecModuleConfigurer.SubconfigListener subconfigListener = Mock()
     SavedListeners listeners = new SavedListeners()
-    CurrentAppSecConfig casc
+    MergedAsmData mergedAsmData
+    AppSecConfig mergedUpdateConfig
 
     when:
     appSecConfigService.init()
@@ -359,17 +363,21 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       listeners.savedWafDataDeserializer.deserialize('{"rules_data":[{"id":"foo","type":"","data":[]}]}'.bytes), null)
     listeners.savedWafRulesOverrideListener.accept(
       'asm conf',
-      listeners.savedWafRulesOverrideDeserializer.deserialize('{"rules_override": [{"id": "foo", "enabled":false}]}'.bytes), null)
+      listeners.savedWafRulesOverrideDeserializer.deserialize('{"rules_override": [{"rules_target":[{"rule_id": "foo"}], "enabled":false}]}'.bytes), null)
     listeners.savedFeaturesListener.accept('asm_features conf',
       listeners.savedFeaturesDeserializer.deserialize('{"asm":{"enabled": true}}'.bytes),
       ConfigurationChangesListener.PollingRateHinter.NOOP)
     listeners.savedConfEndListener.onConfigurationEnd()
 
     then:
-    1 * subconfigListener.onNewSubconfig(_, _) >> { casc = it[0] }
-    casc.mergedAppSecConfig.rules.isEmpty() == true
-    casc.mergedAsmData.isEmpty() == false
-    casc.mergedRuleToggling.isEmpty() == false
+    1 * subconfigListener.onNewSubconfig(_, _) >> {
+      CurrentAppSecConfig casc = it[0]
+      mergedAsmData = casc.mergedAsmData
+      mergedUpdateConfig = casc.mergedUpdateConfig
+    }
+    mergedUpdateConfig.rules.isEmpty() == true
+    mergedUpdateConfig.rawConfig['rules_override'].isEmpty() == false
+    mergedAsmData.isEmpty() == false
 
     when:
     listeners.savedConfChangesListener.accept('asm_dd config', null, null)
@@ -378,10 +386,15 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     listeners.savedConfEndListener.onConfigurationEnd()
 
     then:
-    1 * subconfigListener.onNewSubconfig(_, _) >> { casc = it[0] }
-    casc.mergedAppSecConfig.rules.isEmpty() == false
-    casc.mergedAsmData.isEmpty() == true
-    casc.mergedRuleToggling.isEmpty() == true
+    1 * subconfigListener.onNewSubconfig(_, _) >> {
+      CurrentAppSecConfig casc = it[0]
+      mergedAsmData = casc.mergedAsmData
+      mergedUpdateConfig = casc.mergedUpdateConfig
+    }
+
+    mergedUpdateConfig.rules.isEmpty() == false
+    mergedUpdateConfig.rawConfig['rules_override'].isEmpty() == true
+    mergedAsmData.isEmpty() == true
   }
 
   void 'stopping appsec unsubscribes from the poller'() {

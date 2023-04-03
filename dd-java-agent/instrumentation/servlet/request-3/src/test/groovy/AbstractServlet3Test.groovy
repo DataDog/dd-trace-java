@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -19,7 +20,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOU
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
 import static org.junit.Assume.assumeTrue
 
-abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERVER> {
+abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERVER> implements TestingGenericHttpNamingConventions.ServerV0 {
   @Override
   boolean testRequestBody() {
     true
@@ -51,7 +52,7 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
 
   @Override
   String expectedOperationName() {
-    return "servlet.request"
+    return operation()
   }
 
   boolean hasHandlerSpan() {
@@ -109,7 +110,7 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
       }
   }
 
-  protected void setupDispatchServlets(CONTEXT context, Class<Servlet> dispatchServlet) {
+  protected void setupDispatchServlets(CONTEXT context, Class<? extends Servlet> dispatchServlet) {
     ServerEndpoint.values()
       .findAll { !(it in [NOT_FOUND, UNKNOWN, MATRIX_PARAM]) }
       .each {

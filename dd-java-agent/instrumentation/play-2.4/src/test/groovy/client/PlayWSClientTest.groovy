@@ -1,6 +1,7 @@
 package client
 
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingNettyHttpNamingConventions
 import datadog.trace.instrumentation.netty40.client.NettyHttpClientDecorator
 import play.libs.ws.WS
 import spock.lang.AutoCleanup
@@ -11,7 +12,7 @@ import spock.lang.Timeout
 // Play 2.6+ uses a separately versioned client that shades the underlying dependency
 // This means our built in instrumentation won't work.
 @Timeout(5)
-class PlayWSClientTest extends HttpClientTest {
+abstract class PlayWSClientTest extends HttpClientTest {
   @Subject
   @Shared
   @AutoCleanup
@@ -38,10 +39,6 @@ class PlayWSClientTest extends HttpClientTest {
     return NettyHttpClientDecorator.DECORATE.component()
   }
 
-  @Override
-  String expectedOperationName() {
-    return "netty.client.request"
-  }
 
   @Override
   boolean testRedirects() {
@@ -57,4 +54,10 @@ class PlayWSClientTest extends HttpClientTest {
   boolean testRemoteConnection() {
     return false
   }
+}
+
+class PlayWSClientV0ForkedTest extends PlayWSClientTest implements TestingNettyHttpNamingConventions.ClientV0  {
+}
+
+class PlayWSClientV1ForkedTest extends PlayWSClientTest implements TestingNettyHttpNamingConventions.ClientV1{
 }

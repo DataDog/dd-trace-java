@@ -1,7 +1,8 @@
 package datadog.trace.agent.test.base
 
-import datadog.trace.agent.test.AgentTestRunner
+
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.server.http.HttpProxy
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
@@ -27,7 +28,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecora
 import static org.junit.Assume.assumeTrue
 
 @Unroll
-abstract class HttpClientTest extends AgentTestRunner {
+abstract class HttpClientTest extends VersionedNamingTestBase {
   protected static final BODY_METHODS = ["POST", "PUT"]
   protected static final int CONNECT_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(3) as int
   protected static final int READ_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(5) as int
@@ -85,7 +86,6 @@ abstract class HttpClientTest extends AgentTestRunner {
   @Shared
   ProxySelector proxySelector
 
-  @Shared
   String component = component()
 
   @Override
@@ -748,7 +748,7 @@ abstract class HttpClientTest extends AgentTestRunner {
       if (renameService) {
         serviceName uri.host
       }
-      operationName expectedOperationName()
+      operationName operation()
       resourceName "$method $uri.path"
       spanType DDSpanTypes.HTTP_CLIENT
       errored error
@@ -777,10 +777,6 @@ abstract class HttpClientTest extends AgentTestRunner {
         defaultTags()
       }
     }
-  }
-
-  String expectedOperationName() {
-    return "http.request"
   }
 
   int size(int size) {

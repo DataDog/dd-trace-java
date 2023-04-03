@@ -2,6 +2,7 @@ package com.datadog.profiling.ddprof;
 
 import static datadog.trace.api.Platform.isJ9;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES_SPAN_NAME_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_INTERVAL;
@@ -245,6 +246,14 @@ public class DatadogProfilerConfig {
   public static boolean isQueueingTimeEnabled(ConfigProvider configProvider) {
     return configProvider.getBoolean(
         PROFILING_QUEUEING_TIME_ENABLED, PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
+  }
+
+  public static boolean isSpanNameContextAttributeEnabled() {
+    return isSpanNameContextAttributeEnabled(ConfigProvider.getInstance());
+  }
+
+  public static boolean isSpanNameContextAttributeEnabled(ConfigProvider configProvider) {
+    return configProvider.getBoolean(PROFILING_CONTEXT_ATTRIBUTES_SPAN_NAME_ENABLED, true);
   }
 
   public static String getString(ConfigProvider configProvider, String key, String defaultValue) {

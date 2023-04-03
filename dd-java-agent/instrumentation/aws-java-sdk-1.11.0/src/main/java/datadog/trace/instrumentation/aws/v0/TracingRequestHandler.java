@@ -1,9 +1,11 @@
 package datadog.trace.instrumentation.aws.v0;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.AWS_HTTP;
+import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.AWS_LEGACY_TRACING;
 import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.DECORATE;
 
 import com.amazonaws.AmazonWebServiceRequest;
@@ -11,18 +13,19 @@ import com.amazonaws.Request;
 import com.amazonaws.Response;
 import com.amazonaws.handlers.HandlerContextKey;
 import com.amazonaws.handlers.RequestHandler2;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.api.Config;
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Tracing Request Handler */
 public class TracingRequestHandler extends RequestHandler2 {
 
-  // aws1.x sdk doesn't have any truly async clients so we can store scope in request context safely
-  public static final HandlerContextKey<AgentScope> SCOPE_CONTEXT_KEY =
-      new HandlerContextKey<>("DatadogScope"); // same as OnErrorDecorator.SCOPE_CONTEXT_KEY
+  public static final HandlerContextKey<AgentSpan> SPAN_CONTEXT_KEY =
+      new HandlerContextKey<>("DatadogSpan"); // same as OnErrorDecorator.SPAN_CONTEXT_KEY
 
-  private static final CharSequence AWS_HTTP = UTF8BytesString.create("aws.http");
+  private static final Logger log = LoggerFactory.getLogger(TracingRequestHandler.class);
 
   @Override
   public AmazonWebServiceRequest beforeMarshalling(final AmazonWebServiceRequest request) {
@@ -31,48 +34,48 @@ public class TracingRequestHandler extends RequestHandler2 {
 
   @Override
   public void beforeRequest(final Request<?> request) {
-    boolean isPolling = isPollingRequest(request.getOriginalRequest());
-    if (isPolling) {
-      closePrevious(true);
+    final AgentSpan span;
+    if (!AWS_LEGACY_TRACING && isPollingRequest(request.getOriginalRequest())) {
+      // SQS messages spans are created by aws-java-sqs-1.0 - replace client scope with no-op,
+      // so we can tell when receive call is complete without affecting the rest of the trace
+      span = noopSpan();
+    } else {
+      span = startSpan(AWS_HTTP);
+      DECORATE.afterStart(span);
+      DECORATE.onRequest(span, request);
+      request.addHandlerContext(SPAN_CONTEXT_KEY, span);
+      if (Config.get().isAwsPropagationEnabled()) {
+        try {
+          propagate().inject(span, request, DECORATE, TracePropagationStyle.XRAY);
+        } catch (Throwable e) {
+          log.warn("Unable to inject trace header", e);
+        }
+      }
     }
-    final AgentSpan span = startSpan(AWS_HTTP);
-    DECORATE.afterStart(span);
-    DECORATE.onRequest(span, request);
-    if (isPolling) {
-      activateNext(span); // this scope will last until next poll
-    }
-    request.addHandlerContext(SCOPE_CONTEXT_KEY, activateSpan(span));
+
+    // This scope will be closed by AwsHttpClientInstrumentation
+    activateSpan(span);
   }
 
   @Override
   public void afterResponse(final Request<?> request, final Response<?> response) {
-    final AgentScope scope = request.getHandlerContext(SCOPE_CONTEXT_KEY);
-    if (scope != null) {
-      request.addHandlerContext(SCOPE_CONTEXT_KEY, null);
-      DECORATE.onResponse(scope.span(), response);
-      DECORATE.beforeFinish(scope.span());
-      scope.close();
-      if (isPollingRequest(request.getOriginalRequest())) {
-        // will be finished on next poll
-      } else {
-        scope.span().finish();
-      }
+    final AgentSpan span = request.getHandlerContext(SPAN_CONTEXT_KEY);
+    if (span != null) {
+      request.addHandlerContext(SPAN_CONTEXT_KEY, null);
+      DECORATE.onResponse(span, response);
+      DECORATE.beforeFinish(span);
+      span.finish();
     }
   }
 
   @Override
   public void afterError(final Request<?> request, final Response<?> response, final Exception e) {
-    final AgentScope scope = request.getHandlerContext(SCOPE_CONTEXT_KEY);
-    if (scope != null) {
-      request.addHandlerContext(SCOPE_CONTEXT_KEY, null);
-      DECORATE.onError(scope.span(), e);
-      DECORATE.beforeFinish(scope.span());
-      scope.close();
-      if (isPollingRequest(request.getOriginalRequest())) {
-        // will be finished on next poll
-      } else {
-        scope.span().finish();
-      }
+    final AgentSpan span = request.getHandlerContext(SPAN_CONTEXT_KEY);
+    if (span != null) {
+      request.addHandlerContext(SPAN_CONTEXT_KEY, null);
+      DECORATE.onError(span, e);
+      DECORATE.beforeFinish(span);
+      span.finish();
     }
   }
 

@@ -1,5 +1,7 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.naming.SpanNaming
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.Flaky
 import groovy.json.JsonSlurper
@@ -22,7 +24,7 @@ import spock.lang.Shared
 import static org.elasticsearch.cluster.ClusterName.CLUSTER_NAME_SETTING
 
 @Flaky
-class Elasticsearch5RestClientTest extends AgentTestRunner {
+abstract class Elasticsearch5RestClientTest extends VersionedNamingTestBase {
   @Shared
   TransportAddress httpTransportAddress
   @Shared
@@ -83,9 +85,9 @@ class Elasticsearch5RestClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(2) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "GET _cluster/health"
-          operationName "elasticsearch.rest.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           parent()
           tags {
@@ -100,9 +102,9 @@ class Elasticsearch5RestClientTest extends AgentTestRunner {
           }
         }
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "GET _cluster/health"
-          operationName "http.request"
+          operationName SpanNaming.instance().namingSchema().client().operationForComponent("apache-httpasyncclient")
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
           tags {
@@ -116,5 +118,41 @@ class Elasticsearch5RestClientTest extends AgentTestRunner {
         }
       }
     }
+  }
+}
+
+class Elasticsearch5RestClientV0ForkedTest extends Elasticsearch5RestClientTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return "elasticsearch"
+  }
+
+  @Override
+  String operation() {
+    return "elasticsearch.rest.query"
+  }
+}
+
+class Elasticsearch5RestClientV1ForkedTest extends Elasticsearch5RestClientTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return Config.get().getServiceName() + "-elasticsearch"
+  }
+
+  @Override
+  String operation() {
+    return "elasticsearch.query"
   }
 }

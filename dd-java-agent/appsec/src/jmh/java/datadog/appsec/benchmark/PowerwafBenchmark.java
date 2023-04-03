@@ -112,6 +112,6 @@ public class PowerwafBenchmark {
 
   @TearDown(Level.Trial)
   public void teardown() {
-    ctx.delReference();
+    ctx.close();
   }
 }

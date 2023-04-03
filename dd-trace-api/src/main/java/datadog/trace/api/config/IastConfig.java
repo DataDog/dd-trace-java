@@ -11,6 +11,7 @@ public final class IastConfig {
   public static final String IAST_VULNERABILITIES_PER_REQUEST = "iast.vulnerabilities-per-request";
   public static final String IAST_REQUEST_SAMPLING = "iast.request-sampling";
   public static final String IAST_DEDUPLICATION_ENABLED = "iast.deduplication.enabled";
+  public static final String IAST_TELEMETRY_VERBOSITY = "iast.telemetry.verbosity";
 
   private IastConfig() {}
 }

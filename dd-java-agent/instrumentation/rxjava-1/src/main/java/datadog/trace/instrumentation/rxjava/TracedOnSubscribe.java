@@ -14,13 +14,13 @@ import rx.Subscriber;
 public class TracedOnSubscribe<T> implements Observable.OnSubscribe<T> {
 
   private final Observable.OnSubscribe<?> delegate;
-  private final String operationName;
+  private final CharSequence operationName;
   private final AgentScope.Continuation continuation;
   private final BaseDecorator decorator;
 
   public TracedOnSubscribe(
       final Observable originalObservable,
-      final String operationName,
+      final CharSequence operationName,
       final BaseDecorator decorator) {
     delegate = DDTracingUtil.extractOnSubscribe(originalObservable);
     this.operationName = operationName;

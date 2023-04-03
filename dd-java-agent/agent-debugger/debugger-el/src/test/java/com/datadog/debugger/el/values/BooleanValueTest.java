@@ -1,5 +1,6 @@
 package com.datadog.debugger.el.values;
 
+import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.Test;
@@ -13,7 +14,7 @@ class BooleanValueTest {
     assertTrue(instance.isNull());
     assertFalse(instance.isUndefined());
     assertNull(instance.getValue());
-    assertEquals("null", instance.prettyPrint());
+    assertEquals("null", print(instance));
   }
 
   @ParameterizedTest
@@ -23,6 +24,6 @@ class BooleanValueTest {
     assertFalse(instance.isNull());
     assertFalse(instance.isUndefined());
     assertEquals(expected, instance.getValue());
-    assertEquals(String.valueOf(expected), instance.prettyPrint());
+    assertEquals(String.valueOf(expected), print(instance));
   }
 }

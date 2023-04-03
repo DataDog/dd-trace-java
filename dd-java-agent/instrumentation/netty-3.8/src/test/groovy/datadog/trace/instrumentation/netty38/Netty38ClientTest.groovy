@@ -5,8 +5,14 @@ import com.ning.http.client.AsyncHttpClient
 import com.ning.http.client.AsyncHttpClientConfig
 import com.ning.http.client.Response
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingNettyHttpNamingConventions
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.netty38.client.NettyHttpClientDecorator
+import org.jboss.netty.handler.codec.embedder.EncoderEmbedder
+import org.jboss.netty.handler.codec.http.DefaultHttpRequest
+import org.jboss.netty.handler.codec.http.HttpMethod
+import org.jboss.netty.handler.codec.http.HttpRequestEncoder
+import org.jboss.netty.handler.codec.http.HttpVersion
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 
@@ -17,7 +23,7 @@ import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class Netty38ClientTest extends HttpClientTest {
+abstract class Netty38ClientTest extends HttpClientTest {
 
   @Shared
   def clientConfig = new AsyncHttpClientConfig.Builder()
@@ -50,10 +56,6 @@ class Netty38ClientTest extends HttpClientTest {
     return NettyHttpClientDecorator.DECORATE.component()
   }
 
-  @Override
-  String expectedOperationName() {
-    return "netty.client.request"
-  }
 
   @Override
   boolean testRedirects() {
@@ -116,4 +118,21 @@ class Netty38ClientTest extends HttpClientTest {
     where:
     method = "GET"
   }
+
+  def "verify instrumentation does not break embedded channels"() {
+    given:
+    EncoderEmbedder encoderEmbedder = new EncoderEmbedder<>(new HttpRequestEncoder())
+
+    when:
+    encoderEmbedder.offer(new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/post"))
+
+    then:
+    noExceptionThrown()
+  }
+}
+
+class Netty38ClientV0ForkedTest extends Netty38ClientTest implements TestingNettyHttpNamingConventions.ClientV0  {
+}
+
+class Netty38ClientV1ForkedTest extends Netty38ClientTest implements TestingNettyHttpNamingConventions.ClientV1 {
 }

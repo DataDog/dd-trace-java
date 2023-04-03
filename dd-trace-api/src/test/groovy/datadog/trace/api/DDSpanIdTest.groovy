@@ -68,6 +68,35 @@ class DDSpanIdTest extends DDSpecification {
     "123456789abcdef"        | 81985529216486895
   }
 
+  def "convert ids from part of hex String"() {
+    when:
+    Long ddid = null
+    try {
+      ddid = DDSpanId.fromHex(hexId, start, length, lcOnly)
+    } catch (NumberFormatException ignored) {
+    }
+
+    then:
+    if (expectedId) {
+      assert ddid == expectedId
+    } else {
+      assert !ddid
+    }
+
+    where:
+    hexId            | start| length | lcOnly | expectedId
+    null             |  1   |  1     | false  | null
+    ""               |  1   |  1     | false  | null
+    "00"             | -1   |  1     | false  | null
+    "00"             |  0   |  0     | false  | null
+    "00"             |  0   |  1     | false  | DDSpanId.ZERO
+    "00"             |  1   |  1     | false  | DDSpanId.ZERO
+    "00"             |  1   |  1     | false  | DDSpanId.ZERO
+    "f" * 16         |  0   | 16     | true   | DDSpanId.MAX
+    "f" * 12 + "Ffff"|  0   | 16     | true   | null
+    "f" * 12 + "Ffff"|  0   | 16     | false  | DDSpanId.MAX
+  }
+
   def "fail on illegal hex String"() {
     when:
     DDTraceId.fromHex(hexId)

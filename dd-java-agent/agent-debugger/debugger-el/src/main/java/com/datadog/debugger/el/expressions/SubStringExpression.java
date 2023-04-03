@@ -1,8 +1,8 @@
 package com.datadog.debugger.el.expressions;
 
-import static com.datadog.debugger.el.Expression.nullSafePrettyPrint;
-
+import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.Visitor;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
 public class SubStringExpression implements ValueExpression<Value<String>> {
@@ -24,14 +24,26 @@ public class SubStringExpression implements ValueExpression<Value<String>> {
       try {
         return (Value<String>) Value.of(sourceStr.substring(startIndex, endIndex));
       } catch (StringIndexOutOfBoundsException ex) {
-        valueRefResolver.addEvaluationError(prettyPrint(), ex.getMessage());
+        valueRefResolver.addEvaluationError(PrettyPrintVisitor.print(this), ex.getMessage());
       }
     }
     return Value.undefined();
   }
 
   @Override
-  public String prettyPrint() {
-    return "substring(" + nullSafePrettyPrint(source) + ", " + startIndex + ", " + endIndex + ")";
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
+  }
+
+  public ValueExpression<?> getSource() {
+    return source;
+  }
+
+  public int getStartIndex() {
+    return startIndex;
+  }
+
+  public int getEndIndex() {
+    return endIndex;
   }
 }

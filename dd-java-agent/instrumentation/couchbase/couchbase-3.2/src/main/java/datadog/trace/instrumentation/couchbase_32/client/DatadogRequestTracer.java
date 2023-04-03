@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.couchbase_32.client;
 
 import static datadog.trace.instrumentation.couchbase_32.client.CouchbaseClientDecorator.COUCHBASE_CLIENT;
+import static datadog.trace.instrumentation.couchbase_32.client.CouchbaseClientDecorator.OPERATION_NAME;
 
 import com.couchbase.client.core.cnc.RequestSpan;
 import com.couchbase.client.core.cnc.RequestTracer;
@@ -12,7 +13,6 @@ import java.time.Duration;
 import reactor.core.publisher.Mono;
 
 public class DatadogRequestTracer implements RequestTracer {
-  private static final CharSequence COUCHBASE_CALL = UTF8BytesString.create("couchbase.call");
   private static final CharSequence COUCHBASE_INTERNAL =
       UTF8BytesString.create("couchbase.internal");
 
@@ -24,7 +24,7 @@ public class DatadogRequestTracer implements RequestTracer {
 
   @Override
   public RequestSpan requestSpan(String requestName, RequestSpan requestParent) {
-    CharSequence spanName = COUCHBASE_CALL;
+    CharSequence spanName = OPERATION_NAME;
     boolean measured = true;
 
     AgentSpan parent = DatadogRequestSpan.unwrap(requestParent);

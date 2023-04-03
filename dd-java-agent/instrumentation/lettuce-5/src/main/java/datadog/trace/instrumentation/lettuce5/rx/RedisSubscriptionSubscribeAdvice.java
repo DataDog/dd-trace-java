@@ -3,12 +3,12 @@ package datadog.trace.instrumentation.lettuce5.rx;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.lettuce5.LettuceClientDecorator.DECORATE;
-import static datadog.trace.instrumentation.lettuce5.LettuceClientDecorator.REDIS_QUERY;
 import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.expectsResponse;
 
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.instrumentation.lettuce5.LettuceClientDecorator;
 import io.lettuce.core.protocol.RedisCommand;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Subscription;
@@ -38,7 +38,7 @@ public class RedisSubscriptionSubscribeAdvice {
     if (parentSpan != null) {
       parentScope = activateSpan(parentSpan);
     }
-    AgentSpan span = startSpan(REDIS_QUERY);
+    AgentSpan span = startSpan(LettuceClientDecorator.OPERATION_NAME);
     InstrumentationContext.get(RedisCommand.class, AgentSpan.class).put(subscriptionCommand, span);
     DECORATE.afterStart(span);
     DECORATE.onCommand(span, command);

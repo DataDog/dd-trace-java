@@ -1,5 +1,7 @@
 package datadog.trace.api;
 
+import datadog.trace.api.internal.util.HexStringUtils;
+
 /** Class with methods for working with the unsigned 64 bit id used for Span ids. */
 public final class DDSpanId {
 
@@ -32,6 +34,21 @@ public final class DDSpanId {
    */
   public static long fromHex(String s) throws NumberFormatException {
     return DDId.parseUnsignedLongHex(s);
+  }
+
+  /**
+   * Parse the span id from the given {@code String} hex representation of the unsigned 64 bit id.
+   *
+   * @param s String in hex of unsigned 64 bit id
+   * @param start the start index of the hex value
+   * @param len the len of the hex value
+   * @param lowerCaseOnly if the allowed hex characters are lower case only
+   * @return long
+   * @throws NumberFormatException
+   */
+  public static long fromHex(String s, int start, int len, boolean lowerCaseOnly)
+      throws NumberFormatException {
+    return HexStringUtils.parseUnsignedLongHex(s, start, len, lowerCaseOnly);
   }
 
   /**

@@ -1,6 +1,12 @@
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingNettyHttpNamingConventions
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.netty40.client.NettyHttpClientDecorator
+import io.netty.channel.embedded.EmbeddedChannel
+import io.netty.handler.codec.http.DefaultFullHttpRequest
+import io.netty.handler.codec.http.HttpMethod
+import io.netty.handler.codec.http.HttpRequestEncoder
+import io.netty.handler.codec.http.HttpVersion
 import io.netty.handler.ssl.SslContextBuilder
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory
 import org.asynchttpclient.AsyncCompletionHandler
@@ -19,8 +25,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static org.asynchttpclient.Dsl.asyncHttpClient
 
-@Timeout(5)
-class Netty40ClientTest extends HttpClientTest {
+abstract class Netty40ClientTest extends HttpClientTest {
 
   @Override
   boolean useStrictTraceWrites() {
@@ -66,11 +71,6 @@ class Netty40ClientTest extends HttpClientTest {
   @Override
   CharSequence component() {
     return NettyHttpClientDecorator.DECORATE.component()
-  }
-
-  @Override
-  String expectedOperationName() {
-    return "netty.client.request"
   }
 
   @Override
@@ -140,4 +140,26 @@ class Netty40ClientTest extends HttpClientTest {
     where:
     method = "GET"
   }
+
+  def "verify instrumentation does not break embedded channels"() {
+    given:
+    EmbeddedChannel channel = new EmbeddedChannel(new HttpRequestEncoder())
+
+    when:
+    channel.writeOutbound(new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/post"))
+    channel.close()
+
+    then:
+    noExceptionThrown()
+  }
+}
+
+@Timeout(5)
+class Netty40ClientV0ForkedTest extends Netty40ClientTest implements TestingNettyHttpNamingConventions.ClientV0 {
+
+}
+
+@Timeout(5)
+class Netty40ClientV1ForkedTest extends Netty40ClientTest implements TestingNettyHttpNamingConventions.ClientV1 {
+
 }

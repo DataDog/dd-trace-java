@@ -12,6 +12,7 @@ import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY
 
 import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.config.AppSecModuleConfigurer.SubconfigListener;
+import com.datadog.appsec.config.CurrentAppSecConfig.DirtyStatus;
 import com.datadog.appsec.util.AbortStartupException;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.remoteconfig.ConfigurationEndListener;
@@ -113,7 +114,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             newConfig = DEFAULT_WAF_CONFIG;
           }
           this.currentAppSecConfig.ddConfig = newConfig;
-          this.currentAppSecConfig.dirtyWafRules = true;
+          // base rules can contain all rules/data/exclusions/etc
+          this.currentAppSecConfig.dirtyStatus.markAllDirty();
         });
     this.configurationPoller.addListener(
         Product.ASM_DATA,
@@ -127,7 +129,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           } else {
             currentAppSecConfig.mergedAsmData.addConfig(configKey, newConfig);
           }
-          this.currentAppSecConfig.dirtyWafData = true;
+          this.currentAppSecConfig.dirtyStatus.data = true;
         });
     this.configurationPoller.addListener(
         Product.ASM,
@@ -136,7 +138,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           if (!initialized) {
             throw new IllegalStateException();
           }
-          CollectedUserConfigs.DirtyStatus dirtyStatus;
+          DirtyStatus dirtyStatus;
           if (newConfig == null) {
             dirtyStatus = currentAppSecConfig.userConfigs.removeConfig(configKey);
           } else {
@@ -144,12 +146,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             dirtyStatus = currentAppSecConfig.userConfigs.addConfig(userCfg);
           }
 
-          if (dirtyStatus.toggling) {
-            this.currentAppSecConfig.dirtyToggling = true;
-          }
-          if (dirtyStatus.rules) {
-            this.currentAppSecConfig.dirtyWafRules = true;
-          }
+          this.currentAppSecConfig.dirtyStatus.mergeFrom(dirtyStatus);
         });
   }
 
@@ -169,7 +166,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             if (AppSecSystem.isActive()) {
               // On remote activation, we need to re-distribute the last known configuration.
               // This may trigger initializations, including PowerWAF if it was lazy loaded.
-              this.currentAppSecConfig.dirtyWafRules = true;
+              this.currentAppSecConfig.dirtyStatus.markAllDirty();
             }
           }
         });
@@ -341,12 +338,12 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   }
 
   private void applyWAFChanges() {
-    if (!AppSecSystem.isActive() || !currentAppSecConfig.isAnyDirty()) {
+    if (!AppSecSystem.isActive() || !currentAppSecConfig.dirtyStatus.isAnyDirty()) {
       return;
     }
 
     distributeSubConfigurations(
         Collections.singletonMap("waf", currentAppSecConfig), reconfiguration);
-    currentAppSecConfig.clearDirty();
+    currentAppSecConfig.dirtyStatus.clearDirty();
   }
 }

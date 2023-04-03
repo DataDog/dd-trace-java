@@ -11,4 +11,12 @@ abstract class MatchingExpression implements BooleanExpression {
     this.filterPredicateExpression =
         filterPredicateExpression == null ? BooleanExpression.TRUE : filterPredicateExpression;
   }
+
+  public ValueExpression<?> getValueExpression() {
+    return valueExpression;
+  }
+
+  public BooleanExpression getFilterPredicateExpression() {
+    return filterPredicateExpression;
+  }
 }

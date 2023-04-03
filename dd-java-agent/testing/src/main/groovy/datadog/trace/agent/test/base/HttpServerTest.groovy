@@ -2,6 +2,7 @@ package datadog.trace.agent.test.base
 
 import ch.qos.logback.classic.Level
 import datadog.appsec.api.blocking.Blocking
+import datadog.appsec.api.blocking.BlockingContentType
 import datadog.appsec.api.blocking.BlockingDetails
 import datadog.appsec.api.blocking.BlockingService
 import datadog.trace.agent.test.asserts.TraceAssert
@@ -12,7 +13,6 @@ import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
-import datadog.appsec.api.blocking.BlockingContentType
 import datadog.trace.api.gateway.BlockResponseFunction
 import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
@@ -36,7 +36,6 @@ import okhttp3.RequestBody
 import okhttp3.Response
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import spock.lang.Shared
 import spock.lang.Unroll
 
 import java.util.function.BiFunction
@@ -125,7 +124,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     // We don't inject a matching response header tag here since it would be always on and show up in all the tests
   }
 
-  @Shared
   String component = component()
 
   abstract String component()
@@ -311,6 +309,21 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   boolean testMultipleHeader() {
     true
+  }
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return expectedOperationName()
   }
 
   enum ServerEndpoint {
@@ -617,6 +630,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     'GET'  | null | 'x-datadog-test-request-header'  | 'bar' | [ 'request_header_tag': 'bar' ]
   }
 
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
   def "test #endpoint with response header #header tag mapping"() {
     setup:
     injectSysConfig(HTTP_SERVER_TAG_QUERY_STRING, "true")
@@ -661,6 +675,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     QUERY_ENCODED_BOTH | 'GET'  | null | IG_RESPONSE_HEADER | 'mapped_response_header_tag' | [ 'mapped_response_header_tag': "$IG_RESPONSE_HEADER_VALUE" ]
   }
 
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
   def "test tag query string for #endpoint rawQuery=#rawQuery"() {
     setup:
     injectSysConfig(HTTP_SERVER_TAG_QUERY_STRING, "true")
@@ -819,7 +834,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     when:
     def response = client.newCall(request).execute()
     response.body().string() == PATH_PARAM.body
-    TEST_WRITER.waitForTraces(1)
+    TEST_WRITER.waitForTraces(2)
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
@@ -1546,7 +1561,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def expectedUrl = expectedUrl(endpoint, address)
     trace.span {
       serviceName expectedServiceName()
-      operationName expectedOperationName()
+      operationName operation()
       resourceName expectedResourceName(endpoint, method, address)
       spanType DDSpanTypes.HTTP_SERVER
       errored expectedErrored(endpoint)

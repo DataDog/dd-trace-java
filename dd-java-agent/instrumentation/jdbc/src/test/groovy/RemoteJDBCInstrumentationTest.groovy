@@ -1,8 +1,9 @@
 import com.mchange.v2.c3p0.ComboPooledDataSource
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.PortUtils
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.testcontainers.containers.MySQLContainer
@@ -26,7 +27,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST
 
 // workaround for SSLHandShakeException on J9 only with Hikari/MySQL
 @Requires({ !System.getProperty("java.vendor").contains("IBM") })
-class RemoteJDBCInstrumentationTest extends AgentTestRunner {
+abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
   @Shared
   def dbName = "jdbcUnitTest"
 
@@ -196,8 +197,8 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
       trace(2) {
         basicSpan(it, "parent")
         span {
-          serviceName renameService ? dbName.toLowerCase() : driver
-          operationName "${driver}.query"
+          serviceName renameService ? dbName.toLowerCase() : service(driver)
+          operationName this.operation(driver)
           resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           childOf span(0)
@@ -255,8 +256,8 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
       trace(2) {
         basicSpan(it, "parent")
         span {
-          operationName "${driver}.query"
-          serviceName driver
+          operationName this.operation(driver)
+          serviceName service(driver)
           resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           childOf span(0)
@@ -313,8 +314,8 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
       trace(2) {
         basicSpan(it, "parent")
         span {
-          operationName "${driver}.query"
-          serviceName driver
+          operationName this.operation(driver)
+          serviceName service(driver)
           resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           childOf span(0)
@@ -371,8 +372,8 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
       trace(2) {
         basicSpan(it, "parent")
         span {
-          operationName "${driver}.query"
-          serviceName driver
+          operationName this.operation(driver)
+          serviceName service(driver)
           resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           childOf span(0)
@@ -430,8 +431,8 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
       trace(2) {
         basicSpan(it, "parent")
         span {
-          operationName "${driver}.query"
-          serviceName driver
+          operationName this.operation(driver)
+          serviceName service(driver)
           resourceName query
           spanType DDSpanTypes.SQL
           childOf span(0)
@@ -487,5 +488,62 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
   Connection connect(String driverClass, String url, Properties properties) {
     return newDriver(driverClass)
       .connect(url, properties)
+  }
+
+  @Override
+  final String service() {
+    return null
+  }
+
+  @Override
+  final String operation() {
+    return null
+  }
+
+  protected abstract String service(String dbType)
+
+  protected abstract String operation(String dbType)
+}
+
+class RemoteJDBCInstrumentationV0ForkedTest extends RemoteJDBCInstrumentationTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  protected String service(String dbType) {
+    return dbType
+  }
+
+  @Override
+  protected String operation(String dbType) {
+    return "${dbType}.query"
+  }
+}
+
+class RemoteJDBCInstrumentationV1ForkedTest extends RemoteJDBCInstrumentationTest {
+
+  def remapDbType(String dbType) {
+    if ("postgresql" == dbType) {
+      return "postgres"
+    }
+    return dbType
+  }
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  protected String service(String dbType) {
+    return Config.get().getServiceName() + "-${remapDbType(dbType)}"
+  }
+
+  @Override
+  protected String operation(String dbType) {
+    return "${remapDbType(dbType)}.query"
   }
 }

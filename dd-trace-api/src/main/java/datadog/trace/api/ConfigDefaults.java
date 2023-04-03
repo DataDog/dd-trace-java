@@ -12,6 +12,8 @@ public final class ConfigDefaults {
   static final BitSet DEFAULT_GRPC_SERVER_ERROR_STATUSES;
   static final BitSet DEFAULT_GRPC_CLIENT_ERROR_STATUSES;
 
+  static final BitSet DEFAULT_ATTRIBUTE_SCHEMA_VERSIONS;
+
   static {
     DEFAULT_HTTP_SERVER_ERROR_STATUSES = new BitSet();
     DEFAULT_HTTP_SERVER_ERROR_STATUSES.set(500, 600);
@@ -21,6 +23,8 @@ public final class ConfigDefaults {
     DEFAULT_GRPC_SERVER_ERROR_STATUSES.set(2, 17);
     DEFAULT_GRPC_CLIENT_ERROR_STATUSES = new BitSet();
     DEFAULT_GRPC_CLIENT_ERROR_STATUSES.set(1, 17);
+    DEFAULT_ATTRIBUTE_SCHEMA_VERSIONS = new BitSet();
+    DEFAULT_ATTRIBUTE_SCHEMA_VERSIONS.set(0, 1);
   }
 
   /* These fields are made public because they're referenced elsewhere internally.  They're not intended as public API. */
@@ -98,7 +102,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_REMOTE_CONFIG_ENABLED = true;
   static final boolean DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED = false;
   static final int DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE = 1024; // KiB
-  static final int DEFAULT_REMOTE_CONFIG_INITIAL_POLL_INTERVAL = 5; // s
+  static final int DEFAULT_REMOTE_CONFIG_POLL_INTERVAL_SECONDS = 5;
   static final String DEFAULT_REMOTE_CONFIG_TARGETS_KEY_ID =
       "5c4ece41241a1bb513f6e3e5df74ab7d5183dfffbd71bfd43127920d880569fd";
   static final String DEFAULT_REMOTE_CONFIG_TARGETS_KEY =

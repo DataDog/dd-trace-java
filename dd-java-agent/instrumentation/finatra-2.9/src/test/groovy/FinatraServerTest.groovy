@@ -4,6 +4,7 @@ import com.twitter.util.Closable
 import com.twitter.util.Duration
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.finatra.FinatraDecorator
@@ -14,7 +15,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
-class FinatraServerTest extends HttpServerTest<HttpServer> {
+abstract class FinatraServerTest extends HttpServerTest<HttpServer> {
   private static final Duration TIMEOUT = Duration.fromSeconds(5)
   private static final long STARTUP_TIMEOUT = 20 // SECONDS
 
@@ -62,7 +63,7 @@ class FinatraServerTest extends HttpServerTest<HttpServer> {
 
   @Override
   String expectedOperationName() {
-    return "finatra.request"
+    return operation()
   }
 
   @Override
@@ -94,4 +95,24 @@ class FinatraServerTest extends HttpServerTest<HttpServer> {
       }
     }
   }
+}
+
+class FinatraServerV0ForkedTest extends FinatraServerTest {
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "finatra.request"
+  }
+}
+
+class FinatraServerV1ForkedTest extends FinatraServerTest implements TestingGenericHttpNamingConventions.ServerV1 {
 }

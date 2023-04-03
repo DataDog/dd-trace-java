@@ -96,5 +96,7 @@ public final class TracerConfig {
 
   public static final String CLOCK_SYNC_PERIOD = "trace.clock.sync.period";
 
+  public static final String TRACE_SPAN_ATTRIBUTE_SCHEMA = "trace.span.attribute.schema";
+
   private TracerConfig() {}
 }
