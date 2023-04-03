@@ -301,6 +301,7 @@ public class DDSpanContext
         propagationTags != null
             ? propagationTags
             : trace.getTracer().getPropagationTagsFactory().empty();
+    this.propagationTags.updateTraceIdHighOrderBits(this.traceId.toHighOrderLong());
 
     if (origin != null) {
       setOrigin(origin);

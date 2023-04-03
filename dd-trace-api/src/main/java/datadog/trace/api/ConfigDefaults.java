@@ -145,6 +145,8 @@ public final class ConfigDefaults {
   static final int DEFAULT_TELEMETRY_METRICS_INTERVAL = 10; // in seconds
   static final boolean DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED = true;
 
+  static final boolean DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED = false;
+  static final boolean DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED = false;
   static final boolean DEFAULT_SECURE_RANDOM = false;
 
   public static final int DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH = 512;

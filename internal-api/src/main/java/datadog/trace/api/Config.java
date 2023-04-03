@@ -66,6 +66,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_METRICS_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
@@ -278,6 +279,7 @@ import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES;
 import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES_FILE;
 import static datadog.trace.api.config.TracerConfig.SPAN_TAGS;
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS;
+import static datadog.trace.api.config.TracerConfig.TRACE_128_BIT_TRACEID_GENERATION_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_ARGS;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PATH;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT;
@@ -617,6 +619,8 @@ public class Config {
 
   private final boolean secureRandom;
 
+  private final boolean trace128bitTraceIdGenerationEnabled;
+
   private final Set<String> grpcIgnoredInboundMethods;
   private final Set<String> grpcIgnoredOutboundMethods;
   private final boolean grpcServerTrimPackageResource;
@@ -710,19 +714,24 @@ public class Config {
     }
 
     String strategyName = configProvider.getString(ID_GENERATION_STRATEGY);
+    trace128bitTraceIdGenerationEnabled =
+        configProvider.getBoolean(
+            TRACE_128_BIT_TRACEID_GENERATION_ENABLED,
+            DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED);
     if (secureRandom) {
       strategyName = "SECURE_RANDOM";
     }
     if (strategyName == null) {
       strategyName = "RANDOM";
     }
-    IdGenerationStrategy strategy = IdGenerationStrategy.fromName(strategyName);
+    IdGenerationStrategy strategy =
+        IdGenerationStrategy.fromName(strategyName, trace128bitTraceIdGenerationEnabled);
     if (strategy == null) {
       log.warn(
           "*** you are trying to use an unknown id generation strategy {} - falling back to RANDOM",
           strategyName);
       strategyName = "RANDOM";
-      strategy = IdGenerationStrategy.fromName(strategyName);
+      strategy = IdGenerationStrategy.fromName(strategyName, trace128bitTraceIdGenerationEnabled);
     }
     if (!strategyName.equals("RANDOM") && !strategyName.equals("SECURE_RANDOM")) {
       log.warn(
@@ -2252,6 +2261,10 @@ public class Config {
     return idGenerationStrategy;
   }
 
+  public boolean isTrace128bitTraceIdGenerationEnabled() {
+    return trace128bitTraceIdGenerationEnabled;
+  }
+
   public Set<String> getGrpcIgnoredInboundMethods() {
     return grpcIgnoredInboundMethods;
   }
@@ -3249,6 +3262,8 @@ public class Config {
         + '\''
         + ", idGenerationStrategy="
         + idGenerationStrategy
+        + ", trace128bitTraceIdGenerationEnabled"
+        + trace128bitTraceIdGenerationEnabled
         + ", grpcIgnoredInboundMethods="
         + grpcIgnoredInboundMethods
         + ", grpcIgnoredOutboundMethods="

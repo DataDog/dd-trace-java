@@ -169,6 +169,6 @@ class W3CHttpInjectorTest extends DDCoreSpecification {
   }
 
   static String buildTraceParent(String traceId, String spanId, int samplingPriority) {
-    return "00-${DDTraceId.from(traceId).toHexStringPadded(32)}-${DDSpanId.toHexStringPadded(DDSpanId.from(spanId))}-${samplingPriority > 0 ? '01': '00'}"
+    return "00-${DDTraceId.from(traceId).toHexString()}-${DDSpanId.toHexStringPadded(DDSpanId.from(spanId))}-${samplingPriority > 0 ? '01': '00'}"
   }
 }

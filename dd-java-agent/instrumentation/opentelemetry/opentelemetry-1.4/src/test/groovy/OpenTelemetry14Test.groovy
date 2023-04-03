@@ -365,7 +365,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
     currentSpan = Span.current()
 
     then:
-    currentSpan.spanContext.traceId == ddSpan.traceId.toHexStringPadded(32)
+    currentSpan.spanContext.traceId == ddSpan.traceId.toHexString()
     currentSpan.spanContext.spanId == DDSpanId.toHexString(ddSpan.spanId)
 
     cleanup:

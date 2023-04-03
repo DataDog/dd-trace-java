@@ -18,7 +18,6 @@ import spock.lang.Shared
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.api.sampling.PrioritySampling.UNSET
-import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
 import static datadog.trace.api.sampling.SamplingMechanism.SPAN_SAMPLING_RATE
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MAX_PER_SECOND_TAG
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MECHANISM_TAG
@@ -272,8 +271,8 @@ class DDSpanTest extends DDCoreSpecification {
     child.@origin == null // Access field directly instead of getter.
 
     where:
-    extractedContext                                                                                                                          | _
-    new TagContext("some-origin", [:])                                                                                                        | _
+    extractedContext                                                                                                                           | _
+    new TagContext("some-origin", [:])                                                                                                         | _
     new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, "some-origin", 0, [:], [:], null, propagationTagsFactory.empty()) | _
   }
 
@@ -291,8 +290,8 @@ class DDSpanTest extends DDCoreSpecification {
     root.finish()
 
     where:
-    extractedContext                                                                                                                          | isTraceRootSpan
-    null                                                                                                                                      | true
+    extractedContext                                                                                                                        | isTraceRootSpan
+    null                                                                                                                                    | true
     new ExtractedContext(DDTraceId.from(123), 456, PrioritySampling.SAMPLER_KEEP, "789", 0, [:], [:], null, propagationTagsFactory.empty()) | false
   }
 

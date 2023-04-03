@@ -52,7 +52,7 @@ class HttpExtractorTest extends DDSpecification {
       if (expectedTraceId == null) {
         assert context == null
       } else {
-        assert context.traceId == DDTraceId.from(expectedTraceId)
+        assert context.traceId.toLong() == DDTraceId.from(expectedTraceId).toLong()
         assert context.spanId == DDSpanId.from(expectedSpanId)
       }
     }

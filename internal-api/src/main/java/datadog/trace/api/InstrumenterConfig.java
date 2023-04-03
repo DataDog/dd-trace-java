@@ -10,6 +10,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_RESET_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANNOTATIONS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXECUTORS_ALL;
@@ -35,6 +36,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_RESET
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE_FILE;
@@ -63,6 +65,7 @@ public class InstrumenterConfig {
   private final boolean traceEnabled;
   private final boolean logsInjectionEnabled;
   private final boolean logsMDCTagsInjectionEnabled;
+  private final boolean logs128bTraceIdEnabled;
   private final boolean profilingEnabled;
   private final boolean ciVisibilityEnabled;
   private final ProductActivation appSecActivation;
@@ -112,6 +115,9 @@ public class InstrumenterConfig {
     logsInjectionEnabled =
         configProvider.getBoolean(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
     logsMDCTagsInjectionEnabled = configProvider.getBoolean(LOGS_MDC_TAGS_INJECTION_ENABLED, true);
+    logs128bTraceIdEnabled =
+        configProvider.getBoolean(
+            TRACE_128_BIT_TRACEID_LOGGING_ENABLED, DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED);
 
     if (!Platform.isNativeImageBuilder()) {
       profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, PROFILING_ENABLED_DEFAULT);
@@ -207,6 +213,10 @@ public class InstrumenterConfig {
 
   public boolean isLogsMDCTagsInjectionEnabled() {
     return logsMDCTagsInjectionEnabled && !Platform.isNativeImageBuilder();
+  }
+
+  public boolean isLogs128bTraceIdEnabled() {
+    return logs128bTraceIdEnabled;
   }
 
   public boolean isProfilingEnabled() {
@@ -346,6 +356,8 @@ public class InstrumenterConfig {
         + logsInjectionEnabled
         + ", logsMDCTagsInjectionEnabled="
         + logsMDCTagsInjectionEnabled
+        + ", logs128bTraceIdEnabled="
+        + logs128bTraceIdEnabled
         + ", profilingEnabled="
         + profilingEnabled
         + ", ciVisibilityEnabled="
