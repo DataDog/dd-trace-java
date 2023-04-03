@@ -99,7 +99,11 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_METRICS;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_TIMEOUT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENT_JAR_URI;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_ID;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SESSION_ID;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ENABLED;
@@ -552,6 +556,10 @@ public class Config {
   private final boolean ciVisibilityBuildInstrumentationEnabled;
   private final Long ciVisibilitySessionId;
   private final Long ciVisibilityModuleId;
+  private final String ciVisibilityAgentJarUri;
+  private final boolean ciVisibilityAutoConfigurationEnabled;
+  private final String ciVisibilityCompilerPluginVersion;
+  private final Integer ciVisibilityDebugPort;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1297,6 +1305,13 @@ public class Config {
     } else {
       ciVisibilityAgentlessUrl = null;
     }
+
+    ciVisibilityAgentJarUri = configProvider.getString(CIVISIBILITY_AGENT_JAR_URI);
+    ciVisibilityAutoConfigurationEnabled =
+        configProvider.getBoolean(CIVISIBILITY_AUTO_CONFIGURATION_ENABLED, true);
+    ciVisibilityCompilerPluginVersion =
+        configProvider.getString(CIVISIBILITY_COMPILER_PLUGIN_VERSION, "0.1.1");
+    ciVisibilityDebugPort = configProvider.getInteger(CIVISIBILITY_DEBUG_PORT);
 
     remoteConfigEnabled =
         configProvider.getBoolean(REMOTE_CONFIG_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED);
@@ -2060,6 +2075,22 @@ public class Config {
     return ciVisibilityModuleId;
   }
 
+  public String getCiVisibilityAgentJarUri() {
+    return ciVisibilityAgentJarUri;
+  }
+
+  public boolean isCiVisibilityAutoConfigurationEnabled() {
+    return ciVisibilityAutoConfigurationEnabled;
+  }
+
+  public String getCiVisibilityCompilerPluginVersion() {
+    return ciVisibilityCompilerPluginVersion;
+  }
+
+  public Integer getCiVisibilityDebugPort() {
+    return ciVisibilityDebugPort;
+  }
+
   public String getAppSecRulesFile() {
     return appSecRulesFile;
   }
@@ -2775,7 +2806,7 @@ public class Config {
     return Collections.unmodifiableSet(result);
   }
 
-  private static final String PREFIX = "dd.";
+  public static final String PREFIX = "dd.";
 
   /**
    * Converts the property name, e.g. 'service.name' into a public system property name, e.g.
