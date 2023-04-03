@@ -367,6 +367,11 @@ class KafkaStreamsV1ForkedTest extends KafkaStreamsForkedTest {
   String serviceForTimeInQueue() {
     "kafka-queue"
   }
+
+  @Override
+  boolean hasQueueSpan() {
+    return false
+  }
 }
 
 class KafkaStreamsSplitByDestinationForkedTest extends KafkaStreamsTestBase {

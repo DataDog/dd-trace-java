@@ -1015,6 +1015,11 @@ class KafkaClientV1ForkedTest extends KafkaClientForkedTest {
   String serviceForTimeInQueue() {
     "kafka-queue"
   }
+
+  @Override
+  boolean hasQueueSpan() {
+    false
+  }
 }
 
 class KafkaClientSplitByDestinationForkedTest extends KafkaClientTestBase {

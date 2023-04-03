@@ -13,7 +13,7 @@ import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_CONSUME;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_DELIVER;
-import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_LEGACY_TRACING;
+import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_streams.ProcessorRecordContextVisitor.PR_GETTER;
 import static datadog.trace.instrumentation.kafka_streams.StampedRecordContextVisitor.SR_GETTER;
 import static java.util.Collections.singletonMap;
@@ -219,7 +219,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
       if (!Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
         final AgentSpan.Context extractedContext = propagate().extract(record, SR_GETTER);
         long timeInQueueStart = SR_GETTER.extractTimeInQueueStart(record);
-        if (timeInQueueStart == 0 || KAFKA_LEGACY_TRACING) {
+        if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
           span = startSpan(KAFKA_CONSUME, extractedContext);
         } else {
           queueSpan =
@@ -284,7 +284,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
       if (!Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
         final AgentSpan.Context extractedContext = propagate().extract(record, PR_GETTER);
         long timeInQueueStart = PR_GETTER.extractTimeInQueueStart(record);
-        if (timeInQueueStart == 0 || KAFKA_LEGACY_TRACING) {
+        if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
           span = startSpan(KAFKA_CONSUME, extractedContext);
         } else {
           queueSpan =

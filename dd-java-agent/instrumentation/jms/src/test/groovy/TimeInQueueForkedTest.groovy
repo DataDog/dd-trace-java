@@ -649,6 +649,13 @@ class TimeInQueueV0ForkedTest extends TimeInQueueForkedTest {
 }
 
 class TimeInQueueV1ForkedTest extends TimeInQueueForkedTest {
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.jms.time-in-queue.enabled", "true")
+  }
+
   @Override
   String operationForProducer() {
     "jms.send"
@@ -668,7 +675,6 @@ class TimeInQueueV1ForkedTest extends TimeInQueueForkedTest {
   int version() {
     1
   }
-
 }
 
 
