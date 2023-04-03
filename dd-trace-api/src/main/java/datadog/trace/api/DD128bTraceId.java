@@ -14,7 +14,7 @@ import datadog.trace.api.internal.util.LongStringUtils;
  * #highOrderBits} is set to <code>0</code> and {@link #lowOrderBits} contains a unique and random
  * 63-bit id.
  */
-public class DD128bTraceId implements DDTraceId {
+public class DD128bTraceId extends DDTraceId {
   public static final DD128bTraceId ZERO =
       new DD128bTraceId(0, 0, "00000000000000000000000000000000");
   /** Represents the high-order 64 bits of the 128-bit trace id. */

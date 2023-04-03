@@ -8,11 +8,11 @@ import datadog.trace.api.internal.util.LongStringUtils;
  * <p>It contains parsing and formatting to string for both decimal and hexadecimal representations.
  * The string representations are either kept from parsing, or generated on demand and cached.
  */
-public interface DDTraceId {
+public abstract class DDTraceId {
   /** Invalid TraceId value used to denote no TraceId. */
-  DDTraceId ZERO = from(0);
+  public static final DDTraceId ZERO = from(0);
   /** Convenience constant used from tests */
-  DDTraceId ONE = from(1);
+  public static final DDTraceId ONE = from(1);
 
   /**
    * Creates a new {@link DD64bTraceId 64-bit TraceId} from the given {@code long} interpreted as
@@ -22,7 +22,7 @@ public interface DDTraceId {
    * @param id The {@code long} representing the bits of the unsigned 64-bit id.
    * @return A new {@link DDTraceId} instance.
    */
-  static DDTraceId from(long id) {
+  public static DDTraceId from(long id) {
     return DD64bTraceId.from(id);
   }
 
@@ -34,7 +34,7 @@ public interface DDTraceId {
    * @return A new {@link DDTraceId} instance.
    * @throws NumberFormatException If the given {@link String} does not represent a valid number.
    */
-  static DDTraceId from(String s) throws NumberFormatException {
+  public static DDTraceId from(String s) throws NumberFormatException {
     return DD64bTraceId.create(LongStringUtils.parseUnsignedLong(s), s);
   }
 
@@ -47,7 +47,7 @@ public interface DDTraceId {
    * @throws NumberFormatException If the given {@link #toHexString() hexadecimal String} does not
    *     represent a valid number.
    */
-  static DDTraceId fromHex(String s) throws NumberFormatException {
+  public static DDTraceId fromHex(String s) throws NumberFormatException {
     if (s == null) {
       throw new NumberFormatException("s cannot be null");
     }
@@ -62,7 +62,7 @@ public interface DDTraceId {
    *     instance.
    */
   @Override
-  String toString();
+  public abstract String toString();
 
   /**
    * Returns the lower-case zero-padded 32 hexadecimal characters {@link String} representation of
@@ -71,7 +71,7 @@ public interface DDTraceId {
    * @return A cached lower-case zero-padded 32 hexadecimal characters {@link String} representation
    *     of the {@link DDTraceId} instance.
    */
-  String toHexString();
+  public abstract String toHexString();
 
   /**
    * Returns the lower-case zero-padded {@link #toHexString() hexadecimal String} representation of
@@ -83,7 +83,7 @@ public interface DDTraceId {
    * @return A lower-case zero-padded {@link #toHexString() String representation} representation of
    *     the {@link DDTraceId} instance.
    */
-  String toHexStringPadded(int size);
+  public abstract String toHexStringPadded(int size);
 
   /**
    * Returns the low-order 64 bits of the {@link DDTraceId} as an unsigned {@code long}. This means
@@ -91,7 +91,7 @@ public interface DDTraceId {
    *
    * @return The low-order 64 bits of the {@link DDTraceId} as an unsigned {@code long}.
    */
-  long toLong();
+  public abstract long toLong();
 
   /**
    * Returns the high-order 64 bits of 128-bit {@link DDTraceId} as un unsigned {@code long}. This
@@ -100,5 +100,5 @@ public interface DDTraceId {
    * @return The high-order 64 bits of the 128-bit {@link DDTraceId} as an unsigned {@code long},
    *     <code>0</code> for 64-bit {@link DDTraceId} only.
    */
-  long toHighOrderLong();
+  public abstract long toHighOrderLong();
 }

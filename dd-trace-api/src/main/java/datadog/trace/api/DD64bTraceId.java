@@ -9,9 +9,7 @@ import datadog.trace.api.internal.util.LongStringUtils;
  * representations. The decimal string representation is either kept from parsing, or generated on
  * demand and cached.
  */
-public class DD64bTraceId implements DDTraceId {
-
-  public static final DD64bTraceId ZERO = new DD64bTraceId(0, "0");
+public class DD64bTraceId extends DDTraceId {
   public static final DD64bTraceId MAX =
       new DD64bTraceId(-1, "18446744073709551615"); // All bits set
 
@@ -61,9 +59,15 @@ public class DD64bTraceId implements DDTraceId {
   }
 
   static DD64bTraceId create(long id, String str) {
-    if (id == 0) return ZERO;
-    if (id == -1) return MAX;
-    return new DD64bTraceId(id, str);
+    // ZERO constant is created and stored by the parent class as part of its API contract
+    // But initialized by this 64-bit child class. Ensures uniqueness of ZERO once created.
+    if (id == 0 && ZERO != null) {
+      return (DD64bTraceId) ZERO;
+    } else if (id == -1) {
+      return MAX;
+    } else {
+      return new DD64bTraceId(id, str);
+    }
   }
 
   @Override

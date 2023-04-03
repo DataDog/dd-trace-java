@@ -189,4 +189,14 @@ class DDTraceIdTest extends DDSpecification {
     // Too long id
     "1" * 33           | 0     | 33     | true
   }
+
+  def "check ZERO constant initialization"() {
+    when:
+    def zero = DDTraceId.ZERO
+    def fromZero = DDTraceId.from(0)
+
+    then:
+    zero != null
+    zero.is(fromZero)
+  }
 }

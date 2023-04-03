@@ -4,7 +4,7 @@ import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDTraceId;
 
 /** A B3 {@link DDTraceId} along with its original {@link String} representation. */
-public class B3TraceId implements DDTraceId {
+public class B3TraceId extends DDTraceId {
   /** The original {@link String} representation. */
   protected final String original;
 
