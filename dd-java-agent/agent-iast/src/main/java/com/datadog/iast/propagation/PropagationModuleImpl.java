@@ -119,6 +119,22 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
+  public void taintIfAnyInputIsTainted(
+      @Nullable final Object toTaint, @Nullable final Object... inputs) {
+    if (toTaint == null || inputs == null || inputs.length == 0) {
+      return;
+    }
+    final TaintedObjects taintedObjects = lazyTaintedObjects();
+    for (final Object input : inputs) {
+      final Source source = firstTaintedSource(taintedObjects, input);
+      if (source != null) {
+        taintObject(taintedObjects, toTaint, source);
+        return;
+      }
+    }
+  }
+
+  @Override
   public void taint(final byte origin, @Nullable final Object... toTaintArray) {
     if (toTaintArray == null || toTaintArray.length == 0) {
       return;

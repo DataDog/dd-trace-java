@@ -203,15 +203,16 @@ public class StringCallSite {
 
   @CallSite.After("void java.lang.String.<init>(java.lang.String)")
   public static String afterConstructor(
-      @CallSite.This final String self, @CallSite.Argument final String originalString) {
+      @CallSite.AllArguments @Nonnull final Object[] params,
+      @CallSite.Return @Nonnull final String result) {
     final StringModule module = InstrumentationBridge.STRING;
     try {
       if (module != null) {
-        module.onStringConstructor(originalString, self);
+        module.onStringConstructor((String) params[0], result);
       }
     } catch (final Throwable e) {
       module.onUnexpectedException("afterSubstring threw", e);
     }
-    return self;
+    return result;
   }
 }
