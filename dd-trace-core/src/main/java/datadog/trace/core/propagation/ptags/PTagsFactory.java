@@ -189,7 +189,9 @@ public class PTagsFactory implements PropagationTags.Factory {
       if (traceIdHighOrderBits != highOrderBits) {
         traceIdHighOrderBits = highOrderBits;
         traceIdHighOrderBitsHexTagValue =
-            TagValue.from(LongStringUtils.toHexStringPadded(highOrderBits, 16));
+            highOrderBits == 0
+                ? null
+                : TagValue.from(LongStringUtils.toHexStringPadded(highOrderBits, 16));
         clearCachedHeader(DATADOG);
       }
     }
