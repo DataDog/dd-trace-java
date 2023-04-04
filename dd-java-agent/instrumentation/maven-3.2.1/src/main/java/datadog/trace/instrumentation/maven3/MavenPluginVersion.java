@@ -4,6 +4,8 @@ import java.util.regex.Pattern;
 
 public class MavenPluginVersion {
 
+  public static final MavenPluginVersion UNKNOWN = new MavenPluginVersion();
+
   private static final Pattern DOT = Pattern.compile("\\.");
 
   private final int[] tokens;
@@ -24,7 +26,7 @@ public class MavenPluginVersion {
         return false;
       }
     }
-    return true;
+    return tokens.length >= other.tokens.length;
   }
 
   static MavenPluginVersion from(String s) {

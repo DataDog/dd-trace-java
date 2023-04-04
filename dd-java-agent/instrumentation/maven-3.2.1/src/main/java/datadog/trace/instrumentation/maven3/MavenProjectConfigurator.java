@@ -2,9 +2,13 @@ package datadog.trace.instrumentation.maven3;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
+import datadog.trace.util.VmUtils;
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import org.apache.maven.model.Dependency;
@@ -12,8 +16,12 @@ import org.apache.maven.model.Plugin;
 import org.apache.maven.model.PluginExecution;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class MavenProjectConfigurator {
+
+  private static final Logger log = LoggerFactory.getLogger(MavenProjectConfigurator.class);
 
   static final MavenProjectConfigurator INSTANCE = new MavenProjectConfigurator();
 
@@ -30,6 +38,16 @@ class MavenProjectConfigurator {
 
   private static final MavenPluginVersion ANNOTATION_PROCESSOR_PATHS_SUPPORTED_VERSION =
       MavenPluginVersion.from("3.5");
+
+  private static final MavenPluginVersion JDK_TOOLCHAIN_SUPPORTED_VERSION =
+      MavenPluginVersion.from("3.6.0");
+
+  private static final List<String> DD_JAVAC_PLUGIN_PACKAGE_EXPORTS =
+      Arrays.asList(
+          "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
+          "--add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
+          "--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+          "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED");
 
   void configureTracer(MavenProject project, String pluginKey) {
     Plugin surefirePlugin = project.getPlugin(pluginKey);
@@ -119,15 +137,30 @@ class MavenProjectConfigurator {
         continue;
       }
 
-      // FIXME add a comment to explain what's happening here
-      if (Platform.isJavaVersionAtLeast(16)) {
-        if (isCompilerProcessForked(configuration, pluginConfiguration, project)) {
-          addPackagesExport(configuration);
+      MavenPluginVersion mavenPluginVersion =
+          compilerPlugin.getVersion() != null
+              ? MavenPluginVersion.from(compilerPlugin.getVersion())
+              : MavenPluginVersion.UNKNOWN;
 
-        } else if (!isNecessaryPackageExportsPresent()) {
-          // FIXME write a log and abort configuration
-          return;
+      // DD Javac Plugin is using some internal APIs that, starting with JDK 16,
+      // need to be exported explicitly
+      if (isCompilerProcessForked(
+          configuration, pluginConfiguration, project, mavenPluginVersion)) {
+        if (getForkedVmMajorVersion(configuration, pluginConfiguration, project) >= 16) {
+          for (String export : DD_JAVAC_PLUGIN_PACKAGE_EXPORTS) {
+            addCompilerArg(configuration, "-J" + export);
+          }
         }
+
+      } else if (Platform.isJavaVersionAtLeast(16) && !isNecessaryPackageExportsPresent()) {
+        log.warn(
+            "Skipping DD Javac Plugin configuration for module {} and execution {} "
+                + "because required package exports are missing. "
+                + "Consider adding the following arguments to Maven JVM:\n{}",
+            project.getName(),
+            execution.getId(),
+            String.join("\n", DD_JAVAC_PLUGIN_PACKAGE_EXPORTS));
+        continue;
       }
 
       Dependency javacPluginClientDependency = new Dependency();
@@ -137,8 +170,7 @@ class MavenProjectConfigurator {
       project.getDependencies().add(javacPluginClientDependency);
 
       // FIXME handle Lombok usecase (and test it manually)
-      MavenPluginVersion pluginVersion = MavenPluginVersion.from(compilerPlugin.getVersion());
-      if (pluginVersion.isLaterThanOrEqualTo(ANNOTATION_PROCESSOR_PATHS_SUPPORTED_VERSION)) {
+      if (mavenPluginVersion.isLaterThanOrEqualTo(ANNOTATION_PROCESSOR_PATHS_SUPPORTED_VERSION)) {
         configuration =
             MavenUtils.setConfigurationValue(
                 DATADOG_GROUP_ID,
@@ -169,25 +201,39 @@ class MavenProjectConfigurator {
         project.getDependencies().add(javacPluginDependency);
       }
 
-      configuration =
-          MavenUtils.setConfigurationValue(
-              "-Xplugin:" + DATADOG_COMPILER_PLUGIN_ID, configuration, "compilerArgs", "arg");
+      addCompilerArg(configuration, "-Xplugin:" + DATADOG_COMPILER_PLUGIN_ID);
 
       execution.setConfiguration(configuration);
     }
   }
 
+  private int getForkedVmMajorVersion(
+      Xpp3Dom executionConfiguration, Xpp3Dom pluginConfiguration, MavenProject project) {
+    // FIXME first check the <executable> param on plugin or execution configurations: if present,
+    // try to execute with "--version" param to determine version (executable override toolchain)
+    // FIXME then check the <jdkToolchain> param to see if it has a <version> child
+    // FIXME if neither is present, assume forked JVM will have the same version as current JVM (and
+    // use Platform.getLangVersion()) ?
+
+  }
+
   // FIXME test this one manually
   private boolean isCompilerProcessForked(
-      Xpp3Dom executionConfiguration, Xpp3Dom pluginConfiguration, MavenProject project) {
-    return isCompilerProcessForked(executionConfiguration)
-        || isCompilerProcessForked(pluginConfiguration)
+      Xpp3Dom executionConfiguration,
+      Xpp3Dom pluginConfiguration,
+      MavenProject project,
+      MavenPluginVersion mavenPluginVersion) {
+    return isCompilerProcessForked(executionConfiguration, mavenPluginVersion)
+        || isCompilerProcessForked(pluginConfiguration, mavenPluginVersion)
         || isUsingToolchainsPlugin(project);
   }
 
-  private boolean isCompilerProcessForked(Xpp3Dom configuration) {
+  private boolean isCompilerProcessForked(
+      Xpp3Dom configuration, MavenPluginVersion mavenPluginVersion) {
     return "true".equals(MavenUtils.getConfigurationValue(configuration, "fork"))
-        || MavenUtils.getConfigurationValue(configuration, "jdkToolchain") != null;
+        || (configuration != null
+            && configuration.getChild("jdkToolchain") != null
+            && mavenPluginVersion.isLaterThanOrEqualTo(JDK_TOOLCHAIN_SUPPORTED_VERSION));
   }
 
   private boolean isUsingToolchainsPlugin(MavenProject project) {
@@ -195,35 +241,20 @@ class MavenProjectConfigurator {
     return toolchainsPlugin != null;
   }
 
-  // FIXME test this one manually
-  private static void addPackagesExport(Xpp3Dom configuration) {
+  private static void addCompilerArg(Xpp3Dom configuration, String argValue) {
     Xpp3Dom compilerArgs = configuration.getChild("compilerArgs");
     if (compilerArgs == null) {
       compilerArgs = new Xpp3Dom("compilerArgs");
       configuration.addChild(compilerArgs);
     }
 
-    Xpp3Dom apiExport = new Xpp3Dom("arg");
-    apiExport.setValue("-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED");
-    configuration.addChild(apiExport);
-
-    Xpp3Dom codeExport = new Xpp3Dom("arg");
-    codeExport.setValue("-J--add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED");
-    configuration.addChild(codeExport);
-
-    Xpp3Dom treeExport = new Xpp3Dom("arg");
-    treeExport.setValue("-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED");
-    configuration.addChild(treeExport);
-
-    Xpp3Dom utilExport = new Xpp3Dom("arg");
-    utilExport.setValue("-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED");
-    configuration.addChild(utilExport);
+    Xpp3Dom arg = new Xpp3Dom("arg");
+    arg.setValue(argValue);
+    compilerArgs.addChild(arg);
   }
 
   private boolean isNecessaryPackageExportsPresent() {
-    //    --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED
-    //    --add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED
-    //    --add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED
-    //    --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED
+    Collection<String> vmArguments = VmUtils.getVMArguments();
+    return vmArguments.containsAll(DD_JAVAC_PLUGIN_PACKAGE_EXPORTS);
   }
 }
