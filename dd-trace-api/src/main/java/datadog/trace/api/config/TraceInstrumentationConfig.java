@@ -6,10 +6,11 @@ package datadog.trace.api.config;
  * <p>Configure via system properties, environment variables, or config properties file. See online
  * documentation for details.
  *
- * @see {@link TracerConfig} for more tracer config options
+ * @see TracerConfig for more tracer config options
  */
 public final class TraceInstrumentationConfig {
   public static final String TRACE_ENABLED = "trace.enabled";
+  public static final String TRACE_OTEL_ENABLED = "trace.otel.enabled";
   public static final String INTEGRATIONS_ENABLED = "integrations.enabled";
   public static final String LEGACY_INSTALLER_ENABLED = "legacy.installer.enabled";
 

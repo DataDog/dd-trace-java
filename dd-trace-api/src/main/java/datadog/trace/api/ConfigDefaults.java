@@ -41,6 +41,7 @@ public final class ConfigDefaults {
   static final String DEFAULT_SITE = "datadoghq.com";
 
   static final boolean DEFAULT_TRACE_ENABLED = true;
+  static final boolean DEFAULT_TRACE_OTEL_ENABLED = false;
   static final boolean DEFAULT_INTEGRATIONS_ENABLED = true;
 
   static final boolean DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION = true;
