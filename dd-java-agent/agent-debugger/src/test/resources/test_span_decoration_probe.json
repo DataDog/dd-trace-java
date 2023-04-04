@@ -19,7 +19,7 @@
       "signature": "java.lang.String ()"
     },
     "targetSpan": "ACTIVE",
-    "decorate": [
+    "decorations": [
       {
         "when":
         {
@@ -38,8 +38,8 @@
         "tags":
         [
           {
-            "tagName": "uuid",
-            "tagValue":
+            "name": "uuid",
+            "value":
             {
               "dsl": "uuid",
               "json": {
@@ -61,13 +61,13 @@
     },
     "tags": ["version:v123", "env:staging"],
     "targetSpan": "ACTIVE",
-    "decorate": [
+    "decorations": [
       {
         "tags":
         [
           {
-            "tagName": "uuid",
-            "tagValue":
+            "name": "uuid",
+            "value":
             {
               "dsl": "uuid",
               "json": {
@@ -76,8 +76,8 @@
             }
           },
           {
-            "tagName": "tag2",
-            "tagValue":
+            "name": "tag2",
+            "value":
             {
               "dsl": "arg2",
               "json": {
@@ -99,7 +99,7 @@
     },
     "tags": ["version:v123", "env:staging"],
     "targetSpan": "ROOT",
-    "decorate": [
+    "decorations": [
     ]
   },{
     "id": "123356539",
@@ -113,7 +113,7 @@
     "tags": ["version:v123", "env:staging"],
     "evaluateAt": "EXIT",
     "targetSpan": "ROOT",
-    "decorate": [
+    "decorations": [
       {
         "when":
         {
@@ -132,8 +132,8 @@
         "tags":
         [
           {
-            "tagName": "uuid",
-            "tagValue":
+            "name": "uuid",
+            "value":
             {
               "dsl": "uuid",
               "json": {

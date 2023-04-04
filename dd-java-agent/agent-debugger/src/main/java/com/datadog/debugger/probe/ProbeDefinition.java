@@ -146,6 +146,16 @@ public abstract class ProbeDefinition implements Snapshot.ProbeDetails {
       MethodLocation methodLocation) {}
 
   @Override
+  public void commit(
+      Snapshot.CapturedContext entryContext,
+      Snapshot.CapturedContext exitContext,
+      List<Snapshot.CapturedThrowable> caughtExceptions) {}
+
+  /** Commit snapshot based on line context and the current probe This is for line probes */
+  @Override
+  public void commit(Snapshot.CapturedContext lineContext, int line) {}
+
+  @Override
   public boolean isCaptureSnapshot() {
     return false;
   }

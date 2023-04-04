@@ -1,8 +1,8 @@
 package datadog.trace.bootstrap.debugger;
 
+import static datadog.trace.bootstrap.debugger.util.TimeoutChecker.DEFAULT_TIME_OUT;
+
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,8 +13,6 @@ import org.slf4j.LoggerFactory;
  * accessible from instrumented code
  */
 public class DebuggerContext {
-  private static final Duration TIME_OUT = Duration.of(100, ChronoUnit.MILLIS);
-
   private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerContext.class);
 
   public enum SkipCause {
@@ -235,7 +233,7 @@ public class DebuggerContext {
     }
     // only freeze the context when we have at lest one snapshot probe, and we should send snapshot
     if (captureSnapshot && shouldSend) {
-      context.freeze(new TimeoutChecker(TIME_OUT));
+      context.freeze(new TimeoutChecker(DEFAULT_TIME_OUT));
     }
   }
 
@@ -252,10 +250,7 @@ public class DebuggerContext {
       }
       context.evaluate(
           probeId, probeDetails, callingClass.getTypeName(), -1, MethodLocation.DEFAULT);
-      Snapshot snapshot = prepareForCommit(context, line, probeDetails);
-      if (snapshot != null) {
-        snapshot.commit();
-      }
+      probeDetails.commit(context, line);
     }
   }
 
@@ -277,94 +272,16 @@ public class DebuggerContext {
       Snapshot.CapturedContext.Status entryStatus = entryContext.getStatus(probeId);
       Snapshot.CapturedContext.Status exitStatus = exitContext.getStatus(probeId);
       Snapshot.ProbeDetails probeDetails;
-      String message;
       if (entryStatus.probeDetails != Snapshot.ProbeDetails.UNKNOWN
           && (entryStatus.probeDetails.getEvaluateAt() == MethodLocation.ENTRY
               || entryStatus.probeDetails.getEvaluateAt() == MethodLocation.DEFAULT)) {
         probeDetails = entryStatus.probeDetails;
-        message = entryStatus.getMessage();
       } else if (exitStatus.probeDetails.getEvaluateAt() == MethodLocation.EXIT) {
         probeDetails = exitStatus.probeDetails;
-        message = exitStatus.getMessage();
       } else {
         throw new IllegalStateException("no probe details");
       }
-      boolean shouldCommit = false;
-      Snapshot snapshot = new Snapshot(Thread.currentThread(), probeDetails);
-      if (entryStatus.shouldSend() && exitStatus.shouldSend()) {
-        // only rate limit if a condition is defined
-        if (probeDetails.hasCondition()) {
-          if (!ProbeRateLimiter.tryProbe(probeId)) {
-            DebuggerContext.skipSnapshot(probeId, DebuggerContext.SkipCause.RATE);
-            continue;
-          }
-        }
-        if (probeDetails.isCaptureSnapshot()) {
-          snapshot.setEntry(entryContext);
-          snapshot.setExit(exitContext);
-        }
-        snapshot.setMessage(message);
-        snapshot.setDuration(exitContext.getDuration());
-        snapshot.addCaughtExceptions(caughtExceptions);
-        shouldCommit = true;
-      }
-      if (entryStatus.shouldReportError()) {
-        if (entryContext.getThrowable() != null) {
-          // report also uncaught exception
-          snapshot.setEntry(entryContext);
-        }
-        snapshot.addEvaluationErrors(entryStatus.errors);
-        shouldCommit = true;
-      }
-      if (exitStatus.shouldReportError()) {
-        if (exitContext.getThrowable() != null) {
-          // report also uncaught exception
-          snapshot.setExit(exitContext);
-        }
-        snapshot.addEvaluationErrors(exitStatus.errors);
-        shouldCommit = true;
-      }
-      if (shouldCommit) {
-        snapshot.commit();
-      } else {
-        DebuggerContext.skipSnapshot(probeId, DebuggerContext.SkipCause.CONDITION);
-      }
+      probeDetails.commit(entryContext, exitContext, caughtExceptions);
     }
-  }
-
-  /** Commit snapshot based on line context and the current probe This is for line probes */
-  private static Snapshot prepareForCommit(
-      Snapshot.CapturedContext lineContext, int line, Snapshot.ProbeDetails probeDetails) {
-    Snapshot.CapturedContext.Status status = lineContext.getStatus(probeDetails.getId());
-    if (status == null) {
-      return null;
-    }
-    Snapshot snapshot = new Snapshot(Thread.currentThread(), probeDetails);
-    boolean shouldCommit = false;
-    if (status.shouldSend()) {
-      // only rate limit if a condition is defined
-      if (probeDetails.hasCondition()) {
-        if (!ProbeRateLimiter.tryProbe(probeDetails.getId())) {
-          DebuggerContext.skipSnapshot(probeDetails.getId(), DebuggerContext.SkipCause.RATE);
-          return null;
-        }
-      }
-      if (probeDetails.isCaptureSnapshot()) {
-        snapshot.addLine(lineContext, line);
-      }
-      snapshot.setMessage(status.getMessage());
-      shouldCommit = true;
-    }
-    if (status.shouldReportError()) {
-      snapshot.addEvaluationErrors(status.errors);
-      shouldCommit = true;
-    }
-    if (shouldCommit) {
-      // freeze context just before commit because line probes have only one context
-      lineContext.freeze(new TimeoutChecker(TIME_OUT));
-      return snapshot;
-    }
-    DebuggerContext.skipSnapshot(probeDetails.getId(), DebuggerContext.SkipCause.CONDITION);
-    return null;
   }
 }

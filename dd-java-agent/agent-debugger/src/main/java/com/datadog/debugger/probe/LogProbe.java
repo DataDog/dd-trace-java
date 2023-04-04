@@ -1,5 +1,7 @@
 package com.datadog.debugger.probe;
 
+import static datadog.trace.bootstrap.debugger.util.TimeoutChecker.DEFAULT_TIME_OUT;
+
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.agent.LogMessageTemplateBuilder;
 import com.datadog.debugger.el.EvaluationException;
@@ -10,11 +12,14 @@ import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
+import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -168,6 +173,17 @@ public class LogProbe extends ProbeDefinition {
     @Override
     public int hashCode() {
       return Objects.hash(maxReferenceDepth, maxCollectionSize, maxLength, maxFieldCount);
+    }
+
+    public static Limits toLimits(Capture capture) {
+      if (capture == null) {
+        return null;
+      }
+      return new Limits(
+          capture.maxReferenceDepth,
+          capture.maxCollectionSize,
+          capture.maxLength,
+          capture.maxFieldCount);
     }
   }
 
@@ -371,6 +387,100 @@ public class LogProbe extends ProbeDefinition {
           "ProbeCondition for probe[{}] evaluated in {}ns", id, (System.nanoTime() - startTs));
     }
     return true;
+  }
+
+  @Override
+  public void commit(
+      Snapshot.CapturedContext entryContext,
+      Snapshot.CapturedContext exitContext,
+      List<Snapshot.CapturedThrowable> caughtExceptions) {
+    Snapshot.CapturedContext.Status entryStatus = entryContext.getStatus(id);
+    Snapshot.CapturedContext.Status exitStatus = exitContext.getStatus(id);
+    String message = null;
+    switch (evaluateAt) {
+      case ENTRY:
+      case DEFAULT:
+        message = entryStatus.getMessage();
+        break;
+      case EXIT:
+        message = exitStatus.getMessage();
+        break;
+    }
+    boolean shouldCommit = false;
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), this);
+    if (entryStatus.shouldSend() && exitStatus.shouldSend()) {
+      // only rate limit if a condition is defined
+      if (probeCondition != null) {
+        if (!ProbeRateLimiter.tryProbe(id)) {
+          DebuggerContext.skipSnapshot(id, DebuggerContext.SkipCause.RATE);
+          return;
+        }
+      }
+      if (isCaptureSnapshot()) {
+        snapshot.setEntry(entryContext);
+        snapshot.setExit(exitContext);
+      }
+      snapshot.setMessage(message);
+      snapshot.setDuration(exitContext.getDuration());
+      snapshot.addCaughtExceptions(caughtExceptions);
+      shouldCommit = true;
+    }
+    if (entryStatus.shouldReportError()) {
+      if (entryContext.getThrowable() != null) {
+        // report also uncaught exception
+        snapshot.setEntry(entryContext);
+      }
+      snapshot.addEvaluationErrors(entryStatus.getErrors());
+      shouldCommit = true;
+    }
+    if (exitStatus.shouldReportError()) {
+      if (exitContext.getThrowable() != null) {
+        // report also uncaught exception
+        snapshot.setExit(exitContext);
+      }
+      snapshot.addEvaluationErrors(exitStatus.getErrors());
+      shouldCommit = true;
+    }
+    if (shouldCommit) {
+      snapshot.commit();
+    } else {
+      DebuggerContext.skipSnapshot(id, DebuggerContext.SkipCause.CONDITION);
+    }
+  }
+
+  @Override
+  public void commit(Snapshot.CapturedContext lineContext, int line) {
+    Snapshot.CapturedContext.Status status = lineContext.getStatus(id);
+    if (status == null) {
+      return;
+    }
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), this);
+    boolean shouldCommit = false;
+    if (status.shouldSend()) {
+      // only rate limit if a condition is defined
+      if (probeCondition != null) {
+        if (!ProbeRateLimiter.tryProbe(id)) {
+          DebuggerContext.skipSnapshot(id, DebuggerContext.SkipCause.RATE);
+          return;
+        }
+      }
+      if (isCaptureSnapshot()) {
+        snapshot.addLine(lineContext, line);
+      }
+      snapshot.setMessage(status.getMessage());
+      shouldCommit = true;
+    }
+    if (status.shouldReportError()) {
+      snapshot.addEvaluationErrors(status.getErrors());
+      shouldCommit = true;
+    }
+    if (shouldCommit) {
+      // freeze context just before commit because line probes have only one context
+      lineContext.freeze(new TimeoutChecker(DEFAULT_TIME_OUT));
+      snapshot.commit();
+      return;
+    }
+    DebuggerContext.skipSnapshot(id, DebuggerContext.SkipCause.CONDITION);
   }
 
   @Override

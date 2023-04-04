@@ -12,6 +12,7 @@ import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
+import datadog.trace.bootstrap.debugger.Snapshot;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -29,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.pool.TypePool;
 import org.objectweb.asm.ClassReader;
@@ -63,6 +65,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private final boolean instrumentTheWorld;
   private final Set<String> excludeClasses = new HashSet<>();
   private final Trie excludeTrie = new Trie();
+  private final Map<String, LogProbe> instrumentTheWorldProbes;
 
   public interface InstrumentationListener {
     void instrumentationResult(ProbeDefinition definition, InstrumentationResult result);
@@ -77,7 +80,10 @@ public class DebuggerTransformer implements ClassFileTransformer {
     this.listener = listener;
     this.instrumentTheWorld = config.isDebuggerInstrumentTheWorld();
     if (this.instrumentTheWorld) {
+      instrumentTheWorldProbes = new ConcurrentHashMap<>();
       readExcludeFile(config.getDebuggerExcludeFile());
+    } else {
+      instrumentTheWorldProbes = null;
     }
   }
 
@@ -208,8 +214,10 @@ public class DebuggerTransformer implements ClassFileTransformer {
               LogProbe.builder()
                   .probeId(UUID.randomUUID().toString(), 0)
                   .where(classNode.name, methodNode.name)
+                  .captureSnapshot(true)
                   .build();
           probes.add(probe);
+          instrumentTheWorldProbes.put(probe.getId(), probe);
         }
       }
       Map<Where, List<ProbeDefinition>> defByLocation = mergeLocations(probes);
@@ -221,6 +229,13 @@ public class DebuggerTransformer implements ClassFileTransformer {
       log.warn("Cannot transform: ", ex);
     }
     return null;
+  }
+
+  public Snapshot.ProbeDetails instrumentTheWorldResolver(String id, Class<?> callingClass) {
+    if (instrumentTheWorldProbes == null) {
+      return null;
+    }
+    return instrumentTheWorldProbes.get(id);
   }
 
   private boolean isExcludedFromTransformation(String classFilePath) {

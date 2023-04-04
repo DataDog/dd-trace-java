@@ -1,16 +1,12 @@
 package com.datadog.debugger.agent;
 
+import static com.datadog.debugger.util.ValueScriptHelper.serializeValue;
+
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.probe.LogProbe;
-import com.datadog.debugger.util.SerializerWithLimits;
-import com.datadog.debugger.util.StringTokenWriter;
-import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.Snapshot;
-import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 public class LogMessageTemplateBuilder {
@@ -19,10 +15,6 @@ public class LogMessageTemplateBuilder {
    * directly reference values that are in your interest with Expression Language:
    * obj.field.deepfield or array[1001]
    */
-  private static final Limits LIMITS = new Limits(1, 3, 255, 5);
-
-  private static final Duration TIME_OUT = Duration.of(100, ChronoUnit.MILLIS);
-
   private final List<LogProbe.Segment> segments;
 
   public LogMessageTemplateBuilder(List<LogProbe.Segment> segments) {
@@ -58,17 +50,5 @@ public class LogMessageTemplateBuilder {
       }
     }
     return sb.toString();
-  }
-
-  private void serializeValue(
-      StringBuilder sb, String expr, Object value, Snapshot.CapturedContext.Status status) {
-    SerializerWithLimits serializer =
-        new SerializerWithLimits(
-            new StringTokenWriter(sb, status.getErrors()), new TimeoutChecker(TIME_OUT));
-    try {
-      serializer.serialize(value, value != null ? value.getClass().getTypeName() : null, LIMITS);
-    } catch (Exception ex) {
-      status.addError(new Snapshot.EvaluationError(expr, ex.getMessage()));
-    }
   }
 }

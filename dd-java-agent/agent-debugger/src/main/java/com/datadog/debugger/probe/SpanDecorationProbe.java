@@ -1,39 +1,52 @@
 package com.datadog.debugger.probe;
 
+import static com.datadog.debugger.util.ValueScriptHelper.serializeValue;
+
 import com.datadog.debugger.agent.Generated;
+import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.ProbeCondition;
+import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueScript;
+import com.datadog.debugger.instrumentation.SpanDecorationInstrumentor;
+import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SpanDecorationProbe extends ProbeDefinition {
+  private static final Logger LOGGER = LoggerFactory.getLogger(SpanDecorationProbe.class);
+
   public enum TargetSpan {
     ACTIVE,
     ROOT
   }
 
   public static class Tag {
-    private final String tagName;
-    private final ValueScript tagValue;
+    private final String name;
+    private final ValueScript value;
 
-    public Tag(String tagName, ValueScript tagValue) {
-      this.tagName = tagName;
-      this.tagValue = tagValue;
+    public Tag(String name, ValueScript value) {
+      this.name = name;
+      this.value = value;
     }
 
-    public String getTagName() {
-      return tagName;
+    public String getName() {
+      return name;
     }
 
-    public ValueScript getTagValue() {
-      return tagValue;
+    public ValueScript getValue() {
+      return value;
     }
   }
 
@@ -56,7 +69,7 @@ public class SpanDecorationProbe extends ProbeDefinition {
   }
 
   private final TargetSpan targetSpan;
-  private final List<Decoration> decorate;
+  private final List<Decoration> decorations;
 
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
@@ -71,10 +84,10 @@ public class SpanDecorationProbe extends ProbeDefinition {
       Where where,
       MethodLocation methodLocation,
       TargetSpan targetSpan,
-      List<Decoration> decorate) {
+      List<Decoration> decorations) {
     super(language, probeId, tagStrs, where, methodLocation);
     this.targetSpan = targetSpan;
-    this.decorate = decorate;
+    this.decorations = decorations;
   }
 
   @Override
@@ -83,14 +96,81 @@ public class SpanDecorationProbe extends ProbeDefinition {
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics,
-      List<String> probeIds) {}
+      List<String> probeIds) {
+    new SpanDecorationInstrumentor(this, classLoader, classNode, methodNode, diagnostics, probeIds)
+        .instrument();
+  }
+
+  @Override
+  public void evaluate(
+      Snapshot.CapturedContext context,
+      Snapshot.CapturedContext.Status status,
+      MethodLocation methodLocation) {
+    boolean shouldEvaluate = resolveEvaluateAt(methodLocation);
+    if (!shouldEvaluate) {
+      return;
+    }
+    for (Decoration decoration : decorations) {
+      try {
+        if (decoration.when != null) {
+          boolean condition = decoration.when.execute(context);
+          if (!condition) {
+            continue;
+          }
+        }
+        for (Tag tag : decoration.tags) {
+          Value<?> tagValue = tag.value.execute(context);
+          StringBuilder sb = new StringBuilder();
+          if (tagValue.isUndefined()) {
+            sb.append(tagValue.getValue());
+          } else if (tagValue.isNull()) {
+            sb.append("null");
+          } else {
+            serializeValue(sb, tag.value.getDsl(), tagValue.getValue(), status);
+          }
+          status.addTag(tag.name, sb.toString());
+        }
+      } catch (EvaluationException ex) {
+        LOGGER.debug("Evaluation error: ", ex);
+        status.addError(new Snapshot.EvaluationError(ex.getExpr(), ex.getMessage()));
+      }
+    }
+  }
+
+  @Override
+  public void commit(
+      Snapshot.CapturedContext entryContext,
+      Snapshot.CapturedContext exitContext,
+      List<Snapshot.CapturedThrowable> caughtExceptions) {
+    Snapshot.CapturedContext.Status status = null;
+    if (evaluateAt == MethodLocation.ENTRY || evaluateAt == MethodLocation.DEFAULT) {
+      status = entryContext.getStatus(id);
+    } else if (evaluateAt == MethodLocation.EXIT) {
+      status = exitContext.getStatus(id);
+    }
+    if (status == null) {
+      return;
+    }
+    AgentTracer.TracerAPI tracerAPI = AgentTracer.get();
+    AgentSpan agentSpan = tracerAPI.activeSpan();
+    if (targetSpan == TargetSpan.ROOT) {
+      agentSpan = agentSpan.getLocalRootSpan();
+    }
+    List<Pair<String, String>> tagsToDecorate = status.getTagsToDecorate();
+    if (tagsToDecorate == null) {
+      return;
+    }
+    for (Pair<String, String> tag : tagsToDecorate) {
+      agentSpan.setTag(tag.getLeft(), tag.getRight());
+    }
+  }
 
   public TargetSpan getTargetSpan() {
     return targetSpan;
   }
 
-  public List<Decoration> getDecorate() {
-    return decorate;
+  public List<Decoration> getDecorations() {
+    return decorations;
   }
 
   @Generated

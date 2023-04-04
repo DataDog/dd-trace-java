@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.debugger;
 
+import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.debugger.el.DebuggerScript;
 import datadog.trace.bootstrap.debugger.el.ReflectiveFieldValueResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
@@ -168,8 +169,9 @@ public class Snapshot {
      * - Snapshot.recordStackTrace()
      * - Snapshot.commit()
      * - DebuggerContext.commit() or DebuggerContext.evalAndCommit()
+     * - ProbeDefinition.commit()
      */
-    recordStackTrace(4);
+    recordStackTrace(5);
     DebuggerContext.addSnapshot(this);
   }
 
@@ -195,9 +197,7 @@ public class Snapshot {
 
   /** Probe information associated with a snapshot */
   public interface ProbeDetails {
-    String ITW_PROBE_ID = "instrument-the-world-probe";
     ProbeDetails UNKNOWN = new DummyProbe("UNKNOWN", ProbeLocation.UNKNOWN);
-    ProbeDetails ITW_PROBE = new DummyProbe(ITW_PROBE_ID, ProbeLocation.UNKNOWN);
 
     String getId();
 
@@ -209,6 +209,13 @@ public class Snapshot {
         Snapshot.CapturedContext context,
         Snapshot.CapturedContext.Status status,
         MethodLocation methodLocation);
+
+    void commit(
+        CapturedContext entryContext,
+        CapturedContext exitContext,
+        List<Snapshot.CapturedThrowable> caughtExceptions);
+
+    void commit(CapturedContext lineContext, int line);
 
     MethodLocation getEvaluateAt();
 
@@ -264,6 +271,15 @@ public class Snapshot {
       @Override
       public void evaluate(
           CapturedContext context, CapturedContext.Status status, MethodLocation methodLocation) {}
+
+      @Override
+      public void commit(
+          CapturedContext entryContext,
+          CapturedContext exitContext,
+          List<CapturedThrowable> caughtExceptions) {}
+
+      @Override
+      public void commit(CapturedContext lineContext, int line) {}
 
       @Override
       public MethodLocation getEvaluateAt() {
@@ -765,6 +781,8 @@ public class Snapshot {
       boolean hasLogTemplateErrors;
       boolean hasConditionErrors;
       String message;
+      // Span decoration
+      List<Pair<String, String>> tagsToDecorate;
 
       public Status(ProbeDetails probeDetails) {
         this.condition = true;
@@ -822,6 +840,17 @@ public class Snapshot {
 
       public void addError(EvaluationError evaluationError) {
         errors.add(evaluationError);
+      }
+
+      public void addTag(String tagName, String tagValue) {
+        if (tagsToDecorate == null) {
+          tagsToDecorate = new ArrayList<>();
+        }
+        tagsToDecorate.add(Pair.of(tagName, tagValue));
+      }
+
+      public List<Pair<String, String>> getTagsToDecorate() {
+        return tagsToDecorate;
       }
     }
   }

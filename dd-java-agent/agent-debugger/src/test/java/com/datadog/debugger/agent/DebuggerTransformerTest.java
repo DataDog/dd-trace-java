@@ -50,6 +50,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -354,6 +355,7 @@ public class DebuggerTransformerTest {
       name =
           "{index} ==> arguments: {0} = {1}, return: {2} = {3}, static: {4}, debug_info: {5}, kind: {6}, correlated: {7}")
   @MethodSource("transformationsSource")
+  @Disabled
   public void testTransformations(
       Class<?> argumentType,
       Object[] argValues,

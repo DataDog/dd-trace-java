@@ -88,19 +88,19 @@ public class ConfigurationTest {
         SpanDecorationProbe.TargetSpan.ACTIVE, spanDecorationProbes.get(0).getTargetSpan());
     assertEquals(
         "uuid == 'showMe'",
-        spanDecorationProbes.get(0).getDecorate().get(0).getWhen().getDslExpression());
+        spanDecorationProbes.get(0).getDecorations().get(0).getWhen().getDslExpression());
     assertEquals(
-        "uuid", spanDecorationProbes.get(0).getDecorate().get(0).getTags().get(0).getTagName());
+        "uuid", spanDecorationProbes.get(0).getDecorations().get(0).getTags().get(0).getName());
     assertEquals(
         "uuid",
-        spanDecorationProbes.get(0).getDecorate().get(0).getTags().get(0).getTagValue().getDsl());
+        spanDecorationProbes.get(0).getDecorations().get(0).getTags().get(0).getValue().getDsl());
     assertEquals(
         SpanDecorationProbe.TargetSpan.ACTIVE, spanDecorationProbes.get(1).getTargetSpan());
-    assertNull(spanDecorationProbes.get(1).getDecorate().get(0).getWhen());
+    assertNull(spanDecorationProbes.get(1).getDecorations().get(0).getWhen());
     assertEquals(
-        "uuid", spanDecorationProbes.get(1).getDecorate().get(0).getTags().get(0).getTagName());
+        "uuid", spanDecorationProbes.get(1).getDecorations().get(0).getTags().get(0).getName());
     assertEquals(
-        "tag2", spanDecorationProbes.get(1).getDecorate().get(0).getTags().get(1).getTagName());
+        "tag2", spanDecorationProbes.get(1).getDecorations().get(0).getTags().get(1).getName());
     assertEquals(SpanDecorationProbe.TargetSpan.ROOT, spanDecorationProbes.get(2).getTargetSpan());
     assertEquals(SpanDecorationProbe.TargetSpan.ROOT, spanDecorationProbes.get(3).getTargetSpan());
   }
@@ -243,10 +243,10 @@ public class ConfigurationTest {
     SpanDecorationProbe spanDecoration1 = config0.getSpanDecorationProbes().iterator().next();
     assertEquals(SpanDecorationProbe.TargetSpan.ACTIVE, spanDecoration1.getTargetSpan());
     assertEquals(
-        "arg1 == 'foo'", spanDecoration1.getDecorate().get(0).getWhen().getDslExpression());
-    assertEquals("id", spanDecoration1.getDecorate().get(0).getTags().get(0).getTagName());
+        "arg1 == 'foo'", spanDecoration1.getDecorations().get(0).getWhen().getDslExpression());
+    assertEquals("id", spanDecoration1.getDecorations().get(0).getTags().get(0).getName());
     assertEquals(
-        "id", spanDecoration1.getDecorate().get(0).getTags().get(0).getTagValue().getDsl());
+        "id", spanDecoration1.getDecorations().get(0).getTags().get(0).getValue().getDsl());
   }
 
   private Configuration createConfig1() {
