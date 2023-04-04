@@ -1,13 +1,9 @@
 package datadog.trace.instrumentation.maven3;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.Platform;
-import datadog.trace.util.VmUtils;
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -16,38 +12,24 @@ import org.apache.maven.model.Plugin;
 import org.apache.maven.model.PluginExecution;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 class MavenProjectConfigurator {
-
-  private static final Logger log = LoggerFactory.getLogger(MavenProjectConfigurator.class);
 
   static final MavenProjectConfigurator INSTANCE = new MavenProjectConfigurator();
 
   private static final String MAVEN_COMPILER_PLUGIN_KEY =
       "org.apache.maven.plugins:maven-compiler-plugin";
-  private static final String MAVEN_TOOLCHAINS_PLUGIN_KEY =
-      "org.apache.maven.plugins:maven-toolchains-plugin";
 
   private static final String DATADOG_GROUP_ID = "com.datadoghq";
   private static final String DATADOG_JAVAC_PLUGIN_ARTIFACT_ID = "dd-javac-plugin";
   private static final String DATADOG_JAVAC_PLUGIN_CLIENT_ARTIFACT_ID = "dd-javac-plugin-client";
+  private static final String LOMBOK_GROUP_ID = "org.projectlombok";
+  private static final String LOMBOK_ARTIFACT_ID = "lombok";
   private static final String JAVAC_COMPILER_ID = "javac";
   private static final String DATADOG_COMPILER_PLUGIN_ID = "DatadogCompilerPlugin";
 
   private static final MavenPluginVersion ANNOTATION_PROCESSOR_PATHS_SUPPORTED_VERSION =
       MavenPluginVersion.from("3.5");
-
-  private static final MavenPluginVersion JDK_TOOLCHAIN_SUPPORTED_VERSION =
-      MavenPluginVersion.from("3.6.0");
-
-  private static final List<String> DD_JAVAC_PLUGIN_PACKAGE_EXPORTS =
-      Arrays.asList(
-          "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
-          "--add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
-          "--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
-          "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED");
 
   void configureTracer(MavenProject project, String pluginKey) {
     Plugin surefirePlugin = project.getPlugin(pluginKey);
@@ -137,61 +119,30 @@ class MavenProjectConfigurator {
         continue;
       }
 
-      MavenPluginVersion mavenPluginVersion =
-          compilerPlugin.getVersion() != null
-              ? MavenPluginVersion.from(compilerPlugin.getVersion())
-              : MavenPluginVersion.UNKNOWN;
-
-      // DD Javac Plugin is using some internal APIs that, starting with JDK 16,
-      // need to be exported explicitly
-      if (isCompilerProcessForked(
-          configuration, pluginConfiguration, project, mavenPluginVersion)) {
-        if (getForkedVmMajorVersion(configuration, pluginConfiguration, project) >= 16) {
-          for (String export : DD_JAVAC_PLUGIN_PACKAGE_EXPORTS) {
-            addCompilerArg(configuration, "-J" + export);
-          }
-        }
-
-      } else if (Platform.isJavaVersionAtLeast(16) && !isNecessaryPackageExportsPresent()) {
-        log.warn(
-            "Skipping DD Javac Plugin configuration for module {} and execution {} "
-                + "because required package exports are missing. "
-                + "Consider adding the following arguments to Maven JVM:\n{}",
-            project.getName(),
-            execution.getId(),
-            String.join("\n", DD_JAVAC_PLUGIN_PACKAGE_EXPORTS));
-        continue;
-      }
-
       Dependency javacPluginClientDependency = new Dependency();
       javacPluginClientDependency.setGroupId(DATADOG_GROUP_ID);
       javacPluginClientDependency.setArtifactId(DATADOG_JAVAC_PLUGIN_CLIENT_ARTIFACT_ID);
       javacPluginClientDependency.setVersion(compilerPluginVersion);
       project.getDependencies().add(javacPluginClientDependency);
 
-      // FIXME handle Lombok usecase (and test it manually)
+      MavenPluginVersion mavenPluginVersion =
+          compilerPlugin.getVersion() != null
+              ? MavenPluginVersion.from(compilerPlugin.getVersion())
+              : MavenPluginVersion.UNKNOWN;
+
       if (mavenPluginVersion.isLaterThanOrEqualTo(ANNOTATION_PROCESSOR_PATHS_SUPPORTED_VERSION)) {
+        String lombokVersion = getLombokVersion(project.getDependencies());
+        if (lombokVersion != null) {
+          configuration =
+              addAnnotationProcessorPath(
+                  configuration, LOMBOK_GROUP_ID, LOMBOK_ARTIFACT_ID, lombokVersion);
+        }
         configuration =
-            MavenUtils.setConfigurationValue(
+            addAnnotationProcessorPath(
+                configuration,
                 DATADOG_GROUP_ID,
-                configuration,
-                "annotationProcessorPaths",
-                "annotationProcessorPath",
-                "groupId");
-        configuration =
-            MavenUtils.setConfigurationValue(
                 DATADOG_JAVAC_PLUGIN_ARTIFACT_ID,
-                configuration,
-                "annotationProcessorPaths",
-                "annotationProcessorPath",
-                "artifactId");
-        configuration =
-            MavenUtils.setConfigurationValue(
-                compilerPluginVersion,
-                configuration,
-                "annotationProcessorPaths",
-                "annotationProcessorPath",
-                "version");
+                compilerPluginVersion);
 
       } else {
         Dependency javacPluginDependency = new Dependency();
@@ -201,47 +152,26 @@ class MavenProjectConfigurator {
         project.getDependencies().add(javacPluginDependency);
       }
 
-      addCompilerArg(configuration, "-Xplugin:" + DATADOG_COMPILER_PLUGIN_ID);
-
+      configuration = addCompilerArg(configuration, "-Xplugin:" + DATADOG_COMPILER_PLUGIN_ID);
       execution.setConfiguration(configuration);
     }
   }
 
-  private int getForkedVmMajorVersion(
-      Xpp3Dom executionConfiguration, Xpp3Dom pluginConfiguration, MavenProject project) {
-    // FIXME first check the <executable> param on plugin or execution configurations: if present,
-    // try to execute with "--version" param to determine version (executable override toolchain)
-    // FIXME then check the <jdkToolchain> param to see if it has a <version> child
-    // FIXME if neither is present, assume forked JVM will have the same version as current JVM (and
-    // use Platform.getLangVersion()) ?
-
+  private String getLombokVersion(List<Dependency> dependencies) {
+    for (Dependency dependency : dependencies) {
+      if (LOMBOK_GROUP_ID.equals(dependency.getGroupId())
+          && LOMBOK_ARTIFACT_ID.equals(dependency.getArtifactId())) {
+        return dependency.getVersion();
+      }
+    }
+    return null;
   }
 
-  // FIXME test this one manually
-  private boolean isCompilerProcessForked(
-      Xpp3Dom executionConfiguration,
-      Xpp3Dom pluginConfiguration,
-      MavenProject project,
-      MavenPluginVersion mavenPluginVersion) {
-    return isCompilerProcessForked(executionConfiguration, mavenPluginVersion)
-        || isCompilerProcessForked(pluginConfiguration, mavenPluginVersion)
-        || isUsingToolchainsPlugin(project);
-  }
+  private static Xpp3Dom addCompilerArg(Xpp3Dom configuration, String argValue) {
+    if (configuration == null) {
+      configuration = new Xpp3Dom("configuration");
+    }
 
-  private boolean isCompilerProcessForked(
-      Xpp3Dom configuration, MavenPluginVersion mavenPluginVersion) {
-    return "true".equals(MavenUtils.getConfigurationValue(configuration, "fork"))
-        || (configuration != null
-            && configuration.getChild("jdkToolchain") != null
-            && mavenPluginVersion.isLaterThanOrEqualTo(JDK_TOOLCHAIN_SUPPORTED_VERSION));
-  }
-
-  private boolean isUsingToolchainsPlugin(MavenProject project) {
-    Plugin toolchainsPlugin = project.getPlugin(MAVEN_TOOLCHAINS_PLUGIN_KEY);
-    return toolchainsPlugin != null;
-  }
-
-  private static void addCompilerArg(Xpp3Dom configuration, String argValue) {
     Xpp3Dom compilerArgs = configuration.getChild("compilerArgs");
     if (compilerArgs == null) {
       compilerArgs = new Xpp3Dom("compilerArgs");
@@ -251,10 +181,38 @@ class MavenProjectConfigurator {
     Xpp3Dom arg = new Xpp3Dom("arg");
     arg.setValue(argValue);
     compilerArgs.addChild(arg);
+
+    return configuration;
   }
 
-  private boolean isNecessaryPackageExportsPresent() {
-    Collection<String> vmArguments = VmUtils.getVMArguments();
-    return vmArguments.containsAll(DD_JAVAC_PLUGIN_PACKAGE_EXPORTS);
+  private static Xpp3Dom addAnnotationProcessorPath(
+      Xpp3Dom configuration, String groupId, String artifactId, String version) {
+    if (configuration == null) {
+      configuration = new Xpp3Dom("configuration");
+    }
+
+    Xpp3Dom annotationProcessorPaths = configuration.getChild("annotationProcessorPaths");
+    if (annotationProcessorPaths == null) {
+      annotationProcessorPaths = new Xpp3Dom("annotationProcessorPaths");
+      configuration.addChild(annotationProcessorPaths);
+    }
+
+    Xpp3Dom annotationProcessorPath = new Xpp3Dom("annotationProcessorPath");
+
+    Xpp3Dom groupIdElement = new Xpp3Dom("groupId");
+    groupIdElement.setValue(groupId);
+    annotationProcessorPath.addChild(groupIdElement);
+
+    Xpp3Dom artifactIdElement = new Xpp3Dom("artifactId");
+    artifactIdElement.setValue(artifactId);
+    annotationProcessorPath.addChild(artifactIdElement);
+
+    Xpp3Dom versionElement = new Xpp3Dom("version");
+    versionElement.setValue(version);
+    annotationProcessorPath.addChild(versionElement);
+
+    annotationProcessorPaths.addChild(annotationProcessorPath);
+
+    return configuration;
   }
 }

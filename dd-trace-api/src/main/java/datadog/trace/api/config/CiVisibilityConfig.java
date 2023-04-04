@@ -14,6 +14,8 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_AGENT_JAR_URI = "civisibility.agent.jar.uri";
   public static final String CIVISIBILITY_AUTO_CONFIGURATION_ENABLED =
       "civisibility.auto.configuration.enabled";
+  public static final String CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED =
+      "civisibility.compiler.plugin.auto.configuration.enabled";
   public static final String CIVISIBILITY_COMPILER_PLUGIN_VERSION =
       "civisibility.compiler.plugin.version";
   public static final String CIVISIBILITY_DEBUG_PORT = "civisibility.debug.port";

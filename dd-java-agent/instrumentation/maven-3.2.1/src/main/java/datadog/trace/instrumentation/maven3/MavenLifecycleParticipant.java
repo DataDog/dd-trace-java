@@ -55,8 +55,8 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
       MavenProjectConfigurator.INSTANCE.configureTracer(project, MAVEN_SUREFIRE_PLUGIN_KEY);
       MavenProjectConfigurator.INSTANCE.configureTracer(project, MAVEN_FAILSAFE_PLUGIN_KEY);
 
-      String compilerPluginVersion = config.getCiVisibilityCompilerPluginVersion();
-      if (compilerPluginVersion != null) {
+      if (config.isCiVisibilityCompilerPluginAutoConfigurationEnabled()) {
+        String compilerPluginVersion = config.getCiVisibilityCompilerPluginVersion();
         MavenProjectConfigurator.INSTANCE.configureCompilerPlugin(project, compilerPluginVersion);
       }
     }
