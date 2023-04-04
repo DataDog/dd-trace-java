@@ -2,6 +2,7 @@ package datadog.trace.core.scopemanager;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan;
+import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -16,6 +17,7 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.Iterator;
 import java.util.List;
@@ -35,6 +37,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class ContinuableScopeManager implements AgentScopeManager {
   static final Logger log = LoggerFactory.getLogger(ContinuableScopeManager.class);
+  static final RatelimitedLogger ratelimitedLog = new RatelimitedLogger(log, 1, MINUTES);
   static final long iterationKeepAlive =
       SECONDS.toMillis(Config.get().getScopeIterationKeepAlive());
   volatile ConcurrentMap<ScopeStack, ContinuableScope> rootIterationScopes;

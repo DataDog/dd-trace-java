@@ -116,7 +116,7 @@ final class ScopeStack {
       try {
         profilingContextIntegration.setContext((ProfilerContext) context);
       } catch (Throwable e) {
-        ContinuableScopeManager.log.warn("Unexpected profiling exception", e);
+        ContinuableScopeManager.ratelimitedLog.warn("Unexpected profiling exception", e);
       }
     }
   }
@@ -126,7 +126,7 @@ final class ScopeStack {
     try {
       profilingContextIntegration.onAttach();
     } catch (Throwable e) {
-      ContinuableScopeManager.log.warn("Unexpected profiling exception", e);
+      ContinuableScopeManager.ratelimitedLog.warn("Unexpected profiling exception", e);
     }
   }
 
@@ -136,7 +136,7 @@ final class ScopeStack {
       profilingContextIntegration.clearContext();
       profilingContextIntegration.onDetach();
     } catch (Throwable e) {
-      ContinuableScopeManager.log.warn("Unexpected profiling exception", e);
+      ContinuableScopeManager.ratelimitedLog.warn("Unexpected profiling exception", e);
     }
   }
 }
