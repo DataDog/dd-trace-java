@@ -14,15 +14,19 @@ import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.SummaryBuilder;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Stores definition of a log probe */
 public class LogProbe extends ProbeDefinition {
+  private static final Logger LOGGER = LoggerFactory.getLogger(LogProbe.class);
 
   /** Stores part of a templated message either a str or an expression */
   public static class Segment {
@@ -210,6 +214,7 @@ public class LogProbe extends ProbeDefinition {
 
   private final Capture capture;
   private final Sampling sampling;
+  private transient SummaryBuilder summaryBuilder;
 
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
@@ -334,7 +339,7 @@ public class LogProbe extends ProbeDefinition {
     if (!shouldEvaluate) {
       return;
     }
-    status.setCondition(executeScript(this.probeCondition, context, id));
+    status.setCondition(evaluateCondition(context));
     status.setConditionErrors(context.handleEvalErrors(status.getErrors()));
     Snapshot.CapturedThrowable throwable = context.getThrowable();
     if (status.hasConditionErrors() && throwable != null) {
@@ -361,9 +366,33 @@ public class LogProbe extends ProbeDefinition {
     }
   }
 
+  private boolean evaluateCondition(Snapshot.CapturedContext capture) {
+    if (probeCondition == null) {
+      return true;
+    }
+    long startTs = System.nanoTime();
+    try {
+      if (!probeCondition.execute(capture)) {
+        return false;
+      }
+    } catch (RuntimeException ex) {
+      LOGGER.debug("Evaluation error: ", ex);
+      return false;
+    } finally {
+      LOGGER.debug(
+          "ProbeCondition for probe[{}] evaluated in {}ns", id, (System.nanoTime() - startTs));
+    }
+    return true;
+  }
+
   @Override
   public boolean hasCondition() {
     return probeCondition != null;
+  }
+
+  @Override
+  public SummaryBuilder getSummaryBuilder() {
+    return summaryBuilder;
   }
 
   @Generated

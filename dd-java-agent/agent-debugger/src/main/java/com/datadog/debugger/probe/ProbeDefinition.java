@@ -3,6 +3,7 @@ package com.datadog.debugger.probe;
 import static java.util.Collections.singletonList;
 
 import com.datadog.debugger.agent.Generated;
+import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
@@ -10,8 +11,6 @@ import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.Snapshot;
-import datadog.trace.bootstrap.debugger.SummaryBuilder;
-import datadog.trace.bootstrap.debugger.el.DebuggerScript;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -22,12 +21,9 @@ import java.util.Map;
 import java.util.Objects;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Generic class storing common probe definition */
 public abstract class ProbeDefinition implements Snapshot.ProbeDetails {
-  private static final Logger LOGGER = LoggerFactory.getLogger(ProbeDefinition.class);
   protected static final String LANGUAGE = "java";
 
   protected final String language;
@@ -37,7 +33,6 @@ public abstract class ProbeDefinition implements Snapshot.ProbeDetails {
   protected final Map<String, String> tagMap = new HashMap<>();
   protected final Where where;
   protected final MethodLocation evaluateAt;
-  protected transient SummaryBuilder summaryBuilder;
   protected transient Snapshot.ProbeLocation location;
 
   protected ProbeDefinition(
@@ -104,7 +99,13 @@ public abstract class ProbeDefinition implements Snapshot.ProbeDetails {
     return evaluateAt;
   }
 
-  public void buildLocation(String type, String method) {
+  public void buildLocation(InstrumentationResult result) {
+    String type = where.getTypeName();
+    String method = where.getMethodName();
+    if (result != null) {
+      type = result.getTypeName();
+      method = result.getMethodName();
+    }
     List<String> lines = where.getLines() != null ? Arrays.asList(where.getLines()) : null;
     this.location = new Snapshot.ProbeLocation(type, method, where.getSourceFile(), lines);
   }
@@ -145,11 +146,6 @@ public abstract class ProbeDefinition implements Snapshot.ProbeDetails {
       MethodLocation methodLocation) {}
 
   @Override
-  public SummaryBuilder getSummaryBuilder() {
-    return summaryBuilder;
-  }
-
-  @Override
   public boolean isCaptureSnapshot() {
     return false;
   }
@@ -169,26 +165,6 @@ public abstract class ProbeDefinition implements Snapshot.ProbeDetails {
       return localEvaluateAt == MethodLocation.DEFAULT || localEvaluateAt == MethodLocation.ENTRY;
     }
     return localEvaluateAt == methodLocation;
-  }
-
-  protected static boolean executeScript(
-      DebuggerScript<Boolean> script, Snapshot.CapturedContext capture, String probeId) {
-    if (script == null) {
-      return true;
-    }
-    long startTs = System.nanoTime();
-    try {
-      if (!script.execute(capture)) {
-        return false;
-      }
-    } catch (RuntimeException ex) {
-      LOGGER.debug("Evaluation error: ", ex);
-      return false;
-    } finally {
-      LOGGER.debug(
-          "Script for probe[{}] evaluated in {}ns", probeId, (System.nanoTime() - startTs));
-    }
-    return true;
   }
 
   public abstract static class Builder<T extends Builder> {

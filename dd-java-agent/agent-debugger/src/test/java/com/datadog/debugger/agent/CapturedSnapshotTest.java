@@ -14,7 +14,6 @@ import static utils.TestHelper.getFixtureContent;
 
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
-import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.util.MoshiHelper;
 import com.datadog.debugger.util.MoshiSnapshotTestHelper;
@@ -44,7 +43,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import org.jetbrains.kotlin.cli.common.ExitCode;
 import org.jetbrains.kotlin.cli.common.arguments.K2JVMCompilerArguments;
@@ -1401,19 +1399,13 @@ public class CapturedSnapshotTest {
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
     when(config.isDebuggerVerifyByteCode()).thenReturn(true);
     Collection<LogProbe> logProbes = configuration.getLogProbes();
-    Map<String, InstrumentationResult> instrumentationResults = new ConcurrentHashMap<>();
-    currentTransformer =
-        new DebuggerTransformer(
-            config,
-            configuration,
-            (definition, result) -> instrumentationResults.put(definition.getId(), result));
+    currentTransformer = new DebuggerTransformer(config, configuration, null);
     instr.addTransformer(currentTransformer);
     DebuggerTransformerTest.TestSnapshotListener listener =
         new DebuggerTransformerTest.TestSnapshotListener();
     DebuggerContext.init(
         listener,
-        (id, callingClass) ->
-            resolver(id, callingClass, expectedClassName, logProbes, instrumentationResults),
+        (id, callingClass) -> resolver(id, callingClass, expectedClassName, logProbes),
         null);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     DebuggerContext.initSnapshotSerializer(new JsonSnapshotSerializer());
@@ -1429,23 +1421,10 @@ public class CapturedSnapshotTest {
   }
 
   private Snapshot.ProbeDetails resolver(
-      String id,
-      Class<?> callingClass,
-      String expectedClassName,
-      Collection<LogProbe> logProbes,
-      Map<String, InstrumentationResult> instrumentationResults) {
+      String id, Class<?> callingClass, String expectedClassName, Collection<LogProbe> logProbes) {
     Assertions.assertEquals(expectedClassName, callingClass.getName());
     for (LogProbe probe : logProbes) {
       if (probe.getId().equals(id)) {
-        String typeName = probe.getWhere().getTypeName();
-        String methodName = probe.getWhere().getMethodName();
-        String sourceFile = probe.getWhere().getSourceFile();
-        InstrumentationResult result = instrumentationResults.get(probe.getId());
-        if (result != null) {
-          typeName = result.getTypeName();
-          methodName = result.getMethodName();
-        }
-        probe.buildLocation(typeName, methodName);
         return probe;
       }
     }

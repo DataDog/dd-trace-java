@@ -239,14 +239,6 @@ public class ConfigurationUpdater
       retransformClasses(Collections.singletonList(callingClass));
       return null;
     }
-    String type = definition.getWhere().getTypeName();
-    String method = definition.getWhere().getMethodName();
-    InstrumentationResult result = instrumentationResults.get(definition.getId());
-    if (result != null) {
-      type = result.getTypeName();
-      method = result.getMethodName();
-    }
-    definition.buildLocation(type, method);
     return definition;
   }
 

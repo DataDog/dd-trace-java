@@ -451,6 +451,7 @@ public class ConfigurationUpdaterTest {
                     new ProbeCondition(
                         DSL.when(DSL.eq(DSL.ref("arg"), DSL.value("foo"))), "arg == 'foo'"))
                 .build());
+    logProbes.get(0).buildLocation(null);
     configurationUpdater.accept(createApp(logProbes));
     Snapshot.ProbeDetails probeDetails =
         configurationUpdater.resolve(PROBE_ID.getId(), String.class);
