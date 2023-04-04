@@ -79,9 +79,7 @@ public class DubboDecorator extends BaseDecorator {
     span.setTag(TAG_VERSION,getVersion(url));
 
     span.setTag(TAG_SIDE,isConsumer?CONSUMER_SIDE:PROVIDER_SIDE);
-    if (isConsumer) {
-      span.setTag(TAG_HOST, getHostAddress(invocation));
-    }
+
     afterStart(span);
 
 //    System.out.println("invocation.getArguments() > "+invocation.getArguments().length);
