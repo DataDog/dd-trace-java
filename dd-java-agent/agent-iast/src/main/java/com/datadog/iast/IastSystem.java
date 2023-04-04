@@ -14,6 +14,7 @@ import com.datadog.iast.sink.WeakHashModuleImpl;
 import com.datadog.iast.source.WebModuleImpl;
 import com.datadog.iast.telemetry.IastTelemetry;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.api.gateway.EventType;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
@@ -45,7 +46,7 @@ public class IastSystem {
       OverheadController overheadController,
       IastTelemetry telemetry) {
     final Config config = Config.get();
-    if (!config.isIastEnabled()) {
+    if (config.getIastActivation() != ProductActivation.FULLY_ENABLED) {
       LOGGER.debug("IAST is disabled");
       return;
     }
