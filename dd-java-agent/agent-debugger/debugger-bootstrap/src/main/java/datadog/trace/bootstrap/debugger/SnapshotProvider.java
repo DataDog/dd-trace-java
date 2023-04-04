@@ -17,7 +17,7 @@ public final class SnapshotProvider {
       probeDetails = Snapshot.ProbeDetails.UNKNOWN;
     }
     // only rate limit if no condition are defined
-    if (probeDetails.getScript() == null && probeDetails.isSnapshotProbe()) {
+    if (probeDetails.hasCondition() && probeDetails.isCaptureSnapshot()) {
       if (!ProbeRateLimiter.tryProbe(probeDetails.getId())) {
         DebuggerContext.skipSnapshot(probeDetails.getId(), DebuggerContext.SkipCause.RATE);
         return null;

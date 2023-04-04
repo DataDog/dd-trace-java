@@ -3,14 +3,17 @@ package com.datadog.debugger.probe;
 import static java.util.Collections.singletonList;
 
 import com.datadog.debugger.agent.Generated;
+import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
+import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -20,26 +23,8 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
 /** Generic class storing common probe definition */
-public abstract class ProbeDefinition {
+public abstract class ProbeDefinition implements Snapshot.ProbeDetails {
   protected static final String LANGUAGE = "java";
-
-  public enum MethodLocation {
-    DEFAULT,
-    ENTRY,
-    EXIT;
-
-    public static Snapshot.MethodLocation convert(MethodLocation methodLocation) {
-      switch (methodLocation) {
-        case DEFAULT:
-          return Snapshot.MethodLocation.DEFAULT;
-        case ENTRY:
-          return Snapshot.MethodLocation.ENTRY;
-        case EXIT:
-          return Snapshot.MethodLocation.EXIT;
-      }
-      return null;
-    }
-  }
 
   protected final String language;
   protected final String id;
@@ -48,6 +33,7 @@ public abstract class ProbeDefinition {
   protected final Map<String, String> tagMap = new HashMap<>();
   protected final Where where;
   protected final MethodLocation evaluateAt;
+  protected transient Snapshot.ProbeLocation location;
 
   protected ProbeDefinition(
       String language, ProbeId probeId, String[] tagStrs, Where where, MethodLocation evaluateAt) {
@@ -65,6 +51,7 @@ public abstract class ProbeDefinition {
     this.evaluateAt = evaluateAt;
   }
 
+  @Override
   public String getId() {
     return id;
   }
@@ -79,6 +66,11 @@ public abstract class ProbeDefinition {
 
   public Tag[] getTags() {
     return tags;
+  }
+
+  @Override
+  public String getStrTags() {
+    return concatTags();
   }
 
   public String concatTags() {
@@ -107,6 +99,17 @@ public abstract class ProbeDefinition {
     return evaluateAt;
   }
 
+  public void buildLocation(InstrumentationResult result) {
+    String type = where.getTypeName();
+    String method = where.getMethodName();
+    if (result != null) {
+      type = result.getTypeName();
+      method = result.getMethodName();
+    }
+    List<String> lines = where.getLines() != null ? Arrays.asList(where.getLines()) : null;
+    this.location = new Snapshot.ProbeLocation(type, method, where.getSourceFile(), lines);
+  }
+
   private static void initTagMap(Map<String, String> tagMap, Tag[] tags) {
     tagMap.clear();
     if (tags != null) {
@@ -130,6 +133,39 @@ public abstract class ProbeDefinition {
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics,
       List<String> probeIds);
+
+  @Override
+  public Snapshot.ProbeLocation getLocation() {
+    return location;
+  }
+
+  @Override
+  public void evaluate(
+      Snapshot.CapturedContext context,
+      Snapshot.CapturedContext.Status status,
+      MethodLocation methodLocation) {}
+
+  @Override
+  public boolean isCaptureSnapshot() {
+    return false;
+  }
+
+  @Override
+  public boolean hasCondition() {
+    return false;
+  }
+
+  protected boolean resolveEvaluateAt(MethodLocation methodLocation) {
+    if (methodLocation == MethodLocation.DEFAULT) {
+      // line probe, no evaluation of probe's evaluateAt
+      return true;
+    }
+    MethodLocation localEvaluateAt = evaluateAt; // MethodLocation.convert(evaluateAt);
+    if (methodLocation == MethodLocation.ENTRY) {
+      return localEvaluateAt == MethodLocation.DEFAULT || localEvaluateAt == MethodLocation.ENTRY;
+    }
+    return localEvaluateAt == methodLocation;
+  }
 
   public abstract static class Builder<T extends Builder> {
     protected String language = LANGUAGE;

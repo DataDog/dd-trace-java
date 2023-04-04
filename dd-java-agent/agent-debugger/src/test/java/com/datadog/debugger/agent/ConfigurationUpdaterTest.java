@@ -451,14 +451,14 @@ public class ConfigurationUpdaterTest {
                     new ProbeCondition(
                         DSL.when(DSL.eq(DSL.ref("arg"), DSL.value("foo"))), "arg == 'foo'"))
                 .build());
+    logProbes.get(0).buildLocation(null);
     configurationUpdater.accept(createApp(logProbes));
     Snapshot.ProbeDetails probeDetails =
         configurationUpdater.resolve(PROBE_ID.getId(), String.class);
     Assertions.assertEquals(PROBE_ID.getId(), probeDetails.getId());
-    Assertions.assertEquals(PROBE_ID.getVersion(), probeDetails.getVersion());
     Assertions.assertEquals("java.lang.String", probeDetails.getLocation().getType());
     Assertions.assertEquals("concat", probeDetails.getLocation().getMethod());
-    Assertions.assertNotNull(probeDetails.getScript());
+    Assertions.assertNotNull(((LogProbe) probeDetails).getProbeCondition());
   }
 
   @Test

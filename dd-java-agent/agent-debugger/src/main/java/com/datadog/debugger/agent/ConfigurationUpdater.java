@@ -14,7 +14,6 @@ import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.util.TagsHelper;
 import java.lang.instrument.Instrumentation;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -240,36 +239,7 @@ public class ConfigurationUpdater
       retransformClasses(Collections.singletonList(callingClass));
       return null;
     }
-    String type = definition.getWhere().getTypeName();
-    String method = definition.getWhere().getMethodName();
-    String file = definition.getWhere().getSourceFile();
-    String[] probeLines = definition.getWhere().getLines();
-    InstrumentationResult result = instrumentationResults.get(definition.getId());
-    if (result != null) {
-      type = result.getTypeName();
-      method = result.getMethodName();
-    }
-    List<String> lines = probeLines != null ? Arrays.asList(probeLines) : null;
-    return convertToProbeDetails(definition, new Snapshot.ProbeLocation(type, method, file, lines));
-  }
-
-  private Snapshot.ProbeDetails convertToProbeDetails(
-      ProbeDefinition probe, Snapshot.ProbeLocation location) {
-    if (!(probe instanceof LogProbe)) {
-      LOGGER.warn(
-          "Definition id={} has unsupported probe type: {}", probe.getId(), probe.getClass());
-      return null;
-    }
-    LogProbe logProbe = (LogProbe) probe;
-    return new Snapshot.ProbeDetails(
-        probe.getProbeId().getId(),
-        probe.getProbeId().getVersion(),
-        location,
-        ProbeDefinition.MethodLocation.convert(probe.getEvaluateAt()),
-        logProbe.isCaptureSnapshot(),
-        logProbe.getProbeCondition(),
-        probe.concatTags(),
-        new LogMessageTemplateSummaryBuilder(logProbe));
+    return definition;
   }
 
   private void applyRateLimiter(ConfigurationComparer changes) {

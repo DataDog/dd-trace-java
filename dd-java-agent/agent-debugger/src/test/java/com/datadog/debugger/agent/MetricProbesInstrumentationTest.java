@@ -10,10 +10,10 @@ import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.probe.MetricProbe;
-import com.datadog.debugger.probe.ProbeDefinition;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
+import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import java.io.IOException;
@@ -634,7 +634,7 @@ public class MetricProbesInstrumentationTest {
         createMetricBuilder(METRIC_ID, METRIC_NAME, COUNT)
             .where(CLASS_NAME, "f", "()")
             .valueScript(new ValueScript(DSL.ref("intValue"), "intValue"))
-            .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
+            .evaluateAt(MethodLocation.ENTRY)
             .build();
     MetricForwarderListener listener = installMetricProbes(metricProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -652,7 +652,7 @@ public class MetricProbesInstrumentationTest {
         createMetricBuilder(METRIC_ID, METRIC_NAME, COUNT)
             .where(CLASS_NAME, "f", "()")
             .valueScript(new ValueScript(DSL.ref("intValue"), "intValue"))
-            .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
+            .evaluateAt(MethodLocation.EXIT)
             .build();
     MetricForwarderListener listener = installMetricProbes(metricProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);

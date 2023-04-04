@@ -4,7 +4,9 @@ import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.ValueScript;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
+import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.bootstrap.debugger.SummaryBuilder;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -83,6 +85,11 @@ public class SpanDecorationProbe extends ProbeDefinition {
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics,
       List<String> probeIds) {}
+
+  @Override
+  public SummaryBuilder getSummaryBuilder() {
+    return null;
+  }
 
   public TargetSpan getTargetSpan() {
     return targetSpan;

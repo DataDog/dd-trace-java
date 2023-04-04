@@ -1,6 +1,7 @@
 package com.datadog.debugger.probe;
 
 import com.datadog.debugger.agent.Generated;
+import com.datadog.debugger.agent.LogMessageTemplateSummaryBuilder;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.instrumentation.LogInstrumentor;
@@ -10,16 +11,22 @@ import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.Limits;
+import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.SummaryBuilder;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Stores definition of a log probe */
 public class LogProbe extends ProbeDefinition {
+  private static final Logger LOGGER = LoggerFactory.getLogger(LogProbe.class);
 
   /** Stores part of a templated message either a str or an expression */
   public static class Segment {
@@ -207,6 +214,7 @@ public class LogProbe extends ProbeDefinition {
 
   private final Capture capture;
   private final Sampling sampling;
+  private transient SummaryBuilder summaryBuilder;
 
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
@@ -320,6 +328,71 @@ public class LogProbe extends ProbeDefinition {
       List<String> probeIds) {
     new LogInstrumentor(this, classLoader, classNode, methodNode, diagnostics, probeIds)
         .instrument();
+  }
+
+  @Override
+  public void evaluate(
+      Snapshot.CapturedContext context,
+      Snapshot.CapturedContext.Status status,
+      MethodLocation methodLocation) {
+    boolean shouldEvaluate = resolveEvaluateAt(methodLocation);
+    if (!shouldEvaluate) {
+      return;
+    }
+    status.setCondition(evaluateCondition(context));
+    status.setConditionErrors(context.handleEvalErrors(status.getErrors()));
+    Snapshot.CapturedThrowable throwable = context.getThrowable();
+    if (status.hasConditionErrors() && throwable != null) {
+      status.addError(
+          new Snapshot.EvaluationError(
+              "uncaught exception", throwable.getType() + ": " + throwable.getMessage()));
+    }
+    if (status.getCondition()) {
+      if (summaryBuilder == null) {
+        summaryBuilder = new LogMessageTemplateSummaryBuilder(segments);
+      }
+      switch (methodLocation) {
+        case ENTRY:
+          this.summaryBuilder.addEntry(context);
+          break;
+        case EXIT:
+          summaryBuilder.addExit(context);
+          break;
+        case DEFAULT:
+          summaryBuilder.addLine(context);
+          break;
+      }
+      status.setLogTemplateErrors(context.handleEvalErrors(status.getErrors()));
+    }
+  }
+
+  private boolean evaluateCondition(Snapshot.CapturedContext capture) {
+    if (probeCondition == null) {
+      return true;
+    }
+    long startTs = System.nanoTime();
+    try {
+      if (!probeCondition.execute(capture)) {
+        return false;
+      }
+    } catch (RuntimeException ex) {
+      LOGGER.debug("Evaluation error: ", ex);
+      return false;
+    } finally {
+      LOGGER.debug(
+          "ProbeCondition for probe[{}] evaluated in {}ns", id, (System.nanoTime() - startTs));
+    }
+    return true;
+  }
+
+  @Override
+  public boolean hasCondition() {
+    return probeCondition != null;
+  }
+
+  @Override
+  public SummaryBuilder getSummaryBuilder() {
+    return summaryBuilder;
   }
 
   @Generated

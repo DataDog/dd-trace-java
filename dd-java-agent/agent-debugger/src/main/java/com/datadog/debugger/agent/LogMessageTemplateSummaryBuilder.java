@@ -25,12 +25,12 @@ public class LogMessageTemplateSummaryBuilder implements SummaryBuilder {
 
   private static final Duration TIME_OUT = Duration.of(100, ChronoUnit.MILLIS);
 
-  private final LogProbe logProbe;
+  private final List<LogProbe.Segment> segments;
   private final List<Snapshot.EvaluationError> evaluationErrors = new ArrayList<>();
   private String message;
 
-  public LogMessageTemplateSummaryBuilder(LogProbe logProbe) {
-    this.logProbe = logProbe;
+  public LogMessageTemplateSummaryBuilder(List<LogProbe.Segment> segments) {
+    this.segments = segments;
   }
 
   @Override
@@ -64,19 +64,19 @@ public class LogMessageTemplateSummaryBuilder implements SummaryBuilder {
     return evaluationErrors;
   }
 
-  private void executeExpressions(Snapshot.CapturedContext entry) {
-    StringBuilder sb = new StringBuilder();
-    if (logProbe.getSegments() == null) {
+  private void executeExpressions(Snapshot.CapturedContext context) {
+    if (segments == null) {
       return;
     }
-    for (LogProbe.Segment segment : logProbe.getSegments()) {
+    StringBuilder sb = new StringBuilder();
+    for (LogProbe.Segment segment : segments) {
       ValueScript parsedExr = segment.getParsedExpr();
       if (segment.getStr() != null) {
         sb.append(segment.getStr());
       } else {
         if (parsedExr != null) {
           try {
-            Value<?> result = parsedExr.execute(entry);
+            Value<?> result = parsedExr.execute(context);
             if (result.isUndefined()) {
               sb.append(result.getValue());
             } else if (result.isNull()) {
