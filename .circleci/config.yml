@@ -391,7 +391,6 @@ jobs:
             ./gradlew clean
             << parameters.gradleTarget >>
             -PskipTests
-            -PskipBuildSrcTest
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
             --rerun-tasks

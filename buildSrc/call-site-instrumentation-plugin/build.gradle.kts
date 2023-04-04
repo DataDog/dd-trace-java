@@ -92,5 +92,5 @@ tasks.build {
 
 tasks.test {
   useJUnitPlatform()
-  enabled = !project.hasProperty("skipBuildSrcTest")
+  enabled = project.hasProperty("runBuildSrcTests")
 }
