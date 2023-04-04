@@ -138,6 +138,10 @@ public final class StatusLogger extends JsonAdapter<Config>
     writer.value(config.isDatadogProfilerEnabled());
     writer.name("datadog_profiler_safe");
     writer.value(isDatadogProfilerSafeInCurrentEnvironment());
+    if (config.isIastEnabled()) {
+      writer.name("iast_enabled");
+      writer.value(true);
+    }
     writer.endObject();
   }
 
