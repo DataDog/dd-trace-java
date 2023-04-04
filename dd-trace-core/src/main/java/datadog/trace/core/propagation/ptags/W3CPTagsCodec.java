@@ -128,6 +128,9 @@ public class W3CPTagsCodec extends PTagsCodec {
                 "Invalid datadog tags header value: '{}' invalid tag value at {}",
                 value,
                 tagValuePos);
+            if (tagKey.equals(TRACE_ID_TAG)) {
+              return tagsFactory.createInvalid(PROPAGATION_ERROR_MALFORMED_TID + tagValue);
+            }
             // TODO drop parts?
             return empty(tagsFactory, value, firstMemberStart, ddMemberStart, ddMemberValueEnd);
           }

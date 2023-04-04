@@ -84,6 +84,9 @@ final class DatadogPTagsCodec extends PTagsCodec {
                 "Invalid datadog tags header value: '{}' invalid tag value at {}",
                 value,
                 tagValuePos);
+            if (tagKey.equals(TRACE_ID_TAG)) {
+              return tagsFactory.createInvalid(PROPAGATION_ERROR_MALFORMED_TID + tagValue);
+            }
             return tagsFactory.createInvalid(PROPAGATION_ERROR_DECODING_ERROR);
           }
           if (tagKey.equals(DECISION_MAKER_TAG)) {
