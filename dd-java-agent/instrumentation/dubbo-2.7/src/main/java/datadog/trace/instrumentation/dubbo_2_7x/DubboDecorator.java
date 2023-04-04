@@ -79,9 +79,7 @@ public class DubboDecorator extends BaseDecorator {
     span.setTag(TAG_VERSION,getVersion(url));
 
     span.setTag(TAG_SIDE,isConsumer?CONSUMER_SIDE:PROVIDER_SIDE);
-    if (isConsumer) {
-      span.setTag(TAG_HOST, getHostAddress(invocation));
-    }
+
     afterStart(span);
 
 //    System.out.println("invocation.getArguments() > "+invocation.getArguments().length);
@@ -104,7 +102,14 @@ public class DubboDecorator extends BaseDecorator {
 
   private String providerResourceName(Invoker invoker,Invocation invocation){
     StringBuilder operationName = new StringBuilder();
-    operationName.append(invoker.getInterface().getName());
+  //  operationName.append(invoker.getInterface().getName());
+    System.out.println("providerResourceName invoker.getInterface() ==null ?"+(invoker.getInterface()==null));
+    if(invoker.getInterface()!=null){
+      operationName.append(invoker.getInterface().getName());
+    }else{
+      operationName.append(invoker.getClass().getName());
+    }
+
     operationName.append("." + invocation.getMethodName() + "(");
     for (Class<?> classes : invocation.getParameterTypes()) {
       operationName.append(classes.getSimpleName() + ",");
