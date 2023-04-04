@@ -41,8 +41,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 public class DebuggerSinkTest {
-  public static final String SINK_FIXTURE_PREFIX = "/com/datadog/debugger/sink";
-
   private static final String PROBE_ID = "12fd-8490-c111-4374-ffde";
   private static final Snapshot.ProbeLocation PROBE_LOCATION =
       new Snapshot.ProbeLocation("java.lang.String", "indexOf", null, null);

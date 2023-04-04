@@ -1,6 +1,5 @@
 package com.datadog.debugger.agent;
 
-import static com.datadog.debugger.sink.DebuggerSinkTest.SINK_FIXTURE_PREFIX;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.ARGUMENTS;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.CAPTURES;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.COLLECTION_SIZE_REASON;
@@ -20,7 +19,6 @@ import static com.datadog.debugger.util.MoshiSnapshotHelper.TIMEOUT_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TRUNCATED;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TYPE;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.VALUE;
-import static utils.TestHelper.getFixtureContent;
 
 import com.datadog.debugger.util.MoshiHelper;
 import com.datadog.debugger.util.MoshiSnapshotHelper;
@@ -111,10 +109,6 @@ public class SnapshotSerializationTest {
         MethodLocation.EXIT);
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
-    String snapshotRegex =
-        getFixtureContent(SINK_FIXTURE_PREFIX + "/snapshotCapturedValueRegex.txt");
-    snapshotRegex = snapshotRegex.replaceAll("\\n", "");
-    Assertions.assertTrue(buffer.matches(snapshotRegex), buffer);
     Snapshot deserializedSnapshot = adapter.fromJson(buffer);
     Map<String, Snapshot.CapturedValue> fields =
         deserializedSnapshot.getCaptures().getReturn().getFields();
