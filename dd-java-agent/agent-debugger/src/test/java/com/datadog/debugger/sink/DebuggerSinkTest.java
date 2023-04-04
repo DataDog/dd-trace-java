@@ -82,7 +82,6 @@ public class DebuggerSinkTest {
     System.out.println(strPayload);
     JsonSnapshotSerializer.IntakeRequest intakeRequest = assertOneIntakeRequest(strPayload);
     assertEquals("dd_debugger", intakeRequest.getDdsource());
-    assertEquals("String.indexOf()", intakeRequest.getMessage());
     assertEquals("service-name", intakeRequest.getService());
     assertEquals("java.lang.String", intakeRequest.getLoggerName());
     assertEquals("indexOf", intakeRequest.getLoggerMethod());

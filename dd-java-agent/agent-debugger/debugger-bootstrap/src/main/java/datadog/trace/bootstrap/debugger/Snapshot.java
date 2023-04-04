@@ -240,18 +240,9 @@ public class Snapshot {
       private final boolean captureSnapshot;
       private final DebuggerScript<Boolean> script;
       private final String tags;
-      private final SummaryBuilder summaryBuilder;
 
       public DummyProbe(String id, ProbeLocation location) {
-        this(
-            id,
-            0,
-            location,
-            MethodLocation.DEFAULT,
-            true,
-            null,
-            null,
-            new SnapshotSummaryBuilder(location));
+        this(id, 0, location, MethodLocation.DEFAULT, true, null, null);
       }
 
       public DummyProbe(
@@ -261,8 +252,7 @@ public class Snapshot {
           MethodLocation evaluateAt,
           boolean captureSnapshot,
           DebuggerScript<Boolean> script,
-          String tags,
-          SummaryBuilder summaryBuilder) {
+          String tags) {
         this.id = id;
         this.version = version;
         this.location = location;
@@ -270,7 +260,6 @@ public class Snapshot {
         this.captureSnapshot = captureSnapshot;
         this.script = script;
         this.tags = tags;
-        this.summaryBuilder = summaryBuilder;
       }
 
       @Override
@@ -294,7 +283,7 @@ public class Snapshot {
 
       @Override
       public SummaryBuilder getSummaryBuilder() {
-        return summaryBuilder;
+        return null;
       }
 
       @Override
