@@ -11,7 +11,6 @@ import com.datadog.iast.sink.PathTraversalModuleImpl;
 import com.datadog.iast.sink.SqlInjectionModuleImpl;
 import com.datadog.iast.sink.WeakCipherModuleImpl;
 import com.datadog.iast.sink.WeakHashModuleImpl;
-import com.datadog.iast.source.WebModuleImpl;
 import com.datadog.iast.telemetry.IastTelemetry;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.EventType;
@@ -78,7 +77,6 @@ public class IastSystem {
 
   private static Stream<IastModule> iastModules() {
     return Stream.of(
-        new WebModuleImpl(),
         new StringModuleImpl(),
         new UrlModuleImpl(),
         new SqlInjectionModuleImpl(),

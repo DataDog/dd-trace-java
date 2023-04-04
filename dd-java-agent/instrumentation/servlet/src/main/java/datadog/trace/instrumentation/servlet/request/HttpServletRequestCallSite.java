@@ -8,7 +8,6 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.PropagationTypes;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import datadog.trace.api.iast.source.WebModule;
 import datadog.trace.util.stacktrace.StackUtils;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -29,10 +28,10 @@ public class HttpServletRequestCallSite {
       @CallSite.This final HttpServletRequest self,
       @CallSite.Argument final String headerName,
       @CallSite.Return final String headerValue) {
-    final WebModule module = InstrumentationBridge.WEB;
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.onHeaderValue(headerName, headerValue);
+        module.namedTaint(SourceTypes.REQUEST_COOKIE_VALUE, headerName, headerValue);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetHeader threw", e);
       }
@@ -53,7 +52,7 @@ public class HttpServletRequestCallSite {
     if (enumeration == null) {
       return null;
     }
-    final WebModule module = InstrumentationBridge.WEB;
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module == null) {
       return enumeration;
     }
@@ -64,7 +63,7 @@ public class HttpServletRequestCallSite {
         headerValues.add(headerValue);
       }
       try {
-        module.onHeaderValues(headerName, headerValues);
+        module.namedTaint(SourceTypes.REQUEST_HEADER_VALUE, headerName, headerValues);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetHeaders threw", e);
       }
@@ -86,7 +85,7 @@ public class HttpServletRequestCallSite {
     if (enumeration == null) {
       return null;
     }
-    final WebModule module = InstrumentationBridge.WEB;
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module == null) {
       return enumeration;
     }
@@ -97,7 +96,7 @@ public class HttpServletRequestCallSite {
         headerNames.add(headerName);
       }
       try {
-        module.onHeaderNames(headerNames);
+        module.taintNames(SourceTypes.REQUEST_HEADER_NAME, headerNames);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetHeaderNames threw", e);
       }
@@ -132,10 +131,10 @@ public class HttpServletRequestCallSite {
   @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequestWrapper.getQueryString()")
   public static String afterGetQueryString(
       @CallSite.This final HttpServletRequest self, @CallSite.Return final String queryString) {
-    final WebModule module = InstrumentationBridge.WEB;
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.onQueryString(queryString);
+        module.taint(SourceTypes.REQUEST_QUERY, queryString);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetQueryString threw", e);
       }

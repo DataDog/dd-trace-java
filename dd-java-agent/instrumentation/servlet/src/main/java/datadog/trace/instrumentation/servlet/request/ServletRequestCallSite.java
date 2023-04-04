@@ -8,7 +8,6 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.PropagationTypes;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import datadog.trace.api.iast.source.WebModule;
 import datadog.trace.util.stacktrace.StackUtils;
 import java.io.BufferedReader;
 import java.util.ArrayList;
@@ -33,10 +32,10 @@ public class ServletRequestCallSite {
       @CallSite.This final ServletRequest self,
       @CallSite.Argument final String paramName,
       @CallSite.Return final String paramValue) {
-    final WebModule module = InstrumentationBridge.WEB;
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.onParameterValue(paramName, paramValue);
+        module.namedTaint(SourceTypes.REQUEST_PARAMETER_VALUE, paramName, paramValue);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetParameter threw", e);
       }
@@ -54,7 +53,7 @@ public class ServletRequestCallSite {
       @CallSite.This final ServletRequest self,
       @CallSite.Return final Enumeration<String> enumeration)
       throws Throwable {
-    final WebModule module = InstrumentationBridge.WEB;
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module == null) {
       return enumeration;
     }
@@ -65,7 +64,7 @@ public class ServletRequestCallSite {
         parameterNames.add(paramName);
       }
       try {
-        module.onParameterNames(parameterNames);
+        module.taintNames(SourceTypes.REQUEST_PARAMETER_NAME, parameterNames);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetParameterNames threw", e);
       }
@@ -91,10 +90,10 @@ public class ServletRequestCallSite {
       @CallSite.Argument final String paramName,
       @CallSite.Return final String[] parameterValues) {
     if (null != parameterValues) {
-      final WebModule module = InstrumentationBridge.WEB;
+      final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.onParameterValues(paramName, parameterValues);
+          module.namedTaint(SourceTypes.REQUEST_PARAMETER_VALUE, paramName, parameterValues);
         } catch (final Throwable e) {
           module.onUnexpectedException("afterGetParameterValues threw", e);
         }

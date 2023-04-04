@@ -15,7 +15,8 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.source.WebModule;
+import datadog.trace.api.iast.SourceTypes;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.HashMap;
@@ -146,16 +147,14 @@ public class TemplateAndMatrixVariablesInstrumentation extends Instrumenter.Defa
       { // iast
         Object iastRequestContext = reqCtx.getData(RequestContextSlot.IAST);
         if (iastRequestContext != null) {
-          WebModule module = InstrumentationBridge.WEB;
+          PropagationModule module = InstrumentationBridge.PROPAGATION;
           if (module != null) {
             if (templateVars instanceof Map) {
               for (Map.Entry<String, String> e : ((Map<String, String>) templateVars).entrySet()) {
                 String parameterName = e.getKey();
                 String value = e.getValue();
-                if (parameterName == null || value == null) {
-                  continue; // should not happen
-                }
-                module.onRequestPathParameter(parameterName, value, iastRequestContext);
+                module.namedTaint(
+                    iastRequestContext, SourceTypes.REQUEST_PATH_PARAMETER, parameterName, value);
               }
             }
 
@@ -170,13 +169,19 @@ public class TemplateAndMatrixVariablesInstrumentation extends Instrumenter.Defa
 
                 for (Map.Entry<String, Iterable<String>> ie : value.entrySet()) {
                   String innerKey = ie.getKey();
-                  if (innerKey != null) {
-                    module.onRequestMatrixParameter(parameterName, innerKey, iastRequestContext);
-                  }
+                  module.namedTaint(
+                      iastRequestContext,
+                      SourceTypes.REQUEST_MATRIX_PARAMETER,
+                      parameterName,
+                      innerKey);
                   Iterable<String> innerValues = ie.getValue();
                   if (innerValues != null) {
                     for (String iv : innerValues) {
-                      module.onRequestMatrixParameter(parameterName, iv, iastRequestContext);
+                      module.namedTaint(
+                          iastRequestContext,
+                          SourceTypes.REQUEST_MATRIX_PARAMETER,
+                          parameterName,
+                          iv);
                     }
                   }
                 }

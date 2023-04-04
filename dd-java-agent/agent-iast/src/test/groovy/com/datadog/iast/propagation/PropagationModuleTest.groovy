@@ -4,6 +4,7 @@ import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.IastRequestContext
 import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
+import com.datadog.iast.taint.Ranges
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.SourceTypes
@@ -162,6 +163,24 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     [SourceTypes.REQUEST_PARAMETER_VALUE, new MockTaintable()] | { it[1] }
   }
 
+  void 'test namedTaint'() {
+    given:
+    final method = module.&namedTaint
+
+    when:
+    method.call(args.toArray())
+
+    then:
+    final toTaint = toTaintClosure.call(args)
+    final ranges = assertTainted(toTaint)
+    ranges == Ranges.forObject(new Source(args[0], args[1], null))
+
+    where:
+    args                                                               | toTaintClosure
+    [SourceTypes.REQUEST_PARAMETER_VALUE, "name", new Object()]        | { it[1] }
+    [SourceTypes.REQUEST_PARAMETER_VALUE, "name", new MockTaintable()] | { it[1] }
+  }
+
   void 'onJsonFactoryCreateParser'() {
     given:
     final taintedObjects = ctx.getTaintedObjects()
@@ -252,13 +271,15 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     return toTaint
   }
 
-  private void assertTainted(final Object toTaint) {
+  private Range[] assertTainted(final Object toTaint) {
     final tainted = ctx.getTaintedObjects().get(toTaint)
     if (toTaint instanceof Taintable) {
       assert tainted == null
       assert toTaint.$$DD$getSource() != null
+      return Ranges.forObject((Source) toTaint.$$DD$getSource())
     } else {
       assert tainted != null
+      return tainted.ranges
     }
   }
 

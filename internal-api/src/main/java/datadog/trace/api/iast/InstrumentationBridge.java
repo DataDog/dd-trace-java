@@ -16,7 +16,6 @@ public abstract class InstrumentationBridge {
 
   public static volatile StringModule STRING;
   public static volatile UrlModule URL;
-  public static volatile WebModule WEB;
   public static volatile SqlInjectionModule SQL_INJECTION;
   public static volatile PathTraversalModule PATH_TRAVERSAL;
   public static volatile CommandInjectionModule COMMAND_INJECTION;
@@ -32,8 +31,6 @@ public abstract class InstrumentationBridge {
       STRING = (StringModule) module;
     } else if (module instanceof UrlModule) {
       URL = (UrlModule) module;
-    } else if (module instanceof WebModule) {
-      WEB = (WebModule) module;
     } else if (module instanceof SqlInjectionModule) {
       SQL_INJECTION = (SqlInjectionModule) module;
     } else if (module instanceof PathTraversalModule) {

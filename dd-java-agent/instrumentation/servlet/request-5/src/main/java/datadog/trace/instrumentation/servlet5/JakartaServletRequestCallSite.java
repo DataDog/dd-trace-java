@@ -3,7 +3,8 @@ package datadog.trace.instrumentation.servlet5;
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.source.WebModule;
+import datadog.trace.api.iast.SourceTypes;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.util.stacktrace.StackUtils;
 import jakarta.servlet.ServletRequest;
 import java.util.ArrayList;
@@ -29,10 +30,10 @@ public class JakartaServletRequestCallSite {
       @CallSite.This final ServletRequest self,
       @CallSite.Argument final String paramName,
       @CallSite.Return final String paramValue) {
-    final WebModule module = InstrumentationBridge.WEB;
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.onParameterValue(paramName, paramValue);
+        module.namedTaint(SourceTypes.REQUEST_PARAMETER_VALUE, paramName, paramValue);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetParameter threw", e);
       }
@@ -53,7 +54,7 @@ public class JakartaServletRequestCallSite {
       @CallSite.This final ServletRequest self,
       @CallSite.Return final Enumeration<String> enumeration)
       throws Throwable {
-    final WebModule module = InstrumentationBridge.WEB;
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module == null) {
       return enumeration;
     }
@@ -64,7 +65,7 @@ public class JakartaServletRequestCallSite {
         parameterNames.add(paramName);
       }
       try {
-        module.onParameterNames(parameterNames);
+        module.taintNames(SourceTypes.REQUEST_PARAMETER_NAME, parameterNames);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetParameterNames threw", e);
       }
@@ -91,10 +92,10 @@ public class JakartaServletRequestCallSite {
       @CallSite.Argument final String paramName,
       @CallSite.Return final String[] parameterValues) {
     if (null != parameterValues) {
-      final WebModule module = InstrumentationBridge.WEB;
+      final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.onParameterValues(paramName, parameterValues);
+          module.namedTaint(SourceTypes.REQUEST_PARAMETER_VALUE, paramName, parameterValues);
         } catch (final Throwable e) {
           module.onUnexpectedException("afterGetParameterValues threw", e);
         }
@@ -112,10 +113,10 @@ public class JakartaServletRequestCallSite {
   })
   public static java.util.Map<java.lang.String, java.lang.String[]> afterGetParameterMap(
       @CallSite.This final ServletRequest self, @CallSite.Return final Map<String, String[]> map) {
-    final WebModule module = InstrumentationBridge.WEB;
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.onParameterValues(map);
+        module.taintNameValuesMap(SourceTypes.REQUEST_PARAMETER_VALUE, map);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetParameter threw", e);
       }

@@ -7,7 +7,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.source.WebModule;
+import datadog.trace.api.iast.SourceTypes;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
@@ -34,12 +35,11 @@ public class HttpHeadersInstrumentation extends Instrumenter.Iast
 
     @Advice.OnMethodExit
     public static void onExit(
-        @Advice.Return(readOnly = true) String headerValue, @Advice.Argument(0) String headerName) {
-      final WebModule module = InstrumentationBridge.WEB;
-
+        @Advice.Argument(0) String headerName, @Advice.Return(readOnly = true) String headerValue) {
+      final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.onHeaderValue(headerName, headerValue);
+          module.namedTaint(SourceTypes.REQUEST_HEADER_VALUE, headerName, headerValue);
         } catch (final Throwable e) {
           module.onUnexpectedException("HttpHeadersInstrumentation threw", e);
         }

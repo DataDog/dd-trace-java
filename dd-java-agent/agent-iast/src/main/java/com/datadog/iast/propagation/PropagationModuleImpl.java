@@ -135,6 +135,18 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
+  public void taint(final byte origin, @Nullable final String toTaint) {
+    if (!canBeTainted(toTaint)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    taintString(toTaint, new Source(origin, null, toTaint));
+  }
+
+  @Override
   public void taint(final byte origin, @Nullable final Object... toTaintArray) {
     if (toTaintArray == null || toTaintArray.length == 0) {
       return;
@@ -172,7 +184,68 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
-  public void taint(
+  public void namedTaint(byte origin, @Nullable String name, @Nullable String value) {
+    if (!canBeTainted(value)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    taintedObjects.taintInputString(value, new Source(origin, name, value));
+  }
+
+  @Override
+  public void namedTaint(
+      @Nonnull Object ctx, byte origin, @Nullable String name, @Nullable String value) {
+    if (!canBeTainted(value)) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ((IastRequestContext) ctx).getTaintedObjects();
+    taintedObjects.taintInputString(value, new Source(origin, name, value));
+  }
+
+  @Override
+  public void taintName(byte origin, @Nullable String name) {
+    if (!canBeTainted(name)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    taintedObjects.taintInputString(name, new Source(origin, name, null));
+  }
+
+  @Override
+  public void taintNames(final byte origin, @Nullable final Collection<?> toTaintCollection) {
+    if (toTaintCollection == null || toTaintCollection.isEmpty()) {
+      return;
+    }
+    TaintedObjects taintedObjects = null;
+    for (final Object toTaint : toTaintCollection) {
+      if (toTaint instanceof String) {
+        final String name = (String) toTaint;
+        if (name.isEmpty()) {
+          continue;
+        }
+        if (taintedObjects == null) {
+          final IastRequestContext ctx = IastRequestContext.get();
+          if (ctx == null) {
+            return;
+          }
+          taintedObjects = ctx.getTaintedObjects();
+        }
+        final Source source = new Source(origin, name, null);
+        taintedObjects.taintInputString(name, source);
+      }
+    }
+  }
+
+  @Override
+  public void namedTaint(
       @Nullable Taintable t, byte origin, @Nullable String name, @Nullable String value) {
     if (t == null) {
       return;
@@ -180,11 +253,117 @@ public class PropagationModuleImpl implements PropagationModule {
     t.$$DD$setSource(new Source(origin, name, value));
   }
 
+  @Override
+  public void namedTaint(
+      final byte origin, @Nullable String name, @Nullable final String[] toTaintArray) {
+    if (toTaintArray == null || toTaintArray.length == 0) {
+      return;
+    }
+    TaintedObjects taintedObjects = null;
+    for (final String toTaint : toTaintArray) {
+      if (toTaint == null || toTaint.isEmpty()) {
+        continue;
+      }
+      if (taintedObjects == null) {
+        final IastRequestContext ctx = IastRequestContext.get();
+        if (ctx == null) {
+          return;
+        }
+        taintedObjects = ctx.getTaintedObjects();
+      }
+      final Source source = new Source(origin, name, toTaint);
+      taintedObjects.taintInputString(toTaint, source);
+    }
+  }
+
+  @Override
+  public void namedTaint(
+      final byte origin, @Nullable String name, @Nullable final Collection<?> toTaintCollection) {
+    if (toTaintCollection == null || toTaintCollection.size() == 0) {
+      return;
+    }
+    TaintedObjects taintedObjects = null;
+    for (final Object toTaint : toTaintCollection) {
+      if (toTaint instanceof String) {
+        final String value = (String) toTaint;
+        if (value.isEmpty()) {
+          continue;
+        }
+        if (taintedObjects == null) {
+          final IastRequestContext ctx = IastRequestContext.get();
+          if (ctx == null) {
+            return;
+          }
+          taintedObjects = ctx.getTaintedObjects();
+        }
+        final Source source = new Source(origin, name, value);
+        taintedObjects.taintInputString(value, source);
+      }
+    }
+  }
+
+  @Override
+  public void taintNameValuesMap(final byte source, @Nullable final Map<String, String[]> values) {
+    if (values == null || values.isEmpty()) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final byte nameSource = SourceTypes.namedSource(source);
+    for (final Map.Entry<String, String[]> entry : values.entrySet()) {
+      final String name = entry.getKey();
+      if (canBeTainted(name)) {
+        taintedObjects.taintInputString(name, new Source(nameSource, name, name));
+      }
+      for (final String value : entry.getValue()) {
+        if (canBeTainted(value)) {
+          taintedObjects.taintInputString(value, new Source(source, name, value));
+        }
+      }
+    }
+  }
+
   private static void taintObject(
       final TaintedObjects taintedObjects, final Object toTaint, final Source source) {
     if (toTaint instanceof Taintable) {
       ((Taintable) toTaint).$$DD$setSource(source);
     } else {
+      taintedObjects.taintInputObject(toTaint, source);
+    }
+  }
+
+  private static void taintAny(@Nonnull final Object toTaint, @Nonnull final Source source) {
+    if (toTaint instanceof String) {
+      taintString((String) toTaint, source);
+    } else {
+      taintObject(toTaint, source);
+    }
+  }
+
+  private static void taintString(@Nonnull final String toTaint, @Nonnull final Source source) {
+    if (toTaint.isEmpty()) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    taintedObjects.taintInputString(toTaint, source);
+  }
+
+  private static void taintObject(@Nonnull final Object toTaint, @Nonnull final Source source) {
+    if (toTaint instanceof Taintable) {
+      ((Taintable) toTaint).$$DD$setSource(source);
+    } else {
+      final IastRequestContext ctx = IastRequestContext.get();
+      if (ctx == null) {
+        return;
+      }
+      final TaintedObjects taintedObjects = ctx.getTaintedObjects();
       taintedObjects.taintInputObject(toTaint, source);
     }
   }
