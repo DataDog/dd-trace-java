@@ -22,8 +22,8 @@ class SparkTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          operationName "spark-application"
-          resourceName "spark-application"
+          operationName "spark.application"
+          resourceName "spark.application"
           serviceName "apache-spark"
           spanType "spark"
           errored false

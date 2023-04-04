@@ -44,7 +44,7 @@ public class InjectedSparkListener extends SparkListener {
   public void onApplicationStart(SparkListenerApplicationStart applicationStart) {
     applicationSpan =
         tracer
-            .buildSpan("spark-application")
+            .buildSpan("spark.application")
             .withStartTimestamp(applicationStart.time() * 1000)
             .withTag("application_name", applicationStart.appName())
             .withTag("spark_user", applicationStart.sparkUser())
@@ -67,7 +67,7 @@ public class InjectedSparkListener extends SparkListener {
   public void onApplicationEnd(SparkListenerApplicationEnd applicationEnd) {
     if (lastJobFailed) {
       applicationSpan.setError(true);
-      applicationSpan.setTag(DDTags.ERROR_TYPE, "Last Spark Job Failed");
+      applicationSpan.setTag(DDTags.ERROR_TYPE, "Spark Application Failed");
     }
 
     for (SparkListenerExecutorAdded executor : liveExecutors.values()) {
@@ -88,7 +88,7 @@ public class InjectedSparkListener extends SparkListener {
   public void onJobStart(SparkListenerJobStart jobStart) {
     AgentSpan jobSpan =
         tracer
-            .buildSpan("spark-job")
+            .buildSpan("spark.job")
             .asChildOf(applicationSpan.context())
             .withStartTimestamp(jobStart.time() * 1000)
             .withTag("job_id", jobStart.jobId())
@@ -156,7 +156,7 @@ public class InjectedSparkListener extends SparkListener {
 
     AgentSpan stageSpan =
         tracer
-            .buildSpan("spark-stage")
+            .buildSpan("spark.stage")
             .asChildOf(jobSpan.context())
             .withStartTimestamp(submissionTime.orElse(System.currentTimeMillis()) * 1000)
             .withTag("stage_id", stageId)
@@ -259,7 +259,7 @@ public class InjectedSparkListener extends SparkListener {
   private void sendTaskSpan(AgentSpan stageSpan, SparkListenerTaskEnd taskEnd) {
     AgentSpan taskSpan =
         tracer
-            .buildSpan("spark-task")
+            .buildSpan("spark.task")
             .asChildOf(stageSpan.context())
             .withStartTimestamp(taskEnd.taskInfo().launchTime() * 1000)
             .withTag("task_id", taskEnd.taskInfo().taskId())
