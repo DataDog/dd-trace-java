@@ -76,7 +76,7 @@ package:
     - source ../upstream.env
     - echo -n $UPSTREAM_TRACER_VERSION$CI_VERSION_SUFFIX > auto_inject-java.version
     - cp ../workspace/dd-java-agent/build/libs/*.jar dd-java-agent.jar
-    - source /packaging/common_build_functions.sh
+    - source common_build_functions.sh
     - >
       fpm_wrapper "datadog-apm-library-java" "$JAVA_PACKAGE_VERSION" 
         --input-type dir 
