@@ -14,8 +14,6 @@ public class FormParamInjectorAdvice {
       @Advice.FieldValue("paramName") String paramName) {
     if (result instanceof String || result instanceof Collection) {
       final WebModule module = InstrumentationBridge.WEB;
-      System.out.println("Inside FormParamInjectorAdvice.onExit");
-
       if (module != null) {
         try {
           if (result instanceof Collection) {
