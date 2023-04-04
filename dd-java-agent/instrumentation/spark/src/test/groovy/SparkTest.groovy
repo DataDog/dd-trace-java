@@ -24,7 +24,6 @@ class SparkTest extends AgentTestRunner {
         span {
           operationName "spark.application"
           resourceName "spark.application"
-          serviceName "apache-spark"
           spanType "spark"
           errored false
           parent()
