@@ -2,6 +2,7 @@ package com.datadog.debugger.probe;
 
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.agent.LogMessageTemplateBuilder;
+import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.instrumentation.LogInstrumentor;
@@ -337,8 +338,7 @@ public class LogProbe extends ProbeDefinition {
     if (!shouldEvaluate) {
       return;
     }
-    status.setCondition(evaluateCondition(context));
-    status.setConditionErrors(context.handleEvalErrors(status.getErrors()));
+    status.setCondition(evaluateCondition(context, status));
     Snapshot.CapturedThrowable throwable = context.getThrowable();
     if (status.hasConditionErrors() && throwable != null) {
       status.addError(
@@ -347,12 +347,12 @@ public class LogProbe extends ProbeDefinition {
     }
     if (status.getCondition()) {
       LogMessageTemplateBuilder logMessageBuilder = new LogMessageTemplateBuilder(segments);
-      status.setMessage(logMessageBuilder.evaluate(context));
-      status.setLogTemplateErrors(context.handleEvalErrors(status.getErrors()));
+      status.setMessage(logMessageBuilder.evaluate(context, status));
     }
   }
 
-  private boolean evaluateCondition(Snapshot.CapturedContext capture) {
+  private boolean evaluateCondition(
+      Snapshot.CapturedContext capture, Snapshot.CapturedContext.Status status) {
     if (probeCondition == null) {
       return true;
     }
@@ -361,8 +361,10 @@ public class LogProbe extends ProbeDefinition {
       if (!probeCondition.execute(capture)) {
         return false;
       }
-    } catch (RuntimeException ex) {
+    } catch (EvaluationException ex) {
       LOGGER.debug("Evaluation error: ", ex);
+      status.addError(new Snapshot.EvaluationError(ex.getExpr(), ex.getMessage()));
+      status.setConditionErrors(true);
       return false;
     } finally {
       LOGGER.debug(

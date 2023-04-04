@@ -24,7 +24,9 @@ class LogMessageTemplateBuilderTest {
   public void emptyProbe() {
     LogProbe probe = LogProbe.builder().build();
     LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
-    String message = summaryBuilder.evaluate(new Snapshot.CapturedContext());
+    String message =
+        summaryBuilder.evaluate(
+            new Snapshot.CapturedContext(), new Snapshot.CapturedContext.Status(probe));
     assertNull(message);
   }
 
@@ -32,7 +34,9 @@ class LogMessageTemplateBuilderTest {
   public void emptyTemplate() {
     LogProbe probe = createLogProbe("");
     LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
-    String message = summaryBuilder.evaluate(new Snapshot.CapturedContext());
+    String message =
+        summaryBuilder.evaluate(
+            new Snapshot.CapturedContext(), new Snapshot.CapturedContext.Status(probe));
     assertEquals("", message);
   }
 
@@ -40,7 +44,9 @@ class LogMessageTemplateBuilderTest {
   public void onlyStringTemplate() {
     LogProbe probe = createLogProbe("this is a simple string");
     LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
-    String message = summaryBuilder.evaluate(new Snapshot.CapturedContext());
+    String message =
+        summaryBuilder.evaluate(
+            new Snapshot.CapturedContext(), new Snapshot.CapturedContext.Status(probe));
     assertEquals("this is a simple string", message);
   }
 
@@ -48,7 +54,9 @@ class LogMessageTemplateBuilderTest {
   public void undefinedArgTemplate() {
     LogProbe probe = createLogProbe("{arg}");
     LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
-    String message = summaryBuilder.evaluate(new Snapshot.CapturedContext());
+    String message =
+        summaryBuilder.evaluate(
+            new Snapshot.CapturedContext(), new Snapshot.CapturedContext.Status(probe));
     assertEquals("{Cannot find symbol: arg}", message);
   }
 
@@ -61,7 +69,8 @@ class LogMessageTemplateBuilderTest {
         new Snapshot.CapturedValue[] {
           Snapshot.CapturedValue.of("arg", String.class.getTypeName(), "foo")
         });
-    String message = summaryBuilder.evaluate(capturedContext);
+    String message =
+        summaryBuilder.evaluate(capturedContext, new Snapshot.CapturedContext.Status(probe));
     assertEquals("foo", message);
   }
 
@@ -74,14 +83,16 @@ class LogMessageTemplateBuilderTest {
         new Snapshot.CapturedValue[] {
           Snapshot.CapturedValue.of("arg", String.class.getTypeName(), "foo")
         });
-    String message = summaryBuilder.evaluate(capturedContext);
+    String message =
+        summaryBuilder.evaluate(capturedContext, new Snapshot.CapturedContext.Status(probe));
     LogMessageTemplateBuilder summaryBuilder2 = new LogMessageTemplateBuilder(probe.getSegments());
     Snapshot.CapturedContext capturedContext2 = new Snapshot.CapturedContext();
     capturedContext2.addArguments(
         new Snapshot.CapturedValue[] {
           Snapshot.CapturedValue.of("arg", String.class.getTypeName(), "bar")
         });
-    String message2 = summaryBuilder2.evaluate(capturedContext2);
+    String message2 =
+        summaryBuilder2.evaluate(capturedContext2, new Snapshot.CapturedContext.Status(probe));
     assertEquals("foo", message);
     assertEquals("bar", message2);
   }
@@ -95,7 +106,8 @@ class LogMessageTemplateBuilderTest {
         new Snapshot.CapturedValue[] {
           Snapshot.CapturedValue.of("nullObject", Object.class.getTypeName(), null)
         });
-    String message = summaryBuilder.evaluate(capturedContext);
+    String message =
+        summaryBuilder.evaluate(capturedContext, new Snapshot.CapturedContext.Status(probe));
     assertEquals("null", message);
   }
 
@@ -115,7 +127,8 @@ class LogMessageTemplateBuilderTest {
                 "foo0", "foo1", "foo2", "foo3", "foo4", "foo5", "foo6", "foo7", "foo8", "foo9"
               })
         });
-    String message = summaryBuilder.evaluate(capturedContext);
+    String message =
+        summaryBuilder.evaluate(capturedContext, new Snapshot.CapturedContext.Status(probe));
     assertEquals("[0, 1, 2, ...] [foo0, foo1, foo2, ...]", message);
   }
 
@@ -141,7 +154,8 @@ class LogMessageTemplateBuilderTest {
                       "bar0", "bar1", "bar2", "bar3", "bar4", "bar5", "bar6", "bar7", "bar8",
                       "bar9")))
         });
-    String message = summaryBuilder.evaluate(capturedContext);
+    String message =
+        summaryBuilder.evaluate(capturedContext, new Snapshot.CapturedContext.Status(probe));
     assertEquals("[foo0, foo1, foo2, ...] [bar0, bar1, bar2, ...]", message);
   }
 
@@ -158,7 +172,8 @@ class LogMessageTemplateBuilderTest {
         new Snapshot.CapturedValue[] {
           Snapshot.CapturedValue.of("strMap", String.class.getTypeName(), map)
         });
-    String message = summaryBuilder.evaluate(capturedContext);
+    String message =
+        summaryBuilder.evaluate(capturedContext, new Snapshot.CapturedContext.Status(probe));
     assertEquals("{[foo0=bar0], [foo1=bar1], [foo2=bar2], ...}", message);
   }
 
@@ -182,7 +197,8 @@ class LogMessageTemplateBuilderTest {
         new Snapshot.CapturedValue[] {
           Snapshot.CapturedValue.of("obj", Level0.class.getTypeName(), new Level0())
         });
-    String message = summaryBuilder.evaluate(capturedContext);
+    String message =
+        summaryBuilder.evaluate(capturedContext, new Snapshot.CapturedContext.Status(probe));
     assertEquals("{intField0=0, strField0=foo0, level1=...}", message);
   }
 
@@ -196,7 +212,8 @@ class LogMessageTemplateBuilderTest {
           Snapshot.CapturedValue.of(
               "array", Level0[].class.getTypeName(), new Level0[] {new Level0(), new Level0()})
         });
-    String message = summaryBuilder.evaluate(capturedContext);
+    String message =
+        summaryBuilder.evaluate(capturedContext, new Snapshot.CapturedContext.Status(probe));
     assertEquals("[..., ...]", message);
   }
 
@@ -211,11 +228,12 @@ class LogMessageTemplateBuilderTest {
           Snapshot.CapturedValue.of(
               "obj", Object.class.getTypeName(), ManagementFactory.getOperatingSystemMXBean())
         });
-    String message = summaryBuilder.evaluate(capturedContext);
+    Snapshot.CapturedContext.Status status = new Snapshot.CapturedContext.Status(probe);
+    String message = summaryBuilder.evaluate(capturedContext, status);
     assertEquals(
         "{containerMetrics=UNDEFINED, systemLoadTicks=UNDEFINED, processLoadTicks=UNDEFINED, jvm=UNDEFINED, loadavg=UNDEFINED}",
         message);
-    List<Snapshot.EvaluationError> evaluationErrors = summaryBuilder.getEvaluationErrors();
+    List<Snapshot.EvaluationError> evaluationErrors = status.getErrors();
     assertEquals(5, evaluationErrors.size());
     for (int i = 0; i < 5; i++) {
       assertTrue(evaluationErrors.get(i).getMessage().contains("Cannot extract field:"));

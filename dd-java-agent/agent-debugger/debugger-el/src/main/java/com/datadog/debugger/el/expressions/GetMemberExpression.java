@@ -1,5 +1,6 @@
 package com.datadog.debugger.el.expressions;
 
+import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Generated;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
@@ -21,7 +22,11 @@ public class GetMemberExpression implements ValueExpression<Value<?>> {
     if (targetValue == Value.undefined()) {
       return targetValue;
     }
-    return Value.of(valueRefResolver.getMember(targetValue.getValue(), memberName));
+    try {
+      return Value.of(valueRefResolver.getMember(targetValue.getValue(), memberName));
+    } catch (RuntimeException ex) {
+      throw new EvaluationException(ex.getMessage(), memberName, ex);
+    }
   }
 
   @Generated
