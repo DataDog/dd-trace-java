@@ -51,6 +51,7 @@ public final class TraceInstrumentationConfig {
 
   public static final String LOGS_INJECTION_ENABLED = "logs.injection";
   public static final String LOGS_PATTERN = "logs.pattern";
+  public static final String LOGS_PATTERN_REPLACE = "logs.pattern.replace";
   public static final String LOGS_MDC_TAGS_INJECTION_ENABLED = "logs.mdc.tags.injection";
 
   public static final String KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS =

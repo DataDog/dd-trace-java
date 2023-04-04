@@ -22,7 +22,7 @@ public class PatternLayoutInstrumentation extends Instrumenter.Tracing
 
   @Override
   protected boolean defaultEnabled() {
-    return Config.get().isLogsInjectionEnabled();
+    return Config.get().isLogPatternReplace();
   }
 
   @Override
