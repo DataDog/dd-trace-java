@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.sslsocketimpl;
+package datadog.trace.instrumentation.sslsocket;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -19,14 +19,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @AutoService(Instrumenter.class)
-public final class SslSocketImplStreamsInstrumentation extends Instrumenter.Usm
+public final class SslSocketStreamsInstrumentation extends Instrumenter.Usm
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 
   private static final Logger log =
-      LoggerFactory.getLogger(SslSocketImplStreamsInstrumentation.class);
+      LoggerFactory.getLogger(SslSocketStreamsInstrumentation.class);
 
-  public SslSocketImplStreamsInstrumentation() {
-    super("sun-sslsocketimpl-streams", "sslsocketimpl-streams", "sslsocket-streams");
+  public SslSocketStreamsInstrumentation() {
+    super("sslsocket-streams", "sslsocket-streams", "sslsocket-streams");
   }
 
   @Override
@@ -44,10 +44,10 @@ public final class SslSocketImplStreamsInstrumentation extends Instrumenter.Usm
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         isMethod().and(named("getInputStream")),
-        SslSocketImplStreamsInstrumentation.class.getName() + "$GetInputStreamAdvice");
+        SslSocketStreamsInstrumentation.class.getName() + "$GetInputStreamAdvice");
     transformation.applyAdvice(
         isMethod().and(named("getOutputStream")),
-        SslSocketImplStreamsInstrumentation.class.getName() + "$GetOutputStreamAdvice");
+        SslSocketStreamsInstrumentation.class.getName() + "$GetOutputStreamAdvice");
   }
 
   public static final class GetOutputStreamAdvice {

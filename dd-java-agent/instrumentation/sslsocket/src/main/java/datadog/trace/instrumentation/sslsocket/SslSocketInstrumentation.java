@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.sslsocketimpl;
+package datadog.trace.instrumentation.sslsocket;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -18,11 +18,11 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class SslSocketImplInstrumentation extends Instrumenter.Usm
+public final class SslSocketInstrumentation extends Instrumenter.Usm
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 
-  public SslSocketImplInstrumentation() {
-    super("sun-sslsocketimpl", "sslsocketimpl", "sslsocket");
+  public SslSocketInstrumentation() {
+    super("sslsocket", "sslsocket", "sslsocket");
   }
 
   @Override
@@ -39,7 +39,7 @@ public final class SslSocketImplInstrumentation extends Instrumenter.Usm
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         isMethod().and(named("close").and(takesArguments(0))),
-        SslSocketImplInstrumentation.class.getName() + "$CloseAdvice");
+        SslSocketInstrumentation.class.getName() + "$CloseAdvice");
   }
 
   public static final class CloseAdvice {
