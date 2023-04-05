@@ -80,7 +80,7 @@ public final class AgentBootstrap {
           ex, "datadog.trace.util.throwable.FatalAgentMisconfigurationError")) {
         throw new Error(ex);
       }
-      // Don't rethrow. We don't have a log manager here, so just print.
+      // Don't rethrow.  We don't have a log manager here, so just print.
       System.err.println("ERROR " + thisClass.getName());
       ex.printStackTrace();
     }
@@ -148,8 +148,7 @@ public final class AgentBootstrap {
         && Character.isDigit(version.charAt(2))) {
       start = 2;
     }
-    // Parse the major digit and be a bit lenient, allowing digits followed by any
-    // non digit
+    // Parse the major digit and be a bit lenient, allowing digits followed by any non digit
     for (int i = start; i < version.length(); i++) {
       char c = version.charAt(i);
       if (Character.isDigit(c)) {
@@ -215,8 +214,7 @@ public final class AgentBootstrap {
           "Could not find javaagent parameter and code source unavailable, not installing tracing agent");
     }
 
-    // argument is of the form
-    // -javaagent:/path/to/dd-java-agent.jar=optionalargumentstring
+    // argument is of the form -javaagent:/path/to/dd-java-agent.jar=optionalargumentstring
     final Matcher matcher = Pattern.compile("-javaagent:([^=]+).*").matcher(agentArgument);
 
     if (!matcher.matches()) {

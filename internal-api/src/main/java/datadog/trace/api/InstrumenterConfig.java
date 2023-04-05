@@ -130,9 +130,8 @@ public class InstrumenterConfig {
       profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, PROFILING_ENABLED_DEFAULT);
       ciVisibilityEnabled =
           configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
-      // ConfigProvider.getString currently doesn't fallback to default for
-      // empty strings. We have special handling here until we have a general
-      // solution for empty string value fallback.
+      // ConfigProvider.getString currently doesn't fallback to default for empty strings. We have
+      // special handling here until we have a general solution for empty string value fallback.
       String appSecEnabled = configProvider.getString(APPSEC_ENABLED);
       if (appSecEnabled == null || appSecEnabled.isEmpty()) {
         appSecEnabled =
@@ -351,8 +350,7 @@ public class InstrumenterConfig {
         Arrays.asList(integrationNames), "", ".legacy.tracing.enabled", defaultEnabled);
   }
 
-  // This has to be placed after all other static fields to give them a chance
-  // to initialize
+  // This has to be placed after all other static fields to give them a chance to initialize
   @SuppressFBWarnings("SI_INSTANCE_BEFORE_FINALS_ASSIGNED")
   private static final InstrumenterConfig INSTANCE =
       new InstrumenterConfig(
