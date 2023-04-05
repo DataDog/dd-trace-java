@@ -16,6 +16,7 @@ abstract class PTagsCodec {
   protected static final TagKey DECISION_MAKER_TAG = TagKey.from("dm");
   protected static final TagKey TRACE_ID_TAG = TagKey.from("tid");
   protected static final String PROPAGATION_ERROR_MALFORMED_TID = "malformed_tid ";
+  protected static final String PROPAGATION_ERROR_INCONSISTENT_TID = "inconsistent_tid ";
   protected static final TagKey UPSTREAM_SERVICES_DEPRECATED_TAG = TagKey.from("upstream_services");
 
   static String headerValue(PTagsCodec codec, PTags ptags) {

@@ -333,11 +333,8 @@ class W3CHttpCodec {
       }
       // Use the origin
       context.origin = context.propagationTags.getOrigin();
-      // Ensure TraceId high-order bits match if defined
-      long traceIdHighOrderBits = context.propagationTags.getTraceIdHighOrderBits();
-      if (traceIdHighOrderBits != 0 && traceIdHighOrderBits != context.traceId.toHighOrderLong()) {
-        context.propagationTags.updateTraceIdHighOrderBits(0);
-      }
+      // Ensure TraceId high-order bits match
+      context.propagationTags.updateTraceIdHighOrderBits(context.traceId.toHighOrderLong());
     }
 
     private static String trim(String input) {

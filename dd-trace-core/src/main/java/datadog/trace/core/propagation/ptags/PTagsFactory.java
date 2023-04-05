@@ -59,7 +59,7 @@ public class PTagsFactory implements PropagationTags.Factory {
   }
 
   PropagationTags createInvalid(String error) {
-    return new PTagsWithError(this, error);
+    return PTags.withError(this, error);
   }
 
   static class PTags extends PropagationTags {
@@ -88,6 +88,8 @@ public class PTagsFactory implements PropagationTags.Factory {
      * of the trace id, wrapped into a {@link TagValue}, <code>null</code> if not set.
      */
     private volatile TagValue traceIdHighOrderBitsHexTagValue;
+
+    protected volatile String error;
 
     public PTags(
         PTagsFactory factory,
@@ -118,6 +120,13 @@ public class PTagsFactory implements PropagationTags.Factory {
                 traceIdHighOrderBitsHex, 0, traceIdHighOrderBitsHex.length(), true);
       }
       this.traceIdHighOrderBitsHexTagValue = traceIdTagValue;
+      this.error = null;
+    }
+
+    static PTags withError(PTagsFactory factory, String error) {
+      PTags pTags = new PTags(factory, null, null, null, PrioritySampling.UNSET, null);
+      pTags.error = error;
+      return pTags;
     }
 
     @Override
@@ -284,21 +293,7 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     String getError() {
-      return null;
-    }
-  }
-
-  static final class PTagsWithError extends PTags {
-    final String error;
-
-    public PTagsWithError(PTagsFactory factory, String error) {
-      super(factory, null, null, null, PrioritySampling.UNSET, null);
-      this.error = error;
-    }
-
-    @Override
-    String getError() {
-      return error;
+      return this.error;
     }
   }
 }
