@@ -4,21 +4,19 @@ import datadog.trace.bootstrap.instrumentation.api.UsmConnection;
 import datadog.trace.bootstrap.instrumentation.api.UsmExtractor;
 import datadog.trace.bootstrap.instrumentation.api.UsmMessage;
 import datadog.trace.bootstrap.instrumentation.api.UsmMessageFactory;
-
-import javax.annotation.Nonnull;
-import javax.net.ssl.SSLSocket;
 import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.Inet6Address;
+import javax.annotation.Nonnull;
+import javax.net.ssl.SSLSocket;
 
 public class UsmFilterOutputStream extends FilterOutputStream {
   private final SSLSocket socket;
 
   /**
-   * Creates an output stream filter built on top of the specified
-   * underlying output stream. This will send back the buffer passed
-   * to the `write` method to system-probe.
+   * Creates an output stream filter built on top of the specified underlying output stream. This
+   * will send back the buffer passed to the `write` method to system-probe.
    */
   public UsmFilterOutputStream(OutputStream out, SSLSocket socket) {
     super(out);
@@ -36,8 +34,7 @@ public class UsmFilterOutputStream extends FilterOutputStream {
             socket.getInetAddress(),
             socket.getPort(),
             isIPv6);
-    UsmMessage message =
-        UsmMessageFactory.Supplier.getRequestMessage(connection, b, off, len);
+    UsmMessage message = UsmMessageFactory.Supplier.getRequestMessage(connection, b, off, len);
     UsmExtractor.Supplier.send(message);
     super.write(b, off, len);
   }

@@ -6,12 +6,11 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
+import datadog.trace.bootstrap.instrumentation.sslsocket.UsmFilterInputStream;
+import datadog.trace.bootstrap.instrumentation.sslsocket.UsmFilterOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import javax.net.ssl.SSLSocket;
-
-import datadog.trace.bootstrap.instrumentation.sslsocket.UsmFilterInputStream;
-import datadog.trace.bootstrap.instrumentation.sslsocket.UsmFilterOutputStream;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -22,8 +21,7 @@ import org.slf4j.LoggerFactory;
 public final class SslSocketStreamsInstrumentation extends Instrumenter.Usm
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 
-  private static final Logger log =
-      LoggerFactory.getLogger(SslSocketStreamsInstrumentation.class);
+  private static final Logger log = LoggerFactory.getLogger(SslSocketStreamsInstrumentation.class);
 
   public SslSocketStreamsInstrumentation() {
     super("sslsocket-streams", "sslsocket-streams", "sslsocket-streams");

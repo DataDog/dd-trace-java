@@ -69,11 +69,12 @@ class SslSocketTest extends AgentTestRunner {
     //   println("Matching: $match\n")
     //   return match
     // }, _, _)
-    2 * factoryMock.getRequestMessage(_, { verifyAll(it, byte[]) {
-      def str = new String(it)
-      str.length() > 0
-      str.startsWith("POST") || str.startsWith("HTTP")
-    }}, _, _)
+    2 * factoryMock.getRequestMessage(_, {
+      verifyAll(it, byte[]) {
+        def str = new String(it)
+        str.length() > 0
+        str.startsWith("POST") || str.startsWith("HTTP")
+      }}, _, _)
     (1.._) * extractorMock.send(null) // `getRequestMessage` mock returns `null` so we expect to get it in send
 
     where:
