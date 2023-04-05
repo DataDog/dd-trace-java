@@ -14,14 +14,10 @@ import javax.net.ssl.SSLSocket;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @AutoService(Instrumenter.class)
 public final class SslSocketStreamsInstrumentation extends Instrumenter.Usm
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
-
-  private static final Logger log = LoggerFactory.getLogger(SslSocketStreamsInstrumentation.class);
 
   public SslSocketStreamsInstrumentation() {
     super("sslsocket-streams");
