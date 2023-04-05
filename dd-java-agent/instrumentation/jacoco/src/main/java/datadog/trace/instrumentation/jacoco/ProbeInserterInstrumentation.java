@@ -1,6 +1,11 @@
 package datadog.trace.instrumentation.jacoco;
 
-import static net.bytebuddy.matcher.ElementMatchers.*;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.isStatic;
+import static net.bytebuddy.matcher.ElementMatchers.nameEndsWith;
+import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -76,8 +81,8 @@ public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility
         methodVisitor.push(id);
         methodVisitor.visitMethodInsn(
             Opcodes.INVOKESTATIC,
-            "datadog/trace/api/civisibility/events/impl/TestCoverageProbes",
-            "record",
+            "datadog/trace/api/civisibility/InstrumentationBridge",
+            "currentCoverageProbeStoreRecord",
             "(JLjava/lang/String;I)V",
             false);
       }
