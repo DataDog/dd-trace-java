@@ -22,7 +22,7 @@ public final class SslSocketInstrumentation extends Instrumenter.Usm
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 
   public SslSocketInstrumentation() {
-    super("sslsocket", "sslsocket", "sslsocket");
+    super("sslsocket");
   }
 
   @Override

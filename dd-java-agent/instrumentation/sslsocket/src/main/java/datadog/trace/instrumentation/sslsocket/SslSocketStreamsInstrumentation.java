@@ -24,7 +24,7 @@ public final class SslSocketStreamsInstrumentation extends Instrumenter.Usm
   private static final Logger log = LoggerFactory.getLogger(SslSocketStreamsInstrumentation.class);
 
   public SslSocketStreamsInstrumentation() {
-    super("sslsocket-streams", "sslsocket-streams", "sslsocket-streams");
+    super("sslsocket-streams");
   }
 
   @Override
