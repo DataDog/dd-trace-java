@@ -1,11 +1,10 @@
 package datadog.trace.instrumentation.jacoco;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import org.objectweb.asm.Opcodes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 
 public class ReflectiveMethodVisitor {
   private static final Logger log = LoggerFactory.getLogger(ReflectiveMethodVisitor.class);
@@ -19,7 +18,14 @@ public class ReflectiveMethodVisitor {
   public static ReflectiveMethodVisitor wrap(Object mv) throws NoSuchMethodException {
     if (null == methodVisitorClass) {
       methodVisitorClass = mv.getClass();
-      visitMethodInsnMethod = methodVisitorClass.getMethod("visitMethodInsn", int.class, String.class, String.class, String.class, boolean.class);
+      visitMethodInsnMethod =
+          methodVisitorClass.getMethod(
+              "visitMethodInsn",
+              int.class,
+              String.class,
+              String.class,
+              String.class,
+              boolean.class);
       visitMethodInsnMethod.setAccessible(true);
       visitInsnMethod = methodVisitorClass.getMethod("visitInsn", int.class);
       visitInsnMethod.setAccessible(true);
@@ -32,12 +38,13 @@ public class ReflectiveMethodVisitor {
   }
 
   private final Object mv;
-  
+
   ReflectiveMethodVisitor(Object mv) {
     this.mv = mv;
   }
 
-  public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) throws InvocationTargetException, IllegalAccessException {
+  public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf)
+      throws InvocationTargetException, IllegalAccessException {
     visitMethodInsnMethod.invoke(mv, opcode, owner, name, desc, itf);
   }
 
@@ -46,12 +53,10 @@ public class ReflectiveMethodVisitor {
   }
 
   /**
-   * Generates the instruction to push the given int value on the stack.
-   * Implementation taken from
+   * Generates the instruction to push the given int value on the stack. Implementation taken from
    * {@link org.objectweb.asm.commons.GeneratorAdapter#push(int)}.
    *
-   * @param value
-   *            the value to be pushed on the stack.
+   * @param value the value to be pushed on the stack.
    */
   public void push(int value) throws InvocationTargetException, IllegalAccessException {
     if (value >= -1 && value <= 5) {

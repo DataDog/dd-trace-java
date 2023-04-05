@@ -1,11 +1,16 @@
 package datadog.trace.api.civisibility;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+
 import datadog.trace.api.civisibility.codeowners.Codeowners;
+import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
 import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.source.MethodLinesResolver;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
+import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.nio.file.Path;
 import java.util.Map;
 
@@ -18,6 +23,8 @@ public abstract class InstrumentationBridge {
   private static volatile SourcePathResolver.Factory SOURCE_PATH_RESOLVER_FACTORY;
   private static volatile TestEventsHandler.Factory TEST_EVENTS_HANDLER_FACTORY;
   private static volatile BuildEventsHandler.Factory BUILD_EVENTS_HANDLER_FACTORY;
+
+  private static volatile CoverageProbeStore.Factory COVERAGE_PROBE_STORE_FACTORY;
 
   public static MethodLinesResolver getMethodLinesResolver() {
     return METHOD_LINES_RESOLVER;
@@ -75,5 +82,30 @@ public abstract class InstrumentationBridge {
 
   public static <U> BuildEventsHandler<U> getBuildEventsHandler() {
     return BUILD_EVENTS_HANDLER_FACTORY.create();
+  }
+
+  public static void setCoverageProbeStoreFactory(
+      CoverageProbeStore.Factory coverageProbeStoreFactory) {
+    COVERAGE_PROBE_STORE_FACTORY = coverageProbeStoreFactory;
+  }
+
+  public static CoverageProbeStore.Factory getCoverageProbeStoreFactory() {
+    return COVERAGE_PROBE_STORE_FACTORY;
+  }
+
+  public static CoverageProbeStore getCoverageProbeStore() {
+    return COVERAGE_PROBE_STORE_FACTORY.create();
+  }
+
+  /* This method is referenced by name in bytecode added in the jacoco module */
+  public static void currentCoverageProbeStoreRecord(long classId, String className, int probeId) {
+    AgentSpan span = activeSpan();
+    if (span != null) {
+      CoverageProbeStore probes =
+          span.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY);
+      if (probes != null) {
+        probes.record(classId, className, probeId);
+      }
+    }
   }
 }

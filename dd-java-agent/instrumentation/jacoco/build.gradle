@@ -1,8 +1,9 @@
 apply from: "$rootDir/gradle/java.gradle"
 
-muzzle {}
+muzzle {
+  // TODO add support for maven classifier to muzzle
+}
 
 dependencies {
   implementation deps.asm
-  implementation group: 'org.jacoco', name: 'org.jacoco.core', version: '0.8.8'
 }

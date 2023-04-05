@@ -8,6 +8,7 @@ import datadog.trace.api.civisibility.events.impl.TestEventsHandlerImpl;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.codeowners.CodeownersProvider;
+import datadog.trace.civisibility.coverage.TestProbes;
 import datadog.trace.civisibility.git.CILocalGitInfoBuilder;
 import datadog.trace.civisibility.git.CIProviderGitInfoBuilder;
 import datadog.trace.civisibility.source.BestEfforSourcePathResolver;
@@ -53,5 +54,7 @@ public class CiVisibilitySystem {
 
     GitInfoProvider.INSTANCE.registerGitInfoBuilder(new CIProviderGitInfoBuilder());
     GitInfoProvider.INSTANCE.registerGitInfoBuilder(new CILocalGitInfoBuilder(GIT_FOLDER_NAME));
+
+    InstrumentationBridge.setCoverageProbeStoreFactory(new TestProbes.TestProbesFactory());
   }
 }

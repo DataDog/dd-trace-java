@@ -2,6 +2,7 @@ package datadog.trace.agent.test.base
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.civisibility.coverage.NoopCoverageProbeStore
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.civisibility.CIInfo
@@ -9,6 +10,7 @@ import datadog.trace.api.civisibility.CIProviderInfo
 import datadog.trace.api.civisibility.CITagsProvider
 import datadog.trace.api.civisibility.InstrumentationBridge
 import datadog.trace.api.civisibility.codeowners.Codeowners
+import datadog.trace.api.civisibility.coverage.CoverageProbeStore
 import datadog.trace.api.civisibility.decorator.TestDecorator
 import datadog.trace.api.civisibility.events.impl.BuildEventsHandlerImpl
 import datadog.trace.api.civisibility.events.impl.TestEventsHandlerImpl
@@ -68,6 +70,8 @@ abstract class TestFrameworkTest extends AgentTestRunner {
 
     InstrumentationBridge.setTestEventsHandlerFactory { decorator -> new TestEventsHandlerImpl(decorator) }
     InstrumentationBridge.setBuildEventsHandlerFactory { decorator -> new BuildEventsHandlerImpl<>() }
+
+    InstrumentationBridge.coverageProbeStoreFactory = new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory()
   }
 
   @Override
