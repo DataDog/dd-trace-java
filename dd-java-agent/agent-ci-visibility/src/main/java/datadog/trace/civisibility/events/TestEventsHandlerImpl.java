@@ -12,8 +12,11 @@ import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.source.MethodLinesResolver;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.civisibility.DDTestImpl;
 import datadog.trace.civisibility.DDTestModuleImpl;
+import datadog.trace.civisibility.context.TestContext;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
@@ -187,7 +190,24 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
     TestSuiteDescriptor suiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
     DDTestSuite testSuite = inProgressTestSuites.get(suiteDescriptor);
-    DDTest test = testSuite.testStart(testName, testMethod, null);
+    DDTest test =
+        testSuite != null
+            ? testSuite.testStart(testName, testMethod, null)
+            // suite events are not reported in Cucumber / JUnit 4 combination
+            : new DDTestImpl(
+                EMPTY,
+                EMPTY,
+                null,
+                testSuiteName,
+                testName,
+                null,
+                testClass,
+                testMethod,
+                config,
+                testDecorator,
+                sourcePathResolver,
+                methodLinesResolver,
+                codeowners);
 
     if (testParameters != null) {
       test.setTag(Tags.TEST_PARAMETERS, testParameters);
@@ -266,4 +286,37 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   private static boolean skipTrace(final Class<?> testClass) {
     return testClass != null && testClass.getAnnotation(DisableTestTrace.class) != null;
   }
+
+  private static final TestContext EMPTY =
+      new TestContext() {
+        @Override
+        public Long getId() {
+          return null;
+        }
+
+        @Nullable
+        @Override
+        public Long getParentId() {
+          return null;
+        }
+
+        @Override
+        public void reportChildStatus(String status) {}
+
+        @Override
+        public String getStatus() {
+          return null;
+        }
+
+        @Override
+        public boolean isLocalToCurrentProcess() {
+          return false;
+        }
+
+        @Nullable
+        @Override
+        public AgentSpan getSpan() {
+          return null;
+        }
+      };
 }

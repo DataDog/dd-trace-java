@@ -4,7 +4,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import javax.annotation.Nullable;
 
 public interface TestContext {
-  long getId();
+
+  Long getId();
 
   @Nullable
   Long getParentId();

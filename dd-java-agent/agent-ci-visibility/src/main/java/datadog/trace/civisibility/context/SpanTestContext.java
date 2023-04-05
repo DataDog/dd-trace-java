@@ -13,7 +13,7 @@ public class SpanTestContext extends AbstractTestContext implements TestContext 
   }
 
   @Override
-  public long getId() {
+  public Long getId() {
     return span.getSpanId();
   }
 

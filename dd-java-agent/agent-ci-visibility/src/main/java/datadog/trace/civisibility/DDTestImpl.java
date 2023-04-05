@@ -59,7 +59,7 @@ public class DDTestImpl implements DDTest {
     span.setTag(Tags.TEST_SUITE, testSuiteName);
     span.setTag(Tags.TEST_MODULE, moduleName);
 
-    long suiteId = suiteContext.getId();
+    Long suiteId = suiteContext.getId();
     Long moduleId = moduleContext.getId();
     Long sessionId = moduleContext.getParentId();
 

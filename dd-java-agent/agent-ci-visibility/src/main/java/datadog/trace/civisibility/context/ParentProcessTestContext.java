@@ -14,7 +14,7 @@ public class ParentProcessTestContext extends AbstractTestContext implements Tes
   }
 
   @Override
-  public long getId() {
+  public Long getId() {
     return moduleId;
   }
 
