@@ -1,12 +1,13 @@
 package com.datadog.iast.model
 
+import datadog.trace.api.iast.SourceTypes
 import datadog.trace.test.util.DDSpecification
 
 class RangeTest extends DDSpecification {
 
   def 'shift'() {
     given:
-    final source = new Source(SourceType.NONE, null, null)
+    final source = new Source(SourceTypes.NONE, null, null)
     final orig = new Range(start, length, source)
 
     when:
@@ -31,7 +32,7 @@ class RangeTest extends DDSpecification {
 
   def 'shift zero'() {
     given:
-    final source = new Source(SourceType.NONE, null, null)
+    final source = new Source(SourceTypes.NONE, null, null)
     final orig = new Range(0, 1, source)
 
     when:

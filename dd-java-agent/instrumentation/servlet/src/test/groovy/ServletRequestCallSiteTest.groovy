@@ -1,7 +1,9 @@
 import datadog.smoketest.controller.ServletRequestTestSuite
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
-import datadog.trace.api.iast.source.WebModule
+import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.propagation.PropagationModule
+import groovy.transform.CompileDynamic
 
 import javax.servlet.ServletInputStream
 import javax.servlet.ServletRequest
@@ -9,16 +11,17 @@ import javax.servlet.ServletRequestWrapper
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletRequestWrapper
 
-class ServletRequestCallSiteTest extends  AgentTestRunner{
+@CompileDynamic
+class ServletRequestCallSiteTest extends AgentTestRunner {
 
   @Override
   protected void configurePreAgent() {
     injectSysConfig("dd.iast.enabled", "true")
   }
 
-  def 'test getInputStream'() {
+  void 'test getInputStream'() {
     setup:
-    final iastModule = Mock(WebModule)
+    final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final is = Mock(ServletInputStream)
     final testSuite = new ServletRequestTestSuite(Mock(clazz) {
@@ -30,7 +33,7 @@ class ServletRequestCallSiteTest extends  AgentTestRunner{
 
     then:
     result == is
-    1 * iastModule.onGetInputStream(is)
+    1 * iastModule.taint(SourceTypes.REQUEST_BODY, is)
 
     where:
     clazz                     | _
@@ -40,9 +43,9 @@ class ServletRequestCallSiteTest extends  AgentTestRunner{
     HttpServletRequestWrapper | _
   }
 
-  def 'test getReader'() {
+  void 'test getReader'() {
     setup:
-    final iastModule = Mock(WebModule)
+    final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final reader = Mock(BufferedReader)
     final testSuite = new ServletRequestTestSuite(Mock(clazz) {
@@ -54,7 +57,7 @@ class ServletRequestCallSiteTest extends  AgentTestRunner{
 
     then:
     result == reader
-    1 * iastModule.onGetReader(reader)
+    1 * iastModule.taint(SourceTypes.REQUEST_BODY, reader)
 
     where:
     clazz                     | _

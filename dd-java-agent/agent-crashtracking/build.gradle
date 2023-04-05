@@ -1,8 +1,3 @@
-// Set properties before any plugins get loaded
-ext {
-  enableJunitPlatform = true
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 
 // FIXME: Improve test coverage.

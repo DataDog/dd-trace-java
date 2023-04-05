@@ -4,7 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamedOneOf;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresAnnotation;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import java.security.ProtectionDomain;
@@ -23,7 +23,9 @@ abstract class AbstractTransformerBuilder
   // Added here instead of byte-buddy's ignores because it's relatively
   // expensive. https://github.com/DataDog/dd-trace-java/pull/1045
   protected static final ElementMatcher.Junction<TypeDescription> NOT_DECORATOR_MATCHER =
-      not(declaresAnnotation(named("javax.decorator.Decorator")));
+      not(
+          declaresAnnotation(
+              namedOneOf("javax.decorator.Decorator", "jakarta.decorator.Decorator")));
 
   /** Associates context stores with the class-loader matchers to activate them. */
   private final Map<Map.Entry<String, String>, ElementMatcher<ClassLoader>> contextStoreInjection =

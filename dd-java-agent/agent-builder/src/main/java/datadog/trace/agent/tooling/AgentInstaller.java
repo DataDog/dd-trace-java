@@ -15,6 +15,7 @@ import datadog.trace.api.ProductActivation;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.util.AgentTaskScheduler;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.util.Collections;
@@ -43,9 +44,19 @@ public class AgentInstaller {
 
   static {
     addByteBuddyRawSetting();
-    // register weak map/cache suppliers as early as possible
+    // register weak map supplier as early as possible
     WeakMaps.registerAsSupplier();
-    WeakCaches.registerAsSupplier();
+    circularityErrorWorkaround();
+  }
+
+  @SuppressForbidden
+  private static void circularityErrorWorkaround() {
+    // these classes have been involved in intermittent ClassCircularityErrors during startup
+    // they don't need context storage, so it's safe to load them before installing the agent
+    try {
+      Class.forName("java.util.concurrent.ThreadLocalRandom");
+    } catch (Throwable ignore) {
+    }
   }
 
   public static void installBytebuddyAgent(final Instrumentation inst) {

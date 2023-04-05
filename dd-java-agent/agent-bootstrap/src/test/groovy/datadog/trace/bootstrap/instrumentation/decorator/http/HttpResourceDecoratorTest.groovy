@@ -1,25 +1,26 @@
 package datadog.trace.bootstrap.instrumentation.decorator.http
 
+import datadog.trace.api.normalize.HttpResourceNames
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.core.CoreTracer
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
+import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING
 
 class HttpResourceDecoratorTest extends DDSpecification {
 
   @Shared
-  CoreTracer tracer
+  CoreTracer tracer = CoreTracer.builder().build()
 
   def setup() {
     injectSysConfig("http.server.route-based-naming", "false")
-
-    tracer = CoreTracer.builder().build()
+    HttpResourceNames.INSTANCE = null
   }
 
-  def cleanup() {
+  def cleanupSpec() {
     tracer.close()
   }
 
@@ -94,6 +95,32 @@ class HttpResourceDecoratorTest extends DDSpecification {
 
     then:
     span.resourceName.toString() == "/"
+  }
+
+  def "returns mapped client path"() {
+    setup:
+    injectSysConfig(TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING, "/a/*:/test")
+
+    AgentSpan span = tracer.startSpan("test")
+
+    when:
+    decorator().withClientPath(span, "GET", "/a/foo")
+
+    then:
+    span.resourceName.toString() == "GET /test"
+  }
+
+  def "returns original client path"() {
+    setup:
+    injectSysConfig(TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING, "/a/*:*")
+
+    AgentSpan span = tracer.startSpan("test")
+
+    when:
+    decorator().withClientPath(span, "GET", "/a/foo")
+
+    then:
+    span.resourceName.toString() == "GET /a/foo"
   }
 
   // Need a new one for every test after config injection

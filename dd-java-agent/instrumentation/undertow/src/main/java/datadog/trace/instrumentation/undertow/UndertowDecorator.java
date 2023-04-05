@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.undertow;
 
 import datadog.trace.api.gateway.BlockResponseFunction;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -14,9 +15,9 @@ import io.undertow.util.AttachmentKey;
 public class UndertowDecorator
     extends HttpServerDecorator<
         HttpServerExchange, HttpServerExchange, HttpServerExchange, HttpServerExchange> {
-  public static final CharSequence UNDERTOW_REQUEST =
-      UTF8BytesString.create("undertow-http.request");
-  public static final CharSequence SERVLET_REQUEST = UTF8BytesString.create("servlet.request");
+  public static final CharSequence SERVLET_REQUEST =
+      UTF8BytesString.create(
+          SpanNaming.instance().namingSchema().server().operationForComponent("java-web-servlet"));
   public static final CharSequence UNDERTOW_HTTP_SERVER =
       UTF8BytesString.create("undertow-http-server");
 
@@ -30,6 +31,8 @@ public class UndertowDecorator
           "DD_UNDERTOW_CONTINUATION", AttachmentKey.create(AgentScope.Continuation.class));
 
   public static final UndertowDecorator DECORATE = new UndertowDecorator();
+  public static final CharSequence UNDERTOW_REQUEST =
+      UTF8BytesString.create(DECORATE.operationName());
 
   @Override
   protected String[] instrumentationNames() {

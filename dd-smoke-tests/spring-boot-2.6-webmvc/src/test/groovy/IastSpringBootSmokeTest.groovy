@@ -7,12 +7,11 @@ import okhttp3.Request
 import okhttp3.RequestBody
 import spock.util.concurrent.PollingConditions
 
+import java.util.concurrent.TimeoutException
 import java.util.function.Function
 import java.util.function.Predicate
 
-import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
-import static datadog.trace.api.config.IastConfig.IAST_ENABLED
-import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING
+import static datadog.trace.api.config.IastConfig.*
 
 @CompileDynamic
 class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
@@ -60,7 +59,7 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     when: 'logs are read'
     String startMsg = null
     String errorMsg = null
-    checkLog {
+    checkLogPostExit {
       if (it.contains("Not starting IAST subsystem")) {
         errorMsg = it
       }
@@ -95,7 +94,7 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     response.body().contentType().toString().contains("text/plain")
     response.code() == 200
 
-    checkLog()
+    checkLogPostExit()
     !logHasErrors
   }
 
@@ -155,19 +154,14 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     def request = new Request.Builder().url(url).get().build()
 
     when:
-    def response = client.newCall(request).execute()
+    client.newCall(request).execute()
 
     then:
-    def responseBodyStr = response.body().string()
-    responseBodyStr != null
-    responseBodyStr.contains('Param is: A')
-    Boolean foundTaintedString = false
-    checkLog {
-      if (it.contains('taint') && it.contains('Param is: A')) {
-        foundTaintedString = true
-      }
+    hasTainted { tainted ->
+      tainted.value == 'A' &&
+        tainted.ranges[0].source.name == 'param' &&
+        tainted.ranges[0].source.origin == 'http.request.parameter'
     }
-    foundTaintedString
   }
 
   void "command injection is present with runtime"() {
@@ -236,19 +230,14 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     def request = new Request.Builder().url(url).get().build()
 
     when:
-    def response = client.newCall(request).execute()
+    client.newCall(request).execute()
 
     then:
-    def responseBodyStr = response.body().string()
-    responseBodyStr != null
-    responseBodyStr.contains("Test bean -> name: parameter, value: binding")
-    Boolean foundTaintedString = false
-    checkLog {
-      if (it.contains('taint') && it.contains('Test bean -> name: parameter, value: binding')) {
-        foundTaintedString = true
-      }
+    hasTainted { tainted ->
+      tainted.value == 'binding' &&
+        tainted.ranges[0].source.name == 'value' &&
+        tainted.ranges[0].source.origin == 'http.request.parameter'
     }
-    foundTaintedString
   }
 
   void "request header taint string"() {
@@ -257,19 +246,14 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     def request = new Request.Builder().url(url).header("test-header", "test").get().build()
 
     when:
-    def response = client.newCall(request).execute()
+    client.newCall(request).execute()
 
     then:
-    def responseBodyStr = response.body().string()
-    responseBodyStr != null
-    responseBodyStr.contains("Header is: test")
-    Boolean foundTaintedString = false
-    checkLog {
-      if (it.contains('taint') && it.contains('Header is: test')) {
-        foundTaintedString = true
-      }
+    hasTainted { tainted ->
+      tainted.value == 'test' &&
+        tainted.ranges[0].source.name == 'test-header' &&
+        tainted.ranges[0].source.origin == 'http.request.header'
     }
-    foundTaintedString
   }
 
   void "path param taint string"() {
@@ -278,19 +262,14 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     def request = new Request.Builder().url(url).get().build()
 
     when:
-    def response = client.newCall(request).execute()
+    client.newCall(request).execute()
 
     then:
-    def responseBodyStr = response.body().string()
-    responseBodyStr != null
-    responseBodyStr.contains("PathParam is: test")
-    Boolean foundTaintedString = false
-    checkLog {
-      if (it.contains('taint') && it.contains('PathParam is: test')) {
-        foundTaintedString = true
-      }
+    hasTainted { tainted ->
+      tainted.value == 'test' &&
+        tainted.ranges[0].source.name == 'param' &&
+        tainted.ranges[0].source.origin == 'http.request.parameter'
     }
-    foundTaintedString
   }
 
   void "request body taint json"() {
@@ -299,19 +278,48 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     def request = new Request.Builder().url(url).post(RequestBody.create(JSON, '{"name": "nameTest", "value" : "valueTest"}')).build()
 
     when:
-    def response = client.newCall(request).execute()
+    client.newCall(request).execute()
 
     then:
-    def responseBodyStr = response.body().string()
-    responseBodyStr != null
-    responseBodyStr.contains('@RequestBody to Test bean -> name: nameTest, value: valueTest')
-    Boolean foundTaintedString = false
-    checkLog {
-      if (it.contains('taint') && it.contains('@RequestBody to Test bean -> name: nameTest, value: valueTest')) {
-        foundTaintedString = true
-      }
+    hasTainted { tainted ->
+      tainted.value == 'nameTest' &&
+        tainted.ranges[0].source.origin == 'http.request.body'
     }
-    foundTaintedString
+  }
+
+  void 'request query string'() {
+    given:
+    final url = "http://localhost:${httpPort}/query_string?key=value"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasTainted { tainted ->
+      tainted.value == 'key=value' &&
+        tainted.ranges[0].source.origin == 'http.request.query'
+    }
+  }
+
+  void 'request cookie propagation'() {
+    given:
+    final url = "http://localhost:${httpPort}/cookie"
+    final request = new Request.Builder().url(url).header('Cookie', 'name=value').get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasTainted { tainted ->
+      tainted.value == 'name' &&
+        tainted.ranges[0].source.origin == 'http.request.cookie.name'
+    }
+    hasTainted { tainted ->
+      tainted.value == 'value' &&
+        tainted.ranges[0].source.name == 'name' &&
+        tainted.ranges[0].source.origin == 'http.request.cookie.value'
+    }
   }
 
   private static Function<DecodedSpan, Boolean> hasMetric(final String name, final Object value) {
@@ -336,7 +344,7 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
 
   private boolean hasVulnerabilityInLogs(final Predicate<?> predicate) {
     def found = false
-    checkLog { final String log ->
+    checkLogPostExit { final String log ->
       final index = log.indexOf(TAG_NAME)
       if (index >= 0) {
         final vulnerabilities = parseVulnerabilities(log, index)
@@ -344,6 +352,25 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
       }
     }
     return found
+  }
+
+  private void hasTainted(final Closure<Boolean> matcher) {
+    final slurper = new JsonSlurper()
+    final tainteds = []
+    try {
+      processTestLogLines { String log ->
+        final index = log.indexOf('tainted=')
+        if (index >= 0) {
+          final tainted = slurper.parse(new StringReader(log.substring(index + 8)))
+          tainteds.add(tainted)
+          if (matcher.call(tainted)) {
+            return true // found
+          }
+        }
+      }
+    } catch (TimeoutException toe) {
+      throw new AssertionError("No matching tainted found. Tainteds found: ${tainteds}")
+    }
   }
 
   private static Collection<?> parseVulnerabilities(final String log, final int startIndex) {

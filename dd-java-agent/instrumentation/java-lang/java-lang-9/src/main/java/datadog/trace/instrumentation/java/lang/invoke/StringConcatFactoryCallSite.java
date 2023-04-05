@@ -7,7 +7,7 @@ import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.IastAdvice.Propagation;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.model.PropagationTypes;
+import datadog.trace.api.iast.PropagationTypes;
 import datadog.trace.api.iast.propagation.StringModule;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.invoke.ConstantCallSite;
@@ -155,24 +155,18 @@ public class StringConcatFactoryCallSite {
 
   private static MethodHandle toStringConverterFor(final Class<?> cl) {
     try {
-      final MethodHandles.Lookup lookup = MethodHandles.publicLookup();
-      if (cl == byte.class || cl == short.class || cl == int.class) {
-        return lookup.findStatic(String.class, "valueOf", methodType(String.class, int.class));
-      } else if (cl == boolean.class) {
-        return lookup.findStatic(String.class, "valueOf", methodType(String.class, boolean.class));
-      } else if (cl == char.class) {
-        return lookup.findStatic(String.class, "valueOf", methodType(String.class, char.class));
-      } else if (cl == long.class) {
-        return lookup.findStatic(String.class, "valueOf", methodType(String.class, long.class));
-      } else if (cl == float.class) {
-        return lookup.findStatic(String.class, "valueOf", methodType(String.class, float.class));
-      } else if (cl == double.class) {
-        return lookup.findStatic(String.class, "valueOf", methodType(String.class, double.class));
+      final MethodType methodType;
+      if (cl.isPrimitive()) {
+        final Class<?> target = cl == byte.class || cl == short.class ? int.class : cl;
+        methodType = methodType(String.class, target);
       } else {
-        final MethodHandle handle =
-            lookup.findStatic(String.class, "valueOf", methodType(String.class, Object.class));
-        return handle.asType(methodType(String.class, cl));
+        methodType = methodType(String.class, Object.class);
       }
+      final MethodHandles.Lookup lookup = MethodHandles.publicLookup();
+      final MethodHandle handle = lookup.findStatic(String.class, "valueOf", methodType);
+      return methodType.parameterType(0) == cl
+          ? handle
+          : handle.asType(methodType(String.class, cl));
     } catch (Exception e) {
       throw new RuntimeException("Failed to fetch string converter for " + cl, e);
     }

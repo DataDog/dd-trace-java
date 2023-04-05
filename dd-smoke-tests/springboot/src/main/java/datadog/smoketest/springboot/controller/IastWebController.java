@@ -6,9 +6,13 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.websocket.server.PathParam;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.MatrixVariable;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -102,12 +106,31 @@ public class IastWebController {
     return "PathParam is: " + param;
   }
 
+  @GetMapping("/matrix/{var1}/{var2}")
+  public String matrixAndPathVariables(
+      @PathVariable String var1,
+      @MatrixVariable(pathVar = "var1") MultiValueMap<String, String> m1,
+      @MatrixVariable(pathVar = "var2") MultiValueMap<String, String> m2) {
+    return "{var1=" + var1 + ", m1=" + m1 + ", m2=" + m2 + "}";
+  }
+
   @PostMapping("/request_body/test")
   public String jsonRequestBody(@RequestBody TestBean testBean) {
     return "@RequestBody to Test bean -> name: "
         + testBean.getName()
         + ", value: "
         + testBean.getValue();
+  }
+
+  @GetMapping("/query_string")
+  public String queryString(final HttpServletRequest request) {
+    return "QueryString is: " + request.getQueryString();
+  }
+
+  @GetMapping("/cookie")
+  public String cookie(final HttpServletRequest request) {
+    final Cookie cookie = request.getCookies()[0];
+    return "Cookie is: " + cookie.getName() + "=" + cookie.getValue();
   }
 
   private void withProcess(final Operation<Process> op) {

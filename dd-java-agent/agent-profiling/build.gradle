@@ -2,11 +2,6 @@ plugins {
   id "com.github.johnrengelman.shadow"
 }
 
-// Set properties before any plugins get loaded
-ext {
-  enableJunitPlatform = true
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {

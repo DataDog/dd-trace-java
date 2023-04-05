@@ -2,9 +2,10 @@ package datadog.trace.civisibility;
 
 import static datadog.trace.civisibility.utils.CIUtils.findParentPathBackwards;
 
-import datadog.trace.civisibility.git.GitInfo;
+import datadog.trace.api.civisibility.CIInfo;
+import datadog.trace.api.civisibility.CIProviderInfo;
+import datadog.trace.api.git.GitInfo;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 /**
  * This class is the strategy to use when the CI provider used to execute the tests cannot be
@@ -27,8 +28,8 @@ class UnknownCIInfo implements CIProviderInfo {
   private final String targetFolder;
   private final Path currentPath;
 
-  UnknownCIInfo() {
-    this(".git", Paths.get("").toAbsolutePath());
+  UnknownCIInfo(Path currentPath) {
+    this(".git", currentPath);
   }
 
   UnknownCIInfo(String targetFolder, Path currentPath) {

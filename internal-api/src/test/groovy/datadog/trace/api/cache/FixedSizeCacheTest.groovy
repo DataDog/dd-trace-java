@@ -2,9 +2,11 @@ package datadog.trace.api.cache
 
 
 import datadog.trace.test.util.DDSpecification
+import datadog.trace.test.util.GCUtils
 import spock.lang.Shared
 import spock.util.concurrent.AsyncConditions
 
+import java.lang.ref.WeakReference
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicInteger
@@ -119,6 +121,46 @@ class FixedSizeCacheTest extends DDSpecification {
     new TKey(1, 1, "1")       | "1_value"      | 2     // create new value for key with different identity
     new TKey(6, 6, "6")       | "6_value"      | 2     // create new value for new key
     null                      | null           | 1     // do nothing
+  }
+
+  def "weak key cache should store and retrieve values"() {
+    setup:
+    def fsCache = DDCaches.newFixedSizeWeakKeyCache(15)
+    def creationCount = new AtomicInteger(0)
+    def tvc = new TVC(creationCount)
+    fsCache.computeIfAbsent(id1, tvc)
+
+    // (only use one key because we can't control the identity hash: more keys might overwrite
+    // an earlier slot if rehashing cycles to the same slots, breaking test assumption that all
+    // the initial keys are allocated to distinct slots)
+
+    expect:
+    fsCache.computeIfAbsent(tk, tvc) == value
+    creationCount.get() == count
+
+    where:
+    tk                        | value          | count
+    id1                       | "one_value"    | 1     // used the cached id1
+    new TKey(1, 1, "1")       | "1_value"      | 2     // create new value for key with different identity
+    new TKey(6, 6, "6")       | "6_value"      | 2     // create new value for new key
+    null                      | null           | 1     // do nothing
+  }
+
+  def "weak key cache does not hold onto key"() {
+    setup:
+    def fsCache = DDCaches.newFixedSizeWeakKeyCache(15)
+    def testHolder = [new Object()]
+    def testRef = new WeakReference(testHolder[0])
+    fsCache.computeIfAbsent(testHolder[0], { "oldValue" })
+
+    expect:
+    "oldValue" == fsCache.computeIfAbsent(testHolder[0], { "newValue" })
+
+    when:
+    testHolder[0] = null
+
+    then:
+    GCUtils.awaitGC(testRef)
   }
 
   def "chm cache should store and retrieve values"() {
@@ -279,7 +321,7 @@ class FixedSizeCacheTest extends DDSpecification {
     }
 
     @Override
-    String apply(TKeyB key, int m, int n) {
+    String apply(TKeyB key, int hash, int m, int n) {
       count.incrementAndGet()
       return "${key.string}_${m}_${n}"
     }

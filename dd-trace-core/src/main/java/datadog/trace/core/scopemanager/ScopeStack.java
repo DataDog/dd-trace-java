@@ -113,18 +113,30 @@ final class ScopeStack {
   private void onTopChanged(ContinuableScope top) {
     AgentSpan.Context context = top.span.context();
     if (context instanceof ProfilerContext) {
-      profilingContextIntegration.setContext((ProfilerContext) context);
+      try {
+        profilingContextIntegration.setContext((ProfilerContext) context);
+      } catch (Throwable e) {
+        ContinuableScopeManager.ratelimitedLog.warn("Unexpected profiling exception", e);
+      }
     }
   }
 
   /** Notifies profiler that this thread has a context now */
   private void onBecomeNonEmpty() {
-    profilingContextIntegration.onAttach();
+    try {
+      profilingContextIntegration.onAttach();
+    } catch (Throwable e) {
+      ContinuableScopeManager.ratelimitedLog.warn("Unexpected profiling exception", e);
+    }
   }
 
   /** Notifies profiler that this thread no longer has a context */
   private void onBecomeEmpty() {
-    profilingContextIntegration.clearContext();
-    profilingContextIntegration.onDetach();
+    try {
+      profilingContextIntegration.clearContext();
+      profilingContextIntegration.onDetach();
+    } catch (Throwable e) {
+      ContinuableScopeManager.ratelimitedLog.warn("Unexpected profiling exception", e);
+    }
   }
 }

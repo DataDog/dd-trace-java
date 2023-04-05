@@ -16,13 +16,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.Tracer;
 import datadog.trace.api.config.TraceInstrumentationConfig;
-import datadog.trace.bootstrap.debugger.CapturedStackFrame;
-import datadog.trace.bootstrap.debugger.CorrelationAccess;
-import datadog.trace.bootstrap.debugger.DebuggerContext;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
-import datadog.trace.bootstrap.debugger.Limits;
-import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.*;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import java.io.BufferedReader;
@@ -52,8 +46,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import org.joor.Reflect;
-import org.junit.Assert;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -67,14 +61,13 @@ import utils.SourceCompiler;
 
 public class DebuggerTransformerTest {
   private static final String LANGUAGE = "java";
-  private static final String PROBE_ID = "beae1807-f3b0-4ea8-a74f-826790c5e6f8";
+  private static final ProbeId PROBE_ID = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 0);
   private static final boolean FAST_TESTS = Boolean.getBoolean("fast-tests");
   private static final String SERVICE_NAME = "service-name";
 
   enum InstrumentationKind {
     ENTRY_EXIT,
-    LINE,
-    LINE_RANGE
+    LINE
   }
 
   enum ExceptionKind {
@@ -97,12 +90,12 @@ public class DebuggerTransformerTest {
 
     @Override
     public void addSnapshot(Snapshot snapshot) {
-      this.snapshots.add(snapshot);
+      snapshots.add(snapshot);
     }
 
     @Override
-    public void addDiagnostics(String probeId, List<DiagnosticMessage> messages) {
-      errors.computeIfAbsent(probeId, k -> new ArrayList<>()).addAll(messages);
+    public void addDiagnostics(ProbeId probeId, List<DiagnosticMessage> messages) {
+      errors.computeIfAbsent(probeId.getId(), k -> new ArrayList<>()).addAll(messages);
     }
   }
 
@@ -114,7 +107,7 @@ public class DebuggerTransformerTest {
     TrackingClassFileTransformer(String targetClassName, LogProbe probe, byte[][] codeOutput) {
       assertTrue(codeOutput != null && codeOutput.length == 2);
       this.targetClassName = targetClassName;
-      this.delegate =
+      delegate =
           new DebuggerTransformer(
               Config.get(),
               new Configuration(SERVICE_NAME, Collections.singletonList(probe)),
@@ -220,7 +213,8 @@ public class DebuggerTransformerTest {
     if (origClassFile.exists()) {
       origClassFile.delete();
     }
-    LogProbe logProbe = LogProbe.builder().where("java.util.ArrayList", "add").build();
+    LogProbe logProbe =
+        LogProbe.builder().where("java.util.ArrayList", "add").probeId("", 0).build();
     DebuggerTransformer debuggerTransformer =
         new DebuggerTransformer(
             config, new Configuration(SERVICE_NAME, Collections.singletonList(logProbe)), null);
@@ -230,10 +224,10 @@ public class DebuggerTransformerTest {
         ArrayList.class,
         null,
         getClassFileBytes(ArrayList.class));
-    Assert.assertTrue(instrumentedClassFile.exists());
-    Assert.assertTrue(origClassFile.exists());
-    Assert.assertTrue(instrumentedClassFile.delete());
-    Assert.assertTrue(origClassFile.delete());
+    Assertions.assertTrue(instrumentedClassFile.exists());
+    Assertions.assertTrue(origClassFile.exists());
+    Assertions.assertTrue(instrumentedClassFile.delete());
+    Assertions.assertTrue(origClassFile.delete());
   }
 
   @Test
@@ -259,7 +253,10 @@ public class DebuggerTransformerTest {
     for (ProbeTestInfo probeInfo : probeInfos) {
       String className = getClassName.apply(probeInfo.clazz);
       LogProbe logProbe =
-          LogProbe.builder().where(className, probeInfo.methodName, probeInfo.signature).build();
+          LogProbe.builder()
+              .where(className, probeInfo.methodName, probeInfo.signature)
+              .probeId("", 0)
+              .build();
       logProbes.add(logProbe);
     }
     Configuration configuration = new Configuration(SERVICE_NAME, logProbes);
@@ -272,7 +269,7 @@ public class DebuggerTransformerTest {
               probeInfo.clazz,
               null,
               getClassFileBytes(probeInfo.clazz));
-      Assert.assertNotNull(newClassBuffer);
+      Assertions.assertNotNull(newClassBuffer);
     }
     byte[] newClassBuffer =
         debuggerTransformer.transform(
@@ -281,7 +278,7 @@ public class DebuggerTransformerTest {
             HashSet.class,
             null,
             getClassFileBytes(HashSet.class));
-    Assert.assertNull(newClassBuffer);
+    Assertions.assertNull(newClassBuffer);
   }
 
   static class ProbeTestInfo {
@@ -301,43 +298,6 @@ public class DebuggerTransformerTest {
   }
 
   @Test
-  public void testDeactivatedProbes() {
-    Config config = mock(Config.class);
-    List<LogProbe> logProbes =
-        Arrays.asList(
-            LogProbe.builder()
-                .language(LANGUAGE)
-                .probeId(PROBE_ID)
-                .active(false)
-                .where("java.lang.String", "toString")
-                .build(),
-            LogProbe.builder()
-                .language(LANGUAGE)
-                .probeId(PROBE_ID)
-                .active(false)
-                .where("java.util.HashMap", "<init>", "void ()")
-                .build());
-    Configuration configuration = new Configuration(SERVICE_NAME, logProbes);
-    DebuggerTransformer debuggerTransformer = new DebuggerTransformer(config, configuration);
-    byte[] newClassBuffer =
-        debuggerTransformer.transform(
-            ClassLoader.getSystemClassLoader(),
-            "java.lang.String",
-            String.class,
-            null,
-            getClassFileBytes(String.class));
-    Assert.assertNull(newClassBuffer);
-    newClassBuffer =
-        debuggerTransformer.transform(
-            ClassLoader.getSystemClassLoader(),
-            "java.util.HashMap",
-            HashMap.class,
-            null,
-            getClassFileBytes(HashMap.class));
-    Assert.assertNull(newClassBuffer);
-  }
-
-  @Test
   public void testBlockedProbes() {
     Config config = mock(Config.class);
     List<LogProbe> logProbes =
@@ -345,7 +305,6 @@ public class DebuggerTransformerTest {
             LogProbe.builder()
                 .language(LANGUAGE)
                 .probeId(PROBE_ID)
-                .active(true)
                 .where("java.lang.String", "toString")
                 .build());
     Configuration configuration = new Configuration(SERVICE_NAME, logProbes);
@@ -360,17 +319,17 @@ public class DebuggerTransformerTest {
             String.class,
             null,
             getClassFileBytes(String.class));
-    Assert.assertNull(newClassBuffer);
-    Assert.assertNotNull(lastResult.get());
-    Assert.assertTrue(lastResult.get().isBlocked());
-    Assert.assertFalse(lastResult.get().isInstalled());
-    Assert.assertEquals("java.lang.String", lastResult.get().getTypeName());
+    Assertions.assertNull(newClassBuffer);
+    Assertions.assertNotNull(lastResult.get());
+    Assertions.assertTrue(lastResult.get().isBlocked());
+    Assertions.assertFalse(lastResult.get().isInstalled());
+    Assertions.assertEquals("java.lang.String", lastResult.get().getTypeName());
   }
 
   @Test
   public void classBeingRedefinedNull() {
     Config config = mock(Config.class);
-    LogProbe logProbe = LogProbe.builder().where("ArrayList", "add").build();
+    LogProbe logProbe = LogProbe.builder().where("ArrayList", "add").probeId("", 0).build();
     Configuration configuration =
         new Configuration(SERVICE_NAME, Collections.singletonList(logProbe));
     AtomicReference<InstrumentationResult> lastResult = new AtomicReference<>(null);
@@ -384,11 +343,11 @@ public class DebuggerTransformerTest {
             null, // classBeingRedefined
             null,
             getClassFileBytes(ArrayList.class));
-    Assert.assertNotNull(newClassBuffer);
-    Assert.assertNotNull(lastResult.get());
-    Assert.assertFalse(lastResult.get().isBlocked());
-    Assert.assertTrue(lastResult.get().isInstalled());
-    Assert.assertEquals("java.util.ArrayList", lastResult.get().getTypeName());
+    Assertions.assertNotNull(newClassBuffer);
+    Assertions.assertNotNull(lastResult.get());
+    Assertions.assertFalse(lastResult.get().isBlocked());
+    Assertions.assertTrue(lastResult.get().isInstalled());
+    Assertions.assertEquals("java.util.ArrayList", lastResult.get().getTypeName());
   }
 
   @ParameterizedTest(
@@ -446,7 +405,7 @@ public class DebuggerTransformerTest {
                       .map(Where.SourceLine::toString)
                       .collect(Collectors.toList())
                   : null;
-          return new Snapshot.ProbeDetails(
+          return new Snapshot.ProbeDetails.DummyProbe(
               id, new Snapshot.ProbeLocation(typeName, methodName, sourceFile, lines));
         },
         null);
@@ -538,7 +497,7 @@ public class DebuggerTransformerTest {
       String sourceCode, String targetClassName, String targetMethodName, InstrumentationKind kind)
       throws Exception {
     LogProbe.Builder builder =
-        LogProbe.builder().probeId(UUID.randomUUID().toString()).captureSnapshot(true);
+        LogProbe.builder().probeId(UUID.randomUUID().toString(), 0).captureSnapshot(true);
     // add depth 1 field destructuring
     builder.capture(
         Limits.DEFAULT_REFERENCE_DEPTH,
@@ -552,17 +511,6 @@ public class DebuggerTransformerTest {
         throw new RuntimeException("Unable to find '" + LINE_PROBE_MARKER + "' marker");
       }
       return builder.where(targetClassName, targetMethodName, null, line, null).build();
-    } else if (kind == InstrumentationKind.LINE_RANGE) {
-      // locate the specially marked lines in the source code
-      int from = findLine(sourceCode, LINE_RANGE_START_MARKER);
-      if (from == -1) {
-        throw new RuntimeException("Unable to find '" + LINE_RANGE_START_MARKER + "' marker");
-      }
-      int till = findLine(sourceCode, LINE_RANGE_END_MARKER);
-      if (till == -1) {
-        throw new RuntimeException("Unable to find '" + LINE_RANGE_END_MARKER + "' marker");
-      }
-      return builder.where(targetClassName, targetMethodName, null, from, till, null).build();
     }
     return builder.where(targetClassName, targetMethodName).build();
   }
@@ -670,7 +618,7 @@ public class DebuggerTransformerTest {
   }
 
   private static void assertTransformation(byte[] original, byte[] transformed) {
-    Assert.assertNotNull(transformed);
+    Assertions.assertNotNull(transformed);
     String diff = diff(asmify(transformed), asmify(original));
     // make sure the instrumentation actually changed anything
     assertFalse(diff.isEmpty());

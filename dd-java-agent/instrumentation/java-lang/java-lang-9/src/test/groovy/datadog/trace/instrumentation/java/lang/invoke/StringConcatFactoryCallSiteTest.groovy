@@ -4,11 +4,15 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.StringModule
 import foo.bar.TestStringConcatFactorySuite
+import groovy.transform.CompileDynamic
 import spock.lang.Requires
+
+import static foo.bar.TestStringConcatFactorySuite.stringPlusWithPrimitive
 
 @Requires({
   jvm.java9Compatible
 })
+@CompileDynamic
 class StringConcatFactoryCallSiteTest extends AgentTestRunner {
 
   @Override
@@ -16,7 +20,7 @@ class StringConcatFactoryCallSiteTest extends AgentTestRunner {
     injectSysConfig("dd.iast.enabled", "true")
   }
 
-  def 'test string concat factory'() {
+  void 'test string concat factory'() {
     setup:
     StringModule iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -36,7 +40,7 @@ class StringConcatFactoryCallSiteTest extends AgentTestRunner {
     0 * _
   }
 
-  def 'test string concat factory with constants '() {
+  void 'test string concat factory with constants '() {
     setup:
     StringModule iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -56,7 +60,7 @@ class StringConcatFactoryCallSiteTest extends AgentTestRunner {
     0 * _
   }
 
-  def 'test string concat factory with flag constants'() {
+  void 'test string concat factory with flag constants'() {
     setup:
     StringModule iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -76,7 +80,7 @@ class StringConcatFactoryCallSiteTest extends AgentTestRunner {
     0 * _
   }
 
-  def 'test string concat factory with object args'() {
+  void 'test string concat factory with object args'() {
     setup:
     StringModule iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -98,7 +102,7 @@ class StringConcatFactoryCallSiteTest extends AgentTestRunner {
     0 * _
   }
 
-  def 'test string concat factory with null args'() {
+  void 'test string concat factory with null args'() {
     setup:
     StringModule iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -118,7 +122,7 @@ class StringConcatFactoryCallSiteTest extends AgentTestRunner {
     0 * _
   }
 
-  def 'test string concat factory with multiple args'() {
+  void 'test string concat factory with multiple args'() {
     setup:
     StringModule iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -141,7 +145,7 @@ class StringConcatFactoryCallSiteTest extends AgentTestRunner {
     0 * _
   }
 
-  def 'test string concat factory with utf constants'() {
+  void 'test string concat factory with utf constants'() {
     setup:
     StringModule iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -159,5 +163,35 @@ class StringConcatFactoryCallSiteTest extends AgentTestRunner {
       ['𠆢\u0001𠆢'] as Object[],
       [-2, 0, -5, 1, -1] as int[])
     0 * _
+  }
+
+  void 'test string concat factory with primitives'() {
+    setup:
+    final iastModule = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(iastModule)
+
+    when:
+    final result = method.call()
+
+    then:
+    result == expectedResult
+    1 * iastModule.onStringConcatFactory(
+      expectedResult,
+      expectedArgs,
+      '\u0001\u0001',
+      [] as Object[],
+      [0, 1] as int[])
+    0 * _
+
+    where:
+    expectedResult           | expectedArgs                   | method
+    'Hello World! in 2023'   | ['Hello World! in ', '2023']   | { it -> stringPlusWithPrimitive('Hello World! in ', (int) 2023) }
+    'Give me a number : 5'   | ['Give me a number : ', '5']   | { it -> stringPlusWithPrimitive('Give me a number : ', (byte) 5) }
+    'Give me a number : 5'   | ['Give me a number : ', '5']   | { it -> stringPlusWithPrimitive('Give me a number : ', (short) 5) }
+    'Are you mad? false'     | ['Are you mad? ', 'false']     | { it -> stringPlusWithPrimitive('Are you mad? ', (boolean) false) }
+    'Give me a letter : c'   | ['Give me a letter : ', 'c']   | { it -> stringPlusWithPrimitive('Give me a letter : ', (char) 'c') }
+    'Hello World! in 2023'   | ['Hello World! in ', '2023']   | { it -> stringPlusWithPrimitive('Hello World! in ', (long) 2023) }
+    'Hello World! in 2023.0' | ['Hello World! in ', '2023.0'] | { it -> stringPlusWithPrimitive('Hello World! in ', (float) 2023.0) }
+    'Hello World! in 2023.0' | ['Hello World! in ', '2023.0'] | { it -> stringPlusWithPrimitive('Hello World! in ', (double) 2023.0) }
   }
 }

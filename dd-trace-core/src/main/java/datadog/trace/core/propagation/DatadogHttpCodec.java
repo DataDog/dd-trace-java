@@ -7,10 +7,12 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
 import java.util.Map;
 import java.util.TreeMap;
@@ -224,12 +226,29 @@ class DatadogHttpCodec {
       return true;
     }
 
+    @Override
+    protected TagContext build() {
+      restore128bTraceId();
+      return super.build();
+    }
+
     private long extractEndToEndStartTime(String value) {
       try {
         return MILLISECONDS.toNanos(Long.parseLong(value));
       } catch (RuntimeException e) {
         log.debug("Ignoring invalid end-to-end start time {}", value, e);
         return 0;
+      }
+    }
+
+    private void restore128bTraceId() {
+      long highOrderBits;
+      // Check if the low-order 64 bits of the TraceId, and propagation tags were parsed
+      if (traceId != DDTraceId.ZERO
+          && propagationTags != null
+          && (highOrderBits = propagationTags.getTraceIdHighOrderBits()) != 0) {
+        // Restore the 128-bit TraceId
+        traceId = DD128bTraceId.from(highOrderBits, traceId.toLong());
       }
     }
   }

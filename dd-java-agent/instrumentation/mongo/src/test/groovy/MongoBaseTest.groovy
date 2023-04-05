@@ -31,7 +31,7 @@ abstract class MongoBaseTest extends VersionedNamingTestBase {
 
   public static final String V0_SERVICE = "mongo"
   public static final String V0_OPERATION = "mongo.query"
-  public static final String V1_SERVICE = Config.get().getServiceName() + "-mongodb"
+  public static final String V1_SERVICE = Config.get().getServiceName()
   public static final String V1_OPERATION = "mongodb.query"
 
   @Shared
@@ -111,7 +111,7 @@ abstract class MongoBaseTest extends VersionedNamingTestBase {
       } else {
         childOf((DDSpan) parentSpan)
       }
-      topLevel true
+      measured true
       tags {
         "$Tags.COMPONENT" "java-mongo"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT

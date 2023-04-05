@@ -9,7 +9,7 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.sink.SqlInjectionModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
-import static com.datadog.iast.IastAgentTestRunner.EMPTY_SOURCE
+import static com.datadog.iast.test.IastAgentTestRunner.EMPTY_SOURCE
 
 class SqlInjectionModuleTest extends IastModuleImplTestBase {
 

@@ -30,12 +30,14 @@ public class HttpCodec {
   static final String X_FORWARDED_PORT_KEY = "x-forwarded-port";
 
   // other headers which may contain real ip
-  static final String CLIENT_IP_KEY = "client-ip";
+  static final String X_CLIENT_IP_KEY = "x-client-ip";
   static final String TRUE_CLIENT_IP_KEY = "true-client-ip";
   static final String X_CLUSTER_CLIENT_IP_KEY = "x-cluster-client-ip";
   static final String X_REAL_IP_KEY = "x-real-ip";
   static final String USER_AGENT_KEY = "user-agent";
-  static final String VIA_KEY = "via";
+  static final String FASTLY_CLIENT_IP_KEY = "fastly-client-ip";
+  static final String CF_CONNECTING_IP_KEY = "cf-connecting-ip";
+  static final String CF_CONNECTING_IP_V6_KEY = "cf-connecting-ipv6";
 
   public interface Injector {
     <C> void inject(
@@ -47,19 +49,24 @@ public class HttpCodec {
   }
 
   public static Injector createInjector(
-      Set<TracePropagationStyle> styles, Map<String, String> invertedBaggageMapping) {
+      Config config,
+      Set<TracePropagationStyle> styles,
+      Map<String, String> invertedBaggageMapping) {
     ArrayList<Injector> injectors =
-        new ArrayList<>(createInjectors(styles, invertedBaggageMapping).values());
+        new ArrayList<>(createInjectors(config, styles, invertedBaggageMapping).values());
     return new CompoundInjector(injectors);
   }
 
   public static Map<TracePropagationStyle, Injector> allInjectorsFor(
-      Map<String, String> reverseBaggageMapping) {
-    return createInjectors(EnumSet.allOf(TracePropagationStyle.class), reverseBaggageMapping);
+      Config config, Map<String, String> reverseBaggageMapping) {
+    return createInjectors(
+        config, EnumSet.allOf(TracePropagationStyle.class), reverseBaggageMapping);
   }
 
   private static Map<TracePropagationStyle, Injector> createInjectors(
-      Set<TracePropagationStyle> propagationStyles, Map<String, String> reverseBaggageMapping) {
+      Config config,
+      Set<TracePropagationStyle> propagationStyles,
+      Map<String, String> reverseBaggageMapping) {
     EnumMap<TracePropagationStyle, Injector> result = new EnumMap<>(TracePropagationStyle.class);
     for (TracePropagationStyle style : propagationStyles) {
       switch (style) {
@@ -67,10 +74,14 @@ public class HttpCodec {
           result.put(style, DatadogHttpCodec.newInjector(reverseBaggageMapping));
           break;
         case B3SINGLE:
-          result.put(style, B3HttpCodec.SINGLE_INJECTOR);
+          result.put(
+              style,
+              B3HttpCodec.newSingleInjector(config.isTracePropagationStyleB3PaddingEnabled()));
           break;
         case B3MULTI:
-          result.put(style, B3HttpCodec.MULTI_INJECTOR);
+          result.put(
+              style,
+              B3HttpCodec.newMultiInjector(config.isTracePropagationStyleB3PaddingEnabled()));
           break;
         case HAYSTACK:
           result.put(style, HaystackHttpCodec.newInjector(reverseBaggageMapping));
@@ -80,6 +91,9 @@ public class HttpCodec {
           break;
         case NONE:
           result.put(style, NoneCodec.INJECTOR);
+          break;
+        case TRACECONTEXT:
+          result.put(style, W3CHttpCodec.newInjector(reverseBaggageMapping));
           break;
         default:
           log.debug("No implementation found to inject propagation style: {}", style);
@@ -113,6 +127,9 @@ public class HttpCodec {
           break;
         case NONE:
           extractors.add(NoneCodec.EXTRACTOR);
+          break;
+        case TRACECONTEXT:
+          extractors.add(W3CHttpCodec.newExtractor(taggedHeaders, baggageMapping));
           break;
         default:
           log.debug("No implementation found to extract propagation style: {}", style);
@@ -179,7 +196,7 @@ public class HttpCodec {
     String decoded = value;
     try {
       decoded = URLDecoder.decode(value, "UTF-8");
-    } catch (final UnsupportedEncodingException e) {
+    } catch (final UnsupportedEncodingException | IllegalArgumentException e) {
       log.debug("Failed to decode value - {}", value);
     }
     return decoded;

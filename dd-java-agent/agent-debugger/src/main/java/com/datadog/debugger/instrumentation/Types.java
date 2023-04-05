@@ -20,6 +20,7 @@ import static org.objectweb.asm.Opcodes.SASTORE;
 import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerSpan;
+import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.bootstrap.debugger.SnapshotProvider;
 import java.util.HashMap;
@@ -36,17 +37,19 @@ public final class Types {
   // common Type constants
   public static final Type STRING_TYPE = Type.getType(String.class);
   public static final Type OBJECT_ARRAY_TYPE = Type.getType(Object[].class);
+  public static final Type STRING_ARRAY_TYPE = Type.getType(String[].class);
   public static final Type OBJECT_TYPE = Type.getType(Object.class);
   public static final Type MAP_TYPE = Type.getType(Map.class);
   public static final Type HASHMAP_TYPE = Type.getType(HashMap.class);
   public static final Type SNAPSHOT_TYPE = Type.getType(Snapshot.class);
   public static final Type SNAPSHOTPROVIDER_TYPE = Type.getType(SnapshotProvider.class);
   public static final Type CAPTURED_VALUE = Type.getType(Snapshot.CapturedValue.class);
-  public static final Type CAPTURE_CONTEXT_TYPE = Type.getType(Snapshot.CapturedContext.class);
+  public static final Type CAPTURED_CONTEXT_TYPE = Type.getType(Snapshot.CapturedContext.class);
   public static final Type CAPTURE_THROWABLE_TYPE = Type.getType(Snapshot.CapturedThrowable.class);
   public static final Type THROWABLE_TYPE = Type.getType(Throwable.class);
   public static final Type CORRELATION_ACCESS_TYPE = Type.getType(CorrelationAccess.class);
   public static final Type DEBUGGER_CONTEXT_TYPE = Type.getType(DebuggerContext.class);
+  public static final Type METHOD_LOCATION_TYPE = Type.getType(MethodLocation.class);
   public static final Type CLASS_TYPE = Type.getType(Class.class);
   public static final Type DEBUGGER_SPAN_TYPE = Type.getType(DebuggerSpan.class);
 

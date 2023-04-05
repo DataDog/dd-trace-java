@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.agent.test.utils.ThreadUtils
 import datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator
 import okhttp3.Request
@@ -68,11 +69,36 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
   }
 }
 
-class AkkaHttpServerInstrumentationSyncTest extends AkkaHttpServerInstrumentationTest {
+abstract class AkkaHttpServerInstrumentationSyncTest extends AkkaHttpServerInstrumentationTest {
   @Override
   HttpServer server() {
     return new AkkaHttpTestWebServer(AkkaHttpTestWebServer.BindAndHandleSync())
   }
+
+  @Override
+  String expectedOperationName() {
+    return operation()
+  }
+}
+
+class AkkaHttpServerInstrumentationSyncV0ForkedTest extends AkkaHttpServerInstrumentationSyncTest {
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "akka-http.request"
+  }
+}
+
+class AkkaHttpServerInstrumentationSyncV1ForkedTest extends AkkaHttpServerInstrumentationSyncTest implements TestingGenericHttpNamingConventions.ServerV1 {
 }
 
 class AkkaHttpServerInstrumentationAsyncTest extends AkkaHttpServerInstrumentationTest {

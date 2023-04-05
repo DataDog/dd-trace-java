@@ -9,6 +9,7 @@ import java.io.OutputStream;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
+import java.util.Map;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.slf4j.Logger;
@@ -105,7 +106,11 @@ public class JettyBlockingHelper {
   private JettyBlockingHelper() {}
 
   public static boolean block(
-      Request request, Response response, int statusCode, BlockingContentType bct) {
+      Request request,
+      Response response,
+      int statusCode,
+      BlockingContentType bct,
+      Map<String, String> extraHeaders) {
     if (!INITIALIZED) {
       return false;
     }
@@ -116,12 +121,19 @@ public class JettyBlockingHelper {
       OutputStream os = (OutputStream) GET_OUTPUT_STREAM.invoke(response);
       response.setStatus(BlockingActionHelper.getHttpCode(statusCode));
       String acceptHeader = request.getHeader("Accept");
-      BlockingActionHelper.TemplateType type =
-          BlockingActionHelper.determineTemplateType(bct, acceptHeader);
-      response.setHeader("Content-type", BlockingActionHelper.getContentType(type));
-      byte[] template = BlockingActionHelper.getTemplate(type);
-      response.setHeader("Content-length", Integer.toString(template.length));
-      os.write(template);
+
+      for (Map.Entry<String, String> e : extraHeaders.entrySet()) {
+        response.setHeader(e.getKey(), e.getValue());
+      }
+
+      if (bct != BlockingContentType.NONE) {
+        BlockingActionHelper.TemplateType type =
+            BlockingActionHelper.determineTemplateType(bct, acceptHeader);
+        response.setHeader("Content-type", BlockingActionHelper.getContentType(type));
+        byte[] template = BlockingActionHelper.getTemplate(type);
+        response.setHeader("Content-length", Integer.toString(template.length));
+        os.write(template);
+      }
       os.close();
       CLOSE_OUTPUT.invoke(response);
       try {
@@ -142,6 +154,11 @@ public class JettyBlockingHelper {
 
   public static void block(
       Request request, Response response, Flow.Action.RequestBlockingAction rba) {
-    block(request, response, rba.getStatusCode(), rba.getBlockingContentType());
+    block(
+        request,
+        response,
+        rba.getStatusCode(),
+        rba.getBlockingContentType(),
+        rba.getExtraHeaders());
   }
 }

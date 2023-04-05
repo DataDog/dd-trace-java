@@ -21,6 +21,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,8 +29,10 @@ public class NettyHttpServerDecorator
     extends HttpServerDecorator<HttpRequest, Channel, HttpResponse, HttpHeaders> {
   public static final CharSequence NETTY = UTF8BytesString.create("netty");
   public static final CharSequence NETTY_CONNECT = UTF8BytesString.create("netty.connect");
-  public static final CharSequence NETTY_REQUEST = UTF8BytesString.create("netty.request");
+
   public static final NettyHttpServerDecorator DECORATE = new NettyHttpServerDecorator();
+  private static final CharSequence NETTY_REQUEST =
+      UTF8BytesString.create(DECORATE.operationName());
 
   @Override
   protected String[] instrumentationNames() {
@@ -112,7 +115,8 @@ public class NettyHttpServerDecorator
     }
 
     @Override
-    public boolean tryCommitBlockingResponse(int statusCode, BlockingContentType templateType) {
+    public boolean tryCommitBlockingResponse(
+        int statusCode, BlockingContentType templateType, Map<String, String> extraHeaders) {
       ChannelHandler handlerBefore = pipeline.get(HttpServerTracingHandler.class);
       if (handlerBefore == null) {
         handlerBefore = pipeline.get(HttpServerRequestTracingHandler.class);
@@ -128,7 +132,7 @@ public class NettyHttpServerDecorator
             .addAfter(
                 pipeline.context(handlerBefore).name(),
                 "blocking_handler",
-                new BlockingResponseHandler(statusCode, templateType))
+                new BlockingResponseHandler(statusCode, templateType, extraHeaders))
             .addBefore(
                 "blocking_handler", "before_blocking_handler", new ChannelInboundHandlerAdapter());
       } catch (RuntimeException rte) {

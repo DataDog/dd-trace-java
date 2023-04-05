@@ -2,6 +2,7 @@ package datadog.trace.core
 
 import datadog.trace.TestInterceptor
 import datadog.trace.api.GlobalTracer
+import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.api.interceptor.TraceInterceptor
 import datadog.trace.common.writer.ListWriter
@@ -16,7 +17,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 class TraceInterceptorTest extends DDCoreSpecification {
 
   def writer = new ListWriter()
-  def tracer = tracerBuilder().writer(writer).build()
+  def tracer
+
+  def setup() {
+    injectSysConfig(TracerConfig.TRACE_GIT_METADATA_ENABLED, "false")
+    tracer = tracerBuilder().writer(writer).build()
+  }
 
   def cleanup() {
     tracer?.close()

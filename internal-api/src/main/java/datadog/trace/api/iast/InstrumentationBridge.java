@@ -1,8 +1,8 @@
 package datadog.trace.api.iast;
 
+import datadog.trace.api.iast.propagation.CodecModule;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.propagation.StringModule;
-import datadog.trace.api.iast.propagation.UrlModule;
 import datadog.trace.api.iast.sink.CommandInjectionModule;
 import datadog.trace.api.iast.sink.LdapInjectionModule;
 import datadog.trace.api.iast.sink.PathTraversalModule;
@@ -15,7 +15,7 @@ import datadog.trace.api.iast.source.WebModule;
 public abstract class InstrumentationBridge {
 
   public static volatile StringModule STRING;
-  public static volatile UrlModule URL;
+  public static volatile CodecModule CODEC;
   public static volatile WebModule WEB;
   public static volatile SqlInjectionModule SQL_INJECTION;
   public static volatile PathTraversalModule PATH_TRAVERSAL;
@@ -30,8 +30,8 @@ public abstract class InstrumentationBridge {
   public static void registerIastModule(final IastModule module) {
     if (module instanceof StringModule) {
       STRING = (StringModule) module;
-    } else if (module instanceof UrlModule) {
-      URL = (UrlModule) module;
+    } else if (module instanceof CodecModule) {
+      CODEC = (CodecModule) module;
     } else if (module instanceof WebModule) {
       WEB = (WebModule) module;
     } else if (module instanceof SqlInjectionModule) {
@@ -58,8 +58,8 @@ public abstract class InstrumentationBridge {
     if (type == StringModule.class) {
       return (E) STRING;
     }
-    if (type == UrlModule.class) {
-      return (E) URL;
+    if (type == CodecModule.class) {
+      return (E) CODEC;
     }
     if (type == WebModule.class) {
       return (E) WEB;
@@ -91,7 +91,7 @@ public abstract class InstrumentationBridge {
   /** Mainly used for testing empty modules */
   public static void clearIastModules() {
     STRING = null;
-    URL = null;
+    CODEC = null;
     WEB = null;
     SQL_INJECTION = null;
     PATH_TRAVERSAL = null;

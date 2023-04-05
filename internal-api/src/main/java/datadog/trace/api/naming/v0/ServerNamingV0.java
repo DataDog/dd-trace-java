@@ -16,8 +16,32 @@ public class ServerNamingV0 implements NamingSchema.ForServer {
   @Nonnull
   @Override
   public String operationForComponent(@Nonnull String component) {
-    // more cases will be added in subsequent PRs.
-    // Defaulting to servlet.request since it's for the majority of http server instrumentations
-    return "servlet.request";
+    final String prefix;
+    switch (component) {
+      case "undertow-http-server":
+        prefix = "undertow-http";
+        break;
+      case "akka-http-server":
+        prefix = "akka-http";
+        break;
+      case "netty":
+      case "finatra":
+      case "axway-http":
+        prefix = component;
+        break;
+      case "spray-http-server":
+        prefix = "spray-http";
+        break;
+      case "restlet-http-server":
+        prefix = "restlet-http";
+        break;
+      case "synapse-server":
+        prefix = "synapse";
+        break;
+      default:
+        prefix = "servlet";
+        break;
+    }
+    return prefix + ".request";
   }
 }

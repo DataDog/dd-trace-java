@@ -34,13 +34,13 @@ public class JsonSnapshotSerializer implements DebuggerContext.SnapshotSerialize
   private void handlerLogger(Snapshot snapshot, IntakeRequest request) {
     request.loggerName = snapshot.getProbe().getLocation().getType();
     request.loggerMethod = snapshot.getProbe().getLocation().getMethod();
-    request.loggerVersion = snapshot.retrieveVersion();
-    request.loggerThreadId = snapshot.retrieveThread().getId();
-    request.loggerThreadName = snapshot.retrieveThread().getName();
+    request.loggerVersion = snapshot.getVersion();
+    request.loggerThreadId = snapshot.getThread().getId();
+    request.loggerThreadName = snapshot.getThread().getName();
   }
 
   private void handleDuration(Snapshot snapshot, IntakeRequest request) {
-    request.duration = snapshot.retrieveDuration();
+    request.duration = snapshot.getDuration();
   }
 
   private void handleCorrelationFields(Snapshot snapshot, IntakeRequest request) {
@@ -112,7 +112,7 @@ public class JsonSnapshotSerializer implements DebuggerContext.SnapshotSerialize
       this.service = service;
       this.debugger = debugger;
       this.message = debugger.snapshot.buildSummary();
-      this.ddtags = debugger.snapshot.getProbe().getTags();
+      this.ddtags = debugger.snapshot.getProbe().getStrTags();
       this.timestamp = debugger.snapshot.getTimestamp();
     }
 
@@ -142,6 +142,26 @@ public class JsonSnapshotSerializer implements DebuggerContext.SnapshotSerialize
 
     public long getTimestamp() {
       return timestamp;
+    }
+
+    public String getLoggerName() {
+      return loggerName;
+    }
+
+    public String getLoggerMethod() {
+      return loggerMethod;
+    }
+
+    public int getLoggerVersion() {
+      return loggerVersion;
+    }
+
+    public long getLoggerThreadId() {
+      return loggerThreadId;
+    }
+
+    public String getLoggerThreadName() {
+      return loggerThreadName;
     }
   }
 

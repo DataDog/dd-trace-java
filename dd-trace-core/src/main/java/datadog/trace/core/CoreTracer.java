@@ -4,6 +4,11 @@ import static datadog.communication.monitor.DDAgentStatsDClientManager.statsDCli
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.api.DDTags.PATHWAY_HASH;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -23,10 +28,13 @@ import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.EndpointCheckpointerHolder;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.config.GeneralConfig;
-import datadog.trace.api.experimental.ProfilingContext;
+import datadog.trace.api.experimental.DataStreamsCheckpointer;
+import datadog.trace.api.experimental.DataStreamsContextCarrier;
+import datadog.trace.api.experimental.Profiling;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.InstrumentationGateway;
 import datadog.trace.api.gateway.RequestContext;
@@ -53,6 +61,7 @@ import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.civisibility.interceptor.CiVisibilityApmProtocolInterceptor;
 import datadog.trace.civisibility.interceptor.CiVisibilityTraceInterceptor;
+import datadog.trace.common.GitMetadataTraceInterceptor;
 import datadog.trace.common.metrics.MetricsAggregator;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
@@ -61,6 +70,7 @@ import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
+import datadog.trace.core.datastreams.DataStreamsContextCarrierAdapter;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.MonitoringImpl;
@@ -185,6 +195,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   private final Map<TracePropagationStyle, HttpCodec.Injector> injectors;
   private final HttpCodec.Extractor extractor;
+
+  private final boolean logs128bTraceIdEnabled;
 
   private final InstrumentationGateway instrumentationGateway;
   private final CallbackProvider callbackProviderAppSec;
@@ -381,7 +393,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       instrumentationGateway(new InstrumentationGateway());
       injector(
           HttpCodec.createInjector(
-              config.getTracePropagationStylesToInject(), invertMap(config.getBaggageMapping())));
+              config,
+              config.getTracePropagationStylesToInject(),
+              invertMap(config.getBaggageMapping())));
       extractor(
           HttpCodec.createExtractor(
               config, config.getRequestHeaderTags(), config.getBaggageMapping()));
@@ -458,16 +472,17 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     assert baggageMapping != null;
 
     this.timeSource = timeSource == null ? SystemTimeSource.INSTANCE : timeSource;
-    this.startTimeNano = this.timeSource.getCurrentTimeNanos();
-    this.startNanoTicks = this.timeSource.getNanoTicks();
-    this.clockSyncPeriod = Math.max(1_000_000L, SECONDS.toNanos(config.getClockSyncPeriod()));
-    this.lastSyncTicks = startNanoTicks;
+    startTimeNano = this.timeSource.getCurrentTimeNanos();
+    startNanoTicks = this.timeSource.getNanoTicks();
+    clockSyncPeriod = Math.max(1_000_000L, SECONDS.toNanos(config.getClockSyncPeriod()));
+    lastSyncTicks = startNanoTicks;
 
-    this.endpointCheckpointer = EndpointCheckpointerHolder.create();
+    endpointCheckpointer = EndpointCheckpointerHolder.create();
     this.serviceName = serviceName;
     this.sampler = sampler;
     this.injector = injector;
     this.extractor = extractor;
+    this.logs128bTraceIdEnabled = InstrumenterConfig.get().isLogs128bTraceIdEnabled();
     this.localRootSpanTags = localRootSpanTags;
     this.defaultSpanTags = defaultSpanTags;
     this.serviceNameMappings = serviceNameMappings;
@@ -486,21 +501,21 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.statsDClient = StatsDClient.NO_OP;
     }
 
-    this.monitoring =
+    monitoring =
         config.isHealthMetricsEnabled()
             ? new MonitoringImpl(this.statsDClient, 10, SECONDS)
             : Monitoring.DISABLED;
-    this.healthMetrics =
+    healthMetrics =
         config.isHealthMetricsEnabled()
             ? new TracerHealthMetrics(this.statsDClient)
             : HealthMetrics.NO_OP;
-    this.healthMetrics.start();
-    this.performanceMonitoring =
+    healthMetrics.start();
+    performanceMonitoring =
         config.isPerfMetricsEnabled()
             ? new MonitoringImpl(this.statsDClient, 10, SECONDS)
             : Monitoring.DISABLED;
 
-    this.traceWriteTimer = performanceMonitoring.newThreadLocalTimer("trace.write");
+    traceWriteTimer = performanceMonitoring.newThreadLocalTimer("trace.write");
     if (scopeManager == null) {
       this.scopeManager =
           new ContinuableScopeManager(
@@ -508,14 +523,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               config.isScopeStrictMode(),
               config.isScopeInheritAsyncPropagation(),
               profilingContextIntegration,
-              this.healthMetrics);
+              healthMetrics);
     } else {
       this.scopeManager = scopeManager;
     }
 
-    this.externalAgentLauncher = new ExternalAgentLauncher(config);
+    externalAgentLauncher = new ExternalAgentLauncher(config);
 
-    this.disableSamplingMechanismValidation = config.isSamplingMechanismValidationDisabled();
+    disableSamplingMechanismValidation = config.isSamplingMechanismValidationDisabled();
 
     if (sharedCommunicationObjects == null) {
       sharedCommunicationObjects = new SharedCommunicationObjects();
@@ -531,7 +546,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.writer = writer;
     }
 
-    this.pendingTraceBuffer =
+    pendingTraceBuffer =
         strictTraceWrites
             ? PendingTraceBuffer.discarding()
             : PendingTraceBuffer.delaying(this.timeSource);
@@ -574,13 +589,16 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       }
     }
 
-    this.instrumentationGateway = instrumentationGateway;
-    this.callbackProviderAppSec =
-        instrumentationGateway.getCallbackProvider(RequestContextSlot.APPSEC);
-    this.callbackProviderIast = instrumentationGateway.getCallbackProvider(RequestContextSlot.IAST);
-    this.universalCallbackProvider = instrumentationGateway.getUniversalCallbackProvider();
+    if (config.isTraceGitMetadataEnabled()) {
+      addTraceInterceptor(GitMetadataTraceInterceptor.INSTANCE);
+    }
 
-    injectors = HttpCodec.allInjectorsFor(invertMap(baggageMapping));
+    this.instrumentationGateway = instrumentationGateway;
+    callbackProviderAppSec = instrumentationGateway.getCallbackProvider(RequestContextSlot.APPSEC);
+    callbackProviderIast = instrumentationGateway.getCallbackProvider(RequestContextSlot.IAST);
+    universalCallbackProvider = instrumentationGateway.getUniversalCallbackProvider();
+
+    injectors = HttpCodec.allInjectorsFor(config, invertMap(baggageMapping));
 
     shutdownCallback = new ShutdownHook(this);
     try {
@@ -776,7 +794,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
       if (encodedContext != null) {
         log.debug("Injecting pathway context {}", pathwayContext);
-        setter.set(carrier, PathwayContext.PROPAGATION_KEY, encodedContext);
+        setter.set(carrier, PathwayContext.PROPAGATION_KEY_BASE64, encodedContext);
         injectPathwayTags(span, pathwayContext);
       }
     } catch (IOException e) {
@@ -929,7 +947,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return trace;
   }
 
-  @SuppressWarnings("unchecked")
   void setSamplingPriorityIfNecessary(final DDSpan rootSpan) {
     // There's a race where multiple threads can see PrioritySampling.UNSET here
     // This check skips potential complex sampling priority logic when we know its redundant
@@ -947,7 +964,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public String getTraceId() {
     final AgentSpan activeSpan = activeSpan();
     if (activeSpan instanceof DDSpan) {
-      return activeSpan.getTraceId().toString();
+      DDTraceId traceId = activeSpan.getTraceId();
+      // Return padded hexadecimal string representation if 128-bit TraceId logging is enabled and
+      // TraceId is a 128-bit ID, otherwise use the default numerical string representation.
+      if (this.logs128bTraceIdEnabled && traceId.toHighOrderLong() != 0) {
+        return traceId.toHexString();
+      } else {
+        return traceId.toString();
+      }
     }
     return "0";
   }
@@ -963,7 +987,75 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public boolean addTraceInterceptor(final TraceInterceptor interceptor) {
-    return interceptors.add(interceptor);
+    if (interceptors.add(interceptor)) {
+      return true;
+    } else {
+      Comparator<? super TraceInterceptor> interceptorComparator = interceptors.comparator();
+      if (interceptorComparator != null) {
+        TraceInterceptor anotherInterceptor =
+            interceptors.stream()
+                .filter(i -> interceptorComparator.compare(i, interceptor) == 0)
+                .findFirst()
+                .orElse(null);
+        log.warn(
+            "Interceptor {} will NOT be registered with the tracer, "
+                + "as already registered interceptor {} is considered its duplicate",
+            interceptor,
+            anotherInterceptor);
+      }
+      return false;
+    }
+  }
+
+  @Override
+  public DataStreamsCheckpointer getDataStreamsCheckpointer() {
+    return this;
+  }
+
+  @Override
+  public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {
+    if (type == null || type.isEmpty() || source == null || source.isEmpty()) {
+      log.warn("setConsumeCheckpoint should be called with non-empty type and source");
+      return;
+    }
+
+    AgentSpan span = activeSpan();
+    if (span == null) {
+      log.warn("SetConsumeCheckpoint is called with no active span");
+      return;
+    }
+
+    PathwayContext pathwayContext =
+        extractPathwayContext(carrier, DataStreamsContextCarrierAdapter.INSTANCE);
+    span.mergePathwayContext(pathwayContext);
+
+    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+    sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
+    sortedTags.put(TOPIC_TAG, source);
+    sortedTags.put(TYPE_TAG, type);
+
+    setDataStreamCheckpoint(span, sortedTags);
+  }
+
+  @Override
+  public void setProduceCheckpoint(String type, String target, DataStreamsContextCarrier carrier) {
+    if (type == null || type.isEmpty() || target == null || target.isEmpty()) {
+      log.warn("SetProduceCheckpoint should be called with non-empty type and target");
+      return;
+    }
+
+    AgentSpan span = activeSpan();
+    if (span == null) {
+      log.warn("SetProduceCheckpoint is called with no active span");
+      return;
+    }
+
+    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+    sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+    sortedTags.put(TOPIC_TAG, target);
+    sortedTags.put(TYPE_TAG, type);
+
+    injectPathwayContext(span, carrier, DataStreamsContextCarrierAdapter.INSTANCE, sortedTags);
   }
 
   @Override
@@ -975,12 +1067,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void registerCheckpointer(EndpointCheckpointer implementation) {
-    this.endpointCheckpointer.register(implementation);
+    endpointCheckpointer.register(implementation);
   }
 
   @Override
   public SubscriptionService getSubscriptionService(RequestContextSlot slot) {
-    return (SubscriptionService) this.instrumentationGateway.getCallbackProvider(slot);
+    return (SubscriptionService) instrumentationGateway.getCallbackProvider(slot);
   }
 
   @Override
@@ -1042,13 +1134,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public ProfilingContext getProfilingContext() {
+  public Profiling getProfilingContext() {
     return profilingContextIntegration;
   }
 
   @Override
   public TraceSegment getTraceSegment() {
-    AgentSpan.Context ctx = this.activeSpan().context();
+    AgentSpan.Context ctx = activeSpan().context();
     if (ctx instanceof DDSpanContext) {
       return ((DDSpanContext) ctx).getTraceSegment();
     }
@@ -1143,6 +1235,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private boolean errorFlag;
     private CharSequence spanType;
     private boolean ignoreScope = false;
+    private Object builderRequestContextDataAppSec;
+    private Object builderRequestContextDataIast;
+    private Object builderCiVisibilityContextData;
 
     CoreSpanBuilder(final CharSequence operationName, CoreTracer tracer) {
       this.operationName = operationName;
@@ -1241,6 +1336,22 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
+    @Override
+    public <T> AgentTracer.SpanBuilder withRequestContextData(RequestContextSlot slot, T data) {
+      switch (slot) {
+        case APPSEC:
+          builderRequestContextDataAppSec = data;
+          break;
+        case CI_VISIBILITY:
+          builderCiVisibilityContextData = data;
+          break;
+        case IAST:
+          builderRequestContextDataIast = data;
+          break;
+      }
+      return this;
+    }
+
     /**
      * Build the SpanContext, if the actual span has a parent, the following attributes must be
      * propagated: - ServiceName - Baggage - Trace (a list of all spans related) - SpanType
@@ -1254,13 +1365,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final Map<String, String> baggage;
       final PendingTrace parentTrace;
       final int samplingPriority;
-      final String origin;
+      final CharSequence origin;
       final Map<String, String> coreTags;
       final Map<String, ?> rootSpanTags;
 
       final DDSpanContext context;
       Object requestContextDataAppSec;
       Object requestContextDataIast;
+      Object ciVisibilityContextData;
       final PathwayContext pathwayContext;
       final PropagationTags propagationTags;
 
@@ -1298,9 +1410,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         if (requestContext != null) {
           requestContextDataAppSec = requestContext.getData(RequestContextSlot.APPSEC);
           requestContextDataIast = requestContext.getData(RequestContextSlot.IAST);
+          ciVisibilityContextData = requestContext.getData(RequestContextSlot.CI_VISIBILITY);
         } else {
           requestContextDataAppSec = null;
           requestContextDataIast = null;
+          ciVisibilityContextData = null;
         }
         pathwayContext =
             ddsc.getPathwayContext().isStarted()
@@ -1335,12 +1449,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           baggage = tc.getBaggage();
           requestContextDataAppSec = tc.getRequestContextDataAppSec();
           requestContextDataIast = tc.getRequestContextDataIast();
+          ciVisibilityContextData = tc.getCiVisibilityContextData();
         } else {
           coreTags = null;
           origin = null;
           baggage = null;
           requestContextDataAppSec = null;
           requestContextDataIast = null;
+          ciVisibilityContextData = null;
         }
 
         rootSpanTags = localRootSpanTags;
@@ -1366,6 +1482,17 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               + defaultSpanTags.size()
               + (null == coreTags ? 0 : coreTags.size())
               + (null == rootSpanTags ? 0 : rootSpanTags.size());
+
+      if (builderRequestContextDataAppSec != null) {
+        requestContextDataAppSec = builderRequestContextDataAppSec;
+      }
+      if (builderCiVisibilityContextData != null) {
+        ciVisibilityContextData = builderCiVisibilityContextData;
+      }
+      if (builderRequestContextDataIast != null) {
+        requestContextDataIast = builderRequestContextDataIast;
+      }
+
       // some attributes are inherited from the parent
       context =
           new DDSpanContext(
@@ -1385,6 +1512,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               parentTrace,
               requestContextDataAppSec,
               requestContextDataIast,
+              ciVisibilityContextData,
               pathwayContext,
               disableSamplingMechanismValidation,
               propagationTags,

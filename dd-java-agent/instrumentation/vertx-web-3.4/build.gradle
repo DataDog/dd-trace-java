@@ -52,6 +52,8 @@ dependencies {
   testImplementation group: 'io.vertx', name: 'vertx-web', version: '3.4.0'
   testImplementation group: 'io.vertx', name: 'vertx-web-client', version: '3.4.0'
 
+  testImplementation group: 'org.mockito', name: 'mockito-inline', version: '4.11.0'
+
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-web', version: '3.+'
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-web-client', version: '3.+'
 }

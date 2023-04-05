@@ -56,9 +56,10 @@
 1 com.esotericsoftware.kryo.*
 1 com.fasterxml.*
 #Need for JsonFactoryCallSite.createParser()
-0 com.fasterxml.jackson.databind.ObjectMapper
+2 com.fasterxml.jackson.databind.ObjectMapper
 1 com.filenet.*
 1 com.github.benmanes.caffeine.*
+1 com.github.jknack.handlebars.*
 1 com.google.*
 1 com.googlecode.*
 1 com.hazelcast.*
@@ -69,6 +70,7 @@
 1 com.jprofiler.*
 1 com.lowagie.*
 1 com.mchange.*
+1 com.mongodb.*
 1 com.mysql.*
 1 com.neo4j.*
 1 com.netscape.*
@@ -126,6 +128,7 @@
 1 org.apache.*
 1 org.apiguardian.*
 1 org.aspectj.*
+1 org.attoparser.*
 1 org.bson.*
 1 org.clojure.*
 1 org.codehaus.*
@@ -173,13 +176,15 @@
 1 org.renjin.*
 1 org.slf4j.*
 1 org.springdoc.*
-# https://github.com/spring-projects/spring-petclinic
 1 org.springframework.*
-0 org.springframework.web.context.request.*
+# Update when JdbcTemplate call sites are ready
+2 org.springframework.jdbc.core.JdbcTemplate$*
+# https://github.com/spring-projects/spring-petclinic
 0 org.springframework.samples.*
-0 org.springframework.web.util.WebUtils
-#Need for ServletRequestCallSite.getInputStream()
-0 org.springframework.http.server.*
+2 org.springframework.web.context.request.*
+2 org.springframework.web.util.WebUtils
+# Need for ServletRequestCallSite.getInputStream()
+2 org.springframework.http.server.*
 1 org.synchronoss.*
 1 org.terracotta.*
 1 org.testcontainers.*
@@ -190,6 +195,7 @@
 1 org.xnio.*
 1 org.yaml.*
 1 reactor.*
+1 software.amazon.awssdk.*
 1 springfox.*
 1 tech.jhipster.*
 1 weblogic.*
@@ -197,6 +203,6 @@
 
 # --------- testing ----------------
 
+1 org.gradle.*
 1 org.spockframework.*
 1 worker.org.gradle.*
-1 org.gradle.*

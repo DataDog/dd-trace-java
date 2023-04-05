@@ -2,6 +2,7 @@ import datadog.appsec.api.blocking.Blocking
 import datadog.appsec.api.blocking.BlockingException
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import io.undertow.Handlers
 import io.undertow.Undertow
 import io.undertow.UndertowOptions
@@ -12,7 +13,7 @@ import io.undertow.util.StatusCodes
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.*
 
-class UndertowDispatcherTest extends HttpServerTest<Undertow> {
+abstract class UndertowDispatcherTest extends HttpServerTest<Undertow> {
   class UndertowServer implements HttpServer {
     def port = 0
     Undertow undertowServer
@@ -153,7 +154,7 @@ class UndertowDispatcherTest extends HttpServerTest<Undertow> {
 
   @Override
   String expectedOperationName() {
-    return 'undertow-http.request'
+    return operation()
   }
 
   @Override
@@ -181,4 +182,24 @@ class UndertowDispatcherTest extends HttpServerTest<Undertow> {
       Collections.emptyMap()
     }
   }
+}
+
+class UndertowDispatcherV0ForkedTest extends UndertowDispatcherTest {
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "undertow-http.request"
+  }
+}
+
+class UndertowDispatcherV1ForkedTest extends UndertowDispatcherTest implements TestingGenericHttpNamingConventions.ServerV1 {
 }

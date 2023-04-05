@@ -45,14 +45,9 @@ public class EvidenceAdapter extends JsonAdapter<Evidence> {
       if (range.getStart() > start) {
         writeValuePart(writer, value.substring(start, range.getStart()));
       }
-      // Need for Object Ranges
-      if (range.getLength() == Integer.MAX_VALUE) {
-        writeValuePart(writer, value, range);
-      } else {
-        writeValuePart(
-            writer, value.substring(range.getStart(), range.getStart() + range.getLength()), range);
-      }
-      start = range.getStart() + range.getLength();
+      final int end = Math.min(range.getStart() + range.getLength(), value.length());
+      writeValuePart(writer, value.substring(range.getStart(), end), range);
+      start = end;
     }
     if (start < value.length()) {
       writeValuePart(writer, value.substring(start));

@@ -1,6 +1,7 @@
 package datadog.trace.api.naming;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public interface NamingSchema {
   /**
@@ -13,9 +14,16 @@ public interface NamingSchema {
   /**
    * Get the naming policy for clients (http, soap, ...).
    *
-   * @return a {@link NamingSchema.ForCache} instance.
+   * @return a {@link NamingSchema.ForClient} instance.
    */
   ForClient client();
+
+  /**
+   * Get the naming policy for cloud providers (aws, gpc, azure, ...).
+   *
+   * @return a {@link NamingSchema.ForCloud} instance.
+   */
+  ForCloud cloud();
 
   /**
    * Get the naming policy for databases.
@@ -23,6 +31,13 @@ public interface NamingSchema {
    * @return a {@link NamingSchema.ForDatabase} instance.
    */
   ForDatabase database();
+
+  /**
+   * Get the naming policy for messaging.
+   *
+   * @return a {@link NamingSchema.ForMessaging} instance.
+   */
+  ForMessaging messaging();
 
   /**
    * Get the naming policy for servers.
@@ -72,6 +87,41 @@ public interface NamingSchema {
     String operationForComponent(@Nonnull String component);
   }
 
+  interface ForCloud {
+
+    /**
+     * Calculate the operation name for a generic cloud sdk call.
+     *
+     * @param provider the cloud provider
+     * @param cloudService the cloud service name (e.g. s3)
+     * @param serviceOperation the qualified service operation (e.g.S3.CreateBucket)
+     * @return the operation name for this span
+     */
+    @Nonnull
+    String operationForRequest(
+        @Nonnull String provider, @Nonnull String cloudService, @Nonnull String serviceOperation);
+
+    /**
+     * Calculate the service name for a generic cloud sdk call.
+     *
+     * @param provider the cloud provider
+     * @param cloudService the cloud service name (e.g. s3). If not provided the method should
+     *     return a default value
+     * @return the service name for this span
+     */
+    @Nonnull
+    String serviceForRequest(@Nonnull String provider, @Nullable String cloudService);
+
+    /**
+     * Calculate the operation name for a function as a service invocation (e.g. aws lambda)
+     *
+     * @param provider the cloud provider
+     * @return the operation name for this span
+     */
+    @Nonnull
+    String operationForFaas(@Nonnull String provider);
+  }
+
   interface ForDatabase {
     /**
      * Calculate the operation name for a database span.
@@ -91,6 +141,64 @@ public interface NamingSchema {
      */
     @Nonnull
     String service(@Nonnull String ddService, @Nonnull String databaseType);
+  }
+
+  interface ForMessaging {
+    /**
+     * Calculate the operation name for a messaging consumer span for process operation.
+     *
+     * @param messagingSystem the messaging system (e.g. jms, kafka,..)
+     * @return the operation name
+     */
+    @Nonnull
+    String inboundOperation(@Nonnull String messagingSystem);
+
+    /**
+     * Calculate the service name for a messaging producer span.
+     *
+     * @param ddService the configured service name as set by the user.
+     * @param messagingSystem the messaging system (e.g. jms, kafka, amqp,..)
+     * @return the service name
+     */
+    @Nonnull
+    String inboundService(@Nonnull String ddService, @Nonnull String messagingSystem);
+
+    /**
+     * Calculate the operation name for a messaging producer span.
+     *
+     * @param messagingSystem the messaging system (e.g. jms, kafka, amqp,..)
+     * @return the operation name
+     */
+    @Nonnull
+    String outboundOperation(@Nonnull String messagingSystem);
+
+    /**
+     * Calculate the service name for a messaging producer span.
+     *
+     * @param ddService the configured service name as set by the user.
+     * @param messagingSystem the messaging system (e.g. jms, kafka, amqp,..)
+     * @return the service name
+     */
+    @Nonnull
+    String outboundService(@Nonnull String ddService, @Nonnull String messagingSystem);
+
+    /**
+     * Calculate the service name for a messaging time in queue synthetic span.
+     *
+     * @param messagingSystem the messaging system (e.g. jms, kafka, amqp,..)
+     * @return the service name
+     */
+    @Nonnull
+    String timeInQueueService(@Nonnull String messagingSystem);
+
+    /**
+     * Calculate the operation name for a messaging time in queue synthetic span.
+     *
+     * @param messagingSystem the messaging system (e.g. jms, kafka, amqp,..)
+     * @return the operation name
+     */
+    @Nonnull
+    String timeInQueueOperation(@Nonnull String messagingSystem);
   }
 
   interface ForServer {
