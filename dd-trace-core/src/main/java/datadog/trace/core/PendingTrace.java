@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
  *       </ul>
  *   <li>Delayed Write
  *       <ul>
- *         <li>is root span && pending ref count > 0
+ *         <li>is top_level or measured span && pending ref count > 0
  *         <li>not root span && pending ref count > 0 && trace already written
  *       </ul>
  * </ul>
@@ -170,7 +170,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     // write method.
     healthMetrics.onFinishSpan();
     COMPLETED_SPAN_COUNT.incrementAndGet(this);
-    return decrementRefAndMaybeWrite(span == getRootSpan());
+    return decrementRefAndMaybeWrite(span.isTopLevel() || span.isMeasured());
   }
 
   @Override
@@ -211,7 +211,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     PENDING
   }
 
-  private PublishState decrementRefAndMaybeWrite(boolean isRootSpan) {
+  private PublishState decrementRefAndMaybeWrite(boolean measuredSpan) {
     final int count = PENDING_REFERENCE_COUNT.decrementAndGet(this);
     if (strictTraceWrites && count < 0) {
       throw new IllegalStateException("Pending reference count " + count + " is negative");
@@ -222,8 +222,8 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
       // Finished with no pending work ... write immediately
       write();
       return PublishState.WRITTEN;
-    } else if (isRootSpan) {
-      // Finished root with pending work ... delay write
+    } else if (measuredSpan) {
+      // Finished a measured span ... delay write
       pendingTraceBuffer.enqueue(this);
       return PublishState.ROOT_BUFFERED;
     } else if (0 < partialFlushMinSpans && partialFlushMinSpans < size()) {

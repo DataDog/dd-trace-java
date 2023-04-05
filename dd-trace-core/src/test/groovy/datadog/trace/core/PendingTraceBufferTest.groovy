@@ -28,7 +28,10 @@ class PendingTraceBufferTest extends DDSpecification {
   def buffer = PendingTraceBuffer.delaying(SystemTimeSource.INSTANCE)
   def bufferSpy = Spy(buffer)
 
-  def tracer = Mock(CoreTracer)
+  def tracer = Mock(CoreTracer) {
+    // required as mapServiceName sets service to null
+    mapServiceName(_ as String) >> { String serviceName -> serviceName }
+  }
   def scopeManager = new ContinuableScopeManager(10, true, true)
   def factory = new PendingTrace.Factory(tracer, bufferSpy, SystemTimeSource.INSTANCE, false, HealthMetrics.NO_OP)
   List<TraceScope.Continuation> continuations = []
@@ -96,7 +99,7 @@ class PendingTraceBufferTest extends DDSpecification {
     0 * _
   }
 
-  def "unfinished child buffers root"() {
+  def "pending trace buffered when root completed"() {
     setup:
     def trace = factory.create(DDTraceId.ONE)
     def parent = newSpanOf(trace)
@@ -129,6 +132,107 @@ class PendingTraceBufferTest extends DDSpecification {
     0 * _
   }
 
+  def "pending trace not buffered when span completed"() {
+    setup:
+    def trace = factory.create(DDTraceId.ONE)
+    def parent = newSpanOf(trace)
+    def child = newSpanOf(parent)
+
+    expect:
+    !trace.rootSpanWritten
+
+    when:
+    child.finish() // must not enqueue
+
+    then:
+    trace.size() == 1
+    trace.pendingReferenceCount == 1
+    0 * bufferSpy.enqueue(trace)
+    _ * tracer.getPartialFlushMinSpans() >> 10
+    1 * tracer.getTimeWithNanoTicks(_)
+    0 * _
+
+    when:
+    parent.finish()
+
+    then:
+    trace.size() == 0
+    trace.pendingReferenceCount == 0
+    1 * tracer.write({ it.size() == 2 })
+    1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
+    _ * tracer.getPartialFlushMinSpans() >> 10
+    1 * tracer.getTimeWithNanoTicks(_)
+    0 * _
+  }
+
+  def "pending trace buffered when measured span completed"() {
+    setup:
+    def trace = factory.create(DDTraceId.ONE)
+    def parent = newSpanOf(trace)
+    def child = newSpanOf(parent)
+    child.setMeasured(true)
+
+    expect:
+    !trace.rootSpanWritten
+
+    when:
+    child.finish() // This should enqueue
+
+    then:
+    trace.size() == 1
+    trace.pendingReferenceCount == 1
+    1 * bufferSpy.enqueue(trace)
+    _ * tracer.getPartialFlushMinSpans() >> 10
+    1 * tracer.getTimeWithNanoTicks(_)
+    0 * _
+
+    when:
+    parent.finish()
+
+    then:
+    trace.size() == 0
+    trace.pendingReferenceCount == 0
+    1 * tracer.write({ it.size() == 2 })
+    1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
+    _ * tracer.getPartialFlushMinSpans() >> 10
+    1 * tracer.getTimeWithNanoTicks(_)
+    0 * _
+  }
+
+  def "pending trace buffered when top_level span completed"() {
+    setup:
+    def trace = factory.create(DDTraceId.ONE)
+    def parent = newSpanOf(trace)
+    def child = newSpanOf(parent)
+    child.setServiceName("other_service_to_become_top_level")
+
+    expect:
+    !trace.rootSpanWritten
+
+    when:
+    child.finish() // This should enqueue
+
+    then:
+    trace.size() == 1
+    trace.pendingReferenceCount == 1
+    1 * bufferSpy.enqueue(trace)
+    _ * tracer.getPartialFlushMinSpans() >> 10
+    1 * tracer.getTimeWithNanoTicks(_)
+    0 * _
+
+    when:
+    parent.finish()
+
+    then:
+    trace.size() == 0
+    trace.pendingReferenceCount == 0
+    1 * tracer.write({ it.size() == 2 })
+    1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
+    _ * tracer.getPartialFlushMinSpans() >> 10
+    1 * tracer.getTimeWithNanoTicks(_)
+    0 * _
+  }
+
   def "priority sampling is always sent"() {
     setup:
     def parent = addContinuation(newSpanOf(factory.create(DDTraceId.ONE), PrioritySampling.USER_KEEP))
@@ -142,13 +246,13 @@ class PendingTraceBufferTest extends DDSpecification {
 
     then:
     _ * tracer.getPartialFlushMinSpans() >> 10
-    _ * tracer.mapServiceName(_)
     _ * tracer.getTimeWithNanoTicks(_)
+    _ * tracer.mapServiceName("fakeService") >> "fakeService"
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     1 * tracer.write(_) >> { List<List<DDSpan>> spans ->
       spans.first().first().processTagsAndBaggage(metadataChecker)
     }
-    0 *  _
+    0 * _
     metadataChecker.hasSamplingPriority
   }
 
@@ -165,7 +269,7 @@ class PendingTraceBufferTest extends DDSpecification {
     buffer.queue.size() == BUFFER_SIZE
     buffer.queue.capacity() * bufferSpy.enqueue(_)
     _ * tracer.getPartialFlushMinSpans() >> 10
-    _ * tracer.mapServiceName(_)
+    _ * tracer.mapServiceName("fakeService") >> "fakeService"
     _ * tracer.getTimeWithNanoTicks(_)
     0 * _
 
@@ -178,7 +282,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     1 * tracer.write({ it.size() == 1 })
     _ * tracer.getPartialFlushMinSpans() >> 10
-    _ * tracer.mapServiceName(_)
+    _ * tracer.mapServiceName("fakeService") >> "fakeService"
     2 * tracer.getTimeWithNanoTicks(_)
     0 * _
     pendingTrace.isEnqueued == 0
@@ -233,7 +337,7 @@ class PendingTraceBufferTest extends DDSpecification {
     0 * _
   }
 
-  def "late arrival span requeues pending trace"() {
+  def "late arrival span re-enqueues pending trace"() {
     setup:
     buffer.start()
     def parentLatch = new CountDownLatch(1)
@@ -273,7 +377,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * tracer.write({ it.size() == 1 }) >> {
       childLatch.countDown()
     }
-    _ * tracer.mapServiceName(_)
+    _ * tracer.mapServiceName("fakeService") >> "fakeService"
     2 * tracer.getTimeWithNanoTicks(_)
     0 * _
   }
@@ -325,7 +429,7 @@ class PendingTraceBufferTest extends DDSpecification {
     counter.get() == 3
   }
 
-  def "the same pending thrace is not enqueued multiple times"() {
+  def "the same pending trace is not enqueued multiple times"() {
     setup:
     // Don't start the buffer thread
 
@@ -341,7 +445,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     1 * tracer.write({ it.size() == 1 })
     1 * tracer.getPartialFlushMinSpans() >> 10000
-    1 * tracer.mapServiceName(_)
+    1 * tracer.mapServiceName("fakeService") >> "fakeService"
     2 * tracer.getTimeWithNanoTicks(_)
     0 * _
 
@@ -355,7 +459,7 @@ class PendingTraceBufferTest extends DDSpecification {
     buffer.queue.size() == 1
     buffer.queue.capacity() * bufferSpy.enqueue(_)
     _ * tracer.getPartialFlushMinSpans() >> 10000
-    _ * tracer.mapServiceName(_)
+    _ * tracer.mapServiceName("fakeService") >> "fakeService"
     _ * tracer.getTimeWithNanoTicks(_)
     0 * _
 
@@ -408,8 +512,8 @@ class PendingTraceBufferTest extends DDSpecification {
     def context = new DDSpanContext(
       trace.traceId,
       2,
-      parent.context().spanId,
-      null,
+      parent.getSpanId(),
+      parent.context().getServiceName(),
       "fakeService",
       "fakeOperation",
       "fakeResource",
