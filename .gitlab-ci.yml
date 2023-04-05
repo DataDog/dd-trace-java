@@ -74,14 +74,11 @@ package:
   needs: [ build ]
   script:
     - source ../upstream.env
-    - echo -n $UPSTREAM_TRACER_VERSION$CI_VERSION_SUFFIX > auto_inject-java.version
+    - export VERSION=$UPSTREAM_TRACER_VERSION$CI_VERSION_SUFFIX
+    - echo -n $VERSION > auto_inject-java.version
     - cp ../workspace/dd-java-agent/build/libs/*.jar dd-java-agent.jar
     - source common_build_functions.sh
-    - >
-      fpm_wrapper "datadog-apm-library-java" "$JAVA_PACKAGE_VERSION" 
-        --input-type dir 
-        dd-java-agent.jar="$LIBRARIES_INSTALL_BASE/java/dd-java-agent.jar"
-        auto_inject-java.version="$LIBRARIES_INSTALL_BASE/java/version"
+    - fpm_wrapper "datadog-apm-library-java" "$VERSION" --input-type dir dd-java-agent.jar="$LIBRARIES_INSTALL_BASE/java/dd-java-agent.jar" auto_inject-java.version="$LIBRARIES_INSTALL_BASE/java/version"
 
 .release-package:
   stage: deploy
