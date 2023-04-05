@@ -1,3 +1,8 @@
+include:
+  - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
+  - remote: https://gitlab-templates.ddbuild.io/apm/packaging.yml
+  - local: ".gitlab/benchmarks.yml"
+
 stages:
   - build
   - package
@@ -8,17 +13,13 @@ stages:
 variables:
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
   SONATYPE_USERNAME: robot-sonatype-apm-java
+  S3_RELEASE_ARTIFACTS_URI: ${S3_RELEASE_ARTIFACTS_BASE}-java/$CI_PIPELINE_ID
   DOWNSTREAM_BRANCH:
     value: "master"
     description: "Run a specific datadog-reliability-env branch downstream"
   FORCE_TRIGGER:
     value: "false"
     description: "Set to true to override rules in the reliability-env pipeline (e.g. override 'only deploy master')"
-
-include:
-  - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
-  - remote: https://gitlab-templates.ddbuild.io/apm/packaging.yml
-  - local: ".gitlab/benchmarks.yml"
 
 .common: &common
   tags: [ "runner:main", "size:large" ]
@@ -79,6 +80,8 @@ package:
     - cp ../workspace/dd-java-agent/build/libs/*.jar dd-java-agent.jar
     - source common_build_functions.sh
     - fpm_wrapper "datadog-apm-library-java" "$VERSION" --input-type dir dd-java-agent.jar="$LIBRARIES_INSTALL_BASE/java/dd-java-agent.jar" auto_inject-java.version="$LIBRARIES_INSTALL_BASE/java/version"
+    - $S3_CP_CMD . $S3_RELEASE_ARTIFACTS_URI/deb/amd64/ --exclude "*" --include "*amd64.deb" --recursive
+    - $S3_CP_CMD . $S3_RELEASE_ARTIFACTS_URI/rpm/x86_64/ --exclude "*" --include "*x86_64.rpm" --recursive
 
 .release-package:
   stage: deploy
