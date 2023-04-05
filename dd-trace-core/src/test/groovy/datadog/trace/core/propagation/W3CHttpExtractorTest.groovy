@@ -383,4 +383,27 @@ class W3CHttpExtractorTest extends DDSpecification {
     assert context.cfConnectingIp == '8.8.8.8'
     assert context.cfConnectingIpv6 == '9.9.9.9'
   }
+
+  def "mark inconsistent tid as propagation error"() {
+    setup:
+    def headers = [
+      (TRACE_PARENT_KEY.toUpperCase())        : traceparent,
+      (TRACE_STATE_KEY.toUpperCase())         : tracestate,
+    ]
+
+    when:
+    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+
+    then:
+    context.getPropagationTags().createTagMap() == expectedTags
+
+    where:
+    traceparent                                               | tracestate                  | consitent
+    '00-123456789abcdef00fedcba987654321-123456789abcdef0-01' | ''                          | true
+    '00-123456789abcdef00fedcba987654321-123456789abcdef0-01' | "dd=t.tid:123456789abcdef0" | true
+    '00-123456789abcdef00fedcba987654321-123456789abcdef0-01' | "dd=t.tid:123456789abcdef1" | false
+    tid = tracestate.empty ? '' : tracestate.substring(9)
+    defaultTags = ['_dd.p.dm': '-0', '_dd.p.tid': '123456789abcdef0']
+    expectedTags = consitent ? defaultTags : defaultTags + ['_dd.propagation_error': "inconsistent_tid $tid"]
+  }
 }
