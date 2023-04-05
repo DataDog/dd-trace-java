@@ -46,6 +46,8 @@ dependencies {
   api group: 'com.googlecode.concurrentlinkedhashmap', name: 'concurrentlinkedhashmap-lru', version: '1.4.2'
   api deps.bytebuddy
   api deps.bytebuddyagent
+  implementation group: 'net.java.dev.jna', name: 'jna', version: '5.8.0'
+  implementation group: 'net.java.dev.jna', name: 'jna-platform', version: '5.8.0'
 
   api project(':dd-trace-core')
 

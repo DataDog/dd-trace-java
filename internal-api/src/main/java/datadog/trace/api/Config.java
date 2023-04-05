@@ -2020,6 +2020,10 @@ public class Config {
     return instrumenterConfig.isCiVisibilityEnabled();
   }
 
+  public boolean isUsmEnabled() {
+    return instrumenterConfig.isUsmEnabled();
+  }
+
   public boolean isCiVisibilityAgentlessEnabled() {
     return ciVisibilityAgentlessEnabled;
   }
