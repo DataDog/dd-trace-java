@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.api;
+package datadog.trace.bootstrap.instrumentation.usm;
 
 public interface UsmMessage {
   int dataSize();

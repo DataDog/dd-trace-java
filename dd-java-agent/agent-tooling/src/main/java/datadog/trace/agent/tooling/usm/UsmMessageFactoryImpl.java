@@ -2,9 +2,9 @@ package datadog.trace.agent.tooling.usm;
 
 import datadog.trace.agent.tooling.usm.UsmMessageImpl.CloseConnectionUsmMessage;
 import datadog.trace.agent.tooling.usm.UsmMessageImpl.RequestUsmMessage;
-import datadog.trace.bootstrap.instrumentation.api.UsmConnection;
-import datadog.trace.bootstrap.instrumentation.api.UsmMessage;
-import datadog.trace.bootstrap.instrumentation.api.UsmMessageFactory;
+import datadog.trace.bootstrap.instrumentation.usm.UsmConnection;
+import datadog.trace.bootstrap.instrumentation.usm.UsmMessage;
+import datadog.trace.bootstrap.instrumentation.usm.UsmMessageFactory;
 
 public class UsmMessageFactoryImpl implements UsmMessageFactory {
   @Override

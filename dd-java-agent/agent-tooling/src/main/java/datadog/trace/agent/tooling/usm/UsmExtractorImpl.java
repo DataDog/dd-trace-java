@@ -5,8 +5,8 @@ import com.sun.jna.Native;
 import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
 import datadog.trace.agent.tooling.usm.UsmMessageImpl.BaseUsmMessage;
-import datadog.trace.bootstrap.instrumentation.api.UsmExtractor;
-import datadog.trace.bootstrap.instrumentation.api.UsmMessage;
+import datadog.trace.bootstrap.instrumentation.usm.UsmExtractor;
+import datadog.trace.bootstrap.instrumentation.usm.UsmMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

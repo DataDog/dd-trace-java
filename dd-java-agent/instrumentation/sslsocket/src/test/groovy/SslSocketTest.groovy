@@ -1,8 +1,8 @@
 package test
 
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.bootstrap.instrumentation.api.UsmExtractor
-import datadog.trace.bootstrap.instrumentation.api.UsmMessageFactory
+import datadog.trace.bootstrap.instrumentation.usm.UsmExtractor
+import datadog.trace.bootstrap.instrumentation.usm.UsmMessageFactory
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 
@@ -41,7 +41,7 @@ class SslSocketTest extends AgentTestRunner {
     conn.connect()
 
     // Mock message factory
-    Class msgItfcCls = Class.forName("datadog.trace.bootstrap.instrumentation.api.UsmMessageFactory")
+    Class msgItfcCls = Class.forName("datadog.trace.bootstrap.instrumentation.usm.UsmMessageFactory")
     Class msgSupplierCls = msgItfcCls.getClasses()[0]
     Field msgSupplierField = msgSupplierCls.getDeclaredField("SUPPLIER")
     msgSupplierField.setAccessible(true)
@@ -49,7 +49,7 @@ class SslSocketTest extends AgentTestRunner {
     msgSupplierField.set(null, factoryMock)
 
     // Mock extractor
-    Class extractorItfcCls = Class.forName("datadog.trace.bootstrap.instrumentation.api.UsmExtractor")
+    Class extractorItfcCls = Class.forName("datadog.trace.bootstrap.instrumentation.usm.UsmExtractor")
     Class extractorSupplierCls = extractorItfcCls.getClasses()[0]
     Field extractorSupplierField = extractorSupplierCls.getDeclaredField("SUPPLIER")
     extractorSupplierField.setAccessible(true)

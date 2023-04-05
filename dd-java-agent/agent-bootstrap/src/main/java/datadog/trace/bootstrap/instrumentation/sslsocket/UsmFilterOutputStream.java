@@ -1,9 +1,9 @@
 package datadog.trace.bootstrap.instrumentation.sslsocket;
 
-import datadog.trace.bootstrap.instrumentation.api.UsmConnection;
-import datadog.trace.bootstrap.instrumentation.api.UsmExtractor;
-import datadog.trace.bootstrap.instrumentation.api.UsmMessage;
-import datadog.trace.bootstrap.instrumentation.api.UsmMessageFactory;
+import datadog.trace.bootstrap.instrumentation.usm.UsmConnection;
+import datadog.trace.bootstrap.instrumentation.usm.UsmExtractor;
+import datadog.trace.bootstrap.instrumentation.usm.UsmMessage;
+import datadog.trace.bootstrap.instrumentation.usm.UsmMessageFactory;
 import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
