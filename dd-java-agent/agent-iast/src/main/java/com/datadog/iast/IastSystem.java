@@ -2,9 +2,9 @@ package com.datadog.iast;
 
 import com.datadog.iast.HasDependencies.Dependencies;
 import com.datadog.iast.overhead.OverheadController;
+import com.datadog.iast.propagation.FastCodecModule;
 import com.datadog.iast.propagation.PropagationModuleImpl;
 import com.datadog.iast.propagation.StringModuleImpl;
-import com.datadog.iast.propagation.UrlModuleImpl;
 import com.datadog.iast.sink.CommandInjectionModuleImpl;
 import com.datadog.iast.sink.LdapInjectionModuleImpl;
 import com.datadog.iast.sink.PathTraversalModuleImpl;
@@ -80,7 +80,7 @@ public class IastSystem {
     return Stream.of(
         new WebModuleImpl(),
         new StringModuleImpl(),
-        new UrlModuleImpl(),
+        new FastCodecModule(),
         new SqlInjectionModuleImpl(),
         new PathTraversalModuleImpl(),
         new CommandInjectionModuleImpl(),
