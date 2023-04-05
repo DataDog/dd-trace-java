@@ -33,6 +33,7 @@ dependencies {
 
   implementation deps.asm
   implementation deps.asmcommons
+  implementation group: 'org.jacoco', name: 'org.jacoco.core', version: '0.8.8'
 
   implementation project(':internal-api')
   implementation project(':internal-api:internal-api-9')

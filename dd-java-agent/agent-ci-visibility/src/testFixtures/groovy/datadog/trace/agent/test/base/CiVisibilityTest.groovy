@@ -3,10 +3,12 @@ package datadog.trace.agent.test.base
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.Config
+import datadog.trace.agent.test.civisibility.coverage.NoopCoverageProbeStore
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.civisibility.InstrumentationBridge
 import datadog.trace.api.civisibility.codeowners.Codeowners
+import datadog.trace.api.civisibility.coverage.CoverageProbeStore
 import datadog.trace.api.civisibility.decorator.TestDecorator
 import datadog.trace.api.civisibility.source.MethodLinesResolver
 import datadog.trace.api.civisibility.source.SourcePathResolver
@@ -64,6 +66,8 @@ abstract class CiVisibilityTest extends AgentTestRunner {
     }
 
     InstrumentationBridge.registerBuildEventsHandlerFactory { decorator -> new BuildEventsHandlerImpl<>() }
+
+    InstrumentationBridge.coverageProbeStoreFactory = new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory()
   }
 
   @Override

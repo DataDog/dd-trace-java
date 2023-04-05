@@ -6,9 +6,10 @@ import static datadog.trace.util.Strings.toJson;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
+import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.codeowners.Codeowners;
+import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
 import datadog.trace.api.civisibility.decorator.TestDecorator;
-import datadog.trace.api.civisibility.events.impl.TestCoverageProbes;
 import datadog.trace.api.civisibility.source.MethodLinesResolver;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.api.gateway.RequestContextSlot;
@@ -26,6 +27,7 @@ public class DDTestImpl implements DDTest {
 
   private final AgentSpan span;
   private final TestContext suiteContext;
+  private final TestContext moduleContext;
   private final TestDecorator testDecorator;
 
   public DDTestImpl(
@@ -43,12 +45,15 @@ public class DDTestImpl implements DDTest {
       MethodLinesResolver methodLinesResolver,
       Codeowners codeowners) {
     this.suiteContext = suiteContext;
+    this.moduleContext = moduleContext;
 
     AgentTracer.SpanBuilder spanBuilder =
         AgentTracer.get()
             .buildSpan(testDecorator.component() + ".test")
+            .ignoreActiveSpan()
             .asChildOf(null)
-            .withRequestContextData(RequestContextSlot.CI_VISIBILITY, new TestCoverageProbes());
+            .withRequestContextData(
+                RequestContextSlot.CI_VISIBILITY, InstrumentationBridge.getCoverageProbeStore());
 
     if (startTime != null) {
       spanBuilder = spanBuilder.withStartTimestamp(startTime);
@@ -159,8 +164,8 @@ public class DDTestImpl implements DDTest {
               + span);
     }
 
-    TestCoverageProbes probes = span.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY);
-    probes.report();
+    CoverageProbeStore probes = span.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY);
+    probes.report(moduleContext.getParentId(), suiteContext.getId(), span.getSpanId());
 
     scope.close();
 
