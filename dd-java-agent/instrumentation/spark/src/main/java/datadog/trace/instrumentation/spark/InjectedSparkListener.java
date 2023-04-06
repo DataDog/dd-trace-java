@@ -24,17 +24,18 @@ public class InjectedSparkListener extends SparkListener {
 
   private AgentSpan applicationSpan;
   private final HashMap<Integer, AgentSpan> jobSpans = new HashMap<>();
-  private final HashMap<Integer, AgentSpan> stageSpans = new HashMap<>();
+  private final HashMap<Long, AgentSpan> stageSpans = new HashMap<>();
 
   private final HashMap<Integer, Integer> stageToJob = new HashMap<>();
 
   private final SparkAggregatedTaskMetrics applicationMetrics = new SparkAggregatedTaskMetrics();
   private final HashMap<Integer, SparkAggregatedTaskMetrics> jobMetrics = new HashMap<>();
-  private final HashMap<Integer, SparkAggregatedTaskMetrics> stageMetrics = new HashMap<>();
+  private final HashMap<Long, SparkAggregatedTaskMetrics> stageMetrics = new HashMap<>();
 
   private final HashMap<String, SparkListenerExecutorAdded> liveExecutors = new HashMap<>();
 
   private boolean lastJobFailed = false;
+  private String lastJobFailedMessage;
   private int currentExecutorCount = 0;
   private int maxExecutorCount = 0;
   private long availableExecutorTime = 0;
@@ -52,9 +53,10 @@ public class InjectedSparkListener extends SparkListener {
             .withStartTimestamp(applicationStart.time() * 1000)
             .withTag("application_name", applicationStart.appName())
             .withTag("spark_user", applicationStart.sparkUser())
-            .withTag(DDTags.MEASURED, 1)
             .withSpanType("spark")
             .start();
+
+    applicationSpan.setMeasured(true);
 
     if (applicationStart.appId().isDefined())
       applicationSpan.setTag("app_id", applicationStart.appId().get());
@@ -62,7 +64,9 @@ public class InjectedSparkListener extends SparkListener {
       applicationSpan.setTag("app_attempt_id", applicationStart.appAttemptId().get());
 
     for (Tuple2<String, String> conf : sparkConf.getAll()) {
-      applicationSpan.setTag("config." + conf._1.replace(".", "_"), conf._2);
+      if (SparkConfAllowList.canCaptureParameter(conf._1)) {
+        applicationSpan.setTag("config." + conf._1.replace(".", "_"), conf._2);
+      }
     }
   }
 
@@ -71,6 +75,7 @@ public class InjectedSparkListener extends SparkListener {
     if (lastJobFailed) {
       applicationSpan.setError(true);
       applicationSpan.setTag(DDTags.ERROR_TYPE, "Spark Application Failed");
+      applicationSpan.setTag(DDTags.ERROR_MSG, lastJobFailedMessage);
     }
 
     for (SparkListenerExecutorAdded executor : liveExecutors.values()) {
@@ -84,7 +89,6 @@ public class InjectedSparkListener extends SparkListener {
         "spark_application_metrics.available_executor_time", availableExecutorTime);
 
     applicationSpan.finish(applicationEnd.time() * 1000);
-    tracer.flush();
   }
 
   @Override
@@ -101,13 +105,16 @@ public class InjectedSparkListener extends SparkListener {
             .withTag("job_id", jobStart.jobId())
             .withTag("stage_count", jobStart.stageInfos().size())
             .withTag(DDTags.RESOURCE_NAME, jobStart.stageInfos().apply(0).name())
-            .withTag(DDTags.MEASURED, 1)
             .withSpanType("spark")
             .start();
 
+    jobSpan.setMeasured(true);
+
     if (jobStart.properties() != null) {
       for (final Map.Entry<Object, Object> entry : jobStart.properties().entrySet()) {
-        jobSpan.setTag("config." + entry.getKey().toString().replace('.', '_'), entry.getValue());
+        if (SparkConfAllowList.canCaptureParameter(entry.getKey().toString())) {
+          jobSpan.setTag("config." + entry.getKey().toString().replace('.', '_'), entry.getValue());
+        }
       }
     }
 
@@ -126,10 +133,13 @@ public class InjectedSparkListener extends SparkListener {
 
     lastJobFailed = false;
     if (jobEnd.jobResult() instanceof JobFailed) {
+      JobFailed jobFailed = (JobFailed) jobEnd.jobResult();
+
       jobSpan.setError(true);
-      jobSpan.setErrorMessage(jobEnd.jobResult().toString());
+      jobSpan.setErrorMessage(jobFailed.exception().toString());
       jobSpan.setTag(DDTags.ERROR_TYPE, "Spark Job Failed");
       lastJobFailed = true;
+      lastJobFailedMessage = jobFailed.exception().toString();
     }
 
     if (jobMetrics.containsKey(jobEnd.jobId())) {
@@ -149,17 +159,15 @@ public class InjectedSparkListener extends SparkListener {
     int stageId = stageSubmitted.stageInfo().stageId();
     int stageAttemptId = stageSubmitted.stageInfo().attemptNumber();
 
-    if (!stageToJob.containsKey(stageId)) {
-      return;
-    }
-
-    int jobId = stageToJob.get(stageId);
-
-    if (!jobSpans.containsKey(jobId)) {
+    Integer jobId = stageToJob.get(stageId);
+    if (jobId == null) {
       return;
     }
 
     AgentSpan jobSpan = jobSpans.get(jobId);
+    if (jobSpan == null) {
+      return;
+    }
 
     long submissionTimeMs;
     if (stageSubmitted.stageInfo().submissionTime().isDefined()) {
@@ -179,9 +187,10 @@ public class InjectedSparkListener extends SparkListener {
             .withTag("parent_stages_ids", stageSubmitted.stageInfo().parentIds())
             .withTag("details", stageSubmitted.stageInfo().details())
             .withTag(DDTags.RESOURCE_NAME, stageSubmitted.stageInfo().name())
-            .withTag(DDTags.MEASURED, 1)
             .withSpanType("spark")
             .start();
+
+    stageSpan.setMeasured(true);
 
     stageSpans.put(stageSpanKey(stageId, stageAttemptId), stageSpan);
   }
@@ -192,18 +201,16 @@ public class InjectedSparkListener extends SparkListener {
     int stageId = stageInfo.stageId();
     int stageAttemptId = stageInfo.attemptNumber();
 
-    if (!stageToJob.containsKey(stageId)) {
+    Integer jobId = stageToJob.get(stageId);
+    if (jobId == null) {
       return;
     }
 
-    int jobId = stageToJob.get(stageId);
-
-    int stageSpanKey = stageSpanKey(stageId, stageAttemptId);
-    if (!stageSpans.containsKey(stageSpanKey)) {
-      return;
-    }
-
+    long stageSpanKey = stageSpanKey(stageId, stageAttemptId);
     AgentSpan span = stageSpans.remove(stageSpanKey);
+    if (span == null) {
+      return;
+    }
 
     if (stageInfo.failureReason().isDefined()) {
       span.setError(true);
@@ -243,7 +250,7 @@ public class InjectedSparkListener extends SparkListener {
 
     int stageId = taskEnd.stageId();
     int stageAttemptId = taskEnd.stageAttemptId();
-    int stageSpanKey = stageSpanKey(stageId, stageAttemptId);
+    long stageSpanKey = stageSpanKey(stageId, stageAttemptId);
 
     if (!stageMetrics.containsKey(stageSpanKey)) {
       stageMetrics.put(stageSpanKey, new SparkAggregatedTaskMetrics());
@@ -254,11 +261,12 @@ public class InjectedSparkListener extends SparkListener {
     if (!(taskEnd.reason() instanceof TaskFailedReason)) {
       return;
     }
-    if (!stageSpans.containsKey(stageSpanKey)) {
+
+    AgentSpan stageSpan = stageSpans.get(stageSpanKey);
+    if (stageSpan == null) {
       return;
     }
 
-    AgentSpan stageSpan = stageSpans.get(stageSpanKey);
     sendTaskSpan(stageSpan, taskEnd);
   }
 
@@ -316,7 +324,7 @@ public class InjectedSparkListener extends SparkListener {
     }
   }
 
-  private int stageSpanKey(int stageId, int attemptId) {
-    return stageId * 100000 + attemptId;
+  private long stageSpanKey(int stageId, int attemptId) {
+    return ((long) stageId << 32) + attemptId;
   }
 }

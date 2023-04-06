@@ -29,7 +29,9 @@ public class SparkInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".InjectedSparkListener", packageName + ".SparkAggregatedTaskMetrics",
+      packageName + ".InjectedSparkListener",
+      packageName + ".SparkAggregatedTaskMetrics",
+      packageName + ".SparkConfAllowList",
     };
   }
 

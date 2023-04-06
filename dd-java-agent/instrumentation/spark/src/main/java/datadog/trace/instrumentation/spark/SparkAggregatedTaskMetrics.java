@@ -6,37 +6,37 @@ import org.apache.spark.executor.TaskMetrics;
 import org.apache.spark.scheduler.SparkListenerTaskEnd;
 
 class SparkAggregatedTaskMetrics {
-  private Long executorDeserializeTime = 0L;
-  private Long executorDeserializeCpuTime = 0L;
-  private Long executorRunTime = 0L;
-  private Long executorCpuTime = 0L;
-  private Long resultSize = 0L;
-  private Long jvmGCTime = 0L;
-  private Long resultSerializationTime = 0L;
-  private Long memoryBytesSpilled = 0L;
-  private Long diskBytesSpilled = 0L;
-  private Long peakExecutionMemory = 0L;
+  private long executorDeserializeTime = 0L;
+  private long executorDeserializeCpuTime = 0L;
+  private long executorRunTime = 0L;
+  private long executorCpuTime = 0L;
+  private long resultSize = 0L;
+  private long jvmGCTime = 0L;
+  private long resultSerializationTime = 0L;
+  private long memoryBytesSpilled = 0L;
+  private long diskBytesSpilled = 0L;
+  private long peakExecutionMemory = 0L;
 
-  private Long inputBytesRead = 0L;
-  private Long inputRecordsRead = 0L;
-  private Long outputBytesWritten = 0L;
-  private Long outputRecordsWritten = 0L;
+  private long inputBytesRead = 0L;
+  private long inputRecordsRead = 0L;
+  private long outputBytesWritten = 0L;
+  private long outputRecordsWritten = 0L;
 
-  private Long shuffleReadBytes = 0L;
-  private Long shuffleReadBytesLocal = 0L;
-  private Long shuffleReadBytesRemote = 0L;
-  private Long shuffleReadBytesRemoteToDisk = 0L;
-  private Long shuffleReadFetchWaitTime = 0L;
-  private Long shuffleReadRecords = 0L;
+  private long shuffleReadBytes = 0L;
+  private long shuffleReadBytesLocal = 0L;
+  private long shuffleReadBytesRemote = 0L;
+  private long shuffleReadBytesRemoteToDisk = 0L;
+  private long shuffleReadFetchWaitTime = 0L;
+  private long shuffleReadRecords = 0L;
 
-  private Long shuffleWriteBytes = 0L;
-  private Long shuffleWriteRecords = 0L;
-  private Long shuffleWriteTime = 0L;
+  private long shuffleWriteBytes = 0L;
+  private long shuffleWriteRecords = 0L;
+  private long shuffleWriteTime = 0L;
 
-  private Long taskCompletedCount = 0L;
-  private Long taskFailedCount = 0L;
-  private Long taskRetriedCount = 0L;
-  private Long taskWithOutputCount = 0L;
+  private long taskCompletedCount = 0L;
+  private long taskFailedCount = 0L;
+  private long taskRetriedCount = 0L;
+  private long taskWithOutputCount = 0L;
 
   public void addTaskMetrics(SparkListenerTaskEnd taskEnd) {
     taskCompletedCount += 1;
