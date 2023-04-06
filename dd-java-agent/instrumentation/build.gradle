@@ -136,3 +136,7 @@ tasks.register('generateKnownTypesIndex', JavaExec) {
 
 shadowJar.dependsOn 'generateKnownTypesIndex'
 
+// there are implicit dependencies here in the spotless tasks that will fail on gradle 8
+tasks.spotlessGroovyGradle {
+  dependsOn compileJava
+}

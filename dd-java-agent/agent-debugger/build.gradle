@@ -65,7 +65,7 @@ shadowJar {
 }
 
 jar {
-  classifier = 'unbundled'
+  archiveClassifier = 'unbundled'
   from sourceSets.main.output
 }
 

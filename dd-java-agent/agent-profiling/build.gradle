@@ -36,5 +36,5 @@ shadowJar {
 }
 
 jar {
-  classifier = 'unbundled'
+  archiveClassifier = 'unbundled'
 }

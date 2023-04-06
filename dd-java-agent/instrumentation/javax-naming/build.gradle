@@ -16,7 +16,7 @@ testSets {
 }
 
 dependencies {
-  testRuntimeClasspath project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 }
 
 
