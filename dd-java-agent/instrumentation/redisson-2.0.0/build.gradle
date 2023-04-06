@@ -18,13 +18,39 @@ testSets {
     dirName = 'test/redisson20'
   }
 
+  latestRedisson20ForkedTest {
+    dirName = 'test/redisson20'
+    extendsFrom latestRedisson20Test
+  }
+
   latestRedisson23Test {
     dirName = 'test/redisson23'
+  }
+
+  latestRedisson23ForkedTest {
+    dirName = 'test/redisson23'
+    extendsFrom latestRedisson23Test
   }
 
   latestDepTest {
     dirName = 'test/redissonLatest'
   }
+
+  latestDepForkedTest {
+    dirName = 'test/redissonLatest'
+    extendsFrom latestDepTest
+  }
+}
+latestRedisson20Test {
+  finalizedBy latestRedisson20ForkedTest
+}
+
+latestRedisson23Test {
+  finalizedBy latestRedisson20ForkedTest
+}
+
+latestDepTest {
+  finalizedBy latestDepForkedTest
 }
 
 tasks.named('test').configure {
