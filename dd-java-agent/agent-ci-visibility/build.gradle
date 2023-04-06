@@ -19,6 +19,7 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.context.EmptyTestContext",
   "datadog.trace.civisibility.context.ParentProcessTestContext",
   "datadog.trace.civisibility.context.SpanTestContext",
+  "datadog.trace.civisibility.coverage.*",
   "datadog.trace.civisibility.events.BuildEventsHandlerImpl",
   "datadog.trace.civisibility.events.CachingTestEventsHandlerFactory.CacheKey",
   "datadog.trace.civisibility.events.TestEventsHandlerImpl",
@@ -33,7 +34,7 @@ dependencies {
 
   implementation deps.asm
   implementation deps.asmcommons
-  implementation group: 'org.jacoco', name: 'org.jacoco.core', version: '0.8.8'
+  implementation group: 'org.jacoco', name: 'org.jacoco.core', version: '0.8.9'
 
   implementation project(':internal-api')
   implementation project(':internal-api:internal-api-9')
