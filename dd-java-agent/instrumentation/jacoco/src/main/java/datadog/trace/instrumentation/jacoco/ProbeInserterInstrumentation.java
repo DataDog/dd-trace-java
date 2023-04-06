@@ -1,11 +1,15 @@
 package datadog.trace.instrumentation.jacoco;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresField;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.declaresMethod;
+import static net.bytebuddy.matcher.ElementMatchers.fieldType;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.nameEndsWith;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
-import static net.bytebuddy.matcher.ElementMatchers.not;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -18,7 +22,7 @@ import org.objectweb.asm.Opcodes;
 
 @AutoService(Instrumenter.class)
 public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.WithTypeStructure {
   public ProbeInserterInstrumentation() {
     super("jacoco");
   }
@@ -29,24 +33,76 @@ public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
+  public ElementMatcher<TypeDescription> structureMatcher() {
+    return declaresField(
+            named("mv")
+                .and(
+                    fieldType(
+                        nameStartsWith("org.jacoco.agent.rt.internal")
+                            .and(nameEndsWith(".asm.MethodVisitor"))
+                            .and(
+                                declaresMethod(
+                                    named("visitMethodInsn")
+                                        .and(takesArguments(5))
+                                        .and(takesArgument(0, int.class))
+                                        .and(takesArgument(1, String.class))
+                                        .and(takesArgument(2, String.class))
+                                        .and(takesArgument(3, String.class))
+                                        .and(takesArgument(4, boolean.class))))
+                            .and(
+                                declaresMethod(
+                                    named("visitInsn")
+                                        .and(takesArguments(1))
+                                        .and(takesArgument(0, int.class))))
+                            .and(
+                                declaresMethod(
+                                    named("visitIntInsn")
+                                        .and(takesArguments(2))
+                                        .and(takesArgument(0, int.class))
+                                        .and(takesArgument(1, int.class))))
+                            .and(
+                                declaresMethod(
+                                    named("visitLdcInsn")
+                                        .and(takesArguments(1))
+                                        .and(takesArgument(0, Object.class)))))))
+        .and(
+            declaresField(
+                named("arrayStrategy")
+                    .and(
+                        fieldType(
+                            implementsInterface(
+                                    nameStartsWith("org.jacoco.agent.rt.internal")
+                                        .and(
+                                            nameEndsWith(
+                                                ".core.internal.instr.IProbeArrayStrategy")))
+                                .and(declaresField(named("className").and(fieldType(String.class))))
+                                .and(
+                                    declaresField(named("classId").and(fieldType(long.class))))))));
+  }
+
+  @Override
   public String hierarchyMarkerType() {
-    return null;
+    return "org.jacoco.agent.rt.IAgent";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     // The jacoco javaagent jar that is published relocates internal classes to an "obfuscated"
-    // package name
-    // ex. org.jacoco.agent.rt.internal_72ddf3b.core.internal.instr.ProbeInserter
-    return nameStartsWith("org.jacoco.agent.rt.internal").and(nameEndsWith(".ProbeInserter"));
+    // package name ex. org.jacoco.agent.rt.internal_72ddf3b.core.internal.instr.ProbeInserter
+    return nameStartsWith("org.jacoco.agent.rt.internal")
+        .and(nameEndsWith(".core.internal.instr.ProbeInserter"));
   }
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        isMethod().and(named("visitMaxs")), getClass().getName() + "$VisitMaxsAdvice");
+        isMethod().and(named("visitMaxs")).and(takesArguments(2)).and(takesArgument(0, int.class)),
+        getClass().getName() + "$VisitMaxsAdvice");
     transformation.applyAdvice(
-        isMethod().and(not(isStatic())).and(named("insertProbe")),
+        isMethod()
+            .and(named("insertProbe"))
+            .and(takesArguments(1))
+            .and(takesArgument(0, int.class)),
         getClass().getName() + "$InsertProbeAdvice");
   }
 

@@ -1,7 +1,13 @@
 apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
-  // TODO add support for maven classifier to muzzle
+  pass {
+    group = 'org.jacoco'
+    module = 'org.jacoco.agent'
+    classifier = 'runtime'
+    versions = "[0.5,)"
+    assertInverse = true
+  }
 }
 
 dependencies {

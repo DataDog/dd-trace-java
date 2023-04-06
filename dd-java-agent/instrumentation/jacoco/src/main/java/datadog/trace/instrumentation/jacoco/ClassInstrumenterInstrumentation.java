@@ -21,15 +21,15 @@ public class ClassInstrumenterInstrumentation extends Instrumenter.CiVisibility
 
   @Override
   public String hierarchyMarkerType() {
-    return null;
+    return "org.jacoco.agent.rt.IAgent";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     // The jacoco javaagent jar that is published relocates internal classes to an "obfuscated"
-    // package name
-    // ex. org.jacoco.agent.rt.internal_72ddf3b.core.internal.instr.ProbeInserter
-    return nameStartsWith("org.jacoco.agent.rt.internal").and(nameEndsWith(".ClassInstrumenter"));
+    // package name ex. org.jacoco.agent.rt.internal_72ddf3b.core.internal.instr.ClassInstrumenter
+    return nameStartsWith("org.jacoco.agent.rt.internal")
+        .and(nameEndsWith(".core.internal.instr.ClassInstrumenter"));
   }
 
   @Override
