@@ -3,11 +3,8 @@ package datadog.trace.instrumentation.jacoco;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import org.objectweb.asm.Opcodes;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class ReflectiveMethodVisitor {
-  private static final Logger log = LoggerFactory.getLogger(ReflectiveMethodVisitor.class);
   private static Class methodVisitorClass;
   private static Method visitMethodInsnMethod;
   private static Method visitInsnMethod;
