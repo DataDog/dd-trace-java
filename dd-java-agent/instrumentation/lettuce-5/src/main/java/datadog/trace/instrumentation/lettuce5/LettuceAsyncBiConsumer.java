@@ -4,7 +4,7 @@ import static datadog.trace.instrumentation.lettuce5.LettuceClientDecorator.DECO
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.CancellationException;
-import java.util.function.BiFunction;
+import java.util.function.BiConsumer;
 
 /**
  * Callback class to close the span on an error or a success in the RedisFuture returned by the
@@ -15,17 +15,17 @@ import java.util.function.BiFunction;
  * @param <R> the return type, should be null since nothing else should happen from tracing
  *     standpoint after the span is closed
  */
-public class LettuceAsyncBiFunction<T extends Object, U extends Throwable, R extends Object>
-    implements BiFunction<T, Throwable, R> {
+public class LettuceAsyncBiConsumer<T extends Object, U extends Throwable>
+    implements BiConsumer<T, Throwable> {
 
   private final AgentSpan span;
 
-  public LettuceAsyncBiFunction(final AgentSpan span) {
+  public LettuceAsyncBiConsumer(final AgentSpan span) {
     this.span = span;
   }
 
   @Override
-  public R apply(final T t, final Throwable throwable) {
+  public void accept(final T t, final Throwable throwable) {
     if (throwable instanceof CancellationException) {
       span.setTag("db.command.cancelled", true);
     } else {
@@ -33,6 +33,5 @@ public class LettuceAsyncBiFunction<T extends Object, U extends Throwable, R ext
     }
     DECORATE.beforeFinish(span);
     span.finish();
-    return null;
   }
 }
