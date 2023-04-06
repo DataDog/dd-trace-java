@@ -10,9 +10,9 @@ dependencies {
 
 tasks.register('launch', JavaExec) {
   classpath = sourceSets.main.runtimeClasspath
-  main = 'datadog.loadgenerator.LoadGenerator'
+  mainClass = 'datadog.loadgenerator.LoadGenerator'
   jvmArgs = [
-    "-javaagent:${project(':dd-java-agent').shadowJar.archivePath}",
+    "-javaagent:${project(':dd-java-agent').shadowJar.archiveFile.get()}",
     "-Ddd.service.name=loadtest"
   ]
   systemProperties System.properties

@@ -362,6 +362,19 @@ jobs:
             --max-workers=8
 
       - run:
+          name: Collect reports
+          when: on_fail
+          command: .circleci/collect_reports.sh --destination ./check_reports --move
+
+      - run:
+          name: Delete reports
+          when: on_success
+          command: .circleci/collect_reports.sh --destination ./check_reports --delete
+
+      - store_artifacts:
+          path: ./check_reports
+
+      - run:
           name: Cancel workflow
           when: on_fail
           command: .circleci/cancel_workflow.sh
@@ -406,19 +419,6 @@ jobs:
               command: .circleci/collect_libs.sh
           - store_artifacts:
               path: ./libs
-
-      - run:
-          name: Collect reports
-          when: on_fail
-          command: .circleci/collect_reports.sh --destination ./check_reports --move
-
-      - run:
-          name: Delete reports
-          when: on_success
-          command: .circleci/collect_reports.sh --destination ./check_reports --delete
-
-      - store_artifacts:
-          path: ./check_reports
 
       - save_dependency_cache:
           cacheType: << parameters.cacheType >>

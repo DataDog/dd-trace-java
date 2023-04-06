@@ -60,8 +60,8 @@ if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJav
   }
 
   dependencies {
-    compileOnly sourceSets."main_$name".compileClasspath
-    implementation sourceSets."main_$name".output
+    compileOnly files(project.sourceSets."main_$name".compileClasspath)
+    implementation files(project.sourceSets."main_$name".output)
   }
 
   jar {
@@ -104,7 +104,7 @@ jar {
 }
 
 tasks.register("packageSources", Jar) {
-  classifier = 'sources'
+  archiveClassifier = 'sources'
   from sourceSets.main.allSource
 }
 artifacts.archives packageSources

@@ -49,6 +49,7 @@ public class ProfilingTestApplication {
   }
 
   @Trace
+  @SuppressFBWarnings("DMI_RANDOM_USED_ONLY_ONCE")
   private static void tracedBusyMethod() {
     long startTime = THREAD_MX_BEAN.getCurrentThreadCpuTime();
     Random random = new Random();

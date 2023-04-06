@@ -33,7 +33,7 @@ dependencies {
 
 tasks.withType(Test).configureEach {
   dependsOn "shadowJar"
-  jvmArgs "-Ddatadog.smoketest.profiling.shadowJar.path=${tasks.shadowJar.archivePath}"
+  jvmArgs "-Ddatadog.smoketest.profiling.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }
 
 shadowJar {
