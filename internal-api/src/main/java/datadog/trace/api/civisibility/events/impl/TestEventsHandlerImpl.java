@@ -9,10 +9,12 @@ import datadog.trace.api.DisableTestTrace;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
+import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.util.Strings;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.List;
@@ -49,14 +51,37 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
   @Override
   public void onTestModuleStart(final @Nullable String version) {
-    if (testModuleContext != null) {
-      // do not create test module span if parent process provides module data
-      return;
+    // fallbacks to System.getProperty below are needed for cases when
+    // system variables are set after config was initialized
+
+    Long sessionId = Config.get().getCiVisibilitySessionId();
+    if (sessionId == null) {
+      String systemProp =
+          System.getProperty(
+              Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_SESSION_ID));
+      if (systemProp != null) {
+        sessionId = Long.parseLong(systemProp);
+      }
     }
 
-    final AgentSpan span = startSpan(testDecorator.component() + ".test_module");
-    testModuleContext = new SpanTestContext(span);
-    testDecorator.afterTestModuleStart(span, null, version, null);
+    Long moduleId = Config.get().getCiVisibilityModuleId();
+    if (moduleId == null) {
+      String systemProp =
+          System.getProperty(
+              Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_ID));
+      if (systemProp != null) {
+        moduleId = Long.parseLong(systemProp);
+      }
+    }
+
+    if (sessionId != null && moduleId != null) {
+      testModuleContext = new ParentProcessTestContext(sessionId, moduleId);
+
+    } else {
+      final AgentSpan span = startSpan(testDecorator.component() + ".test_module");
+      testModuleContext = new SpanTestContext(span);
+      testDecorator.afterTestModuleStart(span, null, version, null);
+    }
   }
 
   @Override

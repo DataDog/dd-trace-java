@@ -10,6 +10,7 @@ import datadog.trace.api.civisibility.CITagsProvider
 import datadog.trace.api.civisibility.InstrumentationBridge
 import datadog.trace.api.civisibility.codeowners.Codeowners
 import datadog.trace.api.civisibility.decorator.TestDecorator
+import datadog.trace.api.civisibility.events.impl.BuildEventsHandlerImpl
 import datadog.trace.api.civisibility.events.impl.TestEventsHandlerImpl
 import datadog.trace.api.civisibility.source.MethodLinesResolver
 import datadog.trace.api.civisibility.source.SourcePathResolver
@@ -66,6 +67,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
     InstrumentationBridge.methodLinesResolver.getLines(_) >> new MethodLinesResolver.MethodLines(DUMMY_TEST_METHOD_START, DUMMY_TEST_METHOD_END)
 
     InstrumentationBridge.setTestEventsHandlerFactory { decorator -> new TestEventsHandlerImpl(decorator) }
+    InstrumentationBridge.setBuildEventsHandlerFactory { decorator -> new BuildEventsHandlerImpl<>() }
   }
 
   @Override
@@ -84,11 +86,72 @@ abstract class TestFrameworkTest extends AgentTestRunner {
     Files.deleteIfExists(agentKeyFile)
   }
 
+  Long testSessionSpan(final TraceAssert trace,
+    final int index,
+    final String sessionName,
+    final String testCommand,
+    final String testToolchain,
+    final String testStatus,
+    final Map<String, String> testTags = null,
+    final Throwable exception = null) {
+    def testFramework = expectedTestFramework()
+    def testFrameworkVersion = expectedTestFrameworkVersion()
+
+    def testSessionId
+    trace.span(index) {
+      testSessionId = span.getTag(Tags.TEST_SESSION_ID)
+
+      parent()
+      operationName expectedOperationPrefix() + ".test_session"
+      resourceName sessionName
+      spanType DDSpanTypes.TEST_SESSION_END
+      errored exception != null
+      duration({ it > 1L })
+      tags {
+        "$Tags.COMPONENT" component
+        "$Tags.SPAN_KIND" Tags.SPAN_KIND_TEST_SESSION
+        "$Tags.TEST_TYPE" TestDecorator.TEST_TYPE
+        "$Tags.TEST_COMMAND" testCommand
+        "$Tags.TEST_TOOLCHAIN" testToolchain
+        "$Tags.TEST_FRAMEWORK" testFramework
+        if (testFrameworkVersion) {
+          "$Tags.TEST_FRAMEWORK_VERSION" testFrameworkVersion
+        }
+        "$Tags.TEST_STATUS" testStatus
+        if (testTags) {
+          testTags.each { key, val -> tag(key, val) }
+        }
+
+        if (exception) {
+          errorTags(exception.class, exception.message)
+        }
+
+        "$DUMMY_CI_TAG" DUMMY_CI_TAG_VALUE
+
+        "$Tags.ENV" String
+        "$Tags.OS_VERSION" String
+        "$Tags.OS_PLATFORM" String
+        "$Tags.OS_ARCHITECTURE" String
+        "$Tags.RUNTIME_VENDOR" String
+        "$Tags.RUNTIME_NAME" String
+        "$Tags.RUNTIME_VERSION" String
+        "$DDTags.LIBRARY_VERSION_TAG_KEY" String
+
+        "$Tags.TEST_SESSION_ID" Long
+
+        defaultTags()
+      }
+    }
+    return testSessionId
+  }
+
   Long testModuleSpan(final TraceAssert trace,
     final int index,
     final String testStatus,
     final Map<String, String> testTags = null,
-    final Throwable exception = null) {
+    final Throwable exception = null,
+    final Long testSessionId = null,
+    final String resource = null) {
     def testFramework = expectedTestFramework()
     def testFrameworkVersion = expectedTestFrameworkVersion()
 
@@ -96,9 +159,13 @@ abstract class TestFrameworkTest extends AgentTestRunner {
     trace.span(index) {
       testModuleId = span.getTag(Tags.TEST_MODULE_ID)
 
-      parent()
+      if (testSessionId) {
+        parentSpanId(BigInteger.valueOf(testSessionId))
+      } else {
+        parent()
+      }
       operationName expectedOperationPrefix() + ".test_module"
-      resourceName dummyModule
+      resourceName resource ? resource : dummyModule
       spanType DDSpanTypes.TEST_MODULE_END
       errored exception != null
       duration({ it > 1L })
@@ -106,8 +173,8 @@ abstract class TestFrameworkTest extends AgentTestRunner {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_TEST_MODULE
         "$Tags.TEST_TYPE" TestDecorator.TEST_TYPE
-        "$Tags.TEST_MODULE" dummyModule
-        "$Tags.TEST_BUNDLE" dummyModule
+        "$Tags.TEST_MODULE" resource ? resource : dummyModule
+        "$Tags.TEST_BUNDLE" resource ? resource : dummyModule
         "$Tags.TEST_FRAMEWORK" testFramework
         if (testFrameworkVersion) {
           "$Tags.TEST_FRAMEWORK_VERSION" testFrameworkVersion
@@ -133,6 +200,10 @@ abstract class TestFrameworkTest extends AgentTestRunner {
         "$DDTags.LIBRARY_VERSION_TAG_KEY" String
 
         "$Tags.TEST_MODULE_ID" Long
+
+        if (testSessionId) {
+          "$Tags.TEST_SESSION_ID" testSessionId
+        }
 
         defaultTags()
       }
