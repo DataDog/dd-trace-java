@@ -12,10 +12,10 @@ import scala.Tuple2;
 
 /**
  * Implementation of the SparkListener {@link org.apache.spark.scheduler.SparkListener} to generate
- * spans from the execution of a spark execution. All the callbacks are called from the same spark
- * thread
+ * spans from the execution of a spark application. All the callbacks are called inside the spark
+ * driver and in the same thread
  */
-public class InjectedSparkListener extends SparkListener {
+public class DatadogSparkListener extends SparkListener {
   private final int MAX_COLLECTION_SIZE = 1000;
 
   private final SparkConf sparkConf;
@@ -40,7 +40,7 @@ public class InjectedSparkListener extends SparkListener {
   private int maxExecutorCount = 0;
   private long availableExecutorTime = 0;
 
-  public InjectedSparkListener(SparkConf _sparkConf) {
+  public DatadogSparkListener(SparkConf _sparkConf) {
     tracer = AgentTracer.get();
     sparkConf = _sparkConf;
   }
@@ -110,6 +110,7 @@ public class InjectedSparkListener extends SparkListener {
 
     jobSpan.setMeasured(true);
 
+    // Some properties can change at runtime, so capturing properties of all jobs
     if (jobStart.properties() != null) {
       for (final Map.Entry<Object, Object> entry : jobStart.properties().entrySet()) {
         if (SparkConfAllowList.canCaptureParameter(entry.getKey().toString())) {
