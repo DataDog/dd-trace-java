@@ -179,7 +179,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
           } else if (tagBuilder) {
             resourceName "some-resource"
           } else {
-            resourceName "some-instrumentation"
+            resourceName "some-name"
           }
           errored false
           tags {
@@ -248,7 +248,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
         span {
           parent()
           operationName "some-name"
-          resourceName "some-instrumentation"
+          resourceName "some-name"
           errored true
 
           tags {
@@ -300,7 +300,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
         span {
           parent()
           operationName "some-name"
-          resourceName "some-instrumentation"
+          resourceName "some-name"
           errored false
           tags {
             defaultTags()
@@ -333,7 +333,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
         span {
           parent()
           operationName "other-name"
-          resourceName "some-instrumentation"
+          resourceName "other-name"
         }
       }
     }
