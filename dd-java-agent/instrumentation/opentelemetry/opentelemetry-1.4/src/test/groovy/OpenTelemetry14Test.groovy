@@ -366,7 +366,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
     then:
     currentSpan.spanContext.traceId == ddSpan.traceId.toHexString()
-    currentSpan.spanContext.spanId == DDSpanId.toHexString(ddSpan.spanId)
+    currentSpan.spanContext.spanId == DDSpanId.toHexStringPadded(ddSpan.spanId)
 
     cleanup:
     ddScope.close()
@@ -385,7 +385,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
     then:
     activeSpan.operationName == "some-name"
-    DDSpanId.toHexString(activeSpan.spanId) == otelParentSpan.getSpanContext().spanId
+    DDSpanId.toHexStringPadded(activeSpan.spanId) == otelParentSpan.getSpanContext().spanId
 
     when:
     def ddChildSpan = TEST_TRACER.startSpan("other-name")
@@ -393,7 +393,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
     def current = Span.current()
 
     then:
-    DDSpanId.toHexString(ddChildSpan.spanId) == current.getSpanContext().spanId
+    DDSpanId.toHexStringPadded(ddChildSpan.spanId) == current.getSpanContext().spanId
 
     when:
     def otelGrandChildSpan = tracer.spanBuilder("another-name").startSpan()
@@ -402,7 +402,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
     then:
     activeSpan.operationName == "another-name"
-    DDSpanId.toHexString(activeSpan.spanId) == otelGrandChildSpan.getSpanContext().spanId
+    DDSpanId.toHexStringPadded(activeSpan.spanId) == otelGrandChildSpan.getSpanContext().spanId
 
     when:
     otelGrandChildScope.close()

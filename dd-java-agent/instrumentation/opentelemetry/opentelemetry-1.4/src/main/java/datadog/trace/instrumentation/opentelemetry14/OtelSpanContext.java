@@ -33,7 +33,7 @@ public class OtelSpanContext implements SpanContext {
   @Override
   public String getSpanId() {
     if (this.spanId == null) {
-      this.spanId = DDSpanId.toHexString(this.delegate.getSpanId());
+      this.spanId = DDSpanId.toHexStringPadded(this.delegate.getSpanId());
     }
     return this.spanId;
   }
