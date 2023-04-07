@@ -1,3 +1,8 @@
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
+
+import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
@@ -11,10 +16,6 @@ import org.redisson.client.RedisConnection
 import org.redisson.client.protocol.RedisCommands
 import redis.embedded.RedisServer
 import spock.lang.Shared
-
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 abstract class RedissonClientTest extends VersionedNamingTestBase {
 
@@ -83,19 +84,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
     then:
     assertTraces(1) {
       trace(1) {
-        span {
-          serviceName service()
-          operationName operation()
-          resourceName "SET"
-          spanType DDSpanTypes.REDIS
-          measured true
-          tags {
-            "$Tags.COMPONENT" "redis-command"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "redis"
-            defaultTags()
-          }
-        }
+        redisSpan(it, "SET")
       }
     }
   }
@@ -110,33 +99,10 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
 
     assertTraces(2) {
       trace(1) {
-        span {
-          serviceName service()
-          operationName operation()
-          resourceName "SET"
-          spanType DDSpanTypes.REDIS
-          tags {
-            "$Tags.COMPONENT" "redis-command"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "redis"
-            defaultTags()
-          }
-        }
+        redisSpan(it, "SET")
       }
       trace(1) {
-        span {
-          serviceName service()
-          operationName operation()
-          resourceName "GET"
-          spanType DDSpanTypes.REDIS
-          measured true
-          tags {
-            "$Tags.COMPONENT" "redis-command"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "redis"
-            defaultTags()
-          }
-        }
+        redisSpan(it, "GET")
       }
     }
   }
@@ -148,19 +114,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
     then:
     assertTraces(1) {
       trace(1) {
-        span {
-          serviceName service()
-          operationName operation()
-          resourceName "SET"
-          spanType DDSpanTypes.REDIS
-          measured true
-          tags {
-            "$Tags.COMPONENT" "redis-command"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "redis"
-            defaultTags()
-          }
-        }
+        redisSpan(it, "SET")
       }
     }
   }
@@ -175,18 +129,8 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
 
     assertTraces(2) {
       trace(1) {
-        span {
-          serviceName service()
-          operationName operation()
-          resourceName "SET"
-          spanType DDSpanTypes.REDIS
-          tags {
-            "$Tags.COMPONENT" "redis-command"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "redis"
-            defaultTags()
-          }
-        }
+        redisSpan(it, "SET")
+
       }
       trace(1) {
         span {
@@ -199,6 +143,9 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            "$Tags.PEER_HOSTNAME" "localhost"
+            "$Tags.PEER_HOST_IPV4" "127.0.0.1"
+            "$Tags.PEER_PORT" port
             defaultTags()
           }
         }
@@ -216,33 +163,10 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
 
     assertTraces(2) {
       trace(1) {
-        span {
-          serviceName service()
-          operationName operation()
-          resourceName "SET"
-          spanType DDSpanTypes.REDIS
-          tags {
-            "$Tags.COMPONENT" "redis-command"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "redis"
-            defaultTags()
-          }
-        }
+        redisSpan(it, "SET")
       }
       trace(1) {
-        span {
-          serviceName service()
-          operationName operation()
-          resourceName "INCR"
-          spanType DDSpanTypes.REDIS
-          measured true
-          tags {
-            "$Tags.COMPONENT" "redis-command"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "redis"
-            defaultTags()
-          }
-        }
+        redisSpan(it, "INCR")
       }
     }
   }
@@ -254,19 +178,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
     then:
     assertTraces(1) {
       trace(1) {
-        span {
-          serviceName service()
-          operationName operation()
-          resourceName "PUBLISH"
-          spanType DDSpanTypes.REDIS
-          measured true
-          tags {
-            "$Tags.COMPONENT" "redis-command"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "redis"
-            defaultTags()
-          }
-        }
+        redisSpan(it, "PUBLISH")
       }
     }
   }
@@ -278,19 +190,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
     then:
     assertTraces(1) {
       trace(1) {
-        span {
-          serviceName service()
-          operationName operation()
-          resourceName "PFADD"
-          spanType DDSpanTypes.REDIS
-          measured true
-          tags {
-            "$Tags.COMPONENT" "redis-command"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "redis"
-            defaultTags()
-          }
-        }
+        redisSpan(it, "PFADD")
       }
     }
   }
@@ -305,34 +205,10 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
 
     assertTraces(2) {
       trace(1) {
-        span {
-          serviceName service()
-          operationName operation()
-          resourceName "PFADD"
-          spanType DDSpanTypes.REDIS
-          measured true
-          tags {
-            "$Tags.COMPONENT" "redis-command"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "redis"
-            defaultTags()
-          }
-        }
+        redisSpan(it, "PFADD")
       }
       trace(1) {
-        span {
-          serviceName service()
-          operationName operation()
-          resourceName "PFCOUNT"
-          spanType DDSpanTypes.REDIS
-          measured true
-          tags {
-            "$Tags.COMPONENT" "redis-command"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "redis"
-            defaultTags()
-          }
-        }
+        redisSpan(it, "PFCOUNT")
       }
     }
   }
@@ -344,19 +220,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
     then:
     assertTraces(1) {
       trace(1) {
-        span {
-          serviceName service()
-          operationName operation()
-          resourceName "EVAL"
-          spanType DDSpanTypes.REDIS
-          measured true
-          tags {
-            "$Tags.COMPONENT" "redis-command"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "redis"
-            defaultTags()
-          }
-        }
+        redisSpan(it, "EVAL")
       }
     }
   }
@@ -368,19 +232,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
     then:
     assertTraces(1) {
       trace(1) {
-        span {
-          serviceName service()
-          operationName operation()
-          resourceName "SADD"
-          spanType DDSpanTypes.REDIS
-          measured true
-          tags {
-            "$Tags.COMPONENT" "redis-command"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "redis"
-            defaultTags()
-          }
-        }
+        redisSpan(it, "SADD")
       }
     }
   }
@@ -395,34 +247,10 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
 
     assertTraces(2) {
       trace(1) {
-        span {
-          serviceName service()
-          operationName operation()
-          resourceName "SADD"
-          spanType DDSpanTypes.REDIS
-          measured true
-          tags {
-            "$Tags.COMPONENT" "redis-command"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "redis"
-            defaultTags()
-          }
-        }
+        redisSpan(it, "SADD")
       }
       trace(1) {
-        span {
-          serviceName service()
-          operationName operation()
-          resourceName "SREM"
-          spanType DDSpanTypes.REDIS
-          measured true
-          tags {
-            "$Tags.COMPONENT" "redis-command"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "redis"
-            defaultTags()
-          }
-        }
+        redisSpan(it, "SREM")
       }
     }
   }
@@ -434,19 +262,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
     then:
     assertTraces(1) {
       trace(1) {
-        span {
-          serviceName service()
-          operationName operation()
-          resourceName "RPUSH"
-          spanType DDSpanTypes.REDIS
-          measured true
-          tags {
-            "$Tags.COMPONENT" "redis-command"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "redis"
-            defaultTags()
-          }
-        }
+        redisSpan(it, "RPUSH")
       }
     }
   }
@@ -460,19 +276,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
     then:
     assertTraces(1) {
       trace(1) {
-        span {
-          serviceName service()
-          operationName operation()
-          resourceName "SET"
-          spanType DDSpanTypes.REDIS
-          measured true
-          tags {
-            "$Tags.COMPONENT" "redis-command"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "redis"
-            defaultTags()
-          }
-        }
+        redisSpan(it, "SET")
       }
     }
   }
@@ -490,19 +294,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
 
     assertTraces(1) {
       trace(1) {
-        span {
-          serviceName service()
-          operationName operation()
-          resourceName "SET;GET"
-          spanType DDSpanTypes.REDIS
-          measured true
-          tags {
-            "$Tags.COMPONENT" "redis-command"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "redis"
-            defaultTags()
-          }
-        }
+        redisSpan(it, "SET;GET")
       }
     }
   }
@@ -530,19 +322,26 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
 
     assertTraces(1) {
       trace(1) {
-        span {
-          serviceName service()
-          operationName operation()
-          resourceName "SET;SET;GET;RPUSH;RPUSH;LRANGE"
-          spanType DDSpanTypes.REDIS
-          measured true
-          tags {
-            "$Tags.COMPONENT" "redis-command"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "redis"
-            defaultTags()
-          }
-        }
+        redisSpan(it, "SET;SET;GET;RPUSH;RPUSH;LRANGE")
+      }
+    }
+  }
+
+  def redisSpan(TraceAssert traceAssert, String resource) {
+    traceAssert.span {
+      serviceName service()
+      operationName operation()
+      resourceName resource
+      spanType DDSpanTypes.REDIS
+      measured true
+      tags {
+        "$Tags.COMPONENT" "redis-command"
+        "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+        "$Tags.DB_TYPE" "redis"
+        "$Tags.PEER_HOSTNAME" "localhost"
+        "$Tags.PEER_HOST_IPV4" "127.0.0.1"
+        "$Tags.PEER_PORT" port
+        defaultTags()
       }
     }
   }
@@ -583,3 +382,4 @@ class RedissonClientV1ForkedTest extends RedissonClientTest {
     return "redis.command"
   }
 }
+
