@@ -341,7 +341,11 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
       }
       String mode = "COPY";
       if (allArgsSpec != null) {
-        mode = advice instanceof AfterSpecification ? "PREPEND_ARRAY" : "APPEND_ARRAY";
+        if (advice instanceof AfterSpecification) {
+          mode = advice.isConstructor() ? "PREPEND_ARRAY_CTOR" : "PREPEND_ARRAY";
+        } else {
+          mode = "APPEND_ARRAY";
+        }
       }
       dupMethod.addArgument(
           new FieldAccessExpr()
@@ -392,15 +396,6 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
               .addArgument(new StringLiteralExpr(method.getMethodType().getDescriptor()))
               .addArgument(new BooleanLiteralExpr(false));
       body.addStatement(invokeStatic);
-      if (advice instanceof AfterSpecification && advice.isConstructor()) {
-        // constructors make a DUP before the <init> that we have to discard
-        final MethodCallExpr pop =
-            new MethodCallExpr()
-                .setScope(new NameExpr("handler"))
-                .setName("instruction")
-                .addArgument(opCode("POP"));
-        body.addAndGetStatement(pop);
-      }
     }
   }
 

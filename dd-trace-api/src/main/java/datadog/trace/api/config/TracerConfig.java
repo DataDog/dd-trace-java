@@ -84,6 +84,9 @@ public final class TracerConfig {
 
   public static final String CLIENT_IP_ENABLED = "trace.client-ip.enabled";
 
+  public static final String TRACE_128_BIT_TRACEID_GENERATION_ENABLED =
+      "trace.128.bit.traceid.generation.enabled";
+
   public static final String SECURE_RANDOM = "trace.secure-random";
 
   /**

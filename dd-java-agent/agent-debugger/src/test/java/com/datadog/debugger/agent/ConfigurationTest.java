@@ -5,16 +5,22 @@ import static com.datadog.debugger.probe.MetricProbe.MetricKind.GAUGE;
 import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.datadog.debugger.el.DSL;
+import com.datadog.debugger.el.ProbeCondition;
+import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
 import datadog.trace.bootstrap.debugger.Limits;
+import datadog.trace.bootstrap.debugger.MethodLocation;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
@@ -29,12 +35,13 @@ public class ConfigurationTest {
   @Test
   public void getDefinitions() {
     Configuration config1 = createConfig1();
-    assertEquals(4, config1.getDefinitions().size());
+    assertEquals(5, config1.getDefinitions().size());
     Iterator<ProbeDefinition> iterator = config1.getDefinitions().iterator();
     assertEquals("metric1", iterator.next().getId());
     assertEquals("probe1", iterator.next().getId());
     assertEquals("log1", iterator.next().getId());
     assertEquals("span1", iterator.next().getId());
+    assertEquals("decorateSpan1", iterator.next().getId());
   }
 
   @Test
@@ -52,6 +59,50 @@ public class ConfigurationTest {
     assertEquals("datadog.debugger.refpathvalue", metricProbes.get(2).getMetricName());
     assertEquals("ValueScript{dsl='obj.field'}", metricProbes.get(2).getValue().toString());
     assertEquals("datadog.debugger.novalue", metricProbes.get(3).getMetricName());
+  }
+
+  @Test
+  public void deserializeSpanProbes() throws Exception {
+    String content = TestHelper.getFixtureContent("/test_span_probe.json");
+    JsonAdapter<Configuration> adapter =
+        MoshiHelper.createMoshiConfig().adapter(Configuration.class);
+    Configuration config = adapter.fromJson(content);
+    List<SpanProbe> spanProbes = new ArrayList<>(config.getSpanProbes());
+    assertEquals(4, spanProbes.size());
+    assertEquals("123356536", spanProbes.get(0).getId());
+    assertEquals("123356537", spanProbes.get(1).getId());
+    assertEquals("123356538", spanProbes.get(2).getId());
+    assertEquals("123356539", spanProbes.get(3).getId());
+  }
+
+  @Test
+  public void deserializeSpanDecorationProbes() throws Exception {
+    String content = TestHelper.getFixtureContent("/test_span_decoration_probe.json");
+    JsonAdapter<Configuration> adapter =
+        MoshiHelper.createMoshiConfig().adapter(Configuration.class);
+    Configuration config = adapter.fromJson(content);
+    List<SpanDecorationProbe> spanDecorationProbes =
+        new ArrayList<>(config.getSpanDecorationProbes());
+    assertEquals(4, spanDecorationProbes.size());
+    assertEquals(
+        SpanDecorationProbe.TargetSpan.ACTIVE, spanDecorationProbes.get(0).getTargetSpan());
+    assertEquals(
+        "uuid == 'showMe'",
+        spanDecorationProbes.get(0).getDecorate().get(0).getWhen().getDslExpression());
+    assertEquals(
+        "uuid", spanDecorationProbes.get(0).getDecorate().get(0).getTags().get(0).getTagName());
+    assertEquals(
+        "uuid",
+        spanDecorationProbes.get(0).getDecorate().get(0).getTags().get(0).getTagValue().getDsl());
+    assertEquals(
+        SpanDecorationProbe.TargetSpan.ACTIVE, spanDecorationProbes.get(1).getTargetSpan());
+    assertNull(spanDecorationProbes.get(1).getDecorate().get(0).getWhen());
+    assertEquals(
+        "uuid", spanDecorationProbes.get(1).getDecorate().get(0).getTags().get(0).getTagName());
+    assertEquals(
+        "tag2", spanDecorationProbes.get(1).getDecorate().get(0).getTags().get(1).getTagName());
+    assertEquals(SpanDecorationProbe.TargetSpan.ROOT, spanDecorationProbes.get(2).getTargetSpan());
+    assertEquals(SpanDecorationProbe.TargetSpan.ROOT, spanDecorationProbes.get(3).getTargetSpan());
   }
 
   @Test
@@ -157,7 +208,7 @@ public class ConfigurationTest {
     List<LogProbe> logProbes0 = new ArrayList<>(config0.getLogProbes());
     LogProbe snapshotProbe0 = logProbes0.get(0);
     assertEquals("java.lang.String", snapshotProbe0.getWhere().getTypeName());
-    assertEquals(ProbeDefinition.MethodLocation.ENTRY, snapshotProbe0.getEvaluateAt());
+    assertEquals(MethodLocation.ENTRY, snapshotProbe0.getEvaluateAt());
     assertEquals(2, snapshotProbe0.getTags().length);
     assertTrue(snapshotProbe0.isCaptureSnapshot());
     assertEquals("tag1:value1", snapshotProbe0.getTags()[0].toString());
@@ -187,6 +238,15 @@ public class ConfigurationTest {
     SpanProbe spanProbe1 = config0.getSpanProbes().iterator().next();
     SpanProbe spanProbe2 = config1.getSpanProbes().iterator().next();
     assertEquals("12-23", spanProbe2.getWhere().getLines()[0]);
+    // span decoration probe
+    assertEquals(1, config0.getSpanDecorationProbes().size());
+    SpanDecorationProbe spanDecoration1 = config0.getSpanDecorationProbes().iterator().next();
+    assertEquals(SpanDecorationProbe.TargetSpan.ACTIVE, spanDecoration1.getTargetSpan());
+    assertEquals(
+        "arg1 == 'foo'", spanDecoration1.getDecorate().get(0).getWhen().getDslExpression());
+    assertEquals("id", spanDecoration1.getDecorate().get(0).getTags().get(0).getTagName());
+    assertEquals(
+        "id", spanDecoration1.getDecorate().get(0).getTags().get(0).getTagValue().getDsl());
   }
 
   private Configuration createConfig1() {
@@ -197,6 +257,19 @@ public class ConfigurationTest {
         createLog(
             "log1", "this is a log line with arg={arg}", "java.lang.String", "indexOf", "(String)");
     SpanProbe span1 = createSpan("span1", "java.lang.String", "indexOf", "(String)");
+    SpanDecorationProbe.Decoration decoration =
+        new SpanDecorationProbe.Decoration(
+            new ProbeCondition(
+                DSL.when(DSL.eq(DSL.ref("arg1"), DSL.value("foo"))), "arg1 == 'foo'"),
+            Arrays.asList(new SpanDecorationProbe.Tag("id", new ValueScript(DSL.ref("id"), "id"))));
+    SpanDecorationProbe spanDecoration1 =
+        createDecorationSpan(
+            "decorateSpan1",
+            SpanDecorationProbe.TargetSpan.ACTIVE,
+            decoration,
+            "java.lang.String",
+            "indexOf",
+            "(String)");
     Configuration.FilterList allowList =
         new Configuration.FilterList(
             Arrays.asList("java.lang.util"), Arrays.asList("java.lang.String"));
@@ -209,6 +282,7 @@ public class ConfigurationTest {
         Arrays.asList(metric1),
         Arrays.asList(probe1, log1),
         Arrays.asList(span1),
+        Arrays.asList(spanDecoration1),
         allowList,
         denyList,
         globalSampling);
@@ -226,6 +300,20 @@ public class ConfigurationTest {
             "indexOf",
             "(String)");
     SpanProbe span2 = createSpan("span2", "String.java", 12, 23);
+    SpanDecorationProbe.Decoration decoration =
+        new SpanDecorationProbe.Decoration(
+            new ProbeCondition(DSL.when(DSL.eq(DSL.ref("arg"), DSL.value("foo"))), "arg == 'foo'"),
+            Arrays.asList(
+                new SpanDecorationProbe.Tag("tag1", new ValueScript(DSL.ref("arg1"), "arg1")),
+                new SpanDecorationProbe.Tag("tag2", new ValueScript(DSL.ref("arg2"), "arg2"))));
+    SpanDecorationProbe spanDecoration2 =
+        createDecorationSpan(
+            "span2",
+            SpanDecorationProbe.TargetSpan.ACTIVE,
+            decoration,
+            "String.java",
+            "indexOf",
+            "(String)");
     Configuration.FilterList allowList =
         new Configuration.FilterList(
             Arrays.asList("java.lang.util"), Arrays.asList("java.lang.String"));
@@ -238,6 +326,7 @@ public class ConfigurationTest {
         Arrays.asList(metric2),
         Arrays.asList(probe2, log2),
         Arrays.asList(span2),
+        Arrays.asList(spanDecoration2),
         allowList,
         denyList,
         globalSampling);
@@ -257,7 +346,7 @@ public class ConfigurationTest {
             Limits.DEFAULT_FIELD_COUNT)
         .tags("tag1:value1", "tag2:value2")
         .sampling(42.0)
-        .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
+        .evaluateAt(MethodLocation.ENTRY)
         .build();
   }
 
@@ -272,7 +361,7 @@ public class ConfigurationTest {
         .language("java")
         .probeId(id, 0)
         .where(typeName, methodName, signature)
-        .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
+        .evaluateAt(MethodLocation.ENTRY)
         .metricName(metricName)
         .kind(metricKind)
         .tags("tag1:value1", "tag2:value2")
@@ -286,7 +375,7 @@ public class ConfigurationTest {
         .probeId(id, 0)
         .captureSnapshot(false)
         .where(typeName, methodName, signature)
-        .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
+        .evaluateAt(MethodLocation.ENTRY)
         .template(template, parseTemplate(template))
         .tags("tag1:value1", "tag2:value2")
         .build();
@@ -298,8 +387,26 @@ public class ConfigurationTest {
         .language("java")
         .probeId(id, 0)
         .where(typeName, methodName, signature)
-        .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
+        .evaluateAt(MethodLocation.ENTRY)
         .tags("tag1:value1", "tag2:value2")
+        .build();
+  }
+
+  private static SpanDecorationProbe createDecorationSpan(
+      String id,
+      SpanDecorationProbe.TargetSpan targetSpan,
+      SpanDecorationProbe.Decoration decoration,
+      String typeName,
+      String methodName,
+      String signature) {
+    return SpanDecorationProbe.builder()
+        .language("java")
+        .probeId(id, 0)
+        .where(typeName, methodName, signature)
+        .evaluateAt(MethodLocation.ENTRY)
+        .tags("tag1:value1", "tag2:value2")
+        .targetSpan(targetSpan)
+        .decorate(decoration)
         .build();
   }
 

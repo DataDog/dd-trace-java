@@ -166,7 +166,10 @@ public class CallSiteSpecification implements Validatable {
       withParameter(
           ReturnSpecification.class,
           (i, spec) -> {
-            final Type rType = pointcut.getMethodType().getReturnType();
+            final Type rType =
+                pointcut.isConstructor()
+                    ? pointcut.getOwner()
+                    : pointcut.getMethodType().getReturnType();
             final Type advice = adviceArgumentTypes[i];
             validateCompatibility(
                 context, rType, advice, ErrorCode.ADVICE_METHOD_PARAM_RETURN_NOT_COMPATIBLE, i);
@@ -185,7 +188,7 @@ public class CallSiteSpecification implements Validatable {
           });
     }
 
-    private void validateAdviceReturnTypeCompatibility(final ValidationContext context) {
+    protected void validateAdviceReturnTypeCompatibility(final ValidationContext context) {
       if (!advice.isVoidReturn()) {
         final Type pointcutType =
             pointcut.isConstructor()
@@ -560,16 +563,16 @@ public class CallSiteSpecification implements Validatable {
       if (advice.isVoidReturn()) {
         context.addError(ErrorCode.ADVICE_AFTER_SHOULD_NOT_RETURN_VOID);
       }
-      if (!isStaticPointcut() && !includeThis()) {
-        context.addError(ErrorCode.ADVICE_AFTER_SHOULD_HAVE_THIS);
+      if (findReturn() == null) {
+        context.addError(ErrorCode.ADVICE_AFTER_SHOULD_HAVE_RETURN);
       }
       if (!pointcut.isConstructor()) {
-        if (findReturn() == null) {
-          context.addError(ErrorCode.ADVICE_AFTER_SHOULD_HAVE_RETURN);
+        if (!isStaticPointcut() && !includeThis()) {
+          context.addError(ErrorCode.ADVICE_AFTER_SHOULD_HAVE_THIS);
         }
       } else {
-        if (findReturn() != null) {
-          context.addError(ErrorCode.ADVICE_AFTER_CONSTRUCTOR_SHOULD_NOT_HAVE_RETURN);
+        if (findAllArguments() == null) {
+          context.addError(ErrorCode.ADVICE_AFTER_CONSTRUCTOR_ALL_ARGUMENTS);
         }
       }
       super.validateAdvice(context);

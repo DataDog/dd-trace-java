@@ -4,6 +4,7 @@ import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.util.ExceptionHelper;
@@ -13,7 +14,6 @@ import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.util.TagsHelper;
 import java.lang.instrument.Instrumentation;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -34,6 +34,7 @@ public class ConfigurationUpdater
   public static final int MAX_ALLOWED_METRIC_PROBES = 100;
   public static final int MAX_ALLOWED_LOG_PROBES = 100;
   private static final int MAX_ALLOWED_SPAN_PROBES = 100;
+  private static final int MAX_ALLOWED_SPAN_DECORATION_PROBES = 100;
   private static final double RATE_LIMIT_PER_SNAPSHOT_PROBE = 1.0;
   private static final double RATE_LIMIT_PER_LOG_PROBE = 5000.0;
 
@@ -50,7 +51,6 @@ public class ConfigurationUpdater
   private final TransformerSupplier transformerSupplier;
   private DebuggerTransformer currentTransformer;
   private final Map<String, ProbeDefinition> appliedDefinitions = new ConcurrentHashMap<>();
-  private final EnvironmentAndVersionChecker envAndVersionCheck;
   private final DebuggerSink sink;
   private final ClassesToRetransformFinder finder;
   private final String serviceName;
@@ -76,7 +76,6 @@ public class ConfigurationUpdater
       ClassesToRetransformFinder finder) {
     this.instrumentation = instrumentation;
     this.transformerSupplier = transformerSupplier;
-    this.envAndVersionCheck = new EnvironmentAndVersionChecker(config);
     this.serviceName = TagsHelper.sanitize(config.getServiceName());
     this.sink = sink;
     this.finder = finder;
@@ -122,11 +121,14 @@ public class ConfigurationUpdater
         filterProbes(configuration::getLogProbes, MAX_ALLOWED_LOG_PROBES);
     Collection<SpanProbe> spanProbes =
         filterProbes(configuration::getSpanProbes, MAX_ALLOWED_SPAN_PROBES);
+    Collection<SpanDecorationProbe> spanDecorationProbes =
+        filterProbes(configuration::getSpanDecorationProbes, MAX_ALLOWED_SPAN_DECORATION_PROBES);
     return new Configuration(
         serviceName,
         metricProbes,
         logProbes,
         spanProbes,
+        spanDecorationProbes,
         configuration.getAllowList(),
         configuration.getDenyList(),
         configuration.getSampling());
@@ -138,10 +140,7 @@ public class ConfigurationUpdater
     if (probes == null) {
       return Collections.emptyList();
     }
-    return probes.stream()
-        .filter(envAndVersionCheck::isEnvAndVersionMatch)
-        .limit(maxAllowedProbes)
-        .collect(Collectors.toList());
+    return probes.stream().limit(maxAllowedProbes).collect(Collectors.toList());
   }
 
   private void handleProbesChanges(ConfigurationComparer changes) {
@@ -240,36 +239,7 @@ public class ConfigurationUpdater
       retransformClasses(Collections.singletonList(callingClass));
       return null;
     }
-    String type = definition.getWhere().getTypeName();
-    String method = definition.getWhere().getMethodName();
-    String file = definition.getWhere().getSourceFile();
-    String[] probeLines = definition.getWhere().getLines();
-    InstrumentationResult result = instrumentationResults.get(definition.getId());
-    if (result != null) {
-      type = result.getTypeName();
-      method = result.getMethodName();
-    }
-    List<String> lines = probeLines != null ? Arrays.asList(probeLines) : null;
-    return convertToProbeDetails(definition, new Snapshot.ProbeLocation(type, method, file, lines));
-  }
-
-  private Snapshot.ProbeDetails convertToProbeDetails(
-      ProbeDefinition probe, Snapshot.ProbeLocation location) {
-    if (!(probe instanceof LogProbe)) {
-      LOGGER.warn(
-          "Definition id={} has unsupported probe type: {}", probe.getId(), probe.getClass());
-      return null;
-    }
-    LogProbe logProbe = (LogProbe) probe;
-    return new Snapshot.ProbeDetails(
-        probe.getProbeId().getId(),
-        probe.getProbeId().getVersion(),
-        location,
-        ProbeDefinition.MethodLocation.convert(probe.getEvaluateAt()),
-        logProbe.isCaptureSnapshot(),
-        logProbe.getProbeCondition(),
-        probe.concatTags(),
-        new LogMessageTemplateSummaryBuilder(logProbe));
+    return definition;
   }
 
   private void applyRateLimiter(ConfigurationComparer changes) {

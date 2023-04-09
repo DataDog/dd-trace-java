@@ -65,6 +65,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERV
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_METRICS_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
@@ -143,6 +145,7 @@ import static datadog.trace.api.config.GeneralConfig.SITE;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL;
+import static datadog.trace.api.config.GeneralConfig.TELEMETRY_METRICS_INTERVAL;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_BUFFERING_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES;
@@ -276,6 +279,7 @@ import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES;
 import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES_FILE;
 import static datadog.trace.api.config.TracerConfig.SPAN_TAGS;
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS;
+import static datadog.trace.api.config.TracerConfig.TRACE_128_BIT_TRACEID_GENERATION_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_ARGS;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PATH;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT;
@@ -618,6 +622,8 @@ public class Config {
 
   private final boolean secureRandom;
 
+  private final boolean trace128bitTraceIdGenerationEnabled;
+
   private final Set<String> grpcIgnoredInboundMethods;
   private final Set<String> grpcIgnoredOutboundMethods;
   private final boolean grpcServerTrimPackageResource;
@@ -636,6 +642,7 @@ public class Config {
   private final boolean iastDeduplicationEnabled;
 
   private final int telemetryHeartbeatInterval;
+  private final int telemetryMetricsInterval;
   private final boolean isTelemetryDependencyServiceEnabled;
 
   private final boolean azureAppServices;
@@ -710,19 +717,24 @@ public class Config {
     }
 
     String strategyName = configProvider.getString(ID_GENERATION_STRATEGY);
+    trace128bitTraceIdGenerationEnabled =
+        configProvider.getBoolean(
+            TRACE_128_BIT_TRACEID_GENERATION_ENABLED,
+            DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED);
     if (secureRandom) {
       strategyName = "SECURE_RANDOM";
     }
     if (strategyName == null) {
       strategyName = "RANDOM";
     }
-    IdGenerationStrategy strategy = IdGenerationStrategy.fromName(strategyName);
+    IdGenerationStrategy strategy =
+        IdGenerationStrategy.fromName(strategyName, trace128bitTraceIdGenerationEnabled);
     if (strategy == null) {
       log.warn(
           "*** you are trying to use an unknown id generation strategy {} - falling back to RANDOM",
           strategyName);
       strategyName = "RANDOM";
-      strategy = IdGenerationStrategy.fromName(strategyName);
+      strategy = IdGenerationStrategy.fromName(strategyName, trace128bitTraceIdGenerationEnabled);
     }
     if (!strategyName.equals("RANDOM") && !strategyName.equals("SECURE_RANDOM")) {
       log.warn(
@@ -1192,6 +1204,16 @@ public class Config {
       telemetryInterval = DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
     }
     telemetryHeartbeatInterval = telemetryInterval;
+
+    telemetryInterval =
+        configProvider.getInteger(TELEMETRY_METRICS_INTERVAL, DEFAULT_TELEMETRY_METRICS_INTERVAL);
+    if (telemetryInterval < 1 || telemetryInterval > 3600) {
+      log.warn(
+          "Wrong Telemetry metrics interval: {}. The value must be in range 1-3600",
+          telemetryInterval);
+      telemetryInterval = DEFAULT_TELEMETRY_METRICS_INTERVAL;
+    }
+    telemetryMetricsInterval = telemetryInterval;
 
     isTelemetryDependencyServiceEnabled =
         configProvider.getBoolean(
@@ -1913,6 +1935,10 @@ public class Config {
     return telemetryHeartbeatInterval;
   }
 
+  public int getTelemetryMetricsInterval() {
+    return telemetryMetricsInterval;
+  }
+
   public boolean isTelemetryDependencyServiceEnabled() {
     return isTelemetryDependencyServiceEnabled;
   }
@@ -1992,6 +2018,10 @@ public class Config {
 
   public boolean isCiVisibilityEnabled() {
     return instrumenterConfig.isCiVisibilityEnabled();
+  }
+
+  public boolean isUsmEnabled() {
+    return instrumenterConfig.isUsmEnabled();
   }
 
   public boolean isCiVisibilityAgentlessEnabled() {
@@ -2242,6 +2272,10 @@ public class Config {
 
   public IdGenerationStrategy getIdGenerationStrategy() {
     return idGenerationStrategy;
+  }
+
+  public boolean isTrace128bitTraceIdGenerationEnabled() {
+    return trace128bitTraceIdGenerationEnabled;
   }
 
   public Set<String> getGrpcIgnoredInboundMethods() {
@@ -3241,6 +3275,8 @@ public class Config {
         + '\''
         + ", idGenerationStrategy="
         + idGenerationStrategy
+        + ", trace128bitTraceIdGenerationEnabled"
+        + trace128bitTraceIdGenerationEnabled
         + ", grpcIgnoredInboundMethods="
         + grpcIgnoredInboundMethods
         + ", grpcIgnoredOutboundMethods="

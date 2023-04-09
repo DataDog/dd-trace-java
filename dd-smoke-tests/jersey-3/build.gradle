@@ -22,7 +22,7 @@ dependencies {
 
 tasks.withType(Test).configureEach {
   dependsOn "shadowJar"
-  jvmArgs "-Ddatadog.smoketest.jersey3.jar.path=${tasks.shadowJar.archivePath}"
+  jvmArgs "-Ddatadog.smoketest.jersey3.jar.path=${tasks.shadowJar.archiveFile.get()}"
 }
 
 

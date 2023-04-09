@@ -497,6 +497,34 @@ public class MsgPackWriterTest {
   }
 
   @Test
+  public void testWriteNegativeLongPrimitive() {
+    final long data = -1234L;
+    MessageFormatter messageFormatter =
+        new MsgPackWriter(
+            newBuffer(
+                100,
+                (messageCount, buffy) -> {
+                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
+                  try {
+                    assertEquals(data, unpacker.unpackLong());
+                    assertEquals(data, unpacker.unpackLong());
+                    // Can't unpack unsigned long directly as the unpacker refuses negative values
+                    assertEquals(data, unpacker.unpackValue().asNumberValue().toLong());
+                  } catch (IOException e) {
+                    Assertions.fail(e.getMessage());
+                  }
+                }));
+    messageFormatter.format(
+        data,
+        (x, w) -> {
+          w.writeLong(x);
+          w.writeSignedLong(x);
+          w.writeUnsignedLong(x);
+        });
+    messageFormatter.flush();
+  }
+
+  @Test
   public void testWriteIntBoxed() {
     final int data = 1234;
     MessageFormatter messageFormatter =

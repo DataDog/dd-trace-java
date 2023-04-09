@@ -138,8 +138,6 @@ public class DDSpanContext
   private final ProfilingContextIntegration profilingContextIntegration;
 
   private volatile int encodedOperationName;
-  private volatile int encodedResourceName;
-  private volatile int encodedServiceName;
 
   public DDSpanContext(
       final DDTraceId traceId,
@@ -303,6 +301,7 @@ public class DDSpanContext
         propagationTags != null
             ? propagationTags
             : trace.getTracer().getPropagationTagsFactory().empty();
+    this.propagationTags.updateTraceIdHighOrderBits(this.traceId.toHighOrderLong());
 
     if (origin != null) {
       setOrigin(origin);
@@ -336,16 +335,6 @@ public class DDSpanContext
     return encodedOperationName;
   }
 
-  @Override
-  public int getEncodedServiceName() {
-    return encodedServiceName;
-  }
-
-  @Override
-  public int getEncodedResourceName() {
-    return encodedResourceName;
-  }
-
   public String getServiceName() {
     return serviceName;
   }
@@ -353,9 +342,6 @@ public class DDSpanContext
   public void setServiceName(final String serviceName) {
     this.serviceName = trace.getTracer().mapServiceName(serviceName);
     this.topLevel = isTopLevel(parentServiceName, this.serviceName);
-    if (this.serviceName != null) {
-      this.encodedServiceName = profilingContextIntegration.encode(this.serviceName);
-    }
   }
 
   // TODO this logic is inconsistent with hasResourceName
@@ -378,7 +364,6 @@ public class DDSpanContext
     if (priority >= this.resourceNamePriority) {
       this.resourceNamePriority = priority;
       this.resourceName = resourceName;
-      this.encodedResourceName = profilingContextIntegration.encode(resourceName);
     }
   }
 

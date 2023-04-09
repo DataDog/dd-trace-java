@@ -65,6 +65,7 @@ class TelemetryRunnableSpecification extends DDSpecification {
 
     then:
     1 * telemetryService.getHeartbeatInterval() >> 10_000L
+    1 * telemetryService.getMetricsInterval() >> 10_000L
     1 * sleeper.sleep(10_000L) >> { t.interrupt() }
 
     then:
@@ -107,6 +108,7 @@ class TelemetryRunnableSpecification extends DDSpecification {
 
     then:
     1 * telemetryService.getHeartbeatInterval() >> 10_000L
+    1 * telemetryService.getMetricsInterval() >> 10_000L
     1 * sleeper.sleep(10_000L) >> { t.interrupt() }
 
     then:
@@ -139,6 +141,7 @@ class TelemetryRunnableSpecification extends DDSpecification {
 
     then:
     1 * telemetryService.getHeartbeatInterval() >> 10_000L
+    1 * telemetryService.getMetricsInterval() >> 10_000L
     1 * sleeper.sleep(10_000L) >> { t.interrupt() }
 
     then:

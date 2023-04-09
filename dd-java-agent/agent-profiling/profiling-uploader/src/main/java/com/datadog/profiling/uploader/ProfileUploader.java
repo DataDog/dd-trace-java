@@ -31,6 +31,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.relocate.api.IOLogger;
 import datadog.trace.util.AgentThreadFactory;
 import datadog.trace.util.PidHelper;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.time.Duration;
@@ -340,6 +341,7 @@ public final class ProfileUploader {
     onCompletion.run();
   }
 
+  @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
   private IOLogger.Response getLoggerResponse(final okhttp3.Response response) {
     if (response != null) {
       try {

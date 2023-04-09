@@ -53,9 +53,7 @@ public final class DatadogProfiler {
 
   private static final int[] EMPTY = new int[0];
 
-  private static final String SERVICE = "_dd.trace.service";
   private static final String OPERATION = "_dd.trace.operation";
-  private static final String RESOURCE = "_dd.trace.resource";
 
   private static final class Singleton {
     private static final DatadogProfiler INSTANCE = newInstance();
@@ -157,9 +155,7 @@ public final class DatadogProfiler {
     }
     this.orderedContextAttributes = new ArrayList<>(contextAttributes);
     if (isSpanNameContextAttributeEnabled(configProvider)) {
-      orderedContextAttributes.add(RESOURCE);
       orderedContextAttributes.add(OPERATION);
-      orderedContextAttributes.add(SERVICE);
     }
     this.contextSetter = new ContextSetter(profiler, orderedContextAttributes);
     try {
@@ -335,14 +331,6 @@ public final class DatadogProfiler {
 
   public int operationNameOffset() {
     return offsetOf(OPERATION);
-  }
-
-  public int serviceNameOffset() {
-    return offsetOf(SERVICE);
-  }
-
-  public int resourceNameOffset() {
-    return offsetOf(RESOURCE);
   }
 
   public int offsetOf(String attribute) {

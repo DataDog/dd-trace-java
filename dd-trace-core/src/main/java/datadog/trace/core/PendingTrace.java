@@ -168,6 +168,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     // There is a benign race here where the span added above can get written out by a writer in
     // progress before the count has been incremented. It's being taken care of in the internal
     // write method.
+    healthMetrics.onFinishSpan();
     COMPLETED_SPAN_COUNT.incrementAndGet(this);
     return decrementRefAndMaybeWrite(span == getRootSpan());
   }

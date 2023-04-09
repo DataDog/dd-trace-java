@@ -14,6 +14,9 @@ abstract class PTagsCodec {
   private static final String PROPAGATION_ERROR_DISABLED = "disabled";
 
   protected static final TagKey DECISION_MAKER_TAG = TagKey.from("dm");
+  protected static final TagKey TRACE_ID_TAG = TagKey.from("tid");
+  protected static final String PROPAGATION_ERROR_MALFORMED_TID = "malformed_tid ";
+  protected static final String PROPAGATION_ERROR_INCONSISTENT_TID = "inconsistent_tid ";
   protected static final TagKey UPSTREAM_SERVICES_DEPRECATED_TAG = TagKey.from("upstream_services");
 
   static String headerValue(PTagsCodec codec, PTags ptags) {
@@ -28,6 +31,9 @@ abstract class PTagsCodec {
     if (!ptags.isPropagationTagsDisabled()) {
       if (ptags.getDecisionMakerTagValue() != null) {
         size = codec.appendTag(sb, DECISION_MAKER_TAG, ptags.getDecisionMakerTagValue(), size);
+      }
+      if (ptags.getTraceIdHighOrderBitsHexTagValue() != null) {
+        size = codec.appendTag(sb, TRACE_ID_TAG, ptags.getTraceIdHighOrderBitsHexTagValue(), size);
       }
       Iterator<TagElement> it = ptags.getTagPairs().iterator();
       while (it.hasNext() && !codec.isTooLarge(sb, size)) {
@@ -71,6 +77,14 @@ abstract class PTagsCodec {
       tagMap.put(
           DECISION_MAKER_TAG.forType(Encoding.DATADOG).toString(),
           propagationTags.getDecisionMakerTagValue().forType(Encoding.DATADOG).toString());
+    }
+    if (propagationTags.getTraceIdHighOrderBitsHexTagValue() != null) {
+      tagMap.put(
+          TRACE_ID_TAG.forType(Encoding.DATADOG).toString(),
+          propagationTags
+              .getTraceIdHighOrderBitsHexTagValue()
+              .forType(Encoding.DATADOG)
+              .toString());
     }
     if (propagationTags.getError() != null) {
       tagMap.put(PROPAGATION_ERROR_TAG_KEY, propagationTags.getError());
@@ -124,6 +138,8 @@ abstract class PTagsCodec {
   protected static boolean validateTagValue(TagKey tagKey, TagValue tagValue) {
     if (tagKey.equals(DECISION_MAKER_TAG) && !validateDecisionMakerTag(tagValue)) {
       return false;
+    } else if (tagKey.equals(TRACE_ID_TAG) && !validateTraceId(tagValue)) {
+      return false;
     }
     return true;
   }
@@ -166,6 +182,20 @@ abstract class PTagsCodec {
     for (int i = samplingMechanismPos; i < len; i++) {
       if (!isDigit(value.charAt(i))) {
         // invalid sampling mechanism
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static boolean validateTraceId(TagValue value) {
+    // invalid length
+    if (value.length() != 16) {
+      return false;
+    }
+    for (int i = 0; i < 16; i++) {
+      // invalid trace id character
+      if (!isHexDigit(value.charAt(i))) {
         return false;
       }
     }

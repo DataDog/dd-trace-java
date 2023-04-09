@@ -35,7 +35,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     }
   }
   TelemetryServiceImpl telemetryService =
-  new TelemetryServiceImpl(requestBuilderSupplier, timeSource, 1)
+  new TelemetryServiceImpl(requestBuilderSupplier, timeSource, 1, 1)
 
   void 'heartbeat interval every 1 sec'() {
     // Time: 0 seconds - no packets yet
@@ -222,7 +222,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     def telemetry
 
     when:
-    telemetry = new TelemetryServiceImpl(requestBuilderSupplier, timeSource, 1, 10, 1)
+    telemetry = new TelemetryServiceImpl(requestBuilderSupplier, timeSource, 1, 1, 10, 1)
     logMessage = new LogMessage(message: 'hello world', level: LogMessageLevel.DEBUG)
     for (int i=0; i<messages; i++) {
       telemetry.addLogMessage(logMessage)
@@ -249,7 +249,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     def telemetry
 
     when:
-    telemetry = new TelemetryServiceImpl(requestBuilderSupplier, timeSource, 1, 1, 10)
+    telemetry = new TelemetryServiceImpl(requestBuilderSupplier, timeSource, 1, 1, 1, 10)
     dep = new Dependency(name: 'dep')
     for (int i=0; i<15; i++) {
       telemetry.addDependency(dep)

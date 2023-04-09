@@ -90,9 +90,14 @@
 0 sun.rmi.server.*
 0 sun.rmi.transport.*
 0 sun.nio.ch.FileChannelImpl
+# USM needs it
+0 sun.security.ssl.*
+0 javax.net.ssl.SSLSocket
+
 # Prevent IllegalAccessError in OpenJDK 17.0.4
 1 javax.management.*
 1 javax.swing.*
+
 
 # -------- ADDITIONAL IGNORES --------
 

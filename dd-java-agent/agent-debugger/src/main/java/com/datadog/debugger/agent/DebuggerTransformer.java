@@ -353,6 +353,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
             applyInstrumentation(loader, classNode, definitions, methodNode);
         transformed |= result.isInstalled();
         for (ProbeDefinition definition : definitions) {
+          definition.buildLocation(result);
           if (listener != null) {
             listener.instrumentationResult(definition, result);
           }

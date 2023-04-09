@@ -1,12 +1,12 @@
 package com.datadog.debugger.agent;
 
-import static com.datadog.debugger.sink.DebuggerSinkTest.SINK_FIXTURE_PREFIX;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.ARGUMENTS;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.CAPTURES;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.COLLECTION_SIZE_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.DEPTH_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.ELEMENTS;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.ENTRIES;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.ENTRY;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.FIELDS;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.FIELD_COUNT_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.IS_NULL;
@@ -15,13 +15,11 @@ import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.RETURN;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.SIZE;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.THIS;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.TIMEOUT_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TRUNCATED;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TYPE;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.VALUE;
-import static utils.TestHelper.getFixtureContent;
 
-import com.datadog.debugger.el.DSL;
-import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.util.MoshiHelper;
 import com.datadog.debugger.util.MoshiSnapshotHelper;
 import com.datadog.debugger.util.MoshiSnapshotTestHelper;
@@ -29,8 +27,10 @@ import com.squareup.moshi.JsonAdapter;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.Limits;
+import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.Snapshot;
-import datadog.trace.bootstrap.debugger.SnapshotSummaryBuilder;
+import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
+import datadog.trace.test.util.Flaky;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
@@ -39,13 +39,16 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.LockSupport;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -100,16 +103,12 @@ public class SnapshotSerializationTest {
         new Snapshot.CapturedValue[] {normalValuedField, normalNullField, notCapturedField});
     context.evaluate(
         PROBE_ID,
-        new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+        new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION),
         String.class.getTypeName(),
         -1,
-        Snapshot.MethodLocation.EXIT);
+        MethodLocation.EXIT);
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
-    String snapshotRegex =
-        getFixtureContent(SINK_FIXTURE_PREFIX + "/snapshotCapturedValueRegex.txt");
-    snapshotRegex = snapshotRegex.replaceAll("\\n", "");
-    Assertions.assertTrue(buffer.matches(snapshotRegex), buffer);
     Snapshot deserializedSnapshot = adapter.fromJson(buffer);
     Map<String, Snapshot.CapturedValue> fields =
         deserializedSnapshot.getCaptures().getReturn().getFields();
@@ -213,34 +212,6 @@ public class SnapshotSerializationTest {
     Map<String, Snapshot.CapturedValue> lineFields = lines.get(24).getFields();
     Assertions.assertEquals(1, lineFields.size());
     Assertions.assertEquals(42, lineFields.get("fieldInt").getValue());
-  }
-
-  @Test
-  public void roundtripCondition() throws IOException {
-    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
-    Snapshot snapshot =
-        new Snapshot(
-            Thread.currentThread(),
-            new Snapshot.ProbeDetails(
-                PROBE_ID,
-                PROBE_VERSION,
-                PROBE_LOCATION,
-                Snapshot.MethodLocation.DEFAULT,
-                true,
-                new ProbeCondition(DSL.when(DSL.gt(DSL.ref("^n"), DSL.value(0))), "n > 0"),
-                "",
-                new SnapshotSummaryBuilder(PROBE_LOCATION)));
-    Snapshot.Captures captures = snapshot.getCaptures();
-    Snapshot.CapturedContext lineCapturedContext = new Snapshot.CapturedContext();
-    lineCapturedContext.addFields(
-        new Snapshot.CapturedValue[] {Snapshot.CapturedValue.of("fieldInt", "int", "42")});
-    captures.addLine(24, lineCapturedContext);
-    String buffer = adapter.toJson(snapshot);
-
-    Snapshot deserializedSnapshot = adapter.fromJson(buffer);
-    Assertions.assertTrue(deserializedSnapshot.getProbe().getScript() instanceof ProbeCondition);
-    Assertions.assertEquals(
-        "n > 0", ((ProbeCondition) deserializedSnapshot.getProbe().getScript()).getDslExpression());
   }
 
   static class AnotherClass {
@@ -762,6 +733,41 @@ public class SnapshotSerializationTest {
     Assertions.assertNull(thisArg.get(NOT_CAPTURED_REASON));
   }
 
+  @Test
+  @Flaky
+  public void timeOut() throws IOException {
+    DebuggerContext.initSnapshotSerializer(
+        new TimeoutSnapshotSerializer(Duration.of(150, ChronoUnit.MILLIS)));
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
+    Snapshot snapshot = createSnapshot();
+    Snapshot.CapturedContext context = new Snapshot.CapturedContext();
+    Snapshot.CapturedValue arg1 = Snapshot.CapturedValue.of("arg1", "int", 42);
+    Snapshot.CapturedValue arg2 = Snapshot.CapturedValue.of("arg2", "int", 42);
+    Snapshot.CapturedValue arg3 = Snapshot.CapturedValue.of("arg3", "int", 42);
+    context.addArguments(new Snapshot.CapturedValue[] {arg1, arg2, arg3});
+    snapshot.setEntry(context);
+    String buffer = adapter.toJson(snapshot);
+    System.out.println("timeout: " + buffer);
+    Map<String, Object> json = MoshiHelper.createGenericAdapter().fromJson(buffer);
+    Map<String, Object> capturesJson = (Map<String, Object>) json.get(CAPTURES);
+    Map<String, Object> entryJson = (Map<String, Object>) capturesJson.get(ENTRY);
+    Assertions.assertEquals(TIMEOUT_REASON, entryJson.get(NOT_CAPTURED_REASON));
+  }
+
+  @Test
+  @Flaky
+  public void valueTimeout() throws IOException {
+    DebuggerContext.initSnapshotSerializer(
+        new TimeoutSnapshotSerializer(Duration.of(20, ChronoUnit.MILLIS)));
+    Snapshot.CapturedValue arg1 =
+        Snapshot.CapturedValue.of("arg1", Random.class.getTypeName(), new Random(0));
+    arg1.freeze(new TimeoutChecker(Duration.ofMillis(10)));
+    String buffer = arg1.getStrValue();
+    System.out.println(buffer);
+    Map<String, Object> json = MoshiHelper.createGenericAdapter().fromJson(buffer);
+    Assertions.assertEquals(TIMEOUT_REASON, json.get(NOT_CAPTURED_REASON));
+  }
+
   private Map<String, Object> doFieldCount(int maxFieldCount) throws IOException {
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshotForFieldCount(maxFieldCount);
@@ -1078,10 +1084,31 @@ public class SnapshotSerializationTest {
 
   private Snapshot createSnapshot() {
     return new Snapshot(
-        Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
+        Thread.currentThread(), new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION));
   }
 
   private static JsonAdapter<Snapshot> createSnapshotAdapter() {
     return MoshiSnapshotTestHelper.createMoshiSnapshot().adapter(Snapshot.class);
+  }
+
+  private static class TimeoutSnapshotSerializer implements DebuggerContext.SnapshotSerializer {
+    private final JsonAdapter<Snapshot.CapturedValue> VALUE_ADAPTER =
+        new MoshiSnapshotHelper.CapturedValueAdapter();
+    private final Duration sleepTime;
+
+    public TimeoutSnapshotSerializer(Duration sleepTime) {
+      this.sleepTime = sleepTime;
+    }
+
+    @Override
+    public String serializeSnapshot(String serviceName, Snapshot snapshot) {
+      return null;
+    }
+
+    @Override
+    public String serializeValue(Snapshot.CapturedValue value) {
+      LockSupport.parkNanos(sleepTime.toNanos());
+      return VALUE_ADAPTER.toJson(value);
+    }
   }
 }

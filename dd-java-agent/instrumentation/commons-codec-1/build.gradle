@@ -1,0 +1,28 @@
+muzzle {
+  pass {
+    group = 'commons-codec'
+    module = 'commons-codec'
+    versions = '[1.1,]'
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'org.unbroken-dome.test-sets'
+apply plugin: 'call-site-instrumentation'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+dependencies {
+  compileOnly group: 'commons-codec', name: 'commons-codec', version: '1.1'
+
+  testImplementation group: 'commons-codec', name: 'commons-codec', version: '1.1'
+
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+
+  latestDepTestImplementation group: 'commons-codec', name: 'commons-codec', version: '(1.0,10000000]'
+}

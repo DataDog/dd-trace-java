@@ -56,7 +56,7 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
     JsonSnapshotSerializer.IntakeRequest request = doTestTracer(logProbe);
     Snapshot snapshot = request.getDebugger().getSnapshot();
     assertEquals("123356536", snapshot.getProbe().getId());
-    assertTrue(Pattern.matches("\\d+", request.getTraceId()));
+    assertTrue(Pattern.matches("[0-9a-f]+", request.getTraceId()));
     assertTrue(Pattern.matches("\\d+", request.getSpanId()));
     assertFalse(
         logHasErrors(logFilePath, it -> it.contains("TypePool$Resolution$NoSuchTypeException")));
@@ -75,7 +75,7 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
     Snapshot snapshot = request.getDebugger().getSnapshot();
     assertEquals("123356536", snapshot.getProbe().getId());
     assertEquals(42, snapshot.getCaptures().getEntry().getArguments().get("argInt").getValue());
-    assertTrue(Pattern.matches("\\d+", request.getTraceId()));
+    assertTrue(Pattern.matches("[0-9a-f]+", request.getTraceId()));
     assertTrue(Pattern.matches("\\d+", request.getSpanId()));
   }
 

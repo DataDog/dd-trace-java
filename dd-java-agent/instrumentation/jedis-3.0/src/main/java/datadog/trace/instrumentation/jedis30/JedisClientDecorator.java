@@ -6,9 +6,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
-import redis.clients.jedis.commands.ProtocolCommand;
+import redis.clients.jedis.Connection;
 
-public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorator<ProtocolCommand> {
+public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Connection> {
   public static final JedisClientDecorator DECORATE = new JedisClientDecorator();
 
   private static final String REDIS = "redis";
@@ -44,18 +44,18 @@ public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorato
   }
 
   @Override
-  protected String dbUser(final ProtocolCommand session) {
+  protected String dbUser(final Connection connection) {
     return null;
   }
 
   @Override
-  protected String dbInstance(final ProtocolCommand session) {
+  protected String dbInstance(final Connection connection) {
     return null;
   }
 
   @Override
-  protected String dbHostname(ProtocolCommand protocolCommand) {
-    return null;
+  protected String dbHostname(final Connection connection) {
+    return connection.getHost();
   }
 
   @Override

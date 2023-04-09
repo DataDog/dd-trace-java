@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.InstrumenterConfig;
 import io.opentelemetry.api.trace.TracerProvider;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -22,7 +23,7 @@ public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
 
   @Override
   protected boolean defaultEnabled() {
-    return false;
+    return InstrumenterConfig.get().isTraceOtelEnabled();
   }
 
   @Override

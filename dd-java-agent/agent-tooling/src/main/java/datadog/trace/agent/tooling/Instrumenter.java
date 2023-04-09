@@ -47,6 +47,7 @@ public interface Instrumenter {
    *   <li>{@link TargetSystem#APPSEC appsec}
    *   <li>{@link TargetSystem#IAST iast}
    *   <li>{@link TargetSystem#CIVISIBILITY ci-visibility}
+   *   <li>{@link TargetSystem#USM usm}
    * </ul>
    */
   enum TargetSystem {
@@ -54,7 +55,9 @@ public interface Instrumenter {
     PROFILING,
     APPSEC,
     IAST,
-    CIVISIBILITY
+    CIVISIBILITY,
+
+    USM
   }
 
   /** Instrumentation that only matches a single named type. */
@@ -345,6 +348,18 @@ public interface Instrumenter {
     /** Get classes to force load* */
     public String[] getClassNamesToBePreloaded() {
       return null;
+    }
+  }
+
+  /** Parent class for all USM related instrumentations */
+  abstract class Usm extends Default {
+    public Usm(String instrumentationName, String... additionalNames) {
+      super(instrumentationName, additionalNames);
+    }
+
+    @Override
+    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+      return enabledSystems.contains(TargetSystem.USM);
     }
   }
 

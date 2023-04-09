@@ -15,6 +15,8 @@ class SpringNativeWebmvcIntegrationTest extends AbstractServerSmokeTest {
       // trigger use of moshi for parsing sampling rules
       "-Ddd.trace.sampling.rules=[]",
       "-Ddd.span.sampling.rules=[]",
+      // enable improved trace.annotation span names
+      "-Ddd.trace.annotations.legacy.tracing.enabled=false",
       "--server.port=${httpPort}"
     ])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
@@ -28,7 +30,7 @@ class SpringNativeWebmvcIntegrationTest extends AbstractServerSmokeTest {
 
   @Override
   protected Set<String> expectedTraces() {
-    return ["[servlet.request[spring.handler]]"]
+    return ["[servlet.request[spring.handler[WebController.doHello[WebController.sayHello]]]]"]
   }
 
   def "put docs and find all docs"() {

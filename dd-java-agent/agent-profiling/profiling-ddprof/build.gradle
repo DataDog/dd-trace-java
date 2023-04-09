@@ -41,7 +41,7 @@ dependencies {
 }
 
 shadowJar {
-  classifier ""
+  archiveClassifier = ''
   include {
     def rslt = false
     rslt |= it.path == "com" || it.path == "com/datadog"
