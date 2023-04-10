@@ -35,6 +35,7 @@ public class Snapshot {
   private String traceId; // trace_id
   private String spanId; // span_id
   private List<EvaluationError> evaluationErrors;
+  private transient String message;
 
   public Snapshot(java.lang.Thread thread, ProbeDetails probeDetails) {
     this.id = UUID.randomUUID().toString();
@@ -81,6 +82,10 @@ public class Snapshot {
 
   public void setDuration(long duration) {
     this.duration = duration;
+  }
+
+  public void setMessage(String message) {
+    this.message = message;
   }
 
   public void addLine(CapturedContext context, int line) {
@@ -154,20 +159,8 @@ public class Snapshot {
     evaluationErrors.addAll(errors);
   }
 
-  public String buildSummary() {
-    SummaryBuilder summaryBuilder = probe.getSummaryBuilder();
-    if (summaryBuilder == null) {
-      return null;
-    }
-    String summary = summaryBuilder.build();
-    List<EvaluationError> errors = summaryBuilder.getEvaluationErrors();
-    if (!errors.isEmpty()) {
-      if (evaluationErrors == null) {
-        evaluationErrors = new ArrayList<>();
-      }
-      evaluationErrors.addAll(errors);
-    }
-    return summary;
+  public String getMessage() {
+    return message;
   }
 
   public void commit() {
@@ -191,10 +184,6 @@ public class Snapshot {
         continue;
       }
       stack.add(CapturedStackFrame.from(ste));
-    }
-    SummaryBuilder summaryBuilder = probe.getSummaryBuilder();
-    if (summaryBuilder != null) {
-      summaryBuilder.addStack(stack);
     }
   }
 
@@ -223,8 +212,6 @@ public class Snapshot {
         Snapshot.CapturedContext context,
         Snapshot.CapturedContext.Status status,
         MethodLocation methodLocation);
-
-    SummaryBuilder getSummaryBuilder();
 
     MethodLocation getEvaluateAt();
 
@@ -280,11 +267,6 @@ public class Snapshot {
       @Override
       public void evaluate(
           CapturedContext context, CapturedContext.Status status, MethodLocation methodLocation) {}
-
-      @Override
-      public SummaryBuilder getSummaryBuilder() {
-        return null;
-      }
 
       @Override
       public MethodLocation getEvaluateAt() {
@@ -805,11 +787,12 @@ public class Snapshot {
     public static class Status {
       public static final Status EMPTY_STATUS = new Status(false, ProbeDetails.UNKNOWN);
       public static final Status EMPTY_PASSING_STATUS = new Status(true, ProbeDetails.UNKNOWN);
+      final List<EvaluationError> errors = new ArrayList<>();
+      final ProbeDetails probeDetails;
       boolean condition;
       boolean hasLogTemplateErrors;
       boolean hasConditionErrors;
-      final List<EvaluationError> errors = new ArrayList<>();
-      final ProbeDetails probeDetails;
+      String message;
 
       public Status(ProbeDetails probeDetails) {
         this.condition = true;
@@ -855,6 +838,14 @@ public class Snapshot {
 
       public List<EvaluationError> getErrors() {
         return errors;
+      }
+
+      public void setMessage(String message) {
+        this.message = message;
+      }
+
+      public String getMessage() {
+        return message;
       }
 
       public void addError(EvaluationError evaluationError) {

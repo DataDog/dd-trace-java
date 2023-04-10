@@ -277,12 +277,15 @@ public class DebuggerContext {
       Snapshot.CapturedContext.Status entryStatus = entryContext.getStatus(probeId);
       Snapshot.CapturedContext.Status exitStatus = exitContext.getStatus(probeId);
       Snapshot.ProbeDetails probeDetails;
+      String message;
       if (entryStatus.probeDetails != Snapshot.ProbeDetails.UNKNOWN
           && (entryStatus.probeDetails.getEvaluateAt() == MethodLocation.ENTRY
               || entryStatus.probeDetails.getEvaluateAt() == MethodLocation.DEFAULT)) {
         probeDetails = entryStatus.probeDetails;
+        message = entryStatus.getMessage();
       } else if (exitStatus.probeDetails.getEvaluateAt() == MethodLocation.EXIT) {
         probeDetails = exitStatus.probeDetails;
+        message = exitStatus.getMessage();
       } else {
         throw new IllegalStateException("no probe details");
       }
@@ -300,6 +303,7 @@ public class DebuggerContext {
           snapshot.setEntry(entryContext);
           snapshot.setExit(exitContext);
         }
+        snapshot.setMessage(message);
         snapshot.setDuration(exitContext.getDuration());
         snapshot.addCaughtExceptions(caughtExceptions);
         shouldCommit = true;
@@ -348,6 +352,7 @@ public class DebuggerContext {
       if (probeDetails.isCaptureSnapshot()) {
         snapshot.addLine(lineContext, line);
       }
+      snapshot.setMessage(status.getMessage());
       shouldCommit = true;
     }
     if (status.shouldReportError()) {
