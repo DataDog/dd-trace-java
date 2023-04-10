@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
@@ -220,24 +219,5 @@ public class GitUtils {
 
   private static boolean isHex(char c) {
     return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
-  }
-
-  private static final Pattern URL_WITH_CREDENTIALS_PATTERN =
-      Pattern.compile("(?<protocol>\\w+)://(?<username>\\w+):(?<password>\\w+)@(?<url>.*)");
-
-  public static String removeCredentials(String repoUrl) {
-    if (repoUrl == null) {
-      return null;
-    }
-    Matcher matcher = URL_WITH_CREDENTIALS_PATTERN.matcher(repoUrl);
-    if (matcher.matches()) {
-      return matcher.group("protocol")
-          + "://"
-          + matcher.group("username")
-          + "@"
-          + matcher.group("url");
-    } else {
-      return repoUrl;
-    }
   }
 }
