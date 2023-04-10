@@ -47,11 +47,7 @@ class MavenProjectConfigurator {
     }
 
     for (PluginExecution execution : surefirePlugin.getExecutions()) {
-      Xpp3Dom configuration = (Xpp3Dom) execution.getConfiguration();
-
-      String argLine = MavenUtils.getConfigurationValue(configuration, "argLine");
-      StringBuilder modifiedArgLine =
-          new StringBuilder(argLine != null ? argLine + System.lineSeparator() : "");
+      StringBuilder modifiedArgLine = new StringBuilder();
 
       // propagate to child process all "dd." system properties available in current process
       Properties systemProperties = System.getProperties();
@@ -77,6 +73,13 @@ class MavenProjectConfigurator {
 
       File agentJar = getAgentJar();
       modifiedArgLine.append("-javaagent:").append(agentJar.toPath());
+
+      Xpp3Dom configuration = (Xpp3Dom) execution.getConfiguration();
+      String argLine = MavenUtils.getConfigurationValue(configuration, "argLine");
+      if (argLine != null) {
+        modifiedArgLine.append(System.lineSeparator()).append(argLine);
+      }
+
       configuration =
           MavenUtils.setConfigurationValue(modifiedArgLine.toString(), configuration, "argLine");
 
