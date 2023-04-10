@@ -123,7 +123,11 @@ class MavenProjectConfigurator {
       javacPluginClientDependency.setGroupId(DATADOG_GROUP_ID);
       javacPluginClientDependency.setArtifactId(DATADOG_JAVAC_PLUGIN_CLIENT_ARTIFACT_ID);
       javacPluginClientDependency.setVersion(compilerPluginVersion);
-      project.getDependencies().add(javacPluginClientDependency);
+
+      List<Dependency> projectDependencies = project.getDependencies();
+      if (!contains(projectDependencies, javacPluginClientDependency)) {
+        projectDependencies.add(javacPluginClientDependency);
+      }
 
       MavenPluginVersion mavenPluginVersion =
           compilerPlugin.getVersion() != null
@@ -131,7 +135,7 @@ class MavenProjectConfigurator {
               : MavenPluginVersion.UNKNOWN;
 
       if (mavenPluginVersion.isLaterThanOrEqualTo(ANNOTATION_PROCESSOR_PATHS_SUPPORTED_VERSION)) {
-        String lombokVersion = getLombokVersion(project.getDependencies());
+        String lombokVersion = getLombokVersion(projectDependencies);
         if (lombokVersion != null) {
           configuration =
               addAnnotationProcessorPath(
@@ -149,12 +153,27 @@ class MavenProjectConfigurator {
         javacPluginDependency.setGroupId(DATADOG_GROUP_ID);
         javacPluginDependency.setArtifactId(DATADOG_JAVAC_PLUGIN_ARTIFACT_ID);
         javacPluginDependency.setVersion(compilerPluginVersion);
-        project.getDependencies().add(javacPluginDependency);
+
+        if (!contains(projectDependencies, javacPluginDependency)) {
+          projectDependencies.add(javacPluginDependency);
+        }
       }
 
       configuration = addCompilerArg(configuration, "-Xplugin:" + DATADOG_COMPILER_PLUGIN_ID);
       execution.setConfiguration(configuration);
     }
+  }
+
+  // Dependency class does not override equals, so we have to do it like this
+  private static boolean contains(List<Dependency> projectDependencies, Dependency dependency) {
+    for (Dependency projectDependency : projectDependencies) {
+      if (projectDependency.getGroupId().equals(dependency.getGroupId())
+          && projectDependency.getArtifactId().equals(dependency.getArtifactId())
+          && projectDependency.getVersion().equals(dependency.getVersion())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private String getLombokVersion(List<Dependency> dependencies) {
