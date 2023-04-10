@@ -30,12 +30,21 @@ public interface TestEventsHandler {
       @Nullable Method testMethod);
 
   void onTestSkip(
-      String testSuiteName, Class<?> testClass, String testName, @Nullable String reason);
+      String testSuiteName,
+      Class<?> testClass,
+      String testName,
+      @Nullable String testParameters,
+      @Nullable String reason);
 
   void onTestFailure(
-      String testSuiteName, Class<?> testClass, String testName, @Nullable Throwable throwable);
+      String testSuiteName,
+      Class<?> testClass,
+      String testName,
+      @Nullable String testParameters,
+      @Nullable Throwable throwable);
 
-  void onTestFinish(String testSuiteName, Class<?> testClass, String testName);
+  void onTestFinish(
+      String testSuiteName, Class<?> testClass, String testName, @Nullable String testParameters);
 
   void onTestIgnore(
       String testSuiteName,

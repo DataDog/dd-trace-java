@@ -217,14 +217,20 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       test.setTag(Tags.TEST_TRAITS, json);
     }
 
-    TestDescriptor descriptor = new TestDescriptor(testSuiteName, testClass, testName);
+    TestDescriptor descriptor =
+        new TestDescriptor(testSuiteName, testClass, testName, testParameters);
     inProgressTests.put(descriptor, test);
   }
 
   @Override
   public void onTestSkip(
-      String testSuiteName, Class<?> testClass, String testName, @Nullable String reason) {
-    TestDescriptor descriptor = new TestDescriptor(testSuiteName, testClass, testName);
+      String testSuiteName,
+      Class<?> testClass,
+      String testName,
+      @Nullable String testParameters,
+      @Nullable String reason) {
+    TestDescriptor descriptor =
+        new TestDescriptor(testSuiteName, testClass, testName, testParameters);
     DDTest test = inProgressTests.get(descriptor);
     if (test == null) {
       log.debug(
@@ -239,8 +245,13 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
   @Override
   public void onTestFailure(
-      String testSuiteName, Class<?> testClass, String testName, @Nullable Throwable throwable) {
-    TestDescriptor descriptor = new TestDescriptor(testSuiteName, testClass, testName);
+      String testSuiteName,
+      Class<?> testClass,
+      String testName,
+      @Nullable String testParameters,
+      @Nullable Throwable throwable) {
+    TestDescriptor descriptor =
+        new TestDescriptor(testSuiteName, testClass, testName, testParameters);
     DDTest test = inProgressTests.get(descriptor);
     if (test == null) {
       log.debug(
@@ -255,8 +266,12 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
   @Override
   public void onTestFinish(
-      final String testSuiteName, final Class<?> testClass, final String testName) {
-    TestDescriptor descriptor = new TestDescriptor(testSuiteName, testClass, testName);
+      final String testSuiteName,
+      final Class<?> testClass,
+      final String testName,
+      final @Nullable String testParameters) {
+    TestDescriptor descriptor =
+        new TestDescriptor(testSuiteName, testClass, testName, testParameters);
     DDTest test = inProgressTests.remove(descriptor);
     if (test == null) {
       log.debug(
@@ -279,8 +294,8 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       final @Nullable Method testMethod,
       final @Nullable String reason) {
     onTestStart(testSuiteName, testName, testParameters, categories, testClass, testMethod);
-    onTestSkip(testSuiteName, testClass, testName, reason);
-    onTestFinish(testSuiteName, testClass, testName);
+    onTestSkip(testSuiteName, testClass, testName, testParameters, reason);
+    onTestFinish(testSuiteName, testClass, testName, testParameters);
   }
 
   private static boolean skipTrace(final Class<?> testClass) {

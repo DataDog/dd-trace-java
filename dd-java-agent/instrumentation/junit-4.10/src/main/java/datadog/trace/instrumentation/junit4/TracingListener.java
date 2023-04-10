@@ -85,7 +85,8 @@ public class TracingListener extends RunListener {
     Class<?> testClass = description.getTestClass();
     Method testMethod = JUnit4Utils.getTestMethod(description);
     String testName = JUnit4Utils.getTestName(description, testMethod);
-    testEventsHandler.onTestFinish(testSuiteName, testClass, testName);
+    String testParameters = JUnit4Utils.getParameters(description);
+    testEventsHandler.onTestFinish(testSuiteName, testClass, testName, testParameters);
   }
 
   // same callback is executed both for test cases and test suites (for setup/teardown errors)
@@ -100,8 +101,10 @@ public class TracingListener extends RunListener {
     } else {
       Method testMethod = JUnit4Utils.getTestMethod(description);
       String testName = JUnit4Utils.getTestName(description, testMethod);
+      String testParameters = JUnit4Utils.getParameters(description);
       Throwable throwable = failure.getException();
-      testEventsHandler.onTestFailure(testSuiteName, testClass, testName, throwable);
+      testEventsHandler.onTestFailure(
+          testSuiteName, testClass, testName, testParameters, throwable);
     }
   }
 
@@ -129,8 +132,9 @@ public class TracingListener extends RunListener {
     } else {
       Method testMethod = JUnit4Utils.getTestMethod(description);
       String testName = JUnit4Utils.getTestName(description, testMethod);
+      String testParameters = JUnit4Utils.getParameters(description);
 
-      testEventsHandler.onTestSkip(testSuiteName, testClass, testName, reason);
+      testEventsHandler.onTestSkip(testSuiteName, testClass, testName, testParameters, reason);
     }
   }
 

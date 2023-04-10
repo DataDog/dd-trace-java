@@ -98,7 +98,8 @@ public class TracingListener extends TestNGClassListener
     final Class<?> testClass = TestNGUtils.getTestClass(result);
     String testName =
         (result.getTestName() != null) ? result.getTestName() : result.getMethod().getMethodName();
-    testEventsHandler.onTestFinish(testSuiteName, testClass, testName);
+    String testParameters = TestNGUtils.getParameters(result);
+    testEventsHandler.onTestFinish(testSuiteName, testClass, testName, testParameters);
   }
 
   @Override
@@ -107,10 +108,11 @@ public class TracingListener extends TestNGClassListener
     final Class<?> testClass = TestNGUtils.getTestClass(result);
     String testName =
         (result.getTestName() != null) ? result.getTestName() : result.getMethod().getMethodName();
+    String testParameters = TestNGUtils.getParameters(result);
 
     final Throwable throwable = result.getThrowable();
-    testEventsHandler.onTestFailure(testSuiteName, testClass, testName, throwable);
-    testEventsHandler.onTestFinish(testSuiteName, testClass, testName);
+    testEventsHandler.onTestFailure(testSuiteName, testClass, testName, testParameters, throwable);
+    testEventsHandler.onTestFinish(testSuiteName, testClass, testName, testParameters);
   }
 
   @Override
@@ -124,11 +126,12 @@ public class TracingListener extends TestNGClassListener
     final Class<?> testClass = TestNGUtils.getTestClass(result);
     String testName =
         (result.getTestName() != null) ? result.getTestName() : result.getMethod().getMethodName();
+    String testParameters = TestNGUtils.getParameters(result);
 
     // Typically the way of skipping a TestNG test is throwing a SkipException
     Throwable throwable = result.getThrowable();
     String reason = throwable != null ? throwable.getMessage() : null;
-    testEventsHandler.onTestSkip(testSuiteName, testClass, testName, reason);
-    testEventsHandler.onTestFinish(testSuiteName, testClass, testName);
+    testEventsHandler.onTestSkip(testSuiteName, testClass, testName, testParameters, reason);
+    testEventsHandler.onTestFinish(testSuiteName, testClass, testName, testParameters);
   }
 }
