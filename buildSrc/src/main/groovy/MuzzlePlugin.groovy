@@ -20,6 +20,7 @@ import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
+import org.gradle.api.artifacts.Configuration
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.FileCollection
 import org.gradle.api.invocation.BuildInvocationDetails
@@ -64,6 +65,17 @@ class MuzzlePlugin implements Plugin<Project> {
     def toolingProject = childProjects.get('agent-tooling')
     project.extensions.create("muzzle", MuzzleExtension, project.objects)
 
+    def muzzleBootstrap = project.configurations.create('muzzleBootstrap', {
+      canBeConsumed: false
+      canBeResolved: true
+    })
+    def muzzleTooling = project.configurations.create('muzzleTooling', {
+      canBeConsumed: false
+      canBeResolved: true
+    })
+    project.dependencies.add('muzzleBootstrap', bootstrapProject)
+    project.dependencies.add('muzzleTooling', toolingProject)
+
     // compileMuzzle compiles all projects required to run muzzle validation.
     // Not adding group and description to keep this task from showing in `gradle tasks`.
     def compileMuzzle = project.task('compileMuzzle')
@@ -81,7 +93,7 @@ class MuzzlePlugin implements Plugin<Project> {
       doLast {
         if (!project.muzzle.directives.any { it.assertPass }) {
           project.getLogger().info('No muzzle pass directives configured. Asserting pass against instrumentation compile-time dependencies')
-          assertMuzzle(bootstrapProject, toolingProject, project)
+          assertMuzzle(muzzleBootstrap, muzzleTooling, project)
         }
       }
     }
@@ -128,15 +140,15 @@ class MuzzlePlugin implements Plugin<Project> {
         project.getLogger().info("configured $muzzleDirective")
 
         if (muzzleDirective.coreJdk) {
-          runLast = runAfter = addMuzzleTask(muzzleDirective, null, project, runAfter, bootstrapProject, toolingProject)
+          runLast = runAfter = addMuzzleTask(muzzleDirective, null, project, runAfter, muzzleBootstrap, muzzleTooling)
         } else {
           runLast = muzzleDirectiveToArtifacts(muzzleDirective, system, session).inject(runLast) { last, Artifact singleVersion ->
-            runAfter = addMuzzleTask(muzzleDirective, singleVersion, project, runAfter, bootstrapProject, toolingProject)
+            runAfter = addMuzzleTask(muzzleDirective, singleVersion, project, runAfter, muzzleBootstrap, muzzleTooling)
           }
           if (muzzleDirective.assertInverse) {
             runLast = inverseOf(muzzleDirective, system, session).inject(runLast) { last1, MuzzleDirective inverseDirective ->
               muzzleDirectiveToArtifacts(inverseDirective, system, session).inject(last1) { last2, Artifact singleVersion ->
-                runAfter = addMuzzleTask(inverseDirective, singleVersion, project, runAfter, bootstrapProject, toolingProject)
+                runAfter = addMuzzleTask(inverseDirective, singleVersion, project, runAfter, muzzleBootstrap, muzzleTooling)
               }
             }
           }
@@ -295,7 +307,7 @@ class MuzzlePlugin implements Plugin<Project> {
    *
    * @return The created muzzle task.
    */
-  private static Task addMuzzleTask(MuzzleDirective muzzleDirective, Artifact versionArtifact, Project instrumentationProject, Task runAfter, Project bootstrapProject, Project toolingProject) {
+  private static Task addMuzzleTask(MuzzleDirective muzzleDirective, Artifact versionArtifact, Project instrumentationProject, Task runAfter, Configuration muzzleBootstrap, Configuration muzzleTooling) {
     def taskName
     if (muzzleDirective.coreJdk) {
       taskName = "muzzle-Assert$muzzleDirective"
@@ -328,7 +340,7 @@ class MuzzlePlugin implements Plugin<Project> {
 
     def muzzleTask = instrumentationProject.task(['type': MuzzleTask], taskName) {
       doLast {
-        assertMuzzle(bootstrapProject, toolingProject, instrumentationProject, muzzleDirective)
+        assertMuzzle(muzzleBootstrap, muzzleTooling, instrumentationProject, muzzleDirective)
       }
     }
     runAfter.finalizedBy(muzzleTask)
@@ -558,8 +570,8 @@ abstract class MuzzleTask extends DefaultTask {
   @javax.inject.Inject
   abstract WorkerExecutor getWorkerExecutor()
 
-  void assertMuzzle(Project bootstrapProject,
-                    Project toolingProject,
+  void assertMuzzle(Configuration muzzleBootstrap,
+                    Configuration muzzleTooling,
                     Project instrumentationProject,
                     MuzzleDirective muzzleDirective = null)
   {
@@ -579,8 +591,8 @@ abstract class MuzzleTask extends DefaultTask {
     }
     workQueue.submit(MuzzleAction.class, parameters -> {
       parameters.buildStartedTime.set(invocationDetails.buildStartedTime)
-      parameters.bootstrapClassPath.setFrom(MuzzlePlugin.createAgentClassPath(bootstrapProject))
-      parameters.toolingClassPath.setFrom(MuzzlePlugin.createAgentClassPath(toolingProject))
+      parameters.bootstrapClassPath.setFrom(muzzleBootstrap)
+      parameters.toolingClassPath.setFrom(muzzleTooling)
       parameters.instrumentationClassPath.setFrom(MuzzlePlugin.createAgentClassPath(instrumentationProject))
       parameters.testApplicationClassPath.setFrom(MuzzlePlugin.createMuzzleClassPath(instrumentationProject, name))
       if (muzzleDirective) {
