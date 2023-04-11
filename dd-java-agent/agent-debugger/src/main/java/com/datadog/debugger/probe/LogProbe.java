@@ -1,7 +1,7 @@
 package com.datadog.debugger.probe;
 
 import com.datadog.debugger.agent.Generated;
-import com.datadog.debugger.agent.LogMessageTemplateSummaryBuilder;
+import com.datadog.debugger.agent.LogMessageTemplateBuilder;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.instrumentation.LogInstrumentor;
@@ -14,7 +14,6 @@ import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.Snapshot;
-import datadog.trace.bootstrap.debugger.SummaryBuilder;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -214,7 +213,6 @@ public class LogProbe extends ProbeDefinition {
 
   private final Capture capture;
   private final Sampling sampling;
-  private transient SummaryBuilder summaryBuilder;
 
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
@@ -348,20 +346,8 @@ public class LogProbe extends ProbeDefinition {
               "uncaught exception", throwable.getType() + ": " + throwable.getMessage()));
     }
     if (status.getCondition()) {
-      if (summaryBuilder == null) {
-        summaryBuilder = new LogMessageTemplateSummaryBuilder(segments);
-      }
-      switch (methodLocation) {
-        case ENTRY:
-          this.summaryBuilder.addEntry(context);
-          break;
-        case EXIT:
-          summaryBuilder.addExit(context);
-          break;
-        case DEFAULT:
-          summaryBuilder.addLine(context);
-          break;
-      }
+      LogMessageTemplateBuilder logMessageBuilder = new LogMessageTemplateBuilder(segments);
+      status.setMessage(logMessageBuilder.evaluate(context));
       status.setLogTemplateErrors(context.handleEvalErrors(status.getErrors()));
     }
   }
@@ -388,11 +374,6 @@ public class LogProbe extends ProbeDefinition {
   @Override
   public boolean hasCondition() {
     return probeCondition != null;
-  }
-
-  @Override
-  public SummaryBuilder getSummaryBuilder() {
-    return summaryBuilder;
   }
 
   @Generated
