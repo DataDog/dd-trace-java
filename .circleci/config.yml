@@ -27,7 +27,7 @@ parameters:
   gradle_flags:
     # Using no-daemon is important for the caches to be in a consistent state
     type: string
-    default: "--stacktrace --no-daemon"
+    default: "--stacktrace --no-daemon --warning-mode=fail"
 
   global_pattern:
     # Pattern for files that should always trigger a test jobs
