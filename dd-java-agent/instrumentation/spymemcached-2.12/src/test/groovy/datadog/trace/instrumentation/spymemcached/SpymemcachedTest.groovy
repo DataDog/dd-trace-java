@@ -569,7 +569,7 @@ abstract class SpymemcachedTest extends VersionedNamingTestBase {
     thrown IllegalArgumentException
     assertTraces(1) {
       trace(1) {
-        getSpan(it, 0, "decr", "long key")
+        getSpan(it, 0, "decr", "long key", null, false)
       }
     }
   }
@@ -624,7 +624,7 @@ abstract class SpymemcachedTest extends VersionedNamingTestBase {
     thrown IllegalArgumentException
     assertTraces(1) {
       trace(1) {
-        getSpan(it, 0, "incr", "long key")
+        getSpan(it, 0, "incr", "long key", null, false)
       }
     }
   }
@@ -665,7 +665,7 @@ abstract class SpymemcachedTest extends VersionedNamingTestBase {
     }
   }
 
-  def getSpan(TraceAssert trace, int index, String resource, String error = null, String result = null) {
+  def getSpan(TraceAssert trace, int index, String resource, String error = null, String result = null, boolean expectPeerInfo = true) {
     return trace.span {
       if (index > 0) {
         childOf(trace.span(0))
@@ -705,7 +705,11 @@ abstract class SpymemcachedTest extends VersionedNamingTestBase {
             IllegalArgumentException,
             "Key is too long (maxlen = 250)")
         }
-
+        if (expectPeerInfo) {
+          "$Tags.PEER_HOSTNAME" memcachedAddress.getHostName()
+          "$Tags.PEER_HOST_IPV4" InetAddress.getByName(memcachedAddress.getHostName()).getHostAddress()
+          "$Tags.PEER_PORT" memcachedAddress.getPort()
+        }
         defaultTags()
       }
     }
