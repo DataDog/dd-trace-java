@@ -9,6 +9,7 @@ import org.apache.dubbo.common.utils.StringUtils;
 import org.apache.dubbo.rpc.Invocation;
 import org.apache.dubbo.rpc.Invoker;
 import org.apache.dubbo.rpc.RpcContext;
+import org.apache.dubbo.rpc.RpcInvocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +45,7 @@ public class DubboDecorator extends BaseDecorator {
     URL url = invoker.getUrl();
     boolean isConsumer = isConsumerSide(url);
     log.debug("isConsumer:{},invoker name:{}",isConsumer,invoker.getClass().getName());
-    log.debug("isConsumer:{},invocation{}",isConsumer,invocation.getClass().getName());
+    log.debug("isConsumer:{},invocation:{}",isConsumer,invocation.getClass().getName());
 
     String methodName = invocation.getMethodName();
     String resourceName = generateOperationName(invoker,url,invocation);
@@ -64,13 +65,15 @@ public class DubboDecorator extends BaseDecorator {
           );
     }
     AgentSpan span;
-    RpcContext rpcContext = RpcContext.getContext();
+
+    DubboTraceInfo dubboTraceInfo = new DubboTraceInfo((RpcInvocation) invocation,RpcContext.getContext());
+
     if (isConsumer){
       // this is consumer
       span = startSpan(DUBBO_REQUEST);
     }else{
       // this is provider
-      AgentSpan.Context parentContext = propagate().extract(rpcContext, GETTER);
+      AgentSpan.Context parentContext = propagate().extract(dubboTraceInfo, GETTER);
       span = startSpan(DUBBO_REQUEST,parentContext);
     }
     span.setTag(TAG_URL, url.toString());
@@ -82,10 +85,9 @@ public class DubboDecorator extends BaseDecorator {
 
     afterStart(span);
 
-//    System.out.println("invocation.getArguments() > "+invocation.getArguments().length);
     withMethod(span, resourceName);
     if (isConsumer){
-      propagate().inject(span, rpcContext, SETTER);
+      propagate().inject(span, dubboTraceInfo, SETTER);
     }
     return span;
   }
@@ -103,7 +105,6 @@ public class DubboDecorator extends BaseDecorator {
   private String providerResourceName(Invoker invoker,Invocation invocation){
     StringBuilder operationName = new StringBuilder();
   //  operationName.append(invoker.getInterface().getName());
-    System.out.println("providerResourceName invoker.getInterface() ==null ?"+(invoker.getInterface()==null));
     if(invoker.getInterface()!=null){
       operationName.append(invoker.getInterface().getName());
     }else{

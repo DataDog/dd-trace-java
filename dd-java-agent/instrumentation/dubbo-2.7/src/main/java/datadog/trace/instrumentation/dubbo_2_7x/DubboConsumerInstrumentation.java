@@ -2,16 +2,12 @@ package datadog.trace.instrumentation.dubbo_2_7x;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-
-import java.util.Map;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.*;
 
 @AutoService(Instrumenter.class)
@@ -49,6 +45,7 @@ public class DubboConsumerInstrumentation extends Instrumenter.Tracing
   public String[] helperClassNames() {
     return new String[]{
         packageName + ".DubboDecorator",
+        packageName + ".DubboTraceInfo",
         packageName + ".HostAndPort",
         packageName + ".DubboConstants",
         packageName + ".DubboConsumerAdvice",
@@ -57,8 +54,4 @@ public class DubboConsumerInstrumentation extends Instrumenter.Tracing
     };
   }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("org.apache.dubbo.rpc.RpcContext", AgentSpan.class.getName());
-  }
 }
