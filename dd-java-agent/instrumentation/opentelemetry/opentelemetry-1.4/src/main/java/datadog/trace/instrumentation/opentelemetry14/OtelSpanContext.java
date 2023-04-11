@@ -8,18 +8,21 @@ import io.opentelemetry.api.trace.TraceState;
 
 public class OtelSpanContext implements SpanContext {
   final AgentSpan.Context delegate;
+  private final boolean sampled;
+  private final boolean remote;
   private String traceId;
   private String spanId;
-  private final boolean remote;
 
-  public OtelSpanContext(AgentSpan.Context delegate, boolean remote) {
+  public OtelSpanContext(AgentSpan.Context delegate, boolean sampled, boolean remote) {
     this.delegate = delegate;
+    this.sampled = sampled;
     this.remote = remote;
   }
 
   public static SpanContext fromLocalSpan(AgentSpan span) {
     AgentSpan.Context delegate = span.context();
-    return new OtelSpanContext(delegate, false);
+    boolean sampled = span.getSamplingPriority() != null && span.getSamplingPriority() > 0;
+    return new OtelSpanContext(delegate, sampled, false);
   }
 
   @Override
@@ -33,20 +36,14 @@ public class OtelSpanContext implements SpanContext {
   @Override
   public String getSpanId() {
     if (this.spanId == null) {
-      this.spanId = DDSpanId.toHexString(this.delegate.getSpanId());
+      this.spanId = DDSpanId.toHexStringPadded(this.delegate.getSpanId());
     }
     return this.spanId;
   }
 
   @Override
   public TraceFlags getTraceFlags() {
-    // Get the sampling state.
-    // Otherwise, check the current sampling rules for deferred sampling rules:
-    // > If a component deferred or delayed the decision and only a subset of telemetry will be
-    // recorded, the sampled flag should be propagated unchanged.
-    // > It should be set to 0 as the default option when the trace is initiated by this component.
-    // Reference: https://www.w3.org/TR/trace-context/#sampled-flag
-    return TraceFlags.getDefault();
+    return this.sampled ? TraceFlags.getSampled() : TraceFlags.getDefault();
   }
 
   @Override
