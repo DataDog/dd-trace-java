@@ -1,5 +1,6 @@
 package com.datadog.debugger.agent;
 
+import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.probe.LogProbe;
@@ -10,7 +11,6 @@ import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.List;
 
 public class LogMessageTemplateBuilder {
@@ -24,17 +24,12 @@ public class LogMessageTemplateBuilder {
   private static final Duration TIME_OUT = Duration.of(100, ChronoUnit.MILLIS);
 
   private final List<LogProbe.Segment> segments;
-  private final List<Snapshot.EvaluationError> evaluationErrors = new ArrayList<>();
 
   public LogMessageTemplateBuilder(List<LogProbe.Segment> segments) {
     this.segments = segments;
   }
 
-  public List<Snapshot.EvaluationError> getEvaluationErrors() {
-    return evaluationErrors;
-  }
-
-  public String evaluate(Snapshot.CapturedContext context) {
+  public String evaluate(Snapshot.CapturedContext context, Snapshot.CapturedContext.Status status) {
     if (segments == null) {
       return null;
     }
@@ -52,9 +47,11 @@ public class LogMessageTemplateBuilder {
             } else if (result.isNull()) {
               sb.append("null");
             } else {
-              serializeValue(sb, segment.getParsedExpr().getDsl(), result.getValue());
+              serializeValue(sb, segment.getParsedExpr().getDsl(), result.getValue(), status);
             }
-          } catch (RuntimeException ex) {
+          } catch (EvaluationException ex) {
+            status.addError(new Snapshot.EvaluationError(ex.getExpr(), ex.getMessage()));
+            status.setLogTemplateErrors(true);
             sb.append("{").append(ex.getMessage()).append("}");
           }
         }
@@ -63,14 +60,15 @@ public class LogMessageTemplateBuilder {
     return sb.toString();
   }
 
-  private void serializeValue(StringBuilder sb, String expr, Object value) {
+  private void serializeValue(
+      StringBuilder sb, String expr, Object value, Snapshot.CapturedContext.Status status) {
     SerializerWithLimits serializer =
         new SerializerWithLimits(
-            new StringTokenWriter(sb, evaluationErrors), new TimeoutChecker(TIME_OUT));
+            new StringTokenWriter(sb, status.getErrors()), new TimeoutChecker(TIME_OUT));
     try {
       serializer.serialize(value, value != null ? value.getClass().getTypeName() : null, LIMITS);
     } catch (Exception ex) {
-      evaluationErrors.add(new Snapshot.EvaluationError(expr, ex.toString()));
+      status.addError(new Snapshot.EvaluationError(expr, ex.getMessage()));
     }
   }
 }

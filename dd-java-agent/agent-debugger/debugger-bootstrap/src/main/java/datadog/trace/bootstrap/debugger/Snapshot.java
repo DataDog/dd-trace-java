@@ -14,12 +14,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Data class representing all data collected at a probe location */
 public class Snapshot {
-  private static final Logger LOG = LoggerFactory.getLogger(Snapshot.class);
   private static final String LANGUAGE = "java";
   private static final int VERSION = 2;
 
@@ -446,7 +443,6 @@ public class Snapshot {
     private Map<String, CapturedValue> fields;
     private Limits limits = Limits.DEFAULT;
     private String thisClassName;
-    private List<EvaluationError> evaluationErrors;
     private String traceId;
     private String spanId;
     private long duration;
@@ -510,18 +506,17 @@ public class Snapshot {
       if (name.startsWith(ValueReferences.SYNTHETIC_PREFIX)) {
         String rawName = name.substring(ValueReferences.SYNTHETIC_PREFIX.length());
         target = tryRetrieveSynthetic(rawName);
-        checkUndefined(name, target, rawName, "Cannot find synthetic var: ");
+        checkUndefined(target, rawName, "Cannot find synthetic var: ");
       } else {
         target = tryRetrieve(name);
-        checkUndefined(name, target, name, "Cannot find symbol: ");
+        checkUndefined(target, name, "Cannot find symbol: ");
       }
       return target instanceof CapturedValue ? ((CapturedValue) target).getValue() : target;
     }
 
-    private void checkUndefined(String expr, Object target, String name, String msg) {
+    private void checkUndefined(Object target, String name, String msg) {
       if (target == Values.UNDEFINED_OBJECT) {
         String errorMsg = msg + name;
-        addEvaluationError(expr, errorMsg);
         throw new RuntimeException(errorMsg);
       }
     }
@@ -548,7 +543,7 @@ public class Snapshot {
       } else {
         target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), memberName);
       }
-      checkUndefined(memberName, target, memberName, "Cannot dereference to field: ");
+      checkUndefined(target, memberName, "Cannot dereference to field: ");
       return target;
     }
 
@@ -652,29 +647,6 @@ public class Snapshot {
       }
       Object value = capturedValue.getValue();
       return value instanceof String ? (String) value : null;
-    }
-
-    public boolean handleEvalErrors(List<Snapshot.EvaluationError> errors) {
-      if (!hasEvaluationErrors()) {
-        return false;
-      }
-      errors.addAll(evaluationErrors);
-      evaluationErrors.clear();
-      return true;
-    }
-
-    public void addEvaluationError(String expr, String message) {
-      if (evaluationErrors == null) {
-        evaluationErrors = new ArrayList<>();
-      }
-      evaluationErrors.add(new EvaluationError(expr, message));
-    }
-
-    boolean hasEvaluationErrors() {
-      if (evaluationErrors != null) {
-        return !evaluationErrors.isEmpty();
-      }
-      return false;
     }
 
     public void setLimits(
@@ -1191,48 +1163,6 @@ public class Snapshot {
 
     public String getMessage() {
       return message;
-    }
-  }
-
-  private static class SnapshotStatus {
-    boolean capturing;
-    boolean sending;
-    boolean hasConditionErrors;
-    boolean hasLogTemplateErrors;
-    ProbeDetails probeDetails;
-
-    public SnapshotStatus(boolean capturing, boolean sending, ProbeDetails probeDetails) {
-      this.capturing = capturing;
-      this.sending = sending;
-      this.probeDetails = probeDetails;
-    }
-
-    public boolean isCapturing() {
-      return capturing;
-    }
-
-    public void setHasConditionErrors() {
-      this.hasConditionErrors = true;
-    }
-
-    public void setHasLogTemplateErrors() {
-      this.hasLogTemplateErrors = true;
-    }
-
-    @Override
-    public String toString() {
-      return "SnapshotStatus{"
-          + "capturing="
-          + capturing
-          + ", sending="
-          + sending
-          + ", hasConditionErrors="
-          + hasConditionErrors
-          + ", hasLogTemplateErrors="
-          + hasLogTemplateErrors
-          + ", probeDetails="
-          + probeDetails
-          + '}';
     }
   }
 }
