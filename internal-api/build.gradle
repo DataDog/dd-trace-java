@@ -94,6 +94,7 @@ excludedClassesCoverage += [
   "datadog.trace.util.PidHelper",
   "datadog.trace.util.PidHelper.Fallback",
   "datadog.trace.api.IntegrationsCollector.Holder",
+  "datadog.trace.api.MetricCollector.Holder",
   "datadog.trace.api.ConfigCollector.Holder",
   "datadog.trace.api.Config.HostNameHolder",
   "datadog.trace.api.Config.RuntimeIdHolder",
@@ -103,9 +104,12 @@ excludedClassesCoverage += [
   "datadog.trace.api.cache.FixedSizeWeakKeyCache",
   // Interface with default method
   "datadog.trace.api.StatsDClientManager",
+  "datadog.trace.api.iast.Taintable",
   // a stub
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration",
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration.NoOp",
+  // debug
+  'datadog.trace.api.iast.Taintable.DebugLogger',
 ]
 
 excludedClassesBranchCoverage = [
