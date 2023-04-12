@@ -51,4 +51,33 @@ public class URICallSite {
     }
     return result;
   }
+
+  @CallSite.After("java.lang.String java.net.URI.toString()")
+  @CallSite.After("java.lang.String java.net.URI.toASCIIString()")
+  public static String afterToString(
+      @CallSite.This final URI url, @CallSite.Return final String result) {
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
+    if (module != null) {
+      try {
+        module.taintIfInputIsTainted(result, url);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("After toString threw", e);
+      }
+    }
+    return result;
+  }
+
+  @CallSite.After("java.net.URI java.net.URI.normalize()")
+  public static URI afterNormalize(
+      @CallSite.This final URI url, @CallSite.Return final URI result) {
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
+    if (module != null) {
+      try {
+        module.taintIfInputIsTainted(result, url);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("After toString threw", e);
+      }
+    }
+    return result;
+  }
 }
