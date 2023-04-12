@@ -442,10 +442,24 @@ public class LogProbe extends ProbeDefinition {
       shouldCommit = true;
     }
     if (shouldCommit) {
-      snapshot.commit();
+      commitSnapshot(snapshot);
     } else {
       DebuggerContext.skipSnapshot(id, DebuggerContext.SkipCause.CONDITION);
     }
+  }
+
+  private void commitSnapshot(Snapshot snapshot) {
+    /*
+     * Record stack trace having the caller of this method as 'top' frame.
+     * For this it is necessary to discard:
+     * - Thread.currentThread().getStackTrace()
+     * - Snapshot.recordStackTrace()
+     * - LogProbe.commitSnapshot
+     * - ProbeDefinition.commit()
+     * - DebuggerContext.commit() or DebuggerContext.evalAndCommit()
+     */
+    snapshot.recordStackTrace(5);
+    DebuggerContext.addSnapshot(snapshot);
   }
 
   @Override
@@ -477,7 +491,7 @@ public class LogProbe extends ProbeDefinition {
     if (shouldCommit) {
       // freeze context just before commit because line probes have only one context
       lineContext.freeze(new TimeoutChecker(DEFAULT_TIME_OUT));
-      snapshot.commit();
+      commitSnapshot(snapshot);
       return;
     }
     DebuggerContext.skipSnapshot(id, DebuggerContext.SkipCause.CONDITION);
