@@ -613,8 +613,24 @@ public class Snapshot {
         addExtension(ValueReferences.DURATION_EXTENSION_NAME, duration);
       }
       this.thisClassName = thisClassName;
-      probeImplementation.evaluate(this, status, methodLocation);
+      boolean shouldEvaluate = resolveEvaluateAt(probeImplementation, methodLocation);
+      if (shouldEvaluate) {
+        probeImplementation.evaluate(this, status);
+      }
       return status;
+    }
+
+    private static boolean resolveEvaluateAt(
+        ProbeImplementation probeImplementation, MethodLocation methodLocation) {
+      if (methodLocation == MethodLocation.DEFAULT) {
+        // line probe, no evaluation of probe's evaluateAt
+        return true;
+      }
+      MethodLocation localEvaluateAt = probeImplementation.getEvaluateAt();
+      if (methodLocation == MethodLocation.ENTRY) {
+        return localEvaluateAt == MethodLocation.DEFAULT || localEvaluateAt == MethodLocation.ENTRY;
+      }
+      return localEvaluateAt == methodLocation;
     }
 
     public Status getStatus(String probeId) {

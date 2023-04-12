@@ -141,10 +141,7 @@ public abstract class ProbeDefinition implements ProbeImplementation {
   }
 
   @Override
-  public void evaluate(
-      Snapshot.CapturedContext context,
-      Snapshot.CapturedContext.Status status,
-      MethodLocation methodLocation) {}
+  public void evaluate(Snapshot.CapturedContext context, Snapshot.CapturedContext.Status status) {}
 
   @Override
   public void commit(
@@ -164,18 +161,6 @@ public abstract class ProbeDefinition implements ProbeImplementation {
   @Override
   public boolean hasCondition() {
     return false;
-  }
-
-  protected boolean resolveEvaluateAt(MethodLocation methodLocation) {
-    if (methodLocation == MethodLocation.DEFAULT) {
-      // line probe, no evaluation of probe's evaluateAt
-      return true;
-    }
-    MethodLocation localEvaluateAt = evaluateAt; // MethodLocation.convert(evaluateAt);
-    if (methodLocation == MethodLocation.ENTRY) {
-      return localEvaluateAt == MethodLocation.DEFAULT || localEvaluateAt == MethodLocation.ENTRY;
-    }
-    return localEvaluateAt == methodLocation;
   }
 
   public abstract static class Builder<T extends Builder> {

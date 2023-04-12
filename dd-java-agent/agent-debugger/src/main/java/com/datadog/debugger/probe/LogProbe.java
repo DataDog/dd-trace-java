@@ -346,14 +346,7 @@ public class LogProbe extends ProbeDefinition {
   }
 
   @Override
-  public void evaluate(
-      Snapshot.CapturedContext context,
-      Snapshot.CapturedContext.Status status,
-      MethodLocation methodLocation) {
-    boolean shouldEvaluate = resolveEvaluateAt(methodLocation);
-    if (!shouldEvaluate) {
-      return;
-    }
+  public void evaluate(Snapshot.CapturedContext context, Snapshot.CapturedContext.Status status) {
     status.setCondition(evaluateCondition(context, status));
     Snapshot.CapturedThrowable throwable = context.getThrowable();
     if (status.hasConditionErrors() && throwable != null) {
