@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.debugger;
 
 import datadog.trace.api.Pair;
-import datadog.trace.bootstrap.debugger.el.DebuggerScript;
 import datadog.trace.bootstrap.debugger.el.ReflectiveFieldValueResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
@@ -27,7 +26,7 @@ public class Snapshot {
   private transient long duration;
   private final List<CapturedStackFrame> stack = new ArrayList<>();
   private final Captures captures;
-  private final ProbeDetails probe;
+  private final ProbeImplementation probe;
   private final String language;
   private final transient CapturedThread thread;
   private String traceId; // trace_id
@@ -35,14 +34,14 @@ public class Snapshot {
   private List<EvaluationError> evaluationErrors;
   private transient String message;
 
-  public Snapshot(java.lang.Thread thread, ProbeDetails probeDetails) {
+  public Snapshot(java.lang.Thread thread, ProbeImplementation probeImplementation) {
     this.id = UUID.randomUUID().toString();
     this.version = VERSION;
     this.timestamp = System.currentTimeMillis();
     this.captures = new Captures();
     this.language = LANGUAGE;
     this.thread = new CapturedThread(thread);
-    this.probe = probeDetails;
+    this.probe = probeImplementation;
   }
 
   public Snapshot(
@@ -52,7 +51,7 @@ public class Snapshot {
       long duration,
       List<CapturedStackFrame> stack,
       Snapshot.Captures captures,
-      Snapshot.ProbeDetails probeDetails,
+      ProbeImplementation probeImplementation,
       String language,
       Snapshot.CapturedThread thread,
       String traceId,
@@ -63,7 +62,7 @@ public class Snapshot {
     this.duration = duration;
     this.stack.addAll(stack);
     this.captures = captures;
-    this.probe = probeDetails;
+    this.probe = probeImplementation;
     this.language = language;
     this.thread = thread;
     this.traceId = traceId;
@@ -123,7 +122,7 @@ public class Snapshot {
     return captures;
   }
 
-  public ProbeDetails getProbe() {
+  public ProbeImplementation getProbe() {
     return probe;
   }
 
@@ -193,109 +192,6 @@ public class Snapshot {
     HANDLED_EXCEPTION,
     BEFORE,
     AFTER;
-  }
-
-  /** Probe information associated with a snapshot */
-  public interface ProbeDetails {
-    ProbeDetails UNKNOWN = new DummyProbe("UNKNOWN", ProbeLocation.UNKNOWN);
-
-    String getId();
-
-    ProbeLocation getLocation();
-
-    String getStrTags();
-
-    void evaluate(
-        Snapshot.CapturedContext context,
-        Snapshot.CapturedContext.Status status,
-        MethodLocation methodLocation);
-
-    void commit(
-        CapturedContext entryContext,
-        CapturedContext exitContext,
-        List<Snapshot.CapturedThrowable> caughtExceptions);
-
-    void commit(CapturedContext lineContext, int line);
-
-    MethodLocation getEvaluateAt();
-
-    boolean isCaptureSnapshot();
-
-    boolean hasCondition();
-
-    class DummyProbe implements ProbeDetails {
-      private final String id;
-      private final int version;
-      private final ProbeLocation location;
-      private final MethodLocation evaluateAt;
-      private final boolean captureSnapshot;
-      private final DebuggerScript<Boolean> script;
-      private final String tags;
-
-      public DummyProbe(String id, ProbeLocation location) {
-        this(id, 0, location, MethodLocation.DEFAULT, true, null, null);
-      }
-
-      public DummyProbe(
-          String id,
-          int version,
-          ProbeLocation location,
-          MethodLocation evaluateAt,
-          boolean captureSnapshot,
-          DebuggerScript<Boolean> script,
-          String tags) {
-        this.id = id;
-        this.version = version;
-        this.location = location;
-        this.evaluateAt = evaluateAt;
-        this.captureSnapshot = captureSnapshot;
-        this.script = script;
-        this.tags = tags;
-      }
-
-      @Override
-      public String getId() {
-        return id;
-      }
-
-      @Override
-      public ProbeLocation getLocation() {
-        return location;
-      }
-
-      @Override
-      public String getStrTags() {
-        return null;
-      }
-
-      @Override
-      public void evaluate(
-          CapturedContext context, CapturedContext.Status status, MethodLocation methodLocation) {}
-
-      @Override
-      public void commit(
-          CapturedContext entryContext,
-          CapturedContext exitContext,
-          List<CapturedThrowable> caughtExceptions) {}
-
-      @Override
-      public void commit(CapturedContext lineContext, int line) {}
-
-      @Override
-      public MethodLocation getEvaluateAt() {
-        return evaluateAt;
-      }
-
-      @Override
-      public boolean isCaptureSnapshot() {
-        return captureSnapshot;
-      }
-
-      @Override
-      public boolean hasCondition() {
-        return script != null;
-      }
-    }
   }
 
   /** Probe location information used in ProbeDetails class */
@@ -450,7 +346,7 @@ public class Snapshot {
     public static final CapturedContext EMPTY_CONTEXT =
         new CapturedContext(null, Status.EMPTY_STATUS);
     public static final CapturedContext EMPTY_CAPTURING_CONTEXT =
-        new CapturedContext(ProbeDetails.UNKNOWN, Status.EMPTY_PASSING_STATUS);
+        new CapturedContext(ProbeImplementation.UNKNOWN, Status.EMPTY_PASSING_STATUS);
     private final transient Map<String, Object> extensions = new HashMap<>();
 
     private Map<String, CapturedValue> arguments;
@@ -494,9 +390,9 @@ public class Snapshot {
     }
 
     // used for EMPTY_CONTEXT
-    private CapturedContext(ProbeDetails probeDetails, Status defaultStatus) {
-      if (probeDetails != null) {
-        this.statusByProbeId.put(probeDetails.getId(), new Status(probeDetails));
+    private CapturedContext(ProbeImplementation probeImplementation, Status defaultStatus) {
+      if (probeImplementation != null) {
+        this.statusByProbeId.put(probeImplementation.getId(), new Status(probeImplementation));
       }
       this.defaultStatus = defaultStatus;
     }
@@ -720,17 +616,18 @@ public class Snapshot {
 
     public Status evaluate(
         String probeId,
-        ProbeDetails probeDetails,
+        ProbeImplementation probeImplementation,
         String thisClassName,
         long startTimestamp,
         MethodLocation methodLocation) {
-      Status status = statusByProbeId.computeIfAbsent(probeId, key -> new Status(probeDetails));
+      Status status =
+          statusByProbeId.computeIfAbsent(probeId, key -> new Status(probeImplementation));
       if (methodLocation == MethodLocation.EXIT) {
         duration = System.nanoTime() - startTimestamp;
         addExtension(ValueReferences.DURATION_EXTENSION_NAME, duration);
       }
       this.thisClassName = thisClassName;
-      probeDetails.evaluate(this, status, methodLocation);
+      probeImplementation.evaluate(this, status, methodLocation);
       return status;
     }
 
@@ -773,10 +670,11 @@ public class Snapshot {
     }
 
     public static class Status {
-      public static final Status EMPTY_STATUS = new Status(false, ProbeDetails.UNKNOWN);
-      public static final Status EMPTY_PASSING_STATUS = new Status(true, ProbeDetails.UNKNOWN);
+      public static final Status EMPTY_STATUS = new Status(false, ProbeImplementation.UNKNOWN);
+      public static final Status EMPTY_PASSING_STATUS =
+          new Status(true, ProbeImplementation.UNKNOWN);
       final List<EvaluationError> errors = new ArrayList<>();
-      final ProbeDetails probeDetails;
+      final ProbeImplementation probeImplementation;
       boolean condition;
       boolean hasLogTemplateErrors;
       boolean hasConditionErrors;
@@ -784,14 +682,14 @@ public class Snapshot {
       // Span decoration
       List<Pair<String, String>> tagsToDecorate;
 
-      public Status(ProbeDetails probeDetails) {
+      public Status(ProbeImplementation probeImplementation) {
         this.condition = true;
-        this.probeDetails = probeDetails;
+        this.probeImplementation = probeImplementation;
       }
 
-      private Status(boolean condition, ProbeDetails probeDetails) {
+      private Status(boolean condition, ProbeImplementation probeImplementation) {
         this.condition = condition;
-        this.probeDetails = probeDetails;
+        this.probeImplementation = probeImplementation;
       }
 
       public boolean shouldSend() {

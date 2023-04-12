@@ -10,8 +10,8 @@ import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
+import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
-import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.util.TagsHelper;
 import java.lang.instrument.Instrumentation;
 import java.util.Collection;
@@ -229,7 +229,7 @@ public class ConfigurationUpdater
 
   // /!\ This is called potentially by multiple threads from the instrumented code /!\
   @Override
-  public Snapshot.ProbeDetails resolve(String id, Class<?> callingClass) {
+  public ProbeImplementation resolve(String id, Class<?> callingClass) {
     ProbeDefinition definition = appliedDefinitions.get(id);
     if (definition == null) {
       LOGGER.info(

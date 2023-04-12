@@ -12,7 +12,7 @@ import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -231,7 +231,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     return null;
   }
 
-  public Snapshot.ProbeDetails instrumentTheWorldResolver(String id, Class<?> callingClass) {
+  public ProbeImplementation instrumentTheWorldResolver(String id, Class<?> callingClass) {
     if (instrumentTheWorldProbes == null) {
       return null;
     }

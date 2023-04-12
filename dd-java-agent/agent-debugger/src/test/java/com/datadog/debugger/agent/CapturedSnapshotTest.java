@@ -1211,9 +1211,9 @@ public class CapturedSnapshotTest {
     int result = Reflect.on(testClass).call("main", "2").get();
     Assertions.assertEquals(2, result);
     Assertions.assertEquals(1, listener.snapshots.size());
-    Snapshot.ProbeDetails probeDetails = listener.snapshots.get(0).getProbe();
-    assertTrue(probeDetails.isCaptureSnapshot());
-    assertEquals("main", probeDetails.getLocation().getMethod());
+    ProbeImplementation probeImplementation = listener.snapshots.get(0).getProbe();
+    assertTrue(probeImplementation.isCaptureSnapshot());
+    assertEquals("main", probeImplementation.getLocation().getMethod());
   }
 
   @ParameterizedTest
@@ -1422,7 +1422,7 @@ public class CapturedSnapshotTest {
     return listener;
   }
 
-  private Snapshot.ProbeDetails resolver(
+  private ProbeImplementation resolver(
       String id, Class<?> callingClass, String expectedClassName, Collection<LogProbe> logProbes) {
     Assertions.assertEquals(expectedClassName, callingClass.getName());
     for (LogProbe probe : logProbes) {

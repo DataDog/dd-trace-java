@@ -15,6 +15,7 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
@@ -498,7 +499,7 @@ public class LogProbesInstrumentationTest {
     return listener;
   }
 
-  private Snapshot.ProbeDetails resolver(
+  private ProbeImplementation resolver(
       String id, Class<?> callingClass, String expectedClassName, Collection<LogProbe> logProbes) {
     Assertions.assertEquals(expectedClassName, callingClass.getName());
     for (LogProbe probe : logProbes) {

@@ -11,18 +11,18 @@ public final class SnapshotProvider {
   private static final Logger LOG = LoggerFactory.getLogger(SnapshotProvider.class);
 
   public static Snapshot newSnapshot(String uuid, Class<?> callingClass) {
-    Snapshot.ProbeDetails probeDetails = DebuggerContext.resolveProbe(uuid, callingClass);
-    if (probeDetails == null) {
+    ProbeImplementation probeImplementation = DebuggerContext.resolveProbe(uuid, callingClass);
+    if (probeImplementation == null) {
       LOG.info("Cannot resolve the probe: {}", uuid);
-      probeDetails = Snapshot.ProbeDetails.UNKNOWN;
+      probeImplementation = ProbeImplementation.UNKNOWN;
     }
     // only rate limit if no condition are defined
-    if (probeDetails.hasCondition() && probeDetails.isCaptureSnapshot()) {
-      if (!ProbeRateLimiter.tryProbe(probeDetails.getId())) {
-        DebuggerContext.skipSnapshot(probeDetails.getId(), DebuggerContext.SkipCause.RATE);
+    if (probeImplementation.hasCondition() && probeImplementation.isCaptureSnapshot()) {
+      if (!ProbeRateLimiter.tryProbe(probeImplementation.getId())) {
+        DebuggerContext.skipSnapshot(probeImplementation.getId(), DebuggerContext.SkipCause.RATE);
         return null;
       }
     }
-    return new Snapshot(Thread.currentThread(), probeDetails);
+    return new Snapshot(Thread.currentThread(), probeImplementation);
   }
 }

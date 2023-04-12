@@ -23,7 +23,7 @@ import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.core.CoreTracer;
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -255,7 +255,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     DebuggerContext.initClassFilter(new DenyListHelper(null));
   }
 
-  private Snapshot.ProbeDetails resolver(
+  private ProbeImplementation resolver(
       String id,
       Class<?> callingClass,
       String expectedClassName,

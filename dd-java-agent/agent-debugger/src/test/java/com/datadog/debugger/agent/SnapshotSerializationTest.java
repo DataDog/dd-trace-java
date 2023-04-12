@@ -28,6 +28,7 @@ import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
+import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import datadog.trace.test.util.Flaky;
@@ -103,7 +104,7 @@ public class SnapshotSerializationTest {
         new Snapshot.CapturedValue[] {normalValuedField, normalNullField, notCapturedField});
     context.evaluate(
         PROBE_ID,
-        new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION),
+        new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION),
         String.class.getTypeName(),
         -1,
         MethodLocation.EXIT);
@@ -1084,7 +1085,8 @@ public class SnapshotSerializationTest {
 
   private Snapshot createSnapshot() {
     return new Snapshot(
-        Thread.currentThread(), new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION));
+        Thread.currentThread(),
+        new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION));
   }
 
   private static JsonAdapter<Snapshot> createSnapshotAdapter() {
