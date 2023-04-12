@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.kafka_clients;
 
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.CONSUMER_GROUP;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.OFFSET;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.PARTITION;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
@@ -16,7 +17,9 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
+import java.util.function.Function;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.record.TimestampType;
 
@@ -43,6 +46,10 @@ public class KafkaDecorator extends MessagingClientDecorator {
   private static final Functions.Prefix PRODUCER_PREFIX = new Functions.Prefix("Produce Topic ");
   private static final DDCache<CharSequence, CharSequence> CONSUMER_RESOURCE_NAME_CACHE =
       DDCaches.newFixedSizeCache(32);
+  private static final DDCache<ProducerConfig, CharSequence> PRODUCER_BOOSTRAP_SERVERS_CACHE =
+      DDCaches.newFixedSizeWeakKeyCache(16);
+  private static final Function<ProducerConfig, CharSequence> BOOTSTRAP_SERVERS_JOINER =
+      pc -> String.join(",", pc.getList(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG));
   private static final Functions.Prefix CONSUMER_PREFIX = new Functions.Prefix("Consume Topic ");
 
   private static final String LOCAL_SERVICE_NAME =
@@ -122,10 +129,17 @@ public class KafkaDecorator extends MessagingClientDecorator {
     }
   }
 
-  public void onProduce(final AgentSpan span, final ProducerRecord record) {
+  public void onProduce(
+      final AgentSpan span, final ProducerRecord record, final ProducerConfig producerConfig) {
     if (record != null) {
       if (record.partition() != null) {
         span.setTag(PARTITION, record.partition());
+      }
+      if (producerConfig != null) {
+        span.setTag(
+            KAFKA_BOOTSTRAP_SERVERS,
+            PRODUCER_BOOSTRAP_SERVERS_CACHE.computeIfAbsent(
+                producerConfig, BOOTSTRAP_SERVERS_JOINER));
       }
       final String topic = record.topic() == null ? "kafka" : record.topic();
       span.setResourceName(PRODUCER_RESOURCE_NAME_CACHE.computeIfAbsent(topic, PRODUCER_PREFIX));
