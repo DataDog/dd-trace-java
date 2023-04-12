@@ -366,8 +366,7 @@ public class DebuggerSinkTest {
     snapshot.setEntry(entry);
     snapshot.addEvaluationErrors(
         Arrays.asList(new Snapshot.EvaluationError("obj.field", "Cannot dereference obj")));
-    commit(snapshot);
-    snapshot.getStack().clear();
+    sink.addSnapshot(snapshot);
     sink.flush(sink);
     verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
     String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
@@ -378,11 +377,6 @@ public class DebuggerSinkTest {
     assertEquals(1, evaluationErrors.size());
     assertEquals("obj.field", evaluationErrors.get(0).getExpr());
     assertEquals("Cannot dereference obj", evaluationErrors.get(0).getMessage());
-  }
-
-  // used for increasing the stack level for the getting the excepted stack trace
-  private static void commit(Snapshot snapshot) {
-    snapshot.commit();
   }
 
   @Test

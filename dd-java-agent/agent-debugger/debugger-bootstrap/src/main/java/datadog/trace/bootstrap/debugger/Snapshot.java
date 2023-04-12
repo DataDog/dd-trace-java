@@ -160,21 +160,7 @@ public class Snapshot {
     return message;
   }
 
-  public void commit() {
-    /*
-     * Record stack trace having the caller of this method as 'top' frame.
-     * For this it is necessary to discard:
-     * - Thread.currentThread().getStackTrace()
-     * - Snapshot.recordStackTrace()
-     * - Snapshot.commit()
-     * - DebuggerContext.commit() or DebuggerContext.evalAndCommit()
-     * - ProbeDefinition.commit()
-     */
-    recordStackTrace(5);
-    DebuggerContext.addSnapshot(this);
-  }
-
-  private void recordStackTrace(int offset) {
+  public void recordStackTrace(int offset) {
     stack.clear();
     int cntr = 0;
     for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
