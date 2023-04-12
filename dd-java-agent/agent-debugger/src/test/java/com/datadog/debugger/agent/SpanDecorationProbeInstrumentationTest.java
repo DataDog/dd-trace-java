@@ -140,6 +140,22 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     assertEquals("5", span.getTags().get("tag1"));
   }
 
+  @Test
+  public void nullActiveSpan() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    SpanDecorationProbe.Decoration decoration = createDecoration("tag1", ref("arg"), "arg");
+    installSingleSpanDecoration(
+        CLASS_NAME,
+        SpanDecorationProbe.TargetSpan.ACTIVE,
+        decoration,
+        "main",
+        "int (java.lang.String)");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    assertEquals(3, result);
+    assertEquals(0, traceInterceptor.getAllTraces().size());
+  }
+
   private SpanDecorationProbe.Decoration createDecoration(
       String tagName, ValueExpression<?> valueExpr, String valueDsl) {
     List<SpanDecorationProbe.Tag> tags =

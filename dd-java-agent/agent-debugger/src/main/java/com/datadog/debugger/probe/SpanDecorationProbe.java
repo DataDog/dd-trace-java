@@ -111,14 +111,19 @@ public class SpanDecorationProbe extends ProbeDefinition {
       return;
     }
     for (Decoration decoration : decorations) {
-      try {
-        if (decoration.when != null) {
+      if (decoration.when != null) {
+        try {
           boolean condition = decoration.when.execute(context);
           if (!condition) {
             continue;
           }
+        } catch (EvaluationException ex) {
+          LOGGER.debug("Evaluation error: ", ex);
+          status.addError(new Snapshot.EvaluationError(ex.getExpr(), ex.getMessage()));
         }
-        for (Tag tag : decoration.tags) {
+      }
+      for (Tag tag : decoration.tags) {
+        try {
           Value<?> tagValue = tag.value.execute(context);
           StringBuilder sb = new StringBuilder();
           if (tagValue.isUndefined()) {
@@ -129,10 +134,10 @@ public class SpanDecorationProbe extends ProbeDefinition {
             serializeValue(sb, tag.value.getDsl(), tagValue.getValue(), status);
           }
           status.addTag(tag.name, sb.toString());
+        } catch (EvaluationException ex) {
+          LOGGER.debug("Evaluation error: ", ex);
+          status.addError(new Snapshot.EvaluationError(ex.getExpr(), ex.getMessage()));
         }
-      } catch (EvaluationException ex) {
-        LOGGER.debug("Evaluation error: ", ex);
-        status.addError(new Snapshot.EvaluationError(ex.getExpr(), ex.getMessage()));
       }
     }
   }
@@ -142,23 +147,27 @@ public class SpanDecorationProbe extends ProbeDefinition {
       Snapshot.CapturedContext entryContext,
       Snapshot.CapturedContext exitContext,
       List<Snapshot.CapturedThrowable> caughtExceptions) {
-    Snapshot.CapturedContext.Status status = null;
-    if (evaluateAt == MethodLocation.ENTRY || evaluateAt == MethodLocation.DEFAULT) {
-      status = entryContext.getStatus(id);
-    } else if (evaluateAt == MethodLocation.EXIT) {
-      status = exitContext.getStatus(id);
-    }
+    Snapshot.CapturedContext.Status status =
+        evaluateAt == MethodLocation.EXIT ? exitContext.getStatus(id) : entryContext.getStatus(id);
     if (status == null) {
       return;
-    }
-    AgentTracer.TracerAPI tracerAPI = AgentTracer.get();
-    AgentSpan agentSpan = tracerAPI.activeSpan();
-    if (targetSpan == TargetSpan.ROOT) {
-      agentSpan = agentSpan.getLocalRootSpan();
     }
     List<Pair<String, String>> tagsToDecorate = status.getTagsToDecorate();
     if (tagsToDecorate == null) {
       return;
+    }
+    AgentTracer.TracerAPI tracerAPI = AgentTracer.get();
+    AgentSpan agentSpan = tracerAPI.activeSpan();
+    if (agentSpan == null) {
+      LOGGER.debug("Cannot find current active span");
+      return;
+    }
+    if (targetSpan == TargetSpan.ROOT) {
+      agentSpan = agentSpan.getLocalRootSpan();
+      if (agentSpan == null) {
+        LOGGER.debug("Cannot find root span");
+        return;
+      }
     }
     for (Pair<String, String> tag : tagsToDecorate) {
       agentSpan.setTag(tag.getLeft(), tag.getRight());
