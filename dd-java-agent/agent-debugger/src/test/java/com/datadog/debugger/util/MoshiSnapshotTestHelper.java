@@ -24,6 +24,7 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
+import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.bootstrap.debugger.el.DebuggerScript;
 import java.io.IOException;
@@ -52,7 +53,7 @@ public class MoshiSnapshotTestHelper {
         return new MoshiSnapshotTestHelper.CapturedContextAdapter(
             moshi, new CapturedValueAdapter());
       }
-      if (Types.equals(type, Snapshot.ProbeDetails.class)) {
+      if (Types.equals(type, ProbeImplementation.class)) {
         return new MoshiSnapshotTestHelper.ProbeDetailsAdapter(moshi);
       }
       return null;
@@ -447,7 +448,7 @@ public class MoshiSnapshotTestHelper {
     }
 
     @Override
-    public Snapshot.ProbeDetails fromJson(JsonReader jsonReader) throws IOException {
+    public ProbeImplementation fromJson(JsonReader jsonReader) throws IOException {
       String id = null;
       Snapshot.ProbeLocation location = null;
       jsonReader.beginObject();
@@ -465,7 +466,7 @@ public class MoshiSnapshotTestHelper {
         }
       }
       jsonReader.endObject();
-      return new Snapshot.ProbeDetails.DummyProbe(id, location);
+      return new ProbeImplementation.NoopProbeImplementation(id, location);
     }
   }
 }

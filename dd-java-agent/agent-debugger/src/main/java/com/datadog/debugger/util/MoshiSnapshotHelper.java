@@ -6,6 +6,7 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.bootstrap.debugger.Limits;
+import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.io.ByteArrayInputStream;
@@ -64,7 +65,7 @@ public class MoshiSnapshotHelper {
       if (Types.equals(type, Snapshot.CapturedContext.class)) {
         return new CapturedContextAdapter(moshi, new CapturedValueAdapter());
       }
-      if (Types.equals(type, Snapshot.ProbeDetails.class)) {
+      if (Types.equals(type, ProbeImplementation.class)) {
         return new ProbeDetailsAdapter(moshi);
       }
       return null;
@@ -468,7 +469,7 @@ public class MoshiSnapshotHelper {
     }
   }
 
-  public static class ProbeDetailsAdapter extends JsonAdapter<Snapshot.ProbeDetails> {
+  public static class ProbeDetailsAdapter extends JsonAdapter<ProbeImplementation> {
     protected final JsonAdapter<Snapshot.ProbeLocation> probeLocationAdapter;
 
     public ProbeDetailsAdapter(Moshi moshi) {
@@ -476,7 +477,7 @@ public class MoshiSnapshotHelper {
     }
 
     @Override
-    public void toJson(JsonWriter writer, Snapshot.ProbeDetails value) throws IOException {
+    public void toJson(JsonWriter writer, ProbeImplementation value) throws IOException {
       writer.beginObject();
       writer.name(ID);
       writer.value(value.getId());
@@ -486,7 +487,7 @@ public class MoshiSnapshotHelper {
     }
 
     @Override
-    public Snapshot.ProbeDetails fromJson(JsonReader reader) throws IOException {
+    public ProbeImplementation fromJson(JsonReader reader) throws IOException {
       // Only used in test, see MoshiSnapshotTestHelper
       throw new IllegalStateException("Should not reach this code.");
     }

@@ -29,7 +29,7 @@ public class DebuggerContext {
   }
 
   public interface ProbeResolver {
-    Snapshot.ProbeDetails resolve(String id, Class<?> callingClass);
+    ProbeImplementation resolve(String id, Class<?> callingClass);
   }
 
   public interface ClassFilter {
@@ -113,7 +113,7 @@ public class DebuggerContext {
    * Returns the probe details based on the probe id provided. If no probe is found, try to
    * re-transform the class using the callingClass parameter No-op if no implementation available
    */
-  public static Snapshot.ProbeDetails resolveProbe(String id, Class<?> callingClass) {
+  public static ProbeImplementation resolveProbe(String id, Class<?> callingClass) {
     ProbeResolver resolver = probeResolver;
     if (resolver == null) {
       return null;
@@ -221,14 +221,18 @@ public class DebuggerContext {
     boolean captureSnapshot = false;
     boolean shouldSend = false;
     for (String probeId : probeIds) {
-      Snapshot.ProbeDetails probeDetails = resolveProbe(probeId, callingClass);
-      if (probeDetails == null) {
+      ProbeImplementation probeImplementation = resolveProbe(probeId, callingClass);
+      if (probeImplementation == null) {
         continue;
       }
       Snapshot.CapturedContext.Status status =
           context.evaluate(
-              probeId, probeDetails, callingClass.getTypeName(), startTimestamp, methodLocation);
-      captureSnapshot |= probeDetails.isCaptureSnapshot();
+              probeId,
+              probeImplementation,
+              callingClass.getTypeName(),
+              startTimestamp,
+              methodLocation);
+      captureSnapshot |= probeImplementation.isCaptureSnapshot();
       shouldSend |= status.shouldSend();
     }
     // only freeze the context when we have at lest one snapshot probe, and we should send snapshot
@@ -244,13 +248,13 @@ public class DebuggerContext {
   public static void evalContextAndCommit(
       Snapshot.CapturedContext context, Class<?> callingClass, int line, String... probeIds) {
     for (String probeId : probeIds) {
-      Snapshot.ProbeDetails probeDetails = resolveProbe(probeId, callingClass);
-      if (probeDetails == null) {
+      ProbeImplementation probeImplementation = resolveProbe(probeId, callingClass);
+      if (probeImplementation == null) {
         continue;
       }
       context.evaluate(
-          probeId, probeDetails, callingClass.getTypeName(), -1, MethodLocation.DEFAULT);
-      probeDetails.commit(context, line);
+          probeId, probeImplementation, callingClass.getTypeName(), -1, MethodLocation.DEFAULT);
+      probeImplementation.commit(context, line);
     }
   }
 
@@ -271,17 +275,17 @@ public class DebuggerContext {
     for (String probeId : probeIds) {
       Snapshot.CapturedContext.Status entryStatus = entryContext.getStatus(probeId);
       Snapshot.CapturedContext.Status exitStatus = exitContext.getStatus(probeId);
-      Snapshot.ProbeDetails probeDetails;
-      if (entryStatus.probeDetails != Snapshot.ProbeDetails.UNKNOWN
-          && (entryStatus.probeDetails.getEvaluateAt() == MethodLocation.ENTRY
-              || entryStatus.probeDetails.getEvaluateAt() == MethodLocation.DEFAULT)) {
-        probeDetails = entryStatus.probeDetails;
-      } else if (exitStatus.probeDetails.getEvaluateAt() == MethodLocation.EXIT) {
-        probeDetails = exitStatus.probeDetails;
+      ProbeImplementation probeImplementation;
+      if (entryStatus.probeImplementation != ProbeImplementation.UNKNOWN
+          && (entryStatus.probeImplementation.getEvaluateAt() == MethodLocation.ENTRY
+              || entryStatus.probeImplementation.getEvaluateAt() == MethodLocation.DEFAULT)) {
+        probeImplementation = entryStatus.probeImplementation;
+      } else if (exitStatus.probeImplementation.getEvaluateAt() == MethodLocation.EXIT) {
+        probeImplementation = exitStatus.probeImplementation;
       } else {
         throw new IllegalStateException("no probe details");
       }
-      probeDetails.commit(entryContext, exitContext, caughtExceptions);
+      probeImplementation.commit(entryContext, exitContext, caughtExceptions);
     }
   }
 }

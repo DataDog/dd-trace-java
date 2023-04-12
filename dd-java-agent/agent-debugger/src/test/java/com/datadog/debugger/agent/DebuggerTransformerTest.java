@@ -407,7 +407,7 @@ public class DebuggerTransformerTest {
                       .map(Where.SourceLine::toString)
                       .collect(Collectors.toList())
                   : null;
-          return new Snapshot.ProbeDetails.DummyProbe(
+          return new ProbeImplementation.NoopProbeImplementation(
               id, new Snapshot.ProbeLocation(typeName, methodName, sourceFile, lines));
         },
         null);

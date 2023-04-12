@@ -10,6 +10,7 @@ import com.squareup.moshi.JsonWriter;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -23,7 +24,7 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
 /** Generic class storing common probe definition */
-public abstract class ProbeDefinition implements Snapshot.ProbeDetails {
+public abstract class ProbeDefinition implements ProbeImplementation {
   protected static final String LANGUAGE = "java";
 
   protected final String language;

@@ -2,6 +2,7 @@ package com.datadog.debugger.util;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
@@ -13,8 +14,8 @@ class ValueScriptHelperTest {
   private static final Snapshot.ProbeLocation PROBE_LOCATION =
       new Snapshot.ProbeLocation(
           "java.lang.String", "indexOf", "String.java", Arrays.asList("12-15", "23"));
-  private static final Snapshot.ProbeDetails DUMMY_PROBE =
-      new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION);
+  private static final ProbeImplementation DUMMY_PROBE =
+      new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION);
 
   @Test
   public void nullValue() {

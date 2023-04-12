@@ -23,6 +23,7 @@ import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
@@ -72,7 +73,8 @@ public class DebuggerSinkTest {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     Snapshot snapshot =
         new Snapshot(
-            Thread.currentThread(), new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION));
+            Thread.currentThread(),
+            new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION));
     sink.addSnapshot(snapshot);
     sink.flush(sink);
     verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
@@ -94,7 +96,8 @@ public class DebuggerSinkTest {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     Snapshot snapshot =
         new Snapshot(
-            Thread.currentThread(), new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION));
+            Thread.currentThread(),
+            new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION));
     Arrays.asList(snapshot, snapshot).forEach(sink::addSnapshot);
     sink.flush(sink);
     verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
@@ -114,7 +117,8 @@ public class DebuggerSinkTest {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     Snapshot largeSnapshot =
         new Snapshot(
-            Thread.currentThread(), new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION));
+            Thread.currentThread(),
+            new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION));
     for (int i = 0; i < 15_000; i++) {
       largeSnapshot.getStack().add(new CapturedStackFrame("f" + i, i));
     }
@@ -133,7 +137,8 @@ public class DebuggerSinkTest {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     Snapshot largeSnapshot =
         new Snapshot(
-            Thread.currentThread(), new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION));
+            Thread.currentThread(),
+            new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION));
     for (int i = 0; i < 150_000; i++) {
       largeSnapshot.getStack().add(new CapturedStackFrame("f" + i, i));
     }
@@ -147,7 +152,8 @@ public class DebuggerSinkTest {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     Snapshot largeSnapshot =
         new Snapshot(
-            Thread.currentThread(), new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION));
+            Thread.currentThread(),
+            new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION));
     for (int i = 0; i < 140_000; i++) {
       largeSnapshot.getStack().add(new CapturedStackFrame("f€" + i, i));
     }
@@ -260,7 +266,8 @@ public class DebuggerSinkTest {
     long currentFlushInterval = sink.getCurrentFlushInterval();
     Snapshot snapshot =
         new Snapshot(
-            Thread.currentThread(), new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION));
+            Thread.currentThread(),
+            new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION));
     sink.addSnapshot(snapshot);
     sink.doReconsiderFlushInterval();
     long newFlushInterval = sink.getCurrentFlushInterval();
@@ -274,7 +281,8 @@ public class DebuggerSinkTest {
     sink.flush(sink);
     Snapshot snapshot =
         new Snapshot(
-            Thread.currentThread(), new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION));
+            Thread.currentThread(),
+            new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION));
     for (int i = 0; i < 1000; i++) {
       sink.addSnapshot(snapshot);
     }
@@ -289,7 +297,8 @@ public class DebuggerSinkTest {
     long currentFlushInterval = sink.getCurrentFlushInterval();
     Snapshot snapshot =
         new Snapshot(
-            Thread.currentThread(), new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION));
+            Thread.currentThread(),
+            new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION));
     for (int i = 0; i < 500; i++) {
       sink.addSnapshot(snapshot);
     }
@@ -309,7 +318,8 @@ public class DebuggerSinkTest {
         });
     Snapshot snapshot =
         new Snapshot(
-            Thread.currentThread(), new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION));
+            Thread.currentThread(),
+            new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION));
     snapshot.setEntry(entry);
     sink.addSnapshot(snapshot);
     sink.flush(sink);
@@ -332,7 +342,8 @@ public class DebuggerSinkTest {
         });
     Snapshot snapshot =
         new Snapshot(
-            Thread.currentThread(), new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION));
+            Thread.currentThread(),
+            new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION));
     snapshot.addLine(line, 25);
     sink.addSnapshot(snapshot);
     sink.flush(sink);
@@ -349,9 +360,9 @@ public class DebuggerSinkTest {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     DebuggerContext.init(sink, null, null);
     Snapshot.CapturedContext entry = new Snapshot.CapturedContext();
-    Snapshot.ProbeDetails probeDetails =
-        new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION);
-    Snapshot snapshot = new Snapshot(Thread.currentThread(), probeDetails);
+    ProbeImplementation probeImplementation =
+        new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION);
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), probeImplementation);
     snapshot.setEntry(entry);
     snapshot.addEvaluationErrors(
         Arrays.asList(new Snapshot.EvaluationError("obj.field", "Cannot dereference obj")));
@@ -390,7 +401,8 @@ public class DebuggerSinkTest {
     DebuggerSink sink = new DebuggerSink(config, batchUploader, debuggerMetrics);
     Snapshot snapshot =
         new Snapshot(
-            Thread.currentThread(), new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION));
+            Thread.currentThread(),
+            new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION));
     sink.skipSnapshot(snapshot.getProbe().getId(), DebuggerContext.SkipCause.CONDITION);
     verify(debuggerMetrics)
         .incrementCounter(anyString(), eq("cause:condition"), eq("probe_id:" + PROBE_ID));

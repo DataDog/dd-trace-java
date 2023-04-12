@@ -22,7 +22,6 @@ import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerSpan;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.Snapshot;
-import datadog.trace.bootstrap.debugger.SnapshotProvider;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.StringTokenizer;
@@ -42,7 +41,6 @@ public final class Types {
   public static final Type MAP_TYPE = Type.getType(Map.class);
   public static final Type HASHMAP_TYPE = Type.getType(HashMap.class);
   public static final Type SNAPSHOT_TYPE = Type.getType(Snapshot.class);
-  public static final Type SNAPSHOTPROVIDER_TYPE = Type.getType(SnapshotProvider.class);
   public static final Type CAPTURED_VALUE = Type.getType(Snapshot.CapturedValue.class);
   public static final Type CAPTURED_CONTEXT_TYPE = Type.getType(Snapshot.CapturedContext.class);
   public static final Type CAPTURE_THROWABLE_TYPE = Type.getType(Snapshot.CapturedThrowable.class);
