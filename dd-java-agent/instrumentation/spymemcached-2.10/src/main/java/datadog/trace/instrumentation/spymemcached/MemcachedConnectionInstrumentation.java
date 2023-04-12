@@ -7,25 +7,18 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.net.InetSocketAddress;
 import net.bytebuddy.asm.Advice;
 import net.spy.memcached.MemcachedNode;
+import net.spy.memcached.internal.OperationFuture;
 
 @AutoService(Instrumenter.class)
 public class MemcachedConnectionInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForSingleType {
-  private static final Reference GET_COMPLETION_LISTENER_REFERENCE =
-      new Reference.Builder("net.spy.memcached.internal.GetCompletionListener").build();
 
   public MemcachedConnectionInstrumentation() {
     super("spymemcached");
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {GET_COMPLETION_LISTENER_REFERENCE};
   }
 
   @Override
@@ -43,6 +36,13 @@ public class MemcachedConnectionInstrumentation extends Instrumenter.Tracing
     return "net.spy.memcached.MemcachedConnection";
   }
 
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".MemcacheClientDecorator",
+    };
+  }
+
   public static class AddOperationAdvice {
     @Advice.OnMethodEnter
     public static void methodEnter(@Advice.Argument(0) final MemcachedNode node) {
@@ -50,6 +50,11 @@ public class MemcachedConnectionInstrumentation extends Instrumenter.Tracing
         MemcacheClientDecorator.DECORATE.onPeerConnection(
             AgentTracer.activeSpan(), (InetSocketAddress) node.getSocketAddress());
       }
+    }
+
+    public static void muzzleCheck(OperationFuture operationFuture) {
+      // before 2.10.4 futures are not completing correctly. We stick at this as minimum version
+      operationFuture.signalComplete();
     }
   }
 }

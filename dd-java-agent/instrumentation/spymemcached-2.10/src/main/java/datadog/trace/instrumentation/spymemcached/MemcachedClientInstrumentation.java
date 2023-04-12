@@ -178,5 +178,10 @@ public final class MemcachedClientInstrumentation extends Instrumenter.Tracing
       CallDepthThreadLocalMap.reset(MemcachedClient.class);
       listener.done(thrown);
     }
+
+    public static void muzzleCheck(OperationFuture operationFuture) {
+      // before 2.10.4 futures are not completing correctly. We stick at this as minimum version
+      operationFuture.signalComplete();
+    }
   }
 }
