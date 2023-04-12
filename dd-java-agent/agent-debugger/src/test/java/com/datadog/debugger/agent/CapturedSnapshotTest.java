@@ -3,6 +3,8 @@ package com.datadog.debugger.agent;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.DEPTH_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.FIELD_COUNT_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -108,8 +110,8 @@ public class CapturedSnapshotTest {
     Assertions.assertNotNull(snapshot.getCaptures().getReturn());
     assertCaptureArgs(snapshot.getCaptures().getEntry(), "arg", "java.lang.String", "1");
     assertCaptureArgs(snapshot.getCaptures().getReturn(), "arg", "java.lang.String", "1");
-    Assertions.assertTrue(snapshot.getDuration() > 0);
-    Assertions.assertTrue(snapshot.getStack().size() > 0);
+    assertTrue(snapshot.getDuration() > 0);
+    assertTrue(snapshot.getStack().size() > 0);
     Assertions.assertEquals("CapturedSnapshot01.main", snapshot.getStack().get(0).getFunction());
   }
 
@@ -127,7 +129,7 @@ public class CapturedSnapshotTest {
     Assertions.assertEquals(1, snapshot.getCaptures().getLines().size());
     assertCaptureArgs(snapshot.getCaptures().getLines().get(8), "arg", "java.lang.String", "1");
     assertCaptureLocals(snapshot.getCaptures().getLines().get(8), "var1", "int", "1");
-    Assertions.assertTrue(snapshot.getStack().size() > 0);
+    assertTrue(snapshot.getStack().size() > 0);
     Assertions.assertEquals("CapturedSnapshot01.java", snapshot.getStack().get(0).getFileName());
   }
 
@@ -567,8 +569,8 @@ public class CapturedSnapshotTest {
     Snapshot.CapturedValue returnValue =
         snapshot.getCaptures().getReturn().getLocals().get("@return");
     Map<String, Snapshot.CapturedValue> fields = getFields(returnValue);
-    Assertions.assertTrue(fields.containsKey("nullsd"));
-    Assertions.assertTrue(fields.containsKey("l1"));
+    assertTrue(fields.containsKey("nullsd"));
+    assertTrue(fields.containsKey("l1"));
     Snapshot.CapturedValue s1 = fields.get("s1");
     Map<String, Snapshot.CapturedValue> s1Fields =
         (Map<String, Snapshot.CapturedValue>) s1.getValue();
@@ -691,8 +693,8 @@ public class CapturedSnapshotTest {
     Assertions.assertEquals(
         FIELD_COUNT_REASON,
         compositeDataFields.get("@" + NOT_CAPTURED_REASON).getNotCapturedReason());
-    Assertions.assertTrue(compositeDataFields.containsKey("s1"));
-    Assertions.assertTrue(compositeDataFields.containsKey("s2"));
+    assertTrue(compositeDataFields.containsKey("s1"));
+    assertTrue(compositeDataFields.containsKey("s2"));
   }
 
   @Test
@@ -751,7 +753,7 @@ public class CapturedSnapshotTest {
       int result = Reflect.on(testClass).call("main", "1").get();
       Assertions.assertEquals(3, result);
     }
-    Assertions.assertTrue(listener.snapshots.size() < 20);
+    assertTrue(listener.snapshots.size() < 20);
   }
 
   @Test
@@ -771,8 +773,7 @@ public class CapturedSnapshotTest {
       int result = Reflect.on(testClass).call("main", "").get();
       Assertions.assertEquals(48, result);
     }
-    Assertions.assertTrue(
-        listener.snapshots.size() < 20, "actual snapshots: " + listener.snapshots.size());
+    assertTrue(listener.snapshots.size() < 20, "actual snapshots: " + listener.snapshots.size());
   }
 
   @Test
@@ -805,7 +806,7 @@ public class CapturedSnapshotTest {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     for (int i = 0; i < 100; i++) {
       int result = Reflect.on(testClass).call("main", String.valueOf(i)).get();
-      Assertions.assertTrue((i == 2 && result == 2) || result == 3);
+      assertTrue((i == 2 && result == 2) || result == 3);
     }
     Assertions.assertEquals(1, listener.snapshots.size());
     assertCaptureArgs(
@@ -1129,10 +1130,10 @@ public class CapturedSnapshotTest {
     // it's means here that argument names are not resolved correctly
     Assertions.assertFalse(arguments.containsKey(null));
     Assertions.assertEquals(4, arguments.size());
-    Assertions.assertTrue(arguments.containsKey("this"));
-    Assertions.assertTrue(arguments.containsKey("apiKey"));
-    Assertions.assertTrue(arguments.containsKey("uriInfo"));
-    Assertions.assertTrue(arguments.containsKey("value"));
+    assertTrue(arguments.containsKey("this"));
+    assertTrue(arguments.containsKey("apiKey"));
+    assertTrue(arguments.containsKey("uriInfo"));
+    assertTrue(arguments.containsKey("value"));
   }
 
   @Test
@@ -1210,8 +1211,9 @@ public class CapturedSnapshotTest {
     int result = Reflect.on(testClass).call("main", "2").get();
     Assertions.assertEquals(2, result);
     Assertions.assertEquals(1, listener.snapshots.size());
-    Snapshot snapshot = listener.snapshots.get(0);
-    Assertions.assertEquals(Snapshot.ProbeDetails.ITW_PROBE_ID, snapshot.getProbe().getId());
+    Snapshot.ProbeDetails probeDetails = listener.snapshots.get(0).getProbe();
+    assertTrue(probeDetails.isCaptureSnapshot());
+    assertEquals("main", probeDetails.getLocation().getMethod());
   }
 
   @ParameterizedTest
@@ -1315,7 +1317,7 @@ public class CapturedSnapshotTest {
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
     Assertions.assertEquals(0, listener.snapshots.size());
-    Assertions.assertTrue(listener.skipped);
+    assertTrue(listener.skipped);
     Assertions.assertEquals(DebuggerContext.SkipCause.CONDITION, listener.cause);
   }
 
@@ -1464,7 +1466,7 @@ public class CapturedSnapshotTest {
     Assertions.assertEquals(typeName, localVar.getType());
     Map<String, Snapshot.CapturedValue> fields = getFields(localVar);
     for (Map.Entry<String, String> entry : expectedFields.entrySet()) {
-      Assertions.assertTrue(fields.containsKey(entry.getKey()));
+      assertTrue(fields.containsKey(entry.getKey()));
       Snapshot.CapturedValue fieldCapturedValue = fields.get(entry.getKey());
       if (fieldCapturedValue.getNotCapturedReason() != null) {
         Assertions.assertEquals(
@@ -1506,7 +1508,7 @@ public class CapturedSnapshotTest {
     Map<Object, Object> map = getMap(field);
     Assertions.assertEquals(expectedMap.size(), map.size());
     for (Map.Entry<Object, Object> entry : map.entrySet()) {
-      Assertions.assertTrue(expectedMap.containsKey(entry.getKey()));
+      assertTrue(expectedMap.containsKey(entry.getKey()));
       Assertions.assertEquals(expectedMap.get(entry.getKey()), entry.getValue());
     }
   }
@@ -1528,7 +1530,7 @@ public class CapturedSnapshotTest {
     Assertions.assertEquals(typeName, returnValue.getType());
     Map<String, Snapshot.CapturedValue> fields = getFields(returnValue);
     for (Map.Entry<String, String> entry : expectedFields.entrySet()) {
-      Assertions.assertTrue(fields.containsKey(entry.getKey()));
+      assertTrue(fields.containsKey(entry.getKey()));
       Snapshot.CapturedValue fieldCapturedValue = fields.get(entry.getKey());
       if (fieldCapturedValue.getNotCapturedReason() != null) {
         Assertions.assertEquals(
