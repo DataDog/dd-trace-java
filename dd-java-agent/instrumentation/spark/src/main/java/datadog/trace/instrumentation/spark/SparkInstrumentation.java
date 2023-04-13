@@ -38,10 +38,7 @@ public class SparkInstrumentation extends Instrumenter.Tracing
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        isMethod()
-            .and(named("setupAndStartListenerBus"))
-            .and(takesNoArguments())
-            .and(isDeclaredBy(named("org.apache.spark.SparkContext"))),
+        isMethod().and(named("setupAndStartListenerBus")).and(takesNoArguments()),
         SparkInstrumentation.class.getName() + "$InjectListener");
   }
 
