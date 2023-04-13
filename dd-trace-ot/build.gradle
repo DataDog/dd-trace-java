@@ -22,12 +22,8 @@ excludedClassesCoverage += [
   "datadog.opentracing.DDTracer.DDTracerBuilder"
 ]
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  ot31CompatabilityTest
-  ot33CompatabilityTest
-}
+addTestSuite('ot31CompatabilityTest')
+addTestSuite('ot33CompatabilityTest')
 
 dependencies {
   annotationProcessor deps.autoserviceProcessor

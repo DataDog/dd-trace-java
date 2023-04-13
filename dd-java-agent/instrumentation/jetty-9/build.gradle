@@ -9,19 +9,9 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  jetty92Test {
-    dirName = 'test'
-  }
-  jetty94Test {
-    dirName = 'test'
-  }
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('jetty92Test', 'test')
+addTestSuiteForDir('jetty94Test', 'test')
+addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.0.0.v20130308'

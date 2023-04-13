@@ -27,13 +27,7 @@ muzzle {
   }
 }
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'io.netty', name: 'netty-codec-http', version: '4.1.0.Final'

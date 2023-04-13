@@ -12,14 +12,8 @@ apply from: "$rootDir/gradle/java.gradle"
   }
 }
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
 // test that webflux5 instrumentation works for webflux6 too
-testSets {
-  iastTest {
-    dirName = 'iastTest'
-  }
-}
+addTestSuite('iastTest')
 
 tasks.named('muzzle').configure {
   enabled = false

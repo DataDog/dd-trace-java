@@ -8,13 +8,7 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala'
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
 
 tasks.named("compileTestGroovy").configure {
   dependsOn "compileTestScala"
