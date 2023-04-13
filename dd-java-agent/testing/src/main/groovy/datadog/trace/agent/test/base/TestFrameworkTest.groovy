@@ -10,7 +10,6 @@ import datadog.trace.api.civisibility.CIProviderInfo
 import datadog.trace.api.civisibility.CITagsProvider
 import datadog.trace.api.civisibility.InstrumentationBridge
 import datadog.trace.api.civisibility.codeowners.Codeowners
-import datadog.trace.api.civisibility.coverage.CoverageProbeStore
 import datadog.trace.api.civisibility.decorator.TestDecorator
 import datadog.trace.api.civisibility.events.impl.BuildEventsHandlerImpl
 import datadog.trace.api.civisibility.events.impl.TestEventsHandlerImpl
