@@ -1,9 +1,8 @@
 package datadog.trace.instrumentation.maven3;
 
 import datadog.trace.api.Config;
+import datadog.trace.util.AgentUtils;
 import java.io.File;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -71,7 +70,7 @@ class MavenProjectConfigurator {
             .append(System.lineSeparator());
       }
 
-      File agentJar = getAgentJar();
+      File agentJar = AgentUtils.getAgentJar();
       modifiedArgLine.append("-javaagent:").append(agentJar.toPath());
 
       Xpp3Dom configuration = (Xpp3Dom) execution.getConfiguration();
@@ -84,20 +83,6 @@ class MavenProjectConfigurator {
           MavenUtils.setConfigurationValue(modifiedArgLine.toString(), configuration, "argLine");
 
       execution.setConfiguration(configuration);
-    }
-  }
-
-  private static File getAgentJar() {
-    String agentJarUriString = Config.get().getCiVisibilityAgentJarUri();
-    if (agentJarUriString == null || agentJarUriString.isEmpty()) {
-      throw new IllegalArgumentException("Agent JAR URI is not set in config");
-    }
-
-    try {
-      URI agentJarUri = new URI(agentJarUriString);
-      return new File(agentJarUri);
-    } catch (URISyntaxException e) {
-      throw new IllegalArgumentException("Malformed agent JAR URI: " + agentJarUriString, e);
     }
   }
 
