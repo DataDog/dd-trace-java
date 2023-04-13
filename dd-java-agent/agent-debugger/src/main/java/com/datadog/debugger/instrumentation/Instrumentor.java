@@ -48,16 +48,13 @@ public abstract class Instrumentor {
 
   public Instrumentor(
       ProbeDefinition definition,
-      ClassLoader classLoader,
-      ClassNode classNode,
-      MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics,
+      InstrumentationContext instrumentationContext,
       List<String> probeIds) {
     this.definition = definition;
-    this.classLoader = classLoader;
-    this.classNode = classNode;
-    this.methodNode = methodNode;
-    this.diagnostics = diagnostics;
+    this.classLoader = instrumentationContext.getClassLoader();
+    this.classNode = instrumentationContext.getClassNode();
+    this.methodNode = instrumentationContext.getMethodNode();
+    this.diagnostics = instrumentationContext.getDiagnostics();
     this.probeIds = probeIds;
     Where.SourceLine[] sourceLines = definition.getWhere().getSourceLines();
     isLineProbe = sourceLines != null && sourceLines.length > 0;

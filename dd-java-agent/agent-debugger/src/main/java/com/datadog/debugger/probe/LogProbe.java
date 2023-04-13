@@ -7,13 +7,13 @@ import com.datadog.debugger.agent.LogMessageTemplateBuilder;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.ValueScript;
+import com.datadog.debugger.instrumentation.InstrumentationContext;
 import com.datadog.debugger.instrumentation.LogInstrumentor;
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
@@ -24,8 +24,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.MethodNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -335,14 +333,8 @@ public class LogProbe extends ProbeDefinition {
   }
 
   @Override
-  public void instrument(
-      ClassLoader classLoader,
-      ClassNode classNode,
-      MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics,
-      List<String> probeIds) {
-    new LogInstrumentor(this, classLoader, classNode, methodNode, diagnostics, probeIds)
-        .instrument();
+  public void instrument(InstrumentationContext instrumentationContext, List<String> probeIds) {
+    new LogInstrumentor(this, instrumentationContext, probeIds).instrument();
   }
 
   @Override

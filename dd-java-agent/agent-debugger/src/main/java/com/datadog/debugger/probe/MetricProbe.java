@@ -2,15 +2,13 @@ package com.datadog.debugger.probe;
 
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.el.ValueScript;
+import com.datadog.debugger.instrumentation.InstrumentationContext;
 import com.datadog.debugger.instrumentation.MetricInstrumentor;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.MethodNode;
 
 /** Stores definition of a metric probe */
 public class MetricProbe extends ProbeDefinition {
@@ -59,14 +57,8 @@ public class MetricProbe extends ProbeDefinition {
   }
 
   @Override
-  public void instrument(
-      ClassLoader classLoader,
-      ClassNode classNode,
-      MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics,
-      List<String> probeIds) {
-    new MetricInstrumentor(this, classLoader, classNode, methodNode, diagnostics, probeIds)
-        .instrument();
+  public void instrument(InstrumentationContext instrumentationContext, List<String> probeIds) {
+    new MetricInstrumentor(this, instrumentationContext, probeIds).instrument();
   }
 
   public static Builder builder() {

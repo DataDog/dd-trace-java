@@ -9,7 +9,6 @@ import com.datadog.debugger.el.values.ObjectValue;
 import com.datadog.debugger.el.values.UndefinedValue;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.Where;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import datadog.trace.bootstrap.debugger.el.Values;
@@ -42,12 +41,9 @@ public class MetricInstrumentor extends Instrumentor {
 
   public MetricInstrumentor(
       MetricProbe metricProbe,
-      ClassLoader classLoader,
-      ClassNode classNode,
-      MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics,
+      InstrumentationContext instrumentationContext,
       List<String> probeIds) {
-    super(metricProbe, classLoader, classNode, methodNode, diagnostics, probeIds);
+    super(metricProbe, instrumentationContext, probeIds);
     this.metricProbe = metricProbe;
   }
 

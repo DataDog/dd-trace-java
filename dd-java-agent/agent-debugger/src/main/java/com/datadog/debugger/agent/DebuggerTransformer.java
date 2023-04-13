@@ -3,6 +3,7 @@ package com.datadog.debugger.agent;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 
+import com.datadog.debugger.instrumentation.InstrumentationContext;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -419,18 +420,20 @@ public class DebuggerTransformer implements ClassFileTransformer {
     InstrumentationResult.Status status =
         preCheckInstrumentation(diagnostics, classLoader, methodNode);
     if (status != InstrumentationResult.Status.ERROR) {
+      InstrumentationContext context =
+          new InstrumentationContext(classLoader, classNode, methodNode, diagnostics);
       try {
         List<ProbeDefinition> logProbes = new ArrayList<>();
         for (ProbeDefinition definition : definitions) {
           if (definition instanceof LogProbe) {
             logProbes.add(definition);
           } else {
-            definition.instrument(classLoader, classNode, methodNode, diagnostics);
+            definition.instrument(context);
           }
         }
         if (logProbes.size() > 0) {
           List<String> probesIds = logProbes.stream().map(ProbeDefinition::getId).collect(toList());
-          logProbes.get(0).instrument(classLoader, classNode, methodNode, diagnostics, probesIds);
+          logProbes.get(0).instrument(context, probesIds);
         }
       } catch (Throwable t) {
         log.warn("Exception during instrumentation: ", t);

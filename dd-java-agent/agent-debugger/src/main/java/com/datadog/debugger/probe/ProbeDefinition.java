@@ -3,11 +3,11 @@ package com.datadog.debugger.probe;
 import static java.util.Collections.singletonList;
 
 import com.datadog.debugger.agent.Generated;
+import com.datadog.debugger.instrumentation.InstrumentationContext;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
@@ -20,8 +20,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.MethodNode;
 
 /** Generic class storing common probe definition */
 public abstract class ProbeDefinition implements ProbeImplementation {
@@ -120,20 +118,12 @@ public abstract class ProbeDefinition implements ProbeImplementation {
     }
   }
 
-  public void instrument(
-      ClassLoader classLoader,
-      ClassNode classNode,
-      MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics) {
-    instrument(classLoader, classNode, methodNode, diagnostics, singletonList(getId()));
+  public void instrument(InstrumentationContext instrumentationContext) {
+    instrument(instrumentationContext, singletonList(getId()));
   }
 
   public abstract void instrument(
-      ClassLoader classLoader,
-      ClassNode classNode,
-      MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics,
-      List<String> probeIds);
+      InstrumentationContext instrumentationContext, List<String> probeIds);
 
   @Override
   public Snapshot.ProbeLocation getLocation() {

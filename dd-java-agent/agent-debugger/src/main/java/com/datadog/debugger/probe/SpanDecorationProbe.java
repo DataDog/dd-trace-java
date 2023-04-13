@@ -7,9 +7,9 @@ import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueScript;
+import com.datadog.debugger.instrumentation.InstrumentationContext;
 import com.datadog.debugger.instrumentation.SpanDecorationInstrumentor;
 import datadog.trace.api.Pair;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.Snapshot;
@@ -19,8 +19,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.MethodNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,14 +89,8 @@ public class SpanDecorationProbe extends ProbeDefinition {
   }
 
   @Override
-  public void instrument(
-      ClassLoader classLoader,
-      ClassNode classNode,
-      MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics,
-      List<String> probeIds) {
-    new SpanDecorationInstrumentor(this, classLoader, classNode, methodNode, diagnostics, probeIds)
-        .instrument();
+  public void instrument(InstrumentationContext instrumentationContext, List<String> probeIds) {
+    new SpanDecorationInstrumentor(this, instrumentationContext, probeIds).instrument();
   }
 
   @Override
