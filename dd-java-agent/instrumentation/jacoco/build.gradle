@@ -13,3 +13,10 @@ muzzle {
 dependencies {
   implementation deps.asm
 }
+
+
+// TODO
+// Smoke/integration tests
+// Feature flag
+// Class filtering
+// Communication

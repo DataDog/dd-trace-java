@@ -15,6 +15,7 @@ public class TestProbes implements CoverageProbeStore {
 
   private static final Map<String, Integer> totalProbeCounts = new HashMap<>();
 
+  // Unbounded data structure that only exists within a single test span
   private final Map<String, ExecutionDataAdapter> probeActivations;
 
   TestProbes() {
