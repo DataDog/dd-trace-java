@@ -6,8 +6,6 @@ ext {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
 muzzle {
   pass {
     group = 'io.vertx'
@@ -17,11 +15,7 @@ muzzle {
   }
 }
 
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
 
 configurations {
   testArtifacts

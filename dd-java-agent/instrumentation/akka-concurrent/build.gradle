@@ -15,14 +15,8 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/test-with-scala.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  akka23Test
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuite('akka23Test')
+addTestSuiteForDir('latestDepTest', 'test')
 
 tasks.named("compileAkka23TestGroovy").configure {
   classpath += files(sourceSets.akka23Test.scala.classesDirectory)

@@ -6,21 +6,13 @@ ext {
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala'
 
-apply plugin: 'org.unbroken-dome.test-sets'
-testSets {
-  // Since we are using different scala versions for different test sets,
-  // we put the test classes in the baseTest test set so that the scala
-  // version is not inherited
-  baseTest
-
-  version101Test {
-    dirName = 'baseTest'
-  }
-
-  latestDepTest
-
-  lagomTest
-}
+// Since we are using different scala versions for different test sets,
+// we put the test classes in the baseTest test set so that the scala
+// version is not inherited
+addTestSuite('baseTest')
+addTestSuiteForDir('version101Test', 'baseTest')
+addTestSuite('latestDepTest')
+addTestSuite('lagomTest')
 
 compileLagomTestJava {
   sourceCompatibility = JavaVersion.VERSION_1_8

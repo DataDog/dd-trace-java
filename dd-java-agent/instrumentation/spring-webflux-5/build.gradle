@@ -52,41 +52,15 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
 
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-
-  latestBoot20Test {
-    dirName = 'bootTest'
-  }
-
-  latestBoot24Test {
-    dirName = 'bootTest'
-  }
-
-  latestBoot2LatestTest {
-    dirName = 'bootTest'
-  }
-
-  iastTest {
-    dirName = 'iastTest'
-  }
-
-  latestIast24Test {
-    dirName = 'iastTest'
-  }
-
-  latestIastTest {
-    dirName = 'iastTest'
-  }
-
-  latestIast3Test {
-    dirName = 'iastTest'
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteForDir('latestBoot20Test', 'bootTest')
+addTestSuiteForDir('latestBoot24Test', 'bootTest')
+addTestSuiteForDir('latestBoot2LatestTest', 'bootTest')
+addTestSuite('iastTest')
+addTestSuiteForDir('latestIast24Test', 'iastTest')
+addTestSuiteForDir('latestIastTest', 'iastTest')
+addTestSuiteForDir('latestIast3Test', 'iastTest')
 
 configurations {
   latestIast24TestImplementation.extendsFrom(iastTestImplementation)

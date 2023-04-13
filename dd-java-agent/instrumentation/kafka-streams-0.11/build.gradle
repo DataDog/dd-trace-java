@@ -9,11 +9,7 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest
-}
+addTestSuite('latestDepTest')
 
 dependencies {
   compileOnly group: 'org.apache.kafka', name: 'kafka-streams', version: '0.11.0.0'

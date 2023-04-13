@@ -25,17 +25,8 @@ project.ext.groovySkipJavaExclude = true
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala' // Don't use test-with-scala since we want to pick our own version.
 
-apply plugin: 'org.unbroken-dome.test-sets'
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-
-  latestDepForkedTest {
-    extendsFrom latestDepTest
-    dirName = 'forkedTest'
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'forkedTest')
 
 apply from: "$rootDir/gradle/configure_tests.gradle"
 
