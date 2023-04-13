@@ -10,10 +10,13 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_RESET_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANNOTATIONS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXECUTORS_ALL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_METHODS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_OTEL_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_USM_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.INTERNAL_EXIT_ON_FAILURE;
@@ -35,6 +38,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_RESET
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE_FILE;
@@ -44,12 +48,13 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS_ALL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_METHODS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_THREAD_POOL_EXECUTORS_EXCLUDE;
+import static datadog.trace.api.config.UsmConfig.USM_ENABLED;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
-import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 import java.util.List;
@@ -61,12 +66,15 @@ public class InstrumenterConfig {
   private final boolean integrationsEnabled;
 
   private final boolean traceEnabled;
+  private final boolean traceOtelEnabled;
   private final boolean logsInjectionEnabled;
   private final boolean logsMDCTagsInjectionEnabled;
+  private final boolean logs128bTraceIdEnabled;
   private final boolean profilingEnabled;
   private final boolean ciVisibilityEnabled;
   private final ProductActivation appSecActivation;
-  private final boolean iastEnabled;
+  private final ProductActivation iastActivation;
+  private final boolean usmEnabled;
   private final boolean telemetryEnabled;
 
   private final boolean traceExecutorsAll;
@@ -109,35 +117,34 @@ public class InstrumenterConfig {
         configProvider.getBoolean(INTEGRATIONS_ENABLED, DEFAULT_INTEGRATIONS_ENABLED);
 
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
+    traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
     logsInjectionEnabled =
         configProvider.getBoolean(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
     logsMDCTagsInjectionEnabled = configProvider.getBoolean(LOGS_MDC_TAGS_INJECTION_ENABLED, true);
+    logs128bTraceIdEnabled =
+        configProvider.getBoolean(
+            TRACE_128_BIT_TRACEID_LOGGING_ENABLED, DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED);
 
     if (!Platform.isNativeImageBuilder()) {
       profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, PROFILING_ENABLED_DEFAULT);
       ciVisibilityEnabled =
           configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
-      // ConfigProvider.getString currently doesn't fallback to default for empty strings. We have
-      // special handling here until we have a general solution for empty string value fallback.
-      String appSecEnabled = configProvider.getString(APPSEC_ENABLED);
-      if (appSecEnabled == null || appSecEnabled.isEmpty()) {
-        appSecEnabled =
-            configProvider.getStringExcludingSource(
-                APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED, SystemPropertiesConfigSource.class);
-        if (appSecEnabled.isEmpty()) {
-          appSecEnabled = DEFAULT_APPSEC_ENABLED;
-        }
-      }
-      appSecActivation = ProductActivation.fromString(appSecEnabled);
-      iastEnabled = configProvider.getBoolean(IAST_ENABLED, DEFAULT_IAST_ENABLED);
+      appSecActivation =
+          ProductActivation.fromString(
+              configProvider.getStringNotEmpty(APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED));
+      iastActivation =
+          ProductActivation.fromString(
+              configProvider.getStringNotEmpty(IAST_ENABLED, DEFAULT_IAST_ENABLED));
+      usmEnabled = configProvider.getBoolean(USM_ENABLED, DEFAULT_USM_ENABLED);
       telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
     } else {
       // disable these features in native-image
       profilingEnabled = false;
       ciVisibilityEnabled = false;
       appSecActivation = ProductActivation.FULLY_DISABLED;
-      iastEnabled = false;
+      iastActivation = ProductActivation.FULLY_DISABLED;
       telemetryEnabled = false;
+      usmEnabled = false;
     }
 
     traceExecutorsAll = configProvider.getBoolean(TRACE_EXECUTORS_ALL, DEFAULT_TRACE_EXECUTORS_ALL);
@@ -201,12 +208,20 @@ public class InstrumenterConfig {
     return traceEnabled;
   }
 
+  public boolean isTraceOtelEnabled() {
+    return traceOtelEnabled;
+  }
+
   public boolean isLogsInjectionEnabled() {
     return logsInjectionEnabled;
   }
 
   public boolean isLogsMDCTagsInjectionEnabled() {
     return logsMDCTagsInjectionEnabled && !Platform.isNativeImageBuilder();
+  }
+
+  public boolean isLogs128bTraceIdEnabled() {
+    return logs128bTraceIdEnabled;
   }
 
   public boolean isProfilingEnabled() {
@@ -221,8 +236,12 @@ public class InstrumenterConfig {
     return appSecActivation;
   }
 
-  public boolean isIastEnabled() {
-    return iastEnabled;
+  public ProductActivation getIastActivation() {
+    return iastActivation;
+  }
+
+  public boolean isUsmEnabled() {
+    return usmEnabled;
   }
 
   public boolean isTelemetryEnabled() {
@@ -342,18 +361,24 @@ public class InstrumenterConfig {
         + integrationsEnabled
         + ", traceEnabled="
         + traceEnabled
+        + ", traceOtelEnabled="
+        + traceOtelEnabled
         + ", logsInjectionEnabled="
         + logsInjectionEnabled
         + ", logsMDCTagsInjectionEnabled="
         + logsMDCTagsInjectionEnabled
+        + ", logs128bTraceIdEnabled="
+        + logs128bTraceIdEnabled
         + ", profilingEnabled="
         + profilingEnabled
         + ", ciVisibilityEnabled="
         + ciVisibilityEnabled
         + ", appSecActivation="
         + appSecActivation
-        + ", iastEnabled="
-        + iastEnabled
+        + ", iastActivation="
+        + iastActivation
+        + ", usmEnabled="
+        + usmEnabled
         + ", telemetryEnabled="
         + telemetryEnabled
         + ", traceExecutorsAll="

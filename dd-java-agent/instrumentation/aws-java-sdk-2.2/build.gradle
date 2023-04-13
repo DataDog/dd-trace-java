@@ -11,11 +11,7 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest
-}
+addTestSuite('latestDepTest')
 
 def fixedSdkVersion = '2.20.33' // 2.20.34 is missing and breaks IDEA import
 

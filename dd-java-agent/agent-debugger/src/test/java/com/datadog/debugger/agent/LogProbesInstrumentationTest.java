@@ -10,13 +10,12 @@ import static utils.InstrumentationTestHelper.compileAndLoadClass;
 
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
-import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
-import com.datadog.debugger.probe.ProbeDefinition;
-import com.datadog.debugger.probe.Where;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
+import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
@@ -25,9 +24,6 @@ import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import org.joor.Reflect;
 import org.junit.jupiter.api.AfterEach;
@@ -61,7 +57,7 @@ public class LogProbesInstrumentationTest {
     Assertions.assertEquals(3, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCapturesNull(snapshot);
-    assertEquals("this is log line", snapshot.buildSummary());
+    assertEquals("this is log line", snapshot.getMessage());
   }
 
   @Test
@@ -75,7 +71,7 @@ public class LogProbesInstrumentationTest {
     Assertions.assertEquals(3, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCapturesNull(snapshot);
-    assertEquals("this is log line with arg=1", snapshot.buildSummary());
+    assertEquals("this is log line with arg=1", snapshot.getMessage());
   }
 
   @Test
@@ -88,7 +84,7 @@ public class LogProbesInstrumentationTest {
                 CLASS_NAME,
                 "main",
                 "int (java.lang.String)")
-            .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
+            .evaluateAt(MethodLocation.EXIT)
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -96,7 +92,7 @@ public class LogProbesInstrumentationTest {
     Assertions.assertEquals(3, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCapturesNull(snapshot);
-    assertEquals("this is log line with return=3", snapshot.buildSummary());
+    assertEquals("this is log line with return=3", snapshot.getMessage());
   }
 
   @Test
@@ -124,10 +120,10 @@ public class LogProbesInstrumentationTest {
     Assertions.assertEquals(2, listener.snapshots.size());
     Snapshot snapshot0 = listener.snapshots.get(0);
     assertCapturesNull(snapshot0);
-    assertEquals("this is log line #1 with arg=1", snapshot0.buildSummary());
+    assertEquals("this is log line #1 with arg=1", snapshot0.getMessage());
     Snapshot snapshot1 = listener.snapshots.get(1);
     assertCapturesNull(snapshot1);
-    assertEquals("this is log line #2 with arg=1", snapshot1.buildSummary());
+    assertEquals("this is log line #2 with arg=1", snapshot1.getMessage());
   }
 
   @Test
@@ -138,11 +134,11 @@ public class LogProbesInstrumentationTest {
     assertEquals(LOG_ID1.getId(), snapshot0.getProbe().getId());
     assertNotNull(snapshot0.getCaptures().getEntry());
     assertNotNull(snapshot0.getCaptures().getReturn());
-    assertEquals("this is log line #1 with arg=1", snapshot0.buildSummary());
+    assertEquals("this is log line #1 with arg=1", snapshot0.getMessage());
     Snapshot snapshot1 = snapshots.get(1);
     assertEquals(LOG_ID2.getId(), snapshot1.getProbe().getId());
     assertCapturesNull(snapshot1);
-    assertEquals("this is log line #2 with arg=1", snapshot1.buildSummary());
+    assertEquals("this is log line #2 with arg=1", snapshot1.getMessage());
   }
 
   @Test
@@ -152,12 +148,12 @@ public class LogProbesInstrumentationTest {
     Snapshot snapshot0 = snapshots.get(0);
     assertEquals(LOG_ID1.getId(), snapshot0.getProbe().getId());
     assertCapturesNull(snapshot0);
-    assertEquals("this is log line #1 with arg=1", snapshot0.buildSummary());
+    assertEquals("this is log line #1 with arg=1", snapshot0.getMessage());
     Snapshot snapshot1 = snapshots.get(1);
     assertEquals(LOG_ID2.getId(), snapshot1.getProbe().getId());
     assertNotNull(snapshot1.getCaptures().getEntry());
     assertNotNull(snapshot1.getCaptures().getReturn());
-    assertEquals("this is log line #2 with arg=1", snapshot1.buildSummary());
+    assertEquals("this is log line #2 with arg=1", snapshot1.getMessage());
   }
 
   private List<Snapshot> doMergedMethodTemplateMixCapture(
@@ -200,7 +196,7 @@ public class LogProbesInstrumentationTest {
     Assertions.assertEquals(3, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCapturesNull(snapshot);
-    assertEquals("this is log line", snapshot.buildSummary());
+    assertEquals("this is log line", snapshot.getMessage());
   }
 
   @Test
@@ -213,7 +209,7 @@ public class LogProbesInstrumentationTest {
     Assertions.assertEquals(3, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCapturesNull(snapshot);
-    assertEquals("this is log line with local var=3", snapshot.buildSummary());
+    assertEquals("this is log line with local var=3", snapshot.getMessage());
   }
 
   @Test
@@ -231,7 +227,7 @@ public class LogProbesInstrumentationTest {
     Assertions.assertEquals(143, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCapturesNull(snapshot);
-    assertEquals("nullObject=null sdata=foo cdata=101", snapshot.buildSummary());
+    assertEquals("nullObject=null sdata=foo cdata=101", snapshot.getMessage());
   }
 
   @Test
@@ -250,7 +246,7 @@ public class LogProbesInstrumentationTest {
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCapturesNull(snapshot);
     assertEquals(
-        "this is log line with {curly braces} and with local var={3}", snapshot.buildSummary());
+        "this is log line with {curly braces} and with local var={3}", snapshot.getMessage());
   }
 
   @Test
@@ -264,7 +260,7 @@ public class LogProbesInstrumentationTest {
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCapturesNull(snapshot);
     assertEquals(
-        "this is log line with local var={Cannot find symbol: var42}", snapshot.buildSummary());
+        "this is log line with local var={Cannot find symbol: var42}", snapshot.getMessage());
     assertEquals(1, snapshot.getEvaluationErrors().size());
     assertEquals("var42", snapshot.getEvaluationErrors().get(0).getExpr());
     assertEquals("Cannot find symbol: var42", snapshot.getEvaluationErrors().get(0).getMessage());
@@ -283,7 +279,7 @@ public class LogProbesInstrumentationTest {
     assertCapturesNull(snapshot);
     assertEquals(
         "this is log line with field={Cannot dereference to field: intValue}",
-        snapshot.buildSummary());
+        snapshot.getMessage());
     assertEquals(1, snapshot.getEvaluationErrors().size());
     assertEquals("intValue", snapshot.getEvaluationErrors().get(0).getExpr());
     assertEquals(
@@ -303,7 +299,7 @@ public class LogProbesInstrumentationTest {
     Snapshot snapshot = assertOneSnapshot(listener);
     assertEquals(
         "this is log line with element of list={index[10] out of bounds: [0-3]}",
-        snapshot.buildSummary());
+        snapshot.getMessage());
     assertEquals(1, snapshot.getEvaluationErrors().size());
     assertEquals("strList[10]", snapshot.getEvaluationErrors().get(0).getExpr());
     assertEquals(
@@ -321,7 +317,7 @@ public class LogProbesInstrumentationTest {
     Snapshot snapshot = assertOneSnapshot(listener);
     assertEquals(
         "this is log line for this={STATIC_STR=strStatic, intValue=48, doubleValue=3.14, strValue=done, strList=..., ...}",
-        snapshot.buildSummary());
+        snapshot.getMessage());
   }
 
   @Test
@@ -332,7 +328,7 @@ public class LogProbesInstrumentationTest {
         createProbeBuilder(LOG_ID, LOG_TEMPLATE, CLASS_NAME, "doit", "int (java.lang.String)")
             .when(
                 new ProbeCondition(DSL.when(DSL.eq(DSL.ref("arg"), DSL.value("5"))), "arg == '5'"))
-            .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
+            .evaluateAt(MethodLocation.ENTRY)
             .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
             .captureSnapshot(true)
             .build();
@@ -360,13 +356,13 @@ public class LogProbesInstrumentationTest {
     assertNotNull(snapshot0.getCaptures().getEntry());
     assertNotNull(snapshot0.getCaptures().getReturn());
     assertNull(snapshot0.getEvaluationErrors());
-    assertEquals("this is log line #1 with arg=1", snapshot0.buildSummary());
+    assertEquals("this is log line #1 with arg=1", snapshot0.getMessage());
     Snapshot snapshot1 = snapshots.get(1);
     assertEquals(LOG_ID2.getId(), snapshot1.getProbe().getId());
     assertNotNull(snapshot1.getCaptures().getEntry());
     assertNotNull(snapshot1.getCaptures().getReturn());
     assertEquals(
-        "this is log line #2 with arg={Cannot find symbol: typoArg}", snapshot1.buildSummary());
+        "this is log line #2 with arg={Cannot find symbol: typoArg}", snapshot1.getMessage());
     assertEquals(1, snapshot1.getEvaluationErrors().size());
     assertEquals(
         "Cannot find symbol: typoArg", snapshot1.getEvaluationErrors().get(0).getMessage());
@@ -383,7 +379,7 @@ public class LogProbesInstrumentationTest {
     assertNotNull(snapshot0.getCaptures().getEntry());
     assertNotNull(snapshot0.getCaptures().getReturn());
     assertEquals(
-        "this is log line #1 with arg={Cannot find symbol: typoArg}", snapshot0.buildSummary());
+        "this is log line #1 with arg={Cannot find symbol: typoArg}", snapshot0.getMessage());
     assertEquals(1, snapshot0.getEvaluationErrors().size());
     assertEquals(
         "Cannot find symbol: typoArg", snapshot0.getEvaluationErrors().get(0).getMessage());
@@ -391,7 +387,7 @@ public class LogProbesInstrumentationTest {
     assertEquals(LOG_ID2.getId(), snapshot1.getProbe().getId());
     assertNotNull(snapshot1.getCaptures().getEntry());
     assertNotNull(snapshot1.getCaptures().getReturn());
-    assertEquals("this is log line #2 with arg=1", snapshot1.buildSummary());
+    assertEquals("this is log line #2 with arg=1", snapshot1.getMessage());
     assertNull(snapshot1.getEvaluationErrors());
   }
 
@@ -406,7 +402,7 @@ public class LogProbesInstrumentationTest {
     assertNotNull(snapshot0.getCaptures().getEntry());
     assertNotNull(snapshot0.getCaptures().getReturn());
     assertEquals(
-        "this is log line #1 with arg={Cannot find symbol: typoArg1}", snapshot0.buildSummary());
+        "this is log line #1 with arg={Cannot find symbol: typoArg1}", snapshot0.getMessage());
     assertEquals(1, snapshot0.getEvaluationErrors().size());
     assertEquals(
         "Cannot find symbol: typoArg1", snapshot0.getEvaluationErrors().get(0).getMessage());
@@ -415,7 +411,7 @@ public class LogProbesInstrumentationTest {
     assertNotNull(snapshot1.getCaptures().getEntry());
     assertNotNull(snapshot1.getCaptures().getReturn());
     assertEquals(
-        "this is log line #2 with arg={Cannot find symbol: typoArg2}", snapshot1.buildSummary());
+        "this is log line #2 with arg={Cannot find symbol: typoArg2}", snapshot1.getMessage());
     assertEquals(1, snapshot1.getEvaluationErrors().size());
     assertEquals(
         "Cannot find symbol: typoArg2", snapshot1.getEvaluationErrors().get(0).getMessage());
@@ -489,64 +485,26 @@ public class LogProbesInstrumentationTest {
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
     when(config.isDebuggerVerifyByteCode()).thenReturn(true);
-    Map<String, InstrumentationResult> instrumentationResults = new ConcurrentHashMap<>();
-    currentTransformer =
-        new DebuggerTransformer(
-            config,
-            configuration,
-            (definition, result) -> instrumentationResults.put(definition.getId(), result));
+    currentTransformer = new DebuggerTransformer(config, configuration, null);
     instr.addTransformer(currentTransformer);
     DebuggerTransformerTest.TestSnapshotListener listener =
         new DebuggerTransformerTest.TestSnapshotListener();
     DebuggerContext.init(
         listener,
         (id, callingClass) ->
-            resolver(
-                id,
-                callingClass,
-                expectedClassName,
-                configuration.getLogProbes(),
-                instrumentationResults),
+            resolver(id, callingClass, expectedClassName, configuration.getLogProbes()),
         null);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     DebuggerContext.initSnapshotSerializer(new JsonSnapshotSerializer());
     return listener;
   }
 
-  private Snapshot.ProbeDetails resolver(
-      String id,
-      Class<?> callingClass,
-      String expectedClassName,
-      Collection<LogProbe> logProbes,
-      Map<String, InstrumentationResult> instrumentationResults) {
+  private ProbeImplementation resolver(
+      String id, Class<?> callingClass, String expectedClassName, Collection<LogProbe> logProbes) {
     Assertions.assertEquals(expectedClassName, callingClass.getName());
     for (LogProbe probe : logProbes) {
       if (probe.getId().equals(id)) {
-        String typeName = probe.getWhere().getTypeName();
-        String methodName = probe.getWhere().getMethodName();
-        String sourceFile = probe.getWhere().getSourceFile();
-        InstrumentationResult result = instrumentationResults.get(probe.getId());
-        if (result != null) {
-          typeName = result.getTypeName();
-          methodName = result.getMethodName();
-        }
-        List<String> lines =
-            Arrays.stream(probe.getWhere().getSourceLines())
-                .map(Where.SourceLine::toString)
-                .collect(Collectors.toList());
-
-        Snapshot.ProbeLocation location =
-            new Snapshot.ProbeLocation(typeName, methodName, sourceFile, lines);
-
-        return new Snapshot.ProbeDetails(
-            id,
-            0,
-            location,
-            ProbeDefinition.MethodLocation.convert(probe.getEvaluateAt()),
-            probe.isCaptureSnapshot(),
-            null,
-            probe.concatTags(),
-            new LogMessageTemplateSummaryBuilder(probe));
+        return probe;
       }
     }
     return null;

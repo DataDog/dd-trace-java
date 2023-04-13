@@ -3,6 +3,7 @@ package datadog.trace.core.propagation;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DD64bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -202,7 +203,7 @@ class HaystackHttpCodec {
           if (null != firstValue) {
             switch (classification) {
               case TRACE_ID:
-                traceId = DDTraceId.fromHex(convertUUIDToHexString(value));
+                traceId = DD64bTraceId.fromHex(convertUUIDToHexString(value));
                 addBaggageItem(HAYSTACK_TRACE_ID_BAGGAGE_KEY, value);
                 break;
               case SPAN_ID:

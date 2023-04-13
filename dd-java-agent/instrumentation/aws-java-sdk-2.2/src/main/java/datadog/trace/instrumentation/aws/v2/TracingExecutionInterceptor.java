@@ -29,10 +29,10 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
   private static final Logger log = LoggerFactory.getLogger(TracingExecutionInterceptor.class);
 
-  private final ContextStore<SdkResponse, String> contextStore;
+  private final ContextStore<Object, String> responseQueueStore;
 
-  public TracingExecutionInterceptor(ContextStore<SdkResponse, String> contextStore) {
-    this.contextStore = contextStore;
+  public TracingExecutionInterceptor(ContextStore<Object, String> responseQueueStore) {
+    this.responseQueueStore = responseQueueStore;
   }
 
   @Override
@@ -106,12 +106,12 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       DECORATE.beforeFinish(span);
       span.finish();
     }
-    if (!AWS_LEGACY_TRACING && isPollingRequest(context.request())) {
+    if (!AWS_LEGACY_TRACING && isPollingResponse(context.response())) {
       // store queueUrl inside response for SqsReceiveResultInstrumentation
       context
           .request()
           .getValueForField("QueueUrl", String.class)
-          .ifPresent(queueUrl -> contextStore.put(context.response(), queueUrl));
+          .ifPresent(queueUrl -> responseQueueStore.put(context.response(), queueUrl));
     }
   }
 
@@ -131,6 +131,12 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     return null != request
         && "software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest"
             .equals(request.getClass().getName());
+  }
+
+  private static boolean isPollingResponse(SdkResponse response) {
+    return null != response
+        && "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse"
+            .equals(response.getClass().getName());
   }
 
   public static void muzzleCheck() {

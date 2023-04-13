@@ -41,7 +41,7 @@ jar {
 import aQute.bnd.gradle.Bundle
 
 tasks.register('commonBundle', Bundle) {
-  classifier = 'common'
+  archiveClassifier = 'common'
   from sourceSets.main.output
   include 'datadog/smoketest/osgi/common/**'
   manifest {
@@ -50,7 +50,7 @@ tasks.register('commonBundle', Bundle) {
 }
 
 tasks.register('clientBundle', Bundle) {
-  classifier = 'client'
+  archiveClassifier = 'client'
   from sourceSets.main.output
   include 'datadog/smoketest/osgi/client/**'
   manifest {
@@ -59,7 +59,7 @@ tasks.register('clientBundle', Bundle) {
 }
 
 tasks.register('messagingBundle', Bundle) {
-  classifier = 'messaging'
+  archiveClassifier = 'messaging'
   from sourceSets.main.output
   include 'datadog/smoketest/osgi/messaging/**'
   manifest {
@@ -68,7 +68,7 @@ tasks.register('messagingBundle', Bundle) {
 }
 
 tasks.register('publishingBundle', Bundle) {
-  classifier = 'publishing'
+  archiveClassifier = 'publishing'
   from sourceSets.main.output
   include 'datadog/smoketest/osgi/publishing/**'
   manifest {
@@ -77,7 +77,7 @@ tasks.register('publishingBundle', Bundle) {
 }
 
 tasks.register('subscribingBundle', Bundle) {
-  classifier = 'subscribing'
+  archiveClassifier = 'subscribing'
   from sourceSets.main.output
   include 'datadog/smoketest/osgi/subscribing/**'
   manifest {
@@ -88,15 +88,15 @@ tasks.register('subscribingBundle', Bundle) {
 tasks.withType(Test).configureEach {
   dependsOn "commonBundle", "clientBundle", "messagingBundle", "publishingBundle", "subscribingBundle", "jar"
 
-  jvmArgs "-Ddatadog.smoketest.osgi.appJar.path=${tasks.jar.archivePath}"
+  jvmArgs "-Ddatadog.smoketest.osgi.appJar.path=${tasks.jar.archiveFile.get()}"
   jvmArgs "-Ddatadog.smoketest.osgi.equinoxJar.path=${configurations.equinox.first().path}"
   jvmArgs "-Ddatadog.smoketest.osgi.felixJar.path=${configurations.felix.first().path}"
 
   jvmArgs "-Ddatadog.smoketest.osgi.bundle.paths=" +
-    "${tasks.commonBundle.archivePath}," +
-    "${tasks.clientBundle.archivePath}," +
-    "${tasks.messagingBundle.archivePath}," +
-    "${tasks.publishingBundle.archivePath}," +
-    "${tasks.subscribingBundle.archivePath}," +
+    "${tasks.commonBundle.archiveFile.get()}," +
+    "${tasks.clientBundle.archiveFile.get()}," +
+    "${tasks.messagingBundle.archiveFile.get()}," +
+    "${tasks.publishingBundle.archiveFile.get()}," +
+    "${tasks.subscribingBundle.archiveFile.get()}," +
     "${configurations.bundles*.path.join(',')}"
 }

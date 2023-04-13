@@ -6,6 +6,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import java.util.Collections;
+import java.util.Map;
 
 @AutoService(Instrumenter.class)
 public class LettuceAsyncCommandsInstrumentation extends Instrumenter.Tracing
@@ -18,6 +20,12 @@ public class LettuceAsyncCommandsInstrumentation extends Instrumenter.Tracing
   @Override
   public String instrumentedType() {
     return "com.lambdaworks.redis.AbstractRedisAsyncCommands";
+  }
+
+  @Override
+  public Map<String, String> contextStore() {
+    return Collections.singletonMap(
+        "com.lambdaworks.redis.api.StatefulConnection", "com.lambdaworks.redis.RedisURI");
   }
 
   @Override

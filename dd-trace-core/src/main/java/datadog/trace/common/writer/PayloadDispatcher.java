@@ -62,7 +62,8 @@ public class PayloadDispatcher implements ByteBufferConsumer {
     // introducing an unbound queue and another thread to do the IO
     // however, we can't block the application threads from here.
     if (null == mapper || !packer.format(trace, mapper)) {
-      healthMetrics.onFailedPublish(trace.get(0).samplingPriority());
+      healthMetrics.onFailedPublish(
+          trace.isEmpty() ? 0 : trace.get(0).samplingPriority(), trace.size());
     }
   }
 

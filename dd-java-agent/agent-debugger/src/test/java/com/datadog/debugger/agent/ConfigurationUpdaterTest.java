@@ -22,21 +22,17 @@ import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.ProbeId;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import java.lang.instrument.Instrumentation;
 import java.lang.instrument.UnmodifiableClassException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -455,14 +451,14 @@ public class ConfigurationUpdaterTest {
                     new ProbeCondition(
                         DSL.when(DSL.eq(DSL.ref("arg"), DSL.value("foo"))), "arg == 'foo'"))
                 .build());
+    logProbes.get(0).buildLocation(null);
     configurationUpdater.accept(createApp(logProbes));
-    Snapshot.ProbeDetails probeDetails =
+    ProbeImplementation probeImplementation =
         configurationUpdater.resolve(PROBE_ID.getId(), String.class);
-    Assertions.assertEquals(PROBE_ID.getId(), probeDetails.getId());
-    Assertions.assertEquals(PROBE_ID.getVersion(), probeDetails.getVersion());
-    Assertions.assertEquals("java.lang.String", probeDetails.getLocation().getType());
-    Assertions.assertEquals("concat", probeDetails.getLocation().getMethod());
-    Assertions.assertNotNull(probeDetails.getScript());
+    Assertions.assertEquals(PROBE_ID.getId(), probeImplementation.getId());
+    Assertions.assertEquals("java.lang.String", probeImplementation.getLocation().getType());
+    Assertions.assertEquals("concat", probeImplementation.getLocation().getMethod());
+    Assertions.assertNotNull(((LogProbe) probeImplementation).getProbeCondition());
   }
 
   @Test
@@ -477,9 +473,9 @@ public class ConfigurationUpdaterTest {
     configurationUpdater.accept(createApp(logProbes));
     verify(inst).retransformClasses(eq(String.class));
     // simulate that there is a snapshot probe instrumentation left in HashMap class
-    Snapshot.ProbeDetails probeDetails =
+    ProbeImplementation probeImplementation =
         configurationUpdater.resolve(PROBE_ID2.getId(), HashMap.class);
-    Assertions.assertNull(probeDetails);
+    Assertions.assertNull(probeImplementation);
     verify(inst).retransformClasses(eq(HashMap.class));
   }
 
@@ -501,45 +497,6 @@ public class ConfigurationUpdaterTest {
     Assertions.assertEquals(
         ConfigurationUpdater.MAX_ALLOWED_LOG_PROBES,
         configurationUpdater.getAppliedDefinitions().size());
-  }
-
-  private static Stream<Arguments> provideEnvAndVersion() {
-    return Stream.of(
-        // <Agent env>, <agent version>, <probe tags>, <should match>
-        Arguments.of("dev", "foo", new String[] {"env:dev", "version:foo"}, true),
-        Arguments.of("prod", "bar", new String[] {"env:dev", "version:foo"}, false),
-        Arguments.of("prod", "--wildcard--", new String[] {"env:prod", "version"}, true),
-        Arguments.of("--wildcard--", "foo", new String[] {"env", "version:foo"}, true),
-        Arguments.of("--wildcard--", "--wildcard--", new String[] {"env", "version"}, true),
-        Arguments.of("", "", new String[] {"env:dev", "version:foo"}, false),
-        Arguments.of("", "", new String[] {"env", "version"}, true),
-        Arguments.of("", "", new String[] {}, true),
-        Arguments.of("foo", "bar", new String[] {}, true),
-        Arguments.of("foo", "", new String[] {}, true),
-        Arguments.of("", "bar", new String[] {}, true),
-        Arguments.of("", "bar", null, true));
-  }
-
-  @ParameterizedTest
-  @MethodSource("provideEnvAndVersion")
-  public void acceptProbesBasedOnEnvAndVersion(
-      String agentEnv, String agentVersion, String[] tags, boolean expectation) {
-    lenient().when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
-    lenient().when(tracerConfig.getEnv()).thenReturn(agentEnv);
-    lenient().when(tracerConfig.getVersion()).thenReturn(agentVersion);
-    List<LogProbe> logProbes = new ArrayList<>();
-    logProbes.add(
-        LogProbe.builder()
-            .probeId("foo", 0)
-            .tags(tags)
-            .where("java.lang.String", "concat")
-            .build());
-    ConfigurationUpdater configurationUpdater =
-        new ConfigurationUpdater(
-            inst, this::createTransformer, tracerConfig, new ClassesToRetransformFinder());
-    configurationUpdater.accept(createApp(logProbes));
-    Assertions.assertEquals(
-        expectation ? 1 : 0, configurationUpdater.getAppliedDefinitions().size());
   }
 
   @Test

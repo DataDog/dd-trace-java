@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation
 
+import datadog.trace.api.DD64bTraceId
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.config.TracerConfig
@@ -23,6 +24,9 @@ class W3CHttpExtractorTest extends DDSpecification {
   private static final String TEST_TP_DROP = "00-00000000000000000000000000000001-123456789abcdef0-00"
   private static final String TEST_TP_KEEP = "00-00000000000000000000000000000001-123456789abcdef0-01"
   private static final long TEST_SPAN_ID = 1311768467463790320L
+  private static final DDTraceId TRACE_ID_ONE = DDTraceId.fromHex("00000000000000000000000000000001")
+  private static final DDTraceId TRACE_ID_NO_HIGH_LOW_MAX = DDTraceId.fromHex("0000000000000000ffffffffffffffff")
+  private static final DDTraceId TRACE_ID_LOW_MAX = DDTraceId.fromHex("123456789abcdef0ffffffffffffffff")
 
   private HttpCodec.Extractor _extractor
 
@@ -50,13 +54,8 @@ class W3CHttpExtractorTest extends DDSpecification {
   def "extract traceparent '#traceparent'"() {
     setup:
     HashMap<String, String> headers = []
-    String originalTraceId = ""
-    String originalSpanId = ""
     if (traceparent) {
       headers.put(W3CHttpCodec.TRACE_PARENT_KEY, traceparent)
-      def parts = traceparent.split('-')
-      originalTraceId = parts[1]
-      originalSpanId = parts[2]
     }
 
     when:
@@ -67,44 +66,49 @@ class W3CHttpExtractorTest extends DDSpecification {
       assert context.traceId == traceId
       assert context.spanId == spanId
       assert context.samplingPriority == priority
-      assert context.traceId.toHexStringOrOriginal() == originalTraceId
-      DDSpanId.toHexStringPadded(context.spanId) == originalSpanId
     } else {
       assert context == null
     }
 
     where:
-    traceparent                                                 | tpValid | traceId       | spanId       | priority
-    null                                                        | false   | null          | null         | null
-    '00-00000000000000000000000000000000-123456789abcdef0-01'   | false   | null          | null         | null
-    '00-123456789abcdef00000000000000000-123456789abcdef0-01'   | false   | null          | null         | null
-    '00-00000000000000000000000000000001-0000000000000000-01'   | false   | null          | null         | null
-    '00-00000000000000000000000000000001-123456789abcdef0-01'   | true    | DDTraceId.ONE | TEST_SPAN_ID | SAMPLER_KEEP
-    '\t00-00000000000000000000000000000001-123456789abcdef0-01' | true    | DDTraceId.ONE | TEST_SPAN_ID | SAMPLER_KEEP
-    '00-00000000000000000000000000000001-123456789abcdef0-01\t' | true    | DDTraceId.ONE | TEST_SPAN_ID | SAMPLER_KEEP
-    ' 00-00000000000000000000000000000001-123456789abcdef0-01 ' | true    | DDTraceId.ONE | TEST_SPAN_ID | SAMPLER_KEEP
-    '00-0000000000000000ffffffffffffffff-ffffffffffffffff-01'   | true    | DDTraceId.MAX | DDSpanId.MAX | SAMPLER_KEEP
-    '00-0000000000000000ffffffffffffffff-ffffffffffffffff-00'   | true    | DDTraceId.MAX | DDSpanId.MAX | SAMPLER_DROP
-    '00-123456789abcdef0ffffffffffffffff-123456789abcdef0-00'   | true    | DDTraceId.MAX | TEST_SPAN_ID | SAMPLER_DROP
-    '00-123456789abcdef0ffffffffffffffFf-123456789abcdef0-00'   | false   | null          | null         | null
-    '00-123456789abcdeF0ffffffffffffffff-123456789abcdef0-00'   | false   | null          | null         | null
-    '00-123456789abcdef0fffffffffFffffff-123456789abcdef0-00'   | false   | null          | null         | null
-    '00-123456789abcdef0ffffffffffffffff-123456789Abcdef0-00'   | false   | null          | null         | null
-    '00-123456789äbcdef0ffffffffffffffff-123456789abcdef0-00'   | false   | null          | null         | null
-    '00-123456789abcdef0ffffffffäfffffff-123456789abcdef0-00'   | false   | null          | null         | null
-    '00-123456789abcdef0ffffffffffffffff-123456789äbcdef0-00'   | false   | null          | null         | null
-    '01-00000000000000000000000000000001-0000000000000001-02'   | true    | DDTraceId.ONE | 1            | SAMPLER_DROP
-    '000-0000000000000000000000000000001-0000000000000001-01'   | false   | null          | null         | null
-    '00-0000000000000000000000000000001 -0000000000000001-01'   | false   | null          | null         | null
-    '00-0000000000000000000000000000001-0000000000000001-01'    | false   | null          | null         | null
-    '00-00000000000000000000000000000001-000000000000001-01'    | false   | null          | null         | null
-    '00-00000000000000000000000000000001-0000000000000001-0'    | false   | null          | null         | null
-    'ff-00000000000000000000000000000001-0000000000000001-00'   | false   | null          | null         | null
-    'fe-00000000000000000000000000000001-0000000000000001-02'   | true    | DDTraceId.ONE | 1            | SAMPLER_DROP
-    '00-00000000000000000000000000000001-0000000000000001-03-0' | false   | null          | null         | null
-    'fe-00000000000000000000000000000001-0000000000000001-02.0' | false   | null          | null         | null
+    traceparent                                                 | tpValid | traceId           | spanId       | priority
+    null                                                        | false   | null              | null         | null
+    '00-00000000000000000000000000000000-123456789abcdef0-01'   | false   | null              | null         | null
+    '00-123456789abcdef00000000000000000-123456789abcdef0-01'   | false   | null              | null         | null
+    '00-00000000000000000000000000000001-0000000000000000-01'   | false   | null              | null         | null
+    '00-00000000000000000000000000000001-123456789abcdef0-01'   | true    | TRACE_ID_ONE      | TEST_SPAN_ID | SAMPLER_KEEP
+    '\t00-00000000000000000000000000000001-123456789abcdef0-01' | true    | TRACE_ID_ONE      | TEST_SPAN_ID | SAMPLER_KEEP
+    '00-00000000000000000000000000000001-123456789abcdef0-01\t' | true    | TRACE_ID_ONE      | TEST_SPAN_ID | SAMPLER_KEEP
+    ' 00-00000000000000000000000000000001-123456789abcdef0-01 ' | true    | TRACE_ID_ONE      | TEST_SPAN_ID | SAMPLER_KEEP
+    '00-0000000000000000ffffffffffffffff-ffffffffffffffff-01'   | true    | TRACE_ID_NO_HIGH_LOW_MAX | DDSpanId.MAX | SAMPLER_KEEP
+    '00-0000000000000000ffffffffffffffff-ffffffffffffffff-00'   | true    | TRACE_ID_NO_HIGH_LOW_MAX | DDSpanId.MAX | SAMPLER_DROP
+    '00-123456789abcdef0ffffffffffffffff-123456789abcdef0-00'   | true    | TRACE_ID_LOW_MAX  | TEST_SPAN_ID | SAMPLER_DROP
+    '00-123456789abcdef0ffffffffffffffFf-123456789abcdef0-00'   | false   | null              | null         | null
+    '00-123456789abcdeF0ffffffffffffffff-123456789abcdef0-00'   | false   | null              | null         | null
+    '00-123456789abcdef0fffffffffFffffff-123456789abcdef0-00'   | false   | null              | null         | null
+    '00-123456789abcdef0ffffffffffffffff-123456789Abcdef0-00'   | false   | null              | null         | null
+    '00-123456789äbcdef0ffffffffffffffff-123456789abcdef0-00'   | false   | null              | null         | null
+    '00-123456789abcdef0ffffffffäfffffff-123456789abcdef0-00'   | false   | null              | null         | null
+    '00-123456789abcdef0ffffffffffffffff-123456789äbcdef0-00'   | false   | null              | null         | null
+    '01-00000000000000000000000000000001-0000000000000001-02'   | true    | TRACE_ID_ONE      | 1            | SAMPLER_DROP
+    '000-0000000000000000000000000000001-0000000000000001-01'   | false   | null              | null         | null
+    '00-0000000000000000000000000000001 -0000000000000001-01'   | false   | null              | null         | null
+    '00-0000000000000000000000000000001-0000000000000001-01'    | false   | null              | null         | null
+    '00-00000000000000000000000000000001-000000000000001-01'    | false   | null              | null         | null
+    '00-00000000000000000000000000000001-0000000000000001-0'    | false   | null              | null         | null
+    'ff-00000000000000000000000000000001-0000000000000001-00'   | false   | null              | null         | null
+    'fe-00000000000000000000000000000001-0000000000000001-02'   | true    | TRACE_ID_ONE      | 1            | SAMPLER_DROP
+    '00-00000000000000000000000000000001-0000000000000001-03-0' | false   | null              | null         | null
+    'fe-00000000000000000000000000000001-0000000000000001-02.0' | false   | null              | null         | null
   }
 
+  def "check max from W3C trace ids"() {
+    expect:
+    traceId.toLong() == DD64bTraceId.MAX.toLong()
+
+    where:
+    traceId << [TRACE_ID_LOW_MAX, TRACE_ID_NO_HIGH_LOW_MAX]
+  }
 
   def "extract traceparent, tracestate, and http headers (#traceparent #tracestate)"() {
     setup:
@@ -123,7 +127,7 @@ class W3CHttpExtractorTest extends DDSpecification {
     final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
 
     then:
-    context.traceId == DDTraceId.ONE
+    context.traceId == TRACE_ID_ONE
     context.spanId == TEST_SPAN_ID
     context.baggage == ['k1'                        : 'v1',
       'k2'                        : 'v2',
@@ -304,7 +308,7 @@ class W3CHttpExtractorTest extends DDSpecification {
     final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
 
     then:
-    context.traceId == DDTraceId.ONE
+    context.traceId == TRACE_ID_ONE
     context.spanId == TEST_SPAN_ID
     context.baggage == ['k1': 'v1',
       'k2': 'v2',
@@ -333,7 +337,7 @@ class W3CHttpExtractorTest extends DDSpecification {
     then:
     assert context != null
     if (tpValid) {
-      assert context.getTraceId() == DDTraceId.ONE
+      assert context.getTraceId() == TRACE_ID_ONE
       assert context.getSpanId()  == 1
     }
     context.getBaggage() == [
@@ -378,5 +382,28 @@ class W3CHttpExtractorTest extends DDSpecification {
     assert context.fastlyClientIp == '7.7.7.7'
     assert context.cfConnectingIp == '8.8.8.8'
     assert context.cfConnectingIpv6 == '9.9.9.9'
+  }
+
+  def "mark inconsistent tid as propagation error"() {
+    setup:
+    def headers = [
+      (TRACE_PARENT_KEY.toUpperCase())        : traceparent,
+      (TRACE_STATE_KEY.toUpperCase())         : tracestate,
+    ]
+
+    when:
+    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+
+    then:
+    context.getPropagationTags().createTagMap() == expectedTags
+
+    where:
+    traceparent                                               | tracestate                  | consitent
+    '00-123456789abcdef00fedcba987654321-123456789abcdef0-01' | ''                          | true
+    '00-123456789abcdef00fedcba987654321-123456789abcdef0-01' | "dd=t.tid:123456789abcdef0" | true
+    '00-123456789abcdef00fedcba987654321-123456789abcdef0-01' | "dd=t.tid:123456789abcdef1" | false
+    tid = tracestate.empty ? '' : tracestate.substring(9)
+    defaultTags = ['_dd.p.dm': '-0', '_dd.p.tid': '123456789abcdef0']
+    expectedTags = consitent ? defaultTags : defaultTags + ['_dd.propagation_error': "inconsistent_tid $tid"]
   }
 }

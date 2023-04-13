@@ -200,6 +200,14 @@ class W3CPropagationTagsTest extends DDCoreSpecification {
     'dd=s:0;t.a:b;t.x:y \t'                                                | 'dd=s:0;t.a:b;t.x:y'                                 | ['_dd.p.a': 'b', '_dd.p.x': 'y']
     'dd=s:0;t.a:b ;t.x:y \t'                                               | 'dd=s:0;t.a:b ;t.x:y'                                | ['_dd.p.a': 'b ', '_dd.p.x': 'y']
     'dd=s:0;t.a:b \t;t.x:y \t'                                             | null                                                 | [:]
+    'dd=s:0;t.tid:123456789abcdef0'                                        | 'dd=s:0;t.tid:123456789abcdef0'                      | ['_dd.p.tid': '123456789abcdef0']
+    "dd=t.tid:"                                                            | null                                                 | [:] // invalid tid tag value: empty value
+    "dd=t.tid:" + "1" * 1                                                  | null                                                 | ['_dd.propagation_error': 'malformed_tid 1'] // invalid tid tag value: invalid length
+    "dd=t.tid:" + "1" * 15                                                 | null                                                 | ['_dd.propagation_error': 'malformed_tid 111111111111111'] // invalid tid tag value: invalid length
+    "dd=t.tid:" + "1" * 17                                                 | null                                                 | ['_dd.propagation_error': 'malformed_tid 11111111111111111'] // invalid tid tag value: invalid length
+    "dd=t.tid:123456789ABCDEF0"                                            | null                                                 | ['_dd.propagation_error': 'malformed_tid 123456789ABCDEF0'] // invalid tid tag value: upper-case characters
+    "dd=t.tid:123456789abcdefg"                                            | null                                                 | ['_dd.propagation_error': 'malformed_tid 123456789abcdefg'] // invalid tid tag value: non-hexadecimal characters
+    "dd=t.tid:-123456789abcdef"                                            | null                                                 | ['_dd.propagation_error': 'malformed_tid -123456789abcdef'] // invalid tid tag value: non-hexadecimal characters
   }
 
   def "w3c propagation tags should translate to datadog tags #headerValue"() {

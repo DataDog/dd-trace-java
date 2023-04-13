@@ -68,11 +68,35 @@ excludedClassesCoverage += [
   "datadog.trace.api.civisibility.CIInfo",
   "datadog.trace.api.civisibility.CIInfo.Builder",
   "datadog.trace.api.civisibility.InstrumentationBridge",
-  "datadog.trace.api.civisibility.events.*",
-  "datadog.trace.api.civisibility.git.GitInfo",
-  "datadog.trace.api.civisibility.git.CommitInfo",
-  "datadog.trace.api.civisibility.git.PersonInfo",
   "datadog.trace.api.civisibility.source.MethodLinesResolver.MethodLines",
+  "datadog.trace.api.civisibility.events.impl.AbstractTestContext",
+  // POJO
+  "datadog.trace.api.civisibility.events.impl.BuildEventsHandlerImpl",
+  // tested with integration tests in instr modules
+  "datadog.trace.api.civisibility.events.impl.BuildEventsHandlerImpl.SessionContext",
+  // POJO
+  "datadog.trace.api.civisibility.events.impl.ParentProcessTestContext",
+  // POJO
+  "datadog.trace.api.civisibility.events.impl.SpanTestContext",
+  // POJO
+  "datadog.trace.api.civisibility.events.impl.TestEventsHandlerImpl",
+  // tested with integration tests in instr modules
+  "datadog.trace.api.civisibility.events.impl.TestModuleDescriptor",
+  // POJO
+  "datadog.trace.api.civisibility.events.impl.TestSuiteDescriptor",
+  // POJO
+  "datadog.trace.api.civisibility.events.BuildEventsHandler.ModuleAndSessionId",
+  // POJO
+  "datadog.trace.api.git.GitInfo",
+  // POJO
+  "datadog.trace.api.git.PersonInfo",
+  // POJO
+  "datadog.trace.api.git.CommitInfo",
+  // POJO
+  "datadog.trace.api.git.GitUtils",
+  // tested indirectly by dependent modules
+  "datadog.trace.api.git.RawParseUtils",
+  // tested indirectly by dependent modules
   "datadog.trace.logging.LoggingSettingsDescription",
   "datadog.trace.util.AgentProxySelector",
   "datadog.trace.util.AgentTaskScheduler",
@@ -86,6 +110,7 @@ excludedClassesCoverage += [
   "datadog.trace.util.PidHelper",
   "datadog.trace.util.PidHelper.Fallback",
   "datadog.trace.api.IntegrationsCollector.Holder",
+  "datadog.trace.api.MetricCollector.Holder",
   "datadog.trace.api.ConfigCollector.Holder",
   "datadog.trace.api.Config.HostNameHolder",
   "datadog.trace.api.Config.RuntimeIdHolder",
@@ -95,9 +120,12 @@ excludedClassesCoverage += [
   "datadog.trace.api.cache.FixedSizeWeakKeyCache",
   // Interface with default method
   "datadog.trace.api.StatsDClientManager",
+  "datadog.trace.api.iast.Taintable",
   // a stub
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration",
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration.NoOp",
+  // debug
+  'datadog.trace.api.iast.Taintable.DebugLogger',
 ]
 
 excludedClassesBranchCoverage = [

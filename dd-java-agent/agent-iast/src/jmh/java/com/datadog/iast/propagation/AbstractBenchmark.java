@@ -7,6 +7,7 @@ import com.datadog.iast.IastSystem;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.api.gateway.InstrumentationGateway;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -58,7 +59,7 @@ public abstract class AbstractBenchmark<C extends AbstractBenchmark.BenchmarkCon
   public void start() {
     context = initializeContext();
     final TagContext tagContext = new TagContext();
-    if (Config.get().isIastEnabled()) {
+    if (Config.get().getIastActivation() == ProductActivation.FULLY_ENABLED) {
       tagContext.withRequestContextDataIast(context.getIastContext());
     }
     span = AgentTracer.startSpan("benchmark", tagContext);

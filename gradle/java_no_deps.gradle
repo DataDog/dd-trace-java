@@ -1,3 +1,4 @@
+import org.gradle.api.plugins.jvm.JvmTestSuite
 import org.gradle.jvm.toolchain.internal.SpecificInstallationToolchainSpec
 
 apply plugin: 'java-library'
@@ -60,8 +61,8 @@ if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJav
   }
 
   dependencies {
-    compileOnly sourceSets."main_$name".compileClasspath
-    implementation sourceSets."main_$name".output
+    compileOnly files(project.sourceSets."main_$name".compileClasspath)
+    implementation files(project.sourceSets."main_$name".output)
   }
 
   jar {
@@ -104,7 +105,7 @@ jar {
 }
 
 tasks.register("packageSources", Jar) {
-  classifier = 'sources'
+  archiveClassifier = 'sources'
   from sourceSets.main.allSource
 }
 artifacts.archives packageSources
@@ -208,7 +209,7 @@ project.afterEvaluate {
       }
     }
 
-    if (project.plugins.hasPlugin('org.unbroken-dome.test-sets') && configurations.hasProperty("latestDepTestRuntime")) {
+    if (configurations.hasProperty("latestDepTestRuntimeClasspath")) {
       doFirst {
         def testArtifacts = configurations.testRuntimeClasspath.resolvedConfiguration.resolvedArtifacts
         def latestTestArtifacts = configurations.latestDepTestRuntimeClasspath.resolvedConfiguration.resolvedArtifacts
@@ -324,6 +325,80 @@ def isJdkExcluded(String javaName) {
 def getJavaHomePath(String path) {
   def javaHome = new File(path).toPath().toRealPath()
   return javaHome.endsWith("jre") ? javaHome.parent : javaHome
+}
+
+ext.addTestSuiteExtendingForDir = (String testSuiteName, String parentSuiteName, String dirName) -> {
+  testing {
+    suites {
+      create(testSuiteName, JvmTestSuite, {
+        sources {
+          java {
+            srcDirs = ["src/$dirName/java"]
+          }
+          resources {
+            srcDirs = ["src/$dirName/resources"]
+          }
+          if (project.plugins.hasPlugin('groovy')) {
+            groovy {
+              srcDirs = ["src/$dirName/groovy"]
+            }
+          }
+          if (project.plugins.hasPlugin('kotlin')) {
+            kotlin {
+              srcDirs = ["src/$dirName/kotlin"]
+            }
+          }
+          if (project.plugins.hasPlugin('scala')) {
+            scala {
+              srcDirs = ["src/$dirName/scala"]
+            }
+          }
+        }
+        dependencies {
+          implementation project
+        }
+      })
+    }
+  }
+
+  configurations {
+    def provider = named("${parentSuiteName}CompileOnly")
+    if (provider.present) {
+      named("${testSuiteName}CompileOnly").configure { extendsFrom(provider.get()) }
+    }
+    provider = named("${parentSuiteName}Implementation")
+    if (provider.present) {
+      named("${testSuiteName}Implementation").configure { extendsFrom(provider.get()) }
+    }
+    provider = named("${parentSuiteName}RuntimeOnly")
+    if (provider.present) {
+      named("${testSuiteName}RuntimeOnly").configure { extendsFrom(provider.get()) }
+    }
+    provider = named("${parentSuiteName}AnnotationProcessor")
+    if (provider.present) {
+      named("${testSuiteName}AnnotationProcessor").configure { extendsFrom(provider.get()) }
+    }
+  }
+
+  tasks.register("${testSuiteName}Jar", Jar) {
+    dependsOn(tasks.named("${testSuiteName}Classes").get())
+    from(sourceSets.named(testSuiteName).get().output)
+    archiveClassifier = testSuiteName
+  }
+}
+
+ext.addTestSuiteForDir = (String testSuiteName, String dirName) -> {
+  ext.addTestSuiteExtendingForDir(testSuiteName, 'test', dirName)
+}
+
+ext.addTestSuite = (String testSuiteName) -> {
+  ext.addTestSuiteForDir(testSuiteName, testSuiteName)
+}
+
+tasks.register('testJar', Jar) {
+  dependsOn(testClasses)
+  from sourceSets.test.output
+  archiveClassifier = 'test'
 }
 
 apply from: "$rootDir/gradle/configure_tests.gradle"

@@ -48,6 +48,7 @@ public final class TracerConfig {
   public static final String TRACE_REPORT_HOSTNAME = "trace.report-hostname";
   public static final String TRACE_CLIENT_IP_HEADER = "trace.client-ip-header";
   public static final String TRACE_CLIENT_IP_RESOLVER_ENABLED = "trace.client-ip.resolver.enabled";
+  public static final String TRACE_GIT_METADATA_ENABLED = "trace.git.metadata.enabled";
   public static final String HEADER_TAGS = "trace.header.tags";
   public static final String REQUEST_HEADER_TAGS = "trace.request_header.tags";
   public static final String RESPONSE_HEADER_TAGS = "trace.response_header.tags";
@@ -82,6 +83,9 @@ public final class TracerConfig {
   public static final String ENABLE_TRACE_AGENT_V05 = "trace.agent.v0.5.enabled";
 
   public static final String CLIENT_IP_ENABLED = "trace.client-ip.enabled";
+
+  public static final String TRACE_128_BIT_TRACEID_GENERATION_ENABLED =
+      "trace.128.bit.traceid.generation.enabled";
 
   public static final String SECURE_RANDOM = "trace.secure-random";
 

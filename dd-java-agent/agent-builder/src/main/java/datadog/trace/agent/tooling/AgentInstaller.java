@@ -7,6 +7,8 @@ import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDOutlinePoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
+import datadog.trace.agent.tooling.usm.UsmExtractorImpl;
+import datadog.trace.agent.tooling.usm.UsmMessageFactoryImpl;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.IntegrationsCollector;
 import datadog.trace.api.ProductActivation;
@@ -100,6 +102,11 @@ public class AgentInstaller {
     }
 
     DDElementMatchers.registerAsSupplier();
+
+    if (enabledSystems.contains(Instrumenter.TargetSystem.USM)) {
+      UsmMessageFactoryImpl.registerAsSupplier();
+      UsmExtractorImpl.registerAsSupplier();
+    }
 
     // By default ByteBuddy will skip all methods that are synthetic or default finalizer
     // but we need to instrument some synthetic methods in Scala, so change the ignore matcher
@@ -219,11 +226,14 @@ public class AgentInstaller {
     if (cfg.getAppSecActivation() != ProductActivation.FULLY_DISABLED) {
       enabledSystems.add(Instrumenter.TargetSystem.APPSEC);
     }
-    if (cfg.isIastEnabled()) {
+    if (cfg.getIastActivation() != ProductActivation.FULLY_DISABLED) {
       enabledSystems.add(Instrumenter.TargetSystem.IAST);
     }
     if (cfg.isCiVisibilityEnabled()) {
       enabledSystems.add(Instrumenter.TargetSystem.CIVISIBILITY);
+    }
+    if (cfg.isUsmEnabled()) {
+      enabledSystems.add(Instrumenter.TargetSystem.USM);
     }
     return enabledSystems;
   }

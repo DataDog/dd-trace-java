@@ -41,6 +41,7 @@ public final class ConfigDefaults {
   static final String DEFAULT_SITE = "datadoghq.com";
 
   static final boolean DEFAULT_TRACE_ENABLED = true;
+  static final boolean DEFAULT_TRACE_OTEL_ENABLED = false;
   static final boolean DEFAULT_INTEGRATIONS_ENABLED = true;
 
   static final boolean DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION = true;
@@ -84,7 +85,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_APPSEC_WAF_METRICS = true;
   static final int DEFAULT_APPSEC_WAF_TIMEOUT = 100000; // 0.1 s
 
-  static final boolean DEFAULT_IAST_ENABLED = false;
+  static final String DEFAULT_IAST_ENABLED = "false";
   static final boolean DEFAULT_IAST_DEBUG_ENABLED = false;
   public static final int DEFAULT_IAST_MAX_CONCURRENT_REQUESTS = 4;
   public static final int DEFAULT_IAST_VULNERABILITIES_PER_REQUEST = 2;
@@ -95,6 +96,8 @@ public final class ConfigDefaults {
       "^(?:PBEWITH(?:HMACSHA(?:2(?:24ANDAES_(?:128|256)|56ANDAES_(?:128|256))|384ANDAES_(?:128|256)|512ANDAES_(?:128|256)|1ANDAES_(?:128|256))|SHA1AND(?:RC(?:2_(?:128|40)|4_(?:128|40))|DESEDE)|MD5AND(?:TRIPLEDES|DES))|DES(?:EDE(?:WRAP)?)?|BLOWFISH|ARCFOUR|RC2).*$";
 
   public static final boolean DEFAULT_IAST_DEDUPLICATION_ENABLED = true;
+
+  static final boolean DEFAULT_USM_ENABLED = false;
 
   static final boolean DEFAULT_CIVISIBILITY_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED = false;
@@ -142,8 +145,11 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_TELEMETRY_ENABLED = true;
   static final int DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL = 60; // in seconds
+  static final int DEFAULT_TELEMETRY_METRICS_INTERVAL = 10; // in seconds
   static final boolean DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED = true;
 
+  static final boolean DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED = false;
+  static final boolean DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED = false;
   static final boolean DEFAULT_SECURE_RANDOM = false;
 
   public static final int DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH = 512;

@@ -7,10 +7,11 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.api.internal.util.HexStringUtils;
+import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -60,7 +61,7 @@ class W3CHttpCodec {
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
       StringBuilder sb = new StringBuilder(TRACE_PARENT_LENGTH);
       sb.append("00-");
-      sb.append(context.getTraceId().toHexStringPaddedOrOriginal(32));
+      sb.append(context.getTraceId().toHexString());
       sb.append("-");
       sb.append(DDSpanId.toHexStringPadded(context.getSpanId()));
       sb.append(context.getSamplingPriority() > 0 ? "-01" : "-00");
@@ -281,19 +282,19 @@ class W3CHttpCodec {
       if (length < TRACE_PARENT_LENGTH) {
         throw new IllegalStateException("The length of traceparent '" + tp + "' is too short");
       }
-      long version = HexStringUtils.parseUnsignedLongHex(tp, 0, 2, true);
+      long version = LongStringUtils.parseUnsignedLongHex(tp, 0, 2, true);
       if (version == 255) {
         throw new IllegalStateException("Illegal version number " + tp.substring(0, 2));
       } else if (version == 0 && length > TRACE_PARENT_LENGTH) {
         throw new IllegalStateException("The length of traceparent '" + tp + "' is too long");
       }
-      context.traceId =
-          DDTraceId.fromHexTruncatedWithOriginal(tp, TRACE_PARENT_TID_START, 32, true);
-      if (DDTraceId.ZERO.equals(context.traceId)) {
+      DDTraceId traceId = DD128bTraceId.fromHex(tp, TRACE_PARENT_TID_START, 32, true);
+      if (traceId.toLong() == 0) {
         throw new IllegalStateException(
             "Illegal all zero 64 bit trace id "
                 + tp.substring(TRACE_PARENT_TID_START, TRACE_PARENT_TID_END));
       }
+      context.traceId = traceId;
       context.spanId = DDSpanId.fromHex(tp, TRACE_PARENT_SID_START, 16, true);
       if (context.spanId == 0) {
         throw new IllegalStateException(
@@ -303,7 +304,7 @@ class W3CHttpCodec {
       if (version != 0 && length > TRACE_PARENT_LENGTH && tp.charAt(TRACE_PARENT_LENGTH) != '-') {
         throw new IllegalStateException("Illegal character after flags in '" + tp + "'");
       }
-      long flags = HexStringUtils.parseUnsignedLongHex(tp, TRACE_PARENT_FLAGS_START, 2, true);
+      long flags = LongStringUtils.parseUnsignedLongHex(tp, TRACE_PARENT_FLAGS_START, 2, true);
       if ((flags & TRACE_PARENT_FLAGS_SAMPLED) != 0) {
         context.samplingPriority = SAMPLER_KEEP;
       } else {
@@ -332,6 +333,8 @@ class W3CHttpCodec {
       }
       // Use the origin
       context.origin = context.propagationTags.getOrigin();
+      // Ensure TraceId high-order bits match
+      context.propagationTags.updateTraceIdHighOrderBits(context.traceId.toHighOrderLong());
     }
 
     private static String trim(String input) {

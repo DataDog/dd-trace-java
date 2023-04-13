@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation
 
+import datadog.trace.api.DD64bTraceId
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.sampling.PrioritySampling
@@ -199,7 +200,7 @@ class XRayHttpExtractorTest extends DDSpecification {
     then:
     if (expectedTraceId) {
       assert context.traceId == expectedTraceId
-      assert context.traceId.toHexStringOrOriginal() == traceId.padLeft(16, '0')
+      assert context.traceId.toHexStringPadded(16) == traceId.padLeft(16, '0')
       assert context.spanId == expectedSpanId
       assert DDSpanId.toHexStringPadded(context.spanId) == spanId.padLeft(16, '0')
     } else {
@@ -208,11 +209,11 @@ class XRayHttpExtractorTest extends DDSpecification {
 
     where:
     traceId            | spanId             | expectedTraceId                       | expectedSpanId
-    "00001"            | "00001"            | DDTraceId.ONE                         | 1
-    "463ac35c9f6413ad" | "463ac35c9f6413ad" | DDTraceId.from("5060571933882717101") | DDSpanId.from("5060571933882717101")
-    "48485a3953bb6124" | "1"                | DDTraceId.from("5208512171318403364") | 1
-    "f" * 16           | "1"                | DDTraceId.MAX                         | 1
-    "1"                | "f" * 16           | DDTraceId.ONE                         | DDSpanId.MAX
+    "00001"            | "00001"            | DD64bTraceId.ONE | 1
+    "463ac35c9f6413ad" | "463ac35c9f6413ad" | DD64bTraceId.fromHex("463ac35c9f6413ad") | DDSpanId.from("5060571933882717101")
+    "48485a3953bb6124" | "1"                | DD64bTraceId.fromHex("48485a3953bb6124") | 1
+    "f" * 16           | "1"                | DD64bTraceId.MAX                         | 1
+    "1"                | "f" * 16           | DD64bTraceId.ONE                         | DDSpanId.MAX
   }
 
   def "extract headers with end-to-end"() {

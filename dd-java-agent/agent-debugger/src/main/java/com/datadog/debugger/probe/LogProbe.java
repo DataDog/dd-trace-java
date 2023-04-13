@@ -1,6 +1,10 @@
 package com.datadog.debugger.probe;
 
+import static datadog.trace.bootstrap.debugger.util.TimeoutChecker.DEFAULT_TIME_OUT;
+
 import com.datadog.debugger.agent.Generated;
+import com.datadog.debugger.agent.LogMessageTemplateBuilder;
+import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.instrumentation.LogInstrumentor;
@@ -8,18 +12,26 @@ import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
+import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.Limits;
+import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
+import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Stores definition of a log probe */
 public class LogProbe extends ProbeDefinition {
+  private static final Logger LOGGER = LoggerFactory.getLogger(LogProbe.class);
 
   /** Stores part of a templated message either a str or an expression */
   public static class Segment {
@@ -161,6 +173,17 @@ public class LogProbe extends ProbeDefinition {
     @Override
     public int hashCode() {
       return Objects.hash(maxReferenceDepth, maxCollectionSize, maxLength, maxFieldCount);
+    }
+
+    public static Limits toLimits(Capture capture) {
+      if (capture == null) {
+        return null;
+      }
+      return new Limits(
+          capture.maxReferenceDepth,
+          capture.maxCollectionSize,
+          capture.maxLength,
+          capture.maxFieldCount);
     }
   }
 
@@ -320,6 +343,156 @@ public class LogProbe extends ProbeDefinition {
       List<String> probeIds) {
     new LogInstrumentor(this, classLoader, classNode, methodNode, diagnostics, probeIds)
         .instrument();
+  }
+
+  @Override
+  public void evaluate(Snapshot.CapturedContext context, Snapshot.CapturedContext.Status status) {
+    status.setCondition(evaluateCondition(context, status));
+    Snapshot.CapturedThrowable throwable = context.getThrowable();
+    if (status.hasConditionErrors() && throwable != null) {
+      status.addError(
+          new Snapshot.EvaluationError(
+              "uncaught exception", throwable.getType() + ": " + throwable.getMessage()));
+    }
+    if (status.getCondition()) {
+      LogMessageTemplateBuilder logMessageBuilder = new LogMessageTemplateBuilder(segments);
+      status.setMessage(logMessageBuilder.evaluate(context, status));
+    }
+  }
+
+  private boolean evaluateCondition(
+      Snapshot.CapturedContext capture, Snapshot.CapturedContext.Status status) {
+    if (probeCondition == null) {
+      return true;
+    }
+    long startTs = System.nanoTime();
+    try {
+      if (!probeCondition.execute(capture)) {
+        return false;
+      }
+    } catch (EvaluationException ex) {
+      LOGGER.debug("Evaluation error: ", ex);
+      status.addError(new Snapshot.EvaluationError(ex.getExpr(), ex.getMessage()));
+      status.setConditionErrors(true);
+      return false;
+    } finally {
+      LOGGER.debug(
+          "ProbeCondition for probe[{}] evaluated in {}ns", id, (System.nanoTime() - startTs));
+    }
+    return true;
+  }
+
+  @Override
+  public void commit(
+      Snapshot.CapturedContext entryContext,
+      Snapshot.CapturedContext exitContext,
+      List<Snapshot.CapturedThrowable> caughtExceptions) {
+    Snapshot.CapturedContext.Status entryStatus = entryContext.getStatus(id);
+    Snapshot.CapturedContext.Status exitStatus = exitContext.getStatus(id);
+    String message = null;
+    switch (evaluateAt) {
+      case ENTRY:
+      case DEFAULT:
+        message = entryStatus.getMessage();
+        break;
+      case EXIT:
+        message = exitStatus.getMessage();
+        break;
+    }
+    boolean shouldCommit = false;
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), this);
+    if (entryStatus.shouldSend() && exitStatus.shouldSend()) {
+      // only rate limit if a condition is defined
+      if (probeCondition != null) {
+        if (!ProbeRateLimiter.tryProbe(id)) {
+          DebuggerContext.skipSnapshot(id, DebuggerContext.SkipCause.RATE);
+          return;
+        }
+      }
+      if (isCaptureSnapshot()) {
+        snapshot.setEntry(entryContext);
+        snapshot.setExit(exitContext);
+      }
+      snapshot.setMessage(message);
+      snapshot.setDuration(exitContext.getDuration());
+      snapshot.addCaughtExceptions(caughtExceptions);
+      shouldCommit = true;
+    }
+    if (entryStatus.shouldReportError()) {
+      if (entryContext.getThrowable() != null) {
+        // report also uncaught exception
+        snapshot.setEntry(entryContext);
+      }
+      snapshot.addEvaluationErrors(entryStatus.getErrors());
+      shouldCommit = true;
+    }
+    if (exitStatus.shouldReportError()) {
+      if (exitContext.getThrowable() != null) {
+        // report also uncaught exception
+        snapshot.setExit(exitContext);
+      }
+      snapshot.addEvaluationErrors(exitStatus.getErrors());
+      shouldCommit = true;
+    }
+    if (shouldCommit) {
+      commitSnapshot(snapshot);
+    } else {
+      DebuggerContext.skipSnapshot(id, DebuggerContext.SkipCause.CONDITION);
+    }
+  }
+
+  private void commitSnapshot(Snapshot snapshot) {
+    /*
+     * Record stack trace having the caller of this method as 'top' frame.
+     * For this it is necessary to discard:
+     * - Thread.currentThread().getStackTrace()
+     * - Snapshot.recordStackTrace()
+     * - LogProbe.commitSnapshot
+     * - ProbeDefinition.commit()
+     * - DebuggerContext.commit() or DebuggerContext.evalAndCommit()
+     */
+    snapshot.recordStackTrace(5);
+    DebuggerContext.addSnapshot(snapshot);
+  }
+
+  @Override
+  public void commit(Snapshot.CapturedContext lineContext, int line) {
+    Snapshot.CapturedContext.Status status = lineContext.getStatus(id);
+    if (status == null) {
+      return;
+    }
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), this);
+    boolean shouldCommit = false;
+    if (status.shouldSend()) {
+      // only rate limit if a condition is defined
+      if (probeCondition != null) {
+        if (!ProbeRateLimiter.tryProbe(id)) {
+          DebuggerContext.skipSnapshot(id, DebuggerContext.SkipCause.RATE);
+          return;
+        }
+      }
+      if (isCaptureSnapshot()) {
+        snapshot.addLine(lineContext, line);
+      }
+      snapshot.setMessage(status.getMessage());
+      shouldCommit = true;
+    }
+    if (status.shouldReportError()) {
+      snapshot.addEvaluationErrors(status.getErrors());
+      shouldCommit = true;
+    }
+    if (shouldCommit) {
+      // freeze context just before commit because line probes have only one context
+      lineContext.freeze(new TimeoutChecker(DEFAULT_TIME_OUT));
+      commitSnapshot(snapshot);
+      return;
+    }
+    DebuggerContext.skipSnapshot(id, DebuggerContext.SkipCause.CONDITION);
+  }
+
+  @Override
+  public boolean hasCondition() {
+    return probeCondition != null;
   }
 
   @Generated

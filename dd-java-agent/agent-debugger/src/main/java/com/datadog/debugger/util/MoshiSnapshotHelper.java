@@ -6,6 +6,7 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.bootstrap.debugger.Limits;
+import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.io.ByteArrayInputStream;
@@ -47,6 +48,8 @@ public class MoshiSnapshotHelper {
   public static final String IS_NULL = "isNull";
   public static final String TRUNCATED = "truncated";
   public static final String SIZE = "size";
+  public static final String ID = "id";
+  public static final String LOCATION = "location";
   private static final Duration TIME_OUT = Duration.ofMillis(200);
 
   public static class SnapshotJsonFactory implements JsonAdapter.Factory {
@@ -61,6 +64,9 @@ public class MoshiSnapshotHelper {
       }
       if (Types.equals(type, Snapshot.CapturedContext.class)) {
         return new CapturedContextAdapter(moshi, new CapturedValueAdapter());
+      }
+      if (Types.equals(type, ProbeImplementation.class)) {
+        return new ProbeDetailsAdapter(moshi);
       }
       return null;
     }
@@ -460,6 +466,30 @@ public class MoshiSnapshotHelper {
             throw new RuntimeException("Unsupported NotCapturedReason: " + reason);
         }
       }
+    }
+  }
+
+  public static class ProbeDetailsAdapter extends JsonAdapter<ProbeImplementation> {
+    protected final JsonAdapter<Snapshot.ProbeLocation> probeLocationAdapter;
+
+    public ProbeDetailsAdapter(Moshi moshi) {
+      probeLocationAdapter = moshi.adapter(Snapshot.ProbeLocation.class);
+    }
+
+    @Override
+    public void toJson(JsonWriter writer, ProbeImplementation value) throws IOException {
+      writer.beginObject();
+      writer.name(ID);
+      writer.value(value.getId());
+      writer.name(LOCATION);
+      probeLocationAdapter.toJson(writer, value.getLocation());
+      writer.endObject();
+    }
+
+    @Override
+    public ProbeImplementation fromJson(JsonReader reader) throws IOException {
+      // Only used in test, see MoshiSnapshotTestHelper
+      throw new IllegalStateException("Should not reach this code.");
     }
   }
 }

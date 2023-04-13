@@ -70,6 +70,11 @@ public interface CallSiteAdvice {
     COPY,
     /** Copies the parameters in an array and prepends it */
     PREPEND_ARRAY,
+    /**
+     * Copies the parameters in an array, prepends it and swaps the array with the uninitialized
+     * instance in a ctor
+     */
+    PREPEND_ARRAY_CTOR,
     /** Copies the parameters in an array and appends it */
     APPEND_ARRAY
   }

@@ -193,6 +193,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive()
+    1 * flow.isBlocking()
     0 * _
   }
 
@@ -223,6 +224,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive()
+    1 * flow.isBlocking()
     0 * _
 
     when: 'merges new waf data with the one in the rules config'
@@ -259,6 +261,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive()
+    1 * flow.isBlocking()
     0 * _
 
     when:
@@ -280,6 +283,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive()
+    1 * flow.isBlocking()
     0 * _
 
     when: 'changes the rules config'
@@ -333,6 +337,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive()
+    1 * flow.isBlocking()
     0 * _
 
     when:
@@ -572,6 +577,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive()
+    1 * flow.isBlocking()
     0 * _
   }
 
@@ -966,6 +972,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getWafMetrics()
     1 * flow.setAction({ it.blocking })
     1 * ctx.closeAdditive()
+    1 * flow.isBlocking()
     0 * _
   }
 
@@ -1062,6 +1069,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getWafMetrics()
     1 * flow.setAction({ it.blocking })
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
+    1 * flow.isBlocking()
     0 * _
 
     when: 'toggling the rule off'

@@ -1,5 +1,6 @@
 package datadog.trace.api.internal;
 
+import datadog.trace.api.experimental.DataStreamsCheckpointer;
 import datadog.trace.api.experimental.Profiling;
 
 /**
@@ -22,4 +23,11 @@ public interface InternalTracer {
   Profiling getProfilingContext();
 
   TraceSegment getTraceSegment();
+
+  /**
+   * Return the global instance of the DataStreams checkpointer.
+   *
+   * @return DataStreamsCheckpointer instance.
+   */
+  DataStreamsCheckpointer getDataStreamsCheckpointer();
 }

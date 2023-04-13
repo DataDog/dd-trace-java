@@ -50,23 +50,24 @@ public class ServletRequestCallSite {
   @CallSite.After(
       "java.util.Enumeration javax.servlet.http.HttpServletRequestWrapper.getParameterNames()")
   @CallSite.After("java.util.Enumeration javax.servlet.ServletRequestWrapper.getParameterNames()")
-  public static Enumeration<?> afterGetParameterNames(
-      @CallSite.This final ServletRequest self, @CallSite.Return final Enumeration<?> enumeration)
+  public static Enumeration<String> afterGetParameterNames(
+      @CallSite.This final ServletRequest self,
+      @CallSite.Return final Enumeration<String> enumeration)
       throws Throwable {
     final WebModule module = InstrumentationBridge.WEB;
     if (module == null) {
       return enumeration;
     }
     try {
-      final List<Object> parameterNames = new ArrayList<>();
+      final List<String> parameterNames = new ArrayList<>();
       while (enumeration.hasMoreElements()) {
-        final Object paramName = enumeration.nextElement();
+        final String paramName = enumeration.nextElement();
         parameterNames.add(paramName);
-        try {
-          module.onParameterName((String) paramName);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("afterGetParameterNames threw", e);
-        }
+      }
+      try {
+        module.onParameterNames(parameterNames);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterGetParameterNames threw", e);
       }
       return Collections.enumeration(parameterNames);
     } catch (final Throwable e) {
@@ -92,12 +93,10 @@ public class ServletRequestCallSite {
     if (null != parameterValues) {
       final WebModule module = InstrumentationBridge.WEB;
       if (module != null) {
-        for (String paramValue : parameterValues) {
-          try {
-            module.onParameterValue(paramName, paramValue);
-          } catch (final Throwable e) {
-            module.onUnexpectedException("afterGetParameterValues threw", e);
-          }
+        try {
+          module.onParameterValues(paramName, parameterValues);
+        } catch (final Throwable e) {
+          module.onUnexpectedException("afterGetParameterValues threw", e);
         }
       }
     }

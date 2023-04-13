@@ -156,6 +156,11 @@ public final class Ranges {
     return new int[] {start, end};
   }
 
+  public static Range highestPriorityRange(@Nonnull final Range[] ranges) {
+    // TODO without marks and only request sources all ranges are of equals priority
+    return ranges[0];
+  }
+
   public interface RangesProvider<E> {
     int rangeCount();
 

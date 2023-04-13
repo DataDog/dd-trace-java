@@ -11,7 +11,6 @@ import datadog.remoteconfig.Product;
 import datadog.remoteconfig.SizeCheckedInputStream;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
-import datadog.trace.bootstrap.debugger.Snapshot;
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -136,9 +135,9 @@ public class DebuggerAgent {
       DebuggerContext.Sink sink,
       StatsdMetricForwarder statsdMetricForwarder) {
     log.info("install Instrument-The-World transformer");
-    DebuggerContext.init(sink, DebuggerAgent::instrumentTheWorldResolver, statsdMetricForwarder);
     DebuggerTransformer transformer =
         createTransformer(config, Configuration.builder().build(), null);
+    DebuggerContext.init(sink, transformer::instrumentTheWorldResolver, statsdMetricForwarder);
     instrumentation.addTransformer(transformer);
     return transformer;
   }
@@ -152,11 +151,6 @@ public class DebuggerAgent {
       Configuration configuration,
       DebuggerTransformer.InstrumentationListener listener) {
     return new DebuggerTransformer(config, configuration, listener);
-  }
-
-  private static Snapshot.ProbeDetails instrumentTheWorldResolver(
-      String id, Class<?> callingClass) {
-    return Snapshot.ProbeDetails.ITW_PROBE;
   }
 
   static void stop() {

@@ -352,14 +352,14 @@ public enum ErrorCode implements Function<Object[], String> {
   ADVICE_AFTER_SHOULD_HAVE_RETURN {
     @Override
     public String apply(final Object[] objects) {
-      return "After advice last parameter should be annotated with @Return for non constructors";
+      return "After advice last parameter should be annotated with @Return";
     }
   },
 
-  ADVICE_AFTER_CONSTRUCTOR_SHOULD_NOT_HAVE_RETURN {
+  ADVICE_AFTER_CONSTRUCTOR_ALL_ARGUMENTS {
     @Override
     public String apply(final Object[] objects) {
-      return "After advice should not be annotated with @Return for constructors";
+      return "After advice in constructors should use @AllArguments";
     }
   },
 

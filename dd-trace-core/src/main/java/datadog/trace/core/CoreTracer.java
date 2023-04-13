@@ -4,6 +4,11 @@ import static datadog.communication.monitor.DDAgentStatsDClientManager.statsDCli
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.api.DDTags.PATHWAY_HASH;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -23,9 +28,12 @@ import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.EndpointCheckpointerHolder;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.config.GeneralConfig;
+import datadog.trace.api.experimental.DataStreamsCheckpointer;
+import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.experimental.Profiling;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.InstrumentationGateway;
@@ -53,6 +61,7 @@ import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.civisibility.interceptor.CiVisibilityApmProtocolInterceptor;
 import datadog.trace.civisibility.interceptor.CiVisibilityTraceInterceptor;
+import datadog.trace.common.GitMetadataTraceInterceptor;
 import datadog.trace.common.metrics.MetricsAggregator;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
@@ -61,6 +70,7 @@ import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
+import datadog.trace.core.datastreams.DataStreamsContextCarrierAdapter;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.MonitoringImpl;
@@ -185,6 +195,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   private final Map<TracePropagationStyle, HttpCodec.Injector> injectors;
   private final HttpCodec.Extractor extractor;
+
+  private final boolean logs128bTraceIdEnabled;
 
   private final InstrumentationGateway instrumentationGateway;
   private final CallbackProvider callbackProviderAppSec;
@@ -460,16 +472,17 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     assert baggageMapping != null;
 
     this.timeSource = timeSource == null ? SystemTimeSource.INSTANCE : timeSource;
-    this.startTimeNano = this.timeSource.getCurrentTimeNanos();
-    this.startNanoTicks = this.timeSource.getNanoTicks();
-    this.clockSyncPeriod = Math.max(1_000_000L, SECONDS.toNanos(config.getClockSyncPeriod()));
-    this.lastSyncTicks = startNanoTicks;
+    startTimeNano = this.timeSource.getCurrentTimeNanos();
+    startNanoTicks = this.timeSource.getNanoTicks();
+    clockSyncPeriod = Math.max(1_000_000L, SECONDS.toNanos(config.getClockSyncPeriod()));
+    lastSyncTicks = startNanoTicks;
 
-    this.endpointCheckpointer = EndpointCheckpointerHolder.create();
+    endpointCheckpointer = EndpointCheckpointerHolder.create();
     this.serviceName = serviceName;
     this.sampler = sampler;
     this.injector = injector;
     this.extractor = extractor;
+    this.logs128bTraceIdEnabled = InstrumenterConfig.get().isLogs128bTraceIdEnabled();
     this.localRootSpanTags = localRootSpanTags;
     this.defaultSpanTags = defaultSpanTags;
     this.serviceNameMappings = serviceNameMappings;
@@ -488,21 +501,21 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.statsDClient = StatsDClient.NO_OP;
     }
 
-    this.monitoring =
+    monitoring =
         config.isHealthMetricsEnabled()
             ? new MonitoringImpl(this.statsDClient, 10, SECONDS)
             : Monitoring.DISABLED;
-    this.healthMetrics =
+    healthMetrics =
         config.isHealthMetricsEnabled()
             ? new TracerHealthMetrics(this.statsDClient)
             : HealthMetrics.NO_OP;
-    this.healthMetrics.start();
-    this.performanceMonitoring =
+    healthMetrics.start();
+    performanceMonitoring =
         config.isPerfMetricsEnabled()
             ? new MonitoringImpl(this.statsDClient, 10, SECONDS)
             : Monitoring.DISABLED;
 
-    this.traceWriteTimer = performanceMonitoring.newThreadLocalTimer("trace.write");
+    traceWriteTimer = performanceMonitoring.newThreadLocalTimer("trace.write");
     if (scopeManager == null) {
       this.scopeManager =
           new ContinuableScopeManager(
@@ -510,14 +523,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               config.isScopeStrictMode(),
               config.isScopeInheritAsyncPropagation(),
               profilingContextIntegration,
-              this.healthMetrics);
+              healthMetrics);
     } else {
       this.scopeManager = scopeManager;
     }
 
-    this.externalAgentLauncher = new ExternalAgentLauncher(config);
+    externalAgentLauncher = new ExternalAgentLauncher(config);
 
-    this.disableSamplingMechanismValidation = config.isSamplingMechanismValidationDisabled();
+    disableSamplingMechanismValidation = config.isSamplingMechanismValidationDisabled();
 
     if (sharedCommunicationObjects == null) {
       sharedCommunicationObjects = new SharedCommunicationObjects();
@@ -533,7 +546,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.writer = writer;
     }
 
-    this.pendingTraceBuffer =
+    pendingTraceBuffer =
         strictTraceWrites
             ? PendingTraceBuffer.discarding()
             : PendingTraceBuffer.delaying(this.timeSource);
@@ -576,11 +589,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       }
     }
 
+    if (config.isTraceGitMetadataEnabled()) {
+      addTraceInterceptor(GitMetadataTraceInterceptor.INSTANCE);
+    }
+
     this.instrumentationGateway = instrumentationGateway;
-    this.callbackProviderAppSec =
-        instrumentationGateway.getCallbackProvider(RequestContextSlot.APPSEC);
-    this.callbackProviderIast = instrumentationGateway.getCallbackProvider(RequestContextSlot.IAST);
-    this.universalCallbackProvider = instrumentationGateway.getUniversalCallbackProvider();
+    callbackProviderAppSec = instrumentationGateway.getCallbackProvider(RequestContextSlot.APPSEC);
+    callbackProviderIast = instrumentationGateway.getCallbackProvider(RequestContextSlot.IAST);
+    universalCallbackProvider = instrumentationGateway.getUniversalCallbackProvider();
 
     injectors = HttpCodec.allInjectorsFor(config, invertMap(baggageMapping));
 
@@ -931,7 +947,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return trace;
   }
 
-  @SuppressWarnings("unchecked")
   void setSamplingPriorityIfNecessary(final DDSpan rootSpan) {
     // There's a race where multiple threads can see PrioritySampling.UNSET here
     // This check skips potential complex sampling priority logic when we know its redundant
@@ -949,7 +964,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public String getTraceId() {
     final AgentSpan activeSpan = activeSpan();
     if (activeSpan instanceof DDSpan) {
-      return activeSpan.getTraceId().toString();
+      DDTraceId traceId = activeSpan.getTraceId();
+      // Return padded hexadecimal string representation if 128-bit TraceId logging is enabled and
+      // TraceId is a 128-bit ID, otherwise use the default numerical string representation.
+      if (this.logs128bTraceIdEnabled && traceId.toHighOrderLong() != 0) {
+        return traceId.toHexString();
+      } else {
+        return traceId.toString();
+      }
     }
     return "0";
   }
@@ -965,7 +987,75 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public boolean addTraceInterceptor(final TraceInterceptor interceptor) {
-    return interceptors.add(interceptor);
+    if (interceptors.add(interceptor)) {
+      return true;
+    } else {
+      Comparator<? super TraceInterceptor> interceptorComparator = interceptors.comparator();
+      if (interceptorComparator != null) {
+        TraceInterceptor anotherInterceptor =
+            interceptors.stream()
+                .filter(i -> interceptorComparator.compare(i, interceptor) == 0)
+                .findFirst()
+                .orElse(null);
+        log.warn(
+            "Interceptor {} will NOT be registered with the tracer, "
+                + "as already registered interceptor {} is considered its duplicate",
+            interceptor,
+            anotherInterceptor);
+      }
+      return false;
+    }
+  }
+
+  @Override
+  public DataStreamsCheckpointer getDataStreamsCheckpointer() {
+    return this;
+  }
+
+  @Override
+  public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {
+    if (type == null || type.isEmpty() || source == null || source.isEmpty()) {
+      log.warn("setConsumeCheckpoint should be called with non-empty type and source");
+      return;
+    }
+
+    AgentSpan span = activeSpan();
+    if (span == null) {
+      log.warn("SetConsumeCheckpoint is called with no active span");
+      return;
+    }
+
+    PathwayContext pathwayContext =
+        extractPathwayContext(carrier, DataStreamsContextCarrierAdapter.INSTANCE);
+    span.mergePathwayContext(pathwayContext);
+
+    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+    sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
+    sortedTags.put(TOPIC_TAG, source);
+    sortedTags.put(TYPE_TAG, type);
+
+    setDataStreamCheckpoint(span, sortedTags);
+  }
+
+  @Override
+  public void setProduceCheckpoint(String type, String target, DataStreamsContextCarrier carrier) {
+    if (type == null || type.isEmpty() || target == null || target.isEmpty()) {
+      log.warn("SetProduceCheckpoint should be called with non-empty type and target");
+      return;
+    }
+
+    AgentSpan span = activeSpan();
+    if (span == null) {
+      log.warn("SetProduceCheckpoint is called with no active span");
+      return;
+    }
+
+    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+    sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+    sortedTags.put(TOPIC_TAG, target);
+    sortedTags.put(TYPE_TAG, type);
+
+    injectPathwayContext(span, carrier, DataStreamsContextCarrierAdapter.INSTANCE, sortedTags);
   }
 
   @Override
@@ -977,12 +1067,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void registerCheckpointer(EndpointCheckpointer implementation) {
-    this.endpointCheckpointer.register(implementation);
+    endpointCheckpointer.register(implementation);
   }
 
   @Override
   public SubscriptionService getSubscriptionService(RequestContextSlot slot) {
-    return (SubscriptionService) this.instrumentationGateway.getCallbackProvider(slot);
+    return (SubscriptionService) instrumentationGateway.getCallbackProvider(slot);
   }
 
   @Override
@@ -1050,7 +1140,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public TraceSegment getTraceSegment() {
-    AgentSpan.Context ctx = this.activeSpan().context();
+    AgentSpan.Context ctx = activeSpan().context();
     if (ctx instanceof DDSpanContext) {
       return ((DDSpanContext) ctx).getTraceSegment();
     }

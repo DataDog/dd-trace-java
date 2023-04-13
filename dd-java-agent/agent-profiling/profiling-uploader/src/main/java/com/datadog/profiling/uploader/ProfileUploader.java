@@ -24,10 +24,14 @@ import datadog.common.version.VersionInfo;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.git.GitInfo;
+import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.relocate.api.IOLogger;
 import datadog.trace.util.AgentThreadFactory;
 import datadog.trace.util.PidHelper;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.time.Duration;
@@ -151,9 +155,16 @@ public final class ProfileUploader {
     if (!PidHelper.getPid().isEmpty()) {
       tagsMap.put(DDTags.PID_TAG, PidHelper.getPid());
     }
+
+    if (config.isTraceGitMetadataEnabled()) {
+      GitInfo gitInfo = GitInfoProvider.INSTANCE.getGitInfo();
+      tagsMap.put(Tags.GIT_REPOSITORY_URL, gitInfo.getRepositoryURL());
+      tagsMap.put(Tags.GIT_COMMIT_SHA, gitInfo.getCommit().getSha());
+    }
+
     // Comma separated tags string for V2.4 format
     tags = String.join(",", tagsToList(tagsMap));
-    this.uploadTimeout = Duration.ofSeconds(config.getProfilingUploadTimeout());
+    uploadTimeout = Duration.ofSeconds(config.getProfilingUploadTimeout());
 
     // This is the same thing OkHttp Dispatcher is doing except thread naming and daemonization
     okHttpExecutorService =
@@ -330,6 +341,7 @@ public final class ProfileUploader {
     onCompletion.run();
   }
 
+  @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
   private IOLogger.Response getLoggerResponse(final okhttp3.Response response) {
     if (response != null) {
       try {

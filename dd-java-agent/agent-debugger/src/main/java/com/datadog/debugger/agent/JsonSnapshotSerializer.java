@@ -111,8 +111,8 @@ public class JsonSnapshotSerializer implements DebuggerContext.SnapshotSerialize
     public IntakeRequest(String service, DebuggerIntakeRequestData debugger) {
       this.service = service;
       this.debugger = debugger;
-      this.message = debugger.snapshot.buildSummary();
-      this.ddtags = debugger.snapshot.getProbe().getTags();
+      this.message = debugger.snapshot.getMessage();
+      this.ddtags = debugger.snapshot.getProbe().getStrTags();
       this.timestamp = debugger.snapshot.getTimestamp();
     }
 
@@ -142,6 +142,26 @@ public class JsonSnapshotSerializer implements DebuggerContext.SnapshotSerialize
 
     public long getTimestamp() {
       return timestamp;
+    }
+
+    public String getLoggerName() {
+      return loggerName;
+    }
+
+    public String getLoggerMethod() {
+      return loggerMethod;
+    }
+
+    public int getLoggerVersion() {
+      return loggerVersion;
+    }
+
+    public long getLoggerThreadId() {
+      return loggerThreadId;
+    }
+
+    public String getLoggerThreadName() {
+      return loggerThreadName;
     }
   }
 

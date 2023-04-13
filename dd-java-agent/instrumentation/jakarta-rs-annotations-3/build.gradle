@@ -9,17 +9,8 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-  latestDepJava11Test {
-    extendsFrom latestDepTest
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepJava11Test', 'latestDepTest', 'test')
 
 tasks.named("compileLatestDepJava11TestJava").configure {
   setJavaVersion(it, 11)

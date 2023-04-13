@@ -9,9 +9,12 @@ dependencies {
 
   testFixturesImplementation project(':dd-java-agent:testing')
   testFixturesImplementation project(':utils:test-utils')
-  testFixturesImplementation(group: 'org.testng', name: 'testng') {
-    version {
-      strictly '6.4'
-    }
-  }
+  testFixturesImplementation group: 'org.testng', name: 'testng', version: '6.4'
 }
+
+// gradle can't downgrade the testng dependencies with `strictly`
+configurations.matching({ it.name.startsWith('test') }).each({
+  it.resolutionStrategy {
+    force group: 'org.testng', name: 'testng', version: '6.4'
+  }
+})

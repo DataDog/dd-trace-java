@@ -90,9 +90,14 @@
 0 sun.rmi.server.*
 0 sun.rmi.transport.*
 0 sun.nio.ch.FileChannelImpl
+# USM needs it
+0 sun.security.ssl.*
+0 javax.net.ssl.SSLSocket
+
 # Prevent IllegalAccessError in OpenJDK 17.0.4
 1 javax.management.*
 1 javax.swing.*
+
 
 # -------- ADDITIONAL IGNORES --------
 
@@ -142,6 +147,9 @@
 2 com.fasterxml.jackson.*
 # Included for IAST
 0 com.fasterxml.jackson.core.*
+0 com.fasterxml.jackson.databind.node.TreeTraversingParser
+0 com.fasterxml.jackson.databind.util.TokenBuffer
+0 com.fasterxml.jackson.databind.util.TokenBuffer$Parser
 0 com.fasterxml.jackson.databind.ObjectMapper
 0 com.fasterxml.jackson.module.afterburner.util.MyClassLoader
 2 com.github.mustachejava.*
@@ -243,8 +251,16 @@
 2 org.springframework.expression.*
 2 org.springframework.format.*
 2 org.springframework.http.*
-# Need for IAST
+# Need for IAST: calls ServletRequest methods instrumented at callsite
 0 org.springframework.http.server.ServletServerHttpRequest
+# Need for IAST: we instrument these classes
+0 org.springframework.http.HttpHeaders
+0 org.springframework.http.ReadOnlyHttpHeaders
+0 org.springframework.http.codec.json.Jackson2Tokenizer
+0 org.springframework.http.server.reactive.UndertowServerHttpRequest$UndertowDataBuffer
+0 org.springframework.core.io.buffer.DataBuffer
+0 org.springframework.core.io.buffer.DefaultDataBuffer
+0 org.springframework.core.io.buffer.NettyDataBuffer
 # There are some Mono implementation that get instrumented
 0 org.springframework.http.server.reactive.*
 2 org.springframework.instrument.*

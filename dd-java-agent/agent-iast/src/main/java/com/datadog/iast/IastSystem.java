@@ -2,9 +2,9 @@ package com.datadog.iast;
 
 import com.datadog.iast.HasDependencies.Dependencies;
 import com.datadog.iast.overhead.OverheadController;
+import com.datadog.iast.propagation.FastCodecModule;
 import com.datadog.iast.propagation.PropagationModuleImpl;
 import com.datadog.iast.propagation.StringModuleImpl;
-import com.datadog.iast.propagation.UrlModuleImpl;
 import com.datadog.iast.sink.CommandInjectionModuleImpl;
 import com.datadog.iast.sink.LdapInjectionModuleImpl;
 import com.datadog.iast.sink.PathTraversalModuleImpl;
@@ -14,6 +14,7 @@ import com.datadog.iast.sink.WeakHashModuleImpl;
 import com.datadog.iast.source.WebModuleImpl;
 import com.datadog.iast.telemetry.IastTelemetry;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.api.gateway.EventType;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
@@ -45,7 +46,7 @@ public class IastSystem {
       OverheadController overheadController,
       IastTelemetry telemetry) {
     final Config config = Config.get();
-    if (!config.isIastEnabled()) {
+    if (config.getIastActivation() != ProductActivation.FULLY_ENABLED) {
       LOGGER.debug("IAST is disabled");
       return;
     }
@@ -80,7 +81,7 @@ public class IastSystem {
     return Stream.of(
         new WebModuleImpl(),
         new StringModuleImpl(),
-        new UrlModuleImpl(),
+        new FastCodecModule(),
         new SqlInjectionModuleImpl(),
         new PathTraversalModuleImpl(),
         new CommandInjectionModuleImpl(),

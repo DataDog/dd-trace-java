@@ -17,8 +17,7 @@ class OtelTracer implements Tracer {
 
   @Override
   public SpanBuilder spanBuilder(String spanName) {
-    AgentTracer.SpanBuilder delegate =
-        this.tracer.buildSpan(spanName).withResourceName(this.instrumentationScopeName);
+    AgentTracer.SpanBuilder delegate = this.tracer.buildSpan(spanName).withResourceName(spanName);
     return new OtelSpanBuilder(delegate);
   }
 }
