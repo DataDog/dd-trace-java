@@ -35,6 +35,7 @@ import java.util.concurrent.CountDownLatch
 
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP
+import static org.hamcrest.Matchers.hasSize
 
 class PowerWAFModuleSpecification extends DDSpecification {
   private static final DataBundle ATTACK_BUNDLE = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
@@ -441,11 +442,11 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     def customRules = [
       [
-        id: 'ua0-600-12x',
+        id: 'ua0-600-12x-copy',
         name: 'Arachni',
         tags: [
           category: 'attack_attempt',
-          type: 'security_scanner'
+          type: 'security_scanner2'
         ],
         conditions: [
           [
@@ -457,10 +458,11 @@ class PowerWAFModuleSpecification extends DDSpecification {
                   key_path:['user-agent']
                 ]
               ],
-              regex: '^Arachni2/v'
+              regex: '^Arachni/v'
             ]
           ]
-        ]
+        ],
+        on_match: ['block']
       ]
     ]
 
@@ -481,27 +483,11 @@ class PowerWAFModuleSpecification extends DDSpecification {
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
-    // original rule is replaced; no attack
     1 * ctx.getOrCreateAdditive(_, true) >> {
       pwafAdditive = it[0].openAdditive()
     }
-    1 * ctx.getWafMetrics()
-    1 * ctx.closeAdditive() >> { pwafAdditive.close() }
-    0 * _
-
-    when:
-    def newBundle = MapDataBundle.of(
-      KnownAddresses.HEADERS_NO_COOKIES,
-      new CaseInsensitiveMap<List<String>>(['user-agent': 'Arachni2/v0']),
-      )
-    dataListener.onDataAvailable(flow, ctx, newBundle, false)
-    eventListener.onEvent(ctx, EventType.REQUEST_END)
-
-    then:
-    1 * ctx.getOrCreateAdditive(_, true) >> {
-      pwafAdditive = it[0].openAdditive()
-    }
-    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    // we get two events: one for origin rule, and one for the custom one
+    1 * ctx.reportEvents(hasSize(2), _)
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive()
     0 * _
@@ -1259,7 +1245,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     Collection ret
 
     when:
-    ret = waf.buildEvents(rwd, [:])
+    ret = waf.buildEvents(rwd)
 
     then:
     ret.isEmpty()
@@ -1271,7 +1257,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     Collection ret
 
     when:
-    ret = waf.buildEvents(rwd, [:])
+    ret = waf.buildEvents(rwd)
 
     then:
     ret.isEmpty()
