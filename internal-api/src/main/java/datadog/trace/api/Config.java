@@ -1992,8 +1992,8 @@ public class Config {
     return appSecHttpBlockedTemplateJson;
   }
 
-  public boolean isIastEnabled() {
-    return instrumenterConfig.isIastEnabled();
+  public ProductActivation getIastActivation() {
+    return instrumenterConfig.getIastActivation();
   }
 
   public boolean isIastDebugEnabled() {

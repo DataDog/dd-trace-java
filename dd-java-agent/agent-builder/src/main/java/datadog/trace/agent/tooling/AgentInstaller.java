@@ -226,7 +226,7 @@ public class AgentInstaller {
     if (cfg.getAppSecActivation() != ProductActivation.FULLY_DISABLED) {
       enabledSystems.add(Instrumenter.TargetSystem.APPSEC);
     }
-    if (cfg.isIastEnabled()) {
+    if (cfg.getIastActivation() != ProductActivation.FULLY_DISABLED) {
       enabledSystems.add(Instrumenter.TargetSystem.IAST);
     }
     if (cfg.isCiVisibilityEnabled()) {
