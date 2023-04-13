@@ -3,6 +3,7 @@ package com.datadog.debugger.agent;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import com.datadog.debugger.sink.DebuggerSink;
+import com.datadog.debugger.sink.Sink;
 import com.datadog.debugger.uploader.BatchUploader;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
@@ -28,8 +29,9 @@ import org.slf4j.LoggerFactory;
 public class DebuggerAgent {
   private static final Logger log = LoggerFactory.getLogger(DebuggerAgent.class);
   private static ConfigurationPoller configurationPoller;
-  private static DebuggerSink sink;
+  private static Sink sink;
   private static String agentVersion;
+  private static JsonSnapshotSerializer snapshotSerializer;
 
   public static synchronized void run(
       Instrumentation instrumentation, SharedCommunicationObjects sco) {
@@ -49,19 +51,21 @@ public class DebuggerAgent {
     ddAgentFeaturesDiscovery.discoverIfOutdated();
     agentVersion = ddAgentFeaturesDiscovery.getVersion();
 
-    sink = new DebuggerSink(config);
-    sink.start();
+    DebuggerSink debuggerSink = new DebuggerSink(config);
+    debuggerSink.start();
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
             instrumentation,
             DebuggerAgent::createTransformer,
             config,
-            sink,
+            debuggerSink,
             classesToRetransformFinder);
+    sink = debuggerSink;
     StatsdMetricForwarder statsdMetricForwarder = new StatsdMetricForwarder(config);
-    DebuggerContext.init(sink, configurationUpdater, statsdMetricForwarder);
+    DebuggerContext.init(configurationUpdater, statsdMetricForwarder);
     DebuggerContext.initClassFilter(new DenyListHelper(null)); // default hard coded deny list
-    DebuggerContext.initSnapshotSerializer(new JsonSnapshotSerializer());
+    snapshotSerializer = new JsonSnapshotSerializer();
+    DebuggerContext.initValueSerializer(snapshotSerializer);
     DebuggerContext.initTracer(new DebuggerTracer());
     if (config.isDebuggerInstrumentTheWorld()) {
       setupInstrumentTheWorldTransformer(config, instrumentation, sink, statsdMetricForwarder);
@@ -85,7 +89,8 @@ public class DebuggerAgent {
         GC for anything that is reachable from it.
          */
         Runtime.getRuntime()
-            .addShutdownHook(new ShutdownHook(configurationPoller, sink.getSnapshotUploader()));
+            .addShutdownHook(
+                new ShutdownHook(configurationPoller, debuggerSink.getSnapshotUploader()));
       } catch (final IllegalStateException ex) {
         // The JVM is already shutting down.
       }
@@ -132,18 +137,22 @@ public class DebuggerAgent {
   static ClassFileTransformer setupInstrumentTheWorldTransformer(
       Config config,
       Instrumentation instrumentation,
-      DebuggerContext.Sink sink,
+      Sink sink,
       StatsdMetricForwarder statsdMetricForwarder) {
     log.info("install Instrument-The-World transformer");
     DebuggerTransformer transformer =
         createTransformer(config, Configuration.builder().build(), null);
-    DebuggerContext.init(sink, transformer::instrumentTheWorldResolver, statsdMetricForwarder);
+    DebuggerContext.init(transformer::instrumentTheWorldResolver, statsdMetricForwarder);
     instrumentation.addTransformer(transformer);
     return transformer;
   }
 
   public static String getAgentVersion() {
     return agentVersion;
+  }
+
+  public static Sink getSink() {
+    return sink;
   }
 
   private static DebuggerTransformer createTransformer(
@@ -157,9 +166,23 @@ public class DebuggerAgent {
     if (configurationPoller != null) {
       configurationPoller.stop();
     }
-    if (sink != null) {
-      sink.stop();
+    if (sink != null && sink instanceof DebuggerSink) {
+      ((DebuggerSink) sink).stop();
     }
+  }
+
+  // Used only for tests
+  static void initSink(Sink sink) {
+    DebuggerAgent.sink = sink;
+  }
+
+  // Used only for tests
+  static void initSnapshotSerializer(JsonSnapshotSerializer snapshotSerializer) {
+    DebuggerAgent.snapshotSerializer = snapshotSerializer;
+  }
+
+  public static JsonSnapshotSerializer getSnapshotSerializer() {
+    return DebuggerAgent.snapshotSerializer;
   }
 
   private static class ShutdownHook extends Thread {

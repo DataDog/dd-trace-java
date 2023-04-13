@@ -4,18 +4,20 @@ import static com.datadog.debugger.util.ClassFileHelperTest.getClassFileBytes;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.sink.Sink;
+import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.Tracer;
 import datadog.trace.api.config.TraceInstrumentationConfig;
+import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
-import datadog.trace.bootstrap.debugger.Snapshot;
 import freemarker.template.Template;
 import java.io.File;
 import java.io.InputStreamReader;
@@ -53,7 +55,7 @@ public class DebuggerTransformerTest {
     HANDLED
   }
 
-  static class TestSnapshotListener implements DebuggerContext.Sink {
+  static class TestSnapshotListener implements Sink {
     boolean skipped;
     DebuggerContext.SkipCause cause;
     List<Snapshot> snapshots = new ArrayList<>();
@@ -86,7 +88,8 @@ public class DebuggerTransformerTest {
 
   private static Tracer noopTracer;
 
-  private static final Snapshot.CapturedValue[] CORRELATION_FIELDS = new Snapshot.CapturedValue[2];
+  private static final CapturedContext.CapturedValue[] CORRELATION_FIELDS =
+      new CapturedContext.CapturedValue[2];
 
   @BeforeAll
   static void setupAll() throws Exception {
@@ -106,9 +109,10 @@ public class DebuggerTransformerTest {
 
     // prepare the correlation fields golden muster
     CORRELATION_FIELDS[0] =
-        Snapshot.CapturedValue.of("dd.trace_id", "java.lang.String", mockTracer.getTraceId());
+        CapturedContext.CapturedValue.of(
+            "dd.trace_id", "java.lang.String", mockTracer.getTraceId());
     CORRELATION_FIELDS[1] =
-        Snapshot.CapturedValue.of("dd.span_id", "java.lang.String", mockTracer.getSpanId());
+        CapturedContext.CapturedValue.of("dd.span_id", "java.lang.String", mockTracer.getSpanId());
 
     instr = ByteBuddyAgent.install();
     freemarker.template.Configuration cfg =
@@ -122,7 +126,7 @@ public class DebuggerTransformerTest {
             cfg);
     // TODO asserts are operating on 'toString()' which requires keeping the underlying object so we
     // just disable serialization for now
-    DebuggerContext.initSnapshotSerializer(null);
+    DebuggerContext.initValueSerializer(null);
   }
 
   @AfterEach
@@ -134,7 +138,7 @@ public class DebuggerTransformerTest {
 
   @BeforeEach
   void setup() {
-    DebuggerContext.init(null, null, null);
+    DebuggerContext.init(null, null);
   }
 
   @Test

@@ -14,10 +14,11 @@ import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Platform;
+import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.ProbeId;
-import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.util.TagsHelper;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -219,7 +220,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
         intakeRequest.getMessage());
   }
 
-  private void assertFullMethodCaptureArgs(Snapshot.CapturedContext context) {
+  private void assertFullMethodCaptureArgs(CapturedContext context) {
     if (Platform.isJ9()) {
       // skip for J9/OpenJ9 as we cannot get local variable debug info.
       return;

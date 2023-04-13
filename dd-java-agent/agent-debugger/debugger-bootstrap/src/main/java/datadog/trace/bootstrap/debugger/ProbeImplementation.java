@@ -5,23 +5,22 @@ import java.util.List;
 
 /** Probe information associated with a snapshot */
 public interface ProbeImplementation {
-  ProbeImplementation UNKNOWN =
-      new NoopProbeImplementation("UNKNOWN", Snapshot.ProbeLocation.UNKNOWN);
+  ProbeImplementation UNKNOWN = new NoopProbeImplementation("UNKNOWN", ProbeLocation.UNKNOWN);
 
   String getId();
 
-  Snapshot.ProbeLocation getLocation();
+  ProbeLocation getLocation();
 
   String getStrTags();
 
-  void evaluate(Snapshot.CapturedContext context, Snapshot.CapturedContext.Status status);
+  void evaluate(CapturedContext context, CapturedContext.Status status);
 
   void commit(
-      Snapshot.CapturedContext entryContext,
-      Snapshot.CapturedContext exitContext,
-      List<Snapshot.CapturedThrowable> caughtExceptions);
+      CapturedContext entryContext,
+      CapturedContext exitContext,
+      List<CapturedContext.CapturedThrowable> caughtExceptions);
 
-  void commit(Snapshot.CapturedContext lineContext, int line);
+  void commit(CapturedContext lineContext, int line);
 
   MethodLocation getEvaluateAt();
 
@@ -32,20 +31,20 @@ public interface ProbeImplementation {
   class NoopProbeImplementation implements ProbeImplementation {
     private final String id;
     private final int version;
-    private final Snapshot.ProbeLocation location;
+    private final ProbeLocation location;
     private final MethodLocation evaluateAt;
     private final boolean captureSnapshot;
     private final DebuggerScript<Boolean> script;
     private final String tags;
 
-    public NoopProbeImplementation(String id, Snapshot.ProbeLocation location) {
+    public NoopProbeImplementation(String id, ProbeLocation location) {
       this(id, 0, location, MethodLocation.DEFAULT, true, null, null);
     }
 
     public NoopProbeImplementation(
         String id,
         int version,
-        Snapshot.ProbeLocation location,
+        ProbeLocation location,
         MethodLocation evaluateAt,
         boolean captureSnapshot,
         DebuggerScript<Boolean> script,
@@ -65,7 +64,7 @@ public interface ProbeImplementation {
     }
 
     @Override
-    public Snapshot.ProbeLocation getLocation() {
+    public ProbeLocation getLocation() {
       return location;
     }
 
@@ -75,17 +74,16 @@ public interface ProbeImplementation {
     }
 
     @Override
-    public void evaluate(
-        Snapshot.CapturedContext context, Snapshot.CapturedContext.Status status) {}
+    public void evaluate(CapturedContext context, CapturedContext.Status status) {}
 
     @Override
     public void commit(
-        Snapshot.CapturedContext entryContext,
-        Snapshot.CapturedContext exitContext,
-        List<Snapshot.CapturedThrowable> caughtExceptions) {}
+        CapturedContext entryContext,
+        CapturedContext exitContext,
+        List<CapturedContext.CapturedThrowable> caughtExceptions) {}
 
     @Override
-    public void commit(Snapshot.CapturedContext lineContext, int line) {}
+    public void commit(CapturedContext lineContext, int line) {}
 
     @Override
     public MethodLocation getEvaluateAt() {

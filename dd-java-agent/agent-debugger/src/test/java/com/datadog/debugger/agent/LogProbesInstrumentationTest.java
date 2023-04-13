@@ -11,12 +11,12 @@ import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
-import datadog.trace.bootstrap.debugger.Snapshot;
 import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
@@ -489,13 +489,13 @@ public class LogProbesInstrumentationTest {
     instr.addTransformer(currentTransformer);
     DebuggerTransformerTest.TestSnapshotListener listener =
         new DebuggerTransformerTest.TestSnapshotListener();
+    DebuggerAgentHelper.injectSink(listener);
     DebuggerContext.init(
-        listener,
         (id, callingClass) ->
             resolver(id, callingClass, expectedClassName, configuration.getLogProbes()),
         null);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
-    DebuggerContext.initSnapshotSerializer(new JsonSnapshotSerializer());
+    DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
     return listener;
   }
 

@@ -120,7 +120,8 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
     currentTransformer = new DebuggerTransformer(config, configuration);
     instr.addTransformer(currentTransformer);
     mockSink = new MockSink();
-    DebuggerContext.init(mockSink, null, null);
+    DebuggerAgentHelper.injectSink(mockSink);
+    DebuggerContext.init(null, null);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     MockTracer mockTracer = new MockTracer();
     DebuggerContext.initTracer(mockTracer);
