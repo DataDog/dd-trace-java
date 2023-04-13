@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.spark;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -10,7 +11,11 @@ import java.util.Set;
  * @see <a href="https://spark.apache.org/docs/latest/configuration.html">Spark Configuration</a>
  */
 class SparkConfAllowList {
-  private static final Set<String> allowedParams =
+
+  /**
+   * Application parameters defined at the start of the application, with the spark-submit command
+   */
+  private static final Set<String> allowedApplicationParams =
       new HashSet<>(
           Arrays.asList(
               "spark.dynamicAllocation.enabled",
@@ -37,10 +42,20 @@ class SparkConfAllowList {
               "spark.memory.offHeap.size",
               "spark.submit.deployMode",
               "spark.sql.autoBroadcastJoinThreshold",
-              "spark.sql.execution.id",
               "spark.sql.shuffle.partitions"));
 
-  public static boolean canCaptureParameter(String parameterName) {
-    return allowedParams.contains(parameterName);
+  /**
+   * Job-specific parameters that can be used to control job execution or provide metadata about the
+   * job being executed
+   */
+  private static final Set<String> allowedJobParams =
+      new HashSet<>(Collections.singletonList("spark.sql.execution.id"));
+
+  public static boolean canCaptureApplicationParameter(String parameterName) {
+    return allowedApplicationParams.contains(parameterName);
+  }
+
+  public static boolean canCaptureJobParameter(String parameterName) {
+    return allowedJobParams.contains(parameterName);
   }
 }

@@ -64,7 +64,7 @@ public class DatadogSparkListener extends SparkListener {
       applicationSpan.setTag("app_attempt_id", applicationStart.appAttemptId().get());
 
     for (Tuple2<String, String> conf : sparkConf.getAll()) {
-      if (SparkConfAllowList.canCaptureParameter(conf._1)) {
+      if (SparkConfAllowList.canCaptureApplicationParameter(conf._1)) {
         applicationSpan.setTag("config." + conf._1.replace(".", "_"), conf._2);
       }
     }
@@ -113,7 +113,7 @@ public class DatadogSparkListener extends SparkListener {
     // Some properties can change at runtime, so capturing properties of all jobs
     if (jobStart.properties() != null) {
       for (final Map.Entry<Object, Object> entry : jobStart.properties().entrySet()) {
-        if (SparkConfAllowList.canCaptureParameter(entry.getKey().toString())) {
+        if (SparkConfAllowList.canCaptureJobParameter(entry.getKey().toString())) {
           jobSpan.setTag("config." + entry.getKey().toString().replace('.', '_'), entry.getValue());
         }
       }
