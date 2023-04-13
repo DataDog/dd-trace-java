@@ -8,7 +8,6 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.civisibility.InstrumentationBridge
 import datadog.trace.api.civisibility.codeowners.Codeowners
-import datadog.trace.api.civisibility.coverage.CoverageProbeStore
 import datadog.trace.api.civisibility.decorator.TestDecorator
 import datadog.trace.api.civisibility.source.MethodLinesResolver
 import datadog.trace.api.civisibility.source.SourcePathResolver

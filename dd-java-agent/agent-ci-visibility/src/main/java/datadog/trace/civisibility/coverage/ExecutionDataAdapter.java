@@ -1,12 +1,16 @@
 package datadog.trace.civisibility.coverage;
 
 import java.util.BitSet;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 import org.jacoco.core.data.ExecutionData;
 
 public class ExecutionDataAdapter {
   private final long classId;
   private final String className;
-  private final BitSet probeActivations = new BitSet();
+  // Unbounded data structure that only exists within a single test span
+  private final Map<Long, BitSet> probeActivationsByThread = new HashMap<>();
 
   public ExecutionDataAdapter(long classId, String className) {
     this.classId = classId;
@@ -18,12 +22,18 @@ public class ExecutionDataAdapter {
   }
 
   void record(int probeId) {
-    probeActivations.set(probeId, true);
+    probeActivationsByThread
+        .computeIfAbsent(Thread.currentThread().getId(), (ignored) -> new BitSet())
+        .set(probeId, true);
   }
 
   ExecutionData toExecutionData(int totalProbeCount) {
     boolean[] probes = new boolean[totalProbeCount];
-    probeActivations.stream().forEach(p -> probes[p] = true);
+    Iterator<BitSet> itr = probeActivationsByThread.values().iterator();
+    BitSet probeActivations = itr.next();
+    while (itr.hasNext()) {
+      probeActivations.or(itr.next());
+    }
     return new ExecutionData(classId, className, probes);
   }
 }
