@@ -126,11 +126,10 @@ public class DatadogSparkListener extends SparkListener {
 
   @Override
   public void onJobEnd(SparkListenerJobEnd jobEnd) {
-    if (!jobSpans.containsKey(jobEnd.jobId())) {
+    AgentSpan jobSpan = jobSpans.remove(jobEnd.jobId());
+    if (jobSpan == null) {
       return;
     }
-
-    AgentSpan jobSpan = jobSpans.remove(jobEnd.jobId());
 
     lastJobFailed = false;
     if (jobEnd.jobResult() instanceof JobFailed) {
@@ -143,8 +142,8 @@ public class DatadogSparkListener extends SparkListener {
       lastJobFailedMessage = jobFailed.exception().toString();
     }
 
-    if (jobMetrics.containsKey(jobEnd.jobId())) {
-      SparkAggregatedTaskMetrics metrics = jobMetrics.remove(jobEnd.jobId());
+    SparkAggregatedTaskMetrics metrics = jobMetrics.remove(jobEnd.jobId());
+    if (metrics != null) {
       metrics.setSpanMetrics(jobSpan, "spark_job_metrics");
     }
 
@@ -221,16 +220,14 @@ public class DatadogSparkListener extends SparkListener {
 
     stageInfo.rddInfos().foreach(rdd -> span.setTag("rdd." + rdd.name(), rdd.toString()));
 
-    if (stageMetrics.containsKey(stageSpanKey)) {
-      SparkAggregatedTaskMetrics stageMetric = stageMetrics.remove(stageSpanKey);
+    SparkAggregatedTaskMetrics stageMetric = stageMetrics.remove(stageSpanKey);
+    if (stageMetric != null) {
       stageMetric.setSpanMetrics(span, "spark_stage_metrics");
-
       applicationMetrics.accumulateStageMetrics(stageMetric);
 
-      if (!jobMetrics.containsKey(jobId)) {
-        jobMetrics.put(jobId, new SparkAggregatedTaskMetrics());
-      }
-      jobMetrics.get(jobId).accumulateStageMetrics(stageMetric);
+      jobMetrics
+          .computeIfAbsent(jobId, k -> new SparkAggregatedTaskMetrics())
+          .accumulateStageMetrics(stageMetric);
     }
 
     long completionTimeMs;
@@ -253,10 +250,9 @@ public class DatadogSparkListener extends SparkListener {
     int stageAttemptId = taskEnd.stageAttemptId();
     long stageSpanKey = stageSpanKey(stageId, stageAttemptId);
 
-    if (!stageMetrics.containsKey(stageSpanKey)) {
-      stageMetrics.put(stageSpanKey, new SparkAggregatedTaskMetrics());
-    }
-    stageMetrics.get(stageSpanKey).addTaskMetrics(taskEnd);
+    stageMetrics
+        .computeIfAbsent(stageSpanKey, k -> new SparkAggregatedTaskMetrics())
+        .addTaskMetrics(taskEnd);
 
     // Only sending failing tasks
     if (!(taskEnd.reason() instanceof TaskFailedReason)) {
@@ -316,12 +312,10 @@ public class DatadogSparkListener extends SparkListener {
   public void onExecutorRemoved(SparkListenerExecutorRemoved executorRemoved) {
     currentExecutorCount -= 1;
 
-    if (liveExecutors.containsKey(executorRemoved.executorId())) {
-      SparkListenerExecutorAdded executor = liveExecutors.get(executorRemoved.executorId());
-
+    SparkListenerExecutorAdded executor = liveExecutors.remove(executorRemoved.executorId());
+    if (executor != null) {
       availableExecutorTime +=
           (executorRemoved.time() - executor.time()) * executor.executorInfo().totalCores();
-      liveExecutors.remove(executor.executorId());
     }
   }
 
