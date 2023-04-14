@@ -87,7 +87,13 @@ public final class DatadogProfiler {
     return instance;
   }
 
-  static DatadogProfiler newInstance(ConfigProvider configProvider) {
+  public static DatadogProfiler newInstance(ConfigProvider configProvider) {
+    // do not recreate the default instance
+    // it is ok to use identity check as we are requiring the exact same instance
+    if (configProvider == Singleton.INSTANCE.configProvider) {
+      return Singleton.INSTANCE;
+    }
+
     DatadogProfiler instance = null;
     try {
       instance = new DatadogProfiler(configProvider);
