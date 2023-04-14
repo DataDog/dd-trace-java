@@ -97,8 +97,14 @@ trait IastRequestContextPreparationTrait {
         ((ch.qos.logback.classic.Logger)LOGGER).level = ch.qos.logback.classic.Level.DEBUG
       }
       private static void logTaint(Object o) {
+        def content
+        if (o.getClass().name.startsWith('java.')) {
+          content = o
+        } else {
+          content = '(value not shown)' // toString() may trigger tainting
+        }
         LOGGER.debug("taint: {}[{}] {}",
-          o.getClass().simpleName, Integer.toHexString(System.identityHashCode(o)), o)
+          o.getClass().simpleName, Integer.toHexString(System.identityHashCode(o)), content)
       }
     }
   }

@@ -43,6 +43,8 @@ class WebModuleTest extends IastModuleImplTestBase {
     'onHeaderValue'     | ['', '']
     'onHeaderValues'    | [null, null]
     'onHeaderValues'    | ['', []]
+    'onCookieNames'     | [null]
+    'onCookieNames'     | [[]]
     'onCookieValue'     | [null, null]
     'onCookieValue'     | ['', '']
   }
@@ -65,6 +67,7 @@ class WebModuleTest extends IastModuleImplTestBase {
     'onHeaderNames'     | [['header']]
     'onHeaderValue'     | ['name', 'value']
     'onHeaderValues'    | ['name', ['value']]
+    'onCookieNames'     | [['name']]
     'onCookieValue'     | ['name', 'value']
     'onNamed'           | ['name', ['v1'], (byte)0]
     'onNamed'           | ['name', ['v1'] as String[], (byte)0]
@@ -131,6 +134,7 @@ class WebModuleTest extends IastModuleImplTestBase {
     method             | name    | source
     'onParameterNames' | 'param' | SourceTypes.REQUEST_PARAMETER_NAME
     'onHeaderNames'    | 'param' | SourceTypes.REQUEST_HEADER_NAME
+    'onCookieNames'    | 'param' | SourceTypes.REQUEST_COOKIE_NAME
   }
 
   void 'test #method: null or empty'(final String method, final String name, final String value) {

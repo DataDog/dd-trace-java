@@ -164,49 +164,15 @@ public class TaintableVisitor implements AsmVisitorWrapper {
       mv.visitVarInsn(Opcodes.ALOAD, 1);
       mv.visitFieldInsn(Opcodes.PUTFIELD, owner, FIELD_NAME, SOURCE_CLASS_NAME);
 
+      mv.visitVarInsn(Opcodes.ALOAD, 0);
       mv.visitMethodInsn(
           Opcodes.INVOKESTATIC,
           Type.getInternalName(Taintable.DebugLogger.class),
-          "getLogger",
-          "()Lorg/slf4j/Logger;",
+          "logTaint",
+          "(Ldatadog/trace/api/iast/Taintable;)V",
           false);
-
-      mv.visitLdcInsn("taint: {}[{}] {}");
-      mv.visitInsn(Opcodes.ICONST_3);
-      mv.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
-      mv.visitInsn(Opcodes.DUP);
-      mv.visitInsn(Opcodes.ICONST_0);
-      mv.visitVarInsn(Opcodes.ALOAD, 0);
-      mv.visitMethodInsn(
-          Opcodes.INVOKEVIRTUAL, "java/lang/Object", "getClass", "()Ljava/lang/Class;", false);
-      mv.visitMethodInsn(
-          Opcodes.INVOKEVIRTUAL, "java/lang/Class", "getSimpleName", "()Ljava/lang/String;", false);
-      mv.visitInsn(Opcodes.AASTORE);
-      mv.visitInsn(Opcodes.DUP);
-      mv.visitInsn(Opcodes.ICONST_1);
-      mv.visitVarInsn(Opcodes.ALOAD, 0);
-      mv.visitMethodInsn(
-          Opcodes.INVOKESTATIC,
-          "java/lang/System",
-          "identityHashCode",
-          "(Ljava/lang/Object;)I",
-          false);
-      mv.visitMethodInsn(
-          Opcodes.INVOKESTATIC, "java/lang/Integer", "toHexString", "(I)Ljava/lang/String;", false);
-      mv.visitInsn(Opcodes.AASTORE);
-      mv.visitInsn(Opcodes.DUP);
-      mv.visitInsn(Opcodes.ICONST_2);
-      mv.visitVarInsn(Opcodes.ALOAD, 0);
-      mv.visitInsn(Opcodes.AASTORE);
-      mv.visitMethodInsn(
-          Opcodes.INVOKEINTERFACE,
-          "org/slf4j/Logger",
-          "debug",
-          "(Ljava/lang/String;[Ljava/lang/Object;)V",
-          true);
-
       mv.visitInsn(Opcodes.RETURN);
-      mv.visitMaxs(8, 2);
+      mv.visitMaxs(2, 2);
       mv.visitEnd();
     }
   }
