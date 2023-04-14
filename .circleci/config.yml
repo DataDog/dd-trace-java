@@ -240,7 +240,9 @@ commands:
 
       - run:
           name: Install python 3.9
-          command: sudo apt-get install python3.9-venv
+          command: |
+            sudo apt-get install python3.9-full python3.9-dev python3.9-venv
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >>"$BASH_ENV"
 
       - run:
           name: versions
@@ -764,24 +766,20 @@ jobs:
             cp ~/dd-trace-java/workspace/dd-trace-ot/build/libs/*.jar system-tests/binaries/
 
       - run:
-          name: Install Python 3.9
-          command: pyenv install 3.9
-
-      - run:
-          name: Install Requirements
+          name: Install requirements
           command: |
             cd system-tests/parametric
-            pyenv local 3.9
-            python --version
-            pip install wheel
-            pip install -r requirements.txt
+            pyenv local system
+            python3.9 --version
+            python3.9 -m pip install wheel
+            python3.9 -m pip install -r requirements.txt
+            sudo ln -sf /usr/bin/python3.9 /usr/bin/python
 
       - run:
           name: Run
           command: |
             cd system-tests/parametric
             export CLIENTS_ENABLED=java
-            python --version
             ./run.sh
 
 build_test_jobs: &build_test_jobs
