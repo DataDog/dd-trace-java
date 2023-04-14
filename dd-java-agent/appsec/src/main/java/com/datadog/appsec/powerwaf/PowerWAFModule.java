@@ -81,24 +81,6 @@ public class PowerWAFModule implements AppSecModule {
 
   private static final Map<String, ActionInfo> DEFAULT_ACTIONS;
 
-  private static class RuleInfo {
-    final String name;
-    final String type;
-    final Map<String, String> tags;
-
-    RuleInfo(AppSecConfig.Rule rule) {
-      this.name = rule.getName();
-      Map<String, String> tags = rule.getTags();
-      if (tags != null) {
-        this.type = tags.getOrDefault("type", "waf");
-        this.tags = tags;
-      } else {
-        this.type = "invalid";
-        this.tags = Collections.emptyMap();
-      }
-    }
-  }
-
   private static class ActionInfo {
     final String type;
     final Map<String, Object> parameters;
@@ -112,23 +94,19 @@ public class PowerWAFModule implements AppSecModule {
   private static class CtxAndAddresses {
     final Collection<Address<?>> addressesOfInterest;
     final PowerwafContext ctx;
-    final Map<String, RuleInfo> rulesInfoMap;
     final Map<String /* id */, ActionInfo> actionInfoMap;
 
     private CtxAndAddresses(
         Collection<Address<?>> addressesOfInterest,
         PowerwafContext ctx,
-        Map<String, RuleInfo> rulesInfoMap,
         Map<String, ActionInfo> actionInfoMap) {
       this.addressesOfInterest = addressesOfInterest;
       this.ctx = ctx;
-      this.rulesInfoMap = rulesInfoMap;
       this.actionInfoMap = actionInfoMap;
     }
 
     CtxAndAddresses withNewActions(Map<String, ActionInfo> actionInfoMap) {
-      return new CtxAndAddresses(
-          this.addressesOfInterest, this.ctx, this.rulesInfoMap, actionInfoMap);
+      return new CtxAndAddresses(this.addressesOfInterest, this.ctx, actionInfoMap);
     }
   }
 
@@ -278,17 +256,6 @@ public class PowerWAFModule implements AppSecModule {
         MetricCollector.get().wafUpdates(currentRulesVersion);
       }
 
-      Map<String, RuleInfo> rulesInfoMap;
-      if (ruleConfig.getRules() != null && !ruleConfig.getRules().isEmpty()) {
-        rulesInfoMap =
-            ruleConfig.getRules().stream().collect(toMap(AppSecConfig.Rule::getId, RuleInfo::new));
-      } else {
-        if (prevContextAndAddresses == null) {
-          throw new IllegalStateException("No rules in non-update for WAF");
-        }
-        rulesInfoMap = prevContextAndAddresses.rulesInfoMap;
-      }
-
       log.info(
           "Created {} WAF context with rules ({} OK, {} BAD), version {}",
           prevContextAndAddresses == null ? "new" : "updated",
@@ -299,8 +266,7 @@ public class PowerWAFModule implements AppSecModule {
       Map<String, ActionInfo> actionInfoMap =
           calculateEffectiveActions(prevContextAndAddresses, ruleConfig);
 
-      newContextAndAddresses =
-          new CtxAndAddresses(addresses, newPwafCtx, rulesInfoMap, actionInfoMap);
+      newContextAndAddresses = new CtxAndAddresses(addresses, newPwafCtx, actionInfoMap);
       if (initReport != null) {
         this.statsReporter.rulesVersion = initReport.fileVersion;
       }
@@ -387,11 +353,7 @@ public class PowerWAFModule implements AppSecModule {
       return "powerwaf(libddwaf: " + Powerwaf.LIB_VERSION + ") no rules loaded";
     }
 
-    return "powerwaf(libddwaf: "
-        + Powerwaf.LIB_VERSION
-        + ") loaded "
-        + ctxAndAddresses.rulesInfoMap.size()
-        + " rules";
+    return "powerwaf(libddwaf: " + Powerwaf.LIB_VERSION + ") loaded";
   }
 
   @Override
@@ -495,7 +457,7 @@ public class PowerWAFModule implements AppSecModule {
             }
           }
         }
-        Collection<AppSecEvent100> events = buildEvents(resultWithData, ctxAndAddr.rulesInfoMap);
+        Collection<AppSecEvent100> events = buildEvents(resultWithData);
         reqCtx.reportEvents(events, null);
 
         if (flow.isBlocking()) {
@@ -578,8 +540,7 @@ public class PowerWAFModule implements AppSecModule {
         new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, bundle), LIMITS, metrics);
   }
 
-  private Collection<AppSecEvent100> buildEvents(
-      Powerwaf.ResultWithData actionWithData, Map<String, RuleInfo> rulesInfoMap) {
+  private Collection<AppSecEvent100> buildEvents(Powerwaf.ResultWithData actionWithData) {
     Collection<PowerWAFResultData> listResults;
     try {
       listResults = RES_JSON_ADAPTER.fromJson(actionWithData.data);
@@ -589,15 +550,14 @@ public class PowerWAFModule implements AppSecModule {
 
     if (listResults != null && !listResults.isEmpty()) {
       return listResults.stream()
-          .map(wafResult -> buildEvent(wafResult, rulesInfoMap))
+          .map(this::buildEvent)
           .filter(Objects::nonNull)
           .collect(Collectors.toList());
     }
     return emptyList();
   }
 
-  private AppSecEvent100 buildEvent(
-      PowerWAFResultData wafResult, Map<String, RuleInfo> rulesInfoMap) {
+  private AppSecEvent100 buildEvent(PowerWAFResultData wafResult) {
 
     if (wafResult == null || wafResult.rule == null || wafResult.rule_matches == null) {
       log.warn("WAF result is empty: {}", wafResult);
@@ -629,17 +589,15 @@ public class PowerWAFModule implements AppSecModule {
       ruleMatchList.add(ruleMatch);
     }
 
-    RuleInfo ruleInfo = rulesInfoMap.get(wafResult.rule.id);
-
     return new AppSecEvent100.AppSecEvent100Builder()
         .withRule(
             new Rule.RuleBuilder()
                 .withId(wafResult.rule.id)
-                .withName(ruleInfo.name)
+                .withName(wafResult.rule.name)
                 .withTags(
                     new Tags.TagsBuilder()
-                        .withType(ruleInfo.tags.get("type"))
-                        .withCategory(ruleInfo.tags.get("category"))
+                        .withType(wafResult.rule.tags.get("type"))
+                        .withCategory(wafResult.rule.tags.get("category"))
                         .build())
                 .build())
         .withRuleMatches(ruleMatchList)
