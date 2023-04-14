@@ -71,6 +71,9 @@ final class TypeFactory {
 
   private static final TypeParser fullTypeParser = new FullTypeParser();
 
+  private static final TypeDescription objectOutline =
+      new CachingType(outlineTypeParser.parse(Object.class));
+
   private static final TypeInfoCache<TypeDescription> outlineTypes =
       new TypeInfoCache<>(InstrumenterConfig.get().getResolverOutlinePoolSize());
 
@@ -215,11 +218,15 @@ final class TypeFactory {
   /** Attempts to resolve the named type using the current context. */
   TypeDescription resolveType(LazyType request) {
     if (null != classFileLocator) {
-      TypeDescription result =
-          createOutlines
-              ? lookupType(request, outlineTypes, outlineTypeParser)
-              : lookupType(request, fullTypes, fullTypeParser);
-
+      TypeDescription result;
+      if (createOutlines) {
+        if ("java.lang.Object".equals(request.name)) {
+          return objectOutline;
+        }
+        result = lookupType(request, outlineTypes, outlineTypeParser);
+      } else {
+        result = lookupType(request, fullTypes, fullTypeParser);
+      }
       if (null != result) {
         return new CachingType(result);
       }
