@@ -34,6 +34,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MEASURE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_CONFIG;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_DIR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_RESET_INTERVAL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
@@ -92,6 +93,7 @@ public class InstrumenterConfig {
   private final List<String> excludedCodeSources;
 
   private final ResolverCacheConfig resolverCacheConfig;
+  private final String resolverCacheDir;
   private final boolean resolverUseLoadClass;
   private final int resolverResetInterval;
 
@@ -168,6 +170,7 @@ public class InstrumenterConfig {
     resolverCacheConfig =
         configProvider.getEnum(
             RESOLVER_CACHE_CONFIG, ResolverCacheConfig.class, ResolverCacheConfig.MEMOS);
+    resolverCacheDir = configProvider.getString(RESOLVER_CACHE_DIR);
     resolverUseLoadClass = configProvider.getBoolean(RESOLVER_USE_LOADCLASS, true);
     resolverResetInterval =
         Platform.isNativeImageBuilder()
@@ -312,6 +315,10 @@ public class InstrumenterConfig {
     return resolverCacheConfig.typePoolSize();
   }
 
+  public String getResolverCacheDir() {
+    return resolverCacheDir;
+  }
+
   public boolean isResolverUseLoadClass() {
     return resolverUseLoadClass;
   }
@@ -413,6 +420,8 @@ public class InstrumenterConfig {
         + excludedCodeSources
         + ", resolverCacheConfig="
         + resolverCacheConfig
+        + ", resolverCacheDir="
+        + resolverCacheDir
         + ", resolverUseLoadClass="
         + resolverUseLoadClass
         + ", resolverResetInterval="
