@@ -1,5 +1,7 @@
 package datadog.trace.api.iast.telemetry;
 
+import datadog.trace.api.Config;
+
 public enum Verbosity {
   OFF,
   MANDATORY,
@@ -20,5 +22,14 @@ public enum Verbosity {
 
   public boolean isMandatoryEnabled() {
     return isEnabled(MANDATORY);
+  }
+
+  public static Verbosity getLevel() {
+    Config config = Config.get();
+    if (!config.isTelemetryEnabled() || !config.isTelemetryMetricsEnabled()) {
+      return Verbosity.OFF;
+    } else {
+      return config.getIastTelemetryVerbosity();
+    }
   }
 }

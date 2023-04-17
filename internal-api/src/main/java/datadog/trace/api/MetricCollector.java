@@ -31,29 +31,47 @@ public class MetricCollector {
   private static final AtomicRequestCounter wafBlockedRequestCounter = new AtomicRequestCounter();
 
   public boolean wafInit(String wafVersion, String rulesVersion) {
+    if (!Config.get().isTelemetryMetricsEnabled()) {
+      return true;
+    }
     return rawMetricsQueue.offer(
         new WafInitRawMetric(wafInitCounter.incrementAndGet(), wafVersion, rulesVersion));
   }
 
   public boolean wafUpdates(String rulesVersion) {
+    if (!Config.get().isTelemetryMetricsEnabled()) {
+      return true;
+    }
     return rawMetricsQueue.offer(
         new WafUpdatesRawMetric(wafUpdatesCounter.incrementAndGet(), rulesVersion));
   }
 
   public void wafRequest() {
+    if (!Config.get().isTelemetryMetricsEnabled()) {
+      return;
+    }
     wafRequestCounter.increment();
   }
 
   public void wafRequestTriggered() {
+    if (!Config.get().isTelemetryMetricsEnabled()) {
+      return;
+    }
     wafTriggeredRequestCounter.increment();
   }
 
   public void wafRequestBlocked() {
+    if (!Config.get().isTelemetryMetricsEnabled()) {
+      return;
+    }
     wafTriggeredRequestCounter.increment(); // Blocked requests are also triggered
     wafBlockedRequestCounter.increment();
   }
 
   public Collection<RawMetric> drain() {
+    if (!Config.get().isTelemetryMetricsEnabled()) {
+      return Collections.emptyList();
+    }
     if (!rawMetricsQueue.isEmpty()) {
       List<RawMetric> list = new LinkedList<>();
       int drained = rawMetricsQueue.drainTo(list);
@@ -65,6 +83,10 @@ public class MetricCollector {
   }
 
   public boolean prepareRequestMetrics() {
+    if (!Config.get().isTelemetryMetricsEnabled()) {
+      return true;
+    }
+
     // Requests
     if (wafRequestCounter.get() > 0) {
       if (!rawMetricsQueue.offer(

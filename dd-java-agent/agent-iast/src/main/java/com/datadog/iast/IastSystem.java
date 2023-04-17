@@ -23,6 +23,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.iast.IastModule;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
 import java.util.function.BiFunction;
@@ -57,7 +58,7 @@ public class IastSystem {
       overheadController = OverheadController.build(config, AgentTaskScheduler.INSTANCE);
     }
     if (telemetry == null) {
-      telemetry = IastTelemetry.build(config);
+      telemetry = IastTelemetry.build(Verbosity.getLevel());
     }
     final Dependencies dependencies =
         new Dependencies(

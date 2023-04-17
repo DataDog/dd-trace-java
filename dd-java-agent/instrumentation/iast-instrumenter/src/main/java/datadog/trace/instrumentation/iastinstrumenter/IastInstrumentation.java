@@ -5,7 +5,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteInstrumentation;
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteSupplier;
 import datadog.trace.agent.tooling.csi.CallSiteAdvice;
-import datadog.trace.api.Config;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.instrumentation.iastinstrumenter.telemetry.TelemetryCallSiteSupplier;
@@ -52,9 +51,8 @@ public class IastInstrumentation extends CallSiteInstrumentation {
 
     static {
       CallSiteSupplier supplier = new IastCallSiteSupplier(IastAdvice.class);
-      final Config config = Config.get();
-      final Verbosity verbosity = config.getIastTelemetryVerbosity();
-      if (config.isTelemetryEnabled() && verbosity != Verbosity.OFF) {
+      final Verbosity verbosity = Verbosity.getLevel();
+      if (verbosity != Verbosity.OFF) {
         supplier = new TelemetryCallSiteSupplier(verbosity, supplier);
       }
       INSTANCE = supplier;

@@ -1,7 +1,6 @@
 package com.datadog.iast.telemetry
 
 import com.datadog.iast.IastRequestContext
-import datadog.trace.api.Config
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.iast.telemetry.IastMetric
 import datadog.trace.api.iast.telemetry.IastTelemetryCollector
@@ -13,21 +12,14 @@ import groovy.transform.CompileDynamic
 class IastTelemetryTest extends DDSpecification {
 
   void 'test builder'() {
-    given:
-    final config = Mock(Config) {
-      isTelemetryEnabled() >> { verbosity != null }
-      getIastTelemetryVerbosity() >> verbosity
-    }
-
     when:
-    final telemetry = IastTelemetry.build(config)
+    final telemetry = IastTelemetry.build(verbosity)
 
     then:
     instance.isInstance(telemetry)
 
     where:
     verbosity             | instance
-    null                  | NoOpTelemetry
     Verbosity.OFF         | NoOpTelemetry
     Verbosity.MANDATORY   | IastTelemetryImpl
     Verbosity.INFORMATION | IastTelemetryImpl

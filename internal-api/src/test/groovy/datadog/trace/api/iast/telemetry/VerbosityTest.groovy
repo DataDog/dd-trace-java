@@ -1,10 +1,10 @@
 package datadog.trace.api.iast.telemetry
 
+import datadog.trace.test.util.DDSpecification
 import groovy.transform.CompileDynamic
-import spock.lang.Specification
 
 @CompileDynamic
-class VerbosityTest extends Specification {
+class VerbosityTest extends DDSpecification {
 
   void 'test level is enabled'() {
     when:
@@ -16,6 +16,26 @@ class VerbosityTest extends Specification {
     debug == verbosity.ordinal() >= Verbosity.DEBUG.ordinal()
     info == verbosity.ordinal() >= Verbosity.INFORMATION.ordinal()
     mandatory == verbosity.ordinal() >= Verbosity.MANDATORY.ordinal()
+
+    where:
+    verbosity << Verbosity.values().toList()
+  }
+
+  void 'test get level'() {
+    given:
+    injectSysConfig('dd.iast.telemetry.verbosity', verbosity.name())
+
+    when:
+    injectSysConfig('dd.telemetry.metrics.enabled', 'true')
+
+    then:
+    Verbosity.getLevel() == verbosity
+
+    then:
+    injectSysConfig('dd.telemetry.metrics.enabled', 'false')
+
+    then:
+    Verbosity.getLevel() == Verbosity.OFF
 
     where:
     verbosity << Verbosity.values().toList()

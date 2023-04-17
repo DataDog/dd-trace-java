@@ -1,6 +1,5 @@
 package datadog.trace.api.iast.telemetry
 
-import datadog.trace.api.config.IastConfig
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.VulnerabilityTypes
@@ -32,6 +31,7 @@ class IastTelemetryCollectorTest extends DDSpecification {
   private ExecutorService executor
 
   void setup() {
+    injectSysConfig('dd.telemetry.metrics.enabled', 'true')
     executor = Executors.newFixedThreadPool(8)
     iastCtx = Mock(IastTelemetryCollector.HasTelemetryCollector)
     ctx = Mock(RequestContext) {
@@ -113,7 +113,7 @@ class IastTelemetryCollectorTest extends DDSpecification {
 
   void 'test no op collector does nothing'() {
     setup:
-    final collector = collectorProvider.call()
+    final collector = new NoOpTelemetryCollector()
 
     when:
     collector.addMetric(IastMetric.EXECUTED_SINK, 23, 'tag')
@@ -128,15 +128,6 @@ class IastTelemetryCollectorTest extends DDSpecification {
 
     then:
     collector.drainMetrics().empty
-
-    where:
-    collectorProvider << [
-      { return new NoOpTelemetryCollector() },
-      {
-        injectSysConfig(IastConfig.IAST_TELEMETRY_VERBOSITY, 'OFF')
-        return IastTelemetryCollector.Holder.globalCollector()
-      }
-    ]
   }
 
   void 'test global/request scoped metrics'() {

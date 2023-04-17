@@ -41,6 +41,9 @@ class TelemetryCollectorsTest extends DDSpecification {
   }
 
   def "no metrics - drain empty list"() {
+    setup:
+    injectSysConfig('telemetry.metrics.enabled', 'true')
+
     when:
     MetricCollector.get().prepareRequestMetrics()
 
@@ -49,6 +52,9 @@ class TelemetryCollectorsTest extends DDSpecification {
   }
 
   def "put-get waf metrics"() {
+    setup:
+    injectSysConfig('telemetry.metrics.enabled', 'true')
+
     when:
     MetricCollector.get().wafInit('waf_ver1', 'rules.1')
     MetricCollector.get().wafUpdates('rules.2')
@@ -103,6 +109,26 @@ class TelemetryCollectorsTest extends DDSpecification {
     requestBlockedMetric.counter == 1
     requestBlockedMetric.triggered        // true
     requestBlockedMetric.blocked          // true
+  }
+
+  void 'test disabled telemetry metrics'() {
+    setup:
+    injectSysConfig('dd.telemetry.metrics.enabled', 'false')
+
+    when:
+    MetricCollector.get().wafInit('waf_ver1', 'rules.1')
+    MetricCollector.get().wafUpdates('rules.2')
+    MetricCollector.get().wafUpdates('rules.3')
+    MetricCollector.get().wafRequest()
+    MetricCollector.get().wafRequest()
+    MetricCollector.get().wafRequest()
+    MetricCollector.get().wafRequestTriggered()
+    MetricCollector.get().wafRequestBlocked()
+
+    MetricCollector.get().prepareRequestMetrics()
+
+    then:
+    MetricCollector.get().drain().empty
   }
 
   def "hide pii configuration data"() {

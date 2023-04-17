@@ -45,8 +45,10 @@ public class TelemetrySystem {
 
     List<TelemetryPeriodicAction> actions = new ArrayList<>();
     actions.add(new IntegrationPeriodicAction());
-    actions.add(new MetricPeriodicAction());
-    if (Verbosity.OFF != Config.get().getIastTelemetryVerbosity()) {
+    if (Config.get().isTelemetryMetricsEnabled()) {
+      actions.add(new MetricPeriodicAction());
+    }
+    if (Verbosity.OFF != Verbosity.getLevel()) {
       actions.add(new IastTelemetryPeriodicAction());
     }
     if (null != dependencyService) {

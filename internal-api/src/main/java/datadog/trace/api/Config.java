@@ -65,6 +65,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERV
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_METRICS_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
@@ -145,6 +146,7 @@ import static datadog.trace.api.config.GeneralConfig.SITE;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL;
+import static datadog.trace.api.config.GeneralConfig.TELEMETRY_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_METRICS_INTERVAL;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_BUFFERING_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_ENABLED;
@@ -644,6 +646,7 @@ public class Config {
   private final int telemetryHeartbeatInterval;
   private final int telemetryMetricsInterval;
   private final boolean isTelemetryDependencyServiceEnabled;
+  private final boolean telemetryMetricsEnabled;
 
   private final boolean azureAppServices;
   private final String traceAgentPath;
@@ -1219,6 +1222,9 @@ public class Config {
         configProvider.getBoolean(
             TELEMETRY_DEPENDENCY_COLLECTION_ENABLED,
             DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED);
+
+    telemetryMetricsEnabled =
+        configProvider.getBoolean(TELEMETRY_METRICS_ENABLED, DEFAULT_TELEMETRY_METRICS_ENABLED);
 
     clientIpEnabled = configProvider.getBoolean(CLIENT_IP_ENABLED, DEFAULT_CLIENT_IP_ENABLED);
 
@@ -1953,6 +1959,10 @@ public class Config {
 
   public boolean isTelemetryDependencyServiceEnabled() {
     return isTelemetryDependencyServiceEnabled;
+  }
+
+  public boolean isTelemetryMetricsEnabled() {
+    return telemetryMetricsEnabled;
   }
 
   public boolean isClientIpEnabled() {

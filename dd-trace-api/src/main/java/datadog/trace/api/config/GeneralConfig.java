@@ -59,6 +59,7 @@ public final class GeneralConfig {
   public static final String TELEMETRY_METRICS_INTERVAL = "telemetry.metrics.interval";
   public static final String TELEMETRY_DEPENDENCY_COLLECTION_ENABLED =
       "telemetry.dependency-collection.enabled";
+  public static final String TELEMETRY_METRICS_ENABLED = "telemetry.metrics.enabled";
 
   private GeneralConfig() {}
 }

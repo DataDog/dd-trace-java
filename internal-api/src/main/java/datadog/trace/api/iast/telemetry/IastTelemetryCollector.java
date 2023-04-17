@@ -4,7 +4,6 @@ import static datadog.trace.api.iast.telemetry.IastMetric.Scope.REQUEST;
 import static datadog.trace.api.iast.telemetry.IastMetricHandler.aggregated;
 import static datadog.trace.api.iast.telemetry.IastMetricHandler.conflated;
 
-import datadog.trace.api.Config;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -48,8 +47,7 @@ public interface IastTelemetryCollector {
 
     // visible for testing
     static IastTelemetryCollector globalCollector() {
-      final Config config = Config.get();
-      if (!config.isTelemetryEnabled() || config.getIastTelemetryVerbosity() == Verbosity.OFF) {
+      if (Verbosity.getLevel() == Verbosity.OFF) {
         return new NoOpTelemetryCollector();
       }
       return new IastTelemetryCollectorImpl(Holder::globalHandlerFor);

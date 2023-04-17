@@ -14,6 +14,7 @@ import datadog.telemetry.api.Logs;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.Payload;
 import datadog.telemetry.api.RequestType;
+import datadog.trace.api.Config;
 import datadog.trace.api.time.TimeSource;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -63,6 +64,8 @@ public class TelemetryServiceImpl implements TelemetryService {
   private boolean openTracingIntegrationEnabled;
   private boolean openTelemetryIntegrationEnabled;
 
+  private final boolean telemetryMetricsEnabled;
+
   public TelemetryServiceImpl(
       Supplier<RequestBuilder> requestBuilderSupplier,
       TimeSource timeSource,
@@ -93,6 +96,7 @@ public class TelemetryServiceImpl implements TelemetryService {
     this.openTelemetryIntegrationEnabled = false;
     this.maxElementsPerReq = maxElementsPerReq;
     this.maxDepsPerReq = maxDepsPerReq;
+    this.telemetryMetricsEnabled = Config.get().isTelemetryMetricsEnabled();
   }
 
   @Override
@@ -184,16 +188,18 @@ public class TelemetryServiceImpl implements TelemetryService {
 
     // New metrics
     while (!metrics.isEmpty()) {
-      Payload payload =
-          new GenerateMetrics()
-              .namespace("tracer")
-              .series(drainOrEmpty(metrics, maxElementsPerReq));
-      Request request =
-          requestBuilderSupplier
-              .get()
-              .build(
-                  RequestType.GENERATE_METRICS, payload.requestType(RequestType.GENERATE_METRICS));
-      queue.offer(request);
+      // ensure we drain the queue, even if not enabled (just in case)
+      List<Metric> series = drainOrEmpty(metrics, maxElementsPerReq);
+      if (telemetryMetricsEnabled) {
+        Payload payload = new GenerateMetrics().namespace("tracer").series(series);
+        Request request =
+            requestBuilderSupplier
+                .get()
+                .build(
+                    RequestType.GENERATE_METRICS,
+                    payload.requestType(RequestType.GENERATE_METRICS));
+        queue.offer(request);
+      }
     }
 
     // New messages
