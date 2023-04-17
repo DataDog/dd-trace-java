@@ -8,22 +8,6 @@ abstract class LambdaHandlerInstrumentationTest extends VersionedNamingTestBase 
     null
   }
 
-  def "test constructor"() {
-    when:
-    environmentVariables.set("_HANDLER", handlerEnv)
-    def objTest = new LambdaHandlerInstrumentation()
-
-    then:
-    objTest.configuredMatchingType() == instrumentedType
-    objTest.getMethodName() == methodName
-    environmentVariables.clear("_HANDLER")
-
-    where:
-    instrumentedType     | methodName        | handlerEnv
-    "example.Handler"    | "mySuperHandler"  | "example.Handler::mySuperHandler"
-    "package.type"       | "handleRequest"   | "package.type"
-  }
-
   def "test lambda handler"() {
     when:
     new Handler().handleRequest(null, null)

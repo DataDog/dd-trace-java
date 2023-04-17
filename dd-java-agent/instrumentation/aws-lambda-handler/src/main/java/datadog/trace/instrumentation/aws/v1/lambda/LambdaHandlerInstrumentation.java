@@ -21,29 +21,24 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
 public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForConfiguredType {
+    implements Instrumenter.ForTypeHierarchy  {
 
   // these must remain as String literals so they can be easily be shared (copied) with the nested
   // advice classes
   private static final String HANDLER_ENV_NAME = "_HANDLER";
-  private static final String HANDLER_SEPARATOR = "::";
-  private static final String DEFAULT_METHOD_NAME = "handleRequest";
-  private String instrumentedType;
-  private String methodName;
 
   public LambdaHandlerInstrumentation() {
     super("aws-lambda");
-    final String handler = System.getenv(HANDLER_ENV_NAME);
-    if (null != handler) {
-      final int split = handler.lastIndexOf(HANDLER_SEPARATOR);
-      if (split == -1) {
-        this.instrumentedType = handler;
-        this.methodName = DEFAULT_METHOD_NAME;
-      } else {
-        this.instrumentedType = handler.substring(0, split);
-        this.methodName = handler.substring(split + HANDLER_SEPARATOR.length());
-      }
-    }
+  }
+
+  @Override
+  public String hierarchyMarkerType() {
+    return "com.amazonaws.services.lambda.runtime.RequestHandler";
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override
@@ -60,31 +55,21 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public String configuredMatchingType() {
-    return this.instrumentedType;
-  }
-
-  @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    if (null != this.instrumentedType && null != this.methodName) {
-      // two args
-      transformation.applyAdvice(
-          isMethod()
-              .and(named(this.methodName))
-              .and(takesArgument(1, named("com.amazonaws.services.lambda.runtime.Context"))),
-          getClass().getName() + "$ExtensionCommunicationAdvice");
-      // three args (streaming)
-      transformation.applyAdvice(
-          isMethod()
-              .and(named(this.methodName))
-              .and(takesArgument(2, named("com.amazonaws.services.lambda.runtime.Context"))),
-          getClass().getName() + "$ExtensionCommunicationAdvice");
-      // full spec here : https://docs.aws.amazon.com/lambda/latest/dg/java-handler.html
-    }
-  }
-
-  protected String getMethodName() {
-    return this.methodName;
+    // two args
+    transformation.applyAdvice(
+        isMethod()
+            .and(named("handleRequest"))
+            .and(takesArgument(1, named("com.amazonaws.services.lambda.runtime.Context"))),
+        getClass().getName() + "$ExtensionCommunicationAdvice");
+    // three args (streaming)
+    transformation.applyAdvice(
+        isMethod()
+            .and(named("handleRequest"))
+            .and(takesArgument(2, named("com.amazonaws.services.lambda.runtime.Context"))),
+        getClass().getName() + "$ExtensionCommunicationAdvice");
+    // full spec here : https://docs.aws.amazon.com/lambda/latest/dg/java-handler.html
+    
   }
 
   public static class ExtensionCommunicationAdvice {
