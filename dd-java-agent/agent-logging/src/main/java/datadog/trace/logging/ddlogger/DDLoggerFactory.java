@@ -1,5 +1,6 @@
 package datadog.trace.logging.ddlogger;
 
+import datadog.trace.api.Platform;
 import datadog.trace.logging.LogLevel;
 import datadog.trace.logging.LogLevelSwitcher;
 import datadog.trace.logging.LoggingSettingsDescription;
@@ -34,7 +35,12 @@ public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
 
   @Override
   public Logger getLogger(String name) {
-    return new DDLogger(getHelperFactory(), name);
+    // Native image builder can't see telemetry and won't use it
+    if (Platform.isNativeImageBuilder()) {
+      return new DDLogger(getHelperFactory(), name);
+    } else {
+      return new DDTelemetryLogger(getHelperFactory(), name);
+    }
   }
 
   @Override
