@@ -16,7 +16,7 @@ dependencies {
   // but the tests need to use it in order to be compliant with Spock 2.0
   testImplementation(group: 'junit', name: 'junit') {
     version {
-      strictly '4.11'
+      strictly '4.13.2'
     }
   }
 }

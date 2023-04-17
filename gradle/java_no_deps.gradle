@@ -1,4 +1,3 @@
-import org.gradle.api.plugins.jvm.JvmTestSuite
 import org.gradle.jvm.toolchain.internal.SpecificInstallationToolchainSpec
 
 apply plugin: 'java-library'
@@ -9,6 +8,7 @@ apply from: "$rootDir/gradle/spotless.gradle"
 apply from: "$rootDir/gradle/spotbugs.gradle"
 apply from: "$rootDir/gradle/repositories.gradle"
 apply from: "$rootDir/gradle/pitest.gradle"
+apply from: "$rootDir/gradle/test-suites.gradle"
 
 // Only run one testcontainers test at a time
 ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainersLimit", BuildService) {
@@ -16,7 +16,10 @@ ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainers
 }
 
 // Task for tests that want to run forked in their own separate JVM
-tasks.register('forkedTest', Test) {
+if (tasks.matching({it.name == 'forkedTest'}).empty) {
+  tasks.register('forkedTest', Test).configure {
+    useJUnitPlatform()
+  }
 }
 
 test {
@@ -168,10 +171,6 @@ project.afterEvaluate {
     // Only change test JVM if it's not the one we are running the gradle build with
     if (currentJavaHomePath != testJvmHomePath) {
       def jvmSpec = new SpecificInstallationToolchainSpec(project.getObjects(), file(testJvmHomePath))
-      // Not really sure why this has to be done forcefully, but if it's not then gradle will complain that
-      // javaLauncher.metadata.taskInputs.languageVersion doesn't have a configured value (even though it is
-      // populated automatically by the javaToolchainsService)
-      jvmSpec.languageVersion.set(JavaLanguageVersion.of(testJvmLanguageVersion))
       // The provider always says that a value is present so we need to wrap it for proper error messages
       Provider<JavaLauncher> launcher = providers.provider {
         try {
@@ -276,7 +275,11 @@ ext.setJavaVersion = (it, javaVersionInteger) -> {
   try {
     ac.configure {
       options.fork = true
-      options.forkOptions.javaHome = compiler.get().metadata.installationPath.asFile
+      if (ac.hasProperty('javaCompiler')) {
+        javaCompiler = compiler
+      } else {
+        options.forkOptions.javaHome = compiler.get().metadata.installationPath.asFile
+      }
     }
   } catch (NoSuchElementException ignored) {
     throw new GradleException("Unable to find compiler for Java $javaVersionInteger. Have you set JAVA_${javaVersionInteger}_HOME?")
@@ -325,74 +328,6 @@ def isJdkExcluded(String javaName) {
 def getJavaHomePath(String path) {
   def javaHome = new File(path).toPath().toRealPath()
   return javaHome.endsWith("jre") ? javaHome.parent : javaHome
-}
-
-ext.addTestSuiteExtendingForDir = (String testSuiteName, String parentSuiteName, String dirName) -> {
-  testing {
-    suites {
-      create(testSuiteName, JvmTestSuite, {
-        sources {
-          java {
-            srcDirs = ["src/$dirName/java"]
-          }
-          resources {
-            srcDirs = ["src/$dirName/resources"]
-          }
-          if (project.plugins.hasPlugin('groovy')) {
-            groovy {
-              srcDirs = ["src/$dirName/groovy"]
-            }
-          }
-          if (project.plugins.hasPlugin('kotlin')) {
-            kotlin {
-              srcDirs = ["src/$dirName/kotlin"]
-            }
-          }
-          if (project.plugins.hasPlugin('scala')) {
-            scala {
-              srcDirs = ["src/$dirName/scala"]
-            }
-          }
-        }
-        dependencies {
-          implementation project
-        }
-      })
-    }
-  }
-
-  configurations {
-    def provider = named("${parentSuiteName}CompileOnly")
-    if (provider.present) {
-      named("${testSuiteName}CompileOnly").configure { extendsFrom(provider.get()) }
-    }
-    provider = named("${parentSuiteName}Implementation")
-    if (provider.present) {
-      named("${testSuiteName}Implementation").configure { extendsFrom(provider.get()) }
-    }
-    provider = named("${parentSuiteName}RuntimeOnly")
-    if (provider.present) {
-      named("${testSuiteName}RuntimeOnly").configure { extendsFrom(provider.get()) }
-    }
-    provider = named("${parentSuiteName}AnnotationProcessor")
-    if (provider.present) {
-      named("${testSuiteName}AnnotationProcessor").configure { extendsFrom(provider.get()) }
-    }
-  }
-
-  tasks.register("${testSuiteName}Jar", Jar) {
-    dependsOn(tasks.named("${testSuiteName}Classes").get())
-    from(sourceSets.named(testSuiteName).get().output)
-    archiveClassifier = testSuiteName
-  }
-}
-
-ext.addTestSuiteForDir = (String testSuiteName, String dirName) -> {
-  ext.addTestSuiteExtendingForDir(testSuiteName, 'test', dirName)
-}
-
-ext.addTestSuite = (String testSuiteName) -> {
-  ext.addTestSuiteForDir(testSuiteName, testSuiteName)
 }
 
 tasks.register('testJar', Jar) {
