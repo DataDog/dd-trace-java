@@ -22,6 +22,7 @@ import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.io.IOException;
@@ -351,20 +352,24 @@ public class LogProbe extends ProbeDefinition {
 
   @Override
   public void evaluate(CapturedContext context, CapturedContext.Status status) {
-    status.setCondition(evaluateCondition(context, status));
+    if (!(status instanceof LogStatus)) {
+      throw new IllegalStateException("Invalid status: " + status.getClass());
+    }
+    LogStatus logStatus = (LogStatus) status;
+    logStatus.setCondition(evaluateCondition(context, logStatus));
     CapturedContext.CapturedThrowable throwable = context.getThrowable();
-    if (status.hasConditionErrors() && throwable != null) {
-      status.addError(
+    if (logStatus.hasConditionErrors() && throwable != null) {
+      logStatus.addError(
           new EvaluationError(
               "uncaught exception", throwable.getType() + ": " + throwable.getMessage()));
     }
-    if (status.getCondition()) {
+    if (logStatus.getCondition()) {
       LogMessageTemplateBuilder logMessageBuilder = new LogMessageTemplateBuilder(segments);
-      status.setMessage(logMessageBuilder.evaluate(context, status));
+      logStatus.setMessage(logMessageBuilder.evaluate(context, logStatus));
     }
   }
 
-  private boolean evaluateCondition(CapturedContext capture, CapturedContext.Status status) {
+  private boolean evaluateCondition(CapturedContext capture, LogStatus status) {
     if (probeCondition == null) {
       return true;
     }
@@ -390,22 +395,22 @@ public class LogProbe extends ProbeDefinition {
       CapturedContext entryContext,
       CapturedContext exitContext,
       List<CapturedContext.CapturedThrowable> caughtExceptions) {
-    CapturedContext.Status entryStatus = entryContext.getStatus(id);
-    CapturedContext.Status exitStatus = exitContext.getStatus(id);
+    LogStatus entryLogStatus = convertStatus(entryContext.getStatus(id));
+    LogStatus exitLogStatus = convertStatus(exitContext.getStatus(id));
     String message = null;
     switch (evaluateAt) {
       case ENTRY:
       case DEFAULT:
-        message = entryStatus.getMessage();
+        message = entryLogStatus.getMessage();
         break;
       case EXIT:
-        message = exitStatus.getMessage();
+        message = exitLogStatus.getMessage();
         break;
     }
     Sink sink = DebuggerAgent.getSink();
     boolean shouldCommit = false;
     Snapshot snapshot = new Snapshot(Thread.currentThread(), this);
-    if (entryStatus.shouldSend() && exitStatus.shouldSend()) {
+    if (entryLogStatus.shouldSend() && exitLogStatus.shouldSend()) {
       // only rate limit if a condition is defined
       if (probeCondition != null) {
         if (!ProbeRateLimiter.tryProbe(id)) {
@@ -422,20 +427,20 @@ public class LogProbe extends ProbeDefinition {
       snapshot.addCaughtExceptions(caughtExceptions);
       shouldCommit = true;
     }
-    if (entryStatus.shouldReportError()) {
+    if (entryLogStatus.shouldReportError()) {
       if (entryContext.getThrowable() != null) {
         // report also uncaught exception
         snapshot.setEntry(entryContext);
       }
-      snapshot.addEvaluationErrors(entryStatus.getErrors());
+      snapshot.addEvaluationErrors(entryLogStatus.getErrors());
       shouldCommit = true;
     }
-    if (exitStatus.shouldReportError()) {
+    if (exitLogStatus.shouldReportError()) {
       if (exitContext.getThrowable() != null) {
         // report also uncaught exception
         snapshot.setExit(exitContext);
       }
-      snapshot.addEvaluationErrors(exitStatus.getErrors());
+      snapshot.addEvaluationErrors(exitLogStatus.getErrors());
       shouldCommit = true;
     }
     if (shouldCommit) {
@@ -443,6 +448,16 @@ public class LogProbe extends ProbeDefinition {
     } else {
       sink.skipSnapshot(id, DebuggerContext.SkipCause.CONDITION);
     }
+  }
+
+  private LogStatus convertStatus(CapturedContext.Status status) {
+    if (status == CapturedContext.Status.EMPTY_STATUS) {
+      return LogStatus.EMPTY_LOG_STATUS;
+    }
+    if (status == CapturedContext.Status.EMPTY_PASSING_STATUS) {
+      return LogStatus.EMPTY_PASSING_LOG_STATUS;
+    }
+    return (LogStatus) status;
   }
 
   private void commitSnapshot(Snapshot snapshot, Sink sink) {
@@ -461,7 +476,7 @@ public class LogProbe extends ProbeDefinition {
 
   @Override
   public void commit(CapturedContext lineContext, int line) {
-    CapturedContext.Status status = lineContext.getStatus(id);
+    LogStatus status = (LogStatus) lineContext.getStatus(id);
     if (status == null) {
       return;
     }
@@ -498,6 +513,82 @@ public class LogProbe extends ProbeDefinition {
   @Override
   public boolean hasCondition() {
     return probeCondition != null;
+  }
+
+  @Override
+  public CapturedContext.Status createStatus() {
+    return new LogStatus(this);
+  }
+
+  public static class LogStatus extends CapturedContext.Status {
+    private static final LogStatus EMPTY_LOG_STATUS =
+        new LogStatus(ProbeImplementation.UNKNOWN, false);
+    private static final LogStatus EMPTY_PASSING_LOG_STATUS =
+        new LogStatus(ProbeImplementation.UNKNOWN, true);
+
+    private boolean condition = true;
+    private boolean hasLogTemplateErrors;
+    private boolean hasConditionErrors;
+    private String message;
+
+    public LogStatus(ProbeImplementation probeImplementation) {
+      super(probeImplementation);
+    }
+
+    private LogStatus(ProbeImplementation probeImplementation, boolean condition) {
+      super(probeImplementation);
+      this.condition = condition;
+    }
+
+    @Override
+    public boolean needFreeze() {
+      return probeImplementation.isCaptureSnapshot() && shouldSend();
+    }
+
+    @Override
+    public boolean isCapturing() {
+      return condition;
+    }
+
+    public boolean shouldSend() {
+      return condition && !hasConditionErrors;
+    }
+
+    public boolean shouldReportError() {
+      return hasConditionErrors || hasLogTemplateErrors;
+    }
+
+    public boolean getCondition() {
+      return condition;
+    }
+
+    public void setCondition(boolean value) {
+      this.condition = value;
+    }
+
+    public boolean hasConditionErrors() {
+      return hasConditionErrors;
+    }
+
+    public void setConditionErrors(boolean value) {
+      this.hasConditionErrors = value;
+    }
+
+    public boolean hasLogTemplateErrors() {
+      return hasLogTemplateErrors;
+    }
+
+    public void setLogTemplateErrors(boolean value) {
+      this.hasLogTemplateErrors = value;
+    }
+
+    public void setMessage(String message) {
+      this.message = message;
+    }
+
+    public String getMessage() {
+      return message;
+    }
   }
 
   @Generated

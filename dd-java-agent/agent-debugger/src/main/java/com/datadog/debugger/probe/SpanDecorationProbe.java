@@ -14,8 +14,10 @@ import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -116,6 +118,10 @@ public class SpanDecorationProbe extends ProbeDefinition {
           status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
         }
       }
+      if (!(status instanceof SpanDecorationStatus)) {
+        throw new IllegalStateException("Invalid status: " + status.getClass());
+      }
+      SpanDecorationStatus spanStatus = (SpanDecorationStatus) status;
       for (Tag tag : decoration.tags) {
         try {
           Value<?> tagValue = tag.value.execute(context);
@@ -127,7 +133,7 @@ public class SpanDecorationProbe extends ProbeDefinition {
           } else {
             serializeValue(sb, tag.value.getDsl(), tagValue.getValue(), status);
           }
-          status.addTag(tag.name, sb.toString());
+          spanStatus.addTag(tag.name, sb.toString());
         } catch (EvaluationException ex) {
           LOGGER.debug("Evaluation error: ", ex);
           status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
@@ -146,7 +152,7 @@ public class SpanDecorationProbe extends ProbeDefinition {
     if (status == null) {
       return;
     }
-    List<Pair<String, String>> tagsToDecorate = status.getTagsToDecorate();
+    List<Pair<String, String>> tagsToDecorate = ((SpanDecorationStatus) status).getTagsToDecorate();
     if (tagsToDecorate == null) {
       return;
     }
@@ -166,6 +172,11 @@ public class SpanDecorationProbe extends ProbeDefinition {
     for (Pair<String, String> tag : tagsToDecorate) {
       agentSpan.setTag(tag.getLeft(), tag.getRight());
     }
+  }
+
+  @Override
+  public CapturedContext.Status createStatus() {
+    return new SpanDecorationStatus(this);
   }
 
   public TargetSpan getTargetSpan() {
@@ -220,6 +231,22 @@ public class SpanDecorationProbe extends ProbeDefinition {
         + ", evaluateAt="
         + evaluateAt
         + "} ";
+  }
+
+  private static class SpanDecorationStatus extends CapturedContext.Status {
+    private final List<Pair<String, String>> tagsToDecorate = new ArrayList<>();
+
+    public SpanDecorationStatus(ProbeImplementation probeImplementation) {
+      super(probeImplementation);
+    }
+
+    public void addTag(String tagName, String tagValue) {
+      tagsToDecorate.add(Pair.of(tagName, tagValue));
+    }
+
+    public List<Pair<String, String>> getTagsToDecorate() {
+      return tagsToDecorate;
+    }
   }
 
   public static SpanDecorationProbe.Builder builder() {

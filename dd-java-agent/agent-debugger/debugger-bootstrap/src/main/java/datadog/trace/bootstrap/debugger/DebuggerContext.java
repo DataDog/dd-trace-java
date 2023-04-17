@@ -166,8 +166,7 @@ public class DebuggerContext {
       long startTimestamp,
       MethodLocation methodLocation,
       String... probeIds) {
-    boolean captureSnapshot = false;
-    boolean shouldSend = false;
+    boolean needFreeze = false;
     for (String probeId : probeIds) {
       ProbeImplementation probeImplementation = resolveProbe(probeId, callingClass);
       if (probeImplementation == null) {
@@ -180,11 +179,10 @@ public class DebuggerContext {
               callingClass.getTypeName(),
               startTimestamp,
               methodLocation);
-      captureSnapshot |= probeImplementation.isCaptureSnapshot();
-      shouldSend |= status.shouldSend();
+      needFreeze |= status.needFreeze();
     }
     // only freeze the context when we have at lest one snapshot probe, and we should send snapshot
-    if (captureSnapshot && shouldSend) {
+    if (needFreeze) {
       context.freeze(new TimeoutChecker(DEFAULT_TIME_OUT));
     }
   }

@@ -22,7 +22,7 @@ public class LogMessageTemplateBuilder {
     this.segments = segments;
   }
 
-  public String evaluate(CapturedContext context, CapturedContext.Status status) {
+  public String evaluate(CapturedContext context, LogProbe.LogStatus status) {
     if (segments == null) {
       return null;
     }
