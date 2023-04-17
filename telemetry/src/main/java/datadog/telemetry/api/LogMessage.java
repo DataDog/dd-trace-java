@@ -15,7 +15,7 @@ public class LogMessage {
   private String stackTrace;
 
   @com.squareup.moshi.Json(name = "tracer_time")
-  private Integer tracerTime;
+  private Long tracerTime;
 
   /**
    * Get messages
@@ -98,16 +98,16 @@ public class LogMessage {
    *
    * @return tracerTime
    */
-  public Integer getTracerTime() {
+  public Long getTracerTime() {
     return tracerTime;
   }
 
   /** Set tracerTime */
-  public void setTracerTime(Integer tracerTime) {
+  public void setTracerTime(Long tracerTime) {
     this.tracerTime = tracerTime;
   }
 
-  public LogMessage tracerTime(Integer tracerTime) {
+  public LogMessage tracerTime(Long tracerTime) {
     this.tracerTime = tracerTime;
     return this;
   }
@@ -115,13 +115,20 @@ public class LogMessage {
   /** Create a string representation of this pojo. */
   @Override
   public String toString() {
-    final StringBuffer sb = new StringBuffer("LogMessage{");
-    sb.append("message='").append(message).append('\'');
-    sb.append(", level=").append(level);
-    sb.append(", tags='").append(tags).append('\'');
-    sb.append(", stackTrace='").append(stackTrace).append('\'');
-    sb.append(", tracerTime=").append(tracerTime);
-    sb.append('}');
-    return sb.toString();
+    return "LogMessage{"
+        + "message='"
+        + message
+        + '\''
+        + ", level="
+        + level
+        + ", tags='"
+        + tags
+        + '\''
+        + ", stackTrace='"
+        + stackTrace
+        + '\''
+        + ", tracerTime="
+        + tracerTime
+        + '}';
   }
 }

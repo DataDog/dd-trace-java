@@ -7,8 +7,10 @@ import datadog.telemetry.dependency.DependencyService;
 import datadog.telemetry.dependency.DependencyServiceImpl;
 import datadog.telemetry.iast.IastTelemetryPeriodicAction;
 import datadog.telemetry.integration.IntegrationPeriodicAction;
+import datadog.telemetry.log.LogPeriodicAction;
 import datadog.telemetry.metric.MetricPeriodicAction;
 import datadog.trace.api.Config;
+import datadog.trace.api.LogCollector;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.util.AgentThreadFactory;
@@ -52,6 +54,9 @@ public class TelemetrySystem {
     if (null != dependencyService) {
       actions.add(new DependencyPeriodicAction(dependencyService));
     }
+    if (Config.get().isTelemetryLogCollectionEnabled()) {
+      actions.add(new LogPeriodicAction());
+    }
 
     TelemetryRunnable telemetryRunnable =
         new TelemetryRunnable(okHttpClient, telemetryService, actions);
@@ -70,6 +75,10 @@ public class TelemetrySystem {
             Config.get().getTelemetryMetricsInterval());
     TELEMETRY_THREAD =
         createTelemetryRunnable(telemetryService, sco.okHttpClient, dependencyService);
+    if (Config.get().isTelemetryLogCollectionEnabled()) {
+      LogCollector.get().setEnabled(true);
+      log.debug("Telemetry Log Collection Enabled");
+    }
     TELEMETRY_THREAD.start();
   }
 

@@ -186,7 +186,7 @@ public class TelemetryServiceImpl implements TelemetryService {
     while (!metrics.isEmpty()) {
       Payload payload =
           new GenerateMetrics()
-              .namespace("tracer")
+              .namespace("tracers")
               .series(drainOrEmpty(metrics, maxElementsPerReq));
       Request request =
           requestBuilderSupplier
@@ -210,7 +210,7 @@ public class TelemetryServiceImpl implements TelemetryService {
     while (!distributionSeries.isEmpty()) {
       Payload payload =
           new Distributions()
-              .namespace("tracer")
+              .namespace("tracers")
               .series(drainOrEmpty(distributionSeries, maxElementsPerReq));
       Request request =
           requestBuilderSupplier
@@ -255,7 +255,7 @@ public class TelemetryServiceImpl implements TelemetryService {
   }
 
   private static <T> List<T> drainOrEmpty(BlockingQueue<T> srcQueue, int maxItems) {
-    return drainOrDefault(srcQueue, Collections.<T>emptyList(), maxItems);
+    return drainOrDefault(srcQueue, Collections.emptyList(), maxItems);
   }
 
   private static <T> List<T> drainOrDefault(
