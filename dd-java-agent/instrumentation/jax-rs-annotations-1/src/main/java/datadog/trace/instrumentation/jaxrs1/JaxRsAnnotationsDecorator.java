@@ -60,7 +60,11 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
           < ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE) {
         HTTP_RESOURCE_DECORATOR.withRoute(
             parent.getLocalRootSpan(), httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
-        parent.getLocalRootSpan().setTag(Tags.COMPONENT, "jax-rs");
+        if (!(parent.getLocalRootSpan().getTag(Tags.COMPONENT).toString().equals("alibaba-dubbo")
+            || parent.getLocalRootSpan().getTag(Tags.COMPONENT).toString().equals("dubbo")
+            || parent.getLocalRootSpan().getTag(Tags.COMPONENT).toString().equals("apache-dubbo"))){
+          parent.getLocalRootSpan().setTag(Tags.COMPONENT, "jax-rs");
+        }
       }
 
       span.setResourceName(DECORATE.spanNameForMethod(target, method));
