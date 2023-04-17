@@ -12,6 +12,8 @@ public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAct
   private static final String[] packageList = {"datadog.", "com.datadog.", "java.", "javax."};
   private static final String RET = "\r\n";
 
+  private static final String UNKNOWN = "<unknown>";
+
   @Override
   public void doIteration(TelemetryService service) {
     for (LogCollector.RawLogMessage rawLogMsg : LogCollector.get().drain()) {
@@ -33,12 +35,21 @@ public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAct
 
   private String renderStackTrace(Throwable t) {
     StringBuilder stackTrace = new StringBuilder();
-    stackTrace.append(t.getClass().getCanonicalName());
 
-    String firstStackElementClassName = t.getStackTrace()[0].getClassName();
+    String name = t.getClass().getCanonicalName();
+    if (name == null || name.isEmpty()) {
+      stackTrace.append(UNKNOWN);
+    } else {
+      stackTrace.append(name);
+    }
+
     if (isDataDogCode(t)) {
-      stackTrace.append(": ");
-      stackTrace.append(t.getMessage());
+      String msg = t.getMessage();
+      if (msg == null || msg.isEmpty()) {
+        stackTrace.append(UNKNOWN);
+      } else {
+        stackTrace.append(t.getMessage());
+      }
     }
     stackTrace.append(RET);
 
@@ -53,6 +64,9 @@ public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAct
 
   private boolean isDataDogCode(Throwable t) {
     String firstStackElementClassName = t.getStackTrace()[0].getClassName();
+    if (firstStackElementClassName.isEmpty()) {
+      firstStackElementClassName = UNKNOWN;
+    }
     return firstStackElementClassName.startsWith("datadog.")
         || firstStackElementClassName.startsWith("com.datadog.");
   }

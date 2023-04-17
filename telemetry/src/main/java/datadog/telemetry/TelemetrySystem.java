@@ -51,7 +51,7 @@ public class TelemetrySystem {
     if (Verbosity.OFF != Config.get().getIastTelemetryVerbosity()) {
       actions.add(new IastTelemetryPeriodicAction());
     }
-    if (null != dependencyService) {
+    if (dependencyService != null) {
       actions.add(new DependencyPeriodicAction(dependencyService));
     }
     if (Config.get().isTelemetryLogCollectionEnabled()) {
