@@ -17,6 +17,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
