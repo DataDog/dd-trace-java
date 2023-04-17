@@ -42,11 +42,14 @@ dependencies {
   implementation("org.ow2.asm", "asm-tree", "9.5")
 
   testImplementation("org.spockframework", "spock-core", "2.0-groovy-3.0")
-  testImplementation("org.codehaus.groovy", "groovy-all", "3.0.10")
+  testImplementation("org.codehaus.groovy", "groovy-all", "3.0.15")
+}
+
+tasks.compileGroovy {
+  dependsOn(":call-site-instrumentation-plugin:build")
 }
 
 tasks.test {
   useJUnitPlatform()
-  dependsOn(":call-site-instrumentation-plugin:build")
   enabled = project.hasProperty("runBuildSrcTests")
 }
