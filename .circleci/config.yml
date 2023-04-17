@@ -345,21 +345,31 @@ jobs:
 
   check:
     <<: *defaults
-    resource_class: xlarge
+
+    parameters:
+      gradleTarget:
+        type: string
+      cacheType:
+        type: string
+
+    resource_class: large
 
     steps:
       - setup_code
       - restore_dependency_cache:
-          cacheType: lib
+          cacheType: << parameters.cacheType >>
       - restore_build_cache:
-          cacheType: lib
+          cacheType: << parameters.cacheType >>
 
       - run:
           name: Check Project
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew check -PskipTests -PrunBuildSrcTests
+            ./gradlew
+            << parameters.gradleTarget >>
+            -PskipTests
+            -PrunBuildSrcTests
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
 
@@ -824,6 +834,39 @@ build_test_jobs: &build_test_jobs
   - check:
       requires:
         - ok_to_test
+      name: check_base
+      gradleTarget: ":baseCheck"
+      cacheType: base
+
+  - check:
+      requires:
+        - ok_to_test
+      name: check_inst
+      gradleTarget: ":instrumentationCheck"
+      cacheType: inst
+
+  - check:
+      requires:
+        - ok_to_test
+      name: check_smoke
+      gradleTarget: ":smokeCheck"
+      cacheType: smoke
+
+  - check:
+      requires:
+        - ok_to_test
+      name: check_profiling
+      gradleTarget: ":profilingCheck"
+      cacheType: profiling
+
+  - fan_in:
+      requires:
+        - check_base
+        - check_inst
+        - check_smoke
+        - check_profiling
+      name: check
+      stage: check
 
   - tests:
       requires:
