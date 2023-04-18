@@ -1,5 +1,6 @@
 package com.datadog.debugger.sink;
 
+import com.datadog.debugger.agent.Generated;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import datadog.trace.bootstrap.debugger.EvaluationError;
@@ -223,6 +224,7 @@ public class Snapshot {
       caughtExceptions.add(context);
     }
 
+    @Generated
     @Override
     public boolean equals(Object o) {
       if (this == o) return true;
@@ -234,11 +236,13 @@ public class Snapshot {
           && Objects.equals(caughtExceptions, captures.caughtExceptions);
     }
 
+    @Generated
     @Override
     public int hashCode() {
       return Objects.hash(entry, lines, _return, caughtExceptions);
     }
 
+    @Generated
     @Override
     public String toString() {
       return "Captures{"
@@ -275,6 +279,7 @@ public class Snapshot {
       return name;
     }
 
+    @Generated
     @Override
     public boolean equals(Object o) {
       if (this == o) return true;
@@ -283,11 +288,13 @@ public class Snapshot {
       return id == that.id && Objects.equals(name, that.name);
     }
 
+    @Generated
     @Override
     public int hashCode() {
       return Objects.hash(id, name);
     }
 
+    @Generated
     @Override
     public String toString() {
       return "CapturedThread{" + "id=" + id + ", name='" + name + '\'' + '}';
