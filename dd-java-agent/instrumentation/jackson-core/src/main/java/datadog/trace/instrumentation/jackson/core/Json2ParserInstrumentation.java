@@ -2,12 +2,10 @@ package datadog.trace.instrumentation.jackson.core;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.*;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedNoneOf;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.isPublic;
-import static net.bytebuddy.matcher.ElementMatchers.returns;
+import static net.bytebuddy.matcher.ElementMatchers.*;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.google.auto.service.AutoService;
@@ -22,11 +20,11 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class JsonParserInstrumentation extends Instrumenter.Iast
+public class Json2ParserInstrumentation extends Instrumenter.Iast
     implements Instrumenter.ForTypeHierarchy {
 
-  public JsonParserInstrumentation() {
-    super("jackson-core");
+  public Json2ParserInstrumentation() {
+    super("jackson", "jackson-2");
   }
 
   @Override
@@ -34,11 +32,17 @@ public class JsonParserInstrumentation extends Instrumenter.Iast
 
     transformation.applyAdvice(
         NameMatchers.<MethodDescription>namedOneOf(
-                "getCurrentName", "getText", "nextFieldName", "nextTextValue")
+                "getCurrentName",
+                "getText",
+                "nextFieldName",
+                "nextTextValue",
+                "getValueAsString",
+                "nextFieldName",
+                "nextTextValue")
             .and(isMethod())
             .and(isPublic())
             .and(returns(String.class)),
-        JsonParserInstrumentation.class.getName() + "$JsonParserAdvice");
+        Json2ParserInstrumentation.class.getName() + "$JsonParserAdvice");
   }
 
   @Override
@@ -53,7 +57,15 @@ public class JsonParserInstrumentation extends Instrumenter.Iast
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return declaresMethod(namedOneOf("getCurrentName", "getText", "nextFieldName", "nextTextValue"))
+    return declaresMethod(
+            namedOneOf(
+                "getCurrentName",
+                "getText",
+                "nextFieldName",
+                "nextTextValue",
+                "getValueAsString",
+                "nextFieldName",
+                "nextTextValue"))
         .and(
             extendsClass(named(hierarchyMarkerType()))
                 .and(namedNoneOf("com.fasterxml.jackson.core.base.ParserMinimalBase")));
@@ -61,15 +73,11 @@ public class JsonParserInstrumentation extends Instrumenter.Iast
 
   public static class JsonParserAdvice {
 
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(@Advice.This JsonParser jsonParser, @Advice.Return String result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      try {
-        if (module != null) {
-          module.taintIfInputIsTainted(result, jsonParser);
-        }
-      } catch (final Throwable e) {
-        module.onUnexpectedException("JsonParserAdvice onExit threw", e);
+      if (module != null) {
+        module.taintIfInputIsTainted(result, jsonParser);
       }
     }
   }
