@@ -20,10 +20,10 @@ public class RequestAdvice {
                                         @Advice.Argument(1) final Invocation invocation) {
     logger.info("dubboFilterName:"+filter.getClass().getName());
 
-    final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(RpcContext.class);
-    if (callDepth > 0) {
-      return null;
-    }
+//    final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(RpcContext.class);
+//    if (callDepth > 0) {
+//      return null;
+//    }
     AgentScope agentScope = DECORATE.buildSpan(invoker, invocation);
     return agentScope;
   }
@@ -39,6 +39,6 @@ public class RequestAdvice {
 
     scope.close();
     scope.span().finish();
-    CallDepthThreadLocalMap.reset(RpcContext.class);
+//    CallDepthThreadLocalMap.reset(RpcContext.class);
   }
 }
