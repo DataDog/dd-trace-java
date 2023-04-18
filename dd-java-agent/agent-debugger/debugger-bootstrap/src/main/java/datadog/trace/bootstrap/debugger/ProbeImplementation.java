@@ -5,9 +5,12 @@ import java.util.List;
 
 /** Probe information associated with a snapshot */
 public interface ProbeImplementation {
-  ProbeImplementation UNKNOWN = new NoopProbeImplementation("UNKNOWN", ProbeLocation.UNKNOWN);
+  ProbeImplementation UNKNOWN =
+      new NoopProbeImplementation(new ProbeId("UNKNOWN", 0), ProbeLocation.UNKNOWN);
 
   String getId();
+
+  ProbeId getProbeId();
 
   ProbeLocation getLocation();
 
@@ -31,7 +34,7 @@ public interface ProbeImplementation {
   CapturedContext.Status createStatus();
 
   class NoopProbeImplementation implements ProbeImplementation {
-    private final String id;
+    private final ProbeId id;
     private final int version;
     private final ProbeLocation location;
     private final MethodLocation evaluateAt;
@@ -39,12 +42,12 @@ public interface ProbeImplementation {
     private final DebuggerScript<Boolean> script;
     private final String tags;
 
-    public NoopProbeImplementation(String id, ProbeLocation location) {
+    public NoopProbeImplementation(ProbeId id, ProbeLocation location) {
       this(id, 0, location, MethodLocation.DEFAULT, true, null, null);
     }
 
     public NoopProbeImplementation(
-        String id,
+        ProbeId id,
         int version,
         ProbeLocation location,
         MethodLocation evaluateAt,
@@ -62,6 +65,11 @@ public interface ProbeImplementation {
 
     @Override
     public String getId() {
+      return id.getId();
+    }
+
+    @Override
+    public ProbeId getProbeId() {
       return id;
     }
 

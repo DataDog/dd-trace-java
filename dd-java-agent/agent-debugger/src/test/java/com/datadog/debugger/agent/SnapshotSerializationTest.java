@@ -30,6 +30,7 @@ import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
@@ -60,8 +61,8 @@ import org.junit.jupiter.api.condition.JRE;
 
 public class SnapshotSerializationTest {
 
-  private static final String PROBE_ID = "12fd-8490-c111-4374-ffde";
   private static final int PROBE_VERSION = 42;
+  private static final ProbeId PROBE_ID = new ProbeId("12fd-8490-c111-4374-ffde", PROBE_VERSION);
   private static final ProbeLocation PROBE_LOCATION =
       new ProbeLocation("java.lang.String", "indexOf", "String.java", Arrays.asList("12-15", "23"));
 
@@ -72,12 +73,15 @@ public class SnapshotSerializationTest {
   }
 
   @Test
-  public void roundTripProbeLocation() throws IOException {
+  public void roundTripProbeDetails() throws IOException {
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();
     String buffer = adapter.toJson(snapshot);
 
     Snapshot deserializedSnapshot = adapter.fromJson(buffer);
+    Assertions.assertEquals(PROBE_ID.getId(), deserializedSnapshot.getProbe().getId());
+    Assertions.assertEquals(
+        PROBE_ID.getVersion(), deserializedSnapshot.getProbe().getProbeId().getVersion());
     ProbeLocation location = deserializedSnapshot.getProbe().getLocation();
     Assertions.assertEquals(PROBE_LOCATION.getType(), location.getType());
     Assertions.assertEquals(PROBE_LOCATION.getFile(), location.getFile());
@@ -104,7 +108,7 @@ public class SnapshotSerializationTest {
     context.addFields(
         new CapturedContext.CapturedValue[] {normalValuedField, normalNullField, notCapturedField});
     context.evaluate(
-        PROBE_ID,
+        PROBE_ID.getId(),
         new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION),
         String.class.getTypeName(),
         -1,
