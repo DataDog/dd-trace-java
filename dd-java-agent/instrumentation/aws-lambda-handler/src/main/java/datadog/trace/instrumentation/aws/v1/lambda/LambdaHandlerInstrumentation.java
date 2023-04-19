@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.aws.v1.lambda;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.aws.v1.lambda.LambdaHandlerDecorator.INVOCATION_SPAN_NAME;
@@ -18,13 +18,13 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
 public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForTypeHierarchy  {
+    implements Instrumenter.ForTypeHierarchy {
 
   // these must remain as String literals so they can be easily be shared (copied) with the nested
   // advice classes
@@ -41,7 +41,9 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
+    return implementsInterface(
+        named(hierarchyMarkerType())
+            .or(named("com.amazonaws.services.lambda.runtime.RequestStreamHandler")));
   }
 
   @Override
@@ -72,7 +74,7 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
             .and(takesArgument(2, named("com.amazonaws.services.lambda.runtime.Context"))),
         getClass().getName() + "$ExtensionCommunicationAdvice");
     // full spec here : https://docs.aws.amazon.com/lambda/latest/dg/java-handler.html
-    
+
   }
 
   public static class ExtensionCommunicationAdvice {

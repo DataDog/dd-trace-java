@@ -22,6 +22,21 @@ abstract class LambdaHandlerInstrumentationTest extends VersionedNamingTestBase 
       }
     }
   }
+
+  def "test lambda streaming handler"() {
+    when:
+    new HandlerStreaming().handleRequest(null, null)
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName operation()
+          errored false
+        }
+      }
+    }
+  }
 }
 
 
