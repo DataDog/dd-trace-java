@@ -58,6 +58,7 @@ public abstract class ProbeDefinition implements ProbeImplementation {
     return id;
   }
 
+  @Override
   public ProbeId getProbeId() {
     return new ProbeId(id, version);
   }

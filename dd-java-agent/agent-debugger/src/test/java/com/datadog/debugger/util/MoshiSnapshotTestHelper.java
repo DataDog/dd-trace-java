@@ -18,6 +18,7 @@ import static com.datadog.debugger.util.MoshiSnapshotHelper.THROWABLE;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TRUNCATED;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TYPE;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.VALUE;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.VERSION;
 
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.sink.Snapshot;
@@ -26,6 +27,7 @@ import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
 import datadog.trace.bootstrap.debugger.el.DebuggerScript;
@@ -453,6 +455,7 @@ public class MoshiSnapshotTestHelper {
     @Override
     public ProbeImplementation fromJson(JsonReader jsonReader) throws IOException {
       String id = null;
+      int version = 0;
       ProbeLocation location = null;
       jsonReader.beginObject();
       while (jsonReader.hasNext()) {
@@ -460,6 +463,9 @@ public class MoshiSnapshotTestHelper {
         switch (name) {
           case ID:
             id = jsonReader.nextString();
+            break;
+          case VERSION:
+            version = jsonReader.nextInt();
             break;
           case LOCATION:
             location = probeLocationAdapter.fromJson(jsonReader);
@@ -469,7 +475,7 @@ public class MoshiSnapshotTestHelper {
         }
       }
       jsonReader.endObject();
-      return new ProbeImplementation.NoopProbeImplementation(id, location);
+      return new ProbeImplementation.NoopProbeImplementation(new ProbeId(id, version), location);
     }
   }
 }
