@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.sslsocketimpl;
+package datadog.trace.instrumentation.sslsocket;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
