@@ -104,7 +104,7 @@ public interface ProbeImplementation {
 
     @Override
     public CapturedContext.Status createStatus() {
-      return CapturedContext.Status.EMPTY_PASSING_STATUS;
+      return CapturedContext.Status.EMPTY_CAPTURING_STATUS;
     }
   }
 }

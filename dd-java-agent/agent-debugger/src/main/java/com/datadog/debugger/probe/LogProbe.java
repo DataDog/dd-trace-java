@@ -395,22 +395,22 @@ public class LogProbe extends ProbeDefinition {
       CapturedContext entryContext,
       CapturedContext exitContext,
       List<CapturedContext.CapturedThrowable> caughtExceptions) {
-    LogStatus entryLogStatus = convertStatus(entryContext.getStatus(id));
-    LogStatus exitLogStatus = convertStatus(exitContext.getStatus(id));
+    LogStatus entryStatus = convertStatus(entryContext.getStatus(id));
+    LogStatus exitStatus = convertStatus(exitContext.getStatus(id));
     String message = null;
     switch (evaluateAt) {
       case ENTRY:
       case DEFAULT:
-        message = entryLogStatus.getMessage();
+        message = entryStatus.getMessage();
         break;
       case EXIT:
-        message = exitLogStatus.getMessage();
+        message = exitStatus.getMessage();
         break;
     }
     Sink sink = DebuggerAgent.getSink();
     boolean shouldCommit = false;
     Snapshot snapshot = new Snapshot(Thread.currentThread(), this);
-    if (entryLogStatus.shouldSend() && exitLogStatus.shouldSend()) {
+    if (entryStatus.shouldSend() && exitStatus.shouldSend()) {
       // only rate limit if a condition is defined
       if (probeCondition != null) {
         if (!ProbeRateLimiter.tryProbe(id)) {
@@ -427,20 +427,20 @@ public class LogProbe extends ProbeDefinition {
       snapshot.addCaughtExceptions(caughtExceptions);
       shouldCommit = true;
     }
-    if (entryLogStatus.shouldReportError()) {
+    if (entryStatus.shouldReportError()) {
       if (entryContext.getThrowable() != null) {
         // report also uncaught exception
         snapshot.setEntry(entryContext);
       }
-      snapshot.addEvaluationErrors(entryLogStatus.getErrors());
+      snapshot.addEvaluationErrors(entryStatus.getErrors());
       shouldCommit = true;
     }
-    if (exitLogStatus.shouldReportError()) {
+    if (exitStatus.shouldReportError()) {
       if (exitContext.getThrowable() != null) {
         // report also uncaught exception
         snapshot.setExit(exitContext);
       }
-      snapshot.addEvaluationErrors(exitLogStatus.getErrors());
+      snapshot.addEvaluationErrors(exitStatus.getErrors());
       shouldCommit = true;
     }
     if (shouldCommit) {
@@ -454,8 +454,8 @@ public class LogProbe extends ProbeDefinition {
     if (status == CapturedContext.Status.EMPTY_STATUS) {
       return LogStatus.EMPTY_LOG_STATUS;
     }
-    if (status == CapturedContext.Status.EMPTY_PASSING_STATUS) {
-      return LogStatus.EMPTY_PASSING_LOG_STATUS;
+    if (status == CapturedContext.Status.EMPTY_CAPTURING_STATUS) {
+      return LogStatus.EMPTY_CAPTURING_LOG_STATUS;
     }
     return (LogStatus) status;
   }
@@ -523,7 +523,7 @@ public class LogProbe extends ProbeDefinition {
   public static class LogStatus extends CapturedContext.Status {
     private static final LogStatus EMPTY_LOG_STATUS =
         new LogStatus(ProbeImplementation.UNKNOWN, false);
-    private static final LogStatus EMPTY_PASSING_LOG_STATUS =
+    private static final LogStatus EMPTY_CAPTURING_LOG_STATUS =
         new LogStatus(ProbeImplementation.UNKNOWN, true);
 
     private boolean condition = true;
@@ -541,7 +541,7 @@ public class LogProbe extends ProbeDefinition {
     }
 
     @Override
-    public boolean needFreeze() {
+    public boolean shouldFreezeContext() {
       return probeImplementation.isCaptureSnapshot() && shouldSend();
     }
 

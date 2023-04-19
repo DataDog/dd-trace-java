@@ -179,7 +179,7 @@ public class DebuggerContext {
               callingClass.getTypeName(),
               startTimestamp,
               methodLocation);
-      needFreeze |= status.needFreeze();
+      needFreeze |= status.shouldFreezeContext();
     }
     // only freeze the context when we have at lest one snapshot probe, and we should send snapshot
     if (needFreeze) {

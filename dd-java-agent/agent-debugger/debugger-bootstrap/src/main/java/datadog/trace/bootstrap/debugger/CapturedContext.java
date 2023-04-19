@@ -356,7 +356,7 @@ public class CapturedContext implements ValueReferenceResolver {
 
   public static class Status {
     public static final Status EMPTY_STATUS = new Status(ProbeImplementation.UNKNOWN);
-    public static final Status EMPTY_PASSING_STATUS =
+    public static final Status EMPTY_CAPTURING_STATUS =
         new Status(ProbeImplementation.UNKNOWN) {
           @Override
           public boolean isCapturing() {
@@ -378,7 +378,7 @@ public class CapturedContext implements ValueReferenceResolver {
       errors.add(evaluationError);
     }
 
-    public boolean needFreeze() {
+    public boolean shouldFreezeContext() {
       return false;
     }
 
