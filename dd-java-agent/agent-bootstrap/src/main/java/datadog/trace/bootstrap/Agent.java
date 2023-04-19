@@ -220,6 +220,10 @@ public class Agent {
       startCwsAgent();
     }
 
+    if (usmEnabled) {
+      // TODO: @Val
+    }
+
     /*
      * Force the task scheduler init early. The exception profiling instrumentation may get in way of the initialization
      * when it will happen after the class transformers were added.
