@@ -1,5 +1,6 @@
-package datadog.trace.bootstrap.debugger;
+package com.datadog.debugger.instrumentation;
 
+import com.datadog.debugger.agent.Generated;
 import java.time.Instant;
 import java.util.Objects;
 
@@ -47,6 +48,7 @@ public final class DiagnosticMessage {
     return throwable;
   }
 
+  @Generated
   @Override
   public String toString() {
     return "DiagnosticMessage{"
@@ -62,6 +64,7 @@ public final class DiagnosticMessage {
         + '}';
   }
 
+  @Generated
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -73,6 +76,7 @@ public final class DiagnosticMessage {
         && Objects.equals(message, that.message);
   }
 
+  @Generated
   @Override
   public int hashCode() {
     return Objects.hash(timestamp, kind, message, throwable);

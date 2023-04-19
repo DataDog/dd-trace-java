@@ -20,14 +20,6 @@ public class DebuggerContext {
     CONDITION
   }
 
-  public interface Sink {
-    void addSnapshot(Snapshot snapshot);
-
-    void addDiagnostics(ProbeId probeId, List<DiagnosticMessage> messages);
-
-    default void skipSnapshot(String probeId, SkipCause cause) {}
-  }
-
   public interface ProbeResolver {
     ProbeImplementation resolve(String id, Class<?> callingClass);
   }
@@ -48,21 +40,17 @@ public class DebuggerContext {
     DebuggerSpan createSpan(String resourceName, String[] tags);
   }
 
-  public interface SnapshotSerializer {
-    String serializeSnapshot(String serviceName, Snapshot snapshot);
-
-    String serializeValue(Snapshot.CapturedValue value);
+  public interface ValueSerializer {
+    String serializeValue(CapturedContext.CapturedValue value);
   }
 
-  private static volatile Sink sink;
   private static volatile ProbeResolver probeResolver;
   private static volatile ClassFilter classFilter;
   private static volatile MetricForwarder metricForwarder;
   private static volatile Tracer tracer;
-  private static volatile SnapshotSerializer snapshotSerializer;
+  private static volatile ValueSerializer valueSerializer;
 
-  public static void init(Sink sink, ProbeResolver probeResolver, MetricForwarder metricForwarder) {
-    DebuggerContext.sink = sink;
+  public static void init(ProbeResolver probeResolver, MetricForwarder metricForwarder) {
     DebuggerContext.probeResolver = probeResolver;
     DebuggerContext.metricForwarder = metricForwarder;
   }
@@ -75,38 +63,8 @@ public class DebuggerContext {
     DebuggerContext.classFilter = classFilter;
   }
 
-  public static void initSnapshotSerializer(SnapshotSerializer snapshotSerializer) {
-    DebuggerContext.snapshotSerializer = snapshotSerializer;
-  }
-
-  /**
-   * Notifies the underlying sink that the snapshot was skipped for one of the SkipCause reason
-   * No-op if no implementation available
-   */
-  public static void skipSnapshot(String probeId, SkipCause cause) {
-    Sink localSink = sink;
-    if (localSink == null) {
-      return;
-    }
-    localSink.skipSnapshot(probeId, cause);
-  }
-
-  /** Adds a snapshot to the underlying sink No-op if no implementation available */
-  public static void addSnapshot(Snapshot snapshot) {
-    Sink localSink = sink;
-    if (localSink == null) {
-      return;
-    }
-    localSink.addSnapshot(snapshot);
-  }
-
-  /** Add diagnostics message to the underlying sink No-op if not implementation available */
-  public static void reportDiagnostics(ProbeId probeId, List<DiagnosticMessage> messages) {
-    Sink localSink = sink;
-    if (localSink == null) {
-      return;
-    }
-    localSink.addDiagnostics(probeId, messages);
+  public static void initValueSerializer(ValueSerializer valueSerializer) {
+    DebuggerContext.valueSerializer = valueSerializer;
   }
 
   /**
@@ -161,19 +119,9 @@ public class DebuggerContext {
     forwarder.histogram(name, value, tags);
   }
 
-  /** Serializes the specified Snapshot as string Returns null if no implementation is available */
-  public static String serializeSnapshot(String serviceName, Snapshot snapshot) {
-    SnapshotSerializer serializer = snapshotSerializer;
-    if (serializer == null) {
-      LOGGER.warn("Cannot serialize snapshots, no serializer set");
-      return null;
-    }
-    return serializer.serializeSnapshot(serviceName, snapshot);
-  }
-
   /** Serializes the specified value as string Returns null if no implementation is available */
-  public static String serializeValue(Snapshot.CapturedValue value) {
-    SnapshotSerializer serializer = snapshotSerializer;
+  public static String serializeValue(CapturedContext.CapturedValue value) {
+    ValueSerializer serializer = valueSerializer;
     if (serializer == null) {
       LOGGER.warn("Cannot serialize value, no serializer set");
       return null;
@@ -213,7 +161,7 @@ public class DebuggerContext {
    * conditions This is for method probes
    */
   public static void evalContext(
-      Snapshot.CapturedContext context,
+      CapturedContext context,
       Class<?> callingClass,
       long startTimestamp,
       MethodLocation methodLocation,
@@ -225,7 +173,7 @@ public class DebuggerContext {
       if (probeImplementation == null) {
         continue;
       }
-      Snapshot.CapturedContext.Status status =
+      CapturedContext.Status status =
           context.evaluate(
               probeId,
               probeImplementation,
@@ -246,7 +194,7 @@ public class DebuggerContext {
    * conditions and commit snapshot to send it if needed. This is for line probes.
    */
   public static void evalContextAndCommit(
-      Snapshot.CapturedContext context, Class<?> callingClass, int line, String... probeIds) {
+      CapturedContext context, Class<?> callingClass, int line, String... probeIds) {
     for (String probeId : probeIds) {
       ProbeImplementation probeImplementation = resolveProbe(probeId, callingClass);
       if (probeImplementation == null) {
@@ -263,18 +211,18 @@ public class DebuggerContext {
    * Ids This is for method probes
    */
   public static void commit(
-      Snapshot.CapturedContext entryContext,
-      Snapshot.CapturedContext exitContext,
-      List<Snapshot.CapturedThrowable> caughtExceptions,
+      CapturedContext entryContext,
+      CapturedContext exitContext,
+      List<CapturedContext.CapturedThrowable> caughtExceptions,
       String... probeIds) {
-    if (entryContext == Snapshot.CapturedContext.EMPTY_CONTEXT
-        && exitContext == Snapshot.CapturedContext.EMPTY_CONTEXT) {
+    if (entryContext == CapturedContext.EMPTY_CONTEXT
+        && exitContext == CapturedContext.EMPTY_CONTEXT) {
       // rate limited
       return;
     }
     for (String probeId : probeIds) {
-      Snapshot.CapturedContext.Status entryStatus = entryContext.getStatus(probeId);
-      Snapshot.CapturedContext.Status exitStatus = exitContext.getStatus(probeId);
+      CapturedContext.Status entryStatus = entryContext.getStatus(probeId);
+      CapturedContext.Status exitStatus = exitContext.getStatus(probeId);
       ProbeImplementation probeImplementation;
       if (entryStatus.probeImplementation != ProbeImplementation.UNKNOWN
           && (entryStatus.probeImplementation.getEvaluateAt() == MethodLocation.ENTRY

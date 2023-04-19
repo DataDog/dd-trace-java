@@ -1,13 +1,12 @@
 package com.datadog.debugger.sink;
 
 import com.datadog.debugger.agent.DebuggerAgent;
+import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.ProbeId;
-import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.TagsHelper;
@@ -18,7 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Collects data that needs to be sent to the backend: Snapshots, metrics and statuses */
-public class DebuggerSink implements DebuggerContext.Sink {
+public class DebuggerSink implements Sink {
   private static final Logger log = LoggerFactory.getLogger(DebuggerSink.class);
   private static final double FREE_CAPACITY_LOWER_THRESHOLD = 0.25;
   private static final double FREE_CAPACITY_UPPER_THRESHOLD = 0.75;
@@ -249,6 +248,7 @@ public class DebuggerSink implements DebuggerContext.Sink {
     }
   }
 
+  /** Notifies the snapshot was skipped for one of the SkipCause reason */
   @Override
   public void skipSnapshot(String probeId, DebuggerContext.SkipCause cause) {
     String causeTag;

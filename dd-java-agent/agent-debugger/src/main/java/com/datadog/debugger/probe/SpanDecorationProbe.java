@@ -7,12 +7,13 @@ import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueScript;
+import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.SpanDecorationInstrumentor;
 import datadog.trace.api.Pair;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
+import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
-import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Arrays;
@@ -102,7 +103,7 @@ public class SpanDecorationProbe extends ProbeDefinition {
   }
 
   @Override
-  public void evaluate(Snapshot.CapturedContext context, Snapshot.CapturedContext.Status status) {
+  public void evaluate(CapturedContext context, CapturedContext.Status status) {
     for (Decoration decoration : decorations) {
       if (decoration.when != null) {
         try {
@@ -112,7 +113,7 @@ public class SpanDecorationProbe extends ProbeDefinition {
           }
         } catch (EvaluationException ex) {
           LOGGER.debug("Evaluation error: ", ex);
-          status.addError(new Snapshot.EvaluationError(ex.getExpr(), ex.getMessage()));
+          status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
         }
       }
       for (Tag tag : decoration.tags) {
@@ -129,7 +130,7 @@ public class SpanDecorationProbe extends ProbeDefinition {
           status.addTag(tag.name, sb.toString());
         } catch (EvaluationException ex) {
           LOGGER.debug("Evaluation error: ", ex);
-          status.addError(new Snapshot.EvaluationError(ex.getExpr(), ex.getMessage()));
+          status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
         }
       }
     }
@@ -137,10 +138,10 @@ public class SpanDecorationProbe extends ProbeDefinition {
 
   @Override
   public void commit(
-      Snapshot.CapturedContext entryContext,
-      Snapshot.CapturedContext exitContext,
-      List<Snapshot.CapturedThrowable> caughtExceptions) {
-    Snapshot.CapturedContext.Status status =
+      CapturedContext entryContext,
+      CapturedContext exitContext,
+      List<CapturedContext.CapturedThrowable> caughtExceptions) {
+    CapturedContext.Status status =
         evaluateAt == MethodLocation.EXIT ? exitContext.getStatus(id) : entryContext.getStatus(id);
     if (status == null) {
       return;

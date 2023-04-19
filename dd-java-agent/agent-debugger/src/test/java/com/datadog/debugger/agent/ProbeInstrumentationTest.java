@@ -1,9 +1,10 @@
 package com.datadog.debugger.agent;
 
+import com.datadog.debugger.instrumentation.DiagnosticMessage;
+import com.datadog.debugger.sink.Sink;
+import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.ProbeId;
-import datadog.trace.bootstrap.debugger.Snapshot;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
@@ -25,12 +26,15 @@ public class ProbeInstrumentationTest {
     }
   }
 
-  protected static class MockSink implements DebuggerContext.Sink {
+  protected static class MockSink implements Sink {
 
     private final List<DiagnosticMessage> currentDiagnostics = new ArrayList<>();
 
     @Override
     public void addSnapshot(Snapshot snapshot) {}
+
+    @Override
+    public void skipSnapshot(String probeId, DebuggerContext.SkipCause cause) {}
 
     @Override
     public void addDiagnostics(ProbeId probeId, List<DiagnosticMessage> messages) {
