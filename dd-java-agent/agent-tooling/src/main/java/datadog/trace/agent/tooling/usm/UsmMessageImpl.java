@@ -15,7 +15,7 @@ public abstract class UsmMessageImpl {
     // and AppOutputStream respectively
     REQUEST,
 
-    // message created from a hook on close method of the SSLSocketImpl
+    // message created from a hook on close method of the SSLSocket
     CLOSE_CONNECTION,
 
     // message created by SocketChannelImpl for async connection

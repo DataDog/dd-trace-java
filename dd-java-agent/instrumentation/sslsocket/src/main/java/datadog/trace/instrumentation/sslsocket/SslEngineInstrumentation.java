@@ -2,13 +2,11 @@ package datadog.trace.instrumentation.sslsocket;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.instrumentation.api.UsmConnection;
-import datadog.trace.bootstrap.instrumentation.api.UsmExtractor;
-import datadog.trace.bootstrap.instrumentation.api.UsmMessage;
-import datadog.trace.bootstrap.instrumentation.api.UsmMessageFactory;
+import datadog.trace.bootstrap.instrumentation.usm.UsmConnection;
+import datadog.trace.bootstrap.instrumentation.usm.UsmExtractor;
+import datadog.trace.bootstrap.instrumentation.usm.UsmMessage;
+import datadog.trace.bootstrap.instrumentation.usm.UsmMessageFactory;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +17,6 @@ import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
