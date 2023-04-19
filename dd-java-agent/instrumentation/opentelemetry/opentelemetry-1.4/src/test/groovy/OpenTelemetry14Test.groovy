@@ -2,14 +2,16 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.opentelemetry14.OtelSpan
-import datadog.trace.opentelemetry14.OtelSpanBuilder
-import datadog.trace.opentelemetry14.OtelTracer
+import datadog.trace.instrumentation.opentelemetry14.OtelContext
+import datadog.trace.instrumentation.opentelemetry14.OtelSpan
+import datadog.trace.instrumentation.opentelemetry14.OtelSpanBuilder
+import datadog.trace.instrumentation.opentelemetry14.OtelTracer
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.trace.Span
 import io.opentelemetry.api.trace.SpanKind
 import io.opentelemetry.api.trace.StatusCode
 import io.opentelemetry.context.Context
+import io.opentelemetry.context.ContextKey
 import spock.lang.Subject
 
 import static datadog.trace.bootstrap.instrumentation.api.ScopeSource.MANUAL
@@ -91,6 +93,36 @@ class OpenTelemetry14Test extends AgentTestRunner {
     }
   }
 
+  def "test no parent to create new root span"() {
+    setup:
+    def parentSpan = tracer.spanBuilder("some-name").startSpan()
+    def scope = parentSpan.makeCurrent()
+
+    when:
+    def childSpan = tracer.spanBuilder("other-name")
+      .setNoParent()
+      .startSpan()
+    childSpan.end()
+    scope.close()
+    parentSpan.end()
+
+    then:
+    assertTraces(2) {
+      trace(1) {
+        span {
+          parent()
+          operationName "some-name"
+        }
+      }
+      trace(1) {
+        span {
+          parent()
+          operationName "other-name"
+        }
+      }
+    }
+  }
+
   def "test non-supported features do not crash"() {
     setup:
     def builder = tracer.spanBuilder("some-name")
@@ -147,7 +179,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
           } else if (tagBuilder) {
             resourceName "some-resource"
           } else {
-            resourceName "some-instrumentation"
+            resourceName "some-name"
           }
           errored false
           tags {
@@ -216,7 +248,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
         span {
           parent()
           operationName "some-name"
-          resourceName "some-instrumentation"
+          resourceName "some-name"
           errored true
 
           tags {
@@ -268,7 +300,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
         span {
           parent()
           operationName "some-name"
-          resourceName "some-instrumentation"
+          resourceName "some-name"
           errored false
           tags {
             defaultTags()
@@ -301,7 +333,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
         span {
           parent()
           operationName "other-name"
-          resourceName "some-instrumentation"
+          resourceName "other-name"
         }
       }
     }
@@ -333,8 +365,8 @@ class OpenTelemetry14Test extends AgentTestRunner {
     currentSpan = Span.current()
 
     then:
-    currentSpan.spanContext.traceId == ddSpan.traceId.toHexStringPadded(32)
-    currentSpan.spanContext.spanId == DDSpanId.toHexString(ddSpan.spanId)
+    currentSpan.spanContext.traceId == ddSpan.traceId.toHexString()
+    currentSpan.spanContext.spanId == DDSpanId.toHexStringPadded(ddSpan.spanId)
 
     cleanup:
     ddScope.close()
@@ -348,33 +380,36 @@ class OpenTelemetry14Test extends AgentTestRunner {
     def otelParentSpan = tracer.spanBuilder("some-name").startSpan()
 
     when:
-    otelParentSpan.makeCurrent()
+    def otelParentScope = otelParentSpan.makeCurrent()
     def activeSpan = TEST_TRACER.activeSpan()
 
     then:
     activeSpan.operationName == "some-name"
-    DDSpanId.toHexString(activeSpan.spanId) == otelParentSpan.getSpanContext().spanId
+    DDSpanId.toHexStringPadded(activeSpan.spanId) == otelParentSpan.getSpanContext().spanId
 
     when:
     def ddChildSpan = TEST_TRACER.startSpan("other-name")
-    TEST_TRACER.activateSpan(ddChildSpan, MANUAL)
+    def ddChildScope = TEST_TRACER.activateSpan(ddChildSpan, MANUAL)
     def current = Span.current()
 
     then:
-    DDSpanId.toHexString(ddChildSpan.spanId) == current.getSpanContext().spanId
+    DDSpanId.toHexStringPadded(ddChildSpan.spanId) == current.getSpanContext().spanId
 
     when:
     def otelGrandChildSpan = tracer.spanBuilder("another-name").startSpan()
-    otelGrandChildSpan.makeCurrent()
+    def otelGrandChildScope= otelGrandChildSpan.makeCurrent()
     activeSpan = TEST_TRACER.activeSpan()
 
     then:
     activeSpan.operationName == "another-name"
-    DDSpanId.toHexString(activeSpan.spanId) == otelGrandChildSpan.getSpanContext().spanId
+    DDSpanId.toHexStringPadded(activeSpan.spanId) == otelGrandChildSpan.getSpanContext().spanId
 
     when:
+    otelGrandChildScope.close()
     otelGrandChildSpan.end()
+    ddChildScope.close()
     ddChildSpan.finish()
+    otelParentScope.close()
     otelParentSpan.end()
 
     then:
@@ -394,5 +429,42 @@ class OpenTelemetry14Test extends AgentTestRunner {
         }
       }
     }
+  }
+
+  def "test context spans retrieval"() {
+    setup:
+    def parentSpan = tracer.spanBuilder("some-name").startSpan()
+    def parentScope = parentSpan.makeCurrent()
+    def currentSpanKey = ContextKey.named(OtelContext.OTEL_CONTEXT_SPAN_KEY)
+    def rootSpanKey = ContextKey.named(OtelContext.DATADOG_CONTEXT_ROOT_SPAN_KEY)
+
+    when:
+    def current = Context.current()
+
+    then:
+    current.get(currentSpanKey) == parentSpan
+    current.get(rootSpanKey) == parentSpan
+
+    when:
+    def childSpan = tracer.spanBuilder("other-name").startSpan()
+    def childScope = childSpan.makeCurrent()
+    current = Context.current()
+
+    then:
+    current.get(currentSpanKey) == childSpan
+    current.get(rootSpanKey) == parentSpan
+
+    when:
+    childScope.close()
+    childSpan.end()
+    current = Context.current()
+
+    then:
+    current.get(currentSpanKey) == parentSpan
+    current.get(rootSpanKey) == parentSpan
+
+    cleanup:
+    parentScope.close()
+    parentSpan.end()
   }
 }

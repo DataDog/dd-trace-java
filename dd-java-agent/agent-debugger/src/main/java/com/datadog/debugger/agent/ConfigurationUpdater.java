@@ -4,25 +4,21 @@ import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
-import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
+import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
-import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.util.TagsHelper;
 import java.lang.instrument.Instrumentation;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -38,6 +34,7 @@ public class ConfigurationUpdater
   public static final int MAX_ALLOWED_METRIC_PROBES = 100;
   public static final int MAX_ALLOWED_LOG_PROBES = 100;
   private static final int MAX_ALLOWED_SPAN_PROBES = 100;
+  private static final int MAX_ALLOWED_SPAN_DECORATION_PROBES = 100;
   private static final double RATE_LIMIT_PER_SNAPSHOT_PROBE = 1.0;
   private static final double RATE_LIMIT_PER_LOG_PROBE = 5000.0;
 
@@ -54,7 +51,6 @@ public class ConfigurationUpdater
   private final TransformerSupplier transformerSupplier;
   private DebuggerTransformer currentTransformer;
   private final Map<String, ProbeDefinition> appliedDefinitions = new ConcurrentHashMap<>();
-  private final EnvironmentAndVersionChecker envAndVersionCheck;
   private final DebuggerSink sink;
   private final ClassesToRetransformFinder finder;
   private final String serviceName;
@@ -80,7 +76,6 @@ public class ConfigurationUpdater
       ClassesToRetransformFinder finder) {
     this.instrumentation = instrumentation;
     this.transformerSupplier = transformerSupplier;
-    this.envAndVersionCheck = new EnvironmentAndVersionChecker(config);
     this.serviceName = TagsHelper.sanitize(config.getServiceName());
     this.sink = sink;
     this.finder = finder;
@@ -121,45 +116,31 @@ public class ConfigurationUpdater
 
   private Configuration applyConfigurationFilters(Configuration configuration) {
     Collection<MetricProbe> metricProbes =
-        filterProbes(
-            configuration::getMetricProbes, MetricProbe::isActive, MAX_ALLOWED_METRIC_PROBES);
+        filterProbes(configuration::getMetricProbes, MAX_ALLOWED_METRIC_PROBES);
     Collection<LogProbe> logProbes =
-        filterProbes(configuration::getLogProbes, LogProbe::isActive, MAX_ALLOWED_LOG_PROBES);
-    logProbes = mergeDuplicatedProbes(logProbes);
+        filterProbes(configuration::getLogProbes, MAX_ALLOWED_LOG_PROBES);
     Collection<SpanProbe> spanProbes =
-        filterProbes(configuration::getSpanProbes, SpanProbe::isActive, MAX_ALLOWED_SPAN_PROBES);
+        filterProbes(configuration::getSpanProbes, MAX_ALLOWED_SPAN_PROBES);
+    Collection<SpanDecorationProbe> spanDecorationProbes =
+        filterProbes(configuration::getSpanDecorationProbes, MAX_ALLOWED_SPAN_DECORATION_PROBES);
     return new Configuration(
         serviceName,
         metricProbes,
         logProbes,
         spanProbes,
+        spanDecorationProbes,
         configuration.getAllowList(),
         configuration.getDenyList(),
         configuration.getSampling());
   }
 
   private <E extends ProbeDefinition> Collection<E> filterProbes(
-      Supplier<Collection<E>> probeSupplier, Predicate<E> isActive, int maxAllowedProbes) {
+      Supplier<Collection<E>> probeSupplier, int maxAllowedProbes) {
     Collection<E> probes = probeSupplier.get();
     if (probes == null) {
       return Collections.emptyList();
     }
-    return probes.stream()
-        .filter(isActive)
-        .filter(envAndVersionCheck::isEnvAndVersionMatch)
-        .limit(maxAllowedProbes)
-        .collect(Collectors.toList());
-  }
-
-  Collection<LogProbe> mergeDuplicatedProbes(Collection<LogProbe> probes) {
-    Map<Where, LogProbe> mergedProbes = new HashMap<>();
-    for (LogProbe probe : probes) {
-      ProbeDefinition existingProbe = mergedProbes.putIfAbsent(probe.getWhere(), probe);
-      if (existingProbe != null) {
-        existingProbe.addAdditionalProbe(probe);
-      }
-    }
-    return new ArrayList<>(mergedProbes.values());
+    return probes.stream().limit(maxAllowedProbes).collect(Collectors.toList());
   }
 
   private void handleProbesChanges(ConfigurationComparer changes) {
@@ -181,10 +162,10 @@ public class ConfigurationUpdater
 
   private void reportReceived(ConfigurationComparer changes) {
     for (ProbeDefinition def : changes.getAddedDefinitions()) {
-      def.getAllProbeIds().forEach(sink::addReceived);
+      sink.addReceived(def.getProbeId());
     }
     for (ProbeDefinition def : changes.getRemovedDefinitions()) {
-      def.getAllProbeIds().forEach(sink::removeDiagnostics);
+      sink.removeDiagnostics(def.getProbeId());
     }
   }
 
@@ -205,9 +186,9 @@ public class ConfigurationUpdater
       ProbeDefinition definition, InstrumentationResult instrumentationResult) {
     instrumentationResults.put(definition.getId(), instrumentationResult);
     if (instrumentationResult.isInstalled()) {
-      definition.getAllProbeIds().forEach(sink::addInstalled);
+      sink.addInstalled(definition.getProbeId());
     } else if (instrumentationResult.isBlocked()) {
-      definition.getAllProbeIds().forEach(sink::addBlocked);
+      sink.addBlocked(definition.getProbeId());
     }
   }
 
@@ -248,46 +229,17 @@ public class ConfigurationUpdater
 
   // /!\ This is called potentially by multiple threads from the instrumented code /!\
   @Override
-  public Snapshot.ProbeDetails resolve(String id, Class<?> callingClass) {
+  public ProbeImplementation resolve(String id, Class<?> callingClass) {
     ProbeDefinition definition = appliedDefinitions.get(id);
     if (definition == null) {
       LOGGER.info(
-          "Cannot resolve probe, re-transforming calling class: {}", callingClass.getName());
+          "Cannot resolve probe id={}, re-transforming calling class: {}",
+          id,
+          callingClass.getName());
       retransformClasses(Collections.singletonList(callingClass));
       return null;
     }
-    String type = definition.getWhere().getTypeName();
-    String method = definition.getWhere().getMethodName();
-    String file = definition.getWhere().getSourceFile();
-    String[] probeLines = definition.getWhere().getLines();
-    InstrumentationResult result = instrumentationResults.get(definition.getId());
-    if (result != null) {
-      type = result.getTypeName();
-      method = result.getMethodName();
-    }
-    List<String> lines = probeLines != null ? Arrays.asList(probeLines) : null;
-    return convertToProbeDetails(definition, new Snapshot.ProbeLocation(type, method, file, lines));
-  }
-
-  private Snapshot.ProbeDetails convertToProbeDetails(
-      ProbeDefinition probe, Snapshot.ProbeLocation location) {
-    if (!(probe instanceof LogProbe)) {
-      LOGGER.warn(
-          "Definition id={} has unsupported probe type: {}", probe.getId(), probe.getClass());
-      return null;
-    }
-    LogProbe logProbe = (LogProbe) probe;
-    return new Snapshot.ProbeDetails(
-        probe.getId(),
-        location,
-        ProbeDefinition.MethodLocation.convert(probe.getEvaluateAt()),
-        logProbe.isCaptureSnapshot(),
-        logProbe.getProbeCondition(),
-        probe.concatTags(),
-        new LogMessageTemplateSummaryBuilder(logProbe),
-        probe.getAdditionalProbes().stream()
-            .map(relatedProbe -> convertToProbeDetails(relatedProbe, location))
-            .collect(Collectors.toList()));
+    return definition;
   }
 
   private void applyRateLimiter(ConfigurationComparer changes) {

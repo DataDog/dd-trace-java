@@ -1,6 +1,9 @@
 package datadog.trace.instrumentation.aws.v2;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
@@ -18,8 +21,8 @@ import software.amazon.awssdk.http.SdkHttpResponse;
 public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, SdkHttpResponse>
     implements AgentPropagation.Setter<SdkHttpRequest.Builder> {
   public static final AwsSdkClientDecorator DECORATE = new AwsSdkClientDecorator();
-
-  public static final CharSequence AWS_HTTP = UTF8BytesString.create("aws.http");
+  private static final DDCache<String, CharSequence> CACHE =
+      DDCaches.newFixedSizeCache(128); // cloud services can have high cardinality
 
   static final CharSequence COMPONENT_NAME = UTF8BytesString.create("java-aws-sdk");
 
@@ -29,10 +32,32 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   public static final boolean AWS_LEGACY_TRACING =
       Config.get().isLegacyTracingEnabled(false, "aws-sdk");
 
-  public static final boolean SQS_LEGACY_TRACING = Config.get().isLegacyTracingEnabled(true, "sqs");
+  public static final boolean SQS_LEGACY_TRACING =
+      Config.get().isLegacyTracingEnabled(SpanNaming.instance().version() == 0, "sqs");
 
   private static final String SQS_SERVICE_NAME =
       AWS_LEGACY_TRACING || SQS_LEGACY_TRACING ? "sqs" : Config.get().getServiceName();
+
+  private static final String SNS_SERVICE_NAME =
+      SpanNaming.instance().namingSchema().cloud().serviceForRequest("aws", "sns");
+  private static final String GENERIC_SERVICE_NAME =
+      SpanNaming.instance().namingSchema().cloud().serviceForRequest("aws", null);
+
+  public CharSequence spanName(final ExecutionAttributes attributes) {
+    final String awsServiceName = attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME);
+    final String awsOperationName = attributes.getAttribute(SdkExecutionAttribute.OPERATION_NAME);
+
+    final String qualifiedName = awsServiceName + "." + awsOperationName;
+
+    return CACHE.computeIfAbsent(
+        qualifiedName,
+        s ->
+            SpanNaming.instance()
+                .namingSchema()
+                .cloud()
+                .operationForRequest(
+                    "aws", attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME), s));
+  }
 
   public AgentSpan onSdkRequest(final AgentSpan span, final SdkRequest request) {
     // S3
@@ -82,10 +107,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         span.setServiceName(SQS_SERVICE_NAME);
         break;
       case "Sns.Publish":
-        span.setServiceName("sns");
+        span.setServiceName(SNS_SERVICE_NAME);
         break;
       default:
-        span.setServiceName("java-aws-sdk");
+        span.setServiceName(GENERIC_SERVICE_NAME);
         break;
     }
 

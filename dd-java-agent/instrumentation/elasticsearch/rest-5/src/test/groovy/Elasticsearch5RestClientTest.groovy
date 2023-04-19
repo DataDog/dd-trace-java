@@ -148,7 +148,7 @@ class Elasticsearch5RestClientV1ForkedTest extends Elasticsearch5RestClientTest 
 
   @Override
   String service() {
-    return Config.get().getServiceName() + "-elasticsearch"
+    return Config.get().getServiceName()
   }
 
   @Override

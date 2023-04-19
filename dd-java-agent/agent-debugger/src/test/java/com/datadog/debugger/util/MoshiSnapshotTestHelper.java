@@ -6,9 +6,11 @@ import static com.datadog.debugger.util.MoshiSnapshotHelper.ELEMENTS;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.ENTRIES;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.ENTRY;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.FIELDS;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.ID;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.IS_NULL;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.LINES;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.LOCALS;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.LOCATION;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.RETURN;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.SIZE;
@@ -22,6 +24,7 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
+import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.bootstrap.debugger.el.DebuggerScript;
 import java.io.IOException;
@@ -49,6 +52,9 @@ public class MoshiSnapshotTestHelper {
       if (Types.equals(type, Snapshot.CapturedContext.class)) {
         return new MoshiSnapshotTestHelper.CapturedContextAdapter(
             moshi, new CapturedValueAdapter());
+      }
+      if (Types.equals(type, ProbeImplementation.class)) {
+        return new MoshiSnapshotTestHelper.ProbeDetailsAdapter(moshi);
       }
       return null;
     }
@@ -433,6 +439,34 @@ public class MoshiSnapshotTestHelper {
           return strValue;
       }
       return null;
+    }
+  }
+
+  public static class ProbeDetailsAdapter extends MoshiSnapshotHelper.ProbeDetailsAdapter {
+    public ProbeDetailsAdapter(Moshi moshi) {
+      super(moshi);
+    }
+
+    @Override
+    public ProbeImplementation fromJson(JsonReader jsonReader) throws IOException {
+      String id = null;
+      Snapshot.ProbeLocation location = null;
+      jsonReader.beginObject();
+      while (jsonReader.hasNext()) {
+        String name = jsonReader.nextName();
+        switch (name) {
+          case ID:
+            id = jsonReader.nextString();
+            break;
+          case LOCATION:
+            location = probeLocationAdapter.fromJson(jsonReader);
+            break;
+          default:
+            throw new RuntimeException("Unknown attribute: " + name);
+        }
+      }
+      jsonReader.endObject();
+      return new ProbeImplementation.NoopProbeImplementation(id, location);
     }
   }
 }

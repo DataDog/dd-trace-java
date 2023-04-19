@@ -104,11 +104,11 @@ class BlockingServiceImplSpecification extends DDSpecification {
     })
 
     when:
-    boolean res = bs.tryCommitBlockingResponse(405, BlockingContentType.HTML)
+    boolean res = bs.tryCommitBlockingResponse(405, BlockingContentType.HTML, [:])
 
     then:
     res == true
-    1 * brf.tryCommitBlockingResponse(405, BlockingContentType.HTML) >> true
+    1 * brf.tryCommitBlockingResponse(405, BlockingContentType.HTML, [:]) >> true
     1 * mts.setTagTop('appsec.blocked', 'true')
   }
 
@@ -122,7 +122,7 @@ class BlockingServiceImplSpecification extends DDSpecification {
     })
 
     when:
-    boolean res = bs.tryCommitBlockingResponse(405, BlockingContentType.HTML)
+    boolean res = bs.tryCommitBlockingResponse(405, BlockingContentType.HTML, [:])
 
     then:
     res == false
@@ -136,7 +136,7 @@ class BlockingServiceImplSpecification extends DDSpecification {
     AgentTracer.forceRegister(tracerApi)
 
     when:
-    boolean res = bs.tryCommitBlockingResponse(405, BlockingContentType.HTML)
+    boolean res = bs.tryCommitBlockingResponse(405, BlockingContentType.HTML, [:])
 
     then:
     res == false

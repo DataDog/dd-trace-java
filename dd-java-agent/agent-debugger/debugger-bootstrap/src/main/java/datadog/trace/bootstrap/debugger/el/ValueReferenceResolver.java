@@ -8,8 +8,6 @@ public interface ValueReferenceResolver {
 
   Object getMember(Object target, String name);
 
-  void addEvaluationError(String expr, String message);
-
   default ValueReferenceResolver withExtensions(Map<String, Object> extensions) {
     return this;
   }

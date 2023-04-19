@@ -11,6 +11,6 @@ muzzle {
 
 
 dependencies {
-  compileOnly group: 'com.alibaba', name: 'dubbo', version: '2.8.4'
+  compileOnly group: 'com.alibaba', name: 'dubbo', version: '2.6.9'
 }
 

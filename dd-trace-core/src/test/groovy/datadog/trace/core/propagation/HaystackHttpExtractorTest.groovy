@@ -1,5 +1,7 @@
 package datadog.trace.core.propagation
 
+import datadog.trace.api.DD64bTraceId
+
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 import static datadog.trace.core.propagation.HaystackHttpCodec.OT_BAGGAGE_PREFIX
@@ -265,21 +267,21 @@ class HaystackHttpExtractorTest extends DDSpecification {
     }
 
     where:
-    ctxCreated     | traceId                                | spanId                                 | expectedTraceId | expectedSpanId
-    false          | "-1"                                   | "1"                                    | null            | DDSpanId.ZERO
-    false          | "1"                                    | "-1"                                   | null            | DDSpanId.ZERO
-    true           | "0"                                    | "1"                                    | null            | DDSpanId.ZERO
-    true           | "00001"                                | "00001"                                | DDTraceId.ONE   | 1
-    true           | "463ac35c9f6413ad"                     | "463ac35c9f6413ad"                     | DDTraceId.from(5060571933882717101) | 5060571933882717101
-    true           | "463ac35c9f6413ad48485a3953bb6124"     | "1"                                    | DDTraceId.from(5208512171318403364) | 1
-    true           | "44617461-646f-6721-463a-c35c9f6413ad" | "44617461-646f-6721-463a-c35c9f6413ad" | DDTraceId.from(5060571933882717101) | 5060571933882717101
-    true           | "f" * 16                               | "1"                                    | DDTraceId.MAX   | 1
-    true           | "a" * 16 + "f" * 16                    | "1"                                    | DDTraceId.MAX   | 1
-    false          | "1" + "f" * 32                         | "1"                                    | null            | 1
-    false          | "0" + "f" * 32                         | "1"                                    | null            | 1
-    true           | "1"                                    | "f" * 16                               | DDTraceId.ONE   | DDSpanId.MAX
-    false          | "1"                                    | "1" + "f" * 16                         | null            | DDSpanId.ZERO
-    true           | "1"                                    | "000" + "f" * 16                       | DDTraceId.ONE   | DDSpanId.MAX
+    ctxCreated | traceId                                | spanId                                 | expectedTraceId                     | expectedSpanId
+    false      | "-1"                                   | "1"                                    | null                                | DDSpanId.ZERO
+    false      | "1"                                    | "-1"                                   | null                                | DDSpanId.ZERO
+    true       | "0"                                    | "1"                                    | null                                | DDSpanId.ZERO
+    true       | "00001"                                | "00001"                                | DDTraceId.ONE                       | 1
+    true       | "463ac35c9f6413ad"                     | "463ac35c9f6413ad"                     | DDTraceId.from(5060571933882717101) | 5060571933882717101
+    true       | "463ac35c9f6413ad48485a3953bb6124"     | "1"                                    | DDTraceId.from(5208512171318403364) | 1
+    true       | "44617461-646f-6721-463a-c35c9f6413ad" | "44617461-646f-6721-463a-c35c9f6413ad" | DDTraceId.from(5060571933882717101) | 5060571933882717101
+    true       | "f" * 16                               | "1"                                    | DD64bTraceId.MAX                    | 1
+    true       | "a" * 16 + "f" * 16                    | "1"                                    | DD64bTraceId.MAX                    | 1
+    false      | "1" + "f" * 32                         | "1"                                    | null                                | 1
+    false      | "0" + "f" * 32                         | "1"                                    | null                                | 1
+    true       | "1"                                    | "f" * 16                               | DDTraceId.ONE                       | DDSpanId.MAX
+    false      | "1"                                    | "1" + "f" * 16                         | null                                | DDSpanId.ZERO
+    true       | "1"                                    | "000" + "f" * 16                       | DDTraceId.ONE                       | DDSpanId.MAX
   }
 
 
@@ -289,11 +291,13 @@ class HaystackHttpExtractorTest extends DDSpecification {
       (HttpCodec.USER_AGENT_KEY): 'some-user-agent',
       (HttpCodec.X_CLUSTER_CLIENT_IP_KEY): '1.1.1.1',
       (HttpCodec.X_REAL_IP_KEY): '2.2.2.2',
-      (HttpCodec.CLIENT_IP_KEY): '3.3.3.3',
+      (HttpCodec.X_CLIENT_IP_KEY): '3.3.3.3',
       (HttpCodec.TRUE_CLIENT_IP_KEY): '4.4.4.4',
-      (HttpCodec.VIA_KEY): '5.5.5.5',
-      (HttpCodec.FORWARDED_FOR_KEY): '6.6.6.6',
-      (HttpCodec.X_FORWARDED_KEY): '7.7.7.7'
+      (HttpCodec.FORWARDED_FOR_KEY): '5.5.5.5',
+      (HttpCodec.X_FORWARDED_KEY): '6.6.6.6',
+      (HttpCodec.FASTLY_CLIENT_IP_KEY): '7.7.7.7',
+      (HttpCodec.CF_CONNECTING_IP_KEY): '8.8.8.8',
+      (HttpCodec.CF_CONNECTING_IP_V6_KEY): '9.9.9.9',
     ]
 
     when:
@@ -303,10 +307,12 @@ class HaystackHttpExtractorTest extends DDSpecification {
     assert context.userAgent == 'some-user-agent'
     assert context.XClusterClientIp == '1.1.1.1'
     assert context.XRealIp == '2.2.2.2'
-    assert context.clientIp == '3.3.3.3'
+    assert context.XClientIp == '3.3.3.3'
     assert context.trueClientIp == '4.4.4.4'
-    assert context.via == '5.5.5.5'
-    assert context.forwardedFor == '6.6.6.6'
-    assert context.XForwarded == '7.7.7.7'
+    assert context.forwardedFor == '5.5.5.5'
+    assert context.XForwarded == '6.6.6.6'
+    assert context.fastlyClientIp == '7.7.7.7'
+    assert context.cfConnectingIp == '8.8.8.8'
+    assert context.cfConnectingIpv6 == '9.9.9.9'
   }
 }

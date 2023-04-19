@@ -1,11 +1,13 @@
 package datadog.trace.core.propagation;
 
-import static datadog.trace.core.propagation.HttpCodec.CLIENT_IP_KEY;
+import static datadog.trace.core.propagation.HttpCodec.CF_CONNECTING_IP_KEY;
+import static datadog.trace.core.propagation.HttpCodec.CF_CONNECTING_IP_V6_KEY;
+import static datadog.trace.core.propagation.HttpCodec.FASTLY_CLIENT_IP_KEY;
 import static datadog.trace.core.propagation.HttpCodec.FORWARDED_FOR_KEY;
 import static datadog.trace.core.propagation.HttpCodec.FORWARDED_KEY;
 import static datadog.trace.core.propagation.HttpCodec.TRUE_CLIENT_IP_KEY;
 import static datadog.trace.core.propagation.HttpCodec.USER_AGENT_KEY;
-import static datadog.trace.core.propagation.HttpCodec.VIA_KEY;
+import static datadog.trace.core.propagation.HttpCodec.X_CLIENT_IP_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_CLUSTER_CLIENT_IP_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_FOR_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_HOST_KEY;
@@ -40,9 +42,10 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected Map<String, String> tags;
   protected Map<String, String> baggage;
 
-  protected String origin;
+  protected CharSequence origin;
   protected long endToEndStartTime;
   protected boolean valid;
+  protected boolean fullContext;
   protected PropagationTags propagationTags;
 
   private TagContext.HttpHeaders httpHeaders;
@@ -174,20 +177,27 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
         getHeaders().xRealIp = value;
         return true;
       }
-      if (CLIENT_IP_KEY.equalsIgnoreCase(key)) {
-        getHeaders().clientIp = value;
+      if (X_CLIENT_IP_KEY.equalsIgnoreCase(key)) {
+        getHeaders().xClientIp = value;
         return true;
       }
       if (TRUE_CLIENT_IP_KEY.equalsIgnoreCase(key)) {
         getHeaders().trueClientIp = value;
         return true;
       }
-    }
-
-    if (VIA_KEY.equalsIgnoreCase(key)) {
-      getHeaders().via = value;
+      if (FASTLY_CLIENT_IP_KEY.equalsIgnoreCase(key)) {
+        getHeaders().fastlyClientIp = value;
+        return true;
+      }
+      if (CF_CONNECTING_IP_KEY.equalsIgnoreCase(key)) {
+        getHeaders().cfConnectingIp = value;
+        return true;
+      }
+    } else if (CF_CONNECTING_IP_V6_KEY.equalsIgnoreCase(key)) {
+      getHeaders().cfConnectingIpv6 = value;
       return true;
     }
+
     return false;
   }
 
@@ -232,6 +242,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     tags = Collections.emptyMap();
     baggage = Collections.emptyMap();
     valid = true;
+    fullContext = true;
     httpHeaders = null;
     collectIpHeaders =
         this.clientIpWithoutAppSec
@@ -239,9 +250,9 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     return this;
   }
 
-  TagContext build() {
+  protected TagContext build() {
     if (valid) {
-      if (!DDTraceId.ZERO.equals(traceId)) {
+      if (fullContext && !DDTraceId.ZERO.equals(traceId)) {
         final ExtractedContext context;
         context =
             new ExtractedContext(
@@ -269,6 +280,10 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
 
   protected void invalidateContext() {
     this.valid = false;
+  }
+
+  protected void onlyTagContext() {
+    this.fullContext = false;
   }
 
   protected int defaultSamplingPriority() {

@@ -42,6 +42,9 @@ public final class FieldBackedContextRequestRewriter implements AsmVisitorWrappe
   static final String GET_METHOD_DESCRIPTOR =
       Type.getMethodDescriptor(
           Type.getType(ContextStore.class), Type.getType(Class.class), Type.getType(Class.class));
+  static final String GET_METHOD_DESCRIPTOR_2 =
+      Type.getMethodDescriptor(
+          Type.getType(ContextStore.class), Type.getType(String.class), Type.getType(String.class));
 
   static final String GET_CONTENT_STORE_METHOD = "getContextStore";
   static final String GET_CONTENT_STORE_METHOD_DESCRIPTOR =
@@ -113,15 +116,23 @@ public final class FieldBackedContextRequestRewriter implements AsmVisitorWrappe
             if (Opcodes.INVOKESTATIC == opcode
                 && INSTRUMENTATION_CONTEXT_CLASS.equals(owner)
                 && GET_METHOD.equals(name)
-                && GET_METHOD_DESCRIPTOR.equals(descriptor)) {
+                && (GET_METHOD_DESCRIPTOR.equals(descriptor)
+                    || GET_METHOD_DESCRIPTOR_2.equals(descriptor))) {
               log.debug(
                   "Found context-store access - instrumentation.class={}", instrumenterClassName);
               // We track the last two constants pushed onto the stack to make sure they match
               // the expected key and context types. Matching calls are rewritten to call the
               // dynamically injected context store implementation instead.
+              String keyClassName = null;
+              String contextClassName = null;
               if (constant1 instanceof Type && constant2 instanceof Type) {
-                final String keyClassName = ((Type) constant1).getClassName();
-                final String contextClassName = ((Type) constant2).getClassName();
+                keyClassName = ((Type) constant1).getClassName();
+                contextClassName = ((Type) constant2).getClassName();
+              } else if (constant1 instanceof String && constant2 instanceof String) {
+                keyClassName = (String) constant1;
+                contextClassName = (String) constant2;
+              }
+              if (null != keyClassName && null != contextClassName) {
                 if (log.isDebugEnabled()) {
                   log.debug(
                       "Rewriting context-store map fetch - instrumentation.class={} instrumentation.target.context={}->{}",

@@ -17,11 +17,14 @@ public class CapturedSnapshot05 {
 
   public static int main(String arg) {
     CapturedSnapshot05 cs5 = new CapturedSnapshot05();
+    long before = System.currentTimeMillis();
     if ("triggerUncaughtException".equals(arg)) {
       cs5.triggerUncaughtException();
     } else if ("triggerCaughtException".equals(arg)) {
       return cs5.triggerCaughtException();
     }
+    long after = System.currentTimeMillis();
+    System.out.println(after-before);
     return 0;
   }
 

@@ -9,6 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
+import java.util.Map;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
 
@@ -138,9 +139,10 @@ public class TomcatDecorator
     }
 
     @Override
-    public boolean tryCommitBlockingResponse(int statusCode, BlockingContentType bct) {
+    public boolean tryCommitBlockingResponse(
+        int statusCode, BlockingContentType bct, Map<String, String> extraHeaders) {
       return TomcatBlockingHelper.commitBlockingResponse(
-          request, request.getResponse(), statusCode, bct);
+          request, request.getResponse(), statusCode, bct, extraHeaders);
     }
   }
 }

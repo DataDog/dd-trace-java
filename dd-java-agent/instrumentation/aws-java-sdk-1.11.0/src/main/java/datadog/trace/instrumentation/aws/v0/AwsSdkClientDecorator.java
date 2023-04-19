@@ -1,54 +1,40 @@
 package datadog.trace.instrumentation.aws.v0;
 
+import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.RPC_COMMAND_NAME;
+
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.AmazonWebServiceResponse;
 import com.amazonaws.Request;
 import com.amazonaws.Response;
 import datadog.trace.api.Config;
-import datadog.trace.api.Functions;
-import datadog.trace.api.cache.QualifiedClassNameCache;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
-import java.util.function.Function;
-import java.util.regex.Pattern;
 
 public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response>
     implements AgentPropagation.Setter<Request<?>> {
-  public static final AwsSdkClientDecorator DECORATE = new AwsSdkClientDecorator();
-  public static final CharSequence AWS_HTTP = UTF8BytesString.create("aws.http");
 
-  private static final Pattern REQUEST_PATTERN = Pattern.compile("Request", Pattern.LITERAL);
-  private static final Pattern AMAZON_PATTERN = Pattern.compile("Amazon", Pattern.LITERAL);
+  private static final String AWS = "aws";
 
   static final CharSequence COMPONENT_NAME = UTF8BytesString.create("java-aws-sdk");
 
   public static final boolean AWS_LEGACY_TRACING =
       Config.get().isLegacyTracingEnabled(false, "aws-sdk");
 
-  public static final boolean SQS_LEGACY_TRACING = Config.get().isLegacyTracingEnabled(true, "sqs");
+  public static final boolean SQS_LEGACY_TRACING =
+      Config.get().isLegacyTracingEnabled(SpanNaming.instance().version() == 0, "sqs");
 
   private static final String SQS_SERVICE_NAME =
       AWS_LEGACY_TRACING || SQS_LEGACY_TRACING ? "sqs" : Config.get().getServiceName();
 
-  private final QualifiedClassNameCache cache =
-      new QualifiedClassNameCache(
-          new Function<Class<?>, CharSequence>() {
-            @Override
-            public String apply(Class<?> input) {
-              return REQUEST_PATTERN.matcher(input.getSimpleName()).replaceAll("");
-            }
-          },
-          Functions.SuffixJoin.of(
-              ".",
-              new Function<CharSequence, CharSequence>() {
-                @Override
-                public CharSequence apply(CharSequence serviceName) {
-                  return AMAZON_PATTERN.matcher(String.valueOf(serviceName)).replaceAll("").trim();
-                }
-              }));
+  private static final String SNS_SERVICE_NAME =
+      SpanNaming.instance().namingSchema().cloud().serviceForRequest(AWS, "sns");
+  private static final String GENERIC_SERVICE_NAME =
+      SpanNaming.instance().namingSchema().cloud().serviceForRequest(AWS, null);
+  public static final AwsSdkClientDecorator DECORATE = new AwsSdkClientDecorator();
 
   @Override
   public AgentSpan onRequest(final AgentSpan span, final Request request) {
@@ -64,9 +50,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     span.setTag("aws.operation", awsOperation.getSimpleName());
     span.setTag("aws.endpoint", request.getEndpoint().toString());
 
-    CharSequence awsRequestName = cache.getQualifiedName(awsOperation, awsServiceName);
+    CharSequence awsRequestName = AwsNameCache.getQualifiedName(request);
 
-    span.setResourceName(awsRequestName);
+    span.setResourceName(awsRequestName, RPC_COMMAND_NAME);
 
     switch (awsRequestName.toString()) {
       case "SQS.SendMessage":
@@ -77,10 +63,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
         span.setServiceName(SQS_SERVICE_NAME);
         break;
       case "SNS.Publish":
-        span.setServiceName("sns");
+        span.setServiceName(SNS_SERVICE_NAME);
         break;
       default:
-        span.setServiceName("java-aws-sdk");
+        span.setServiceName(GENERIC_SERVICE_NAME);
         break;
     }
 

@@ -9,8 +9,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters;
 import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
-import graphql.schema.GraphQLNamedType;
 import graphql.schema.GraphQLOutputType;
+import graphql.schema.GraphQLTypeUtil;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 public class InstrumentedDataFetcher implements DataFetcher<Object> {
   private final DataFetcher<?> dataFetcher;
@@ -35,20 +37,49 @@ public class InstrumentedDataFetcher implements DataFetcher<Object> {
     } else {
       final AgentSpan fieldSpan = startSpan("graphql.field", this.requestSpan.context());
       DECORATE.afterStart(fieldSpan);
+      String parentType = GraphQLTypeUtil.simplePrint(environment.getParentType());
+      String fieldName = environment.getField().getName();
+      String schemaCoordinates = parentType + '.' + fieldName;
+      fieldSpan.setResourceName(schemaCoordinates);
+      fieldSpan.setTag("graphql.coordinates", schemaCoordinates);
       GraphQLOutputType fieldType = environment.getFieldType();
-      if (fieldType instanceof GraphQLNamedType) {
-        String typeName = ((GraphQLNamedType) fieldType).getName();
-        fieldSpan.setTag("graphql.type", typeName);
-      }
+      fieldSpan.setTag("graphql.type", GraphQLTypeUtil.simplePrint(fieldType));
+      Object dataValue;
       try (AgentScope scope = activateSpan(fieldSpan)) {
-        return dataFetcher.get(environment);
+        dataValue = dataFetcher.get(environment);
       } catch (Exception e) {
-        fieldSpan.addThrowable(e);
-        throw e;
-      } finally {
+        DECORATE.onError(fieldSpan, e);
         DECORATE.beforeFinish(fieldSpan);
         fieldSpan.finish();
+        throw e;
       }
+      if (dataValue instanceof CompletionStage<?>) {
+        if (dataValue instanceof CompletableFuture<?>) {
+          CompletableFuture<?> completableFuture = (CompletableFuture<?>) dataValue;
+          if (completableFuture.isDone()) {
+            if (completableFuture.isCompletedExceptionally()) {
+              try {
+                completableFuture.get();
+              } catch (Exception expected) {
+                DECORATE.onError(fieldSpan, expected);
+              }
+            }
+            DECORATE.beforeFinish(fieldSpan);
+            fieldSpan.finish();
+            return dataValue;
+          }
+        }
+        return ((CompletionStage<?>) dataValue)
+            .whenComplete(
+                (result, throwable) -> {
+                  DECORATE.onError(fieldSpan, throwable);
+                  DECORATE.beforeFinish(fieldSpan);
+                  fieldSpan.finish();
+                });
+      }
+      DECORATE.beforeFinish(fieldSpan);
+      fieldSpan.finish();
+      return dataValue;
     }
   }
 }

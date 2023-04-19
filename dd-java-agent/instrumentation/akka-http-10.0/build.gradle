@@ -5,22 +5,19 @@ ext {
 
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala'
+apply plugin: 'call-site-instrumentation'
 
-apply plugin: 'org.unbroken-dome.test-sets'
-testSets {
-  // Since we are using different scala versions for different test sets,
-  // we put the test classes in the baseTest test set so that the scala
-  // version is not inherited
-  baseTest
-
-  version101Test {
-    dirName = 'baseTest'
-  }
-
-  latestDepTest
-
-  lagomTest
-}
+// Since we are using different scala versions for different test sets,
+// we put the test classes in the baseTest test set so that the scala
+// version is not inherited
+addTestSuite('baseTest')
+addTestSuiteForDir('version101Test', 'baseTest')
+addTestSuite('latestDepTest')
+addTestSuite('lagomTest')
+addTestSuite('iastTest')
+addTestSuiteForDir 'version101IastTest', 'iastTest'
+addTestSuiteForDir 'version102IastTest', 'iastTest'
+addTestSuiteForDir 'latestDepIastTest', 'iastTest'
 
 compileLagomTestJava {
   sourceCompatibility = JavaVersion.VERSION_1_8
@@ -73,6 +70,15 @@ muzzle {
 
 configurations {
   testArtifacts
+
+  iastTestImplementation.extendsFrom(baseTestImplementation)
+
+  version101IastTestImplementation.extendsFrom(version101TestImplementation)
+  version101IastTestRuntimeOnly.extendsFrom(iastTestRuntimeOnly)
+
+  version102IastTestRuntimeOnly.extendsFrom(iastTestRuntimeOnly)
+
+  latestDepIastTestRuntimeOnly.extendsFrom(iastTestRuntimeOnly)
 }
 
 // Create test artifacts so play-2.6 can reuse the akka-http test instrumentation
@@ -102,16 +108,40 @@ dependencies {
   baseTestImplementation group: 'com.typesafe.akka', name: 'akka-http_2.11', version: '10.0.10'
   baseTestImplementation group: 'com.typesafe.akka', name: 'akka-http2-support_2.11', version: '10.0.10'
 
+  iastTestImplementation group: 'com.typesafe.akka', name: 'akka-http-jackson_2.11', version: '10.0.10'
+  iastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  iastTestCompileOnly group: 'de.thetaphi', name: 'forbiddenapis', version: '3.4'
+  iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
+  iastTestRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  iastTestRuntimeOnly project(':dd-java-agent:instrumentation:akka-http-10.2-iast')
+
   // There are some internal API changes in 10.1 that we would like to test separately for
   version101TestImplementation deps.scala212
   version101TestImplementation group: 'com.typesafe.akka', name: 'akka-http_2.12', version: '10.1.+'
   version101TestImplementation group: 'com.typesafe.akka', name: 'akka-http2-support_2.12', version: '10.1.+'
   version101TestImplementation group: 'com.typesafe.akka', name: 'akka-stream_2.12', version: '2.5.+'
 
+  version101IastTestImplementation group: 'com.typesafe.akka', name: 'akka-http-jackson_2.12', version: '10.1.+'
+  version101IastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+
+  version102IastTestImplementation deps.scala212
+  version102IastTestImplementation group: 'com.typesafe.akka', name: 'akka-http_2.12', version: '10.2.+'
+  version102IastTestImplementation group: 'com.typesafe.akka', name: 'akka-stream_2.12', version: '2.6.+'
+  version102IastTestImplementation group: 'com.typesafe.akka', name: 'akka-http-jackson_2.12', version: '10.2.+'
+  version102IastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+
   latestDepTestImplementation deps.scala213
   latestDepTestImplementation group: 'com.typesafe.akka', name: 'akka-http_2.13', version: '10.2.+'
   // http2 support is included in akka-http since 10.2.x
   latestDepTestImplementation group: 'com.typesafe.akka', name: 'akka-stream_2.13', version: '2.6.+'
+
+  // TODO: test with Scala 3
+  latestDepIastTestImplementation deps.scala213
+  latestDepIastTestImplementation group: 'com.typesafe.akka', name: 'akka-http_2.13', version: '10.+'
+  latestDepIastTestImplementation group: 'com.typesafe.akka', name: 'akka-stream_2.13', version: '2.+'
+  latestDepIastTestImplementation group: 'com.typesafe.akka', name: 'akka-actor_2.13', version: '2.+'
+  latestDepIastTestImplementation group: 'com.typesafe.akka', name: 'akka-http-jackson_2.13', version: '10.+'
+  latestDepIastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
 
   lagomTestImplementation deps.scala211
   lagomTestImplementation group: 'com.typesafe.akka', name: 'akka-http_2.11', version: '10.0.0'
@@ -123,6 +153,13 @@ tasks.named("test").configure {
   dependsOn "baseTest"
   dependsOn "version101Test"
   dependsOn "lagomTest"
+  dependsOn "iastTest"
+  dependsOn "version101IastTest"
+  dependsOn "version102IastTest"
+}
+
+tasks.named('latestDepTest').configure {
+  dependsOn "latestDepIastTest"
 }
 
 compileBaseTestGroovy {

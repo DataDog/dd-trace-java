@@ -624,4 +624,36 @@ class TagInterceptorTest extends DDCoreSpecification {
     DDTags.MANUAL_KEEP | false | null
     DDTags.MANUAL_KEEP | "0"   | null
   }
+
+  def "URLAsResourceNameRule sets the resource name"() {
+    setup:
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    def span = tracer.buildSpan("fakeOperation").start()
+    meta.each {
+      span.setTag(it.key, (String) it.value)
+    }
+
+    when:
+    span.setTag(Tags.HTTP_URL, value)
+
+    then:
+    span.resourceName.toString() == resourceName
+
+    cleanup:
+    span.finish()
+    tracer.close()
+
+    where:
+    value                       | resourceName        | meta
+    null                        | "fakeOperation"     | [:]
+    " "                         | "/"                 | [:]
+    "\t"                        | "/"                 | [:]
+    "/path"                     | "/path"             | [:]
+    "/ABC/a-1/b_2/c.3/d4d/5f/6" | "/ABC/?/?/?/?/?/?"  | [:]
+    "/not-found"                | "404"               | [(Tags.HTTP_STATUS): "404"]
+    "/with-method"              | "POST /with-method" | [(Tags.HTTP_METHOD): "Post"]
+
+    ignore = meta.put(Tags.HTTP_URL, value)
+  }
 }

@@ -4,18 +4,14 @@ import com.ibm.wsspi.kernel.embeddable.Server
 import com.ibm.wsspi.kernel.embeddable.ServerBuilder
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.agent.test.utils.PortUtils
 import groovy.xml.XmlUtil
 import spock.lang.IgnoreIf
 
 import java.util.concurrent.TimeUnit
 
-@IgnoreIf({
-  // failing because org.apache.xalan.transformer.TransformerImpl is
-  // instrumented while on the the global ignores list
-  System.getProperty('java.vm.name') == 'IBM J9 VM' &&
-  System.getProperty('java.specification.version') == '1.8' })
-class Liberty20Test extends HttpServerTest<Server> {
+abstract class Liberty20Test extends HttpServerTest<Server> {
 
   class Liberty20Server implements HttpServer {
     File serverXmlFile = new File(System.getProperty('server.xml'))
@@ -109,7 +105,7 @@ class Liberty20Test extends HttpServerTest<Server> {
 
   @Override
   String expectedOperationName() {
-    "servlet.request"
+    component()
   }
 
   @Override
@@ -135,4 +131,22 @@ class Liberty20Test extends HttpServerTest<Server> {
   boolean expectedErrored(ServerEndpoint endpoint) {
     endpoint == ServerEndpoint.NOT_FOUND ? true : super.expectedErrored(endpoint)
   }
+}
+
+@IgnoreIf({
+  // failing because org.apache.xalan.transformer.TransformerImpl is
+  // instrumented while on the the global ignores list
+  System.getProperty('java.vm.name') == 'IBM J9 VM' &&
+  System.getProperty('java.specification.version') == '1.8' })
+class Liberty20V0ForkedTest extends Liberty20Test implements TestingGenericHttpNamingConventions.ServerV0 {
+
+}
+
+@IgnoreIf({
+  // failing because org.apache.xalan.transformer.TransformerImpl is
+  // instrumented while on the the global ignores list
+  System.getProperty('java.vm.name') == 'IBM J9 VM' &&
+  System.getProperty('java.specification.version') == '1.8' })
+class Liberty20V1ForkedTest extends Liberty20Test implements TestingGenericHttpNamingConventions.ServerV1 {
+
 }

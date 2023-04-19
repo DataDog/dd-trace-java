@@ -9,17 +9,11 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
 
 dependencies {
   compileOnly group: 'org.apache.rocketmq', name: 'rocketmq-client-java', version: '5.0.0'
 }
 
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
 
 tasks.withType(Test).configureEach {
   usesService(testcontainersLimit)

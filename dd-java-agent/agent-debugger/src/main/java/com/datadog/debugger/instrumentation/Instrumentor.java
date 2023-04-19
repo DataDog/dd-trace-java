@@ -27,7 +27,7 @@ import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 
 /** Common class for generating instrumentation */
-public class Instrumentor {
+public abstract class Instrumentor {
   protected static final String CONSTRUCTOR_NAME = "<init>";
   protected static final String PROBEID_TAG_NAME = "debugger.probeid";
 
@@ -36,6 +36,7 @@ public class Instrumentor {
   protected final ClassNode classNode;
   protected final MethodNode methodNode;
   protected final List<DiagnosticMessage> diagnostics;
+  protected final List<String> probeIds;
   protected final boolean isStatic;
   protected final boolean isLineProbe;
   protected final LineMap lineMap = new LineMap();
@@ -50,12 +51,14 @@ public class Instrumentor {
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics) {
+      List<DiagnosticMessage> diagnostics,
+      List<String> probeIds) {
     this.definition = definition;
     this.classLoader = classLoader;
     this.classNode = classNode;
     this.methodNode = methodNode;
     this.diagnostics = diagnostics;
+    this.probeIds = probeIds;
     Where.SourceLine[] sourceLines = definition.getWhere().getSourceLines();
     isLineProbe = sourceLines != null && sourceLines.length > 0;
     isStatic = (methodNode.access & Opcodes.ACC_STATIC) != 0;
@@ -67,6 +70,8 @@ public class Instrumentor {
     }
     localVarsBySlot = extractLocalVariables(argTypes);
   }
+
+  public abstract void instrument();
 
   private LocalVariableNode[] extractLocalVariables(Type[] argTypes) {
     if (methodNode.localVariables == null || methodNode.localVariables.isEmpty()) {
@@ -197,6 +202,7 @@ public class Instrumentor {
       case Opcodes.DRETURN:
       case Opcodes.ARETURN:
         {
+          // stack [ret_value]
           InsnList beforeReturnInsnList = getBeforeReturnInsnList(node);
           if (beforeReturnInsnList != null) {
             methodNode.instructions.insertBefore(node, beforeReturnInsnList);
@@ -278,8 +284,8 @@ public class Instrumentor {
   }
 
   protected int newVar(Type type) {
-    int varId = methodNode.maxLocals + (type.getSize());
-    methodNode.maxLocals = varId;
+    int varId = methodNode.maxLocals + 1;
+    methodNode.maxLocals += type.getSize();
     return varId;
   }
 

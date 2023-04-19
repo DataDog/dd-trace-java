@@ -11,6 +11,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -91,8 +92,12 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
           {
             AgentSpan.Context context =
                 InstrumentationContext.get(LoggingEvent.class, AgentSpan.Context.class).get(event);
-            if (context != null) {
-              value = context.getTraceId().toString();
+            DDTraceId traceId = context.getTraceId();
+            if (traceId.toHighOrderLong() != 0
+                && InstrumenterConfig.get().isLogs128bTraceIdEnabled()) {
+              value = traceId.toHexString();
+            } else {
+              value = traceId.toString();
             }
           }
           break;
@@ -123,7 +128,8 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
 
         Hashtable mdc = new Hashtable();
 
-        if (InstrumenterConfig.get().isLogsMDCTagsInjectionEnabled()) {
+        InstrumenterConfig instrumenterConfig = InstrumenterConfig.get();
+        if (instrumenterConfig.isLogsMDCTagsInjectionEnabled()) {
           String serviceName = Config.get().getServiceName();
           if (null != serviceName && !serviceName.isEmpty()) {
             mdc.put(Tags.DD_SERVICE, serviceName);
@@ -141,7 +147,12 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
         AgentSpan.Context context =
             InstrumentationContext.get(LoggingEvent.class, AgentSpan.Context.class).get(event);
         if (context != null) {
-          mdc.put(CorrelationIdentifier.getTraceIdKey(), context.getTraceId().toString());
+          DDTraceId traceId = context.getTraceId();
+          String traceIdValue =
+              instrumenterConfig.isLogs128bTraceIdEnabled() && traceId.toHighOrderLong() != 0
+                  ? traceId.toHexString()
+                  : traceId.toString();
+          mdc.put(CorrelationIdentifier.getTraceIdKey(), traceIdValue);
           mdc.put(CorrelationIdentifier.getSpanIdKey(), DDSpanId.toString(context.getSpanId()));
         }
 

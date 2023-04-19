@@ -7,7 +7,10 @@ import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.lang.reflect.Field;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -68,7 +71,7 @@ public class ELIntegrationSanityTest {
     assertEquals(p.name.value, val.getValue());
 
     // freeze the captured context
-    capturedContext.freeze();
+    capturedContext.freeze(new TimeoutChecker(Duration.of(1, ChronoUnit.SECONDS)));
 
     // after freezing the original value is removed and only the serialized json representation
     // remains

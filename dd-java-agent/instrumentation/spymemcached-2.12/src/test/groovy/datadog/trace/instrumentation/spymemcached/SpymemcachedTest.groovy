@@ -676,7 +676,7 @@ abstract class SpymemcachedTest extends VersionedNamingTestBase {
       resourceName resource
       spanType DDSpanTypes.MEMCACHED
       errored(error != null && error != "canceled")
-      topLevel true
+      measured true
       tags {
         "$Tags.COMPONENT" COMPONENT_NAME
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -739,7 +739,7 @@ class SpymemcachedV1ForkedTest extends SpymemcachedTest {
 
   @Override
   String service() {
-    return Config.get().getServiceName() + "-memcached"
+    return Config.get().getServiceName()
   }
 
   @Override

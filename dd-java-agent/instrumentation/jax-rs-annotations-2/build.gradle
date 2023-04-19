@@ -13,19 +13,10 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'org.unbroken-dome.test-sets'
 
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-
-  resteasy31Test {
-    dirName = 'test'
-  }
-
-  nestedTest
-}
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteForDir('resteasy31Test', 'test')
+addTestSuite('nestedTest')
 
 dependencies {
   compileOnly group: 'javax.ws.rs', name: 'javax.ws.rs-api', version: '2.0'

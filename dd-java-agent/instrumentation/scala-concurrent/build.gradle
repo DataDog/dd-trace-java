@@ -11,21 +11,14 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala' // Don't use test-with-scala since we want to pick our own version.
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
 /**
  * This project has instrumentation to support Scala's copy of ForkJoinPool which was added in 2.8 and removed in 2.11.
  * It also has additional generic tests for scala context propagation support beyond 2.11 which are covered in latest12Test and latestDepTest.
  */
-testSets {
-  latestDepTest
-  latest12Test {
-    dirName = 'latestDepTest'
-  }
-  latest11Test {
-    dirName = 'test'
-  }
-}
+addTestSuite('latestDepTest')
+addTestSuiteForDir('latest12Test', 'latestDepTest')
+addTestSuiteForDir('latest11Test', 'test')
+
 tasks.named("compileTestGroovy").configure {
   classpath += files(sourceSets.test.scala.classesDirectory)
 }

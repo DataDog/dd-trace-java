@@ -8,6 +8,7 @@ import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.logging.LoggingSettingsDescription;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
@@ -138,6 +139,10 @@ public final class StatusLogger extends JsonAdapter<Config>
     writer.value(config.isDatadogProfilerEnabled());
     writer.name("datadog_profiler_safe");
     writer.value(isDatadogProfilerSafeInCurrentEnvironment());
+    if (config.getIastActivation() != ProductActivation.FULLY_DISABLED) {
+      writer.name("iast_enabled");
+      writer.value(config.getIastActivation().toString());
+    }
     writer.endObject();
   }
 

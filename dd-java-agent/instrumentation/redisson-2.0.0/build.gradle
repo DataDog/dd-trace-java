@@ -11,20 +11,23 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
+addTestSuiteForDir('latestRedisson20Test', 'test/redisson20')
+addTestSuiteExtendingForDir('latestRedisson20ForkedTest', 'latestRedisson20Test', 'test/redisson20')
+addTestSuiteForDir('latestRedisson23Test', 'test/redisson23')
+addTestSuiteExtendingForDir('latestRedisson23ForkedTest', 'latestRedisson23Test', 'test/redisson23')
+addTestSuiteForDir('latestDepTest', 'test/redissonLatest')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test/redissonLatest')
 
-testSets {
-  latestRedisson20Test {
-    dirName = 'test/redisson20'
-  }
+latestRedisson20Test {
+  finalizedBy latestRedisson20ForkedTest
+}
 
-  latestRedisson23Test {
-    dirName = 'test/redisson23'
-  }
+latestRedisson23Test {
+  finalizedBy latestRedisson20ForkedTest
+}
 
-  latestDepTest {
-    dirName = 'test/redissonLatest'
-  }
+latestDepTest {
+  finalizedBy latestDepForkedTest
 }
 
 tasks.named('test').configure {

@@ -9,21 +9,8 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
 dependencies {
   compileOnly group: 'com.aliyun.openservices', name: 'ons-client', version: '1.8.0.Final'
-  /* library("org.apache.rocketmq:rocketmq-client:4.8.0")
-   implementation(project(":instrumentation:rocketmq-client-4.8:library"))
-
-   testImplementation(project(":instrumentation:rocketmq-client-4.8:testing"))*/
-//  testLibrary("org.apache.rocketmq:rocketmq-test:4.8.0")
-}
-
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
 }
 
 tasks.withType(Test).configureEach {

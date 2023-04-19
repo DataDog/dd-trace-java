@@ -4,7 +4,7 @@ import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.IastAdvice.Propagation;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.model.PropagationTypes;
+import datadog.trace.api.iast.PropagationTypes;
 import datadog.trace.api.iast.propagation.StringModule;
 import datadog.trace.util.stacktrace.StackUtils;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -19,17 +19,17 @@ public class StringBuilderCallSite {
   @CallSite.After("void java.lang.StringBuilder.<init>(java.lang.CharSequence)")
   @Nonnull
   public static StringBuilder afterInit(
-      @CallSite.This @Nonnull final StringBuilder self,
-      @CallSite.Argument @Nullable final CharSequence param) {
+      @CallSite.AllArguments @Nonnull final Object[] params,
+      @CallSite.Return @Nonnull final StringBuilder result) {
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
       try {
-        module.onStringBuilderInit(self, param);
+        module.onStringBuilderInit(result, (CharSequence) params[0]);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterInit threw", e);
       }
     }
-    return self;
+    return result;
   }
 
   @CallSite.After("java.lang.StringBuilder java.lang.StringBuilder.append(java.lang.String)")

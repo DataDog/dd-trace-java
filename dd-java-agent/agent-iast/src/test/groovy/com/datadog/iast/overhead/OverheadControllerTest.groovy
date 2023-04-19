@@ -8,10 +8,18 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.AgentTaskScheduler
+import groovy.transform.CompileDynamic
 import spock.lang.Shared
 
-import java.util.concurrent.*
+import java.util.concurrent.Callable
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
+import java.util.concurrent.Semaphore
 
+import static datadog.trace.api.iast.IastDetectionMode.UNLIMITED
+
+@CompileDynamic
 class OverheadControllerTest extends DDSpecification {
 
   @Shared
@@ -55,11 +63,11 @@ class OverheadControllerTest extends DDSpecification {
     given: 'Set sampling to 100%'
     def config = Spy(Config.get())
     config.getIastRequestSampling() >> 100
+    def maxRequests = config.iastMaxConcurrentRequests
     def taskSchedler = Stub(AgentTaskScheduler)
     def overheadController = new OverheadControllerImpl(config, taskSchedler)
 
     when: 'Acquire max concurrent requests'
-    def maxRequests = overheadController.maxConcurrentRequests
     assert maxRequests > 0
     def acquired = (1..maxRequests).collect({ overheadController.acquireRequest() })
 
@@ -71,6 +79,21 @@ class OverheadControllerTest extends DDSpecification {
 
     then: 'None of them is acquired'
     extraAcquired.every { !it }
+  }
+
+  void 'Unlimited concurrent requests'() {
+    given: 'Set sampling to 100%'
+    def config = Spy(Config.get())
+    config.getIastRequestSampling() >> 100
+    config.getIastMaxConcurrentRequests() >> UNLIMITED
+    def taskScheduler = Stub(AgentTaskScheduler)
+    def overheadController = new OverheadControllerImpl(config, taskScheduler)
+
+    when: 'Acquire max concurrent requests'
+    def acquired = (1..1_000_000).collect({ overheadController.acquireRequest() })
+
+    then: 'All of them are acquired'
+    acquired.every { it }
   }
 
   void 'getContext defaults to global context if span is null'() {
@@ -206,15 +229,15 @@ class OverheadControllerTest extends DDSpecification {
         return results
       } as Callable<Boolean[]>)
     }
-    def results = futures.collect({
+    def futuresResults = futures.collect({
       it.get()
     })
 
     then:
     // At least one request ran.
-    results.flatten().any { it }
+    futuresResults.flatten().any { it }
     // At least one request did not run.
-    results.flatten().any { !it }
+    futuresResults.flatten().any { !it }
     // In the final state, there is no consumed available request.
     overheadController.availableRequests.available() == Config.get().getIastMaxConcurrentRequests()
 

@@ -23,7 +23,7 @@ class InstrumentPluginTest extends Specification {
     }
 
     dependencies {
-      compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.12.22' // just to build TestPlugin
+      compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.14.3' // just to build TestPlugin
     }
 
     apply plugin: 'instrument'
@@ -95,7 +95,7 @@ class InstrumentPluginTest extends Specification {
       .withTestKitDir(new File(buildDir, '.gradle-test-kit'))  // workaround in case the global test-kit cache becomes corrupted
       .withDebug(true)                                         // avoids starting daemon which can leave undeleted files post-cleanup
       .withProjectDir(buildDir)
-      .withArguments('build')
+      .withArguments('build', '--stacktrace')
       .withPluginClasspath()
       .forwardOutput()
       .build()

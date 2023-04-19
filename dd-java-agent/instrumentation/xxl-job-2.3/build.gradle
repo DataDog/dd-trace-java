@@ -9,16 +9,10 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
+addTestSuiteForDir('latestDepTest','test')
 
 dependencies {
   compileOnly(group: 'com.xuxueli', name: 'xxl-job-core', version: '2.3.0')
-}
-
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
 }
 
 tasks.withType(Test).configureEach {

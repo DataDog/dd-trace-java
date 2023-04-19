@@ -10,7 +10,7 @@ dependencies {
 
 // Check 'testJvm' gradle command parameter from GraalVM JVM
 def testJvm = gradle.startParameter.projectProperties['testJvm']
-if (testJvm != null && testJvm.startsWith('GRAALVM')) {
+if (testJvm != null && testJvm.toLowerCase(Locale.ROOT).startsWith('graalvm')) {
   // Retrieve GRAALVM_HOME from JVM environment variables
   def testJvmEnv = "JAVA_${testJvm}_HOME"
   def testJvmHome = System.getenv(testJvmEnv)
@@ -28,9 +28,10 @@ if (testJvm != null && testJvm.startsWith('GRAALVM')) {
     environment += [
       "GRADLE_OPTS" : "-Dorg.gradle.jvmargs='-Xmx512M'",
       "JAVA_HOME": testJvmHome,
-      "GRAALVM_HOME": testJvmHome
+      "GRAALVM_HOME": testJvmHome,
+      "DD_TRACE_METHODS" : "datadog.smoketest.springboot.controller.WebController[sayHello]"
     ]
-    commandLine "$rootDir/${gradlewCommand}", "nativeCompile", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PagentPath=${project(':dd-java-agent').tasks.shadowJar.archivePath}"
+    commandLine "$rootDir/${gradlewCommand}", "nativeCompile", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PagentPath=${project(':dd-java-agent').tasks.shadowJar.archiveFile.get()}"
 
     outputs.cacheIf { true }
     outputs.dir(appBuildDir)

@@ -465,10 +465,6 @@ public class ReferenceCreator extends ClassVisitor {
     if (dottedName.startsWith("org.slf4j.")) {
       return true;
     }
-    // trace-annotation's muzzle check relies on this annotation type
-    if (dottedName.equals("datadog.trace.api.Trace")) {
-      return false;
-    }
     for (String prefix : Constants.BOOTSTRAP_PACKAGE_PREFIXES) {
       if (dottedName.startsWith(prefix)) {
         return true;

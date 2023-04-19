@@ -128,6 +128,8 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
   void mergePathwayContext(PathwayContext pathwayContext);
 
+  Integer forceSamplingDecision();
+
   interface Context {
     DDTraceId getTraceId();
 
@@ -141,6 +143,12 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
     interface Extracted extends Context {
       String getForwarded();
+
+      String getFastlyClientIp();
+
+      String getCfConnectingIp();
+
+      String getCfConnectingIpv6();
 
       String getXForwardedProto();
 
@@ -158,11 +166,9 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
       String getXRealIp();
 
-      String getClientIp();
+      String getXClientIp();
 
       String getUserAgent();
-
-      String getVia();
 
       String getTrueClientIp();
 

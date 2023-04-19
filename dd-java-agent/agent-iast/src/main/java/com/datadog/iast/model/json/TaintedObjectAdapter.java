@@ -2,12 +2,12 @@ package com.datadog.iast.model.json;
 
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
-import com.datadog.iast.model.SourceType;
 import com.datadog.iast.taint.TaintedObject;
 import com.squareup.moshi.FromJson;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.ToJson;
+import datadog.trace.api.iast.SourceTypes;
 import java.io.IOException;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -57,7 +57,7 @@ public class TaintedObjectAdapter {
     } else {
       writer.beginObject();
       writer.name("origin");
-      writer.value(SourceType.toString(value.getOrigin()));
+      writer.value(SourceTypes.toString(value.getOrigin()));
       writer.name("name");
       writer.value(value.getName());
       writer.name("value");

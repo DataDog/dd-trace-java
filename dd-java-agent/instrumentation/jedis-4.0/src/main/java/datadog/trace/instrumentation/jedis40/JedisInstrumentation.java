@@ -1,5 +1,13 @@
 package datadog.trace.instrumentation.jedis40;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static redis.clients.jedis.JedisClientDecorator.DECORATE;
+
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -7,18 +15,12 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import redis.clients.jedis.CommandArguments;
 import redis.clients.jedis.CommandObject;
+import redis.clients.jedis.Connection;
+import redis.clients.jedis.JedisClientDecorator;
 import redis.clients.jedis.Protocol;
 import redis.clients.jedis.args.Rawable;
 import redis.clients.jedis.commands.ProtocolCommand;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.jedis40.JedisClientDecorator.DECORATE;
-import static net.bytebuddy.matcher.ElementMatchers.*;
-import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.isPublic;
-import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 @AutoService(Instrumenter.class)
 public final class JedisInstrumentation extends Instrumenter.Tracing
@@ -36,7 +38,7 @@ public final class JedisInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JedisClientDecorator",
+      "redis.clients.jedis.JedisClientDecorator",
     };
   }
 
@@ -53,9 +55,12 @@ public final class JedisInstrumentation extends Instrumenter.Tracing
   public static class JedisAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(@Advice.Argument(0) final CommandObject<?> commandObject) {
+    public static AgentScope onEnter(
+        @Advice.Argument(0) final CommandObject<?> commandObject,
+        @Advice.This final Connection thiz) {
       final AgentSpan span = startSpan(JedisClientDecorator.OPERATION_NAME);
       DECORATE.afterStart(span);
+      DECORATE.onConnection(span, thiz);
 
       final ProtocolCommand command = commandObject.getArguments().getCommand();
       final CommandArguments args = commandObject.getArguments();

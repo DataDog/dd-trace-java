@@ -9,19 +9,13 @@ muzzle {
   pass {
     group = "redis.clients"
     module = "jedis"
-    versions = "[3.0.0,)"
+    versions = "[3.0.0,4.0.0)"
   }
 }
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'redis.clients', name: 'jedis', version: '3.3.0'

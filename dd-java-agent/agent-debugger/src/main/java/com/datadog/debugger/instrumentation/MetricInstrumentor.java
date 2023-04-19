@@ -45,11 +45,13 @@ public class MetricInstrumentor extends Instrumentor {
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics) {
-    super(metricProbe, classLoader, classNode, methodNode, diagnostics);
+      List<DiagnosticMessage> diagnostics,
+      List<String> probeIds) {
+    super(metricProbe, classLoader, classNode, methodNode, diagnostics, probeIds);
     this.metricProbe = metricProbe;
   }
 
+  @Override
   public void instrument() {
     if (isLineProbe) {
       fillLineMap();
@@ -284,9 +286,6 @@ public class MetricInstrumentor extends Instrumentor {
       }
       return UndefinedValue.INSTANCE;
     }
-
-    @Override
-    public void addEvaluationError(String expr, String message) {}
 
     private Type followReferences(Type currentType, String name, InsnList insnList) {
       Class<?> clazz;

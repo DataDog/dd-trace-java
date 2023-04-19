@@ -3,6 +3,7 @@ package datadog.trace.agent.tooling;
 import static datadog.trace.agent.tooling.bytebuddy.DDTransformers.defaultTransformers;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.ANY_CLASS_LOADER;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
@@ -17,6 +18,7 @@ import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.agent.builder.AgentBuilder;
@@ -76,10 +78,11 @@ public final class CombiningTransformerBuilder extends AbstractTransformerBuilde
           new MatchRecorder.ForType(id, ((Instrumenter.ForCallSite) instrumenter).callerType()));
     }
 
-    if (instrumenter instanceof Instrumenter.ForConfiguredType) {
-      String name = ((Instrumenter.ForConfiguredType) instrumenter).configuredMatchingType();
-      if (null != name && !name.isEmpty()) {
-        matchers.add(new MatchRecorder.ForType(id, named(name)));
+    if (instrumenter instanceof Instrumenter.ForConfiguredTypes) {
+      Collection<String> names =
+          ((Instrumenter.ForConfiguredTypes) instrumenter).configuredMatchingTypes();
+      if (null != names && !names.isEmpty()) {
+        matchers.add(new MatchRecorder.ForType(id, namedOneOf(names)));
       }
     }
 

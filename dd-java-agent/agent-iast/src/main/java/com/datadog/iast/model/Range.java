@@ -2,6 +2,7 @@ package com.datadog.iast.model;
 
 import com.datadog.iast.model.json.SourceIndex;
 import java.util.Objects;
+import java.util.StringJoiner;
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
@@ -34,6 +35,15 @@ public final class Range {
     if (o == null || getClass() != o.getClass()) return false;
     Range range = (Range) o;
     return start == range.start && length == range.length && Objects.equals(source, range.source);
+  }
+
+  @Override
+  public String toString() {
+    return new StringJoiner(", ", Range.class.getSimpleName() + "[", "]")
+        .add("start=" + start)
+        .add("length=" + length)
+        .add("source=" + source)
+        .toString();
   }
 
   @Override

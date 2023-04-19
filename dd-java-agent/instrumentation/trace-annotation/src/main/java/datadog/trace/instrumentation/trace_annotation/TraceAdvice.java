@@ -14,7 +14,6 @@ import net.bytebuddy.asm.Advice;
 
 public class TraceAdvice {
   private static final String DEFAULT_OPERATION_NAME = "trace.annotation";
-
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.Origin final Method method,@Advice.AllArguments final Object[] args) {
     final Trace traceAnnotation = method.getAnnotation(Trace.class);
