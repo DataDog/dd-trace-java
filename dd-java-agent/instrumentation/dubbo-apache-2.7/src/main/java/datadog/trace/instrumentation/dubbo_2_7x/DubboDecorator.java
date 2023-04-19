@@ -86,9 +86,7 @@ public class DubboDecorator extends BaseDecorator {
     afterStart(span);
 
     withMethod(span, resourceName);
-    if (isConsumer){
-      propagate().inject(span, dubboTraceInfo, SETTER);
-    }
+    propagate().inject(span, dubboTraceInfo, SETTER);
     return span;
   }
 
