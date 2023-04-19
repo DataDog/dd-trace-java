@@ -1,6 +1,7 @@
 stages:
   - build
   - deploy
+  - benchmarks
   - generate-signing-key
 
 variables:
@@ -14,7 +15,8 @@ variables:
     description: "Set to true to override rules in the reliability-env pipeline (e.g. override 'only deploy master')"
 
 include:
-  remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
+  - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
+  - local: ".gitlab/benchmarks.yml"
 
 .common: &common
   tags: [ "runner:main", "size:large" ]
