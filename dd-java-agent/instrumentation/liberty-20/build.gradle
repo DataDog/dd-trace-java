@@ -19,6 +19,7 @@ configurations {
 }
 
 evaluationDependsOn ':dd-java-agent:instrumentation:servlet:request-3'
+evaluationDependsOn ':dd-java-agent:instrumentation:servlet-common'
 
 dependencies {
   zipped group: 'io.openliberty', name: 'openliberty-runtime', version: '21.0.0.3', ext: 'zip'
@@ -33,20 +34,10 @@ dependencies {
   testRuntimeOnly files({ tasks.filterLogbackClassic.filteredLogbackDir })
 
   webappCompileOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '3.0.1'
-  // compileOnly to avoid bringing all the test dependencies to the test app
-  // these are to be provided by the system classloader on test time
-  webappCompileOnly project(':dd-java-agent:instrumentation:servlet:request-3')
-    .tasks['compileTestFixturesJava'].classpath
-  // only the testFixtures jar (not its dependencies) and groovy should be included in the webapp
-  webappImplementation files(
-    project(':dd-java-agent:instrumentation:servlet:request-3')
-    .getTasksByName('testFixturesJar', false).archiveFile
-    )
-  // use the above instead of:
-  //  webappImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-3'))
-  // because using testFixtures() causes some early evaluation of dependencies
+  webappImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-3'))
   webappImplementation deps.groovy
 }
+
 compileWebappJava.dependsOn ':dd-java-agent:instrumentation:servlet:request-3:testFixturesJar'
 
 configurations.testRuntimeOnly {
