@@ -1,0 +1,16 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    group = "com.alibaba"
+    module = "dubbo"
+    versions = "[2.6.0,2.8.4]"
+    assertInverse = true
+  }
+}
+
+
+dependencies {
+  compileOnly group: 'com.alibaba', name: 'dubbo', version: '2.6.9'
+}
+

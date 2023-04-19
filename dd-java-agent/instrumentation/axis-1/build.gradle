@@ -1,0 +1,16 @@
+muzzle {
+  pass {
+    group = "org.apache.axis"
+    module = "axis"
+    versions = "[1.4,)"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+
+dependencies {
+  compileOnly group: 'org.apache.axis', name: 'axis', version: '1.4'
+  compileOnly group: 'axis', name: 'axis-jaxrpc', version: '1.4'
+}
+
