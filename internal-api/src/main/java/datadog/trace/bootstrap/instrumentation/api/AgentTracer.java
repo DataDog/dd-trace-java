@@ -571,6 +571,9 @@ public class AgentTracer {
     public void mergePathwayContext(PathwayContext pathwayContext) {}
 
     @Override
+    public void setPathwayContext(PathwayContext pathwayContext) {}
+
+    @Override
     public Integer forceSamplingDecision() {
       return null;
     }

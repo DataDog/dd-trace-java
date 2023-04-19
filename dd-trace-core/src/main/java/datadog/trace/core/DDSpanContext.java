@@ -606,6 +606,10 @@ public class DDSpanContext
     }
   }
 
+  public void setPathwayContext(PathwayContext pathwayContext) {
+    this.pathwayContext = pathwayContext;
+  }
+
   public CoreTracer getTracer() {
     return trace.getTracer();
   }

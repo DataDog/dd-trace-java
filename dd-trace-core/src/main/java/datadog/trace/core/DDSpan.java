@@ -503,6 +503,11 @@ public class DDSpan
   }
 
   @Override
+  public void setPathwayContext(PathwayContext pathwayContext) {
+    this.context.setPathwayContext(pathwayContext);
+  }
+
+  @Override
   public Integer forceSamplingDecision() {
     PendingTrace trace = this.context.getTrace();
     DDSpan rootSpan = trace.getRootSpan();

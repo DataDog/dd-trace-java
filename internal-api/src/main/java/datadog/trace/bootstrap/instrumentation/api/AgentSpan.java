@@ -128,6 +128,8 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
   void mergePathwayContext(PathwayContext pathwayContext);
 
+  void setPathwayContext(PathwayContext pathwayContext);
+
   Integer forceSamplingDecision();
 
   interface Context {

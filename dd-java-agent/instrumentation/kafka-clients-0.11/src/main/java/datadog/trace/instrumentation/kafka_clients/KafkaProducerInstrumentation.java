@@ -101,7 +101,12 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
         sortedTags.put(TYPE_TAG, "kafka");
         try {
           propagate().inject(span, record.headers(), SETTER);
-          propagate().injectBinaryPathwayContext(span, record.headers(), SETTER, sortedTags);
+          if (record.headers().lastHeader("dsm_ignore") == null) {
+            propagate().injectBinaryPathwayContext(span, record.headers(), SETTER, sortedTags);
+          } else {
+            record.headers().remove("dsm_ignore");
+            System.out.println("#### PathwayContext is invalid, no checkpoint will be made - " + record.topic());
+          }
         } catch (final IllegalStateException e) {
           // headers must be read-only from reused record. try again with new one.
           record =

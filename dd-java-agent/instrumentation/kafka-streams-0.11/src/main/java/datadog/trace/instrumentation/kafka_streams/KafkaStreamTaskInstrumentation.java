@@ -65,6 +65,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
       packageName + ".ProcessorRecordContextVisitor",
       packageName + ".StampedRecordContextVisitor",
       packageName + ".StreamTaskContext",
+      packageName + ".TopologyContext",
     };
   }
 
@@ -280,6 +281,9 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         return;
       }
 
+      // called from
+      // org.apache.kafka.streams.processor.internals.TaskManager.process(TaskManager.java:1177)
+
       AgentSpan span, queueSpan = null;
       StreamTaskContext streamTaskContext =
           InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
@@ -299,21 +303,28 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
           // spans are written out together by TraceStructureWriter when running in strict mode
         }
 
-        PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, PR_GETTER);
-        span.mergePathwayContext(pathwayContext);
-        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-        sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
-        if (streamTaskContext != null) {
-          String applicationId = streamTaskContext.getApplicationId();
-          if (applicationId != null) {
-            // Kafka Streams uses the application ID as the consumer group.id.
-            sortedTags.put(GROUP_TAG, applicationId);
+        // set checkpoint only if this is a source topic
+        if (TopologyContext.isSourceTopic(record.topic())) {
+          PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, PR_GETTER);
+          span.mergePathwayContext(pathwayContext);
+          LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+          sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
+          if (streamTaskContext != null) {
+            String applicationId = streamTaskContext.getApplicationId();
+            if (applicationId != null) {
+              // Kafka Streams uses the application ID as the consumer group.id.
+              sortedTags.put(GROUP_TAG, applicationId);
+            }
           }
+          sortedTags.put(PARTITION_TAG, String.valueOf(record.partition()));
+          sortedTags.put(TOPIC_TAG, record.topic());
+          sortedTags.put(TYPE_TAG, "kafka");
+          AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
+          System.out.println("#### CONSUME - TRUE - " + record.topic());
+        } else {
+          System.out.println("#### CONSUME - FALSE - " + record.topic());
         }
-        sortedTags.put(PARTITION_TAG, String.valueOf(record.partition()));
-        sortedTags.put(TOPIC_TAG, record.topic());
-        sortedTags.put(TYPE_TAG, "kafka");
-        AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
+
       } else {
         span = startSpan(KAFKA_CONSUME, null);
       }

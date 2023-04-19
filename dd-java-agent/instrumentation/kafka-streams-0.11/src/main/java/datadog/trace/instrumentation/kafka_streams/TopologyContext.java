@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.kafka_streams;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -18,23 +17,13 @@ public class TopologyContext {
   public static final int INTERNAL_TOPIC = 1;
   public static final int TARGET_TOPIC = 2;
 
-  public static final String DSM_STREAM_ORIGIN_HEADER = "dd_dsm_stream_origin_base64";
-
-  private static HashSet<String> GetSourceTopics(Source node) {
-    String[] allTopics = node.topics().split(",");
-    HashSet<String> result = new HashSet<>();
-
-    Collections.addAll(result, allTopics);
-    return result;
-  }
-
   private static void AddTopics(Node node, HashSet<String> sinkTopics, HashSet<String> sourceTopics) {
     if (node instanceof Sink) {
       sinkTopics.add(((Sink)node).topic());
     }
 
     if (node instanceof Source) {
-      for (String topic: GetSourceTopics((Source)node)) {
+      for (String topic: ((Source)node).topicSet()) {
         sourceTopics.add(topic);
       }
     }
@@ -51,7 +40,7 @@ public class TopologyContext {
     }
 
     if (node instanceof Source) {
-      System.out.println("####" + ident + node.name() + "(" + String.join(",", GetSourceTopics((Source)node)) + ")");
+      System.out.println("####" + ident + node.name() + "(" + String.join(",", ((Source)node).topicSet()) + ")");
     }
 
     if (node instanceof Processor) {
@@ -110,7 +99,6 @@ public class TopologyContext {
     HashSet<String> sources = new HashSet<>();
 
     for (Subtopology sub : topology.describe().subtopologies()) {
-      System.out.println("### TOPOLOGY: " + sub.id());
       for (Node node: sub.nodes()) {
         AddTopics(node, sinks, sources);
 
@@ -139,6 +127,10 @@ public class TopologyContext {
       if (!internalTopics.contains(sink)) {
         NodeToQueueMap.put(sink, TARGET_TOPIC);
       }
+    }
+
+    for (Map.Entry<String, Integer> entry: NodeToQueueMap.entrySet()) {
+      System.out.println("#### TOPOLOGY CONTEXT: " + entry.getKey() + " = " + entry.getValue());
     }
   }
 
