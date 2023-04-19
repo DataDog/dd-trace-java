@@ -25,8 +25,7 @@ class LogMessageTemplateBuilderTest {
   public void emptyProbe() {
     LogProbe probe = LogProbe.builder().build();
     LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
-    String message =
-        summaryBuilder.evaluate(new CapturedContext(), new CapturedContext.Status(probe));
+    String message = summaryBuilder.evaluate(new CapturedContext(), new LogProbe.LogStatus(probe));
     assertNull(message);
   }
 
@@ -34,8 +33,7 @@ class LogMessageTemplateBuilderTest {
   public void emptyTemplate() {
     LogProbe probe = createLogProbe("");
     LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
-    String message =
-        summaryBuilder.evaluate(new CapturedContext(), new CapturedContext.Status(probe));
+    String message = summaryBuilder.evaluate(new CapturedContext(), new LogProbe.LogStatus(probe));
     assertEquals("", message);
   }
 
@@ -43,8 +41,7 @@ class LogMessageTemplateBuilderTest {
   public void onlyStringTemplate() {
     LogProbe probe = createLogProbe("this is a simple string");
     LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
-    String message =
-        summaryBuilder.evaluate(new CapturedContext(), new CapturedContext.Status(probe));
+    String message = summaryBuilder.evaluate(new CapturedContext(), new LogProbe.LogStatus(probe));
     assertEquals("this is a simple string", message);
   }
 
@@ -52,8 +49,7 @@ class LogMessageTemplateBuilderTest {
   public void undefinedArgTemplate() {
     LogProbe probe = createLogProbe("{arg}");
     LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
-    String message =
-        summaryBuilder.evaluate(new CapturedContext(), new CapturedContext.Status(probe));
+    String message = summaryBuilder.evaluate(new CapturedContext(), new LogProbe.LogStatus(probe));
     assertEquals("{Cannot find symbol: arg}", message);
   }
 
@@ -66,7 +62,7 @@ class LogMessageTemplateBuilderTest {
         new CapturedContext.CapturedValue[] {
           CapturedContext.CapturedValue.of("arg", String.class.getTypeName(), "foo")
         });
-    String message = summaryBuilder.evaluate(capturedContext, new CapturedContext.Status(probe));
+    String message = summaryBuilder.evaluate(capturedContext, new LogProbe.LogStatus(probe));
     assertEquals("foo", message);
   }
 
@@ -79,14 +75,14 @@ class LogMessageTemplateBuilderTest {
         new CapturedContext.CapturedValue[] {
           CapturedContext.CapturedValue.of("arg", String.class.getTypeName(), "foo")
         });
-    String message = summaryBuilder.evaluate(capturedContext, new CapturedContext.Status(probe));
+    String message = summaryBuilder.evaluate(capturedContext, new LogProbe.LogStatus(probe));
     LogMessageTemplateBuilder summaryBuilder2 = new LogMessageTemplateBuilder(probe.getSegments());
     CapturedContext capturedContext2 = new CapturedContext();
     capturedContext2.addArguments(
         new CapturedContext.CapturedValue[] {
           CapturedContext.CapturedValue.of("arg", String.class.getTypeName(), "bar")
         });
-    String message2 = summaryBuilder2.evaluate(capturedContext2, new CapturedContext.Status(probe));
+    String message2 = summaryBuilder2.evaluate(capturedContext2, new LogProbe.LogStatus(probe));
     assertEquals("foo", message);
     assertEquals("bar", message2);
   }
@@ -100,7 +96,7 @@ class LogMessageTemplateBuilderTest {
         new CapturedContext.CapturedValue[] {
           CapturedContext.CapturedValue.of("nullObject", Object.class.getTypeName(), null)
         });
-    String message = summaryBuilder.evaluate(capturedContext, new CapturedContext.Status(probe));
+    String message = summaryBuilder.evaluate(capturedContext, new LogProbe.LogStatus(probe));
     assertEquals("null", message);
   }
 
@@ -120,7 +116,7 @@ class LogMessageTemplateBuilderTest {
                 "foo0", "foo1", "foo2", "foo3", "foo4", "foo5", "foo6", "foo7", "foo8", "foo9"
               })
         });
-    String message = summaryBuilder.evaluate(capturedContext, new CapturedContext.Status(probe));
+    String message = summaryBuilder.evaluate(capturedContext, new LogProbe.LogStatus(probe));
     assertEquals("[0, 1, 2, ...] [foo0, foo1, foo2, ...]", message);
   }
 
@@ -146,7 +142,7 @@ class LogMessageTemplateBuilderTest {
                       "bar0", "bar1", "bar2", "bar3", "bar4", "bar5", "bar6", "bar7", "bar8",
                       "bar9")))
         });
-    String message = summaryBuilder.evaluate(capturedContext, new CapturedContext.Status(probe));
+    String message = summaryBuilder.evaluate(capturedContext, new LogProbe.LogStatus(probe));
     assertEquals("[foo0, foo1, foo2, ...] [bar0, bar1, bar2, ...]", message);
   }
 
@@ -163,7 +159,7 @@ class LogMessageTemplateBuilderTest {
         new CapturedContext.CapturedValue[] {
           CapturedContext.CapturedValue.of("strMap", String.class.getTypeName(), map)
         });
-    String message = summaryBuilder.evaluate(capturedContext, new CapturedContext.Status(probe));
+    String message = summaryBuilder.evaluate(capturedContext, new LogProbe.LogStatus(probe));
     assertEquals("{[foo0=bar0], [foo1=bar1], [foo2=bar2], ...}", message);
   }
 
@@ -187,7 +183,7 @@ class LogMessageTemplateBuilderTest {
         new CapturedContext.CapturedValue[] {
           CapturedContext.CapturedValue.of("obj", Level0.class.getTypeName(), new Level0())
         });
-    String message = summaryBuilder.evaluate(capturedContext, new CapturedContext.Status(probe));
+    String message = summaryBuilder.evaluate(capturedContext, new LogProbe.LogStatus(probe));
     assertEquals("{intField0=0, strField0=foo0, level1=...}", message);
   }
 
@@ -201,7 +197,7 @@ class LogMessageTemplateBuilderTest {
           CapturedContext.CapturedValue.of(
               "array", Level0[].class.getTypeName(), new Level0[] {new Level0(), new Level0()})
         });
-    String message = summaryBuilder.evaluate(capturedContext, new CapturedContext.Status(probe));
+    String message = summaryBuilder.evaluate(capturedContext, new LogProbe.LogStatus(probe));
     assertEquals("[..., ...]", message);
   }
 
@@ -216,7 +212,7 @@ class LogMessageTemplateBuilderTest {
           CapturedContext.CapturedValue.of(
               "obj", Object.class.getTypeName(), ManagementFactory.getOperatingSystemMXBean())
         });
-    CapturedContext.Status status = new CapturedContext.Status(probe);
+    LogProbe.LogStatus status = new LogProbe.LogStatus(probe);
     String message = summaryBuilder.evaluate(capturedContext, status);
     assertEquals(
         "{containerMetrics=UNDEFINED, systemLoadTicks=UNDEFINED, processLoadTicks=UNDEFINED, jvm=UNDEFINED, loadavg=UNDEFINED}",

@@ -164,6 +164,11 @@ public abstract class ProbeDefinition implements ProbeImplementation {
     return false;
   }
 
+  @Override
+  public CapturedContext.Status createStatus() {
+    return null;
+  }
+
   public abstract static class Builder<T extends Builder> {
     protected String language = LANGUAGE;
     protected ProbeId probeId;

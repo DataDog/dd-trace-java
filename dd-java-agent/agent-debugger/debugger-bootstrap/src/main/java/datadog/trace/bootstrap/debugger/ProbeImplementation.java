@@ -28,6 +28,8 @@ public interface ProbeImplementation {
 
   boolean hasCondition();
 
+  CapturedContext.Status createStatus();
+
   class NoopProbeImplementation implements ProbeImplementation {
     private final String id;
     private final int version;
@@ -98,6 +100,11 @@ public interface ProbeImplementation {
     @Override
     public boolean hasCondition() {
       return script != null;
+    }
+
+    @Override
+    public CapturedContext.Status createStatus() {
+      return CapturedContext.Status.EMPTY_CAPTURING_STATUS;
     }
   }
 }

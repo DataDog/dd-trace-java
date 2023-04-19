@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap.debugger;
 
-import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.debugger.el.ReflectiveFieldValueResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
@@ -16,10 +15,9 @@ import java.util.Objects;
 
 /** Stores different kind of data (arguments, locals, fields, exception) for a specific location */
 public class CapturedContext implements ValueReferenceResolver {
-  public static final CapturedContext EMPTY_CONTEXT =
-      new CapturedContext(null, Status.EMPTY_STATUS);
+  public static final CapturedContext EMPTY_CONTEXT = new CapturedContext(null);
   public static final CapturedContext EMPTY_CAPTURING_CONTEXT =
-      new CapturedContext(ProbeImplementation.UNKNOWN, Status.EMPTY_PASSING_STATUS);
+      new CapturedContext(ProbeImplementation.UNKNOWN);
   private final transient Map<String, Object> extensions = new HashMap<>();
 
   private Map<String, CapturedValue> arguments;
@@ -32,11 +30,8 @@ public class CapturedContext implements ValueReferenceResolver {
   private String spanId;
   private long duration;
   private final Map<String, Status> statusByProbeId = new LinkedHashMap<>();
-  private final Status defaultStatus;
 
-  public CapturedContext() {
-    defaultStatus = Status.EMPTY_STATUS;
-  }
+  public CapturedContext() {}
 
   public CapturedContext(
       CapturedValue[] arguments,
@@ -49,7 +44,6 @@ public class CapturedContext implements ValueReferenceResolver {
     addReturn(returnValue);
     this.throwable = throwable;
     addFields(fields);
-    defaultStatus = Status.EMPTY_STATUS;
   }
 
   private CapturedContext(CapturedContext other, Map<String, Object> extensions) {
@@ -59,25 +53,24 @@ public class CapturedContext implements ValueReferenceResolver {
     this.fields = other.fields;
     this.extensions.putAll(other.extensions);
     this.extensions.putAll(extensions);
-    this.defaultStatus = Status.EMPTY_STATUS;
   }
 
   // used for EMPTY_CONTEXT
-  private CapturedContext(ProbeImplementation probeImplementation, Status defaultStatus) {
+  private CapturedContext(ProbeImplementation probeImplementation) {
     if (probeImplementation != null) {
-      this.statusByProbeId.put(probeImplementation.getId(), new Status(probeImplementation));
+      this.statusByProbeId.put(probeImplementation.getId(), probeImplementation.createStatus());
     }
-    this.defaultStatus = defaultStatus;
   }
 
   public long getDuration() {
     return duration;
   }
 
+  // Called by CapturedContext instrumentation
   public boolean isCapturing() {
     boolean result = false;
     for (Status status : statusByProbeId.values()) {
-      result |= status.condition;
+      result |= status.isCapturing();
     }
     return result;
   }
@@ -294,7 +287,7 @@ public class CapturedContext implements ValueReferenceResolver {
       long startTimestamp,
       MethodLocation methodLocation) {
     Status status =
-        statusByProbeId.computeIfAbsent(probeId, key -> new Status(probeImplementation));
+        statusByProbeId.computeIfAbsent(probeId, key -> probeImplementation.createStatus());
     if (methodLocation == MethodLocation.EXIT) {
       duration = System.nanoTime() - startTimestamp;
       addExtension(ValueReferences.DURATION_EXTENSION_NAME, duration);
@@ -323,7 +316,10 @@ public class CapturedContext implements ValueReferenceResolver {
   public Status getStatus(String probeId) {
     Status result = statusByProbeId.get(probeId);
     if (result == null) {
-      return defaultStatus;
+      result = statusByProbeId.get(ProbeImplementation.UNKNOWN.getId());
+      if (result == null) {
+        return Status.EMPTY_STATUS;
+      }
     }
     return result;
   }
@@ -359,84 +355,35 @@ public class CapturedContext implements ValueReferenceResolver {
   }
 
   public static class Status {
-    public static final Status EMPTY_STATUS = new Status(false, ProbeImplementation.UNKNOWN);
-    public static final Status EMPTY_PASSING_STATUS = new Status(true, ProbeImplementation.UNKNOWN);
-    final List<EvaluationError> errors = new ArrayList<>();
-    final ProbeImplementation probeImplementation;
-    boolean condition;
-    boolean hasLogTemplateErrors;
-    boolean hasConditionErrors;
-    String message;
-    // Span decoration
-    List<Pair<String, String>> tagsToDecorate;
+    public static final Status EMPTY_STATUS = new Status(ProbeImplementation.UNKNOWN);
+    public static final Status EMPTY_CAPTURING_STATUS =
+        new Status(ProbeImplementation.UNKNOWN) {
+          @Override
+          public boolean isCapturing() {
+            return true;
+          }
+        };
+    private final List<EvaluationError> errors = new ArrayList<>();
+    protected final ProbeImplementation probeImplementation;
 
     public Status(ProbeImplementation probeImplementation) {
-      this.condition = true;
       this.probeImplementation = probeImplementation;
-    }
-
-    private Status(boolean condition, ProbeImplementation probeImplementation) {
-      this.condition = condition;
-      this.probeImplementation = probeImplementation;
-    }
-
-    public boolean shouldSend() {
-      return condition && !hasConditionErrors;
-    }
-
-    public boolean shouldReportError() {
-      return hasConditionErrors || hasLogTemplateErrors;
-    }
-
-    public boolean getCondition() {
-      return condition;
-    }
-
-    public void setCondition(boolean value) {
-      this.condition = value;
-    }
-
-    public boolean hasConditionErrors() {
-      return hasConditionErrors;
-    }
-
-    public void setConditionErrors(boolean value) {
-      this.hasConditionErrors = value;
-    }
-
-    public boolean hasLogTemplateErrors() {
-      return hasLogTemplateErrors;
-    }
-
-    public void setLogTemplateErrors(boolean value) {
-      this.hasLogTemplateErrors = value;
     }
 
     public List<EvaluationError> getErrors() {
       return errors;
     }
 
-    public void setMessage(String message) {
-      this.message = message;
-    }
-
-    public String getMessage() {
-      return message;
-    }
-
     public void addError(EvaluationError evaluationError) {
       errors.add(evaluationError);
     }
 
-    public void addTag(String tagName, String tagValue) {
-      if (tagsToDecorate == null) {
-        tagsToDecorate = new ArrayList<>();
-      }
-      tagsToDecorate.add(Pair.of(tagName, tagValue));
+    public boolean shouldFreezeContext() {
+      return false;
     }
 
-    public List<Pair<String, String>> getTagsToDecorate() {
-      return tagsToDecorate;
+    public boolean isCapturing() {
+      return false;
     }
   }
 
