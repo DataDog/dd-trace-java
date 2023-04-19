@@ -152,7 +152,21 @@ public class SpanDecorationProbe extends ProbeDefinition {
     if (status == null) {
       return;
     }
-    List<Pair<String, String>> tagsToDecorate = ((SpanDecorationStatus) status).getTagsToDecorate();
+
+    decorateTags((SpanDecorationStatus) status);
+  }
+
+  @Override
+  public void commit(CapturedContext lineContext, int line) {
+    CapturedContext.Status status = lineContext.getStatus(id);
+    if (status == null) {
+      return;
+    }
+    decorateTags((SpanDecorationStatus) status);
+  }
+
+  private void decorateTags(SpanDecorationStatus status) {
+    List<Pair<String, String>> tagsToDecorate = status.getTagsToDecorate();
     if (tagsToDecorate == null) {
       return;
     }
