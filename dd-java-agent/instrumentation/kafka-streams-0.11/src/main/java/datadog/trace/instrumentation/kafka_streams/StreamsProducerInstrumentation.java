@@ -7,7 +7,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
-import datadog.trace.instrumentation.kafka_clients.HeadersHelper;
 import datadog.trace.instrumentation.kafka_clients.TextMapExtractAdapter;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -30,7 +29,7 @@ public class StreamsProducerInstrumentation extends Instrumenter.Tracing
         packageName + ".GlobalTopologyContext",
         "datadog.trace.instrumentation.kafka_clients.TextMapExtractAdapter",
         "datadog.trace.instrumentation.kafka_clients.Base64Decoder",
-        "datadog.trace.instrumentation.kafka_clients.HeadersHelper",
+        "datadog.trace.instrumentation.kafka_clients.DataStreamsIgnoreContext",
     };
   }
 
@@ -45,14 +44,12 @@ public class StreamsProducerInstrumentation extends Instrumenter.Tracing
     public static void enter(
         @Advice.Argument(value = 0, readOnly = false) ProducerRecord record
     ) {
-      if (GlobalTopologyContext.isTargetTopic(record.topic())) {
-        // restore the origin context
+      if (GlobalTopologyContext.isSinkTopic(record.topic())) {
+        // we need to restore context before write to establish the correct
+        // relationships between the topology start / end
         PathwayContext context = AgentTracer.get().extractBinaryPathwayContext(record.headers(),
             TextMapExtractAdapter.GETTER);
         AgentTracer.activeSpan().setPathwayContext(context);
-      } else {
-        // mark the record as ignorable
-        HeadersHelper.AddDsmDisabledHeader(record.headers());
       }
     }
   }

@@ -33,6 +33,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
+import datadog.trace.instrumentation.kafka_clients.DataStreamsIgnoreContext;
 import datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -61,6 +62,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
   public String[] helperClassNames() {
     return new String[] {
       "datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator",
+      "datadog.trace.instrumentation.kafka_clients.DataStreamsIgnoreContext",
       packageName + ".KafkaStreamsDecorator",
       packageName + ".ProcessorRecordContextVisitor",
       packageName + ".StampedRecordContextVisitor",
@@ -234,7 +236,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
           // spans are written out together by TraceStructureWriter when running in strict mode
         }
 
-        if (GlobalTopologyContext.isEmpty() || GlobalTopologyContext.isSourceTopic(record.topic()))
+        if (!DataStreamsIgnoreContext.contains(record.topic()))
         {
           PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, SR_GETTER);
           span.mergePathwayContext(pathwayContext);
@@ -306,7 +308,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
           // spans are written out together by TraceStructureWriter when running in strict mode
         }
 
-        if (GlobalTopologyContext.isEmpty() || GlobalTopologyContext.isSourceTopic(record.topic())) {
+        if (!DataStreamsIgnoreContext.contains(record.topic())) {
           PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, PR_GETTER);
           span.mergePathwayContext(pathwayContext);
           LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();

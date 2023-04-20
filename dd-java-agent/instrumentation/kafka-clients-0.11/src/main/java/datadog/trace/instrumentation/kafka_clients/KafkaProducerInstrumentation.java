@@ -50,7 +50,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
       packageName + ".KafkaDecorator",
       packageName + ".TextMapInjectAdapter",
       packageName + ".KafkaProducerCallback",
-      packageName + ".HeadersHelper",
+      packageName + ".DataStreamsIgnoreContext",
     };
   }
 
@@ -103,9 +103,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
 
         try {
           propagate().inject(span, record.headers(), SETTER);
-          if (HeadersHelper.HasDsmDisabledHeader(record.headers())) {
-            HeadersHelper.RemoveDsmDisabledHeader(record.headers());
-          } else {
+          if (!DataStreamsIgnoreContext.contains(record.topic())){
             propagate().injectBinaryPathwayContext(span, record.headers(), SETTER, sortedTags);
           }
         } catch (final IllegalStateException e) {
@@ -120,7 +118,9 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
                   record.headers());
 
           propagate().inject(span, record.headers(), SETTER);
-          propagate().injectBinaryPathwayContext(span, record.headers(), SETTER, sortedTags);
+          if (!DataStreamsIgnoreContext.contains(record.topic())){
+            propagate().injectBinaryPathwayContext(span, record.headers(), SETTER, sortedTags);
+          }
         }
         if (!KAFKA_LEGACY_TRACING) {
           SETTER.injectTimeInQueue(record.headers());

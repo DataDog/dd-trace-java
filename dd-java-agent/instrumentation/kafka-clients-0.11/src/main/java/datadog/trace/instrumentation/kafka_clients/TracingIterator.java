@@ -85,17 +85,19 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
             // The queueSpan will be finished after inner span has been activated to ensure that
             // spans are written out together by TraceStructureWriter when running in strict mode
           }
-          PathwayContext pathwayContext =
-              propagate().extractBinaryPathwayContext(val.headers(), GETTER);
-          span.mergePathwayContext(pathwayContext);
+          if (!DataStreamsIgnoreContext.contains(val.topic())) {
+            PathwayContext pathwayContext =
+                propagate().extractBinaryPathwayContext(val.headers(), GETTER);
+            span.mergePathwayContext(pathwayContext);
 
-          LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-          sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
-          sortedTags.put(GROUP_TAG, group);
-          sortedTags.put(PARTITION_TAG, String.valueOf(val.partition()));
-          sortedTags.put(TOPIC_TAG, val.topic());
-          sortedTags.put(TYPE_TAG, "kafka");
-          AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
+            LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+            sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
+            sortedTags.put(GROUP_TAG, group);
+            sortedTags.put(PARTITION_TAG, String.valueOf(val.partition()));
+            sortedTags.put(TOPIC_TAG, val.topic());
+            sortedTags.put(TYPE_TAG, "kafka");
+            AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
+          }
         } else {
           span = startSpan(operationName, null);
         }
