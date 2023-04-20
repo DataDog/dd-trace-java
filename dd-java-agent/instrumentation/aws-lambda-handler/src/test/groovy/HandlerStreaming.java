@@ -17,7 +17,5 @@ public class HandlerStreaming implements RequestStreamHandler {
             new BufferedWriter(new OutputStreamWriter(outputStream, Charset.forName("US-ASCII"))));
     writer.write("Hello World!");
     writer.close();
-
-    return "hello";
   }
 }
