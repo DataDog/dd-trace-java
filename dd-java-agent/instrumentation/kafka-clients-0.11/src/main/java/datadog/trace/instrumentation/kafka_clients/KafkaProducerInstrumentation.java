@@ -50,6 +50,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
       packageName + ".KafkaDecorator",
       packageName + ".TextMapInjectAdapter",
       packageName + ".KafkaProducerCallback",
+      packageName + ".HeadersHelper",
     };
   }
 
@@ -99,13 +100,13 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
         }
         sortedTags.put(TOPIC_TAG, record.topic());
         sortedTags.put(TYPE_TAG, "kafka");
+
         try {
           propagate().inject(span, record.headers(), SETTER);
-          if (record.headers().lastHeader("dsm_ignore") == null) {
-            propagate().injectBinaryPathwayContext(span, record.headers(), SETTER, sortedTags);
+          if (HeadersHelper.HasDsmDisabledHeader(record.headers())) {
+            HeadersHelper.RemoveDsmDisabledHeader(record.headers());
           } else {
-            record.headers().remove("dsm_ignore");
-            System.out.println("#### PathwayContext is invalid, no checkpoint will be made - " + record.topic());
+            propagate().injectBinaryPathwayContext(span, record.headers(), SETTER, sortedTags);
           }
         } catch (final IllegalStateException e) {
           // headers must be read-only from reused record. try again with new one.

@@ -65,7 +65,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
       packageName + ".ProcessorRecordContextVisitor",
       packageName + ".StampedRecordContextVisitor",
       packageName + ".StreamTaskContext",
-      packageName + ".TopologyContext",
+      packageName + ".GlobalTopologyContext",
     };
   }
 
@@ -234,21 +234,24 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
           // spans are written out together by TraceStructureWriter when running in strict mode
         }
 
-        PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, SR_GETTER);
-        span.mergePathwayContext(pathwayContext);
-        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-        sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
-        if (streamTaskContext != null) {
-          String applicationId = streamTaskContext.getApplicationId();
-          if (applicationId != null) {
-            // Kafka Streams uses the application ID as the consumer group.id.
-            sortedTags.put(GROUP_TAG, applicationId);
+        if (GlobalTopologyContext.isEmpty() || GlobalTopologyContext.isSourceTopic(record.topic()))
+        {
+          PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, SR_GETTER);
+          span.mergePathwayContext(pathwayContext);
+          LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+          sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
+          if (streamTaskContext != null) {
+            String applicationId = streamTaskContext.getApplicationId();
+            if (applicationId != null) {
+              // Kafka Streams uses the application ID as the consumer group.id.
+              sortedTags.put(GROUP_TAG, applicationId);
+            }
           }
+          sortedTags.put(PARTITION_TAG, String.valueOf(record.partition()));
+          sortedTags.put(TOPIC_TAG, record.topic());
+          sortedTags.put(TYPE_TAG, "kafka");
+          AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
         }
-        sortedTags.put(PARTITION_TAG, String.valueOf(record.partition()));
-        sortedTags.put(TOPIC_TAG, record.topic());
-        sortedTags.put(TYPE_TAG, "kafka");
-        AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
       } else {
         span = startSpan(KAFKA_CONSUME, null);
       }
@@ -303,8 +306,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
           // spans are written out together by TraceStructureWriter when running in strict mode
         }
 
-        // set checkpoint only if this is a source topic
-        if (TopologyContext.isSourceTopic(record.topic())) {
+        if (GlobalTopologyContext.isEmpty() || GlobalTopologyContext.isSourceTopic(record.topic())) {
           PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, PR_GETTER);
           span.mergePathwayContext(pathwayContext);
           LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
@@ -320,11 +322,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
           sortedTags.put(TOPIC_TAG, record.topic());
           sortedTags.put(TYPE_TAG, "kafka");
           AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
-          System.out.println("#### CONSUME - TRUE - " + record.topic());
-        } else {
-          System.out.println("#### CONSUME - FALSE - " + record.topic());
         }
-
       } else {
         span = startSpan(KAFKA_CONSUME, null);
       }

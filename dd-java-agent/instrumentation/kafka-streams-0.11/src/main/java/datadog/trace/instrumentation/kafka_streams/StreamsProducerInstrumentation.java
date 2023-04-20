@@ -7,6 +7,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
+import datadog.trace.instrumentation.kafka_clients.HeadersHelper;
 import datadog.trace.instrumentation.kafka_clients.TextMapExtractAdapter;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -26,9 +27,10 @@ public class StreamsProducerInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-        packageName + ".TopologyContext",
+        packageName + ".GlobalTopologyContext",
         "datadog.trace.instrumentation.kafka_clients.TextMapExtractAdapter",
         "datadog.trace.instrumentation.kafka_clients.Base64Decoder",
+        "datadog.trace.instrumentation.kafka_clients.HeadersHelper",
     };
   }
 
@@ -43,20 +45,15 @@ public class StreamsProducerInstrumentation extends Instrumenter.Tracing
     public static void enter(
         @Advice.Argument(value = 0, readOnly = false) ProducerRecord record
     ) {
-      if (TopologyContext.isTargetTopic(record.topic())) {
+      if (GlobalTopologyContext.isTargetTopic(record.topic())) {
+        // restore the origin context
         PathwayContext context = AgentTracer.get().extractBinaryPathwayContext(record.headers(),
             TextMapExtractAdapter.GETTER);
         AgentTracer.activeSpan().setPathwayContext(context);
       } else {
-        // A hack to force the downstream instrumentation to skip checkpointing
-        record.headers().add("dsm_ignore", null);
+        // mark the record as ignorable
+        HeadersHelper.AddDsmDisabledHeader(record.headers());
       }
     }
-  }
-
-  @Advice.OnMethodExit(suppress = Throwable.class)
-  public static void leave(
-      @Advice.Argument(value = 0, readOnly = false) ProducerRecord record) {
-    record.headers().remove("no_dsm_checkpoint");
   }
 }
