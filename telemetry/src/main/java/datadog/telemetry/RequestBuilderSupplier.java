@@ -14,7 +14,7 @@ class RequestBuilderSupplier implements Supplier<RequestBuilder> {
   @Override
   public RequestBuilder get() {
     if (requestBuilder == null) {
-      requestBuilder = new RequestBuilder(httpUrl);
+      requestBuilder = new RequestBuilder(httpUrl, true);
     }
     return requestBuilder;
   }
