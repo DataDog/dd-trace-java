@@ -7,14 +7,17 @@ import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueScript;
+import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.SpanDecorationInstrumentor;
 import datadog.trace.api.Pair;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
+import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -102,7 +105,7 @@ public class SpanDecorationProbe extends ProbeDefinition {
   }
 
   @Override
-  public void evaluate(Snapshot.CapturedContext context, Snapshot.CapturedContext.Status status) {
+  public void evaluate(CapturedContext context, CapturedContext.Status status) {
     for (Decoration decoration : decorations) {
       if (decoration.when != null) {
         try {
@@ -112,9 +115,13 @@ public class SpanDecorationProbe extends ProbeDefinition {
           }
         } catch (EvaluationException ex) {
           LOGGER.debug("Evaluation error: ", ex);
-          status.addError(new Snapshot.EvaluationError(ex.getExpr(), ex.getMessage()));
+          status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
         }
       }
+      if (!(status instanceof SpanDecorationStatus)) {
+        throw new IllegalStateException("Invalid status: " + status.getClass());
+      }
+      SpanDecorationStatus spanStatus = (SpanDecorationStatus) status;
       for (Tag tag : decoration.tags) {
         try {
           Value<?> tagValue = tag.value.execute(context);
@@ -126,10 +133,10 @@ public class SpanDecorationProbe extends ProbeDefinition {
           } else {
             serializeValue(sb, tag.value.getDsl(), tagValue.getValue(), status);
           }
-          status.addTag(tag.name, sb.toString());
+          spanStatus.addTag(tag.name, sb.toString());
         } catch (EvaluationException ex) {
           LOGGER.debug("Evaluation error: ", ex);
-          status.addError(new Snapshot.EvaluationError(ex.getExpr(), ex.getMessage()));
+          status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
         }
       }
     }
@@ -137,14 +144,28 @@ public class SpanDecorationProbe extends ProbeDefinition {
 
   @Override
   public void commit(
-      Snapshot.CapturedContext entryContext,
-      Snapshot.CapturedContext exitContext,
-      List<Snapshot.CapturedThrowable> caughtExceptions) {
-    Snapshot.CapturedContext.Status status =
+      CapturedContext entryContext,
+      CapturedContext exitContext,
+      List<CapturedContext.CapturedThrowable> caughtExceptions) {
+    CapturedContext.Status status =
         evaluateAt == MethodLocation.EXIT ? exitContext.getStatus(id) : entryContext.getStatus(id);
     if (status == null) {
       return;
     }
+
+    decorateTags((SpanDecorationStatus) status);
+  }
+
+  @Override
+  public void commit(CapturedContext lineContext, int line) {
+    CapturedContext.Status status = lineContext.getStatus(id);
+    if (status == null) {
+      return;
+    }
+    decorateTags((SpanDecorationStatus) status);
+  }
+
+  private void decorateTags(SpanDecorationStatus status) {
     List<Pair<String, String>> tagsToDecorate = status.getTagsToDecorate();
     if (tagsToDecorate == null) {
       return;
@@ -165,6 +186,11 @@ public class SpanDecorationProbe extends ProbeDefinition {
     for (Pair<String, String> tag : tagsToDecorate) {
       agentSpan.setTag(tag.getLeft(), tag.getRight());
     }
+  }
+
+  @Override
+  public CapturedContext.Status createStatus() {
+    return new SpanDecorationStatus(this);
   }
 
   public TargetSpan getTargetSpan() {
@@ -219,6 +245,22 @@ public class SpanDecorationProbe extends ProbeDefinition {
         + ", evaluateAt="
         + evaluateAt
         + "} ";
+  }
+
+  private static class SpanDecorationStatus extends CapturedContext.Status {
+    private final List<Pair<String, String>> tagsToDecorate = new ArrayList<>();
+
+    public SpanDecorationStatus(ProbeImplementation probeImplementation) {
+      super(probeImplementation);
+    }
+
+    public void addTag(String tagName, String tagValue) {
+      tagsToDecorate.add(Pair.of(tagName, tagValue));
+    }
+
+    public List<Pair<String, String>> getTagsToDecorate() {
+      return tagsToDecorate;
+    }
   }
 
   public static SpanDecorationProbe.Builder builder() {

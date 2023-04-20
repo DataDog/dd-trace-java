@@ -171,13 +171,13 @@ commands:
       - restore_cache:
           keys:
             # Dependent steps will find this cache
-            - dd-trace-java-dep<< parameters.cacheType >>-v2-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+            - dd-trace-java-dep<< parameters.cacheType >>-v3-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
             # New branch commits will find this cache
-            - dd-trace-java-dep<< parameters.cacheType >>-v2-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
+            - dd-trace-java-dep<< parameters.cacheType >>-v3-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
             # New branches fall back on main build caches
-            - dd-trace-java-dep<< parameters.cacheType >>-v2-master-{{ checksum "_circle_ci_cache_base_id" }}-
+            - dd-trace-java-dep<< parameters.cacheType >>-v3-master-{{ checksum "_circle_ci_cache_base_id" }}-
             # Fallback to the previous cache during transition
-            - dd-trace-java-dep-v1-master-{{ checksum "_circle_ci_cache_base_id" }}-
+            - dd-trace-java-dep<< parameters.cacheType >>-v2-master-{{ checksum "_circle_ci_cache_base_id" }}-
 
   save_dependency_cache:
     parameters:
@@ -185,7 +185,7 @@ commands:
         type: string
     steps:
       - save_cache:
-          key: dd-trace-java-dep<< parameters.cacheType >>-v2-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+          key: dd-trace-java-dep<< parameters.cacheType >>-v3-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
           paths:
             # Cached dependencies and wrappers for gradle
             - ~/.gradle/caches
@@ -207,7 +207,7 @@ commands:
       - restore_cache:
           keys:
             # Dependent steps will find this cache
-            - dd-trace-java-build<< parameters.cacheType >>-v2-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+            - dd-trace-java-build<< parameters.cacheType >>-v3-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
 
   save_build_cache:
     parameters:
@@ -215,11 +215,11 @@ commands:
         type: string
     steps:
       - save_cache:
-          key: dd-trace-java-build<< parameters.cacheType >>-v2-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+          key: dd-trace-java-build<< parameters.cacheType >>-v3-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
           paths:
             # Gradle version specific cache for incremental builds. Needs to match version in
             # gradle/wrapper/gradle-wrapper.properties
-            - ~/.gradle/caches/7.5.47-20220929220000+0000
+            - ~/.gradle/caches/8.1
             # Workspace
             - ~/dd-trace-java/.gradle
             - ~/dd-trace-java/workspace
@@ -240,7 +240,9 @@ commands:
 
       - run:
           name: Install python 3.9
-          command: sudo apt-get install python3.9-venv
+          command: |
+            sudo apt-get install python3.9-full python3.9-dev python3.9-venv
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >>"$BASH_ENV"
 
       - run:
           name: versions
@@ -343,21 +345,31 @@ jobs:
 
   check:
     <<: *defaults
-    resource_class: xlarge
+
+    parameters:
+      gradleTarget:
+        type: string
+      cacheType:
+        type: string
+
+    resource_class: large
 
     steps:
       - setup_code
       - restore_dependency_cache:
-          cacheType: lib
+          cacheType: << parameters.cacheType >>
       - restore_build_cache:
-          cacheType: lib
+          cacheType: << parameters.cacheType >>
 
       - run:
           name: Check Project
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew check -PskipTests -PrunBuildSrcTests
+            ./gradlew
+            << parameters.gradleTarget >>
+            -PskipTests
+            -PrunBuildSrcTests
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
 
@@ -764,24 +776,20 @@ jobs:
             cp ~/dd-trace-java/workspace/dd-trace-ot/build/libs/*.jar system-tests/binaries/
 
       - run:
-          name: Install Python 3.9
-          command: pyenv install 3.9
-
-      - run:
-          name: Install Requirements
+          name: Install requirements
           command: |
             cd system-tests/parametric
-            pyenv local 3.9
-            python --version
-            pip install wheel
-            pip install -r requirements.txt
+            pyenv local system
+            python3.9 --version
+            python3.9 -m pip install wheel
+            python3.9 -m pip install -r requirements.txt
+            sudo ln -sf /usr/bin/python3.9 /usr/bin/python
 
       - run:
           name: Run
           command: |
             cd system-tests/parametric
             export CLIENTS_ENABLED=java
-            python --version
             ./run.sh
 
 build_test_jobs: &build_test_jobs
@@ -826,6 +834,39 @@ build_test_jobs: &build_test_jobs
   - check:
       requires:
         - ok_to_test
+      name: check_base
+      gradleTarget: ":baseCheck"
+      cacheType: base
+
+  - check:
+      requires:
+        - ok_to_test
+      name: check_inst
+      gradleTarget: ":instrumentationCheck"
+      cacheType: inst
+
+  - check:
+      requires:
+        - ok_to_test
+      name: check_smoke
+      gradleTarget: ":smokeCheck"
+      cacheType: smoke
+
+  - check:
+      requires:
+        - ok_to_test
+      name: check_profiling
+      gradleTarget: ":profilingCheck"
+      cacheType: profiling
+
+  - fan_in:
+      requires:
+        - check_base
+        - check_inst
+        - check_smoke
+        - check_profiling
+      name: check
+      stage: check
 
   - tests:
       requires:

@@ -19,12 +19,11 @@ import static org.objectweb.asm.Type.getType;
 
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Where;
+import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CorrelationAccess;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
-import datadog.trace.bootstrap.debugger.Snapshot;
 import java.util.ArrayList;
 import java.util.List;
 import org.objectweb.asm.Opcodes;

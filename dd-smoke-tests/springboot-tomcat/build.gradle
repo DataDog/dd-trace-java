@@ -67,6 +67,18 @@ dependencies {
   testImplementation project(':dd-smoke-tests')
 }
 
+tasks.packageSources {
+  dependsOn 'unzip'
+}
+
+tasks.sourcesJar {
+  dependsOn 'unzip'
+}
+
+tasks.javadocJar {
+  dependsOn 'unzip'
+}
+
 tasks.bootWar {
   dependsOn 'unzip'
 }

@@ -3,7 +3,6 @@ package com.datadog.debugger.instrumentation;
 import static com.datadog.debugger.probe.LogProbe.Capture.toLimits;
 
 import com.datadog.debugger.probe.LogProbe;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import java.util.List;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;

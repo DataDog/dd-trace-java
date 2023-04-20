@@ -1,7 +1,6 @@
 package com.datadog.debugger.instrumentation;
 
 import com.datadog.debugger.probe.SpanDecorationProbe;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.Limits;
 import java.util.List;
 import org.objectweb.asm.tree.ClassNode;

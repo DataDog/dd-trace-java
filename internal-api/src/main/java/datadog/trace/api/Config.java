@@ -1916,11 +1916,23 @@ public class Config {
     // don't want to put this logic (which will evolve) in the public ProfilingConfig, and can't
     // access Platform there
     // we encountered AsyncGetCallTrace bugs when ZGC is enabled
-    return Platform.activeGarbageCollector() != Z
-        && (Platform.isJ9()
-            || Platform.isJavaVersionAtLeast(17, 0, 5)
-            || (Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 17))
-            || (Platform.isJavaVersion(8) && Platform.isJavaVersionAtLeast(8, 0, 352)));
+
+    boolean result =
+        Platform.activeGarbageCollector() != Z
+            && (Platform.isJ9()
+                || Platform.isJavaVersionAtLeast(17, 0, 5)
+                || (Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 17))
+                || (Platform.isJavaVersion(8) && Platform.isJavaVersionAtLeast(8, 0, 352)));
+
+    if (result && Platform.isJ9()) {
+      // Semeru JDK 11 and JDK 17 have problems with unloaded classes and jmethodids, leading to JVM
+      // crash
+      // The ASGCT based profilers are only activated in JDK 11.0.18+ and JDK 17.0.6+
+      result &=
+          !((Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 18))
+              || ((Platform.isJavaVersion(17) && Platform.isJavaVersionAtLeast(17, 0, 6))));
+    }
+    return result;
   }
 
   public boolean isCrashTrackingAgentless() {

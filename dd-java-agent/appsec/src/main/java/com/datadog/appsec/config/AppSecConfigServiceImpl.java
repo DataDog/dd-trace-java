@@ -312,7 +312,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   }
 
   private static int countRules(AppSecConfig config) {
-    return config.getRules().size();
+    return config.getNumberOfRules();
   }
 
   @Override

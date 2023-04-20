@@ -3,6 +3,7 @@ package com.datadog.debugger.agent;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 
+import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -10,8 +11,6 @@ import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.debugger.DebuggerContext;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -373,7 +372,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
             listener.instrumentationResult(definition, result);
           }
           if (!result.getDiagnostics().isEmpty()) {
-            DebuggerContext.reportDiagnostics(definition.getProbeId(), result.getDiagnostics());
+            DebuggerAgent.getSink()
+                .addDiagnostics(definition.getProbeId(), result.getDiagnostics());
           }
         }
       }
@@ -396,7 +396,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
     String msg = String.format(format, className, location);
     DiagnosticMessage diagnosticMessage = new DiagnosticMessage(DiagnosticMessage.Kind.ERROR, msg);
     for (ProbeDefinition definition : definitions) {
-      DebuggerContext.reportDiagnostics(definition.getProbeId(), singletonList(diagnosticMessage));
+      DebuggerAgent.getSink()
+          .addDiagnostics(definition.getProbeId(), singletonList(diagnosticMessage));
       log.debug("{} for definition: {}", msg, definition);
     }
   }

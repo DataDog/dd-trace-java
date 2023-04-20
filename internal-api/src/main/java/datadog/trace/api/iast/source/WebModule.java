@@ -33,6 +33,8 @@ public interface WebModule extends IastModule {
 
   void onQueryString(@Nullable String queryString);
 
+  void onCookieNames(@Nullable Iterable<String> cookieNames);
+
   void onCookieValue(@Nullable String cookieName, @Nullable String cookieValue);
 
   void onRequestPathParameter(

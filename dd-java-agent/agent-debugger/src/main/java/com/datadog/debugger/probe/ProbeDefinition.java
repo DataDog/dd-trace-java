@@ -3,15 +3,16 @@ package com.datadog.debugger.probe;
 import static java.util.Collections.singletonList;
 
 import com.datadog.debugger.agent.Generated;
+import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
+import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.ProbeLocation;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -34,7 +35,7 @@ public abstract class ProbeDefinition implements ProbeImplementation {
   protected final Map<String, String> tagMap = new HashMap<>();
   protected final Where where;
   protected final MethodLocation evaluateAt;
-  protected transient Snapshot.ProbeLocation location;
+  protected transient ProbeLocation location;
 
   protected ProbeDefinition(
       String language, ProbeId probeId, String[] tagStrs, Where where, MethodLocation evaluateAt) {
@@ -57,6 +58,7 @@ public abstract class ProbeDefinition implements ProbeImplementation {
     return id;
   }
 
+  @Override
   public ProbeId getProbeId() {
     return new ProbeId(id, version);
   }
@@ -108,7 +110,7 @@ public abstract class ProbeDefinition implements ProbeImplementation {
       method = result.getMethodName();
     }
     List<String> lines = where.getLines() != null ? Arrays.asList(where.getLines()) : null;
-    this.location = new Snapshot.ProbeLocation(type, method, where.getSourceFile(), lines);
+    this.location = new ProbeLocation(type, method, where.getSourceFile(), lines);
   }
 
   private static void initTagMap(Map<String, String> tagMap, Tag[] tags) {
@@ -136,22 +138,22 @@ public abstract class ProbeDefinition implements ProbeImplementation {
       List<String> probeIds);
 
   @Override
-  public Snapshot.ProbeLocation getLocation() {
+  public ProbeLocation getLocation() {
     return location;
   }
 
   @Override
-  public void evaluate(Snapshot.CapturedContext context, Snapshot.CapturedContext.Status status) {}
+  public void evaluate(CapturedContext context, CapturedContext.Status status) {}
 
   @Override
   public void commit(
-      Snapshot.CapturedContext entryContext,
-      Snapshot.CapturedContext exitContext,
-      List<Snapshot.CapturedThrowable> caughtExceptions) {}
+      CapturedContext entryContext,
+      CapturedContext exitContext,
+      List<CapturedContext.CapturedThrowable> caughtExceptions) {}
 
   /** Commit snapshot based on line context and the current probe This is for line probes */
   @Override
-  public void commit(Snapshot.CapturedContext lineContext, int line) {}
+  public void commit(CapturedContext lineContext, int line) {}
 
   @Override
   public boolean isCaptureSnapshot() {
@@ -161,6 +163,11 @@ public abstract class ProbeDefinition implements ProbeImplementation {
   @Override
   public boolean hasCondition() {
     return false;
+  }
+
+  @Override
+  public CapturedContext.Status createStatus() {
+    return null;
   }
 
   public abstract static class Builder<T extends Builder> {

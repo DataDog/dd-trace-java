@@ -9,7 +9,6 @@ import com.datadog.debugger.el.values.ObjectValue;
 import com.datadog.debugger.el.values.UndefinedValue;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.Where;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import datadog.trace.bootstrap.debugger.el.Values;
