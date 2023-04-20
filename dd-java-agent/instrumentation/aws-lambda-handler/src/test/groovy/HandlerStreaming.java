@@ -10,7 +10,7 @@ import java.nio.charset.Charset;
 
 public class HandlerStreaming implements RequestStreamHandler {
   @Override
-  public String handleRequest(InputStream inputStream, OutputStream outputStream, Context context)
+  public void handleRequest(InputStream inputStream, OutputStream outputStream, Context context)
       throws IOException {
     PrintWriter writer =
         new PrintWriter(
