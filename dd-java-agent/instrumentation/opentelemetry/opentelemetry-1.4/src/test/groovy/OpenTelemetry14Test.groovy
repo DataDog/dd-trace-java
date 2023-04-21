@@ -337,7 +337,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
         span {
           parent()
           operationName "other-name"
-          resourceName "other-name"
+          resourceName "some-name"
         }
       }
     }
