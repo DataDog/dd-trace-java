@@ -113,4 +113,86 @@ public final class SQLNormalizer {
     }
     return positions;
   }
+
+  public static Tokenizer tokenizerFor(String sql) {
+    return new Tokenizer(sql);
+  }
+
+  private static boolean isQuoted(String sql, int start, int end) {
+    return (sql.charAt(start) == '\'' && sql.charAt(end) == '\'');
+  }
+
+  private static boolean isHexLiteralPrefix(String sql, int start, int end) {
+    return (sql.charAt(start) | ' ') == 'x' && start + 1 < end && sql.charAt(start + 1) == '\'';
+  }
+
+  private static BitSet findSplitterPositions(String sql) {
+    BitSet positions = new BitSet(sql.length());
+    boolean quoted = false;
+    boolean escaped = false;
+    for (int i = 0; i < sql.length(); ++i) {
+      char b = sql.charAt(i);
+      if (b == '\'' && !escaped) {
+        quoted = !quoted;
+      } else {
+        escaped = (b == '\\') & !escaped;
+        positions.set(i, !quoted & isSplitter((byte) b));
+      }
+    }
+    return positions;
+  }
+
+  public static class Tokenizer {
+    private final String sql;
+    private final BitSet splitters;
+    private int start;
+    private int end;
+    private int tokenStart;
+    private int tokenLength;
+
+    private Tokenizer(final String sql) {
+      this.sql = sql;
+      splitters = findSplitterPositions(sql);
+      end = sql.length();
+      start = end > 0 ? splitters.previousSetBit(end - 1) : -1;
+    }
+
+    public boolean next() {
+      boolean found = false;
+      while (end > 0 && start > 0) {
+        int sequenceStart = start + 1;
+        int sequenceEnd = end - 1;
+        if (sequenceEnd == sequenceStart) {
+          // single digit numbers can can be fixed in place
+          if (Character.isDigit(sql.charAt(sequenceStart))) {
+            tokenStart = sequenceStart;
+            tokenLength = 1;
+            found = true;
+          }
+        } else if (sequenceStart < sequenceEnd) {
+          if (isQuoted(sql, sequenceStart, sequenceEnd)
+              || isNumericLiteralPrefix((byte) sql.charAt(sequenceStart))
+              || isHexLiteralPrefix(sql, sequenceStart, sequenceEnd)) {
+            tokenStart = sequenceStart;
+            tokenLength = (sequenceEnd - sequenceStart + 1);
+            found = true;
+          }
+        }
+        end = start;
+        start = splitters.previousSetBit(start - 1);
+        if (found) {
+          break;
+        }
+      }
+      return found;
+    }
+
+    public int getStart() {
+      return tokenStart;
+    }
+
+    public int getLength() {
+      return tokenLength;
+    }
+  }
 }
