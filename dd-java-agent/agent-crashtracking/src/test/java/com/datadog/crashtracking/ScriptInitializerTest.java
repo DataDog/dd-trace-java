@@ -74,6 +74,18 @@ public class ScriptInitializerTest {
   }
 
   @Test
+  void testNoErrFileSpec() throws IOException {
+    Path file = tempDir.resolve("dd_crash_uploader.sh");
+    ScriptInitializer.initialize(file.toString(), "");
+    assertTrue(Files.exists(file), "File " + file + " should have been created");
+    // sanity to check the crash log file was properly replaced in the script
+    List<String> lines = Files.readAllLines(file);
+    assertFalse(lines.isEmpty(), "File " + file + " is expected to be non-empty");
+    // sanity to check the crash log file was properly replaced in the script
+    assertTrue(lines.stream().anyMatch(l -> l.contains("hs_err")));
+  }
+
+  @Test
   void testInvalidFolder() throws IOException {
     Files.setPosixFilePermissions(tempDir, PosixFilePermissions.fromString("r-x------"));
     Path file = tempDir.resolve("dd_crash_uploader.sh");
