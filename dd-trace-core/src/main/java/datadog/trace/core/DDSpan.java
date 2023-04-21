@@ -327,13 +327,27 @@ public class DDSpan
 
   @Override
   public final DDSpan setTag(final String tag, final String value) {
-    context.setTag(tag, value);
+    if (value == null || value.isEmpty()) {
+      // Remove the tag
+      context.setTag(tag, null);
+    } else {
+      context.setTag(tag, value);
+    }
     return this;
   }
 
   @Override
   public final DDSpan setTag(final String tag, final boolean value) {
     context.setTag(tag, value);
+    return this;
+  }
+
+  @Override
+  public AgentSpan setAttribute(String key, Object value) {
+    if (key == null || key.isEmpty() || value == null) {
+      return this;
+    }
+    this.context.setTag(key, value);
     return this;
   }
 
@@ -408,7 +422,12 @@ public class DDSpan
 
   @Override
   public DDSpan setTag(final String tag, final CharSequence value) {
-    context.setTag(tag, value);
+    if (value == null || value.length() == 0) {
+      // Remove the tag
+      context.setTag(tag, null);
+    } else {
+      context.setTag(tag, value);
+    }
     return this;
   }
 

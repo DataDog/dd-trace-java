@@ -154,6 +154,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
     if (tagBuilder) {
       builder.setAttribute(DDTags.RESOURCE_NAME, "some-resource")
         .setAttribute("string", "a")
+        .setAttribute("empty_string", "")
         .setAttribute("number", 1)
         .setAttribute("boolean", true)
     }
@@ -161,6 +162,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
     if (tagSpan) {
       result.setAttribute(DDTags.RESOURCE_NAME, "other-resource")
       result.setAttribute("string", "b")
+      result.setAttribute("empty_string", "")
       result.setAttribute("number", 2)
       result.setAttribute("boolean", false)
     }
@@ -185,10 +187,12 @@ class OpenTelemetry14Test extends AgentTestRunner {
           tags {
             if (tagSpan) {
               "string" "b"
+              "empty_string" ""
               "number" 2
               "boolean" false
             } else if (tagBuilder) {
               "string" "a"
+              "empty_string" ""
               "number" 1
               "boolean" true
             }
