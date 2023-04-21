@@ -10,6 +10,7 @@ import static net.bytebuddy.asm.Advice.OnMethodEnter;
 import static net.bytebuddy.asm.Advice.OnMethodExit;
 import static net.bytebuddy.asm.Advice.Origin;
 import static net.bytebuddy.asm.Advice.This;
+import static net.bytebuddy.implementation.bytecode.assign.Assigner.Typing.DYNAMIC;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -36,14 +37,14 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
 
   @Override
   public String hierarchyMarkerType() {
-    return "com.amazonaws.services.lambda.runtime.RequestHandler";
+    return "com.amazonaws.services.lambda.runtime.RequestStreamHandler";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(
         named(hierarchyMarkerType())
-            .or(named("com.amazonaws.services.lambda.runtime.RequestStreamHandler")));
+            .or(named("com.amazonaws.services.lambda.runtime.RequestHandler")));
   }
 
   @Override
@@ -83,6 +84,7 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
         @This final Object that,
         @Advice.Argument(0) final Object event,
         @Origin("#m") final String methodName) {
+
       AgentSpan.Context lambdaContext = AgentTracer.get().notifyExtensionStart(event);
       final AgentSpan span;
       if (null == lambdaContext) {
@@ -98,8 +100,9 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
     static void exit(
         @Origin String method,
         @Enter final AgentScope scope,
-        @Advice.Return final Object result,
+        @Advice.Return(typing = DYNAMIC) final Object result,
         @Advice.Thrown final Throwable throwable) {
+
       if (scope == null) {
         return;
       }

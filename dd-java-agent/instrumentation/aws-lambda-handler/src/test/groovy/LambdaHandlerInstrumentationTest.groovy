@@ -1,4 +1,9 @@
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import java.io.InputStream
+import java.io.OutputStream
+import java.nio.charset.StandardCharsets
+import java.io.ByteArrayOutputStream
+import java.io.ByteArrayInputStream
 
 abstract class LambdaHandlerInstrumentationTest extends VersionedNamingTestBase {
 
@@ -24,7 +29,9 @@ abstract class LambdaHandlerInstrumentationTest extends VersionedNamingTestBase 
 
   def "test lambda streaming handler"() {
     when:
-    new HandlerStreaming().handleRequest(null, null)
+    def input = new ByteArrayInputStream(StandardCharsets.UTF_8.encode("Hello").array())
+    def output = new ByteArrayOutputStream()
+    new HandlerStreaming().handleRequest(input, output, null)
 
     then:
     assertTraces(1) {
