@@ -7,6 +7,5 @@ import java.io.OutputStream;
 public class HandlerStreaming implements RequestStreamHandler {
   @Override
   public void handleRequest(InputStream inputStream, OutputStream outputStream, Context context)
-      throws IOException {
-  }
+      throws IOException {}
 }
