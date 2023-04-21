@@ -1,5 +1,4 @@
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
-import datadog.trace.instrumentation.aws.v1.lambda.LambdaHandlerInstrumentation
 
 abstract class LambdaHandlerInstrumentationTest extends VersionedNamingTestBase {
 
