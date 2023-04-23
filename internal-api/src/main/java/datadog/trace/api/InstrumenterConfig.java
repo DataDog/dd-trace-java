@@ -55,7 +55,6 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
-import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 import java.util.List;
@@ -74,7 +73,7 @@ public class InstrumenterConfig {
   private final boolean profilingEnabled;
   private final boolean ciVisibilityEnabled;
   private final ProductActivation appSecActivation;
-  private final boolean iastEnabled;
+  private final ProductActivation iastActivation;
   private final boolean usmEnabled;
   private final boolean telemetryEnabled;
 
@@ -130,19 +129,12 @@ public class InstrumenterConfig {
       profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, PROFILING_ENABLED_DEFAULT);
       ciVisibilityEnabled =
           configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
-      // ConfigProvider.getString currently doesn't fallback to default for empty strings. We have
-      // special handling here until we have a general solution for empty string value fallback.
-      String appSecEnabled = configProvider.getString(APPSEC_ENABLED);
-      if (appSecEnabled == null || appSecEnabled.isEmpty()) {
-        appSecEnabled =
-            configProvider.getStringExcludingSource(
-                APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED, SystemPropertiesConfigSource.class);
-        if (appSecEnabled.isEmpty()) {
-          appSecEnabled = DEFAULT_APPSEC_ENABLED;
-        }
-      }
-      appSecActivation = ProductActivation.fromString(appSecEnabled);
-      iastEnabled = configProvider.getBoolean(IAST_ENABLED, DEFAULT_IAST_ENABLED);
+      appSecActivation =
+          ProductActivation.fromString(
+              configProvider.getStringNotEmpty(APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED));
+      iastActivation =
+          ProductActivation.fromString(
+              configProvider.getStringNotEmpty(IAST_ENABLED, DEFAULT_IAST_ENABLED));
       usmEnabled = configProvider.getBoolean(USM_ENABLED, DEFAULT_USM_ENABLED);
       telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
     } else {
@@ -150,7 +142,7 @@ public class InstrumenterConfig {
       profilingEnabled = false;
       ciVisibilityEnabled = false;
       appSecActivation = ProductActivation.FULLY_DISABLED;
-      iastEnabled = false;
+      iastActivation = ProductActivation.FULLY_DISABLED;
       telemetryEnabled = false;
       usmEnabled = false;
     }
@@ -244,12 +236,12 @@ public class InstrumenterConfig {
     return appSecActivation;
   }
 
-  public boolean isUsmEnabled() {
-    return usmEnabled;
+  public ProductActivation getIastActivation() {
+    return iastActivation;
   }
 
-  public boolean isIastEnabled() {
-    return iastEnabled;
+  public boolean isUsmEnabled() {
+    return usmEnabled;
   }
 
   public boolean isTelemetryEnabled() {
@@ -383,8 +375,8 @@ public class InstrumenterConfig {
         + ciVisibilityEnabled
         + ", appSecActivation="
         + appSecActivation
-        + ", iastEnabled="
-        + iastEnabled
+        + ", iastActivation="
+        + iastActivation
         + ", usmEnabled="
         + usmEnabled
         + ", telemetryEnabled="

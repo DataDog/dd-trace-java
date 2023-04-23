@@ -25,13 +25,7 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
 
 // DQH - API changes that impact instrumentation occurred in spring-data-commons in March 2014.
 // For now, that limits support to spring-data-commons 1.9.0 (maybe 1.8.0).

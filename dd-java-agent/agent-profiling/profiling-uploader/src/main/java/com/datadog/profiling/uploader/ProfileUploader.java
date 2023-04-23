@@ -20,6 +20,9 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_HTTP_DI
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.uploader.util.JfrCliHelper;
+import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.JsonReader;
+import com.squareup.moshi.JsonWriter;
 import datadog.common.version.VersionInfo;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
@@ -34,6 +37,7 @@ import datadog.trace.util.PidHelper;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InterruptedIOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -44,8 +48,10 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Dispatcher;
@@ -113,7 +119,8 @@ public final class ProfileUploader {
   private final HttpUrl url;
   private final int terminationTimeout;
   private final CompressionType compressionType;
-  private final String tags;
+
+  private final RecordingDataAdapter jsonAdapter;
 
   private final Duration uploadTimeout;
 
@@ -163,7 +170,10 @@ public final class ProfileUploader {
     }
 
     // Comma separated tags string for V2.4 format
-    tags = String.join(",", tagsToList(tagsMap));
+    Pattern quotes = Pattern.compile("\"");
+    jsonAdapter =
+        new RecordingDataAdapter(
+            quotes.matcher(String.join(",", tagsToList(tagsMap))).replaceAll(""));
     uploadTimeout = Duration.ofSeconds(config.getProfilingUploadTimeout());
 
     // This is the same thing OkHttp Dispatcher is doing except thread naming and daemonization
@@ -379,23 +389,7 @@ public final class ProfileUploader {
   }
 
   private byte[] createEvent(@Nonnull final RecordingData data) {
-    final StringBuilder os = new StringBuilder();
-    os.append("{");
-    os.append("\"attachments\":[\"" + V4_ATTACHMENT_FILENAME + "\"],");
-    os.append(
-        "\""
-            + V4_PROFILE_TAGS_PARAM
-            + "\":\""
-            + tags
-            + ",snapshot:"
-            + data.getKind().name().toLowerCase()
-            + "\",");
-    os.append("\"" + V4_PROFILE_START_PARAM + "\":\"" + data.getStart() + "\",");
-    os.append("\"" + V4_PROFILE_END_PARAM + "\":\"" + data.getEnd() + "\",");
-    os.append("\"family\":\"" + V4_FAMILY + "\",");
-    os.append("\"version\":\"" + V4_VERSION + "\"");
-    os.append("}");
-    return os.toString().getBytes();
+    return jsonAdapter.toJson(data).getBytes(StandardCharsets.UTF_8);
   }
 
   private MultipartBody makeRequestBody(
@@ -443,5 +437,43 @@ public final class ProfileUploader {
    */
   OkHttpClient getClient() {
     return client;
+  }
+
+  private static final class RecordingDataAdapter extends JsonAdapter<RecordingData> {
+
+    private final String tags;
+
+    private RecordingDataAdapter(String tags) {
+      this.tags = tags;
+    }
+
+    @Nullable
+    @Override
+    public RecordingData fromJson(JsonReader jsonReader) {
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public void toJson(JsonWriter writer, RecordingData recordingData) throws IOException {
+      if (recordingData == null) {
+        return;
+      }
+      writer.beginObject();
+      writer.name("attachments");
+      writer.beginArray();
+      writer.value(V4_ATTACHMENT_FILENAME);
+      writer.endArray();
+      writer.name(V4_PROFILE_TAGS_PARAM);
+      writer.value(tags + ",snapshot:" + recordingData.getKind().name().toLowerCase());
+      writer.name(V4_PROFILE_START_PARAM);
+      writer.value(recordingData.getStart().toString());
+      writer.name(V4_PROFILE_END_PARAM);
+      writer.value(recordingData.getEnd().toString());
+      writer.name("family");
+      writer.value(V4_FAMILY);
+      writer.name("version");
+      writer.value(V4_VERSION);
+      writer.endObject();
+    }
   }
 }

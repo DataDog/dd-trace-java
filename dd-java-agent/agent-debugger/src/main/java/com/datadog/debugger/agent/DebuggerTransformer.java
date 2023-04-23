@@ -3,6 +3,7 @@ package com.datadog.debugger.agent;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 
+import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -10,8 +11,7 @@ import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.debugger.DebuggerContext;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
+import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.pool.TypePool;
 import org.objectweb.asm.ClassReader;
@@ -63,6 +64,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private final boolean instrumentTheWorld;
   private final Set<String> excludeClasses = new HashSet<>();
   private final Trie excludeTrie = new Trie();
+  private final Map<String, LogProbe> instrumentTheWorldProbes;
 
   public interface InstrumentationListener {
     void instrumentationResult(ProbeDefinition definition, InstrumentationResult result);
@@ -77,7 +79,10 @@ public class DebuggerTransformer implements ClassFileTransformer {
     this.listener = listener;
     this.instrumentTheWorld = config.isDebuggerInstrumentTheWorld();
     if (this.instrumentTheWorld) {
+      instrumentTheWorldProbes = new ConcurrentHashMap<>();
       readExcludeFile(config.getDebuggerExcludeFile());
+    } else {
+      instrumentTheWorldProbes = null;
     }
   }
 
@@ -208,8 +213,10 @@ public class DebuggerTransformer implements ClassFileTransformer {
               LogProbe.builder()
                   .probeId(UUID.randomUUID().toString(), 0)
                   .where(classNode.name, methodNode.name)
+                  .captureSnapshot(true)
                   .build();
           probes.add(probe);
+          instrumentTheWorldProbes.put(probe.getId(), probe);
         }
       }
       Map<Where, List<ProbeDefinition>> defByLocation = mergeLocations(probes);
@@ -221,6 +228,13 @@ public class DebuggerTransformer implements ClassFileTransformer {
       log.warn("Cannot transform: ", ex);
     }
     return null;
+  }
+
+  public ProbeImplementation instrumentTheWorldResolver(String id, Class<?> callingClass) {
+    if (instrumentTheWorldProbes == null) {
+      return null;
+    }
+    return instrumentTheWorldProbes.get(id);
   }
 
   private boolean isExcludedFromTransformation(String classFilePath) {
@@ -358,7 +372,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
             listener.instrumentationResult(definition, result);
           }
           if (!result.getDiagnostics().isEmpty()) {
-            DebuggerContext.reportDiagnostics(definition.getProbeId(), result.getDiagnostics());
+            DebuggerAgent.getSink()
+                .addDiagnostics(definition.getProbeId(), result.getDiagnostics());
           }
         }
       }
@@ -381,7 +396,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
     String msg = String.format(format, className, location);
     DiagnosticMessage diagnosticMessage = new DiagnosticMessage(DiagnosticMessage.Kind.ERROR, msg);
     for (ProbeDefinition definition : definitions) {
-      DebuggerContext.reportDiagnostics(definition.getProbeId(), singletonList(diagnosticMessage));
+      DebuggerAgent.getSink()
+          .addDiagnostics(definition.getProbeId(), singletonList(diagnosticMessage));
       log.debug("{} for definition: {}", msg, definition);
     }
   }

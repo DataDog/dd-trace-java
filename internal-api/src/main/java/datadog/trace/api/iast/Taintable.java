@@ -45,8 +45,18 @@ public interface Taintable {
       }
     }
 
-    public static Logger getLogger() {
-      return LOGGER;
+    public static void logTaint(Taintable t) {
+      String content;
+      if (t.getClass().getName().startsWith("java.")) {
+        content = t.toString();
+      } else {
+        content = "(value not shown)"; // toString() may trigger tainting
+      }
+      LOGGER.debug(
+          "taint: {}[{}] {}",
+          t.getClass().getSimpleName(),
+          Integer.toHexString(System.identityHashCode(t)),
+          content);
     }
   }
 }

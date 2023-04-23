@@ -9,6 +9,7 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.api.ProductActivation
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.api.function.TriConsumer
@@ -114,7 +115,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     ss.registerCallback(events.responseHeaderDone(), callbacks.responseHeaderDoneCb)
     ss.registerCallback(events.requestPathParams(), callbacks.requestParamsCb)
 
-    if (Config.get().iastEnabled) {
+    if (Config.get().getIastActivation() == ProductActivation.FULLY_ENABLED) {
       def iastSubService = get().getSubscriptionService(RequestContextSlot.IAST)
       def iastCallbacks = new IastIGCallbacks()
       Events<IastIGCallbacks.Context> iastEvents = Events.get()

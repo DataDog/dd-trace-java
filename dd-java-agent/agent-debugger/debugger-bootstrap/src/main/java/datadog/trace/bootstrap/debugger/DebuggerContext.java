@@ -1,8 +1,8 @@
 package datadog.trace.bootstrap.debugger;
 
+import static datadog.trace.bootstrap.debugger.util.TimeoutChecker.DEFAULT_TIME_OUT;
+
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,8 +13,6 @@ import org.slf4j.LoggerFactory;
  * accessible from instrumented code
  */
 public class DebuggerContext {
-  private static final Duration TIME_OUT = Duration.of(100, ChronoUnit.MILLIS);
-
   private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerContext.class);
 
   public enum SkipCause {
@@ -22,16 +20,8 @@ public class DebuggerContext {
     CONDITION
   }
 
-  public interface Sink {
-    void addSnapshot(Snapshot snapshot);
-
-    void addDiagnostics(ProbeId probeId, List<DiagnosticMessage> messages);
-
-    default void skipSnapshot(String probeId, SkipCause cause) {}
-  }
-
   public interface ProbeResolver {
-    Snapshot.ProbeDetails resolve(String id, Class<?> callingClass);
+    ProbeImplementation resolve(String id, Class<?> callingClass);
   }
 
   public interface ClassFilter {
@@ -50,21 +40,17 @@ public class DebuggerContext {
     DebuggerSpan createSpan(String resourceName, String[] tags);
   }
 
-  public interface SnapshotSerializer {
-    String serializeSnapshot(String serviceName, Snapshot snapshot);
-
-    String serializeValue(Snapshot.CapturedValue value);
+  public interface ValueSerializer {
+    String serializeValue(CapturedContext.CapturedValue value);
   }
 
-  private static volatile Sink sink;
   private static volatile ProbeResolver probeResolver;
   private static volatile ClassFilter classFilter;
   private static volatile MetricForwarder metricForwarder;
   private static volatile Tracer tracer;
-  private static volatile SnapshotSerializer snapshotSerializer;
+  private static volatile ValueSerializer valueSerializer;
 
-  public static void init(Sink sink, ProbeResolver probeResolver, MetricForwarder metricForwarder) {
-    DebuggerContext.sink = sink;
+  public static void init(ProbeResolver probeResolver, MetricForwarder metricForwarder) {
     DebuggerContext.probeResolver = probeResolver;
     DebuggerContext.metricForwarder = metricForwarder;
   }
@@ -77,45 +63,15 @@ public class DebuggerContext {
     DebuggerContext.classFilter = classFilter;
   }
 
-  public static void initSnapshotSerializer(SnapshotSerializer snapshotSerializer) {
-    DebuggerContext.snapshotSerializer = snapshotSerializer;
-  }
-
-  /**
-   * Notifies the underlying sink that the snapshot was skipped for one of the SkipCause reason
-   * No-op if no implementation available
-   */
-  public static void skipSnapshot(String probeId, SkipCause cause) {
-    Sink localSink = sink;
-    if (localSink == null) {
-      return;
-    }
-    localSink.skipSnapshot(probeId, cause);
-  }
-
-  /** Adds a snapshot to the underlying sink No-op if no implementation available */
-  public static void addSnapshot(Snapshot snapshot) {
-    Sink localSink = sink;
-    if (localSink == null) {
-      return;
-    }
-    localSink.addSnapshot(snapshot);
-  }
-
-  /** Add diagnostics message to the underlying sink No-op if not implementation available */
-  public static void reportDiagnostics(ProbeId probeId, List<DiagnosticMessage> messages) {
-    Sink localSink = sink;
-    if (localSink == null) {
-      return;
-    }
-    localSink.addDiagnostics(probeId, messages);
+  public static void initValueSerializer(ValueSerializer valueSerializer) {
+    DebuggerContext.valueSerializer = valueSerializer;
   }
 
   /**
    * Returns the probe details based on the probe id provided. If no probe is found, try to
    * re-transform the class using the callingClass parameter No-op if no implementation available
    */
-  public static Snapshot.ProbeDetails resolveProbe(String id, Class<?> callingClass) {
+  public static ProbeImplementation resolveProbe(String id, Class<?> callingClass) {
     ProbeResolver resolver = probeResolver;
     if (resolver == null) {
       return null;
@@ -163,19 +119,9 @@ public class DebuggerContext {
     forwarder.histogram(name, value, tags);
   }
 
-  /** Serializes the specified Snapshot as string Returns null if no implementation is available */
-  public static String serializeSnapshot(String serviceName, Snapshot snapshot) {
-    SnapshotSerializer serializer = snapshotSerializer;
-    if (serializer == null) {
-      LOGGER.warn("Cannot serialize snapshots, no serializer set");
-      return null;
-    }
-    return serializer.serializeSnapshot(serviceName, snapshot);
-  }
-
   /** Serializes the specified value as string Returns null if no implementation is available */
-  public static String serializeValue(Snapshot.CapturedValue value) {
-    SnapshotSerializer serializer = snapshotSerializer;
+  public static String serializeValue(CapturedContext.CapturedValue value) {
+    ValueSerializer serializer = valueSerializer;
     if (serializer == null) {
       LOGGER.warn("Cannot serialize value, no serializer set");
       return null;
@@ -215,27 +161,29 @@ public class DebuggerContext {
    * conditions This is for method probes
    */
   public static void evalContext(
-      Snapshot.CapturedContext context,
+      CapturedContext context,
       Class<?> callingClass,
       long startTimestamp,
       MethodLocation methodLocation,
       String... probeIds) {
-    boolean captureSnapshot = false;
-    boolean shouldSend = false;
+    boolean needFreeze = false;
     for (String probeId : probeIds) {
-      Snapshot.ProbeDetails probeDetails = resolveProbe(probeId, callingClass);
-      if (probeDetails == null) {
+      ProbeImplementation probeImplementation = resolveProbe(probeId, callingClass);
+      if (probeImplementation == null) {
         continue;
       }
-      Snapshot.CapturedContext.Status status =
+      CapturedContext.Status status =
           context.evaluate(
-              probeId, probeDetails, callingClass.getTypeName(), startTimestamp, methodLocation);
-      captureSnapshot |= probeDetails.isCaptureSnapshot();
-      shouldSend |= status.shouldSend();
+              probeId,
+              probeImplementation,
+              callingClass.getTypeName(),
+              startTimestamp,
+              methodLocation);
+      needFreeze |= status.shouldFreezeContext();
     }
     // only freeze the context when we have at lest one snapshot probe, and we should send snapshot
-    if (captureSnapshot && shouldSend) {
-      context.freeze(new TimeoutChecker(TIME_OUT));
+    if (needFreeze) {
+      context.freeze(new TimeoutChecker(DEFAULT_TIME_OUT));
     }
   }
 
@@ -244,18 +192,15 @@ public class DebuggerContext {
    * conditions and commit snapshot to send it if needed. This is for line probes.
    */
   public static void evalContextAndCommit(
-      Snapshot.CapturedContext context, Class<?> callingClass, int line, String... probeIds) {
+      CapturedContext context, Class<?> callingClass, int line, String... probeIds) {
     for (String probeId : probeIds) {
-      Snapshot.ProbeDetails probeDetails = resolveProbe(probeId, callingClass);
-      if (probeDetails == null) {
+      ProbeImplementation probeImplementation = resolveProbe(probeId, callingClass);
+      if (probeImplementation == null) {
         continue;
       }
       context.evaluate(
-          probeId, probeDetails, callingClass.getTypeName(), -1, MethodLocation.DEFAULT);
-      Snapshot snapshot = prepareForCommit(context, line, probeDetails);
-      if (snapshot != null) {
-        snapshot.commit();
-      }
+          probeId, probeImplementation, callingClass.getTypeName(), -1, MethodLocation.DEFAULT);
+      probeImplementation.commit(context, line);
     }
   }
 
@@ -264,107 +209,29 @@ public class DebuggerContext {
    * Ids This is for method probes
    */
   public static void commit(
-      Snapshot.CapturedContext entryContext,
-      Snapshot.CapturedContext exitContext,
-      List<Snapshot.CapturedThrowable> caughtExceptions,
+      CapturedContext entryContext,
+      CapturedContext exitContext,
+      List<CapturedContext.CapturedThrowable> caughtExceptions,
       String... probeIds) {
-    if (entryContext == Snapshot.CapturedContext.EMPTY_CONTEXT
-        && exitContext == Snapshot.CapturedContext.EMPTY_CONTEXT) {
+    if (entryContext == CapturedContext.EMPTY_CONTEXT
+        && exitContext == CapturedContext.EMPTY_CONTEXT) {
       // rate limited
       return;
     }
     for (String probeId : probeIds) {
-      Snapshot.CapturedContext.Status entryStatus = entryContext.getStatus(probeId);
-      Snapshot.CapturedContext.Status exitStatus = exitContext.getStatus(probeId);
-      Snapshot.ProbeDetails probeDetails;
-      String message;
-      if (entryStatus.probeDetails != Snapshot.ProbeDetails.UNKNOWN
-          && (entryStatus.probeDetails.getEvaluateAt() == MethodLocation.ENTRY
-              || entryStatus.probeDetails.getEvaluateAt() == MethodLocation.DEFAULT)) {
-        probeDetails = entryStatus.probeDetails;
-        message = entryStatus.getMessage();
-      } else if (exitStatus.probeDetails.getEvaluateAt() == MethodLocation.EXIT) {
-        probeDetails = exitStatus.probeDetails;
-        message = exitStatus.getMessage();
+      CapturedContext.Status entryStatus = entryContext.getStatus(probeId);
+      CapturedContext.Status exitStatus = exitContext.getStatus(probeId);
+      ProbeImplementation probeImplementation;
+      if (entryStatus.probeImplementation != ProbeImplementation.UNKNOWN
+          && (entryStatus.probeImplementation.getEvaluateAt() == MethodLocation.ENTRY
+              || entryStatus.probeImplementation.getEvaluateAt() == MethodLocation.DEFAULT)) {
+        probeImplementation = entryStatus.probeImplementation;
+      } else if (exitStatus.probeImplementation.getEvaluateAt() == MethodLocation.EXIT) {
+        probeImplementation = exitStatus.probeImplementation;
       } else {
         throw new IllegalStateException("no probe details");
       }
-      boolean shouldCommit = false;
-      Snapshot snapshot = new Snapshot(Thread.currentThread(), probeDetails);
-      if (entryStatus.shouldSend() && exitStatus.shouldSend()) {
-        // only rate limit if a condition is defined
-        if (probeDetails.hasCondition()) {
-          if (!ProbeRateLimiter.tryProbe(probeId)) {
-            DebuggerContext.skipSnapshot(probeId, DebuggerContext.SkipCause.RATE);
-            continue;
-          }
-        }
-        if (probeDetails.isCaptureSnapshot()) {
-          snapshot.setEntry(entryContext);
-          snapshot.setExit(exitContext);
-        }
-        snapshot.setMessage(message);
-        snapshot.setDuration(exitContext.getDuration());
-        snapshot.addCaughtExceptions(caughtExceptions);
-        shouldCommit = true;
-      }
-      if (entryStatus.shouldReportError()) {
-        if (entryContext.getThrowable() != null) {
-          // report also uncaught exception
-          snapshot.setEntry(entryContext);
-        }
-        snapshot.addEvaluationErrors(entryStatus.errors);
-        shouldCommit = true;
-      }
-      if (exitStatus.shouldReportError()) {
-        if (exitContext.getThrowable() != null) {
-          // report also uncaught exception
-          snapshot.setExit(exitContext);
-        }
-        snapshot.addEvaluationErrors(exitStatus.errors);
-        shouldCommit = true;
-      }
-      if (shouldCommit) {
-        snapshot.commit();
-      } else {
-        DebuggerContext.skipSnapshot(probeId, DebuggerContext.SkipCause.CONDITION);
-      }
+      probeImplementation.commit(entryContext, exitContext, caughtExceptions);
     }
-  }
-
-  /** Commit snapshot based on line context and the current probe This is for line probes */
-  private static Snapshot prepareForCommit(
-      Snapshot.CapturedContext lineContext, int line, Snapshot.ProbeDetails probeDetails) {
-    Snapshot.CapturedContext.Status status = lineContext.getStatus(probeDetails.getId());
-    if (status == null) {
-      return null;
-    }
-    Snapshot snapshot = new Snapshot(Thread.currentThread(), probeDetails);
-    boolean shouldCommit = false;
-    if (status.shouldSend()) {
-      // only rate limit if a condition is defined
-      if (probeDetails.hasCondition()) {
-        if (!ProbeRateLimiter.tryProbe(probeDetails.getId())) {
-          DebuggerContext.skipSnapshot(probeDetails.getId(), DebuggerContext.SkipCause.RATE);
-          return null;
-        }
-      }
-      if (probeDetails.isCaptureSnapshot()) {
-        snapshot.addLine(lineContext, line);
-      }
-      snapshot.setMessage(status.getMessage());
-      shouldCommit = true;
-    }
-    if (status.shouldReportError()) {
-      snapshot.addEvaluationErrors(status.errors);
-      shouldCommit = true;
-    }
-    if (shouldCommit) {
-      // freeze context just before commit because line probes have only one context
-      lineContext.freeze(new TimeoutChecker(TIME_OUT));
-      return snapshot;
-    }
-    DebuggerContext.skipSnapshot(probeDetails.getId(), DebuggerContext.SkipCause.CONDITION);
-    return null;
   }
 }

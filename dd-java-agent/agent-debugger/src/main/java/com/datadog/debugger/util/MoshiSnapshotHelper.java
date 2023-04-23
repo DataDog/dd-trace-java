@@ -1,12 +1,15 @@
 package com.datadog.debugger.util;
 
+import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
+import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.Limits;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.ProbeImplementation;
+import datadog.trace.bootstrap.debugger.ProbeLocation;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -48,6 +51,7 @@ public class MoshiSnapshotHelper {
   public static final String TRUNCATED = "truncated";
   public static final String SIZE = "size";
   public static final String ID = "id";
+  public static final String VERSION = "version";
   public static final String LOCATION = "location";
   private static final Duration TIME_OUT = Duration.ofMillis(200);
 
@@ -58,13 +62,13 @@ public class MoshiSnapshotHelper {
         return new CapturesAdapter(
             moshi, new CapturedContextAdapter(moshi, new CapturedValueAdapter()));
       }
-      if (Types.equals(type, Snapshot.CapturedValue.class)) {
+      if (Types.equals(type, CapturedContext.CapturedValue.class)) {
         return new CapturedValueAdapter();
       }
-      if (Types.equals(type, Snapshot.CapturedContext.class)) {
+      if (Types.equals(type, CapturedContext.class)) {
         return new CapturedContextAdapter(moshi, new CapturedValueAdapter());
       }
-      if (Types.equals(type, Snapshot.ProbeDetails.class)) {
+      if (Types.equals(type, ProbeImplementation.class)) {
         return new ProbeDetailsAdapter(moshi);
       }
       return null;
@@ -72,18 +76,18 @@ public class MoshiSnapshotHelper {
   }
 
   public static class CapturesAdapter extends JsonAdapter<Snapshot.Captures> {
-    protected final JsonAdapter<Snapshot.CapturedContext> capturedContextAdapter;
-    protected final JsonAdapter<Map<Integer, Snapshot.CapturedContext>> linesAdapter;
-    protected final JsonAdapter<List<Snapshot.CapturedThrowable>> caughtExceptionsAdapter;
+    protected final JsonAdapter<CapturedContext> capturedContextAdapter;
+    protected final JsonAdapter<Map<Integer, CapturedContext>> linesAdapter;
+    protected final JsonAdapter<List<CapturedContext.CapturedThrowable>> caughtExceptionsAdapter;
 
-    public CapturesAdapter(
-        Moshi moshi, JsonAdapter<Snapshot.CapturedContext> capturedContextAdapter) {
+    public CapturesAdapter(Moshi moshi, JsonAdapter<CapturedContext> capturedContextAdapter) {
       this.capturedContextAdapter = capturedContextAdapter;
       linesAdapter =
           moshi.adapter(
-              Types.newParameterizedType(Map.class, Integer.class, Snapshot.CapturedContext.class));
+              Types.newParameterizedType(Map.class, Integer.class, CapturedContext.class));
       caughtExceptionsAdapter =
-          moshi.adapter(Types.newParameterizedType(List.class, Snapshot.CapturedThrowable.class));
+          moshi.adapter(
+              Types.newParameterizedType(List.class, CapturedContext.CapturedThrowable.class));
     }
 
     @Override
@@ -113,18 +117,18 @@ public class MoshiSnapshotHelper {
     }
   }
 
-  public static class CapturedContextAdapter extends JsonAdapter<Snapshot.CapturedContext> {
-    protected final JsonAdapter<Snapshot.CapturedThrowable> throwableAdapter;
-    protected final JsonAdapter<Snapshot.CapturedValue> valueAdapter;
+  public static class CapturedContextAdapter extends JsonAdapter<CapturedContext> {
+    protected final JsonAdapter<CapturedContext.CapturedThrowable> throwableAdapter;
+    protected final JsonAdapter<CapturedContext.CapturedValue> valueAdapter;
 
-    public CapturedContextAdapter(Moshi moshi, JsonAdapter<Snapshot.CapturedValue> valueAdapter) {
+    public CapturedContextAdapter(
+        Moshi moshi, JsonAdapter<CapturedContext.CapturedValue> valueAdapter) {
       this.valueAdapter = valueAdapter;
-      this.throwableAdapter = moshi.adapter(Snapshot.CapturedThrowable.class);
+      this.throwableAdapter = moshi.adapter(CapturedContext.CapturedThrowable.class);
     }
 
     @Override
-    public void toJson(JsonWriter jsonWriter, Snapshot.CapturedContext capturedContext)
-        throws IOException {
+    public void toJson(JsonWriter jsonWriter, CapturedContext capturedContext) throws IOException {
       if (capturedContext == null) {
         jsonWriter.nullValue();
         return;
@@ -224,7 +228,7 @@ public class MoshiSnapshotHelper {
     /** @return true if all items where serialized or whether we reach the max field count */
     private SerializationResult toJsonCapturedValues(
         JsonWriter jsonWriter,
-        Map<String, Snapshot.CapturedValue> map,
+        Map<String, CapturedContext.CapturedValue> map,
         Limits limits,
         TimeoutChecker timeoutChecker)
         throws IOException {
@@ -232,7 +236,7 @@ public class MoshiSnapshotHelper {
         return SerializationResult.OK;
       }
       int count = 0;
-      for (Map.Entry<String, Snapshot.CapturedValue> entry : map.entrySet()) {
+      for (Map.Entry<String, CapturedContext.CapturedValue> entry : map.entrySet()) {
         if (count >= limits.maxFieldCount) {
           return SerializationResult.FIELD_COUNT;
         }
@@ -240,7 +244,7 @@ public class MoshiSnapshotHelper {
           return SerializationResult.TIMEOUT;
         }
         jsonWriter.name(entry.getKey());
-        Snapshot.CapturedValue capturedValue = entry.getValue();
+        CapturedContext.CapturedValue capturedValue = entry.getValue();
         jsonWriter.value(
             Okio.buffer(
                 Okio.source(
@@ -252,15 +256,15 @@ public class MoshiSnapshotHelper {
     }
 
     @Override
-    public Snapshot.CapturedContext fromJson(JsonReader reader) throws IOException {
+    public CapturedContext fromJson(JsonReader reader) throws IOException {
       // Only used in test, see MoshiSnapshotTestHelper
       throw new IllegalStateException("Should not reach this code.");
     }
   }
 
-  public static class CapturedValueAdapter extends JsonAdapter<Snapshot.CapturedValue> {
+  public static class CapturedValueAdapter extends JsonAdapter<CapturedContext.CapturedValue> {
     @Override
-    public void toJson(JsonWriter jsonWriter, Snapshot.CapturedValue capturedValue)
+    public void toJson(JsonWriter jsonWriter, CapturedContext.CapturedValue capturedValue)
         throws IOException {
       if (capturedValue == null) {
         jsonWriter.nullValue();
@@ -283,7 +287,7 @@ public class MoshiSnapshotHelper {
     }
 
     @Override
-    public Snapshot.CapturedValue fromJson(JsonReader reader) throws IOException {
+    public CapturedContext.CapturedValue fromJson(JsonReader reader) throws IOException {
       // Only used in test, see MoshiSnapshotTestHelper
       throw new IllegalStateException("Should not reach this code.");
     }
@@ -468,25 +472,27 @@ public class MoshiSnapshotHelper {
     }
   }
 
-  public static class ProbeDetailsAdapter extends JsonAdapter<Snapshot.ProbeDetails> {
-    protected final JsonAdapter<Snapshot.ProbeLocation> probeLocationAdapter;
+  public static class ProbeDetailsAdapter extends JsonAdapter<ProbeImplementation> {
+    protected final JsonAdapter<ProbeLocation> probeLocationAdapter;
 
     public ProbeDetailsAdapter(Moshi moshi) {
-      probeLocationAdapter = moshi.adapter(Snapshot.ProbeLocation.class);
+      probeLocationAdapter = moshi.adapter(ProbeLocation.class);
     }
 
     @Override
-    public void toJson(JsonWriter writer, Snapshot.ProbeDetails value) throws IOException {
+    public void toJson(JsonWriter writer, ProbeImplementation value) throws IOException {
       writer.beginObject();
       writer.name(ID);
-      writer.value(value.getId());
+      writer.value(value.getProbeId().getId());
+      writer.name(VERSION);
+      writer.value(value.getProbeId().getVersion());
       writer.name(LOCATION);
       probeLocationAdapter.toJson(writer, value.getLocation());
       writer.endObject();
     }
 
     @Override
-    public Snapshot.ProbeDetails fromJson(JsonReader reader) throws IOException {
+    public ProbeImplementation fromJson(JsonReader reader) throws IOException {
       // Only used in test, see MoshiSnapshotTestHelper
       throw new IllegalStateException("Should not reach this code.");
     }

@@ -12,13 +12,7 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'com.couchbase.client', name: 'java-client', version: '3.1.0'

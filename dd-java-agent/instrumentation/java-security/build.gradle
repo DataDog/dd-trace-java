@@ -5,15 +5,9 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-
-apply plugin: 'org.unbroken-dome.test-sets'
 apply plugin: 'call-site-instrumentation'
 
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
 
 tasks.withType(Test).configureEach {
   jvmArgs += ['-Ddd.iast.enabled=true']

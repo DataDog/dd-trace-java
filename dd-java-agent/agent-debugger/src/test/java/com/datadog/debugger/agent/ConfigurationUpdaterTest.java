@@ -22,7 +22,7 @@ import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.ProbeId;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import java.lang.instrument.Instrumentation;
 import java.lang.instrument.UnmodifiableClassException;
 import java.util.*;
@@ -453,12 +453,12 @@ public class ConfigurationUpdaterTest {
                 .build());
     logProbes.get(0).buildLocation(null);
     configurationUpdater.accept(createApp(logProbes));
-    Snapshot.ProbeDetails probeDetails =
+    ProbeImplementation probeImplementation =
         configurationUpdater.resolve(PROBE_ID.getId(), String.class);
-    Assertions.assertEquals(PROBE_ID.getId(), probeDetails.getId());
-    Assertions.assertEquals("java.lang.String", probeDetails.getLocation().getType());
-    Assertions.assertEquals("concat", probeDetails.getLocation().getMethod());
-    Assertions.assertNotNull(((LogProbe) probeDetails).getProbeCondition());
+    Assertions.assertEquals(PROBE_ID.getId(), probeImplementation.getId());
+    Assertions.assertEquals("java.lang.String", probeImplementation.getLocation().getType());
+    Assertions.assertEquals("concat", probeImplementation.getLocation().getMethod());
+    Assertions.assertNotNull(((LogProbe) probeImplementation).getProbeCondition());
   }
 
   @Test
@@ -473,9 +473,9 @@ public class ConfigurationUpdaterTest {
     configurationUpdater.accept(createApp(logProbes));
     verify(inst).retransformClasses(eq(String.class));
     // simulate that there is a snapshot probe instrumentation left in HashMap class
-    Snapshot.ProbeDetails probeDetails =
+    ProbeImplementation probeImplementation =
         configurationUpdater.resolve(PROBE_ID2.getId(), HashMap.class);
-    Assertions.assertNull(probeDetails);
+    Assertions.assertNull(probeImplementation);
     verify(inst).retransformClasses(eq(HashMap.class));
   }
 

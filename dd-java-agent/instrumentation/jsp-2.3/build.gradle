@@ -9,13 +9,7 @@ muzzle {
   }
 }
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   // compiling against tomcat 7.0.20 because there seems to be some issues with Tomcat's dependency < 7.0.20

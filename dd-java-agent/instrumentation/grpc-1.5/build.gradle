@@ -30,13 +30,7 @@ protobuf {
   }
 }
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'io.grpc', name: 'grpc-core', version: grpcVersion

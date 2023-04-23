@@ -127,6 +127,30 @@
 0 akka.stream.impl.fusing.ActorGraphInterpreter$*
 0 akka.stream.stage.GraphStageLogic$*
 0 akka.stream.stage.TimerGraphStageLogic$*
+# needed for IAST
+0 akka.http.javadsl.model.HttpHeader
+0 akka.http.scaladsl.model.HttpRequest
+0 akka.http.scaladsl.model.headers.*
+0 akka.http.scaladsl.unmarshalling.*
+0 akka.http.scaladsl.server.PathMatcher$Matched
+0 akka.http.scaladsl.server.directives.ParameterDirectives$class
+0 akka.http.scaladsl.server.directives.ParameterDirectives
+0 akka.http.scaladsl.server.directives.BasicDirectives$class
+0 akka.http.scaladsl.server.directives.BasicDirectives
+0 akka.http.scaladsl.server.directives.FormFieldDirectives$class
+0 akka.http.scaladsl.server.directives.FormFieldDirectives
+0 akka.http.scaladsl.model.Uri
+0 akka.http.scaladsl.model.FormData
+0 akka.http.scaladsl.server.RequestContextImpl
+0 akka.http.scaladsl.server.directives.CookieDirectives$class
+0 akka.http.scaladsl.server.directives.CookieDirectives
+0 akka.http.scaladsl.server.directives.MarshallingDirectives$class
+0 akka.http.scaladsl.server.directives.MarshallingDirectives
+0 akka.http.scaladsl.server.directives.ParameterDirectives$Impl$
+0 akka.http.scaladsl.server.directives.FormFieldDirectives$Impl$
+0 akka.http.scaladsl.model.HttpEntity$Strict
+0 akka.http.scaladsl.model.HttpEntity$Default
+0 akka.http.scaladsl.model.HttpEntity$Chunked
 2 ch.qos.logback.*
 0 ch.qos.logback.classic.Logger
 0 ch.qos.logback.classic.spi.LoggingEvent*
@@ -147,6 +171,9 @@
 2 com.fasterxml.jackson.*
 # Included for IAST
 0 com.fasterxml.jackson.core.*
+0 com.fasterxml.jackson.databind.node.TreeTraversingParser
+0 com.fasterxml.jackson.databind.util.TokenBuffer
+0 com.fasterxml.jackson.databind.util.TokenBuffer$Parser
 0 com.fasterxml.jackson.databind.ObjectMapper
 0 com.fasterxml.jackson.module.afterburner.util.MyClassLoader
 2 com.github.mustachejava.*
@@ -248,8 +275,16 @@
 2 org.springframework.expression.*
 2 org.springframework.format.*
 2 org.springframework.http.*
-# Need for IAST
+# Need for IAST: calls ServletRequest methods instrumented at callsite
 0 org.springframework.http.server.ServletServerHttpRequest
+# Need for IAST: we instrument these classes
+0 org.springframework.http.HttpHeaders
+0 org.springframework.http.ReadOnlyHttpHeaders
+0 org.springframework.http.codec.json.Jackson2Tokenizer
+0 org.springframework.http.server.reactive.UndertowServerHttpRequest$UndertowDataBuffer
+0 org.springframework.core.io.buffer.DataBuffer
+0 org.springframework.core.io.buffer.DefaultDataBuffer
+0 org.springframework.core.io.buffer.NettyDataBuffer
 # There are some Mono implementation that get instrumented
 0 org.springframework.http.server.reactive.*
 2 org.springframework.instrument.*

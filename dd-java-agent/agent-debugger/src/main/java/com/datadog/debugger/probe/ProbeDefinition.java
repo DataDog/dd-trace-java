@@ -3,14 +3,16 @@ package com.datadog.debugger.probe;
 import static java.util.Collections.singletonList;
 
 import com.datadog.debugger.agent.Generated;
+import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
+import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.ProbeImplementation;
+import datadog.trace.bootstrap.debugger.ProbeLocation;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -23,7 +25,7 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
 /** Generic class storing common probe definition */
-public abstract class ProbeDefinition implements Snapshot.ProbeDetails {
+public abstract class ProbeDefinition implements ProbeImplementation {
   protected static final String LANGUAGE = "java";
 
   protected final String language;
@@ -33,7 +35,7 @@ public abstract class ProbeDefinition implements Snapshot.ProbeDetails {
   protected final Map<String, String> tagMap = new HashMap<>();
   protected final Where where;
   protected final MethodLocation evaluateAt;
-  protected transient Snapshot.ProbeLocation location;
+  protected transient ProbeLocation location;
 
   protected ProbeDefinition(
       String language, ProbeId probeId, String[] tagStrs, Where where, MethodLocation evaluateAt) {
@@ -56,6 +58,7 @@ public abstract class ProbeDefinition implements Snapshot.ProbeDetails {
     return id;
   }
 
+  @Override
   public ProbeId getProbeId() {
     return new ProbeId(id, version);
   }
@@ -107,7 +110,7 @@ public abstract class ProbeDefinition implements Snapshot.ProbeDetails {
       method = result.getMethodName();
     }
     List<String> lines = where.getLines() != null ? Arrays.asList(where.getLines()) : null;
-    this.location = new Snapshot.ProbeLocation(type, method, where.getSourceFile(), lines);
+    this.location = new ProbeLocation(type, method, where.getSourceFile(), lines);
   }
 
   private static void initTagMap(Map<String, String> tagMap, Tag[] tags) {
@@ -135,15 +138,22 @@ public abstract class ProbeDefinition implements Snapshot.ProbeDetails {
       List<String> probeIds);
 
   @Override
-  public Snapshot.ProbeLocation getLocation() {
+  public ProbeLocation getLocation() {
     return location;
   }
 
   @Override
-  public void evaluate(
-      Snapshot.CapturedContext context,
-      Snapshot.CapturedContext.Status status,
-      MethodLocation methodLocation) {}
+  public void evaluate(CapturedContext context, CapturedContext.Status status) {}
+
+  @Override
+  public void commit(
+      CapturedContext entryContext,
+      CapturedContext exitContext,
+      List<CapturedContext.CapturedThrowable> caughtExceptions) {}
+
+  /** Commit snapshot based on line context and the current probe This is for line probes */
+  @Override
+  public void commit(CapturedContext lineContext, int line) {}
 
   @Override
   public boolean isCaptureSnapshot() {
@@ -155,16 +165,9 @@ public abstract class ProbeDefinition implements Snapshot.ProbeDetails {
     return false;
   }
 
-  protected boolean resolveEvaluateAt(MethodLocation methodLocation) {
-    if (methodLocation == MethodLocation.DEFAULT) {
-      // line probe, no evaluation of probe's evaluateAt
-      return true;
-    }
-    MethodLocation localEvaluateAt = evaluateAt; // MethodLocation.convert(evaluateAt);
-    if (methodLocation == MethodLocation.ENTRY) {
-      return localEvaluateAt == MethodLocation.DEFAULT || localEvaluateAt == MethodLocation.ENTRY;
-    }
-    return localEvaluateAt == methodLocation;
+  @Override
+  public CapturedContext.Status createStatus() {
+    return null;
   }
 
   public abstract static class Builder<T extends Builder> {

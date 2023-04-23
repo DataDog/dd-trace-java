@@ -70,11 +70,6 @@ jar {
 }
 
 tasks.withType(Test).configureEach {
-  options {
-    // special property to skip some  parametrized DebuggerTransformerTest tests
-    // that generates a lot of tests
-    systemProperty "fast-tests", project.findProperty("fast-tests") ?: "false"
-  }
   // DebuggerTransformerTest made some Reflective calls on java.lang package
   // needs to open it since jdk16
   def matcher = it.name =~ /testJava(\d+)Generated/

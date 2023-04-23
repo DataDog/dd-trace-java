@@ -1,7 +1,7 @@
 package com.datadog.debugger.util;
 
+import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.Limits;
-import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
@@ -221,8 +221,8 @@ public class SerializerWithLimits {
       typeName = value != null ? value.getClass().getTypeName() : field.getType().getTypeName();
     }
     serialize(
-        value instanceof Snapshot.CapturedValue
-            ? ((Snapshot.CapturedValue) value).getValue()
+        value instanceof CapturedContext.CapturedValue
+            ? ((CapturedContext.CapturedValue) value).getValue()
             : value,
         typeName,
         newLimits);

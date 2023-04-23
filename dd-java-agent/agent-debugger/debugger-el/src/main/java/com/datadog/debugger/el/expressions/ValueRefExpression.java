@@ -1,5 +1,6 @@
 package com.datadog.debugger.el.expressions;
 
+import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Generated;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
@@ -16,7 +17,11 @@ public final class ValueRefExpression implements ValueExpression<Value<?>> {
 
   @Override
   public Value<?> evaluate(ValueReferenceResolver valueRefResolver) {
-    return Value.of(valueRefResolver.lookup(symbolName));
+    try {
+      return Value.of(valueRefResolver.lookup(symbolName));
+    } catch (RuntimeException ex) {
+      throw new EvaluationException(ex.getMessage(), symbolName);
+    }
   }
 
   @Generated

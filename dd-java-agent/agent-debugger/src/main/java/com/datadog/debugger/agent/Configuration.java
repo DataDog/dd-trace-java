@@ -232,8 +232,8 @@ public class Configuration {
     }
 
     public Configuration.Builder add(SpanDecorationProbe probe) {
-      if (spanProbes == null) {
-        spanProbes = new ArrayList<>();
+      if (spanDecorationProbes == null) {
+        spanDecorationProbes = new ArrayList<>();
       }
       spanDecorationProbes.add(probe);
       return this;

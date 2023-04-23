@@ -10,8 +10,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.datadog.debugger.agent.DebuggerAgentHelper;
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.ProbeStatus;
+import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.DebuggerMetrics;
 import com.datadog.debugger.util.MoshiHelper;
@@ -19,11 +21,13 @@ import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
+import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.ProbeId;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.ProbeImplementation;
+import datadog.trace.bootstrap.debugger.ProbeLocation;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.net.URISyntaxException;
@@ -41,9 +45,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 public class DebuggerSinkTest {
-  private static final String PROBE_ID = "12fd-8490-c111-4374-ffde";
-  private static final Snapshot.ProbeLocation PROBE_LOCATION =
-      new Snapshot.ProbeLocation("java.lang.String", "indexOf", null, null);
+  private static final ProbeId PROBE_ID = new ProbeId("12fd-8490-c111-4374-ffde", 42);
+  private static final ProbeLocation PROBE_LOCATION =
+      new ProbeLocation("java.lang.String", "indexOf", null, null);
   public static final int MAX_PAYLOAD = 5 * 1024 * 1024;
 
   @Mock private Config config;
@@ -54,7 +58,7 @@ public class DebuggerSinkTest {
 
   @BeforeEach
   void setUp() {
-    DebuggerContext.initSnapshotSerializer(new JsonSnapshotSerializer());
+    DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
     when(config.getHostName()).thenReturn("host-name");
     when(config.getServiceName()).thenReturn("service-name");
     when(config.getEnv()).thenReturn("test");
@@ -70,9 +74,11 @@ public class DebuggerSinkTest {
   @Test
   public void addSnapshot() throws URISyntaxException, IOException {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
+    DebuggerAgentHelper.injectSerializer(new JsonSnapshotSerializer());
     Snapshot snapshot =
         new Snapshot(
-            Thread.currentThread(), new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION));
+            Thread.currentThread(),
+            new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION));
     sink.addSnapshot(snapshot);
     sink.flush(sink);
     verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
@@ -83,7 +89,7 @@ public class DebuggerSinkTest {
     assertEquals("service-name", intakeRequest.getService());
     assertEquals("java.lang.String", intakeRequest.getLoggerName());
     assertEquals("indexOf", intakeRequest.getLoggerMethod());
-    assertEquals(PROBE_ID, intakeRequest.getDebugger().getSnapshot().getProbe().getId());
+    assertEquals(PROBE_ID.getId(), intakeRequest.getDebugger().getSnapshot().getProbe().getId());
     assertEquals(
         PROBE_LOCATION, intakeRequest.getDebugger().getSnapshot().getProbe().getLocation());
   }
@@ -92,9 +98,11 @@ public class DebuggerSinkTest {
   public void addMultipleSnapshots() throws URISyntaxException, IOException {
     when(config.getDebuggerUploadBatchSize()).thenReturn(2);
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
+    DebuggerAgentHelper.injectSerializer(new JsonSnapshotSerializer());
     Snapshot snapshot =
         new Snapshot(
-            Thread.currentThread(), new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION));
+            Thread.currentThread(),
+            new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION));
     Arrays.asList(snapshot, snapshot).forEach(sink::addSnapshot);
     sink.flush(sink);
     verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
@@ -112,9 +120,11 @@ public class DebuggerSinkTest {
   public void splitSnapshotBatch() {
     when(config.getDebuggerUploadBatchSize()).thenReturn(10);
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
+    DebuggerAgentHelper.injectSerializer(new JsonSnapshotSerializer());
     Snapshot largeSnapshot =
         new Snapshot(
-            Thread.currentThread(), new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION));
+            Thread.currentThread(),
+            new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION));
     for (int i = 0; i < 15_000; i++) {
       largeSnapshot.getStack().add(new CapturedStackFrame("f" + i, i));
     }
@@ -133,7 +143,8 @@ public class DebuggerSinkTest {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     Snapshot largeSnapshot =
         new Snapshot(
-            Thread.currentThread(), new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION));
+            Thread.currentThread(),
+            new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION));
     for (int i = 0; i < 150_000; i++) {
       largeSnapshot.getStack().add(new CapturedStackFrame("f" + i, i));
     }
@@ -147,7 +158,8 @@ public class DebuggerSinkTest {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     Snapshot largeSnapshot =
         new Snapshot(
-            Thread.currentThread(), new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION));
+            Thread.currentThread(),
+            new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION));
     for (int i = 0; i < 140_000; i++) {
       largeSnapshot.getStack().add(new CapturedStackFrame("f€" + i, i));
     }
@@ -260,7 +272,8 @@ public class DebuggerSinkTest {
     long currentFlushInterval = sink.getCurrentFlushInterval();
     Snapshot snapshot =
         new Snapshot(
-            Thread.currentThread(), new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION));
+            Thread.currentThread(),
+            new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION));
     sink.addSnapshot(snapshot);
     sink.doReconsiderFlushInterval();
     long newFlushInterval = sink.getCurrentFlushInterval();
@@ -274,7 +287,8 @@ public class DebuggerSinkTest {
     sink.flush(sink);
     Snapshot snapshot =
         new Snapshot(
-            Thread.currentThread(), new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION));
+            Thread.currentThread(),
+            new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION));
     for (int i = 0; i < 1000; i++) {
       sink.addSnapshot(snapshot);
     }
@@ -289,7 +303,8 @@ public class DebuggerSinkTest {
     long currentFlushInterval = sink.getCurrentFlushInterval();
     Snapshot snapshot =
         new Snapshot(
-            Thread.currentThread(), new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION));
+            Thread.currentThread(),
+            new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION));
     for (int i = 0; i < 500; i++) {
       sink.addSnapshot(snapshot);
     }
@@ -301,15 +316,17 @@ public class DebuggerSinkTest {
   @Test
   public void addSnapshotWithCorrelationIdsMethodProbe() throws URISyntaxException, IOException {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
-    Snapshot.CapturedContext entry = new Snapshot.CapturedContext();
+    DebuggerAgentHelper.injectSerializer(new JsonSnapshotSerializer());
+    CapturedContext entry = new CapturedContext();
     entry.addFields(
-        new Snapshot.CapturedValue[] {
-          Snapshot.CapturedValue.of("dd.trace_id", "java.lang.String", "123"),
-          Snapshot.CapturedValue.of("dd.span_id", "java.lang.String", "456"),
+        new CapturedContext.CapturedValue[] {
+          CapturedContext.CapturedValue.of("dd.trace_id", "java.lang.String", "123"),
+          CapturedContext.CapturedValue.of("dd.span_id", "java.lang.String", "456"),
         });
     Snapshot snapshot =
         new Snapshot(
-            Thread.currentThread(), new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION));
+            Thread.currentThread(),
+            new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION));
     snapshot.setEntry(entry);
     sink.addSnapshot(snapshot);
     sink.flush(sink);
@@ -324,15 +341,17 @@ public class DebuggerSinkTest {
   @Test
   public void addSnapshotWithCorrelationIdsLineProbe() throws URISyntaxException, IOException {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
-    Snapshot.CapturedContext line = new Snapshot.CapturedContext();
+    DebuggerAgentHelper.injectSerializer(new JsonSnapshotSerializer());
+    CapturedContext line = new CapturedContext();
     line.addFields(
-        new Snapshot.CapturedValue[] {
-          Snapshot.CapturedValue.of("dd.trace_id", "java.lang.String", "123"),
-          Snapshot.CapturedValue.of("dd.span_id", "java.lang.String", "456"),
+        new CapturedContext.CapturedValue[] {
+          CapturedContext.CapturedValue.of("dd.trace_id", "java.lang.String", "123"),
+          CapturedContext.CapturedValue.of("dd.span_id", "java.lang.String", "456"),
         });
     Snapshot snapshot =
         new Snapshot(
-            Thread.currentThread(), new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION));
+            Thread.currentThread(),
+            new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION));
     snapshot.addLine(line, 25);
     sink.addSnapshot(snapshot);
     sink.flush(sink);
@@ -347,31 +366,25 @@ public class DebuggerSinkTest {
   @Test
   public void addSnapshotWithEvalErrors() throws URISyntaxException, IOException {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
-    DebuggerContext.init(sink, null, null);
-    Snapshot.CapturedContext entry = new Snapshot.CapturedContext();
-    Snapshot.ProbeDetails probeDetails =
-        new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION);
-    Snapshot snapshot = new Snapshot(Thread.currentThread(), probeDetails);
+    DebuggerAgentHelper.injectSerializer(new JsonSnapshotSerializer());
+    CapturedContext entry = new CapturedContext();
+    ProbeImplementation probeImplementation =
+        new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION);
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), probeImplementation);
     snapshot.setEntry(entry);
     snapshot.addEvaluationErrors(
-        Arrays.asList(new Snapshot.EvaluationError("obj.field", "Cannot dereference obj")));
-    commit(snapshot);
-    snapshot.getStack().clear();
+        Arrays.asList(new EvaluationError("obj.field", "Cannot dereference obj")));
+    sink.addSnapshot(snapshot);
     sink.flush(sink);
     verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
     String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
     System.out.println(strPayload);
     JsonSnapshotSerializer.IntakeRequest intakeRequest = assertOneIntakeRequest(strPayload);
-    List<Snapshot.EvaluationError> evaluationErrors =
+    List<EvaluationError> evaluationErrors =
         intakeRequest.getDebugger().getSnapshot().getEvaluationErrors();
     assertEquals(1, evaluationErrors.size());
     assertEquals("obj.field", evaluationErrors.get(0).getExpr());
     assertEquals("Cannot dereference obj", evaluationErrors.get(0).getMessage());
-  }
-
-  // used for increasing the stack level for the getting the excepted stack trace
-  private static void commit(Snapshot snapshot) {
-    snapshot.commit();
   }
 
   @Test
@@ -380,7 +393,7 @@ public class DebuggerSinkTest {
     DiagnosticMessage info = new DiagnosticMessage(DiagnosticMessage.Kind.INFO, "info message");
     DiagnosticMessage warn = new DiagnosticMessage(DiagnosticMessage.Kind.WARN, "info message");
     DiagnosticMessage error = new DiagnosticMessage(DiagnosticMessage.Kind.ERROR, "info message");
-    sink.addDiagnostics(new ProbeId(PROBE_ID, 1), Arrays.asList(info, warn, error));
+    sink.addDiagnostics(PROBE_ID, Arrays.asList(info, warn, error));
     // ensure just that the code is executed to have coverage (just logging)
   }
 
@@ -390,13 +403,14 @@ public class DebuggerSinkTest {
     DebuggerSink sink = new DebuggerSink(config, batchUploader, debuggerMetrics);
     Snapshot snapshot =
         new Snapshot(
-            Thread.currentThread(), new Snapshot.ProbeDetails.DummyProbe(PROBE_ID, PROBE_LOCATION));
+            Thread.currentThread(),
+            new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION));
     sink.skipSnapshot(snapshot.getProbe().getId(), DebuggerContext.SkipCause.CONDITION);
     verify(debuggerMetrics)
-        .incrementCounter(anyString(), eq("cause:condition"), eq("probe_id:" + PROBE_ID));
+        .incrementCounter(anyString(), eq("cause:condition"), eq("probe_id:" + PROBE_ID.getId()));
     sink.skipSnapshot(snapshot.getProbe().getId(), DebuggerContext.SkipCause.RATE);
     verify(debuggerMetrics)
-        .incrementCounter(anyString(), eq("cause:rate"), eq("probe_id:" + PROBE_ID));
+        .incrementCounter(anyString(), eq("cause:rate"), eq("probe_id:" + PROBE_ID.getId()));
   }
 
   private JsonSnapshotSerializer.IntakeRequest assertOneIntakeRequest(String strPayload)
