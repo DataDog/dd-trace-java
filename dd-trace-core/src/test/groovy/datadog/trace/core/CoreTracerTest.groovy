@@ -173,7 +173,7 @@ class CoreTracerTest extends DDCoreSpecification {
 
     then:
     tracer.defaultSpanTags == map
-    tracer.serviceNameMappings == map
+    tracer.captureTraceConfig().serviceMapping == map
     taggedHeaders == map
 
     cleanup:

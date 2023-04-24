@@ -24,12 +24,14 @@ import datadog.communication.monitor.Recording;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.EndpointCheckpointerHolder;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.StatsDClient;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
@@ -151,12 +153,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   final MetricsAggregator metricsAggregator;
 
+  /** Maintains dynamic configuration associated with the tracer */
+  private final DynamicConfig dynamicConfig;
   /** A set of tags that are added only to the application's root span */
   private final Map<String, ?> localRootSpanTags;
   /** A set of tags that are added to every span */
   private final Map<String, ?> defaultSpanTags;
-  /** A configured mapping of service names to update with new values */
-  private final Map<String, String> serviceNameMappings;
 
   /** number of spans in a pending trace before they get flushed */
   private final int partialFlushMinSpans;
@@ -204,6 +206,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final CallbackProvider universalCallbackProvider;
 
   private final PropagationTags.Factory propagationTagsFactory;
+
+  TraceConfig captureTraceConfig() {
+    return dynamicConfig.captureTraceConfig();
+  }
 
   PropagationTags.Factory getPropagationTagsFactory() {
     return propagationTagsFactory;
@@ -479,13 +485,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     endpointCheckpointer = EndpointCheckpointerHolder.create();
     this.serviceName = serviceName;
+    this.dynamicConfig = DynamicConfig.create().setServiceMapping(serviceNameMappings).apply();
     this.sampler = sampler;
     this.injector = injector;
     this.extractor = extractor;
     this.logs128bTraceIdEnabled = InstrumenterConfig.get().isLogs128bTraceIdEnabled();
     this.localRootSpanTags = localRootSpanTags;
     this.defaultSpanTags = defaultSpanTags;
-    this.serviceNameMappings = serviceNameMappings;
     this.partialFlushMinSpans = partialFlushMinSpans;
     this.idGenerationStrategy =
         null == idGenerationStrategy
@@ -634,11 +640,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
    */
   public PendingTrace createTrace(DDTraceId id) {
     return pendingTraceFactory.create(id);
-  }
-
-  public String mapServiceName(String serviceName) {
-    String mapped = serviceNameMappings.get(serviceName);
-    return null == mapped ? serviceName : mapped;
   }
 
   /**
