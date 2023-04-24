@@ -1432,6 +1432,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           samplingPriority = extractedContext.getSamplingPriority();
           endToEndStartTime = extractedContext.getEndToEndStartTime();
           propagationTags = extractedContext.getPropagationTags();
+        } else if (parentContext instanceof AgentSpan.Context) {
+          final AgentSpan.Context spanContext = (AgentSpan.Context) parentContext;
+          traceId = spanContext.getTraceId();
+          parentSpanId = spanContext.getSpanId();
+          samplingPriority = spanContext.getSamplingPriority();
+          endToEndStartTime = 0;
+          propagationTags = propagationTagsFactory.empty();
         } else {
           // Start a new trace
           traceId = idGenerationStrategy.generateTraceId();
