@@ -187,11 +187,10 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         edgeTags == [
           "direction:in",
           "group:sender",
-          "partition:" + received.partition(),
           "topic:$SHARED_TOPIC".toString(),
           "type:kafka"
         ]
-        edgeTags.size() == 5
+        edgeTags.size() == 4
       }
       List<String> produce = ["partition:"+received.partition(), "topic:"+SHARED_TOPIC, "type:kafka_produce"]
       List<String> commit = [
@@ -322,11 +321,10 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         edgeTags == [
           "direction:in",
           "group:sender",
-          "partition:" + received.partition(),
           "topic:$SHARED_TOPIC".toString(),
           "type:kafka"
         ]
-        edgeTags.size() == 5
+        edgeTags.size() == 4
       }
       List<String> produce = ["partition:"+received.partition(), "topic:"+SHARED_TOPIC, "type:kafka_produce"]
       List<String> commit = [
@@ -733,7 +731,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     }
 
     then:
-    int partition = records.first().partition()
     def receivedSet = greetings.toSet()
     greetings.eachWithIndex { g, i ->
       def received = records.poll(5, TimeUnit.SECONDS)
@@ -792,8 +789,8 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["group:sender", "partition:" + partition, "topic:$SHARED_TOPIC".toString(), "type:kafka"]
-        edgeTags.size() == 4
+        edgeTags == ["group:sender", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
+        edgeTags.size() == 3
       }
     }
 

@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.GROUP_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.PARTITION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.BROKER_DECORATE;
@@ -244,7 +243,6 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
             sortedTags.put(GROUP_TAG, applicationId);
           }
         }
-        sortedTags.put(PARTITION_TAG, String.valueOf(record.partition()));
         sortedTags.put(TOPIC_TAG, record.topic());
         sortedTags.put(TYPE_TAG, "kafka");
         AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
@@ -310,7 +308,6 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
             sortedTags.put(GROUP_TAG, applicationId);
           }
         }
-        sortedTags.put(PARTITION_TAG, String.valueOf(record.partition()));
         sortedTags.put(TOPIC_TAG, record.topic());
         sortedTags.put(TYPE_TAG, "kafka");
         AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
