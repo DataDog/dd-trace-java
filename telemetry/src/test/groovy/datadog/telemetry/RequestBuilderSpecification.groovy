@@ -27,6 +27,15 @@ class RequestBuilderSpecification extends DDSpecification {
     SLURPER.parse(bytes)
   }
 
+  void assertCommonHeaders(Request req) {
+    assert req.header('Content-Type') == 'application/json; charset=utf-8'
+    assert req.header('DD-Telemetry-API-Version') == 'v1'
+    assert req.header('DD-Client-Library-Language') == 'jvm'
+    assert !req.header('DD-Client-Library-Version').isEmpty()
+    assert req.header('DD-Agent-Env') == null
+    assert req.header('DD-Agent-Hostname') == null
+  }
+
   void 'appStarted request'() {
     Request req
     def body
@@ -44,8 +53,7 @@ class RequestBuilderSpecification extends DDSpecification {
     body = parseBody req.body()
 
     then:
-    req.header('Content-type') == 'application/json; charset=utf-8'
-    req.header('DD-Telemetry-API-Version') == 'v1'
+    assertCommonHeaders(req)
     req.header('DD-Telemetry-Request-Type') == 'app-started'
     body['api_version'] == 'v1'
     with(body['application']) {
@@ -101,8 +109,7 @@ class RequestBuilderSpecification extends DDSpecification {
     def body = parseBody req.body()
 
     then:
-    req.header('Content-type') == 'application/json; charset=utf-8'
-    req.header('DD-Telemetry-API-Version') == 'v1'
+    assertCommonHeaders(req)
     req.header('DD-Telemetry-Request-Type') == 'generate-metrics'
     body['api_version'] == 'v1'
     body['request_type'] == 'generate-metrics'
