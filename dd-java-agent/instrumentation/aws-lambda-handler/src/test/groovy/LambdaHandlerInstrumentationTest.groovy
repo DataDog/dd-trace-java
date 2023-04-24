@@ -1,9 +1,5 @@
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
-import java.io.InputStream
-import java.io.OutputStream
 import java.nio.charset.StandardCharsets
-import java.io.ByteArrayOutputStream
-import java.io.ByteArrayInputStream
 
 abstract class LambdaHandlerInstrumentationTest extends VersionedNamingTestBase {
 
