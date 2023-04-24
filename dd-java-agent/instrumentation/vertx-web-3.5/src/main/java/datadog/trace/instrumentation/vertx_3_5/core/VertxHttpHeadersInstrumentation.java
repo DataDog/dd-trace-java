@@ -10,6 +10,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -71,6 +72,7 @@ public class VertxHttpHeadersInstrumentation extends Instrumenter.Iast
 
   public static class GetAdvice {
     @Advice.OnMethodExit
+    @IastAdvice.Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
     public static void afterGet(
         @Advice.This final Object self,
         @Advice.Argument(0) final CharSequence name,
