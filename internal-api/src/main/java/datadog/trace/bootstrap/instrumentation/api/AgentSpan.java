@@ -4,6 +4,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
+import datadog.trace.api.sampling.PrioritySampling;
 import java.util.Map;
 
 public interface AgentSpan extends MutableSpan, IGSpanInfo {
@@ -148,6 +149,16 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
     long getSpanId();
 
     AgentTrace getTrace();
+
+    /**
+     * Get the trace sampling priority of the span's trace.
+     *
+     * <p>Check {@link PrioritySampling} for possible values.
+     *
+     * @return The trace sampling priority of the span's trace, or {@link PrioritySampling#UNSET} if
+     *     no priority has been set.
+     */
+    int getSamplingPriority();
 
     Iterable<Map.Entry<String, String>> baggageItems();
 
