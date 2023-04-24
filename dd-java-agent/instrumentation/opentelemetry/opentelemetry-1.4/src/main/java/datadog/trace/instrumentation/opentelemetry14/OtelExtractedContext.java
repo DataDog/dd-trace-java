@@ -50,7 +50,7 @@ class OtelExtractedContext implements AgentSpan.Context {
 
   @Override
   public AgentTrace getTrace() {
-    return null;
+    return AgentTracer.NoopAgentTrace.INSTANCE;
   }
 
   @Override

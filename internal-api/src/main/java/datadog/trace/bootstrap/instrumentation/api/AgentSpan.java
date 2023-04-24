@@ -144,14 +144,30 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
   Integer forceSamplingDecision();
 
   interface Context {
+    /**
+     * Gets the TraceId of the span's trace.
+     *
+     * @return The TraceId of the span's trace, or {@link DDTraceId#ZERO} if not set.
+     */
     DDTraceId getTraceId();
 
+    /**
+     * Gets the SpanId.
+     *
+     * @return The span identifier, or {@link datadog.trace.api.DDSpanId#ZERO} if not set.
+     */
     long getSpanId();
 
+    /**
+     * Get the span's trace.
+     *
+     * @return The span's trace, or a noop {@link AgentTracer.NoopAgentTrace#INSTANCE} if the trace
+     *     is not valid.
+     */
     AgentTrace getTrace();
 
     /**
-     * Get the trace sampling priority of the span's trace.
+     * Gets the trace sampling priority of the span's trace.
      *
      * <p>Check {@link PrioritySampling} for possible values.
      *
