@@ -631,13 +631,16 @@ public class DDSpanContext
   }
 
   /**
-   * Add a tag to the span. Tags are not propagated to the children
+   * Sets a tag to the span. Tags are not propagated to the children.
    *
-   * @param tag the tag-name
-   * @param value the value of the tag. tags with null values are ignored.
+   * <p>Existing tag value with the same value will be replaced. Setting a tag with a {@code null}
+   * value will remove the tag from the span.
+   *
+   * @param tag The tag name.
+   * @param value The nullable tag value.
    */
   public void setTag(final String tag, final Object value) {
-    if (null == value || "".equals(value)) {
+    if (null == value) {
       synchronized (unsafeTags) {
         unsafeTags.remove(tag);
       }

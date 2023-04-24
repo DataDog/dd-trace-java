@@ -1328,7 +1328,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       if (tagMap == null) {
         tags = tagMap = new LinkedHashMap<>(); // Insertion order is important
       }
-      if (value == null || (value instanceof String && ((String) value).isEmpty())) {
+      if (value == null) {
         tagMap.remove(tag);
       } else {
         tagMap.put(tag, value);
