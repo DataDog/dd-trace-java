@@ -33,8 +33,7 @@ public final class SslSocketStreamsInstrumentation extends Instrumenter.Usm
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return HierarchyMatchers.extendsClass(named("javax.net.ssl.SSLSocket"))
-    .and(not(HierarchyMatchers.abstractClass()));
-
+        .and(not(HierarchyMatchers.abstractClass()));
   }
 
   @Override
