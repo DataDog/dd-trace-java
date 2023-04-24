@@ -22,13 +22,11 @@ public class UsmMessageFactoryImpl implements UsmMessageFactory {
 
   @Override
   public UsmMessage getPlainMessage(UsmConnection connection, String hostname, byte[] buffer, int bufferOffset, int len) {
-    System.out.println("inside getPlainMessage");
     return new PlainUsmMessage(connection,hostname,buffer,bufferOffset,len);
   }
 
   @Override
   public UsmMessage getHostMessage(UsmConnection connection, String hostName) {
-    System.out.println("inside getHostMessage");
     return new HostUsmMessage(connection, hostName);
   }
 
