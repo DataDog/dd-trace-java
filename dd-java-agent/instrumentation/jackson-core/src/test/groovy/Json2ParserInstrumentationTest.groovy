@@ -2,28 +2,29 @@ import com.fasterxml.jackson.core.JsonFactory
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
-import foo.bar.JsonParserTestSuite
+import groovy.transform.CompileDynamic
 
-class JsonParserInstrumentationTest extends AgentTestRunner {
+class Json2ParserInstrumentationTest extends AgentTestRunner {
 
   private final static String JSON_STRING = '{"key1":"value1","key2":"value2","key3":"value3"}'
 
+  @CompileDynamic
   @Override
   protected void configurePreAgent() {
     injectSysConfig("dd.iast.enabled", "true")
   }
 
-  def 'test currentName()'() {
+  void 'test currentName()'() {
     setup:
     final propagationModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(propagationModule)
-    final jsonParserTestSuite = new JsonParserTestSuite(jsonParser)
 
     when:
-    jsonParserTestSuite.currentName()
+    jsonParser.currentName()
 
     then:
     1 * propagationModule.taintIfInputIsTainted( _ , jsonParser)
+    0 * _
 
     where:
     jsonParser << [
@@ -32,17 +33,17 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
     ]
   }
 
-  def 'test getCurrentName()'() {
+  void 'test getCurrentName()'() {
     setup:
     final propagationModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(propagationModule)
-    final jsonParserTestSuite = new JsonParserTestSuite(jsonParser)
 
     when:
-    jsonParserTestSuite.getCurrentName()
+    jsonParser.getCurrentName()
 
     then:
     1 * propagationModule.taintIfInputIsTainted(_, jsonParser)
+    0 * _
 
     where:
     jsonParser << [
@@ -51,18 +52,20 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
     ]
   }
 
-  def 'test getText()'() {
+  void 'test getText()'() {
     setup:
     final propagationModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(propagationModule)
-    final jsonParserTestSuite = new JsonParserTestSuite(jsonParser)
 
     when:
-    final result = jsonParserTestSuite.getText()
+    jsonParser.nextToken()
+    System.out.println(jsonParser)
+    final result = jsonParser.getText()
 
     then:
     result == '{'
     1 * propagationModule.taintIfInputIsTainted('{', jsonParser)
+    0 * _
 
     where:
     jsonParser << [
@@ -71,18 +74,17 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
     ]
   }
 
-  def 'test getValueAsString()'() {
+  void 'test getValueAsString()'() {
     setup:
     final propagationModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(propagationModule)
-    final jsonParserTestSuite = new JsonParserTestSuite(jsonParser)
 
     when:
-    final result = jsonParserTestSuite.getValueAsString()
+    jsonParser.getValueAsString()
 
     then:
-    result == 'key1'
-    1 * propagationModule.taintIfInputIsTainted('key1', jsonParser)
+    1 * propagationModule.taintIfInputIsTainted(_, jsonParser)
+    0 * _
 
     where:
     jsonParser << [
@@ -91,18 +93,17 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
     ]
   }
 
-  def 'test nextFieldName()'() {
+  void 'test nextFieldName()'() {
     setup:
     final propagationModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(propagationModule)
-    final jsonParserTestSuite = new JsonParserTestSuite(jsonParser)
 
     when:
-    final result = jsonParserTestSuite.nextFieldName()
+    jsonParser.nextFieldName()
 
     then:
-    result == 'key1'
-    1 * propagationModule.taintIfInputIsTainted('key1', jsonParser)
+    1 * propagationModule.taintIfInputIsTainted(_, jsonParser)
+    0 * _
 
     where:
     jsonParser << [
@@ -111,17 +112,17 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
     ]
   }
 
-  def 'test nextTextValue()'() {
+  void 'test nextTextValue()'() {
     setup:
     final propagationModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(propagationModule)
-    final jsonParserTestSuite = new JsonParserTestSuite(jsonParser)
 
     when:
-    jsonParserTestSuite.nextTextValue()
+    jsonParser.nextTextValue()
 
     then:
-    1 * propagationModule.taintIfInputIsTainted(null, jsonParser)
+    1 * propagationModule.taintIfInputIsTainted(_, jsonParser)
+    0 * _
 
     where:
     jsonParser << [

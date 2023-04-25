@@ -16,11 +16,6 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'call-site-instrumentation'
-
-csi {
-  javaVersion = JavaLanguageVersion.of(8)
-}
 
 addTestSuiteForDir('latestDepTest', 'test')
 
@@ -28,5 +23,4 @@ dependencies {
   compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.14.0')
   compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.14.0')
   testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.14.0')
-  testRuntimeOnly(project(':dd-java-agent:instrumentation:iast-instrumenter'))
 }
