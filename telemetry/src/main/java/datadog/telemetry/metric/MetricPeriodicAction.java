@@ -34,8 +34,8 @@ public class MetricPeriodicAction implements TelemetryRunnable.TelemetryPeriodic
         metric.addTagsItem("event_rules_version:" + ((WafUpdatesRawMetric) raw).rulesVersion);
       }
       if (raw instanceof WafRequestsRawMetric) {
-        metric.addTagsItem("triggered:" + ((WafRequestsRawMetric) raw).triggered);
-        metric.addTagsItem("blocked:" + ((WafRequestsRawMetric) raw).blocked);
+        metric.addTagsItem("rule_triggered:" + ((WafRequestsRawMetric) raw).triggered);
+        metric.addTagsItem("request_blocked:" + ((WafRequestsRawMetric) raw).blocked);
       }
 
       service.addMetric(metric);
