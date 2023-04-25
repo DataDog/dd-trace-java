@@ -57,19 +57,19 @@ class MetricPeriodicActionSpecification extends DDSpecification {
       metric.namespace == 'appsec' &&
         metric.metric == 'waf.requests' &&
         metric.points[0][1] == 3 &&
-        metric.tags == ['triggered:false', 'blocked:false']
+        metric.tags == ['rule_triggered:false', 'request_blocked:false']
     } )
     1 * telemetryService.addMetric( { Metric metric ->
       metric.namespace == 'appsec' &&
         metric.metric == 'waf.requests' &&
         metric.points[0][1] == 2 &&
-        metric.tags == ['triggered:true', 'blocked:false']
+        metric.tags == ['rule_triggered:true', 'request_blocked:false']
     } )
     1 * telemetryService.addMetric( { Metric metric ->
       metric.namespace == 'appsec' &&
         metric.metric == 'waf.requests' &&
         metric.points[0][1] == 1 &&
-        metric.tags == ['triggered:true', 'blocked:true']
+        metric.tags == ['rule_triggered:true', 'request_blocked:true']
     } )
     0 * _._
   }
