@@ -53,7 +53,6 @@ public class DefaultPathwayContext implements PathwayContext {
   private static final Set<String> hashableTagKeys =
       new HashSet<String>(
           Arrays.asList(
-              TagsProcessor.GROUP_TAG,
               TagsProcessor.TYPE_TAG,
               TagsProcessor.DIRECTION_TAG,
               TagsProcessor.TOPIC_TAG,
