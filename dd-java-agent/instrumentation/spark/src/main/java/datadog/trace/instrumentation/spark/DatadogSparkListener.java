@@ -34,6 +34,8 @@ public class DatadogSparkListener extends SparkListener {
 
   private final HashMap<String, SparkListenerExecutorAdded> liveExecutors = new HashMap<>();
 
+  private final boolean isRunningOnDatabricks;
+
   private boolean lastJobFailed = false;
   private String lastJobFailedMessage;
   private int currentExecutorCount = 0;
@@ -43,6 +45,8 @@ public class DatadogSparkListener extends SparkListener {
   public DatadogSparkListener(SparkConf _sparkConf) {
     tracer = AgentTracer.get();
     sparkConf = _sparkConf;
+
+    isRunningOnDatabricks = sparkConf.contains("spark.databricks.sparkContextId");
   }
 
   @Override
@@ -97,18 +101,39 @@ public class DatadogSparkListener extends SparkListener {
       return;
     }
 
-    AgentSpan jobSpan =
+    AgentTracer.SpanBuilder jobSpanBuilder =
         tracer
             .buildSpan("spark.job")
-            .asChildOf(applicationSpan.context())
             .withStartTimestamp(jobStart.time() * 1000)
             .withTag("job_id", jobStart.jobId())
             .withTag("stage_count", jobStart.stageInfos().size())
             .withTag(DDTags.RESOURCE_NAME, jobStart.stageInfos().apply(0).name())
-            .withSpanType("spark")
-            .start();
+            .withSpanType("spark");
 
+    if (!isRunningOnDatabricks) {
+      // In databricks, the spark jobs are the local root spans
+      jobSpanBuilder.asChildOf(applicationSpan.context());
+    }
+
+    AgentSpan jobSpan = jobSpanBuilder.start();
     jobSpan.setMeasured(true);
+
+    if (isRunningOnDatabricks) {
+      // In databricks, the spark jobs are the local root spans so adding the spark conf parameters to the job spans
+      for (Tuple2<String, String> conf : sparkConf.getAll()) {
+        if (SparkConfAllowList.canCaptureApplicationParameter(conf._1)) {
+          jobSpan.setTag("config." + conf._1.replace(".", "_"), conf._2);
+        }
+      }
+
+      if (jobStart.properties() != null) {
+        // ids to those traces to databricks job/task traces
+        jobSpan.setTag("databricks_job_id", jobStart.properties().get("spark.databricks.job.id"));
+
+        // spark.databricks.job.runId is the runId of the task, not of the Job
+        jobSpan.setTag("databricks_task_run_id", jobStart.properties().get("spark.databricks.job.runId"));
+      }
+    }
 
     // Some properties can change at runtime, so capturing properties of all jobs
     if (jobStart.properties() != null) {
