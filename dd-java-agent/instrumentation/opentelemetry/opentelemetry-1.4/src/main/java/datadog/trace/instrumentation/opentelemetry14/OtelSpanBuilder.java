@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.opentelemetry14;
 
+import static datadog.trace.instrumentation.opentelemetry14.OtelExtractedContext.extract;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -23,13 +25,7 @@ public class OtelSpanBuilder implements SpanBuilder {
 
   @Override
   public SpanBuilder setParent(Context context) {
-    Span span = Span.fromContext(context);
-    SpanContext spanContext = span.getSpanContext();
-    AgentSpan.Context ddContext = AgentTracer.NoopContext.INSTANCE;
-    if (spanContext instanceof OtelSpanContext) {
-      ddContext = ((OtelSpanContext) spanContext).delegate;
-    }
-    this.delegate.asChildOf(ddContext);
+    this.delegate.asChildOf(extract(context));
     return this;
   }
 

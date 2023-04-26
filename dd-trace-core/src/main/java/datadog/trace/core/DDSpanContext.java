@@ -499,9 +499,7 @@ public class DDSpanContext
     return true;
   }
 
-  /**
-   * @return the trace sampling priority of this span's trace, or null if no priority has been set
-   */
+  @Override
   public int getSamplingPriority() {
     return getRootSpanContextOrThis().samplingPriority;
   }
