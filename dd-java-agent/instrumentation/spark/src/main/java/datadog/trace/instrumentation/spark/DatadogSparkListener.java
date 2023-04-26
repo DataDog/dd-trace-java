@@ -5,6 +5,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskFailedReason;
 import org.apache.spark.scheduler.*;
@@ -129,6 +133,7 @@ public class DatadogSparkListener extends SparkListener {
       if (jobStart.properties() != null) {
         // ids to those traces to databricks job/task traces
         jobSpan.setTag("databricks_job_id", jobStart.properties().get("spark.databricks.job.id"));
+        jobSpan.setTag("databricks_job_run_id", getDatabricksJobRunId(jobStart.properties()));
 
         // spark.databricks.job.runId is the runId of the task, not of the Job
         jobSpan.setTag("databricks_task_run_id", jobStart.properties().get("spark.databricks.job.runId"));
@@ -346,5 +351,21 @@ public class DatadogSparkListener extends SparkListener {
 
   private long stageSpanKey(int stageId, int attemptId) {
     return ((long) stageId << 32) + attemptId;
+  }
+
+  private String getDatabricksJobRunId(Properties jobProperties) {
+    String clusterName = (String) jobProperties.get("spark.databricks.clusterUsageTags.clusterName");
+    if (clusterName == null) {
+      return null;
+    }
+
+    // For job cluster, the cluster name has a pattern job-<job_id>-run-<job_run_id>
+    Pattern pattern = Pattern.compile("job-\\d+-run-(\\d+)");
+    Matcher matcher = pattern.matcher(clusterName);
+    if (matcher.find()) {
+      return matcher.group(1);
+    }
+
+    return null;
   }
 }
