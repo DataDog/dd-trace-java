@@ -340,7 +340,7 @@ public class DDSpanContext
   }
 
   public void setServiceName(final String serviceName) {
-    this.serviceName = trace.getTracer().mapServiceName(serviceName);
+    this.serviceName = trace.mapServiceName(serviceName);
     this.topLevel = isTopLevel(parentServiceName, this.serviceName);
   }
 
