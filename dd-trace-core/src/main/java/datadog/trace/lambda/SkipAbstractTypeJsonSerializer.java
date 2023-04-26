@@ -12,9 +12,11 @@ import java.util.Set;
 
 public final class SkipAbstractTypeJsonSerializer<T> extends JsonAdapter<T> {
   private final JsonAdapter<T> delegate;
+  private int stackCount;
 
   private SkipAbstractTypeJsonSerializer(JsonAdapter<T> delegate) {
     this.delegate = delegate;
+    this.stackCount = 0;
   }
 
   @Override
@@ -24,14 +26,14 @@ public final class SkipAbstractTypeJsonSerializer<T> extends JsonAdapter<T> {
 
   @Override
   public void toJson(JsonWriter writer, T value) throws IOException {
-    if(value.getClass().getCanonicalName().equals("java.io.ByteArrayInputStream")) {
-      writer.beginObject();
-      writer.endObject();
+    stackCount++;
+    if(stackCount > 100) {
+      // let's skip this item as we can't deserialize it as JSON
+      skip(writer);
       return;
     }
-    if (value != null && value.getClass() instanceof Class<?>) {
-      System.out.println(value.getClass());
-      if (!Modifier.isAbstract(((Class<?>) value.getClass()).getModifiers())) {
+    if(value != null) {
+      if (value.getClass() instanceof Class<?> && (!Modifier.isAbstract(((Class<?>) value.getClass()).getModifiers()))) {
         try {
           writer.jsonValue(value);
           return;
@@ -39,8 +41,21 @@ public final class SkipAbstractTypeJsonSerializer<T> extends JsonAdapter<T> {
           // nothing to do here
         }
       }
+      if (isPlatformClass(value.getClass().getCanonicalName())) {
+        skip(writer);
+        return;
+      }
     }
     delegate.toJson(writer, value);
+  }
+
+  private static boolean isPlatformClass(String canonicalName) {
+    return canonicalName.startsWith("java.") || canonicalName.startsWith("javax.");
+  }
+
+  private static void skip(JsonWriter writer) throws IOException {
+    writer.beginObject();
+    writer.endObject();
   }
 
   public static <T> Factory newFactory() {
@@ -49,14 +64,10 @@ public final class SkipAbstractTypeJsonSerializer<T> extends JsonAdapter<T> {
       public JsonAdapter<?> create(
           Type requestedType, Set<? extends Annotation> annotations, Moshi moshi) {
         System.out.println(requestedType.getClass().getCanonicalName().startsWith("java."));
-        if (requestedType.toString().equals("class java.io.ByteArrayInputStream")) {
-          JsonAdapter<T> delegate = moshi.nextAdapter(this, Object.class, annotations);
-          return new SkipAbstractTypeJsonSerializer<>(delegate);
-        }
         if (!(requestedType instanceof Class<?>)) {
           return null;
         }
-        if (Modifier.isAbstract(((Class<?>) requestedType).getModifiers())) {
+        if (Modifier.isAbstract(((Class<?>) requestedType).getModifiers()) || isPlatformClass(requestedType.getTypeName())) {
           JsonAdapter<T> delegate = moshi.nextAdapter(this, Object.class, annotations);
           return new SkipAbstractTypeJsonSerializer<>(delegate);
         }

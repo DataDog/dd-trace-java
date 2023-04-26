@@ -1,8 +1,10 @@
 package datadog.trace.lambda
 
+import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent
+import com.amazonaws.services.lambda.runtime.events.SNSEvent
+import com.amazonaws.services.lambda.runtime.events.SQSEvent
 import datadog.trace.core.test.DDCoreSpecification
 import com.squareup.moshi.Moshi
-import java.io.ByteArrayInputStream;
 
 abstract class AbstractSerialize {
   public String randomString
@@ -53,9 +55,8 @@ class SkipAbstractTypeJsonSerializerTest extends DDCoreSpecification {
     def result = adapter.toJson(new TestJsonObject())
 
     then:
-    result == "{\"field1\":\"toto\",\"field2\":true,\"field3\":{\"randomString\":\"tutu\"},\"field4\":{\"field\":{\"randomString\":\"tutu\"}}}"
+    result == "{\"field1\":\"toto\",\"field2\":true,\"field3\":{\"randomString\":\"tutu\"},\"field4\":{\"field\":{\"randomString\":\"tutu\"}},\"field5\":{}}"
   }
-
 
   def "test simple case"() {
     given:
@@ -74,4 +75,64 @@ class SkipAbstractTypeJsonSerializerTest extends DDCoreSpecification {
     then:
     result == "{\"key0\":\"item0\",\"key1\":\"item1\",\"key2\":\"item2\"}"
   }
+
+  def "test SQS event "() {
+    given:
+    def adapter = new Moshi.Builder()
+      .add(SkipAbstractTypeJsonSerializer.newFactory())
+      .build()
+      .adapter(Object)
+
+    when:
+    def myEvent = new SQSEvent()
+    List<SQSEvent.SQSMessage> records = new ArrayList<>()
+    SQSEvent.SQSMessage message = new SQSEvent.SQSMessage()
+    message.setMessageId("myId")
+    message.setAwsRegion("myRegion")
+    records.add(message)
+    myEvent.setRecords(records)
+    def result = adapter.toJson(myEvent)
+
+    then:
+    result == "{\"records\":[{\"awsRegion\":\"myRegion\",\"messageId\":\"myId\"}]}"
+  }
+
+  def "test SNS Event"() {
+    given:
+    def adapter = new Moshi.Builder()
+      .add(SkipAbstractTypeJsonSerializer.newFactory())
+      .build()
+      .adapter(Object)
+
+    when:
+    def myEvent = new SNSEvent()
+    List<SNSEvent.SNSRecord> records = new ArrayList<>()
+    SNSEvent.SNSRecord message = new SNSEvent.SNSRecord()
+    message.setEventSource("mySource")
+    message.setEventVersion("myVersion")
+    records.add(message)
+    myEvent.setRecords(records)
+    def result = adapter.toJson(myEvent)
+
+    then:
+    result == "{\"records\":[{\"eventSource\":\"mySource\",\"eventVersion\":\"myVersion\"}]}"
+  }
+
+  def "test APIGatewayProxyRequest Event"() {
+    given:
+    def adapter = new Moshi.Builder()
+      .add(SkipAbstractTypeJsonSerializer.newFactory())
+      .build()
+      .adapter(Object)
+
+    when:
+    def myEvent = new APIGatewayProxyRequestEvent()
+    myEvent.setBody("bababango")
+    myEvent.setHttpMethod("POST")
+    def result = adapter.toJson(myEvent)
+
+    then:
+    result == "{\"body\":\"bababango\",\"httpMethod\":\"POST\"}"
+  }
+
 }
