@@ -48,26 +48,26 @@ class SparkConfAllowList {
    * job being executed
    */
   private static final Set<String> allowedJobParams =
-      new HashSet<>(Arrays.asList(
-          "spark.app.id",
-          "spark.app.name",
-          "spark.app.startTime",
-          "spark.databricks.clusterSource",
-          "spark.databricks.clusterUsageTags.clusterId",
-          "spark.databricks.clusterUsageTags.clusterName",
-          "spark.databricks.clusterUsageTags.clusterNodeType",
-          "spark.databricks.clusterUsageTags.clusterWorkers",
-          "spark.databricks.clusterUsageTags.driverContainerId",
-          "spark.databricks.clusterUsageTags.sparkVersion",
-          "spark.databricks.clusterUsageTags.workerEnvironmentId",
-          "spark.databricks.env",
-          "spark.databricks.job.type",
-          "spark.databricks.sparkContextId",
-          "spark.job.description",
-          "spark.jobGroup.id",
-          "spark.sql.execution.id",
-          "user"
-      ));
+      new HashSet<>(
+          Arrays.asList(
+              "spark.app.id",
+              "spark.app.name",
+              "spark.app.startTime",
+              "spark.databricks.clusterSource",
+              "spark.databricks.clusterUsageTags.clusterId",
+              "spark.databricks.clusterUsageTags.clusterName",
+              "spark.databricks.clusterUsageTags.clusterNodeType",
+              "spark.databricks.clusterUsageTags.clusterWorkers",
+              "spark.databricks.clusterUsageTags.driverContainerId",
+              "spark.databricks.clusterUsageTags.sparkVersion",
+              "spark.databricks.clusterUsageTags.workerEnvironmentId",
+              "spark.databricks.env",
+              "spark.databricks.job.type",
+              "spark.databricks.sparkContextId",
+              "spark.job.description",
+              "spark.jobGroup.id",
+              "spark.sql.execution.id",
+              "user"));
 
   public static boolean canCaptureApplicationParameter(String parameterName) {
     return allowedApplicationParams.contains(parameterName);

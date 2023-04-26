@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskFailedReason;
 import org.apache.spark.scheduler.*;
@@ -123,7 +122,8 @@ public class DatadogSparkListener extends SparkListener {
     jobSpan.setMeasured(true);
 
     if (isRunningOnDatabricks) {
-      // In databricks, the spark jobs are the local root spans so adding the spark conf parameters to the job spans
+      // In databricks, the spark jobs are the local root spans so adding the spark conf parameters
+      // to the job spans
       for (Tuple2<String, String> conf : sparkConf.getAll()) {
         if (SparkConfAllowList.canCaptureApplicationParameter(conf._1)) {
           jobSpan.setTag("config." + conf._1.replace(".", "_"), conf._2);
@@ -131,12 +131,13 @@ public class DatadogSparkListener extends SparkListener {
       }
 
       if (jobStart.properties() != null) {
-        // ids to those traces to databricks job/task traces
+        // ids to link those spans to databricks job/task traces
         jobSpan.setTag("databricks_job_id", jobStart.properties().get("spark.databricks.job.id"));
         jobSpan.setTag("databricks_job_run_id", getDatabricksJobRunId(jobStart.properties()));
 
         // spark.databricks.job.runId is the runId of the task, not of the Job
-        jobSpan.setTag("databricks_task_run_id", jobStart.properties().get("spark.databricks.job.runId"));
+        jobSpan.setTag(
+            "databricks_task_run_id", jobStart.properties().get("spark.databricks.job.runId"));
       }
     }
 
@@ -354,7 +355,8 @@ public class DatadogSparkListener extends SparkListener {
   }
 
   private String getDatabricksJobRunId(Properties jobProperties) {
-    String clusterName = (String) jobProperties.get("spark.databricks.clusterUsageTags.clusterName");
+    String clusterName =
+        (String) jobProperties.get("spark.databricks.clusterUsageTags.clusterName");
     if (clusterName == null) {
       return null;
     }
