@@ -14,7 +14,7 @@ class URICallSIteTest extends AgentTestRunner {
     injectSysConfig('dd.iast.enabled', 'true')
   }
 
-  void 'test uri propagation'() {
+  void 'test uri ctor propagation'() {
     given:
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
@@ -34,5 +34,23 @@ class URICallSIteTest extends AgentTestRunner {
     'uri'    | ['http', 'test.com', '/index', 'fragment']                                    | 'http://test.com/index#fragment'
     'uri'    | ['http', '//test.com/index?name=value', 'fragment']                           | 'http://test.com/index?name=value#fragment'
     'create' | ['http://test.com/index?name=value#fragment']                                 | 'http://test.com/index?name=value#fragment'
+  }
+
+  void 'test uri propagation'() {
+    given:
+    final module = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    TestURICallSiteSuite.&"$method".call(args as Object[])
+
+    then:
+    1 * module.taintIfInputIsTainted(_, _ as URI)
+
+    where:
+    method          | args
+    'normalize'     | [new URI('http://test.com/index?name=value#fragment')]
+    'toString'      | [new URI('http://test.com/index?name=value#fragment')]
+    'toASCIIString' | [new URI('http://test.com/index?name=value#fragment')]
   }
 }
