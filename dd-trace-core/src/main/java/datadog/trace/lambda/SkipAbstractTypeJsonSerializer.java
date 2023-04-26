@@ -33,8 +33,7 @@ public final class SkipAbstractTypeJsonSerializer<T> extends JsonAdapter<T> {
       return;
     }
     if (value != null) {
-      if (value.getClass() instanceof Class<?>
-          && (!Modifier.isAbstract(((Class<?>) value.getClass()).getModifiers()))) {
+      if (!Modifier.isAbstract(((Class<?>) value.getClass()).getModifiers())) {
         try {
           writer.jsonValue(value);
           return;
