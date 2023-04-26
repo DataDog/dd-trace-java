@@ -27,13 +27,14 @@ public final class SkipAbstractTypeJsonSerializer<T> extends JsonAdapter<T> {
   @Override
   public void toJson(JsonWriter writer, T value) throws IOException {
     stackCount++;
-    if(stackCount > 100) {
+    if (stackCount > 100) {
       // let's skip this item as we can't deserialize it as JSON
       skip(writer);
       return;
     }
-    if(value != null) {
-      if (value.getClass() instanceof Class<?> && (!Modifier.isAbstract(((Class<?>) value.getClass()).getModifiers()))) {
+    if (value != null) {
+      if (value.getClass() instanceof Class<?>
+          && (!Modifier.isAbstract(((Class<?>) value.getClass()).getModifiers()))) {
         try {
           writer.jsonValue(value);
           return;
@@ -66,7 +67,8 @@ public final class SkipAbstractTypeJsonSerializer<T> extends JsonAdapter<T> {
         if (!(requestedType instanceof Class<?>)) {
           return null;
         }
-        if (Modifier.isAbstract(((Class<?>) requestedType).getModifiers()) || isPlatformClass(requestedType.getTypeName())) {
+        if (Modifier.isAbstract(((Class<?>) requestedType).getModifiers())
+            || isPlatformClass(requestedType.getTypeName())) {
           JsonAdapter<T> delegate = moshi.nextAdapter(this, Object.class, annotations);
           return new SkipAbstractTypeJsonSerializer<>(delegate);
         }

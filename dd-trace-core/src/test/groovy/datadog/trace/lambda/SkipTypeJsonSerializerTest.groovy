@@ -31,7 +31,7 @@ class SkipAbstractTypeJsonSerializerTest extends DDCoreSpecification {
       this.field2 = true
       this.field3 = new SubClass()
       this.field4 = new NestedJsonObject()
-      this.field5 = new ByteArrayInputStream();
+      this.field5 = new ByteArrayInputStream()
     }
   }
 
@@ -134,5 +134,4 @@ class SkipAbstractTypeJsonSerializerTest extends DDCoreSpecification {
     then:
     result == "{\"body\":\"bababango\",\"httpMethod\":\"POST\"}"
   }
-
 }
