@@ -8,7 +8,7 @@ import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
-import java.util.Set;
+import java.util.*;
 
 public final class SkipAbstractTypeJsonSerializer<T> extends JsonAdapter<T> {
   private final JsonAdapter<T> delegate;
@@ -26,36 +26,33 @@ public final class SkipAbstractTypeJsonSerializer<T> extends JsonAdapter<T> {
 
   @Override
   public void toJson(JsonWriter writer, T value) throws IOException {
-    stackCount++;
-    if (stackCount > 100) {
-      // let's skip this item as we can't deserialize it as JSON
-      skip(writer);
-      return;
-    }
-    if (value != null) {
-      if (!Modifier.isAbstract(((Class<?>) value.getClass()).getModifiers())) {
-        try {
-          writer.jsonValue(value);
-          return;
-        } catch (Exception e) {
-          // nothing to do here
-        }
-      }
-      if (isPlatformClass(value.getClass().getCanonicalName())) {
-        skip(writer);
-        return;
-      }
-    }
-    delegate.toJson(writer, value);
+    // nothing to do when we deal with an unsupported type, let's skip it.
+    writer.beginObject();
+    writer.endObject();
   }
 
   private static boolean isPlatformClass(String canonicalName) {
     return canonicalName.startsWith("java.") || canonicalName.startsWith("javax.");
   }
 
-  private static void skip(JsonWriter writer) throws IOException {
-    writer.beginObject();
-    writer.endObject();
+  private static boolean isInAbstractAllowList(String canonicalName) {
+    return canonicalName.equals(List.class.getCanonicalName()) ||
+        canonicalName.equals(Map.class.getCanonicalName()) ||
+        canonicalName.equals(Set.class.getCanonicalName()) ||
+        canonicalName.equals(Collection.class.getCanonicalName()) ||
+        canonicalName.equals(Object.class.getCanonicalName()) ||
+        canonicalName.equals(Integer.class.getCanonicalName()) ||
+        canonicalName.equals(Double.class.getCanonicalName()) ||
+        canonicalName.equals(Long.class.getCanonicalName()) ||
+        canonicalName.equals(String.class.getCanonicalName()) ||
+        canonicalName.equals(Boolean.class.getCanonicalName()) ||
+        canonicalName.equals("boolean") ||
+        canonicalName.equals("char") ||
+        canonicalName.equals("short") ||
+        canonicalName.equals("double") ||
+        canonicalName.equals("byte") ||
+        canonicalName.equals("float") ||
+        canonicalName.equals("int");
   }
 
   public static <T> Factory newFactory() {
@@ -63,11 +60,12 @@ public final class SkipAbstractTypeJsonSerializer<T> extends JsonAdapter<T> {
       @Override
       public JsonAdapter<?> create(
           Type requestedType, Set<? extends Annotation> annotations, Moshi moshi) {
-        if (!(requestedType instanceof Class<?>)) {
-          return null;
-        }
-        if (Modifier.isAbstract(((Class<?>) requestedType).getModifiers())
-            || isPlatformClass(requestedType.getTypeName())) {
+        boolean isClass = requestedType instanceof Class<?>;
+        String typeName = isClass ? ((Class<?>) requestedType).getTypeName() : null;
+        boolean isAbstract = isClass && Modifier.isAbstract(((Class<?>) requestedType).getModifiers()) && !isInAbstractAllowList(typeName);
+        boolean isPlatform = isClass && isPlatformClass(typeName);
+        boolean isInAllowList = isClass && isInAbstractAllowList(typeName);
+        if(isAbstract || (isPlatform && !isInAllowList)) {
           JsonAdapter<T> delegate = moshi.nextAdapter(this, Object.class, annotations);
           return new SkipAbstractTypeJsonSerializer<>(delegate);
         }

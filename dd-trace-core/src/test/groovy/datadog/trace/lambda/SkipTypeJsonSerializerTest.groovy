@@ -55,7 +55,7 @@ class SkipAbstractTypeJsonSerializerTest extends DDCoreSpecification {
     def result = adapter.toJson(new TestJsonObject())
 
     then:
-    result == "{\"field1\":\"toto\",\"field2\":true,\"field3\":{\"randomString\":\"tutu\"},\"field4\":{\"field\":{\"randomString\":\"tutu\"}},\"field5\":{}}"
+    result == "{\"field1\":\"toto\",\"field2\":true,\"field3\":{},\"field4\":{\"field\":{}},\"field5\":{}}"
   }
 
   def "test simple case"() {
@@ -133,5 +133,26 @@ class SkipAbstractTypeJsonSerializerTest extends DDCoreSpecification {
 
     then:
     result == "{\"body\":\"bababango\",\"httpMethod\":\"POST\"}"
+  }
+
+  def "test MapStringObject Event"() {
+    given:
+    def adapter = new Moshi.Builder()
+      .add(SkipAbstractTypeJsonSerializer.newFactory())
+      .build()
+      .adapter(Object)
+
+    when:
+    def myEvent = new HashMap<String, Object>();
+    def myNestedEvent = new HashMap<String, Object>();
+    myNestedEvent.put("nestedKey0", "nestedValue1");
+    myNestedEvent.put("nestedKey1", true);
+    myNestedEvent.put("nestedKey2", ["aaa", "bbb", "ccc", "dddd"]);
+    myEvent.put("firstKey", new TestJsonObject())
+    myEvent.put("secondKey", myNestedEvent)
+    def result = adapter.toJson(myEvent)
+
+    then:
+    result == "{\"firstKey\":{\"field1\":\"toto\",\"field2\":true,\"field3\":{},\"field4\":{\"field\":{}},\"field5\":{}},\"secondKey\":{\"nestedKey2\":[\"aaa\",\"bbb\",\"ccc\",\"dddd\"],\"nestedKey0\":\"nestedValue1\",\"nestedKey1\":true}}"
   }
 }
