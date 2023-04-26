@@ -129,7 +129,7 @@ public class WafMetricCollector {
 
     public WafMetric(String metricName, long counter, final String... tags) {
       this.metricName = metricName;
-      this.timestamp = System.currentTimeMillis();
+      this.timestamp = System.currentTimeMillis() / 1000;
       this.counter = counter;
       this.namespace = NAMESPACE;
       this.tags = Arrays.asList(tags);
