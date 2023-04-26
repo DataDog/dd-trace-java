@@ -70,9 +70,10 @@ build_with_cache:
 deploy_to_reliability_env:
   stage: deploy
   rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - when: on_success
+    - if: $CI_PIPELINE_SOURCE == "scheduled"
+      when: on_success
+    - when: manual
+      allow_failure: true
   trigger:
     project: DataDog/apm-reliability/datadog-reliability-env
     branch: $DOWNSTREAM_BRANCH
