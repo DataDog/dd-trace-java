@@ -6,6 +6,7 @@ import com.datadog.iast.propagation.FastCodecModule;
 import com.datadog.iast.propagation.PropagationModuleImpl;
 import com.datadog.iast.propagation.StringModuleImpl;
 import com.datadog.iast.sink.CommandInjectionModuleImpl;
+import com.datadog.iast.sink.InsecureCookieModuleImpl;
 import com.datadog.iast.sink.LdapInjectionModuleImpl;
 import com.datadog.iast.sink.PathTraversalModuleImpl;
 import com.datadog.iast.sink.SqlInjectionModuleImpl;
@@ -88,7 +89,8 @@ public class IastSystem {
         new WeakCipherModuleImpl(),
         new WeakHashModuleImpl(),
         new LdapInjectionModuleImpl(),
-        new PropagationModuleImpl());
+        new PropagationModuleImpl(),
+        new InsecureCookieModuleImpl());
   }
 
   private static void registerRequestStartedCallback(

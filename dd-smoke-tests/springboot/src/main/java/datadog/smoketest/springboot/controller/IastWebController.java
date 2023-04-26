@@ -4,12 +4,15 @@ import datadog.smoketest.springboot.TestBean;
 import ddtest.client.sources.Hasher;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
+import java.net.HttpCookie;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.security.Principal;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.websocket.server.PathParam;
+import org.springframework.http.HttpStatus;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.MatrixVariable;
@@ -40,6 +43,32 @@ public class IastWebController {
   public String weakhash() {
     hasher.md5().digest("Message body".getBytes(StandardCharsets.UTF_8));
     return "Weak Hash page";
+  }
+
+  @GetMapping("/insecure_cookie")
+  public String insecureCookie(HttpServletResponse response) {
+    Cookie cookie = new Cookie("user-id", "7");
+    response.addCookie(cookie);
+    response.setStatus(HttpStatus.OK.value());
+    return "Insecure cookie page";
+  }
+
+  @GetMapping("/secure_cookie")
+  public String secureCookie(HttpServletResponse response) {
+    Cookie cookie = new Cookie("user-id", "7");
+    cookie.setSecure(true);
+    response.addCookie(cookie);
+    response.setStatus(HttpStatus.OK.value());
+    return "Insecure cookie page";
+  }
+
+  @GetMapping("/insecure_cookie_from_header")
+  public String insecureCookieFromHeader(HttpServletResponse response) {
+    HttpCookie cookie = new HttpCookie("user-id", "7");
+
+    response.addHeader("Set-Cookie", cookie.toString());
+    response.setStatus(HttpStatus.OK.value());
+    return "Insecure cookie page";
   }
 
   @RequestMapping("/async_weakhash")
