@@ -1,5 +1,5 @@
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
-import datadog.trace.instrumentation.aws.v1.lambda.LambdaHandlerInstrumentation
+import java.nio.charset.StandardCharsets
 
 abstract class LambdaHandlerInstrumentationTest extends VersionedNamingTestBase {
 
@@ -8,25 +8,26 @@ abstract class LambdaHandlerInstrumentationTest extends VersionedNamingTestBase 
     null
   }
 
-  def "test constructor"() {
-    when:
-    environmentVariables.set("_HANDLER", handlerEnv)
-    def objTest = new LambdaHandlerInstrumentation()
-
-    then:
-    objTest.configuredMatchingType() == instrumentedType
-    objTest.getMethodName() == methodName
-    environmentVariables.clear("_HANDLER")
-
-    where:
-    instrumentedType     | methodName        | handlerEnv
-    "example.Handler"    | "mySuperHandler"  | "example.Handler::mySuperHandler"
-    "package.type"       | "handleRequest"   | "package.type"
-  }
-
   def "test lambda handler"() {
     when:
     new Handler().handleRequest(null, null)
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName operation()
+          errored false
+        }
+      }
+    }
+  }
+
+  def "test lambda streaming handler"() {
+    when:
+    def input = new ByteArrayInputStream(StandardCharsets.UTF_8.encode("Hello").array())
+    def output = new ByteArrayOutputStream()
+    new HandlerStreaming().handleRequest(input, output, null)
 
     then:
     assertTraces(1) {
