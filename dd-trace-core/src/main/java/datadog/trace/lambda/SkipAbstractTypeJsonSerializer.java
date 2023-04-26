@@ -12,11 +12,9 @@ import java.util.*;
 
 public final class SkipAbstractTypeJsonSerializer<T> extends JsonAdapter<T> {
   private final JsonAdapter<T> delegate;
-  private int stackCount;
 
   private SkipAbstractTypeJsonSerializer(JsonAdapter<T> delegate) {
     this.delegate = delegate;
-    this.stackCount = 0;
   }
 
   @Override
@@ -35,24 +33,25 @@ public final class SkipAbstractTypeJsonSerializer<T> extends JsonAdapter<T> {
     return canonicalName.startsWith("java.") || canonicalName.startsWith("javax.");
   }
 
-  private static boolean isInAbstractAllowList(String canonicalName) {
-    return canonicalName.equals(List.class.getCanonicalName()) ||
-        canonicalName.equals(Map.class.getCanonicalName()) ||
-        canonicalName.equals(Set.class.getCanonicalName()) ||
-        canonicalName.equals(Collection.class.getCanonicalName()) ||
-        canonicalName.equals(Object.class.getCanonicalName()) ||
-        canonicalName.equals(Integer.class.getCanonicalName()) ||
-        canonicalName.equals(Double.class.getCanonicalName()) ||
-        canonicalName.equals(Long.class.getCanonicalName()) ||
-        canonicalName.equals(String.class.getCanonicalName()) ||
-        canonicalName.equals(Boolean.class.getCanonicalName()) ||
-        canonicalName.equals("boolean") ||
-        canonicalName.equals("char") ||
-        canonicalName.equals("short") ||
-        canonicalName.equals("double") ||
-        canonicalName.equals("byte") ||
-        canonicalName.equals("float") ||
-        canonicalName.equals("int");
+  private static boolean isInAllowList(String canonicalName) {
+    return canonicalName.equals(List.class.getCanonicalName())
+        || canonicalName.equals(Map.class.getCanonicalName())
+        || canonicalName.equals(Set.class.getCanonicalName())
+        || canonicalName.equals(Collection.class.getCanonicalName())
+        || canonicalName.equals(Object.class.getCanonicalName())
+        || canonicalName.equals(Integer.class.getCanonicalName())
+        || canonicalName.equals(Double.class.getCanonicalName())
+        || canonicalName.equals(Long.class.getCanonicalName())
+        || canonicalName.equals(String.class.getCanonicalName())
+        || canonicalName.equals(Boolean.class.getCanonicalName())
+        || canonicalName.equals(Float.class.getCanonicalName())
+        || canonicalName.equals("boolean")
+        || canonicalName.equals("char")
+        || canonicalName.equals("short")
+        || canonicalName.equals("double")
+        || canonicalName.equals("byte")
+        || canonicalName.equals("float")
+        || canonicalName.equals("int");
   }
 
   public static <T> Factory newFactory() {
@@ -61,11 +60,14 @@ public final class SkipAbstractTypeJsonSerializer<T> extends JsonAdapter<T> {
       public JsonAdapter<?> create(
           Type requestedType, Set<? extends Annotation> annotations, Moshi moshi) {
         boolean isClass = requestedType instanceof Class<?>;
-        String typeName = isClass ? ((Class<?>) requestedType).getTypeName() : null;
-        boolean isAbstract = isClass && Modifier.isAbstract(((Class<?>) requestedType).getModifiers()) && !isInAbstractAllowList(typeName);
+        String typeName = isClass ? ((Class<?>) requestedType).getTypeName() : "";
+        boolean isAbstract =
+            isClass
+                && Modifier.isAbstract(((Class<?>) requestedType).getModifiers())
+                && !isInAllowList(typeName);
         boolean isPlatform = isClass && isPlatformClass(typeName);
-        boolean isInAllowList = isClass && isInAbstractAllowList(typeName);
-        if(isAbstract || (isPlatform && !isInAllowList)) {
+        boolean isInAllowList = isClass && isInAllowList(typeName);
+        if (isAbstract || (isPlatform && !isInAllowList)) {
           JsonAdapter<T> delegate = moshi.nextAdapter(this, Object.class, annotations);
           return new SkipAbstractTypeJsonSerializer<>(delegate);
         }

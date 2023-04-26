@@ -143,11 +143,11 @@ class SkipAbstractTypeJsonSerializerTest extends DDCoreSpecification {
       .adapter(Object)
 
     when:
-    def myEvent = new HashMap<String, Object>();
-    def myNestedEvent = new HashMap<String, Object>();
-    myNestedEvent.put("nestedKey0", "nestedValue1");
-    myNestedEvent.put("nestedKey1", true);
-    myNestedEvent.put("nestedKey2", ["aaa", "bbb", "ccc", "dddd"]);
+    def myEvent = new HashMap<String, Object>()
+    def myNestedEvent = new HashMap<String, Object>()
+    myNestedEvent.put("nestedKey0", "nestedValue1")
+    myNestedEvent.put("nestedKey1", true)
+    myNestedEvent.put("nestedKey2", ["aaa", "bbb", "ccc", "dddd"])
     myEvent.put("firstKey", new TestJsonObject())
     myEvent.put("secondKey", myNestedEvent)
     def result = adapter.toJson(myEvent)
