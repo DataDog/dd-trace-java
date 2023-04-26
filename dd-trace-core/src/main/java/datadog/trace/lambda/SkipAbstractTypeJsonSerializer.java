@@ -63,7 +63,6 @@ public final class SkipAbstractTypeJsonSerializer<T> extends JsonAdapter<T> {
       @Override
       public JsonAdapter<?> create(
           Type requestedType, Set<? extends Annotation> annotations, Moshi moshi) {
-        System.out.println(requestedType.getClass().getCanonicalName().startsWith("java."));
         if (!(requestedType instanceof Class<?>)) {
           return null;
         }
