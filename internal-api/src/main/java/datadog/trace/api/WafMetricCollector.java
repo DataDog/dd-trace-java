@@ -12,12 +12,10 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class WafMetricCollector {
 
-  public static class Holder {
-    public static final WafMetricCollector INSTANCE = new WafMetricCollector();
-  }
+  public static final WafMetricCollector INSTANCE = new WafMetricCollector();
 
   public static WafMetricCollector get() {
-    return WafMetricCollector.Holder.INSTANCE;
+    return WafMetricCollector.INSTANCE;
   }
 
   private static final String NAMESPACE = "appsec";
