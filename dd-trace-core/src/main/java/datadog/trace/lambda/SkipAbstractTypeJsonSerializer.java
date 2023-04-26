@@ -24,6 +24,17 @@ public final class SkipAbstractTypeJsonSerializer<T> extends JsonAdapter<T> {
 
   @Override
   public void toJson(JsonWriter writer, T value) throws IOException {
+    if (value != null && value.getClass() instanceof Class<?>) {
+      System.out.println(value.getClass());
+      if (!Modifier.isAbstract(((Class<?>) value.getClass()).getModifiers())) {
+        try {
+          writer.jsonValue(value);
+          return;
+        } catch (Exception e) {
+          // nothing to do here
+        }
+      }
+    }
     delegate.toJson(writer, value);
   }
 
