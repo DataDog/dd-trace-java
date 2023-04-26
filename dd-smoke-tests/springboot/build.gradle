@@ -19,6 +19,11 @@ jar {
 
 dependencies {
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.18.RELEASE'
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '1.5.18.RELEASE'
+  implementation group: 'com.auth0', name: 'java-jwt', version: '4.0.0-beta.0'
+  implementation group: 'com.auth0', name: 'jwks-rsa', version: '0.21.1'
+  implementation group: 'com.nimbusds', name: 'nimbus-jose-jwt', version: '9.22'
+
 
   testImplementation project(':dd-smoke-tests')
   implementation project(':dd-smoke-tests:iast-util')
@@ -29,3 +34,4 @@ tasks.withType(Test).configureEach {
 
   jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }
+

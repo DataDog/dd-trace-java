@@ -6,6 +6,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
+import java.security.Principal;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.websocket.server.PathParam;
@@ -131,6 +132,11 @@ public class IastWebController {
   public String cookie(final HttpServletRequest request) {
     final Cookie cookie = request.getCookies()[0];
     return "Cookie is: " + cookie.getName() + "=" + cookie.getValue();
+  }
+
+  @GetMapping("/jwt")
+  public String jwt(Principal userPrincipal) {
+    return "ok User Principal name: " + userPrincipal.getName();
   }
 
   private void withProcess(final Operation<Process> op) {
