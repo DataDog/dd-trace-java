@@ -24,6 +24,11 @@ public final class SkipAbstractTypeJsonSerializer<T> extends JsonAdapter<T> {
 
   @Override
   public void toJson(JsonWriter writer, T value) throws IOException {
+    if(value.getClass().getCanonicalName().equals("java.io.ByteArrayInputStream")) {
+      writer.beginObject();
+      writer.endObject();
+      return;
+    }
     if (value != null && value.getClass() instanceof Class<?>) {
       System.out.println(value.getClass());
       if (!Modifier.isAbstract(((Class<?>) value.getClass()).getModifiers())) {
@@ -43,6 +48,11 @@ public final class SkipAbstractTypeJsonSerializer<T> extends JsonAdapter<T> {
       @Override
       public JsonAdapter<?> create(
           Type requestedType, Set<? extends Annotation> annotations, Moshi moshi) {
+        System.out.println(requestedType.getClass().getCanonicalName().startsWith("java."));
+        if (requestedType.toString().equals("class java.io.ByteArrayInputStream")) {
+          JsonAdapter<T> delegate = moshi.nextAdapter(this, Object.class, annotations);
+          return new SkipAbstractTypeJsonSerializer<>(delegate);
+        }
         if (!(requestedType instanceof Class<?>)) {
           return null;
         }
