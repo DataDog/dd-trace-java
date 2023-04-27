@@ -38,6 +38,7 @@ public class DatadogSparkListener extends SparkListener {
   private final HashMap<String, SparkListenerExecutorAdded> liveExecutors = new HashMap<>();
 
   private final boolean isRunningOnDatabricks;
+  private Pattern databricksJobRunIdPattern;
 
   private boolean lastJobFailed = false;
   private String lastJobFailedMessage;
@@ -113,33 +114,33 @@ public class DatadogSparkListener extends SparkListener {
             .withTag(DDTags.RESOURCE_NAME, jobStart.stageInfos().apply(0).name())
             .withSpanType("spark");
 
-    if (!isRunningOnDatabricks) {
-      // In databricks, the spark jobs are the local root spans
-      jobSpanBuilder.asChildOf(applicationSpan.context());
-    }
-
-    AgentSpan jobSpan = jobSpanBuilder.start();
-    jobSpan.setMeasured(true);
-
     if (isRunningOnDatabricks) {
       // In databricks, the spark jobs are the local root spans so adding the spark conf parameters
       // to the job spans
       for (Tuple2<String, String> conf : sparkConf.getAll()) {
         if (SparkConfAllowList.canCaptureApplicationParameter(conf._1)) {
-          jobSpan.setTag("config." + conf._1.replace(".", "_"), conf._2);
+          jobSpanBuilder.withTag("config." + conf._1.replace(".", "_"), conf._2);
         }
       }
 
       if (jobStart.properties() != null) {
         // ids to link those spans to databricks job/task traces
-        jobSpan.setTag("databricks_job_id", jobStart.properties().get("spark.databricks.job.id"));
-        jobSpan.setTag("databricks_job_run_id", getDatabricksJobRunId(jobStart.properties()));
+        jobSpanBuilder.withTag(
+            "databricks_job_id", jobStart.properties().get("spark.databricks.job.id"));
+        jobSpanBuilder.withTag(
+            "databricks_job_run_id", getDatabricksJobRunId(jobStart.properties()));
 
         // spark.databricks.job.runId is the runId of the task, not of the Job
-        jobSpan.setTag(
+        jobSpanBuilder.withTag(
             "databricks_task_run_id", jobStart.properties().get("spark.databricks.job.runId"));
       }
+    } else {
+      // In non-databricks env, the spark application is the local root spans
+      jobSpanBuilder.asChildOf(applicationSpan.context());
     }
+
+    AgentSpan jobSpan = jobSpanBuilder.start();
+    jobSpan.setMeasured(true);
 
     // Some properties can change at runtime, so capturing properties of all jobs
     if (jobStart.properties() != null) {
@@ -361,9 +362,12 @@ public class DatadogSparkListener extends SparkListener {
       return null;
     }
 
-    // For job cluster, the cluster name has a pattern job-<job_id>-run-<job_run_id>
-    Pattern pattern = Pattern.compile("job-\\d+-run-(\\d+)");
-    Matcher matcher = pattern.matcher(clusterName);
+    if (databricksJobRunIdPattern == null) {
+      // For job cluster, the cluster name has a pattern job-<job_id>-run-<job_run_id>
+      databricksJobRunIdPattern = Pattern.compile("job-\\d+-run-(\\d+)");
+    }
+
+    Matcher matcher = databricksJobRunIdPattern.matcher(clusterName);
     if (matcher.find()) {
       return matcher.group(1);
     }
