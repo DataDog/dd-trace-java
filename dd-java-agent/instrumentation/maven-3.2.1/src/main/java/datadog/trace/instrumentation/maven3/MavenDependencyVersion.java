@@ -1,20 +1,16 @@
 package datadog.trace.instrumentation.maven3;
 
-import java.util.regex.Pattern;
+public class MavenDependencyVersion {
 
-public class MavenPluginVersion {
-
-  public static final MavenPluginVersion UNKNOWN = new MavenPluginVersion();
-
-  private static final Pattern DOT = Pattern.compile("\\.");
+  public static final MavenDependencyVersion UNKNOWN = new MavenDependencyVersion();
 
   private final int[] tokens;
 
-  MavenPluginVersion(int... tokens) {
+  MavenDependencyVersion(int... tokens) {
     this.tokens = tokens;
   }
 
-  boolean isLaterThanOrEqualTo(MavenPluginVersion other) {
+  boolean isLaterThanOrEqualTo(MavenDependencyVersion other) {
     int length = Math.max(tokens.length, other.tokens.length);
     for (int i = 0; i < length; i++) {
       int thisToken = i < tokens.length ? tokens[i] : 0;
@@ -29,12 +25,12 @@ public class MavenPluginVersion {
     return tokens.length >= other.tokens.length;
   }
 
-  static MavenPluginVersion from(String s) {
-    String[] stringTokens = DOT.split(s);
+  static MavenDependencyVersion from(String s) {
+    String[] stringTokens = s.split("\\.");
     int[] tokens = new int[stringTokens.length];
     for (int i = 0; i < stringTokens.length; i++) {
       tokens[i] = Integer.parseInt(stringTokens[i]);
     }
-    return new MavenPluginVersion(tokens);
+    return new MavenDependencyVersion(tokens);
   }
 }

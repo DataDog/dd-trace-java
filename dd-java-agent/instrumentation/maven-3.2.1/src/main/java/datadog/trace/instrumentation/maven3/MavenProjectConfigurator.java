@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.maven3;
 
 import datadog.trace.api.Config;
-import datadog.trace.util.AgentUtils;
 import java.io.File;
 import java.util.List;
 import java.util.Map;
@@ -27,8 +26,8 @@ class MavenProjectConfigurator {
   private static final String JAVAC_COMPILER_ID = "javac";
   private static final String DATADOG_COMPILER_PLUGIN_ID = "DatadogCompilerPlugin";
 
-  private static final MavenPluginVersion ANNOTATION_PROCESSOR_PATHS_SUPPORTED_VERSION =
-      MavenPluginVersion.from("3.5");
+  private static final MavenDependencyVersion ANNOTATION_PROCESSOR_PATHS_SUPPORTED_VERSION =
+      MavenDependencyVersion.from("3.5");
 
   void configureTracer(MavenProject project, String pluginKey) {
     Plugin surefirePlugin = project.getPlugin(pluginKey);
@@ -58,7 +57,7 @@ class MavenProjectConfigurator {
               .append(propertyName)
               .append('=')
               .append(e.getValue())
-              .append(System.lineSeparator());
+              .append(" ");
         }
       }
 
@@ -70,7 +69,7 @@ class MavenProjectConfigurator {
             .append(System.lineSeparator());
       }
 
-      File agentJar = AgentUtils.getAgentJar();
+      File agentJar = Config.get().getCiVisibilityAgentJarFile();
       modifiedArgLine.append("-javaagent:").append(agentJar.toPath());
 
       Xpp3Dom configuration = (Xpp3Dom) execution.getConfiguration();
@@ -113,14 +112,12 @@ class MavenProjectConfigurator {
       javacPluginClientDependency.setVersion(compilerPluginVersion);
 
       List<Dependency> projectDependencies = project.getDependencies();
-      if (!contains(projectDependencies, javacPluginClientDependency)) {
-        projectDependencies.add(javacPluginClientDependency);
-      }
+      addOrUpdate(projectDependencies, javacPluginClientDependency);
 
-      MavenPluginVersion mavenPluginVersion =
+      MavenDependencyVersion mavenPluginVersion =
           compilerPlugin.getVersion() != null
-              ? MavenPluginVersion.from(compilerPlugin.getVersion())
-              : MavenPluginVersion.UNKNOWN;
+              ? MavenDependencyVersion.from(compilerPlugin.getVersion())
+              : MavenDependencyVersion.UNKNOWN;
 
       if (mavenPluginVersion.isLaterThanOrEqualTo(ANNOTATION_PROCESSOR_PATHS_SUPPORTED_VERSION)) {
         String lombokVersion = getLombokVersion(projectDependencies);
@@ -142,9 +139,7 @@ class MavenProjectConfigurator {
         javacPluginDependency.setArtifactId(DATADOG_JAVAC_PLUGIN_ARTIFACT_ID);
         javacPluginDependency.setVersion(compilerPluginVersion);
 
-        if (!contains(projectDependencies, javacPluginDependency)) {
-          projectDependencies.add(javacPluginDependency);
-        }
+        addOrUpdate(projectDependencies, javacPluginDependency);
       }
 
       configuration = addCompilerArg(configuration, "-Xplugin:" + DATADOG_COMPILER_PLUGIN_ID);
@@ -158,16 +153,23 @@ class MavenProjectConfigurator {
     }
   }
 
-  // Dependency class does not override equals, so we have to do it like this
-  private static boolean contains(List<Dependency> projectDependencies, Dependency dependency) {
+  private static void addOrUpdate(List<Dependency> projectDependencies, Dependency dependency) {
+    MavenDependencyVersion dependencyVersion = MavenDependencyVersion.from(dependency.getVersion());
+
     for (Dependency projectDependency : projectDependencies) {
       if (projectDependency.getGroupId().equals(dependency.getGroupId())
-          && projectDependency.getArtifactId().equals(dependency.getArtifactId())
-          && projectDependency.getVersion().equals(dependency.getVersion())) {
-        return true;
+          && projectDependency.getArtifactId().equals(dependency.getArtifactId())) {
+
+        MavenDependencyVersion projectDependencyVersion =
+            MavenDependencyVersion.from(projectDependency.getVersion());
+        if (dependencyVersion.isLaterThanOrEqualTo(projectDependencyVersion)) {
+          projectDependency.setVersion(dependency.getVersion());
+        }
+
+        return;
       }
     }
-    return false;
+    projectDependencies.add(dependency);
   }
 
   private String getLombokVersion(List<Dependency> dependencies) {

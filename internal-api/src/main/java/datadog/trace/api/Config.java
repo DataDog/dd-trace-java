@@ -332,6 +332,7 @@ import datadog.trace.util.Strings;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
@@ -2089,6 +2090,19 @@ public class Config {
 
   public String getCiVisibilityAgentJarUri() {
     return ciVisibilityAgentJarUri;
+  }
+
+  public File getCiVisibilityAgentJarFile() {
+    if (ciVisibilityAgentJarUri == null || ciVisibilityAgentJarUri.isEmpty()) {
+      throw new IllegalArgumentException("Agent JAR URI is not set in config");
+    }
+
+    try {
+      URI agentJarUri = new URI(ciVisibilityAgentJarUri);
+      return new File(agentJarUri);
+    } catch (URISyntaxException e) {
+      throw new IllegalArgumentException("Malformed agent JAR URI: " + ciVisibilityAgentJarUri, e);
+    }
   }
 
   public boolean isCiVisibilityAutoConfigurationEnabled() {
