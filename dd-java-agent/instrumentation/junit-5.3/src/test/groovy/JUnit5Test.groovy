@@ -1,9 +1,8 @@
 import datadog.trace.agent.test.asserts.ListWriterAssert
-import datadog.trace.agent.test.base.TestFrameworkTest
+import datadog.trace.agent.test.base.CiVisibilityTest
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.instrumentation.junit5.JUnit5Decorator
 import org.example.TestAssumption
 import org.example.TestAssumptionAndSucceed
 import org.example.TestAssumptionLegacy
@@ -33,7 +32,7 @@ import org.opentest4j.AssertionFailedError
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
 @DisableTestTrace(reason = "avoid self-tracing")
-class JUnit5Test extends TestFrameworkTest {
+class JUnit5Test extends CiVisibilityTest {
 
   def "test success generate spans"() {
     setup:
@@ -218,7 +217,7 @@ class JUnit5Test extends TestFrameworkTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSkipped", CIConstants.TEST_SKIP)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null)
       }
     })
 
@@ -239,16 +238,16 @@ class JUnit5Test extends TestFrameworkTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSkippedClass", CIConstants.TEST_SKIP, testTags)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_case_skipped", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_case_skipped", CIConstants.TEST_SKIP, testTags, null)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_factory_skipped", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_factory_skipped", CIConstants.TEST_SKIP, testTags, null)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_parameterized_skipped", CIConstants.TEST_SKIP, parameterizedTestTags, null, true)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_parameterized_skipped", CIConstants.TEST_SKIP, parameterizedTestTags, null)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_repeated_skipped", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_repeated_skipped", CIConstants.TEST_SKIP, testTags, null)
       }
     })
 
@@ -312,7 +311,7 @@ class JUnit5Test extends TestFrameworkTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSucceedAndSkipped", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null)
       }
       trace(1) {
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", CIConstants.TEST_PASS)
@@ -425,7 +424,7 @@ class JUnit5Test extends TestFrameworkTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSuiteSetUpAssumption", CIConstants.TEST_SKIP, testTags)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSuiteSetUpAssumption", "test_succeed", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSuiteSetUpAssumption", "test_succeed", CIConstants.TEST_SKIP, testTags, null)
       }
     })
 
@@ -475,7 +474,7 @@ class JUnit5Test extends TestFrameworkTest {
         testSpan(it, 0, testModuleId, firstSuiteId, "org.example.TestSucceed", "test_succeed", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null)
       }
       trace(1) {
         testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", CIConstants.TEST_PASS)
@@ -556,10 +555,10 @@ class JUnit5Test extends TestFrameworkTest {
         nestedSuiteId = testSuiteSpan(it, 2, testModuleId, 'org.example.TestSkippedNested$NestedSuite', CIConstants.TEST_SKIP, testTags)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, nestedSuiteId, 'org.example.TestSkippedNested$NestedSuite', "test_succeed_nested", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, nestedSuiteId, 'org.example.TestSkippedNested$NestedSuite', "test_succeed_nested", CIConstants.TEST_SKIP, testTags, null)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, topLevelSuiteId, "org.example.TestSkippedNested", "test_succeed", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, topLevelSuiteId, "org.example.TestSkippedNested", "test_succeed", CIConstants.TEST_SKIP, testTags, null)
       }
     })
 
@@ -595,7 +594,7 @@ class JUnit5Test extends TestFrameworkTest {
 
   @Override
   String expectedTestFramework() {
-    return JUnit5Decorator.DECORATE.testFramework()
+    return "junit5"
   }
 
   @Override
@@ -605,6 +604,6 @@ class JUnit5Test extends TestFrameworkTest {
 
   @Override
   String component() {
-    return JUnit5Decorator.DECORATE.component()
+    return "junit"
   }
 }

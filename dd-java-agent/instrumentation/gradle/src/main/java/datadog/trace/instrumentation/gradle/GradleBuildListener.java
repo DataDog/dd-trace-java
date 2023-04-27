@@ -26,7 +26,7 @@ public class GradleBuildListener extends BuildAdapter {
   private static final Logger log = LoggerFactory.getLogger(GradleBuildListener.class);
 
   private final BuildEventsHandler<Gradle> buildEventsHandler =
-      InstrumentationBridge.getBuildEventsHandler();
+      InstrumentationBridge.createBuildEventsHandler();
 
   @Override
   public void settingsEvaluated(Settings settings) {
@@ -35,7 +35,8 @@ public class GradleBuildListener extends BuildAdapter {
     }
     Gradle gradle = settings.getGradle();
     Path projectRoot = settings.getRootDir().toPath();
-    TestDecorator gradleDecorator = new GradleDecorator(projectRoot);
+    TestDecorator gradleDecorator =
+        InstrumentationBridge.createTestDecorator("gradle", null, null, projectRoot);
     ProjectDescriptor rootProject = settings.getRootProject();
     String projectName = rootProject.getName();
     String startCommand = GradleUtils.recreateStartCommand(settings.getStartParameter());

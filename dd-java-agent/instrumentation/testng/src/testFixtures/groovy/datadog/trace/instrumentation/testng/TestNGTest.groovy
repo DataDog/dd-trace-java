@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.testng
 
 import datadog.trace.agent.test.asserts.ListWriterAssert
-import datadog.trace.agent.test.base.TestFrameworkTest
+import datadog.trace.agent.test.base.CiVisibilityTest
 import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.example.TestError
@@ -21,7 +21,7 @@ import org.example.TestSucceedGroups
 import org.example.TestSucceedNested
 import org.testng.TestNG
 
-abstract class TestNGTest extends TestFrameworkTest {
+abstract class TestNGTest extends CiVisibilityTest {
 
   static testOutputDir = "build/tmp/test-output"
 
@@ -504,12 +504,12 @@ abstract class TestNGTest extends TestFrameworkTest {
 
   @Override
   String expectedTestFramework() {
-    return TestNGDecorator.DECORATE.testFramework()
+    return "testng"
   }
 
   @Override
   String component() {
-    return TestNGDecorator.DECORATE.component()
+    return "testng"
   }
 
   abstract String assertionErrorMessage()

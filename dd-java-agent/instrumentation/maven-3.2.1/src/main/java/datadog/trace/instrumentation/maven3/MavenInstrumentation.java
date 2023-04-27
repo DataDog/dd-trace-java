@@ -6,6 +6,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
+import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -35,10 +37,15 @@ public class MavenInstrumentation extends Instrumenter.CiVisibility
     return new String[] {
       packageName + ".MavenUtils",
       packageName + ".MavenUtils$TestFramework",
-      packageName + ".MavenDecorator",
       packageName + ".MavenExecutionListener",
       packageName + ".MavenLifecycleParticipant"
     };
+  }
+
+  @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    return super.isApplicable(enabledSystems)
+        && Config.get().isCiVisibilityBuildInstrumentationEnabled();
   }
 
   @Override

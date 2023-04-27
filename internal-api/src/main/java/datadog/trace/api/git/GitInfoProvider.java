@@ -51,7 +51,7 @@ public class GitInfoProvider {
 
     String commitSha = firstNonNull(infos, gi -> gi.getCommit().getSha());
     return new GitInfo(
-        firstNonNull(infos, GitInfo::getRepositoryURL),
+        firstNonNull(infos, gi -> GitUtils.filterSensitiveInfo(gi.getRepositoryURL())),
         firstNonNull(infos, GitInfo::getBranch),
         firstNonNull(infos, GitInfo::getTag),
         new CommitInfo(

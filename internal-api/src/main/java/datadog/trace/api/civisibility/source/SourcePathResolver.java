@@ -11,8 +11,4 @@ public interface SourcePathResolver {
    */
   @Nullable
   String getSourcePath(@Nonnull Class<?> c);
-
-  interface Factory {
-    SourcePathResolver createSourcePathResolver(String repoRoot);
-  }
 }

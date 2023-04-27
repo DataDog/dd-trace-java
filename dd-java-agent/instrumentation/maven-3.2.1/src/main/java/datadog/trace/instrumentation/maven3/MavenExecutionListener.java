@@ -6,7 +6,7 @@ import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.Strings;
-import java.io.File;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -28,15 +28,17 @@ public class MavenExecutionListener extends AbstractExecutionListener {
   private static final String SYSTEM_PROPERTY_VARIABLES_CONFIG = "systemPropertyVariables";
 
   private final BuildEventsHandler<MavenSession> buildEventsHandler =
-      InstrumentationBridge.getBuildEventsHandler();
+      InstrumentationBridge.createBuildEventsHandler();
 
   @Override
   public void sessionStarted(ExecutionEvent event) {
     MavenSession session = event.getSession();
 
     MavenProject currentProject = session.getCurrentProject();
-    File projectRoot = currentProject.getBasedir();
-    TestDecorator mavenDecorator = new MavenDecorator(projectRoot.toPath());
+    Path projectRoot = currentProject.getBasedir().toPath();
+
+    TestDecorator mavenDecorator =
+        InstrumentationBridge.createTestDecorator("maven", null, null, projectRoot);
 
     String projectName = currentProject.getName();
     String startCommand = MavenUtils.getCommandLine(session);
@@ -178,6 +180,11 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       String lifecyclePhase = mojoExecution.getLifecyclePhase();
       String moduleName = projectName + " " + lifecyclePhase;
       buildEventsHandler.onTestModuleFinish(session, moduleName);
+
+      System.clearProperty(
+          Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_SESSION_ID));
+      System.clearProperty(
+          Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_ID));
     }
   }
 
@@ -196,6 +203,11 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       Exception exception = event.getException();
       buildEventsHandler.onTestModuleFail(session, moduleName, exception);
       buildEventsHandler.onTestModuleFinish(session, moduleName);
+
+      System.clearProperty(
+          Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_SESSION_ID));
+      System.clearProperty(
+          Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_ID));
     }
   }
 }
