@@ -109,7 +109,6 @@ public class DatadogSparkListener extends SparkListener {
             .withStartTimestamp(jobStart.time() * 1000)
             .withTag("job_id", jobStart.jobId())
             .withTag("stage_count", jobStart.stageInfos().size())
-            .withTag(DDTags.RESOURCE_NAME, jobStart.stageInfos().apply(0).name())
             .withSpanType("spark");
 
     if (isRunningOnDatabricks) {
@@ -139,6 +138,11 @@ public class DatadogSparkListener extends SparkListener {
 
     AgentSpan jobSpan = jobSpanBuilder.start();
     jobSpan.setMeasured(true);
+
+    if (jobStart.stageInfos().nonEmpty()) {
+      // In the spark UI, the name of a job is the name of its last stage
+      jobSpan.setTag(DDTags.RESOURCE_NAME, jobStart.stageInfos().last().name());
+    }
 
     // Some properties can change at runtime, so capturing properties of all jobs
     if (jobStart.properties() != null) {
