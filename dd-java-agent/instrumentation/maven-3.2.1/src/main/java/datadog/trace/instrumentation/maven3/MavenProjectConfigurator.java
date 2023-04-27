@@ -148,6 +148,12 @@ class MavenProjectConfigurator {
       }
 
       configuration = addCompilerArg(configuration, "-Xplugin:" + DATADOG_COMPILER_PLUGIN_ID);
+
+      // disable compiler warnings related to annotation processing,
+      // since "fail-on-warning" linters might complain about the annotation that the compiler
+      // plugin injects
+      configuration = addCompilerArg(configuration, "-Xlint:-processing");
+
       execution.setConfiguration(configuration);
     }
   }
