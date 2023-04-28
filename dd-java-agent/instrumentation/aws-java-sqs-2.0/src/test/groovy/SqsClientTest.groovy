@@ -346,9 +346,4 @@ class SqsClientV1ForkedTest extends SqsClientTest {
   int version() {
     1
   }
-
-  @Override
-  boolean hasTimeInQueueSpan() {
-    true
-  }
 }

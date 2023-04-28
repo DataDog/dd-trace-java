@@ -911,6 +911,10 @@ class RabbitMQNamingV1ForkedTest extends RabbitMQForkedTest {
     1
   }
 
+  @Override
+  boolean hasQueueSpan() {
+    false
+  }
 }
 
 class RabbitMQDatastreamsDisabledForkedTest extends RabbitMQTestBase {
