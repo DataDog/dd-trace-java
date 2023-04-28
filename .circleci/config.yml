@@ -1043,21 +1043,11 @@ build_test_jobs: &build_test_jobs
   - tests:
       requires:
         - ok_to_test
-      name: test_graalvm11_smoke
-      gradleTarget: "stageMainDist :dd-smoke-test:spring-native:test"
-      stage: smoke
-      cacheType: smoke
-      testJvm: "graalvm11"
-
-  - tests:
-      requires:
-        - ok_to_test
       name: test_graalvm17_smoke
-      gradleTarget: "stageMainDist :dd-smoke-test:spring-native:test"
+      gradleTarget: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
       stage: smoke
       cacheType: smoke
       testJvm: "graalvm17"
-
 
   - tests:
       requires:
