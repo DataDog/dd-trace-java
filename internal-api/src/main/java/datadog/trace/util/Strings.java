@@ -282,4 +282,21 @@ public final class Strings {
     json.append("]");
     return json.toString();
   }
+
+  public static boolean isNotBlank(String s) {
+    if (s == null || s.isEmpty()) {
+      return false;
+    }
+
+    final int length = s.length();
+    for (int offset = 0; offset < length; ) {
+      final int codepoint = s.codePointAt(offset);
+      if (!Character.isWhitespace(codepoint)) {
+        return true;
+      }
+      offset += Character.charCount(codepoint);
+    }
+
+    return false;
+  }
 }
