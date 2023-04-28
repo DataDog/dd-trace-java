@@ -47,10 +47,21 @@ public class GradleBuildListener extends BuildAdapter {
 
   @Override
   public void projectsEvaluated(Gradle gradle) {
-    if (!Config.get().isCiVisibilityEnabled()) {
+    Config config = Config.get();
+    if (!config.isCiVisibilityEnabled()) {
       return;
     }
+
     Project rootProject = gradle.getRootProject();
+    for (Project project : rootProject.getAllprojects()) {
+      GradleProjectConfigurator.INSTANCE.configureTracer(project);
+
+      if (config.isCiVisibilityCompilerPluginAutoConfigurationEnabled()) {
+        String compilerPluginVersion = config.getCiVisibilityCompilerPluginVersion();
+        GradleProjectConfigurator.INSTANCE.configureCompilerPlugin(project, compilerPluginVersion);
+      }
+    }
+
     Collection<GradleUtils.TestFramework> testFrameworks =
         GradleUtils.collectTestFrameworks(rootProject);
     if (testFrameworks.size() == 1) {
