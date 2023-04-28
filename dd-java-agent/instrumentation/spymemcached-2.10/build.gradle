@@ -2,19 +2,25 @@ muzzle {
   pass {
     group = "net.spy"
     module = 'spymemcached'
-    versions = "[2.12.0,)"
+    versions = "[2.10.4,)"
     assertInverse = true
   }
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/configure_tests.gradle"
+
 
 addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
+latestDepTest {
+  finalizedBy 'latestDepForkedTest'
+}
 dependencies {
-  compileOnly group: 'net.spy', name: 'spymemcached', version: '2.12.0'
+  compileOnly group: 'net.spy', name: 'spymemcached', version: '2.10.4'
 
-  testImplementation group: 'net.spy', name: 'spymemcached', version: '2.12.0'
+  testImplementation group: 'net.spy', name: 'spymemcached', version: '2.10.4'
   testImplementation deps.testcontainers
 
   latestDepTestImplementation group: 'net.spy', name: 'spymemcached', version: '+'

@@ -1,14 +1,12 @@
 package datadog.trace.instrumentation.spymemcached;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.spymemcached.MemcacheClientDecorator.DECORATE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
-import net.spy.memcached.MemcachedConnection;
 
 public abstract class CompletionListener<T> {
 
@@ -17,15 +15,12 @@ public abstract class CompletionListener<T> {
   static final String HIT = "hit";
   static final String MISS = "miss";
 
-  private final MemcachedConnection connection;
   private final AgentSpan span;
 
-  public CompletionListener(final MemcachedConnection connection, final String methodName) {
-    this.connection = connection;
-    span = startSpan(MemcacheClientDecorator.OPERATION_NAME);
+  public CompletionListener(final AgentSpan span, final String methodName) {
+    this.span = span;
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
-      DECORATE.onConnection(span, connection);
       DECORATE.onOperation(span, methodName);
     }
   }

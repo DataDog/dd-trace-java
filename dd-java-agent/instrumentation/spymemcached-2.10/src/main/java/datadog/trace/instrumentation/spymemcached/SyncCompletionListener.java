@@ -1,16 +1,19 @@
 package datadog.trace.instrumentation.spymemcached;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.concurrent.ExecutionException;
-import net.spy.memcached.MemcachedConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SyncCompletionListener extends CompletionListener<Void> {
   private static final Logger log = LoggerFactory.getLogger(SyncCompletionListener.class);
+  private final AgentScope scope;
 
-  public SyncCompletionListener(final MemcachedConnection connection, final String methodName) {
-    super(connection, methodName);
+  public SyncCompletionListener(final AgentSpan span, final String methodName) {
+    super(span, methodName);
+    scope = AgentTracer.activateSpan(span);
   }
 
   @Override
@@ -20,6 +23,10 @@ public class SyncCompletionListener extends CompletionListener<Void> {
   }
 
   public void done(final Throwable thrown) {
-    closeSyncSpan(thrown);
+    try {
+      closeSyncSpan(thrown);
+    } finally {
+      scope.close();
+    }
   }
 }
