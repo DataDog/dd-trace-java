@@ -198,17 +198,17 @@ class StringsTest extends DDSpecification {
     notBlank == expected
 
     where:
-    input      | expected
-    null       | false
-    ""         | false
-    " "        | false
-    "\t"       | false
-    "\n"       | false
-    " \t\n "   | false
-    "a"        | true
-    " a "      | true
-    "\n\t123 " | true
-    " 測 試 "  | true
-    "   𐢀𐢀𐢀𐢀"  | true
+    input        | expected
+    null         | false
+    ""           | false
+    " "          | false
+    "\t"         | false
+    "\n"         | false
+    " \t\n "     | false
+    "a"          | true
+    " a "        | true
+    "\n\t123 "   | true
+    " 測 試    " | true
+    "   𐢀𐢀𐢀𐢀"    | true
   }
 }
