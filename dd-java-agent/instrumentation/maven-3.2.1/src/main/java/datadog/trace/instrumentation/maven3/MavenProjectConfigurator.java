@@ -66,7 +66,7 @@ class MavenProjectConfigurator {
         modifiedArgLine
             .append("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=")
             .append(ciVisibilityDebugPort)
-            .append(System.lineSeparator());
+            .append(" ");
       }
 
       File agentJar = Config.get().getCiVisibilityAgentJarFile();
@@ -75,7 +75,7 @@ class MavenProjectConfigurator {
       Xpp3Dom configuration = (Xpp3Dom) execution.getConfiguration();
       String argLine = MavenUtils.getConfigurationValue(configuration, "argLine");
       if (argLine != null) {
-        modifiedArgLine.append(System.lineSeparator()).append(argLine);
+        modifiedArgLine.append(" ").append(argLine);
       }
 
       configuration =

@@ -1,9 +1,12 @@
 package datadog.trace.instrumentation.maven3;
 
+import java.util.regex.Pattern;
+
 public class MavenDependencyVersion {
 
   public static final MavenDependencyVersion UNKNOWN = new MavenDependencyVersion();
 
+  private static final Pattern DOT = Pattern.compile("\\.");
   private final int[] tokens;
 
   MavenDependencyVersion(int... tokens) {
@@ -26,7 +29,7 @@ public class MavenDependencyVersion {
   }
 
   static MavenDependencyVersion from(String s) {
-    String[] stringTokens = s.split("\\.");
+    String[] stringTokens = DOT.split(s);
     int[] tokens = new int[stringTokens.length];
     for (int i = 0; i < stringTokens.length; i++) {
       tokens[i] = Integer.parseInt(stringTokens[i]);
