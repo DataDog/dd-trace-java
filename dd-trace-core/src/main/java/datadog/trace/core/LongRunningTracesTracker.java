@@ -1,11 +1,13 @@
 package datadog.trace.core;
 
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.trace.api.Config;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class LongRunningTracesTracker {
+  private final DDAgentFeaturesDiscovery features;
   private long lastFlushMilli = 0;
 
   private final int maxTrackedTraces;
@@ -21,9 +23,11 @@ public class LongRunningTracesTracker {
   public static final int WRITE_RUNNING_SPANS = 3;
   public static final int EXPIRED = 4;
 
-  public LongRunningTracesTracker(Config config, int maxTrackedTraces) {
+  public LongRunningTracesTracker(
+      Config config, int maxTrackedTraces, DDAgentFeaturesDiscovery features) {
     this.maxTrackedTraces = maxTrackedTraces;
     this.flushPeriodMilli = (int) TimeUnit.SECONDS.toMillis(config.getLongRunningFlushInterval());
+    this.features = features;
   } // TODO flush missedAdd stats in health check class
 
   public boolean add(PendingTraceBuffer.Element element) {
@@ -58,7 +62,12 @@ public class LongRunningTracesTracker {
     int i = 0;
     while (i < traceArray.size()) {
       PendingTrace trace = traceArray.get(i);
-      if (trace == null || trace.empty()) {
+      if (trace == null) {
+        cleanSlot(i);
+        continue;
+      }
+      if (trace.empty() || !features.supportsLongRunning()) {
+        trace.compareAndSetLongRunningState(WRITE_RUNNING_SPANS, NOT_TRACKED);
         cleanSlot(i);
         continue;
       }
@@ -77,13 +86,14 @@ public class LongRunningTracesTracker {
   }
 
   private boolean expired(long nowMilli, PendingTrace trace) {
-    return TimeUnit.NANOSECONDS.toMillis((nowMilli - trace.getRunningTraceStartTime()))
+    return (nowMilli - TimeUnit.NANOSECONDS.toMillis(trace.getRunningTraceStartTime()))
         > maxTrackedDurationMilli;
   }
 
   private boolean shouldFlush(long nowMilli, PendingTrace trace) {
-    return TimeUnit.NANOSECONDS.toMillis(
-            nowMilli - Math.max(trace.getRunningTraceStartTime(), trace.getLastWriteTime()))
+    return nowMilli
+            - TimeUnit.NANOSECONDS.toMillis(
+                Math.max(trace.getRunningTraceStartTime(), trace.getLastWriteTime()))
         > flushPeriodMilli;
   }
 

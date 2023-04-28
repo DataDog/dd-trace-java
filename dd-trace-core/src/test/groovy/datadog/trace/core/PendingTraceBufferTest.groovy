@@ -1,5 +1,6 @@
 package datadog.trace.core
 
+import datadog.trace.api.Config
 import datadog.communication.monitor.Monitoring
 import datadog.trace.SamplingPriorityMetadataChecker
 import datadog.trace.api.DDSpanId
@@ -26,7 +27,7 @@ import static datadog.trace.core.PendingTraceBuffer.BUFFER_SIZE
 @Timeout(5)
 class PendingTraceBufferTest extends DDSpecification {
   @Subject
-  def buffer = PendingTraceBuffer.delaying(SystemTimeSource.INSTANCE, null)
+  def buffer = PendingTraceBuffer.delaying(SystemTimeSource.INSTANCE, new Config(), null)
   def bufferSpy = Spy(buffer)
 
   def tracer = Mock(CoreTracer)
