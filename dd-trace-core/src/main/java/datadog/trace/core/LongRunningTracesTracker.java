@@ -31,7 +31,6 @@ public class LongRunningTracesTracker {
   } // TODO flush missedAdd stats in health check class
 
   public boolean add(PendingTraceBuffer.Element element) {
-    // TODO verify that the agent feature is enabled too
     if (!(element instanceof PendingTrace)) {
       return false;
     }

@@ -247,7 +247,6 @@ class PendingTraceBufferTest extends DDSpecification {
     trace.pendingReferenceCount == 0
     trace.rootSpanWritten
     _ * bufferSpy.runningSpansEnabled()
-    1 * bufferSpy.enqueue(trace)
     1 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     1 * tracer.write({ it.size() == 2 }) >> {

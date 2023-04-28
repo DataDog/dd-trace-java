@@ -385,7 +385,8 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
         }
 
         if (LongRunningTracesTracker.WRITE_RUNNING_SPANS == LONG_RUNNING_STATE.get(this)) {
-          span.setLongRunningVersion((int) TimeUnit.NANOSECONDS.toMillis(nowNano));
+          span.setLongRunningVersion(
+              (int) TimeUnit.NANOSECONDS.toMillis(nowNano - span.getStartTime()));
           trace.add(span);
           spans.add(span);
         }

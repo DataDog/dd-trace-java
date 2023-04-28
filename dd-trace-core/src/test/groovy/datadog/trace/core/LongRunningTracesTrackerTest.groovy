@@ -1,6 +1,7 @@
 package datadog.trace.core
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.communication.monitor.Monitoring
 import datadog.trace.api.Config
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.TraceConfig
@@ -12,20 +13,21 @@ import spock.lang.Specification
 class LongRunningTracesTrackerTest extends Specification {
   Config config = Mock(Config)
   int maxTrackedTraces = 10
-  DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
-  LongRunningTracesTracker tracker = new LongRunningTracesTracker(config, maxTrackedTraces, features)
+  DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(null, Monitoring.DISABLED, null, false, false)
+  LongRunningTracesTracker tracker
   def tracer = Mock(CoreTracer)
   def traceConfig = Mock(TraceConfig)
-  PendingTraceBuffer buffer
+  PendingTraceBuffer.DelayingPendingTraceBuffer buffer
   PendingTrace.Factory factory = null
 
   def setup() {
-    features.supportsLongRunning() >> true
+    features.supportsLongRunning = true
     tracer.captureTraceConfig() >> traceConfig
     traceConfig.getServiceMapping() >> [:]
     config.getLongRunningFlushInterval() >> 20
     config.longRunningTracesEnabled >> true
-    buffer = PendingTraceBuffer.delaying(SystemTimeSource.INSTANCE, config, features)
+    buffer = new PendingTraceBuffer.DelayingPendingTraceBuffer(1024, SystemTimeSource.INSTANCE, config, features)
+    tracker = buffer.runningTracesTracker
     factory = new PendingTrace.Factory(tracer, buffer, SystemTimeSource.INSTANCE, false, HealthMetrics.NO_OP)
   }
 
@@ -103,6 +105,19 @@ class LongRunningTracesTrackerTest extends Specification {
     tracker.traceArray.size() == 0
 
     trace.longRunningTrackedState == LongRunningTracesTracker.EXPIRED
+  }
+
+  def "agent disabled feature"() {
+    given:
+    def trace = newTraceToTrack()
+    tracker.add(trace)
+    features.supportsLongRunning = false
+
+    when:
+    tracker.flushAndCompact(tracker.flushPeriodMilli - 1000)
+
+    then:
+    tracker.traceArray.size() == 0
   }
 
   PendingTrace newTraceToTrack() {
