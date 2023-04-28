@@ -88,6 +88,7 @@ class PendingTraceBufferTest extends DDSpecification {
     then:
     continuations.size() == 1
     trace.pendingReferenceCount == 1
+    1 * bufferSpy.runningSpansEnabled()
     1 * bufferSpy.enqueue(trace)
     _ * tracer.getPartialFlushMinSpans() >> 10
     1 * tracer.getTimeWithNanoTicks(_)
@@ -98,6 +99,8 @@ class PendingTraceBufferTest extends DDSpecification {
 
     then:
     trace.pendingReferenceCount == 0
+    1 * bufferSpy.runningSpansEnabled()
+    1 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.write({ it.size() == 1 })
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     _ * tracer.getPartialFlushMinSpans() >> 10
@@ -120,6 +123,7 @@ class PendingTraceBufferTest extends DDSpecification {
     trace.size() == 1
     trace.pendingReferenceCount == 1
     1 * bufferSpy.enqueue(trace)
+    _ * bufferSpy.runningSpansEnabled()
     _ * tracer.getPartialFlushMinSpans() >> 10
     1 * tracer.getTimeWithNanoTicks(_)
     0 * _
@@ -130,6 +134,8 @@ class PendingTraceBufferTest extends DDSpecification {
     then:
     trace.size() == 0
     trace.pendingReferenceCount == 0
+    _ * bufferSpy.runningSpansEnabled()
+    1 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.write({ it.size() == 2 })
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     _ * tracer.getPartialFlushMinSpans() >> 10
@@ -153,6 +159,7 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * traceConfig.getServiceMapping() >> [:]
     _ * tracer.getTimeWithNanoTicks(_)
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
+    _ * bufferSpy.runningSpansEnabled()
     1 * tracer.write(_) >> { List<List<DDSpan>> spans ->
       spans.first().first().processTagsAndBaggage(metadataChecker)
     }
@@ -173,6 +180,7 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * tracer.captureTraceConfig() >> traceConfig
     buffer.queue.size() == BUFFER_SIZE
     buffer.queue.capacity() * bufferSpy.enqueue(_)
+    _ * bufferSpy.runningSpansEnabled()
     _ * tracer.getPartialFlushMinSpans() >> 10
     _ * traceConfig.getServiceMapping() >> [:]
     _ * tracer.getTimeWithNanoTicks(_)
@@ -185,11 +193,13 @@ class PendingTraceBufferTest extends DDSpecification {
     then:
     1 * tracer.captureTraceConfig() >> traceConfig
     1 * bufferSpy.enqueue(_)
+    _ * bufferSpy.runningSpansEnabled()
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
+    _ * bufferSpy.runningSpansEnabled()
     1 * tracer.write({ it.size() == 1 })
     _ * tracer.getPartialFlushMinSpans() >> 10
     _ * traceConfig.getServiceMapping() >> [:]
-    2 * tracer.getTimeWithNanoTicks(_)
+    3 * tracer.getTimeWithNanoTicks(_)
     0 * _
     pendingTrace.isEnqueued == 0
   }
@@ -212,6 +222,7 @@ class PendingTraceBufferTest extends DDSpecification {
     trace.size() == 1
     trace.pendingReferenceCount == 1
     !trace.rootSpanWritten
+    _ * bufferSpy.runningSpansEnabled()
     1 * bufferSpy.enqueue(trace)
     _ * tracer.getPartialFlushMinSpans() >> 10
     1 * tracer.getTimeWithNanoTicks(_)
@@ -235,6 +246,9 @@ class PendingTraceBufferTest extends DDSpecification {
     trace.size() == 0
     trace.pendingReferenceCount == 0
     trace.rootSpanWritten
+    _ * bufferSpy.runningSpansEnabled()
+    1 * bufferSpy.enqueue(trace)
+    1 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     1 * tracer.write({ it.size() == 2 }) >> {
       latch.countDown()
@@ -260,12 +274,13 @@ class PendingTraceBufferTest extends DDSpecification {
     trace.size() == 0
     trace.pendingReferenceCount == 0
     trace.rootSpanWritten
+    _ * bufferSpy.runningSpansEnabled()
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     1 * tracer.write({ it.size() == 1 }) >> {
       parentLatch.countDown()
     }
     _ * tracer.getPartialFlushMinSpans() >> 10
-    1 * tracer.getTimeWithNanoTicks(_)
+    2 * tracer.getTimeWithNanoTicks(_)
     0 * _
 
     when:
@@ -278,13 +293,15 @@ class PendingTraceBufferTest extends DDSpecification {
     trace.pendingReferenceCount == 0
     trace.rootSpanWritten
     1 * bufferSpy.enqueue(trace)
+    _ * bufferSpy.runningSpansEnabled()
     _ * tracer.getPartialFlushMinSpans() >> 10
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     1 * tracer.write({ it.size() == 1 }) >> {
       childLatch.countDown()
     }
     _ * traceConfig.getServiceMapping() >> [:]
-    2 * tracer.getTimeWithNanoTicks(_)
+    _ * tracer.getTimeWithNanoTicks(_)
+    _ * bufferSpy.runningSpansEnabled()
     0 * _
   }
 
@@ -349,11 +366,12 @@ class PendingTraceBufferTest extends DDSpecification {
     pendingTrace.rootSpanWritten
     pendingTrace.isEnqueued == 0
     buffer.queue.size() == 0
+    _ * bufferSpy.runningSpansEnabled()
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     1 * tracer.write({ it.size() == 1 })
     1 * tracer.getPartialFlushMinSpans() >> 10000
     1 * traceConfig.getServiceMapping() >> [:]
-    2 * tracer.getTimeWithNanoTicks(_)
+    3 * tracer.getTimeWithNanoTicks(_)
     0 * _
 
     when: "fail to fill the buffer"
@@ -365,6 +383,7 @@ class PendingTraceBufferTest extends DDSpecification {
     pendingTrace.isEnqueued == 1
     buffer.queue.size() == 1
     buffer.queue.capacity() * bufferSpy.enqueue(_)
+    _ * bufferSpy.runningSpansEnabled()
     _ * tracer.getPartialFlushMinSpans() >> 10000
     _ * traceConfig.getServiceMapping() >> [:]
     _ * tracer.getTimeWithNanoTicks(_)
