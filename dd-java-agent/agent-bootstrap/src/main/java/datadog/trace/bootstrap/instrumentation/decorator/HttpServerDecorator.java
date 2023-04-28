@@ -281,19 +281,24 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return null;
   }
 
+  public AgentSpan onResponseStatus(final AgentSpan span, final int status) {
+    if (status > UNSET_STATUS) {
+      span.setHttpStatusCode(status);
+    }
+    // explicitly set here because some other decorators might already set an error without
+    // looking at the status code
+    span.setError(SERVER_ERROR_STATUSES.get(status));
+
+    if (SHOULD_SET_404_RESOURCE_NAME && status == 404) {
+      span.setResourceName(NOT_FOUND_RESOURCE_NAME, ResourceNamePriorities.HTTP_404);
+    }
+    return span;
+  }
+
   public AgentSpan onResponse(final AgentSpan span, final RESPONSE response) {
     if (response != null) {
       final int status = status(response);
-      if (status > UNSET_STATUS) {
-        span.setHttpStatusCode(status);
-      }
-      // explicitly set here because some other decorators might already set an error without
-      // looking at the status code
-      span.setError(SERVER_ERROR_STATUSES.get(status));
-
-      if (SHOULD_SET_404_RESOURCE_NAME && status == 404) {
-        span.setResourceName(NOT_FOUND_RESOURCE_NAME, ResourceNamePriorities.HTTP_404);
-      }
+      onResponseStatus(span, status);
 
       AgentPropagation.ContextVisitor<RESPONSE> getter = responseGetter();
       if (getter != null) {
