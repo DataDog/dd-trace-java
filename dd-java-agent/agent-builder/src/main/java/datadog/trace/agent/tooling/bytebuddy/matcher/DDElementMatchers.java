@@ -1,5 +1,7 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
+import static net.bytebuddy.matcher.ElementMatchers.not;
+
 import datadog.trace.agent.tooling.context.ShouldInjectFieldsMatcher;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import net.bytebuddy.description.NamedElement;
@@ -41,8 +43,8 @@ public class DDElementMatchers implements HierarchyMatchers.Supplier {
 
   @Override
   @SuppressForbidden
-  public ElementMatcher.Junction<TypeDescription> abstractClass() {
-    return ElementMatchers.isAbstract();
+  public ElementMatcher.Junction<TypeDescription> concreteClass() {
+    return not(ElementMatchers.isAbstract());
   }
 
   @Override
