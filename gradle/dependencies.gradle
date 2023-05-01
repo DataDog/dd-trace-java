@@ -33,7 +33,7 @@ final class CachedData {
     testcontainers: '1.17.3',
     jmc           : "8.1.0-SNAPSHOT",
     autoservice   : "1.0-rc7",
-    jplib         : "0.30.0",
+    ddprof        : "0.34.0",
     asm           : "9.5"
   ]
 
@@ -51,7 +51,7 @@ final class CachedData {
     autoserviceProcessor : "com.google.auto.service:auto-service:${versions.autoservice}",
     autoserviceAnnotation: "com.google.auto.service:auto-service-annotations:${versions.autoservice}",
     commonsMath          : "org.apache.commons:commons-math3:${versions.commons}",
-    jplib                : "com.datadoghq:jplib:${versions.jplib}",
+    ddprof               : "com.datadoghq:ddprof:${versions.ddprof}",
     asm                  : "org.ow2.asm:asm:${versions.asm}",
     asmcommons           : "org.ow2.asm:asm-commons:${versions.asm}",
     dogstatsd            : "com.datadoghq:java-dogstatsd-client:${versions.dogstatsd}",

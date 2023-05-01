@@ -1,9 +1,8 @@
 import datadog.trace.agent.test.asserts.ListWriterAssert
-import datadog.trace.agent.test.base.TestFrameworkTest
+import datadog.trace.agent.test.base.CiVisibilityTest
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.instrumentation.junit4.JUnit4Decorator
 import junit.runner.Version
 import org.example.TestAssumption
 import org.example.TestAssumptionAndSucceed
@@ -23,7 +22,7 @@ import org.example.TestSuiteSetUpAssumption
 import org.junit.runner.JUnitCore
 
 @DisableTestTrace(reason = "avoid self-tracing")
-class JUnit4Test extends TestFrameworkTest {
+class JUnit4Test extends CiVisibilityTest {
 
   def runner = new JUnitCore()
 
@@ -126,7 +125,7 @@ class JUnit4Test extends TestFrameworkTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSkipped", CIConstants.TEST_SKIP)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null)
       }
     })
 
@@ -147,10 +146,10 @@ class JUnit4Test extends TestFrameworkTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSkippedClass", CIConstants.TEST_SKIP, testTags, null)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_class_another_skipped", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_class_another_skipped", CIConstants.TEST_SKIP, testTags, null)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_class_skipped", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_class_skipped", CIConstants.TEST_SKIP, testTags, null)
       }
     })
 
@@ -171,7 +170,7 @@ class JUnit4Test extends TestFrameworkTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSucceedAndSkipped", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null)
       }
       trace(1) {
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", CIConstants.TEST_PASS)
@@ -305,7 +304,7 @@ class JUnit4Test extends TestFrameworkTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSuiteSetUpAssumption", CIConstants.TEST_SKIP)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSuiteSetUpAssumption", "test_succeed", CIConstants.TEST_SKIP, null, null, true)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSuiteSetUpAssumption", "test_succeed", CIConstants.TEST_SKIP, null, null)
       }
     })
   }
@@ -352,7 +351,7 @@ class JUnit4Test extends TestFrameworkTest {
         testSpan(it, 0, testModuleId, firstSuiteId, "org.example.TestSucceed", "test_succeed", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null)
       }
       trace(1) {
         testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", CIConstants.TEST_PASS)
@@ -426,7 +425,7 @@ class JUnit4Test extends TestFrameworkTest {
 
   @Override
   String expectedTestFramework() {
-    return JUnit4Decorator.DECORATE.testFramework()
+    return "junit4"
   }
 
   @Override
@@ -436,6 +435,6 @@ class JUnit4Test extends TestFrameworkTest {
 
   @Override
   String component() {
-    return JUnit4Decorator.DECORATE.component()
+    return "junit"
   }
 }

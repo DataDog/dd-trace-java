@@ -7,6 +7,8 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.web.firewall.HttpFirewall;
+import org.springframework.security.web.firewall.StrictHttpFirewall;
 import org.springframework.web.servlet.config.annotation.PathMatchConfigurer;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter;
 import org.springframework.web.servlet.handler.SimpleUrlHandlerMapping;
@@ -38,6 +40,13 @@ public class SpringbootApplication {
       mapping.setOrder(0);
       return mapping;
     }
+  }
+
+  @Bean
+  public HttpFirewall getHttpFirewall() {
+    StrictHttpFirewall strictHttpFirewall = new StrictHttpFirewall();
+    strictHttpFirewall.setAllowSemicolon(true);
+    return strictHttpFirewall;
   }
 
   public static void main(final String[] args) {

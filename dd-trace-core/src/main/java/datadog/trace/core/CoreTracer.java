@@ -24,12 +24,14 @@ import datadog.communication.monitor.Recording;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.EndpointCheckpointerHolder;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.StatsDClient;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
@@ -151,12 +153,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   final MetricsAggregator metricsAggregator;
 
+  /** Maintains dynamic configuration associated with the tracer */
+  private final DynamicConfig dynamicConfig;
   /** A set of tags that are added only to the application's root span */
   private final Map<String, ?> localRootSpanTags;
   /** A set of tags that are added to every span */
   private final Map<String, ?> defaultSpanTags;
-  /** A configured mapping of service names to update with new values */
-  private final Map<String, String> serviceNameMappings;
 
   /** number of spans in a pending trace before they get flushed */
   private final int partialFlushMinSpans;
@@ -204,6 +206,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final CallbackProvider universalCallbackProvider;
 
   private final PropagationTags.Factory propagationTagsFactory;
+
+  TraceConfig captureTraceConfig() {
+    return dynamicConfig.captureTraceConfig();
+  }
 
   PropagationTags.Factory getPropagationTagsFactory() {
     return propagationTagsFactory;
@@ -479,13 +485,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     endpointCheckpointer = EndpointCheckpointerHolder.create();
     this.serviceName = serviceName;
+    this.dynamicConfig = DynamicConfig.create().setServiceMapping(serviceNameMappings).apply();
     this.sampler = sampler;
     this.injector = injector;
     this.extractor = extractor;
     this.logs128bTraceIdEnabled = InstrumenterConfig.get().isLogs128bTraceIdEnabled();
     this.localRootSpanTags = localRootSpanTags;
     this.defaultSpanTags = defaultSpanTags;
-    this.serviceNameMappings = serviceNameMappings;
     this.partialFlushMinSpans = partialFlushMinSpans;
     this.idGenerationStrategy =
         null == idGenerationStrategy
@@ -634,11 +640,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
    */
   public PendingTrace createTrace(DDTraceId id) {
     return pendingTraceFactory.create(id);
-  }
-
-  public String mapServiceName(String serviceName) {
-    String mapped = serviceNameMappings.get(serviceName);
-    return null == mapped ? serviceName : mapped;
   }
 
   /**
@@ -1229,7 +1230,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     // Builder attributes
     private Map<String, Object> tags;
     private long timestampMicro;
-    private Object parent;
+    private AgentSpan.Context parent;
     private String serviceName;
     private String resourceName;
     private boolean errorFlag;
@@ -1328,7 +1329,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       if (tagMap == null) {
         tags = tagMap = new LinkedHashMap<>(); // Insertion order is important
       }
-      if (value == null || (value instanceof String && ((String) value).isEmpty())) {
+      if (value == null) {
         tagMap.remove(tag);
       } else {
         tagMap.put(tag, value);
@@ -1378,7 +1379,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
       // FIXME [API] parentContext should be an interface implemented by ExtractedContext,
       // TagContext, DDSpanContext, AgentSpan.Context
-      Object parentContext = parent;
+      AgentSpan.Context parentContext = parent;
       if (parentContext == null && !ignoreScope) {
         // use the Scope as parent unless overridden or ignored.
         final AgentSpan activeSpan = scopeManager.activeSpan();
@@ -1432,6 +1433,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           samplingPriority = extractedContext.getSamplingPriority();
           endToEndStartTime = extractedContext.getEndToEndStartTime();
           propagationTags = extractedContext.getPropagationTags();
+        } else if (parentContext != null) {
+          traceId =
+              parentContext.getTraceId() == DDTraceId.ZERO
+                  ? idGenerationStrategy.generateTraceId()
+                  : parentContext.getTraceId();
+          parentSpanId = parentContext.getSpanId();
+          samplingPriority = parentContext.getSamplingPriority();
+          endToEndStartTime = 0;
+          propagationTags = propagationTagsFactory.empty();
         } else {
           // Start a new trace
           traceId = idGenerationStrategy.generateTraceId();

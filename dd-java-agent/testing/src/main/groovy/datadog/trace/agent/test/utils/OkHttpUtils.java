@@ -28,7 +28,7 @@ public class OkHttpUtils {
     LOGGING_INTERCEPTOR.setLevel(Level.BASIC);
   }
 
-  static OkHttpClient.Builder clientBuilder() {
+  public static OkHttpClient.Builder clientBuilder() {
     final TimeUnit unit = TimeUnit.MINUTES;
     return new OkHttpClient.Builder()
         .addInterceptor(LOGGING_INTERCEPTOR)

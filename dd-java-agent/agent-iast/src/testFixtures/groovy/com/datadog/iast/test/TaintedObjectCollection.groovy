@@ -17,6 +17,7 @@ import java.util.stream.StreamSupport
 import org.hamcrest.Matchers
 
 import static org.hamcrest.Matchers.equalTo
+import static org.hamcrest.Matchers.greaterThan
 import static org.hamcrest.Matchers.matchesPattern
 import static org.hamcrest.Matchers.nullValue
 
@@ -76,12 +77,20 @@ class TaintedObjectCollection {
       new SourceMatcher(origin, toMatcher(name), toMatcher(value))
     }
 
+    SourceMatcher source(byte origin) {
+      new SourceMatcher(origin, Matchers.anything(), Matchers.anything())
+    }
+
     void range(int start, int length, SourceMatcher source) {
       ranges << new RangeMatcher(start, equalTo(length), source)
     }
 
     void range(int start, Matcher<Integer> length, SourceMatcher source) {
       ranges << new RangeMatcher(start, length, source)
+    }
+
+    void range(SourceMatcher source) {
+      ranges << new RangeMatcher(0, greaterThan(0), source)
     }
 
     @Override

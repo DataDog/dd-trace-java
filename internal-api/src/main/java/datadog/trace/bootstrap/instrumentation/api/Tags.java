@@ -42,7 +42,6 @@ public class Tags {
   public static final String MESSAGE_BUS_DESTINATION = "message_bus.destination";
 
   public static final String TEST_MODULE = "test.module";
-  public static final String TEST_BUNDLE = "test.bundle";
   public static final String TEST_SUITE = "test.suite";
   public static final String TEST_NAME = "test.name";
   public static final String TEST_STATUS = "test.status";

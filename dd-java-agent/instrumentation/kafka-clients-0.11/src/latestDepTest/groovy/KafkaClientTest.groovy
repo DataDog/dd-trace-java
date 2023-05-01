@@ -180,11 +180,10 @@ class KafkaClientTest extends AgentTestRunner {
       edgeTags == [
         "direction:in",
         "group:sender",
-        "partition:" + received.partition(),
         "topic:$SHARED_TOPIC".toString(),
         "type:kafka"
       ]
-      edgeTags.size() == 5
+      edgeTags.size() == 4
     }
 
     cleanup:
@@ -310,11 +309,10 @@ class KafkaClientTest extends AgentTestRunner {
       edgeTags == [
         "direction:in",
         "group:sender",
-        "partition:" + received.partition(),
         "topic:$SHARED_TOPIC".toString(),
         "type:kafka"
       ]
-      edgeTags.size() == 5
+      edgeTags.size() == 4
     }
 
     cleanup:
@@ -802,7 +800,6 @@ class KafkaClientTest extends AgentTestRunner {
     conditions.eventually {
       assert !records.isEmpty()
     }
-    int partition = records.first().partition()
     def receivedSet = greetings.toSet()
     greetings.eachWithIndex { g, i ->
       def received = records.poll(5, TimeUnit.SECONDS)
@@ -949,11 +946,10 @@ class KafkaClientTest extends AgentTestRunner {
       edgeTags == [
         "direction:in",
         "group:sender",
-        "partition:" + partition,
         "topic:$SHARED_TOPIC".toString(),
         "type:kafka"
       ]
-      edgeTags.size() == 5
+      edgeTags.size() == 4
     }
 
     cleanup:

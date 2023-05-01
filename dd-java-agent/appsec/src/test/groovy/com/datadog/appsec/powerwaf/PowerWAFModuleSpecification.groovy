@@ -28,7 +28,6 @@ import io.sqreen.powerwaf.Additive
 import io.sqreen.powerwaf.Powerwaf
 import io.sqreen.powerwaf.PowerwafContext
 import io.sqreen.powerwaf.PowerwafMetrics
-import spock.lang.Ignore
 import spock.lang.Unroll
 
 import java.util.concurrent.CountDownLatch
@@ -1079,7 +1078,6 @@ class PowerWAFModuleSpecification extends DDSpecification {
     0 * _
   }
 
-  @Ignore('bug in libddwaf 1.8.0')
   void 'rule toggling data given through configuration'() {
     setupWithStubConfigService()
     AppSecModuleConfigurer.Reconfiguration reconf = Mock()
@@ -1134,7 +1132,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     // later configurations have precedence (c > a)
     service.currentAppSecConfig.with {
       def dirtyStatus = userConfigs.addConfig(
-        new AppSecUserConfig('c', overrides, [:], [], [], []))
+        new AppSecUserConfig('c', [], [], [], []))
       it.dirtyStatus.mergeFrom(dirtyStatus)
 
       service.listeners['waf'].onNewSubconfig(it, reconf)

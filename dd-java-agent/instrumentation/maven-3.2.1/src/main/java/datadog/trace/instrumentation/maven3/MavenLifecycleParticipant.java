@@ -7,8 +7,14 @@ import java.lang.reflect.Proxy;
 import org.apache.maven.AbstractMavenLifecycleParticipant;
 import org.apache.maven.execution.ExecutionListener;
 import org.apache.maven.execution.MavenSession;
+import org.apache.maven.project.MavenProject;
 
 public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant {
+
+  private static final String MAVEN_SUREFIRE_PLUGIN_KEY =
+      "org.apache.maven.plugins:maven-surefire-plugin";
+  private static final String MAVEN_FAILSAFE_PLUGIN_KEY =
+      "org.apache.maven.plugins:maven-failsafe-plugin";
 
   @Override
   public void afterSessionStart(MavenSession session) {
@@ -40,6 +46,19 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
 
   @Override
   public void afterProjectsRead(MavenSession session) {
-    // TODO automatic CI Visibility configuration
+    Config config = Config.get();
+    if (!config.isCiVisibilityEnabled() || !config.isCiVisibilityAutoConfigurationEnabled()) {
+      return;
+    }
+
+    for (MavenProject project : session.getProjects()) {
+      MavenProjectConfigurator.INSTANCE.configureTracer(project, MAVEN_SUREFIRE_PLUGIN_KEY);
+      MavenProjectConfigurator.INSTANCE.configureTracer(project, MAVEN_FAILSAFE_PLUGIN_KEY);
+
+      if (config.isCiVisibilityCompilerPluginAutoConfigurationEnabled()) {
+        String compilerPluginVersion = config.getCiVisibilityCompilerPluginVersion();
+        MavenProjectConfigurator.INSTANCE.configureCompilerPlugin(project, compilerPluginVersion);
+      }
+    }
   }
 }

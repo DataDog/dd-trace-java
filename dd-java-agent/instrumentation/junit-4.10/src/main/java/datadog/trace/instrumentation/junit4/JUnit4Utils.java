@@ -46,24 +46,27 @@ public abstract class JUnit4Utils {
   }
 
   public static boolean isTracingListener(final RunListener listener) {
-    if (listener instanceof TracingListener) {
-      return true;
-    }
+    return listener instanceof TracingListener;
+  }
 
-    // Since JUnit 4.12, the RunListener are wrapped by a SynchronizedRunListener object.
+  public static boolean isJUnitVintageListener(final RunListener listener) {
+    Class<? extends RunListener> listenerClass = listener.getClass();
+    String listenerClassName = listenerClass.getName();
+    return listenerClassName.startsWith("org.junit.vintage");
+  }
+
+  public static RunListener unwrapListener(final RunListener listener) {
     if (SYNCHRONIZED_LISTENER.equals(listener.getClass().getName())) {
       try {
         // There is no public accessor to the inner listener.
         final Field innerListener = listener.getClass().getDeclaredField("listener");
         innerListener.setAccessible(true);
-
-        return innerListener.get(listener) instanceof TracingListener;
+        return (RunListener) innerListener.get(listener);
       } catch (final Throwable e) {
         log.debug("Could not get inner listener from SynchronizedRunListener", e);
       }
     }
-
-    return false;
+    return listener;
   }
 
   public static TracingListener toTracingListener(final RunListener listener) {

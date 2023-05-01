@@ -45,7 +45,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 public class DebuggerSinkTest {
-  private static final String PROBE_ID = "12fd-8490-c111-4374-ffde";
+  private static final ProbeId PROBE_ID = new ProbeId("12fd-8490-c111-4374-ffde", 42);
   private static final ProbeLocation PROBE_LOCATION =
       new ProbeLocation("java.lang.String", "indexOf", null, null);
   public static final int MAX_PAYLOAD = 5 * 1024 * 1024;
@@ -89,7 +89,7 @@ public class DebuggerSinkTest {
     assertEquals("service-name", intakeRequest.getService());
     assertEquals("java.lang.String", intakeRequest.getLoggerName());
     assertEquals("indexOf", intakeRequest.getLoggerMethod());
-    assertEquals(PROBE_ID, intakeRequest.getDebugger().getSnapshot().getProbe().getId());
+    assertEquals(PROBE_ID.getId(), intakeRequest.getDebugger().getSnapshot().getProbe().getId());
     assertEquals(
         PROBE_LOCATION, intakeRequest.getDebugger().getSnapshot().getProbe().getLocation());
   }
@@ -393,7 +393,7 @@ public class DebuggerSinkTest {
     DiagnosticMessage info = new DiagnosticMessage(DiagnosticMessage.Kind.INFO, "info message");
     DiagnosticMessage warn = new DiagnosticMessage(DiagnosticMessage.Kind.WARN, "info message");
     DiagnosticMessage error = new DiagnosticMessage(DiagnosticMessage.Kind.ERROR, "info message");
-    sink.addDiagnostics(new ProbeId(PROBE_ID, 1), Arrays.asList(info, warn, error));
+    sink.addDiagnostics(PROBE_ID, Arrays.asList(info, warn, error));
     // ensure just that the code is executed to have coverage (just logging)
   }
 
@@ -407,10 +407,10 @@ public class DebuggerSinkTest {
             new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION));
     sink.skipSnapshot(snapshot.getProbe().getId(), DebuggerContext.SkipCause.CONDITION);
     verify(debuggerMetrics)
-        .incrementCounter(anyString(), eq("cause:condition"), eq("probe_id:" + PROBE_ID));
+        .incrementCounter(anyString(), eq("cause:condition"), eq("probe_id:" + PROBE_ID.getId()));
     sink.skipSnapshot(snapshot.getProbe().getId(), DebuggerContext.SkipCause.RATE);
     verify(debuggerMetrics)
-        .incrementCounter(anyString(), eq("cause:rate"), eq("probe_id:" + PROBE_ID));
+        .incrementCounter(anyString(), eq("cause:rate"), eq("probe_id:" + PROBE_ID.getId()));
   }
 
   private JsonSnapshotSerializer.IntakeRequest assertOneIntakeRequest(String strPayload)

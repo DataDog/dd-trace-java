@@ -62,17 +62,17 @@ public final class SessionState {
   @SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
   private boolean capturingFlipped = false;
 
-  public SessionState(int ackMode, boolean legacyTracing) {
+  public SessionState(int ackMode, boolean timeInQueueEnabled) {
     this.ackMode = ackMode;
     if (isAutoAcknowledge()) {
       this.capturedSpans = null; // unused in auto-ack
     } else {
       this.capturedSpans = new ArrayDeque<>();
     }
-    if (legacyTracing) {
-      this.timeInQueueSpans = Collections.emptyMap();
-    } else {
+    if (timeInQueueEnabled) {
       this.timeInQueueSpans = new ConcurrentHashMap<>();
+    } else {
+      this.timeInQueueSpans = Collections.emptyMap();
     }
   }
 

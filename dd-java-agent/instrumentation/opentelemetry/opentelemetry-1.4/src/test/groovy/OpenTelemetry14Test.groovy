@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
+import datadog.trace.api.DDTraceId
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.opentelemetry14.OtelContext
 import datadog.trace.instrumentation.opentelemetry14.OtelSpan
@@ -10,9 +11,14 @@ import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.trace.Span
 import io.opentelemetry.api.trace.SpanKind
 import io.opentelemetry.api.trace.StatusCode
+import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator
 import io.opentelemetry.context.Context
 import io.opentelemetry.context.ContextKey
+import io.opentelemetry.context.propagation.TextMapGetter
+import io.opentelemetry.context.propagation.TextMapSetter
 import spock.lang.Subject
+
+import javax.annotation.Nullable
 
 import static datadog.trace.bootstrap.instrumentation.api.ScopeSource.MANUAL
 import static io.opentelemetry.api.trace.StatusCode.ERROR
@@ -154,6 +160,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
     if (tagBuilder) {
       builder.setAttribute(DDTags.RESOURCE_NAME, "some-resource")
         .setAttribute("string", "a")
+        .setAttribute("empty_string", "")
         .setAttribute("number", 1)
         .setAttribute("boolean", true)
     }
@@ -161,6 +168,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
     if (tagSpan) {
       result.setAttribute(DDTags.RESOURCE_NAME, "other-resource")
       result.setAttribute("string", "b")
+      result.setAttribute("empty_string", "")
       result.setAttribute("number", 2)
       result.setAttribute("boolean", false)
     }
@@ -185,10 +193,12 @@ class OpenTelemetry14Test extends AgentTestRunner {
           tags {
             if (tagSpan) {
               "string" "b"
+              "empty_string" ""
               "number" 2
               "boolean" false
             } else if (tagBuilder) {
               "string" "a"
+              "empty_string" ""
               "number" 1
               "boolean" true
             }
@@ -333,7 +343,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
         span {
           parent()
           operationName "other-name"
-          resourceName "other-name"
+          resourceName "some-name"
         }
       }
     }
@@ -466,5 +476,61 @@ class OpenTelemetry14Test extends AgentTestRunner {
     cleanup:
     parentScope.close()
     parentSpan.end()
+  }
+
+  def "test context extraction and injection"() {
+    setup:
+    def propagator = W3CTraceContextPropagator.getInstance()
+    def httpHeaders = ['traceparent': traceparent]
+    def context = propagator.extract(Context.root(), httpHeaders, new TextMapGetter<Map<String, String>>() {
+        @Override
+        Iterable<String> keys(Map<String, String> carrier) {
+          return carrier.keySet()
+        }
+
+        @Override
+        String get(@Nullable Map<String, String> carrier, String key) {
+          return carrier.get(key)
+        }
+      })
+
+    def localSpan = tracer.spanBuilder("some-name")
+      .setParent(context)
+      .startSpan()
+
+    when:
+    def localSpanContext = localSpan.getSpanContext()
+    def localSpanId = localSpanContext.getSpanId()
+    def spanSampled = localSpanContext.getTraceFlags().isSampled()
+    def scope = localSpan.makeCurrent()
+    Map<String, String> injectedHeaders = [:]
+    propagator.inject(Context.current(), injectedHeaders, new TextMapSetter<Map<String, String>>() {
+        @Override
+        void set(@Nullable Map<String, String> carrier, String key, String value) {
+          carrier.put(key, value)
+        }
+      })
+    scope.close()
+    localSpan.end()
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "some-name"
+          traceDDId(DDTraceId.fromHex(traceId))
+          parentSpanId(DDSpanId.fromHex(spanId).toLong() as BigInteger)
+        }
+      }
+    }
+    spanSampled == sampled
+    injectedHeaders == ['traceparent': "00-$traceId-$localSpanId-$sampleFlag" as String]
+
+    where:
+    traceId | spanId | sampled
+    '00000000000000001111111111111111' | '2222222222222222' | true
+    '00000000000000001111111111111111' | '2222222222222222' | false
+    sampleFlag = sampled ? '01' : '00'
+    traceparent = "00-$traceId-$spanId-$sampleFlag" as String
   }
 }

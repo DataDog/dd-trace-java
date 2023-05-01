@@ -2,7 +2,7 @@ package datadog.telemetry;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigCollector;
-import datadog.trace.api.MetricCollector;
+import datadog.trace.api.WafMetricCollector;
 import java.io.IOException;
 import java.util.List;
 import java.util.Queue;
@@ -85,7 +85,7 @@ public class TelemetryRunnable implements Runnable {
     long currentTime = System.currentTimeMillis();
     if (currentTime - collectMetricsTimestamp > Config.get().getTelemetryMetricsInterval()) {
       collectMetricsTimestamp = currentTime;
-      MetricCollector.get().prepareRequestMetrics();
+      WafMetricCollector.get().prepareRequestMetrics();
     }
 
     for (TelemetryPeriodicAction action : this.actions) {

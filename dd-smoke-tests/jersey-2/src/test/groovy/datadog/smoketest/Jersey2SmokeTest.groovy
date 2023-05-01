@@ -1,9 +1,12 @@
 package datadog.smoketest
 
 import datadog.trace.api.Platform
+import datadog.trace.api.config.IastConfig
 import datadog.trace.test.agent.decoder.DecodedSpan
 import groovy.json.JsonSlurper
+import okhttp3.MediaType
 import okhttp3.Request
+import okhttp3.RequestBody
 import spock.util.concurrent.PollingConditions
 
 import java.util.function.Function
@@ -30,10 +33,10 @@ class Jersey2SmokeTest extends AbstractServerSmokeTest {
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
     command.addAll([
-      withSystemProperty(datadog.trace.api.config.IastConfig.IAST_ENABLED, true),
-      withSystemProperty(datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING, 100),
-      withSystemProperty(datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED, true),
-      withSystemProperty(datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED, false),
+      withSystemProperty(IastConfig.IAST_ENABLED, true),
+      withSystemProperty(IastConfig.IAST_REQUEST_SAMPLING, 100),
+      withSystemProperty(IastConfig.IAST_DEBUG_ENABLED, true),
+      withSystemProperty(IastConfig.IAST_DEDUPLICATION_ENABLED, false),
       withSystemProperty("integration.grizzly.enabled", true)
     ])
     if (Platform.isJavaVersionAtLeast(17)){
@@ -42,6 +45,22 @@ class Jersey2SmokeTest extends AbstractServerSmokeTest {
     command.addAll((String[]) ["-jar", jarPath, httpPort])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
+  }
+
+  def "test put json injected bean"(){
+    setup:
+    def url = "http://localhost:${httpPort}/hello/puttest"
+    def json = "{\"param1\":\"param1Value\",\"param2\":\"param2Value\"}"
+    def requestBody = RequestBody.create(MediaType.parse("application/json"), json)
+
+    when:
+    def request = new Request.Builder().url(url).post(requestBody).build()
+    def response = client.newCall(request).execute()
+
+    then:
+    assert response.code() == 201
+    waitForSpan(new PollingConditions(timeout: 5),
+    hasVulnerability(type('SQL_INJECTION').and(evidence('param1Value'))))
   }
 
   def "Test path parameter"() {

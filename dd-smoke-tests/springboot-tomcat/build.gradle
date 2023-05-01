@@ -91,6 +91,18 @@ tasks.war {
   dependsOn 'unzip'
 }
 
+tasks.javadocJar{
+  dependsOn 'unzip'
+}
+
+tasks.packageSources{
+  dependsOn 'unzip'
+}
+
+tasks.sourcesJar{
+  dependsOn 'unzip'
+}
+
 tasks.matching({it.name.startsWith('compileTest')}).configureEach {
   dependsOn 'war', 'bootWar', 'unzip'
 }

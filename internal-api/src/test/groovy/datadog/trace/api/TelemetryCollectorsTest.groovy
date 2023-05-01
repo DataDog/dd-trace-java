@@ -42,67 +42,132 @@ class TelemetryCollectorsTest extends DDSpecification {
 
   def "no metrics - drain empty list"() {
     when:
-    MetricCollector.get().prepareRequestMetrics()
+    WafMetricCollector.get().prepareRequestMetrics()
 
     then:
-    MetricCollector.get().drain().isEmpty()
+    WafMetricCollector.get().drain().isEmpty()
   }
 
   def "put-get waf metrics"() {
     when:
-    MetricCollector.get().wafInit('waf_ver1', 'rules.1')
-    MetricCollector.get().wafUpdates('rules.2')
-    MetricCollector.get().wafUpdates('rules.3')
-    MetricCollector.get().wafRequest()
-    MetricCollector.get().wafRequest()
-    MetricCollector.get().wafRequest()
-    MetricCollector.get().wafRequestTriggered()
-    MetricCollector.get().wafRequestBlocked()
+    WafMetricCollector.get().wafInit('waf_ver1', 'rules.1')
+    WafMetricCollector.get().wafUpdates('rules.2')
+    WafMetricCollector.get().wafUpdates('rules.3')
+    WafMetricCollector.get().wafRequest()
+    WafMetricCollector.get().wafRequest()
+    WafMetricCollector.get().wafRequest()
+    WafMetricCollector.get().wafRequestTriggered()
+    WafMetricCollector.get().wafRequestBlocked()
 
-    MetricCollector.get().prepareRequestMetrics()
+    WafMetricCollector.get().prepareRequestMetrics()
 
     then:
-    def metrics = MetricCollector.get().drain()
+    def metrics = WafMetricCollector.get().drain()
 
-    def initMetric = (MetricCollector.WafInitRawMetric)metrics[0]
+    def initMetric = (WafMetricCollector.WafInitRawMetric)metrics[0]
     initMetric.counter == 1
     initMetric.namespace == 'appsec'
     initMetric.metricName == 'waf.init'
-    initMetric.wafVersion == 'waf_ver1'
-    initMetric.rulesVersion == 'rules.1'
+    initMetric.tags.toSet() == ['waf_version:waf_ver1', 'event_rules_version:rules.1'].toSet()
 
-    def updateMetric1 = (MetricCollector.WafUpdatesRawMetric)metrics[1]
+    def updateMetric1 = (WafMetricCollector.WafUpdatesRawMetric)metrics[1]
     updateMetric1.counter == 1
     updateMetric1.namespace == 'appsec'
     updateMetric1.metricName == 'waf.updates'
-    updateMetric1.rulesVersion == 'rules.2'
+    updateMetric1.tags.toSet() == ['waf_version:waf_ver1', 'event_rules_version:rules.2'].toSet()
 
-    def updateMetric2 = (MetricCollector.WafUpdatesRawMetric)metrics[2]
+    def updateMetric2 = (WafMetricCollector.WafUpdatesRawMetric)metrics[2]
     updateMetric2.counter == 2
     updateMetric2.namespace == 'appsec'
     updateMetric2.metricName == 'waf.updates'
-    updateMetric2.rulesVersion == 'rules.3'
+    updateMetric2.tags.toSet() == ['waf_version:waf_ver1', 'event_rules_version:rules.3'].toSet()
 
-    def requestMetric = (MetricCollector.WafRequestsRawMetric)metrics[3]
+    def requestMetric = (WafMetricCollector.WafRequestsRawMetric)metrics[3]
     requestMetric.namespace == 'appsec'
     requestMetric.metricName == 'waf.requests'
     requestMetric.counter == 3
-    !requestMetric.triggered        // false
-    !requestMetric.blocked          // false
+    requestMetric.tags.toSet() == [
+      'waf_version:waf_ver1',
+      'event_rules_version:rules.3',
+      'rule_triggered:false',
+      'request_blocked:false'
+    ].toSet()
 
-    def requestTriggeredMetric = (MetricCollector.WafRequestsRawMetric)metrics[4]
+    def requestTriggeredMetric = (WafMetricCollector.WafRequestsRawMetric)metrics[4]
     requestTriggeredMetric.namespace == 'appsec'
     requestTriggeredMetric.metricName == 'waf.requests'
-    requestTriggeredMetric.counter == 2
-    requestTriggeredMetric.triggered      // true
-    !requestTriggeredMetric.blocked       // false
+    requestTriggeredMetric.counter == 1
+    requestTriggeredMetric.tags.toSet() == [
+      'waf_version:waf_ver1',
+      'event_rules_version:rules.3',
+      'rule_triggered:true',
+      'request_blocked:false'
+    ].toSet()
 
-    def requestBlockedMetric = (MetricCollector.WafRequestsRawMetric)metrics[5]
+    def requestBlockedMetric = (WafMetricCollector.WafRequestsRawMetric)metrics[5]
     requestBlockedMetric.namespace == 'appsec'
     requestBlockedMetric.metricName == 'waf.requests'
     requestBlockedMetric.counter == 1
-    requestBlockedMetric.triggered        // true
-    requestBlockedMetric.blocked          // true
+    requestBlockedMetric.tags.toSet() == [
+      'waf_version:waf_ver1',
+      'event_rules_version:rules.3',
+      'rule_triggered:true',
+      'request_blocked:true'
+    ].toSet()
+  }
+
+  def "overflowing WafMetricCollector does not crash"() {
+    given:
+    final limit = 1024
+    def collector = WafMetricCollector.get()
+
+    when:
+    (0..limit*2).each {
+      collector.wafInit("foo", "bar")
+    }
+
+    then:
+    noExceptionThrown()
+    collector.drain().size() == limit
+
+    when:
+    (0..limit*2).each {
+      collector.wafUpdates("bar")
+    }
+
+    then:
+    noExceptionThrown()
+    collector.drain().size() == limit
+
+    when:
+    (0..limit*2).each {
+      collector.wafRequest()
+      collector.prepareRequestMetrics()
+    }
+
+    then:
+    noExceptionThrown()
+    collector.drain().size() == limit
+
+    when:
+    (0..limit*2).each {
+      collector.wafRequestTriggered()
+      collector.prepareRequestMetrics()
+    }
+
+    then:
+    noExceptionThrown()
+    collector.drain().size() == limit
+
+    when:
+    (0..limit*2).each {
+      collector.wafRequestBlocked()
+      collector.prepareRequestMetrics()
+    }
+
+    then:
+    noExceptionThrown()
+    collector.drain().size() == limit
   }
 
   def "hide pii configuration data"() {

@@ -133,6 +133,7 @@ public class TagContext implements AgentSpan.Context.Extracted {
     return tags;
   }
 
+  @Override
   public final int getSamplingPriority() {
     return samplingPriority;
   }

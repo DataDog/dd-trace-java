@@ -51,6 +51,7 @@ public class MoshiSnapshotHelper {
   public static final String TRUNCATED = "truncated";
   public static final String SIZE = "size";
   public static final String ID = "id";
+  public static final String VERSION = "version";
   public static final String LOCATION = "location";
   private static final Duration TIME_OUT = Duration.ofMillis(200);
 
@@ -482,7 +483,9 @@ public class MoshiSnapshotHelper {
     public void toJson(JsonWriter writer, ProbeImplementation value) throws IOException {
       writer.beginObject();
       writer.name(ID);
-      writer.value(value.getId());
+      writer.value(value.getProbeId().getId());
+      writer.name(VERSION);
+      writer.value(value.getProbeId().getVersion());
       writer.name(LOCATION);
       probeLocationAdapter.toJson(writer, value.getLocation());
       writer.endObject();
