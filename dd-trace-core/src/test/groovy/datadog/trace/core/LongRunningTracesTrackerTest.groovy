@@ -8,9 +8,10 @@ import datadog.trace.api.TraceConfig
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.core.monitor.HealthMetrics
+import datadog.trace.test.util.DDSpecification
 import spock.lang.Specification
 
-class LongRunningTracesTrackerTest extends Specification {
+class LongRunningTracesTrackerTest extends DDSpecification {
   Config config = Mock(Config)
   int maxTrackedTraces = 10
   DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(null, Monitoring.DISABLED, null, false, false)
@@ -26,7 +27,7 @@ class LongRunningTracesTrackerTest extends Specification {
     traceConfig.getServiceMapping() >> [:]
     config.getLongRunningFlushInterval() >> 20
     config.longRunningTracesEnabled >> true
-    buffer = new PendingTraceBuffer.DelayingPendingTraceBuffer(1024, SystemTimeSource.INSTANCE, config, features)
+    buffer = new PendingTraceBuffer.DelayingPendingTraceBuffer(maxTrackedTraces, SystemTimeSource.INSTANCE, config, features)
     tracker = buffer.runningTracesTracker
     factory = new PendingTrace.Factory(tracer, buffer, SystemTimeSource.INSTANCE, false, HealthMetrics.NO_OP)
   }

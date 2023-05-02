@@ -217,7 +217,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       this.timeSource = timeSource;
       boolean runningSpansEnabled = config.isLongRunningTracesEnabled();
       this.runningTracesTracker =
-          runningSpansEnabled ? new LongRunningTracesTracker(config, BUFFER_SIZE, features) : null;
+          runningSpansEnabled ? new LongRunningTracesTracker(config, bufferSize, features) : null;
     }
   }
 

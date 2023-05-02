@@ -27,7 +27,7 @@ import static datadog.trace.core.PendingTraceBuffer.BUFFER_SIZE
 @Timeout(5)
 class PendingTraceBufferTest extends DDSpecification {
   @Subject
-  def buffer = PendingTraceBuffer.delaying(SystemTimeSource.INSTANCE, new Config(), null)
+  def buffer = PendingTraceBuffer.delaying(SystemTimeSource.INSTANCE, Mock(Config), null)
   def bufferSpy = Spy(buffer)
 
   def tracer = Mock(CoreTracer)
