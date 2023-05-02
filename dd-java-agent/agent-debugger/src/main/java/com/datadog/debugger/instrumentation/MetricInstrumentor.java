@@ -258,92 +258,92 @@ public class MetricInstrumentor extends Instrumentor {
 
     @Override
     public VisitorResult visit(BinaryExpression binaryExpression) {
-      return null;
+      throw new UnsupportedOperationException();
     }
 
     @Override
     public VisitorResult visit(BinaryOperator operator) {
-      return null;
+      throw new UnsupportedOperationException();
     }
 
     @Override
     public VisitorResult visit(ComparisonExpression comparisonExpression) {
-      return null;
+      throw new UnsupportedOperationException();
     }
 
     @Override
     public VisitorResult visit(ComparisonOperator operator) {
-      return null;
+      throw new UnsupportedOperationException();
     }
 
     @Override
     public VisitorResult visit(ContainsExpression containsExpression) {
-      return null;
+      throw new UnsupportedOperationException();
     }
 
     @Override
     public VisitorResult visit(EndsWithExpression endsWithExpression) {
-      return null;
+      throw new UnsupportedOperationException();
     }
 
     @Override
     public VisitorResult visit(FilterCollectionExpression filterCollectionExpression) {
-      return null;
+      throw new UnsupportedOperationException();
     }
 
     @Override
     public VisitorResult visit(HasAllExpression hasAllExpression) {
-      return null;
+      throw new UnsupportedOperationException();
     }
 
     @Override
     public VisitorResult visit(HasAnyExpression hasAnyExpression) {
-      return null;
+      throw new UnsupportedOperationException();
     }
 
     @Override
     public VisitorResult visit(IfElseExpression ifElseExpression) {
-      return null;
+      throw new UnsupportedOperationException();
     }
 
     @Override
     public VisitorResult visit(IfExpression ifExpression) {
-      return null;
+      throw new UnsupportedOperationException();
     }
 
     @Override
     public VisitorResult visit(IsEmptyExpression isEmptyExpression) {
-      return null;
+      throw new UnsupportedOperationException();
     }
 
     @Override
     public VisitorResult visit(IsUndefinedExpression isUndefinedExpression) {
-      return null;
+      throw new UnsupportedOperationException();
     }
 
     @Override
     public VisitorResult visit(LenExpression lenExpression) {
-      return null;
+      throw new UnsupportedOperationException();
     }
 
     @Override
     public VisitorResult visit(MatchesExpression matchesExpression) {
-      return null;
+      throw new UnsupportedOperationException();
     }
 
     @Override
     public VisitorResult visit(NotExpression notExpression) {
-      return null;
+      throw new UnsupportedOperationException();
     }
 
     @Override
     public VisitorResult visit(StartsWithExpression startsWithExpression) {
-      return null;
+      throw new UnsupportedOperationException();
     }
 
     @Override
     public VisitorResult visit(SubStringExpression subStringExpression) {
-      return null;
+      throw new UnsupportedOperationException();
     }
 
     @Override
@@ -379,27 +379,27 @@ public class MetricInstrumentor extends Instrumentor {
 
     @Override
     public VisitorResult visit(IndexExpression indexExpression) {
-      return null;
+      throw new UnsupportedOperationException();
     }
 
     @Override
     public VisitorResult visit(WhenExpression whenExpression) {
-      return null;
+      throw new UnsupportedOperationException();
     }
 
     @Override
     public VisitorResult visit(BooleanExpression booleanExpression) {
-      return null;
+      throw new UnsupportedOperationException();
     }
 
     @Override
     public VisitorResult visit(ObjectValue objectValue) {
-      return null;
+      throw new UnsupportedOperationException();
     }
 
     @Override
     public VisitorResult visit(StringValue stringValue) {
-      return null;
+      throw new UnsupportedOperationException();
     }
 
     @Override
@@ -416,17 +416,17 @@ public class MetricInstrumentor extends Instrumentor {
 
     @Override
     public VisitorResult visit(BooleanValue booleanValue) {
-      return null;
+      throw new UnsupportedOperationException();
     }
 
     @Override
     public VisitorResult visit(ListValue listValue) {
-      return null;
+      throw new UnsupportedOperationException();
     }
 
     @Override
     public VisitorResult visit(MapValue mapValue) {
-      return null;
+      throw new UnsupportedOperationException();
     }
 
     private Type tryRetrieve(String name, InsnList insnList) {
