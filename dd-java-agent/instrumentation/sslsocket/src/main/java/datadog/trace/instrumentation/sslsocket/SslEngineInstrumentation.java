@@ -7,32 +7,23 @@ import datadog.trace.bootstrap.instrumentation.usm.UsmExtractor;
 import datadog.trace.bootstrap.instrumentation.usm.UsmMessage;
 import datadog.trace.bootstrap.instrumentation.usm.UsmMessageFactory;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
-import java.security.NoSuchAlgorithmException;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.concreteClass;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedNoneOf;
-import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.isVirtual;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 
 @AutoService(Instrumenter.class)
 public final class SslEngineInstrumentation extends Instrumenter.Usm
-    implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
 
   private static final Logger log =
       LoggerFactory.getLogger(SslEngineInstrumentation.class);
@@ -42,14 +33,8 @@ public final class SslEngineInstrumentation extends Instrumenter.Usm
   }
 
   @Override
-  public String hierarchyMarkerType() {
-    return null;
-  }
-
-  /** Match any child class of the base abstract SocketChannel class. */
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named("javax.net.ssl.SSLEngine"));
+  public String instrumentedType() {
+    return "javax.net.ssl.SSLEngine";
   }
 
   @Override
@@ -67,97 +52,6 @@ public final class SslEngineInstrumentation extends Instrumenter.Usm
             .and(takesArgument(1,ByteBuffer.class)),
         SslEngineInstrumentation.class.getName() + "$UnwrapAdvice");
   }
-
-
-//  public final static class WrapAdvice {
-//
-//    @Advice.OnMethodExit(suppress = Throwable.class)
-//    public static void wrap(
-//        @Advice.This SSLEngine thiz,
-//        @Advice.Argument(0) final ByteBuffer[] srcs,
-//        @Advice.Return SSLEngineResult result) throws NoSuchAlgorithmException, UnknownHostException {
-//
-//
-//      StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
-//      for (StackTraceElement element : stackTrace) {
-//        System.out.println(element.getClassName() + "." +
-//            element.getMethodName() + "(" +
-//            element.getFileName() + ":" +
-//            element.getLineNumber() + ")");
-//      }
-//      //no source buffer - usually happens during handshake
-//      if (srcs.length == 0){
-//        System.out.println("[wrap] no source buffers");
-//      }
-//      //before accomplishing the handshake, the session doesn't have a session id, as it is generated during the handshake kickstart.
-//      else if (thiz.getSession().getId().length == 0){
-//        System.out.println("[wrap] still handshaking");
-//      }
-//      else if (result.bytesConsumed() > 0){
-//        byte[] b = new byte[result.bytesConsumed()];
-//        int consumed = 0;
-//        System.out.println("[wrap] handling " + srcs.length + " buffers, consumed: " + result.bytesConsumed());
-//        for (int i=0;i<srcs.length && consumed<b.length;i++){
-//          int oldPos = srcs[i].position();
-//          srcs[i].position(srcs[i].arrayOffset());
-//          srcs[i].get(b, 0, oldPos);
-//          srcs[i].position(oldPos);
-//          consumed+=oldPos;
-//        }
-//        UsmConnection connection =
-//            new UsmConnection(
-//                InetAddress.getLoopbackAddress(),
-//                0,
-//                InetAddress.getLoopbackAddress(),
-//                thiz.getPeerPort(),
-//                false);
-//        UsmMessage message =
-//            UsmMessageFactory.Supplier.getPlainMessage(connection, thiz.getPeerHost(), b, 0, b.length);
-//        UsmExtractor.Supplier.send(message);
-//      }
-//    }
-//  }
-//
-//  public final static class UnwrapAdvice {
-//
-//    @Advice.OnMethodExit(suppress = Throwable.class)
-//    public static void unwrap(
-//        @Advice.This SSLEngine thiz,
-//        @Advice.Argument(1) final ByteBuffer[] dst,
-//        @Advice.Return SSLEngineResult result) throws NoSuchAlgorithmException, UnknownHostException {
-//
-//      //before accomplishing the handshake, the session doesn't have a session id, as it is generated during the handshake kickstart.
-//      if (thiz.getSession().getId().length == 0){
-//        System.out.println("[unwrap] still handshaking");
-//      }
-//      else if (dst.length != 1){
-//        System.out.println("[unwrap] need to support multiple dst buffers");
-//      }
-//      else {
-//        if (result.bytesProduced() > 0 && dst[0].limit() >= result.bytesProduced()) {
-//          System.out.println("[unwrap] processing dst buffer, produced: " + result.bytesProduced() + " dst limit: " +dst[0].limit() );
-//          byte[] b = new byte[result.bytesProduced()];
-//          int oldPos = dst[0].position();
-//          dst[0].position(dst[0].arrayOffset());
-//          dst[0].get(b, 0, result.bytesProduced());
-//          dst[0].position(oldPos);
-//          UsmConnection connection =
-//              new UsmConnection(
-//                  InetAddress.getLoopbackAddress(),
-//                  0,
-//                  InetAddress.getLoopbackAddress(),
-//                  thiz.getPeerPort(),
-//                  false);
-//          UsmMessage message =
-//              UsmMessageFactory.Supplier.getPlainMessage(connection,thiz.getPeerHost(), b, 0, b.length);
-//          UsmExtractor.Supplier.send(message);
-//        }
-//        else{
-//          System.out.println("[unwrap] invalid dst buffer, produced: " + result.bytesProduced() + " dst limit: " + dst[0].limit());
-//        }
-//      }
-//    }
-//  }
 
   public final static class WrapAdvice {
 
@@ -196,7 +90,7 @@ public final class SslEngineInstrumentation extends Instrumenter.Usm
         UsmMessage message =
             UsmMessageFactory.Supplier.getPlainMessage(connection, thiz.getPeerHost(), b, 0, b.length);
         UsmExtractor.Supplier.send(message);
-        System.out.println("sent a wrap message" );
+        System.out.println("[wrap] sent a wrap message" );
        }
     }
   }
@@ -232,7 +126,7 @@ public final class SslEngineInstrumentation extends Instrumenter.Usm
           UsmMessage message =
               UsmMessageFactory.Supplier.getPlainMessage(connection,thiz.getPeerHost(), b, 0, b.length);
           UsmExtractor.Supplier.send(message);
-          System.out.println("sent an unwrap message" );
+          System.out.println("[unwrap] sent an unwrap message" );
         }
         else{
           System.out.println("[unwrap] invalid dst buffer, produced: " + result.bytesProduced() + " dst limit: " + dst.limit());

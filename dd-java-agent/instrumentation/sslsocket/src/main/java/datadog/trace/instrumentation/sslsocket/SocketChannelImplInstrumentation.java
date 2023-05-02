@@ -78,6 +78,7 @@ public final class SocketChannelImplInstrumentation extends Instrumenter.Usm
               isIPv6);
       UsmMessage message = UsmMessageFactory.Supplier.getHostMessage(connection,hostName);
       UsmExtractor.Supplier.send(message);
+      System.out.println("[host_message] sent a host message" );
     }
   }
 
@@ -98,6 +99,7 @@ public final class SocketChannelImplInstrumentation extends Instrumenter.Usm
               isIPv6);
       UsmMessage message = UsmMessageFactory.Supplier.getCloseMessage(connection);
       UsmExtractor.Supplier.send(message);
+      System.out.println("[close] sent a close message" );
     }
   }
 
