@@ -6,8 +6,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskFailedReason;
 import org.apache.spark.scheduler.*;
@@ -38,7 +36,6 @@ public class DatadogSparkListener extends SparkListener {
   private final HashMap<String, SparkListenerExecutorAdded> liveExecutors = new HashMap<>();
 
   private final boolean isRunningOnDatabricks;
-  private Pattern databricksJobRunIdPattern;
 
   private boolean lastJobFailed = false;
   private String lastJobFailedMessage;
@@ -355,21 +352,17 @@ public class DatadogSparkListener extends SparkListener {
     return ((long) stageId << 32) + attemptId;
   }
 
-  private String getDatabricksJobRunId(Properties jobProperties) {
+  private static String getDatabricksJobRunId(Properties jobProperties) {
     String clusterName =
         (String) jobProperties.get("spark.databricks.clusterUsageTags.clusterName");
     if (clusterName == null) {
       return null;
     }
 
-    if (databricksJobRunIdPattern == null) {
-      // For job cluster, the cluster name has a pattern job-<job_id>-run-<job_run_id>
-      databricksJobRunIdPattern = Pattern.compile("job-\\d+-run-(\\d+)");
-    }
-
-    Matcher matcher = databricksJobRunIdPattern.matcher(clusterName);
-    if (matcher.find()) {
-      return matcher.group(1);
+    // For job cluster, the cluster name has a pattern job-<job_id>-run-<job_run_id>
+    String[] parts = clusterName.split("-");
+    if (parts.length > 3) {
+      return parts[3];
     }
 
     return null;
