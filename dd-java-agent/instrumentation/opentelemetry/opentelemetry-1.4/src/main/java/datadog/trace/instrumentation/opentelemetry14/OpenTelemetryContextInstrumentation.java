@@ -57,6 +57,7 @@ public class OpenTelemetryContextInstrumentation extends Instrumenter.Tracing
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".OtelContext",
+      packageName + ".OtelExtractedContext",
       packageName + ".OtelScope",
       packageName + ".OtelSpan",
       packageName + ".OtelSpan$NoopSpan",

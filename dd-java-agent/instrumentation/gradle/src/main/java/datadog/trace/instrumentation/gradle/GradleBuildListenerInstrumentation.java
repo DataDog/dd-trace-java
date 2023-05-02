@@ -14,7 +14,7 @@ public class GradleBuildListenerInstrumentation extends Instrumenter.CiVisibilit
     implements Instrumenter.ForSingleType {
 
   public GradleBuildListenerInstrumentation() {
-    super("gradle-build-listener");
+    super("gradle", "gradle-build-listener");
   }
 
   @Override
@@ -27,7 +27,6 @@ public class GradleBuildListenerInstrumentation extends Instrumenter.CiVisibilit
     return new String[] {
       packageName + ".GradleUtils",
       packageName + ".GradleUtils$TestFramework",
-      packageName + ".GradleDecorator",
       packageName + ".GradleBuildListener",
       packageName + ".GradleBuildListener$TestTaskExecutionListener"
     };

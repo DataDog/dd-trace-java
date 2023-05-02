@@ -840,6 +840,11 @@ public class AgentTracer {
     }
 
     @Override
+    public int getSamplingPriority() {
+      return PrioritySampling.UNSET;
+    }
+
+    @Override
     public Iterable<Map.Entry<String, String>> baggageItems() {
       return Collections.emptyList();
     }

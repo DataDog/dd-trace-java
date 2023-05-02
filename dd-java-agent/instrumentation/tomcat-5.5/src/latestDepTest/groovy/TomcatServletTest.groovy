@@ -1,3 +1,8 @@
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
+import static org.junit.Assume.assumeTrue
+
 import com.google.common.io.Files
 import datadog.trace.agent.test.base.HttpServer
 import jakarta.servlet.Servlet
@@ -13,11 +18,6 @@ import org.apache.catalina.valves.RemoteIpValve
 import org.apache.tomcat.JarScanFilter
 import org.apache.tomcat.JarScanType
 import spock.lang.Unroll
-
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
-import static org.junit.Assume.assumeTrue
 
 @Unroll
 class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {

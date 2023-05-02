@@ -156,7 +156,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       trace(3) {
         basicSpan(it, "parent")
         basicSpan(it, "producer callback", span(0))
-        producerSpan(it, span(0), false)
+        producerSpan(it, senderProps, span(0), false)
       }
       if (hasQueueSpan()) {
         trace(2) {
@@ -290,7 +290,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       trace(3) {
         basicSpan(it, "parent")
         basicSpan(it, "producer callback", span(0))
-        producerSpan(it, span(0), false)
+        producerSpan(it, senderProps, span(0), false)
       }
       if (hasQueueSpan()) {
         trace(2) {
@@ -391,7 +391,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
     assertTraces(2, SORT_TRACES_BY_ID) {
       trace(1) {
-        producerSpan(it, null, false, true)
+        producerSpan(it, senderProps, null, false, true)
       }
       if (hasQueueSpan()) {
         trace(2) {
@@ -445,7 +445,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
     assertTraces(2, SORT_TRACES_BY_ID) {
       trace(1) {
-        producerSpan(it)
+        producerSpan(it, senderProps)
       }
       if (hasQueueSpan()) {
         trace(2) {
@@ -501,7 +501,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
     assertTraces(2, SORT_TRACES_BY_ID) {
       trace(1) {
-        producerSpan(it)
+        producerSpan(it, senderProps)
       }
       if (hasQueueSpan()) {
         trace(2) {
@@ -557,7 +557,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
     assertTraces(2, SORT_TRACES_BY_ID) {
       trace(1) {
-        producerSpan(it)
+        producerSpan(it, senderProps)
       }
       if (hasQueueSpan()) {
         trace(2) {
@@ -618,13 +618,13 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
       // producing traces
       trace(1) {
-        producerSpan(it)
+        producerSpan(it, senderProps)
       }
       trace(1) {
-        producerSpan(it)
+        producerSpan(it, senderProps)
       }
       trace(1) {
-        producerSpan(it)
+        producerSpan(it, senderProps)
       }
 
       // iterating to the end of ListIterator:
@@ -747,11 +747,11 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       trace(7) {
         basicSpan(it, "parent")
         basicSpan(it, "producer callback", span(0))
-        producerSpan(it, span(0), false)
+        producerSpan(it, senderProps, span(0), false)
         basicSpan(it, "producer callback", span(0))
-        producerSpan(it, span(0), false)
+        producerSpan(it, senderProps, span(0), false)
         basicSpan(it, "producer callback", span(0))
-        producerSpan(it, span(0), false)
+        producerSpan(it, senderProps, span(0), false)
       }
 
       if (hasQueueSpan()) {
@@ -868,6 +868,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
   def producerSpan(
     TraceAssert trace,
+    Map<String,?> config,
     DDSpan parentSpan = null,
     boolean partitioned = true,
     boolean tombstone = false
@@ -887,6 +888,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       tags {
         "$Tags.COMPONENT" "java-kafka"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+        "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" config.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG)
         if (partitioned) {
           "$InstrumentationTags.PARTITION" { it >= 0 }
         }
@@ -1014,6 +1016,11 @@ class KafkaClientV1ForkedTest extends KafkaClientForkedTest {
   @Override
   String serviceForTimeInQueue() {
     "kafka-queue"
+  }
+
+  @Override
+  boolean hasQueueSpan() {
+    false
   }
 }
 

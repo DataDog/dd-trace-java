@@ -84,4 +84,25 @@ public class TestURICallSiteSuite {
     LOGGER.debug("After create {}", uri);
     return uri;
   }
+
+  public static URI normalize(final URI uri) {
+    LOGGER.debug("Before normalize {}", uri);
+    final URI result = uri.normalize();
+    LOGGER.debug("After normalize {}", result);
+    return result;
+  }
+
+  public static String toString(final URI uri) {
+    LOGGER.debug("Before toString {}", uri);
+    final String result = uri.toString();
+    LOGGER.debug("After toString {}", result);
+    return result;
+  }
+
+  public static String toASCIIString(final URI uri) {
+    LOGGER.debug("Before toAsciiString {}", uri);
+    final String result = uri.toASCIIString();
+    LOGGER.debug("After toAsciiString {}", result);
+    return result;
+  }
 }

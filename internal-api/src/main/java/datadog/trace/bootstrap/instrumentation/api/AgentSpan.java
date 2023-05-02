@@ -4,6 +4,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
+import datadog.trace.api.sampling.PrioritySampling;
 import java.util.Map;
 
 public interface AgentSpan extends MutableSpan, IGSpanInfo {
@@ -143,11 +144,37 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
   Integer forceSamplingDecision();
 
   interface Context {
+    /**
+     * Gets the TraceId of the span's trace.
+     *
+     * @return The TraceId of the span's trace, or {@link DDTraceId#ZERO} if not set.
+     */
     DDTraceId getTraceId();
 
+    /**
+     * Gets the SpanId.
+     *
+     * @return The span identifier, or {@link datadog.trace.api.DDSpanId#ZERO} if not set.
+     */
     long getSpanId();
 
+    /**
+     * Get the span's trace.
+     *
+     * @return The span's trace, or a noop {@link AgentTracer.NoopAgentTrace#INSTANCE} if the trace
+     *     is not valid.
+     */
     AgentTrace getTrace();
+
+    /**
+     * Gets the trace sampling priority of the span's trace.
+     *
+     * <p>Check {@link PrioritySampling} for possible values.
+     *
+     * @return The trace sampling priority of the span's trace, or {@link PrioritySampling#UNSET} if
+     *     no priority has been set.
+     */
+    int getSamplingPriority();
 
     Iterable<Map.Entry<String, String>> baggageItems();
 

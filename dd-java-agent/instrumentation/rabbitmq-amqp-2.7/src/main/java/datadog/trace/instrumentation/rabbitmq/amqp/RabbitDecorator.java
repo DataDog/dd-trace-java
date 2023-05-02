@@ -49,6 +49,14 @@ public class RabbitDecorator extends MessagingClientDecorator {
   public static final boolean RABBITMQ_LEGACY_TRACING =
       Config.get()
           .isLegacyTracingEnabled(SpanNaming.instance().version() == 0, "rabbit", "rabbitmq");
+
+  public static final boolean TIME_IN_QUEUE_ENABLED =
+      Config.get()
+          .isTimeInQueueEnabled(
+              !RABBITMQ_LEGACY_TRACING && SpanNaming.instance().version() == 0,
+              "rabbit",
+              "rabbitmq");
+
   private static final String LOCAL_SERVICE_NAME =
       RABBITMQ_LEGACY_TRACING ? "rabbitmq" : Config.get().getServiceName();
   public static final RabbitDecorator CLIENT_DECORATE =
@@ -194,7 +202,7 @@ public class RabbitDecorator extends MessagingClientDecorator {
       spanStartMillis = System.currentTimeMillis();
     }
     long queueStartMillis = 0;
-    if (null != headers && !RABBITMQ_LEGACY_TRACING) {
+    if (null != headers && TIME_IN_QUEUE_ENABLED) {
       queueStartMillis = extractTimeInQueueStart(headers);
     }
     long spanStartMicros = TimeUnit.MILLISECONDS.toMicros(spanStartMillis);

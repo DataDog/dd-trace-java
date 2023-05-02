@@ -106,6 +106,11 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
   }
 
   @Override
+  boolean testBadUrl() {
+    false
+  }
+
+  @Override
   String expectedServiceName() {
     return ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME
   }

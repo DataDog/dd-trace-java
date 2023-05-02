@@ -8,8 +8,8 @@ import static datadog.trace.instrumentation.aws.v2.sqs.MessageExtractAdapter.GET
 import static datadog.trace.instrumentation.aws.v2.sqs.SqsDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.aws.v2.sqs.SqsDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.aws.v2.sqs.SqsDecorator.SQS_INBOUND_OPERATION;
-import static datadog.trace.instrumentation.aws.v2.sqs.SqsDecorator.SQS_LEGACY_TRACING;
 import static datadog.trace.instrumentation.aws.v2.sqs.SqsDecorator.SQS_TIME_IN_QUEUE_OPERATION;
+import static datadog.trace.instrumentation.aws.v2.sqs.SqsDecorator.TIME_IN_QUEUE_ENABLED;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.api.Config;
@@ -60,7 +60,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
           AgentSpan.Context spanContext =
               Config.get().isSqsPropagationEnabled() ? propagate().extract(message, GETTER) : null;
           // next add a time-in-queue span for non-legacy SQS traces
-          if (!SQS_LEGACY_TRACING) {
+          if (TIME_IN_QUEUE_ENABLED) {
             long timeInQueueStart = GETTER.extractTimeInQueueStart(message);
             if (timeInQueueStart > 0) {
               queueSpan =

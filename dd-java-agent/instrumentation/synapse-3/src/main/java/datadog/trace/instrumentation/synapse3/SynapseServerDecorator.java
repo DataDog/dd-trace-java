@@ -8,10 +8,10 @@ import static datadog.trace.instrumentation.synapse3.ExtractAdapter.Response;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase;
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
-import java.net.URI;
 import org.apache.http.HttpInetConnection;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
@@ -62,7 +62,8 @@ public final class SynapseServerDecorator
 
   @Override
   protected URIDataAdapter url(final HttpRequest request) {
-    return new URIDefaultDataAdapter(URI.create(request.getRequestLine().getUri()));
+    return URIDataAdapterBase.fromURI(
+        request.getRequestLine().getUri(), URIDefaultDataAdapter::new);
   }
 
   @Override

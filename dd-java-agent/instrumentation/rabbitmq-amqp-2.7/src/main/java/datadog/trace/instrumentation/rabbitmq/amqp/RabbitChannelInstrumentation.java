@@ -18,7 +18,7 @@ import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CONSUM
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.OPERATION_AMQP_COMMAND;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.OPERATION_AMQP_OUTBOUND;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.PRODUCER_DECORATE;
-import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.RABBITMQ_LEGACY_TRACING;
+import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.rabbitmq.amqp.TextMapInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.canThrow;
 import static net.bytebuddy.matcher.ElementMatchers.isGetter;
@@ -182,7 +182,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing
         // We need to copy the BasicProperties and provide a header map we can modify
         Map<String, Object> headers = props.getHeaders();
         headers = (headers == null) ? new HashMap<String, Object>() : new HashMap<>(headers);
-        if (!RABBITMQ_LEGACY_TRACING) {
+        if (TIME_IN_QUEUE_ENABLED) {
           RabbitDecorator.injectTimeInQueueStart(headers);
         }
         propagate().inject(span, headers, SETTER);

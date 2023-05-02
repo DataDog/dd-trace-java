@@ -124,7 +124,7 @@ public class MetricProbesInstrumentationTest {
     Assertions.assertEquals(3, result);
     Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME));
     Assertions.assertEquals(
-        "Unsupported literal: 42.0 type: java.lang.Double, expect integral type (int, long).",
+        "Unsupported constant value: 42.0 type: java.lang.Double",
         mockSink.getCurrentDiagnostics().get(0).getMessage());
   }
 
@@ -182,8 +182,8 @@ public class MetricProbesInstrumentationTest {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(48, result);
-    Assertions.assertTrue(listener.counters.containsKey(METRIC_NAME));
-    Assertions.assertEquals(31, listener.counters.get(METRIC_NAME).longValue());
+    Assertions.assertTrue(listener.gauges.containsKey(METRIC_NAME));
+    Assertions.assertEquals(31, listener.gauges.get(METRIC_NAME).longValue());
     Assertions.assertArrayEquals(new String[] {METRIC_PROBEID_TAG}, listener.lastTags);
   }
 
@@ -220,8 +220,8 @@ public class MetricProbesInstrumentationTest {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(48, result);
-    Assertions.assertTrue(listener.counters.containsKey(METRIC_NAME));
-    Assertions.assertEquals(31, listener.counters.get(METRIC_NAME).longValue());
+    Assertions.assertTrue(listener.histrograms.containsKey(METRIC_NAME));
+    Assertions.assertEquals(31, listener.histrograms.get(METRIC_NAME).longValue());
     Assertions.assertArrayEquals(new String[] {METRIC_PROBEID_TAG}, listener.lastTags);
   }
 
@@ -242,8 +242,8 @@ public class MetricProbesInstrumentationTest {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(48, result);
-    Assertions.assertTrue(listener.counters.containsKey(METRIC_NAME));
-    Assertions.assertEquals(31, listener.counters.get(METRIC_NAME).longValue());
+    Assertions.assertTrue(listener.histrograms.containsKey(METRIC_NAME));
+    Assertions.assertEquals(31, listener.histrograms.get(METRIC_NAME).longValue());
     Assertions.assertArrayEquals(new String[] {"tag1:foo1", METRIC_PROBEID_TAG}, listener.lastTags);
   }
 
@@ -711,7 +711,6 @@ public class MetricProbesInstrumentationTest {
       String... lines) {
     return createMetricBuilder(id, metricName, metricKind)
         .where(typeName, methodName, signature, lines)
-        .kind(COUNT)
         .valueScript(valueScript)
         .tags(tags)
         .build();
@@ -726,7 +725,6 @@ public class MetricProbesInstrumentationTest {
       int line) {
     return createMetricBuilder(id, metricName, metricKind)
         .where(sourceFile, line)
-        .kind(COUNT)
         .valueScript(valueScript)
         .build();
   }
@@ -764,6 +762,8 @@ public class MetricProbesInstrumentationTest {
 
   private static class MetricForwarderListener implements DebuggerContext.MetricForwarder {
     Map<String, Long> counters = new HashMap<>();
+    Map<String, Long> gauges = new HashMap<>();
+    Map<String, Long> histrograms = new HashMap<>();
     String[] lastTags = null;
 
     @Override
@@ -774,11 +774,13 @@ public class MetricProbesInstrumentationTest {
 
     @Override
     public void gauge(String name, long value, String[] tags) {
+      gauges.put(name, value);
       lastTags = tags;
     }
 
     @Override
     public void histogram(String name, long value, String[] tags) {
+      histrograms.put(name, value);
       lastTags = tags;
     }
   }

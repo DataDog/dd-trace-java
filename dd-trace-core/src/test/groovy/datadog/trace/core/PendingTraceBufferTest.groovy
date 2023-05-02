@@ -4,6 +4,7 @@ import datadog.communication.monitor.Monitoring
 import datadog.trace.SamplingPriorityMetadataChecker
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.TraceConfig
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
@@ -29,9 +30,15 @@ class PendingTraceBufferTest extends DDSpecification {
   def bufferSpy = Spy(buffer)
 
   def tracer = Mock(CoreTracer)
+  def traceConfig = Mock(TraceConfig)
   def scopeManager = new ContinuableScopeManager(10, true, true)
   def factory = new PendingTrace.Factory(tracer, bufferSpy, SystemTimeSource.INSTANCE, false, HealthMetrics.NO_OP)
   List<TraceScope.Continuation> continuations = []
+
+  def setup() {
+    tracer.captureTraceConfig() >> traceConfig
+    traceConfig.getServiceMapping() >> [:]
+  }
 
   def cleanup() {
     buffer.close()
@@ -142,7 +149,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
     then:
     _ * tracer.getPartialFlushMinSpans() >> 10
-    _ * tracer.mapServiceName(_)
+    _ * traceConfig.getServiceMapping() >> [:]
     _ * tracer.getTimeWithNanoTicks(_)
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     1 * tracer.write(_) >> { List<List<DDSpan>> spans ->
@@ -162,10 +169,11 @@ class PendingTraceBufferTest extends DDSpecification {
     }
 
     then:
+    _ * tracer.captureTraceConfig() >> traceConfig
     buffer.queue.size() == BUFFER_SIZE
     buffer.queue.capacity() * bufferSpy.enqueue(_)
     _ * tracer.getPartialFlushMinSpans() >> 10
-    _ * tracer.mapServiceName(_)
+    _ * traceConfig.getServiceMapping() >> [:]
     _ * tracer.getTimeWithNanoTicks(_)
     0 * _
 
@@ -174,11 +182,12 @@ class PendingTraceBufferTest extends DDSpecification {
     addContinuation(newSpanOf(pendingTrace)).finish()
 
     then:
+    1 * tracer.captureTraceConfig() >> traceConfig
     1 * bufferSpy.enqueue(_)
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     1 * tracer.write({ it.size() == 1 })
     _ * tracer.getPartialFlushMinSpans() >> 10
-    _ * tracer.mapServiceName(_)
+    _ * traceConfig.getServiceMapping() >> [:]
     2 * tracer.getTimeWithNanoTicks(_)
     0 * _
     pendingTrace.isEnqueued == 0
@@ -273,7 +282,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * tracer.write({ it.size() == 1 }) >> {
       childLatch.countDown()
     }
-    _ * tracer.mapServiceName(_)
+    _ * traceConfig.getServiceMapping() >> [:]
     2 * tracer.getTimeWithNanoTicks(_)
     0 * _
   }
@@ -335,13 +344,14 @@ class PendingTraceBufferTest extends DDSpecification {
     span.finish()
 
     then:
+    1 * tracer.captureTraceConfig() >> traceConfig
     pendingTrace.rootSpanWritten
     pendingTrace.isEnqueued == 0
     buffer.queue.size() == 0
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     1 * tracer.write({ it.size() == 1 })
     1 * tracer.getPartialFlushMinSpans() >> 10000
-    1 * tracer.mapServiceName(_)
+    1 * traceConfig.getServiceMapping() >> [:]
     2 * tracer.getTimeWithNanoTicks(_)
     0 * _
 
@@ -355,7 +365,7 @@ class PendingTraceBufferTest extends DDSpecification {
     buffer.queue.size() == 1
     buffer.queue.capacity() * bufferSpy.enqueue(_)
     _ * tracer.getPartialFlushMinSpans() >> 10000
-    _ * tracer.mapServiceName(_)
+    _ * traceConfig.getServiceMapping() >> [:]
     _ * tracer.getTimeWithNanoTicks(_)
     0 * _
 
