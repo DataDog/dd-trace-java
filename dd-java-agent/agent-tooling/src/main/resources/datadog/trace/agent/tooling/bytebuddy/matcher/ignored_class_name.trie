@@ -91,6 +91,7 @@
 0 java.nio.channels.SocketChannel
 0 sun.nio.ch.SocketChannelImpl
 0 sun.security.ssl.*
+0 javax.net.ssl.SSLEngine
 
 0 sun.net.www.protocol.http.*
 0 sun.net.www.protocol.https.*
