@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.sslsocket;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.concreteClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -36,7 +38,7 @@ public final class SslSocketInstrumentation extends Instrumenter.Usm
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return HierarchyMatchers.extendsClass(named("javax.net.ssl.SSLSocket"));
+    return extendsClass(named("javax.net.ssl.SSLSocket")).and(concreteClass());
   }
 
   @Override
