@@ -92,11 +92,6 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
     true
   }
 
-  @Override
-  boolean testBadUrl() {
-    false
-  }
-
   boolean hasResponseSpan(ServerEndpoint endpoint) {
     return endpoint == REDIRECT || endpoint == NOT_FOUND
   }
