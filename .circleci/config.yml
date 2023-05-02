@@ -624,6 +624,12 @@ build_test_jobs: &build_test_jobs
       requires:
         - build
       name: z_test_<< matrix.testJvm >>_inst
+      docker:
+        - image: *default_container
+        - image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
+          environment:
+            - LOG_LEVEL=DEBUG
+            - TRACE_LANGUAGE=java
       maxHeapSize: "1940M"
       gradleTarget: ":dd-java-agent:instrumentation"
       triggeredBy: *instrumentation_modules
@@ -636,6 +642,12 @@ build_test_jobs: &build_test_jobs
       requires:
         - build
       name: z_test_8_inst
+      docker:
+        - image: *default_container
+        - image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
+          environment:
+            - LOG_LEVEL=DEBUG
+            - TRACE_LANGUAGE=java
       maxHeapSize: "1940M"
       gradleTarget: ":dd-java-agent:instrumentation"
       triggeredBy: *instrumentation_modules
@@ -647,6 +659,12 @@ build_test_jobs: &build_test_jobs
       requires:
         - build
       name: test_8_inst_latest
+      docker:
+        - image: *default_container
+        - image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
+          environment:
+            - LOG_LEVEL=DEBUG
+            - TRACE_LANGUAGE=java
       testTask: latestDepTest
       maxHeapSize: "1940M"
       gradleTarget: ":dd-java-agent:instrumentation"
