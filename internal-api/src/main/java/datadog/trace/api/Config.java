@@ -44,6 +44,9 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_DEBUG_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_NAME_PATTERN;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_VALUE_PATTERN;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
@@ -162,6 +165,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE;
+import static datadog.trace.api.config.IastConfig.IAST_REDACTION_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_TELEMETRY_VERBOSITY;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_HASH_ALGORITHMS;
@@ -553,6 +557,9 @@ public class Config {
   private final float iastRequestSampling;
   private final boolean iastDebugEnabled;
   private final Verbosity iastTelemetryVerbosity;
+  private final boolean iastRedactionEnabled;
+  private final String iastRedactionNamePattern;
+  private final String iastRedactionValuePattern;
 
   private final boolean ciVisibilityAgentlessEnabled;
   private final String ciVisibilityAgentlessUrl;
@@ -1279,6 +1286,14 @@ public class Config {
             configProvider.getString(IAST_WEAK_CIPHER_ALGORITHMS));
     iastTelemetryVerbosity =
         configProvider.getEnum(IAST_TELEMETRY_VERBOSITY, Verbosity.class, Verbosity.INFORMATION);
+    iastRedactionEnabled =
+        configProvider.getBoolean(IAST_REDACTION_ENABLED, DEFAULT_IAST_REDACTION_ENABLED);
+    iastRedactionNamePattern =
+        configProvider.getString(
+            DEFAULT_IAST_REDACTION_NAME_PATTERN, DEFAULT_IAST_REDACTION_NAME_PATTERN);
+    iastRedactionValuePattern =
+        configProvider.getString(
+            DEFAULT_IAST_REDACTION_VALUE_PATTERN, DEFAULT_IAST_REDACTION_VALUE_PATTERN);
 
     ciVisibilityAgentlessEnabled =
         configProvider.getBoolean(
@@ -2054,6 +2069,18 @@ public class Config {
 
   public Verbosity getIastTelemetryVerbosity() {
     return iastTelemetryVerbosity;
+  }
+
+  public boolean isIastRedactionEnabled() {
+    return iastRedactionEnabled;
+  }
+
+  public String getIastRedactionNamePattern() {
+    return iastRedactionNamePattern;
+  }
+
+  public String getIastRedactionValuePattern() {
+    return iastRedactionValuePattern;
   }
 
   public boolean isCiVisibilityEnabled() {

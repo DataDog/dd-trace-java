@@ -17,7 +17,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.AgentTaskScheduler
-import groovy.json.JsonSlurper
+import org.skyscreamer.jsonassert.JSONAssert
 import spock.lang.Shared
 
 import java.util.concurrent.CountDownLatch
@@ -38,7 +38,6 @@ class ReporterTest extends DDSpecification {
 
   void 'basic vulnerability reporting'() {
     given:
-    final slurper = new JsonSlurper()
     final Reporter reporter = new Reporter()
     final traceSegment = Mock(TraceSegment)
     final ctx = new IastRequestContext()
@@ -63,7 +62,7 @@ class ReporterTest extends DDSpecification {
 
     then:
     1 * traceSegment.setDataTop('iast', _) >> { batch = it[1] as VulnerabilityBatch }
-    slurper.parseText(batch.toString()) == slurper.parseText('''{
+    JSONAssert.assertEquals('''{
       "vulnerabilities": [
         {
           "evidence": { "value":"MD5"},
@@ -71,20 +70,19 @@ class ReporterTest extends DDSpecification {
           "location": {
             "spanId":123456,
             "line":1,
-            "path":
-            "foo"
+            "path": "foo",
+            "method": "foo"
           },
           "type":"WEAK_HASH"
         }
       ]
-    }''')
+    }''', batch.toString(), true)
     1 * traceSegment.setTagTop('manual.keep', true)
     0 * _
   }
 
   void 'two vulnerabilities'() {
     given:
-    final slurper = new JsonSlurper()
     final Reporter reporter = new Reporter()
     final traceSegment = Mock(TraceSegment)
     final ctx = new IastRequestContext()
@@ -115,7 +113,7 @@ class ReporterTest extends DDSpecification {
 
     then:
     1 * traceSegment.setDataTop('iast', _) >> { batch = it[1] as VulnerabilityBatch }
-    slurper.parseText(batch.toString()) == slurper.parseText('''{
+    JSONAssert.assertEquals('''{
       "vulnerabilities": [
         {
           "evidence": { "value":"MD5" },
@@ -123,7 +121,8 @@ class ReporterTest extends DDSpecification {
           "location": {
             "spanId":123456,
             "line":1,
-            "path":"foo"
+            "path":"foo",
+            "method": "foo"
           },
           "type":"WEAK_HASH"
         },
@@ -133,12 +132,13 @@ class ReporterTest extends DDSpecification {
           "location": {
             "spanId":123456,
             "line":2,
-            "path":"foo"
+            "path":"foo",
+            "method": "foo"
           },
           "type":"WEAK_HASH"
         }
       ]
-    }''')
+    }''', batch.toString(), true)
     1 * traceSegment.setTagTop('manual.keep', true)
     0 * _
   }

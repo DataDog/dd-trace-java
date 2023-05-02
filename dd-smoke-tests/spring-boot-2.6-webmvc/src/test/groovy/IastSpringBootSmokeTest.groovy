@@ -40,7 +40,8 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     command.addAll([
       withSystemProperty(IAST_ENABLED, true),
       withSystemProperty(IAST_REQUEST_SAMPLING, 100),
-      withSystemProperty(IAST_DEBUG_ENABLED, true)
+      withSystemProperty(IAST_DEBUG_ENABLED, true),
+      withSystemProperty(IAST_REDACTION_ENABLED, false)
     ])
     command.addAll((String[]) ["-jar", springBootShadowJar, "--server.port=${httpPort}"])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
