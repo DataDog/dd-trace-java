@@ -26,7 +26,7 @@ public class BlockingActionHelper {
   private static volatile byte[] TEMPLATE_HTML;
   private static volatile byte[] TEMPLATE_JSON;
 
-  public static final String CONTENT_TYPE_HTML = "text/html;charset=utf-8";
+  public static final String CONTENT_TYPE_HTML = "text/html; charset=utf-8";
   public static final String CONTENT_TYPE_JSON = "application/json";
 
   static {

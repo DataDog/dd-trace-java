@@ -63,7 +63,7 @@ class BlockingActionHelperSpecification extends DDSpecification {
     where:
     input | result
     JSON  | 'application/json'
-    HTML  | 'text/html;charset=utf-8'
+    HTML  | 'text/html; charset=utf-8'
     null  | null
   }
 
