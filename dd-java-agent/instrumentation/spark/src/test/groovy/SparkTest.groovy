@@ -34,21 +34,21 @@ class SparkTest extends AgentTestRunner {
         }
         span {
           operationName "spark.job"
-          resourceName "count at TestSparkComputation.java:16"
+          resourceName "count at TestSparkComputation.java:12"
           spanType "spark"
           errored false
           childOf(span(0))
         }
         span {
           operationName "spark.stage"
-          resourceName "count at TestSparkComputation.java:16"
+          resourceName "count at TestSparkComputation.java:12"
           spanType "spark"
           errored false
           childOf(span(1))
         }
         span {
           operationName "spark.stage"
-          resourceName "distinct at TestSparkComputation.java:15"
+          resourceName "distinct at TestSparkComputation.java:12"
           spanType "spark"
           errored false
           childOf(span(1))
