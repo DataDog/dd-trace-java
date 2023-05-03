@@ -9,7 +9,10 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_METRICS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLIENT_IP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_SYNC_PERIOD;
@@ -99,7 +102,12 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_METRICS;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_TIMEOUT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENT_JAR_URI;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_ID;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SESSION_ID;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ENABLED;
@@ -324,6 +332,7 @@ import datadog.trace.util.Strings;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
@@ -552,6 +561,11 @@ public class Config {
   private final boolean ciVisibilityBuildInstrumentationEnabled;
   private final Long ciVisibilitySessionId;
   private final Long ciVisibilityModuleId;
+  private final String ciVisibilityAgentJarUri;
+  private final boolean ciVisibilityAutoConfigurationEnabled;
+  private final boolean ciVisibilityCompilerPluginAutoConfigurationEnabled;
+  private final String ciVisibilityCompilerPluginVersion;
+  private final Integer ciVisibilityDebugPort;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1300,6 +1314,20 @@ public class Config {
     } else {
       ciVisibilityAgentlessUrl = null;
     }
+
+    ciVisibilityAgentJarUri = configProvider.getString(CIVISIBILITY_AGENT_JAR_URI);
+    ciVisibilityAutoConfigurationEnabled =
+        configProvider.getBoolean(
+            CIVISIBILITY_AUTO_CONFIGURATION_ENABLED,
+            DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED);
+    ciVisibilityCompilerPluginAutoConfigurationEnabled =
+        configProvider.getBoolean(
+            CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED,
+            DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED);
+    ciVisibilityCompilerPluginVersion =
+        configProvider.getString(
+            CIVISIBILITY_COMPILER_PLUGIN_VERSION, DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION);
+    ciVisibilityDebugPort = configProvider.getInteger(CIVISIBILITY_DEBUG_PORT);
 
     remoteConfigEnabled =
         configProvider.getBoolean(REMOTE_CONFIG_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED);
@@ -2090,6 +2118,39 @@ public class Config {
     return ciVisibilityModuleId;
   }
 
+  public String getCiVisibilityAgentJarUri() {
+    return ciVisibilityAgentJarUri;
+  }
+
+  public File getCiVisibilityAgentJarFile() {
+    if (ciVisibilityAgentJarUri == null || ciVisibilityAgentJarUri.isEmpty()) {
+      throw new IllegalArgumentException("Agent JAR URI is not set in config");
+    }
+
+    try {
+      URI agentJarUri = new URI(ciVisibilityAgentJarUri);
+      return new File(agentJarUri);
+    } catch (URISyntaxException e) {
+      throw new IllegalArgumentException("Malformed agent JAR URI: " + ciVisibilityAgentJarUri, e);
+    }
+  }
+
+  public boolean isCiVisibilityAutoConfigurationEnabled() {
+    return ciVisibilityAutoConfigurationEnabled;
+  }
+
+  public boolean isCiVisibilityCompilerPluginAutoConfigurationEnabled() {
+    return ciVisibilityCompilerPluginAutoConfigurationEnabled;
+  }
+
+  public String getCiVisibilityCompilerPluginVersion() {
+    return ciVisibilityCompilerPluginVersion;
+  }
+
+  public Integer getCiVisibilityDebugPort() {
+    return ciVisibilityDebugPort;
+  }
+
   public String getAppSecRulesFile() {
     return appSecRulesFile;
   }
@@ -2691,6 +2752,12 @@ public class Config {
         Arrays.asList(integrationNames), "", ".legacy.tracing.enabled", defaultEnabled);
   }
 
+  public boolean isTimeInQueueEnabled(
+      final boolean defaultEnabled, final String... integrationNames) {
+    return configProvider.isEnabled(
+        Arrays.asList(integrationNames), "", ".time-in-queue.enabled", defaultEnabled);
+  }
+
   public boolean isEnabled(
       final boolean defaultEnabled, final String settingName, String settingSuffix) {
     return configProvider.isEnabled(
@@ -2805,7 +2872,7 @@ public class Config {
     return Collections.unmodifiableSet(result);
   }
 
-  private static final String PREFIX = "dd.";
+  public static final String PREFIX = "dd.";
 
   /**
    * Converts the property name, e.g. 'service.name' into a public system property name, e.g.

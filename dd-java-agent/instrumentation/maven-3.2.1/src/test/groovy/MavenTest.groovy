@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.base.CiVisibilityTest
 import datadog.trace.api.civisibility.CIConstants
+import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.apache.maven.cli.MavenCli
 import org.apache.maven.lifecycle.LifecycleExecutionException
@@ -18,6 +19,12 @@ class MavenTest extends CiVisibilityTest {
   @Override
   void setup() {
     givenMavenProjectFiles(specificationContext.currentIteration.name)
+  }
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_AUTO_CONFIGURATION_ENABLED, "false")
   }
 
   def "test_maven_build_with_no_tests_generates_spans"() {

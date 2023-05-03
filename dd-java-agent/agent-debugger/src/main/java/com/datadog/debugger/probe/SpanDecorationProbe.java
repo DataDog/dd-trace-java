@@ -51,6 +51,12 @@ public class SpanDecorationProbe extends ProbeDefinition {
     public ValueScript getValue() {
       return value;
     }
+
+    @Generated
+    @Override
+    public String toString() {
+      return "Tag{" + "name='" + name + '\'' + ", value=" + value + '}';
+    }
   }
 
   public static class Decoration {
@@ -68,6 +74,12 @@ public class SpanDecorationProbe extends ProbeDefinition {
 
     public List<Tag> getTags() {
       return tags;
+    }
+
+    @Generated
+    @Override
+    public String toString() {
+      return "Decoration{" + "when=" + when + ", tags=" + tags + '}';
     }
   }
 
@@ -204,7 +216,8 @@ public class SpanDecorationProbe extends ProbeDefinition {
   @Generated
   @Override
   public int hashCode() {
-    int result = Objects.hash(language, id, version, tagMap, where, evaluateAt);
+    int result =
+        Objects.hash(language, id, version, tagMap, where, evaluateAt, targetSpan, decorations);
     result = 31 * result + Arrays.hashCode(tags);
     return result;
   }
@@ -221,7 +234,9 @@ public class SpanDecorationProbe extends ProbeDefinition {
         && Arrays.equals(tags, that.tags)
         && Objects.equals(tagMap, that.tagMap)
         && Objects.equals(where, that.where)
-        && Objects.equals(evaluateAt, that.evaluateAt);
+        && Objects.equals(evaluateAt, that.evaluateAt)
+        && Objects.equals(targetSpan, that.targetSpan)
+        && Objects.equals(decorations, that.decorations);
   }
 
   @Generated
@@ -244,6 +259,10 @@ public class SpanDecorationProbe extends ProbeDefinition {
         + where
         + ", evaluateAt="
         + evaluateAt
+        + ", targetSpan="
+        + targetSpan
+        + ", decorations="
+        + decorations
         + "} ";
   }
 

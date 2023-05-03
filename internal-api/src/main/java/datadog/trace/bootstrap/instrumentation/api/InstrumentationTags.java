@@ -71,6 +71,7 @@ public class InstrumentationTags {
   public static final String EVENT = "event";
   public static final String MESSAGE = "message";
   public static final String HANDLER_TYPE = "handler.type";
+  public static final String KAFKA_BOOTSTRAP_SERVERS = "messaging.kafka.bootstrap.servers";
   public static final String QUARTZ_JOB_NAME = "quartz.job.name";
   public static final String QUARTZ_JOB_GROUP = "quartz.job.group";
   public static final String QUARTZ_TRIGGER_NAME = "quartz.trigger.name";

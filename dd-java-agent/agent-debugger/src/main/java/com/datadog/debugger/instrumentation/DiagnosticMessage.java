@@ -58,7 +58,7 @@ public final class DiagnosticMessage {
         + kind
         + ", message='"
         + message
-        + ", throwable='"
+        + "', throwable='"
         + throwable
         + '\''
         + '}';

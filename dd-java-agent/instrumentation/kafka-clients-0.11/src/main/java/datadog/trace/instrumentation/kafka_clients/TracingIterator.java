@@ -11,7 +11,7 @@ import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_DELIVER;
-import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_LEGACY_TRACING;
+import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_clients.TextMapExtractAdapter.GETTER;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -72,7 +72,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
         if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
           final Context spanContext = propagate().extract(val.headers(), GETTER);
           long timeInQueueStart = GETTER.extractTimeInQueueStart(val.headers());
-          if (timeInQueueStart == 0 || KAFKA_LEGACY_TRACING) {
+          if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
             span = startSpan(operationName, spanContext);
           } else {
             queueSpan =

@@ -320,6 +320,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     true
   }
 
+  boolean testBadUrl() {
+    true
+  }
+
   @Override
   int version() {
     return 0
@@ -1491,6 +1495,23 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         edgeTags.size() == DSM_EDGE_TAGS.size()
       }
     }
+  }
+
+  def "test bad url not cause span marked as error"() {
+    setup:
+    assumeTrue(testBadUrl())
+
+    when:
+    def request = new okhttp3.Request.Builder()
+      .url(address.toString() + "success?file=\\abc")
+      .get()
+      .build()
+    client.newCall(request).execute()
+
+    then:
+    TEST_WRITER.waitForTraces(1)
+    def trace = TEST_WRITER.get(0)
+    assert trace.find {it.isError() } == null
   }
 
   def 'user blocking'() {

@@ -7,6 +7,7 @@ import static datadog.trace.instrumentation.jms.JMSDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_LEGACY_TRACING;
 import static datadog.trace.instrumentation.jms.JMSDecorator.PRODUCER_DECORATE;
+import static datadog.trace.instrumentation.jms.JMSDecorator.TIME_IN_QUEUE_ENABLED;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -133,7 +134,8 @@ public class SessionInstrumentation extends Instrumenter.Tracing
             ackMode = Session.AUTO_ACKNOWLEDGE;
           }
           sessionState =
-              sessionStateStore.putIfAbsent(session, new SessionState(ackMode, JMS_LEGACY_TRACING));
+              sessionStateStore.putIfAbsent(
+                  session, new SessionState(ackMode, TIME_IN_QUEUE_ENABLED));
         }
 
         boolean isQueue = PRODUCER_DECORATE.isQueue(destination);
@@ -173,7 +175,8 @@ public class SessionInstrumentation extends Instrumenter.Tracing
             ackMode = Session.AUTO_ACKNOWLEDGE;
           }
           sessionState =
-              sessionStateStore.putIfAbsent(session, new SessionState(ackMode, JMS_LEGACY_TRACING));
+              sessionStateStore.putIfAbsent(
+                  session, new SessionState(ackMode, TIME_IN_QUEUE_ENABLED));
         }
 
         boolean isQueue = CONSUMER_DECORATE.isQueue(destination);

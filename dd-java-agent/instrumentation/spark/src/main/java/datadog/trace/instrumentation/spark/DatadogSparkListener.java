@@ -3,8 +3,10 @@ package datadog.trace.instrumentation.spark;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskFailedReason;
 import org.apache.spark.scheduler.*;
@@ -34,6 +36,8 @@ public class DatadogSparkListener extends SparkListener {
 
   private final HashMap<String, SparkListenerExecutorAdded> liveExecutors = new HashMap<>();
 
+  private final boolean isRunningOnDatabricks;
+
   private boolean lastJobFailed = false;
   private String lastJobFailedMessage;
   private int currentExecutorCount = 0;
@@ -43,6 +47,8 @@ public class DatadogSparkListener extends SparkListener {
   public DatadogSparkListener(SparkConf _sparkConf) {
     tracer = AgentTracer.get();
     sparkConf = _sparkConf;
+
+    isRunningOnDatabricks = sparkConf.contains("spark.databricks.sparkContextId");
   }
 
   @Override
@@ -97,17 +103,41 @@ public class DatadogSparkListener extends SparkListener {
       return;
     }
 
-    AgentSpan jobSpan =
+    AgentTracer.SpanBuilder jobSpanBuilder =
         tracer
             .buildSpan("spark.job")
-            .asChildOf(applicationSpan.context())
             .withStartTimestamp(jobStart.time() * 1000)
             .withTag("job_id", jobStart.jobId())
             .withTag("stage_count", jobStart.stageInfos().size())
             .withTag(DDTags.RESOURCE_NAME, jobStart.stageInfos().apply(0).name())
-            .withSpanType("spark")
-            .start();
+            .withSpanType("spark");
 
+    if (isRunningOnDatabricks) {
+      // In databricks, the spark jobs are the local root spans so adding the spark conf parameters
+      // to the job spans
+      for (Tuple2<String, String> conf : sparkConf.getAll()) {
+        if (SparkConfAllowList.canCaptureApplicationParameter(conf._1)) {
+          jobSpanBuilder.withTag("config." + conf._1.replace(".", "_"), conf._2);
+        }
+      }
+
+      if (jobStart.properties() != null) {
+        // ids to link those spans to databricks job/task traces
+        jobSpanBuilder.withTag(
+            "databricks_job_id", jobStart.properties().get("spark.databricks.job.id"));
+        jobSpanBuilder.withTag(
+            "databricks_job_run_id", getDatabricksJobRunId(jobStart.properties()));
+
+        // spark.databricks.job.runId is the runId of the task, not of the Job
+        jobSpanBuilder.withTag(
+            "databricks_task_run_id", jobStart.properties().get("spark.databricks.job.runId"));
+      }
+    } else {
+      // In non-databricks env, the spark application is the local root spans
+      jobSpanBuilder.asChildOf(applicationSpan.context());
+    }
+
+    AgentSpan jobSpan = jobSpanBuilder.start();
     jobSpan.setMeasured(true);
 
     // Some properties can change at runtime, so capturing properties of all jobs
@@ -321,5 +351,22 @@ public class DatadogSparkListener extends SparkListener {
 
   private long stageSpanKey(int stageId, int attemptId) {
     return ((long) stageId << 32) + attemptId;
+  }
+
+  @SuppressForbidden // split with one-char String use a fast-path without regex usage
+  private static String getDatabricksJobRunId(Properties jobProperties) {
+    String clusterName =
+        (String) jobProperties.get("spark.databricks.clusterUsageTags.clusterName");
+    if (clusterName == null) {
+      return null;
+    }
+
+    // For job cluster, the cluster name has a pattern job-<job_id>-run-<job_run_id>
+    String[] parts = clusterName.split("-");
+    if (parts.length > 3) {
+      return parts[3];
+    }
+
+    return null;
   }
 }
