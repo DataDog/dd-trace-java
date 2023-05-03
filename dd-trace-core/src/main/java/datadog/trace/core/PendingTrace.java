@@ -344,13 +344,13 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
           // was negative will be written by someone even if we don't write them right now.
           if (size > 0 && (!isPartial || size > tracer.getPartialFlushMinSpans())) {
             trace = new ArrayList<>(size);
-            completedSpanCount = enqueueSpansToWrite(trace);
+            completedSpans = enqueueSpansToWrite(trace);
           } else {
             trace = EMPTY;
           }
         }
         if (!trace.isEmpty()) {
-          COMPLETED_SPAN_COUNT.addAndGet(this, -completedSpanCount);
+          COMPLETED_SPAN_COUNT.addAndGet(this, -completedSpans);
           tracer.write(trace);
           healthMetrics.onCreateTrace();
           return completedSpans;
