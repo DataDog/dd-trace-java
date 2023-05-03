@@ -18,9 +18,9 @@ class ScopeManagerDepthTest extends DDCoreSpecification {
     when: "fill up the scope stack"
     AgentScope scope = null
     for (int i = 0; i < depth; i++) {
-      def span = tracer.buildSpan("test").start()
-      scope = tracer.activateSpan(span)
-      assert scope instanceof ContinuableScopeManager.ContinuableScope
+      def testSpan = tracer.buildSpan("test").start()
+      scope = tracer.activateSpan(testSpan)
+      assert scope instanceof ContinuableScope
     }
 
     then: "last scope is still valid"
@@ -59,9 +59,9 @@ class ScopeManagerDepthTest extends DDCoreSpecification {
     when: "fill up the scope stack"
     AgentScope scope = null
     for (int i = 0; i < defaultLimit; i++) {
-      def span = tracer.buildSpan("test").start()
-      scope = tracer.activateSpan(span)
-      assert scope instanceof ContinuableScopeManager.ContinuableScope
+      def testSpan = tracer.buildSpan("test").start()
+      scope = tracer.activateSpan(testSpan)
+      assert scope instanceof ContinuableScope
     }
 
     then: "last scope is still valid"

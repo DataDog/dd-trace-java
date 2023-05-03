@@ -4,11 +4,11 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Set;
+import java.util.function.Function;
 import net.bytebuddy.description.NamedElement;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -90,20 +90,14 @@ public final class NameMatchers {
    */
   public static <T extends NamedElement> NotExcluded<T> notExcludedByName(
       ExcludeFilter.ExcludeType type) {
-    return new NotExcluded<T>(type);
+    return new NotExcluded<>(type);
   }
 
   @SuppressWarnings("rawtypes")
   private static final DDCache<String, Named> namedCache = DDCaches.newFixedSizeCache(256);
 
   @SuppressWarnings("rawtypes")
-  private static final Function<String, Named> newNamedMatcher =
-      new Function<String, Named>() {
-        @Override
-        public Named apply(String input) {
-          return new Named(input);
-        }
-      };
+  private static final Function<String, Named> newNamedMatcher = Named::new;
 
   public static final class Named<T extends NamedElement>
       extends ElementMatcher.Junction.ForNonNullValues<T> {
@@ -116,6 +110,11 @@ public final class NameMatchers {
     @Override
     protected boolean doMatch(NamedElement target) {
       return name.equals(target.getActualName());
+    }
+
+    @Override
+    public String toString() {
+      return "named(" + name + ")";
     }
   }
 

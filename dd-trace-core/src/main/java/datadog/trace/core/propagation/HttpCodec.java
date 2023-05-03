@@ -1,7 +1,7 @@
 package datadog.trace.core.propagation;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.PropagationStyle;
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
@@ -9,8 +9,11 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,13 +29,15 @@ public class HttpCodec {
   static final String X_FORWARDED_FOR_KEY = "x-forwarded-for";
   static final String X_FORWARDED_PORT_KEY = "x-forwarded-port";
 
-  // Headers which may contain real ip
-  static final String CLIENT_IP_KEY = "client-ip";
+  // other headers which may contain real ip
+  static final String X_CLIENT_IP_KEY = "x-client-ip";
   static final String TRUE_CLIENT_IP_KEY = "true-client-ip";
   static final String X_CLUSTER_CLIENT_IP_KEY = "x-cluster-client-ip";
   static final String X_REAL_IP_KEY = "x-real-ip";
   static final String USER_AGENT_KEY = "user-agent";
-  static final String VIA_KEY = "via";
+  static final String FASTLY_CLIENT_IP_KEY = "fastly-client-ip";
+  static final String CF_CONNECTING_IP_KEY = "cf-connecting-ip";
+  static final String CF_CONNECTING_IP_V6_KEY = "cf-connecting-ipv6";
 
   public interface Injector {
     <C> void inject(
@@ -43,67 +48,88 @@ public class HttpCodec {
     <C> TagContext extract(final C carrier, final AgentPropagation.ContextVisitor<C> getter);
   }
 
-  public static <C> void inject(
-      DDSpanContext context, C carrier, AgentPropagation.Setter<C> setter, PropagationStyle style) {
-    switch (style) {
-      case DATADOG:
-        DatadogHttpCodec.INJECTOR.inject(context, carrier, setter);
-        break;
-      case B3:
-        B3HttpCodec.INJECTOR.inject(context, carrier, setter);
-        break;
-      case HAYSTACK:
-        HaystackHttpCodec.INJECTOR.inject(context, carrier, setter);
-        break;
-      case XRAY:
-        XRayHttpCodec.INJECTOR.inject(context, carrier, setter);
-        break;
-      default:
-        log.debug("No implementation found to inject propagation style: {}", style);
-        break;
-    }
+  public static Injector createInjector(
+      Config config,
+      Set<TracePropagationStyle> styles,
+      Map<String, String> invertedBaggageMapping) {
+    ArrayList<Injector> injectors =
+        new ArrayList<>(createInjectors(config, styles, invertedBaggageMapping).values());
+    return new CompoundInjector(injectors);
   }
 
-  public static Injector createInjector(final Config config) {
-    final List<Injector> injectors = new ArrayList<>();
-    for (final PropagationStyle style : config.getPropagationStylesToInject()) {
+  public static Map<TracePropagationStyle, Injector> allInjectorsFor(
+      Config config, Map<String, String> reverseBaggageMapping) {
+    return createInjectors(
+        config, EnumSet.allOf(TracePropagationStyle.class), reverseBaggageMapping);
+  }
+
+  private static Map<TracePropagationStyle, Injector> createInjectors(
+      Config config,
+      Set<TracePropagationStyle> propagationStyles,
+      Map<String, String> reverseBaggageMapping) {
+    EnumMap<TracePropagationStyle, Injector> result = new EnumMap<>(TracePropagationStyle.class);
+    for (TracePropagationStyle style : propagationStyles) {
       switch (style) {
         case DATADOG:
-          injectors.add(DatadogHttpCodec.INJECTOR);
+          result.put(style, DatadogHttpCodec.newInjector(reverseBaggageMapping));
           break;
-        case B3:
-          injectors.add(B3HttpCodec.INJECTOR);
+        case B3SINGLE:
+          result.put(
+              style,
+              B3HttpCodec.newSingleInjector(config.isTracePropagationStyleB3PaddingEnabled()));
+          break;
+        case B3MULTI:
+          result.put(
+              style,
+              B3HttpCodec.newMultiInjector(config.isTracePropagationStyleB3PaddingEnabled()));
           break;
         case HAYSTACK:
-          injectors.add(HaystackHttpCodec.INJECTOR);
+          result.put(style, HaystackHttpCodec.newInjector(reverseBaggageMapping));
           break;
         case XRAY:
-          injectors.add(XRayHttpCodec.INJECTOR);
+          result.put(style, XRayHttpCodec.newInjector(reverseBaggageMapping));
+          break;
+        case NONE:
+          result.put(style, NoneCodec.INJECTOR);
+          break;
+        case TRACECONTEXT:
+          result.put(style, W3CHttpCodec.newInjector(reverseBaggageMapping));
           break;
         default:
           log.debug("No implementation found to inject propagation style: {}", style);
           break;
       }
     }
-    return new CompoundInjector(injectors);
+    return result;
   }
 
   public static Extractor createExtractor(
-      final Config config, final Map<String, String> taggedHeaders) {
+      final Config config,
+      final Map<String, String> taggedHeaders,
+      final Map<String, String> baggageMapping) {
     final List<Extractor> extractors = new ArrayList<>();
-    for (final PropagationStyle style : config.getPropagationStylesToExtract()) {
+    for (final TracePropagationStyle style : config.getTracePropagationStylesToExtract()) {
       switch (style) {
         case DATADOG:
-          extractors.add(DatadogHttpCodec.newExtractor(taggedHeaders, config));
+          extractors.add(DatadogHttpCodec.newExtractor(taggedHeaders, baggageMapping, config));
           break;
-        case B3:
-          extractors.add(B3HttpCodec.newExtractor(taggedHeaders));
+        case B3SINGLE:
+          extractors.add(B3HttpCodec.newSingleExtractor(taggedHeaders, baggageMapping, config));
+          break;
+        case B3MULTI:
+          extractors.add(B3HttpCodec.newMultiExtractor(taggedHeaders, baggageMapping, config));
           break;
         case HAYSTACK:
-          extractors.add(HaystackHttpCodec.newExtractor(taggedHeaders));
+          extractors.add(HaystackHttpCodec.newExtractor(taggedHeaders, baggageMapping));
           break;
         case XRAY:
-          extractors.add(XRayHttpCodec.newExtractor(taggedHeaders));
+          extractors.add(XRayHttpCodec.newExtractor(taggedHeaders, baggageMapping));
+          break;
+        case NONE:
+          extractors.add(NoneCodec.EXTRACTOR);
+          break;
+        case TRACECONTEXT:
+          extractors.add(W3CHttpCodec.newExtractor(taggedHeaders, baggageMapping));
           break;
         default:
           log.debug("No implementation found to extract propagation style: {}", style);
@@ -170,7 +196,7 @@ public class HttpCodec {
     String decoded = value;
     try {
       decoded = URLDecoder.decode(value, "UTF-8");
-    } catch (final UnsupportedEncodingException e) {
+    } catch (final UnsupportedEncodingException | IllegalArgumentException e) {
       log.debug("Failed to decode value - {}", value);
     }
     return decoded;

@@ -1,0 +1,42 @@
+// Set properties before any plugins get loaded
+ext {
+  // Need to force Oracle JDK 8 since it is the only JDK compatible with this implementation
+  forceJdk = ['ORACLE8']
+  // By default tests with be compiled for `minJavaVersionForTests` version,
+  // but in this case we would like to avoid this since we would like to run with ORACLE8
+  skipSettingTestJavaVersion = true
+  // need access to jdk.jfr package
+  skipSettingCompilerRelease = true
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+minimumBranchCoverage = 0.5
+minimumInstructionCoverage = 0.7
+
+excludedClassesCoverage += ['com.datadog.profiling.controller.oracle.JdkTypeIDs_8']
+
+dependencies {
+  api deps.slf4j
+  api project(':internal-api')
+  api project(':dd-java-agent:agent-profiling:profiling-controller')
+  api project(':dd-java-agent:agent-profiling:profiling-controller-jfr')
+
+  testImplementation deps.junit5
+  testImplementation deps.mockito
+  testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
+  testImplementation files(project(':dd-java-agent:agent-profiling:profiling-controller-jfr').sourceSets.test.output)
+}
+
+// Oracle JDK requires extra JVM arguments to enable JFR
+tasks.withType(Test).configureEach {
+  onlyIf {
+    it.name.contains('ORACLE8')
+  }
+
+  jvmArgs += [
+    "-XX:+IgnoreUnrecognizedVMOptions",
+    "-XX:+UnlockCommercialFeatures",
+    "-XX:+FlightRecorder"
+  ]
+}

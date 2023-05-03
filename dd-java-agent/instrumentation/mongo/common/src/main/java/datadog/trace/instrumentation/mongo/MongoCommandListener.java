@@ -29,7 +29,6 @@ import org.bson.ByteBuf;
 public final class MongoCommandListener implements CommandListener {
   public static final class SpanEntry {
     public final AgentSpan span;
-    public volatile boolean suspended = false;
 
     public SpanEntry(AgentSpan span) {
       this.span = span;
@@ -37,7 +36,7 @@ public final class MongoCommandListener implements CommandListener {
 
     @Override
     public String toString() {
-      return "SpanEntry{" + "span=" + span + ", suspended=" + suspended + '}';
+      return "SpanEntry{" + "span=" + span + '}';
     }
   }
 
@@ -123,7 +122,7 @@ public final class MongoCommandListener implements CommandListener {
     if (listenerAccessor != null) {
       listenerAccessor.putIfAbsent(event.getConnectionDescription(), this);
     }
-    final AgentSpan span = startSpan(MongoDecorator.MONGO_QUERY);
+    final AgentSpan span = startSpan(MongoDecorator.OPERATION_NAME);
     try (final AgentScope scope = activateSpan(span)) {
       decorator.afterStart(span);
       decorator.onConnection(span, event);
@@ -169,19 +168,7 @@ public final class MongoCommandListener implements CommandListener {
         decorator.onError(span, t);
       }
       decorator.beforeFinish(span);
-      if (entry.suspended) {
-        // the span has been suspended but not resumed yet
-        span.finishThreadMigration();
-      }
       span.finish();
-    }
-  }
-
-  public void suspendSpan(int requestId) {
-    SpanEntry entry = spanMap.get(requestId);
-    if (entry != null && entry.span != null) {
-      entry.span.startThreadMigration();
-      entry.suspended = true;
     }
   }
 }

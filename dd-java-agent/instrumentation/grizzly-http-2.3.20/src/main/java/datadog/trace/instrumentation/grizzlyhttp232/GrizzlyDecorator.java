@@ -2,16 +2,25 @@ package datadog.trace.instrumentation.grizzlyhttp232;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 
+import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.trace.api.gateway.BlockResponseFunction;
+import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
+import java.util.Map;
 import org.glassfish.grizzly.filterchain.FilterChainContext;
+import org.glassfish.grizzly.filterchain.NextAction;
+import org.glassfish.grizzly.http.HttpCodecFilter;
 import org.glassfish.grizzly.http.HttpHeader;
 import org.glassfish.grizzly.http.HttpRequestPacket;
 import org.glassfish.grizzly.http.HttpResponsePacket;
+import org.glassfish.grizzly.http.HttpServerFilter;
 
 public class GrizzlyDecorator
     extends HttpServerDecorator<
@@ -78,7 +87,6 @@ public class GrizzlyDecorator
       FilterChainContext ctx, HttpResponsePacket responsePacket) {
     AgentSpan span = (AgentSpan) ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE);
     if (null != span) {
-      span.finishThreadMigration();
       DECORATE.onResponse(span, responsePacket);
     }
   }
@@ -94,12 +102,13 @@ public class GrizzlyDecorator
     ctx.getAttributes().removeAttribute(DD_RESPONSE_ATTRIBUTE);
   }
 
-  public static void onHttpCodecFilterExit(FilterChainContext ctx, HttpHeader httpHeader) {
+  public static NextAction onHttpCodecFilterExit(
+      FilterChainContext ctx, HttpHeader httpHeader, HttpCodecFilter thiz, NextAction nextAction) {
     // only create a span if there isn't another one attached to the current ctx
     // and if the httpHeader has been parsed into a HttpRequestPacket
     if (ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE) != null
         || !(httpHeader instanceof HttpRequestPacket)) {
-      return;
+      return nextAction;
     }
     HttpRequestPacket httpRequest = (HttpRequestPacket) httpHeader;
     HttpResponsePacket httpResponse = httpRequest.getResponse();
@@ -111,8 +120,25 @@ public class GrizzlyDecorator
     ctx.getAttributes().setAttribute(DD_SPAN_ATTRIBUTE, span);
     ctx.getAttributes().setAttribute(DD_RESPONSE_ATTRIBUTE, httpResponse);
     DECORATE.onRequest(span, httpRequest, httpRequest, context);
+
+    Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
+    if (rba != null && thiz instanceof HttpServerFilter) {
+      nextAction =
+          GrizzlyHttpBlockingHelper.block(
+              ctx, (HttpServerFilter) thiz, httpRequest, httpResponse, rba, nextAction);
+    }
+    if (ActiveSubsystems.APPSEC_ACTIVE) {
+      RequestContext requestContext = span.getRequestContext();
+      if (requestContext != null) {
+        BlockResponseFunction brf = requestContext.getBlockResponseFunction();
+        if (brf instanceof GrizzlyHttpBlockResponseFunction) {
+          ((GrizzlyHttpBlockResponseFunction) brf).ctx = ctx;
+        }
+      }
+    }
     scope.close();
-    span.startThreadMigration();
+
+    return nextAction;
   }
 
   public static void onFilterChainFail(FilterChainContext ctx, Throwable throwable) {
@@ -124,5 +150,30 @@ public class GrizzlyDecorator
     }
     ctx.getAttributes().removeAttribute(DD_SPAN_ATTRIBUTE);
     ctx.getAttributes().removeAttribute(DD_RESPONSE_ATTRIBUTE);
+  }
+
+  @Override
+  protected BlockResponseFunction createBlockResponseFunction(
+      HttpRequestPacket httpRequestPacket, HttpRequestPacket httpRequestPacket2) {
+    return new GrizzlyHttpBlockResponseFunction(httpRequestPacket.getHeader("Accept"));
+  }
+
+  public static class GrizzlyHttpBlockResponseFunction implements BlockResponseFunction {
+    private final String acceptHeader;
+    public volatile FilterChainContext ctx;
+
+    public GrizzlyHttpBlockResponseFunction(String acceptHeader) {
+      this.acceptHeader = acceptHeader;
+    }
+
+    @Override
+    public boolean tryCommitBlockingResponse(
+        int statusCode, BlockingContentType templateType, Map<String, String> extraHeaders) {
+      if (ctx == null) {
+        return false;
+      }
+      return GrizzlyHttpBlockingHelper.block(
+          ctx, acceptHeader, statusCode, templateType, extraHeaders);
+    }
   }
 }

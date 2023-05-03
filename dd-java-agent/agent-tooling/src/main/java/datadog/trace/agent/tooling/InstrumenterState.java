@@ -1,12 +1,16 @@
 package datadog.trace.agent.tooling;
 
-import datadog.trace.api.function.Function;
-import datadog.trace.bootstrap.WeakCache;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
+import datadog.trace.util.Strings;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLongArray;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Tracks {@link Instrumenter} state, such as where it was applied and where it was blocked. */
 public final class InstrumenterState {
+  private static final Logger log = LoggerFactory.getLogger(InstrumenterState.class);
 
   public interface Observer {
     void applied(Iterable<String> instrumentationNames);
@@ -24,20 +28,13 @@ public final class InstrumenterState {
   private static final int STATUS_BITS = 0b11;
 
   private static Iterable<String>[] instrumentationNames = new Iterable[0];
+  private static String[] instrumentationClasses = new String[0];
 
   private static long[] defaultState = {};
 
   /** Tracks which instrumentations were applied (per-class-loader) and which were blocked. */
-  private static final WeakCache<ClassLoader, AtomicLongArray> classLoaderStates =
-      WeakCaches.newWeakCache(64);
-
-  private static final Function<ClassLoader, AtomicLongArray> buildClassLoaderState =
-      new Function<ClassLoader, AtomicLongArray>() {
-        @Override
-        public AtomicLongArray apply(ClassLoader input) {
-          return new AtomicLongArray(defaultState);
-        }
-      };
+  private static final DDCache<ClassLoader, AtomicLongArray> classLoaderStates =
+      DDCaches.newFixedSizeWeakKeyCache(512);
 
   private static Observer observer;
 
@@ -46,15 +43,19 @@ public final class InstrumenterState {
   /** Pre-sizes internal structures to accommodate the highest expected id. */
   public static void setMaxInstrumentationId(int maxInstrumentationId) {
     instrumentationNames = Arrays.copyOf(instrumentationNames, maxInstrumentationId + 1);
+    instrumentationClasses = Arrays.copyOf(instrumentationClasses, instrumentationNames.length);
   }
 
-  /** Registers an instrumentation's primary name plus zero or more aliases. */
-  public static void registerInstrumentationNames(int instrumentationId, Iterable<String> names) {
+  /** Registers an instrumentation's details. */
+  public static void registerInstrumentation(Instrumenter.Default instrumenter) {
+    int instrumentationId = instrumenter.instrumentationId();
     if (instrumentationId >= instrumentationNames.length) {
       // note: setMaxInstrumentationId pre-sizes array to avoid repeated allocations here
       instrumentationNames = Arrays.copyOf(instrumentationNames, instrumentationId + 16);
+      instrumentationClasses = Arrays.copyOf(instrumentationClasses, instrumentationNames.length);
     }
-    instrumentationNames[instrumentationId] = names;
+    instrumentationNames[instrumentationId] = instrumenter.names();
+    instrumentationClasses[instrumentationId] = instrumenter.getClass().getName();
   }
 
   /** Registers an observer to be notified whenever an instrumentation is applied. */
@@ -64,10 +65,10 @@ public final class InstrumenterState {
 
   /** Resets the default instrumentation state so nothing is blocked or applied. */
   public static void resetDefaultState() {
-    int instrumentationCount = instrumentationNames.length;
+    int maxInstrumentationCount = instrumentationNames.length;
 
     int wordsPerClassLoaderState =
-        ((instrumentationCount << 1) + BITS_PER_WORD - 1) >> ADDRESS_BITS_PER_WORD;
+        ((maxInstrumentationCount << 1) + BITS_PER_WORD - 1) >> ADDRESS_BITS_PER_WORD;
 
     if (defaultState.length > 0) { // optimization: skip clear if there's no old state
       classLoaderStates.clear();
@@ -89,6 +90,12 @@ public final class InstrumenterState {
   /** Records that the instrumentation was applied to the given class-loader. */
   public static void applyInstrumentation(ClassLoader classLoader, int instrumentationId) {
     updateState(classLoader, instrumentationId, APPLIED);
+    if (log.isDebugEnabled()) {
+      log.debug(
+          "Instrumentation applied - {} instrumentation.target.classloader={}",
+          describe(instrumentationId),
+          classLoader);
+    }
     if (null != observer) {
       observer.applied(instrumentationNames[instrumentationId]);
     }
@@ -97,6 +104,12 @@ public final class InstrumenterState {
   /** Records that the instrumentation is blocked for the given class-loader. */
   public static void blockInstrumentation(ClassLoader classLoader, int instrumentationId) {
     updateState(classLoader, instrumentationId, BLOCKED);
+    if (log.isDebugEnabled()) {
+      log.debug(
+          "Instrumentation blocked - {} instrumentation.target.classloader={}",
+          describe(instrumentationId),
+          classLoader);
+    }
   }
 
   /** Records that the instrumentation is blocked by default. */
@@ -106,6 +119,17 @@ public final class InstrumenterState {
     long bitsToSet = ((long) BLOCKED) << (bitIndex & BIT_INDEX_MASK);
     synchronized (defaultState) {
       defaultState[wordIndex] |= bitsToSet;
+    }
+  }
+
+  public static String describe(int instrumentationId) {
+    if (instrumentationId >= 0 && instrumentationId < instrumentationNames.length) {
+      return "instrumentation.names=["
+          + Strings.join(",", instrumentationNames[instrumentationId])
+          + "] instrumentation.class="
+          + instrumentationClasses[instrumentationId];
+    } else {
+      return "<unknown instrumentation>";
     }
   }
 
@@ -119,7 +143,12 @@ public final class InstrumenterState {
 
   private static AtomicLongArray classLoaderState(ClassLoader classLoader) {
     return classLoaderStates.computeIfAbsent(
-        null != classLoader ? classLoader : Utils.getBootstrapProxy(), buildClassLoaderState);
+        null != classLoader ? classLoader : Utils.getBootstrapProxy(),
+        InstrumenterState::buildClassLoaderState);
+  }
+
+  private static AtomicLongArray buildClassLoaderState(ClassLoader classLoader) {
+    return new AtomicLongArray(defaultState);
   }
 
   private static int currentState(AtomicLongArray state, int bitIndex) {

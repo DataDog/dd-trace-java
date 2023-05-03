@@ -1,0 +1,48 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
+ext {
+  excludeJdk = ['IBM8']
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+description = 'Profiling Integration Tests.'
+
+jar {
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.profiling.ProfilingTestApplication')
+  }
+}
+
+dependencies {
+  implementation project(':dd-trace-api')
+  api project(':dd-trace-ot')
+  implementation 'org.apache.commons:commons-math3:3.6.1'
+  implementation 'org.lz4:lz4-java:1.8.0'
+  implementation 'org.xerial.snappy:snappy-java:1.1.8.4'
+
+  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-java-agent:agent-profiling:profiling-testing')
+  testImplementation deps.junit5
+  testImplementation deps.mockito
+  testImplementation deps.jmc
+  testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.10')
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "shadowJar"
+  jvmArgs "-Ddatadog.smoketest.profiling.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+}
+
+shadowJar {
+  include {
+    return it.directory || it.path.endsWith('.jar') ||
+      it.path.startsWith('io/opentracing') ||
+      it.path.startsWith('datadog/smoketest') ||
+      it.path.startsWith('org/apache/commons') ||
+      it.path.startsWith('net/jpountz') ||
+      it.path.startsWith('org/xerial/snappy')
+  }
+}

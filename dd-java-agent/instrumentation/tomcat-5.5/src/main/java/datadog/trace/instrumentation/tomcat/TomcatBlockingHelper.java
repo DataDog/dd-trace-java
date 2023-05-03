@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.tomcat;
 
+import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper.TemplateType;
@@ -7,6 +8,7 @@ import java.io.OutputStream;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
+import java.util.Map;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
 import org.slf4j.Logger;
@@ -29,25 +31,48 @@ public class TomcatBlockingHelper {
 
   public static void commitBlockingResponse(
       Request request, Response resp, Flow.Action.RequestBlockingAction rba) {
-    int httpCode = BlockingActionHelper.getHttpCode(rba.getStatusCode());
-    if (!start(resp, httpCode) || GET_OUTPUT_STREAM == null) {
-      return;
+    commitBlockingResponse(
+        request, resp, rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+  }
+
+  public static boolean commitBlockingResponse(
+      Request request,
+      Response resp,
+      int statusCode,
+      BlockingContentType templateType,
+      Map<String, String> extraHeaders) {
+    if (GET_OUTPUT_STREAM == null) {
+      return false;
+    }
+    int httpCode = BlockingActionHelper.getHttpCode(statusCode);
+    if (!start(resp, httpCode)) {
+      return true;
     }
 
-    TemplateType type =
-        BlockingActionHelper.determineTemplateType(
-            rba.getBlockingContentType(), request.getHeader("Accept"));
-    byte[] template = BlockingActionHelper.getTemplate(type);
+    // tomcat, if it sees an exception when dispatching, may set the status code to 500
+    // on the response, even if the response has already been committed
+    request.setAttribute(TomcatDecorator.DD_REAL_STATUS_CODE, httpCode);
 
-    resp.setHeader("Content-length", Integer.toString(template.length));
-    resp.setHeader("Content-type", BlockingActionHelper.getContentType(type));
+    for (Map.Entry<String, String> h : extraHeaders.entrySet()) {
+      resp.setHeader(h.getKey(), h.getValue());
+    }
+
     try {
       OutputStream os = (OutputStream) GET_OUTPUT_STREAM.invoke(resp);
-      os.write(template);
+      if (templateType != BlockingContentType.NONE) {
+        TemplateType type =
+            BlockingActionHelper.determineTemplateType(templateType, request.getHeader("Accept"));
+        byte[] template = BlockingActionHelper.getTemplate(type);
+
+        resp.setHeader("Content-length", Integer.toString(template.length));
+        resp.setHeader("Content-type", BlockingActionHelper.getContentType(type));
+        os.write(template);
+      }
       os.close();
     } catch (Throwable e) {
       log.info("Error sending error page", e);
     }
+    return true;
   }
 
   private static boolean start(Response resp, int statusCode) {

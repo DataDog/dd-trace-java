@@ -12,9 +12,6 @@ import java.util.concurrent.Future
 import java.util.concurrent.Phaser
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.api.Platform.isJavaVersionAtLeast
-import static org.junit.Assume.assumeTrue
-
 class DatadogClassLoaderTest extends DDSpecification {
   @Shared
   URL testJarLocation = new File("src/test/resources/classloader-test-jar/testjar-jdk8").toURI().toURL()
@@ -63,8 +60,6 @@ class DatadogClassLoaderTest extends DDSpecification {
 
   def "agent classloader successfully loads classes concurrently"() {
     given:
-    assumeTrue(isJavaVersionAtLeast(8))
-
     DatadogClassLoader ddLoader = new DatadogClassLoader(testJarLocation, null)
 
     when:
@@ -94,8 +89,6 @@ class DatadogClassLoaderTest extends DDSpecification {
 
   def "test load nested classes and call getEnclosingClass"() {
     given:
-    assumeTrue(isJavaVersionAtLeast(8))
-
     DatadogClassLoader ddLoader = new DatadogClassLoader(nestedTestJarLocation, null)
 
     when:

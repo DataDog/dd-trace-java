@@ -21,12 +21,32 @@ public final class DDCaches {
   }
 
   /**
+   * Specialized fixed-size cache that uses {@link System#identityHashCode} for key hashing and
+   * equality.
+   *
+   * @see #newFixedSizeCache(int)
+   */
+  public static <K, V> DDCache<K, V> newFixedSizeIdentityCache(final int capacity) {
+    return new FixedSizeCache.IdentityHash<>(capacity);
+  }
+
+  /**
    * Specialized fixed-size cache that uses {@link java.util.Arrays} for key hashing and equality.
    *
    * @see #newFixedSizeCache(int)
    */
   public static <K, V> DDCache<K[], V> newFixedSizeArrayKeyCache(final int capacity) {
     return new FixedSizeCache.ArrayHash<>(capacity);
+  }
+
+  /**
+   * Specialized fixed-size cache whose keys are weakly referenced. Uses {@link
+   * System#identityHashCode} for key hashing and equality.
+   *
+   * @see #newFixedSizeCache(int)
+   */
+  public static <K, V> DDCache<K, V> newFixedSizeWeakKeyCache(final int capacity) {
+    return new FixedSizeWeakKeyCache<>(capacity);
   }
 
   /**
@@ -42,5 +62,9 @@ public final class DDCaches {
    */
   public static <K, V> DDCache<K, V> newUnboundedCache(final int initialCapacity) {
     return new CHMCache<>(initialCapacity);
+  }
+
+  public static <K, V> DDPartialKeyCache<K, V> newFixedSizePartialKeyCache(final int capacity) {
+    return new FixedSizePartialKeyCache<>(capacity);
   }
 }

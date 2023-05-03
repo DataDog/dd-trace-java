@@ -27,6 +27,10 @@ public final class TypePoolFacade implements TypePool, SharedTypePools.Supplier 
     typeFactory.get().switchContext(classLoader);
   }
 
+  public static ClassLoader currentContext() {
+    return typeFactory.get().currentContext();
+  }
+
   @Override
   public void annotationOfInterest(String name) {
     AnnotationOutline.prepareAnnotationOutline(name);
@@ -47,9 +51,19 @@ public final class TypePoolFacade implements TypePool, SharedTypePools.Supplier 
     typeFactory.get().enableFullDescriptions();
   }
 
+  /** Temporarily switch back to outlines, e.g. for last-minute memoization. */
+  public static boolean disableFullDescriptions() {
+    return typeFactory.get().disableFullDescriptions();
+  }
+
   @Override
   public void endTransform() {
     typeFactory.get().endTransform();
+  }
+
+  @Override
+  public void clear() {
+    TypeFactory.clear();
   }
 
   @Override
@@ -61,7 +75,4 @@ public final class TypePoolFacade implements TypePool, SharedTypePools.Supplier 
     }
     return new Resolution.Simple(type);
   }
-
-  @Override
-  public void clear() {}
 }

@@ -41,12 +41,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
-import datadog.common.process.PidHelper;
 import datadog.common.version.VersionInfo;
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.relocate.api.IOLogger;
+import datadog.trace.util.PidHelper;
 import delight.fileupload.FileUpload;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
@@ -110,22 +111,20 @@ public class ProfileUploaderTest {
     tags.put("baz", "123");
     tags.put("null", null);
     tags.put("empty", "");
+    tags.put("quoted", "\"quoted\"");
     TAGS = tags;
   }
 
   // We sort tags to have expected parameters to have expected result
   private static final Map<String, String> EXPECTED_TAGS =
-      ImmutableMap.of(
-          "baz",
-          "123",
-          "foo",
-          "bar",
-          PidHelper.PID_TAG,
-          PidHelper.PID.toString(),
-          VersionInfo.PROFILER_VERSION_TAG,
-          VersionInfo.VERSION,
-          VersionInfo.LIBRARY_VERSION_TAG,
-          VersionInfo.VERSION);
+      new ImmutableMap.Builder<String, String>()
+          .put("baz", "123")
+          .put("foo", "bar")
+          .put("quoted", "quoted")
+          .put(DDTags.PID_TAG, PidHelper.getPid())
+          .put(VersionInfo.PROFILER_VERSION_TAG, VersionInfo.VERSION)
+          .put(VersionInfo.LIBRARY_VERSION_TAG, VersionInfo.VERSION)
+          .build();
 
   private static final int SEQUENCE_NUMBER = 123;
   private static final int PROFILE_START = 1000;

@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import graphql.execution.ValueUnboxer;
 import graphql.execution.instrumentation.Instrumentation;
 import net.bytebuddy.asm.Advice;
 
@@ -57,6 +58,11 @@ public class GraphQLJavaInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(@Advice.Return(readOnly = false) Instrumentation instrumentation) {
       instrumentation = GraphQLInstrumentation.install(instrumentation);
+    }
+
+    public static void muzzleCheck() {
+      // Class introduced in 15.0
+      ValueUnboxer value = ValueUnboxer.DEFAULT;
     }
   }
 }

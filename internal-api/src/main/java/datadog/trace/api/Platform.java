@@ -1,22 +1,82 @@
 package datadog.trace.api;
 
-import datadog.trace.util.Strings;
+import java.lang.management.GarbageCollectorMXBean;
+import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.List;
 
 public final class Platform {
 
+  public enum GC {
+    SERIAL("marksweep"),
+    PARALLEL("ps"),
+    CMS("concurrentmarksweep"),
+    G1("g1"),
+    SHENANDOAH("shenandoah"),
+    Z("z"),
+    UNKNOWN("");
+
+    private final String identifierPrefix;
+
+    GC(String identifierPrefix) {
+      this.identifierPrefix = identifierPrefix;
+    }
+
+    static GC current() {
+      for (GarbageCollectorMXBean mxBean : ManagementFactory.getGarbageCollectorMXBeans()) {
+        if (mxBean.isValid()) {
+          String name = mxBean.getName().toLowerCase();
+          for (GC gc : GC.values()) {
+            if (gc != UNKNOWN && name.startsWith(gc.identifierPrefix)) {
+              return gc;
+            }
+          }
+        }
+      }
+      return UNKNOWN;
+    }
+  }
+
   private static final Version JAVA_VERSION = parseJavaVersion(System.getProperty("java.version"));
   private static final JvmRuntime RUNTIME = new JvmRuntime();
 
+  private static final GC GARBAGE_COLLECTOR = GC.current();
+
+  private static final boolean HAS_JFR = checkForJfr();
+  private static final boolean IS_NATIVE_IMAGE_BUILDER = checkForNativeImageBuilder();
+
+  public static GC activeGarbageCollector() {
+    return GARBAGE_COLLECTOR;
+  }
+
   public static boolean hasJfr() {
-    /* Check only for the open-sources JFR implementation.
-     * If it is ever needed to support also the closed sourced JDK 8 version the check should be
-     * enhanced.
-     * Need this custom check because ClassLoaderMatchers.hasClassNamed() does not support bootstrap class loader yet.
-     * Note: the downside of this is that we load some JFR classes at startup.
-     */
-    return ClassLoader.getSystemClassLoader().getResource("jdk/jfr/Event.class") != null;
+    return HAS_JFR;
+  }
+
+  public static boolean isNativeImageBuilder() {
+    return IS_NATIVE_IMAGE_BUILDER;
+  }
+
+  private static boolean checkForJfr() {
+    try {
+      /* Check only for the open-sources JFR implementation.
+       * If it is ever needed to support also the closed sourced JDK 8 version the check should be
+       * enhanced.
+       * Need this custom check because ClassLoaderMatchers.hasClassNamed() does not support bootstrap class loader yet.
+       * Note: the downside of this is that we load some JFR classes at startup.
+       */
+      return ClassLoader.getSystemClassLoader().getResource("jdk/jfr/Event.class") != null;
+    } catch (Throwable e) {
+      return false;
+    }
+  }
+
+  private static boolean checkForNativeImageBuilder() {
+    try {
+      return "org.graalvm.nativeimage.builder".equals(System.getProperty("jdk.module.main"));
+    } catch (Throwable e) {
+      return false;
+    }
   }
 
   /* The method splits java version string by digits. Delimiters are: dot, underscore and plus */
@@ -42,7 +102,11 @@ public final class Platform {
   }
 
   private static Version parseJavaVersion(String javaVersion) {
-    javaVersion = Strings.replace(javaVersion, "-ea", "");
+    // Remove pre-release part, usually -ea
+    final int indexOfDash = javaVersion.indexOf('-');
+    if (indexOfDash >= 0) {
+      javaVersion = javaVersion.substring(0, indexOfDash);
+    }
 
     int major = 0;
     int minor = 0;
@@ -124,12 +188,22 @@ public final class Platform {
     public final String patches;
 
     public JvmRuntime() {
-      String rtVer = System.getProperty("java.runtime.version");
-      String javaVer = System.getProperty("java.version");
-      this.name = System.getProperty("java.runtime.name");
-      this.vendor = System.getProperty("java.vm.vendor");
+      this(
+          System.getProperty("java.version"),
+          System.getProperty("java.runtime.version"),
+          System.getProperty("java.runtime.name"),
+          System.getProperty("java.vm.vendor"));
+    }
+
+    // Only visible for testing
+    JvmRuntime(String javaVer, String rtVer, String name, String vendor) {
+      this.name = name == null ? "" : name;
+      this.vendor = vendor == null ? "" : vendor;
+      javaVer = javaVer == null ? "" : javaVer;
       this.version = javaVer;
-      this.patches = rtVer.substring(javaVer.length() + 1);
+      rtVer = javaVer.isEmpty() || rtVer == null ? javaVer : rtVer;
+      int patchStart = javaVer.length() + 1;
+      this.patches = (patchStart >= rtVer.length()) ? "" : rtVer.substring(javaVer.length() + 1);
     }
   }
 
@@ -223,6 +297,10 @@ public final class Platform {
     return isJavaVersion(8)
         && RUNTIME.vendor.contains("Oracle")
         && !RUNTIME.name.contains("OpenJDK");
+  }
+
+  public static boolean isJ9() {
+    return System.getProperty("java.vm.name").contains("J9");
   }
 
   public static String getLangVersion() {

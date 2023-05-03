@@ -1,6 +1,7 @@
 package com.datadog.debugger.el.values;
 
 import com.datadog.debugger.el.Literal;
+import com.datadog.debugger.el.Visitor;
 
 /** Constant boolean value */
 public final class BooleanValue extends Literal<Boolean> {
@@ -12,12 +13,12 @@ public final class BooleanValue extends Literal<Boolean> {
   }
 
   @Override
-  public boolean test() {
-    return super.test() && value;
+  public String toString() {
+    return "BooleanLiteral{" + "value=" + value + '}';
   }
 
   @Override
-  public String toString() {
-    return "BooleanLiteral{" + "value=" + value + '}';
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
   }
 }

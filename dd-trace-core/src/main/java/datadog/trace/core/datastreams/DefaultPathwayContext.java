@@ -1,5 +1,6 @@
 package datadog.trace.core.datastreams;
 
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.datadoghq.sketch.ddsketch.encoding.ByteArrayInput;
@@ -7,17 +8,15 @@ import com.datadoghq.sketch.ddsketch.encoding.GrowingByteArrayOutput;
 import com.datadoghq.sketch.ddsketch.encoding.VarEncodingHelper;
 import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
-import datadog.trace.api.function.Consumer;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
-import datadog.trace.core.Base64Decoder;
-import datadog.trace.core.Base64Encoder;
 import datadog.trace.util.FNV64Hash;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -26,6 +25,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,12 +45,17 @@ public class DefaultPathwayContext implements PathwayContext {
   private long edgeStartNanoTicks;
   private long hash;
   private boolean started;
+  // state variables used to memoize the pathway hash with
+  // direction != current direction
+  private long closestOppositeDirectionHash;
+  private String previousDirection;
 
   private static final Set<String> hashableTagKeys =
       new HashSet<String>(
           Arrays.asList(
               TagsProcessor.GROUP_TAG,
               TagsProcessor.TYPE_TAG,
+              TagsProcessor.DIRECTION_TAG,
               TagsProcessor.TOPIC_TAG,
               TagsProcessor.EXCHANGE_TAG));
 
@@ -72,12 +77,18 @@ public class DefaultPathwayContext implements PathwayContext {
     this.pathwayStartNanoTicks = pathwayStartNanoTicks;
     this.edgeStartNanoTicks = edgeStartNanoTicks;
     this.hash = hash;
+    this.closestOppositeDirectionHash = hash;
     this.started = true;
   }
 
   @Override
   public boolean isStarted() {
     return started;
+  }
+
+  @Override
+  public long getHash() {
+    return hash;
   }
 
   @Override
@@ -103,13 +114,30 @@ public class DefaultPathwayContext implements PathwayContext {
 
       for (Map.Entry<String, String> entry : sortedTags.entrySet()) {
         String tag = TagsProcessor.createTag(entry.getKey(), entry.getValue());
+        if (tag == null) {
+          continue;
+        }
         if (hashableTagKeys.contains(entry.getKey())) {
           pathwayHashBuilder.addTag(tag);
         }
         allTags.add(tag);
       }
 
-      long newHash = generatePathwayHash(pathwayHashBuilder, hash);
+      long nodeHash = generateNodeHash(pathwayHashBuilder);
+      // loop protection - a node should not be chosen as parent
+      // for a sequential node with the same direction, as this
+      // will cause a `cardinality explosion` for hash / parentHash tag values
+      if (sortedTags.containsKey(TagsProcessor.DIRECTION_TAG)) {
+        String direction = sortedTags.get(TagsProcessor.DIRECTION_TAG);
+        if (direction.equals(previousDirection)) {
+          hash = closestOppositeDirectionHash;
+        } else {
+          previousDirection = direction;
+          closestOppositeDirectionHash = hash;
+        }
+      }
+
+      long newHash = generatePathwayHash(nodeHash, hash);
 
       long pathwayLatencyNano = nanoTicks - pathwayStartNanoTicks;
       long edgeLatencyNano = nanoTicks - edgeStartNanoTicks;
@@ -126,7 +154,7 @@ public class DefaultPathwayContext implements PathwayContext {
       hash = newHash;
 
       pointConsumer.accept(point);
-      log.debug("Checkpoint set {}", this);
+      log.debug("Checkpoint set {}, hash source: {}", this, pathwayHashBuilder);
     } finally {
       lock.unlock();
     }
@@ -151,7 +179,7 @@ public class DefaultPathwayContext implements PathwayContext {
               + TimeUnit.NANOSECONDS.toMillis(edgeStartNanoTicks - pathwayStartNanoTicks);
 
       VarEncodingHelper.encodeSignedVarLong(outputBuffer, edgeStartMillis);
-      return outputBuffer.trimmedCopy();
+      return Base64.getEncoder().encode(outputBuffer.trimmedCopy());
     } finally {
       lock.unlock();
     }
@@ -163,7 +191,7 @@ public class DefaultPathwayContext implements PathwayContext {
     if (bytes == null) {
       return null;
     }
-    return new String(Base64Encoder.INSTANCE.encode(bytes), UTF_8);
+    return new String(bytes, ISO_8859_1);
   }
 
   @Override
@@ -172,7 +200,7 @@ public class DefaultPathwayContext implements PathwayContext {
     try {
       if (started) {
         return "PathwayContext[ Hash "
-            + toUnsignedString(hash)
+            + Long.toUnsignedString(hash)
             + ", Start: "
             + pathwayStartNanos
             + ", StartTicks: "
@@ -188,18 +216,6 @@ public class DefaultPathwayContext implements PathwayContext {
     } finally {
       lock.unlock();
     }
-  }
-
-  // TODO Can be removed when Java7 support is removed
-  private static String toUnsignedString(long l) {
-    if (l >= 0) {
-      return Long.toString(l);
-    }
-
-    // shift left once and divide by 5 results in an unsigned divide by 10
-    long quot = (l >>> 1) / 5;
-    long rem = l - quot * 10;
-    return Long.toString(quot) + rem;
   }
 
   private static class PathwayContextExtractor implements AgentPropagation.KeyClassifier {
@@ -238,9 +254,18 @@ public class DefaultPathwayContext implements PathwayContext {
 
     @Override
     public boolean accept(String key, byte[] value) {
+      // older versions support, should be removed in the future
       if (PathwayContext.PROPAGATION_KEY.equalsIgnoreCase(key)) {
         try {
           extractedContext = decode(timeSource, wellKnownTags, value);
+        } catch (IOException e) {
+          return false;
+        }
+      }
+
+      if (PathwayContext.PROPAGATION_KEY_BASE64.equalsIgnoreCase(key)) {
+        try {
+          extractedContext = base64Decode(timeSource, wellKnownTags, value);
         } catch (IOException e) {
           return false;
         }
@@ -283,8 +308,13 @@ public class DefaultPathwayContext implements PathwayContext {
 
   public static DefaultPathwayContext strDecode(
       TimeSource timeSource, WellKnownTags wellKnownTags, String data) throws IOException {
-    byte[] byteValue = Base64Decoder.INSTANCE.decode(data.getBytes(UTF_8));
-    return decode(timeSource, wellKnownTags, byteValue);
+    byte[] base64Bytes = data.getBytes(UTF_8);
+    return base64Decode(timeSource, wellKnownTags, base64Bytes);
+  }
+
+  public static DefaultPathwayContext base64Decode(
+      TimeSource timeSource, WellKnownTags wellKnownTags, byte[] data) throws IOException {
+    return decode(timeSource, wellKnownTags, Base64.getDecoder().decode(data));
   }
 
   public static DefaultPathwayContext decode(
@@ -316,7 +346,7 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   private static class PathwayHashBuilder {
-    private StringBuilder builder;
+    private final StringBuilder builder;
 
     public PathwayHashBuilder(WellKnownTags wellKnownTags) {
       builder = new StringBuilder();
@@ -336,15 +366,18 @@ public class DefaultPathwayContext implements PathwayContext {
     public long generateHash() {
       return FNV64Hash.generateHash(builder.toString(), FNV64Hash.Version.v1);
     }
+
+    @Override
+    public String toString() {
+      return builder.toString();
+    }
   }
 
   private long generateNodeHash(PathwayHashBuilder pathwayHashBuilder) {
     return pathwayHashBuilder.generateHash();
   }
 
-  private long generatePathwayHash(PathwayHashBuilder pathwayHashBuilder, long parentHash) {
-    long nodeHash = generateNodeHash(pathwayHashBuilder);
-
+  private long generatePathwayHash(long nodeHash, long parentHash) {
     lock.lock();
     try {
       outputBuffer.clear();

@@ -4,7 +4,8 @@ import datadog.communication.http.OkHttpUtils
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.intake.TrackType
@@ -18,10 +19,11 @@ import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.MonitoringImpl
-import datadog.trace.core.propagation.DatadogTags
+import datadog.trace.core.monitor.TracerHealthMetrics
+import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
+import datadog.trace.test.util.Flaky
 import okhttp3.HttpUrl
-import spock.lang.Retry
 import spock.lang.Shared
 import spock.lang.Timeout
 import spock.util.concurrent.PollingConditions
@@ -242,7 +244,7 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
 
     then:
     // this will be checked during flushing
-    1 * healthMetrics.onFailedPublish(_)
+    1 * healthMetrics.onFailedPublish(_,_)
     1 * healthMetrics.onFlush(_)
     1 * healthMetrics.onShutdown(_)
     1 * healthMetrics.close()
@@ -418,7 +420,7 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
     trackType << [TrackType.CITESTCYCLE]
   }
 
-  @Retry(delay = 500)
+  @Flaky
   // if execution is too slow, the http client timeout may trigger.
   def "slow response test"() {
     def numWritten = 0
@@ -449,7 +451,7 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
       onPublish(_, _) >> {
         numPublished.incrementAndGet()
       }
-      onFailedPublish(_) >> {
+      onFailedPublish(_,_) >> {
         numFailedPublish.incrementAndGet()
       }
       onFlush(_) >> {
@@ -560,7 +562,7 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
       onPublish(_, _) >> {
         numPublished.incrementAndGet()
       }
-      onFailedPublish(_) >> {
+      onFailedPublish(_,_) >> {
         numFailedPublish.incrementAndGet()
       }
       onSend(_, _, _) >> { repCount, sizeInBytes, response ->
@@ -606,8 +608,8 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
     then:
     conditions.eventually {
       def totalTraces = 100 + 100
-      numPublished.get() == totalTraces
-      numRepSent.get() == totalTraces
+      assert numPublished.get() == totalTraces
+      assert numRepSent.get() == totalTraces
     }
 
     cleanup:
@@ -699,7 +701,7 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
       numErrors.incrementAndGet()
     }
 
-    def healthMetrics = new HealthMetrics(statsd)
+    def healthMetrics = new TracerHealthMetrics(statsd)
     def writer = DDIntakeWriter.builder()
       .intakeApi(api)
       .trackType(trackType)
@@ -728,13 +730,13 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
 
   def createMinimalContext() {
     def tracer = Mock(CoreTracer)
-    tracer.mapServiceName(_) >> { String serviceName -> serviceName }
     def trace = Mock(PendingTrace)
+    trace.mapServiceName(_) >> { String serviceName -> serviceName }
     trace.getTracer() >> tracer
     return new DDSpanContext(
-      DDId.from(1),
-      DDId.from(1),
-      DDId.ZERO,
+      DDTraceId.ONE,
+      1,
+      DDSpanId.ZERO,
       "",
       "",
       "",
@@ -750,7 +752,7 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
       null,
       AgentTracer.NoopPathwayContext.INSTANCE,
       false,
-      DatadogTags.factory().empty())
+      PropagationTags.factory().empty())
   }
 
   def createMinimalTrace() {

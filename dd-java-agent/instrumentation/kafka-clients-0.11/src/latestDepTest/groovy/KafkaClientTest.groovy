@@ -1,8 +1,9 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.Platform
+import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
+import datadog.trace.test.util.Flaky
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer
@@ -22,8 +23,8 @@ import org.springframework.kafka.test.EmbeddedKafkaBroker
 import org.springframework.kafka.test.rule.EmbeddedKafkaRule
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
-import spock.lang.Retry
 import spock.lang.Unroll
+import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
@@ -32,7 +33,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 
-@Retry(count = 5, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
+@Flaky("https://github.com/DataDog/dd-trace-java/issues/3864")
 class KafkaClientTest extends AgentTestRunner {
   static final SHARED_TOPIC = "shared.topic"
 
@@ -129,6 +130,9 @@ class KafkaClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags()
           }
         }
@@ -151,7 +155,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             // TODO - test with and without feature enabled once Config is easier to control
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(true)
           }
         }
@@ -163,18 +169,21 @@ class KafkaClientTest extends AgentTestRunner {
     new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[0][2].traceId}"
     new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
 
-    if (Platform.isJavaVersionAtLeast(8)) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
-      verifyAll(first) {
-        edgeTags == ["topic:$SHARED_TOPIC".toString(), "type:internal"]
-        edgeTags.size() == 2
-      }
+    StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+    verifyAll(first) {
+      edgeTags == ["direction:out", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
+      edgeTags.size() == 3
+    }
 
-      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
-      verifyAll(second) {
-        edgeTags == ["group:sender", "partition:" + received.partition(), "topic:$SHARED_TOPIC".toString(), "type:kafka"]
-        edgeTags.size() == 4
-      }
+    StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+    verifyAll(second) {
+      edgeTags == [
+        "direction:in",
+        "group:sender",
+        "topic:$SHARED_TOPIC".toString(),
+        "type:kafka"
+      ]
+      edgeTags.size() == 4
     }
 
     cleanup:
@@ -250,6 +259,9 @@ class KafkaClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags()
           }
         }
@@ -272,7 +284,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             // TODO - test with and without feature enabled once Config is easier to control
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(true)
           }
         }
@@ -284,18 +298,21 @@ class KafkaClientTest extends AgentTestRunner {
     new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[0][2].traceId}"
     new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
 
-    if (Platform.isJavaVersionAtLeast(8)) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
-      verifyAll(first) {
-        edgeTags == ["topic:$SHARED_TOPIC".toString(), "type:internal"]
-        edgeTags.size() == 2
-      }
+    StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+    verifyAll(first) {
+      edgeTags == ["direction:out", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
+      edgeTags.size() == 3
+    }
 
-      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
-      verifyAll(second) {
-        edgeTags == ["group:sender", "partition:" + received.partition(), "topic:$SHARED_TOPIC".toString(), "type:kafka"]
-        edgeTags.size() == 4
-      }
+    StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+    verifyAll(second) {
+      edgeTags == [
+        "direction:in",
+        "group:sender",
+        "topic:$SHARED_TOPIC".toString(),
+        "type:kafka"
+      ]
+      edgeTags.size() == 4
     }
 
     cleanup:
@@ -364,6 +381,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
             "$InstrumentationTags.TOMBSTONE" true
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags()
           }
         }
@@ -387,7 +407,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.TOMBSTONE" true
             // TODO - test with and without feature enabled once Config is easier to control
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(true)
           }
         }
@@ -448,6 +470,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
             "$InstrumentationTags.PARTITION" { it >= 0 }
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(true)
           }
         }
@@ -470,7 +495,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             // TODO - test with and without feature enabled once Config is easier to control
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(true)
           }
         }
@@ -534,6 +561,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
             "$InstrumentationTags.PARTITION" { it >= 0 }
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(true)
           }
         }
@@ -550,6 +580,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
             "$InstrumentationTags.PARTITION" { it >= 0 }
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(true)
           }
         }
@@ -566,6 +599,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
             "$InstrumentationTags.PARTITION" { it >= 0 }
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(true)
           }
         }
@@ -588,6 +624,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(true)
           }
         }
@@ -608,6 +647,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(true)
           }
         }
@@ -628,6 +670,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(true)
           }
         }
@@ -650,6 +695,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(true)
           }
         }
@@ -670,6 +718,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(true)
           }
         }
@@ -690,6 +741,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(true)
           }
         }
@@ -704,6 +758,7 @@ class KafkaClientTest extends AgentTestRunner {
 
   def "test spring kafka template produce and batch consume"() {
     setup:
+    def conditions = new PollingConditions(timeout: 10)
     def producerProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(producerProps)
     def kafkaTemplate = new KafkaTemplate<String, String>(producerFactory)
@@ -742,7 +797,9 @@ class KafkaClientTest extends AgentTestRunner {
     TEST_DATA_STREAMS_WRITER.waitForGroups(2)
 
     then:
-    int partition = records.first().partition()
+    conditions.eventually {
+      assert !records.isEmpty()
+    }
     def receivedSet = greetings.toSet()
     greetings.eachWithIndex { g, i ->
       def received = records.poll(5, TimeUnit.SECONDS)
@@ -769,6 +826,9 @@ class KafkaClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags()
           }
         }
@@ -783,6 +843,9 @@ class KafkaClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags()
           }
         }
@@ -797,6 +860,9 @@ class KafkaClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags()
           }
         }
@@ -816,7 +882,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(true)
           }
         }
@@ -836,7 +904,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(true)
           }
         }
@@ -856,25 +926,30 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(true)
           }
         }
       }
     }
 
-    if (Platform.isJavaVersionAtLeast(8)) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
-      verifyAll(first) {
-        edgeTags == ["topic:$SHARED_TOPIC".toString(), "type:internal"]
-        edgeTags.size() == 2
-      }
+    StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+    verifyAll(first) {
+      edgeTags == ["direction:out", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
+      edgeTags.size() == 3
+    }
 
-      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
-      verifyAll(second) {
-        edgeTags == ["group:sender", "partition:" + partition, "topic:$SHARED_TOPIC".toString(), "type:kafka"]
-        edgeTags.size() == 4
-      }
+    StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+    verifyAll(second) {
+      edgeTags == [
+        "direction:in",
+        "group:sender",
+        "topic:$SHARED_TOPIC".toString(),
+        "type:kafka"
+      ]
+      edgeTags.size() == 4
     }
 
     cleanup:

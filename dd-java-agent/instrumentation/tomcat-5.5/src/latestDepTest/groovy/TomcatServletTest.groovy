@@ -1,3 +1,8 @@
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
+import static org.junit.Assume.assumeTrue
+
 import com.google.common.io.Files
 import datadog.trace.agent.test.base.HttpServer
 import jakarta.servlet.Servlet
@@ -13,11 +18,6 @@ import org.apache.catalina.valves.RemoteIpValve
 import org.apache.tomcat.JarScanFilter
 import org.apache.tomcat.JarScanType
 import spock.lang.Unroll
-
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
-import static org.junit.Assume.assumeTrue
 
 @Unroll
 class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
@@ -99,10 +99,20 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
   }
 
   @Override
+  boolean testRequestBody() {
+    true
+  }
+
+  @Override
+  boolean testRequestBodyISVariant() {
+    true
+  }
+
+  @Override
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.throwsException) {
       // Exception classes get wrapped in ServletException
-      ["error.msg": { endpoint == EXCEPTION ? "Servlet execution threw an exception" : it == endpoint.body },
+      ["error.message": { endpoint == EXCEPTION ? "Servlet execution threw an exception" : it == endpoint.body },
         "error.type": { it == ServletException.name || it == InputMismatchException.name },
         "error.stack": String]
     } else {
@@ -144,6 +154,7 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
     Wrapper wrapper = servletContext.createWrapper()
     wrapper.name = UUID.randomUUID()
     wrapper.servletClass = servlet.name
+    wrapper.asyncSupported =true
     servletContext.addChild(wrapper)
     servletContext.addServletMappingDecoded(path, wrapper.name)
   }

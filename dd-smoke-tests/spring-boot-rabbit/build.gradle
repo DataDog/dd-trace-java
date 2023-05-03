@@ -1,0 +1,35 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'SpringBoot RabbitMQ Smoke Tests.'
+
+// The standard spring-boot plugin doesn't play nice with our project
+// so we'll build a fat jar instead
+jar {
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.springboot.SpringbootApplication')
+  }
+}
+
+shadowJar {
+  configurations = [project.configurations.runtimeClasspath]
+}
+
+dependencies {
+  implementation project(':dd-trace-api')
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.5.4'
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-amqp', version: '2.5.4'
+
+  testImplementation project(':dd-smoke-tests')
+  testImplementation group: 'org.testcontainers', name: 'rabbitmq', version: versions.testcontainers
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "shadowJar"
+
+  jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+
+  usesService(testcontainersLimit)
+}

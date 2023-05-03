@@ -10,7 +10,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
 
 @AutoService(Instrumenter.class)
 public class ZuulProxyRequestHelperInstrumentation extends Instrumenter.Tracing
@@ -27,7 +26,7 @@ public class ZuulProxyRequestHelperInstrumentation extends Instrumenter.Tracing
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        isMethod().and(named("isIncludedHeader")).and(takesArgument(0, TypeDescription.STRING)),
+        isMethod().and(named("isIncludedHeader")).and(takesArgument(0, String.class)),
         ZuulProxyRequestHelperInstrumentation.class.getName() + "$ProxyRequestHelperAdvice");
   }
 

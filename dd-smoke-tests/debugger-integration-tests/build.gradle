@@ -1,0 +1,49 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+description = 'Debugger Integration Tests.'
+
+dependencies {
+  implementation project(':dd-trace-api')
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.4.5'
+  implementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: versions.okhttp_legacy
+
+  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-java-agent:agent-debugger')
+  testImplementation project(':dd-java-agent:agent-debugger:debugger-el')
+  testImplementation project(':dd-java-agent:agent-debugger:debugger-bootstrap')
+  // dependency on some helper classes made only for tests
+  testImplementation project(':dd-java-agent:agent-debugger').sourceSets.test.output
+  testImplementation deps.junit5
+  testImplementation deps.mockito
+}
+
+// TODO latest-jdk-app fails too often with a jgit failure, so disable until fixed
+//tasks.register('buildLatestJdkApp', GradleBuild) {
+//  buildFile = 'latest-jdk-app/latest-jdk-app.gradle'
+//  tasks = ['shadowJar']
+//}
+//
+//def latestJdk = '17'
+
+tasks.withType(Test).configureEach {
+  dependsOn shadowJar
+
+  // TODO latest-jdk-app fails too often with a jgit failure, so disable until fixed
+  //  def isLatestJdk = project.findProperty("testJvm") == latestJdk
+  //  def latestJavaHome = System.getenv("JAVA_${latestJdk}_HOME")
+  //  if (isLatestJdk && latestJavaHome) {
+  //    dependsOn buildLatestJdkApp
+  //  }
+  //  doFirst {
+  //    if (isLatestJdk) {
+  //      jvmArgs "-Ddatadog.smoketest.shadowJar.external.path=${project(':dd-smoke-tests:debugger-integration-tests:latest-jdk-app').tasks.shadowJar.archiveFile.get()}"
+  //    }
+  //  }
+
+  jvmArgs "-Ddatadog.smoketest.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+}
+

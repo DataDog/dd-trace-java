@@ -1,6 +1,7 @@
 package datadog.trace.common.writer
 
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
@@ -13,7 +14,7 @@ import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.MonitoringImpl
-import datadog.trace.core.propagation.DatadogTags
+import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 import spock.lang.Timeout
@@ -118,7 +119,7 @@ class PayloadDispatcherTest extends DDSpecification {
     when:
     dispatcher.addTrace(trace)
     then:
-    1 * healthMetrics.onFailedPublish(PrioritySampling.UNSET)
+    1 * healthMetrics.onFailedPublish(PrioritySampling.UNSET,_)
   }
 
   def "trace and span counts are reset after access"() {
@@ -148,15 +149,13 @@ class PayloadDispatcherTest extends DDSpecification {
 
   def realSpan() {
     CoreTracer tracer = Mock(CoreTracer)
-    tracer.mapServiceName(_) >> { String serviceName ->
-      serviceName
-    }
     PendingTrace trace = Mock(PendingTrace)
     trace.getTracer() >> tracer
+    trace.mapServiceName(_) >> { String serviceName -> serviceName }
     def context = new DDSpanContext(
-      DDId.from(1),
-      DDId.from(1),
-      DDId.ZERO,
+      DDTraceId.ONE,
+      1,
+      DDSpanId.ZERO,
       null,
       "",
       "",
@@ -172,7 +171,7 @@ class PayloadDispatcherTest extends DDSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      DatadogTags.factory().empty())
+      PropagationTags.factory().empty())
     return new DDSpan(0, context)
   }
 }

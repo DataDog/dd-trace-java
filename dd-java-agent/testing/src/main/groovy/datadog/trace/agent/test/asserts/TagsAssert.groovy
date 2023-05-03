@@ -1,11 +1,12 @@
 package datadog.trace.agent.test.asserts
 
 import datadog.trace.api.Config
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
+import datadog.trace.api.naming.SpanNaming
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
-import datadog.trace.common.sampling.RateByServiceSampler
+import datadog.trace.common.sampling.RateByServiceTraceSampler
 import datadog.trace.common.writer.ddagent.TraceMapper
 import datadog.trace.core.DDSpan
 import groovy.transform.stc.ClosureParams
@@ -14,7 +15,7 @@ import groovy.transform.stc.SimpleType
 import java.util.regex.Pattern
 
 class TagsAssert {
-  private final DDId spanParentId
+  private final long spanParentId
   private final Map<String, Object> tags
   private final Set<String> assertedTags = new TreeSet<>()
 
@@ -42,16 +43,21 @@ class TagsAssert {
     assertedTags.add("thread.id")
     assertedTags.add(DDTags.RUNTIME_ID_TAG)
     assertedTags.add(DDTags.LANGUAGE_TAG_KEY)
-    assertedTags.add(RateByServiceSampler.SAMPLING_AGENT_RATE)
+    assertedTags.add(RateByServiceTraceSampler.SAMPLING_AGENT_RATE)
     assertedTags.add(TraceMapper.SAMPLING_PRIORITY_KEY.toString())
     assertedTags.add("_sample_rate")
+    assertedTags.add(DDTags.PID_TAG)
+    assertedTags.add(DDTags.SCHEMA_VERSION_TAG_KEY)
 
     assert tags["thread.name"] != null
     assert tags["thread.id"] != null
 
     // FIXME: DQH - Too much conditional logic?  Maybe create specialized methods for client & server cases
 
-    boolean isRoot = (DDId.ZERO == spanParentId)
+    boolean isRoot = (DDSpanId.ZERO == spanParentId)
+    if (isRoot) {
+      assert tags[DDTags.SCHEMA_VERSION_TAG_KEY] == SpanNaming.instance().version()
+    }
     if (isRoot || distributedRootSpan) {
       // If runtime id is actually different here, it might indicate that
       // the Config class was loaded on multiple different class loaders.
@@ -81,7 +87,7 @@ class TagsAssert {
     tag("error.stack", String)
 
     if (message != null) {
-      tag("error.msg", message)
+      tag("error.message", message)
     }
   }
 

@@ -2,7 +2,7 @@ package com.datadog.appsec.config;
 
 import com.datadog.appsec.gateway.AppSecRequestContext;
 import com.datadog.appsec.report.raw.events.AppSecEvent100;
-import datadog.trace.api.TraceSegment;
+import datadog.trace.api.internal.TraceSegment;
 import java.util.Collection;
 
 public interface TraceSegmentPostProcessor {

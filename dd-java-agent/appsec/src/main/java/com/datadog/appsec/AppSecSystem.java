@@ -1,5 +1,6 @@
 package com.datadog.appsec;
 
+import com.datadog.appsec.blocking.BlockingServiceImpl;
 import com.datadog.appsec.config.AppSecConfigService;
 import com.datadog.appsec.config.AppSecConfigServiceImpl;
 import com.datadog.appsec.event.EventDispatcher;
@@ -8,14 +9,16 @@ import com.datadog.appsec.gateway.GatewayBridge;
 import com.datadog.appsec.gateway.RateLimiter;
 import com.datadog.appsec.util.AbortStartupException;
 import com.datadog.appsec.util.StandardizedLogging;
+import datadog.appsec.api.blocking.Blocking;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Counter;
 import datadog.communication.monitor.Monitoring;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.trace.api.Config;
-import datadog.trace.api.ProductActivationConfig;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.time.SystemTimeSource;
+import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.util.Strings;
 import java.util.Collections;
 import java.util.HashMap;
@@ -28,8 +31,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class AppSecSystem {
-
-  public static volatile boolean ACTIVE;
 
   private static final Logger log = LoggerFactory.getLogger(AppSecSystem.class);
   private static final AtomicBoolean STARTED = new AtomicBoolean();
@@ -44,25 +45,25 @@ public class AppSecSystem {
       throw ase;
     } catch (RuntimeException | Error e) {
       StandardizedLogging.appSecStartupError(log, e);
+      setActive(false);
       throw new AbortStartupException(e);
     }
   }
 
   private static void doStart(SubscriptionService gw, SharedCommunicationObjects sco) {
     final Config config = Config.get();
-    ProductActivationConfig appSecEnabledConfig = config.getAppSecEnabledConfig();
-    if (appSecEnabledConfig == ProductActivationConfig.FULLY_DISABLED) {
+    ProductActivation appSecEnabledConfig = config.getAppSecActivation();
+    if (appSecEnabledConfig == ProductActivation.FULLY_DISABLED) {
       log.debug("AppSec: disabled");
       return;
     }
-    log.info("AppSec is starting ({})", appSecEnabledConfig);
+    log.debug("AppSec is starting ({})", appSecEnabledConfig);
 
-    ACTIVE = appSecEnabledConfig == ProductActivationConfig.FULLY_ENABLED;
     REPLACEABLE_EVENT_PRODUCER = new ReplaceableEventProducerService();
     EventDispatcher eventDispatcher = new EventDispatcher();
     REPLACEABLE_EVENT_PRODUCER.replaceEventProducerService(eventDispatcher);
 
-    ConfigurationPoller configurationPoller = (ConfigurationPoller) sco.configurationPoller(config);
+    ConfigurationPoller configurationPoller = sco.configurationPoller(config);
     // may throw and abort startup
     APP_SEC_CONFIG_SERVICE =
         new AppSecConfigServiceImpl(
@@ -82,12 +83,16 @@ public class AppSecSystem {
     loadModules(eventDispatcher);
     gatewayBridge.init();
 
+    setActive(appSecEnabledConfig == ProductActivation.FULLY_ENABLED);
+
     APP_SEC_CONFIG_SERVICE.maybeSubscribeConfigPolling();
+
+    Blocking.setBlockingService(new BlockingServiceImpl(REPLACEABLE_EVENT_PRODUCER));
 
     STARTED.set(true);
 
     String startedAppSecModules = Strings.join(", ", STARTED_MODULES_INFO.values());
-    log.info("AppSec has started with {}", startedAppSecModules);
+    log.info("AppSec is {} with {}", appSecEnabledConfig, startedAppSecModules);
   }
 
   private static RateLimiter getRateLimiter(Config config, Monitoring monitoring) {
@@ -100,6 +105,14 @@ public class AppSecSystem {
               appSecTraceRateLimit, SystemTimeSource.INSTANCE, () -> counter.increment(1));
     }
     return rateLimiter;
+  }
+
+  public static boolean isActive() {
+    return ActiveSubsystems.APPSEC_ACTIVE;
+  }
+
+  public static void setActive(boolean status) {
+    ActiveSubsystems.APPSEC_ACTIVE = status;
   }
 
   public static void stop() {

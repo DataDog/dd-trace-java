@@ -1,10 +1,11 @@
 package com.datadog.debugger.util;
 
-import com.datadog.debugger.agent.ProbeDefinition;
 import com.datadog.debugger.agent.ProbeStatus;
-import com.datadog.debugger.agent.Where;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.ValueScript;
+import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.Where;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
@@ -22,6 +23,7 @@ public class MoshiHelper {
         .add(ProbeCondition.class, probeConditionJsonAdapter)
         .add(DebuggerScript.class, probeConditionJsonAdapter)
         .add(ValueScript.class, new ValueScript.ValueScriptAdapter())
+        .add(LogProbe.Segment.class, new LogProbe.Segment.SegmentJsonAdapter())
         .add(Where.SourceLine[].class, new Where.SourceLineAdapter())
         .add(ProbeDefinition.Tag[].class, new ProbeDefinition.TagAdapter())
         .build();

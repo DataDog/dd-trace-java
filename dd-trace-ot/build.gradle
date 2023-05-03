@@ -1,0 +1,166 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+  id "me.champeau.jmh"
+}
+
+description = 'dd-trace-ot'
+
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/publish.gradle"
+
+// TODO raise these when equals() and hashCode() are excluded
+minimumBranchCoverage = 0.5
+minimumInstructionCoverage = 0.5
+
+excludedClassesCoverage += [
+  // This is mainly equals() and hashCode()
+  "datadog.opentracing.OTScopeManager.OTScope",
+  "datadog.opentracing.OTSpan",
+  "datadog.opentracing.OTSpanContext",
+  "datadog.opentracing.CustomScopeManagerWrapper.CustomScopeState",
+  // The builder is generated
+  "datadog.opentracing.DDTracer.DDTracerBuilder"
+]
+
+addTestSuite('ot31CompatabilityTest')
+addTestSuite('ot33CompatabilityTest')
+
+dependencies {
+  annotationProcessor deps.autoserviceProcessor
+  compileOnly deps.autoserviceAnnotation
+
+  api project(':dd-trace-api')
+  implementation (project(':dd-trace-core')) {
+    // why all communication pulls in remote config is beyond me...
+    exclude(group: 'com.datadoghq', module: 'remote-config')
+  }
+
+  // OpenTracing
+  api group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
+  api group: 'io.opentracing', name: 'opentracing-noop', version: '0.32.0'
+  api group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
+  api group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.0'
+
+  api deps.slf4j
+  implementation project(':dd-trace-ot:correlation-id-injection')
+
+  testImplementation project(":dd-java-agent:testing")
+
+  ot33CompatabilityTestImplementation('io.opentracing:opentracing-api') {
+    version {
+      strictly '0.33.0'
+    }
+  }
+  ot33CompatabilityTestImplementation('io.opentracing:opentracing-util')  {
+    version {
+      strictly '0.33.0'
+    }
+  }
+  ot33CompatabilityTestImplementation('io.opentracing:opentracing-noop')  {
+    version {
+      strictly '0.33.0'
+    }
+  }
+}
+
+// gradle can't downgrade the opentracing dependencies with `strictly`
+configurations.matching({ it.name.startsWith('ot31') }).each({
+  it.resolutionStrategy {
+    force group: 'io.opentracing', name: 'opentracing-api', version: '0.31.0'
+    force group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
+    force group: 'io.opentracing', name: 'opentracing-noop', version: '0.31.0'
+  }
+})
+
+tasks.named("test").configure {
+  finalizedBy "ot31CompatabilityTest", "ot33CompatabilityTest"
+}
+
+jar {
+  destinationDirectory.set(file("$buildDir/libs-unbundled"))
+  archiveClassifier = 'unbundled'
+}
+
+shadowJar {
+  archiveClassifier = ''
+
+  dependencies {
+    // direct dependencies
+    exclude(project(':dd-trace-api'))
+    exclude(dependency('io.opentracing:'))
+    exclude(dependency('io.opentracing.contrib:'))
+    exclude(dependency('org.slf4j:'))
+  }
+
+  relocate('com.', 'ddtrot.com.') {
+    // don't relocate native methods
+    exclude('com.kenai.jffi.*')
+    exclude('com.kenai.jffi.internal.*')
+  }
+  relocate('dogstatsd/', 'ddtrot/dogstatsd/')
+  relocate('jni/', 'ddtrot/jni/')
+  relocate('jnr/', 'ddtrot/jnr/')
+  relocate('okhttp3.', 'ddtrot.okhttp3.')
+  relocate('okio.', 'ddtrot.okio.')
+  relocate('org.', 'ddtrot.org.') {
+    exclude('org.slf4j.*')
+  }
+  relocate('datadog.', 'ddtrot.dd.') {
+    exclude('datadog.opentracing.*')
+    exclude('datadog.opentracing.resolver.*')
+    exclude('datadog.trace.api.*')
+    exclude('datadog.trace.api.config.*')
+    exclude('datadog.trace.api.experimental.*')
+    exclude('datadog.trace.api.interceptor.*')
+    exclude('datadog.trace.api.internal.*')
+    exclude('datadog.trace.api.internal.util.*')
+    exclude('datadog.trace.api.sampling.*')
+    exclude('datadog.trace.context.*')
+  }
+  exclude('META-INF/maven/')
+  exclude('META-INF/proguard/')
+  exclude('/META-INF/*.kotlin_module')
+}
+
+jmh {
+  //  include = [".*URLAsResourceNameBenchmark"]
+  //  include = ['some regular expression'] // include pattern (regular expression) for benchmarks to be executed
+  //  exclude = ['some regular expression'] // exclude pattern (regular expression) for benchmarks to be executed
+  iterations = 1 // Number of measurement iterations to do.
+  benchmarkMode = ['thrpt', 'avgt', 'ss']
+  // Benchmark mode. Available modes are: [Throughput/thrpt, AverageTime/avgt, SampleTime/sample, SingleShotTime/ss, All/all]
+  batchSize = 1
+  // Batch size: number of benchmark method calls per operation. (some benchmark modes can ignore this setting)
+  fork = 1 // How many times to forks a single benchmark. Use 0 to disable forking altogether
+  failOnError = false // Should JMH fail immediately if any benchmark had experienced the unrecoverable error?
+  forceGC = false // Should JMH force GC between iterations?
+  //  jvm = 'myjvm' // Custom JVM to use when forking.
+  //  jvmArgs = ['Custom JVM args to use when forking.']
+  //  jvmArgsAppend = ['Custom JVM args to use when forking (append these)']
+  //  jvmArgsPrepend =[ 'Custom JVM args to use when forking (prepend these)']
+  //  humanOutputFile = project.file("${project.buildDir}/reports/jmh/human.txt") // human-readable output file
+  //  resultsFile = project.file("${project.buildDir}/reports/jmh/results.txt") // results file
+  //  operationsPerInvocation = 10 // Operations per invocation.
+  //  benchmarkParameters =  [:] // Benchmark parameters.
+  //  profilers = ['stack'] // Use profilers to collect additional data. Supported profilers: [cl, comp, gc, stack, perf, perfnorm, perfasm, xperf, xperfasm, hs_cl, hs_comp, hs_gc, hs_rt, hs_thr]
+  timeOnIteration = '1s' // Time to spend at each measurement iteration.
+  //  resultFormat = 'CSV' // Result format type (one of CSV, JSON, NONE, SCSV, TEXT)
+  //  synchronizeIterations = false // Synchronize iterations?
+  //  threads = 2 // Number of worker threads to run with.
+  //  threadGroups = [2,3,4] //Override thread group distribution for asymmetric benchmarks.
+  //  timeout = '1s' // Timeout for benchmark iteration.
+  timeUnit = 'us' // Output time unit. Available time units are: [m, s, ms, us, ns].
+  //  verbosity = 'NORMAL' // Verbosity mode. Available modes are: [SILENT, NORMAL, EXTRA]
+  warmup = '2s' // Time to spend at each warmup iteration.
+  //  warmupBatchSize = 10 // Warmup batch size: number of benchmark method calls per operation.
+  warmupForks = 1 // How many warmup forks to make for a single benchmark. 0 to disable warmup forks.
+  warmupIterations = 1 // Number of warmup iterations to do.
+  //  warmupMode = 'INDI' // Warmup mode for warming up selected benchmarks. Warmup modes are: [INDI, BULK, BULK_INDI].
+  //  warmupBenchmarks = ['.*Warmup'] // Warmup benchmarks to include in the run in addition to already selected. JMH will not measure these benchmarks, but only use them for the warmup.
+
+  //  zip64 = true // Use ZIP64 format for bigger archives
+  jmhVersion = '1.23' // Specifies JMH version
+  //  includeTests = true // Allows to include test sources into generate JMH jar, i.e. use it when benchmarks depend on the test classes.
+  //duplicateClassesStrategy = 'warn'
+  // Strategy to apply when encountring duplicate classes during creation of the fat jar (i.e. while executing jmhJar task)
+}

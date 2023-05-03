@@ -3,10 +3,10 @@ package datadog.communication.monitor;
 import static datadog.communication.monitor.DDAgentStatsDClient.serviceCheckStatus;
 
 import datadog.trace.api.StatsDClient;
-import datadog.trace.api.function.Function;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Locale;
+import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

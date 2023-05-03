@@ -1,20 +1,17 @@
 package datadog.trace.core.datastreams
 
 import datadog.trace.api.WellKnownTags
-import datadog.trace.api.function.Consumer
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint
 import datadog.trace.core.test.DDCoreSpecification
-import spock.lang.Requires
+
+import java.util.function.Consumer
 
 import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
-@Requires({
-  jvm.isJava8Compatible()
-})
 class DefaultPathwayContextTest extends DDCoreSpecification {
   def wellKnownTags = new WellKnownTags("runtimeid", "hostname", "testing", "service", "version", "java")
 
@@ -81,30 +78,33 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(50)
-    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
+    context.setCheckpoint(new LinkedHashMap<>(["direction": "out", "type": "kafka"]), pointConsumer)
     timeSource.advance(25)
     context.setCheckpoint(
-      new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
+      new LinkedHashMap<>(["direction": "in", "group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
     timeSource.advance(30)
     context.setCheckpoint(
-      new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
+      new LinkedHashMap<>(["direction": "in", "group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
 
     then:
     context.isStarted()
     pointConsumer.points.size() == 3
     verifyFirstPoint(pointConsumer.points[0])
     with(pointConsumer.points[1]) {
-      edgeTags == ["group:group", "topic:topic", "type:kafka"]
-      edgeTags.size() == 3
+      edgeTags == ["direction:in", "group:group", "topic:topic", "type:kafka"]
+      edgeTags.size() == 4
       parentHash == pointConsumer.points[0].hash
       hash != 0
       pathwayLatencyNano == 25
       edgeLatencyNano == 25
     }
     with(pointConsumer.points[2]) {
-      edgeTags == ["group:group", "topic:topic", "type:kafka"]
-      edgeTags.size() == 3
-      parentHash == pointConsumer.points[1].hash
+      edgeTags == ["direction:in", "group:group", "topic:topic", "type:kafka"]
+      edgeTags.size() == 4
+      // this point should have the first point as parent,
+      // as the loop protection will reset the parent if two identical
+      // points (same hash for tag values) are about to form a hierarchy
+      parentHash == pointConsumer.points[0].hash
       hash != 0
       pathwayLatencyNano == 55
       edgeLatencyNano == 30
@@ -328,6 +328,25 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     }
   }
 
+  def "Legacy binary encoding"() {
+    given:
+    def timeSource = new ControllableTimeSource()
+    def context = new DefaultPathwayContext(timeSource, wellKnownTags)
+    def contextVisitor = new BinaryMapContextVisitor()
+
+    when:
+    timeSource.advance(MILLISECONDS.toNanos(50))
+    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
+
+    def encoded = java.util.Base64.getDecoder().decode(context.encode())
+    Map<String, byte[]> carrier = [(PathwayContext.PROPAGATION_KEY): encoded]
+    timeSource.advance(MILLISECONDS.toNanos(1))
+    def decodedContext = DefaultPathwayContext.extractBinary(carrier, contextVisitor, timeSource, wellKnownTags)
+
+    then:
+    decodedContext.strEncode() == context.strEncode()
+  }
+
   def "Encoding and decoding (binary) with injects and extracts"() {
     // Timesource needs to be advanced in milliseconds because encoding truncates to millis
     given:
@@ -340,7 +359,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
 
     def encoded = context.encode()
-    Map<String, byte[]> carrier = [(PathwayContext.PROPAGATION_KEY): encoded, "someotherkey": new byte[0]]
+    Map<String, byte[]> carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): encoded, "someotherkey": new byte[0]]
     timeSource.advance(MILLISECONDS.toNanos(1))
     def decodedContext = DefaultPathwayContext.extractBinary(carrier, contextVisitor, timeSource, wellKnownTags)
     timeSource.advance(MILLISECONDS.toNanos(25))
@@ -360,7 +379,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     def secondEncode = decodedContext.encode()
-    carrier = [(PathwayContext.PROPAGATION_KEY): secondEncode]
+    carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): secondEncode]
     timeSource.advance(MILLISECONDS.toNanos(2))
     def secondDecode = DefaultPathwayContext.extractBinary(carrier, contextVisitor, timeSource, wellKnownTags)
     timeSource.advance(MILLISECONDS.toNanos(30))

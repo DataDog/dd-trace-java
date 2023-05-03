@@ -1,6 +1,7 @@
 package datadog.trace.common.writer
 
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ddagent.DDAgentApi
@@ -12,11 +13,13 @@ import datadog.trace.core.PendingTrace
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.MonitoringImpl
-import datadog.trace.core.propagation.DatadogTags
+import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Subject
 
 import java.util.concurrent.TimeUnit
+
+import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.*
 
 class DDAgentWriterTest extends DDCoreSpecification {
 
@@ -99,7 +102,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
     0 * _
   }
 
-  def "test writer.write"() {
+  def "test writer.write publish succeeds"() {
     setup:
     def trace = [dummyTracer.buildSpan("fakeOperation").start()]
 
@@ -107,17 +110,38 @@ class DDAgentWriterTest extends DDCoreSpecification {
     writer.write(trace)
 
     then: "monitor is notified of successful publication"
-    1 * worker.publish(_, _, trace) >> true
+    1 * worker.publish(_, _, trace) >> ENQUEUED_FOR_SERIALIZATION
     1 * monitor.onPublish(trace, _)
     0 * _
+  }
+
+  def "test writer.write publish for single span sampling"() {
+    setup:
+    def trace = [dummyTracer.buildSpan("fakeOperation").start()]
+
+    when: "publish succeeds"
+    writer.write(trace)
+
+    then: "monitor is notified of successful publication"
+    1 * worker.publish(_, _, trace) >> ENQUEUED_FOR_SINGLE_SPAN_SAMPLING
+    // shouldn't call monitor.onPublish
+    0 * _
+  }
+
+  def "test writer.write publish fails"() {
+    setup:
+    def trace = [dummyTracer.buildSpan("fakeOperation").start()]
 
     when: "publish fails"
     writer.write(trace)
 
     then: "monitor is notified of unsuccessful publication"
-    1 * worker.publish(_, _, trace) >> false
-    1 * monitor.onFailedPublish(_)
+    1 * worker.publish(_, _, trace) >> publishResult
+    1 * monitor.onFailedPublish(_,_)
     0 * _
+
+    where:
+    publishResult << [DROPPED_BUFFER_OVERFLOW, DROPPED_BY_POLICY]
   }
 
   def "empty traces should be reported as failures"() {
@@ -125,7 +149,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
     writer.write([])
 
     then: "monitor is notified of unsuccessful publication"
-    1 * monitor.onFailedPublish(_)
+    1 * monitor.onFailedPublish(_,_)
     0 * _
   }
 
@@ -138,7 +162,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
     writer.write(trace)
 
     then:
-    1 * monitor.onFailedPublish(_)
+    1 * monitor.onFailedPublish(_,_)
     0 * _
   }
 
@@ -158,19 +182,22 @@ class DDAgentWriterTest extends DDCoreSpecification {
     writer.write(trace)
 
     then:
-    1 * worker.publish(trace[0], PrioritySampling.SAMPLER_DROP, trace) >> false
+    1 * worker.publish(trace[0], PrioritySampling.SAMPLER_DROP, trace) >> publishResult
     1 * dispatcher.onDroppedTrace(trace.size())
+
+    where:
+    publishResult << [DROPPED_BY_POLICY, DROPPED_BUFFER_OVERFLOW]
   }
 
   def newSpan() {
     CoreTracer tracer = Mock(CoreTracer)
-    tracer.mapServiceName(_) >> { String serviceName -> serviceName }
     PendingTrace trace = Mock(PendingTrace)
+    trace.mapServiceName(_) >> { String serviceName -> serviceName }
     trace.getTracer() >> tracer
     def context = new DDSpanContext(
-      DDId.from(1),
-      DDId.from(1),
-      DDId.ZERO,
+      DDTraceId.ONE,
+      1,
+      DDSpanId.ZERO,
       null,
       "",
       "",
@@ -186,7 +213,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      DatadogTags.factory().empty())
+      PropagationTags.factory().empty())
     return new DDSpan(0, context)
   }
 }

@@ -2,14 +2,14 @@ package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.agent.Trie.reverseStr;
 
+import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.util.ClassFileHelper;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.tree.ClassNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,15 +18,15 @@ public class TransformerDefinitionMatcher {
   private static final Logger LOG = LoggerFactory.getLogger(TransformerDefinitionMatcher.class);
 
   private final Map<String, List<ProbeDefinition>> definitionsByClass;
-  private final Map<String, List<ProbeDefinition>> definitionsByFileNames;
+  private final Map<String, List<ProbeDefinition>> definitionsBySimpleFileNames = new HashMap<>();
+  private final Map<String, List<ProbeDefinition>> definitionsByQualifiedFileNames =
+      new HashMap<>();
   private final Trie definitionFileNames;
-  private final Trie definitionsDirectories;
 
   public TransformerDefinitionMatcher(Configuration configuration) {
     this.definitionsByClass = buildDefinitionsMap(configuration.getDefinitions());
-    this.definitionsByFileNames = buildDefinitionFileNamesMap(configuration.getDefinitions());
-    this.definitionFileNames = buildDefinitionFileNamesTrie(definitionsByFileNames);
-    this.definitionsDirectories = buildDefinitionsDirTrie(configuration.getDefinitions());
+    populateDefinitionFileNamesMap(configuration.getDefinitions());
+    this.definitionFileNames = buildDefinitionFileNamesTrie(definitionsByQualifiedFileNames);
   }
 
   private Map<String, List<ProbeDefinition>> buildDefinitionsMap(
@@ -53,19 +53,18 @@ public class TransformerDefinitionMatcher {
     return map;
   }
 
-  private Map<String, List<ProbeDefinition>> buildDefinitionFileNamesMap(
-      Collection<ProbeDefinition> definitions) {
-    Map<String, List<ProbeDefinition>> resultMap = new HashMap<>();
+  private void populateDefinitionFileNamesMap(Collection<ProbeDefinition> definitions) {
     for (ProbeDefinition definition : definitions) {
       String fileName = definition.getWhere().getSourceFile();
       if (fileName == null) {
         continue;
       }
-      List<ProbeDefinition> definitionByFileName =
-          resultMap.computeIfAbsent("/" + fileName, key -> new ArrayList<>());
-      definitionByFileName.add(definition);
+      Map<String, List<ProbeDefinition>> targetMap =
+          fileName.indexOf('/') != -1
+              ? definitionsByQualifiedFileNames
+              : definitionsBySimpleFileNames;
+      targetMap.computeIfAbsent("/" + fileName, key -> new ArrayList<>()).add(definition);
     }
-    return resultMap;
   }
 
   private Trie buildDefinitionFileNamesTrie(
@@ -77,20 +76,6 @@ public class TransformerDefinitionMatcher {
       resultTrie.insert(reverseStr(sourceFile));
     }
     return resultTrie;
-  }
-
-  private Trie buildDefinitionsDirTrie(Collection<ProbeDefinition> definitions) {
-    Trie trie = new Trie();
-    for (ProbeDefinition definition : definitions) {
-      String fileName = definition.getWhere().getSourceFile();
-      if (fileName == null) {
-        continue;
-      }
-      int idx = fileName.lastIndexOf('/');
-      String dir = idx > -1 ? fileName.substring(0, idx) : fileName;
-      trie.insert(reverseStr(dir));
-    }
-    return trie;
   }
 
   public boolean isEmpty() {
@@ -134,17 +119,12 @@ public class TransformerDefinitionMatcher {
   private List<ProbeDefinition> matchProbeDefinitionsBySourceFile(
       String className, byte[] classfileBuffer) {
     // try to match filename, need to retrieve the source filename from classfile
-    // first we try match the package name to determine if it makes sense to parse byte code
     String reversedClassName = reverseStr(className);
     int idx = reversedClassName.indexOf('/');
     boolean hasPackageName = idx > -1;
     String reversedPackageName = reversedClassName.substring(idx + 1);
     // Retrieve the actual source file name
-    // TODO maybe by scanning the byte array directly we can avoid doing an expensive parsing
-    ClassReader reader = new ClassReader(classfileBuffer);
-    ClassNode classNode = new ClassNode();
-    reader.accept(classNode, ClassReader.SKIP_FRAMES);
-    String sourceFileName = classNode.sourceFile;
+    String sourceFileName = ClassFileHelper.extractSourceFile(classfileBuffer);
     if (sourceFileName == null) {
       return Collections.emptyList();
     }
@@ -154,17 +134,24 @@ public class TransformerDefinitionMatcher {
       sb.append(reversedPackageName);
     }
     String reversedFileName = sb.toString();
-    String fullFileName = reverseStr(definitionFileNames.getStringStartingWith(reversedFileName));
-    if (fullFileName == null) {
-      fullFileName = reverseStr(definitionFileNames.getStringStartingWith(reversedSourceFileName));
+    List<ProbeDefinition> bySourceFileDefinitions = new ArrayList<>();
+    // try match qualified filenames
+    Collection<String> matchingFileNames =
+        definitionFileNames.getStringsStartingWith(reversedFileName);
+    if (!matchingFileNames.isEmpty()) {
+      for (String matchingFileName : matchingFileNames) {
+        List<ProbeDefinition> definitions =
+            definitionsByQualifiedFileNames.get(reverseStr(matchingFileName));
+        if (definitions != null) {
+          bySourceFileDefinitions.addAll(definitions);
+        }
+      }
     }
-    if (fullFileName == null) {
-      return Collections.emptyList();
+    // try match simple filenames
+    List<ProbeDefinition> definitions = definitionsBySimpleFileNames.get("/" + sourceFileName);
+    if (definitions != null) {
+      bySourceFileDefinitions.addAll(definitions);
     }
-    List<ProbeDefinition> bySourceFileDefinitions = definitionsByFileNames.get(fullFileName);
-    if (bySourceFileDefinitions != null) {
-      return bySourceFileDefinitions;
-    }
-    return Collections.emptyList();
+    return bySourceFileDefinitions;
   }
 }

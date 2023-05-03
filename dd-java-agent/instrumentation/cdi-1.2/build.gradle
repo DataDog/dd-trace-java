@@ -1,0 +1,14 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  testImplementation group: 'org.jboss.weld', name: 'weld-core', version: '2.3.0.Final'
+  testImplementation group: 'org.jboss.weld.se', name: 'weld-se', version: '2.3.0.Final'
+  testImplementation group: 'org.jboss.weld.se', name: 'weld-se-core', version: '2.3.0.Final'
+
+  // Beyond 2.x is CDI 2+ and requires Java 8
+  latestDepTestImplementation group: 'org.jboss.weld', name: 'weld-core', version: '2.+'
+  latestDepTestImplementation group: 'org.jboss.weld.se', name: 'weld-se', version: '2.+'
+  latestDepTestImplementation group: 'org.jboss.weld.se', name: 'weld-se-core', version: '2.+'
+}

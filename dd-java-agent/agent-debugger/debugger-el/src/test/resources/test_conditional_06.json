@@ -1,0 +1,9 @@
+{
+  "dsl": "this.objField != null && nullField == null",
+  "json": {
+    "and": [
+      {"ne": [{"getmember": [{"ref": "this"}, "objField"]}, null]},
+      {"eq": [{"ref": "nullField"}, null]}
+    ]
+  }
+}

@@ -8,10 +8,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.datadog.debugger.agent.Configuration;
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.ProbeStatus;
-import com.datadog.debugger.agent.SnapshotProbe;
-import com.datadog.debugger.util.TagsHelper;
+import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.JsonAdapter;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.util.TagsHelper;
 import java.io.EOFException;
 import java.io.IOException;
 import java.util.Collections;
@@ -27,8 +28,8 @@ import okhttp3.Response;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
-import org.junit.Assert;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,7 +40,8 @@ public class ServerDebuggerIntegrationTest extends BaseIntegrationTest {
       "datadog.smoketest.debugger.ServerDebuggerTestApplication";
   private static final String CONTROL_URL = "/control";
   private static final MockResponse EMPTY_HTTP_200 = new MockResponse().setResponseCode(200);
-  private static final String PROBE_ID = "123356536";
+  private static final ProbeId PROBE_ID = new ProbeId("123356536", 1);
+  private static final ProbeId PROBE_ID2 = new ProbeId("1233565367", 1);
   private static final String TEST_APP_CLASS_NAME = "ServerDebuggerTestApplication";
   private static final String FULL_METHOD_NAME = "fullMethod";
 
@@ -47,6 +49,7 @@ public class ServerDebuggerIntegrationTest extends BaseIntegrationTest {
   private HttpUrl controlUrl;
   private OkHttpClient httpClient = new OkHttpClient();
 
+  @Override
   @BeforeEach
   void setup(TestInfo testInfo) throws Exception {
     super.setup(testInfo);
@@ -56,6 +59,7 @@ public class ServerDebuggerIntegrationTest extends BaseIntegrationTest {
     controlUrl = controlServer.url(CONTROL_URL);
   }
 
+  @Override
   @AfterEach
   void teardown() throws Exception {
     super.teardown();
@@ -78,12 +82,9 @@ public class ServerDebuggerIntegrationTest extends BaseIntegrationTest {
     controlServer.enqueue(EMPTY_HTTP_200); // ack response
     targetProcess = createProcessBuilder(logFilePath, controlUrl.toString()).start();
     String appUrl = waitForAppStartedAndGetUrl();
-    SnapshotProbe snapshotProbe =
-        SnapshotProbe.builder()
-            .probeId(PROBE_ID)
-            .where(TEST_APP_CLASS_NAME, FULL_METHOD_NAME)
-            .build();
-    addProbe(snapshotProbe);
+    LogProbe logProbe =
+        LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, FULL_METHOD_NAME).build();
+    addProbe(logProbe);
     waitForInstrumentation(appUrl);
     execute(appUrl, FULL_METHOD_NAME);
     List<Snapshot> snapshots = waitForSnapshots();
@@ -91,7 +92,7 @@ public class ServerDebuggerIntegrationTest extends BaseIntegrationTest {
     assertEquals(FULL_METHOD_NAME, snapshots.get(0).getProbe().getLocation().getMethod());
     setCurrentConfiguration(createConfig(Collections.emptyList())); // remove probes
     waitForReTransformation(appUrl);
-    addProbe(snapshotProbe);
+    addProbe(logProbe);
     waitForInstrumentation(appUrl);
     execute(appUrl, FULL_METHOD_NAME);
     snapshots = waitForSnapshots();
@@ -106,23 +107,17 @@ public class ServerDebuggerIntegrationTest extends BaseIntegrationTest {
     controlServer.enqueue(EMPTY_HTTP_200); // ack response
     targetProcess = createProcessBuilder(logFilePath, controlUrl.toString()).start();
     String appUrl = waitForAppStartedAndGetUrl();
-    SnapshotProbe snapshotProbe =
-        SnapshotProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, "fullMethod").build();
-    addProbe(snapshotProbe);
+    LogProbe logProbe =
+        LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, "fullMethod").build();
+    addProbe(logProbe);
     waitForInstrumentation(appUrl);
     execute(appUrl, FULL_METHOD_NAME);
     List<Snapshot> snapshots = waitForSnapshots();
     assertEquals(1, snapshots.size());
     assertEquals(FULL_METHOD_NAME, snapshots.get(0).getProbe().getLocation().getMethod());
-    SnapshotProbe disabledSnapshotProbe =
-        SnapshotProbe.builder()
-            .probeId(PROBE_ID)
-            .active(false)
-            .where(TEST_APP_CLASS_NAME, "fullMethod")
-            .build();
-    addProbe(disabledSnapshotProbe);
+    setCurrentConfiguration(createConfig(Collections.emptyList())); // no probe
     waitForReTransformation(appUrl);
-    addProbe(snapshotProbe);
+    addProbe(logProbe);
     waitForInstrumentation(appUrl);
     execute(appUrl, FULL_METHOD_NAME);
     snapshots = waitForSnapshots();
@@ -137,12 +132,9 @@ public class ServerDebuggerIntegrationTest extends BaseIntegrationTest {
     controlServer.enqueue(EMPTY_HTTP_200); // ack response
     targetProcess = createProcessBuilder(logFilePath, controlUrl.toString()).start();
     String appUrl = waitForAppStartedAndGetUrl();
-    SnapshotProbe snapshotProbe =
-        SnapshotProbe.builder()
-            .probeId(PROBE_ID)
-            .where(TEST_APP_CLASS_NAME, FULL_METHOD_NAME)
-            .build();
-    addProbe(snapshotProbe);
+    LogProbe logProbe =
+        LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, FULL_METHOD_NAME).build();
+    addProbe(logProbe);
     waitForInstrumentation(appUrl);
     execute(appUrl, FULL_METHOD_NAME);
     List<Snapshot> snapshots = waitForSnapshots();
@@ -152,12 +144,12 @@ public class ServerDebuggerIntegrationTest extends BaseIntegrationTest {
     datadogAgentServer.enqueue(EMPTY_HTTP_200); // expect BLOCKED status
     Configuration.FilterList denyList =
         new Configuration.FilterList(asList("datadog.smoketest.debugger"), Collections.emptyList());
-    setCurrentConfiguration(createConfig(asList(snapshotProbe), null, denyList));
+    setCurrentConfiguration(createConfig(asList(logProbe), null, denyList));
     waitForReTransformation(appUrl);
     waitForAProbeStatus(ProbeStatus.Status.BLOCKED);
 
     datadogAgentServer.enqueue(EMPTY_HTTP_200); // expect INSTALLED status
-    addProbe(snapshotProbe);
+    addProbe(logProbe);
     // waitForInstrumentation(appUrl);
     waitForReTransformation(appUrl);
     waitForAProbeStatus(ProbeStatus.Status.INSTALLED);
@@ -174,12 +166,9 @@ public class ServerDebuggerIntegrationTest extends BaseIntegrationTest {
     controlServer.enqueue(EMPTY_HTTP_200); // ack response
     targetProcess = createProcessBuilder(logFilePath, controlUrl.toString()).start();
     String appUrl = waitForAppStartedAndGetUrl();
-    SnapshotProbe snapshotProbe =
-        SnapshotProbe.builder()
-            .probeId(PROBE_ID)
-            .where(TEST_APP_CLASS_NAME, FULL_METHOD_NAME)
-            .build();
-    addProbe(snapshotProbe);
+    LogProbe logProbe =
+        LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, FULL_METHOD_NAME).build();
+    addProbe(logProbe);
     waitForInstrumentation(appUrl);
     execute(appUrl, FULL_METHOD_NAME);
     List<Snapshot> snapshots = waitForSnapshots();
@@ -189,12 +178,12 @@ public class ServerDebuggerIntegrationTest extends BaseIntegrationTest {
     datadogAgentServer.enqueue(EMPTY_HTTP_200); // expect BLOCKED status
     Configuration.FilterList allowList =
         new Configuration.FilterList(asList("datadog.not.debugger"), Collections.emptyList());
-    setCurrentConfiguration(createConfig(asList(snapshotProbe), allowList, null));
+    setCurrentConfiguration(createConfig(asList(logProbe), allowList, null));
     waitForReTransformation(appUrl);
     waitForAProbeStatus(ProbeStatus.Status.BLOCKED);
 
     datadogAgentServer.enqueue(EMPTY_HTTP_200); // expect INSTALLED status
-    addProbe(snapshotProbe);
+    addProbe(logProbe);
     // waitForInstrumentation(appUrl);
     waitForReTransformation(appUrl);
     waitForAProbeStatus(ProbeStatus.Status.INSTALLED);
@@ -211,21 +200,21 @@ public class ServerDebuggerIntegrationTest extends BaseIntegrationTest {
     controlServer.enqueue(EMPTY_HTTP_200); // ack response
     targetProcess = createProcessBuilder(logFilePath, controlUrl.toString()).start();
     String appUrl = waitForAppStartedAndGetUrl();
-    SnapshotProbe snapshotProbe =
-        SnapshotProbe.builder()
+    LogProbe logProbe =
+        LogProbe.builder()
             .probeId(PROBE_ID)
             .where(TEST_APP_CLASS_NAME, "unknownMethodName")
             .build();
-    addProbe(snapshotProbe);
+    addProbe(logProbe);
     // statuses could be received out of order
     HashMap<ProbeStatus.Status, ProbeStatus.Diagnostics> statuses = new HashMap<>();
     ProbeStatus.Diagnostics diagnostics = retrieveProbeStatusRequest().getDiagnostics();
     statuses.put(diagnostics.getStatus(), diagnostics);
     diagnostics = retrieveProbeStatusRequest().getDiagnostics();
     statuses.put(diagnostics.getStatus(), diagnostics);
-    Assert.assertTrue(statuses.containsKey(ProbeStatus.Status.RECEIVED));
-    Assert.assertEquals(
-        "Cannot find datadog/smoketest/debugger/ServerDebuggerTestApplication::unknownMethodName",
+    Assertions.assertTrue(statuses.containsKey(ProbeStatus.Status.RECEIVED));
+    Assertions.assertEquals(
+        "Cannot find method datadog/smoketest/debugger/ServerDebuggerTestApplication::unknownMethodName",
         statuses.get(ProbeStatus.Status.ERROR).getException().getMessage());
   }
 
@@ -292,10 +281,10 @@ public class ServerDebuggerIntegrationTest extends BaseIntegrationTest {
     return appUrl;
   }
 
-  private void addProbe(SnapshotProbe snapshotProbe) {
+  private void addProbe(LogProbe logProbe) {
     datadogAgentServer.enqueue(EMPTY_HTTP_200); // expect RECEIVED status
     datadogAgentServer.enqueue(EMPTY_HTTP_200); // expect INSTALLED status
-    setCurrentConfiguration(createConfig(snapshotProbe));
+    setCurrentConfiguration(createConfig(logProbe));
   }
 
   private void sendRequest(String url) throws IOException {

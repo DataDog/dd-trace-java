@@ -28,7 +28,7 @@ public class SessionFactoryInstrumentation extends AbstractHibernateInstrumentat
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("org.hibernate.SharedSessionContract", SessionState.class.getName());
+    return singletonMap("org.hibernate.SharedSessionContract", SESSION_STATE);
   }
 
   @Override
@@ -61,7 +61,7 @@ public class SessionFactoryInstrumentation extends AbstractHibernateInstrumentat
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void openSession(@Advice.Return final SharedSessionContract session) {
 
-      final AgentSpan span = startSpan(HIBERNATE_SESSION, false);
+      final AgentSpan span = startSpan(HIBERNATE_SESSION);
       DECORATOR.afterStart(span);
       DECORATOR.onConnection(span, session);
 

@@ -25,6 +25,8 @@ import org.hibernate.procedure.ProcedureCall;
 public class SessionInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
 
+  static final String SESSION_STATE = "datadog.trace.instrumentation.hibernate.SessionState";
+
   public SessionInstrumentation() {
     super("hibernate", "hibernate-core");
   }
@@ -32,8 +34,8 @@ public class SessionInstrumentation extends Instrumenter.Tracing
   @Override
   public Map<String, String> contextStore() {
     final Map<String, String> map = new HashMap<>();
-    map.put("org.hibernate.SharedSessionContract", SessionState.class.getName());
-    map.put("org.hibernate.procedure.ProcedureCall", SessionState.class.getName());
+    map.put("org.hibernate.SharedSessionContract", SESSION_STATE);
+    map.put("org.hibernate.procedure.ProcedureCall", SESSION_STATE);
     return Collections.unmodifiableMap(map);
   }
 

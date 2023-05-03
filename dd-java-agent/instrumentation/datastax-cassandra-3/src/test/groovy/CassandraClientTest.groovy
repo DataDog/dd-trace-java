@@ -1,15 +1,15 @@
 import com.datastax.driver.core.Cluster
 import com.datastax.driver.core.Session
-import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import org.cassandraunit.utils.EmbeddedCassandraServerHelper
+import org.testcontainers.containers.CassandraContainer
 import spock.lang.Shared
 
+import java.time.Duration
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -18,7 +18,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
-class CassandraClientTest extends AgentTestRunner {
+abstract class CassandraClientTest extends VersionedNamingTestBase {
   private static final int ASYNC_TIMEOUT_MS = 5000
 
   @Override
@@ -36,33 +36,25 @@ class CassandraClientTest extends AgentTestRunner {
   @Shared
   def executor = Executors.newCachedThreadPool()
 
-  def setupSpec() {
-    /*
-     This timeout seems excessive but we've seen tests fail with timeout of 40s.
-     TODO: if we continue to see failures we may want to consider using 'real' Cassandra
-     started in container like we do for memcached. Note: this will complicate things because
-     tests would have to assume they run under shared Cassandra and act accordingly.
-     */
-    EmbeddedCassandraServerHelper.startEmbeddedCassandra(EmbeddedCassandraServerHelper.CASSANDRA_RNDPORT_YML_FILE, 120000L)
+  @Shared
+  CassandraContainer container
 
-    cluster = EmbeddedCassandraServerHelper.getCluster()
-    port = EmbeddedCassandraServerHelper.getNativeTransportPort()
-    /*
-     Looks like sometimes our requests fail because Cassandra takes to long to respond,
-     Increase this timeout as well to try to cope with this.
-     */
+  def setupSpec() {
+    container = new CassandraContainer("cassandra:3").withStartupTimeout(Duration.ofSeconds(120))
+    container.start()
+    cluster = container.getCluster()
+    port = container.getMappedPort(9042)
+    // Looks like sometimes our requests fail because Cassandra takes to long to respond,
+    // Increase this timeout as well to try to cope with this.
     cluster.getConfiguration().getSocketOptions().setReadTimeoutMillis(120000)
   }
 
   def cleanupSpec() {
-    EmbeddedCassandraServerHelper.cleanEmbeddedCassandra()
+    container?.stop()
   }
 
   def "test sync"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     Session session = cluster.connect(keyspace)
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
@@ -96,9 +88,6 @@ class CassandraClientTest extends AgentTestRunner {
 
   def "test async"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     def callbackExecuted = new CountDownLatch(1)
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
@@ -146,8 +135,8 @@ class CassandraClientTest extends AgentTestRunner {
 
   def cassandraSpan(TraceAssert trace, String statement, String keyspace, boolean renameService, Object parentSpan = null, Throwable exception = null) {
     trace.span {
-      serviceName renameService && keyspace ? keyspace : "cassandra"
-      operationName "cassandra.query"
+      serviceName renameService && keyspace ? keyspace : service()
+      operationName operation()
       resourceName statement
       spanType DDSpanTypes.CASSANDRA
       if (parentSpan == null) {
@@ -166,5 +155,41 @@ class CassandraClientTest extends AgentTestRunner {
         defaultTags()
       }
     }
+  }
+}
+
+class CassandraClientV0ForkedTest extends CassandraClientTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return "cassandra"
+  }
+
+  @Override
+  String operation() {
+    return "cassandra.query"
+  }
+}
+
+class CassandraClientV1ForkedTest extends CassandraClientTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return Config.get().getServiceName()
+  }
+
+  @Override
+  String operation() {
+    return "cassandra.query"
   }
 }

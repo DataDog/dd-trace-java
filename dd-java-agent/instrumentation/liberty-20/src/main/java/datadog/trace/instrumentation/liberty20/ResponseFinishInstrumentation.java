@@ -10,6 +10,7 @@ import com.ibm.ws.webcontainer.srt.SRTServletResponse;
 import com.ibm.wsspi.webcontainer.servlet.IExtendedRequest;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
@@ -27,6 +28,7 @@ public class ResponseFinishInstrumentation extends Instrumenter.Tracing
       packageName + ".HttpServletExtractAdapter$Request",
       packageName + ".HttpServletExtractAdapter$Response",
       packageName + ".LibertyDecorator",
+      packageName + ".LibertyDecorator$LibertyBlockResponseFunction",
       packageName + ".RequestURIDataAdapter",
     };
   }
@@ -43,19 +45,36 @@ public class ResponseFinishInstrumentation extends Instrumenter.Tracing
         ResponseFinishInstrumentation.class.getName() + "$ResponseFinishAdvice");
   }
 
+  @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
   public static class ResponseFinishAdvice {
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(@Advice.This SRTServletResponse resp) {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    static AgentSpan onEnter(@Advice.This SRTServletResponse resp) {
+      // this is the last opportunity to have any meaningful
+      // interaction with the response
+      AgentSpan span = null;
       IExtendedRequest req = resp.getRequest();
-      Object spanObj = req.getAttribute(DD_SPAN_ATTRIBUTE);
-
-      if (spanObj instanceof AgentSpan) {
-        req.setAttribute(DD_SPAN_ATTRIBUTE, null);
-        final AgentSpan span = (AgentSpan) spanObj;
-        DECORATE.onResponse(span, resp);
-        DECORATE.beforeFinish(span);
-        span.finish();
+      try {
+        Object spanObj = req.getAttribute(DD_SPAN_ATTRIBUTE);
+        if (spanObj instanceof AgentSpan) {
+          span = (AgentSpan) spanObj;
+          req.setAttribute(DD_SPAN_ATTRIBUTE, null);
+          DECORATE.onResponse(span, resp);
+        }
+      } catch (NullPointerException e) {
+        // OpenLiberty will throw NPE on getAttribute if the response has already been closed.
       }
+
+      return span;
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void stopSpan(
+        @Advice.This SRTServletResponse resp, @Advice.Enter AgentSpan span) {
+      if (span == null) {
+        return;
+      }
+      DECORATE.beforeFinish(span);
+      span.finish();
     }
   }
 }

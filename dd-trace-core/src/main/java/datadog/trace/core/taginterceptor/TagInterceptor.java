@@ -5,31 +5,38 @@ import static datadog.trace.api.DDTags.MEASURED;
 import static datadog.trace.api.DDTags.ORIGIN_KEY;
 import static datadog.trace.api.DDTags.SPAN_TYPE;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
-import static datadog.trace.core.taginterceptor.RuleFlags.Feature.FORCE_MANUAL_DROP;
-import static datadog.trace.core.taginterceptor.RuleFlags.Feature.PEER_SERVICE;
-import static datadog.trace.core.taginterceptor.RuleFlags.Feature.RESOURCE_NAME;
-import static datadog.trace.core.taginterceptor.RuleFlags.Feature.SERVICE_NAME;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
+import static datadog.trace.core.taginterceptor.RuleFlags.Feature.*;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.Pair;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.env.CapturedEnvironment;
+import datadog.trace.api.normalize.HttpResourceNames;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.DDSpanContext;
 import java.util.Set;
 
 public class TagInterceptor {
+
+  private static final UTF8BytesString NOT_FOUND_RESOURCE_NAME = UTF8BytesString.create("404");
 
   private final RuleFlags ruleFlags;
   private final boolean isServiceNameSetByUser;
   private final boolean splitByServletContext;
   private final String inferredServiceName;
   private final Set<String> splitServiceTags;
+
+  private final boolean shouldSet404ResourceName;
+  private final boolean shouldSetUrlResourceAsName;
 
   public TagInterceptor(RuleFlags ruleFlags) {
     this(
@@ -49,6 +56,12 @@ public class TagInterceptor {
     this.splitServiceTags = splitServiceTags;
     this.ruleFlags = ruleFlags;
     splitByServletContext = splitServiceTags.contains(InstrumentationTags.SERVLET_CONTEXT);
+
+    shouldSet404ResourceName =
+        ruleFlags.isEnabled(URL_AS_RESOURCE_NAME)
+            && ruleFlags.isEnabled(STATUS_404)
+            && ruleFlags.isEnabled(STATUS_404_DECORATOR);
+    shouldSetUrlResourceAsName = ruleFlags.isEnabled(URL_AS_RESOURCE_NAME);
   }
 
   public boolean interceptTag(DDSpanContext span, String tag, Object value) {
@@ -82,6 +95,9 @@ public class TagInterceptor {
       case HTTP_STATUS:
         // not set internally but may come from manual instrumentation
         return interceptHttpStatusCode(span, value);
+      case HTTP_METHOD:
+      case HTTP_URL:
+        return interceptUrlResourceAsNameRule(span, tag, value);
       case ORIGIN_KEY:
         return interceptOrigin(span, value);
       case MEASURED:
@@ -89,6 +105,25 @@ public class TagInterceptor {
       default:
         return intercept(span, tag, value);
     }
+  }
+
+  private boolean interceptUrlResourceAsNameRule(DDSpanContext span, String tag, Object value) {
+    if (shouldSetUrlResourceAsName) {
+      if (HTTP_METHOD.equals(tag)) {
+        if (span.getTags().containsValue(HTTP_URL)) {
+          Pair<CharSequence, Byte> normalized =
+              HttpResourceNames.computeForServer(
+                  value.toString(), span.getTags().get(HTTP_URL).toString(), false);
+          span.setResourceName(normalized.getLeft(), normalized.getRight());
+        }
+      } else if (HTTP_URL.equals(tag)) {
+        Pair<CharSequence, Byte> normalized =
+            HttpResourceNames.computeForServer(
+                (CharSequence) span.getTags().get(HTTP_METHOD), value.toString(), false);
+        span.setResourceName(normalized.getLeft(), normalized.getRight());
+      }
+    }
+    return false;
   }
 
   private boolean intercept(DDSpanContext span, String tag, Object value) {
@@ -101,6 +136,9 @@ public class TagInterceptor {
 
   private boolean interceptResourceName(DDSpanContext span, Object value) {
     if (ruleFlags.isEnabled(RESOURCE_NAME)) {
+      if (null == value) {
+        return false;
+      }
       if (value instanceof CharSequence) {
         span.setResourceName((CharSequence) value, ResourceNamePriorities.TAG_INTERCEPTOR);
       } else {
@@ -198,10 +236,16 @@ public class TagInterceptor {
   private boolean interceptHttpStatusCode(DDSpanContext span, Object statusCode) {
     if (statusCode instanceof Number) {
       span.setHttpStatusCode(((Number) statusCode).shortValue());
+      if (shouldSet404ResourceName && span.getHttpStatusCode() == 404) {
+        span.setResourceName(NOT_FOUND_RESOURCE_NAME, ResourceNamePriorities.HTTP_404);
+      }
       return true;
     }
     try {
       span.setHttpStatusCode(Short.parseShort(String.valueOf(statusCode)));
+      if (shouldSet404ResourceName && span.getHttpStatusCode() == 404) {
+        span.setResourceName(NOT_FOUND_RESOURCE_NAME, ResourceNamePriorities.HTTP_404);
+      }
       return true;
     } catch (Throwable ignore) {
     }
@@ -227,6 +271,7 @@ public class TagInterceptor {
 
   private static boolean asBoolean(Object value) {
     return Boolean.TRUE.equals(value)
+        || "1".equals(value)
         || (!Boolean.FALSE.equals(value) && Boolean.parseBoolean(String.valueOf(value)));
   }
 

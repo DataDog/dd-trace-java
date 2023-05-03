@@ -299,6 +299,23 @@ class TagInterceptorTest extends DDCoreSpecification {
     name = "my resource name"
   }
 
+  def "set resource name ignores null"() {
+    when:
+    def writer = new ListWriter()
+    def tracer = tracerBuilder().writer(writer).build()
+
+    def span = tracer.buildSpan("test").withResourceName("keep").start()
+    span.setTag(DDTags.RESOURCE_NAME, null)
+    span.finish()
+    writer.waitForTraces(1)
+
+    then:
+    span.getResourceName() == "keep"
+
+    cleanup:
+    tracer.close()
+  }
+
   def "set span type"() {
     when:
     def tracer = tracerBuilder().writer(new ListWriter()).build()
@@ -574,5 +591,69 @@ class TagInterceptorTest extends DDCoreSpecification {
 
     cleanup:
     tracer.close()
+  }
+
+  def "treat `1` value as `true` for boolean tag values"() {
+    setup:
+    def tracer = tracerBuilder()
+      .serviceName("some-service")
+      .writer(new LoggingWriter())
+      .sampler(new AllSampler())
+      .build()
+
+    when:
+    AgentSpan span = tracer.buildSpan("test").start()
+
+    then:
+    span.getSamplingPriority() == null
+
+    when:
+    span.setTag(tag, value)
+
+    then:
+    span.getSamplingPriority() == samplingPriority
+
+    where:
+    tag                | value | samplingPriority
+    DDTags.MANUAL_DROP | true  | PrioritySampling.USER_DROP
+    DDTags.MANUAL_DROP | "1"   | PrioritySampling.USER_DROP
+    DDTags.MANUAL_DROP | false | null
+    DDTags.MANUAL_DROP | "0"   | null
+    DDTags.MANUAL_KEEP | true  | PrioritySampling.USER_KEEP
+    DDTags.MANUAL_KEEP | "1"   | PrioritySampling.USER_KEEP
+    DDTags.MANUAL_KEEP | false | null
+    DDTags.MANUAL_KEEP | "0"   | null
+  }
+
+  def "URLAsResourceNameRule sets the resource name"() {
+    setup:
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    def span = tracer.buildSpan("fakeOperation").start()
+    meta.each {
+      span.setTag(it.key, (String) it.value)
+    }
+
+    when:
+    span.setTag(Tags.HTTP_URL, value)
+
+    then:
+    span.resourceName.toString() == resourceName
+
+    cleanup:
+    span.finish()
+    tracer.close()
+
+    where:
+    value                       | resourceName        | meta
+    null                        | "fakeOperation"     | [:]
+    " "                         | "/"                 | [:]
+    "\t"                        | "/"                 | [:]
+    "/path"                     | "/path"             | [:]
+    "/ABC/a-1/b_2/c.3/d4d/5f/6" | "/ABC/?/?/?/?/?/?"  | [:]
+    "/not-found"                | "404"               | [(Tags.HTTP_STATUS): "404"]
+    "/with-method"              | "POST /with-method" | [(Tags.HTTP_METHOD): "Post"]
+
+    ignore = meta.put(Tags.HTTP_URL, value)
   }
 }

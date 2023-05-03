@@ -11,16 +11,19 @@ import static datadog.trace.common.writer.ddagent.Prioritization.ENSURE_TRACE;
 import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
 
 import datadog.common.container.ServerlessInfo;
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.common.sampling.Sampler;
+import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.Prioritization;
+import datadog.trace.common.writer.ddintake.DDEvpProxyApi;
 import datadog.trace.common.writer.ddintake.DDIntakeApi;
 import datadog.trace.common.writer.ddintake.DDIntakeTrackTypeResolver;
-import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.core.monitor.TracerHealthMetrics;
 import datadog.trace.util.Strings;
 import okhttp3.HttpUrl;
 import org.slf4j.Logger;
@@ -34,16 +37,19 @@ public class WriterFactory {
       final Config config,
       final SharedCommunicationObjects commObjects,
       final Sampler sampler,
+      final SingleSpanSampler singleSpanSampler,
       final StatsDClient statsDClient) {
-    return createWriter(config, commObjects, sampler, statsDClient, config.getWriterType());
+    return createWriter(
+        config, commObjects, sampler, singleSpanSampler, statsDClient, config.getWriterType());
   }
 
   public static Writer createWriter(
       final Config config,
       final SharedCommunicationObjects commObjects,
       final Sampler sampler,
+      final SingleSpanSampler singleSpanSampler,
       final StatsDClient statsDClient,
-      final String configuredType) {
+      String configuredType) {
 
     if (LOGGING_WRITER_TYPE.equals(configuredType)) {
       return new LoggingWriter();
@@ -53,7 +59,15 @@ public class WriterFactory {
       return new TraceStructureWriter(
           Strings.replace(configuredType, TRACE_STRUCTURE_WRITER_TYPE, ""));
     } else if (configuredType.startsWith(MULTI_WRITER_TYPE)) {
-      return new MultiWriter(config, commObjects, sampler, statsDClient, configuredType);
+      return new MultiWriter(
+          config, commObjects, sampler, singleSpanSampler, statsDClient, configuredType);
+    }
+
+    if (!DD_AGENT_WRITER_TYPE.equals(configuredType)
+        && !DD_INTAKE_WRITER_TYPE.equals(configuredType)) {
+      log.warn(
+          "Writer type not configured correctly: Type {} not recognized. Ignoring", configuredType);
+      configuredType = datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
     }
 
     Prioritization prioritization =
@@ -63,44 +77,57 @@ public class WriterFactory {
           "Using 'EnsureTrace' prioritization type. (Do not use this type if your application is running in production mode)");
     }
 
+    DDAgentFeaturesDiscovery featuresDiscovery = commObjects.featuresDiscovery(config);
+
+    // The AgentWriter doesn't support the CI Visibility protocol. If CI Visibility is
+    // enabled, check if we can use the IntakeWriter instead.
+    if (DD_AGENT_WRITER_TYPE.equals(configuredType) && config.isCiVisibilityEnabled()) {
+      if (featuresDiscovery.supportsEvpProxy() || config.isCiVisibilityAgentlessEnabled()) {
+        configuredType = DD_INTAKE_WRITER_TYPE;
+      } else {
+        log.info(
+            "CI Visibility functionality is limited. Please upgrade to Agent v6.40+ or v7.40+ or enable Agentless mode.");
+      }
+    }
+
     RemoteWriter remoteWriter;
     if (DD_INTAKE_WRITER_TYPE.equals(configuredType)) {
       final TrackType trackType = DDIntakeTrackTypeResolver.resolve(config);
-      final String apiKey = config.getApiKey();
-      if (apiKey == null || apiKey.isEmpty()) {
-        log.warn("Api Key has not been detected, using PrinterWriter.");
-        return new PrintingWriter(System.out, true);
-      }
+      final RemoteApi remoteApi;
+      if (featuresDiscovery.supportsEvpProxy() && !config.isCiVisibilityAgentlessEnabled()) {
+        remoteApi =
+            DDEvpProxyApi.builder()
+                .agentUrl(commObjects.agentUrl)
+                .evpProxyEndpoint(featuresDiscovery.getEvpProxyEndpoint())
+                .trackType(trackType)
+                .build();
+      } else {
+        HttpUrl hostUrl = null;
+        if (config.getCiVisibilityAgentlessUrl() != null) {
+          hostUrl = HttpUrl.get(config.getCiVisibilityAgentlessUrl());
+          log.info(
+              "Using host URL '" + hostUrl + "' to report CI Visibility traces in Agentless mode.");
+        }
 
-      HttpUrl hostUrl = null;
-      if (config.getCiVisibilityAgentlessUrl() != null) {
-        hostUrl = HttpUrl.get(config.getCiVisibilityAgentlessUrl());
-        log.info(
-            "Using host URL '" + hostUrl + "' to report CI Visibility traces in Agentless mode.");
+        remoteApi =
+            DDIntakeApi.builder()
+                .hostUrl(hostUrl)
+                .apiKey(config.getApiKey())
+                .trackType(trackType)
+                .build();
       }
-
-      final DDIntakeApi ddIntakeApi =
-          DDIntakeApi.builder()
-              .hostUrl(hostUrl)
-              .apiKey(config.getApiKey())
-              .trackType(trackType)
-              .build();
 
       remoteWriter =
           DDIntakeWriter.builder()
-              .intakeApi(ddIntakeApi)
+              .intakeApi(remoteApi)
               .trackType(trackType)
               .prioritization(prioritization)
-              .healthMetrics(new HealthMetrics(statsDClient))
+              .healthMetrics(new TracerHealthMetrics(statsDClient))
               .monitoring(commObjects.monitoring)
+              .singleSpanSampler(singleSpanSampler)
               .build();
-    } else {
-      if (!DD_AGENT_WRITER_TYPE.equals(configuredType)) {
-        log.warn(
-            "Writer type not configured correctly: Type {} not recognized. Ignoring",
-            configuredType);
-      }
 
+    } else { // configuredType == DDAgentWriter
       boolean alwaysFlush = false;
       if (config.isAgentConfiguredUsingDefault()
           && ServerlessInfo.get().isRunningInServerlessEnvironment()) {
@@ -119,18 +146,19 @@ public class WriterFactory {
           new DDAgentApi(
               commObjects.okHttpClient,
               commObjects.agentUrl,
-              commObjects.featuresDiscovery(config),
+              featuresDiscovery,
               commObjects.monitoring,
               config.isTracerMetricsEnabled());
 
       remoteWriter =
           DDAgentWriter.builder()
               .agentApi(ddAgentApi)
-              .featureDiscovery(commObjects.featuresDiscovery(config))
+              .featureDiscovery(featuresDiscovery)
               .prioritization(prioritization)
-              .healthMetrics(new HealthMetrics(statsDClient))
+              .healthMetrics(new TracerHealthMetrics(statsDClient))
               .monitoring(commObjects.monitoring)
               .alwaysFlush(alwaysFlush)
+              .spanSamplingRules(singleSpanSampler)
               .build();
     }
 

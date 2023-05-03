@@ -1,10 +1,13 @@
 package datadog.trace.api
 
 import datadog.trace.api.env.FixedCapturedEnvironment
+import datadog.trace.bootstrap.config.provider.AgentArgsInjector
 import datadog.trace.bootstrap.config.provider.ConfigConverter
 import datadog.trace.bootstrap.config.provider.ConfigProvider
 import datadog.trace.test.util.DDSpecification
+import datadog.trace.util.throwable.FatalAgentMisconfigurationError
 import org.junit.Rule
+import spock.lang.Unroll
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES
@@ -16,8 +19,12 @@ import static datadog.trace.api.DDTags.RUNTIME_ID_TAG
 import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG
 import static datadog.trace.api.DDTags.SERVICE
 import static datadog.trace.api.DDTags.SERVICE_TAG
-import static datadog.trace.api.IdGenerationStrategy.RANDOM
-import static datadog.trace.api.IdGenerationStrategy.SEQUENTIAL
+import static datadog.trace.api.TracePropagationStyle.B3MULTI
+import static datadog.trace.api.TracePropagationStyle.B3SINGLE
+import static datadog.trace.api.TracePropagationStyle.DATADOG
+import static datadog.trace.api.TracePropagationStyle.HAYSTACK
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED
@@ -72,8 +79,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_PERIOD
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_ENABLED
-import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_INITIAL_POLL_INTERVAL
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_MAX_PAYLOAD_SIZE
+import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_POLL_INTERVAL_SECONDS
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX
@@ -83,6 +90,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST
 import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY
 import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET
+import static datadog.trace.api.config.TracerConfig.BAGGAGE_MAPPING
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.config.TracerConfig.HTTP_SERVER_ERROR_STATUSES
@@ -105,8 +113,8 @@ import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RULES
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES
-import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH
+import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
 
 class ConfigTest extends DDSpecification {
 
@@ -162,6 +170,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(SPAN_TAGS, "c:3")
     prop.setProperty(JMX_TAGS, "d:4")
     prop.setProperty(HEADER_TAGS, "e:five")
+    prop.setProperty(BAGGAGE_MAPPING, "f:six")
     prop.setProperty(HTTP_SERVER_ERROR_STATUSES, "123-456,457,124-125,122")
     prop.setProperty(HTTP_CLIENT_ERROR_STATUSES, "111")
     prop.setProperty(HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "true")
@@ -207,7 +216,7 @@ class ConfigTest extends DDSpecification {
 
     prop.setProperty(REMOTE_CONFIG_ENABLED, "true")
     prop.setProperty(REMOTE_CONFIG_URL, "remote config url")
-    prop.setProperty(REMOTE_CONFIG_INITIAL_POLL_INTERVAL, "3")
+    prop.setProperty(REMOTE_CONFIG_POLL_INTERVAL_SECONDS, "3")
     prop.setProperty(REMOTE_CONFIG_MAX_PAYLOAD_SIZE, "2")
 
     prop.setProperty(DEBUGGER_ENABLED, "true")
@@ -232,7 +241,7 @@ class ConfigTest extends DDSpecification {
     config.apiKey == "new api key" // we can still override via internal properties object
     config.site == "new site"
     config.serviceName == "something else"
-    config.idGenerationStrategy == SEQUENTIAL
+    config.idGenerationStrategy.class.name.endsWith('$Sequential')
     config.traceEnabled == false
     config.writerType == "LoggingWriter"
     config.agentHost == "somehost"
@@ -245,6 +254,7 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == [b: "2", c: "3"]
     config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.requestHeaderTags == [e: "five"]
+    config.baggageMapping == [f: "six"]
     config.httpServerErrorStatuses == toBitSet((122..457))
     config.httpClientErrorStatuses == toBitSet((111..111))
     config.httpClientSplitByDomain == true
@@ -253,9 +263,10 @@ class ConfigTest extends DDSpecification {
     config.splitByTags == ["some.tag1", "some.tag2"].toSet()
     config.partialFlushMinSpans == 15
     config.reportHostName == true
-    config.runtimeContextFieldInjection == false
     config.propagationStylesToExtract.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
     config.propagationStylesToInject.toList() == [PropagationStyle.B3, PropagationStyle.DATADOG]
+    config.tracePropagationStylesToExtract.toList() == [DATADOG, B3SINGLE, B3MULTI]
+    config.tracePropagationStylesToInject.toList() == [B3SINGLE, B3MULTI, DATADOG]
     config.jmxFetchEnabled == false
     config.jmxFetchMetricsConfigs == ["/foo.yaml", "/bar.yaml"]
     config.jmxFetchCheckPeriod == 100
@@ -273,7 +284,7 @@ class ConfigTest extends DDSpecification {
 
     config.profilingEnabled == true
     config.profilingUrl == "new url"
-    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(),  (RUNTIME_VERSION_TAG): config.getRuntimeVersion(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): config.getRuntimeVersion(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingStartDelay == 1111
     config.profilingStartForceFirst == true
     config.profilingUploadPeriod == 1112
@@ -291,7 +302,7 @@ class ConfigTest extends DDSpecification {
 
     config.remoteConfigEnabled == true
     config.finalRemoteConfigUrl == 'remote config url'
-    config.remoteConfigInitialPollInterval == 3
+    config.remoteConfigPollIntervalSeconds == 3
     config.remoteConfigMaxPayloadSizeBytes == 2048
 
     config.debuggerEnabled == true
@@ -330,6 +341,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + SPAN_TAGS, "c:3")
     System.setProperty(PREFIX + JMX_TAGS, "d:4")
     System.setProperty(PREFIX + HEADER_TAGS, "e:five")
+    System.setProperty(PREFIX + BAGGAGE_MAPPING, "f:six")
     System.setProperty(PREFIX + HTTP_SERVER_ERROR_STATUSES, "123-456,457,124-125,122")
     System.setProperty(PREFIX + HTTP_CLIENT_ERROR_STATUSES, "111")
     System.setProperty(PREFIX + HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "true")
@@ -375,7 +387,7 @@ class ConfigTest extends DDSpecification {
 
     System.setProperty(PREFIX + REMOTE_CONFIG_ENABLED, "true")
     System.setProperty(PREFIX + REMOTE_CONFIG_URL, "remote config url")
-    System.setProperty(PREFIX + REMOTE_CONFIG_INITIAL_POLL_INTERVAL, "3")
+    System.setProperty(PREFIX + REMOTE_CONFIG_POLL_INTERVAL_SECONDS, "3")
     System.setProperty(PREFIX + REMOTE_CONFIG_MAX_PAYLOAD_SIZE, "2")
 
     System.setProperty(PREFIX + DEBUGGER_ENABLED, "true")
@@ -413,6 +425,7 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == [b: "2", c: "3"]
     config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.requestHeaderTags == [e: "five"]
+    config.baggageMapping == [f: "six"]
     config.httpServerErrorStatuses == toBitSet((122..457))
     config.httpClientErrorStatuses == toBitSet((111..111))
     config.httpClientSplitByDomain == true
@@ -421,9 +434,10 @@ class ConfigTest extends DDSpecification {
     config.splitByTags == ["some.tag3", "some.tag2", "some.tag1"].toSet()
     config.partialFlushMinSpans == 25
     config.reportHostName == true
-    config.runtimeContextFieldInjection == false
     config.propagationStylesToExtract.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
     config.propagationStylesToInject.toList() == [PropagationStyle.B3, PropagationStyle.DATADOG]
+    config.tracePropagationStylesToExtract.toList() == [DATADOG, B3SINGLE, B3MULTI]
+    config.tracePropagationStylesToInject.toList() == [B3SINGLE, B3MULTI, DATADOG]
     config.jmxFetchEnabled == false
     config.jmxFetchMetricsConfigs == ["/foo.yaml", "/bar.yaml"]
     config.jmxFetchCheckPeriod == 100
@@ -459,7 +473,7 @@ class ConfigTest extends DDSpecification {
 
     config.remoteConfigEnabled == true
     config.finalRemoteConfigUrl == 'remote config url'
-    config.remoteConfigInitialPollInterval == 3
+    config.remoteConfigPollIntervalSeconds == 3
     config.remoteConfigMaxPayloadSizeBytes == 2 * 1024
 
     config.debuggerEnabled == true
@@ -501,6 +515,8 @@ class ConfigTest extends DDSpecification {
     config.writerType == "LoggingWriter"
     config.propagationStylesToExtract.toList() == [PropagationStyle.B3, PropagationStyle.DATADOG]
     config.propagationStylesToInject.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
+    config.tracePropagationStylesToExtract.toList() == [B3SINGLE, B3MULTI, DATADOG]
+    config.tracePropagationStylesToInject.toList() == [DATADOG, B3SINGLE, B3MULTI]
     config.jmxFetchMetricsConfigs == ["some/file"]
     config.reportHostName == true
     config.xDatadogTagsMaxLength == 42
@@ -543,6 +559,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + TRACE_RESOLVER_ENABLED, " ")
     System.setProperty(PREFIX + SERVICE_MAPPING, " ")
     System.setProperty(PREFIX + HEADER_TAGS, "1")
+    System.setProperty(PREFIX + BAGGAGE_MAPPING, "1")
     System.setProperty(PREFIX + SPAN_TAGS, "invalid")
     System.setProperty(PREFIX + HTTP_SERVER_ERROR_STATUSES, "1111")
     System.setProperty(PREFIX + HTTP_CLIENT_ERROR_STATUSES, "1:1")
@@ -566,6 +583,7 @@ class ConfigTest extends DDSpecification {
     config.serviceMapping == [:]
     config.mergedSpanTags == [:]
     config.requestHeaderTags == [:]
+    config.baggageMapping == [:]
     config.httpServerErrorStatuses == toBitSet((500..599))
     config.httpClientErrorStatuses == toBitSet((400..499))
     config.httpClientSplitByDomain == false
@@ -574,6 +592,8 @@ class ConfigTest extends DDSpecification {
     config.splitByTags == [].toSet()
     config.propagationStylesToExtract.toList() == [PropagationStyle.DATADOG]
     config.propagationStylesToInject.toList() == [PropagationStyle.DATADOG]
+    config.tracePropagationStylesToExtract.toList() == [DATADOG]
+    config.tracePropagationStylesToInject.toList() == [DATADOG]
   }
 
   def "sys props and env vars overrides for trace_agent_port and agent_port_legacy as expected"() {
@@ -638,6 +658,7 @@ class ConfigTest extends DDSpecification {
     properties.setProperty(SPAN_TAGS, "c:3")
     properties.setProperty(JMX_TAGS, "d:4")
     properties.setProperty(HEADER_TAGS, "e:five")
+    properties.setProperty(BAGGAGE_MAPPING, "f:six")
     properties.setProperty(HTTP_SERVER_ERROR_STATUSES, "123-456,457,124-125,122")
     properties.setProperty(HTTP_CLIENT_ERROR_STATUSES, "111")
     properties.setProperty(HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "true")
@@ -669,6 +690,7 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == [b: "2", c: "3"]
     config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.requestHeaderTags == [e: "five"]
+    config.baggageMapping == [f: "six"]
     config.httpServerErrorStatuses == toBitSet((122..457))
     config.httpClientErrorStatuses == toBitSet((111..111))
     config.httpClientSplitByDomain == true
@@ -678,6 +700,8 @@ class ConfigTest extends DDSpecification {
     config.partialFlushMinSpans == 15
     config.propagationStylesToExtract.toList() == [PropagationStyle.B3, PropagationStyle.DATADOG]
     config.propagationStylesToInject.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
+    config.tracePropagationStylesToExtract.toList() == [B3SINGLE, B3MULTI, DATADOG]
+    config.tracePropagationStylesToInject.toList() == [DATADOG, B3SINGLE, B3MULTI]
     config.jmxFetchMetricsConfigs == ["/foo.yaml", "/bar.yaml"]
     config.jmxFetchCheckPeriod == 100
     config.jmxFetchRefreshBeansPeriod == 200
@@ -776,42 +800,6 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == "what actually wants"
-  }
-
-  def "verify integration config"() {
-    setup:
-    environmentVariables.set("DD_INTEGRATION_ORDER_ENABLED", "false")
-    environmentVariables.set("DD_INTEGRATION_TEST_ENV_ENABLED", "true")
-    environmentVariables.set("DD_INTEGRATION_DISABLED_ENV_ENABLED", "false")
-
-    System.setProperty("dd.integration.order.enabled", "true")
-    System.setProperty("dd.integration.test-prop.enabled", "true")
-    System.setProperty("dd.integration.disabled-prop.enabled", "false")
-
-    expect:
-    Config.get().isIntegrationEnabled(integrationNames, defaultEnabled) == expected
-
-    where:
-    // spotless:off
-    names                          | defaultEnabled | expected
-    []                             | true           | true
-    []                             | false          | false
-    ["invalid"]                    | true           | true
-    ["invalid"]                    | false          | false
-    ["test-prop"]                  | false          | true
-    ["test-env"]                   | false          | true
-    ["disabled-prop"]              | true           | false
-    ["disabled-env"]               | true           | false
-    ["other", "test-prop"]         | false          | true
-    ["other", "test-env"]          | false          | true
-    ["order"]                      | false          | true
-    ["test-prop", "disabled-prop"] | false          | true
-    ["disabled-env", "test-env"]   | false          | true
-    ["test-prop", "disabled-prop"] | true           | false
-    ["disabled-env", "test-env"]   | true           | false
-    // spotless:on
-
-    integrationNames = new TreeSet<>(names)
   }
 
   def "verify rule config #name"() {
@@ -1224,6 +1212,15 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.localRootSpanTags.containsKey('_dd.hostname')
+  }
+
+  def "verify schema version is added to local root span"() {
+
+    when:
+    def config = Config.get()
+
+    then:
+    config.localRootSpanTags.get('_dd.trace_span_attribute_schema') == 0
   }
 
   def "verify fallback to properties file"() {
@@ -1969,7 +1966,7 @@ class ConfigTest extends DDSpecification {
     Config config = Config.get(prop)
 
     then:
-    config.idGenerationStrategy == RANDOM
+    config.idGenerationStrategy.class.name.endsWith('$Random')
   }
 
   def "DD_RUNTIME_METRICS_ENABLED=false disables all metrics"() {
@@ -2035,6 +2032,123 @@ class ConfigTest extends DDSpecification {
     config.getMetricsIgnoredResources() == ["GET /healthcheck", "SELECT foo from bar"].toSet()
   }
 
+  @Unroll
+  def "appsec state with sys = #sys env = #env"() {
+    setup:
+    if (sys != null) {
+      System.setProperty("dd.appsec.enabled", sys)
+    }
+    if (env != null) {
+      environmentVariables.set("DD_APPSEC_ENABLED", env)
+    }
+
+    when:
+    def config = new Config()
+
+    then:
+    config.getAppSecActivation() == res
+
+    where:
+    sys        | env        | res
+    null       | null       | ProductActivation.ENABLED_INACTIVE
+    null       | ""         | ProductActivation.ENABLED_INACTIVE
+    null       | "inactive" | ProductActivation.ENABLED_INACTIVE
+    null       | "false"    | ProductActivation.FULLY_DISABLED
+    null       | "0"        | ProductActivation.FULLY_DISABLED
+    null       | "invalid"  | ProductActivation.FULLY_DISABLED
+    null       | "true"     | ProductActivation.FULLY_ENABLED
+    null       | "1"        | ProductActivation.FULLY_ENABLED
+    ""         | null       | ProductActivation.ENABLED_INACTIVE
+    ""         | ""         | ProductActivation.ENABLED_INACTIVE
+    ""         | "inactive" | ProductActivation.ENABLED_INACTIVE
+    ""         | "false"    | ProductActivation.FULLY_DISABLED
+    ""         | "0"        | ProductActivation.FULLY_DISABLED
+    ""         | "invalid"  | ProductActivation.FULLY_DISABLED
+    ""         | "true"     | ProductActivation.FULLY_ENABLED
+    ""         | "1"        | ProductActivation.FULLY_ENABLED
+    "inactive" | null       | ProductActivation.ENABLED_INACTIVE
+    "inactive" | ""         | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "inactive" | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "false"    | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "0"        | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "invalid"  | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "true"     | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "1"        | ProductActivation.ENABLED_INACTIVE
+    "false"    | null       | ProductActivation.FULLY_DISABLED
+    "false"    | ""         | ProductActivation.FULLY_DISABLED
+    "false"    | "inactive" | ProductActivation.FULLY_DISABLED
+    "false"    | "false"    | ProductActivation.FULLY_DISABLED
+    "false"    | "0"        | ProductActivation.FULLY_DISABLED
+    "false"    | "invalid"  | ProductActivation.FULLY_DISABLED
+    "false"    | "true"     | ProductActivation.FULLY_DISABLED
+    "false"    | "1"        | ProductActivation.FULLY_DISABLED
+    "0"        | null       | ProductActivation.FULLY_DISABLED
+    "true"     | null       | ProductActivation.FULLY_ENABLED
+    "true"     | ""         | ProductActivation.FULLY_ENABLED
+    "true"     | "inactive" | ProductActivation.FULLY_ENABLED
+    "true"     | "false"    | ProductActivation.FULLY_ENABLED
+    "true"     | "0"        | ProductActivation.FULLY_ENABLED
+    "true"     | "invalid"  | ProductActivation.FULLY_ENABLED
+    "true"     | "true"     | ProductActivation.FULLY_ENABLED
+    "true"     | "1"        | ProductActivation.FULLY_ENABLED
+    "1"        | null       | ProductActivation.FULLY_ENABLED
+  }
+
+  def "hostname discovery with environment variables"() {
+    setup:
+    final expectedHostname = "myhostname"
+    environmentVariables.set("HOSTNAME", expectedHostname)
+    environmentVariables.set("COMPUTERNAME", expectedHostname)
+
+    when:
+    def hostname = Config.initHostName()
+
+    then:
+    hostname == expectedHostname
+  }
+
+  def "hostname discovery without environment variables"() {
+    setup:
+    environmentVariables.set("HOSTNAME", "")
+    environmentVariables.set("COMPUTERNAME", "")
+
+    when:
+    def hostname = Config.initHostName()
+
+    then:
+    hostname != null
+    !hostname.trim().isEmpty()
+  }
+
+  def "config instantiation should fail if CI visibility agentless mode is enabled and API key is not set"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(CIVISIBILITY_ENABLED, "true")
+    properties.setProperty(CIVISIBILITY_AGENTLESS_ENABLED, "true")
+
+    when:
+    new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    thrown FatalAgentMisconfigurationError
+  }
+
+  def "config instantiation should NOT fail if CI visibility agentless mode is enabled and API key is set"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(CIVISIBILITY_ENABLED, "true")
+    properties.setProperty(CIVISIBILITY_AGENTLESS_ENABLED, "true")
+    properties.setProperty(API_KEY, "123456789")
+
+    when:
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    noExceptionThrown()
+    config.isCiVisibilityEnabled()
+    config.isCiVisibilityAgentlessEnabled()
+  }
+
   static class ClassThrowsExceptionForValueOfMethod {
     static ClassThrowsExceptionForValueOfMethod valueOf(String ignored) {
       throw new Throwable()
@@ -2047,5 +2161,131 @@ class ConfigTest extends DDSpecification {
       bs.set(i)
     }
     return bs
+  }
+
+  def "check trace propagation style overrides for "() {
+    setup:
+    if (pse) {
+      environmentVariables.set('DD_PROPAGATION_STYLE_EXTRACT', pse.toString())
+    }
+    if (psi) {
+      environmentVariables.set('DD_PROPAGATION_STYLE_INJECT', psi.toString())
+    }
+    if (tps) {
+      environmentVariables.set('DD_TRACE_PROPAGATION_STYLE', tps.toString())
+    }
+    if (tpse) {
+      environmentVariables.set('DD_TRACE_PROPAGATION_STYLE_EXTRACT', tpse.toString())
+    }
+    if (tpsi) {
+      environmentVariables.set('DD_TRACE_PROPAGATION_STYLE_INJECT', tpsi.toString())
+    }
+    when:
+    Config config = new Config()
+
+    then:
+    config.propagationStylesToExtract.asList() == ePSE
+    config.propagationStylesToInject.asList() == ePSI
+    config.tracePropagationStylesToExtract.asList() == eTPSE
+    config.tracePropagationStylesToInject.asList() == eTPSI
+
+    where:
+    // spotless:off
+    pse                      | psi                      | tps      | tpse               | tpsi    | ePSE                       | ePSI                       | eTPSE               | eTPSI
+    PropagationStyle.DATADOG | PropagationStyle.B3      | null     | null               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.B3]      | [DATADOG]           | [B3SINGLE, B3MULTI]
+    PropagationStyle.B3      | PropagationStyle.DATADOG | null     | null               | null    | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [B3SINGLE, B3MULTI] | [DATADOG]
+    PropagationStyle.B3      | PropagationStyle.DATADOG | HAYSTACK | null               | null    | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [HAYSTACK]          | [HAYSTACK]
+    PropagationStyle.B3      | PropagationStyle.DATADOG | HAYSTACK | B3SINGLE           | null    | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [B3SINGLE]          | [HAYSTACK]
+    PropagationStyle.B3      | PropagationStyle.DATADOG | HAYSTACK | null               | B3MULTI | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [HAYSTACK]          | [B3MULTI]
+    PropagationStyle.B3      | PropagationStyle.DATADOG | HAYSTACK | B3SINGLE           | B3MULTI | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [B3SINGLE]          | [B3MULTI]
+    PropagationStyle.B3      | PropagationStyle.DATADOG | null     | B3SINGLE           | B3MULTI | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [B3SINGLE]          | [B3MULTI]
+    null                     | null                     | HAYSTACK | null               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [HAYSTACK]          | [HAYSTACK]
+    null                     | null                     | HAYSTACK | B3SINGLE           | B3MULTI | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [B3SINGLE]          | [B3MULTI]
+    null                     | null                     | null     | B3SINGLE           | B3MULTI | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [B3SINGLE]          | [B3MULTI]
+    null                     | null                     | null     | null               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [DATADOG]           | [DATADOG]
+    null                     | null                     | null     | null               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [DATADOG]           | [DATADOG]
+    null                     | null                     | null     | "b3 single header" | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [B3SINGLE]          | [DATADOG]
+    null                     | null                     | null     | "b3"               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [B3MULTI]           | [DATADOG]
+    // spotless:on
+  }
+
+  def "agent args are used by config"() {
+    setup:
+    AgentArgsInjector.injectAgentArgsConfig([(PREFIX + SERVICE_NAME): "args service name"])
+
+    when:
+    rebuildConfig()
+    def config = new Config()
+
+    then:
+    config.serviceName == "args service name"
+  }
+
+  def "agent args override captured env props"() {
+    setup:
+    AgentArgsInjector.injectAgentArgsConfig([(PREFIX + SERVICE_NAME): "args service name"])
+
+    def capturedEnv = new HashMap<String, String>()
+    capturedEnv.put(SERVICE_NAME, "captured props service name")
+    fixedCapturedEnvironment.load(capturedEnv)
+
+    when:
+    def config = new Config()
+
+    then:
+    config.serviceName == "args service name"
+  }
+
+  def "sys props override agent args"() {
+    setup:
+    System.setProperty(PREFIX + SERVICE_NAME, "system prop service name")
+
+    AgentArgsInjector.injectAgentArgsConfig([(PREFIX + SERVICE_NAME): "args service name"])
+
+    when:
+    def config = new Config()
+
+    then:
+    config.serviceName == "system prop service name"
+  }
+
+  def "env vars override agent args"() {
+    setup:
+    environmentVariables.set(DD_SERVICE_NAME_ENV, "env service name")
+
+    AgentArgsInjector.injectAgentArgsConfig([(PREFIX + SERVICE_NAME): "args service name"])
+
+    when:
+    def config = new Config()
+
+    then:
+    config.serviceName == "env service name"
+  }
+
+  def "agent args are used for looking up properties file"() {
+    setup:
+    AgentArgsInjector.injectAgentArgsConfig([(PREFIX + CONFIGURATION_FILE): "src/test/resources/dd-java-tracer.properties"])
+
+    when:
+    def config = new Config()
+
+    then:
+    config.configFileStatus == "src/test/resources/dd-java-tracer.properties"
+    config.serviceName == "set-in-properties"
+  }
+
+  def "fallback to properties file has lower priority than agent args"() {
+    setup:
+    AgentArgsInjector.injectAgentArgsConfig([
+      (PREFIX + CONFIGURATION_FILE): "src/test/resources/dd-java-tracer.properties",
+      (PREFIX + SERVICE_NAME)      : "args service name"
+    ])
+
+    when:
+    def config = new Config()
+
+    then:
+    config.configFileStatus == "src/test/resources/dd-java-tracer.properties"
+    config.serviceName == "args service name"
   }
 }

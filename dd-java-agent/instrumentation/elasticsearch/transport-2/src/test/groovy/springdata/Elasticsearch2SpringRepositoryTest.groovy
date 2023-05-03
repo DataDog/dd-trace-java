@@ -1,21 +1,19 @@
 package springdata
 
 
-import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.test.util.Flaky
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
-import spock.lang.Retry
 import spock.lang.Shared
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-@Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
-class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
+@Flaky
+abstract class Elasticsearch2SpringRepositoryTest extends VersionedNamingTestBase {
   @Shared
   ApplicationContext applicationContext = new AnnotationConfigApplicationContext(Config)
 
@@ -31,15 +29,18 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
     TEST_WRITER.waitUntilReported(cleanupSpan)
   }
 
+  def setupSpec() {
+    // force putting the mapping here to avoid flakiness
+    repo.index(new Doc())
+    cleanup()
+  }
+
   def cleanupSpec() {
     applicationContext?.close()
   }
 
   def "test empty repo"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     def result = repo.findAll()
@@ -51,9 +52,9 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "SearchAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           errored false
           tags {
@@ -76,9 +77,6 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
 
   def "test CRUD"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     def doc = new Doc()
@@ -91,7 +89,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
       trace(1) {
         span {
           resourceName "IndexAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -110,7 +108,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
       trace(1) {
         span {
           resourceName "RefreshAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -136,9 +134,9 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "GetAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -171,7 +169,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
       trace(1) {
         span {
           resourceName "IndexAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -190,7 +188,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
       trace(1) {
         span {
           resourceName "RefreshAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -208,9 +206,9 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
       }
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "GetAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -242,7 +240,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
       trace(1) {
         span {
           resourceName "DeleteAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -261,7 +259,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
       trace(1) {
         span {
           resourceName "RefreshAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -279,9 +277,9 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
       }
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "SearchAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -299,5 +297,41 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
 
     where:
     indexName = "test-index"
+  }
+}
+
+class Elasticsearch2SpringRepositoryV0ForkedTest extends Elasticsearch2SpringRepositoryTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return "elasticsearch"
+  }
+
+  @Override
+  String operation() {
+    return "elasticsearch.query"
+  }
+}
+
+class Elasticsearch2SpringRepositoryV1ForkedTest extends Elasticsearch2SpringRepositoryTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return datadog.trace.api.Config.get().getServiceName()
+  }
+
+  @Override
+  String operation() {
+    return "elasticsearch.query"
   }
 }

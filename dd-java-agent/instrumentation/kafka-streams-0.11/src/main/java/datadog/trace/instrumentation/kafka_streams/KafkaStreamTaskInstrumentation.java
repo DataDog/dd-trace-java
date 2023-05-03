@@ -4,15 +4,16 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.GROUP_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.PARTITION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_CONSUME;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_DELIVER;
-import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_LEGACY_TRACING;
+import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_streams.ProcessorRecordContextVisitor.PR_GETTER;
 import static datadog.trace.instrumentation.kafka_streams.StampedRecordContextVisitor.SR_GETTER;
 import static java.util.Collections.singletonMap;
@@ -70,7 +71,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
   public Map<String, String> contextStore() {
     return singletonMap(
         "org.apache.kafka.streams.processor.internals.StreamTask",
-        StreamTaskContext.class.getName());
+        packageName + ".StreamTaskContext");
   }
 
   @Override
@@ -218,12 +219,11 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
       if (!Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
         final AgentSpan.Context extractedContext = propagate().extract(record, SR_GETTER);
         long timeInQueueStart = SR_GETTER.extractTimeInQueueStart(record);
-        if (timeInQueueStart == 0 || KAFKA_LEGACY_TRACING) {
+        if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
           span = startSpan(KAFKA_CONSUME, extractedContext);
         } else {
           queueSpan =
-              startSpan(
-                  KAFKA_DELIVER, extractedContext, MILLISECONDS.toMicros(timeInQueueStart), false);
+              startSpan(KAFKA_DELIVER, extractedContext, MILLISECONDS.toMicros(timeInQueueStart));
           BROKER_DECORATE.afterStart(queueSpan);
           BROKER_DECORATE.onTimeInQueue(queueSpan, record);
           span = startSpan(KAFKA_CONSUME, queueSpan.context());
@@ -235,6 +235,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, SR_GETTER);
         span.mergePathwayContext(pathwayContext);
         LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+        sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
         if (streamTaskContext != null) {
           String applicationId = streamTaskContext.getApplicationId();
           if (applicationId != null) {
@@ -242,7 +243,6 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
             sortedTags.put(GROUP_TAG, applicationId);
           }
         }
-        sortedTags.put(PARTITION_TAG, String.valueOf(record.partition()));
         sortedTags.put(TOPIC_TAG, record.topic());
         sortedTags.put(TYPE_TAG, "kafka");
         AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
@@ -284,12 +284,11 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
       if (!Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
         final AgentSpan.Context extractedContext = propagate().extract(record, PR_GETTER);
         long timeInQueueStart = PR_GETTER.extractTimeInQueueStart(record);
-        if (timeInQueueStart == 0 || KAFKA_LEGACY_TRACING) {
+        if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
           span = startSpan(KAFKA_CONSUME, extractedContext);
         } else {
           queueSpan =
-              startSpan(
-                  KAFKA_DELIVER, extractedContext, MILLISECONDS.toMicros(timeInQueueStart), false);
+              startSpan(KAFKA_DELIVER, extractedContext, MILLISECONDS.toMicros(timeInQueueStart));
           BROKER_DECORATE.afterStart(queueSpan);
           BROKER_DECORATE.onTimeInQueue(queueSpan, record);
           span = startSpan(KAFKA_CONSUME, queueSpan.context());
@@ -301,6 +300,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, PR_GETTER);
         span.mergePathwayContext(pathwayContext);
         LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+        sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
         if (streamTaskContext != null) {
           String applicationId = streamTaskContext.getApplicationId();
           if (applicationId != null) {
@@ -308,7 +308,6 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
             sortedTags.put(GROUP_TAG, applicationId);
           }
         }
-        sortedTags.put(PARTITION_TAG, String.valueOf(record.partition()));
         sortedTags.put(TOPIC_TAG, record.topic());
         sortedTags.put(TYPE_TAG, "kafka");
         AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);

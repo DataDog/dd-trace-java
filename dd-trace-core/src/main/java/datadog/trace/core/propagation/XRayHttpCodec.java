@@ -6,8 +6,11 @@ import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
-import datadog.trace.api.DDId;
+import datadog.trace.api.Config;
+import datadog.trace.api.DD64bTraceId;
+import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
@@ -48,9 +51,17 @@ class XRayHttpCodec {
     // This class should not be created. This also makes code coverage checks happy.
   }
 
-  public static final HttpCodec.Injector INJECTOR = new Injector();
+  public static HttpCodec.Injector newInjector(Map<String, String> invertedBaggageMapping) {
+    return new Injector(invertedBaggageMapping);
+  }
 
   private static class Injector implements HttpCodec.Injector {
+
+    private final Map<String, String> invertedBaggageMapping;
+
+    public Injector(Map<String, String> invertedBaggageMapping) {
+      this.invertedBaggageMapping = invertedBaggageMapping;
+    }
 
     @Override
     public <C> void inject(DDSpanContext context, C carrier, AgentPropagation.Setter<C> setter) {
@@ -69,7 +80,7 @@ class XRayHttpCodec {
               .append(TRACE_ID_PADDING)
               .append(context.getTraceId().toHexStringPadded(16))
               .append(';' + PARENT_PREFIX)
-              .append(context.getSpanId().toHexStringPadded(16));
+              .append(DDSpanId.toHexStringPadded(context.getSpanId()));
 
       if (context.lockSamplingPriority()) {
         buf.append(';' + SAMPLED_PREFIX)
@@ -88,8 +99,9 @@ class XRayHttpCodec {
       }
 
       for (Map.Entry<String, String> entry : context.baggageItems()) {
-        if (!isReserved(entry.getKey())) {
-          additionalPart(buf, entry.getKey(), HttpCodec.encode(entry.getValue()), maxCapacity);
+        String header = invertedBaggageMapping.getOrDefault(entry.getKey(), entry.getKey());
+        if (!isReserved(header)) {
+          additionalPart(buf, header, HttpCodec.encode(entry.getValue()), maxCapacity);
         }
       }
 
@@ -111,21 +123,25 @@ class XRayHttpCodec {
     }
   }
 
-  public static HttpCodec.Extractor newExtractor(Map<String, String> tagMapping) {
+  public static HttpCodec.Extractor newExtractor(
+      Map<String, String> tagMapping, Map<String, String> baggageMapping) {
     return new TagContextExtractor(
         tagMapping,
+        baggageMapping,
         new ContextInterpreter.Factory() {
           @Override
-          protected ContextInterpreter construct(Map<String, String> mapping) {
-            return new XRayContextInterpreter(mapping);
+          protected ContextInterpreter construct(
+              Map<String, String> mapping, Map<String, String> baggageMapping) {
+            return new XRayContextInterpreter(mapping, baggageMapping);
           }
         });
   }
 
   static class XRayContextInterpreter extends ContextInterpreter {
 
-    private XRayContextInterpreter(Map<String, String> taggedHeaders) {
-      super(taggedHeaders);
+    private XRayContextInterpreter(
+        Map<String, String> taggedHeaders, Map<String, String> baggageMapping) {
+      super(taggedHeaders, baggageMapping, Config.get());
     }
 
     @Override
@@ -162,15 +178,14 @@ class XRayHttpCodec {
 
         if (handledIpHeaders(key, value)) {
           return true;
+        } else {
+          handleTags(key, value);
         }
 
-        if (!taggedHeaders.isEmpty()) {
-          String mappedKey = taggedHeaders.get(toLowerCase(key));
+        if (!baggageMapping.isEmpty()) {
+          String mappedKey = baggageMapping.get(toLowerCase(key));
           if (null != mappedKey) {
-            if (tags.isEmpty()) {
-              tags = new TreeMap<>();
-            }
-            tags.put(mappedKey, HttpCodec.decode(value));
+            addBaggageItem(this, mappedKey, HttpCodec.decode(value));
           }
         }
         return true;
@@ -198,14 +213,13 @@ class XRayHttpCodec {
           }
           String part = value.substring(startPart, endPart).trim();
           if (part.startsWith(ROOT_PREFIX)) {
-            if (interpreter.traceId == null || interpreter.traceId == DDId.ZERO) {
+            if (interpreter.traceId == null || interpreter.traceId == DDTraceId.ZERO) {
               interpreter.traceId =
-                  DDId.fromHexWithOriginal(
-                      part.substring(ROOT_PREAMBLE + TRACE_ID_PADDING.length()));
+                  DD64bTraceId.fromHex(part.substring(ROOT_PREAMBLE + TRACE_ID_PADDING.length()));
             }
           } else if (part.startsWith(PARENT_PREFIX)) {
-            if (interpreter.spanId == null || interpreter.spanId == DDId.ZERO) {
-              interpreter.spanId = DDId.fromHexWithOriginal(part.substring(PARENT_PREFIX.length()));
+            if (interpreter.spanId == DDSpanId.ZERO) {
+              interpreter.spanId = DDSpanId.fromHex(part.substring(PARENT_PREFIX.length()));
             }
           } else if (part.startsWith(SAMPLED_PREFIX)) {
             if (interpreter.samplingPriority == PrioritySampling.UNSET) {

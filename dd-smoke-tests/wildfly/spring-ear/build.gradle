@@ -1,0 +1,29 @@
+plugins {
+  id 'java'
+  id 'ear'
+  id "com.diffplug.spotless" version "6.11.0"
+}
+
+def sharedRootDir = "$rootDir/../../../"
+def sharedConfigDirectory = "$sharedRootDir/gradle"
+rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
+
+apply from: "$sharedConfigDirectory/repositories.gradle"
+apply from: "$sharedConfigDirectory/spotless.gradle"
+apply plugin: 'ear'
+
+if (hasProperty('appBuildDir')) {
+  buildDir = property('appBuildDir')
+}
+
+version = ""
+dependencies {
+  earlib 'org.springframework:spring-webmvc:5.3.0'
+  deploy project(path: ':war', configuration: 'archives')
+
+  if (hasProperty('apiJar')) {
+    implementation files(property('apiJar'))
+  } else {
+    implementation "com.datadoghq:dd-trace-api:1.2.0"
+  }
+}

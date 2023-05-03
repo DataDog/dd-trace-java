@@ -7,12 +7,15 @@ import com.datadog.appsec.config.TraceSegmentPostProcessor;
 import com.datadog.appsec.event.EventProducerService;
 import com.datadog.appsec.event.EventType;
 import com.datadog.appsec.event.ExpiredSubscriberInfoException;
-import com.datadog.appsec.event.data.*;
+import com.datadog.appsec.event.data.Address;
+import com.datadog.appsec.event.data.DataBundle;
+import com.datadog.appsec.event.data.KnownAddresses;
+import com.datadog.appsec.event.data.MapDataBundle;
+import com.datadog.appsec.event.data.ObjectIntrospection;
+import com.datadog.appsec.event.data.SingletonDataBundle;
 import com.datadog.appsec.report.AppSecEventWrapper;
 import com.datadog.appsec.report.raw.events.AppSecEvent100;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.TraceSegment;
-import datadog.trace.api.function.Function;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.Events;
@@ -22,6 +25,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.http.StoredBodySupplier;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.util.Strings;
@@ -38,6 +42,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,7 +90,7 @@ public class GatewayBridge {
     subscriptionService.registerCallback(
         events.requestStarted(),
         () -> {
-          if (!AppSecSystem.ACTIVE) {
+          if (!AppSecSystem.isActive()) {
             return RequestContextSupplier.EMPTY;
           }
 
@@ -333,7 +338,7 @@ public class GatewayBridge {
     subscriptionService.registerCallback(
         EVENTS.responseHeader(),
         (ctx_, name, value) -> {
-          AppSecRequestContext ctx = ctx_.<AppSecRequestContext>getData(RequestContextSlot.APPSEC);
+          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
           if (ctx != null) {
             ctx.addResponseHeader(name, value);
           }

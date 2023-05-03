@@ -1,21 +1,16 @@
 plugins {
-  id 'com.diffplug.spotless' version '5.12.5'
-  id 'pl.allegro.tech.build.axion-release' version '1.10.3'
+  id "com.diffplug.spotless" version "6.11.0"
 }
 
 def sharedConfigDirectory = "$rootDir/../gradle"
 rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
 
-scmVersion {
-  repository {
-    directory = project.rootProject.file('../')
-  }
-}
-apply from: "$sharedConfigDirectory/scm.gradle"
+def isCI = System.getenv("CI") != null
+def versionFromFile = file("$rootDir/${isCI ? '../workspace' : '..'}/build/main.version").readLines().head()
 
 allprojects {
   group = 'com.datadoghq'
-  version = scmVersion.version
+  version = versionFromFile
 
   repositories {
     mavenLocal()
@@ -24,4 +19,5 @@ allprojects {
   }
 
   apply from: "$sharedConfigDirectory/spotless.gradle"
+  apply from: "$sharedConfigDirectory/dependencies.gradle"
 }

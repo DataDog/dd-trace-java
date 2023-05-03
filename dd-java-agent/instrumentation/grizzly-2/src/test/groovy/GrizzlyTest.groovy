@@ -1,3 +1,4 @@
+import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.instrumentation.grizzly.GrizzlyDecorator
 import org.glassfish.grizzly.http.server.HttpServer
@@ -25,6 +26,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 
 class GrizzlyTest extends HttpServerTest<HttpServer> {
 
@@ -35,7 +37,7 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     injectSysConfig("dd.integration.grizzly.enabled", "true")
   }
 
-  private class GrizzlyServer implements datadog.trace.agent.test.base.HttpServer {
+  protected class GrizzlyServer implements datadog.trace.agent.test.base.HttpServer {
     final HttpServer server
     int port = 0
 
@@ -81,6 +83,11 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
   @Override
   String expectedOperationName() {
     return GrizzlyDecorator.GRIZZLY_REQUEST.toString()
+  }
+
+  @Override
+  boolean testBlocking() {
+    true
   }
 
   static class SimpleExceptionMapper implements ExceptionMapper<Throwable> {
@@ -150,6 +157,15 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     Response error() {
       controller(ERROR) {
         Response.status(ERROR.status).entity(ERROR.body).build()
+      }
+    }
+
+    @GET
+    @Path("user-block")
+    Response userBlock() {
+      controller(USER_BLOCK) {
+        Blocking.forUser('user-to-block').blockIfMatch()
+        Response.status(200).entity('should not be reached').build()
       }
     }
 

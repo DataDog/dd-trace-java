@@ -1,10 +1,12 @@
 package datadog.telemetry;
 
+import com.squareup.moshi.FromJson;
 import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.JsonReader;
+import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
-import datadog.common.container.ContainerInfo;
+import com.squareup.moshi.ToJson;
 import datadog.communication.ddagent.TracerVersion;
-import datadog.communication.http.SafeRequestBuilder;
 import datadog.telemetry.api.ApiVersion;
 import datadog.telemetry.api.Application;
 import datadog.telemetry.api.Host;
@@ -13,7 +15,9 @@ import datadog.telemetry.api.RequestType;
 import datadog.telemetry.api.Telemetry;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
+import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
+import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.Request;
@@ -33,6 +37,7 @@ public class RequestBuilder {
   private static final JsonAdapter<Telemetry> JSON_ADAPTER =
       new Moshi.Builder()
           .add(new PolymorphicAdapterFactory(Payload.class))
+          .add(new NumberJsonAdapter())
           .build()
           .adapter(Telemetry.class);
   private static final AtomicLong SEQ_ID = new AtomicLong();
@@ -41,8 +46,13 @@ public class RequestBuilder {
   private final Application application;
   private final Host host;
   private final String runtimeId;
+  private final boolean debug;
 
   public RequestBuilder(HttpUrl httpUrl) {
+    this(httpUrl, false);
+  }
+
+  public RequestBuilder(HttpUrl httpUrl, boolean debug) {
     this.httpUrl = httpUrl.newBuilder().addPathSegments(API_ENDPOINT).build();
 
     Config config = Config.get();
@@ -60,7 +70,6 @@ public class RequestBuilder {
             .runtimeVersion(Platform.getRuntimeVersion())
             .runtimePatches(Platform.getRuntimePatches());
 
-    ContainerInfo containerInfo = ContainerInfo.get();
     this.host =
         new Host()
             .hostname(HostInfo.getHostname())
@@ -69,7 +78,9 @@ public class RequestBuilder {
             .kernelName(HostInfo.getKernelName())
             .kernelRelease(HostInfo.getKernelRelease())
             .kernelVersion(HostInfo.getKernelVersion())
-            .containerId(containerInfo.getContainerId());
+            .architecture(HostInfo.getArchitecture());
+
+    this.debug = debug;
   }
 
   public Request build(RequestType requestType) {
@@ -86,17 +97,33 @@ public class RequestBuilder {
             .seqId(SEQ_ID.incrementAndGet())
             .application(application)
             .host(host)
-            .payload(payload);
+            .payload(payload)
+            .debug(debug);
 
     String json = JSON_ADAPTER.toJson(telemetry);
     RequestBody body = RequestBody.create(JSON, json);
 
-    return new SafeRequestBuilder()
+    return new Request.Builder()
         .url(httpUrl)
         .addHeader("Content-Type", JSON.toString())
         .addHeader("DD-Telemetry-API-Version", API_VERSION.toString())
         .addHeader("DD-Telemetry-Request-Type", requestType.toString())
+        .addHeader("DD-Client-Library-Language", "jvm")
+        .addHeader("DD-Client-Library-Version", TracerVersion.TRACER_VERSION)
         .post(body)
         .build();
+  }
+
+  private static final class NumberJsonAdapter {
+    @Nullable
+    @FromJson
+    public Number fromJson(JsonReader reader) throws IOException {
+      throw new UnsupportedOperationException();
+    }
+
+    @ToJson
+    public void toJson(JsonWriter writer, @Nullable Number value) throws IOException {
+      writer.value(value);
+    }
   }
 }

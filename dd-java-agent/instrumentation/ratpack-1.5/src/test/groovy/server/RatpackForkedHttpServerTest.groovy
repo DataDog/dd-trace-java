@@ -1,5 +1,6 @@
 package server
 
+import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import ratpack.exec.Promise
@@ -21,6 +22,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 
 class RatpackForkedHttpServerTest extends RatpackHttpServerTest {
 
@@ -142,6 +144,18 @@ class RatpackForkedHttpServerTest extends RatpackHttpServerTest {
             }
           }
         }
+        prefix(USER_BLOCK.relativeRawPath()) {
+          all {
+            Promise.sync {
+              USER_BLOCK
+            }.fork().then { HttpServerTest.ServerEndpoint endpoint ->
+              controller(endpoint) {
+                Blocking.forUser('user-to-block').blockIfMatch()
+                context.response.status(200).send('should never be reached')
+              }
+            }
+          }
+        }
         prefix(REDIRECT.relativeRawPath()) {
           all {
             Promise.sync {
@@ -177,5 +191,11 @@ class RatpackForkedHttpServerTest extends RatpackHttpServerTest {
         }
       }
     })
+  }
+
+  @Override
+  boolean testRedirect() {
+    // re-enable when https://github.com/DataDog/dd-trace-java/issues/3979 is fixed
+    return false
   }
 }

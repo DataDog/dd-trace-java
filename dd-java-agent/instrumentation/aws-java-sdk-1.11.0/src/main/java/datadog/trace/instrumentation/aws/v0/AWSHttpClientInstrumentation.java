@@ -1,11 +1,10 @@
 package datadog.trace.instrumentation.aws.v0;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.instrumentation.aws.v0.OnErrorDecorator.DECORATE;
-import static datadog.trace.instrumentation.aws.v0.OnErrorDecorator.SCOPE_CONTEXT_KEY;
-import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
+import static datadog.trace.instrumentation.aws.v0.OnErrorDecorator.SPAN_CONTEXT_KEY;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.Request;
@@ -14,6 +13,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
 
 /**
@@ -36,13 +36,15 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".OnErrorDecorator"};
+    return new String[] {
+      packageName + ".OnErrorDecorator", packageName + ".AwsNameCache",
+    };
   }
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        isMethod().and(not(isAbstract())).and(named("doExecute")),
+        isMethod().and(named("doExecute")),
         AWSHttpClientInstrumentation.class.getName() + "$HttpClientAdvice");
   }
 
@@ -51,14 +53,21 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing
     public static void methodExit(
         @Advice.Argument(value = 0, optional = true) final Request<?> request,
         @Advice.Thrown final Throwable throwable) {
-      if (throwable != null) {
-        final AgentScope scope = request.getHandlerContext(SCOPE_CONTEXT_KEY);
-        if (scope != null) {
-          request.addHandlerContext(SCOPE_CONTEXT_KEY, null);
-          final AgentSpan span = scope.span();
+
+      final AgentScope scope = activeScope();
+      // check name in case TracingRequestHandler failed to activate the span
+      if (scope != null
+          && (AwsNameCache.spanName(request).equals(scope.span().getSpanName())
+              || scope.span() instanceof AgentTracer.NoopAgentSpan)) {
+        scope.close();
+      }
+
+      if (throwable != null && request != null) {
+        final AgentSpan span = request.getHandlerContext(SPAN_CONTEXT_KEY);
+        if (span != null) {
+          request.addHandlerContext(SPAN_CONTEXT_KEY, null);
           DECORATE.onError(span, throwable);
           DECORATE.beforeFinish(span);
-          scope.close();
           span.finish();
         }
       }
@@ -79,13 +88,15 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing
 
     @Override
     public String[] helperClassNames() {
-      return new String[] {packageName + ".OnErrorDecorator"};
+      return new String[] {
+        packageName + ".OnErrorDecorator", packageName + ".AwsNameCache",
+      };
     }
 
     @Override
     public void adviceTransformations(AdviceTransformation transformation) {
       transformation.applyAdvice(
-          isMethod().and(not(isAbstract())).and(named("doExecute")),
+          isMethod().and(named("doExecute")),
           RequestExecutorInstrumentation.class.getName() + "$RequestExecutorAdvice");
     }
 
@@ -94,14 +105,21 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing
       public static void methodExit(
           @Advice.FieldValue("request") final Request<?> request,
           @Advice.Thrown final Throwable throwable) {
+
+        final AgentScope scope = activeScope();
+        // check name in case TracingRequestHandler failed to activate the span
+        if (scope != null
+            && (AwsNameCache.spanName(request).equals(scope.span().getSpanName())
+                || scope.span() instanceof AgentTracer.NoopAgentSpan)) {
+          scope.close();
+        }
+
         if (throwable != null) {
-          final AgentScope scope = request.getHandlerContext(SCOPE_CONTEXT_KEY);
-          if (scope != null) {
-            request.addHandlerContext(SCOPE_CONTEXT_KEY, null);
-            final AgentSpan span = scope.span();
+          final AgentSpan span = request.getHandlerContext(SPAN_CONTEXT_KEY);
+          if (span != null) {
+            request.addHandlerContext(SPAN_CONTEXT_KEY, null);
             DECORATE.onError(span, throwable);
             DECORATE.beforeFinish(span);
-            scope.close();
             span.finish();
           }
         }

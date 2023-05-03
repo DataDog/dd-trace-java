@@ -4,7 +4,8 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.core.DDSpan;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -49,11 +50,11 @@ class DDSpanJsonAdapter extends JsonAdapter<DDSpan> {
     writer.name("resource");
     writer.value(span.getResourceName().toString());
     writer.name("trace_id");
-    writeId(writer, span.getTraceId());
+    writeTraceId(writer, span.getTraceId());
     writer.name("span_id");
-    writeId(writer, span.getSpanId());
+    writeSpanId(writer, span.getSpanId());
     writer.name("parent_id");
-    writeId(writer, span.getParentId());
+    writeSpanId(writer, span.getParentId());
     writer.name("start");
     writer.value(span.getStartTime());
     writer.name("duration");
@@ -90,12 +91,21 @@ class DDSpanJsonAdapter extends JsonAdapter<DDSpan> {
     writer.endObject();
   }
 
-  private void writeId(final com.squareup.moshi.JsonWriter writer, final DDId id)
+  private void writeTraceId(final com.squareup.moshi.JsonWriter writer, final DDTraceId id)
       throws IOException {
     if (hexIds) {
       writer.value(id.toHexString());
     } else {
       writer.value(id.toLong());
+    }
+  }
+
+  private void writeSpanId(final com.squareup.moshi.JsonWriter writer, final long id)
+      throws IOException {
+    if (hexIds) {
+      writer.value(DDSpanId.toHexString(id));
+    } else {
+      writer.value(id);
     }
   }
 }

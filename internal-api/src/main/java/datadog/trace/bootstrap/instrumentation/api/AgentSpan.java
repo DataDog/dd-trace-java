@@ -1,16 +1,17 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
+import datadog.trace.api.sampling.PrioritySampling;
 import java.util.Map;
 
 public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
-  DDId getTraceId();
+  DDTraceId getTraceId();
 
-  DDId getSpanId();
+  long getSpanId();
 
   @Override
   AgentSpan setTag(String key, boolean value);
@@ -30,6 +31,18 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
   @Override
   AgentSpan setTag(String key, Number value);
+
+  /**
+   * Set a span attribute.
+   *
+   * <p>Existing attributes with the same name will be replaced. Setting a {@code null} value will
+   * do nothing.
+   *
+   * @param key The span attribute key.
+   * @param value The span attribute value.
+   * @return The span instance.
+   */
+  AgentSpan setAttribute(String key, Object value);
 
   @Override
   AgentSpan setMetric(CharSequence key, int value);
@@ -53,22 +66,6 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
   AgentSpan setErrorMessage(String errorMessage);
 
   AgentSpan addThrowable(Throwable throwable);
-
-  /**
-   * Sets the span checkpoint emission state
-   *
-   * @param value {@literal true} to enable checkpoint emission, {@literal false} otherwise
-   */
-  void setEmittingCheckpoints(boolean value);
-
-  /**
-   * Checks the span checkpoint emission state
-   *
-   * @return a {@literal true/false} value or {@literal null} if the state needs to be set yet
-   */
-  Boolean isEmittingCheckpoints();
-
-  boolean hasCheckpoints();
 
   @Override
   AgentSpan getLocalRootSpan();
@@ -139,28 +136,45 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
   boolean eligibleForDropping();
 
-  /** mark that the span has been captured in some task which will resume asynchronously. */
-  void startThreadMigration();
-
-  /** mark that the work associated with the span has resumed on a new thread */
-  void finishThreadMigration();
-
-  void startWork();
-
-  /** Mark the end of a task associated with the span */
-  void finishWork();
-
   /** RequestContext for the Instrumentation Gateway */
   RequestContext getRequestContext();
 
   void mergePathwayContext(PathwayContext pathwayContext);
 
+  Integer forceSamplingDecision();
+
   interface Context {
-    DDId getTraceId();
+    /**
+     * Gets the TraceId of the span's trace.
+     *
+     * @return The TraceId of the span's trace, or {@link DDTraceId#ZERO} if not set.
+     */
+    DDTraceId getTraceId();
 
-    DDId getSpanId();
+    /**
+     * Gets the SpanId.
+     *
+     * @return The span identifier, or {@link datadog.trace.api.DDSpanId#ZERO} if not set.
+     */
+    long getSpanId();
 
+    /**
+     * Get the span's trace.
+     *
+     * @return The span's trace, or a noop {@link AgentTracer.NoopAgentTrace#INSTANCE} if the trace
+     *     is not valid.
+     */
     AgentTrace getTrace();
+
+    /**
+     * Gets the trace sampling priority of the span's trace.
+     *
+     * <p>Check {@link PrioritySampling} for possible values.
+     *
+     * @return The trace sampling priority of the span's trace, or {@link PrioritySampling#UNSET} if
+     *     no priority has been set.
+     */
+    int getSamplingPriority();
 
     Iterable<Map.Entry<String, String>> baggageItems();
 
@@ -169,13 +183,17 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
     interface Extracted extends Context {
       String getForwarded();
 
-      String getForwardedProto();
+      String getFastlyClientIp();
 
-      String getForwardedHost();
+      String getCfConnectingIp();
 
-      String getForwardedIp();
+      String getCfConnectingIpv6();
 
-      String getForwardedPort();
+      String getXForwardedProto();
+
+      String getXForwardedHost();
+
+      String getXForwardedPort();
 
       String getForwardedFor();
 
@@ -187,11 +205,9 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
       String getXRealIp();
 
-      String getClientIp();
+      String getXClientIp();
 
       String getUserAgent();
-
-      String getVia();
 
       String getTrueClientIp();
 

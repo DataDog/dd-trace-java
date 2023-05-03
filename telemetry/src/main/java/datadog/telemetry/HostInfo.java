@@ -1,14 +1,14 @@
 package datadog.telemetry;
 
+import datadog.trace.api.Config;
+import datadog.trace.api.Platform;
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
+import java.security.AccessControlException;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -20,62 +20,81 @@ public class HostInfo {
   private static final Path PROC_HOSTNAME =
       FileSystems.getDefault().getPath("/proc/sys/kernel/hostname");
   private static final Path ETC_HOSTNAME = FileSystems.getDefault().getPath("/etc/hostname");
-  private static final List<Path> HOSTNAME_FILES = Arrays.asList(PROC_HOSTNAME, ETC_HOSTNAME);
 
+  private static final Path PROC_VERSION = FileSystems.getDefault().getPath("/proc/version");
   private static final Logger log = LoggerFactory.getLogger(RequestBuilder.class);
 
+  private static String hostname;
+  private static String osName;
+  private static String osVersion;
+  private static String kernelRelease;
+  private static String kernelVersion;
+  private static String architecture;
+
   public static String getHostname() {
-    String hostname = Uname.UTS_NAME.nodename();
-
-    if (hostname == null) {
-      for (Path file : HOSTNAME_FILES) {
-        hostname = tryReadFile(file);
-        if (null != hostname) {
-          break;
-        }
-      }
-    }
-
-    if (hostname == null) {
-      try {
-        hostname = getHostNameFromLocalHost();
-      } catch (UnknownHostException e) {
-        // purposefully left empty
-      }
-    }
-
     if (hostname != null) {
-      hostname = hostname.trim();
-    } else {
-      log.warn("Could not determine hostname");
-      hostname = "";
+      return hostname;
     }
-
+    HostInfo.hostname = Config.get().getHostName();
     return hostname;
   }
 
   public static String getOsName() {
-    return System.getProperty("os.name");
+    if (osName == null) {
+      if (Platform.isMac()) {
+        // os.name == Mac OS X, while uanme -s == Darwin. We'll hardcode it to Darwin.
+        osName = "Darwin";
+      } else {
+        osName = System.getProperty("os.name");
+      }
+    }
+    return osName;
   }
 
   public static String getOsVersion() {
-    return Os.getOsVersion();
+    if (osVersion == null) {
+      osVersion = Os.getOsVersion();
+    }
+    return osVersion;
   }
 
   public static String getKernelName() {
-    return Uname.UTS_NAME.sysname();
+    return getOsName();
   }
 
   public static String getKernelRelease() {
-    return Uname.UTS_NAME.release();
+    if (kernelRelease == null) {
+      // In Linux, os.version == uname -r
+      kernelRelease = System.getProperty("os.version");
+    }
+    return kernelRelease;
   }
 
   public static String getKernelVersion() {
-    return Uname.UTS_NAME.version();
+    if (kernelVersion == null) {
+      // This is not really equivalent to uname -v in Linux, it has some additional info at the end,
+      // like arch.
+      String version = tryReadFile(PROC_VERSION);
+      if (version != null) {
+        version = version.trim();
+        final int dashIdx = version.indexOf('#');
+        if (dashIdx > 0) {
+          version = version.substring(dashIdx);
+        }
+        kernelVersion = version;
+      } else {
+        kernelVersion = System.getProperty("os.version");
+      }
+    }
+    return kernelVersion;
   }
 
-  private static String getHostNameFromLocalHost() throws UnknownHostException {
-    return InetAddress.getLocalHost().getHostName();
+  public static String getArchitecture() {
+    if (architecture == null) {
+      // In Linux, os.arch == uname -me
+      architecture = System.getProperty("os.arch");
+    }
+    return architecture;
   }
 
   private static String tryReadFile(Path file) {
@@ -84,7 +103,7 @@ public class HostInfo {
       try {
         byte[] bytes = Files.readAllBytes(file);
         content = new String(bytes, StandardCharsets.ISO_8859_1);
-      } catch (IOException e) {
+      } catch (IOException | AccessControlException e) {
         log.debug("Could not read {}", file, e);
       }
     }
@@ -114,7 +133,8 @@ public class HostInfo {
               version = matcher.group("value");
             }
           }
-        } catch (IOException e) {
+        } catch (IOException | AccessControlException e) {
+          log.debug("Could not read {}", OS_RELEASE_PATH, e);
         }
         if (name != null && version != null) {
           return name + " " + version;

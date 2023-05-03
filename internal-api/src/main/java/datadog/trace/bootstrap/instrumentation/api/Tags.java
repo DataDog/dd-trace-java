@@ -9,6 +9,9 @@ public class Tags {
   public static final String SPAN_KIND_CONSUMER = "consumer";
   public static final String SPAN_KIND_BROKER = "broker";
   public static final String SPAN_KIND_TEST = "test";
+  public static final String SPAN_KIND_TEST_SUITE = "test_suite_end";
+  public static final String SPAN_KIND_TEST_MODULE = "test_module_end";
+  public static final String SPAN_KIND_TEST_SESSION = "test_session_end";
 
   public static final String HTTP_URL = "http.url";
   public static final String HTTP_HOSTNAME = "http.hostname";
@@ -38,6 +41,7 @@ public class Tags {
   public static final String DB_STATEMENT = "db.statement";
   public static final String MESSAGE_BUS_DESTINATION = "message_bus.destination";
 
+  public static final String TEST_MODULE = "test.module";
   public static final String TEST_SUITE = "test.suite";
   public static final String TEST_NAME = "test.name";
   public static final String TEST_STATUS = "test.status";
@@ -46,6 +50,18 @@ public class Tags {
   public static final String TEST_SKIP_REASON = "test.skip_reason";
   public static final String TEST_TYPE = "test.type";
   public static final String TEST_PARAMETERS = "test.parameters";
+  public static final String TEST_CODEOWNERS = "test.codeowners";
+  public static final String TEST_SOURCE_FILE = "test.source.file";
+  public static final String TEST_SOURCE_START = "test.source.start";
+  public static final String TEST_SOURCE_END = "test.source.end";
+  public static final String TEST_TRAITS = "test.traits";
+  public static final String TEST_COMMAND = "test.command";
+  public static final String TEST_TOOLCHAIN = "test.toolchain";
+  public static final String TEST_EXECUTION = "test.execution";
+
+  public static final String TEST_SESSION_ID = "test_session_id";
+  public static final String TEST_MODULE_ID = "test_module_id";
+  public static final String TEST_SUITE_ID = "test_suite_id";
 
   public static final String CI_PROVIDER_NAME = "ci.provider.name";
   public static final String CI_PIPELINE_ID = "ci.pipeline.id";
@@ -79,4 +95,6 @@ public class Tags {
   public static final String DD_SERVICE = "dd.service";
   public static final String DD_VERSION = "dd.version";
   public static final String DD_ENV = "dd.env";
+
+  public static final String ENV = "env";
 }

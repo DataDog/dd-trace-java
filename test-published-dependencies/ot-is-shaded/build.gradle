@@ -1,0 +1,124 @@
+import java.util.regex.Pattern
+import java.util.zip.ZipInputStream
+
+plugins {
+  id 'java'
+}
+
+configurations {
+  jarfile
+}
+
+dependencies {
+  jarfile "com.datadoghq:dd-trace-ot:$version"
+  implementation gradleApi()
+}
+
+abstract class CheckJarContentsTask extends DefaultTask {
+  @InputFile
+  File file
+
+  @Input
+  String[] expectedPatterns
+
+  @Input
+  String[] excludedPatterns
+
+  @TaskAction
+  def check() {
+    def contents = listJarFileContents(this.file)
+    def expectedPatterns = buildPatterns(this.expectedPatterns)
+    def excludedPatterns = buildPatterns(this.excludedPatterns)
+    checkAllExpectedContentIsPresent(contents, expectedPatterns)
+    checkUnexpectedContent(contents, expectedPatterns, true)
+    checkUnexpectedContent(contents, excludedPatterns, false)
+  }
+
+  static def buildPatterns(String[] patterns) {
+    return patterns.collect { it ->
+      Pattern::compile(it)
+    }
+  }
+
+  static def listJarFileContents(File jarFile) {
+    def contents = []
+    try (ZipInputStream zipInputStream = new ZipInputStream(new FileInputStream(jarFile))) {
+      def entry = zipInputStream.getNextEntry()
+      while (entry != null) {
+        contents << entry.name
+        entry = zipInputStream.getNextEntry()
+      }
+    }
+    return contents
+  }
+
+  static def checkAllExpectedContentIsPresent(Collection<String> contents, Collection<Pattern> expectedPatterns) {
+    for (final def expectedPattern in expectedPatterns) {
+      def found = false
+      for (final def file in contents) {
+        if (expectedPattern.matcher(file).matches()) {
+          found = true
+          break
+        }
+      }
+      if (!found) {
+        throw new RuntimeException('Unable to find content matching ' + expectedPattern.pattern() + ' in jar file.')
+      }
+    }
+  }
+
+  static def checkUnexpectedContent(Collection<String> contents, Collection<Pattern> patterns, boolean isExpected) {
+    def unexpectedContent = []
+    for (final def file in contents) {
+      def matches = patterns.any( it -> it.matcher(file).matches())
+      if (matches != isExpected) {
+        unexpectedContent << file
+      }
+    }
+    if (!unexpectedContent.isEmpty()) {
+      throw new RuntimeException('Found unexpected content in JAR file: ' + unexpectedContent.join(', ') + '.')
+    }
+  }
+}
+
+def jarFile = configurations.jarfile.filter {
+  it.name.startsWith('dd-trace-ot')
+}.singleFile
+
+tasks.register('checkJarContents', CheckJarContentsTask) {
+  file = jarFile
+  expectedPatterns = [
+    '^[^/]*\\.version$',
+    '^DDSketch.proto$',
+    '^META-INF/.*$',
+    '^com/$',
+    '^com/kenai/$',
+    '^com/kenai/jffi/.*$',
+    '^datadog/.*$',
+    '^ddtrot/.*$'
+  ]
+  excludedPatterns = [
+    '^dd-trace-api.version$',
+    '^datadog/trace/api/Trace.class$',
+    '^datadog/trace/api/Tracer.class$',
+    '^datadog/trace/api/config/TracerConfig.class$',
+    '^datadog/trace/api/interception/TraceInterceptor.class$',
+    '^datadog/trace/api/internal/InternalApi.class$',
+    '^datadog/trace/api/sampling/PrioritySampling.class$',
+    '^datadog/trace/context/TraceScope.class$',
+  ]
+}
+
+tasks.register('checkJarSize') {
+  inputs.file(jarFile)
+  doLast {
+    // Arbitrary limit to prevent unintentional increases to the dd-trace-ot jar size
+    // Raise or lower as required
+    assert jarFile.length() <= 7 * 1024 * 1024
+  }
+}
+
+tasks.named('check').configure {
+  dependsOn 'checkJarContents'
+  dependsOn 'checkJarSize'
+}

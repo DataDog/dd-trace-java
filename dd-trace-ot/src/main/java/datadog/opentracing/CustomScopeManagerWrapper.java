@@ -8,6 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
+import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 import datadog.trace.util.AgentTaskScheduler;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
@@ -110,9 +111,9 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
   }
 
   @Override
-  public AgentScope.Continuation captureSpan(final AgentSpan span, ScopeSource source) {
+  public AgentScope.Continuation captureSpan(final AgentSpan span) {
     // I can't see a better way to do this, and I don't know if this even makes sense.
-    try (AgentScope scope = this.activate(span, source)) {
+    try (AgentScope scope = this.activate(span, ScopeSource.INSTRUMENTATION)) {
       return scope.capture();
     }
   }
@@ -145,6 +146,26 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
       scheduleIterationSpanCleanup(agentSpan);
     }
     return converter.toAgentScope(span, scope);
+  }
+
+  @Override
+  public ScopeState newScopeState() {
+    return new CustomScopeState();
+  }
+
+  private class CustomScopeState implements ScopeState {
+
+    private AgentSpan span = activeSpan();
+
+    @Override
+    public void activate() {
+      CustomScopeManagerWrapper.this.activate(span, ScopeSource.INSTRUMENTATION);
+    }
+
+    @Override
+    public void fetchFromActive() {
+      span = activeSpan();
+    }
   }
 
   private void scheduleIterationSpanCleanup(final AgentSpan span) {
@@ -231,7 +252,6 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
           }
           spans.poll();
         }
-        s.finishThreadMigration();
         s.finishWithEndToEnd();
       }
     }
@@ -239,7 +259,6 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
     public void finishAllSpans() {
       synchronized (spans) {
         for (AgentSpan s : spans) {
-          s.finishThreadMigration();
           s.finishWithEndToEnd();
         }
         // no need to clear as this is only called when the owning thread is no longer alive

@@ -1,8 +1,9 @@
-import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.naming.SpanNaming
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.test.util.Flaky
 import groovy.json.JsonSlurper
 import org.apache.http.HttpHost
 import org.apache.http.client.config.RequestConfig
@@ -18,13 +19,12 @@ import org.elasticsearch.http.HttpServerTransport
 import org.elasticsearch.node.Node
 import org.elasticsearch.node.internal.InternalSettingsPreparer
 import org.elasticsearch.transport.Netty3Plugin
-import spock.lang.Retry
 import spock.lang.Shared
 
 import static org.elasticsearch.cluster.ClusterName.CLUSTER_NAME_SETTING
 
-@Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
-class Elasticsearch5RestClientTest extends AgentTestRunner {
+@Flaky
+abstract class Elasticsearch5RestClientTest extends VersionedNamingTestBase {
   @Shared
   TransportAddress httpTransportAddress
   @Shared
@@ -74,9 +74,6 @@ class Elasticsearch5RestClientTest extends AgentTestRunner {
 
   def "test elasticsearch status"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     Response response = client.performRequest("GET", "_cluster/health")
 
@@ -88,9 +85,9 @@ class Elasticsearch5RestClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(2) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "GET _cluster/health"
-          operationName "elasticsearch.rest.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           parent()
           tags {
@@ -105,9 +102,9 @@ class Elasticsearch5RestClientTest extends AgentTestRunner {
           }
         }
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "GET _cluster/health"
-          operationName "http.request"
+          operationName SpanNaming.instance().namingSchema().client().operationForComponent("apache-httpasyncclient")
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
           tags {
@@ -121,5 +118,41 @@ class Elasticsearch5RestClientTest extends AgentTestRunner {
         }
       }
     }
+  }
+}
+
+class Elasticsearch5RestClientV0ForkedTest extends Elasticsearch5RestClientTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return "elasticsearch"
+  }
+
+  @Override
+  String operation() {
+    return "elasticsearch.rest.query"
+  }
+}
+
+class Elasticsearch5RestClientV1ForkedTest extends Elasticsearch5RestClientTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return Config.get().getServiceName()
+  }
+
+  @Override
+  String operation() {
+    return "elasticsearch.query"
   }
 }

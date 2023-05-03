@@ -1,5 +1,9 @@
 package datadog.smoketest;
 
+import static com.datadog.debugger.el.DSL.eq;
+import static com.datadog.debugger.el.DSL.ref;
+import static com.datadog.debugger.el.DSL.when;
+import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -7,11 +11,15 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
-import com.datadog.debugger.agent.SnapshotProbe;
-import com.datadog.debugger.util.TagsHelper;
+import com.datadog.debugger.el.DSL;
+import com.datadog.debugger.el.ProbeCondition;
+import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Platform;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.util.TagsHelper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,8 +28,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.DisplayName;
@@ -33,8 +39,9 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
   private static final Logger LOG = LoggerFactory.getLogger(DebuggerIntegrationTest.class);
   private static final String DEBUGGER_TEST_APP_CLASS =
       "datadog.smoketest.debugger.DebuggerTestApplication";
-
-  private static final String PROBE_ID = "123356536";
+  private static final ProbeId PROBE_ID = new ProbeId("123356536", 0);
+  private static final ProbeId PROBE_ID2 = new ProbeId("1233565368", 12);
+  private static final String MAIN_CLASS_NAME = "Main";
 
   @Override
   protected String getAppClass() {
@@ -49,7 +56,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
   @Test
   @DisplayName("testLatestJdk")
   void testLatestJdk() throws Exception {
-    SnapshotProbe probe = SnapshotProbe.builder().where("App", "getGreeting").build();
+    LogProbe probe = LogProbe.builder().where("App", "getGreeting").build();
     setCurrentConfiguration(createConfig(probe));
     String classpath = System.getProperty("datadog.smoketest.shadowJar.external.path");
     if (classpath == null) {
@@ -73,11 +80,8 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
   @DisplayName("testShutdown")
   void testShutdown() throws Exception {
     final String METHOD_NAME = "emptyMethod";
-    SnapshotProbe probe =
-        SnapshotProbe.builder()
-            .probeId(PROBE_ID)
-            .where("DebuggerTestApplication", METHOD_NAME)
-            .build();
+    LogProbe probe =
+        LogProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, METHOD_NAME).build();
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, "3").start();
 
@@ -95,11 +99,8 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
   @DisplayName("testDestroy")
   void testDestroy() throws Exception {
     final String METHOD_NAME = "fullMethod";
-    SnapshotProbe probe =
-        SnapshotProbe.builder()
-            .probeId(PROBE_ID)
-            .where("DebuggerTestApplication", METHOD_NAME)
-            .build();
+    LogProbe probe =
+        LogProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, METHOD_NAME).build();
     setCurrentConfiguration(createConfig(probe));
     datadogAgentServer.enqueue(
         new MockResponse()
@@ -122,11 +123,8 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
   @DisplayName("testInaccessibleObject")
   void testInaccessibleObject() throws Exception {
     final String METHOD_NAME = "managementMethod";
-    SnapshotProbe probe =
-        SnapshotProbe.builder()
-            .probeId(PROBE_ID)
-            .where("DebuggerTestApplication", METHOD_NAME)
-            .build();
+    LogProbe probe =
+        LogProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, METHOD_NAME).build();
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, "3").start();
     RecordedRequest request = retrieveSnapshotRequest();
@@ -139,10 +137,11 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
   @DisplayName("testFullMethod")
   void testFullMethod() throws Exception {
     final String METHOD_NAME = "fullMethod";
-    SnapshotProbe probe =
-        SnapshotProbe.builder()
+    LogProbe probe =
+        LogProbe.builder()
             .probeId(PROBE_ID)
-            .where("DebuggerTestApplication", METHOD_NAME)
+            .where(MAIN_CLASS_NAME, METHOD_NAME)
+            .captureSnapshot(true)
             .build();
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, "3").start();
@@ -169,15 +168,67 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
     assertNull(snapshot.getCaptures().getReturn().getFields());
   }
 
-  private void assertFullMethodCaptureArgs(Snapshot.CapturedContext context) {
-    if ("IBM Corporation".equals(Platform.getRuntimeVendor())) {
-      // skip for IBM as we cannot get local variable debug info.
+  @Test
+  @DisplayName("testFullMethodWithCondition")
+  void testFullMethodWithCondition() throws Exception {
+    final String METHOD_NAME = "fullMethod";
+    LogProbe probe =
+        LogProbe.builder()
+            .probeId(PROBE_ID)
+            .where(MAIN_CLASS_NAME, METHOD_NAME)
+            .when(
+                new ProbeCondition(
+                    when(eq(ref("argStr"), DSL.value("foobar"))), "argStr == \"foobar\""))
+            .captureSnapshot(true)
+            .build();
+    setCurrentConfiguration(createConfig(probe));
+    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, "3").start();
+    RecordedRequest request = retrieveSnapshotRequest();
+    assertNotNull(request);
+    assertFalse(logHasErrors(logFilePath, it -> false));
+    String bodyStr = request.getBody().readUtf8();
+    JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
+    System.out.println(bodyStr);
+    Snapshot snapshot = adapter.fromJson(bodyStr).get(0).getDebugger().getSnapshot();
+    assertEquals("123356536", snapshot.getProbe().getId());
+    assertFullMethodCaptureArgs(snapshot.getCaptures().getEntry());
+  }
+
+  @Test
+  @DisplayName("testFullMethodWithLogTemplate")
+  void testFullMethodWithLogTemplate() throws Exception {
+    final String METHOD_NAME = "fullMethod";
+    final String LOG_TEMPLATE = "log line {argInt} {argStr} {argDouble} {argMap} {argVar}";
+    LogProbe probe =
+        LogProbe.builder()
+            .probeId(PROBE_ID)
+            .where(MAIN_CLASS_NAME, METHOD_NAME)
+            .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
+            .build();
+    setCurrentConfiguration(createConfig(probe));
+    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, "3").start();
+    RecordedRequest request = retrieveSnapshotRequest();
+    assertNotNull(request);
+    assertFalse(logHasErrors(logFilePath, it -> false));
+    String bodyStr = request.getBody().readUtf8();
+    JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
+    System.out.println(bodyStr);
+    JsonSnapshotSerializer.IntakeRequest intakeRequest = adapter.fromJson(bodyStr).get(0);
+    assertEquals("123356536", intakeRequest.getDebugger().getSnapshot().getProbe().getId());
+    assertEquals(
+        "log line 42 foobar 3.42 {[key1=val1], [key2=val2], [key3=val3]} [var1, var2, var3]",
+        intakeRequest.getMessage());
+  }
+
+  private void assertFullMethodCaptureArgs(CapturedContext context) {
+    if (Platform.isJ9()) {
+      // skip for J9/OpenJ9 as we cannot get local variable debug info.
       return;
     }
     assertCaptureArgs(context, "argInt", "int", "42");
     assertCaptureArgs(context, "argStr", "java.lang.String", "foobar");
     assertCaptureArgs(context, "argDouble", "double", "3.42");
-    assertCaptureArgs(context, "argMap", "java.util.Map", "{key1=val1, key2=val2, key3=val3}");
+    assertCaptureArgs(context, "argMap", "java.util.HashMap", "{key1=val1, key2=val2, key3=val3}");
     assertCaptureArgs(context, "argVar", "java.lang.String[]", "[var1, var2, var3]");
   }
 
@@ -185,13 +236,10 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
   @DisplayName("testMultiProbes")
   void testMultiProbes() throws Exception {
     final String METHOD_NAME = "fullMethod";
-    List<SnapshotProbe> probes = new ArrayList<>();
+    List<LogProbe> probes = new ArrayList<>();
     for (int i = 0; i < 10; i++) {
       probes.add(
-          SnapshotProbe.builder()
-              .probeId("12335653" + i)
-              .where("DebuggerTestApplication", METHOD_NAME)
-              .build());
+          LogProbe.builder().probeId(getProbeId(i)).where(MAIN_CLASS_NAME, METHOD_NAME).build());
     }
     setCurrentConfiguration(createConfig(probes));
     final int NB_SNAPSHOTS = 10;
@@ -216,30 +264,13 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
     }
     assertEquals(NB_SNAPSHOTS, probeIds.size());
     for (int i = 0; i < NB_SNAPSHOTS; i++) {
-      assertTrue(probeIds.contains("12335653" + i));
+      assertTrue(probeIds.contains(String.valueOf(i)));
     }
     assertFalse(logHasErrors(logFilePath, it -> false));
   }
 
-  private static boolean logHasErrors(Path logFilePath, Function<String, Boolean> checker)
-      throws IOException {
-    final AtomicBoolean hasErrors = new AtomicBoolean();
-    Files.lines(logFilePath)
-        .forEach(
-            it -> {
-              if (it.contains(" ERROR ")
-                  || it.contains("ASSERTION FAILED")
-                  || it.contains("Error:")) {
-                System.out.println(it);
-                hasErrors.set(true);
-              }
-              hasErrors.set(hasErrors.get() || checker.apply(it));
-            });
-    if (hasErrors.get()) {
-      System.out.println(
-          "Test application log is containing errors. See full run logs in " + logFilePath);
-    }
-    return hasErrors.get();
+  private ProbeId getProbeId(int i) {
+    return new ProbeId(String.valueOf(i), 0);
   }
 
   private static void assertContainsLogLine(Path logFilePath, String containsLine)

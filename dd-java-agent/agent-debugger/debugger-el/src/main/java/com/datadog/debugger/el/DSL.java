@@ -1,29 +1,32 @@
 package com.datadog.debugger.el;
 
 import com.datadog.debugger.el.expressions.BinaryExpression;
+import com.datadog.debugger.el.expressions.BinaryOperator;
+import com.datadog.debugger.el.expressions.BooleanExpression;
 import com.datadog.debugger.el.expressions.ComparisonExpression;
+import com.datadog.debugger.el.expressions.ComparisonOperator;
+import com.datadog.debugger.el.expressions.ContainsExpression;
+import com.datadog.debugger.el.expressions.EndsWithExpression;
 import com.datadog.debugger.el.expressions.FilterCollectionExpression;
+import com.datadog.debugger.el.expressions.GetMemberExpression;
 import com.datadog.debugger.el.expressions.HasAllExpression;
 import com.datadog.debugger.el.expressions.HasAnyExpression;
 import com.datadog.debugger.el.expressions.IfElseExpression;
 import com.datadog.debugger.el.expressions.IfExpression;
+import com.datadog.debugger.el.expressions.IndexExpression;
 import com.datadog.debugger.el.expressions.IsEmptyExpression;
 import com.datadog.debugger.el.expressions.LenExpression;
 import com.datadog.debugger.el.expressions.NotExpression;
-import com.datadog.debugger.el.expressions.PredicateExpression;
+import com.datadog.debugger.el.expressions.StartsWithExpression;
+import com.datadog.debugger.el.expressions.StringPredicateExpression;
+import com.datadog.debugger.el.expressions.SubStringExpression;
 import com.datadog.debugger.el.expressions.ValueExpression;
 import com.datadog.debugger.el.expressions.ValueRefExpression;
 import com.datadog.debugger.el.expressions.WhenExpression;
-import com.datadog.debugger.el.predicates.AndPredicate;
-import com.datadog.debugger.el.predicates.EqualsPredicate;
-import com.datadog.debugger.el.predicates.GreaterOrEqualPredicate;
-import com.datadog.debugger.el.predicates.GreaterThanPredicate;
-import com.datadog.debugger.el.predicates.LessOrEqualPredicate;
-import com.datadog.debugger.el.predicates.LessThanPredicate;
-import com.datadog.debugger.el.predicates.OrPredicate;
 import com.datadog.debugger.el.values.BooleanValue;
 import com.datadog.debugger.el.values.ListValue;
 import com.datadog.debugger.el.values.MapValue;
+import com.datadog.debugger.el.values.NullValue;
 import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.ObjectValue;
 import com.datadog.debugger.el.values.StringValue;
@@ -37,74 +40,82 @@ import java.util.Map;
 public class DSL {
   private DSL() {}
 
-  public static final PredicateExpression TRUE = PredicateExpression.TRUE;
-  public static final PredicateExpression FALSE = PredicateExpression.FALSE;
+  public static final BooleanExpression TRUE = BooleanExpression.TRUE;
+  public static final BooleanExpression FALSE = BooleanExpression.FALSE;
 
-  public static PredicateExpression and(PredicateExpression... expressions) {
+  public static BooleanExpression and(BooleanExpression... expressions) {
     if (expressions.length == 0) {
       return FALSE;
     }
-    PredicateExpression expression = expressions[0];
+    BooleanExpression expression = expressions[0];
     for (int i = 1; i < expressions.length; i++) {
       expression = and(expression, expressions[i]);
     }
     return expression;
   }
 
-  public static PredicateExpression and(PredicateExpression left, PredicateExpression right) {
-    return new BinaryExpression(left, right, AndPredicate::new);
+  public static BooleanExpression and(BooleanExpression left, BooleanExpression right) {
+    return new BinaryExpression(left, right, BinaryOperator.AND);
   }
 
-  public static PredicateExpression or(PredicateExpression... expressions) {
+  public static BooleanExpression or(BooleanExpression... expressions) {
     if (expressions.length == 0) {
       return FALSE;
     }
-    PredicateExpression expression = expressions[0];
+    BooleanExpression expression = expressions[0];
     for (int i = 1; i < expressions.length; i++) {
       expression = or(expression, expressions[i]);
     }
     return expression;
   }
 
-  public static PredicateExpression or(PredicateExpression left, PredicateExpression right) {
-    return new BinaryExpression(left, right, OrPredicate::new);
+  public static BooleanExpression or(BooleanExpression left, BooleanExpression right) {
+    return new BinaryExpression(left, right, BinaryOperator.OR);
   }
 
-  public static PredicateExpression gt(ValueExpression<?> left, ValueExpression<?> right) {
-    return new ComparisonExpression(left, right, GreaterThanPredicate::new);
+  public static BooleanExpression gt(ValueExpression<?> left, ValueExpression<?> right) {
+    return new ComparisonExpression(left, right, ComparisonOperator.GT);
   }
 
-  public static PredicateExpression ge(ValueExpression<?> left, ValueExpression<?> right) {
-    return new ComparisonExpression(left, right, GreaterOrEqualPredicate::new);
+  public static BooleanExpression ge(ValueExpression<?> left, ValueExpression<?> right) {
+    return new ComparisonExpression(left, right, ComparisonOperator.GE);
   }
 
-  public static PredicateExpression lt(ValueExpression<?> left, ValueExpression<?> right) {
-    return new ComparisonExpression(left, right, LessThanPredicate::new);
+  public static BooleanExpression lt(ValueExpression<?> left, ValueExpression<?> right) {
+    return new ComparisonExpression(left, right, ComparisonOperator.LT);
   }
 
-  public static PredicateExpression le(ValueExpression<?> left, ValueExpression<?> right) {
-    return new ComparisonExpression(left, right, LessOrEqualPredicate::new);
+  public static BooleanExpression le(ValueExpression<?> left, ValueExpression<?> right) {
+    return new ComparisonExpression(left, right, ComparisonOperator.LE);
   }
 
-  public static PredicateExpression eq(ValueExpression<?> left, ValueExpression<?> right) {
-    return new ComparisonExpression(left, right, EqualsPredicate::new);
+  public static BooleanExpression eq(ValueExpression<?> left, ValueExpression<?> right) {
+    return new ComparisonExpression(left, right, ComparisonOperator.EQ);
   }
 
-  public static PredicateExpression not(PredicateExpression expression) {
+  public static BooleanExpression not(BooleanExpression expression) {
     return new NotExpression(expression);
   }
 
-  public static IfExpression doif(PredicateExpression test, Expression<?> expression) {
+  public static IfExpression doif(BooleanExpression test, Expression<?> expression) {
     return new IfExpression(test, expression);
   }
 
   public static IfElseExpression doif(
-      PredicateExpression test, Expression<?> thenExpression, Expression<?> elseExpression) {
+      BooleanExpression test, Expression<?> thenExpression, Expression<?> elseExpression) {
     return new IfElseExpression(test, thenExpression, elseExpression);
   }
 
   public static ValueRefExpression ref(String path) {
     return new ValueRefExpression(path);
+  }
+
+  public static GetMemberExpression getMember(ValueExpression<?> target, String name) {
+    return new GetMemberExpression(target, name);
+  }
+
+  public static IndexExpression index(ValueExpression<?> target, ValueExpression<?> key) {
+    return new IndexExpression(target, key);
   }
 
   public static Literal<Boolean> value(boolean value) {
@@ -121,6 +132,10 @@ public class DSL {
 
   public static ListValue value(Collection<?> value) {
     return new ListValue(value);
+  }
+
+  public static NullValue nullValue() {
+    return NullValue.INSTANCE;
   }
 
   public static MapValue value(Map<?, ?> value) {
@@ -140,26 +155,44 @@ public class DSL {
     return new IsEmptyExpression(valueExpression);
   }
 
-  public static HasAnyExpression any(
-      ValueExpression<?> valueExpression, PredicateExpression filter) {
+  public static HasAnyExpression any(ValueExpression<?> valueExpression, BooleanExpression filter) {
     return new HasAnyExpression(valueExpression, filter);
   }
 
-  public static HasAllExpression all(
-      ValueExpression<?> valueExpression, PredicateExpression filter) {
+  public static HasAllExpression all(ValueExpression<?> valueExpression, BooleanExpression filter) {
     return new HasAllExpression(valueExpression, filter);
   }
 
   public static FilterCollectionExpression filter(
-      ValueExpression<?> valueExpression, PredicateExpression filter) {
+      ValueExpression<?> valueExpression, BooleanExpression filter) {
     return new FilterCollectionExpression(valueExpression, filter);
   }
 
-  public static ValueExpression<Value<? extends Number>> len(ValueExpression<?> valueExpression) {
+  public static LenExpression len(ValueExpression<?> valueExpression) {
     return new LenExpression(valueExpression);
   }
 
-  public static WhenExpression when(PredicateExpression expression) {
+  public static SubStringExpression subString(
+      ValueExpression<?> valueExpression, int startIndex, int endIndex) {
+    return new SubStringExpression(valueExpression, startIndex, endIndex);
+  }
+
+  public static StringPredicateExpression startsWith(
+      ValueExpression<?> valueExpression, StringValue str) {
+    return new StartsWithExpression(valueExpression, str);
+  }
+
+  public static StringPredicateExpression endsWith(
+      ValueExpression<?> valueExpression, StringValue str) {
+    return new EndsWithExpression(valueExpression, str);
+  }
+
+  public static StringPredicateExpression contains(
+      ValueExpression<?> valueExpression, StringValue str) {
+    return new ContainsExpression(valueExpression, str);
+  }
+
+  public static WhenExpression when(BooleanExpression expression) {
     return new WhenExpression(expression);
   }
 }

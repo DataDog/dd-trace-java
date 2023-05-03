@@ -4,31 +4,37 @@ import static datadog.trace.instrumentation.hazelcast36.HazelcastConstants.COMPO
 import static datadog.trace.instrumentation.hazelcast36.HazelcastConstants.HAZELCAST_NAME;
 import static datadog.trace.instrumentation.hazelcast36.HazelcastConstants.HAZELCAST_OPERATION;
 import static datadog.trace.instrumentation.hazelcast36.HazelcastConstants.HAZELCAST_SERVICE;
+import static datadog.trace.instrumentation.hazelcast36.HazelcastConstants.INSTRUMENTATION_NAME;
 
 import com.hazelcast.core.DistributedObject;
+import datadog.trace.api.Config;
 import datadog.trace.api.Pair;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.api.function.Function;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import datadog.trace.util.Strings;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.function.Function;
 
 /** Decorate Hazelcast distributed object span's with relevant contextual information. */
 public class DistributedObjectDecorator extends ClientDecorator {
-
-  private static final Logger log = LoggerFactory.getLogger(DistributedObjectDecorator.class);
 
   public static final DistributedObjectDecorator DECORATE = new DistributedObjectDecorator();
 
   private static final DDCache<Pair<String, String>, String> QUALIFIED_NAME_CACHE =
       DDCaches.newFixedSizeCache(64);
 
+  private static final String SERVICE_NAME =
+      SpanNaming.instance()
+          .namingSchema()
+          .cache()
+          .service(Config.get().getServiceName(), INSTRUMENTATION_NAME);
+
   private static final Function<Pair<String, String>, String> COMPUTE_QUALIFIED_NAME =
+      // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
       new Function<Pair<String, String>, String>() {
         @Override
         public String apply(Pair<String, String> input) {
@@ -71,7 +77,7 @@ public class DistributedObjectDecorator extends ClientDecorator {
 
   @Override
   protected String service() {
-    return COMPONENT_NAME.toString();
+    return SERVICE_NAME;
   }
 
   /** Decorate trace based on service execution metadata. */
@@ -93,12 +99,6 @@ public class DistributedObjectDecorator extends ClientDecorator {
 
   /** Annotate the span with the results of the operation. */
   public AgentSpan onResult(final AgentSpan span, Object result) {
-
-    // Nothing to do here, so return
-    if (result == null) {
-      return span;
-    }
-
     return span;
   }
 }

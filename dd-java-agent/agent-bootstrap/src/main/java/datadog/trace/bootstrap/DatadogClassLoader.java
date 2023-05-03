@@ -3,6 +3,7 @@ package datadog.trace.bootstrap;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.ref.WeakReference;
 import java.net.URL;
 import java.security.CodeSource;
 import java.security.SecureClassLoader;
@@ -30,6 +31,10 @@ public final class DatadogClassLoader extends SecureClassLoader {
   private final CodeSource agentCodeSource;
   private final String agentResourcePrefix;
   private final AgentJarIndex agentJarIndex;
+
+  private final Object instrumentationClassLoaderLock = new Object();
+  private volatile WeakReference<InstrumentationClassLoader> instrumentationClassLoader =
+      new WeakReference<>(new InstrumentationClassLoader(this));
 
   public DatadogClassLoader(final URL agentJarURL, final ClassLoader parent) throws Exception {
     super(parent);
@@ -86,7 +91,32 @@ public final class DatadogClassLoader extends SecureClassLoader {
   }
 
   @Override
+  protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+    if (name.startsWith("datadog.trace.instrumentation.")
+        && (name.endsWith("$Muzzle") || name.endsWith("Instrumentation"))) {
+      InstrumentationClassLoader cl;
+      if (null == (cl = instrumentationClassLoader.get())) {
+        synchronized (instrumentationClassLoaderLock) {
+          if (null == (cl = instrumentationClassLoader.get())) {
+            // previous instance was unloaded, create fresh one
+            cl = new InstrumentationClassLoader(this);
+            instrumentationClassLoader = new WeakReference<>(cl);
+          }
+        }
+      }
+      return cl.loadInstrumentationClass(name, agentCodeSource);
+    } else {
+      return super.loadClass(name, resolve);
+    }
+  }
+
+  @Override
   protected Class<?> findClass(String name) throws ClassNotFoundException {
+    byte[] buf = loadClassBytes(name);
+    return defineClass(name, buf, 0, buf.length, agentCodeSource);
+  }
+
+  byte[] loadClassBytes(String name) throws ClassNotFoundException {
     String entryName = agentJarIndex.classEntryName(name);
     if (null != entryName) {
       JarEntry jarEntry = agentJarFile.getJarEntry(entryName);
@@ -102,7 +132,7 @@ public final class DatadogClassLoader extends SecureClassLoader {
             bytesRead += delta;
           }
           if (bytesRead == buf.length) {
-            return defineClass(name, buf, 0, buf.length, agentCodeSource);
+            return buf;
           } else {
             log.warn("Malformed class data at {}", jarEntry);
           }

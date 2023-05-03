@@ -74,5 +74,43 @@ class PlatformTest extends DDSpecification {
     "16.0.1"    | 16    | 0     | 1
     "11.0.9.1+1"| 11    | 0     | 9
     "11.0.6+10" | 11    | 0     | 6
+    "17.0.4-x"  | 17    | 0     | 4
+  }
+
+  def "test parse #version is at least #major, #minor, and #update"() {
+    when:
+    def javaVersion = Platform.parseJavaVersion(version)
+    then:
+    javaVersion.isAtLeast(major, minor, update)
+
+    where:
+    version     | major | minor | update
+    "17.0.5+8"  | 17    | 0     | 5
+    "17.0.5"    | 17    | 0     | 5
+    "17.0.6+8"  | 17    | 0     | 5
+    "11.0.17+8" | 11    | 0     | 17
+    "11.0.18+8" | 11    | 0     | 17
+    "11.0.17"   | 11    | 0     | 17
+    "1.8.0_352" | 8     | 0     | 352
+    "1.8.0_362" | 8     | 0     | 352
+  }
+
+  def "JVMRuntime is at least a bit resilient against weird version properties"() {
+    when:
+    def runtime = new Platform.JvmRuntime(propVersion, rtVersion, propName, propVendor)
+
+    then:
+    runtime.version == version
+    runtime.patches == patch
+    runtime.name == name
+    runtime.vendor == vendor
+
+    where:
+    propVersion | rtVersion       | propName         | propVendor     | version     | patch | name             | vendor
+    '1.8.0_265' | '1.8.0_265-b01' | 'OpenJDK'        | 'AdoptOpenJDK' | '1.8.0_265' | 'b01' | 'OpenJDK'        | 'AdoptOpenJDK'
+    '1.8.0_265' | '1.8-b01'       | 'OpenJDK'        | 'AdoptOpenJDK' | '1.8.0_265' | ''    | 'OpenJDK'        | 'AdoptOpenJDK'
+    '19'        | '19'            | 'OpenJDK 64-Bit' | 'Homebrew'     | '19'        | ''    | 'OpenJDK 64-Bit' | 'Homebrew'
+    '17'        | null            | null             | null           | '17'        | ''    | ''               | ''
+    null        | '17'            | null             | null           | ''          | ''    | ''               | ''
   }
 }

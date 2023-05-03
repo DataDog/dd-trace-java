@@ -1,29 +1,46 @@
 package com.datadog.iast;
 
+import static com.datadog.iast.IastTag.ANALYZED;
+import static com.datadog.iast.IastTag.SKIPPED;
+
+import com.datadog.iast.HasDependencies.Dependencies;
 import com.datadog.iast.overhead.OverheadController;
-import datadog.trace.api.TraceSegment;
-import datadog.trace.api.function.BiFunction;
+import com.datadog.iast.taint.TaintedObjects;
+import com.datadog.iast.telemetry.IastTelemetry;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.internal.TraceSegment;
+import java.util.function.BiFunction;
+import javax.annotation.Nonnull;
 
 public class RequestEndedHandler implements BiFunction<RequestContext, IGSpanInfo, Flow<Void>> {
 
   private final OverheadController overheadController;
+  private final IastTelemetry telemetry;
 
-  public RequestEndedHandler(final OverheadController overheadController) {
-    this.overheadController = overheadController;
+  public RequestEndedHandler(@Nonnull final Dependencies dependencies) {
+    this.overheadController = dependencies.getOverheadController();
+    this.telemetry = dependencies.getTelemetry();
   }
 
   @Override
   public Flow<Void> apply(final RequestContext requestContext, final IGSpanInfo igSpanInfo) {
-    if (requestContext != null && requestContext.getData(RequestContextSlot.IAST) != null) {
-      final TraceSegment traceSeg = requestContext.getTraceSegment();
-      if (traceSeg != null) {
-        traceSeg.setTagTop("_dd.iast.enabled", 1);
+    final TraceSegment traceSegment = requestContext.getTraceSegment();
+    final IastRequestContext iastRequestContext = IastRequestContext.get(requestContext);
+    if (iastRequestContext != null) {
+      try {
+        ANALYZED.setTagTop(traceSegment);
+        final TaintedObjects taintedObjects = iastRequestContext.getTaintedObjects();
+        if (taintedObjects != null) {
+          taintedObjects.release();
+        }
+        telemetry.onRequestEnded(iastRequestContext, traceSegment);
+      } finally {
+        overheadController.releaseRequest();
       }
-      overheadController.releaseRequest();
+    } else {
+      SKIPPED.setTagTop(traceSegment);
     }
     return Flow.ResultFlow.empty();
   }

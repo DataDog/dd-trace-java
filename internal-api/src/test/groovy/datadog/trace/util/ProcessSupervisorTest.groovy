@@ -1,12 +1,10 @@
 package datadog.trace.util
 
 import datadog.trace.test.util.DDSpecification
-import spock.lang.Requires
 import spock.util.concurrent.PollingConditions
 
 // This test looks at the private "currentProcess" variable because the alternative
 // would be calling "ps -e" repeatedly
-@Requires({ jvm.java8Compatible })
 class ProcessSupervisorTest extends DDSpecification {
   ProcessBuilder createProcessBuilder() {
     // Creates a process that never returns
@@ -58,8 +56,8 @@ class ProcessSupervisorTest extends DDSpecification {
     then:
     conditions.eventually {
       def process = processSupervisor.currentProcess
-      process != null
-      process.isAlive()
+      assert process != null
+      assert process.isAlive()
     }
 
     when:

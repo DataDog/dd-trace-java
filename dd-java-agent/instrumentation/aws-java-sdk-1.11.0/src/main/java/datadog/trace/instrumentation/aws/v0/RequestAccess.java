@@ -1,15 +1,15 @@
 package datadog.trace.instrumentation.aws.v0;
 
 import datadog.trace.api.GenericClassValue;
-import datadog.trace.api.function.Function;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.util.function.Function;
 
 final class RequestAccess {
   private static final ClassValue<RequestAccess> REQUEST_ACCESS =
       GenericClassValue.of(
-          // FIXME replace with RequestAccess::new when JDK8 is baseline
+          // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
           new Function<Class<?>, RequestAccess>() {
             @Override
             public RequestAccess apply(final Class<?> requestType) {

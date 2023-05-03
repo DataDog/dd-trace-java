@@ -3,7 +3,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 /**
  * Allows custom scope managers. See OTScopeManager, CustomScopeManager, and ContextualScopeManager
  */
-public interface AgentScopeManager {
+public interface AgentScopeManager extends ScopeStateAware {
 
   AgentScope activate(AgentSpan span, ScopeSource source);
 
@@ -13,7 +13,7 @@ public interface AgentScopeManager {
 
   AgentSpan activeSpan();
 
-  AgentScope.Continuation captureSpan(AgentSpan span, ScopeSource source);
+  AgentScope.Continuation captureSpan(AgentSpan span);
 
   void closePrevious(boolean finishSpan);
 

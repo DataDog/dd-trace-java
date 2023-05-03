@@ -7,11 +7,13 @@ import static org.junit.Assert.assertNotNull;
 import com.datadog.debugger.agent.Configuration;
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.ProbeStatus;
-import com.datadog.debugger.agent.SnapshotProbe;
+import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.util.MoshiHelper;
+import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.CapturedContext;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -20,6 +22,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import okhttp3.HttpUrl;
@@ -44,8 +47,10 @@ public abstract class BaseIntegrationTest {
           buildDirectory(), "reports", "testProcess." + DebuggerIntegrationTest.class.getName());
   private static final String INFO_CONTENT =
       "{\"endpoints\": [\"v0.4/traces\", \"debugger/v1/input\", \"v0.7/config\"]}";
-  private static final MockResponse agentInfoResponse =
+  private static final MockResponse AGENT_INFO_RESPONSE =
       new MockResponse().setResponseCode(200).setBody(INFO_CONTENT);
+  private static final MockResponse TELEMETRY_RESPONSE = new MockResponse().setResponseCode(202);
+  private static final MockResponse EMPTY_200_RESPONSE = new MockResponse().setResponseCode(200);
 
   protected MockWebServer datadogAgentServer;
   private MockDispatcher probeMockDispatcher;
@@ -104,8 +109,8 @@ public abstract class BaseIntegrationTest {
             "-Ddd.jmxfetch.start-delay=0",
             "-Ddd.jmxfetch.enabled=false",
             "-Ddd.dynamic.instrumentation.enabled=true",
-            "-Ddd.remote_config.enabled=true",
-            "-Ddd.remote_config.initial.poll.interval=1",
+            // "-Ddd.remote_config.enabled=true", // default
+            "-Ddd.remote_config.poll_interval.seconds=1",
             /*"-Ddd.remote_config.integrity_check.enabled=false",
             "-Ddd.dynamic.instrumentation.probe.url=http://localhost:"
                 + probeServer.getPort()
@@ -152,30 +157,39 @@ public abstract class BaseIntegrationTest {
   }
 
   private MockResponse datadogAgentDispatch(RecordedRequest request) {
+    LOG.info("datadogAgentDispatch request path: {}", request.getPath());
     if (request.getPath().equals("/info")) {
-      return agentInfoResponse;
+      return AGENT_INFO_RESPONSE;
+    }
+    if (request.getPath().equals("/telemetry/proxy/api/v2/apmtelemetry")) {
+      // Ack every telemetry request. This is needed if telemetry is enabled in the tests.
+      return TELEMETRY_RESPONSE;
     }
     if (request.getPath().startsWith(SNAPSHOT_URL_PATH)) {
       return new MockResponse().setResponseCode(200);
     }
-    Configuration configuration;
-    synchronized (configLock) {
-      configuration = getCurrentConfiguration();
-      configProvided = true;
-      configLock.notifyAll();
+    if (request.getPath().equals("/v0.7/config")) {
+      Configuration configuration;
+      synchronized (configLock) {
+        configuration = getCurrentConfiguration();
+        configProvided = true;
+        configLock.notifyAll();
+      }
+      if (configuration == null) {
+        configuration = createConfig(Collections.emptyList());
+      }
+      try {
+        JsonAdapter<Configuration> adapter =
+            MoshiConfigTestHelper.createMoshiConfig().adapter(Configuration.class);
+        String json = adapter.toJson(configuration);
+        System.out.println("Sending json config: " + json);
+        String remoteConfigJson = RemoteConfigHelper.encode(json, UUID.randomUUID().toString());
+        return new MockResponse().setResponseCode(200).setBody(remoteConfigJson);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
     }
-    if (configuration == null) {
-      configuration = createConfig(Collections.emptyList());
-    }
-    try {
-      JsonAdapter<Configuration> adapter =
-          MoshiHelper.createMoshiConfig().adapter(Configuration.class);
-      String json = adapter.toJson(configuration);
-      String remoteConfigJson = RemoteConfigHelper.encode(json, configuration.getId());
-      return new MockResponse().setResponseCode(200).setBody(remoteConfigJson);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    return EMPTY_200_RESPONSE;
   }
 
   private Configuration getCurrentConfiguration() {
@@ -191,7 +205,7 @@ public abstract class BaseIntegrationTest {
   }
 
   protected JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> createAdapterForSnapshot() {
-    return MoshiHelper.createMoshiSnapshot()
+    return MoshiSnapshotTestHelper.createMoshiSnapshot()
         .adapter(
             Types.newParameterizedType(List.class, JsonSnapshotSerializer.IntakeRequest.class));
   }
@@ -203,24 +217,29 @@ public abstract class BaseIntegrationTest {
     }
   }
 
-  protected Configuration createConfig(SnapshotProbe snapshotProbe) {
-    return createConfig(Arrays.asList(snapshotProbe));
+  protected Configuration createConfig(LogProbe logProbe) {
+    return createConfig(Arrays.asList(logProbe));
   }
 
-  protected Configuration createConfig(Collection<SnapshotProbe> snapshotProbes) {
-    return new Configuration(getAppId(), 2, snapshotProbes);
+  protected Configuration createConfig(Collection<LogProbe> logProbes) {
+    return new Configuration(getAppId(), logProbes);
   }
 
   protected Configuration createConfig(
-      Collection<SnapshotProbe> snapshotProbes,
+      Collection<LogProbe> logProbes,
       Configuration.FilterList allowList,
       Configuration.FilterList denyList) {
-    return new Configuration(getAppId(), 2, snapshotProbes, null, allowList, denyList, null, null);
+    return Configuration.builder()
+        .setService(getAppId())
+        .addLogProbes(logProbes)
+        .addAllowList(allowList)
+        .addDenyList(denyList)
+        .build();
   }
 
   protected void assertCaptureArgs(
-      Snapshot.CapturedContext context, String name, String typeName, String value) {
-    Snapshot.CapturedValue capturedValue = context.getArguments().get(name);
+      CapturedContext context, String name, String typeName, String value) {
+    CapturedContext.CapturedValue capturedValue = context.getArguments().get(name);
     assertEquals(typeName, capturedValue.getType());
     Object objValue = capturedValue.getValue();
     if (objValue.getClass().isArray()) {
@@ -231,24 +250,43 @@ public abstract class BaseIntegrationTest {
   }
 
   protected void assertCaptureLocals(
-      Snapshot.CapturedContext context, String name, String typeName, String value) {
-    Snapshot.CapturedValue localVar = context.getLocals().get(name);
+      CapturedContext context, String name, String typeName, String value) {
+    CapturedContext.CapturedValue localVar = context.getLocals().get(name);
     assertEquals(typeName, localVar.getType());
     assertEquals(value, localVar.getValue());
   }
 
-  protected void assertCaptureReturnValue(
-      Snapshot.CapturedContext context, String typeName, String value) {
-    Snapshot.CapturedValue returnValue = context.getLocals().get("@return");
+  protected void assertCaptureReturnValue(CapturedContext context, String typeName, String value) {
+    CapturedContext.CapturedValue returnValue = context.getLocals().get("@return");
     assertEquals(typeName, returnValue.getType());
     assertEquals(value, returnValue.getValue());
   }
 
   protected void assertCaptureThrowable(
-      Snapshot.CapturedThrowable throwable, String typeName, String message) {
+      CapturedContext.CapturedThrowable throwable, String typeName, String message) {
     assertNotNull(throwable);
     assertEquals(typeName, throwable.getType());
     assertEquals(message, throwable.getMessage());
+  }
+
+  protected static boolean logHasErrors(Path logFilePath, Function<String, Boolean> checker)
+      throws IOException {
+    long errorLines =
+        Files.lines(logFilePath)
+            .filter(
+                it ->
+                    it.contains(" ERROR ")
+                        || it.contains("ASSERTION FAILED")
+                        || it.contains("Error:")
+                        || checker.apply(it))
+            .peek(System.out::println)
+            .count();
+    boolean hasErrors = errorLines > 0;
+    if (hasErrors) {
+      System.out.println(
+          "Test application log is containing errors. See full run logs in " + logFilePath);
+    }
+    return hasErrors;
   }
 
   private static class MockDispatcher extends okhttp3.mockwebserver.QueueDispatcher {

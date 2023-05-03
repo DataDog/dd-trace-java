@@ -17,7 +17,6 @@ import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import okhttp3.Authenticator;
 import okhttp3.ConnectionPool;
 import okhttp3.ConnectionSpec;
 import okhttp3.Credentials;
@@ -27,8 +26,6 @@ import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
-import okhttp3.Response;
-import okhttp3.Route;
 import okio.BufferedSink;
 import okio.GzipSink;
 import okio.Okio;
@@ -149,16 +146,15 @@ public final class OkHttpUtils {
       builder.proxy(new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost, proxyPort)));
       if (proxyUsername != null) {
         builder.proxyAuthenticator(
-            new Authenticator() {
-              @Override
-              public Request authenticate(final Route route, final Response response) {
-                final String credential =
-                    Credentials.basic(proxyUsername, proxyPassword == null ? "" : proxyPassword);
+            (route, response) -> {
+              final String credential =
+                  Credentials.basic(proxyUsername, proxyPassword == null ? "" : proxyPassword);
 
-                return new SafeRequestBuilder(response.request().newBuilder())
-                    .header("Proxy-Authorization", credential)
-                    .build();
-              }
+              return response
+                  .request()
+                  .newBuilder()
+                  .header("Proxy-Authorization", credential)
+                  .build();
             });
       }
     }
@@ -176,8 +172,8 @@ public final class OkHttpUtils {
 
   public static Request.Builder prepareRequest(final HttpUrl url, Map<String, String> headers) {
 
-    final SafeRequestBuilder builder =
-        new SafeRequestBuilder()
+    final Request.Builder builder =
+        new Request.Builder()
             .url(url)
             .addHeader(DATADOG_META_LANG, "java")
             .addHeader(DATADOG_META_LANG_VERSION, JAVA_VERSION)
@@ -193,7 +189,7 @@ public final class OkHttpUtils {
       builder.addHeader(e.getKey(), e.getValue());
     }
 
-    return builder.getBuilder();
+    return builder;
   }
 
   public static Request.Builder prepareRequest(
@@ -207,7 +203,7 @@ public final class OkHttpUtils {
     if (agentless && apiKey != null) {
       // we only add the api key header if we know we're doing agentless. No point in adding it to
       // other agent-based requests since we know the datadog-agent isn't going to make use of it.
-      builder = SafeRequestBuilder.addHeader(builder, DD_API_KEY, apiKey);
+      builder = builder.addHeader(DD_API_KEY, apiKey);
     }
 
     return builder;

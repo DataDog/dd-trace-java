@@ -1,6 +1,8 @@
 import com.google.common.io.Files
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import datadog.trace.api.DDTags
 import org.apache.catalina.Context
 import org.apache.catalina.Engine
 import org.apache.catalina.Wrapper
@@ -20,17 +22,12 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
-import static datadog.trace.api.Checkpointer.CPU
-import static datadog.trace.api.Checkpointer.END
-import static datadog.trace.api.Checkpointer.SPAN
-import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
 import static org.junit.Assume.assumeTrue
 
 @Unroll
-class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
+abstract class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
 
   class TomcatServer implements HttpServer {
     def port = 0
@@ -171,6 +168,9 @@ class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
           childOfPrevious()
           tags {
             "component" "java-web-servlet-response"
+            if ({isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags()
           }
         }
@@ -207,7 +207,7 @@ class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.throwsException) {
       // Exception classes get wrapped in ServletException
-      ["error.msg": { endpoint == EXCEPTION ? "Servlet execution threw an exception" : it == endpoint.body },
+      ["error.message": { endpoint == EXCEPTION ? "Servlet execution threw an exception" : it == endpoint.body },
         "error.type": { it == ServletException.name || it == InputMismatchException.name },
         "error.stack": String]
     } else {
@@ -266,25 +266,6 @@ class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
     body = null
   }
 
-  def "test checkpoint emission"() {
-    when:
-    def request = request(SUCCESS, method, body).build()
-    client.newCall(request).execute()
-    TEST_WRITER.waitForTraces(1)
-    then: "2 synchronous spans"
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
-    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
-    // this should be 2 invocations but the last invocation happens outside of Spock tracking ¯\_(ツ)_/¯
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-
-    where:
-    method = "GET"
-    body = null
-  }
-
   static class ErrorHandlerValve extends ErrorReportValve {
     @Override
     protected void report(Request request, Response response, Throwable t) {
@@ -310,4 +291,10 @@ class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
   }
 }
 
+class TomcatServletV0ForkedTest extends TomcatServletTest implements TestingGenericHttpNamingConventions.ServerV0 {
 
+}
+
+class TomcatServletV1ForkedTest extends TomcatServletTest implements TestingGenericHttpNamingConventions.ServerV1 {
+
+}

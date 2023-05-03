@@ -7,6 +7,7 @@ import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
+import datadog.trace.test.util.Flaky
 import org.apache.activemq.ActiveMQConnectionFactory
 import org.apache.activemq.command.ActiveMQTextMessage
 import org.apache.activemq.junit.EmbeddedActiveMQBroker
@@ -73,6 +74,7 @@ class JMS1Test extends AgentTestRunner {
     broker.stop()
   }
 
+  @Flaky
   def "sending messages to #jmsResourceName generates spans"() {
     setup:
     def producer = session.createProducer(destination)
@@ -579,7 +581,7 @@ class JMS1Test extends AgentTestRunner {
         producerTrace(it, jmsResourceName)
         trace(1) {
           span {
-            parentId(0 as BigInteger)
+            parentSpanId(0 as BigInteger)
             serviceName "jms"
             operationName "jms.consume"
             resourceName "Consumed from $jmsResourceName"
@@ -632,7 +634,7 @@ class JMS1Test extends AgentTestRunner {
         producerTrace(it, jmsResourceName)
         trace(1) {
           span {
-            parentId(0 as BigInteger)
+            parentSpanId(0 as BigInteger)
             serviceName "jms"
             operationName "jms.consume"
             resourceName "Consumed from $jmsResourceName"
@@ -692,7 +694,7 @@ class JMS1Test extends AgentTestRunner {
         producerTrace(it, jmsResourceName)
         trace(1) {
           span {
-            parentId(0 as BigInteger)
+            parentSpanId(0 as BigInteger)
             serviceName "jms"
             operationName "jms.consume"
             resourceName "Consumed from $jmsResourceName"

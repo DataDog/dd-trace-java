@@ -6,6 +6,7 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.communication.ddagent.DroppingPolicy;
+import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.FlushEvent;
 import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.common.writer.ddagent.PrioritizationStrategy;
@@ -38,6 +39,8 @@ public class TraceProcessingWorker implements AutoCloseable {
   private final Thread serializerThread;
   private final int capacity;
 
+  private final SpanSamplingWorker spanSamplingWorker;
+
   public TraceProcessingWorker(
       final int capacity,
       final HealthMetrics healthMetrics,
@@ -45,12 +48,25 @@ public class TraceProcessingWorker implements AutoCloseable {
       final DroppingPolicy droppingPolicy,
       final Prioritization prioritization,
       final long flushInterval,
-      final TimeUnit timeUnit) {
+      final TimeUnit timeUnit,
+      final SingleSpanSampler singleSpanSampler) {
     this.capacity = capacity;
     this.primaryQueue = createQueue(capacity);
     this.secondaryQueue = createQueue(capacity);
+    this.spanSamplingWorker =
+        SpanSamplingWorker.build(
+            capacity,
+            primaryQueue,
+            secondaryQueue,
+            singleSpanSampler,
+            healthMetrics,
+            droppingPolicy);
     this.prioritizationStrategy =
-        prioritization.create(primaryQueue, secondaryQueue, droppingPolicy);
+        prioritization.create(
+            primaryQueue,
+            secondaryQueue,
+            spanSamplingWorker.getSpanSamplingQueue(),
+            droppingPolicy);
     this.serializingHandler =
         new TraceSerializingHandler(
             primaryQueue, secondaryQueue, healthMetrics, dispatcher, flushInterval, timeUnit);
@@ -59,6 +75,7 @@ public class TraceProcessingWorker implements AutoCloseable {
 
   public void start() {
     this.serializerThread.start();
+    this.spanSamplingWorker.start();
   }
 
   public boolean flush(long timeout, TimeUnit timeUnit) {
@@ -78,6 +95,7 @@ public class TraceProcessingWorker implements AutoCloseable {
 
   @Override
   public void close() {
+    spanSamplingWorker.close();
     serializerThread.interrupt();
     try {
       serializerThread.join(THREAD_JOIN_TIMOUT_MS);
@@ -85,7 +103,7 @@ public class TraceProcessingWorker implements AutoCloseable {
     }
   }
 
-  public <T extends CoreSpan<T>> boolean publish(
+  public <T extends CoreSpan<T>> PrioritizationStrategy.PublishResult publish(
       T root, int samplingPriority, final List<T> trace) {
     return prioritizationStrategy.publish(root, samplingPriority, trace);
   }
@@ -103,8 +121,7 @@ public class TraceProcessingWorker implements AutoCloseable {
     return new MpscBlockingConsumerArrayQueue<>(capacity);
   }
 
-  public static class TraceSerializingHandler
-      implements Runnable, MessagePassingQueue.Consumer<Object> {
+  public static class TraceSerializingHandler implements Runnable {
 
     private final MpscBlockingConsumerArrayQueue<Object> primaryQueue;
     private final MpscBlockingConsumerArrayQueue<Object> secondaryQueue;
@@ -215,12 +232,7 @@ public class TraceProcessingWorker implements AutoCloseable {
     }
 
     private void consumeBatch(MessagePassingQueue<Object> queue) {
-      queue.drain(this, queue.size());
-    }
-
-    @Override
-    public void accept(Object event) {
-      onEvent(event);
+      queue.drain(this::onEvent, queue.size());
     }
   }
 }

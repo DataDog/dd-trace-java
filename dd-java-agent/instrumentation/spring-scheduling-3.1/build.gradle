@@ -1,0 +1,35 @@
+
+muzzle {
+  pass {
+    group = 'org.springframework'
+    module = 'spring-context'
+    versions = "[3.1.0.RELEASE,6)"
+    // assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  // choose a recent version so that we can test both lambdas (JDK8)
+  // @Async requires proxying and older versions can't read classfile versions > 51
+  // we muzzle older versions of spring anyway
+  compileOnly group: 'org.springframework', name: 'spring-context', version: '5.0.0.RELEASE'
+  testImplementation group: 'org.springframework', name: 'spring-context', version: '5.0.0.RELEASE'
+
+  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+
+  testImplementation group: 'net.javacrumbs.shedlock', name: 'shedlock-spring', version: '4.21.0'
+  testImplementation group: 'net.javacrumbs.shedlock', name: 'shedlock-provider-jdbc-template', version: '4.21.0'
+  testImplementation group: 'com.h2database', name: 'h2', version: '1.4.199'
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-jpa', version: '2.4.0'
+
+  latestDepTestImplementation group: 'org.springframework', name: 'spring-context', version: '5.+'
+
+  latestDepTestImplementation group: 'net.javacrumbs.shedlock', name: 'shedlock-spring', version: '4.+'
+  latestDepTestImplementation group: 'net.javacrumbs.shedlock', name: 'shedlock-provider-jdbc-template', version: '4.+'
+  latestDepTestImplementation group: 'com.h2database', name: 'h2', version: '+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-jpa', version: '2.+'
+}

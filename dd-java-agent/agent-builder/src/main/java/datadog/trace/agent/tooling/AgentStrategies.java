@@ -6,7 +6,7 @@ import datadog.trace.agent.tooling.bytebuddy.DDLocationStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDOutlinePoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDOutlineTypeStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDRediscoveryStrategy;
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Platform;
 import net.bytebuddy.agent.builder.AgentBuilder.ClassFileBufferStrategy;
 import net.bytebuddy.agent.builder.AgentBuilder.LocationStrategy;
@@ -50,7 +50,7 @@ public class AgentStrategies {
   private static final TypeStrategy TYPE_STRATEGY;
 
   static {
-    if (Config.get().isResolverOutlinePoolEnabled()) {
+    if (InstrumenterConfig.get().isResolverOutliningEnabled()) {
       POOL_STRATEGY = DDOutlinePoolStrategy.INSTANCE;
       BUFFER_STRATEGY = DDOutlineTypeStrategy.INSTANCE;
       TYPE_STRATEGY = DDOutlineTypeStrategy.INSTANCE;

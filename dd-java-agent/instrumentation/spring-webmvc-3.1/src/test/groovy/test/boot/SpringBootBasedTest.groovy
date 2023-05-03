@@ -4,17 +4,25 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.source.WebModule
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
 import okhttp3.FormBody
+import okhttp3.Request
 import okhttp3.RequestBody
+import okhttp3.Response
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.context.embedded.EmbeddedWebApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
+import org.springframework.web.servlet.handler.HandlerInterceptorAdapter
 import org.springframework.web.servlet.view.RedirectView
 import spock.lang.Shared
+
+import javax.servlet.http.HttpServletRequest
+import javax.servlet.http.HttpServletResponse
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
@@ -71,6 +79,12 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   }
 
   @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig('dd.iast.enabled', 'true')
+  }
+
+  @Override
   HttpServer server() {
     return new SpringBootServer()
   }
@@ -112,6 +126,11 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   @Override
   boolean testBodyJson() {
     true
+  }
+
+  @Override
+  boolean testBadUrl() {
+    false
   }
 
   @Override
@@ -225,6 +244,26 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     span.getTag(IG_PATH_PARAMS_TAG) == [id: '123']
   }
 
+  void 'tainting on template var'() {
+    setup:
+    WebModule mod = Mock()
+    InstrumentationBridge.registerIastModule(mod)
+    Request request = this.request(PATH_PARAM, 'GET', null).build()
+
+    when:
+    Response response = client.newCall(request).execute()
+    response.code() == PATH_PARAM.status
+    response.close()
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    1 * mod.onRequestPathParameter('id', '123', _)
+    0 * mod._
+
+    cleanup:
+    InstrumentationBridge.clearIastModules()
+  }
+
   def 'matrix var is pushed to IG'() {
     setup:
     def request = request(MATRIX_PARAM, 'GET', null)
@@ -239,6 +278,52 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     response.code() == MATRIX_PARAM.status
     response.body().string() == MATRIX_PARAM.body
     span.getTag(IG_PATH_PARAMS_TAG) == [var:['a=x,y;a=z', [a:['x', 'y', 'z']]]]
+  }
+
+  void 'tainting on matrix var'() {
+    setup:
+    WebModule mod = Mock()
+    InstrumentationBridge.registerIastModule(mod)
+    Request request = this.request(MATRIX_PARAM, 'GET', null).build()
+
+    when:
+    Response response = client.newCall(request).execute()
+    response.code() == MATRIX_PARAM.status
+    response.close()
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    1 * mod.onRequestPathParameter('var', 'a=x,y;a=z', _)
+    1 * mod.onRequestMatrixParameter('var', 'a', _)
+    1 * mod.onRequestMatrixParameter('var', 'x', _)
+    1 * mod.onRequestMatrixParameter('var', 'y', _)
+    1 * mod.onRequestMatrixParameter('var', 'z', _)
+    0 * mod._
+
+    cleanup:
+    InstrumentationBridge.clearIastModules()
+  }
+
+  def 'path is extract when preHandle fails'() {
+    setup:
+    def request = request(PATH_PARAM, 'GET', null).header("fail", "true").build()
+    context.getBeanFactory().registerSingleton("testHandler", new HandlerInterceptorAdapter() {
+        @Override
+        boolean preHandle(HttpServletRequest req, HttpServletResponse response, Object handler) throws Exception {
+          if ("true".equalsIgnoreCase(req.getHeader("fail"))) {
+            throw new RuntimeException("Stop here")
+          }
+          return true
+        }
+      })
+
+    when:
+    client.newCall(request).execute()
+    TEST_WRITER.waitForTraces(1)
+    DDSpan span = TEST_WRITER.flatten().find {"servlet.request".contentEquals(it.operationName)}
+
+    then:
+    span.getResourceName().toString() == "GET " + testPathParam()
   }
 
   boolean hasResponseSpan(ServerEndpoint endpoint) {

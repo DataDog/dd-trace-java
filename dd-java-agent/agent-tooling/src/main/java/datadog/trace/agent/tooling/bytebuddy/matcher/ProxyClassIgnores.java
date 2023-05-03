@@ -11,7 +11,8 @@ public class ProxyClassIgnores {
           || name.contains("$__sisu")
           || name.contains("$$EnhancerByGuice$$")
           || name.contains("$$EnhancerByProxool$$")
-          || name.contains("$$_WeldClientProxy")) {
+          || name.contains("$$$view")
+          || name.contains("$$_Weld")) {
         return true;
       }
     }

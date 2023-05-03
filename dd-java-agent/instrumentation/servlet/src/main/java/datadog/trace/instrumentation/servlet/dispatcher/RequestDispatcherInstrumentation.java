@@ -27,6 +27,7 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.util.Map;
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletRequest;
@@ -69,7 +70,8 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Tracing
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        namedOneOf("forward", "include")
+        // error is Jetty's method that doesn't delegate to forward or include
+        namedOneOf("forward", "include", "error")
             .and(takesArguments(2))
             .and(takesArgument(0, named("javax.servlet.ServletRequest")))
             .and(takesArgument(1, named("javax.servlet.ServletResponse")))
@@ -118,6 +120,9 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Tracing
 
       // In case we lose context, inject trace into to the request.
       propagate().inject(span, request, SETTER);
+      propagate()
+          .injectPathwayContext(
+              span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
 
       // temporarily replace from request to avoid spring resource name bubbling up:
       requestSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);

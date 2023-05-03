@@ -1,6 +1,7 @@
 package datadog.trace.common.writer
 
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
@@ -19,10 +20,11 @@ import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.Mapper
 import datadog.communication.serialization.msgpack.MsgPackWriter
-import datadog.trace.core.propagation.DatadogTags
+import datadog.trace.core.monitor.TracerHealthMetrics
+import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
+import datadog.trace.test.util.Flaky
 import okhttp3.HttpUrl
-import spock.lang.Retry
 import spock.lang.Timeout
 import spock.util.concurrent.PollingConditions
 
@@ -246,7 +248,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
 
     then:
     // this will be checked during flushing
-    1 * healthMetrics.onFailedPublish(_)
+    1 * healthMetrics.onFailedPublish(_,_)
     1 * healthMetrics.onFlush(_)
     1 * healthMetrics.onShutdown(_)
     1 * healthMetrics.close()
@@ -261,13 +263,13 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
 
   def createMinimalContext() {
     def tracer = Mock(CoreTracer)
-    tracer.mapServiceName(_) >> { String serviceName -> serviceName }
     def trace = Mock(PendingTrace)
+    trace.mapServiceName(_) >> { String serviceName -> serviceName }
     trace.getTracer() >> tracer
     return new DDSpanContext(
-      DDId.from(1),
-      DDId.from(1),
-      DDId.ZERO,
+      DDTraceId.ONE,
+      1,
+      DDSpanId.ZERO,
       "",
       "",
       "",
@@ -283,7 +285,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      DatadogTags.factory().empty())
+      PropagationTags.factory().empty())
   }
 
   def createMinimalTrace() {
@@ -453,8 +455,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
 
-  @Retry(delay = 500)
-  // if execution is too slow, the http client timeout may trigger.
+  @Flaky("If execution is too slow, the http client timeout may trigger")
   def "slow response test"() {
     def numWritten = 0
     def numFlushes = new AtomicInteger(0)
@@ -487,7 +488,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       onPublish(_, _) >> {
         numPublished.incrementAndGet()
       }
-      onFailedPublish(_) >> {
+      onFailedPublish(_,_) >> {
         numFailedPublish.incrementAndGet()
       }
       onFlush(_) >> {
@@ -591,7 +592,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       onPublish(_, _) >> {
         numPublished.incrementAndGet()
       }
-      onFailedPublish(_) >> {
+      onFailedPublish(_,_) >> {
         numFailedPublish.incrementAndGet()
       }
       onSend(_, _, _) >> { repCount, sizeInBytes, response ->
@@ -627,8 +628,8 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     then:
     conditions.eventually {
       def totalTraces = 100 + 100
-      numPublished.get() == totalTraces
-      numRepSent.get() == totalTraces
+      assert numPublished.get() == totalTraces
+      assert numRepSent.get() == totalTraces
     }
 
     cleanup:
@@ -712,7 +713,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       numErrors.incrementAndGet()
     }
 
-    def healthMetrics = new HealthMetrics(statsd)
+    def healthMetrics = new TracerHealthMetrics(statsd)
     def writer = DDAgentWriter.builder()
       .traceAgentV05Enabled(true)
       .agentApi(api).monitoring(monitoring)

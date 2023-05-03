@@ -41,7 +41,7 @@ abstract class AbstractOSGiSmokeTest extends AbstractSmokeTest {
     when:
     testedProcess.waitFor()
     boolean instrumentedMessageClient = false
-    checkLog {
+    checkLogPostExit {
       // check for additional OSGi class-loader issues
       if (it.contains("Cannot resolve type description") ||
         it.contains("Instrumentation muzzled")) {
@@ -58,5 +58,10 @@ abstract class AbstractOSGiSmokeTest extends AbstractSmokeTest {
     testedProcess.exitValue() == 0
     instrumentedMessageClient
     !logHasErrors
+  }
+
+  @Override
+  def logLevel() {
+    return "debug"
   }
 }

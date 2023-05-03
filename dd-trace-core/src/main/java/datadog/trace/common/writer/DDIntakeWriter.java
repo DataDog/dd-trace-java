@@ -1,12 +1,11 @@
 package datadog.trace.common.writer;
 
 import datadog.communication.ddagent.DroppingPolicy;
-import datadog.communication.http.RetryPolicy;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
-import datadog.trace.api.StatsDClient;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.intake.TrackType;
+import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.common.writer.ddintake.DDIntakeApi;
 import datadog.trace.common.writer.ddintake.DDIntakeMapperDiscovery;
@@ -31,20 +30,20 @@ public class DDIntakeWriter extends RemoteWriter {
     String apiVersion = DEFAULT_INTAKE_VERSION;
     long timeoutMillis = TimeUnit.SECONDS.toMillis(DEFAULT_INTAKE_TIMEOUT);
     int traceBufferSize = BUFFER_SIZE;
-    HealthMetrics healthMetrics = new HealthMetrics(StatsDClient.NO_OP);
+    HealthMetrics healthMetrics = HealthMetrics.NO_OP;
     int flushFrequencySeconds = 1;
     Monitoring monitoring = Monitoring.DISABLED;
     DroppingPolicy droppingPolicy = DroppingPolicy.DISABLED;
     Prioritization prioritization = Prioritization.FAST_LANE;
-    RetryPolicy retryPolicy = RetryPolicy.builder().withMaxRetry(5).withBackoff(100).build();
     private int flushTimeout = 5;
     private TimeUnit flushTimeoutUnit = TimeUnit.SECONDS;
-    private boolean alwaysFlush = true;
+    private boolean alwaysFlush = false;
 
-    private DDIntakeApi intakeApi;
+    private RemoteApi intakeApi;
     private String apiKey;
+    private SingleSpanSampler singleSpanSampler;
 
-    public DDIntakeWriterBuilder intakeApi(final DDIntakeApi intakeApi) {
+    public DDIntakeWriterBuilder intakeApi(final RemoteApi intakeApi) {
       this.intakeApi = intakeApi;
       return this;
     }
@@ -114,15 +113,15 @@ public class DDIntakeWriter extends RemoteWriter {
       return this;
     }
 
-    public DDIntakeWriterBuilder retryPolicy(final RetryPolicy retryPolicy) {
-      this.retryPolicy = retryPolicy;
-      return this;
-    }
-
     public DDIntakeWriterBuilder flushTimeout(
         final int flushTimeout, final TimeUnit flushTimeoutUnit) {
       this.flushTimeout = flushTimeout;
       this.flushTimeoutUnit = flushTimeoutUnit;
+      return this;
+    }
+
+    public DDIntakeWriterBuilder singleSpanSampler(SingleSpanSampler singleSpanSampler) {
+      this.singleSpanSampler = singleSpanSampler;
       return this;
     }
 
@@ -135,7 +134,6 @@ public class DDIntakeWriter extends RemoteWriter {
                 .apiVersion(apiVersion)
                 .apiKey(apiKey)
                 .timeoutMillis(timeoutMillis)
-                .retryPolicy(retryPolicy)
                 .build();
       }
 
@@ -151,7 +149,8 @@ public class DDIntakeWriter extends RemoteWriter {
               droppingPolicy,
               prioritization,
               flushFrequencySeconds,
-              TimeUnit.SECONDS);
+              TimeUnit.SECONDS,
+              singleSpanSampler);
 
       return new DDIntakeWriter(
           intakeApi,

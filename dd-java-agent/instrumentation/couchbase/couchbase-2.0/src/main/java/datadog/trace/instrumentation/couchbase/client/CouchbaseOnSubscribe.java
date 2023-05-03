@@ -4,10 +4,10 @@ import static datadog.trace.instrumentation.couchbase.client.CouchbaseClientDeco
 
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.QualifiedClassNameCache;
-import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.rxjava.TracedOnSubscribe;
 import java.lang.reflect.Method;
+import java.util.function.Function;
 import rx.Observable;
 
 public class CouchbaseOnSubscribe extends TracedOnSubscribe {
@@ -33,7 +33,7 @@ public class CouchbaseOnSubscribe extends TracedOnSubscribe {
 
   public CouchbaseOnSubscribe(
       final Observable originalObservable, final Method method, final String bucket) {
-    super(originalObservable, "couchbase.call", DECORATE);
+    super(originalObservable, CouchbaseClientDecorator.OPERATION_NAME, DECORATE);
     resourceName = NAMES.getQualifiedName(method.getDeclaringClass(), method.getName()).toString();
     this.bucket = bucket;
   }

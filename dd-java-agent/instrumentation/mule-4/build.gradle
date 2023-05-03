@@ -1,0 +1,138 @@
+ext {
+  // TODO Java 17: Mule 4 doesn't support Java 17
+  maxJavaVersionForTests = JavaVersion.VERSION_15
+}
+
+muzzle {
+  extraRepository('anypoint-releases', 'https://maven.anypoint.mulesoft.com/api/v2/maven')
+  extraRepository('mulesoft-releases', 'https://repository.mulesoft.org/releases')
+  extraRepository('mulesoft-public', 'https://repository.mulesoft.org/nexus/content/repositories/public')
+
+  pass {
+    group = 'org.mule.runtime'
+    module = 'mule-core'
+    versions = '[,]'
+    assertInverse = true
+  }
+
+  fail {
+    group = 'org.mule'
+    module = 'mule-core'
+    versions = '[3.2.0,)' // First version where muzzle can resolve all dependencies
+    skipVersions += "3.9.5" // bad release
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+def muleVersion = '4.2.2'
+def muleBaseDir = "$buildDir/mule"
+def appDir = "$projectDir/application"
+def generatedResourcesDir = "$buildDir/generated-resources/test"
+
+clean.doFirst {
+  delete muleBaseDir
+}
+
+repositories {
+  maven {
+    name "anypoint-releases"
+    url "https://maven.anypoint.mulesoft.com/api/v2/maven"
+  }
+  maven {
+    name "mulesoft-releases"
+    url "https://repository.mulesoft.org/releases"
+  }
+  maven {
+    name "mulesoft-public"
+    url "https://repository.mulesoft.org/nexus/content/repositories/public"
+  }
+}
+
+configurations {
+  muleServices
+}
+
+configurations.all {
+  // don't allow mule to do slf4j over log4j
+  exclude group: 'org.apache.logging.log4j', module: 'log4j-slf4j-impl'
+}
+
+sourceSets {
+  test {
+    output.dir(generatedResourcesDir, builtBy: 'generateAppResources')
+  }
+}
+
+tasks.named("compileTestGroovy").configure {
+  dependsOn 'mvnPackage', 'extractMuleServices'
+}
+
+dependencies {
+  compileOnly group: 'org.mule.runtime', name: 'mule-core', version: muleVersion
+
+  testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
+  testImplementation project(':dd-java-agent:instrumentation:grizzly-http-2.3.20')
+  testImplementation project(':dd-java-agent:instrumentation:grizzly-client-1.9')
+  testImplementation project(':dd-java-agent:instrumentation:caffeine')
+
+  testImplementation group: 'org.mule.runtime', name: 'mule-module-launcher', version: muleVersion
+  testImplementation group: 'org.mule.runtime', name: 'mule-core', version: muleVersion
+  testImplementation group: 'org.mule.runtime', name: 'mule-module-extensions-spring-support', version: muleVersion
+  testImplementation group: 'org.mule.runtime', name: 'mule-module-service', version: muleVersion
+  // this is needed for mule to find removed javax.* APIs on Java 11+
+  testImplementation group: 'org.mule.runtime', name: 'mule-module-javaee', version: muleVersion
+
+  muleServices group: 'org.mule.services', name: 'mule-service-http', version: '1.4.7', classifier: 'mule-service'
+  muleServices group: 'org.mule.services', name: 'mule-service-scheduler', version: '1.2.4', classifier: 'mule-service'
+  muleServices group: 'org.mule.services', name: 'mule-service-weave', version: '2.2.2', classifier: 'mule-service'
+}
+
+// extract the enabled services into the mule base directory
+tasks.register('extractMuleServices', Sync) {
+  dependsOn configurations.muleServices
+
+  configurations.muleServices.resolvedConfiguration.resolvedArtifacts.findAll {
+    it.classifier == "mule-service"
+  } collect { artifact ->
+    def id = artifact.moduleVersion.id
+    from(zipTree(artifact.file)) {
+      into("${id.name}-${id.version}")
+    }
+  }
+
+  into "$muleBaseDir/services"
+}
+
+// build the mule application via maven
+tasks.register('mvnPackage', Exec) {
+  workingDir "$appDir"
+  commandLine "$rootDir/mvnw", "-Ddatadog.builddir=$buildDir", "-Ddatadog.name=mule-test-application", "-Ddatadog.version=$version", 'package'
+  outputs.dir("$buildDir/target")
+  inputs.dir("$appDir/src")
+  inputs.file("$appDir/pom.xml")
+  inputs.file("$appDir/mule-artifact.json")
+}
+
+// generate a properties file so the test knows where to run mule, and what jar to deploy
+tasks.register('generateAppResources') {
+  outputs.dir generatedResourcesDir
+  doLast {
+    def generated = new File(generatedResourcesDir, "test-build.properties")
+    generated.text = """|mule.base=$muleBaseDir
+                        |MuleTestApplicationConstants.jar=$buildDir/target/mule-test-application-$version-mule-application.jar
+                        |MuleTestApplicationConstants.name=mule-test-application-$version-mule-application""".stripMargin()
+  }
+}
+
+tasks.named("test").configure {
+  outputs.upToDateWhen {
+    !mvnPackage.didWork && !extractMuleServices.didWork
+  }
+}
+
+spotless {
+  java {
+    target "**/*.java"
+  }
+}

@@ -12,6 +12,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class MergedAsmData extends AbstractList<Map<String, Object>> {
+  public static final String KEY_BUNDLED_RULE_DATA = "<rule data bundled in rule config>";
+
   private final Map<String /* cfg key */, List<Map<String, Object>>> configs;
   private List<Map<String, Object>> mergedData;
 
@@ -104,6 +106,9 @@ public class MergedAsmData extends AbstractList<Map<String, Object>> {
           Object value = d.get("value");
           Long expiration = null;
           Object expirationValue = d.get("expiration");
+          if (expirationValue instanceof String) {
+            expirationValue = Long.parseLong((String) expirationValue);
+          }
           if (expirationValue != null) {
             expiration = ((Number) expirationValue).longValue();
           }

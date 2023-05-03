@@ -1,0 +1,14 @@
+muzzle {
+  pass {
+    coreJdk()
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'org.codehaus.jackson', name: 'jackson-core-asl', version: '1.9.13'
+  testImplementation group: 'org.codehaus.jackson', name: 'jackson-core-asl', version: '1.9.13'
+}

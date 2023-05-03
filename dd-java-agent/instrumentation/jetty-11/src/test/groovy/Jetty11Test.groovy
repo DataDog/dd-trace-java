@@ -1,18 +1,20 @@
+import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
-import org.eclipse.jetty.server.Request
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import jakarta.servlet.http.HttpServlet
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.AbstractHandler
 import org.eclipse.jetty.server.handler.ErrorHandler
 
-import jakarta.servlet.DispatcherType
 import jakarta.servlet.ServletException
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import org.eclipse.jetty.servlet.ServletContextHandler
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.*
 
-class Jetty11Test extends HttpServerTest<Server> {
+abstract class Jetty11Test extends HttpServerTest<Server> {
 
   class JettyServer implements HttpServer {
     def port = 0
@@ -37,7 +39,7 @@ class Jetty11Test extends HttpServerTest<Server> {
 
     @Override
     URI address() {
-      return new URI("http://localhost:$port/")
+      return new URI("http://localhost:$port/context-path/")
     }
 
     @Override
@@ -63,7 +65,15 @@ class Jetty11Test extends HttpServerTest<Server> {
   }
 
   AbstractHandler handler() {
-    TestHandler.INSTANCE
+    ServletContextHandler handler = new ServletContextHandler(null, "/context-path")
+    handler.setErrorHandler(Jetty11Test.errorHandler)
+    handler.getServletHandler().addServletWithMapping(TestServlet, "/*")
+    return handler
+  }
+
+  @Override
+  Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
+    return ["servlet.context": "/context-path", "servlet.path": endpoint.path]
   }
 
   @Override
@@ -73,7 +83,12 @@ class Jetty11Test extends HttpServerTest<Server> {
 
   @Override
   String expectedOperationName() {
-    return "servlet.request"
+    return operation()
+  }
+
+  @Override
+  String expectedServiceName() {
+    return "context-path"
   }
 
   @Override
@@ -96,61 +111,66 @@ class Jetty11Test extends HttpServerTest<Server> {
     true
   }
 
-  static void handleRequest(Request request, HttpServletResponse response) {
-    ServerEndpoint endpoint = ServerEndpoint.forPath(request.requestURI)
-    controller(endpoint) {
-      response.contentType = "text/plain"
-      response.addHeader(IG_RESPONSE_HEADER, IG_RESPONSE_HEADER_VALUE)
-      switch (endpoint) {
-        case SUCCESS:
-          response.status = endpoint.status
-          response.writer.print(endpoint.body)
-          break
-        case FORWARDED:
-          response.status = endpoint.status
-          response.writer.print(request.getHeader("x-forwarded-for"))
-          break
-        case BODY_URLENCODED:
-          response.status = endpoint.status
-          response.writer.print(
-            request.parameterMap
-            .findAll {
-              it.key != 'ignore'}
-            .collectEntries {[it.key, it.value as List]} as String)
-          break
-        case QUERY_ENCODED_BOTH:
-        case QUERY_ENCODED_QUERY:
-        case QUERY_PARAM:
-          response.status = endpoint.status
-          response.writer.print(endpoint.bodyForQuery(request.queryString))
-          break
-        case REDIRECT:
-          response.sendRedirect(endpoint.body)
-          break
-        case ERROR:
-          response.sendError(endpoint.status, endpoint.body)
-          break
-        case EXCEPTION:
-          throw new Exception(endpoint.body)
-        default:
-          response.status = NOT_FOUND.status
-          response.writer.print(NOT_FOUND.body)
-          break
-      }
-    }
-  }
-
-  static class TestHandler extends AbstractHandler {
-    static final TestHandler INSTANCE = new TestHandler()
-
+  static class TestServlet extends HttpServlet {
     @Override
-    void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-      if (baseRequest.dispatcherType != DispatcherType.ERROR) {
-        handleRequest(baseRequest, response)
-        baseRequest.handled = true
-      } else {
-        errorHandler.handle(target, baseRequest, response, response)
+    protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+      System.err.println("CALLED $request.requestURI")
+      String path = request.requestURI.substring(request.getContextPath().length())
+
+      System.err.println("parsed $path")
+      HttpServerTest.ServerEndpoint endpoint = forPath(path)
+      controller(endpoint) {
+        response.contentType = "text/plain"
+        response.addHeader(IG_RESPONSE_HEADER, IG_RESPONSE_HEADER_VALUE)
+        switch (endpoint) {
+          case SUCCESS:
+            response.status = endpoint.status
+            response.writer.print(endpoint.body)
+            break
+          case FORWARDED:
+            response.status = endpoint.status
+            response.writer.print(request.getHeader("x-forwarded-for"))
+            break
+          case BODY_URLENCODED:
+            response.status = endpoint.status
+            response.writer.print(
+              request.parameterMap
+              .findAll {
+                it.key != 'ignore'
+              }
+              .collectEntries { [it.key, it.value as List] } as String)
+            break
+          case QUERY_ENCODED_BOTH:
+          case QUERY_ENCODED_QUERY:
+          case QUERY_PARAM:
+            response.status = endpoint.status
+            response.writer.print(endpoint.bodyForQuery(request.queryString))
+            break
+          case USER_BLOCK:
+            Blocking.forUser('user-to-block').blockIfMatch()
+            break
+          case REDIRECT:
+            response.sendRedirect(endpoint.body)
+            break
+          case ERROR:
+            response.sendError(endpoint.status, endpoint.body)
+            break
+          case EXCEPTION:
+            throw new Exception(endpoint.body)
+          default:
+            response.status = NOT_FOUND.status
+            response.writer.print(NOT_FOUND.body)
+            break
+        }
       }
     }
   }
+}
+
+class Jetty11V0ForkedTest extends Jetty11Test implements TestingGenericHttpNamingConventions.ServerV0 {
+
+}
+
+class Jetty11V1ForkedTest extends Jetty11Test implements TestingGenericHttpNamingConventions.ServerV1 {
+
 }

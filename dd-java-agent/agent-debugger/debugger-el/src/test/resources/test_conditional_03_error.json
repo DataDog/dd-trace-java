@@ -1,0 +1,11 @@
+{
+  "dsl": "count(vets) >= 2",
+  "json": {
+    "gte": [
+      {
+        "count": {"ref": "vets"}
+      },
+      2
+    ]
+  }
+}

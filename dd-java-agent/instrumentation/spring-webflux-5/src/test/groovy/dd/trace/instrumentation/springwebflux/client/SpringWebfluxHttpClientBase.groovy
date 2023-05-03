@@ -2,6 +2,7 @@ package dd.trace.instrumentation.springwebflux.client
 
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -17,7 +18,7 @@ import reactor.core.publisher.Mono
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
+abstract class SpringWebfluxHttpClientBase extends HttpClientTest implements TestingGenericHttpNamingConventions.ClientV0 {
 
   @Override
   boolean useStrictTraceWrites() {
@@ -68,7 +69,7 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
         if (renameService) {
           serviceName("localhost")
         }
-        operationName "netty.client.request"
+        operationName NettyHttpClientDecorator.DECORATE.operationName()
         resourceName "$method $uri.path"
         spanType DDSpanTypes.HTTP_CLIENT
         errored error
@@ -90,6 +91,9 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
           }
           if (exception) {
             errorTags(exception.class, exception.message)
+          }
+          if ({ isDataStreamsEnabled() }) {
+            "$DDTags.PATHWAY_HASH" { String }
           }
           defaultTags()
         }

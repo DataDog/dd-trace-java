@@ -11,6 +11,7 @@ import com.ibm.ws.webcontainer.srt.SRTServletResponse;
 import com.ibm.wsspi.webcontainer.servlet.IExtendedResponse;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
@@ -28,6 +29,7 @@ public class RequestFinishInstrumentation extends Instrumenter.Tracing
       packageName + ".HttpServletExtractAdapter$Request",
       packageName + ".HttpServletExtractAdapter$Response",
       packageName + ".LibertyDecorator",
+      packageName + ".LibertyDecorator$LibertyBlockResponseFunction",
       packageName + ".RequestURIDataAdapter",
     };
   }
@@ -45,6 +47,7 @@ public class RequestFinishInstrumentation extends Instrumenter.Tracing
   }
 
   /** The function finish is called when a server receives and sends out a request */
+  @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
   public static class RequestFinishAdvice {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(@Advice.This SRTServletRequest req) {
@@ -53,7 +56,12 @@ public class RequestFinishInstrumentation extends Instrumenter.Tracing
       // this should be a servlet response
       if (resp instanceof SRTServletResponse) {
         SRTServletResponse httpResp = (SRTServletResponse) resp;
-        Object spanObj = req.getAttribute(DD_SPAN_ATTRIBUTE);
+        Object spanObj = null;
+        try {
+          spanObj = req.getAttribute(DD_SPAN_ATTRIBUTE);
+        } catch (NullPointerException e) {
+          // OpenLiberty will throw NPE on getAttribute if the response has already been closed.
+        }
 
         if (spanObj instanceof AgentSpan) {
           req.setAttribute(DD_SPAN_ATTRIBUTE, null);

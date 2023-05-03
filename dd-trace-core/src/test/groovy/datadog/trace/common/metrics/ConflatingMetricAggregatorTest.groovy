@@ -5,18 +5,17 @@ import datadog.trace.api.WellKnownTags
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.CoreSpan
 import datadog.trace.test.util.DDSpecification
-import spock.lang.Requires
 import spock.lang.Shared
 
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
+import java.util.function.Supplier
 
-import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static java.util.concurrent.TimeUnit.SECONDS
 
-@Requires({
-  isJavaVersionAtLeast(8)
-})
 class ConflatingMetricAggregatorTest extends DDSpecification {
 
   static Set<String> empty = new HashSet<>()
@@ -432,6 +431,55 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
 
     cleanup:
     aggregator.close()
+  }
+
+  def "force flush should not block if metrics are disabled"() {
+    setup:
+    int maxAggregates = 10
+    MetricWriter writer = Mock(MetricWriter)
+    Sink sink = Stub(Sink)
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      features, sink, writer, maxAggregates, queueSize, 1, SECONDS)
+    aggregator.start()
+
+    when:
+    def flushed = aggregator.forceReport().get(10, SECONDS)
+
+    then:
+    notThrown(TimeoutException)
+    !flushed
+  }
+
+  def "force flush should wait for aggregator to start"() {
+    setup:
+    int maxAggregates = 10
+    MetricWriter writer = Mock(MetricWriter)
+    Sink sink = Stub(Sink)
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      features, sink, writer, maxAggregates, queueSize, 1, SECONDS)
+
+    when:
+    def async = CompletableFuture.supplyAsync(new Supplier<Boolean>() {
+        @Override
+        Boolean get() {
+          return aggregator.forceReport().get()
+        }
+      })
+    async.get(3, SECONDS)
+
+    then:
+    thrown(TimeoutException)
+
+    when:
+    aggregator.start()
+    def flushed = async.get(3, TimeUnit.SECONDS)
+
+    then:
+    notThrown(TimeoutException)
+    flushed
   }
 
   def reportAndWaitUntilEmpty(ConflatingMetricsAggregator aggregator) {

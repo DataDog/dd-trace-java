@@ -6,11 +6,13 @@ package datadog.trace.api.config;
  * <p>Configure via system properties, environment variables, or config properties file. See online
  * documentation for details.
  *
- * @see {@link TracerConfig} for more tracer config options
+ * @see TracerConfig for more tracer config options
  */
 public final class TraceInstrumentationConfig {
   public static final String TRACE_ENABLED = "trace.enabled";
+  public static final String TRACE_OTEL_ENABLED = "trace.otel.enabled";
   public static final String INTEGRATIONS_ENABLED = "integrations.enabled";
+  public static final String LEGACY_INSTALLER_ENABLED = "legacy.installer.enabled";
 
   public static final String INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME =
       "integration.synapse.legacy-operation-name";
@@ -18,6 +20,11 @@ public final class TraceInstrumentationConfig {
   public static final String TRACE_EXECUTORS_ALL = "trace.executors.all";
   public static final String TRACE_EXECUTORS = "trace.executors";
   public static final String TRACE_METHODS = "trace.methods";
+  /*
+  format for measure.methods is the same as for trace.methods:
+  https://docs.datadoghq.com/tracing/trace_collection/custom_instrumentation/java/
+   */
+  public static final String MEASURE_METHODS = "measure.methods";
   public static final String TRACE_CLASSES_EXCLUDE = "trace.classes.exclude";
   public static final String TRACE_CLASSES_EXCLUDE_FILE = "trace.classes.exclude.file";
   public static final String TRACE_CLASSLOADERS_EXCLUDE = "trace.classloaders.exclude";
@@ -40,6 +47,8 @@ public final class TraceInstrumentationConfig {
   public static final String JDBC_PREPARED_STATEMENT_CLASS_NAME =
       "trace.jdbc.prepared.statement.class.name";
 
+  public static final String DB_DBM_PROPAGATION_MODE_MODE = "dbm.propagation.mode";
+
   public static final String JDBC_CONNECTION_CLASS_NAME = "trace.jdbc.connection.class.name";
 
   public static final String RUNTIME_CONTEXT_FIELD_INJECTION =
@@ -49,6 +58,8 @@ public final class TraceInstrumentationConfig {
 
   public static final String LOGS_INJECTION_ENABLED = "logs.injection";
   public static final String LOGS_MDC_TAGS_INJECTION_ENABLED = "logs.mdc.tags.injection";
+  public static final String TRACE_128_BIT_TRACEID_LOGGING_ENABLED =
+      "trace.128.bit.traceid.logging.enabled";
 
   public static final String KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS =
       "kafka.client.propagation.disabled.topics";
@@ -62,6 +73,9 @@ public final class TraceInstrumentationConfig {
       "rabbit.propagation.disabled.queues";
   public static final String RABBIT_PROPAGATION_DISABLED_EXCHANGES =
       "rabbit.propagation.disabled.exchanges";
+
+  public static final String RABBIT_INCLUDE_ROUTINGKEY_IN_RESOURCE =
+      "rabbit.include.routingkey.in.resource";
 
   public static final String MESSAGE_BROKER_SPLIT_BY_DESTINATION =
       "message.broker.split-by-destination";
@@ -87,10 +101,12 @@ public final class TraceInstrumentationConfig {
   public static final String SERVLET_ROOT_CONTEXT_SERVICE_NAME =
       "trace.servlet.root-context.service.name";
 
-  public static final String RESOLVER_OUTLINE_POOL_ENABLED = "resolver.outline.pool.enabled";
-  public static final String RESOLVER_OUTLINE_POOL_SIZE = "resolver.outline.pool.size";
-  public static final String RESOLVER_TYPE_POOL_SIZE = "resolver.type.pool.size";
+  public static final String SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME =
+      "spring-data.repository.interface.resource-name";
+
+  public static final String RESOLVER_CACHE_CONFIG = "resolver.cache.config";
   public static final String RESOLVER_USE_LOADCLASS = "resolver.use.loadclass";
+  public static final String RESOLVER_RESET_INTERVAL = "resolver.reset.interval";
 
   private TraceInstrumentationConfig() {}
 }

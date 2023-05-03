@@ -3,8 +3,8 @@ package datadog.trace.instrumentation.datastax.cassandra;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.datastax.cassandra.CassandraClientDecorator.CASSANDRA_EXECUTE;
 import static datadog.trace.instrumentation.datastax.cassandra.CassandraClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.datastax.cassandra.CassandraClientDecorator.OPERATION_NAME;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_CASSANDRA_ASYNC_SESSION;
 
 import com.datastax.driver.core.BoundStatement;
@@ -16,7 +16,6 @@ import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.ResultSetFuture;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.Statement;
-import com.google.common.base.Function;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -50,15 +49,7 @@ public class TracingSession implements Session {
 
   @Override
   public ListenableFuture<Session> initAsync() {
-    return Futures.transform(
-        session.initAsync(),
-        new Function<Session, Session>() {
-          @Override
-          public Session apply(final Session session) {
-            return new TracingSession(session);
-          }
-        },
-        directExecutor());
+    return Futures.transform(session.initAsync(), TracingSession::new, directExecutor());
   }
 
   @Override
@@ -239,7 +230,7 @@ public class TracingSession implements Session {
   }
 
   private AgentScope startSpanWithScope(final String query) {
-    final AgentSpan span = startSpan(CASSANDRA_EXECUTE);
+    final AgentSpan span = startSpan(OPERATION_NAME);
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, session);
     DECORATE.onStatement(span, query);

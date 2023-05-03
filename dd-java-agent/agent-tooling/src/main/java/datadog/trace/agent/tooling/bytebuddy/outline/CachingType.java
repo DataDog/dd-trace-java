@@ -10,10 +10,18 @@ import net.bytebuddy.description.type.TypeList;
 
 /** Type description that lazily caches expensive results. */
 final class CachingType extends WithName {
+
+  // non-null sentinels for fields that can legitimately be null
+  private static final Generic UNSET_SUPER_CLASS =
+      Generic.OfNonGenericType.ForLoadedType.of(void.class);
+  private static final TypeDescription UNSET_DECLARING_TYPE =
+      TypeDescription.ForLoadedType.of(void.class);
+
   private final TypeDescription delegate;
 
-  private Generic superClass;
+  private Generic superClass = UNSET_SUPER_CLASS;
   private TypeList.Generic interfaces;
+  private TypeDescription declaringType = UNSET_DECLARING_TYPE;
   private AnnotationList annotations;
   private FieldList<FieldDescription.InDefinedShape> fields;
   private MethodList<MethodDescription.InDefinedShape> methods;
@@ -30,7 +38,7 @@ final class CachingType extends WithName {
 
   @Override
   public Generic getSuperClass() {
-    if (superClass == null) {
+    if (superClass == UNSET_SUPER_CLASS) {
       superClass = delegate.getSuperClass();
     }
     return superClass;
@@ -42,6 +50,14 @@ final class CachingType extends WithName {
       interfaces = delegate.getInterfaces();
     }
     return interfaces;
+  }
+
+  @Override
+  public TypeDescription getDeclaringType() {
+    if (declaringType == UNSET_DECLARING_TYPE) {
+      declaringType = delegate.getDeclaringType();
+    }
+    return declaringType;
   }
 
   @Override

@@ -1,0 +1,147 @@
+// this project will run in isolation under the agent's classloader
+buildscript {
+
+  repositories {
+    mavenCentral()
+  }
+
+  dependencies {
+    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${versions.kotlin}"
+  }
+}
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+apply from: "$rootDir/gradle/java.gradle"
+
+tasks.register("latestDepTest")
+
+Project parent_project = project
+subprojects { Project subProj ->
+  apply plugin: 'instrument'
+  apply plugin: 'muzzle'
+
+  configurations {
+    instrumentPluginClasspath {
+      visible = false
+      canBeConsumed = false
+      canBeResolved = true
+    }
+  }
+
+  instrument.plugins = [
+    'datadog.trace.agent.tooling.muzzle.MuzzleGradlePlugin',
+    'datadog.trace.agent.tooling.bytebuddy.NewTaskForGradlePlugin',
+    'datadog.trace.agent.tooling.bytebuddy.reqctx.RewriteRequestContextAdvicePlugin',
+  ]
+
+  subProj.tasks.withType(Javadoc).configureEach { enabled = false }
+
+  subProj.afterEvaluate {
+    String jdkCompile = null
+    if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJavaVersionForTests') != JavaVersion.VERSION_1_8) {
+      def version = JavaVersion.toVersion(project.getProperty('minJavaVersionForTests'))
+      def name = "java$version.majorVersion"
+      jdkCompile = "main_${name}Implementation"
+    }
+    dependencies {
+      // Apply common dependencies for instrumentation.
+      implementation project(':dd-trace-api')
+      implementation project(':dd-java-agent:agent-tooling')
+      implementation deps.bytebuddy
+      if (jdkCompile) {
+        "$jdkCompile" project(':dd-trace-api')
+        "$jdkCompile" project(':dd-java-agent:agent-tooling')
+        "$jdkCompile" deps.bytebuddy
+      }
+
+      annotationProcessor deps.autoserviceProcessor
+      compileOnly deps.autoserviceAnnotation
+
+      // Include instrumentations instrumenting core JDK classes to ensure interoperability with other instrumentation
+      testImplementation project(':dd-java-agent:instrumentation:java-concurrent')
+      testImplementation project(':dd-java-agent:instrumentation:java-concurrent:java-completablefuture')
+      // FIXME: we should enable this, but currently this fails tests for google http client
+      //testImplementation project(':dd-java-agent:instrumentation:http-url-connection')
+      testImplementation project(':dd-java-agent:instrumentation:classloading')
+
+      testImplementation project(':dd-java-agent:testing')
+      testAnnotationProcessor deps.autoserviceProcessor
+      testCompileOnly deps.autoserviceAnnotation
+
+      instrumentPluginClasspath project(path: ':dd-java-agent:agent-tooling', configuration: 'instrumentPluginClasspath')
+    }
+
+    subProj.testing {
+      suites.configureEach {
+        // SpockRunner that we use to run agent tests cannot be properly ported to JUnit 5,
+        // since the framework does not provide the hooks / extension points
+        // that can be used to shadow the tested class.
+
+        // In order to mitigate this, SpockRunner extends JUnitPlatform,
+        // which is a JUnit 4 runner that allows executing JUnit 5 tests in a JUnit 4 environment
+        // (i.e. running them as JUnit 4 tests).
+
+        // So even though Spock 2 tests run on top of JUnit 5,
+        // we execute them in "compatibility mode" so that SpockRunner could shadow the test class
+        // See https://junit.org/junit5/docs/current/user-guide/#running-tests-junit-platform-runner for more details.
+        useJUnit()
+      }
+    }
+
+    subProj.tasks.withType(Test).configureEach { subTask ->
+      // The `forkedTest` task is not a proper test suite, so it has to be configured directly
+      if (subTask.name == 'forkedTest') {
+        // See SpockRunner comment above
+        useJUnit()
+      }
+
+      onlyIf { !project.rootProject.hasProperty("skipInstTests") }
+
+      if (subTask.name == 'latestDepTest') {
+        subTask.jvmArgs '-Dtest.dd.latestDepTest=true'
+      }
+    }
+  }
+
+  def path = subProj.getPath()
+  // don't include the redis RequestImpl stub
+  if (!path.equals(':dd-java-agent:instrumentation:vertx-redis-client-3.9:stubs')) {
+    parent_project.dependencies {
+      implementation project(path)
+    }
+  }
+}
+
+dependencies {
+  implementation(project(':dd-java-agent:agent-tooling')) {
+    exclude module: ':dd-java-agent:agent-bootstrap'
+  }
+  implementation project(':dd-java-agent:agent-builder')
+}
+
+tasks.named('shadowJar').configure {
+  duplicatesStrategy = DuplicatesStrategy.FAIL
+  dependencies deps.excludeShared
+}
+
+tasks.register('generateKnownTypesIndex', JavaExec) {
+  // temporary config to add slf4j-simple so we get logging from instrumenters while indexing
+  def slf4jSimple = project.configurations.create('slf4j-simple')
+  project.dependencies.add('slf4j-simple', "org.slf4j:slf4j-simple:${versions.slf4j}")
+
+  def resourcesDir = "${sourceSets.main.output.resourcesDir}"
+  def indexFile = "${resourcesDir}/known-types.index"
+
+  it.group = 'Build'
+  it.description = "Generate known-types.index"
+  it.mainClass = 'datadog.trace.agent.tooling.KnownTypesIndex$IndexGenerator'
+  it.classpath = project.configurations.runtimeClasspath + slf4jSimple
+  it.inputs.files(it.classpath)
+  it.outputs.files(indexFile)
+  it.args = [resourcesDir]
+
+  dependsOn 'processResources'
+}
+
+shadowJar.dependsOn 'generateKnownTypesIndex'

@@ -1,5 +1,5 @@
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
+import datadog.appsec.api.blocking.Blocking
+
 import javax.ws.rs.GET
 import javax.ws.rs.HeaderParam
 import javax.ws.rs.Path
@@ -11,6 +11,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
@@ -95,6 +96,17 @@ class GrizzlyAsyncTest extends GrizzlyTest {
     }
 
     @GET
+    @Path("user-block")
+    Response userBlock(@Suspended AsyncResponse ar) {
+      executor.execute {
+        controller(USER_BLOCK) {
+          Blocking.forUser('user-to-block').blockIfMatch()
+          ar.resume(Response.status(200).entity('should not be reached').build())
+        }
+      }
+    }
+
+    @GET
     @Path("exception")
     void exception(@Suspended AsyncResponse ar) {
       executor.execute {
@@ -111,7 +123,5 @@ class GrizzlyAsyncTest extends GrizzlyTest {
 
   @Override
   def setup() {
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS)
   }
 }

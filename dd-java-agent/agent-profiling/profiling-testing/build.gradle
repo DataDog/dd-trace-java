@@ -1,0 +1,13 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+excludedClassesCoverage += [// These classes are using only for testing
+  'com.datadog.profiling.testing.*',]
+
+dependencies {
+  api deps.guava
+  api deps.okhttp
+  api group: 'org.javadelight', name: 'delight-fileupload', version: '0.0.5'
+  api group: 'javax.servlet', name: 'javax.servlet-api', version: '4.0.1'
+  api group: 'com.squareup.okhttp3', name: 'mockwebserver', version: versions.okhttp_legacy
+}
+

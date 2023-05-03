@@ -1,0 +1,77 @@
+plugins {
+  id 'com.github.johnrengelman.shadow'
+  id 'me.champeau.jmh'
+  id 'java-test-fixtures'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/version.gradle"
+
+dependencies {
+  api deps.slf4j
+
+  compileOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+
+  implementation project(':internal-api')
+  implementation project(':internal-api:internal-api-9')
+  implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
+
+  testFixturesApi project(':dd-java-agent:testing')
+  testFixturesApi project(':utils:test-utils')
+  testImplementation deps.bytebuddy
+
+  jmh project(':utils:test-utils')
+  jmh project(':dd-trace-core')
+  jmh project(':dd-java-agent:agent-builder')
+  jmh project(':dd-java-agent:instrumentation:iast-instrumenter')
+  jmh project(':dd-java-agent:instrumentation:java-lang')
+}
+
+shadowJar {
+  dependencies deps.excludeShared
+}
+
+jar {
+  archiveClassifier = 'unbundled'
+}
+
+ext {
+  minimumBranchCoverage = 0.6
+  minimumInstructionCoverage = 0.8
+  excludedClassesCoverage = [
+    // Avoid coverage measurement of model getters atm
+    'com.datadog.iast.model.Evidence',
+    'com.datadog.iast.model.Range',
+    'com.datadog.iast.model.Source',
+    'com.datadog.iast.model.Vulnerability',
+    // Small JsonAdapters with unimplemented fromJson
+    'com.datadog.iast.model.json.AdapterFactory',
+    'com.datadog.iast.model.json.SourceTypeAdapter',
+    'com.datadog.iast.model.json.DDSpanIdAdapter',
+    'com.datadog.iast.model.json.EvidenceAdapter',
+    'com.datadog.iast.model.json.VulnerabilityTypeAdapter',
+  ]
+  excludedClassesBranchCoverage = []
+  excludedClassesInstructionCoverage = []
+}
+
+tasks.withType(Test).configureEach {
+  jvmArgs += ['-Ddd.iast.enabled=true']
+}
+def rootDir = project.rootDir
+spotless {
+  java {
+    target 'src/**/*.java'
+  }
+}
+
+jmh {
+  jmhVersion = '1.28'
+  duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+pitest {
+  targetClasses = ['com.datadog.iast.*']
+  jvmArgs = ['-Ddd.iast.enabled=true']
+}

@@ -4,7 +4,6 @@ import datadog.trace.util.Strings;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.UndeclaredThrowableException;
 import java.math.BigInteger;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
@@ -31,6 +30,19 @@ public final class Dependency {
       Pattern.compile("(.+)-(\\d[^/-]+(?:-(?:\\w+))*)?\\.jar$");
 
   private static final byte[] buf = new byte[8192];
+
+  private static final MessageDigest md;
+
+  static {
+    MessageDigest digest = null;
+    try {
+      digest = MessageDigest.getInstance("SHA-1");
+    } catch (NoSuchAlgorithmException e) {
+      // should not happen
+      log.error("Unable to create cipher", e);
+    }
+    md = digest;
+  }
 
   private final String name;
   private final String version;
@@ -120,6 +132,14 @@ public final class Dependency {
                 artifactId,
                 version);
           } else {
+            log.debug(
+                "dependency found in pom.properties: "
+                    + "jar={}, entry={}, groupId={}, artifactId={}, version={}",
+                jar.getName(),
+                jarEntry.getName(),
+                groupId,
+                artifactId,
+                version);
             dependencies.add(new Dependency(name, version, (new File(jar.getName())).getName()));
           }
         } catch (IOException e) {
@@ -136,7 +156,7 @@ public final class Dependency {
     String artifactId;
     String groupId = null;
     String version;
-    String hash;
+    String hash = null;
 
     // Guess from manifest
     String bundleSymbolicName = null;
@@ -176,7 +196,7 @@ public final class Dependency {
       artifactId = bundleSymbolicName;
     } else if (isValidArtifactId(bundleName)) {
       artifactId = bundleName;
-    } else if (isValidArtifactId(implementationVersion)) {
+    } else if (isValidArtifactId(implementationTitle)) {
       artifactId = implementationTitle;
     } else if (fileNameArtifact != null) {
       artifactId = fileNameArtifact;
@@ -219,25 +239,21 @@ public final class Dependency {
       name = artifactId;
     }
 
-    // Compute hash for all dependencies that has no pom
-    // No reliable version calculate hash and use any version
-    MessageDigest md;
-    try {
-      md = MessageDigest.getInstance("SHA-1");
-    } catch (NoSuchAlgorithmException e) {
-      // should not happen
-      throw new UndeclaredThrowableException(e);
+    if (md != null) {
+      // Compute hash for all dependencies that has no pom
+      // No reliable version calculate hash and use any version
+      md.reset();
+      is = new DigestInputStream(is, md);
+      while (is.read(buf, 0, buf.length) > 0) {}
+      hash = String.format("%040X", new BigInteger(1, md.digest()));
     }
-    is = new DigestInputStream(is, md);
-    while (is.read(buf, 0, buf.length) > 0) {}
-    hash = String.format("%040X", new BigInteger(1, md.digest()));
-
+    log.debug("No maven dependency added {}.{} jar name {} hash {}", name, version, source, hash);
     return new Dependency(name, version, source, hash);
   }
 
   /** Check is string is valid artifactId. Should be a non-capital single word. */
   private static boolean isValidArtifactId(String artifactId) {
-    return artifactId != null
+    return hasText(artifactId)
         && !artifactId.contains(" ")
         && !artifactId.contains(".")
         && !Character.isUpperCase(artifactId.charAt(0));
@@ -245,10 +261,14 @@ public final class Dependency {
 
   /** Check is string is valid groupId. Should be a non-capital plural-word separated with dot. */
   private static boolean isValidGroupId(String group) {
-    return group != null
+    return hasText(group)
         && !group.contains(" ")
         && group.contains(".")
         && !Character.isUpperCase(group.charAt(0));
+  }
+
+  private static boolean hasText(final String value) {
+    return value != null && !value.isEmpty();
   }
 
   private static boolean equalsNonNull(String s1, String s2) {

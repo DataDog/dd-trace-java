@@ -28,9 +28,10 @@ final class JfrProfilerSettings extends ProfilerSettingsSupport {
               "Exception Histo Size Limit", String.valueOf(exceptionHistogramMaxSize))
           .commit();
       new ProfilerSettingEvent("Hotspots", String.valueOf(hotspotsEnabled)).commit();
-      new ProfilerSettingEvent("Checkpoints", String.valueOf(checkpointsEnabled)).commit();
       new ProfilerSettingEvent("Endpoints", String.valueOf(endpointsEnabled)).commit();
       new ProfilerSettingEvent("Auxiliary Profiler", auxiliaryProfiler).commit();
+      new ProfilerSettingEvent("perf_events_paranoid", perfEventsParanoid).commit();
+      new ProfilerSettingEvent("Native Stacks", String.valueOf(hasNativeStacks)).commit();
     }
   }
 }

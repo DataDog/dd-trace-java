@@ -1,7 +1,5 @@
 package springdata
 
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import com.couchbase.client.java.Cluster
 import com.couchbase.client.java.CouchbaseCluster
 import com.couchbase.client.java.env.CouchbaseEnvironment
@@ -24,7 +22,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
   new BigDecimal(System.getProperty("java.specification.version")).isAtLeast(17.0)
 })
 @Unroll
-class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
+abstract class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
   static final Closure<Doc> FIND
   static {
     // This method is different in Spring Data 2+
@@ -98,9 +96,6 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
 
   def "test empty repo"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
 
     when:
@@ -119,9 +114,6 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
 
   def "test save"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     def doc = new Doc()
 
@@ -139,9 +131,6 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
 
   def "test save and retrieve"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     def doc = new Doc()
     def result
@@ -166,9 +155,6 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
 
   def "test save and update"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     def doc = new Doc()
 
@@ -193,9 +179,6 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
 
   def "save and delete"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     def doc = new Doc()
     def result

@@ -1,3 +1,5 @@
+import static datadog.trace.instrumentation.lettuce4.InstrumentationPoints.AGENT_CRASHING_COMMAND_PREFIX
+
 import com.lambdaworks.redis.ClientOptions
 import com.lambdaworks.redis.RedisClient
 import com.lambdaworks.redis.RedisConnectionException
@@ -8,8 +10,9 @@ import com.lambdaworks.redis.api.async.RedisAsyncCommands
 import com.lambdaworks.redis.api.sync.RedisCommands
 import com.lambdaworks.redis.codec.Utf8StringCodec
 import com.lambdaworks.redis.protocol.AsyncCommand
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.PortUtils
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import redis.embedded.RedisServer
@@ -23,9 +26,7 @@ import java.util.function.BiFunction
 import java.util.function.Consumer
 import java.util.function.Function
 
-import static datadog.trace.instrumentation.lettuce4.InstrumentationPoints.AGENT_CRASHING_COMMAND_PREFIX
-
-class Lettuce4AsyncClientTest extends AgentTestRunner {
+abstract class Lettuce4AsyncClientTest extends VersionedNamingTestBase {
   public static final String HOST = "127.0.0.1"
   public static final int DB_INDEX = 0
   // Disable autoreconnect so we do not get stray traces popping up on server shutdown
@@ -112,8 +113,8 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           spanType DDSpanTypes.REDIS
           resourceName "CONNECT:" + dbAddr
           errored false
@@ -150,8 +151,8 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           spanType DDSpanTypes.REDIS
           resourceName "CONNECT:" + dbAddrNonExistent
           errored true
@@ -181,8 +182,8 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           spanType DDSpanTypes.REDIS
           resourceName "SET"
           errored false
@@ -190,7 +191,10 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
+            "db.redis.dbIndex" 0
             defaultTags()
           }
         }
@@ -219,8 +223,8 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           spanType DDSpanTypes.REDIS
           resourceName "GET"
           errored false
@@ -228,7 +232,10 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
+            "db.redis.dbIndex" 0
             defaultTags()
           }
         }
@@ -271,8 +278,8 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           spanType DDSpanTypes.REDIS
           resourceName "GET"
           errored false
@@ -280,7 +287,10 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
+            "db.redis.dbIndex" 0
             defaultTags()
           }
         }
@@ -309,8 +319,8 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           spanType DDSpanTypes.REDIS
           resourceName "RANDOMKEY"
           errored false
@@ -318,7 +328,10 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
+            "db.redis.dbIndex" 0
             defaultTags()
           }
         }
@@ -366,8 +379,8 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     assertTraces(2) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           spanType DDSpanTypes.REDIS
           resourceName "HMSET"
           errored false
@@ -375,15 +388,18 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
+            "db.redis.dbIndex" 0
             defaultTags()
           }
         }
       }
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           spanType DDSpanTypes.REDIS
           resourceName "HGETALL"
           errored false
@@ -391,7 +407,10 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
+            "db.redis.dbIndex" 0
             defaultTags()
           }
         }
@@ -427,8 +446,8 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           spanType DDSpanTypes.REDIS
           resourceName "DEL"
           errored true
@@ -436,7 +455,10 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
+            "db.redis.dbIndex" 0
             errorTags(IllegalStateException, "TestException")
             defaultTags()
           }
@@ -467,8 +489,8 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           spanType DDSpanTypes.REDIS
           resourceName "SADD"
           errored false
@@ -476,7 +498,10 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
+            "db.redis.dbIndex" 0
             "db.command.cancelled" true
             defaultTags()
           }
@@ -493,8 +518,8 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           spanType DDSpanTypes.REDIS
           resourceName AGENT_CRASHING_COMMAND_PREFIX + "DEBUG"
           errored false
@@ -502,7 +527,10 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
+            "db.redis.dbIndex" 0
             defaultTags()
           }
         }
@@ -519,8 +547,8 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           spanType DDSpanTypes.REDIS
           resourceName "SHUTDOWN"
           errored false
@@ -528,11 +556,50 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
+            "db.redis.dbIndex" 0
             defaultTags()
           }
         }
       }
     }
+  }
+}
+
+class Lettuce4AsyncClientV0ForkedTest extends Lettuce4AsyncClientTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return "redis"
+  }
+
+  @Override
+  String operation() {
+    return "redis.query"
+  }
+}
+
+class Lettuce4AsyncClientV1ForkedTest extends Lettuce4AsyncClientTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return Config.get().getServiceName()
+  }
+
+  @Override
+  String operation() {
+    return "redis.command"
   }
 }

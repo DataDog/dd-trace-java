@@ -1,0 +1,32 @@
+plugins {
+  id 'java'
+  id 'org.springframework.boot' version '3.0.0'
+  id 'io.spring.dependency-management' version '1.0.14.RELEASE'
+  id "com.diffplug.spotless" version "6.11.0"
+}
+
+def sharedRootDir = "$rootDir/../../../"
+def sharedConfigDirectory = "$sharedRootDir/gradle"
+rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
+
+apply from: "$sharedConfigDirectory/repositories.gradle"
+apply from: "$sharedConfigDirectory/spotless.gradle"
+
+if (hasProperty('appBuildDir')) {
+  buildDir = property('appBuildDir')
+}
+
+version = ""
+
+dependencies {
+  implementation 'org.springframework.boot:spring-boot-starter-webflux'
+  implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+  implementation group: 'com.h2database', name: 'h2', version: '2.1.214'
+  compileOnly group:"com.google.code.findbugs", name:"jsr305", version:"3.0.2"
+
+  if (hasProperty('apiJar')) {
+    implementation files(property('apiJar'))
+  } else {
+    implementation "com.datadoghq:dd-trace-api:1.2.0"
+  }
+}

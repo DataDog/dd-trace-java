@@ -6,7 +6,7 @@ import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint
 import datadog.trace.common.metrics.EventListener
 import datadog.trace.common.metrics.OkHttpSink
-import datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer
+import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring
 import datadog.trace.test.util.DDSpecification
 import okhttp3.HttpUrl
 import spock.lang.Ignore
@@ -15,12 +15,11 @@ import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.CopyOnWriteArrayList
 
-import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static datadog.trace.common.metrics.EventListener.EventType.OK
-import static datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer.DEFAULT_BUCKET_DURATION_NANOS
+import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoring.DEFAULT_BUCKET_DURATION_NANOS
 
 @Requires({
-  "true" == System.getenv("CI") && isJavaVersionAtLeast(8)
+  "true" == System.getenv("CI")
 })
 @Ignore("The agent in CI doesn't have a valid API key. Unlike metrics and traces, data streams fails in this case")
 class DataStreamsIntegrationTest extends DDSpecification {
@@ -46,11 +45,11 @@ class DataStreamsIntegrationTest extends DDSpecification {
     def timeSource = new ControllableTimeSource()
 
     when:
-    def checkpointer = new DefaultDataStreamsCheckpointer(sink, sharedCommunicationObjects.featuresDiscovery, timeSource, Config.get().getEnv())
-    checkpointer.start()
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeNanos, 0, 0))
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, sharedCommunicationObjects.featuresDiscovery, timeSource, Config.get().getEnv())
+    dataStreams.start()
+    dataStreams.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.report()
+    dataStreams.report()
 
     then:
     sharedCommunicationObjects.featuresDiscovery.supportsDataStreams()
@@ -60,7 +59,7 @@ class DataStreamsIntegrationTest extends DDSpecification {
     listener.events[0] == OK
 
     cleanup:
-    checkpointer.close()
+    dataStreams.close()
   }
 
   static class BlockingListener implements EventListener {

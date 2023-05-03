@@ -1,8 +1,8 @@
 package datadog.smoketest
 
+import datadog.trace.test.util.Flaky
 import okhttp3.Request
 import okhttp3.Response
-import spock.lang.Ignore
 import spock.lang.Requires
 import spock.lang.Shared
 
@@ -21,6 +21,7 @@ class SpringBootOpenLibertySnapshotTest extends AbstractTestAgentSmokeTest {
     command.addAll(defaultJavaProperties)
     command.addAll((String[]) [
       "-Ddd.jmxfetch.enabled=false",
+      '-Ddd.trace.integration.java-lang-appsec.enabled=false',
       "-jar",
       openLibertyShadowJar,
       "--server.port=${httpPort}"
@@ -31,7 +32,7 @@ class SpringBootOpenLibertySnapshotTest extends AbstractTestAgentSmokeTest {
     return processBuilder
   }
 
-  @Ignore("Fails sometimes with 400 status code https://github.com/DataDog/dd-trace-java/issues/3871")
+  @Flaky("Fails sometimes with 400 status code https://github.com/DataDog/dd-trace-java/issues/3871")
   def "Test trace snapshot of sending single request to Openliberty server"() {
     setup:
     Response response
@@ -41,7 +42,8 @@ class SpringBootOpenLibertySnapshotTest extends AbstractTestAgentSmokeTest {
       'metrics.peer.port',
       'metrics.thread.id',
       'meta.servlet.path',
-      'meta.http.useragent'
+      'meta.http.useragent',
+      'metrics.process_id'
     ]
     snapshot("datadog.smoketest.SpringBootOpenLibertySnapshotTest.simple", ignoredKeys,{
       def url = "http://localhost:${httpPort}/connect/0"
@@ -63,7 +65,8 @@ class SpringBootOpenLibertySnapshotTest extends AbstractTestAgentSmokeTest {
       'metrics.peer.port',
       'metrics.thread.id',
       'meta.servlet.path',
-      'meta.http.useragent'
+      'meta.http.useragent',
+      'metrics.process_id'
     ]
     snapshot("datadog.smoketest.SpringBootOpenLibertySnapshotTest.nested", ignoredKeys, {
       def url = "http://localhost:${httpPort}/connect"
@@ -90,7 +93,8 @@ class SpringBootOpenLibertySnapshotTest extends AbstractTestAgentSmokeTest {
       'metrics.peer.port',
       'metrics.thread.id',
       'meta.error.stack',
-      'meta.http.useragent'
+      'meta.http.useragent',
+      'metrics.process_id'
     ]
     snapshot("datadog.smoketest.SpringBootOpenLibertySnapshotTest.exception404", ignoredKeys, {
       def url = "http://localhost:${httpPort}/randomEndpoint"

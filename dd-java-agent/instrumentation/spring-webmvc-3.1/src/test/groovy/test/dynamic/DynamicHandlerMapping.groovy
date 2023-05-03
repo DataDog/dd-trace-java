@@ -1,6 +1,6 @@
 package test.dynamic
 
-import org.junit.Assert
+import org.junit.jupiter.api.Assertions
 import org.springframework.context.ApplicationContext
 import org.springframework.web.context.request.RequestContextHolder
 import org.springframework.web.method.HandlerMethod
@@ -18,7 +18,7 @@ class DynamicHandlerMapping extends AbstractHandlerMapping {
     try {
       RequestContextHolder.currentRequestAttributes()
     } catch (Exception e) {
-      Assert.fail(e.getMessage())
+      Assertions.fail(e.getMessage())
     }
     ApplicationContext applicationContext = this.getApplicationContext()
     DynamicRoutingConfig routingConfig = applicationContext

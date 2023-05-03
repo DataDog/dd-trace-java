@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
+import datadog.trace.instrumentation.servlet3.TestServlet3
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.ErrorHandler
@@ -106,7 +107,7 @@ class JettyServletHandlerTest extends AbstractServlet3Test<Server, ServletHandle
   @Override
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.throwsException && !dispatch) {
-      ["error.msg": "${endpoint.body}",
+      ["error.message": "${endpoint.body}",
         "error.type": { it == Exception.name || it == InputMismatchException.name },
         "error.stack": String]
     } else {

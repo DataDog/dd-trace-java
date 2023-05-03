@@ -2,35 +2,19 @@ package datadog.trace.agent.tooling.csi
 
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteUtils
 import datadog.trace.test.util.DDSpecification
+import groovy.transform.CompileDynamic
 import net.bytebuddy.jar.asm.MethodVisitor
 import net.bytebuddy.jar.asm.Opcodes
 import net.bytebuddy.jar.asm.Type
-import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
-import static datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode.APPEND_ARRAY
-import static datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode.PREPEND_ARRAY
-import static datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode.COPY
-import static datadog.trace.agent.tooling.csi.CallSiteUtilsTest.StackObject.forBoolean
-import static datadog.trace.agent.tooling.csi.CallSiteUtilsTest.StackObject.forByte
-import static datadog.trace.agent.tooling.csi.CallSiteUtilsTest.StackObject.forChar
-import static datadog.trace.agent.tooling.csi.CallSiteUtilsTest.StackObject.forDouble
-import static datadog.trace.agent.tooling.csi.CallSiteUtilsTest.StackObject.forFloat
-import static datadog.trace.agent.tooling.csi.CallSiteUtilsTest.StackObject.forInt
-import static datadog.trace.agent.tooling.csi.CallSiteUtilsTest.StackObject.forLong
-import static datadog.trace.agent.tooling.csi.CallSiteUtilsTest.StackObject.forObject
-import static datadog.trace.agent.tooling.csi.CallSiteUtilsTest.StackObject.forShort
-import static net.bytebuddy.jar.asm.Type.BOOLEAN_TYPE
-import static net.bytebuddy.jar.asm.Type.BYTE_TYPE
-import static net.bytebuddy.jar.asm.Type.CHAR_TYPE
-import static net.bytebuddy.jar.asm.Type.DOUBLE_TYPE
-import static net.bytebuddy.jar.asm.Type.FLOAT_TYPE
-import static net.bytebuddy.jar.asm.Type.INT_TYPE
-import static net.bytebuddy.jar.asm.Type.LONG_TYPE
-import static net.bytebuddy.jar.asm.Type.SHORT_TYPE
+import static datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode.*
+import static datadog.trace.agent.tooling.csi.CallSiteUtilsTest.StackObject.*
+import static net.bytebuddy.jar.asm.Type.*
 
+@CompileDynamic
 class CallSiteUtilsTest extends DDSpecification {
 
-  def 'test push int value "#value" onto stack'(final int value, final int opcode) {
+  void 'test push int value "#value" onto stack'(final int value, final int opcode) {
     setup:
     final visitor = Mock(MethodVisitor)
 
@@ -68,7 +52,7 @@ class CallSiteUtilsTest extends DDSpecification {
     Byte.MAX_VALUE      | Opcodes.BIPUSH
   }
 
-  def 'test swap [..., #secondToLastSize, #lastSize]'(final int secondToLastSize,
+  void 'test swap [..., #secondToLastSize, #lastSize]'(final int secondToLastSize,
     final int lastSize,
     final List<Integer> opcodes) {
     setup:
@@ -91,7 +75,7 @@ class CallSiteUtilsTest extends DDSpecification {
     2                | 1        | [Opcodes.DUP_X2, Opcodes.POP]
   }
 
-  def 'test stack clone of #items'(final List<StackObject> items, final List<StackObject> expected) {
+  void 'test stack clone of #items'(final List<StackObject> items, final List<StackObject> expected) {
     setup:
     final stack = buildStack(items)
     final visitor = mockMethodVisitor(stack)
@@ -115,7 +99,45 @@ class CallSiteUtilsTest extends DDSpecification {
     [forObject('PI = '), forDouble(3.14D), forChar((char) '?'), forBoolean(true)] | items + items
   }
 
-  def 'test stack dup with array before of #items'(final List<StackObject> items, final List<StackObject> expected) {
+  void 'test dup with explicit indices for #items indices #indices'() {
+    setup:
+    final stack = buildStack(items)
+    final visitor = mockMethodVisitor(stack)
+
+    when:
+    CallSiteUtils.dup(visitor, items.collect { it.type } as Type[], indices as int[])
+
+    then:
+    final result = fromStack(stack)
+    result == items + expectedExtra
+
+    where:
+    items                                          | indices   | expectedExtra
+    [forInt(1), forByte(2 as byte)]                | [0]       | forInt(1) // 12|1
+    [forInt(1), forLong(2L)]                       | [0]       | forInt(1) // 12L|1
+    [forLong(1L), forInt(2)]                       | [0]       | forLong(1L) // 1L2|1L
+    [forLong(1L), forLong(2L)]                     | [0]       | forLong(1L) // 1L2|1L
+    [forInt(1), forInt(2), forInt(3)]              | [0]       | forInt(1) // 123|1
+    [forInt(1), forInt(2), forLong(3L)]            | [0]       | forInt(1) // 123L|1
+    [forLong(1L), forInt(2), forInt(3)]            | [0]       | forLong(1L) // 1L23|1L
+    [forInt(1), forInt(2), forInt(3)]              | [0, 1]    | [forInt(1), forInt(2)] // 123|12
+    [forInt(1), forInt(2), forLong(3L)]            | [0, 1]    | [forInt(1), forInt(2)] // 123L|12
+    [forLong(1L), forInt(2), forInt(3)]            | [0, 1]    | [forLong(1L), forInt(2)] // 1L23|1L2
+    [forInt(1), forInt(2), forInt(3)]              | [0, 2]    | [forInt(1), forInt(3)] // 123|13
+    [forInt(1), forInt(2), forLong(3L)]            | [0, 2]    | [forInt(1), forLong(3L)] // 123L|13L
+    [forLong(1), forInt(2), forInt(3)]             | [0, 2]    | [forLong(1L), forInt(3)] // 1L23|1L3
+    [forInt(1), forInt(2), forInt(3), forInt(4)]   | [0]       | forInt(1) // 1234|1
+    [forInt(1), forInt(2), forInt(3), forInt(4)]   | [0, 1]    | [forInt(1), forInt(2)] // 1234|12
+    [forInt(1), forInt(2), forInt(3), forInt(4)]   | [0, 2]    | [forInt(1), forInt(3)] // 1234|13
+    [forInt(1), forInt(2), forInt(3), forInt(4)]   | [0, 3]    | [forInt(1), forInt(4)] // 1234|14
+    [forInt(1), forInt(2), forInt(3), forInt(4)]   | [0, 1, 3] | [forInt(1), forInt(2), forInt(4)] // 1234|124
+    [forInt(1), forInt(2), forInt(3), forInt(4)]   | [0, 2, 3] | [forInt(1), forInt(3), forInt(4)] // 1234|134
+    // fallback cases
+    [forInt(1), forLong(2L), forInt(3), forInt(4)] | [0, 2, 3] | [forInt(1), forInt(3), forInt(4)]
+    [forInt(1), forInt(2), forInt(3)]              | [2, 2, 0] | [forInt(3), forInt(3), forInt(1)]
+  }
+
+  void 'test stack dup with array before of #items'(final List<StackObject> items, final List<StackObject> expected) {
     setup:
     final stack = buildStack(items)
     final visitor = mockMethodVisitor(stack)
@@ -147,7 +169,7 @@ class CallSiteUtilsTest extends DDSpecification {
     [forObject('PI = '), forDouble(3.14D), forChar((char) '?'), forBoolean(true)] | items
   }
 
-  def 'test stack dup with array after of #items'(final List<StackObject> items, final List<StackObject> expected) {
+  void 'test stack dup with array after of #items'(final List<StackObject> items, final List<StackObject> expected) {
     setup:
     final stack = buildStack(items)
     final visitor = mockMethodVisitor(stack)
@@ -179,6 +201,45 @@ class CallSiteUtilsTest extends DDSpecification {
     [forObject('PI = '), forDouble(3.14D), forChar((char) '?'), forBoolean(true)] | items
   }
 
+  void 'test stack dup with array before ctor of #items'() {
+    setup:
+    final stack = buildStack(items)
+    final visitor = mockMethodVisitor(stack)
+
+    when:
+    CallSiteUtils.dup(visitor, expected*.type as Type[], PREPEND_ARRAY_CTOR)
+
+    then: 'the first element of the stack should be an array with the parameters'
+    final arrayFromStack = stack.remove(0)
+    arrayFromStack.type.descriptor == '[Ljava/lang/Object;'
+    final array = (arrayFromStack.value as Object[]).toList() as List<StackObject>
+    [array, expected].transpose().each { arrayItem, expectedItem ->
+      assert arrayItem.value == expectedItem.value // some of the items might be boxed so be careful
+    }
+
+    then: 'the rest of the stack should contain the original values'
+    final result = fromStack(stack)
+    result == items
+
+    where:
+    items                                                                                                             | expected
+    [forObject('NEW'), forObject('DUP'), forInt(1)]                                                                   | items.subList(2, items.size())
+    [forObject('NEW'), forObject('DUP'), forInt(1), forInt(2)]                                                        | items.subList(2, items.size())
+    [forObject('NEW'), forObject('DUP'), forLong(1L)]                                                                 | items.subList(2, items.size())
+    [forObject('NEW'), forObject('DUP'), forLong(1L), forLong(2L)]                                                    | items.subList(2, items.size())
+    [forObject('NEW'), forObject('DUP'), forInt(1), forLong(2L)]                                                      | items.subList(2, items.size())
+    [forObject('NEW'), forObject('DUP'), forInt(1), forInt(2), forLong(3L)]                                           | items.subList(2, items.size())
+    [forObject('NEW'), forObject('DUP'), forInt(1), forInt(2), forInt(3), forLong(4L)]                                | items.subList(2, items.size())
+    [
+      forObject('NEW'),
+      forObject('DUP'),
+      forObject('PI = '),
+      forDouble(3.14D),
+      forChar((char) '?'),
+      forBoolean(true)
+    ] | items.subList(2, items.size())
+  }
+
   private MethodVisitor mockMethodVisitor(final List<StackObject> stack) {
     return Mock(MethodVisitor) {
       visitInsn(Opcodes.DUP) >> { handleDUP(stack) }
@@ -208,7 +269,7 @@ class CallSiteUtilsTest extends DDSpecification {
         if (method ==~ /(:?char|boolean|byte|short|int|long|float|double)Value/) {
           handleUnBoxing(stack, it[1] as String, method)
         } else {
-          throw new NotImplementedException()
+          throw new UnsupportedOperationException()
         }
       }
       _ >> { throw new IllegalArgumentException('Not yet implemented') }

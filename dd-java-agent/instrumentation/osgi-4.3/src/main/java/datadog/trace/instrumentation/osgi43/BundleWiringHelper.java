@@ -2,11 +2,11 @@ package datadog.trace.instrumentation.osgi43;
 
 import static org.osgi.framework.wiring.BundleRevision.PACKAGE_NAMESPACE;
 
-import datadog.trace.api.function.Function;
 import java.net.URL;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.wiring.BundleRevision;
 import org.osgi.framework.wiring.BundleWire;
@@ -31,17 +31,19 @@ public final class BundleWiringHelper {
     }
     // not in the bundle, lets check for a direct import of the containing package
     BundleWiring wiring = (BundleWiring) origin.adapt(BundleWiring.class);
-    List<BundleWire> importWires = wiring.getRequiredWires(PACKAGE_NAMESPACE);
-    if (null != importWires) {
-      int lastSlash = resourceName.lastIndexOf('/');
-      if (lastSlash > 0) {
-        String pkg = resourceName.substring(0, lastSlash).replace('/', '.');
-        for (BundleWire wire : importWires) {
-          if (pkg.equals(wire.getCapability().getAttributes().get(PACKAGE_NAMESPACE))) {
-            // class resource comes from a transitive import - to avoid cost of finding it, and
-            // because classloader matching/probing just checks existence, we return a resource
-            // we know exists to stand-in for the real resource
-            return origin.getEntry("META-INF/MANIFEST.MF");
+    if (null != wiring) {
+      List<BundleWire> importWires = wiring.getRequiredWires(PACKAGE_NAMESPACE);
+      if (null != importWires) {
+        int lastSlash = resourceName.lastIndexOf('/');
+        if (lastSlash > 0) {
+          String pkg = resourceName.substring(0, lastSlash).replace('/', '.');
+          for (BundleWire wire : importWires) {
+            if (pkg.equals(wire.getCapability().getAttributes().get(PACKAGE_NAMESPACE))) {
+              // class resource comes from a transitive import - to avoid cost of finding it, and
+              // because classloader matching/probing just checks existence, we return a resource
+              // we know exists to stand-in for the real resource
+              return origin.getEntry("META-INF/MANIFEST.MF");
+            }
           }
         }
       }
@@ -53,6 +55,7 @@ public final class BundleWiringHelper {
   public static URL getResource(final Bundle origin, final String resourceName) {
     return searchDirectWires(
         (BundleWiring) origin.adapt(BundleWiring.class),
+        // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
         new Function<BundleWiring, URL>() {
           @Override
           public URL apply(final BundleWiring wiring) {
@@ -66,6 +69,7 @@ public final class BundleWiringHelper {
   public static Class<?> loadClass(final Bundle origin, final String className) {
     return searchDirectWires(
         (BundleWiring) origin.adapt(BundleWiring.class),
+        // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
         new Function<BundleWiring, Class<?>>() {
           @Override
           public Class<?> apply(final BundleWiring wiring) {
@@ -84,16 +88,18 @@ public final class BundleWiringHelper {
       final BundleWiring origin,
       final Function<BundleWiring, T> filter,
       final Set<BundleRevision> visited) {
-    // track which bundles we've visited to avoid dependency cycles
-    visited.add(origin.getRevision());
-    List<BundleWire> wires = origin.getRequiredWires(null);
-    if (null != wires) {
-      for (BundleWire wire : wires) {
-        BundleWiring wiring = wire.getProviderWiring();
-        if (null != wiring && visited.add(wiring.getRevision())) {
-          T result = filter.apply(wiring);
-          if (null != result) {
-            return result;
+    if (null != origin) {
+      // track which bundles we've visited to avoid dependency cycles
+      visited.add(origin.getRevision());
+      List<BundleWire> wires = origin.getRequiredWires(null);
+      if (null != wires) {
+        for (BundleWire wire : wires) {
+          BundleWiring wiring = wire.getProviderWiring();
+          if (null != wiring && visited.add(wiring.getRevision())) {
+            T result = filter.apply(wiring);
+            if (null != result) {
+              return result;
+            }
           }
         }
       }

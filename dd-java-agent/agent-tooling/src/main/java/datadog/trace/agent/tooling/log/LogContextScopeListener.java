@@ -1,9 +1,9 @@
 package datadog.trace.agent.tooling.log;
 
 import datadog.trace.api.CorrelationIdentifier;
-import datadog.trace.api.Tracer;
 import datadog.trace.api.WithGlobalTracer;
-import datadog.trace.context.ScopeListener;
+import datadog.trace.api.scopemanager.ScopeListener;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 
 /**
  * A scope listener that receives the MDC/ThreadContext put and receive methods and update the trace
@@ -28,7 +28,7 @@ public abstract class LogContextScopeListener implements ScopeListener, WithGlob
   public abstract void remove(String key);
 
   @Override
-  public void withTracer(Tracer tracer) {
+  public void withTracer(TracerAPI tracer) {
     tracer.addScopeListener(this);
   }
 }

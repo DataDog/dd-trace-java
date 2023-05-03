@@ -1,5 +1,6 @@
 package com.datadog.debugger.el.values;
 
+import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.*;
 
 import datadog.trace.bootstrap.debugger.el.Values;
@@ -11,16 +12,14 @@ class ObjectValueTest {
     ObjectValue instance = new ObjectValue(null);
     assertTrue(instance.isNull());
     assertFalse(instance.isUndefined());
-    assertFalse(instance.test());
-
     assertEquals(Values.NULL_OBJECT, instance.getValue());
+    assertEquals("null", print(instance));
 
     instance = new ObjectValue(Values.NULL_OBJECT);
     assertTrue(instance.isNull());
     assertFalse(instance.isUndefined());
-    assertFalse(instance.test());
-
     assertEquals(Values.NULL_OBJECT, instance.getValue());
+    assertEquals("null", print(instance));
   }
 
   @Test
@@ -29,9 +28,8 @@ class ObjectValueTest {
     ObjectValue instance = new ObjectValue(expected);
     assertFalse(instance.isNull());
     assertFalse(instance.isUndefined());
-    assertTrue(instance.test());
-
     assertEquals(expected, instance.getValue());
+    assertEquals("java.lang.Object", print(instance));
   }
 
   @Test
@@ -40,8 +38,7 @@ class ObjectValueTest {
     ObjectValue instance = new ObjectValue(expected);
     assertFalse(instance.isNull());
     assertTrue(instance.isUndefined());
-    assertTrue(instance.test());
-
     assertEquals(expected, instance.getValue());
+    assertEquals("UNDEFINED", print(instance));
   }
 }

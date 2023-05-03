@@ -22,7 +22,7 @@ class ShouldInjectFieldsState {
   // this map will contain entries for any root type that we wanted to field-inject
   // but were not able to - either because it was explicitly excluded, or because we
   // failed to field-inject as the type was already loaded
-  private static final ConcurrentHashMap<String, BitSet> EXCLUDED_STORE_IDS_BY_TYPE =
+  private static final ConcurrentHashMap<String, BitSet> WEAK_STORE_IDS_BY_TYPE =
       new ConcurrentHashMap<String, BitSet>();
 
   private ShouldInjectFieldsState() {}
@@ -31,8 +31,8 @@ class ShouldInjectFieldsState {
    * Searches for the earliest class in the hierarchy to have fields injected under the given key.
    */
   public static String findInjectionTarget(TypeDescription typeDescription, String keyType) {
-    // precondition: typeDescription must be a sub type of the key class
-    // verifying this isn't free so the caller (in the same package) is trusted
+    // precondition: typeDescription must be a subtype of the key class
+    // (checked in ShouldInjectContextFieldMatcher before calling here)
 
     // The flag takes 3 values:
     // true: the key type is a class, so should be the injection target
@@ -94,23 +94,22 @@ class ShouldInjectFieldsState {
   }
 
   /**
-   * Keep track of which stores (per-type) were explicitly excluded or we failed to field-inject.
-   * This is used to decide when we can't apply certain store optimizations ahead of loading.
+   * Keep track of stores (per-type) where field-injection was explicitly excluded, or we failed to
+   * field-inject them. This is used to decide when to apply store optimizations ahead of loading.
    */
   public static void excludeInjectedField(
       String instrumentedType, String keyType, String valueType) {
     int storeId = getContextStoreId(keyType, valueType);
-    BitSet excludedStoreIdsForType = EXCLUDED_STORE_IDS_BY_TYPE.get(instrumentedType);
-    if (null == excludedStoreIdsForType) {
+    BitSet weakStoreIdsForType = WEAK_STORE_IDS_BY_TYPE.get(instrumentedType);
+    if (null == weakStoreIdsForType) {
       BitSet tempStoreIds = new BitSet();
       tempStoreIds.set(storeId);
-      excludedStoreIdsForType =
-          EXCLUDED_STORE_IDS_BY_TYPE.putIfAbsent(instrumentedType, tempStoreIds);
+      weakStoreIdsForType = WEAK_STORE_IDS_BY_TYPE.putIfAbsent(instrumentedType, tempStoreIds);
     }
     // if we didn't get there first then add this store to the existing set
-    if (null != excludedStoreIdsForType) {
-      synchronized (excludedStoreIdsForType) {
-        excludedStoreIdsForType.set(storeId);
+    if (null != weakStoreIdsForType) {
+      synchronized (weakStoreIdsForType) {
+        weakStoreIdsForType.set(storeId);
       }
     }
   }
@@ -127,14 +126,14 @@ class ShouldInjectFieldsState {
    *
    * <p>Assumes the type has already been processed by ShouldInjectFieldsMatcher.
    */
-  public static boolean hasInjectedField(TypeDefinition typeDefinition, BitSet excludedStoreIds) {
+  public static boolean hasInjectedField(TypeDefinition typeDefinition, BitSet weakStoreIds) {
     Set<String> visitedInterfaces = new HashSet<>();
     while (null != typeDefinition) {
       String className = typeDefinition.asErasure().getName();
-      BitSet excludedStoreIdsForType = EXCLUDED_STORE_IDS_BY_TYPE.get(className);
-      if (null != excludedStoreIdsForType) {
-        synchronized (excludedStoreIdsForType) {
-          excludedStoreIds.or(excludedStoreIdsForType);
+      BitSet weakStoreIdsForType = WEAK_STORE_IDS_BY_TYPE.get(className);
+      if (null != weakStoreIdsForType) {
+        synchronized (weakStoreIdsForType) {
+          weakStoreIds.or(weakStoreIdsForType);
         }
       } else if (KEY_TYPE_IS_CLASS.containsKey(className)
           || impliesInjectedField(typeDefinition, visitedInterfaces)) {

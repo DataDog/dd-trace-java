@@ -12,8 +12,6 @@ import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
 import java.lang.instrument.Instrumentation;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -26,8 +24,8 @@ import org.jboss.vfs.TempFileProvider;
 import org.jboss.vfs.VFS;
 import org.jboss.vfs.VirtualFile;
 import org.jboss.vfs.VirtualFileAssembly;
-import org.junit.After;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
 public class DependencyServiceImplTests {
 
@@ -35,7 +33,7 @@ public class DependencyServiceImplTests {
   Closeable assemblyHandle;
   TempFileProvider tempFileProvider;
 
-  @After
+  @AfterEach
   public void teardown() throws IOException {
     if (assemblyHandle != null) {
       assemblyHandle.close();
@@ -52,17 +50,13 @@ public class DependencyServiceImplTests {
             Proxy.newProxyInstance(
                 DependencyServiceImplTests.class.getClassLoader(),
                 new Class<?>[] {Instrumentation.class},
-                new InvocationHandler() {
-                  @Override
-                  public Object invoke(Object proxy, Method method, Object[] args)
-                      throws Throwable {
-                    if (method.getName().equals("addTransformer")) {
-                      t[0] = (ClassFileTransformer) args[0];
-                    } else {
-                      throw new UnsupportedOperationException();
-                    }
-                    return null;
+                (proxy, method, args) -> {
+                  if (method.getName().equals("addTransformer")) {
+                    t[0] = (ClassFileTransformer) args[0];
+                  } else {
+                    throw new UnsupportedOperationException();
                   }
+                  return null;
                 });
 
     depService.installOn(instrumentation);

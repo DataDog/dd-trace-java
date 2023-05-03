@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
 import static net.bytebuddy.matcher.ElementMatchers.none;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -37,6 +38,10 @@ public final class HierarchyMatchers {
   public static ElementMatcher.Junction<TypeDescription> declaresMethod(
       ElementMatcher.Junction<? super MethodDescription> matcher) {
     return SUPPLIER.declaresMethod(matcher);
+  }
+
+  public static ElementMatcher.Junction<TypeDescription> concreteClass() {
+    return SUPPLIER.concreteClass();
   }
 
   public static ElementMatcher.Junction<TypeDescription> extendsClass(
@@ -107,6 +112,8 @@ public final class HierarchyMatchers {
     ElementMatcher.Junction<TypeDescription> declaresMethod(
         ElementMatcher.Junction<? super MethodDescription> matcher);
 
+    ElementMatcher.Junction<TypeDescription> concreteClass();
+
     ElementMatcher.Junction<TypeDescription> extendsClass(
         ElementMatcher.Junction<? super TypeDescription> matcher);
 
@@ -148,6 +155,12 @@ public final class HierarchyMatchers {
       public ElementMatcher.Junction<TypeDescription> declaresMethod(
           ElementMatcher.Junction<? super MethodDescription> matcher) {
         return ElementMatchers.declaresMethod(matcher);
+      }
+
+      @Override
+      @SuppressForbidden
+      public ElementMatcher.Junction<TypeDescription> concreteClass() {
+        return not(ElementMatchers.isAbstract());
       }
 
       @Override

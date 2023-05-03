@@ -4,9 +4,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.Expression;
-import com.datadog.debugger.el.StaticValueRefResolver;
+import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.values.BooleanValue;
-import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import org.junit.jupiter.api.Test;
 
 class IfExpressionTest {
@@ -15,45 +14,44 @@ class IfExpressionTest {
   @Test
   void testIfTrue() {
     boolean[] executed = new boolean[] {false};
-    PredicateExpression test = PredicateExpression.TRUE;
+    BooleanExpression test = BooleanExpression.TRUE;
     Expression<Void> expression =
         context -> {
           executed[0] = true;
           return null;
         };
-    DSL.doif(test, expression).evaluate(StaticValueRefResolver.self(this));
+    DSL.doif(test, expression).evaluate(RefResolverHelper.createResolver(this));
     assertTrue(executed[0]);
   }
 
   @Test
   void testIfFalse() {
     boolean[] executed = new boolean[] {false};
-    PredicateExpression test = PredicateExpression.FALSE;
+    BooleanExpression test = BooleanExpression.FALSE;
     Expression<Void> expression =
         context -> {
           executed[0] = true;
           return null;
         };
-    DSL.doif(test, expression).evaluate(StaticValueRefResolver.self(this));
+    DSL.doif(test, expression).evaluate(RefResolverHelper.createResolver(this));
     assertFalse(executed[0]);
   }
 
   @Test
   void testFromContext() {
     boolean[] executed = new boolean[] {false};
-    PredicateExpression test = DSL.eq(DSL.ref(".guardFlag"), BooleanValue.TRUE);
+    BooleanExpression test = DSL.eq(DSL.ref("guardFlag"), BooleanValue.TRUE);
     Expression<Void> expression =
         context -> {
           executed[0] = true;
           return null;
         };
-    ValueReferenceResolver ctx = StaticValueRefResolver.self(this);
     guardFlag = false;
-    DSL.doif(test, expression).evaluate(ctx);
+    DSL.doif(test, expression).evaluate(RefResolverHelper.createResolver(this));
     assertFalse(executed[0]);
 
     guardFlag = true;
-    DSL.doif(test, expression).evaluate(ctx);
+    DSL.doif(test, expression).evaluate(RefResolverHelper.createResolver(this));
     assertTrue(executed[0]);
   }
 }

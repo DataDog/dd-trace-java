@@ -59,6 +59,9 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing
       // server helpers
       packageName + ".server.ResponseExtractAdapter",
       packageName + ".server.NettyHttpServerDecorator",
+      packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
+      packageName + ".server.NettyHttpServerDecorator$IgnoreBlockingExceptionHandler",
+      packageName + ".server.BlockingResponseHandler",
       packageName + ".server.HttpServerRequestTracingHandler",
       packageName + ".server.HttpServerResponseTracingHandler",
       packageName + ".server.HttpServerTracingHandler"
@@ -82,7 +85,7 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "org.jboss.netty.channel.Channel", ChannelTraceContext.class.getName());
+        "org.jboss.netty.channel.Channel", packageName + ".ChannelTraceContext");
   }
 
   public static class ChannelPipelineAdd2ArgsAdvice extends AbstractNettyAdvice {

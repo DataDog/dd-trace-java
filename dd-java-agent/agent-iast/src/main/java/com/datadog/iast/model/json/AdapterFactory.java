@@ -1,8 +1,10 @@
 package com.datadog.iast.model.json;
 
+import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Source;
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityBatch;
+import com.datadog.iast.model.VulnerabilityType;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
@@ -16,6 +18,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -25,12 +28,11 @@ import javax.annotation.Nullable;
  */
 class AdapterFactory implements JsonAdapter.Factory {
 
-  private static final ThreadLocal<Context> CONTEXT_THREAD_LOCAL =
-      ThreadLocal.withInitial(Context::new);
+  static final ThreadLocal<Context> CONTEXT_THREAD_LOCAL = ThreadLocal.withInitial(Context::new);
 
-  private static class Context {
-    private final List<Source> sources;
-    private final Map<Source, Integer> sourceIndexMap;
+  static class Context {
+    final List<Source> sources;
+    final Map<Source, Integer> sourceIndexMap;
 
     public Context() {
       sources = new ArrayList<>();
@@ -40,7 +42,10 @@ class AdapterFactory implements JsonAdapter.Factory {
 
   @Override
   @Nullable
-  public JsonAdapter<?> create(Type type, Set<? extends Annotation> annotations, Moshi moshi) {
+  public JsonAdapter<?> create(
+      @Nonnull final Type type,
+      @Nonnull final Set<? extends Annotation> annotations,
+      @Nonnull final Moshi moshi) {
     final Class<?> rawType = Types.getRawType(type);
     if (Source.class.equals(rawType)) {
       for (final Annotation annotation : annotations) {
@@ -49,8 +54,12 @@ class AdapterFactory implements JsonAdapter.Factory {
         }
       }
       return null;
-    } else if (VulnerabilityBatch.class.equals(Types.getRawType(type))) {
+    } else if (VulnerabilityBatch.class.equals(rawType)) {
       return new VulnerabilityBatchAdapter(moshi);
+    } else if (Evidence.class.equals(rawType)) {
+      return new EvidenceAdapter();
+    } else if (VulnerabilityType.class.equals(rawType)) {
+      return new VulnerabilityTypeAdapter();
     }
     return null;
   }
@@ -58,7 +67,8 @@ class AdapterFactory implements JsonAdapter.Factory {
   public static class SourceIndexAdapter extends JsonAdapter<Source> {
 
     @Override
-    public void toJson(JsonWriter writer, @Nullable @SourceIndex Source value) throws IOException {
+    public void toJson(@Nonnull final JsonWriter writer, @Nullable @SourceIndex final Source value)
+        throws IOException {
       if (value == null) {
         writer.nullValue();
         return;
@@ -75,7 +85,7 @@ class AdapterFactory implements JsonAdapter.Factory {
 
     @Nullable
     @Override
-    public @SourceIndex Source fromJson(JsonReader reader) throws IOException {
+    public @SourceIndex Source fromJson(@Nonnull final JsonReader reader) throws IOException {
       throw new UnsupportedOperationException("Source deserialization is not supported");
     }
   }
@@ -86,14 +96,15 @@ class AdapterFactory implements JsonAdapter.Factory {
 
     private final JsonAdapter<List<Vulnerability>> vulnerabilitiesAdapter;
 
-    public VulnerabilityBatchAdapter(final Moshi moshi) {
+    public VulnerabilityBatchAdapter(@Nonnull final Moshi moshi) {
       sourcesAdapter = moshi.adapter(Types.newParameterizedType(List.class, Source.class));
       vulnerabilitiesAdapter =
           moshi.adapter(Types.newParameterizedType(List.class, Vulnerability.class));
     }
 
     @Override
-    public void toJson(JsonWriter writer, @Nullable VulnerabilityBatch value) throws IOException {
+    public void toJson(@Nonnull final JsonWriter writer, @Nullable final VulnerabilityBatch value)
+        throws IOException {
       if (value == null) {
         writer.nullValue();
         return;
@@ -121,7 +132,7 @@ class AdapterFactory implements JsonAdapter.Factory {
 
     @Nullable
     @Override
-    public VulnerabilityBatch fromJson(JsonReader reader) throws IOException {
+    public VulnerabilityBatch fromJson(@Nonnull final JsonReader reader) throws IOException {
       throw new UnsupportedOperationException(
           "VulnerabilityBatch deserialization is not supported");
     }

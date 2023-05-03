@@ -2,9 +2,9 @@ package datadog.trace.bootstrap.instrumentation.jdbc;
 
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.api.function.Function;
 import datadog.trace.api.normalize.SQLNormalizer;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import java.util.function.Function;
 
 public final class DBQueryInfo {
 
@@ -12,14 +12,7 @@ public final class DBQueryInfo {
 
   private static final DDCache<String, DBQueryInfo> CACHED_PREPARED_STATEMENTS =
       DDCaches.newFixedSizeCache(512);
-  private static final Function<String, DBQueryInfo> NORMALIZE =
-      new Function<String, DBQueryInfo>() {
-
-        @Override
-        public DBQueryInfo apply(String sql) {
-          return new DBQueryInfo(sql);
-        }
-      };
+  private static final Function<String, DBQueryInfo> NORMALIZE = DBQueryInfo::new;
 
   public static DBQueryInfo ofStatement(String sql) {
     return NORMALIZE.apply(sql);
@@ -54,16 +47,39 @@ public final class DBQueryInfo {
       return null;
     }
     int start = 0;
+    boolean insideComment = false;
     for (int i = 0; i < sql.length(); ++i) {
-      if (Character.isAlphabetic(sql.charAt(i))) {
+      char c = sql.charAt(i);
+      if (c == '/' && i + 1 < sql.length() && sql.charAt(i + 1) == '*') {
+        insideComment = true;
+        i++;
+        continue;
+      }
+      if (c == '*' && i + 1 < sql.length() && sql.charAt(i + 1) == '/') {
+        insideComment = false;
+        i++;
+        continue;
+      }
+      if (!insideComment && Character.isAlphabetic(c)) {
         start = i;
         break;
       }
     }
+
     int firstWhitespace = -1;
     for (int i = start; i < sql.length(); ++i) {
       char c = sql.charAt(i);
-      if (Character.isWhitespace(c)) {
+      if (c == '/' && i + 1 < sql.length() && sql.charAt(i + 1) == '*') {
+        insideComment = true;
+        i++;
+        continue;
+      }
+      if (c == '*' && i + 1 < sql.length() && sql.charAt(i + 1) == '/') {
+        insideComment = false;
+        i++;
+        continue;
+      }
+      if (!insideComment && Character.isWhitespace(c)) {
         firstWhitespace = i;
         break;
       }

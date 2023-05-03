@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.netty38.client;
 
 import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.HOST;
 
+import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
@@ -11,12 +12,13 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 
 public class NettyHttpClientDecorator extends HttpClientDecorator<HttpRequest, HttpResponse> {
   public static final CharSequence NETTY_CLIENT = UTF8BytesString.create("netty-client");
-  public static final CharSequence NETTY_CLIENT_REQUEST =
-      UTF8BytesString.create("netty.client.request");
 
   public static final NettyHttpClientDecorator DECORATE = new NettyHttpClientDecorator("http://");
   public static final NettyHttpClientDecorator DECORATE_SECURE =
       new NettyHttpClientDecorator("https://");
+
+  public static final CharSequence NETTY_CLIENT_REQUEST =
+      UTF8BytesString.create(DECORATE.operationName());
 
   private final String uriPrefix;
 
@@ -41,12 +43,11 @@ public class NettyHttpClientDecorator extends HttpClientDecorator<HttpRequest, H
 
   @Override
   protected URI url(final HttpRequest request) throws URISyntaxException {
-    final URI uri = new URI(request.getUri());
+    final URI uri = URIUtils.safeParse(request.getUri());
     if ((uri.getHost() == null || uri.getHost().equals("")) && request.headers().contains(HOST)) {
-      return new URI(uriPrefix + request.headers().get(HOST) + request.getUri());
-    } else {
-      return uri;
+      return URIUtils.safeParse(uriPrefix + request.headers().get(HOST) + request.getUri());
     }
+    return uri;
   }
 
   @Override

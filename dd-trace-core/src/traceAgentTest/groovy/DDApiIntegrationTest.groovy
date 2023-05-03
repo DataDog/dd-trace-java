@@ -9,7 +9,6 @@ import datadog.trace.common.writer.Payload
 import datadog.trace.common.writer.RemoteApi
 import datadog.trace.common.writer.RemoteResponseListener
 import datadog.trace.common.writer.ddagent.DDAgentApi
-
 import datadog.trace.common.writer.ddagent.TraceMapper
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
@@ -29,9 +28,8 @@ import java.time.Duration
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
-// Do not run tests locally on Java7 since testcontainers are not compatible with Java7
 // It is fine to run on CI because CI provides agent externally, not through testcontainers
-@Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
+@Requires({ "true" == System.getenv("CI") })
 class DDApiIntegrationTest extends DDSpecification {
   def tracer = CoreTracer.builder().writer(new ListWriter()).build()
   DDSpan span
@@ -196,7 +194,7 @@ class DDApiIntegrationTest extends DDSpecification {
     // spotless:on
   }
 
-  def "Sending traces to unix domain socket succeeds (test #test)"() {
+  def "Sending traces to unix domain socket succeeds (enableV05 #enableV05)"() {
     setup:
     beforeTest(enableV05)
     expect:

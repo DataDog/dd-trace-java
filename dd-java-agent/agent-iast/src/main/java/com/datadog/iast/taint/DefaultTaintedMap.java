@@ -1,11 +1,11 @@
 package com.datadog.iast.taint;
 
+import com.datadog.iast.util.NonBlockingSemaphore;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -30,9 +30,9 @@ public final class DefaultTaintedMap implements TaintedMap {
   /** Default flat mode threshold. */
   public static final int DEFAULT_FLAT_MODE_THRESHOLD = 1 << 13;
   /** Periodicity of table purges, as number of put operations. It MUST be a power of two. */
-  private static final int PURGE_COUNT = 1 << 6;
+  static final int PURGE_COUNT = 1 << 6;
   /** Bitmask for fast modulo with PURGE_COUNT. */
-  private static final int PURGE_MASK = PURGE_COUNT - 1;
+  static final int PURGE_MASK = PURGE_COUNT - 1;
   /** Bitmask to convert hashes to positive integers. */
   static final int POSITIVE_MASK = Integer.MAX_VALUE;
 
@@ -40,14 +40,14 @@ public final class DefaultTaintedMap implements TaintedMap {
   /** Bitmask for fast modulo with table length. */
   private final int lengthMask;
   /** Flag to ensure we do not run multiple purges concurrently. */
-  private final AtomicBoolean isPurging = new AtomicBoolean(false);
+  private final NonBlockingSemaphore purge = NonBlockingSemaphore.withPermitCount(1);
   /**
    * Estimated number of hash table entries. If the hash table switches to flat mode, it stops
    * counting elements.
    */
   private final AtomicInteger estimatedSize = new AtomicInteger(0);
   /** Reference queue for garbage-collected entries. */
-  private ReferenceQueue<Object> referenceQueue = new ReferenceQueue<>();
+  private ReferenceQueue<Object> referenceQueue;
   /**
    * Whether flat mode is enabled or not. Once this is true, it is not set to false again unless
    * {@link #clear()} is called.
@@ -60,7 +60,7 @@ public final class DefaultTaintedMap implements TaintedMap {
    * Default constructor. Uses {@link #DEFAULT_CAPACITY} and {@link #DEFAULT_FLAT_MODE_THRESHOLD}.
    */
   public DefaultTaintedMap() {
-    this(DEFAULT_CAPACITY, DEFAULT_FLAT_MODE_THRESHOLD);
+    this(DEFAULT_CAPACITY, DEFAULT_FLAT_MODE_THRESHOLD, new ReferenceQueue<>());
   }
 
   /**
@@ -68,12 +68,15 @@ public final class DefaultTaintedMap implements TaintedMap {
    *
    * @param capacity Capacity of the internal array. It must be a power of 2.
    * @param flatModeThreshold Limit of entries before switching to flat mode.
+   * @param queue Reference queue. Only for tests.
    */
   @SuppressWarnings("unchecked")
-  private DefaultTaintedMap(final int capacity, final int flatModeThreshold) {
+  DefaultTaintedMap(
+      final int capacity, final int flatModeThreshold, final ReferenceQueue<Object> queue) {
     table = new TaintedObject[capacity];
     lengthMask = table.length - 1;
     this.flatModeThreshold = flatModeThreshold;
+    this.referenceQueue = queue;
   }
 
   /**
@@ -104,30 +107,50 @@ public final class DefaultTaintedMap implements TaintedMap {
    */
   @Override
   public void put(final @Nonnull TaintedObject entry) {
-    final int index = index(entry.positiveHashCode);
     if (isFlat) {
-      // If we flipped to flat mode:
-      // - Always override elements ignoring chaining.
-      // - Stop updating the estimated size.
-
-      // TODO: Fix the pathological case where all puts have the same identityHashCode (e.g. limit
-      // chain length?)
-      table[index] = entry;
-      if ((entry.positiveHashCode & PURGE_MASK) == 0) {
-        purge();
-      }
+      flatPut(entry);
     } else {
-      // By default, add the new entry to the head of the chain.
-      // We do not control duplicate keys (although we expect they are generally not used).
-      entry.next = table[index];
+      tailPut(entry);
+    }
+  }
+
+  /**
+   * Put operation when we are in flat mode: - Always override elements ignoring chaining. - Stop
+   * updating the estimated size.
+   */
+  private void flatPut(final @Nonnull TaintedObject entry) {
+    final int index = index(entry.positiveHashCode);
+    table[index] = entry;
+    if ((entry.positiveHashCode & PURGE_MASK) == 0) {
+      purge();
+    }
+  }
+
+  /**
+   * Put an object, always to the tail of the chain. It will not insert the element if it is already
+   * present in the map.
+   */
+  private void tailPut(final @Nonnull TaintedObject entry) {
+    final int index = index(entry.positiveHashCode);
+    TaintedObject cur = table[index];
+    if (cur == null) {
       table[index] = entry;
-      if ((entry.positiveHashCode & PURGE_MASK) == 0) {
-        // To mitigate the cost of maintaining an atomic counter, we only update the size every
-        // <PURGE_COUNT> puts. This is just an approximation, we rely on key's identity hash code as
-        // if it was a random number generator, and we assume duplicate keys are rarely inserted.
-        estimatedSize.addAndGet(PURGE_COUNT);
-        purge();
+    } else {
+      while (cur.next != null) {
+        if (cur.positiveHashCode == entry.positiveHashCode && cur.get() == entry.get()) {
+          // Duplicate, exit early.
+          return;
+        }
+        cur = cur.next;
       }
+      cur.next = entry;
+    }
+    if ((entry.positiveHashCode & PURGE_MASK) == 0) {
+      // To mitigate the cost of maintaining an atomic counter, we only update the size every
+      // <PURGE_COUNT> puts. This is just an approximation, we rely on key's identity hash code as
+      // if it was a random number generator.
+      estimatedSize.addAndGet(PURGE_COUNT);
+      purge();
     }
   }
 
@@ -137,7 +160,7 @@ public final class DefaultTaintedMap implements TaintedMap {
    */
   void purge() {
     // Ensure we enter only once concurrently.
-    if (!isPurging.compareAndSet(false, true)) {
+    if (!purge.acquire()) {
       return;
     }
 
@@ -160,7 +183,7 @@ public final class DefaultTaintedMap implements TaintedMap {
       }
     } finally {
       // Reset purging flag.
-      isPurging.set(false);
+      purge.release();
     }
   }
 
@@ -266,8 +289,13 @@ public final class DefaultTaintedMap implements TaintedMap {
     return iterator(0, table.length);
   }
 
-  /** Testing only. */
-  boolean isFlat() {
+  @Override
+  public long getEstimatedSize() {
+    return estimatedSize.get();
+  }
+
+  @Override
+  public boolean isFlat() {
     return isFlat;
   }
 }

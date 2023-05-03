@@ -2,32 +2,33 @@ package datadog.trace.common.writer
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.communication.http.OkHttpUtils
 import datadog.communication.monitor.Monitoring
-import datadog.trace.api.DDId
+import datadog.communication.serialization.ByteBufferConsumer
+import datadog.communication.serialization.FlushingBuffer
+import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
-import datadog.trace.common.sampling.RateByServiceSampler
+import datadog.trace.common.sampling.RateByServiceTraceSampler
 import datadog.trace.common.writer.ddagent.DDAgentApi
-import datadog.communication.ddagent.DDAgentFeaturesDiscovery
-
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
-import datadog.communication.http.OkHttpUtils
 import datadog.trace.core.monitor.MonitoringImpl
-import datadog.communication.serialization.ByteBufferConsumer
-import datadog.communication.serialization.FlushingBuffer
-import datadog.communication.serialization.msgpack.MsgPackWriter
-import datadog.trace.core.propagation.DatadogTags
+import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import spock.lang.Shared
 import spock.lang.Timeout
+
 import java.nio.ByteBuffer
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
@@ -95,9 +96,9 @@ class DDAgentApiTest extends DDCoreSpecification {
     def client = createAgentApi(agent.address.toString())[1]
     Payload payload = prepareTraces("v0.3/traces", [])
     expect:
-    def response = client.sendSerializedTraces(payload)
-    !response.success()
-    response.status() == 404
+    def clientResponse = client.sendSerializedTraces(payload)
+    !clientResponse.success()
+    clientResponse.status() == 404
     agent.getLastRequest().path == "/v0.3/traces"
 
     cleanup:
@@ -137,15 +138,15 @@ class DDAgentApiTest extends DDCoreSpecification {
     traces                                                                                                           | expectedRequestBody
     []                                                                                                               | []
     // service propagation enabled
-    [[buildSpan(1L, "service.name", "my-service", DatadogTags.factory().fromHeaderValue("_dd.p.usr=123"))]]          | [[new TreeMap<>([
+    [[buildSpan(1L, "service.name", "my-service", PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.usr=123"))]] | [[new TreeMap<>([
       "duration" : 10,
       "error"    : 0,
       "meta"     : ["thread.name": Thread.currentThread().getName(), "_dd.p.usr": "123", "_dd.p.dm": "-1"],
       "metrics"  : [
-        (DDSpanContext.PRIORITY_SAMPLING_KEY)       : 1,
-        (InstrumentationTags.DD_TOP_LEVEL as String): 1,
-        (RateByServiceSampler.SAMPLING_AGENT_RATE)  : 1.0,
-        "thread.id"                                 : Thread.currentThread().id
+        (DDSpanContext.PRIORITY_SAMPLING_KEY)          : 1,
+        (InstrumentationTags.DD_TOP_LEVEL as String)   : 1,
+        (RateByServiceTraceSampler.SAMPLING_AGENT_RATE): 1.0,
+        "thread.id"                                    : Thread.currentThread().id
       ],
       "name"     : "fakeOperation",
       "parent_id": 0,
@@ -157,15 +158,15 @@ class DDAgentApiTest extends DDCoreSpecification {
       "type"     : "fakeType"
     ])]]
     // service propagation disabled
-    [[buildSpan(100L, "resource.name", "my-resource", DatadogTags.factory().fromHeaderValue("_dd.p.usr=123"))]] | [[new TreeMap<>([
+    [[buildSpan(100L, "resource.name", "my-resource", PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.usr=123"))]] | [[new TreeMap<>([
       "duration" : 10,
       "error"    : 0,
       "meta"     : ["thread.name": Thread.currentThread().getName(), "_dd.p.usr": "123", "_dd.p.dm": "-1"],
       "metrics"  : [
-        (DDSpanContext.PRIORITY_SAMPLING_KEY)       : 1,
-        (InstrumentationTags.DD_TOP_LEVEL as String): 1,
-        (RateByServiceSampler.SAMPLING_AGENT_RATE)  : 1.0,
-        "thread.id"                                 : Thread.currentThread().id
+        (DDSpanContext.PRIORITY_SAMPLING_KEY)          : 1,
+        (InstrumentationTags.DD_TOP_LEVEL as String)   : 1,
+        (RateByServiceTraceSampler.SAMPLING_AGENT_RATE): 1.0,
+        "thread.id"                                    : Thread.currentThread().id
       ],
       "name"     : "fakeOperation",
       "parent_id": 0,
@@ -422,12 +423,12 @@ class DDAgentApiTest extends DDCoreSpecification {
     return [discovery, new DDAgentApi(client, agentUrl, discovery, monitoring, false)]
   }
 
-  DDSpan buildSpan(long timestamp, String tag, String value, DatadogTags datadogTags) {
+  DDSpan buildSpan(long timestamp, String tag, String value, PropagationTags propagationTags) {
     def tracer = tracerBuilder().writer(new ListWriter()).build()
     def context = new DDSpanContext(
-      DDId.from(1),
-      DDId.from(1),
-      DDId.ZERO,
+      DDTraceId.ONE,
+      1,
+      DDSpanId.ZERO,
       null,
       "fakeService",
       "fakeOperation",
@@ -438,12 +439,12 @@ class DDAgentApiTest extends DDCoreSpecification {
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DDId.from(1)),
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      datadogTags)
+      propagationTags)
 
     def span = DDSpan.create(timestamp, context)
     span.setTag(tag, value)

@@ -1,7 +1,9 @@
 // This file includes software developed at SignalFx
 
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.test.util.Flaky
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import spring.jpa.JpaCustomer
 import spring.jpa.JpaCustomerRepository
@@ -10,6 +12,7 @@ import spring.jpa.JpaPersistenceConfig
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
+@Flaky("https://github.com/DataDog/dd-trace-java/issues/4004")
 class SpringJpaTest extends AgentTestRunner {
   def "test object method"() {
     setup:
@@ -51,6 +54,7 @@ class SpringJpaTest extends AgentTestRunner {
     TEST_WRITER.clear()
 
     setup:
+    injectSysConfig(TraceInstrumentationConfig.SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME, useEnhancedNaming)
     def customer = new JpaCustomer("Bob", "Anonymous")
 
     expect:
@@ -61,7 +65,7 @@ class SpringJpaTest extends AgentTestRunner {
       trace(2) {
         span {
           operationName "repository.operation"
-          resourceName "JpaRepository.findAll"
+          resourceName "${intfName}.findAll"
           errored false
           measured true
           tags {
@@ -100,7 +104,7 @@ class SpringJpaTest extends AgentTestRunner {
       trace(2) {
         span {
           operationName "repository.operation"
-          resourceName "CrudRepository.save"
+          resourceName "${intfName}.save"
           errored false
           measured true
           tags {
@@ -139,7 +143,7 @@ class SpringJpaTest extends AgentTestRunner {
       trace(3) {
         span {
           operationName "repository.operation"
-          resourceName "CrudRepository.save"
+          resourceName "${intfName}.save"
           errored false
           measured true
           tags {
@@ -227,7 +231,7 @@ class SpringJpaTest extends AgentTestRunner {
       trace(3) {
         span {
           operationName "repository.operation"
-          resourceName "CrudRepository.delete"
+          resourceName "${intfName}.delete"
           errored false
           measured true
           tags {
@@ -269,5 +273,9 @@ class SpringJpaTest extends AgentTestRunner {
       }
     }
     TEST_WRITER.clear()
+    where:
+    useEnhancedNaming | intfName
+    "true"            | "JpaCustomerRepository"
+    "false"           | "CrudRepository"
   }
 }

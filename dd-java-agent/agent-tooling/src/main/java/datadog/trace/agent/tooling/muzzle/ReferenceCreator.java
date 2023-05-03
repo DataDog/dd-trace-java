@@ -3,6 +3,7 @@ package datadog.trace.agent.tooling.muzzle;
 import static datadog.trace.util.Strings.getClassName;
 import static datadog.trace.util.Strings.getResourceName;
 
+import datadog.trace.bootstrap.Constants;
 import java.io.InputStream;
 import java.util.ArrayDeque;
 import java.util.HashSet;
@@ -446,10 +447,29 @@ public class ReferenceCreator extends ClassVisitor {
    * <p>Optimization to avoid storing and checking muzzle references that will never fail.
    */
   private static boolean ignoreReference(String name) {
-    return name.equals("datadog/trace/bootstrap/CallDepthThreadLocalMap")
-        || name.equals("datadog/trace/bootstrap/ContextStore")
-        || name.equals("datadog/trace/bootstrap/InstrumentationContext")
-        || name.startsWith("datadog/trace/bootstrap/instrumentation/api/") // AgentSpan/Scope etc.
-        || name.startsWith("org/slf4j/"); // will be relocated to datadog/slf4j/
+    String dottedName = name.replace('/', '.');
+    // drop any array prefix, so we can check the actual component type
+    if (dottedName.startsWith("[")) {
+      int componentMarker = dottedName.lastIndexOf("[L");
+      if (componentMarker < 0) {
+        return true; // ignore primitive array references
+      } else {
+        dottedName = dottedName.substring(componentMarker + 2);
+      }
+    }
+    // ignore references to core JDK types (see existing check in addReference)
+    if (dottedName.startsWith("java.")) {
+      return true;
+    }
+    // ignore SLF4J references which will be changed to datadog.slf4j in final jar
+    if (dottedName.startsWith("org.slf4j.")) {
+      return true;
+    }
+    for (String prefix : Constants.BOOTSTRAP_PACKAGE_PREFIXES) {
+      if (dottedName.startsWith(prefix)) {
+        return true;
+      }
+    }
+    return false;
   }
 }

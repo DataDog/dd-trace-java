@@ -1,0 +1,21 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  implementation project(':dd-trace-api')
+  implementation project(':dd-trace-ot')
+
+  implementation 'info.picocli:picocli:4.0.4'
+  implementation deps.guava
+}
+
+tasks.register('launch', JavaExec) {
+  classpath = sourceSets.main.runtimeClasspath
+  mainClass = 'datadog.loadgenerator.LoadGenerator'
+  jvmArgs = [
+    "-javaagent:${project(':dd-java-agent').shadowJar.archiveFile.get()}",
+    "-Ddd.service.name=loadtest"
+  ]
+  systemProperties System.properties
+
+  dependsOn project(':dd-java-agent').tasks.named("shadowJar")
+}

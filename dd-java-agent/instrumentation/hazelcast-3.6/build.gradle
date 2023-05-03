@@ -1,0 +1,21 @@
+muzzle {
+  pass {
+    group = "com.hazelcast"
+    module = "hazelcast-all"
+    versions = "[3.6,3.9)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'com.hazelcast', name: 'hazelcast-all', version: '3.6'
+
+  // Using 3.8 to allow us to exercise the async capabilities that only exist in 3.8
+  testImplementation group: 'com.hazelcast', name: 'hazelcast-all', version: '3.8'
+
+  latestDepTestImplementation group: 'com.hazelcast', name: 'hazelcast-all', version: '3.8.+'
+}

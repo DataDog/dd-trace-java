@@ -8,13 +8,14 @@ public class DDTags {
   public static final String THREAD_NAME = "thread.name";
   public static final String THREAD_ID = "thread.id";
   public static final String DB_STATEMENT = "sql.query";
+  public static final String PATHWAY_HASH = "pathway.hash";
 
   public static final String HTTP_QUERY = "http.query.string";
   public static final String HTTP_FRAGMENT = "http.fragment.string";
 
   public static final String USER_NAME = "user.principal";
 
-  public static final String ERROR_MSG = "error.msg"; // string representing the error message
+  public static final String ERROR_MSG = "error.message"; // string representing the error message
   public static final String ERROR_TYPE = "error.type"; // string representing the type of the error
   public static final String ERROR_STACK = "error.stack"; // human-readable version of the stack
 
@@ -41,4 +42,9 @@ public class DDTags {
   public static final String LIBRARY_VERSION_TAG_KEY = "library_version";
   public static final String CI_ENV_VARS = "_dd.ci.env_vars";
   public static final String MEASURED = "_dd.measured";
+  public static final String PID_TAG = "process_id";
+  public static final String SCHEMA_VERSION_TAG_KEY = "_dd.trace_span_attribute_schema";
+
+  public static final String INTERNAL_GIT_REPOSITORY_URL = "_dd.git.repository_url";
+  public static final String INTERNAL_GIT_COMMIT_SHA = "_dd.git.commit.sha";
 }

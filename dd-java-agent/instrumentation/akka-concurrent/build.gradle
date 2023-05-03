@@ -1,0 +1,73 @@
+
+def akkaVersion = '2.5.0'
+def scalaVersion = '2.11'
+
+muzzle {
+  pass {
+    group = 'com.typesafe.akka'
+    module = "akka-actor_$scalaVersion"
+    versions = "[$akkaVersion,]"
+    // some older versions of Akka pass
+    assertInverse = false
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/test-with-scala.gradle"
+
+addTestSuite('akka23Test')
+addTestSuiteForDir('latestDepTest', 'test')
+
+tasks.named("compileAkka23TestGroovy").configure {
+  classpath += files(sourceSets.akka23Test.scala.classesDirectory)
+}
+
+// Run the akka23Test against the normal and latestDep akka version as well
+sourceSets {
+  test {
+    scala {
+      source sourceSets.akka23Test.allSource
+    }
+    groovy {
+      source sourceSets.akka23Test.allSource
+    }
+  }
+  latestDepTest {
+    scala {
+      source sourceSets.akka23Test.allSource
+    }
+    groovy {
+      source sourceSets.akka23Test.allSource
+    }
+  }
+}
+tasks.named("compileLatestDepTestGroovy").configure {
+  classpath += files(sourceSets.latestDepTest.scala.classesDirectory)
+}
+
+
+dependencies {
+  compileOnly group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: akkaVersion
+
+  testImplementation deps.scala
+  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: akkaVersion
+  testImplementation group: 'com.typesafe.akka', name: "akka-testkit_$scalaVersion", version: akkaVersion
+
+  latestDepTestImplementation group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: '+'
+  latestDepTestImplementation group: 'com.typesafe.akka', name: "akka-testkit_$scalaVersion", version: '+'
+}
+
+// gradle can't downgrade the akka dependencies with `strictly`
+configurations.matching({ it.name.startsWith('akka23') }).each({
+  it.resolutionStrategy {
+    force group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version :'2.3.16'
+    force group: 'com.typesafe.akka', name: "akka-testkit_$scalaVersion", version :'2.3.16'
+  }
+})
+
+
+// Run 2.3 tests along with the rest of unit tests
+tasks.named("test").configure {
+  dependsOn "akka23Test"
+}

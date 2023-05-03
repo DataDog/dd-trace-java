@@ -2,20 +2,23 @@ package datadog.trace.instrumentation.jetty70;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
+import datadog.trace.instrumentation.jetty.JettyBlockResponseFunction;
 import javax.servlet.ServletException;
 import org.eclipse.jetty.server.HttpConnection;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 
 public class JettyDecorator extends HttpServerDecorator<Request, Request, Response, Request> {
-  public static final CharSequence SERVLET_REQUEST = UTF8BytesString.create("servlet.request");
   public static final CharSequence JETTY_SERVER = UTF8BytesString.create("jetty-server");
   public static final JettyDecorator DECORATE = new JettyDecorator();
+  public static final CharSequence SERVLET_REQUEST =
+      UTF8BytesString.create(DECORATE.operationName());
   public static final String DD_CONTEXT_PATH_ATTRIBUTE = "datadog.context.path";
   public static final String DD_SERVLET_PATH_ATTRIBUTE = "datadog.servlet.path";
 
@@ -84,5 +87,10 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
       onError(span, throwable);
     }
     return super.onResponse(span, response);
+  }
+
+  @Override
+  protected BlockResponseFunction createBlockResponseFunction(Request request, Request connection) {
+    return new JettyBlockResponseFunction(request);
   }
 }

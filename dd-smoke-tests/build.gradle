@@ -1,0 +1,31 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+description = 'dd-smoke-tests'
+
+dependencies {
+  api deps.spock
+  api deps.okhttp
+  api project(':dd-java-agent:testing')
+  api project(':utils:test-utils')
+  api project(':utils:test-agent-utils:decoder')
+}
+
+Project parent_project = project
+subprojects { Project subProj ->
+  // Don't need javadoc task run for internal projects.
+  subProj.tasks.withType(Javadoc).configureEach { enabled = false }
+
+  subProj.evaluationDependsOn ':dd-java-agent'
+  subProj.tasks.withType(Test).configureEach { subTask ->
+    dependsOn project(':dd-java-agent').tasks.named("shadowJar")
+
+    onlyIf { !project.rootProject.hasProperty("skipSmokeTests") }
+
+    // Tests depend on this to know where to run things and what agent jar to use
+    jvmArgs "-Ddatadog.smoketest.builddir=${buildDir}"
+    jvmArgs "-Ddatadog.smoketest.agent.shadowJar.path=${project(':dd-java-agent').tasks.shadowJar.archiveFile.get()}"
+
+    // The jar path for the test agent (taken from https://github.com/DataDog/dd-trace-test-agent )
+    jvmArgs "-Ddatadog.smoketest.test.agent.dir=${project.getRootDir()}/dd-smoke-tests/src/main/resources/datadog.smoketest.test.agent.jar"
+  }
+}

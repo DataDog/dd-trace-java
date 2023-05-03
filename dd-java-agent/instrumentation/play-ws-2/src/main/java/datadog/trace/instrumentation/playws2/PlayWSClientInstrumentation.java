@@ -9,6 +9,7 @@ import static datadog.trace.instrumentation.playws.PlayWSClientDecorator.PLAY_WS
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import datadog.trace.instrumentation.playws.BasePlayWSClientInstrumentation;
 import net.bytebuddy.asm.Advice;
 import play.shaded.ahc.org.asynchttpclient.AsyncHandler;
@@ -29,6 +30,9 @@ public class PlayWSClientInstrumentation extends BasePlayWSClientInstrumentation
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       propagate().inject(span, request, SETTER);
+      propagate()
+          .injectPathwayContext(
+              span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
 
       if (asyncHandler instanceof StreamedAsyncHandler) {
         asyncHandler = new StreamedAsyncHandlerWrapper((StreamedAsyncHandler) asyncHandler, span);

@@ -1,7 +1,7 @@
 package datadog.trace.api;
 
 import datadog.trace.api.interceptor.TraceInterceptor;
-import datadog.trace.context.ScopeListener;
+import datadog.trace.api.internal.InternalTracer;
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -28,13 +28,11 @@ public class GlobalTracer {
         public boolean addTraceInterceptor(TraceInterceptor traceInterceptor) {
           return false;
         }
-
-        @Override
-        public void addScopeListener(ScopeListener listener) {}
       };
 
   private static final Collection<Callback> installationCallbacks = new ArrayList<>();
   private static Tracer provider = NO_OP;
+  private static EventTracker eventTracker = EventTracker.NO_EVENT_TRACKER;
 
   public static void registerIfAbsent(Tracer p) {
     if (p == null || p == NO_OP) {
@@ -66,6 +64,15 @@ public class GlobalTracer {
 
   public static Tracer get() {
     return provider;
+  }
+
+  public static EventTracker getEventTracker() {
+    if (eventTracker == EventTracker.NO_EVENT_TRACKER) {
+      if (provider instanceof InternalTracer) {
+        eventTracker = new EventTracker((InternalTracer) provider);
+      }
+    }
+    return eventTracker;
   }
 
   // --------------------------------------------------------------------------------

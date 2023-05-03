@@ -1,7 +1,7 @@
 package datadog.trace.api.cache;
 
-import datadog.trace.api.function.Function;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 final class CHMCache<K, V> implements DDCache<K, V> {
 
@@ -12,13 +12,13 @@ final class CHMCache<K, V> implements DDCache<K, V> {
   }
 
   @Override
-  public V computeIfAbsent(K key, Function<K, ? extends V> func) {
+  public V computeIfAbsent(K key, Function<K, ? extends V> producer) {
     if (null == key) {
       return null;
     }
     V value = chm.get(key);
     if (null == value) {
-      value = func.apply(key);
+      value = producer.apply(key);
       V winner = chm.putIfAbsent(key, value);
       if (null != winner) {
         value = winner;

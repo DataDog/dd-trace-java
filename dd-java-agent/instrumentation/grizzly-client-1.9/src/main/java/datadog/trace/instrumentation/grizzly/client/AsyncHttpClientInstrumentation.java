@@ -18,6 +18,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
@@ -70,9 +71,11 @@ public final class AsyncHttpClientInstrumentation extends Instrumenter.Tracing
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       propagate().inject(span, request, SETTER);
+      propagate()
+          .injectPathwayContext(
+              span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
       InstrumentationContext.get(AsyncHandler.class, Pair.class)
           .put(handler, Pair.of(parentSpan, span));
-      span.startThreadMigration();
     }
   }
 }

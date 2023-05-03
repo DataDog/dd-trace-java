@@ -14,8 +14,7 @@ abstract class URIDataAdapterTest extends DDSpecification {
   @Unroll
   def "test URI parts #input"() {
     setup:
-    def uri = new URI(input)
-    def adapter = adapter(uri)
+    def adapter = URIDataAdapterBase.fromURI(input, {adapter(it)})
 
     expect:
     adapter.scheme() == scheme
@@ -28,6 +27,7 @@ abstract class URIDataAdapterTest extends DDSpecification {
     adapter.rawPath() == (supportsRaw() ? rawPath : null)
     adapter.rawQuery() == (supportsRaw() ? rawQuery : null)
     adapter.raw() == (supportsRaw() ? raw : null)
+    adapter.isValid()
 
     where:
     // spotless:off
@@ -154,6 +154,27 @@ class URINoRawDataAdapterTest extends URIDataAdapterTest {
     @Override
     String rawQuery() {
       return null
+    }
+  }
+
+  static class UnparseableURIAdapterTest extends DDSpecification {
+    def "should return raw URI only"() {
+      setup:
+      def uriStr = "http://myurl/path?query=value#fragment"
+      def uriAdapter = new UnparseableURIDataAdapter(uriStr)
+
+      expect:
+      !uriAdapter.isValid()
+      uriAdapter.host() == null
+      uriAdapter.port() == 0
+      uriAdapter.fragment() == null
+      uriAdapter.path() == null
+      uriAdapter.path() == null
+      uriAdapter.query() == null
+      uriAdapter.rawQuery() == null
+      uriAdapter.scheme() == null
+      uriAdapter.rawPath() == null
+      uriAdapter.raw() == uriStr
     }
   }
 }

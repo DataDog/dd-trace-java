@@ -2,7 +2,7 @@ package com.datadog.iast.taint
 
 import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
-import com.datadog.iast.model.SourceType
+import datadog.trace.api.iast.SourceTypes
 
 class TaintUtils {
 
@@ -49,7 +49,7 @@ class TaintUtils {
         int start = pos
         int length = (upTo - i) - OPEN_MARK.length()
         assert length >= 0
-        ranges.add(new Range(start, length, new Source(SourceType.NONE, null, null)))
+        ranges.add(new Range(start, length, new Source(SourceTypes.NONE, null, null)))
         pos += length
         i += OPEN_MARK.length() + length + CLOSE_MARK.length() - 1
       } else {
@@ -76,12 +76,23 @@ class TaintUtils {
     return resultString
   }
 
+  static StringBuilder addFromTaintFormat(final TaintedObjects tos, final StringBuilder sb) {
+    final String s = sb.toString()
+    final ranges = fromTaintFormat(s)
+    if (ranges == null || ranges.length == 0) {
+      return sb
+    }
+    final result = new StringBuilder(getStringFromTaintFormat(s))
+    tos.taint(result, ranges)
+    return result
+  }
+
   static Range toRange(List<Integer> lst) {
     toRange(lst.get(0), lst.get(1))
   }
 
   static Range toRange(int start, int length) {
-    new Range(start, length, new Source(SourceType.NONE, null, null))
+    new Range(start, length, new Source(SourceTypes.NONE, null, null))
   }
 
   static Range[] toRanges(List<List<Integer>> lst) {

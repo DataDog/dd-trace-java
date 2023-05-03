@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.apachehttpasyncclient;
 
+import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
@@ -14,12 +15,12 @@ import org.apache.http.protocol.HttpCoreContext;
 
 public class ApacheHttpAsyncClientDecorator extends HttpClientDecorator<HttpRequest, HttpContext> {
 
-  public static final CharSequence HTTP_REQUEST = UTF8BytesString.create("http.request");
   public static final CharSequence APACHE_HTTPASYNCCLIENT =
       UTF8BytesString.create("apache-httpasyncclient");
 
   public static final ApacheHttpAsyncClientDecorator DECORATE =
       new ApacheHttpAsyncClientDecorator();
+  public static final CharSequence HTTP_REQUEST = UTF8BytesString.create(DECORATE.operationName());
 
   @Override
   protected String[] instrumentationNames() {
@@ -52,7 +53,7 @@ public class ApacheHttpAsyncClientDecorator extends HttpClientDecorator<HttpRequ
       return ((HttpUriRequest) request).getURI();
     } else {
       final RequestLine requestLine = request.getRequestLine();
-      return requestLine == null ? null : new URI(requestLine.getUri());
+      return requestLine == null ? null : URIUtils.safeParse(requestLine.getUri());
     }
   }
 

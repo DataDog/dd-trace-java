@@ -1,0 +1,5 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'com.github.ben-manes.caffeine', name: 'caffeine', version: '1.0.0'
+}

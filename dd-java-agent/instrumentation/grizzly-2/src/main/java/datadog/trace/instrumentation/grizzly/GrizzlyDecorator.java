@@ -1,11 +1,18 @@
 package datadog.trace.instrumentation.grizzly;
 
+import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
+import java.util.Map;
 import org.glassfish.grizzly.http.server.Request;
 import org.glassfish.grizzly.http.server.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class GrizzlyDecorator extends HttpServerDecorator<Request, Request, Response, Request> {
   public static final CharSequence GRIZZLY = UTF8BytesString.create("grizzly");
@@ -60,5 +67,38 @@ public class GrizzlyDecorator extends HttpServerDecorator<Request, Request, Resp
   @Override
   protected CharSequence component() {
     return GRIZZLY;
+  }
+
+  @Override
+  protected BlockResponseFunction createBlockResponseFunction(Request request, Request request2) {
+    return new GrizzlyBlockResponseFunction(request);
+  }
+
+  public static class GrizzlyBlockResponseFunction implements BlockResponseFunction {
+    private static final Logger log = LoggerFactory.getLogger(GrizzlyBlockResponseFunction.class);
+
+    private final Request request;
+
+    public GrizzlyBlockResponseFunction(Request request) {
+      this.request = request;
+    }
+
+    @Override
+    public boolean tryCommitBlockingResponse(
+        int statusCode, BlockingContentType templateType, Map<String, String> extraHeaders) {
+      AgentScope agentScope = AgentTracer.get().activeScope();
+      if (agentScope == null) {
+        log.warn("Can't block: no active scope");
+        return false;
+      }
+
+      return GrizzlyBlockingHelper.block(
+          this.request,
+          this.request.getResponse(),
+          statusCode,
+          templateType,
+          extraHeaders,
+          agentScope);
+    }
   }
 }

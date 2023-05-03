@@ -6,37 +6,32 @@ import ch.qos.logback.classic.util.ContextInitializer
 import com.google.common.collect.Sets
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.agent.test.asserts.ListWriterAssert
-import datadog.trace.agent.test.checkpoints.TimelineCheckpointer
-import datadog.trace.agent.test.checkpoints.TimelineTracingContextTracker
+import datadog.trace.agent.test.checkpoints.TestEndpointCheckpointer
 import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery
 import datadog.trace.agent.test.datastreams.RecordingDatastreamsPayloadWriter
 import datadog.trace.agent.tooling.AgentInstaller
 import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
-import datadog.trace.api.Checkpointer
 import datadog.trace.api.Config
-import datadog.trace.api.DDId
-import datadog.trace.api.Platform
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.time.SystemTimeSource
-import datadog.trace.api.time.TimeSource
+import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
 import datadog.trace.common.metrics.EventListener
 import datadog.trace.common.metrics.Sink
-import datadog.trace.common.writer.DDAgentWriter
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.common.writer.MultiWriter
-import datadog.trace.common.writer.Writer
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.PendingTrace
-import datadog.trace.core.datastreams.DataStreamsCheckpointer
-import datadog.trace.core.datastreams.DatastreamsPayloadWriter
-import datadog.trace.core.datastreams.StubDataStreamsCheckpointer
+import datadog.trace.bootstrap.instrumentation.api.DataStreamsMonitoring
+import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring
+import datadog.trace.bootstrap.instrumentation.api.NoopDataStreamsMonitoring
 import datadog.trace.test.util.DDSpecification
 import de.thetaphi.forbiddenapis.SuppressForbidden
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
@@ -46,7 +41,6 @@ import net.bytebuddy.agent.ByteBuddyAgent
 import net.bytebuddy.agent.builder.AgentBuilder
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.dynamic.DynamicType
-import net.bytebuddy.implementation.FixedValue
 import net.bytebuddy.utility.JavaModule
 import org.junit.runner.RunWith
 import org.slf4j.LoggerFactory
@@ -55,19 +49,12 @@ import spock.lang.Shared
 
 import java.lang.instrument.ClassFileTransformer
 import java.lang.instrument.Instrumentation
-import java.lang.reflect.InvocationTargetException
 import java.nio.ByteBuffer
-import java.nio.file.Files
-import java.security.ProtectionDomain
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
-import static datadog.trace.api.IdGenerationStrategy.SEQUENTIAL
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
-import static net.bytebuddy.matcher.ElementMatchers.named
-import static net.bytebuddy.matcher.ElementMatchers.none
-
 /**
  * A spock test runner which automatically applies instrumentation and exposes a global trace
  * writer.
@@ -106,14 +93,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   @SuppressWarnings('PropertyName')
   @Shared
-  DDAgentWriter TEST_AGENT_WRITER
-
-  @SuppressWarnings('PropertyName')
-  @Shared
-  MultiWriter TEST_MULTI_WRITER
-
-  @SuppressWarnings('PropertyName')
-  @Shared
   TracerAPI TEST_TRACER
 
   @SuppressWarnings('PropertyName')
@@ -134,25 +113,32 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   @SuppressWarnings('PropertyName')
   @Shared
-  TimelineCheckpointer TEST_CHECKPOINTER = Spy(new TimelineCheckpointer())
+  TestEndpointCheckpointer TEST_CHECKPOINTER = Spy(new TestEndpointCheckpointer())
+
+  // don't use mocks because it will break too many exhaustive interaction-verifying tests
+  @SuppressWarnings('PropertyName')
+  @Shared
+  TestProfilingContextIntegration TEST_PROFILING_CONTEXT_INTEGRATION = new TestProfilingContextIntegration()
 
   @SuppressWarnings('PropertyName')
   @Shared
-  TimelineTracingContextTracker TEST_TRACKER = Spy(TimelineTracingContextTracker.register())
-
-  @SuppressWarnings('PropertyName')
-  @Shared
-  Set<DDId> TEST_SPANS = Sets.newHashSet()
+  Set<DDSpanId> TEST_SPANS = Sets.newHashSet()
 
   @SuppressWarnings('PropertyName')
   @Shared
   RecordingDatastreamsPayloadWriter TEST_DATA_STREAMS_WRITER
+
+  @SuppressWarnings('PropertyName')
+  @Shared
+  DataStreamsMonitoring TEST_DATA_STREAMS_MONITORING
 
   @Shared
   ClassFileTransformer activeTransformer
 
   @Shared
   boolean isLatestDepTest = Boolean.getBoolean('test.dd.latestDepTest')
+
+  boolean originalAppSecRuntimeValue
 
   protected boolean isDataStreamsEnabled() {
     return false
@@ -179,7 +165,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   }
 
   @SuppressForbidden
-  def setupSpec() {
+  void setupSpec() {
     // If this fails, it's likely the result of another test loading Config before it can be
     // injected into the bootstrap classpath. If one test extends AgentTestRunner in a module, all tests must extend
     assert Config.getClassLoader() == null: "Config must load on the bootstrap classpath."
@@ -194,86 +180,38 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
         void register(EventListener listener) {}
       }
-    DataStreamsCheckpointer dataStreamsCheckpointer = new StubDataStreamsCheckpointer()
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-      try {
-        // Fast enough so tests don't take forever
-        long bucketDuration = TimeUnit.MILLISECONDS.toNanos(50)
-        WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
-
-        // Use reflection to load the class because it should only be loaded on Java 8+
-        dataStreamsCheckpointer = (DataStreamsCheckpointer) Class.forName("datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer")
-          .getDeclaredConstructor(Sink, DDAgentFeaturesDiscovery, TimeSource, WellKnownTags, DatastreamsPayloadWriter, long)
-          .newInstance(sink, features, SystemTimeSource.INSTANCE, wellKnownTags, TEST_DATA_STREAMS_WRITER, bucketDuration)
-      } catch (InstantiationException | InvocationTargetException | NoSuchMethodException | IllegalAccessException | ClassNotFoundException e) {
-        e.printStackTrace()
-      }
+    TEST_DATA_STREAMS_MONITORING = new NoopDataStreamsMonitoring()
+    if (isDataStreamsEnabled()) {
+      // Fast enough so tests don't take forever
+      long bucketDuration = TimeUnit.MILLISECONDS.toNanos(50)
+      WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
+      TEST_DATA_STREAMS_MONITORING = new DefaultDataStreamsMonitoring(sink, features, SystemTimeSource.INSTANCE, wellKnownTags, TEST_DATA_STREAMS_WRITER, bucketDuration)
     }
-
-    def writers = new Writer[2]
     TEST_WRITER = new ListWriter()
-    writers[0] = TEST_WRITER
-    TEST_AGENT_WRITER = DDAgentWriter.builder().build()
-    writers[1] = TEST_AGENT_WRITER
-    TEST_MULTI_WRITER = new MultiWriter(writers)
-
     TEST_TRACER =
       Spy(
       CoreTracer.builder()
-      .writer(TEST_MULTI_WRITER)
-      .idGenerationStrategy(SEQUENTIAL)
+      .writer(TEST_WRITER)
+      .idGenerationStrategy(IdGenerationStrategy.fromName("SEQUENTIAL"))
       .statsDClient(STATS_D_CLIENT)
       .strictTraceWrites(useStrictTraceWrites())
-      .dataStreamsCheckpointer(dataStreamsCheckpointer)
+      .dataStreamsMonitoring(TEST_DATA_STREAMS_MONITORING)
+      .profilingContextIntegration(TEST_PROFILING_CONTEXT_INTEGRATION)
       .build())
     TEST_TRACER.registerCheckpointer(TEST_CHECKPOINTER)
     TracerInstaller.forceInstallGlobalTracer(TEST_TRACER)
-
-    enableAppSec()
 
     TEST_TRACER.startSpan(*_) >> {
       def agentSpan = callRealMethod()
       TEST_SPANS.add(agentSpan.spanId)
       agentSpan
     }
-    TEST_CHECKPOINTER.checkpoint(_, _, _) >> { DDId traceId, DDId spanId, int flags ->
-      // We need to treat startSpan differently because of how we mock TEST_TRACER.startSpan
-      if (flags == Checkpointer.SPAN || TEST_SPANS.contains(spanId)) {
-        callRealMethod()
-      }
-    }
 
     assert ServiceLoader.load(Instrumenter, AgentTestRunner.getClassLoader())
     .iterator()
     .hasNext(): "No instrumentation found"
-    activeTransformer = AgentInstaller.installBytebuddyAgent(INSTRUMENTATION, true, this)
-  }
-
-  private void enableAppSec() {
-    if (Config.get().getAppSecEnabledConfig()) {
-      return
-    }
-
-    File temp = Files.createTempDirectory('tmp').toFile()
-    new AgentBuilder.Default()
-      .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
-      .with(AgentBuilder.InitializationStrategy.NoOp.INSTANCE)
-      .with(AgentBuilder.TypeStrategy.Default.REDEFINE)
-      .with(new AgentBuilder.InjectionStrategy.UsingInstrumentation(INSTRUMENTATION, temp))
-      .disableClassFormatChanges()
-      .ignore(none())
-      .type(named("datadog.trace.api.Config"))
-      .transform(new AgentBuilder.Transformer() {
-        @Override
-        DynamicType.Builder<?> transform(
-          DynamicType.Builder<?> builder,
-          TypeDescription typeDescription,
-          ClassLoader classLoader,
-          JavaModule module,
-          ProtectionDomain pd) {
-          builder.method(named("isAppSecEnabled")).intercept(FixedValue.value(true))
-        }
-      }).installOn(INSTRUMENTATION)
+    activeTransformer = AgentInstaller.installBytebuddyAgent(
+      INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), this)
   }
 
   /** Override to set config before the agent is installed */
@@ -281,10 +219,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     injectSysConfig(TracerConfig.SCOPE_ITERATION_KEEP_ALIVE, "1") // don't let iteration spans linger
   }
 
-  def setup() {
-    // re-register in case a new JVM is spawned
-    TimelineTracingContextTracker.register()
-
+  void setup() {
     configureLoggingLevels()
 
     assertThreadsEachCleanup = false
@@ -299,15 +234,16 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     println "Starting test: ${getSpecificationContext().getCurrentIteration().getName()}"
     TEST_TRACER.flush()
     TEST_SPANS.clear()
-    TEST_CHECKPOINTER.clear()
-    TEST_TRACKER.clear()
     TEST_WRITER.start()
     TEST_DATA_STREAMS_WRITER.clear()
+    TEST_DATA_STREAMS_MONITORING.clear()
 
     def util = new MockUtil()
     util.attachMock(STATS_D_CLIENT, this)
     util.attachMock(TEST_CHECKPOINTER, this)
-    util.attachMock(TEST_TRACKER, this)
+
+    originalAppSecRuntimeValue = ActiveSubsystems.APPSEC_ACTIVE
+    ActiveSubsystems.APPSEC_ACTIVE = true
   }
 
   void cleanup() {
@@ -315,17 +251,14 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     def util = new MockUtil()
     util.detachMock(STATS_D_CLIENT)
     util.detachMock(TEST_CHECKPOINTER)
-    util.detachMock(TEST_TRACKER)
 
-
-    TEST_TRACKER.print()
-    TEST_CHECKPOINTER.throwOnInvalidSequence(TEST_SPANS)
+    ActiveSubsystems.APPSEC_ACTIVE = originalAppSecRuntimeValue
   }
 
   /** Override to clean up things after the agent is removed */
   protected void cleanupAfterAgent() {}
 
-  def cleanupSpec() {
+  void cleanupSpec() {
     TEST_TRACER?.close()
 
     if (null != activeTransformer) {

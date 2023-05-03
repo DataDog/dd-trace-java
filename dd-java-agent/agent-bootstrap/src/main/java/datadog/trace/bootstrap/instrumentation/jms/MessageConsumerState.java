@@ -31,7 +31,7 @@ public final class MessageConsumerState {
         this.brokerServiceName = brokerServiceName;
       }
     } else {
-      this.brokerServiceName = "jms";
+      this.brokerServiceName = null;
     }
   }
 

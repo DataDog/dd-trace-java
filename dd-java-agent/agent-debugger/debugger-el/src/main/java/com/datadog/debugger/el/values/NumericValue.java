@@ -1,6 +1,7 @@
 package com.datadog.debugger.el.values;
 
 import com.datadog.debugger.el.Literal;
+import com.datadog.debugger.el.Visitor;
 
 /** A numeric {@linkplain com.datadog.debugger.el.Value} */
 public final class NumericValue extends Literal<Number> {
@@ -21,5 +22,10 @@ public final class NumericValue extends Literal<Number> {
   @Override
   public String toString() {
     return "NumericLiteral{" + "value=" + value + '}';
+  }
+
+  @Override
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
   }
 }

@@ -3,17 +3,12 @@ package datadog.trace.core.monitor
 import datadog.communication.monitor.Monitoring
 import datadog.communication.monitor.NoOpRecording
 import datadog.communication.monitor.Recording
-import datadog.trace.api.Platform
 import datadog.trace.api.StatsDClient
 import datadog.trace.test.util.DDSpecification
-import org.junit.Assert
-import spock.lang.Requires
+import org.junit.jupiter.api.Assertions
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
-@Requires({
-  Platform.isJavaVersionAtLeast(8)
-})
 class TimingTest extends DDSpecification {
 
   def "timer times stuff"() {
@@ -86,7 +81,7 @@ class TimingTest extends DDSpecification {
       recording.start().stop()
       recording.reset()
     } catch (Throwable t) {
-      Assert.fail(t.getMessage())
+      Assertions.fail(t.getMessage())
     }
 
     where:

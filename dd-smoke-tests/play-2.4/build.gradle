@@ -1,0 +1,87 @@
+plugins {
+  id 'org.gradle.playframework'
+}
+
+ext {
+  // TODO Java 17: This version of play doesn't support Java 17
+  maxJavaVersionForTests = JavaVersion.VERSION_15
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+def playVer = "2.4.11"
+def scalaVer = System.getProperty("scala.binary.version", /* default = */ "2.11")
+
+play {
+  platform {
+    playVersion = playVer
+    scalaVersion = scalaVer
+    javaVersion = JavaVersion.VERSION_1_8
+  }
+  injectedRoutesGenerator = true
+}
+
+distributions {
+  main {
+    contents {
+      from("conf") {
+        into "conf"
+      }
+    }
+  }
+}
+
+repositories {
+  mavenCentral()
+  gradlePluginPortal()
+  maven {
+    name "lightbend-maven-releases"
+    url "https://repo.lightbend.com/lightbend/maven-release"
+  }
+  ivy {
+    name "lightbend-ivy-release"
+    url "https://repo.lightbend.com/lightbend/ivy-releases"
+    layout "ivy"
+  }
+}
+
+description = 'Play 2.4 Integration Tests.'
+
+dependencies {
+  implementation "com.typesafe.play:filters-helpers_$scalaVer:$playVer"
+  implementation "com.typesafe.play:play-java-ws_$scalaVer:$playVer"
+  // jaxb is not there anymore in java11+
+  implementation "javax.xml.bind:jaxb-api:2.3.1"
+
+  implementation group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
+  implementation group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
+
+  testImplementation project(':dd-smoke-tests')
+}
+
+configurations.testImplementation {
+  exclude group:'com.typesafe.play', module:"play-test_$scalaVer"
+}
+
+tasks.named("compileTestGroovy").configure {
+  dependsOn 'stageMainDist'
+  outputs.upToDateWhen {
+    !stageMainDist.didWork
+  }
+}
+
+tasks.withType(AbstractCopyTask).each {
+  // Don't know why the play plugin tries to copy the logback.xml file twice, but only accept it once
+  it.configure {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+  }
+}
+
+spotless {
+  java {
+    target "**/*.java"
+  }
+  scala {
+    target "**/*.scala"
+  }
+}

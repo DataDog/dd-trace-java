@@ -1,0 +1,56 @@
+name: "Lib Injection Manual Release"
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'version'
+        required: true
+        type: string
+      commitSha:
+        description: 'commit sha'
+        required: true
+        type: string
+
+jobs:
+  build-and-publish-init-image:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # 2.3.4
+        with:
+          fetch-depth: 0
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@8b122486cedac8393e77aa9734c3528886e4a1a8 # 2.0.0
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@dc7b9719a96d48369863986a06765841d7ea23f6 # 2.0.0
+        with:
+          version: v0.9.1 # https://github.com/docker/buildx/issues/1533
+
+      - name: Set up Docker platforms
+        id: buildx-platforms
+        run:  |
+          BUILDX_PLATFORMS=`docker buildx imagetools inspect --raw busybox:latest | jq -r 'reduce (.manifests[] | [ .platform.os, .platform.architecture, .platform.variant ] | join("/") | sub("\\/$"; "")) as $item (""; . + "," + $item)' | sed 's/,//'`
+          echo "$BUILDX_PLATFORMS"
+          echo "platforms=$BUILDX_PLATFORMS" >> $GITHUB_OUTPUT
+
+      - name: Download dd-java-agent.jar
+        env:
+          VERSION: ${{ inputs.version }}
+        run:  |
+          mkdir -p ./lib-injection
+          wget -O ./lib-injection/dd-java-agent.jar https://github.com/DataDog/dd-trace-java/releases/download/v${VERSION}/dd-java-agent-${VERSION}.jar
+
+      - name: Login to Docker
+        run: docker login -u publisher -p ${{ secrets.GITHUB_TOKEN }} ghcr.io
+
+      - name: Docker Build
+        uses: docker/build-push-action@c56af957549030174b10d6867f20e78cfd7debc5 # 3.2.0
+        with:
+          push: true
+          tags: ghcr.io/datadog/dd-trace-java/dd-lib-java-init:${{ inputs.commitSha }}
+          platforms: ${{ steps.buildx-platforms.outputs.platforms }}
+          context: ./lib-injection

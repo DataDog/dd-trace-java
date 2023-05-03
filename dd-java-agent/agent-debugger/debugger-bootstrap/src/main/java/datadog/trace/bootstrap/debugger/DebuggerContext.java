@@ -1,5 +1,8 @@
 package datadog.trace.bootstrap.debugger;
 
+import static datadog.trace.bootstrap.debugger.util.TimeoutChecker.DEFAULT_TIME_OUT;
+
+import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,7 +13,6 @@ import org.slf4j.LoggerFactory;
  * accessible from instrumented code
  */
 public class DebuggerContext {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerContext.class);
 
   public enum SkipCause {
@@ -18,16 +20,8 @@ public class DebuggerContext {
     CONDITION
   }
 
-  public interface Sink {
-    void addSnapshot(Snapshot snapshot);
-
-    void addDiagnostics(String probeId, List<DiagnosticMessage> messages);
-
-    default void skipSnapshot(String probeId, SkipCause cause) {}
-  }
-
   public interface ProbeResolver {
-    Snapshot.ProbeDetails resolve(String id, Class<?> callingClass);
+    ProbeImplementation resolve(String id, Class<?> callingClass);
   }
 
   public interface ClassFilter {
@@ -42,67 +36,42 @@ public class DebuggerContext {
     void histogram(String name, long value, String[] tags);
   }
 
-  public interface SnapshotSerializer {
-    String serializeSnapshot(String serviceName, Snapshot snapshot);
-
-    String serializeValue(Snapshot.CapturedValue value);
+  public interface Tracer {
+    DebuggerSpan createSpan(String resourceName, String[] tags);
   }
 
-  private static volatile Sink sink;
+  public interface ValueSerializer {
+    String serializeValue(CapturedContext.CapturedValue value);
+  }
+
   private static volatile ProbeResolver probeResolver;
   private static volatile ClassFilter classFilter;
   private static volatile MetricForwarder metricForwarder;
-  private static volatile SnapshotSerializer snapshotSerializer;
+  private static volatile Tracer tracer;
+  private static volatile ValueSerializer valueSerializer;
 
-  public static void init(Sink sink, ProbeResolver probeResolver, MetricForwarder metricForwarder) {
-    DebuggerContext.sink = sink;
+  public static void init(ProbeResolver probeResolver, MetricForwarder metricForwarder) {
     DebuggerContext.probeResolver = probeResolver;
     DebuggerContext.metricForwarder = metricForwarder;
+  }
+
+  public static void initTracer(Tracer tracer) {
+    DebuggerContext.tracer = tracer;
   }
 
   public static void initClassFilter(ClassFilter classFilter) {
     DebuggerContext.classFilter = classFilter;
   }
 
-  public static void initSnapshotSerializer(SnapshotSerializer snapshotSerializer) {
-    DebuggerContext.snapshotSerializer = snapshotSerializer;
-  }
-
-  /**
-   * Notifies the underlying sink that the snapshot was skipped for one of the SkipCause reason
-   * No-op if no implementation available
-   */
-  public static void skipSnapshot(String probeId, SkipCause cause) {
-    Sink localSink = sink;
-    if (localSink == null) {
-      return;
-    }
-    localSink.skipSnapshot(probeId, cause);
-  }
-
-  /** Adds a snapshot to the underlying sink No-op if no implementation available */
-  public static void addSnapshot(Snapshot snapshot) {
-    Sink localSink = sink;
-    if (localSink == null) {
-      return;
-    }
-    localSink.addSnapshot(snapshot);
-  }
-
-  /** Add diagnostics message to the underlying sink No-op if not implementation available */
-  public static void reportDiagnostics(String probeId, List<DiagnosticMessage> messages) {
-    Sink localSink = sink;
-    if (localSink == null) {
-      return;
-    }
-    localSink.addDiagnostics(probeId, messages);
+  public static void initValueSerializer(ValueSerializer valueSerializer) {
+    DebuggerContext.valueSerializer = valueSerializer;
   }
 
   /**
    * Returns the probe details based on the probe id provided. If no probe is found, try to
    * re-transform the class using the callingClass parameter No-op if no implementation available
    */
-  public static Snapshot.ProbeDetails resolveProbe(String id, Class<?> callingClass) {
+  public static ProbeImplementation resolveProbe(String id, Class<?> callingClass) {
     ProbeResolver resolver = probeResolver;
     if (resolver == null) {
       return null;
@@ -111,7 +80,7 @@ public class DebuggerContext {
   }
 
   /**
-   * Indicates if the fully-qualifed-class-name is denied to be intstrumented Returns true if no
+   * Indicates if the fully-qualified-class-name is denied to be instrumented Returns true if no
    * implementation is available
    */
   public static boolean isDenied(String fullyQualifiedClassName) {
@@ -150,23 +119,119 @@ public class DebuggerContext {
     forwarder.histogram(name, value, tags);
   }
 
-  /** Serializes the specified Snapshot as string Returns null if no implementation is available */
-  public static String serializeSnapshot(String serviceName, Snapshot snapshot) {
-    SnapshotSerializer serializer = snapshotSerializer;
-    if (serializer == null) {
-      LOGGER.warn("Cannot serialize snapshots, no serializer set");
-      return null;
-    }
-    return serializer.serializeSnapshot(serviceName, snapshot);
-  }
-
   /** Serializes the specified value as string Returns null if no implementation is available */
-  public static String serializeValue(Snapshot.CapturedValue value) {
-    SnapshotSerializer serializer = snapshotSerializer;
+  public static String serializeValue(CapturedContext.CapturedValue value) {
+    ValueSerializer serializer = valueSerializer;
     if (serializer == null) {
       LOGGER.warn("Cannot serialize value, no serializer set");
       return null;
     }
     return serializer.serializeValue(value);
+  }
+
+  /** Creates a span, returns null if no implementation available */
+  public static DebuggerSpan createSpan(String operationName, String[] tags) {
+    Tracer localTracer = tracer;
+    if (localTracer == null) {
+      return null;
+    }
+    return localTracer.createSpan(operationName, tags);
+  }
+
+  /**
+   * tests whether the provided probe Ids are ready for capturing data
+   *
+   * @return true if can proceed to capture data
+   */
+  public static boolean isReadyToCapture(String... probeIds) {
+    // TODO provide overloaded version without string array
+    if (probeIds == null || probeIds.length == 0) {
+      return false;
+    }
+    boolean result = false;
+    for (String probeId : probeIds) {
+      // if all probes are rate limited, we don't capture
+      result |= ProbeRateLimiter.tryProbe(probeId);
+    }
+    return result;
+  }
+
+  /**
+   * resolve probe details based on probe ids and evaluate the captured context regarding summary &
+   * conditions This is for method probes
+   */
+  public static void evalContext(
+      CapturedContext context,
+      Class<?> callingClass,
+      long startTimestamp,
+      MethodLocation methodLocation,
+      String... probeIds) {
+    boolean needFreeze = false;
+    for (String probeId : probeIds) {
+      ProbeImplementation probeImplementation = resolveProbe(probeId, callingClass);
+      if (probeImplementation == null) {
+        continue;
+      }
+      CapturedContext.Status status =
+          context.evaluate(
+              probeId,
+              probeImplementation,
+              callingClass.getTypeName(),
+              startTimestamp,
+              methodLocation);
+      needFreeze |= status.shouldFreezeContext();
+    }
+    // only freeze the context when we have at lest one snapshot probe, and we should send snapshot
+    if (needFreeze) {
+      context.freeze(new TimeoutChecker(DEFAULT_TIME_OUT));
+    }
+  }
+
+  /**
+   * resolve probe details based on probe ids, evaluate the captured context regarding summary &
+   * conditions and commit snapshot to send it if needed. This is for line probes.
+   */
+  public static void evalContextAndCommit(
+      CapturedContext context, Class<?> callingClass, int line, String... probeIds) {
+    for (String probeId : probeIds) {
+      ProbeImplementation probeImplementation = resolveProbe(probeId, callingClass);
+      if (probeImplementation == null) {
+        continue;
+      }
+      context.evaluate(
+          probeId, probeImplementation, callingClass.getTypeName(), -1, MethodLocation.DEFAULT);
+      probeImplementation.commit(context, line);
+    }
+  }
+
+  /**
+   * Commit snapshot based on entry/exit contexts and eventually caught exceptions for given probe
+   * Ids This is for method probes
+   */
+  public static void commit(
+      CapturedContext entryContext,
+      CapturedContext exitContext,
+      List<CapturedContext.CapturedThrowable> caughtExceptions,
+      String... probeIds) {
+    if (entryContext == CapturedContext.EMPTY_CONTEXT
+        && exitContext == CapturedContext.EMPTY_CONTEXT) {
+      // rate limited
+      return;
+    }
+    for (String probeId : probeIds) {
+      CapturedContext.Status entryStatus = entryContext.getStatus(probeId);
+      CapturedContext.Status exitStatus = exitContext.getStatus(probeId);
+      ProbeImplementation probeImplementation;
+      if (entryStatus.probeImplementation != ProbeImplementation.UNKNOWN
+          && (entryStatus.probeImplementation.getEvaluateAt() == MethodLocation.ENTRY
+              || entryStatus.probeImplementation.getEvaluateAt() == MethodLocation.DEFAULT)) {
+        probeImplementation = entryStatus.probeImplementation;
+      } else if (exitStatus.probeImplementation.getEvaluateAt() == MethodLocation.EXIT) {
+        probeImplementation = exitStatus.probeImplementation;
+      } else {
+        throw new IllegalStateException("no probe details");
+      }
+      probeImplementation.commit(entryContext, exitContext, caughtExceptions);
+    }
   }
 }

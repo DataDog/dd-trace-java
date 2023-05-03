@@ -1,11 +1,11 @@
 package datadog.smoketest
 
 import datadog.trace.agent.test.utils.PortUtils
+import datadog.trace.test.util.Flaky
 import okhttp3.Request
-import spock.lang.Retry
 import spock.lang.Shared
 
-@Retry(delay = 1000)
+@Flaky
 class WildflySmokeTest extends AbstractServerSmokeTest {
 
   @Shared
@@ -55,5 +55,20 @@ class WildflySmokeTest extends AbstractServerSmokeTest {
 
     where:
     n << (1..200)
+  }
+
+  def "spring context loaded successfully"() {
+    setup:
+    String url = "http://localhost:$httpPort/war/hello"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    def responseBodyStr = response.body().string()
+    responseBodyStr != null
+    responseBodyStr.contentEquals("hello world")
+    response.code() == 200
   }
 }

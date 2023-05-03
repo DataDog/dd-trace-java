@@ -1,58 +1,111 @@
 package datadog.trace.api.iast;
 
-import javax.annotation.Nonnull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import datadog.trace.api.iast.propagation.CodecModule;
+import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.propagation.StringModule;
+import datadog.trace.api.iast.sink.CommandInjectionModule;
+import datadog.trace.api.iast.sink.LdapInjectionModule;
+import datadog.trace.api.iast.sink.PathTraversalModule;
+import datadog.trace.api.iast.sink.SqlInjectionModule;
+import datadog.trace.api.iast.sink.SsrfModule;
+import datadog.trace.api.iast.sink.WeakCipherModule;
+import datadog.trace.api.iast.sink.WeakHashModule;
+import datadog.trace.api.iast.source.WebModule;
 
-/**
- * Bridge between instrumentations and {@link IastModule} that contains the business logic relative
- * to vulnerability detection. The class contains a list of {@code public static} methods that will
- * be injected into the bytecode via {@code invokestatic} instructions. It's important that all
- * methods are protected from exception leakage.
- */
+/** Bridge between instrumentations and {@link IastModule} instances. */
 public abstract class InstrumentationBridge {
 
-  private static final Logger LOG = LoggerFactory.getLogger(InstrumentationBridge.class);
-
-  private static IastModule MODULE;
+  public static volatile StringModule STRING;
+  public static volatile CodecModule CODEC;
+  public static volatile WebModule WEB;
+  public static volatile SqlInjectionModule SQL_INJECTION;
+  public static volatile PathTraversalModule PATH_TRAVERSAL;
+  public static volatile CommandInjectionModule COMMAND_INJECTION;
+  public static volatile WeakCipherModule WEAK_CIPHER;
+  public static volatile WeakHashModule WEAK_HASH;
+  public static volatile LdapInjectionModule LDAP_INJECTION;
+  public static volatile PropagationModule PROPAGATION;
+  public static volatile SsrfModule SSRF;
 
   private InstrumentationBridge() {}
 
   public static void registerIastModule(final IastModule module) {
-    MODULE = module;
-  }
-
-  /**
-   * Executed when access to a cryptographic cipher is detected
-   *
-   * <p>{@link javax.crypto.Cipher#getInstance(String)}
-   */
-  public static void onCipherGetInstance(@Nonnull final String algorithm) {
-    try {
-      if (MODULE != null) {
-        MODULE.onCipherAlgorithm(algorithm);
-      }
-    } catch (final Throwable t) {
-      onUnexpectedException("Callback for onCipher threw.", t);
+    if (module instanceof StringModule) {
+      STRING = (StringModule) module;
+    } else if (module instanceof CodecModule) {
+      CODEC = (CodecModule) module;
+    } else if (module instanceof WebModule) {
+      WEB = (WebModule) module;
+    } else if (module instanceof SqlInjectionModule) {
+      SQL_INJECTION = (SqlInjectionModule) module;
+    } else if (module instanceof PathTraversalModule) {
+      PATH_TRAVERSAL = (PathTraversalModule) module;
+    } else if (module instanceof CommandInjectionModule) {
+      COMMAND_INJECTION = (CommandInjectionModule) module;
+    } else if (module instanceof WeakCipherModule) {
+      WEAK_CIPHER = (WeakCipherModule) module;
+    } else if (module instanceof WeakHashModule) {
+      WEAK_HASH = (WeakHashModule) module;
+    } else if (module instanceof LdapInjectionModule) {
+      LDAP_INJECTION = (LdapInjectionModule) module;
+    } else if (module instanceof PropagationModule) {
+      PROPAGATION = (PropagationModule) module;
+    } else if (module instanceof SsrfModule) {
+      SSRF = (SsrfModule) module;
+    } else {
+      throw new UnsupportedOperationException("Module not yet supported: " + module);
     }
   }
 
-  /**
-   * Executed when access to a message digest algorithm is detected
-   *
-   * <p>{@link java.security.MessageDigest#getInstance(String)}
-   */
-  public static void onMessageDigestGetInstance(@Nonnull final String algorithm) {
-    try {
-      if (MODULE != null) {
-        MODULE.onHashingAlgorithm(algorithm);
-      }
-    } catch (final Throwable t) {
-      onUnexpectedException("Callback for onHash threw.", t);
+  /** Mainly used for testing modules */
+  public static <E extends IastModule> E getIastModule(final Class<E> type) {
+    if (type == StringModule.class) {
+      return (E) STRING;
     }
+    if (type == CodecModule.class) {
+      return (E) CODEC;
+    }
+    if (type == WebModule.class) {
+      return (E) WEB;
+    }
+    if (type == SqlInjectionModule.class) {
+      return (E) SQL_INJECTION;
+    }
+    if (type == PathTraversalModule.class) {
+      return (E) PATH_TRAVERSAL;
+    }
+    if (type == CommandInjectionModule.class) {
+      return (E) COMMAND_INJECTION;
+    }
+    if (type == WeakCipherModule.class) {
+      return (E) WEAK_CIPHER;
+    }
+    if (type == WeakHashModule.class) {
+      return (E) WEAK_HASH;
+    }
+    if (type == LdapInjectionModule.class) {
+      return (E) LDAP_INJECTION;
+    }
+    if (type == PropagationModule.class) {
+      return (E) PROPAGATION;
+    }
+    if (type == SsrfModule.class) {
+      return (E) SSRF;
+    }
+    throw new UnsupportedOperationException("Module not yet supported: " + type);
   }
 
-  private static void onUnexpectedException(final String message, final Throwable error) {
-    LOG.warn(message, error);
+  /** Mainly used for testing empty modules */
+  public static void clearIastModules() {
+    STRING = null;
+    CODEC = null;
+    WEB = null;
+    SQL_INJECTION = null;
+    PATH_TRAVERSAL = null;
+    COMMAND_INJECTION = null;
+    WEAK_CIPHER = null;
+    WEAK_HASH = null;
+    LDAP_INJECTION = null;
+    PROPAGATION = null;
   }
 }

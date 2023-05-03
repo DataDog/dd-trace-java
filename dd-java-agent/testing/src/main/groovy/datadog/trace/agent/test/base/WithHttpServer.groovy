@@ -1,6 +1,6 @@
 package datadog.trace.agent.test.base
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.agent.test.utils.PortUtils
 import net.bytebuddy.utility.JavaModule
@@ -11,15 +11,17 @@ import spock.lang.Subject
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
-abstract class WithHttpServer<SERVER> extends AgentTestRunner {
+abstract class WithHttpServer<SERVER> extends VersionedNamingTestBase {
 
   @Shared
   @Subject
-  HttpServer server = server()
+  HttpServer server
   @Shared
   OkHttpClient client = OkHttpUtils.client(15, 15, TimeUnit.SECONDS)
+
   @Shared
   URI address = null
+
 
   HttpServer server() {
     return new DefaultHttpServer()
@@ -56,6 +58,7 @@ abstract class WithHttpServer<SERVER> extends AgentTestRunner {
   }
 
   def setupSpec() {
+    server = server()
     server.start()
     address = server.address()
     assert address.port > 0
@@ -63,7 +66,7 @@ abstract class WithHttpServer<SERVER> extends AgentTestRunner {
     println "$server started at: $address"
   }
 
-  def cleanupSpec() {
+  void cleanupSpec() {
     server.stop()
     println "$server stopped at: $address"
   }

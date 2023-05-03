@@ -1,23 +1,27 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static datadog.trace.api.cache.RadixTreeCache.UNSET_PORT;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.function.*;
-import datadog.trace.api.function.Function;
+import datadog.trace.api.function.TriConsumer;
+import datadog.trace.api.function.TriFunction;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.naming.SpanNaming;
+import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -27,7 +31,11 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.http.ClientIpAddressResolver;
 import java.net.InetAddress;
 import java.util.BitSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +48,18 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
   public static final String DD_SPAN_ATTRIBUTE = "datadog.span";
   public static final String DD_DISPATCH_SPAN_ATTRIBUTE = "datadog.span.dispatch";
+  public static final String DD_FIN_DISP_LIST_SPAN_ATTRIBUTE =
+      "datadog.span.finish_dispatch_listener";
   public static final String DD_RESPONSE_ATTRIBUTE = "datadog.response";
+
+  public static final LinkedHashMap<String, String> SERVER_PATHWAY_EDGE_TAGS;
+
+  static {
+    SERVER_PATHWAY_EDGE_TAGS = new LinkedHashMap<>(2);
+    // TODO: Refactor TagsProcessor to move it into a package that we can link the constants for.
+    SERVER_PATHWAY_EDGE_TAGS.put("direction", "in");
+    SERVER_PATHWAY_EDGE_TAGS.put("type", "http");
+  }
 
   private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
   protected static final UTF8BytesString NOT_FOUND_RESOURCE_NAME = UTF8BytesString.create("404");
@@ -52,6 +71,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       Config.get().isRuleEnabled("URLAsResourceNameRule");
 
   private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
+
+  private final boolean traceClientIpResolverEnabled =
+      Config.get().isTraceClientIpResolverEnabled();
 
   protected abstract AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter();
 
@@ -68,6 +90,13 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   protected abstract int peerPort(CONNECTION connection);
 
   protected abstract int status(RESPONSE response);
+
+  public CharSequence operationName() {
+    return SpanNaming.instance()
+        .namingSchema()
+        .server()
+        .operationForComponent(component().toString());
+  }
 
   @Override
   protected CharSequence spanType() {
@@ -93,11 +122,16 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   public AgentSpan startSpan(REQUEST_CARRIER carrier, AgentSpan.Context.Extracted context) {
-    AgentSpan span =
-        tracer().startSpan(spanName(), callIGCallbackStart(context), true).setMeasured(true);
+    AgentSpan span = tracer().startSpan(spanName(), callIGCallbackStart(context)).setMeasured(true);
     Flow<Void> flow = callIGCallbackRequestHeaders(span, carrier);
     if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
       span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
+    }
+    AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
+    if (null != carrier && null != getter) {
+      PathwayContext pathwayContext = propagate().extractPathwayContext(carrier, getter);
+      span.mergePathwayContext(pathwayContext);
+      tracer().setDataStreamCheckpoint(span, SERVER_PATHWAY_EDGE_TAGS);
     }
     return span;
   }
@@ -108,27 +142,42 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       final REQUEST request,
       final AgentSpan.Context.Extracted context) {
     Config config = Config.get();
+    boolean clientIpResolverEnabled =
+        config.isClientIpEnabled()
+            || traceClientIpResolverEnabled && ActiveSubsystems.APPSEC_ACTIVE;
+
+    if (ActiveSubsystems.APPSEC_ACTIVE) {
+      RequestContext requestContext = span.getRequestContext();
+      if (requestContext != null) {
+        BlockResponseFunction brf = createBlockResponseFunction(request, connection);
+        if (brf != null) {
+          requestContext.setBlockResponseFunction(brf);
+        }
+      }
+    }
 
     if (context != null) {
-      String forwarded = context.getForwarded();
-      if (forwarded != null) {
-        span.setTag(Tags.HTTP_FORWARDED, forwarded);
-      }
-      String forwardedProto = context.getForwardedProto();
-      if (forwardedProto != null) {
-        span.setTag(Tags.HTTP_FORWARDED_PROTO, forwardedProto);
-      }
-      String forwardedHost = context.getForwardedHost();
-      if (forwardedHost != null) {
-        span.setTag(Tags.HTTP_FORWARDED_HOST, forwardedHost);
-      }
-      String forwardedIp = context.getForwardedIp();
-      if (forwardedIp != null) {
-        span.setTag(Tags.HTTP_FORWARDED_IP, forwardedIp);
-      }
-      String forwardedPort = context.getForwardedPort();
-      if (forwardedPort != null) {
-        span.setTag(Tags.HTTP_FORWARDED_PORT, forwardedPort);
+      if (clientIpResolverEnabled) {
+        String forwarded = context.getForwarded();
+        if (forwarded != null) {
+          span.setTag(Tags.HTTP_FORWARDED, forwarded);
+        }
+        String forwardedProto = context.getXForwardedProto();
+        if (forwardedProto != null) {
+          span.setTag(Tags.HTTP_FORWARDED_PROTO, forwardedProto);
+        }
+        String forwardedHost = context.getXForwardedHost();
+        if (forwardedHost != null) {
+          span.setTag(Tags.HTTP_FORWARDED_HOST, forwardedHost);
+        }
+        String forwardedIp = context.getXForwardedFor();
+        if (forwardedIp != null) {
+          span.setTag(Tags.HTTP_FORWARDED_IP, forwardedIp);
+        }
+        String forwardedPort = context.getXForwardedPort();
+        if (forwardedPort != null) {
+          span.setTag(Tags.HTTP_FORWARDED_PORT, forwardedPort);
+        }
       }
       String userAgent = context.getUserAgent();
       if (userAgent != null) {
@@ -144,18 +193,24 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       try {
         final URIDataAdapter url = url(request);
         if (url != null) {
+
           boolean supportsRaw = url.supportsRaw();
           boolean encoded = supportsRaw && config.isHttpServerRawResource();
+          boolean valid = url.isValid();
           String path = encoded ? url.rawPath() : url.path();
-
-          span.setTag(Tags.HTTP_URL, URIUtils.buildURL(url.scheme(), url.host(), url.port(), path));
-          if (context != null && context.getForwardedHost() != null) {
-            span.setTag(Tags.HTTP_HOSTNAME, context.getForwardedHost());
+          if (valid) {
+            span.setTag(
+                Tags.HTTP_URL, URIUtils.buildURL(url.scheme(), url.host(), url.port(), path));
+          } else if (supportsRaw) {
+            span.setTag(Tags.HTTP_URL, url.raw());
+          }
+          if (context != null && context.getXForwardedHost() != null) {
+            span.setTag(Tags.HTTP_HOSTNAME, context.getXForwardedHost());
           } else if (url.host() != null) {
             span.setTag(Tags.HTTP_HOSTNAME, url.host());
           }
 
-          if (config.isHttpServerTagQueryString()) {
+          if (valid && config.isHttpServerTagQueryString()) {
             String query =
                 supportsRaw && config.isHttpServerRawQueryString() ? url.rawQuery() : url.query();
             span.setTag(DDTags.HTTP_QUERY, query);
@@ -165,7 +220,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
           if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
             span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
           }
-          if (SHOULD_SET_URL_RESOURCE_NAME) {
+          if (valid && SHOULD_SET_URL_RESOURCE_NAME) {
             HTTP_RESOURCE_DECORATOR.withServerPath(span, method, path, encoded);
           }
         } else if (SHOULD_SET_URL_RESOURCE_NAME) {
@@ -176,21 +231,28 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       }
     }
 
-    String ip = null;
-    int port = UNSET_PORT;
+    String peerIp = null;
+    int peerPort = UNSET_PORT;
     if (connection != null) {
-      ip = peerHostIP(connection);
-      port = peerPort(connection);
+      peerIp = peerHostIP(connection);
+      peerPort = peerPort(connection);
     }
 
     String inferredAddressStr = null;
-    if (config.isTraceClientIpResolverEnabled()) {
-      InetAddress inferredAddress = ClientIpAddressResolver.resolve(context);
-      // As a fallback, if no IP was resolved, the peer IP address should be checked
-      // to see if it is public and used as the resolved IP if it is.
-      // If no public IP address, then a private IP address should reported as a fall back.
-      if (inferredAddress == null && ip != null) {
-        inferredAddress = ClientIpAddressResolver.parseIpAddress(ip);
+    if (clientIpResolverEnabled) {
+      InetAddress inferredAddress = ClientIpAddressResolver.resolve(context, span);
+      // the peer address should be used if:
+      // 1. the headers yield nothing, regardless of whether it is public or not
+      // 2. it is public and the headers yield a private address
+      if (peerIp != null) {
+        if (inferredAddress == null) {
+          inferredAddress = ClientIpAddressResolver.parseIpAddress(peerIp);
+        } else if (ClientIpAddressResolver.isIpAddrPrivate(inferredAddress)) {
+          InetAddress peerAddress = ClientIpAddressResolver.parseIpAddress(peerIp);
+          if (!ClientIpAddressResolver.isIpAddrPrivate(peerAddress)) {
+            inferredAddress = peerAddress;
+          }
+        }
       }
       if (inferredAddress != null) {
         inferredAddressStr = inferredAddress.getHostAddress();
@@ -198,15 +260,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       }
     }
 
-    if (ip != null) {
-      if (ip.indexOf(':') > 0) {
-        span.setTag(Tags.PEER_HOST_IPV6, ip);
+    if (peerIp != null) {
+      if (peerIp.indexOf(':') > 0) {
+        span.setTag(Tags.PEER_HOST_IPV6, peerIp);
       } else {
-        span.setTag(Tags.PEER_HOST_IPV4, ip);
+        span.setTag(Tags.PEER_HOST_IPV4, peerIp);
       }
     }
-    setPeerPort(span, port);
-    Flow<Void> flow = callIGCallbackAddressAndPort(span, ip, port, inferredAddressStr);
+    setPeerPort(span, peerPort);
+    Flow<Void> flow = callIGCallbackAddressAndPort(span, peerIp, peerPort, inferredAddressStr);
     if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
       span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
     }
@@ -214,18 +276,29 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return span;
   }
 
+  protected BlockResponseFunction createBlockResponseFunction(
+      REQUEST request, CONNECTION connection) {
+    return null;
+  }
+
+  public AgentSpan onResponseStatus(final AgentSpan span, final int status) {
+    if (status > UNSET_STATUS) {
+      span.setHttpStatusCode(status);
+    }
+    // explicitly set here because some other decorators might already set an error without
+    // looking at the status code
+    span.setError(SERVER_ERROR_STATUSES.get(status));
+
+    if (SHOULD_SET_404_RESOURCE_NAME && status == 404) {
+      span.setResourceName(NOT_FOUND_RESOURCE_NAME, ResourceNamePriorities.HTTP_404);
+    }
+    return span;
+  }
+
   public AgentSpan onResponse(final AgentSpan span, final RESPONSE response) {
     if (response != null) {
       final int status = status(response);
-      if (status > UNSET_STATUS) {
-        span.setHttpStatusCode(status);
-      }
-      if (SERVER_ERROR_STATUSES.get(status)) {
-        span.setError(true);
-      }
-      if (SHOULD_SET_404_RESOURCE_NAME && status == 404) {
-        span.setResourceName(NOT_FOUND_RESOURCE_NAME, ResourceNamePriorities.HTTP_404);
-      }
+      onResponseStatus(span, status);
 
       AgentPropagation.ContextVisitor<RESPONSE> getter = responseGetter();
       if (getter != null) {
@@ -440,8 +513,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   private static final class ResponseHeaderTagClassifier implements AgentPropagation.KeyClassifier {
-    static final ResponseHeaderTagClassifier create(
-        AgentSpan span, Map<String, String> headerTags) {
+    static ResponseHeaderTagClassifier create(AgentSpan span, Map<String, String> headerTags) {
       if (span == null || headerTags == null || headerTags.isEmpty()) {
         return null;
       }

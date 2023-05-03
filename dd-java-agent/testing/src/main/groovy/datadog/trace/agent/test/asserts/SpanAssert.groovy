@@ -1,6 +1,7 @@
 package datadog.trace.agent.test.asserts
 
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.core.DDSpan
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
@@ -57,6 +58,11 @@ class SpanAssert {
     checked.operationName = true
   }
 
+  def operationName(Closure<Boolean> eval) {
+    assert eval(span.operationName.toString())
+    checked.resourceName = true
+  }
+
   def operationNameContains(String... operationNameParts) {
     assertSpanNameContains(span.operationName.toString(), operationNameParts)
     checked.operationName = true
@@ -99,24 +105,21 @@ class SpanAssert {
   }
 
   def parent() {
-    assert span.parentId == DDId.ZERO
+    assert span.parentId == DDSpanId.ZERO
     checked.parentId = true
   }
 
-  def parentId(BigInteger parentId) {
-    parentDDId(parentId != null ? DDId.from("$parentId") : null)
-  }
-
-  def parentDDId(DDId parentId) {
-    assert span.parentId == parentId
+  def parentSpanId(BigInteger parentId) {
+    long id = parentId == null ? 0 : DDSpanId.from("$parentId")
+    assert span.parentId == id
     checked.parentId = true
   }
 
   def traceId(BigInteger traceId) {
-    traceDDId(traceId != null ? DDId.from("$traceId") : null)
+    traceDDId(traceId != null ? DDTraceId.from("$traceId") : null)
   }
 
-  def traceDDId(DDId traceId) {
+  def traceDDId(DDTraceId traceId) {
     assert span.traceId == traceId
     checked.traceId = true
   }
@@ -170,5 +173,9 @@ class SpanAssert {
   void tags(@ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.TagsAssert'])
     @DelegatesTo(value = TagsAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
     assertTags(span, spec)
+  }
+
+  DDSpan getSpan() {
+    return span
   }
 }

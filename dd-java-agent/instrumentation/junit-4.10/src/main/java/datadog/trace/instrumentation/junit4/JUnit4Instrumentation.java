@@ -34,11 +34,7 @@ public class JUnit4Instrumentation extends Instrumenter.CiVisibility
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JUnit4Decorator",
-      packageName + ".TracingListener",
-      packageName + ".JUnit4Utils"
-    };
+    return new String[] {packageName + ".TracingListener", packageName + ".JUnit4Utils"};
   }
 
   @Override
@@ -58,9 +54,16 @@ public class JUnit4Instrumentation extends Instrumenter.CiVisibility
         return;
       }
 
-      // This prevents installing the TracingListener multiple times.
       for (final RunListener listener : runListeners) {
-        if (JUnit4Utils.isTracingListener(listener)) {
+        RunListener unwrappedListener = JUnit4Utils.unwrapListener(listener);
+        // prevents installing TracingListener multiple times
+        if (JUnit4Utils.isTracingListener(unwrappedListener)) {
+          return;
+        }
+        // prevents installing TracingListener if we're running in JUnit 5 vintage compatibility
+        // mode
+        // (in that case JUnit 5 instrumentation will install its own TracingListener)
+        if (JUnit4Utils.isJUnitVintageListener(unwrappedListener)) {
           return;
         }
       }

@@ -21,6 +21,11 @@ public final class Servlet3Instrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String muzzleDirective() {
+    return "servlet-3.x";
+  }
+
+  @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Avoid matching servlet 2 which has its own instrumentation
     return hasClassNamed("javax.servlet.AsyncEvent");
@@ -45,7 +50,7 @@ public final class Servlet3Instrumentation extends Instrumenter.Tracing
       packageName + ".HttpServletExtractAdapter$Response",
       packageName + ".Servlet3Decorator",
       packageName + ".ServletRequestURIAdapter",
-      packageName + ".TagSettingAsyncListener",
+      packageName + ".FinishAsyncDispatchListener",
       "datadog.trace.instrumentation.servlet.ServletBlockingHelper",
     };
   }

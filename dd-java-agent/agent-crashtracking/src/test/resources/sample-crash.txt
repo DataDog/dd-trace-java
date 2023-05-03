@@ -1,0 +1,77 @@
+#
+# A fatal error has been detected by the Java Runtime Environment:
+#
+#  SIGSEGV (0xb) at pc=0x00007f2fe12d4646, pid=6, tid=34
+#
+# JRE version: OpenJDK Runtime Environment Temurin-18.0.2.1+1 (18.0.2.1+1) (build 18.0.2.1+1)
+# Java VM: OpenJDK 64-Bit Server VM Temurin-18.0.2.1+1 (18.0.2.1+1, mixed mode, sharing, tiered, compressed oops, compressed class ptrs, parallel gc, linux-amd64)
+# Problematic frame:
+# V  [libjvm.so+0xbab646]  Method::checked_resolve_jmethod_id(_jmethodID*)+0x26
+#
+# Core dump will be written. Default location: /usr/local/app/core
+#
+# JFR recording file will be written. Location: /usr/local/app/hs_err_pid6.jfr
+#
+# If you would like to submit a bug report, please visit:
+#   https://github.com/adoptium/adoptium-support/issues
+#
+
+---------------  S U M M A R Y ------------
+
+Command Line: -XX:+UseParallelGC com.datadoghq.TestApp
+
+Host: REDACTED
+Time: REDACTED
+
+---------------  T H R E A D  ---------------
+
+Current thread (0x00007f2fdd05fed0):  JavaThread "dd-profiler-recording-scheduler" daemon [_thread_in_vm, id=34, stack(0x00007f2f7e3f3000,0x00007f2f7e4f3000)]
+
+Stack: [0x00007f2f7e3f3000,0x00007f2f7e4f3000],  sp=0x00007f2f7e4f0020,  free space=1012k
+Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)
+V  [libjvm.so+0xbab646]  Method::checked_resolve_jmethod_id(_jmethodID*)+0x26
+V  [libjvm.so+0x9c7ce8]  jvmti_GetMethodDeclaringClass+0xc8
+C  [libasyncProfiler17202757991676519641.so+0x17037]  Lookup::resolveMethod(ASGCT_CallFrame&)+0x127
+C  [libasyncProfiler17202757991676519641.so+0x20adf]  Recording::finishChunk(bool)+0xbdf
+C  [libasyncProfiler17202757991676519641.so+0x21ad5]  FlightRecorder::stop() [clone .isra.611]+0x55
+C  [libasyncProfiler17202757991676519641.so+0x2a1f9]  Profiler::stop()+0x119
+C  [libasyncProfiler17202757991676519641.so+0x2a306]  Java_one_profiler_AsyncProfiler_stop0+0x16
+j  one.profiler.AsyncProfiler.stop0()V+0
+j  one.profiler.AsyncProfiler.stop()V+1
+j  com.datadog.profiling.async.AsyncProfiler.stopProfiler()V+23
+j  com.datadog.profiling.async.AsyncProfilerRecording.stop()Lcom/datadog/profiling/controller/RecordingData;+4
+j  com.datadog.profiling.async.AsyncProfiler.stop(Lcom/datadog/profiling/controller/OngoingRecording;)Lcom/datadog/profiling/controller/RecordingData;+19
+j  com.datadog.profiling.async.AsyncProfilerRecording.snapshot(Ljava/time/Instant;Ldatadog/trace/api/profiling/ProfilingSnapshot$Kind;)Lcom/datadog/profiling/controller/RecordingData;+5
+j  com.datadog.profiling.controller.openjdk.OpenJdkOngoingRecording.snapshot(Ljava/time/Instant;Ldatadog/trace/api/profiling/ProfilingSnapshot$Kind;)Lcom/datadog/profiling/controller/RecordingData;+94
+j  com.datadog.profiling.controller.ProfilingSystem$SnapshotRecording.snapshot(Z)V+38
+j  com.datadog.profiling.controller.ProfilingSystem$SnapshotRecording.snapshot()V+2
+j  com.datadog.profiling.controller.ProfilingSystem$$Lambda$3172+0x000000080188c438.run(Ljava/lang/Object;)V+4
+J 36572 c2 datadog.trace.util.AgentTaskScheduler$PeriodicTask.run()V (25 bytes) @ 0x00007f2fd0198488 [0x00007f2fd0198420+0x0000000000000068]
+j  datadog.trace.util.AgentTaskScheduler$Worker.run()V+27
+j  java.lang.Thread.run()V+11 java.base@18.0.2.1
+v  ~StubRoutines::call_stub
+V  [libjvm.so+0x82f895]  JavaCalls::call_helper(JavaValue*, methodHandle const&, JavaCallArguments*, JavaThread*)+0x315
+V  [libjvm.so+0x83108b]  JavaCalls::call_virtual(JavaValue*, Handle, Klass*, Symbol*, Symbol*, JavaThread*)+0x1cb
+V  [libjvm.so+0x8fc20a]  thread_entry(JavaThread*, JavaThread*)+0x8a
+V  [libjvm.so+0xe43120]  JavaThread::thread_main_inner()+0x190
+V  [libjvm.so+0xe47250]  Thread::call_run()+0xc0
+V  [libjvm.so+0xc1eb41]  thread_native_entry(Thread*)+0xe1
+
+Java frames: (J=compiled Java code, j=interpreted, Vv=VM code)
+j  one.profiler.AsyncProfiler.stop0()V+0
+j  one.profiler.AsyncProfiler.stop()V+1
+j  com.datadog.profiling.async.AsyncProfiler.stopProfiler()V+23
+j  com.datadog.profiling.async.AsyncProfilerRecording.stop()Lcom/datadog/profiling/controller/RecordingData;+4
+j  com.datadog.profiling.async.AsyncProfiler.stop(Lcom/datadog/profiling/controller/OngoingRecording;)Lcom/datadog/profiling/controller/RecordingData;+19
+j  com.datadog.profiling.async.AsyncProfilerRecording.snapshot(Ljava/time/Instant;Ldatadog/trace/api/profiling/ProfilingSnapshot$Kind;)Lcom/datadog/profiling/controller/RecordingData;+5
+j  com.datadog.profiling.controller.openjdk.OpenJdkOngoingRecording.snapshot(Ljava/time/Instant;Ldatadog/trace/api/profiling/ProfilingSnapshot$Kind;)Lcom/datadog/profiling/controller/RecordingData;+94
+j  com.datadog.profiling.controller.ProfilingSystem$SnapshotRecording.snapshot(Z)V+38
+j  com.datadog.profiling.controller.ProfilingSystem$SnapshotRecording.snapshot()V+2
+j  com.datadog.profiling.controller.ProfilingSystem$$Lambda$3172+0x000000080188c438.run(Ljava/lang/Object;)V+4
+J 36572 c2 datadog.trace.util.AgentTaskScheduler$PeriodicTask.run()V (25 bytes) @ 0x00007f2fd0198488 [0x00007f2fd0198420+0x0000000000000068]
+j  datadog.trace.util.AgentTaskScheduler$Worker.run()V+27
+j  java.lang.Thread.run()V+11 java.base@18.0.2.1
+v  ~StubRoutines::call_stub
+
+siginfo: si_signo: 11 (SIGSEGV), si_code: 1 (SEGV_MAPERR), si_addr: 0x00000000000001a9
+

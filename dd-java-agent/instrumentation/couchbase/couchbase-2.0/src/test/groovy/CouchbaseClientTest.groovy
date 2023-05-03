@@ -1,5 +1,3 @@
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import com.couchbase.client.java.Bucket
 import com.couchbase.client.java.Cluster
 import com.couchbase.client.java.CouchbaseCluster
@@ -7,21 +5,19 @@ import com.couchbase.client.java.document.JsonDocument
 import com.couchbase.client.java.document.json.JsonObject
 import com.couchbase.client.java.env.CouchbaseEnvironment
 import com.couchbase.client.java.query.N1qlQuery
-import spock.lang.Retry
+import datadog.trace.api.Config
+import datadog.trace.test.util.Flaky
 import spock.lang.Unroll
 import util.AbstractCouchbaseTest
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-@Retry
+@Flaky
 @Unroll
-class CouchbaseClientTest extends AbstractCouchbaseTest {
+abstract class CouchbaseClientTest extends AbstractCouchbaseTest {
   def "test hasBucket #type"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     def hasBucket = manager.hasBucket(bucketSettings.name())
@@ -53,9 +49,6 @@ class CouchbaseClientTest extends AbstractCouchbaseTest {
 
   def "test upsert and get #type"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     // Connect to the bucket and open it
@@ -101,9 +94,6 @@ class CouchbaseClientTest extends AbstractCouchbaseTest {
 
   def "test query"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     // Only couchbase buckets support queries.
     CouchbaseEnvironment environment = envBuilder(bucketCouchbase).build()
@@ -132,5 +122,26 @@ class CouchbaseClientTest extends AbstractCouchbaseTest {
 
     cleanup:
     cleanupCluster(cluster, environment)
+  }
+}
+
+class CouchbaseClientV0ForkedTest extends CouchbaseClientTest {
+
+}
+
+class CouchbaseClientV1ForkedTest extends CouchbaseClientTest {
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return Config.get().getServiceName()
+  }
+
+  @Override
+  String operation() {
+    return "couchbase.query"
   }
 }

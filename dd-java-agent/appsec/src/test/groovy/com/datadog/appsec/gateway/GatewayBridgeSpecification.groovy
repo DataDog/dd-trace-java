@@ -10,12 +10,10 @@ import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.SingletonDataBundle
 import com.datadog.appsec.report.AppSecEventWrapper
 import com.datadog.appsec.report.raw.events.AppSecEvent100
-import datadog.trace.api.function.Function
-import datadog.trace.api.TraceSegment
-import datadog.trace.api.function.BiFunction
-import datadog.trace.api.function.Supplier
+import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
+import datadog.trace.api.gateway.BlockResponseFunction
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
@@ -28,6 +26,10 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase
 import datadog.trace.test.util.DDSpecification
 
+import java.util.function.BiFunction
+import java.util.function.Function
+import java.util.function.Supplier
+
 import static datadog.trace.api.gateway.Events.EVENTS
 
 class GatewayBridgeSpecification extends DDSpecification {
@@ -37,6 +39,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   TraceSegment traceSegment = Mock()
   RequestContext ctx = new RequestContext() {
     final AppSecRequestContext data = arCtx
+    BlockResponseFunction blockResponseFunction
 
     @Override
     Object getData(RequestContextSlot slot) {
@@ -94,7 +97,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void 'request_start returns null context if appsec is disabled'() {
     setup:
-    AppSecSystem.ACTIVE = false
+    AppSecSystem.active = false
 
     when:
     Flow<AppSecRequestContext> startFlow = requestStartedCB.get()
@@ -105,7 +108,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     0 * _._
 
     cleanup:
-    AppSecSystem.ACTIVE = true
+    AppSecSystem.active = true
   }
 
   void 'request_end closes context reports attacks and publishes event'() {
@@ -714,6 +717,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   void 'no appsec events if was not created request context in request_start event'() {
     RequestContext emptyCtx = new RequestContext() {
         final Object data = null
+        BlockResponseFunction blockResponseFunction
 
         @Override
         Object getData(RequestContextSlot slot) {

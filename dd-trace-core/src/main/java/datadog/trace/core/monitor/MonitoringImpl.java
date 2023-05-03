@@ -1,7 +1,5 @@
 package datadog.trace.core.monitor;
 
-import static datadog.trace.api.Platform.isJavaVersionAtLeast;
-
 import datadog.communication.monitor.Counter;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.NoOpCounter;
@@ -30,7 +28,7 @@ public final class MonitoringImpl implements Monitoring {
 
   @Override
   public Recording newTimer(final String name) {
-    if (!enabled || !isJavaVersionAtLeast(8)) {
+    if (!enabled) {
       return NoOpRecording.NO_OP;
     }
     return new Timer(name, statsd, flushAfterNanos);
@@ -38,7 +36,7 @@ public final class MonitoringImpl implements Monitoring {
 
   @Override
   public Recording newTimer(final String name, final String... tags) {
-    if (!enabled || !isJavaVersionAtLeast(8)) {
+    if (!enabled) {
       return NoOpRecording.NO_OP;
     }
     return new Timer(name, tags, statsd, flushAfterNanos);
@@ -46,7 +44,7 @@ public final class MonitoringImpl implements Monitoring {
 
   @Override
   public Recording newThreadLocalTimer(final String name) {
-    if (!enabled || !isJavaVersionAtLeast(8)) {
+    if (!enabled) {
       return NoOpRecording.NO_OP;
     }
     return new ThreadLocalRecording(

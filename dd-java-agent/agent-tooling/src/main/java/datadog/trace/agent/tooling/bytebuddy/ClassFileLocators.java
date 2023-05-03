@@ -4,10 +4,9 @@ import static datadog.trace.bootstrap.AgentClassLoading.LOCATING_CLASS;
 import static datadog.trace.util.Strings.getResourceName;
 
 import datadog.trace.agent.tooling.Utils;
-import datadog.trace.agent.tooling.WeakCaches;
-import datadog.trace.api.Config;
-import datadog.trace.api.function.Function;
-import datadog.trace.bootstrap.WeakCache;
+import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
@@ -23,16 +22,8 @@ import net.bytebuddy.utility.StreamDrainer;
  * cannot find the desired resource, check up the classloader hierarchy until a resource is found.
  */
 public final class ClassFileLocators {
-  private static final Function<ClassLoader, DDClassFileLocator> NEW_CLASS_FILE_LOCATOR =
-      new Function<ClassLoader, DDClassFileLocator>() {
-        @Override
-        public DDClassFileLocator apply(ClassLoader input) {
-          return new DDClassFileLocator(input);
-        }
-      };
-
-  private static final WeakCache<ClassLoader, DDClassFileLocator> classFileLocators =
-      WeakCaches.newWeakCache(64);
+  private static final DDCache<ClassLoader, DDClassFileLocator> classFileLocators =
+      DDCaches.newFixedSizeWeakKeyCache(64);
 
   private static final ClassFileLocator bootClassFileLocator =
       new ClassFileLocator() {
@@ -51,7 +42,7 @@ public final class ClassFileLocators {
 
   public static ClassFileLocator classFileLocator(final ClassLoader classLoader) {
     return null != classLoader
-        ? classFileLocators.computeIfAbsent(classLoader, NEW_CLASS_FILE_LOCATOR)
+        ? classFileLocators.computeIfAbsent(classLoader, DDClassFileLocator::new)
         : bootClassFileLocator;
   }
 
@@ -59,7 +50,7 @@ public final class ClassFileLocators {
       implements ClassFileLocator {
 
     private static final boolean NO_CLASSLOADER_EXCLUDES =
-        Config.get().getExcludedClassLoaders().isEmpty();
+        InstrumenterConfig.get().getExcludedClassLoaders().isEmpty();
 
     public DDClassFileLocator(final ClassLoader classLoader) {
       super(classLoader);
@@ -79,7 +70,9 @@ public final class ClassFileLocators {
         try {
           do {
             if (NO_CLASSLOADER_EXCLUDES
-                || !Config.get().getExcludedClassLoaders().contains(cl.getClass().getName())) {
+                || !InstrumenterConfig.get()
+                    .getExcludedClassLoaders()
+                    .contains(cl.getClass().getName())) {
               resolution = loadClassResource(cl, resourceName);
             }
             cl = cl.getParent();
@@ -107,6 +100,7 @@ public final class ClassFileLocators {
 
   public static final class LazyResolution implements Resolution {
     private final URL url;
+    private byte[] bytecode;
 
     LazyResolution(URL url) {
       this.url = url;
@@ -123,15 +117,18 @@ public final class ClassFileLocators {
 
     @Override
     public byte[] resolve() {
-      try {
-        URLConnection uc = url.openConnection();
-        uc.setUseCaches(false);
-        try (InputStream in = uc.getInputStream()) {
-          return StreamDrainer.DEFAULT.drain(in);
+      if (null == bytecode) {
+        try {
+          URLConnection uc = url.openConnection();
+          uc.setUseCaches(false);
+          try (InputStream in = uc.getInputStream()) {
+            bytecode = StreamDrainer.DEFAULT.drain(in);
+          }
+        } catch (IOException e) {
+          throw new IllegalStateException("Error while reading class file", e);
         }
-      } catch (IOException e) {
-        throw new IllegalStateException("Error while reading class file", e);
       }
+      return bytecode;
     }
   }
 }
