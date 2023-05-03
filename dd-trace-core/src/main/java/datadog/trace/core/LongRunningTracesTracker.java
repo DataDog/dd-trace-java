@@ -1,6 +1,7 @@
 package datadog.trace.core;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
+import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,10 +25,10 @@ public class LongRunningTracesTracker {
   public static final int EXPIRED = 4;
 
   public LongRunningTracesTracker(
-      Config config, int maxTrackedTraces, DDAgentFeaturesDiscovery features) {
+      Config config, int maxTrackedTraces, SharedCommunicationObjects sharedCommunicationObjects) {
     this.maxTrackedTraces = maxTrackedTraces;
     this.flushPeriodMilli = (int) TimeUnit.SECONDS.toMillis(config.getLongRunningFlushInterval());
-    this.features = features;
+    this.features = sharedCommunicationObjects.featuresDiscovery(config);
   } // TODO flush missedAdd stats in health check class
 
   public boolean add(PendingTraceBuffer.Element element) {

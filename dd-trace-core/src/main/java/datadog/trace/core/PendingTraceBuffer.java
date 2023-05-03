@@ -4,7 +4,7 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_MONITOR;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
-import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
+import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.time.TimeSource;
 import java.util.concurrent.TimeUnit;
@@ -210,13 +210,18 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     }
 
     public DelayingPendingTraceBuffer(
-        int bufferSize, TimeSource timeSource, Config config, DDAgentFeaturesDiscovery features) {
+        int bufferSize,
+        TimeSource timeSource,
+        Config config,
+        SharedCommunicationObjects sharedCommunicationObjects) {
       this.queue = new MpscBlockingConsumerArrayQueue<>(bufferSize);
       this.worker = newAgentThread(TRACE_MONITOR, new Worker());
       this.timeSource = timeSource;
       boolean runningSpansEnabled = config.isLongRunningTracesEnabled();
       this.runningTracesTracker =
-          runningSpansEnabled ? new LongRunningTracesTracker(config, bufferSize, features) : null;
+          runningSpansEnabled
+              ? new LongRunningTracesTracker(config, bufferSize, sharedCommunicationObjects)
+              : null;
     }
   }
 
@@ -240,8 +245,9 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
   }
 
   public static PendingTraceBuffer delaying(
-      TimeSource timeSource, Config config, DDAgentFeaturesDiscovery features) {
-    return new DelayingPendingTraceBuffer(BUFFER_SIZE, timeSource, config, features);
+      TimeSource timeSource, Config config, SharedCommunicationObjects sharedCommunicationObjects) {
+    return new DelayingPendingTraceBuffer(
+        BUFFER_SIZE, timeSource, config, sharedCommunicationObjects);
   }
 
   public static PendingTraceBuffer discarding() {
