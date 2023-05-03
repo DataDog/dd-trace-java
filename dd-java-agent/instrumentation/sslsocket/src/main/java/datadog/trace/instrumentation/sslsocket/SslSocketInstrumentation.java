@@ -8,7 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import datadog.trace.bootstrap.instrumentation.sslsocket.UsmFilterInputStream;
 import datadog.trace.bootstrap.instrumentation.sslsocket.UsmFilterOutputStream;
 import datadog.trace.bootstrap.instrumentation.usm.UsmConnection;
