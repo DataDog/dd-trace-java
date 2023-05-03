@@ -2,10 +2,11 @@ package datadog.trace.instrumentation.sslsocket;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.instrumentation.usm.UsmConnection;
-import datadog.trace.bootstrap.instrumentation.usm.UsmExtractor;
-import datadog.trace.bootstrap.instrumentation.usm.UsmMessage;
-import datadog.trace.bootstrap.instrumentation.usm.UsmMessageFactory;
+import datadog.trace.bootstrap.instrumentation.usm.Payload;
+import datadog.trace.bootstrap.instrumentation.usm.MessageEncoder;
+import datadog.trace.bootstrap.instrumentation.usm.Host;
+import datadog.trace.bootstrap.instrumentation.usm.Connection;
+import datadog.trace.bootstrap.instrumentation.usm.Extractor;
 import net.bytebuddy.asm.Advice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
 import java.net.InetAddress;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -80,16 +82,11 @@ public final class SslEngineInstrumentation extends Instrumenter.Usm
           srcs[i].position(oldPos);
           consumed+=oldPos;
         }
-        UsmConnection connection =
-            new UsmConnection(
-                InetAddress.getLoopbackAddress(),
-                0,
-                InetAddress.getLoopbackAddress(),
-                thiz.getPeerPort(),
-                false);
-        UsmMessage message =
-            UsmMessageFactory.Supplier.getPlainMessage(connection, thiz.getPeerHost(), b, 0, b.length);
-        UsmExtractor.Supplier.send(message);
+
+        Host host = new Host(thiz.getPeerHost(),thiz.getPeerPort());
+        Payload payload = new Payload(b,0,b.length);
+        Buffer message = MessageEncoder.encode(MessageEncoder.MessageType.PLAIN,host,payload);
+        Extractor.Supplier.send(message);
         System.out.println("[wrap] sent a wrap message" );
        }
     }
@@ -116,16 +113,11 @@ public final class SslEngineInstrumentation extends Instrumenter.Usm
           dst.position(dst.arrayOffset());
           dst.get(b, 0, result.bytesProduced());
           dst.position(oldPos);
-          UsmConnection connection =
-              new UsmConnection(
-                  InetAddress.getLoopbackAddress(),
-                  0,
-                  InetAddress.getLoopbackAddress(),
-                  thiz.getPeerPort(),
-                  false);
-          UsmMessage message =
-              UsmMessageFactory.Supplier.getPlainMessage(connection,thiz.getPeerHost(), b, 0, b.length);
-          UsmExtractor.Supplier.send(message);
+
+          Host host = new Host(thiz.getPeerHost(),thiz.getPeerPort());
+          Payload payload = new Payload(b,0,b.length);
+          Buffer message = MessageEncoder.encode(MessageEncoder.MessageType.PLAIN,host,payload);
+          Extractor.Supplier.send(message);
           System.out.println("[unwrap] sent an unwrap message" );
         }
         else{

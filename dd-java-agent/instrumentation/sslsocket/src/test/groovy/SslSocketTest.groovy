@@ -1,8 +1,7 @@
 package test
 
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.bootstrap.instrumentation.usm.UsmExtractor
-import datadog.trace.bootstrap.instrumentation.usm.UsmMessageFactory
+import datadog.trace.bootstrap.instrumentation.usm.Extractor
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 
@@ -40,20 +39,20 @@ class SslSocketTest extends AgentTestRunner {
     conn.setDoOutput(true)
     conn.connect()
 
-    // Mock message factory
-    Class msgItfcCls = Class.forName("datadog.trace.bootstrap.instrumentation.usm.UsmMessageFactory")
-    Class msgSupplierCls = msgItfcCls.getClasses()[0]
-    Field msgSupplierField = msgSupplierCls.getDeclaredField("SUPPLIER")
-    msgSupplierField.setAccessible(true)
-    UsmMessageFactory factoryMock = Mock(UsmMessageFactory)
-    msgSupplierField.set(null, factoryMock)
+//    // Mock message factory
+//    Class msgItfcCls = Class.forName("datadog.trace.bootstrap.instrumentation.usm.UsmMessageFactory")
+//    Class msgSupplierCls = msgItfcCls.getClasses()[0]
+//    Field msgSupplierField = msgSupplierCls.getDeclaredField("SUPPLIER")
+//    msgSupplierField.setAccessible(true)
+//    UsmMessageFactory factoryMock = Mock(UsmMessageFactory)
+//    msgSupplierField.set(null, factoryMock)
 
     // Mock extractor
     Class extractorItfcCls = Class.forName("datadog.trace.bootstrap.instrumentation.usm.UsmExtractor")
     Class extractorSupplierCls = extractorItfcCls.getClasses()[0]
     Field extractorSupplierField = extractorSupplierCls.getDeclaredField("SUPPLIER")
     extractorSupplierField.setAccessible(true)
-    UsmExtractor extractorMock = Mock(UsmExtractor)
+    Extractor extractorMock = Mock(Extractor)
     extractorSupplierField.set(null, extractorMock)
 
     when:

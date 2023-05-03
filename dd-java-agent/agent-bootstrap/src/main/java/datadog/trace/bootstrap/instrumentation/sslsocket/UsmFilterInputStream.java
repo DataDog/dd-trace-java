@@ -1,13 +1,14 @@
 package datadog.trace.bootstrap.instrumentation.sslsocket;
 
-import datadog.trace.bootstrap.instrumentation.usm.UsmConnection;
-import datadog.trace.bootstrap.instrumentation.usm.UsmExtractor;
-import datadog.trace.bootstrap.instrumentation.usm.UsmMessage;
-import datadog.trace.bootstrap.instrumentation.usm.UsmMessageFactory;
+import datadog.trace.bootstrap.instrumentation.usm.Payload;
+import datadog.trace.bootstrap.instrumentation.usm.MessageEncoder;
+import datadog.trace.bootstrap.instrumentation.usm.Connection;
+import datadog.trace.bootstrap.instrumentation.usm.Extractor;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.Inet6Address;
+import java.nio.Buffer;
 import javax.annotation.Nonnull;
 import javax.net.ssl.SSLSocket;
 
@@ -28,15 +29,16 @@ public class UsmFilterInputStream extends FilterInputStream {
   public int read(@Nonnull byte[] b, int off, int len) throws IOException {
     int bytesRead = super.read(b, off, len);
     boolean isIPv6 = socket.getLocalAddress() instanceof Inet6Address;
-    UsmConnection connection =
-        new UsmConnection(
+    Connection connection =
+        new Connection(
             socket.getLocalAddress(),
             socket.getLocalPort(),
             socket.getInetAddress(),
             socket.getPort(),
             isIPv6);
-    UsmMessage message = UsmMessageFactory.Supplier.getRequestMessage(connection, b, off, len);
-    UsmExtractor.Supplier.send(message);
+    Payload payload = new Payload(b,off,len);
+    Buffer message = MessageEncoder.encode(MessageEncoder.MessageType.REQUEST,connection,payload);
+    Extractor.Supplier.send(message);
     return bytesRead;
   }
 }
