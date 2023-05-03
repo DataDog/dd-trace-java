@@ -25,7 +25,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
 import datadog.trace.common.metrics.EventListener
 import datadog.trace.common.metrics.Sink
+import datadog.trace.common.writer.DDAgentWriter
 import datadog.trace.common.writer.ListWriter
+import datadog.trace.common.writer.MultiWriter
+import datadog.trace.common.writer.Writer
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.PendingTrace
@@ -90,6 +93,14 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @SuppressWarnings('PropertyName')
   @Shared
   ListWriter TEST_WRITER
+
+  @SuppressWarnings('PropertyName')
+  @Shared
+  DDAgentWriter TEST_AGENT_WRITER
+
+  @SuppressWarnings('PropertyName')
+  @Shared
+  MultiWriter TEST_MULTI_WRITER
 
   @SuppressWarnings('PropertyName')
   @Shared
@@ -187,11 +198,17 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
       TEST_DATA_STREAMS_MONITORING = new DefaultDataStreamsMonitoring(sink, features, SystemTimeSource.INSTANCE, wellKnownTags, TEST_DATA_STREAMS_WRITER, bucketDuration)
     }
-    TEST_WRITER = new ListWriter()
+    def writers = new Writer[2]
+    TEST_LIST_WRITER = new ListWriter()
+    writers[0] = TEST_WRITER
+    TEST_AGENT_WRITER = DDAgentWriter.builder().build()
+    writers[1] = TEST_AGENT_WRITER
+    TEST_MULTI_WRITER = new MultiWriter(writers)
+
     TEST_TRACER =
       Spy(
       CoreTracer.builder()
-      .writer(TEST_WRITER)
+      .writer(TEST_MULTI_WRITER)
       .idGenerationStrategy(IdGenerationStrategy.fromName("SEQUENTIAL"))
       .statsDClient(STATS_D_CLIENT)
       .strictTraceWrites(useStrictTraceWrites())
