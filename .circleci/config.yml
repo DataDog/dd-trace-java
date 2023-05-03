@@ -4,10 +4,6 @@ defaults: &defaults
   working_directory: ~/dd-trace-java
   docker:
     - image: &default_container << pipeline.parameters.docker_image >>:<< pipeline.parameters.docker_image_tag >>
-    - image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
-      environment:
-        - LOG_LEVEL=DEBUG
-        - TRACE_LANGUAGE=java
 
 test_matrix: &test_matrix
   parameters:
@@ -562,6 +558,12 @@ jobs:
 
   xlarge_tests:
     <<: *tests
+    docker:
+      - image: &default_container << pipeline.parameters.docker_image >>:<< pipeline.parameters.docker_image_tag >>
+      - image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
+        environment:
+          - LOG_LEVEL=DEBUG
+          - TRACE_LANGUAGE=java
     resource_class: xlarge
 
   huge_tests:
