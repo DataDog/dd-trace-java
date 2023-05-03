@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
 public abstract class PendingTraceBuffer implements AutoCloseable {
   private static final int BUFFER_SIZE = 1 << 12; // 4096
 
-  public boolean runningSpansEnabled() {
+  public boolean longRunningSpansEnabled() {
     return false;
   }
 
@@ -54,7 +54,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
 
     private final LongRunningTracesTracker runningTracesTracker;
 
-    public boolean runningSpansEnabled() {
+    public boolean longRunningSpansEnabled() {
       return runningTracesTracker != null;
     }
 
@@ -160,15 +160,14 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
           while (!closed && !Thread.currentThread().isInterrupted()) {
 
             Element pendingTrace = null;
-            if (runningSpansEnabled()) {
+            if (longRunningSpansEnabled()) {
               pendingTrace = queue.poll(1, TimeUnit.SECONDS);
               runningTracesTracker.flushAndCompact(System.currentTimeMillis());
+              if (pendingTrace == null) {
+                continue;
+              }
             } else {
               pendingTrace = queue.take(); // block until available;
-            }
-
-            if (pendingTrace == null) {
-              continue;
             }
 
             if (pendingTrace instanceof FlushElement) {
@@ -181,7 +180,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
             // The element is no longer in the queue
             pendingTrace.setEnqueued(false);
 
-            if (runningSpansEnabled()) {
+            if (longRunningSpansEnabled()) {
               if (runningTracesTracker.add(pendingTrace)) {
                 continue;
               }

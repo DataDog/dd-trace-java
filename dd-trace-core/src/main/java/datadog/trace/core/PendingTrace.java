@@ -185,7 +185,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     ROOT_SPAN.compareAndSet(this, null, span);
     PENDING_REFERENCE_COUNT.incrementAndGet(this);
     healthMetrics.onCreateSpan();
-    if (pendingTraceBuffer.runningSpansEnabled()) {
+    if (pendingTraceBuffer.longRunningSpansEnabled()) {
       spans.addFirst(span);
       trackRunningTrace(span);
     }
@@ -229,7 +229,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   }
 
   PublishState onPublish(final DDSpan span) {
-    if (!pendingTraceBuffer.runningSpansEnabled()) {
+    if (!pendingTraceBuffer.longRunningSpansEnabled()) {
       spans.addFirst(span);
     }
     // There is a benign race here where the span added above can get written out by a writer in
@@ -333,7 +333,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
             rootSpanWritten = true;
           }
           int size = size();
-          if (pendingTraceBuffer.runningSpansEnabled()) {
+          if (pendingTraceBuffer.longRunningSpansEnabled()) {
             size += pendingReferenceCount;
           }
           // If we get here and size is below 0, then the writer before us wrote out at least one
