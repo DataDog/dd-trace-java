@@ -199,7 +199,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       TEST_DATA_STREAMS_MONITORING = new DefaultDataStreamsMonitoring(sink, features, SystemTimeSource.INSTANCE, wellKnownTags, TEST_DATA_STREAMS_WRITER, bucketDuration)
     }
     def writers = new Writer[2]
-    TEST_LIST_WRITER = new ListWriter()
+    TEST_WRITER = new ListWriter()
     writers[0] = TEST_WRITER
     TEST_AGENT_WRITER = DDAgentWriter.builder().build()
     writers[1] = TEST_AGENT_WRITER
