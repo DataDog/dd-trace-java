@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.spark;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -352,6 +353,7 @@ public class DatadogSparkListener extends SparkListener {
     return ((long) stageId << 32) + attemptId;
   }
 
+  @SuppressForbidden // split with one-char String use a fast-path without regex usage
   private static String getDatabricksJobRunId(Properties jobProperties) {
     String clusterName =
         (String) jobProperties.get("spark.databricks.clusterUsageTags.clusterName");
