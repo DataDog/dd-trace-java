@@ -1,0 +1,8 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  testImplementation group: 'dev.failsafe', name: 'failsafe', version: '3.2.4'
+  latestDepTestImplementation group: 'dev.failsafe', name: 'failsafe', version: '+'
+}
