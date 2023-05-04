@@ -68,18 +68,18 @@ commands:
       - run:
           name: Checkout merge commit
           command: |
-            CIRCLE_PR_NUMBER="${CIRCLE_PR_NUMBER:-${CIRCLE_PULL_REQUEST##*/}}"
+            CCI_PR_NUMBER="${CIRCLE_PR_NUMBER:-${CIRCLE_PULL_REQUEST##*/}}"
 
-            if [[ -n "${CIRCLE_PR_NUMBER}" ]]
+            if [[ "$CIRCLE_BRANCH" != "master" && -n "${CCI_PR_NUMBER}" ]]
             then
-              FETCH_REFS="${FETCH_REFS} +refs/pull/${CIRCLE_PR_NUMBER}/merge:refs/pull/${CIRCLE_PR_NUMBER}/merge +refs/pull/${CIRCLE_PR_NUMBER}/head:refs/pull/${CIRCLE_PR_NUMBER}/head"
+              FETCH_REFS="${FETCH_REFS} +refs/pull/${CCI_PR_NUMBER}/merge:refs/pull/${CCI_PR_NUMBER}/merge +refs/pull/${CCI_PR_NUMBER}/head:refs/pull/${CCI_PR_NUMBER}/head"
               git fetch -u origin ${FETCH_REFS}
 
-              if git merge-base --is-ancestor $(git show-ref --hash refs/pull/${CIRCLE_PR_NUMBER}/head) $(git show-ref --hash refs/pull/${CIRCLE_PR_NUMBER}/merge); then
-                git checkout "pull/${CIRCLE_PR_NUMBER}/merge"
+              if git merge-base --is-ancestor $(git show-ref --hash refs/pull/${CCI_PR_NUMBER}/head) $(git show-ref --hash refs/pull/${CCI_PR_NUMBER}/merge); then
+                git checkout "pull/${CCI_PR_NUMBER}/merge"
               else
-                echo "[WARN] There is a merge conflict between master and PR ${CIRCLE_PR_NUMBER}, merge branch cannot be checked out."
-                git checkout "pull/${CIRCLE_PR_NUMBER}/head"
+                echo "[WARN] There is a merge conflict between master and PR ${CCI_PR_NUMBER}, merge branch cannot be checked out."
+                git checkout "pull/${CCI_PR_NUMBER}/head"
               fi
             fi
 
@@ -118,7 +118,7 @@ commands:
       - run:
           name: Early return if this build is from a forked PR
           command: |
-            if [ -n "$CIRCLE_PR_NUMBER" ]; then
+            if [[ "$CIRCLE_BRANCH" != "master" && -n "$CIRCLE_PR_NUMBER" ]]; then
               echo "Nothing to do for forked PRs, so marking this step successful"
               circleci step halt
             fi
@@ -133,9 +133,9 @@ commands:
       - run:
           name: "Check if files relevant to job have changed"
           command: |
-            CIRCLE_PR_NUMBER="${CIRCLE_PR_NUMBER:-${CIRCLE_PULL_REQUEST##*/}}"
+            CCI_PR_NUMBER="${CIRCLE_PR_NUMBER:-${CIRCLE_PULL_REQUEST##*/}}"
 
-            if [ -n "$CIRCLE_PR_NUMBER" ]; then
+            if [[ "$CIRCLE_BRANCH" != "master" && -n "$CCI_PR_NUMBER" ]]; then
               BRANCH="$(git rev-parse --abbrev-ref HEAD)"
               if [[ "$BRANCH" != "master" ]] && [[ "$BRANCH" != "release/*" ]]; then
                 # We know that we have checked out the PR merge branch, so the HEAD commit is a merge

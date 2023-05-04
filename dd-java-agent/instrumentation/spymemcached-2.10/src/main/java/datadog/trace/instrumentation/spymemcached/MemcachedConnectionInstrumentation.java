@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.net.InetSocketAddress;
 import net.bytebuddy.asm.Advice;
@@ -46,9 +47,10 @@ public class MemcachedConnectionInstrumentation extends Instrumenter.Tracing
   public static class AddOperationAdvice {
     @Advice.OnMethodEnter
     public static void methodEnter(@Advice.Argument(0) final MemcachedNode node) {
-      if (node != null && node.getSocketAddress() instanceof InetSocketAddress) {
+      final AgentSpan span = AgentTracer.activeSpan();
+      if (span != null && node != null && node.getSocketAddress() instanceof InetSocketAddress) {
         MemcacheClientDecorator.DECORATE.onPeerConnection(
-            AgentTracer.activeSpan(), (InetSocketAddress) node.getSocketAddress());
+            span, (InetSocketAddress) node.getSocketAddress());
       }
     }
 
