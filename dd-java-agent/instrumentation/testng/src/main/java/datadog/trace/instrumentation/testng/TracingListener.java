@@ -49,7 +49,7 @@ public class TracingListener extends TestNGClassListener
     String testSuiteName = testClass.getName();
     Class<?> testSuiteClass = testClass.getRealClass();
     List<String> groups = TestNGUtils.getGroups(testClass);
-    testEventsHandler.onTestSuiteStart(testSuiteName, testSuiteClass, groups);
+    testEventsHandler.onTestSuiteStart(testSuiteName, null, null, testSuiteClass, groups);
   }
 
   @Override
@@ -89,7 +89,7 @@ public class TracingListener extends TestNGClassListener
     Method testMethod = TestNGUtils.getTestMethod(result);
 
     testEventsHandler.onTestStart(
-        testSuiteName, testName, testParameters, groups, testClass, testMethod);
+        testSuiteName, testName, null, null, testParameters, groups, testClass, testMethod);
   }
 
   @Override

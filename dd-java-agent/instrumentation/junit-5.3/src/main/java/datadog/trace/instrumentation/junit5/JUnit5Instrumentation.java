@@ -12,8 +12,10 @@ import java.util.Collection;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService;
 import org.junit.platform.launcher.TestExecutionListener;
+import org.junit.platform.launcher.core.LauncherConfig;
 
 @AutoService(Instrumenter.class)
 public class JUnit5Instrumentation extends Instrumenter.CiVisibility
@@ -36,7 +38,7 @@ public class JUnit5Instrumentation extends Instrumenter.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TracingListener", packageName + ".JUnit5Utils",
+      packageName + ".JUnit5Utils", packageName + ".SpockUtils", packageName + ".TracingListener",
     };
   }
 
@@ -54,8 +56,11 @@ public class JUnit5Instrumentation extends Instrumenter.CiVisibility
         justification = "listeners is the return value of the instrumented method")
     @Advice.OnMethodExit
     public static void addTracingListener(
+        @Advice.This LauncherConfig config,
         @Advice.Return(readOnly = false) Collection<TestExecutionListener> listeners) {
-      final TracingListener listener = new TracingListener();
+
+      Collection<TestEngine> testEngines = JUnit5Utils.getTestEngines(config);
+      final TracingListener listener = new TracingListener(testEngines);
 
       Collection<TestExecutionListener> modifiedListeners = new ArrayList<>(listeners);
       modifiedListeners.add(listener);

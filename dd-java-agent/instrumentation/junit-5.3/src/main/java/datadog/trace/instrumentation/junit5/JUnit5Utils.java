@@ -2,12 +2,19 @@ package datadog.trace.instrumentation.junit5;
 
 import datadog.trace.util.Strings;
 import java.lang.reflect.Method;
+import java.util.Collection;
+import java.util.LinkedHashSet;
+import java.util.ServiceLoader;
+import java.util.Set;
 import org.junit.platform.commons.JUnitException;
+import org.junit.platform.commons.util.ClassLoaderUtils;
 import org.junit.platform.commons.util.ReflectionUtils;
+import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.TestSource;
 import org.junit.platform.engine.support.descriptor.ClassSource;
 import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.launcher.TestIdentifier;
+import org.junit.platform.launcher.core.LauncherConfig;
 
 public abstract class JUnit5Utils {
 
@@ -136,5 +143,15 @@ public abstract class JUnit5Utils {
       default:
         return false;
     }
+  }
+
+  public static Collection<TestEngine> getTestEngines(LauncherConfig config) {
+    Set<TestEngine> engines = new LinkedHashSet<>();
+    if (config.isTestEngineAutoRegistrationEnabled()) {
+      ClassLoader defaultClassLoader = ClassLoaderUtils.getDefaultClassLoader();
+      ServiceLoader.load(TestEngine.class, defaultClassLoader).forEach(engines::add);
+    }
+    engines.addAll(config.getAdditionalTestEngines());
+    return engines;
   }
 }

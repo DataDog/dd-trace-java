@@ -301,12 +301,15 @@ class JUnit4Test extends CiVisibilityTest {
       long testSuiteId
       trace(2, true) {
         testModuleId = testModuleSpan(it, 0, CIConstants.TEST_SKIP)
-        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSuiteSetUpAssumption", CIConstants.TEST_SKIP)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSuiteSetUpAssumption", CIConstants.TEST_SKIP, testTags)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSuiteSetUpAssumption", "test_succeed", CIConstants.TEST_SKIP, null, null)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSuiteSetUpAssumption", "test_succeed", CIConstants.TEST_SKIP, testTags, null)
       }
     })
+
+    where:
+    testTags = [(Tags.TEST_SKIP_REASON): "got: <false>, expected: is <true>"]
   }
 
   def "test assumption failure in a multi-test-case suite"() {

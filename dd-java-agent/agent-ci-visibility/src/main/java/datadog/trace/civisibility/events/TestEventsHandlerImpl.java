@@ -101,6 +101,8 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   @Override
   public void onTestSuiteStart(
       final String testSuiteName,
+      final @Nullable String testFramework,
+      final @Nullable String testFrameworkVersion,
       final @Nullable Class<?> testClass,
       final @Nullable Collection<String> categories) {
     if (skipTrace(testClass)) {
@@ -114,6 +116,12 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
     DDTestSuite testSuite = testModule.testSuiteStart(testSuiteName, testClass, null);
 
+    if (testFramework != null) {
+      testSuite.setTag(Tags.TEST_FRAMEWORK, testFramework);
+    }
+    if (testFrameworkVersion != null) {
+      testSuite.setTag(Tags.TEST_FRAMEWORK_VERSION, testFrameworkVersion);
+    }
     if (categories != null && !categories.isEmpty()) {
       testSuite.setTag(
           Tags.TEST_TRAITS, toJson(Collections.singletonMap("category", toJson(categories)), true));
@@ -179,6 +187,8 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   public void onTestStart(
       final String testSuiteName,
       final String testName,
+      final @Nullable String testFramework,
+      final @Nullable String testFrameworkVersion,
       final @Nullable String testParameters,
       final @Nullable Collection<String> categories,
       final @Nullable Class<?> testClass,
@@ -208,6 +218,12 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
                 methodLinesResolver,
                 codeowners);
 
+    if (testFramework != null) {
+      test.setTag(Tags.TEST_FRAMEWORK, testFramework);
+    }
+    if (testFrameworkVersion != null) {
+      test.setTag(Tags.TEST_FRAMEWORK_VERSION, testFrameworkVersion);
+    }
     if (testParameters != null) {
       test.setTag(Tags.TEST_PARAMETERS, testParameters);
     }
@@ -287,12 +303,22 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   public void onTestIgnore(
       final String testSuiteName,
       final String testName,
+      final @Nullable String testFramework,
+      final @Nullable String testFrameworkVersion,
       final @Nullable String testParameters,
       final @Nullable List<String> categories,
       final @Nullable Class<?> testClass,
       final @Nullable Method testMethod,
       final @Nullable String reason) {
-    onTestStart(testSuiteName, testName, testParameters, categories, testClass, testMethod);
+    onTestStart(
+        testSuiteName,
+        testName,
+        testFramework,
+        testFrameworkVersion,
+        testParameters,
+        categories,
+        testClass,
+        testMethod);
     onTestSkip(testSuiteName, testClass, testName, testParameters, reason);
     onTestFinish(testSuiteName, testClass, testName, testParameters);
   }
