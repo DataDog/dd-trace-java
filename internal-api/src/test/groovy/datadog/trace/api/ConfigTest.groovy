@@ -95,8 +95,8 @@ import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.config.TracerConfig.HTTP_SERVER_ERROR_STATUSES
 import static datadog.trace.api.config.TracerConfig.ID_GENERATION_STRATEGY
-import static datadog.trace.api.config.TracerConfig.LONG_RUNNING_TRACE_ENABLED
-import static datadog.trace.api.config.TracerConfig.LONG_RUNNING_TRACE_FLUSH_INTERVAL
+import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_ENABLED
+import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL
 import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_MIN_SPANS
 import static datadog.trace.api.config.TracerConfig.PRIORITIZATION_TYPE
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING
@@ -145,9 +145,8 @@ class ConfigTest extends DDSpecification {
   private static final DD_AGENT_PORT_LEGACY_ENV = "DD_AGENT_PORT"
   private static final DD_TRACE_REPORT_HOSTNAME = "DD_TRACE_REPORT_HOSTNAME"
   private static final DD_RUNTIME_METRICS_ENABLED_ENV = "DD_RUNTIME_METRICS_ENABLED"
-  private static final DD_LONG_RUNNING_TRACE_ENABLED = "DD_LONG_RUNNING_TRACE_ENABLED"
-  private static final DD_LONG_RUNNING_TRACE_FLUSH_INTERVAL = "DD_LONG_RUNNING_TRACE_FLUSH_INTERVAL"
-
+  private static final DD_TRACE_LONG_RUNNING_ENABLED = "DD_TRACE_LONG_RUNNING_ENABLED"
+  private static final DD_TRACE_LONG_RUNNING_FLUSH_INTERVAL = "DD_TRACE_LONG_RUNNING_FLUSH_INTERVAL"
   private static final DD_PROFILING_API_KEY_OLD_ENV = "DD_PROFILING_API_KEY"
   private static final DD_PROFILING_API_KEY_VERY_OLD_ENV = "DD_PROFILING_APIKEY"
   private static final DD_PROFILING_TAGS_ENV = "DD_PROFILING_TAGS"
@@ -199,8 +198,8 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(TRACE_SAMPLING_OPERATION_RULES, "b:1")
     prop.setProperty(TRACE_SAMPLE_RATE, ".5")
     prop.setProperty(TRACE_RATE_LIMIT, "200")
-    prop.setProperty(LONG_RUNNING_TRACE_ENABLED, "true")
-    prop.setProperty(LONG_RUNNING_TRACE_FLUSH_INTERVAL, "250")
+    prop.setProperty(TRACE_LONG_RUNNING_ENABLED, "true")
+    prop.setProperty(TRACE_LONG_RUNNING_FLUSH_INTERVAL, "250")
 
     prop.setProperty(PROFILING_ENABLED, "true")
     prop.setProperty(PROFILING_URL, "new url")
@@ -374,8 +373,8 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + TRACE_SAMPLING_OPERATION_RULES, "b:1")
     System.setProperty(PREFIX + TRACE_SAMPLE_RATE, ".5")
     System.setProperty(PREFIX + TRACE_RATE_LIMIT, "200")
-    System.setProperty(PREFIX + LONG_RUNNING_TRACE_ENABLED, "true")
-    System.setProperty(PREFIX + LONG_RUNNING_TRACE_FLUSH_INTERVAL, "333")
+    System.setProperty(PREFIX + TRACE_LONG_RUNNING_ENABLED, "true")
+    System.setProperty(PREFIX + TRACE_LONG_RUNNING_FLUSH_INTERVAL, "333")
 
     System.setProperty(PREFIX + PROFILING_ENABLED, "true")
     System.setProperty(PREFIX + PROFILING_URL, "new url")
@@ -517,8 +516,8 @@ class ConfigTest extends DDSpecification {
     environmentVariables.set(DD_JMXFETCH_METRICS_CONFIGS_ENV, "some/file")
     environmentVariables.set(DD_TRACE_REPORT_HOSTNAME, "true")
     environmentVariables.set(DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH, "42")
-    environmentVariables.set(DD_LONG_RUNNING_TRACE_ENABLED, "true")
-    environmentVariables.set(DD_LONG_RUNNING_TRACE_FLUSH_INTERVAL, "81")
+    environmentVariables.set(DD_TRACE_LONG_RUNNING_ENABLED, "true")
+    environmentVariables.set(DD_TRACE_LONG_RUNNING_FLUSH_INTERVAL, "81")
 
     when:
     def config = new Config()
@@ -545,14 +544,14 @@ class ConfigTest extends DDSpecification {
     environmentVariables.set(DD_WRITER_TYPE_ENV, "LoggingWriter")
     environmentVariables.set(DD_PRIORITIZATION_TYPE_ENV, "EnsureTrace")
     environmentVariables.set(DD_TRACE_AGENT_PORT_ENV, "777")
-    environmentVariables.set(DD_LONG_RUNNING_TRACE_ENABLED, "false")
+    environmentVariables.set(DD_TRACE_LONG_RUNNING_ENABLED, "false")
 
     System.setProperty(PREFIX + SERVICE_NAME, "what we actually want")
     System.setProperty(PREFIX + WRITER_TYPE, "DDAgentWriter")
     System.setProperty(PREFIX + PRIORITIZATION_TYPE, "FastLane")
     System.setProperty(PREFIX + AGENT_HOST, "somewhere")
     System.setProperty(PREFIX + TRACE_AGENT_PORT, "123")
-    System.setProperty(PREFIX + LONG_RUNNING_TRACE_ENABLED, "true")
+    System.setProperty(PREFIX + TRACE_LONG_RUNNING_ENABLED, "true")
 
     when:
     def config = new Config()
@@ -588,8 +587,8 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "invalid")
     System.setProperty(PREFIX + PROPAGATION_STYLE_EXTRACT, "some garbage")
     System.setProperty(PREFIX + PROPAGATION_STYLE_INJECT, " ")
-    System.setProperty(PREFIX + LONG_RUNNING_TRACE_ENABLED, "invalid")
-    System.setProperty(PREFIX + LONG_RUNNING_TRACE_FLUSH_INTERVAL, "invalid")
+    System.setProperty(PREFIX + TRACE_LONG_RUNNING_ENABLED, "invalid")
+    System.setProperty(PREFIX + TRACE_LONG_RUNNING_FLUSH_INTERVAL, "invalid")
 
     when:
     def config = new Config()
@@ -2316,8 +2315,8 @@ class ConfigTest extends DDSpecification {
   def "long running trace disabled on invalid flush_interval: #flushInterval"() {
     when:
     def prop = new Properties()
-    prop.setProperty(LONG_RUNNING_TRACE_ENABLED, "true")
-    prop.setProperty(LONG_RUNNING_TRACE_FLUSH_INTERVAL, flushInterval)
+    prop.setProperty(TRACE_LONG_RUNNING_ENABLED, "true")
+    prop.setProperty(TRACE_LONG_RUNNING_FLUSH_INTERVAL, flushInterval)
     Config config = Config.get(prop)
 
     then:

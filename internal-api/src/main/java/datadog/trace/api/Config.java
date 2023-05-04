@@ -1469,11 +1469,11 @@ public class Config {
 
     boolean longRunningEnabled =
         configProvider.getBoolean(
-            TracerConfig.LONG_RUNNING_TRACE_ENABLED,
+            TracerConfig.TRACE_LONG_RUNNING_ENABLED,
             ConfigDefaults.DEFAULT_LONG_RUNNING_TRACE_ENABLED);
     this.longRunningTraceFlushInterval =
         configProvider.getLong(
-            TracerConfig.LONG_RUNNING_TRACE_FLUSH_INTERVAL,
+            TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL,
             ConfigDefaults.DEFAULT_LONG_RUNNING_TRACE_FLUSH_INTERVAL);
 
     if (longRunningEnabled
