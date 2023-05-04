@@ -520,6 +520,42 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
     ]
   }
 
+  @CallSite
+  class SuperTypeReturnAdvice {
+    @CallSite.After("void java.lang.StringBuilder.<init>(java.lang.String)")
+    static Object after(@CallSite.AllArguments Object[] args, @CallSite.Return Object result) {
+      return result
+    }
+  }
+
+  void 'test returning super type'() {
+    setup:
+    final spec = buildClassSpecification(SuperTypeReturnAdvice)
+    final generator = buildAdviceGenerator(buildDir)
+
+    when:
+    final result = generator.generate(spec)
+
+    then:
+    assertNoErrors(result)
+    final advice = findAdvice(result, 'after')
+    assertNoErrors(advice)
+    final javaFile = new JavaParser().parse(advice.file).getResult().get()
+    assert javaFile.parsed == Node.Parsedness.PARSED
+    final adviceClass = javaFile.getType(0)
+    final methods = groupMethods(adviceClass)
+    getStatements(methods['pointcut']) == ['return this;']
+    getStatements(methods['type']) == ['return "java/lang/StringBuilder";']
+    getStatements(methods['method']) == ['return "<init>";']
+    getStatements(methods['descriptor']) == ['return "(Ljava/lang/String;)V";']
+    getStatements(methods['apply']) == [
+      'handler.dupParameters(descriptor, StackDupMode.PREPEND_ARRAY_CTOR);',
+      'handler.method(opcode, owner, name, descriptor, isInterface);',
+      'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/AdviceGeneratorTest$SuperTypeReturnAdvice", "after", "([Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;", false);',
+      'handler.instruction(Opcodes.CHECKCAST, "java/lang/StringBuilder");'
+    ]
+  }
+
   private static List<String> getImplementedTypes(final TypeDeclaration<?> type) {
     return type.asClassOrInterfaceDeclaration().implementedTypes*.nameAsString
   }
