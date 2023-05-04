@@ -94,29 +94,41 @@ public class DebuggerContext {
 
   /** Increments the specified counter metric No-op if no implementation is available */
   public static void count(String name, long delta, String[] tags) {
-    MetricForwarder forwarder = metricForwarder;
-    if (forwarder == null) {
-      return;
+    try {
+      MetricForwarder forwarder = metricForwarder;
+      if (forwarder == null) {
+        return;
+      }
+      forwarder.count(name, delta, tags);
+    } catch (Exception ex) {
+      LOGGER.debug("Error in count method: ", ex);
     }
-    forwarder.count(name, delta, tags);
   }
 
   /** Updates the specified gauge metric No-op if no implementation is available */
   public static void gauge(String name, long value, String[] tags) {
-    MetricForwarder forwarder = metricForwarder;
-    if (forwarder == null) {
-      return;
+    try {
+      MetricForwarder forwarder = metricForwarder;
+      if (forwarder == null) {
+        return;
+      }
+      forwarder.gauge(name, value, tags);
+    } catch (Exception ex) {
+      LOGGER.debug("Error in gauge: ", ex);
     }
-    forwarder.gauge(name, value, tags);
   }
 
   /** Updates the specified histogram metric No-op if no implementation is available */
   public static void histogram(String name, long value, String[] tags) {
-    MetricForwarder forwarder = metricForwarder;
-    if (forwarder == null) {
-      return;
+    try {
+      MetricForwarder forwarder = metricForwarder;
+      if (forwarder == null) {
+        return;
+      }
+      forwarder.histogram(name, value, tags);
+    } catch (Exception ex) {
+      LOGGER.debug("Error in histogram: ", ex);
     }
-    forwarder.histogram(name, value, tags);
   }
 
   /** Serializes the specified value as string Returns null if no implementation is available */
@@ -131,11 +143,16 @@ public class DebuggerContext {
 
   /** Creates a span, returns null if no implementation available */
   public static DebuggerSpan createSpan(String operationName, String[] tags) {
-    Tracer localTracer = tracer;
-    if (localTracer == null) {
-      return null;
+    try {
+      Tracer localTracer = tracer;
+      if (localTracer == null) {
+        return DebuggerSpan.NOOP_SPAN;
+      }
+      return localTracer.createSpan(operationName, tags);
+    } catch (Exception ex) {
+      LOGGER.debug("Error in createSpan: ", ex);
+      return DebuggerSpan.NOOP_SPAN;
     }
-    return localTracer.createSpan(operationName, tags);
   }
 
   /**
@@ -145,15 +162,20 @@ public class DebuggerContext {
    */
   public static boolean isReadyToCapture(String... probeIds) {
     // TODO provide overloaded version without string array
-    if (probeIds == null || probeIds.length == 0) {
+    try {
+      if (probeIds == null || probeIds.length == 0) {
+        return false;
+      }
+      boolean result = false;
+      for (String probeId : probeIds) {
+        // if all probes are rate limited, we don't capture
+        result |= ProbeRateLimiter.tryProbe(probeId);
+      }
+      return result;
+    } catch (Exception ex) {
+      LOGGER.debug("Error in isReadyToCapture: ", ex);
       return false;
     }
-    boolean result = false;
-    for (String probeId : probeIds) {
-      // if all probes are rate limited, we don't capture
-      result |= ProbeRateLimiter.tryProbe(probeId);
-    }
-    return result;
   }
 
   /**
@@ -166,24 +188,29 @@ public class DebuggerContext {
       long startTimestamp,
       MethodLocation methodLocation,
       String... probeIds) {
-    boolean needFreeze = false;
-    for (String probeId : probeIds) {
-      ProbeImplementation probeImplementation = resolveProbe(probeId, callingClass);
-      if (probeImplementation == null) {
-        continue;
+    try {
+      boolean needFreeze = false;
+      for (String probeId : probeIds) {
+        ProbeImplementation probeImplementation = resolveProbe(probeId, callingClass);
+        if (probeImplementation == null) {
+          continue;
+        }
+        CapturedContext.Status status =
+            context.evaluate(
+                probeId,
+                probeImplementation,
+                callingClass.getTypeName(),
+                startTimestamp,
+                methodLocation);
+        needFreeze |= status.shouldFreezeContext();
       }
-      CapturedContext.Status status =
-          context.evaluate(
-              probeId,
-              probeImplementation,
-              callingClass.getTypeName(),
-              startTimestamp,
-              methodLocation);
-      needFreeze |= status.shouldFreezeContext();
-    }
-    // only freeze the context when we have at lest one snapshot probe, and we should send snapshot
-    if (needFreeze) {
-      context.freeze(new TimeoutChecker(DEFAULT_TIME_OUT));
+      // only freeze the context when we have at lest one snapshot probe, and we should send
+      // snapshot
+      if (needFreeze) {
+        context.freeze(new TimeoutChecker(DEFAULT_TIME_OUT));
+      }
+    } catch (Exception ex) {
+      LOGGER.debug("Error in evalContext: ", ex);
     }
   }
 
@@ -193,14 +220,18 @@ public class DebuggerContext {
    */
   public static void evalContextAndCommit(
       CapturedContext context, Class<?> callingClass, int line, String... probeIds) {
-    for (String probeId : probeIds) {
-      ProbeImplementation probeImplementation = resolveProbe(probeId, callingClass);
-      if (probeImplementation == null) {
-        continue;
+    try {
+      for (String probeId : probeIds) {
+        ProbeImplementation probeImplementation = resolveProbe(probeId, callingClass);
+        if (probeImplementation == null) {
+          continue;
+        }
+        context.evaluate(
+            probeId, probeImplementation, callingClass.getTypeName(), -1, MethodLocation.DEFAULT);
+        probeImplementation.commit(context, line);
       }
-      context.evaluate(
-          probeId, probeImplementation, callingClass.getTypeName(), -1, MethodLocation.DEFAULT);
-      probeImplementation.commit(context, line);
+    } catch (Exception ex) {
+      LOGGER.debug("Error in evalContextAndCommit: ", ex);
     }
   }
 
@@ -213,25 +244,29 @@ public class DebuggerContext {
       CapturedContext exitContext,
       List<CapturedContext.CapturedThrowable> caughtExceptions,
       String... probeIds) {
-    if (entryContext == CapturedContext.EMPTY_CONTEXT
-        && exitContext == CapturedContext.EMPTY_CONTEXT) {
-      // rate limited
-      return;
-    }
-    for (String probeId : probeIds) {
-      CapturedContext.Status entryStatus = entryContext.getStatus(probeId);
-      CapturedContext.Status exitStatus = exitContext.getStatus(probeId);
-      ProbeImplementation probeImplementation;
-      if (entryStatus.probeImplementation != ProbeImplementation.UNKNOWN
-          && (entryStatus.probeImplementation.getEvaluateAt() == MethodLocation.ENTRY
-              || entryStatus.probeImplementation.getEvaluateAt() == MethodLocation.DEFAULT)) {
-        probeImplementation = entryStatus.probeImplementation;
-      } else if (exitStatus.probeImplementation.getEvaluateAt() == MethodLocation.EXIT) {
-        probeImplementation = exitStatus.probeImplementation;
-      } else {
-        throw new IllegalStateException("no probe details");
+    try {
+      if (entryContext == CapturedContext.EMPTY_CONTEXT
+          && exitContext == CapturedContext.EMPTY_CONTEXT) {
+        // rate limited
+        return;
       }
-      probeImplementation.commit(entryContext, exitContext, caughtExceptions);
+      for (String probeId : probeIds) {
+        CapturedContext.Status entryStatus = entryContext.getStatus(probeId);
+        CapturedContext.Status exitStatus = exitContext.getStatus(probeId);
+        ProbeImplementation probeImplementation;
+        if (entryStatus.probeImplementation != ProbeImplementation.UNKNOWN
+            && (entryStatus.probeImplementation.getEvaluateAt() == MethodLocation.ENTRY
+                || entryStatus.probeImplementation.getEvaluateAt() == MethodLocation.DEFAULT)) {
+          probeImplementation = entryStatus.probeImplementation;
+        } else if (exitStatus.probeImplementation.getEvaluateAt() == MethodLocation.EXIT) {
+          probeImplementation = exitStatus.probeImplementation;
+        } else {
+          throw new IllegalStateException("no probe details");
+        }
+        probeImplementation.commit(entryContext, exitContext, caughtExceptions);
+      }
+    } catch (Exception ex) {
+      LOGGER.debug("Error in commit: ", ex);
     }
   }
 }

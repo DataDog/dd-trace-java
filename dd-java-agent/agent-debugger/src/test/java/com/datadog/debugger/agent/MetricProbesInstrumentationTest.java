@@ -37,6 +37,7 @@ public class MetricProbesInstrumentationTest {
   private static final ProbeId METRIC_ID = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 0);
   private static final ProbeId METRIC_ID1 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f6", 0);
   private static final ProbeId METRIC_ID2 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f7", 0);
+  private static final ProbeId METRIC_ID3 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f9", 0);
   private static final String SERVICE_NAME = "service-name";
   private static final String METRIC_PROBEID_TAG =
       "debugger.probeid:beae1807-f3b0-4ea8-a74f-826790c5e6f8";
@@ -587,7 +588,6 @@ public class MetricProbesInstrumentationTest {
             "f",
             "()",
             new ValueScript(DSL.ref("strValue"), "strValue"));
-
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "f").get();
     Assertions.assertEquals(42, result);
@@ -595,6 +595,25 @@ public class MetricProbesInstrumentationTest {
     Assertions.assertEquals(
         "Incompatible type for expression: java.lang.String with expected type: long",
         mockSink.getCurrentDiagnostics().get(0).getMessage());
+  }
+
+  @Test
+  public void metricThrows() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot06";
+    ValueScript valueScript =
+        new ValueScript(DSL.getMember(DSL.ref("this"), "intValue"), "intValue");
+    MetricProbe countProbe =
+        createMetric(METRIC_ID1, "field_count", COUNT, CLASS_NAME, "f", "()", valueScript, null);
+    MetricProbe gaugeProbe =
+        createMetric(METRIC_ID2, "field_gauge", GAUGE, CLASS_NAME, "f", "()", valueScript, null);
+    MetricProbe histogramProbe =
+        createMetric(
+            METRIC_ID3, "field_histo", HISTOGRAM, CLASS_NAME, "f", "()", valueScript, null);
+    MetricForwarderListener listener = installMetricProbes(countProbe, gaugeProbe, histogramProbe);
+    listener.setThrowing(true);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assertions.assertEquals(42, result);
   }
 
   @Test
@@ -765,23 +784,37 @@ public class MetricProbesInstrumentationTest {
     Map<String, Long> gauges = new HashMap<>();
     Map<String, Long> histrograms = new HashMap<>();
     String[] lastTags = null;
+    boolean throwing;
 
     @Override
     public void count(String name, long delta, String[] tags) {
+      if (throwing) {
+        throw new IllegalArgumentException("oops");
+      }
       counters.compute(name, (key, value) -> value != null ? value + delta : delta);
       lastTags = tags;
     }
 
     @Override
     public void gauge(String name, long value, String[] tags) {
+      if (throwing) {
+        throw new IllegalArgumentException("oops");
+      }
       gauges.put(name, value);
       lastTags = tags;
     }
 
     @Override
     public void histogram(String name, long value, String[] tags) {
+      if (throwing) {
+        throw new IllegalArgumentException("oops");
+      }
       histrograms.put(name, value);
       lastTags = tags;
+    }
+
+    public void setThrowing(boolean value) {
+      this.throwing = value;
     }
   }
 
