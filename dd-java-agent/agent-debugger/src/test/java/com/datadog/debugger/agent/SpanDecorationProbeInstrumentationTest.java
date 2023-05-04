@@ -8,6 +8,8 @@ import static com.datadog.debugger.el.DSL.value;
 import static com.datadog.debugger.probe.SpanDecorationProbe.TargetSpan.ACTIVE;
 import static com.datadog.debugger.probe.SpanDecorationProbe.TargetSpan.ROOT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
@@ -18,6 +20,7 @@ import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.el.expressions.BooleanExpression;
 import com.datadog.debugger.el.expressions.ValueExpression;
 import com.datadog.debugger.probe.SpanDecorationProbe;
+import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
 import datadog.trace.api.interceptor.MutableSpan;
@@ -62,6 +65,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     assertEquals(42, result);
     MutableSpan span = traceInterceptor.getFirstSpan();
     assertEquals("1", span.getTags().get("tag1"));
+    assertEquals(PROBE_ID.getId(), span.getTags().get("_dd.tag1.probe_id"));
   }
 
   @Test
@@ -135,6 +139,39 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   }
 
   @Test
+  public void methodTagEvalError() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
+    SpanDecorationProbe.Decoration decoration = createDecoration("tag1", ref("noarg"), "arg");
+    installSingleSpanDecoration(
+        CLASS_NAME, ACTIVE, decoration, "process", "int (java.lang.String)");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    assertEquals(42, result);
+    MutableSpan span = traceInterceptor.getFirstSpan();
+    assertNull(span.getTags().get("tag1"));
+    assertEquals(
+        "com.datadog.debugger.el.EvaluationException: Cannot find symbol: noarg",
+        span.getTags().get("_dd.tag1.evaluation_error"));
+  }
+
+  @Test
+  public void methodActiveSpanInvalidCondition() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
+    SpanDecorationProbe.Decoration decoration =
+        createDecoration(eq(ref("noarg"), value("5")), "noarg == '5'", "tag1", ref("arg"), "arg");
+    installSingleSpanDecoration(
+        CLASS_NAME, ACTIVE, decoration, "process", "int (java.lang.String)");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "5").get();
+    assertEquals(42, result);
+    assertFalse(traceInterceptor.getFirstSpan().getTags().containsKey("tag1"));
+    assertEquals(1, mockSink.getSnapshots().size());
+    Snapshot snapshot = mockSink.getSnapshots().get(0);
+    assertEquals(1, snapshot.getEvaluationErrors().size());
+    assertEquals("Cannot find symbol: noarg", snapshot.getEvaluationErrors().get(0).getMessage());
+  }
+
+  @Test
   public void lineActiveSpanSimpleTag() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
     SpanDecorationProbe.Decoration decoration = createDecoration("tag1", ref("arg"), "arg");
@@ -144,6 +181,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     assertEquals(42, result);
     MutableSpan span = traceInterceptor.getFirstSpan();
     assertEquals("1", span.getTags().get("tag1"));
+    assertEquals(PROBE_ID.getId(), span.getTags().get("_dd.tag1.probe_id"));
   }
 
   @Test
@@ -179,6 +217,22 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     assertEquals(10, traceInterceptor.getAllTraces().size());
     MutableSpan span = traceInterceptor.getAllTraces().get(5).get(0);
     assertEquals("5", span.getTags().get("tag1"));
+  }
+
+  @Test
+  public void lineActiveSpanInvalidCondition() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
+    SpanDecorationProbe.Decoration decoration =
+        createDecoration(eq(ref("noarg"), value("5")), "arg == '5'", "tag1", ref("arg"), "arg");
+    installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 37);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "5").get();
+    assertEquals(42, result);
+    assertFalse(traceInterceptor.getFirstSpan().getTags().containsKey("tag1"));
+    assertEquals(1, mockSink.getSnapshots().size());
+    Snapshot snapshot = mockSink.getSnapshots().get(0);
+    assertEquals(1, snapshot.getEvaluationErrors().size());
+    assertEquals("Cannot find symbol: noarg", snapshot.getEvaluationErrors().get(0).getMessage());
   }
 
   @Test

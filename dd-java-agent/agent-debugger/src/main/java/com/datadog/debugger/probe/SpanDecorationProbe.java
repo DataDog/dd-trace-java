@@ -2,6 +2,7 @@ package com.datadog.debugger.probe;
 
 import static com.datadog.debugger.util.ValueScriptHelper.serializeValue;
 
+import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.ProbeCondition;
@@ -9,6 +10,7 @@ import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.SpanDecorationInstrumentor;
+import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
@@ -128,6 +130,7 @@ public class SpanDecorationProbe extends ProbeDefinition {
         } catch (EvaluationException ex) {
           LOGGER.debug("Evaluation error: ", ex);
           status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
+          continue;
         }
       }
       if (!(status instanceof SpanDecorationStatus)) {
@@ -146,9 +149,11 @@ public class SpanDecorationProbe extends ProbeDefinition {
             serializeValue(sb, tag.value.getDsl(), tagValue.getValue(), status);
           }
           spanStatus.addTag(tag.name, sb.toString());
+          spanStatus.addTag("_dd." + tag.name + ".probe_id", getProbeId().getId());
         } catch (EvaluationException ex) {
           LOGGER.debug("Evaluation error: ", ex);
           status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
+          spanStatus.addTag("_dd." + tag.name + ".evaluation_error", ex.toString());
         }
       }
     }
@@ -164,8 +169,9 @@ public class SpanDecorationProbe extends ProbeDefinition {
     if (status == null) {
       return;
     }
-
-    decorateTags((SpanDecorationStatus) status);
+    SpanDecorationStatus spanStatus = (SpanDecorationStatus) status;
+    decorateTags(spanStatus);
+    handleEvaluationErrors(spanStatus);
   }
 
   @Override
@@ -174,7 +180,9 @@ public class SpanDecorationProbe extends ProbeDefinition {
     if (status == null) {
       return;
     }
-    decorateTags((SpanDecorationStatus) status);
+    SpanDecorationStatus spanStatus = (SpanDecorationStatus) status;
+    decorateTags(spanStatus);
+    handleEvaluationErrors(spanStatus);
   }
 
   private void decorateTags(SpanDecorationStatus status) {
@@ -198,6 +206,15 @@ public class SpanDecorationProbe extends ProbeDefinition {
     for (Pair<String, String> tag : tagsToDecorate) {
       agentSpan.setTag(tag.getLeft(), tag.getRight());
     }
+  }
+
+  private void handleEvaluationErrors(SpanDecorationStatus status) {
+    if (status.getErrors().isEmpty()) {
+      return;
+    }
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), this);
+    snapshot.addEvaluationErrors(status.getErrors());
+    DebuggerAgent.getSink().addSnapshot(snapshot);
   }
 
   @Override

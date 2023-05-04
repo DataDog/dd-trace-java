@@ -29,9 +29,12 @@ public class ProbeInstrumentationTest {
   protected static class MockSink implements Sink {
 
     private final List<DiagnosticMessage> currentDiagnostics = new ArrayList<>();
+    private final List<Snapshot> snapshots = new ArrayList<>();
 
     @Override
-    public void addSnapshot(Snapshot snapshot) {}
+    public void addSnapshot(Snapshot snapshot) {
+      snapshots.add(snapshot);
+    }
 
     @Override
     public void skipSnapshot(String probeId, DebuggerContext.SkipCause cause) {}
@@ -46,6 +49,10 @@ public class ProbeInstrumentationTest {
 
     public List<DiagnosticMessage> getCurrentDiagnostics() {
       return currentDiagnostics;
+    }
+
+    public List<Snapshot> getSnapshots() {
+      return snapshots;
     }
   }
 }
