@@ -9,6 +9,8 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public final class SkipAbstractTypeJsonSerializer<T> extends JsonAdapter<T> {
   private final JsonAdapter<T> delegate;
@@ -33,41 +35,47 @@ public final class SkipAbstractTypeJsonSerializer<T> extends JsonAdapter<T> {
     return canonicalName.startsWith("java.") || canonicalName.startsWith("javax.");
   }
 
-  private static boolean isInAllowList(String canonicalName) {
-    return canonicalName.equals(List.class.getCanonicalName())
-        || canonicalName.equals(Map.class.getCanonicalName())
-        || canonicalName.equals(Set.class.getCanonicalName())
-        || canonicalName.equals(Collection.class.getCanonicalName())
-        || canonicalName.equals(Object.class.getCanonicalName())
-        || canonicalName.equals(Integer.class.getCanonicalName())
-        || canonicalName.equals(Double.class.getCanonicalName())
-        || canonicalName.equals(Long.class.getCanonicalName())
-        || canonicalName.equals(String.class.getCanonicalName())
-        || canonicalName.equals(Boolean.class.getCanonicalName())
-        || canonicalName.equals(Float.class.getCanonicalName())
-        || canonicalName.equals("boolean")
-        || canonicalName.equals("char")
-        || canonicalName.equals("short")
-        || canonicalName.equals("double")
-        || canonicalName.equals("byte")
-        || canonicalName.equals("float")
-        || canonicalName.equals("int");
-  }
+  private static HashSet<String> allowedCanonicalNames =
+      Stream.of(
+              "java.util.List",
+              "java.util.Map",
+              "java.util.Set",
+              "java.util.Collection",
+              "java.lang.Object",
+              "java.lang.Integer",
+              "java.lang.Double",
+              "java.lang.Long",
+              "java.lang.Short",
+              "java.lang.Float",
+              "java.lang.Boolean",
+              "java.lang.Byte",
+              "java.lang.Character",
+              "java.lang.String",
+              "int",
+              "double",
+              "long",
+              "short",
+              "float",
+              "boolean",
+              "byte",
+              "char")
+          .collect(Collectors.toCollection(HashSet::new));
 
   public static <T> Factory newFactory() {
     return new Factory() {
       @Override
       public JsonAdapter<?> create(
           Type requestedType, Set<? extends Annotation> annotations, Moshi moshi) {
-        boolean isClass = requestedType instanceof Class<?>;
-        String typeName = isClass ? ((Class<?>) requestedType).getTypeName() : "";
-        boolean isAbstract =
-            isClass
-                && Modifier.isAbstract(((Class<?>) requestedType).getModifiers())
-                && !isInAllowList(typeName);
-        boolean isPlatform = isClass && isPlatformClass(typeName);
-        boolean isInAllowList = isClass && isInAllowList(typeName);
-        if (isAbstract || (isPlatform && !isInAllowList)) {
+        if (!(requestedType instanceof Class<?>)) {
+          return null;
+        }
+        String typeName = ((Class<?>) requestedType).getTypeName();
+        if (allowedCanonicalNames.contains(typeName)) {
+          return null;
+        }
+        boolean isAbstract = Modifier.isAbstract(((Class<?>) requestedType).getModifiers());
+        boolean isPlatform = isPlatformClass(typeName);
+        if (isAbstract || isPlatform) {
           JsonAdapter<T> delegate = moshi.nextAdapter(this, Object.class, annotations);
           return new SkipAbstractTypeJsonSerializer<>(delegate);
         }
