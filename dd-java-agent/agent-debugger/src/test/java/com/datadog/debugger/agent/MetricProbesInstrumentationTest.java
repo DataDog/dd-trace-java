@@ -663,6 +663,89 @@ public class MetricProbesInstrumentationTest {
     Assertions.assertEquals(48, listener.counters.get(METRIC_NAME).longValue());
   }
 
+  @Test
+  public void lenExpression() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot06";
+    String STRLEN_METRIC = "strlen";
+    String LISTSIZE_METRIC = "listsize";
+    String MAPSIZE_METRIC = "mapsize";
+    MetricProbe metricProbe1 =
+        createMetricBuilder(METRIC_ID, STRLEN_METRIC, GAUGE)
+            .where(CLASS_NAME, "f", "()")
+            .valueScript(new ValueScript(DSL.len(DSL.ref("strValue")), "len(strValue)"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricProbe metricProbe2 =
+        createMetricBuilder(METRIC_ID, LISTSIZE_METRIC, GAUGE)
+            .where(CLASS_NAME, "f", "()")
+            .valueScript(new ValueScript(DSL.len(DSL.ref("strList")), "len(strList)"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricProbe metricProbe3 =
+        createMetricBuilder(METRIC_ID, MAPSIZE_METRIC, GAUGE)
+            .where(CLASS_NAME, "f", "()")
+            .valueScript(new ValueScript(DSL.len(DSL.ref("strMap")), "len(strMap)"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricForwarderListener listener =
+        installMetricProbes(metricProbe1, metricProbe2, metricProbe3);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assertions.assertEquals(42, result);
+    Assertions.assertTrue(listener.gauges.containsKey(STRLEN_METRIC));
+    Assertions.assertEquals(
+        4, listener.gauges.get(STRLEN_METRIC).longValue()); // <=> "done".length()
+    Assertions.assertTrue(listener.gauges.containsKey(LISTSIZE_METRIC));
+    Assertions.assertEquals(
+        3, listener.gauges.get(LISTSIZE_METRIC).longValue()); // <=> strList.size()
+    Assertions.assertTrue(listener.gauges.containsKey(MAPSIZE_METRIC));
+    Assertions.assertEquals(
+        1, listener.gauges.get(MAPSIZE_METRIC).longValue()); // <=> strMap.size()
+  }
+
+  @Test
+  public void indexExpression() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot22";
+    String ARRAYIDX_METRIC = "arrayindex";
+    String LISTIDX_METRIC = "listindex";
+    String MAPIDX_METRIC = "mapindex";
+    MetricProbe metricProbe1 =
+        createMetricBuilder(METRIC_ID, ARRAYIDX_METRIC, GAUGE)
+            .where(CLASS_NAME, "doit", "(String)")
+            .valueScript(
+                new ValueScript(DSL.index(DSL.ref("intArray"), DSL.value(4)), "intArray[4]"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricProbe metricProbe2 =
+        createMetricBuilder(METRIC_ID, LISTIDX_METRIC, GAUGE)
+            .where(CLASS_NAME, "doit", "(String)")
+            .valueScript(
+                new ValueScript(
+                    DSL.len(DSL.index(DSL.ref("strList"), DSL.value(1))), "len(strList[1])"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricProbe metricProbe3 =
+        createMetricBuilder(METRIC_ID, MAPIDX_METRIC, GAUGE)
+            .where(CLASS_NAME, "doit", "(String)")
+            .valueScript(
+                new ValueScript(
+                    DSL.len(DSL.index(DSL.ref("strMap"), DSL.value("foo1"))),
+                    "len(strMap['foo1'])"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricForwarderListener listener =
+        installMetricProbes(metricProbe1, metricProbe2, metricProbe3);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assertions.assertEquals(42, result);
+    Assertions.assertTrue(listener.gauges.containsKey(ARRAYIDX_METRIC));
+    Assertions.assertEquals(4, listener.gauges.get(ARRAYIDX_METRIC).longValue());
+    Assertions.assertTrue(listener.gauges.containsKey(LISTIDX_METRIC));
+    Assertions.assertEquals(3, listener.gauges.get(LISTIDX_METRIC).longValue());
+    Assertions.assertTrue(listener.gauges.containsKey(MAPIDX_METRIC));
+    Assertions.assertEquals(4, listener.gauges.get(MAPIDX_METRIC).longValue());
+  }
+
   private MetricForwarderListener installSingleMetric(
       String metricName,
       MetricProbe.MetricKind metricKind,

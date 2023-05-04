@@ -1,5 +1,6 @@
 package com.datadog.debugger.instrumentation;
 
+import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
 import static com.datadog.debugger.instrumentation.Types.STRING_TYPE;
 
 import com.datadog.debugger.instrumentation.DiagnosticMessage.Kind;
@@ -13,12 +14,10 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
-import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.LineNumberNode;
 import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodInsnNode;
@@ -241,30 +240,6 @@ public abstract class Instrumentor {
     return new InsnList();
   }
 
-  protected static void invokeStatic(
-      InsnList insnList, Type owner, String name, Type returnType, Type... argTypes) {
-    // expected stack: [arg_type_1 ... arg_type_N]
-    insnList.add(
-        new MethodInsnNode(
-            Opcodes.INVOKESTATIC,
-            owner.getInternalName(),
-            name,
-            Type.getMethodDescriptor(returnType, argTypes),
-            false)); // stack: [ret_type]
-  }
-
-  protected static void ldc(InsnList insnList, int val) {
-    insnList.add(new LdcInsnNode(val));
-  }
-
-  protected static void ldc(InsnList insnList, long val) {
-    insnList.add(new LdcInsnNode(val));
-  }
-
-  protected static void ldc(InsnList insnList, Object val) {
-    insnList.add(val == null ? new InsnNode(Opcodes.ACONST_NULL) : new LdcInsnNode(val));
-  }
-
   protected void pushTags(InsnList insnList, ProbeDefinition.Tag[] tags) {
     if (tags == null || tags.length == 0) {
       insnList.add(new InsnNode(Opcodes.ACONST_NULL));
@@ -286,34 +261,6 @@ public abstract class Instrumentor {
     int varId = methodNode.maxLocals + 1;
     methodNode.maxLocals += type.getSize();
     return varId;
-  }
-
-  protected void invokeVirtual(
-      InsnList insnList, Type owner, String name, Type returnType, Type... argTypes) {
-    // expected stack: [this, arg_type_1 ... arg_type_N]
-    insnList.add(
-        new MethodInsnNode(
-            Opcodes.INVOKEVIRTUAL,
-            owner.getInternalName(),
-            name,
-            Type.getMethodDescriptor(returnType, argTypes),
-            false)); // stack: [ret_type]
-  }
-
-  protected void invokeInterface(
-      InsnList insnList, Type owner, String name, Type returnType, Type... argTypes) {
-    // expected stack: [this, arg_type_1 ... arg_type_N]
-    insnList.add(
-        new MethodInsnNode(
-            Opcodes.INVOKEINTERFACE,
-            owner.getInternalName(),
-            name,
-            Type.getMethodDescriptor(returnType, argTypes),
-            true)); // stack: [ret_type]
-  }
-
-  protected static boolean isStaticField(FieldNode fieldNode) {
-    return (fieldNode.access & Opcodes.ACC_STATIC) != 0;
   }
 
   protected void reportError(String message) {
