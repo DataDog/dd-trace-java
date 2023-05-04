@@ -11,11 +11,13 @@ import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,24 +84,9 @@ class DatadogHttpCodec {
   }
 
   public static HttpCodec.Extractor newExtractor(
-      final Map<String, String> tagMapping, final Map<String, String> baggageMapping) {
-    return newExtractor(tagMapping, baggageMapping, Config.get());
-  }
-
-  public static HttpCodec.Extractor newExtractor(
-      final Map<String, String> tagMapping,
-      final Map<String, String> baggageMapping,
-      final Config config) {
+      Config config, Supplier<TraceConfig> traceConfigSupplier) {
     return new TagContextExtractor(
-        tagMapping,
-        baggageMapping,
-        new ContextInterpreter.Factory() {
-          @Override
-          protected ContextInterpreter construct(
-              Map<String, String> mapping, Map<String, String> baggageMapping) {
-            return new DatadogContextInterpreter(mapping, baggageMapping, config);
-          }
-        });
+        traceConfigSupplier, () -> new DatadogContextInterpreter(config));
   }
 
   private static class DatadogContextInterpreter extends ContextInterpreter {
@@ -116,9 +103,8 @@ class DatadogHttpCodec {
     private final boolean isAwsPropagationEnabled;
     private final PropagationTags.Factory datadogTagsFactory;
 
-    private DatadogContextInterpreter(
-        Map<String, String> taggedHeaders, Map<String, String> baggageMapping, Config config) {
-      super(taggedHeaders, baggageMapping, config);
+    private DatadogContextInterpreter(Config config) {
+      super(config);
       isAwsPropagationEnabled = config.isAwsPropagationEnabled();
       datadogTagsFactory = PropagationTags.factory(config);
     }

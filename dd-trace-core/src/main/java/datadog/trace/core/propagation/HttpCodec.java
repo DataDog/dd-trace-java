@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
@@ -14,6 +15,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -104,32 +106,30 @@ public class HttpCodec {
   }
 
   public static Extractor createExtractor(
-      final Config config,
-      final Map<String, String> taggedHeaders,
-      final Map<String, String> baggageMapping) {
+      Config config, Supplier<TraceConfig> traceConfigSupplier) {
     final List<Extractor> extractors = new ArrayList<>();
     for (final TracePropagationStyle style : config.getTracePropagationStylesToExtract()) {
       switch (style) {
         case DATADOG:
-          extractors.add(DatadogHttpCodec.newExtractor(taggedHeaders, baggageMapping, config));
+          extractors.add(DatadogHttpCodec.newExtractor(config, traceConfigSupplier));
           break;
         case B3SINGLE:
-          extractors.add(B3HttpCodec.newSingleExtractor(taggedHeaders, baggageMapping, config));
+          extractors.add(B3HttpCodec.newSingleExtractor(config, traceConfigSupplier));
           break;
         case B3MULTI:
-          extractors.add(B3HttpCodec.newMultiExtractor(taggedHeaders, baggageMapping, config));
+          extractors.add(B3HttpCodec.newMultiExtractor(config, traceConfigSupplier));
           break;
         case HAYSTACK:
-          extractors.add(HaystackHttpCodec.newExtractor(taggedHeaders, baggageMapping));
+          extractors.add(HaystackHttpCodec.newExtractor(config, traceConfigSupplier));
           break;
         case XRAY:
-          extractors.add(XRayHttpCodec.newExtractor(taggedHeaders, baggageMapping));
+          extractors.add(XRayHttpCodec.newExtractor(config, traceConfigSupplier));
           break;
         case NONE:
           extractors.add(NoneCodec.EXTRACTOR);
           break;
         case TRACECONTEXT:
-          extractors.add(W3CHttpCodec.newExtractor(taggedHeaders, baggageMapping));
+          extractors.add(W3CHttpCodec.newExtractor(config, traceConfigSupplier));
           break;
         default:
           log.debug("No implementation found to extract propagation style: {}", style);

@@ -6,4 +6,8 @@ import java.util.Map;
 public interface TraceConfig {
 
   Map<String, String> getServiceMapping();
+
+  Map<String, String> getTaggedHeaders();
+
+  Map<String, String> getBaggageMapping();
 }
