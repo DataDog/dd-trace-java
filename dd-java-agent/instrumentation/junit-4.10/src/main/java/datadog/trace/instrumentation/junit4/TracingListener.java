@@ -48,7 +48,7 @@ public class TracingListener extends RunListener {
     String testSuiteName = junitTestClass.getName();
     Class<?> testClass = junitTestClass.getJavaClass();
     List<String> categories = JUnit4Utils.getCategories(testClass, null);
-    testEventsHandler.onTestSuiteStart(testSuiteName, testClass, categories);
+    testEventsHandler.onTestSuiteStart(testSuiteName, null, null, testClass, categories);
   }
 
   public void testSuiteFinished(final TestClass junitTestClass) {
@@ -76,7 +76,7 @@ public class TracingListener extends RunListener {
     List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);
 
     testEventsHandler.onTestStart(
-        testSuiteName, testName, testParameters, categories, testClass, testMethod);
+        testSuiteName, testName, null, null, testParameters, categories, testClass, testMethod);
   }
 
   @Override
@@ -154,7 +154,7 @@ public class TracingListener extends RunListener {
 
       List<String> categories = JUnit4Utils.getCategories(testClass, null);
 
-      testEventsHandler.onTestSuiteStart(testSuiteName, testClass, categories);
+      testEventsHandler.onTestSuiteStart(testSuiteName, null, null, testClass, categories);
       testEventsHandler.onTestSuiteSkip(testSuiteName, testClass, reason);
 
       List<Method> testMethods = JUnit4Utils.getTestMethods(testClass);
@@ -175,6 +175,14 @@ public class TracingListener extends RunListener {
     List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);
 
     testEventsHandler.onTestIgnore(
-        testSuiteName, testName, testParameters, categories, testClass, testMethod, reason);
+        testSuiteName,
+        testName,
+        null,
+        null,
+        testParameters,
+        categories,
+        testClass,
+        testMethod,
+        reason);
   }
 }
