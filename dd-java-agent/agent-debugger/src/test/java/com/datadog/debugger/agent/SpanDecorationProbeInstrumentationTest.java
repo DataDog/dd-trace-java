@@ -78,7 +78,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     SpanDecorationProbe.Decoration deco4 =
         createDecoration("tag4", index(ref("strList"), value(1)), "strList[1]");
     SpanDecorationProbe.Decoration deco5 =
-        createDecoration("tag5", index(ref("map"), value("foo3")), "map['foo3']");
+        createDecoration("Tag+5", index(ref("map"), value("foo3")), "map['foo3']");
     installSingleSpanDecoration(
         CLASS_NAME,
         ACTIVE,
@@ -93,7 +93,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     assertEquals("42", span.getTags().get("tag2"));
     assertEquals("hello", span.getTags().get("tag3"));
     assertEquals("foobar2", span.getTags().get("tag4"));
-    assertEquals("bar3", span.getTags().get("tag5"));
+    assertEquals("bar3", span.getTags().get("tag_5")); // tag name sanitized
   }
 
   @Test

@@ -19,6 +19,7 @@ import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.util.TagsHelper;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -31,6 +32,8 @@ import org.slf4j.LoggerFactory;
 
 public class SpanDecorationProbe extends ProbeDefinition {
   private static final Logger LOGGER = LoggerFactory.getLogger(SpanDecorationProbe.class);
+  private static final String PROBEID_DD_TAGS_FORMAT = "_dd.%s.probe_id";
+  private static final String EVALERROR_DD_TAGS_FORMAT = "_dd.%s.evaluation_error";
 
   public enum TargetSpan {
     ACTIVE,
@@ -138,6 +141,7 @@ public class SpanDecorationProbe extends ProbeDefinition {
       }
       SpanDecorationStatus spanStatus = (SpanDecorationStatus) status;
       for (Tag tag : decoration.tags) {
+        String tagName = sanitize(tag.name);
         try {
           Value<?> tagValue = tag.value.execute(context);
           StringBuilder sb = new StringBuilder();
@@ -148,15 +152,19 @@ public class SpanDecorationProbe extends ProbeDefinition {
           } else {
             serializeValue(sb, tag.value.getDsl(), tagValue.getValue(), status);
           }
-          spanStatus.addTag(tag.name, sb.toString());
-          spanStatus.addTag("_dd." + tag.name + ".probe_id", getProbeId().getId());
+          spanStatus.addTag(tagName, sb.toString());
+          spanStatus.addTag(String.format(PROBEID_DD_TAGS_FORMAT, tagName), getProbeId().getId());
         } catch (EvaluationException ex) {
           LOGGER.debug("Evaluation error: ", ex);
           status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
-          spanStatus.addTag("_dd." + tag.name + ".evaluation_error", ex.toString());
+          spanStatus.addTag(String.format(EVALERROR_DD_TAGS_FORMAT, tagName), ex.toString());
         }
       }
     }
+  }
+
+  private String sanitize(String tagName) {
+    return TagsHelper.sanitize(tagName);
   }
 
   @Override
