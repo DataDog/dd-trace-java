@@ -99,7 +99,6 @@ class PendingTraceBufferTest extends DDSpecification {
 
     then:
     trace.pendingReferenceCount == 0
-    1 * bufferSpy.longRunningSpansEnabled()
     1 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.write({ it.size() == 1 })
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
@@ -351,7 +350,7 @@ class PendingTraceBufferTest extends DDSpecification {
     counter.get() == 3
   }
 
-  def "the same pending thrace is not enqueued multiple times"() {
+  def "the same pending trace is not enqueued multiple times"() {
     setup:
     // Don't start the buffer thread
 

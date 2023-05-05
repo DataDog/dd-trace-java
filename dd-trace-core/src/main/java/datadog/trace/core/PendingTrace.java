@@ -333,7 +333,9 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
             rootSpanWritten = true;
           }
           int size = size();
-          if (pendingTraceBuffer.longRunningSpansEnabled()) {
+          boolean writeRunningSpans =
+              LongRunningTracesTracker.WRITE_RUNNING_SPANS == LONG_RUNNING_STATE.get(this);
+          if (writeRunningSpans) {
             size += pendingReferenceCount;
           }
           // If we get here and size is below 0, then the writer before us wrote out at least one
@@ -344,7 +346,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
           // was negative will be written by someone even if we don't write them right now.
           if (size > 0 && (!isPartial || size > tracer.getPartialFlushMinSpans())) {
             trace = new ArrayList<>(size);
-            completedSpans = enqueueSpansToWrite(trace);
+            completedSpans = enqueueSpansToWrite(trace, writeRunningSpans);
           } else {
             trace = EMPTY;
           }
@@ -360,11 +362,10 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     return 0;
   }
 
-  public int enqueueSpansToWrite(List<DDSpan> trace) {
+  public int enqueueSpansToWrite(List<DDSpan> trace, boolean writeRunningSpans) {
     int completedSpans = 0;
     boolean runningSpanSeen = false;
     long firstRunningSpanID = 0;
-
     long nowNano = getCurrentTimeNano();
     setLastWriteTime(nowNano);
 
@@ -379,16 +380,16 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
         trace.add(span);
         completedSpans++;
       } else {
+        // keep the running span in the list
+        spans.add(span);
         if (!runningSpanSeen) {
           runningSpanSeen = true;
           firstRunningSpanID = span.getSpanId();
         }
-
-        if (LongRunningTracesTracker.WRITE_RUNNING_SPANS == LONG_RUNNING_STATE.get(this)) {
+        if (writeRunningSpans) {
           span.setLongRunningVersion(
               (int) TimeUnit.NANOSECONDS.toMillis(nowNano - span.getStartTime()));
           trace.add(span);
-          spans.add(span);
         }
       }
       span = spans.pollFirst();
