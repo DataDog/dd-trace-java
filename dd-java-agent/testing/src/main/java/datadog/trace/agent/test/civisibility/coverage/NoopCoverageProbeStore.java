@@ -9,7 +9,7 @@ public class NoopCoverageProbeStore implements CoverageProbeStore {
   public void record(long classId, String className, int probeId) {}
 
   @Override
-  public void report(Long testSessionId, long testSuiteId, long spanId) {}
+  public void report(Long testSessionId, long testModuleId, long testSuiteId, long spanId) {}
 
   public static final class NoopCoverageProbeStoreFactory implements CoverageProbeStore.Factory {
     @Override

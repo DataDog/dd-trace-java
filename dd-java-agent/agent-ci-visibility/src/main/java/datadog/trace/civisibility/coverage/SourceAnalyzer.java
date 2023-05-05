@@ -8,7 +8,7 @@ import org.jacoco.core.analysis.ILine;
 
 public class SourceAnalyzer implements ICoverageVisitor {
 
-  private Function<String, TestReportFileEntry> testReportFileEntryFactory;
+  private final Function<String, TestReportFileEntry> testReportFileEntryFactory;
 
   public SourceAnalyzer(Function<String, TestReportFileEntry> testReportFileEntryFactory) {
     this.testReportFileEntryFactory = testReportFileEntryFactory;

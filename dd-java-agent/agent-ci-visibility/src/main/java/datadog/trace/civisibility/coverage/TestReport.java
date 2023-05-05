@@ -16,13 +16,19 @@ public class TestReport {
   private final Map<String, TestReportFileEntry> testReportFileEntries = new HashMap<>();
 
   private final Long testSessionId;
+  private final long testModuleId;
   private final long testSuiteId;
   private final long spanId;
   private final List<ExecutionData> executionDataList;
 
   public TestReport(
-      Long testSessionId, long testSuiteId, long spanId, List<ExecutionData> executionDataList) {
+      Long testSessionId,
+      long testModuleId,
+      long testSuiteId,
+      long spanId,
+      List<ExecutionData> executionDataList) {
     this.testSessionId = testSessionId;
+    this.testModuleId = testModuleId;
     this.testSuiteId = testSuiteId;
     this.spanId = spanId;
     this.executionDataList = executionDataList;

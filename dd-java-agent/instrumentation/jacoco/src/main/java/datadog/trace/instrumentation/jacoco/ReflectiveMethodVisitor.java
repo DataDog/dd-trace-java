@@ -11,7 +11,6 @@ public class ReflectiveMethodVisitor {
   private static Method visitIntInsnMethod;
   private static Method visitLdcInsnMethod;
 
-  @SuppressWarnings("unchecked")
   public static ReflectiveMethodVisitor wrap(Object mv) throws NoSuchMethodException {
     if (null == methodVisitorClass) {
       methodVisitorClass = mv.getClass();

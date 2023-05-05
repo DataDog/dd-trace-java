@@ -7,11 +7,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.jacoco.core.data.ExecutionData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class TestProbes implements CoverageProbeStore {
-  private static final Logger log = LoggerFactory.getLogger(TestProbes.class);
 
   private static final Map<String, Integer> totalProbeCounts = new HashMap<>();
 
@@ -30,7 +27,7 @@ public class TestProbes implements CoverageProbeStore {
   }
 
   @Override
-  public void report(Long testSessionId, long testSuiteId, long spanId) {
+  public void report(Long testSessionId, long testModuleId, long testSuiteId, long spanId) {
     // Create a copy to avoid any probes during processing that might modify the probeActivations
     // map
     List<ExecutionDataAdapter> executionDataAdapterList =
@@ -40,17 +37,14 @@ public class TestProbes implements CoverageProbeStore {
             .map(a -> a.toExecutionData(totalProbeCounts.get(a.getClassName())))
             .collect(Collectors.toList());
 
-    //    executionDataList.forEach((executionData) -> {
-    //      log.debug("{},{},{} -> {} -> {}", testSessionId, testSuiteId, spanId,
-    // executionData.toString(), executionData.getProbes());
-    //    });
-
-    TestReport testReport = new TestReport(testSessionId, testSuiteId, spanId, executionDataList);
+    TestReport testReport =
+        new TestReport(testSessionId, testModuleId, testSuiteId, spanId, executionDataList);
     testReport.generate();
   }
 
   public static class TestProbesFactory implements CoverageProbeStore.Factory {
 
+    @Override
     public void setTotalProbeCount(String className, int totalProbeCount) {
       totalProbeCounts.put(className, totalProbeCount);
     }
