@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 public class TelemetryServiceImpl implements TelemetryService {
 
   private static final Logger log = LoggerFactory.getLogger(TelemetryServiceImpl.class);
+  private static final String TELEMETRY_NAMESPACE_TAG_TRACER = "tracers";
 
   private static final int MAX_ELEMENTS_PER_REQUEST = 100;
 
@@ -186,7 +187,7 @@ public class TelemetryServiceImpl implements TelemetryService {
     while (!metrics.isEmpty()) {
       Payload payload =
           new GenerateMetrics()
-              .namespace("tracers")
+              .namespace(TELEMETRY_NAMESPACE_TAG_TRACER)
               .series(drainOrEmpty(metrics, maxElementsPerReq));
       Request request =
           requestBuilderSupplier
@@ -210,7 +211,7 @@ public class TelemetryServiceImpl implements TelemetryService {
     while (!distributionSeries.isEmpty()) {
       Payload payload =
           new Distributions()
-              .namespace("tracers")
+              .namespace(TELEMETRY_NAMESPACE_TAG_TRACER)
               .series(drainOrEmpty(distributionSeries, maxElementsPerReq));
       Request request =
           requestBuilderSupplier

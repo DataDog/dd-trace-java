@@ -17,11 +17,17 @@ public final class TypeInfoCache<T> {
 
   private static final int MAX_HASH_ATTEMPTS = 5;
 
+  private final boolean namesAreUnique;
   private final SharedTypeInfo<T>[] sharedTypeInfo;
   private final int slotMask;
 
-  @SuppressWarnings("unchecked")
   public TypeInfoCache(int capacity) {
+    this(capacity, false);
+  }
+
+  @SuppressWarnings("unchecked")
+  public TypeInfoCache(int capacity, boolean namesAreUnique) {
+    this.namesAreUnique = namesAreUnique;
     if (capacity < MIN_CAPACITY) {
       capacity = MIN_CAPACITY;
     } else if (capacity > MAX_CAPACITY) {
@@ -60,8 +66,12 @@ public final class TypeInfoCache<T> {
    * @return previously shared information for the named type
    */
   public SharedTypeInfo<T> share(String className, ClassLoader loader, URL classFile, T typeInfo) {
-    SharedTypeInfo<T> newValue =
-        new SharedTypeInfo<>(className, loaderId(loader), classFile, typeInfo);
+    SharedTypeInfo<T> newValue;
+    if (namesAreUnique) {
+      newValue = new SharedTypeInfo<>(className, typeInfo);
+    } else {
+      newValue = new DisambiguatingTypeInfo<>(className, typeInfo, loader, classFile);
+    }
 
     int nameHash = className.hashCode();
     int slot = slotMask & nameHash;
@@ -95,47 +105,46 @@ public final class TypeInfoCache<T> {
     return Integer.reverseBytes(oldHash * 0x9e3775cd) * 0x9e3775cd;
   }
 
-  private static LoaderId loaderId(ClassLoader loader) {
-    return BOOTSTRAP_LOADER == loader
-        ? BOOTSTRAP_LOADER_ID
-        : loaderIds.computeIfAbsent(loader, LoaderId::new);
-  }
-
-  static final ClassLoader BOOTSTRAP_LOADER = null;
-  static final LoaderId BOOTSTRAP_LOADER_ID = null;
-
-  private static final DDCache<ClassLoader, LoaderId> loaderIds =
-      DDCaches.newFixedSizeWeakKeyCache(64);
-
-  /** Supports classloader comparisons without strongly referencing the classloader. */
-  private static final class LoaderId extends WeakReference<ClassLoader> {
-    private final int loaderHash;
-
-    LoaderId(ClassLoader loader) {
-      super(loader);
-      this.loaderHash = System.identityHashCode(loader);
-    }
-
-    boolean sameClassLoader(ClassLoader loader) {
-      return loaderHash == System.identityHashCode(loader) && loader == get();
-    }
-  }
-
-  /** Wraps type information with the classloader and class file resource it originated from. */
-  public static final class SharedTypeInfo<T> {
+  /** Wraps type information with the name of the class it originated from. */
+  public static class SharedTypeInfo<T> {
     final String className;
-
-    private final LoaderId loaderId;
-    private final URL classFile;
     private final T typeInfo;
 
     long lastUsed = System.currentTimeMillis();
 
-    SharedTypeInfo(String className, LoaderId loaderId, URL classFile, T typeInfo) {
+    SharedTypeInfo(String className, T typeInfo) {
       this.className = className;
-      this.loaderId = loaderId;
-      this.classFile = classFile;
       this.typeInfo = typeInfo;
+    }
+
+    public boolean sameClassLoader(ClassLoader loader) {
+      return true;
+    }
+
+    public boolean sameClassFile(URL classFile) {
+      return true;
+    }
+
+    public final T get() {
+      return typeInfo;
+    }
+  }
+
+  /** Includes the classloader and class file resource it originated from. */
+  static final class DisambiguatingTypeInfo<T> extends SharedTypeInfo<T> {
+    private static final ClassLoader BOOTSTRAP_LOADER = null;
+    private static final LoaderId BOOTSTRAP_LOADER_ID = null;
+
+    private static final DDCache<ClassLoader, LoaderId> loaderIds =
+        DDCaches.newFixedSizeWeakKeyCache(64);
+
+    private final LoaderId loaderId;
+    private final URL classFile;
+
+    DisambiguatingTypeInfo(String className, T typeInfo, ClassLoader loader, URL classFile) {
+      super(className, typeInfo);
+      this.loaderId = loaderId(loader);
+      this.classFile = classFile;
     }
 
     public boolean sameClassLoader(ClassLoader loader) {
@@ -150,8 +159,10 @@ public final class TypeInfoCache<T> {
           && sameClassFile(this.classFile, classFile);
     }
 
-    public T get() {
-      return typeInfo;
+    private static LoaderId loaderId(ClassLoader loader) {
+      return BOOTSTRAP_LOADER == loader
+          ? BOOTSTRAP_LOADER_ID
+          : loaderIds.computeIfAbsent(loader, LoaderId::new);
     }
 
     /** Matches class file resources without triggering network lookups. */
@@ -160,6 +171,20 @@ public final class TypeInfoCache<T> {
           && Objects.equals(lhs.getRef(), rhs.getRef())
           && Objects.equals(lhs.getAuthority(), rhs.getAuthority())
           && Objects.equals(lhs.getProtocol(), rhs.getProtocol());
+    }
+  }
+
+  /** Supports classloader comparisons without strongly referencing the classloader. */
+  static final class LoaderId extends WeakReference<ClassLoader> {
+    private final int loaderHash;
+
+    LoaderId(ClassLoader loader) {
+      super(loader);
+      this.loaderHash = System.identityHashCode(loader);
+    }
+
+    boolean sameClassLoader(ClassLoader loader) {
+      return loaderHash == System.identityHashCode(loader) && loader == get();
     }
   }
 }

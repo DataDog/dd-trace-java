@@ -37,4 +37,6 @@ public interface PropagationModule extends IastModule {
   void taint(@Nullable Taintable t, byte origin, @Nullable String name, @Nullable String value);
 
   boolean isTainted(@Nullable Object obj);
+
+  Taintable.Source firstTaintedSource(@Nullable Object input);
 }

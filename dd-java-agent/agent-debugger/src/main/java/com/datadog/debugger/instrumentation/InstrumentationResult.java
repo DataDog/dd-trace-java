@@ -1,6 +1,5 @@
 package com.datadog.debugger.instrumentation;
 
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import java.util.Arrays;
 import java.util.List;
 import org.objectweb.asm.tree.ClassNode;

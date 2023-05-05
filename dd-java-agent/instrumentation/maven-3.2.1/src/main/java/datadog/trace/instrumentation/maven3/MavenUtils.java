@@ -35,7 +35,7 @@ public abstract class MavenUtils {
   public static String getCommandLine(MavenSession session) {
     String mavenCmdLineArgsEnvVar = System.getenv(MAVEN_CMD_LINE_ARGS_ENVIRONMENT_VAR);
     if (mavenCmdLineArgsEnvVar != null) {
-      return "mvn" + mavenCmdLineArgsEnvVar;
+      return MVN_CMD_LINE_INVOCATION + mavenCmdLineArgsEnvVar;
     }
 
     Properties sessionSystemProperties = session.getSystemProperties();
@@ -46,7 +46,7 @@ public abstract class MavenUtils {
     }
 
     MavenExecutionRequest request = session.getRequest();
-    StringBuilder command = new StringBuilder("mvn");
+    StringBuilder command = new StringBuilder(MVN_CMD_LINE_INVOCATION);
 
     if (!request.isInteractiveMode()) {
       command.append(" -").append(CLIManager.BATCH_MODE);

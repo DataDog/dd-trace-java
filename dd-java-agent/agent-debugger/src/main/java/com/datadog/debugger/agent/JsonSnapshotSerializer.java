@@ -1,23 +1,23 @@
 package com.datadog.debugger.agent;
 
+import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.MoshiHelper;
 import com.datadog.debugger.util.MoshiSnapshotHelper;
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
+import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
-import datadog.trace.bootstrap.debugger.Snapshot;
 import java.util.Map;
 
 /** Serializes snapshots in Json using Moshi */
-public class JsonSnapshotSerializer implements DebuggerContext.SnapshotSerializer {
+public class JsonSnapshotSerializer implements DebuggerContext.ValueSerializer {
   private static final String DD_TRACE_ID = "dd.trace_id";
   private static final String DD_SPAN_ID = "dd.span_id";
   private static final JsonAdapter<IntakeRequest> ADAPTER =
       MoshiHelper.createMoshiSnapshot().adapter(IntakeRequest.class);
-  private static final JsonAdapter<Snapshot.CapturedValue> VALUE_ADAPTER =
+  private static final JsonAdapter<CapturedContext.CapturedValue> VALUE_ADAPTER =
       new MoshiSnapshotHelper.CapturedValueAdapter();
 
-  @Override
   public String serializeSnapshot(String serviceName, Snapshot snapshot) {
     IntakeRequest request = new IntakeRequest(serviceName, new DebuggerIntakeRequestData(snapshot));
     handleCorrelationFields(snapshot, request);
@@ -27,7 +27,7 @@ public class JsonSnapshotSerializer implements DebuggerContext.SnapshotSerialize
   }
 
   @Override
-  public String serializeValue(Snapshot.CapturedValue value) {
+  public String serializeValue(CapturedContext.CapturedValue value) {
     return VALUE_ADAPTER.toJson(value);
   }
 
@@ -44,13 +44,13 @@ public class JsonSnapshotSerializer implements DebuggerContext.SnapshotSerialize
   }
 
   private void handleCorrelationFields(Snapshot snapshot, IntakeRequest request) {
-    Snapshot.CapturedContext entry = snapshot.getCaptures().getEntry();
+    CapturedContext entry = snapshot.getCaptures().getEntry();
     if (entry != null) {
       addTraceSpanId(entry, request);
       removeTraceSpanId(entry);
     }
     if (snapshot.getCaptures().getLines() != null) {
-      for (Snapshot.CapturedContext context : snapshot.getCaptures().getLines().values()) {
+      for (CapturedContext context : snapshot.getCaptures().getLines().values()) {
         addTraceSpanId(context, request);
         removeTraceSpanId(context);
       }
@@ -58,11 +58,11 @@ public class JsonSnapshotSerializer implements DebuggerContext.SnapshotSerialize
     removeTraceSpanId(snapshot.getCaptures().getReturn());
   }
 
-  private void removeTraceSpanId(Snapshot.CapturedContext context) {
+  private void removeTraceSpanId(CapturedContext context) {
     if (context == null) {
       return;
     }
-    Map<String, Snapshot.CapturedValue> fields = context.getFields();
+    Map<String, CapturedContext.CapturedValue> fields = context.getFields();
     if (fields == null) {
       return;
     }
@@ -70,7 +70,7 @@ public class JsonSnapshotSerializer implements DebuggerContext.SnapshotSerialize
     fields.remove(DD_SPAN_ID);
   }
 
-  private void addTraceSpanId(Snapshot.CapturedContext context, IntakeRequest request) {
+  private void addTraceSpanId(CapturedContext context, IntakeRequest request) {
     request.traceId = context.getTraceId();
     request.spanId = context.getSpanId();
   }

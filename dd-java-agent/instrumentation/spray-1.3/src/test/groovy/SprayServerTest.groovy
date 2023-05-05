@@ -34,6 +34,11 @@ abstract class SprayServerTest extends HttpServerTest<SprayHttpTestWebServer> {
   }
 
   @Override
+  boolean testBadUrl() {
+    false
+  }
+
+  @Override
   boolean hasExtraErrorInformation() {
     true
   }

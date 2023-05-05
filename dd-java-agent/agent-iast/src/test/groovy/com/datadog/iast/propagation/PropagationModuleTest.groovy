@@ -241,6 +241,27 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     ctx.taintedObjects.estimatedSize == 0
   }
 
+  void 'test first tainted source'() {
+    when:
+    final before = module.firstTaintedSource(target)
+
+    then:
+    before == null
+
+    when:
+    module.taint(origin, target)
+    final after = module.firstTaintedSource(target)
+
+    then:
+    after.origin == origin
+
+    where:
+    target              | origin
+    'this is a string'  | SourceTypes.REQUEST_PARAMETER_VALUE
+    new Object()        | SourceTypes.REQUEST_PARAMETER_VALUE
+    new MockTaintable() | SourceTypes.REQUEST_PARAMETER_VALUE
+  }
+
   private <E> E taint(final E toTaint) {
     final source = new Source(SourceTypes.REQUEST_PARAMETER_VALUE, null, null)
     if (toTaint instanceof Taintable) {

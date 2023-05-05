@@ -1,8 +1,8 @@
 package com.datadog.debugger.probe;
 
 import com.datadog.debugger.agent.Generated;
+import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.SpanInstrumentor;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.Arrays;

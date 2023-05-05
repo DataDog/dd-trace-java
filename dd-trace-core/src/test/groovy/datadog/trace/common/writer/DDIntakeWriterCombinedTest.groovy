@@ -730,8 +730,8 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
 
   def createMinimalContext() {
     def tracer = Mock(CoreTracer)
-    tracer.mapServiceName(_) >> { String serviceName -> serviceName }
     def trace = Mock(PendingTrace)
+    trace.mapServiceName(_) >> { String serviceName -> serviceName }
     trace.getTracer() >> tracer
     return new DDSpanContext(
       DDTraceId.ONE,

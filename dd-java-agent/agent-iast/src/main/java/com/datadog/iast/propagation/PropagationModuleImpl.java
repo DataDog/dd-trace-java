@@ -38,7 +38,7 @@ public class PropagationModuleImpl implements PropagationModule {
     final TaintedObjects taintedObjects = lazyTaintedObjects();
     final Source source = firstTaintedSource(taintedObjects, input);
     if (source != null) {
-      taintedObjects.taintInputString(toTaint, source);
+      taintString(taintedObjects, toTaint, source);
     }
   }
 
@@ -53,7 +53,7 @@ public class PropagationModuleImpl implements PropagationModule {
     }
     final TaintedObjects taintedObjects = lazyTaintedObjects();
     if (isTainted(taintedObjects, input)) {
-      taintedObjects.taintInputString(toTaint, new Source(origin, name, toTaint));
+      taintString(taintedObjects, toTaint, new Source(origin, name, toTaint));
     }
   }
 
@@ -70,7 +70,7 @@ public class PropagationModuleImpl implements PropagationModule {
     if (isTainted(taintedObjects, input)) {
       for (final String toTaint : toTaintCollection) {
         if (canBeTainted(toTaint)) {
-          taintedObjects.taintInputString(toTaint, new Source(origin, name, toTaint));
+          taintString(taintedObjects, toTaint, new Source(origin, name, toTaint));
         }
       }
     }
@@ -88,7 +88,7 @@ public class PropagationModuleImpl implements PropagationModule {
     if (isTainted(taintedObjects, input)) {
       for (final String toTaint : toTaintCollection) {
         if (canBeTainted(toTaint)) {
-          taintedObjects.taintInputString(toTaint, new Source(origin, toTaint, toTaint));
+          taintString(taintedObjects, toTaint, new Source(origin, toTaint, toTaint));
         }
       }
     }
@@ -105,14 +105,14 @@ public class PropagationModuleImpl implements PropagationModule {
     final TaintedObjects taintedObjects = lazyTaintedObjects();
     if (isTainted(taintedObjects, input)) {
       for (final Map.Entry<String, String> entry : toTaintCollection) {
-        final String name = entry.getValue();
+        final String name = entry.getKey();
         if (canBeTainted(name)) {
-          taintedObjects.taintInputString(
-              name, new Source(SourceTypes.namedSource(origin), name, name));
+          taintString(
+              taintedObjects, name, new Source(SourceTypes.namedSource(origin), name, name));
         }
         final String toTaint = entry.getValue();
         if (canBeTainted(toTaint)) {
-          taintedObjects.taintInputString(toTaint, new Source(origin, name, toTaint));
+          taintString(taintedObjects, toTaint, new Source(origin, name, toTaint));
         }
       }
     }
@@ -178,6 +178,20 @@ public class PropagationModuleImpl implements PropagationModule {
       return;
     }
     t.$$DD$setSource(new Source(origin, name, value));
+  }
+
+  @Override
+  public Taintable.Source firstTaintedSource(@Nullable final Object input) {
+    if (input == null) {
+      return null;
+    }
+    final TaintedObjects taintedObjects = lazyTaintedObjects();
+    return firstTaintedSource(taintedObjects, input);
+  }
+
+  private static void taintString(
+      final TaintedObjects taintedObjects, final String toTaint, final Source source) {
+    taintedObjects.taintInputString(toTaint, source);
   }
 
   private static void taintObject(

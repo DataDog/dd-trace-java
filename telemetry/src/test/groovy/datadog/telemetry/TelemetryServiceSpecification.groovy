@@ -190,7 +190,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     then:
     1 * requestBuilder.build(RequestType.GENERATE_METRICS, { GenerateMetrics p ->
       p.requestType == RequestType.GENERATE_METRICS &&
-        p.namespace == 'tracers' &&  // top level namespace is "tracer" by default
+        p.namespace == 'tracers' &&  // top level namespace is "tracers" by default
         p.requestType &&
         p.series.first().is(metric)
     }) >> REQUEST
@@ -209,7 +209,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     then:
     1 * requestBuilder.build(RequestType.DISTRIBUTIONS, { Distributions p ->
       p.requestType == RequestType.DISTRIBUTIONS &&
-        p.namespace == 'tracers' &&  // top level namespace is "tracer" by default
+        p.namespace == 'tracers' &&  // top level namespace is "tracers" by default
         p.requestType &&
         p.series.first().is(series)
     }) >> REQUEST

@@ -21,7 +21,9 @@ public class OtelSpanContext implements SpanContext {
 
   public static SpanContext fromLocalSpan(AgentSpan span) {
     AgentSpan.Context delegate = span.context();
-    boolean sampled = span.getSamplingPriority() != null && span.getSamplingPriority() > 0;
+    AgentSpan localRootSpan = span.getLocalRootSpan();
+    Integer samplingPriority = localRootSpan.getSamplingPriority();
+    boolean sampled = samplingPriority != null && samplingPriority > 0;
     return new OtelSpanContext(delegate, sampled, false);
   }
 

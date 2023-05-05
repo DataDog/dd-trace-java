@@ -6,7 +6,8 @@ import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.probe.LogProbe;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.EvaluationError;
 import java.util.List;
 
 public class LogMessageTemplateBuilder {
@@ -21,7 +22,7 @@ public class LogMessageTemplateBuilder {
     this.segments = segments;
   }
 
-  public String evaluate(Snapshot.CapturedContext context, Snapshot.CapturedContext.Status status) {
+  public String evaluate(CapturedContext context, LogProbe.LogStatus status) {
     if (segments == null) {
       return null;
     }
@@ -42,7 +43,7 @@ public class LogMessageTemplateBuilder {
               serializeValue(sb, segment.getParsedExpr().getDsl(), result.getValue(), status);
             }
           } catch (EvaluationException ex) {
-            status.addError(new Snapshot.EvaluationError(ex.getExpr(), ex.getMessage()));
+            status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
             status.setLogTemplateErrors(true);
             sb.append("{").append(ex.getMessage()).append("}");
           }

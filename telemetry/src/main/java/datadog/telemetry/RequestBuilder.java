@@ -109,6 +109,8 @@ public class RequestBuilder {
         .addHeader("DD-Telemetry-API-Version", API_VERSION.toString())
         .addHeader("DD-Telemetry-Request-Type", requestType.toString())
         .addHeader("DD-Telemetry-Debug-Enabled", Boolean.toString(debug))
+        .addHeader("DD-Client-Library-Language", "jvm")
+        .addHeader("DD-Client-Library-Version", TracerVersion.TRACER_VERSION)
         .post(body)
         .build();
   }

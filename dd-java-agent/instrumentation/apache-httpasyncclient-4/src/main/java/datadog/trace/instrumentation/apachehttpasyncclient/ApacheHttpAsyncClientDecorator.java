@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.apachehttpasyncclient;
 
+import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
@@ -52,7 +53,7 @@ public class ApacheHttpAsyncClientDecorator extends HttpClientDecorator<HttpRequ
       return ((HttpUriRequest) request).getURI();
     } else {
       final RequestLine requestLine = request.getRequestLine();
-      return requestLine == null ? null : new URI(requestLine.getUri());
+      return requestLine == null ? null : URIUtils.safeParse(requestLine.getUri());
     }
   }
 

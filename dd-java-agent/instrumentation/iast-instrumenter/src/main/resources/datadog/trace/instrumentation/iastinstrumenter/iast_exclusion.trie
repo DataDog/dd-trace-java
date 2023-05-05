@@ -9,6 +9,7 @@
 # 2 = Iast Instrumenter allows and filter stacktrace
 
 # -------- JDK --------
+1 com.azul.*
 1 com.sun.*
 1 java.*
 1 javax.*
@@ -122,6 +123,11 @@
 1 net.sourceforge.barbecue.*
 1 netscape.*
 1 okhttp3.*
+# Required for propagation purposes
+2 com.squareup.okhttp.Request
+2 com.squareup.okhttp.Request$*
+2 okhttp3.Request
+2 okhttp3.Request$*
 1 oracle.jdbc.*
 1 oracle.sql.*
 1 org.aopalliance.*

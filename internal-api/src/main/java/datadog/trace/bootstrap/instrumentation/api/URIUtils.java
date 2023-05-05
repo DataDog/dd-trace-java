@@ -1,13 +1,18 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class URIUtils {
   private URIUtils() {}
 
   // This is the � character, which is also the default replacement for the UTF_8 charset
   private static final byte[] REPLACEMENT = {(byte) 0xEF, (byte) 0xBF, (byte) 0xBD};
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(URIUtils.class);
 
   /**
    * Decodes a %-encoded UTF-8 {@code String} into a regular {@code String}.
@@ -111,5 +116,17 @@ public class URIUtils {
       urlNoParams.append(path);
     }
     return urlNoParams.toString();
+  }
+
+  public static URI safeParse(final String unparsed) {
+    if (unparsed == null) {
+      return null;
+    }
+    try {
+      return URI.create(unparsed);
+    } catch (final IllegalArgumentException exception) {
+      LOGGER.debug("Unable to parse request uri {}", unparsed, exception);
+      return null;
+    }
   }
 }

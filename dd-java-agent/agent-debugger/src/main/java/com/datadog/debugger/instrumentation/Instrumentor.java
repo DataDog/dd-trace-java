@@ -2,10 +2,9 @@ package com.datadog.debugger.instrumentation;
 
 import static com.datadog.debugger.instrumentation.Types.STRING_TYPE;
 
+import com.datadog.debugger.instrumentation.DiagnosticMessage.Kind;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Where;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage.Kind;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;

@@ -38,7 +38,6 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT;
 
-import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.lang.management.ManagementFactory;
 import java.util.Collections;
@@ -132,8 +131,7 @@ public class DatadogProfilerConfig {
     return getBoolean(
         configProvider,
         PROFILING_DATADOG_PROFILER_ALLOC_ENABLED,
-        PROFILING_DATADOG_PROFILER_ALLOC_ENABLED_DEFAULT
-            || (Platform.isJavaVersionAtLeast(11) && !Platform.isJ9()));
+        PROFILING_DATADOG_PROFILER_ALLOC_ENABLED_DEFAULT);
   }
 
   public static boolean isAllocationProfilingEnabled() {

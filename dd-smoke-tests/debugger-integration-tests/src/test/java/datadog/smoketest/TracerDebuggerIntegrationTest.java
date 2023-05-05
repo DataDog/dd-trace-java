@@ -7,10 +7,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.agent.test.utils.PortUtils;
 import datadog.trace.bootstrap.debugger.ProbeId;
-import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.util.TagsHelper;
 import java.io.IOException;
 import java.nio.file.Files;

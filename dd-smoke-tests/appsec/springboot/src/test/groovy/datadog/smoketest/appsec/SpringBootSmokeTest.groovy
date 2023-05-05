@@ -106,4 +106,29 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
       assert it['rule']['tags']['type'] == 'lfi'
     }
   }
+
+  def 'block request based on header'() {
+    when:
+    String url = "http://localhost:${httpPort}/greeting"
+    def request = new Request.Builder()
+      .url(url)
+      .addHeader("User-Agent", "dd-test-scanner-log-block")
+      .addHeader("X-Forwarded-For", '80.80.80.80"')
+      .build()
+    def response = client.newCall(request).execute()
+    def responseBodyStr = response.body().string()
+
+    then:
+    responseBodyStr.contains("blocked")
+    response.code() == 403
+
+    when:
+    waitForTraceCount(1) == 1
+
+    then:
+    rootSpans.size() == 1
+    forEachRootSpanTrigger {
+      assert it['rule']['tags']['type'] == 'security_scanner'
+    }
+  }
 }

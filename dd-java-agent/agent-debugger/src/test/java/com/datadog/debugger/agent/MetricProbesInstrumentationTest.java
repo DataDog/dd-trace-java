@@ -9,13 +9,14 @@ import static utils.InstrumentationTestHelper.compileAndLoadClass;
 
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ValueScript;
+import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.probe.MetricProbe;
+import com.datadog.debugger.sink.Sink;
+import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
-import datadog.trace.bootstrap.debugger.Snapshot;
 import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
@@ -123,7 +124,7 @@ public class MetricProbesInstrumentationTest {
     Assertions.assertEquals(3, result);
     Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME));
     Assertions.assertEquals(
-        "Unsupported literal: 42.0 type: java.lang.Double, expect integral type (int, long).",
+        "Unsupported constant value: 42.0 type: java.lang.Double",
         mockSink.getCurrentDiagnostics().get(0).getMessage());
   }
 
@@ -181,8 +182,8 @@ public class MetricProbesInstrumentationTest {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(48, result);
-    Assertions.assertTrue(listener.counters.containsKey(METRIC_NAME));
-    Assertions.assertEquals(31, listener.counters.get(METRIC_NAME).longValue());
+    Assertions.assertTrue(listener.gauges.containsKey(METRIC_NAME));
+    Assertions.assertEquals(31, listener.gauges.get(METRIC_NAME).longValue());
     Assertions.assertArrayEquals(new String[] {METRIC_PROBEID_TAG}, listener.lastTags);
   }
 
@@ -219,8 +220,8 @@ public class MetricProbesInstrumentationTest {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(48, result);
-    Assertions.assertTrue(listener.counters.containsKey(METRIC_NAME));
-    Assertions.assertEquals(31, listener.counters.get(METRIC_NAME).longValue());
+    Assertions.assertTrue(listener.histrograms.containsKey(METRIC_NAME));
+    Assertions.assertEquals(31, listener.histrograms.get(METRIC_NAME).longValue());
     Assertions.assertArrayEquals(new String[] {METRIC_PROBEID_TAG}, listener.lastTags);
   }
 
@@ -241,8 +242,8 @@ public class MetricProbesInstrumentationTest {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(48, result);
-    Assertions.assertTrue(listener.counters.containsKey(METRIC_NAME));
-    Assertions.assertEquals(31, listener.counters.get(METRIC_NAME).longValue());
+    Assertions.assertTrue(listener.histrograms.containsKey(METRIC_NAME));
+    Assertions.assertEquals(31, listener.histrograms.get(METRIC_NAME).longValue());
     Assertions.assertArrayEquals(new String[] {"tag1:foo1", METRIC_PROBEID_TAG}, listener.lastTags);
   }
 
@@ -710,7 +711,6 @@ public class MetricProbesInstrumentationTest {
       String... lines) {
     return createMetricBuilder(id, metricName, metricKind)
         .where(typeName, methodName, signature, lines)
-        .kind(COUNT)
         .valueScript(valueScript)
         .tags(tags)
         .build();
@@ -725,7 +725,6 @@ public class MetricProbesInstrumentationTest {
       int line) {
     return createMetricBuilder(id, metricName, metricKind)
         .where(sourceFile, line)
-        .kind(COUNT)
         .valueScript(valueScript)
         .build();
   }
@@ -747,7 +746,8 @@ public class MetricProbesInstrumentationTest {
     instr.addTransformer(currentTransformer);
     MetricForwarderListener listener = new MetricForwarderListener();
     mockSink = new MockSink();
-    DebuggerContext.init(mockSink, null, listener);
+    DebuggerAgentHelper.injectSink(mockSink);
+    DebuggerContext.init(null, listener);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     return listener;
   }
@@ -762,6 +762,8 @@ public class MetricProbesInstrumentationTest {
 
   private static class MetricForwarderListener implements DebuggerContext.MetricForwarder {
     Map<String, Long> counters = new HashMap<>();
+    Map<String, Long> gauges = new HashMap<>();
+    Map<String, Long> histrograms = new HashMap<>();
     String[] lastTags = null;
 
     @Override
@@ -772,21 +774,26 @@ public class MetricProbesInstrumentationTest {
 
     @Override
     public void gauge(String name, long value, String[] tags) {
+      gauges.put(name, value);
       lastTags = tags;
     }
 
     @Override
     public void histogram(String name, long value, String[] tags) {
+      histrograms.put(name, value);
       lastTags = tags;
     }
   }
 
-  private static class MockSink implements DebuggerContext.Sink {
+  private static class MockSink implements Sink {
 
     private final List<DiagnosticMessage> currentDiagnostics = new ArrayList<>();
 
     @Override
     public void addSnapshot(Snapshot snapshot) {}
+
+    @Override
+    public void skipSnapshot(String probeId, DebuggerContext.SkipCause cause) {}
 
     @Override
     public void addDiagnostics(ProbeId probeId, List<DiagnosticMessage> messages) {
