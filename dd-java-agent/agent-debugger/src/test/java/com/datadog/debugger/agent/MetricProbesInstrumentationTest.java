@@ -746,6 +746,38 @@ public class MetricProbesInstrumentationTest {
     Assertions.assertEquals(4, listener.gauges.get(MAPIDX_METRIC).longValue());
   }
 
+  @Test
+  public void indexInvalidKeyTypeExpression() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot22";
+    String ARRAYSTRIDX_METRIC = "arrayStrIndex";
+    String ARRAYOOBIDX_METRIC = "arrayOutOfBoundsIndex";
+    MetricProbe metricProbe1 =
+        createMetricBuilder(METRIC_ID, ARRAYSTRIDX_METRIC, GAUGE)
+            .where(CLASS_NAME, "doit", "(String)")
+            .valueScript(
+                new ValueScript(
+                    DSL.index(DSL.ref("intArray"), DSL.value("foo")), "intArray['foo']"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricProbe metricProbe2 =
+        createMetricBuilder(METRIC_ID, ARRAYOOBIDX_METRIC, GAUGE)
+            .where(CLASS_NAME, "doit", "(String)")
+            // generates ArrayOutOfBoundsException
+            .valueScript(
+                new ValueScript(DSL.index(DSL.ref("intArray"), DSL.value(42)), "intArray[42]"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricForwarderListener listener = installMetricProbes(metricProbe1, metricProbe2);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assertions.assertEquals(42, result);
+    Assertions.assertFalse(listener.gauges.containsKey(ARRAYSTRIDX_METRIC));
+    Assertions.assertFalse(listener.gauges.containsKey(ARRAYOOBIDX_METRIC));
+    Assertions.assertEquals(
+        "Incompatible type for key: Type{mainType=Ljava/lang/String;, genericTypes=[]}, expected int or long",
+        mockSink.getCurrentDiagnostics().get(0).getMessage());
+  }
+
   private MetricForwarderListener installSingleMetric(
       String metricName,
       MetricProbe.MetricKind metricKind,

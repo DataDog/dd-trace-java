@@ -58,6 +58,7 @@ import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
 import org.slf4j.Logger;
@@ -91,7 +92,7 @@ public class MetricInstrumentor extends Instrumentor {
         case ENTRY:
         case DEFAULT:
           {
-            InsnList insnList = callMetric(metricProbe);
+            InsnList insnList = wrapTryCatch(callMetric(metricProbe));
             methodNode.instructions.insert(methodEnterLabel, insnList);
             break;
           }
@@ -107,9 +108,69 @@ public class MetricInstrumentor extends Instrumentor {
     }
   }
 
+  private InsnList wrapTryCatch(InsnList insnList) {
+    if (insnList == null || insnList == EMPTY_INSN_LIST) {
+      return EMPTY_INSN_LIST;
+    }
+    LabelNode startLabel = new LabelNode();
+    insnList.insert(startLabel);
+    LabelNode endLabel = new LabelNode();
+    insnList.add(endLabel);
+    InsnList handler = new InsnList();
+    LabelNode handlerLabel = new LabelNode();
+    handler.add(handlerLabel);
+    // stack [exception]
+    handler.add(new InsnNode(Opcodes.POP));
+    // stack []
+    handler.add(new JumpInsnNode(Opcodes.GOTO, endLabel));
+    methodNode.instructions.add(handler);
+    methodNode.tryCatchBlocks.add(
+        new TryCatchBlockNode(
+            startLabel, endLabel, handlerLabel, Type.getInternalName(Exception.class)));
+    return insnList;
+  }
+
   @Override
   protected InsnList getBeforeReturnInsnList(AbstractInsnNode node) {
-    return callMetric(metricProbe);
+    int size = 1;
+    int storeOpCode = 0;
+    int loadOpCode = 0;
+    switch (node.getOpcode()) {
+      case Opcodes.RET:
+      case Opcodes.RETURN:
+        return wrapTryCatch(callMetric(metricProbe));
+      case Opcodes.LRETURN:
+        storeOpCode = Opcodes.LSTORE;
+        loadOpCode = Opcodes.LLOAD;
+        size = 2;
+        break;
+      case Opcodes.DRETURN:
+        storeOpCode = Opcodes.DSTORE;
+        loadOpCode = Opcodes.DLOAD;
+        size = 2;
+        break;
+      case Opcodes.IRETURN:
+        storeOpCode = Opcodes.ISTORE;
+        loadOpCode = Opcodes.ILOAD;
+        break;
+      case Opcodes.FRETURN:
+        storeOpCode = Opcodes.FSTORE;
+        loadOpCode = Opcodes.FLOAD;
+        break;
+      case Opcodes.ARETURN:
+        storeOpCode = Opcodes.ASTORE;
+        loadOpCode = Opcodes.ALOAD;
+        break;
+      default:
+        throw new UnsupportedOperationException("Unsupported opcode: " + node.getOpcode());
+    }
+    InsnList insnList = wrapTryCatch(callMetric(metricProbe));
+    int tmpIdx = newVar(size);
+    // store return value from the stack to local before wrapped call
+    insnList.insert(new VarInsnNode(storeOpCode, tmpIdx));
+    // restore return value to the stack after wrapped call
+    insnList.add(new VarInsnNode(loadOpCode, tmpIdx));
+    return insnList;
   }
 
   private InsnList callCount(MetricProbe metricProbe) {
@@ -229,11 +290,11 @@ public class MetricInstrumentor extends Instrumentor {
             "No line info for " + (sourceLine.isSingleLine() ? "line " : "range ") + sourceLine);
       }
       if (beforeLabel != null) {
-        InsnList insnList = callMetric(metricProbe);
+        InsnList insnList = wrapTryCatch(callMetric(metricProbe));
         methodNode.instructions.insertBefore(beforeLabel.getNext(), insnList);
       }
       if (afterLabel != null && !sourceLine.isSingleLine()) {
-        InsnList insnList = callMetric(metricProbe);
+        InsnList insnList = wrapTryCatch(callMetric(metricProbe));
         methodNode.instructions.insert(afterLabel, insnList);
       }
     }
@@ -416,32 +477,43 @@ public class MetricInstrumentor extends Instrumentor {
     public VisitorResult visit(IndexExpression indexExpression) {
       InsnList insnList = new InsnList();
       VisitorResult targetResult = indexExpression.getTarget().accept(this);
+      // stack [target_object]
       insnList.add(targetResult.insnList);
       VisitorResult keyResult = indexExpression.getKey().accept(this);
+      // stack [target_object, key_object]
       insnList.add(keyResult.insnList);
-      if (keyResult.type.getMainType().equals(Type.LONG_TYPE)) {
-        insnList.add(new InsnNode(Opcodes.L2I));
-      }
       Type targetType = targetResult.type.getMainType();
-      if (targetType.getSort() == Type.ARRAY) {
-        insnList.add(new InsnNode(targetType.getElementType().getOpcode(Opcodes.IALOAD)));
-        return new VisitorResult(new ASMHelper.Type(targetType.getElementType()), insnList);
-      }
-      if (targetType.equals(LIST_TYPE)) {
-        invokeInterface(insnList, targetType, "get", OBJECT_TYPE, Type.INT_TYPE);
-        return buildResultWithElementType(targetResult.type, insnList);
-      }
-      if (targetType.equals(ARRAYLIST_TYPE) || targetType.equals(LINKEDLIST_TYPE)) {
-        invokeVirtual(insnList, targetType, "get", OBJECT_TYPE, Type.INT_TYPE);
-        return buildResultWithElementType(targetResult.type, insnList);
-      }
       if (targetType.equals(MAP_TYPE)) {
         invokeInterface(insnList, targetType, "get", OBJECT_TYPE, OBJECT_TYPE);
+        // stack [result_object]
         return buildResultWithElementType(targetResult.type, insnList);
       }
       if (targetType.equals(HASHMAP_TYPE)) {
         invokeVirtual(insnList, targetType, "get", OBJECT_TYPE, OBJECT_TYPE);
+        // stack [result_object]
         return buildResultWithElementType(targetResult.type, insnList);
+      }
+      // for now on, we expect to be either an int or a long for accessing lists or arrays
+      if (keyResult.type.getMainType().equals(Type.LONG_TYPE)
+          || keyResult.type.getMainType().equals(Type.INT_TYPE)) {
+        if (keyResult.type.getMainType().equals(Type.LONG_TYPE)) {
+          insnList.add(new InsnNode(Opcodes.L2I));
+        }
+        if (targetType.getSort() == Type.ARRAY) {
+          insnList.add(new InsnNode(targetType.getElementType().getOpcode(Opcodes.IALOAD)));
+          return new VisitorResult(new ASMHelper.Type(targetType.getElementType()), insnList);
+        }
+        if (targetType.equals(LIST_TYPE)) {
+          invokeInterface(insnList, targetType, "get", OBJECT_TYPE, Type.INT_TYPE);
+          return buildResultWithElementType(targetResult.type, insnList);
+        }
+        if (targetType.equals(ARRAYLIST_TYPE) || targetType.equals(LINKEDLIST_TYPE)) {
+          invokeVirtual(insnList, targetType, "get", OBJECT_TYPE, Type.INT_TYPE);
+          return buildResultWithElementType(targetResult.type, insnList);
+        }
+      } else {
+        throw new UnsupportedOperationException(
+            "Incompatible type for key: " + keyResult.type + ", expected int or long");
       }
       throw new UnsupportedOperationException(targetResult.type.toString());
     }

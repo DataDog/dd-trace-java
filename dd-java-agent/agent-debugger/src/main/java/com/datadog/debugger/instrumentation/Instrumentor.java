@@ -263,6 +263,12 @@ public abstract class Instrumentor {
     return varId;
   }
 
+  protected int newVar(int size) {
+    int varId = methodNode.maxLocals + 1;
+    methodNode.maxLocals += size;
+    return varId;
+  }
+
   protected void reportError(String message) {
     diagnostics.add(new DiagnosticMessage(Kind.ERROR, message));
   }
