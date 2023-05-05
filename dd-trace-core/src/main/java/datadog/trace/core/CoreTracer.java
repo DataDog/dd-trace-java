@@ -68,6 +68,8 @@ import datadog.trace.common.metrics.MetricsAggregator;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.sampling.SingleSpanSampler;
+import datadog.trace.common.sampling.SpanSamplingRules;
+import datadog.trace.common.sampling.TraceSamplingRules;
 import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
@@ -483,11 +485,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     endpointCheckpointer = EndpointCheckpointerHolder.create();
     this.serviceName = serviceName;
     this.dynamicConfig =
-        DynamicConfig.create()
-            .setServiceMapping(serviceNameMappings)
-            .setTaggedHeaders(taggedHeaders)
-            .setBaggageMapping(baggageMapping)
-            .apply();
+        buildDynamicConfig(config, serviceNameMappings, taggedHeaders, baggageMapping);
     this.sampler = sampler;
     this.injector = injector;
     if (extractor != null) {
@@ -625,6 +623,35 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     propagationTagsFactory = PropagationTags.factory(config);
     this.profilingContextIntegration = profilingContextIntegration;
+  }
+
+  private static DynamicConfig buildDynamicConfig(
+      Config config,
+      Map<String, String> serviceNameMappings,
+      Map<String, String> taggedHeaders,
+      Map<String, String> baggageMapping) {
+    // Get initial trace sampling rules from config
+    TraceSamplingRules traceSamplingRules =
+        config.getTraceSamplingRules() == null
+            ? TraceSamplingRules.EMPTY
+            : TraceSamplingRules.deserialize(config.getTraceSamplingRules());
+    // Get initial span sampling rules from config
+    String spanSamplingRulesJson = config.getSpanSamplingRules();
+    String spanSamplingRulesFile = config.getSpanSamplingRulesFile();
+    SpanSamplingRules spanSamplingRules = SpanSamplingRules.EMPTY;
+    if (spanSamplingRulesJson != null) {
+      spanSamplingRules = SpanSamplingRules.deserialize(spanSamplingRulesJson);
+    } else if (spanSamplingRulesFile != null) {
+      spanSamplingRules = SpanSamplingRules.deserializeFile(spanSamplingRulesFile);
+    }
+    // Build dynamic config instance
+    return DynamicConfig.create()
+        .setServiceMapping(serviceNameMappings)
+        .setSpanSamplingRules(spanSamplingRules.getRules())
+        .setTraceSamplingRules(traceSamplingRules.getRules())
+        .setTaggedHeaders(taggedHeaders)
+        .setBaggageMapping(baggageMapping)
+        .apply();
   }
 
   @Override

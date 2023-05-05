@@ -26,6 +26,13 @@ dependencies {
       prefer '1.6.0'
     }
   }
+  // Downgrade moshi to a previous version as moshi 1.2.0+ requires okio 1.8.0+
+  testImplementation('com.squareup.moshi:moshi') {
+    version {
+      strictly '1.1.0'
+    }
+  }
+
   latestDepTestImplementation group: 'com.squareup.okhttp3', name: 'okhttp', version: '[3.11.0, 4)'
   latestDepTestImplementation group: 'com.squareup.okio', name: 'okio', version: '1.+'
 
