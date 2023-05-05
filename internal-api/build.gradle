@@ -126,6 +126,9 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration.NoOp",
   // debug
   'datadog.trace.api.iast.Taintable.DebugLogger',
+  // POJO
+  "datadog.trace.api.LogCollector.RawLogMessage",
+  "datadog.trace.api.LogCollector.Holder",
 ]
 
 excludedClassesBranchCoverage = [
