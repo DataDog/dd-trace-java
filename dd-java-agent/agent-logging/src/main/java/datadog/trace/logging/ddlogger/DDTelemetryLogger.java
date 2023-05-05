@@ -31,9 +31,8 @@ public class DDTelemetryLogger extends DDLogger {
     // We report only messages with Throwable or explicitly marked with SEND_TELEMETRY
     if (t != null || marker == LogCollector.SEND_TELEMETRY) {
       if (level == LogLevel.DEBUG) {
-        // For the "debug", we don't want to scrub data there generally,
-        // as that's kind of the whole point, we already shouldn't be logging things like API keys
-        // or tokens
+        // Sending "debug" level messages as-is because they are expected not to have any sensitive
+        // information
         if (msg != null) {
           LogCollector.get().addLogMessage(level.name(), msg, t);
         }

@@ -6,12 +6,15 @@ class ExceptionHelper {
   }
 
   static boolean isDataDogOrJava(String stackLine) {
+    int slashPosition = stackLine.indexOf('/')
     int startOfLine =
-    (-1 != stackLine.indexOf('/') ? stackLine.indexOf('/') : stackLine.indexOf(" at ") + 3)
+      (-1 != slashPosition ? slashPosition : stackLine.indexOf(" at ") + 3)
     String callSpec = stackLine.substring(startOfLine + 1, stackLine.length())
-    return callSpec.startsWith("java.")
-    || callSpec.startsWith("datadog.")
-    || callSpec.startsWith("com.datadog.")
-    || callSpec.startsWith("javax.")
+    for (final def prefix in LogPeriodicAction.PACKAGE_LIST) {
+      if (callSpec.startsWith(prefix)) {
+        return true
+      }
+    }
+    return false
   }
 }
