@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.servlet;
 
+import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.http.StoredCharBody;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -21,7 +22,7 @@ public class BufferedReaderWrapper extends BufferedReader {
     if (read >= 0) {
       storedCharBody.appendData(read);
     } else {
-      storedCharBody.maybeNotify();
+      storedCharBody.maybeNotifyAndBlock();
     }
     return read;
   }
@@ -32,7 +33,7 @@ public class BufferedReaderWrapper extends BufferedReader {
     if (read > 0) {
       storedCharBody.appendData(cbuf, off, off + read);
     } else if (read == -1) {
-      storedCharBody.maybeNotify();
+      storedCharBody.maybeNotifyAndBlock();
     }
     return read;
   }
@@ -41,7 +42,7 @@ public class BufferedReaderWrapper extends BufferedReader {
   public String readLine() throws IOException {
     String read = this.reader.readLine();
     if (read == null) {
-      storedCharBody.maybeNotify();
+      storedCharBody.maybeNotifyAndBlock();
       return null;
     }
     storedCharBody.appendData(read);
@@ -77,7 +78,7 @@ public class BufferedReaderWrapper extends BufferedReader {
   @Override
   public void close() throws IOException {
     this.reader.close();
-    storedCharBody.maybeNotify();
+    storedCharBody.maybeNotifyAndBlock();
   }
 
   @Override
@@ -95,7 +96,7 @@ public class BufferedReaderWrapper extends BufferedReader {
       target.limit(finalLimit);
       target.position(finalPos);
     } else if (read == -1) {
-      storedCharBody.maybeNotify();
+      storedCharBody.maybeNotifyAndBlock();
     }
     return read;
   }
@@ -106,7 +107,7 @@ public class BufferedReaderWrapper extends BufferedReader {
     if (read > 0) {
       storedCharBody.appendData(cbuf, 0, read);
     } else if (read == -1) {
-      storedCharBody.maybeNotify();
+      storedCharBody.maybeNotifyAndBlock();
     }
     return read;
   }

@@ -1,9 +1,12 @@
 package datadog.trace.instrumentation.ratpack;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.http.StoredBodyFactories;
 import datadog.trace.api.http.StoredByteBody;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.netty.buffer.ByteBuf;
 import net.bytebuddy.asm.Advice;
 import ratpack.file.FileIo;

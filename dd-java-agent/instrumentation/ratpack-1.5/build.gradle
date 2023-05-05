@@ -22,3 +22,6 @@ dependencies {
   testImplementation 'com.sun.activation:jakarta.activation:1.2.2'
   latestDepTestImplementation group: 'io.ratpack', name: 'ratpack-groovy-test', version: '1.+'
 }
+test {
+  outputs.upToDateWhen { false }
+}

@@ -2,11 +2,15 @@ package datadog.trace.instrumentation.ratpack;
 
 import static datadog.trace.instrumentation.ratpack.RatpackServerDecorator.DECORATE;
 
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Optional;
 import net.bytebuddy.asm.Advice;
 import ratpack.handling.Context;
 
+/**
+ * @see ratpack.error.ServerErrorHandler#error(Context, Throwable)
+ */
 public class ErrorHandlerAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void captureThrowable(

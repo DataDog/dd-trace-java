@@ -113,6 +113,11 @@ public class StoredByteBody implements StoredBodySupplier {
     return storedCharBody.maybeNotify();
   }
 
+  public void maybeNotifyAndBlock() {
+    commit(true);
+    storedCharBody.maybeNotifyAndBlock();
+  }
+
   @Override
   public synchronized CharSequence get() {
     commit(false);

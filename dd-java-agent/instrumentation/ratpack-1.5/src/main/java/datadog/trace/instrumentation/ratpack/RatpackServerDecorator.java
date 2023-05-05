@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.ratpack;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -92,7 +93,7 @@ public class RatpackServerDecorator extends HttpServerDecorator<Request, Request
   }
 
   @Override
-  public AgentSpan onError(final AgentSpan span, final Throwable throwable) {
+  public AgentSpan onError(final AgentSpan span, Throwable throwable) {
     // Attempt to unwrap ratpack.handling.internal.HandlerException without direct reference.
     if (throwable instanceof Error && throwable.getCause() != null) {
       return super.onError(span, throwable.getCause());

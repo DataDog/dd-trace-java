@@ -4,6 +4,7 @@ import ch.qos.logback.classic.Level
 import datadog.appsec.api.blocking.Blocking
 import datadog.appsec.api.blocking.BlockingContentType
 import datadog.appsec.api.blocking.BlockingDetails
+import datadog.appsec.api.blocking.BlockingException
 import datadog.appsec.api.blocking.BlockingService
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.Config
@@ -22,6 +23,7 @@ import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.api.normalize.SimpleHttpPathNormalizer
+import datadog.trace.bootstrap.blocking.BlockingActionHelper
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
@@ -29,6 +31,7 @@ import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.test.util.Flaky
+import groovy.transform.Canonical
 import groovy.transform.CompileStatic
 import okhttp3.HttpUrl
 import okhttp3.MediaType
@@ -40,6 +43,7 @@ import org.slf4j.LoggerFactory
 import spock.lang.Unroll
 
 import javax.annotation.Nonnull
+import java.nio.charset.StandardCharsets
 import java.util.function.BiFunction
 import java.util.function.Function
 import java.util.function.Supplier
@@ -72,11 +76,13 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS
+import static datadog.trace.bootstrap.blocking.BlockingActionHelper.TemplateType.JSON
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.SERVER_PATHWAY_EDGE_TAGS
+import static java.nio.charset.StandardCharsets.UTF_8
 import static org.junit.Assume.assumeTrue
 
 @Unroll
@@ -1255,7 +1261,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     then:
     TEST_WRITER.get(0).any {
-      it.getTag('request.body') == 'my body'
+      it.getTag('request.body') == 'my body' ||
+        it.getTag('request.body.converted') == 'my body'
     }
 
     and:
@@ -1493,6 +1500,94 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
+  def 'test blocking of request for path parameters'() {
+    setup:
+    assumeTrue(testBlocking())
+    assumeTrue(testPathParam() != null)
+
+    def request = request(PATH_PARAM, 'GET', null)
+      .header(IG_POST_INITIAL_BLOCK_HEADER, 'true')
+      .build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
+    response.code() == 413
+    response.header('Content-type') =~ /(?i)\Aapplication\/json(?:;\s?charset=utf-8)?\z/
+    response.body().charStream().text.contains('"title": "You\'ve been blocked"')
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.flatten().find {
+      DDSpan it -> it.tags['http.status_code'] == 413
+    } != null
+
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
+  }
+
+  def 'test blocking of request for request body variant #variant'() {
+    setup:
+    assumeTrue(testUserBlocking())
+    assumeTrue(executeTest)
+
+    def request = request(
+      endpoint, 'POST',
+      RequestBody.create(MediaType.get(contentType), body))
+      .header(IG_POST_INITIAL_BLOCK_HEADER, 'true')
+      .build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
+    response.code() == 413
+    // we block after having already requested the writer; in some versions of jetty,
+    // the charset can't be changed from iso-8859-1 then
+    response.header('Content-type') =~ /(?i)\Aapplication\/json(?:;\s?charset=(?:utf-8|iso-8859-1))?\z/
+
+    def text = response.body().charStream().text
+    text.contains('"title": "You\'ve been blocked"')
+    text.getBytes(UTF_8).length == BlockingActionHelper.getTemplate(JSON).length
+
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    List<DDSpan> spans = TEST_WRITER.flatten()
+    spans.find { it.tags['http.status_code'] == 413 } != null
+    spans.find { it.error &&
+      it.tags['error.type'] == BlockingException.name } != null
+
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
+
+    where:
+    variant         | executeTest          | endpoint        | contentType                         | body
+    'plain text'    | testRequestBody()    | CREATED         | 'text/plain'                        | 'my body'
+    'plain text IS' | testRequestBody()    | CREATED_IS      | 'text/plain'                        | 'my body'
+    'urlencoded'    | testBodyUrlencoded() | BODY_URLENCODED | 'application/x-www-form-urlencoded' | 'a=x'
+    'json'          | testBodyJson()       | BODY_JSON       | 'application/json'                  | '{"a": "x"}'
+  }
+
   def 'user blocking'() {
     setup:
     assumeTrue(testUserBlocking())
@@ -1667,6 +1762,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   static final String IG_EXTRA_SPAN_NAME_HEADER = "x-ig-write-tags"
   static final String IG_TEST_HEADER = "x-ig-test-header"
   static final String IG_BLOCK_HEADER = "x-block"
+  static final String IG_POST_INITIAL_BLOCK_HEADER = "x-block-post-initial"
   static final String IG_PEER_ADDRESS = "ig-peer-address"
   static final String IG_PEER_PORT = "ig-peer-port"
   static final String IG_RESPONSE_STATUS = "ig-response-status"
@@ -1684,6 +1780,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       StoredBodySupplier requestBodySupplier
       String responseEncoding
       String blockingContentType
+      boolean postInitialBlock
     }
 
     static final String stringOrEmpty(String string) {
@@ -1722,6 +1819,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       if (IG_BLOCK_HEADER.equalsIgnoreCase(key)) {
         context.blockingContentType = value
       }
+      if (IG_POST_INITIAL_BLOCK_HEADER.equalsIgnoreCase(key)) {
+        context.postInitialBlock = true
+      }
     } as TriConsumer<RequestContext, String, String>
 
     final Function<RequestContext, Flow<Void>> requestHeaderDoneCb =
@@ -1732,20 +1832,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
 
       if (context.blockingContentType && context.blockingContentType != 'none') {
-        new Flow.ResultFlow<Void>(null) {
-            @Override
-            Flow.Action getAction() {
-              new Flow.Action.RequestBlockingAction(418,
-                BlockingContentType.valueOf(context.blockingContentType.toUpperCase(Locale.ROOT)))
-            }
-          }
+        new RbaFlow(
+          new Flow.Action.RequestBlockingAction(418,
+            BlockingContentType.valueOf(context.blockingContentType.toUpperCase(Locale.ROOT))))
       } else if (context.blockingContentType && context.blockingContentType == 'none') {
-        new Flow.ResultFlow<Void>(null) {
-          @Override
-          Flow.Action getAction() {
-            Flow.Action.RequestBlockingAction.forRedirect(301, 'https://www.google.com/')
-          }
-        }
+        new RbaFlow(
+          Flow.Action.RequestBlockingAction.forRedirect(301, 'https://www.google.com/'))
       } else {
         Flow.ResultFlow.empty()
       }
@@ -1790,7 +1882,13 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         throw new RuntimeException("Expected same instance: ${context.requestBodySupplier} and $supplier")
       }
       activeSpan().localRootSpan.setTag('request.body', supplier.get() as String)
-      Flow.ResultFlow.empty()
+      if (context.postInitialBlock) {
+        new RbaFlow(
+          new Flow.Action.RequestBlockingAction(413, BlockingContentType.JSON)
+        )
+      } else {
+        Flow.ResultFlow.empty()
+      }
     } as BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>)
 
     final BiFunction<RequestContext, Object, Flow<Void>> requestBodyObjectCb =
@@ -1807,7 +1905,14 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           .collectEntries { [it.key, it.value instanceof Iterable ? it.value : [it.value]] }
       }
       rqCtxt.traceSegment.setTagTop('request.body.converted', obj as String)
-      Flow.ResultFlow.empty()
+      Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
+      if (context.postInitialBlock) {
+        new RbaFlow(
+          new Flow.Action.RequestBlockingAction(413, BlockingContentType.JSON)
+        )
+      } else {
+        Flow.ResultFlow.empty()
+      }
     } as BiFunction<RequestContext, Object, Flow<Void>>)
 
     final BiFunction<RequestContext, Integer, Flow<Void>> responseStartedCb =
@@ -1836,8 +1941,14 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     final BiFunction<RequestContext, Map<String, ?>, Flow<Void>> requestParamsCb =
     { RequestContext rqCtxt, Map<String, ?> map ->
+      Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
+      if (context.postInitialBlock) {
+        return new RbaFlow(
+          new Flow.Action.RequestBlockingAction(413, BlockingContentType.JSON)
+        )
+      }
+
       if (map && !map.empty) {
-        Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
         context.tags.put(IG_PATH_PARAMS_TAG, map)
       }
       Flow.ResultFlow.empty()
@@ -1862,4 +1973,13 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       } as BiFunction<RequestContext, IGSpanInfo, Flow<Void>>)
   }
 
+  @Canonical
+  static class RbaFlow implements Flow<Void> {
+    Action.RequestBlockingAction action
+
+    @Override
+    Void getResult() {
+      null
+    }
+  }
 }

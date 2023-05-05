@@ -6,9 +6,12 @@ import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
@@ -118,7 +121,6 @@ public class JettyBlockingHelper {
       return true;
     }
     try {
-      OutputStream os = (OutputStream) GET_OUTPUT_STREAM.invoke(response);
       response.setStatus(BlockingActionHelper.getHttpCode(statusCode));
       String acceptHeader = request.getHeader("Accept");
 
@@ -131,10 +133,29 @@ public class JettyBlockingHelper {
             BlockingActionHelper.determineTemplateType(bct, acceptHeader);
         response.setHeader("Content-type", BlockingActionHelper.getContentType(type));
         byte[] template = BlockingActionHelper.getTemplate(type);
-        response.setHeader("Content-length", Integer.toString(template.length));
-        os.write(template);
+
+        if (!response.isWriting()) {
+          response.setHeader("Content-length", Integer.toString(template.length));
+          OutputStream os = (OutputStream) GET_OUTPUT_STREAM.invoke(response);
+          os.write(template);
+          os.close();
+        } else {
+          PrintWriter writer = response.getWriter();
+          String respBody = new String(template, StandardCharsets.UTF_8);
+          // this might be problematic because the encoding of the writer may not be utf-8
+          String respEncoding = response.getCharacterEncoding();
+          if ("utf-8".equalsIgnoreCase(respEncoding)) {
+            response.setHeader("Content-length", Integer.toString(template.length));
+          } // otherwise we don't really know the size after encoding, so don't set the header
+          writer.write(respBody);
+          writer.close();
+        }
+
+        try {
+        } catch (IllegalStateException ise) {
+          // try instead with writer
+        }
       }
-      os.close();
       CLOSE_OUTPUT.invoke(response);
       try {
         if ((boolean) IS_ASYNC_STARTED.invoke(request)) {

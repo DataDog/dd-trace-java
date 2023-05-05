@@ -10,6 +10,8 @@ import javax.servlet.http.HttpServletResponse
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
+import static Jetty9Test.TestHandler.handleRequest
+
 abstract class JettyContinuationHandlerTest extends Jetty9Test {
 
   @Override

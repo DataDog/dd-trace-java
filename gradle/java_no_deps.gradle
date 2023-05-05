@@ -362,22 +362,24 @@ ext.addTestSuiteExtendingForDir = (String testSuiteName, String parentSuiteName,
   }
 
   configurations {
-    def provider = named("${parentSuiteName}CompileOnly")
-    if (provider.present) {
-      named("${testSuiteName}CompileOnly").configure { extendsFrom(provider.get()) }
+    def extendConf = { String suffix ->
+      def config = named("${testSuiteName}${suffix}")
+      def parentConfig = named("${parentSuiteName}${suffix}")
+      if (parentConfig.present) {
+        config.configure { extendsFrom(parentConfig.get()) }
+      }
+
+      if (testSuiteName ==~ /.*ForkedTest\z/) {
+        def nonForkedBaseConfName = testSuiteName - ~/Forked/
+        def nonForkedConfig = maybeCreate("${nonForkedBaseConfName}${suffix}")
+        config.configure { extendsFrom(nonForkedConfig) }
+      }
     }
-    provider = named("${parentSuiteName}Implementation")
-    if (provider.present) {
-      named("${testSuiteName}Implementation").configure { extendsFrom(provider.get()) }
-    }
-    provider = named("${parentSuiteName}RuntimeOnly")
-    if (provider.present) {
-      named("${testSuiteName}RuntimeOnly").configure { extendsFrom(provider.get()) }
-    }
-    provider = named("${parentSuiteName}AnnotationProcessor")
-    if (provider.present) {
-      named("${testSuiteName}AnnotationProcessor").configure { extendsFrom(provider.get()) }
-    }
+
+    extendConf('CompileOnly')
+    extendConf('Implementation')
+    extendConf('RuntimeOnly')
+    extendConf('AnnotationProcessor')
   }
 
   tasks.register("${testSuiteName}Jar", Jar) {
