@@ -11,6 +11,10 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.usm.Connection;
 import datadog.trace.bootstrap.instrumentation.usm.Extractor;
 import datadog.trace.bootstrap.instrumentation.usm.MessageEncoder;
+import datadog.trace.bootstrap.instrumentation.sslsocket.UsmFilterInputStream;
+import datadog.trace.bootstrap.instrumentation.sslsocket.UsmFilterOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.Inet6Address;
 import java.nio.Buffer;
 import javax.net.ssl.SSLSocket;
@@ -41,6 +45,12 @@ public final class SslSocketInstrumentation extends Instrumenter.Usm
     transformation.applyAdvice(
         isMethod().and(named("close").and(takesArguments(0))),
         SslSocketInstrumentation.class.getName() + "$CloseAdvice");
+    transformation.applyAdvice(
+        isMethod().and(named("getInputStream")),
+        SslSocketInstrumentation.class.getName() + "$GetInputStreamAdvice");
+    transformation.applyAdvice(
+        isMethod().and(named("getOutputStream")),
+        SslSocketInstrumentation.class.getName() + "$GetOutputStreamAdvice");
   }
 
   public static final class CloseAdvice {
@@ -57,6 +67,24 @@ public final class SslSocketInstrumentation extends Instrumenter.Usm
       Buffer message =
           MessageEncoder.encode(MessageEncoder.MessageType.CLOSE_CONNECTION, connection);
       Extractor.Supplier.send(message);
+    }
+  }
+
+  public static final class GetOutputStreamAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void getOutputStream(
+        @Advice.This final SSLSocket socket,
+        @Advice.Return(readOnly = false) OutputStream retValue) {
+      retValue = new UsmFilterOutputStream(retValue, socket);
+    }
+  }
+
+  public static final class GetInputStreamAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void getInputStream(
+        @Advice.This final SSLSocket socket,
+        @Advice.Return(readOnly = false) InputStream retValue) {
+      retValue = new UsmFilterInputStream(retValue, socket);
     }
   }
 }

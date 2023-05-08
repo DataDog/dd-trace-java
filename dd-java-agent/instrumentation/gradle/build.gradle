@@ -1,25 +1,5 @@
 apply from: "$rootDir/gradle/java.gradle"
 
-muzzle {
-  extraRepository("gradle-libs-releases-local", "https://repo.gradle.org/artifactory/libs-releases-local")
-
-  pass {
-    group = 'org.gradle'
-    module = 'gradle-core'
-    versions = '[1.0,4.2)'
-  }
-  pass {
-    group = 'org.gradle'
-    module = 'gradle-core'
-    versions = '[4.2,)'
-    // starting with versions 4.2 some of the classes were moved into core-api artifact,
-    // but core-api is only available for versions 5.6 and later
-    extraDependency 'org.gradle:gradle-core-api:5.6'
-  }
-  // gradle jars are published only up to version 6.1.1,
-  // anything that comes later is not covered by muzzle
-}
-
 repositories {
   maven {
     url "https://repo.gradle.org/artifactory/libs-releases-local"
@@ -27,8 +7,7 @@ repositories {
 }
 
 dependencies {
-  compileOnly 'org.gradle:gradle-core:1.0'
-  compileOnly 'org.codehaus.groovy:groovy:2.5.21'
+  compileOnly gradleApi()
 }
 
 forbiddenApisMain {
