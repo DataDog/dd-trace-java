@@ -8,9 +8,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.instrumentation.usm.MessageEncoder;
 import datadog.trace.bootstrap.instrumentation.usm.Connection;
 import datadog.trace.bootstrap.instrumentation.usm.Extractor;
+import datadog.trace.bootstrap.instrumentation.usm.MessageEncoder;
 import java.net.Inet6Address;
 import java.nio.Buffer;
 import javax.net.ssl.SSLSocket;
@@ -54,7 +54,8 @@ public final class SslSocketInstrumentation extends Instrumenter.Usm
               socket.getInetAddress(),
               socket.getPort(),
               isIPv6);
-      Buffer message = MessageEncoder.encode(MessageEncoder.MessageType.CLOSE_CONNECTION,connection);
+      Buffer message =
+          MessageEncoder.encode(MessageEncoder.MessageType.CLOSE_CONNECTION, connection);
       Extractor.Supplier.send(message);
     }
   }

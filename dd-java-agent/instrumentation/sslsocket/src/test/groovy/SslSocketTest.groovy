@@ -39,13 +39,13 @@ class SslSocketTest extends AgentTestRunner {
     conn.setDoOutput(true)
     conn.connect()
 
-//    // Mock message factory
-//    Class msgItfcCls = Class.forName("datadog.trace.bootstrap.instrumentation.usm.UsmMessageFactory")
-//    Class msgSupplierCls = msgItfcCls.getClasses()[0]
-//    Field msgSupplierField = msgSupplierCls.getDeclaredField("SUPPLIER")
-//    msgSupplierField.setAccessible(true)
-//    UsmMessageFactory factoryMock = Mock(UsmMessageFactory)
-//    msgSupplierField.set(null, factoryMock)
+    //    // Mock message factory
+    //    Class msgItfcCls = Class.forName("datadog.trace.bootstrap.instrumentation.usm.UsmMessageFactory")
+    //    Class msgSupplierCls = msgItfcCls.getClasses()[0]
+    //    Field msgSupplierField = msgSupplierCls.getDeclaredField("SUPPLIER")
+    //    msgSupplierField.setAccessible(true)
+    //    UsmMessageFactory factoryMock = Mock(UsmMessageFactory)
+    //    msgSupplierField.set(null, factoryMock)
 
     // Mock extractor
     Class extractorItfcCls = Class.forName("datadog.trace.bootstrap.instrumentation.usm.UsmExtractor")
