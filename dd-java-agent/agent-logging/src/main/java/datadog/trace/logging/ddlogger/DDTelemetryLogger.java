@@ -15,14 +15,13 @@ public class DDTelemetryLogger extends DDLogger {
   @Override
   protected void alwaysLog(LogLevel level, Marker marker, String format, String msg, Throwable t) {
     super.alwaysLog(level, marker, format, msg, t);
-    sendToTelemetry(level, marker, format, msg, t);
+    if (!Platform.isNativeImageBuilder()) {
+      sendToTelemetry(level, marker, format, msg, t);
+    }
   }
 
   private void sendToTelemetry(
       LogLevel level, Marker marker, String format, String msg, Throwable t) {
-    if (Platform.isNativeImageBuilder()) {
-      return;
-    }
 
     if (!LogCollector.get().isEnabled()) {
       return;
@@ -31,8 +30,8 @@ public class DDTelemetryLogger extends DDLogger {
     // We report only messages with Throwable or explicitly marked with SEND_TELEMETRY
     if (t != null || marker == LogCollector.SEND_TELEMETRY) {
       if (level == LogLevel.DEBUG) {
-        // Sending "debug" level messages as-is because they are expected not to have any sensitive
-        // information
+        // Sending "debug" level messages as-is because they are expected not to have
+        // any sensitive information
         if (msg != null) {
           LogCollector.get().addLogMessage(level.name(), msg, t);
         }
