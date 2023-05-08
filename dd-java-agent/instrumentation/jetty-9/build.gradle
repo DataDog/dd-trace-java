@@ -9,9 +9,9 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-addTestSuiteForDir('jetty92Test', 'test')
-addTestSuiteForDir('jetty94Test', 'test')
-addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteForDir('jetty92ForkedTest', 'test')
+addTestSuiteForDir('jetty94ForkedTest', 'test')
+addTestSuiteForDir('latestDepForkedTest', 'test')
 
 dependencies {
   compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.0.0.v20130308'
