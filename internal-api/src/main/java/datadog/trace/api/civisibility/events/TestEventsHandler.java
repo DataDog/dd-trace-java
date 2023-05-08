@@ -13,7 +13,11 @@ public interface TestEventsHandler {
   void onTestModuleFinish();
 
   void onTestSuiteStart(
-      String testSuiteName, @Nullable Class<?> testClass, @Nullable Collection<String> categories);
+      String testSuiteName,
+      @Nullable String testFramework,
+      @Nullable String testFrameworkVersion,
+      @Nullable Class<?> testClass,
+      @Nullable Collection<String> categories);
 
   void onTestSuiteFinish(String testSuiteName, @Nullable Class<?> testClass);
 
@@ -24,6 +28,8 @@ public interface TestEventsHandler {
   void onTestStart(
       String testSuiteName,
       String testName,
+      @Nullable String testFramework,
+      @Nullable String testFrameworkVersion,
       @Nullable String testParameters,
       @Nullable Collection<String> categories,
       @Nullable Class<?> testClass,
@@ -49,6 +55,8 @@ public interface TestEventsHandler {
   void onTestIgnore(
       String testSuiteName,
       String testName,
+      @Nullable String testFramework,
+      @Nullable String testFrameworkVersion,
       @Nullable String testParameters,
       @Nullable List<String> categories,
       @Nullable Class<?> testClass,

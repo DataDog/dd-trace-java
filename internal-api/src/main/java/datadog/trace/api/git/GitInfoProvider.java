@@ -2,6 +2,7 @@ package datadog.trace.api.git;
 
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.util.Strings;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.List;
@@ -49,50 +50,50 @@ public class GitInfoProvider {
             .map(builder -> builder.build(repositoryPath))
             .collect(Collectors.toList());
 
-    String commitSha = firstNonNull(infos, gi -> gi.getCommit().getSha());
+    String commitSha = firstNonBlank(infos, gi -> gi.getCommit().getSha());
     return new GitInfo(
-        firstNonNull(infos, gi -> GitUtils.filterSensitiveInfo(gi.getRepositoryURL())),
-        firstNonNull(infos, GitInfo::getBranch),
-        firstNonNull(infos, GitInfo::getTag),
+        firstNonBlank(infos, gi -> GitUtils.filterSensitiveInfo(gi.getRepositoryURL())),
+        firstNonBlank(infos, GitInfo::getBranch),
+        firstNonBlank(infos, GitInfo::getTag),
         new CommitInfo(
             commitSha,
             new PersonInfo(
-                firstNonNullWithMatchingCommit(
+                firstNonBlankWithMatchingCommit(
                     infos, commitSha, gi -> gi.getCommit().getAuthor().getName()),
-                firstNonNullWithMatchingCommit(
+                firstNonBlankWithMatchingCommit(
                     infos, commitSha, gi -> gi.getCommit().getAuthor().getEmail()),
-                firstNonNullWithMatchingCommit(
+                firstNonBlankWithMatchingCommit(
                     infos, commitSha, gi -> gi.getCommit().getAuthor().getIso8601Date())),
             new PersonInfo(
-                firstNonNullWithMatchingCommit(
+                firstNonBlankWithMatchingCommit(
                     infos, commitSha, gi -> gi.getCommit().getCommitter().getName()),
-                firstNonNullWithMatchingCommit(
+                firstNonBlankWithMatchingCommit(
                     infos, commitSha, gi -> gi.getCommit().getCommitter().getEmail()),
-                firstNonNullWithMatchingCommit(
+                firstNonBlankWithMatchingCommit(
                     infos, commitSha, gi -> gi.getCommit().getCommitter().getIso8601Date())),
-            firstNonNullWithMatchingCommit(
+            firstNonBlankWithMatchingCommit(
                 infos, commitSha, gi -> gi.getCommit().getFullMessage())));
   }
 
-  private static String firstNonNull(
+  private static String firstNonBlank(
       Iterable<GitInfo> gitInfos, Function<GitInfo, String> function) {
     for (GitInfo gitInfo : gitInfos) {
       String result = function.apply(gitInfo);
-      if (result != null) {
+      if (Strings.isNotBlank(result)) {
         return result;
       }
     }
     return null;
   }
 
-  private static String firstNonNullWithMatchingCommit(
+  private static String firstNonBlankWithMatchingCommit(
       Iterable<GitInfo> gitInfos, String commitSha, Function<GitInfo, String> function) {
     for (GitInfo gitInfo : gitInfos) {
       if (commitSha != null && !commitSha.equalsIgnoreCase(gitInfo.getCommit().getSha())) {
         continue;
       }
       String result = function.apply(gitInfo);
-      if (result != null) {
+      if (Strings.isNotBlank(result)) {
         return result;
       }
     }

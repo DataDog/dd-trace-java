@@ -98,6 +98,11 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
   }
 
   @Override
+  boolean testBadUrl() {
+    false
+  }
+
+  @Override
   boolean hasResponseSpan(ServerEndpoint endpoint) {
     return endpoint == REDIRECT || endpoint == ERROR
   }

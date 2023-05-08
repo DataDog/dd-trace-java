@@ -49,6 +49,54 @@ class GitInfoProviderTest extends Specification {
     actualGitInfo.commit.sha == "sha"
   }
 
+  def "test falls back to the second GitInfoBuilder for empty strings"() {
+    setup:
+    def gitInfoBuilderA = givenABuilderReturning(
+      new GitInfo("repoUrl", "", "", new CommitInfo(""))
+      )
+
+    def gitInfoBuilderB = givenABuilderReturning(
+      new GitInfo(null, "branch", "tag", new CommitInfo("sha"))
+      )
+
+    def gitInfoProvider = new GitInfoProvider()
+    gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderA)
+    gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderB)
+
+    when:
+    def actualGitInfo = gitInfoProvider.getGitInfo(REPO_PATH)
+
+    then:
+    actualGitInfo.repositoryURL == "repoUrl"
+    actualGitInfo.branch == "branch"
+    actualGitInfo.tag == "tag"
+    actualGitInfo.commit.sha == "sha"
+  }
+
+  def "test falls back to the second GitInfoBuilder for blank strings"() {
+    setup:
+    def gitInfoBuilderA = givenABuilderReturning(
+      new GitInfo("repoUrl", " ", " ", new CommitInfo(" "))
+      )
+
+    def gitInfoBuilderB = givenABuilderReturning(
+      new GitInfo(null, "branch", "tag", new CommitInfo("sha"))
+      )
+
+    def gitInfoProvider = new GitInfoProvider()
+    gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderA)
+    gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderB)
+
+    when:
+    def actualGitInfo = gitInfoProvider.getGitInfo(REPO_PATH)
+
+    then:
+    actualGitInfo.repositoryURL == "repoUrl"
+    actualGitInfo.branch == "branch"
+    actualGitInfo.tag == "tag"
+    actualGitInfo.commit.sha == "sha"
+  }
+
   def "test falls back to the second GitInfoBuilder for commit info"() {
     setup:
     def gitInfoBuilderA = givenABuilderReturning(
@@ -56,7 +104,7 @@ class GitInfoProviderTest extends Specification {
       new CommitInfo("sha",
       PersonInfo.NOOP,
       PersonInfo.NOOP,
-      "message")))
+      null)))
 
     def gitInfoBuilderB = givenABuilderReturning(
       new GitInfo("repoUrl", null, null,
@@ -84,7 +132,77 @@ class GitInfoProviderTest extends Specification {
     actualGitInfo.commit.committer.iso8601Date == "committer date"
   }
 
-  def "test does not falls back to the second GitInfoBuilder for commit info if SHAs do not match"() {
+  def "test falls back to the second GitInfoBuilder for empty strings in commit info"() {
+    setup:
+    def gitInfoBuilderA = givenABuilderReturning(
+      new GitInfo("repoUrl", null, null,
+      new CommitInfo("sha",
+      new PersonInfo("", "", ""),
+      new PersonInfo("", "", ""),
+      "")))
+
+    def gitInfoBuilderB = givenABuilderReturning(
+      new GitInfo("repoUrl", null, null,
+      new CommitInfo("sha",
+      new PersonInfo("author name", "author email", "author date"),
+      new PersonInfo("committer name", "committer email", "committer date"),
+      "message")))
+
+    def gitInfoProvider = new GitInfoProvider()
+    gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderA)
+    gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderB)
+
+    when:
+    def actualGitInfo = gitInfoProvider.getGitInfo(REPO_PATH)
+
+    then:
+    actualGitInfo.repositoryURL == "repoUrl"
+    actualGitInfo.commit.sha == "sha"
+    actualGitInfo.commit.fullMessage == "message"
+    actualGitInfo.commit.author.name == "author name"
+    actualGitInfo.commit.author.email == "author email"
+    actualGitInfo.commit.author.iso8601Date == "author date"
+    actualGitInfo.commit.committer.name == "committer name"
+    actualGitInfo.commit.committer.email == "committer email"
+    actualGitInfo.commit.committer.iso8601Date == "committer date"
+  }
+
+  def "test falls back to the second GitInfoBuilder for blank strings in commit info"() {
+    setup:
+    def gitInfoBuilderA = givenABuilderReturning(
+      new GitInfo("repoUrl", null, null,
+      new CommitInfo("sha",
+      new PersonInfo(" ", " ", " "),
+      new PersonInfo(" ", " ", " "),
+      " ")))
+
+    def gitInfoBuilderB = givenABuilderReturning(
+      new GitInfo("repoUrl", null, null,
+      new CommitInfo("sha",
+      new PersonInfo("author name", "author email", "author date"),
+      new PersonInfo("committer name", "committer email", "committer date"),
+      "message")))
+
+    def gitInfoProvider = new GitInfoProvider()
+    gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderA)
+    gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderB)
+
+    when:
+    def actualGitInfo = gitInfoProvider.getGitInfo(REPO_PATH)
+
+    then:
+    actualGitInfo.repositoryURL == "repoUrl"
+    actualGitInfo.commit.sha == "sha"
+    actualGitInfo.commit.fullMessage == "message"
+    actualGitInfo.commit.author.name == "author name"
+    actualGitInfo.commit.author.email == "author email"
+    actualGitInfo.commit.author.iso8601Date == "author date"
+    actualGitInfo.commit.committer.name == "committer name"
+    actualGitInfo.commit.committer.email == "committer email"
+    actualGitInfo.commit.committer.iso8601Date == "committer date"
+  }
+
+  def "test does not fall back to the second GitInfoBuilder for commit info if SHAs do not match"() {
     setup:
     def gitInfoBuilderA = givenABuilderReturning(
       new GitInfo("repoUrl", null, null,

@@ -193,18 +193,24 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       try {
         final URIDataAdapter url = url(request);
         if (url != null) {
+
           boolean supportsRaw = url.supportsRaw();
           boolean encoded = supportsRaw && config.isHttpServerRawResource();
+          boolean valid = url.isValid();
           String path = encoded ? url.rawPath() : url.path();
-
-          span.setTag(Tags.HTTP_URL, URIUtils.buildURL(url.scheme(), url.host(), url.port(), path));
+          if (valid) {
+            span.setTag(
+                Tags.HTTP_URL, URIUtils.buildURL(url.scheme(), url.host(), url.port(), path));
+          } else if (supportsRaw) {
+            span.setTag(Tags.HTTP_URL, url.raw());
+          }
           if (context != null && context.getXForwardedHost() != null) {
             span.setTag(Tags.HTTP_HOSTNAME, context.getXForwardedHost());
           } else if (url.host() != null) {
             span.setTag(Tags.HTTP_HOSTNAME, url.host());
           }
 
-          if (config.isHttpServerTagQueryString()) {
+          if (valid && config.isHttpServerTagQueryString()) {
             String query =
                 supportsRaw && config.isHttpServerRawQueryString() ? url.rawQuery() : url.query();
             span.setTag(DDTags.HTTP_QUERY, query);
@@ -214,7 +220,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
           if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
             span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
           }
-          if (SHOULD_SET_URL_RESOURCE_NAME) {
+          if (valid && SHOULD_SET_URL_RESOURCE_NAME) {
             HTTP_RESOURCE_DECORATOR.withServerPath(span, method, path, encoded);
           }
         } else if (SHOULD_SET_URL_RESOURCE_NAME) {
@@ -275,18 +281,24 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return null;
   }
 
+  public AgentSpan onResponseStatus(final AgentSpan span, final int status) {
+    if (status > UNSET_STATUS) {
+      span.setHttpStatusCode(status);
+    }
+    // explicitly set here because some other decorators might already set an error without
+    // looking at the status code
+    span.setError(SERVER_ERROR_STATUSES.get(status));
+
+    if (SHOULD_SET_404_RESOURCE_NAME && status == 404) {
+      span.setResourceName(NOT_FOUND_RESOURCE_NAME, ResourceNamePriorities.HTTP_404);
+    }
+    return span;
+  }
+
   public AgentSpan onResponse(final AgentSpan span, final RESPONSE response) {
     if (response != null) {
       final int status = status(response);
-      if (status > UNSET_STATUS) {
-        span.setHttpStatusCode(status);
-      }
-      if (SERVER_ERROR_STATUSES.get(status)) {
-        span.setError(true);
-      }
-      if (SHOULD_SET_404_RESOURCE_NAME && status == 404) {
-        span.setResourceName(NOT_FOUND_RESOURCE_NAME, ResourceNamePriorities.HTTP_404);
-      }
+      onResponseStatus(span, status);
 
       AgentPropagation.ContextVisitor<RESPONSE> getter = responseGetter();
       if (getter != null) {

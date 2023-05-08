@@ -1,7 +1,8 @@
 pluginManagement {
   repositories {
+    mavenLocal()
+    mavenCentral()
     gradlePluginPortal()
-    maven { url 'https://repo.spring.io/milestone' }
   }
 }
 
@@ -18,4 +19,4 @@ if (isCI) {
   }
 }
 
-rootProject.name='spring-native-smoketest'
+rootProject.name='native-3.0-smoketest'

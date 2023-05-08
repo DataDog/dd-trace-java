@@ -190,18 +190,25 @@ class StringsTest extends DDSpecification {
     ['va"lu"e1', 'value2'] | "[\"va\\\"lu\\\"e1\",\"value2\"]"
   }
 
-  def "test split"() {
+  def "test isNotBlank: #input"() {
     when:
-    String[] splits = Strings.split(input, sep)
+    def notBlank = Strings.isNotBlank(input)
 
     then:
-    splits == expected
+    notBlank == expected
 
     where:
-    input          | sep         | expected
-    null           | ' ' as char | null
-    "abc def"      | ' ' as char | ["abc", "def"]
-    "abc def ghi"  | ' ' as char | ["abc", "def", "ghi"]
-    "abc  def ghi" | ' ' as char | ["abc", "def", "ghi"]
+    input        | expected
+    null         | false
+    ""           | false
+    " "          | false
+    "\t"         | false
+    "\n"         | false
+    " \t\n "     | false
+    "a"          | true
+    " a "        | true
+    "\n\t123 "   | true
+    " 測 試    " | true
+    "   𐢀𐢀𐢀𐢀"    | true
   }
 }

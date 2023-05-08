@@ -1272,7 +1272,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     @Override
     public CoreSpanBuilder withTag(final String tag, final String string) {
-      return withTag(tag, (Object) string);
+      return withTag(tag, (Object) (string == null || string.isEmpty() ? null : string));
     }
 
     @Override

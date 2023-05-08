@@ -160,7 +160,8 @@ public abstract class JUnit4Utils {
     final String methodName = description.getMethodName();
     if (methodName != null && !methodName.isEmpty()) {
       int actualMethodNameStart, actualMethodNameEnd;
-      if ((actualMethodNameStart = methodName.indexOf('(')) > 0
+      if (methodName.startsWith("[")
+          && (actualMethodNameStart = methodName.indexOf('(')) > 0
           && (actualMethodNameEnd = methodName.indexOf(')', actualMethodNameStart)) > 0) {
         // assuming this is a parameterized test case that uses use pl.pragmatists.JUnitParams
         // in that case method name will have the following structure:
