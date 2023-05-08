@@ -11,12 +11,22 @@ import org.slf4j.Logger;
 public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
 
   private volatile SwitchableLogLevelFactory helperFactory = null;
+  private final boolean telemetryLogCollectionEnabled;
 
-  public DDLoggerFactory() {}
+  public DDLoggerFactory() {
+    String value = System.getProperty("dd.telemetry.log.collection.enabled");
+    boolean propValue = Boolean.parseBoolean(value);
+
+    value = System.getenv("DD_TELEMETRY_LOG_COLLECTION_ENABLED");
+    boolean envValue = Boolean.parseBoolean(value);
+
+    telemetryLogCollectionEnabled = propValue | envValue;
+  }
 
   // Only used for testing
   public DDLoggerFactory(SwitchableLogLevelFactory helperFactory) {
     this.helperFactory = helperFactory;
+    this.telemetryLogCollectionEnabled = false;
   }
 
   private SwitchableLogLevelFactory getHelperFactory() {
@@ -36,7 +46,7 @@ public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
   @Override
   public Logger getLogger(String name) {
     // Native image builder can't see telemetry and won't use it
-    if (Platform.isNativeImageBuilder()) {
+    if (Platform.isNativeImageBuilder() && !telemetryLogCollectionEnabled) {
       return new DDLogger(getHelperFactory(), name);
     } else {
       return new DDTelemetryLogger(getHelperFactory(), name);
