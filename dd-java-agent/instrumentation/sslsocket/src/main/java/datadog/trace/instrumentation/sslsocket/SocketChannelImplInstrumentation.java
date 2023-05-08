@@ -86,6 +86,9 @@ public final class SocketChannelImplInstrumentation extends Instrumenter.Usm
     public static void close(@Advice.FieldValue("localAddress") InetSocketAddress localSocketAddr,
                              @Advice.FieldValue("remoteAddress") InetSocketAddress remoteSocketAddr) throws IOException {
 
+      // We use local fields (@Advice.FieldValue) directly since for a closed socket,
+      // the getLocalAddress and getRemoteAddress methods of the SocketChannel will throw an exception
+
       if (localSocketAddr == null || remoteSocketAddr == null){
         return;
       }
