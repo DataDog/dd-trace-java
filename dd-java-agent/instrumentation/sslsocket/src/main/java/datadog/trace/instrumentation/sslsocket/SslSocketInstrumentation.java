@@ -8,10 +8,14 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.instrumentation.sslsocket.UsmFilterInputStream;
+import datadog.trace.bootstrap.instrumentation.sslsocket.UsmFilterOutputStream;
 import datadog.trace.bootstrap.instrumentation.usm.UsmConnection;
 import datadog.trace.bootstrap.instrumentation.usm.UsmExtractor;
 import datadog.trace.bootstrap.instrumentation.usm.UsmMessage;
 import datadog.trace.bootstrap.instrumentation.usm.UsmMessageFactory;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.Inet6Address;
 import javax.net.ssl.SSLSocket;
 import net.bytebuddy.asm.Advice;
@@ -41,6 +45,12 @@ public final class SslSocketInstrumentation extends Instrumenter.Usm
     transformation.applyAdvice(
         isMethod().and(named("close").and(takesArguments(0))),
         SslSocketInstrumentation.class.getName() + "$CloseAdvice");
+    transformation.applyAdvice(
+        isMethod().and(named("getInputStream")),
+        SslSocketInstrumentation.class.getName() + "$GetInputStreamAdvice");
+    transformation.applyAdvice(
+        isMethod().and(named("getOutputStream")),
+        SslSocketInstrumentation.class.getName() + "$GetOutputStreamAdvice");
   }
 
   public static final class CloseAdvice {
@@ -56,6 +66,24 @@ public final class SslSocketInstrumentation extends Instrumenter.Usm
               isIPv6);
       UsmMessage message = UsmMessageFactory.Supplier.getCloseMessage(connection);
       UsmExtractor.Supplier.send(message);
+    }
+  }
+
+  public static final class GetOutputStreamAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void getOutputStream(
+        @Advice.This final SSLSocket socket,
+        @Advice.Return(readOnly = false) OutputStream retValue) {
+      retValue = new UsmFilterOutputStream(retValue, socket);
+    }
+  }
+
+  public static final class GetInputStreamAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void getInputStream(
+        @Advice.This final SSLSocket socket,
+        @Advice.Return(readOnly = false) InputStream retValue) {
+      retValue = new UsmFilterInputStream(retValue, socket);
     }
   }
 }
