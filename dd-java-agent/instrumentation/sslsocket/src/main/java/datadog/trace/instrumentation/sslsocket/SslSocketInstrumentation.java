@@ -8,11 +8,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.instrumentation.sslsocket.UsmFilterInputStream;
+import datadog.trace.bootstrap.instrumentation.sslsocket.UsmFilterOutputStream;
 import datadog.trace.bootstrap.instrumentation.usm.Connection;
 import datadog.trace.bootstrap.instrumentation.usm.Extractor;
 import datadog.trace.bootstrap.instrumentation.usm.MessageEncoder;
-import datadog.trace.bootstrap.instrumentation.sslsocket.UsmFilterInputStream;
-import datadog.trace.bootstrap.instrumentation.sslsocket.UsmFilterOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Inet6Address;

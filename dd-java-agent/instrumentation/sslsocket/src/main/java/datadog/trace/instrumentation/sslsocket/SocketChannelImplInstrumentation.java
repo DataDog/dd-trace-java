@@ -57,10 +57,12 @@ public final class SocketChannelImplInstrumentation extends Instrumenter.Usm
   public static final class MessageAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onMessage(@Advice.FieldValue("localAddress") InetSocketAddress localSocketAddr,
-                                 @Advice.FieldValue("remoteAddress") InetSocketAddress remoteSocketAddr) throws IOException {
+    public static void onMessage(
+        @Advice.FieldValue("localAddress") InetSocketAddress localSocketAddr,
+        @Advice.FieldValue("remoteAddress") InetSocketAddress remoteSocketAddr)
+        throws IOException {
 
-      if (localSocketAddr == null || remoteSocketAddr == null){
+      if (localSocketAddr == null || remoteSocketAddr == null) {
         log.warn("missing connection information for connected socket");
         return;
       }
@@ -83,13 +85,16 @@ public final class SocketChannelImplInstrumentation extends Instrumenter.Usm
   public static final class CloseAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void close(@Advice.FieldValue("localAddress") InetSocketAddress localSocketAddr,
-                             @Advice.FieldValue("remoteAddress") InetSocketAddress remoteSocketAddr) throws IOException {
+    public static void close(
+        @Advice.FieldValue("localAddress") InetSocketAddress localSocketAddr,
+        @Advice.FieldValue("remoteAddress") InetSocketAddress remoteSocketAddr)
+        throws IOException {
 
       // We use local fields (@Advice.FieldValue) directly since for a closed socket,
-      // the getLocalAddress and getRemoteAddress methods of the SocketChannel will throw an exception
+      // the getLocalAddress and getRemoteAddress methods of the SocketChannel will throw an
+      // exception
 
-      if (localSocketAddr == null || remoteSocketAddr == null){
+      if (localSocketAddr == null || remoteSocketAddr == null) {
         return;
       }
       boolean isIPv6 = localSocketAddr.getAddress() instanceof Inet6Address;
