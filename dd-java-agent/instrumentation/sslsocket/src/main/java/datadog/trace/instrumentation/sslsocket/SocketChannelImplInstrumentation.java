@@ -14,9 +14,8 @@ import datadog.trace.bootstrap.instrumentation.usm.MessageEncoder;
 import datadog.trace.bootstrap.instrumentation.usm.Peer;
 import java.io.IOException;
 import java.net.Inet6Address;
-import java.net.Socket;
+import java.net.InetSocketAddress;
 import java.nio.Buffer;
-import java.nio.channels.SocketChannel;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -51,51 +50,56 @@ public final class SocketChannelImplInstrumentation extends Instrumenter.Usm
         isMethod().and(namedOneOf("read", "write")),
         SocketChannelImplInstrumentation.class.getName() + "$MessageAdvice");
     transformation.applyAdvice(
-        isMethod().and(named("close")),
+        isMethod().and(named("implCloseSelectableChannel")),
         SocketChannelImplInstrumentation.class.getName() + "$CloseAdvice");
   }
 
   public static final class MessageAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onMessage(@Advice.This SocketChannel thiz) throws IOException {
+    public static void onMessage(@Advice.FieldValue("localAddress") InetSocketAddress localSocketAddr,
+                                 @Advice.FieldValue("remoteAddress") InetSocketAddress remoteSocketAddr) throws IOException {
 
-      Socket sock = thiz.socket();
-      String hostName = sock.getInetAddress().getHostName();
-      boolean isIPv6 = sock.getLocalAddress() instanceof Inet6Address;
+      if (localSocketAddr == null || remoteSocketAddr == null){
+        log.warn("missing connection information for connected socket");
+        return;
+      }
+      boolean isIPv6 = localSocketAddr.getAddress() instanceof Inet6Address;
       Connection connection =
           new Connection(
-              sock.getLocalAddress(),
-              sock.getLocalPort(),
-              sock.getInetAddress(),
-              sock.getPort(),
+              localSocketAddr.getAddress(),
+              localSocketAddr.getPort(),
+              remoteSocketAddr.getAddress(),
+              remoteSocketAddr.getPort(),
               isIPv6);
-      Peer peer = new Peer(hostName, sock.getPort());
+
+      Peer peer = new Peer(remoteSocketAddr.getHostString(), remoteSocketAddr.getPort());
       Buffer message =
           MessageEncoder.encode(MessageEncoder.MessageType.CONNECTION_BY_PEER, connection, peer);
       Extractor.Supplier.send(message);
-      System.out.println("[host_message] sent a host message");
     }
   }
 
   public static final class CloseAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void close(@Advice.This SocketChannel thiz) throws IOException {
+    public static void close(@Advice.FieldValue("localAddress") InetSocketAddress localSocketAddr,
+                             @Advice.FieldValue("remoteAddress") InetSocketAddress remoteSocketAddr) throws IOException {
 
-      Socket sock = thiz.socket();
-      boolean isIPv6 = sock.getLocalAddress() instanceof Inet6Address;
+      if (localSocketAddr == null || remoteSocketAddr == null){
+        return;
+      }
+      boolean isIPv6 = localSocketAddr.getAddress() instanceof Inet6Address;
       Connection connection =
           new Connection(
-              sock.getLocalAddress(),
-              sock.getLocalPort(),
-              sock.getInetAddress(),
-              sock.getPort(),
+              localSocketAddr.getAddress(),
+              localSocketAddr.getPort(),
+              remoteSocketAddr.getAddress(),
+              remoteSocketAddr.getPort(),
               isIPv6);
       Buffer message =
           MessageEncoder.encode(MessageEncoder.MessageType.CLOSE_CONNECTION, connection);
       Extractor.Supplier.send(message);
-      System.out.println("[close] sent a close message");
     }
   }
 }
