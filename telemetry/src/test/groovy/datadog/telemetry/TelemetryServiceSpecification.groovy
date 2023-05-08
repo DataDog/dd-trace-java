@@ -195,7 +195,7 @@ class TelemetryServiceSpecification extends DDSpecification {
         p.series.first().is(metric)
     }) >> REQUEST
     queue.first().is(REQUEST)
-    //0 * requestBuilder._
+    0 * requestBuilder._
   }
 
   void 'added distribution series are reported in distributions'() {
