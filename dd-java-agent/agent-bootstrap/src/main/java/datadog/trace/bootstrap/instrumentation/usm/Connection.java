@@ -13,8 +13,10 @@ public final class Connection implements Encodable {
   // size of the connection struct:
   // SrcIP [16 bytes] || DstIP [16 bytes] || Src Port [2 bytes] || Dst port [2
   // bytes] || Reserved [4 bytes] || Pid [4 bytes] || Metadata [4 bytes]
+  // As defined in https://github.com/DataDog/datadog-agent/blob/main/pkg/network/ebpf/c/conn_tuple.h
   static final int CONNECTION_INFO_SIZE = 48;
-  static final int IP_LENGTH = 16;
+  static final int IP_MAX_BVTES_LENGTH = 16;
+  static final int IP_V4_BYTES_LENGTH = 4;
 
   private final InetAddress srcIp;
   private final int srcPort;
@@ -36,6 +38,9 @@ public final class Connection implements Encodable {
   }
 
   @Override
+  /*
+  Encodes the connection into a given buffer (Visitor pattern).
+   */
   public void encode(ByteBuffer buffer) {
     log.debug("encoding connection:");
     log.debug(
@@ -43,14 +48,16 @@ public final class Connection implements Encodable {
             + srcIp.toString()
             + " src port: "
             + srcPort);
-    log.debug(
-        "\tdst host: "
-            + dstIp.toString()
-            + " dst port: "
-            + dstPort);
+    if (dstIp != null) {
+      log.debug(
+          "\tdst host: "
+              + dstIp
+              + " dst port: "
+              + dstPort);
+    }
     byte[] srcIPBuffer = srcIp.getAddress();
     // if IPv4 (4 bytes long), encode it into low part of the reserved space
-    if (srcIPBuffer.length == 4) {
+    if (srcIPBuffer.length == IP_V4_BYTES_LENGTH) {
       buffer.putLong(0);
       buffer.put(srcIPBuffer, 0, srcIPBuffer.length);
       buffer.putInt(0);
@@ -58,14 +65,20 @@ public final class Connection implements Encodable {
       buffer.put(srcIPBuffer, 0, srcIPBuffer.length);
     }
 
-    byte[] dstIPBuffer = dstIp.getAddress();
-    // if IPv4 (4 bytes long), encode it into low part of the reserved space
-    if (dstIPBuffer.length == 4) {
-      buffer.putLong(0);
-      buffer.put(dstIPBuffer, 0, dstIPBuffer.length);
-      buffer.putInt(0);
-    } else {
-      buffer.put(dstIPBuffer, 0, dstIPBuffer.length);
+    if (dstIp != null) {
+      byte[] dstIPBuffer = dstIp.getAddress();
+      // if IPv4 (4 bytes long), encode it into low part of the reserved space
+      if (dstIPBuffer.length == IP_V4_BYTES_LENGTH) {
+        buffer.putLong(0);
+        buffer.put(dstIPBuffer, 0, dstIPBuffer.length);
+        buffer.putInt(0);
+      } else {
+        buffer.put(dstIPBuffer, 0, dstIPBuffer.length);
+      }
+    }
+    else {
+      //advance buffer position to skip the buffer
+      buffer.position(buffer.position() + IP_MAX_BVTES_LENGTH);
     }
 
     // encode src and dst ports

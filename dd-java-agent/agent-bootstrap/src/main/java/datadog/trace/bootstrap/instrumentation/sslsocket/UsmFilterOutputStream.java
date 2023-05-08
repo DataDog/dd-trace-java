@@ -36,7 +36,7 @@ public class UsmFilterOutputStream extends FilterOutputStream {
             socket.getPort(),
             isIPv6);
     Payload payload = new Payload(b,off,len);
-    Buffer message = MessageEncoder.encode(MessageEncoder.MessageType.REQUEST,connection,payload);
+    Buffer message = MessageEncoder.encode(MessageEncoder.MessageType.SYNCHRONOUS_PAYLOAD,connection,payload);
     Extractor.Supplier.send(message);
     super.write(b, off, len);
   }

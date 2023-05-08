@@ -25,6 +25,7 @@ public final class Payload implements Encodable {
 
   @Override
   public int size() {
+    //payload length + the actual payload limited to MAX_HTTPS_BUFFER_SIZE
     return MAX_HTTPS_BUFFER_SIZE + Integer.BYTES;
   }
 
@@ -36,7 +37,7 @@ public final class Payload implements Encodable {
       buffer.putInt(length);
       buffer.put(payload, offset, length);
     }
-    // if it is, use only max allowed bytes
+    // if actual payload is larger, use only max allowed bytes
     else {
       buffer.putInt(MAX_HTTPS_BUFFER_SIZE);
       buffer.put(payload, offset, MAX_HTTPS_BUFFER_SIZE);

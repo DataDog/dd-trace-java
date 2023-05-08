@@ -4,8 +4,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.usm.Payload;
 import datadog.trace.bootstrap.instrumentation.usm.MessageEncoder;
-import datadog.trace.bootstrap.instrumentation.usm.Host;
-import datadog.trace.bootstrap.instrumentation.usm.Connection;
+import datadog.trace.bootstrap.instrumentation.usm.Peer;
 import datadog.trace.bootstrap.instrumentation.usm.Extractor;
 import net.bytebuddy.asm.Advice;
 import org.slf4j.Logger;
@@ -13,7 +12,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
-import java.net.InetAddress;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 
@@ -83,9 +81,9 @@ public final class SslEngineInstrumentation extends Instrumenter.Usm
           consumed+=oldPos;
         }
 
-        Host host = new Host(thiz.getPeerHost(),thiz.getPeerPort());
+        Peer peer = new Peer(thiz.getPeerHost(),thiz.getPeerPort());
         Payload payload = new Payload(b,0,b.length);
-        Buffer message = MessageEncoder.encode(MessageEncoder.MessageType.PLAIN,host,payload);
+        Buffer message = MessageEncoder.encode(MessageEncoder.MessageType.ASYNC_PAYLOAD, peer,payload);
         Extractor.Supplier.send(message);
         System.out.println("[wrap] sent a wrap message" );
        }
@@ -114,9 +112,9 @@ public final class SslEngineInstrumentation extends Instrumenter.Usm
           dst.get(b, 0, result.bytesProduced());
           dst.position(oldPos);
 
-          Host host = new Host(thiz.getPeerHost(),thiz.getPeerPort());
+          Peer peer = new Peer(thiz.getPeerHost(),thiz.getPeerPort());
           Payload payload = new Payload(b,0,b.length);
-          Buffer message = MessageEncoder.encode(MessageEncoder.MessageType.PLAIN,host,payload);
+          Buffer message = MessageEncoder.encode(MessageEncoder.MessageType.ASYNC_PAYLOAD, peer,payload);
           Extractor.Supplier.send(message);
           System.out.println("[unwrap] sent an unwrap message" );
         }

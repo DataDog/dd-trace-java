@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.sslsocket;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.usm.MessageEncoder;
-import datadog.trace.bootstrap.instrumentation.usm.Host;
+import datadog.trace.bootstrap.instrumentation.usm.Peer;
 import datadog.trace.bootstrap.instrumentation.usm.Connection;
 import datadog.trace.bootstrap.instrumentation.usm.Extractor;
 
@@ -77,8 +77,8 @@ public final class SocketChannelImplInstrumentation extends Instrumenter.Usm
               sock.getInetAddress(),
               sock.getPort(),
               isIPv6);
-      Host host = new Host(hostName,sock.getPort());
-      Buffer message = MessageEncoder.encode(MessageEncoder.MessageType.HOSTNAME,connection,host);
+      Peer peer = new Peer(hostName,sock.getPort());
+      Buffer message = MessageEncoder.encode(MessageEncoder.MessageType.CONNECTION_BY_PEER,connection, peer);
       Extractor.Supplier.send(message);
       System.out.println("[host_message] sent a host message" );
     }
