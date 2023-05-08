@@ -15,7 +15,7 @@ public final class Connection implements Encodable {
   // bytes] || Reserved [4 bytes] || Pid [4 bytes] || Metadata [4 bytes]
   // As defined in https://github.com/DataDog/datadog-agent/blob/main/pkg/network/ebpf/c/conn_tuple.h
   static final int CONNECTION_INFO_SIZE = 48;
-  static final int IP_MAX_BVTES_LENGTH = 16;
+  static final int IP_MAX_BYTES_LENGTH = 16;
   static final int IP_V4_BYTES_LENGTH = 4;
 
   private final InetAddress srcIp;
@@ -78,7 +78,7 @@ public final class Connection implements Encodable {
     }
     else {
       //advance buffer position to skip the buffer
-      buffer.position(buffer.position() + IP_MAX_BVTES_LENGTH);
+      buffer.position(buffer.position() + IP_MAX_BYTES_LENGTH);
     }
 
     // encode src and dst ports
