@@ -5,7 +5,6 @@ import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.IastAdvice.Propagation;
 import datadog.trace.api.iast.IastAdvice.Source;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.PropagationTypes;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.source.WebModule;
@@ -103,7 +102,7 @@ public class ServletRequestCallSite {
     return parameterValues;
   }
 
-  @Propagation(PropagationTypes.BODY)
+  @Propagation
   @CallSite.After("javax.servlet.ServletInputStream javax.servlet.ServletRequest.getInputStream()")
   @CallSite.After(
       "javax.servlet.ServletInputStream javax.servlet.http.HttpServletRequest.getInputStream()")
@@ -125,7 +124,7 @@ public class ServletRequestCallSite {
     return inputStream;
   }
 
-  @Propagation(PropagationTypes.BODY)
+  @Propagation
   @CallSite.After("java.io.BufferedReader javax.servlet.ServletRequest.getReader()")
   @CallSite.After("java.io.BufferedReader javax.servlet.http.HttpServletRequest.getReader()")
   @CallSite.After("java.io.BufferedReader javax.servlet.http.HttpServletRequestWrapper.getReader()")

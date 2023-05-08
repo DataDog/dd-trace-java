@@ -3,13 +3,12 @@ package datadog.trace.instrumentation.commonscodec;
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.PropagationTypes;
 import datadog.trace.api.iast.propagation.CodecModule;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.commons.codec.binary.Base64;
 
-@IastAdvice.Propagation(PropagationTypes.STRING)
+@IastAdvice.Propagation
 @CallSite(spi = IastAdvice.class)
 // TODO complete propagation support
 public class Base64CallSite {
