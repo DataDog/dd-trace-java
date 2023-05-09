@@ -136,13 +136,13 @@ public class DatadogSparkListener extends SparkListener {
       jobSpanBuilder.asChildOf(applicationSpan.context());
     }
 
-    AgentSpan jobSpan = jobSpanBuilder.start();
-    jobSpan.setMeasured(true);
-
     if (jobStart.stageInfos().nonEmpty()) {
       // In the spark UI, the name of a job is the name of its last stage
-      jobSpan.setTag(DDTags.RESOURCE_NAME, jobStart.stageInfos().last().name());
+      jobSpanBuilder.withTag(DDTags.RESOURCE_NAME, jobStart.stageInfos().last().name());
     }
+
+    AgentSpan jobSpan = jobSpanBuilder.start();
+    jobSpan.setMeasured(true);
 
     // Some properties can change at runtime, so capturing properties of all jobs
     if (jobStart.properties() != null) {
