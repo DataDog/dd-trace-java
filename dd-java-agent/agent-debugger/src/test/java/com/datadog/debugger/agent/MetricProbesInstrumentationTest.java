@@ -149,6 +149,38 @@ public class MetricProbesInstrumentationTest {
   }
 
   @Test
+  public void multiInvalidValueMetric() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    String METRIC_NAME = "call_count";
+    MetricProbe metric1 =
+        MetricProbe.builder()
+            .probeId(METRIC_ID1)
+            .metricName(METRIC_NAME)
+            .kind(COUNT)
+            .where(CLASS_NAME, "main", "int (java.lang.String)")
+            .valueScript(new ValueScript(DSL.ref("value"), "value"))
+            .build();
+    MetricProbe metric2 =
+        MetricProbe.builder()
+            .probeId(METRIC_ID2)
+            .metricName(METRIC_NAME)
+            .kind(COUNT)
+            .where(CLASS_NAME, "main", "int (java.lang.String)")
+            .valueScript(new ValueScript(DSL.ref("invalid"), "invalid"))
+            .build();
+    MetricForwarderListener listener = installMetricProbes(metric1, metric2);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    Assertions.assertEquals(3, result);
+    Assertions.assertEquals(0, listener.counters.size());
+    Assertions.assertEquals(2, mockSink.getCurrentDiagnostics().size());
+    Assertions.assertEquals(
+        "Cannot resolve symbol value", mockSink.getCurrentDiagnostics().get(0).getMessage());
+    Assertions.assertEquals(
+        "Cannot resolve symbol invalid", mockSink.getCurrentDiagnostics().get(1).getMessage());
+  }
+
+  @Test
   public void methodArgumentRefValueCountMetric() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot03";
     String METRIC_NAME = "argument_count";
