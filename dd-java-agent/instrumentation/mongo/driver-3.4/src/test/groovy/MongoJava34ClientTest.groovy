@@ -261,6 +261,11 @@ class MongoJava34ClientV0ForkedTest extends MongoJava34ClientTest {
   String operation() {
     return V0_OPERATION
   }
+
+  @Override
+  String dbType() {
+    return V0_DB_TYPE
+  }
 }
 
 class MongoJava34ClientV1ForkedTest extends MongoJava34ClientTest {
@@ -278,5 +283,10 @@ class MongoJava34ClientV1ForkedTest extends MongoJava34ClientTest {
   @Override
   String operation() {
     return V1_OPERATION
+  }
+
+  @Override
+  String dbType() {
+    return V1_DB_TYPE
   }
 }

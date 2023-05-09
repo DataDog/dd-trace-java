@@ -60,9 +60,6 @@ public class RediscalaClientDecorator
   }
 
   @Override
-  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
-
-  @Override
   public AgentSpan onConnection(final AgentSpan span, final RedisConnectionInfo connection) {
     if (connection != null) {
       setPeerPort(span, connection.port);

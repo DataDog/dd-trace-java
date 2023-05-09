@@ -825,7 +825,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
   protected abstract boolean dbmTraceInjected()
 }
 
-class JDBCInstrumentationV0ForkedTest extends JDBCInstrumentationTest {
+class JDBCInstrumentationV0Test extends JDBCInstrumentationTest {
 
   @Override
   int version() {

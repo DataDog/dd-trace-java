@@ -124,6 +124,14 @@ public interface NamingSchema {
 
   interface ForDatabase {
     /**
+     * Normalize the cache name from the raw parsed one.
+     *
+     * @param rawName the raw name
+     * @return the normalized one
+     */
+    String normalizedName(@Nonnull String rawName);
+
+    /**
      * Calculate the operation name for a database span.
      *
      * @param databaseType the database type (e.g. postgres, elasticsearch,..)

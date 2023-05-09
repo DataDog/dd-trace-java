@@ -248,6 +248,11 @@ class MongoCore37ClientV0ForkedTest extends MongoCore37ClientTest {
   String operation() {
     return V0_OPERATION
   }
+
+  @Override
+  String dbType() {
+    return V0_DB_TYPE
+  }
 }
 
 class MongoCore37ClientV1ForkedTest extends MongoCore37ClientTest {
@@ -265,5 +270,10 @@ class MongoCore37ClientV1ForkedTest extends MongoCore37ClientTest {
   @Override
   String operation() {
     return V1_OPERATION
+  }
+
+  @Override
+  String dbType() {
+    return V1_DB_TYPE
   }
 }
