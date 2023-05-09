@@ -1,5 +1,11 @@
+include:
+  - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
+  - remote: https://gitlab-templates.ddbuild.io/apm/packaging.yml
+  - local: ".gitlab/benchmarks.yml"
+
 stages:
   - build
+  - package
   - deploy
   - benchmarks
   - generate-signing-key
@@ -13,10 +19,6 @@ variables:
   FORCE_TRIGGER:
     value: "false"
     description: "Set to true to override rules in the reliability-env pipeline (e.g. override 'only deploy master')"
-
-include:
-  - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
-  - local: ".gitlab/benchmarks.yml"
 
 .common: &common
   tags: [ "runner:main", "size:large" ]
@@ -66,6 +68,22 @@ build_with_cache:
   cache:
     <<: *default_cache
     policy: push
+
+package:
+  extends: .package
+  needs: [ build ]
+  script:
+    - source ../upstream.env
+    - export VERSION=$UPSTREAM_TRACER_VERSION$CI_VERSION_SUFFIX
+    - echo -n $VERSION > auto_inject-java.version
+    - cp ../workspace/dd-java-agent/build/libs/*.jar dd-java-agent.jar
+    - source common_build_functions.sh
+    - fpm_wrapper "datadog-apm-library-java" "$VERSION" --input-type dir dd-java-agent.jar="$LIBRARIES_INSTALL_BASE/java/dd-java-agent.jar" auto_inject-java.version="$LIBRARIES_INSTALL_BASE/java/version"
+
+.release-package:
+  stage: deploy
+  variables:
+    PRODUCT_NAME: auto_inject-java
 
 deploy_to_reliability_env:
   stage: deploy
