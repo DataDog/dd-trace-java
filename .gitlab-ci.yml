@@ -13,7 +13,6 @@ stages:
 variables:
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
   SONATYPE_USERNAME: robot-sonatype-apm-java
-  S3_RELEASE_ARTIFACTS_URI: ${S3_RELEASE_ARTIFACTS_BASE}-java/$CI_PIPELINE_ID
   DOWNSTREAM_BRANCH:
     value: "master"
     description: "Run a specific datadog-reliability-env branch downstream"
@@ -84,7 +83,7 @@ package:
 .release-package:
   stage: deploy
   variables:
-    PRODUCT_NAME=auto_inject-java
+    PRODUCT_NAME: auto_inject-java
 
 deploy_to_reliability_env:
   stage: deploy
