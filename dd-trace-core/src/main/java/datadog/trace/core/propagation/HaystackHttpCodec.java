@@ -6,12 +6,14 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DD64bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -118,17 +120,9 @@ class HaystackHttpCodec {
   }
 
   public static HttpCodec.Extractor newExtractor(
-      final Map<String, String> tagMapping, Map<String, String> baggageMapping) {
+      Config config, Supplier<TraceConfig> traceConfigSupplier) {
     return new TagContextExtractor(
-        tagMapping,
-        baggageMapping,
-        new ContextInterpreter.Factory() {
-          @Override
-          protected ContextInterpreter construct(
-              Map<String, String> mapping, Map<String, String> baggageMapping) {
-            return new HaystackContextInterpreter(mapping, baggageMapping);
-          }
-        });
+        traceConfigSupplier, () -> new HaystackContextInterpreter(config));
   }
 
   private static class HaystackContextInterpreter extends ContextInterpreter {
@@ -141,9 +135,8 @@ class HaystackHttpCodec {
     private static final int BAGGAGE = 3;
     private static final int IGNORE = -1;
 
-    private HaystackContextInterpreter(
-        Map<String, String> taggedHeaders, Map<String, String> baggageMapping) {
-      super(taggedHeaders, baggageMapping, Config.get());
+    private HaystackContextInterpreter(Config config) {
+      super(config);
     }
 
     @Override

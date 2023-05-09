@@ -1,9 +1,11 @@
 package datadog.trace.core.propagation
 
+import datadog.trace.api.Config
 import datadog.trace.api.DD128bTraceId
 import datadog.trace.api.DD64bTraceId
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.DynamicConfig
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.internal.util.LongStringUtils
 import datadog.trace.bootstrap.ActiveSubsystems
@@ -23,19 +25,20 @@ import static datadog.trace.core.propagation.DatadogHttpCodec.TRACE_ID_KEY
 
 class DatadogHttpExtractorTest extends DDSpecification {
 
+  private DynamicConfig dynamicConfig
   private HttpCodec.Extractor _extractor
 
   private HttpCodec.Extractor getExtractor() {
-    _extractor ?: (
-      _extractor = DatadogHttpCodec.newExtractor(
-      ["SOME_HEADER": "some-tag"],
-      ["SOME_CUSTOM_BAGGAGE_HEADER": "some-baggage", "SOME_CUSTOM_BAGGAGE_HEADER_2": "some-CaseSensitive-baggage"])
-      )
+    _extractor ?: (_extractor = DatadogHttpCodec.newExtractor(Config.get(), { dynamicConfig.captureTraceConfig() }))
   }
 
   boolean origAppSecActive
 
   void setup() {
+    dynamicConfig = DynamicConfig.create()
+      .setTaggedHeaders(["SOME_HEADER": "some-tag"])
+      .setBaggageMapping(["SOME_CUSTOM_BAGGAGE_HEADER": "some-baggage", "SOME_CUSTOM_BAGGAGE_HEADER_2": "some-CaseSensitive-baggage"])
+      .apply()
     origAppSecActive = ActiveSubsystems.APPSEC_ACTIVE
     ActiveSubsystems.APPSEC_ACTIVE = true
 
