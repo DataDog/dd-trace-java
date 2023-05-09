@@ -80,14 +80,11 @@ package:
     - cp ../workspace/dd-java-agent/build/libs/*.jar dd-java-agent.jar
     - source common_build_functions.sh
     - fpm_wrapper "datadog-apm-library-java" "$VERSION" --input-type dir dd-java-agent.jar="$LIBRARIES_INSTALL_BASE/java/dd-java-agent.jar" auto_inject-java.version="$LIBRARIES_INSTALL_BASE/java/version"
-    - $S3_CP_CMD . $S3_RELEASE_ARTIFACTS_URI/deb/amd64/ --exclude "*" --include "*amd64.deb" --recursive
-    - $S3_CP_CMD . $S3_RELEASE_ARTIFACTS_URI/rpm/x86_64/ --exclude "*" --include "*x86_64.rpm" --recursive
 
 .release-package:
   stage: deploy
-  before_script:
-    - export VERSION=$(<packaging/auto_inject-java.version)
-    - export PRODUCT_NAME=auto_inject-java
+  variables:
+    PRODUCT_NAME=auto_inject-java
 
 deploy_to_reliability_env:
   stage: deploy
