@@ -29,7 +29,7 @@ class LongRunningTracesTrackerTest extends DDSpecification {
     config.getLongRunningFlushInterval() >> 20
     config.longRunningTracesEnabled >> true
     sharedCommunicationObjects.featuresDiscovery(_) >> features
-    buffer = new PendingTraceBuffer.DelayingPendingTraceBuffer(maxTrackedTraces, SystemTimeSource.INSTANCE, config, sharedCommunicationObjects)
+    buffer = new PendingTraceBuffer.DelayingPendingTraceBuffer(maxTrackedTraces, SystemTimeSource.INSTANCE, config, sharedCommunicationObjects, HealthMetrics.NO_OP)
     tracker = buffer.runningTracesTracker
     factory = new PendingTrace.Factory(tracer, buffer, SystemTimeSource.INSTANCE, false, HealthMetrics.NO_OP)
   }

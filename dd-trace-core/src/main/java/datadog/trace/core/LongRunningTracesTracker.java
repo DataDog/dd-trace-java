@@ -3,12 +3,14 @@ package datadog.trace.core;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
+import datadog.trace.core.monitor.HealthMetrics;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class LongRunningTracesTracker {
   private final DDAgentFeaturesDiscovery features;
+  private final HealthMetrics healthMetrics;
   private long lastFlushMilli = 0;
 
   private final int maxTrackedTraces;
@@ -16,6 +18,8 @@ public class LongRunningTracesTracker {
   private final long maxTrackedDurationMilli = TimeUnit.HOURS.toMillis(12);
   private final List<PendingTrace> traceArray = new ArrayList<>(1 << 4);
   private int missedAdd = 0;
+  private int writes = 0;
+  private int expires = 0;
 
   public static final int NOT_TRACKED = -1;
   public static final int UNDEFINED = 0;
@@ -25,10 +29,14 @@ public class LongRunningTracesTracker {
   public static final int EXPIRED = 4;
 
   public LongRunningTracesTracker(
-      Config config, int maxTrackedTraces, SharedCommunicationObjects sharedCommunicationObjects) {
+      Config config,
+      int maxTrackedTraces,
+      SharedCommunicationObjects sharedCommunicationObjects,
+      HealthMetrics healthMetrics) {
     this.maxTrackedTraces = maxTrackedTraces;
     this.flushPeriodMilli = (int) TimeUnit.SECONDS.toMillis(config.getLongRunningFlushInterval());
     this.features = sharedCommunicationObjects.featuresDiscovery(config);
+    this.healthMetrics = healthMetrics;
   }
 
   public boolean add(PendingTraceBuffer.Element element) {
@@ -73,6 +81,7 @@ public class LongRunningTracesTracker {
       }
       if (expired(nowMilli, trace)) {
         trace.compareAndSetLongRunningState(WRITE_RUNNING_SPANS, EXPIRED);
+        expires++;
         cleanSlot(i);
         continue;
       }
@@ -83,11 +92,13 @@ public class LongRunningTracesTracker {
           continue;
         }
         trace.compareAndSetLongRunningState(TRACKED, WRITE_RUNNING_SPANS);
+        writes++;
         trace.write();
       }
       i++;
     }
     lastFlushMilli = nowMilli;
+    flushStats();
   }
 
   private boolean expired(long nowMilli, PendingTrace trace) {
@@ -111,5 +122,12 @@ public class LongRunningTracesTracker {
   private boolean negativeOrNullPriority(PendingTrace trace) {
     Integer prio = trace.evaluateSamplingPriority();
     return prio == null || prio <= 0;
+  }
+
+  private void flushStats() {
+    healthMetrics.onLongRunningUpdate(missedAdd, writes, expires);
+    missedAdd = 0;
+    writes = 0;
+    expires = 0;
   }
 }

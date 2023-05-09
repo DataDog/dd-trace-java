@@ -355,6 +355,23 @@ class HealthMetricsTest extends DDSpecification {
     cleanup:
     healthMetrics.close()
   }
+
+  def "test onLongRunningUpdate"() {
+    setup:
+    def latch = new CountDownLatch(1)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    healthMetrics.start()
+    when:
+    healthMetrics.onLongRunningUpdate(3,10,1)
+    latch.await(10, TimeUnit.SECONDS)
+    then:
+    1 * statsD.count("long-running.write", 10, _)
+    1 * statsD.count("long-running.dropped", 3, _)
+    1 * statsD.count("long-running.expired", 1, _)
+    cleanup:
+    healthMetrics.close()
+  }
+
   private static class Latched implements StatsDClient {
     final StatsDClient delegate
     final CountDownLatch latch
