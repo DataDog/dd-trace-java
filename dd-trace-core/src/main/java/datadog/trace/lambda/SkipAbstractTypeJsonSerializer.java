@@ -8,7 +8,8 @@ import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
-import java.util.*;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -35,7 +36,7 @@ public final class SkipAbstractTypeJsonSerializer<T> extends JsonAdapter<T> {
     return canonicalName.startsWith("java.") || canonicalName.startsWith("javax.");
   }
 
-  private static HashSet<String> allowedCanonicalNames =
+  private static final HashSet<String> allowedCanonicalNames =
       Stream.of(
               "java.util.List",
               "java.util.Map",
@@ -74,8 +75,7 @@ public final class SkipAbstractTypeJsonSerializer<T> extends JsonAdapter<T> {
           return null;
         }
         boolean isAbstract = Modifier.isAbstract(((Class<?>) requestedType).getModifiers());
-        boolean isPlatform = isPlatformClass(typeName);
-        if (isAbstract || isPlatform) {
+        if (isAbstract || isPlatformClass(typeName)) {
           JsonAdapter<T> delegate = moshi.nextAdapter(this, Object.class, annotations);
           return new SkipAbstractTypeJsonSerializer<>(delegate);
         }
