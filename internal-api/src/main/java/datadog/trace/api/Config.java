@@ -113,6 +113,8 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_BUILD_INS
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_ID;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_PER_TEST_CODE_COVERAGE_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SESSION_ID;
@@ -586,6 +588,8 @@ public class Config {
   private final boolean ciVisibilityCompilerPluginAutoConfigurationEnabled;
   private final boolean ciVisibilityPerTestCodeCoverageEnabled;
   private final String ciVisibilityCompilerPluginVersion;
+  private final String ciVisibilityJacocoPluginVersion;
+  private final String ciVisibilityJacocoPluginIncludes;
   private final Integer ciVisibilityDebugPort;
   private final int ciVisibilityTestEventsHandlerCacheSize;
 
@@ -1374,6 +1378,9 @@ public class Config {
     ciVisibilityCompilerPluginVersion =
         configProvider.getString(
             CIVISIBILITY_COMPILER_PLUGIN_VERSION, DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION);
+    ciVisibilityJacocoPluginVersion = configProvider.getString(CIVISIBILITY_JACOCO_PLUGIN_VERSION);
+    ciVisibilityJacocoPluginIncludes =
+        configProvider.getString(CIVISIBILITY_JACOCO_PLUGIN_INCLUDES);
     ciVisibilityDebugPort = configProvider.getInteger(CIVISIBILITY_DEBUG_PORT);
 
     remoteConfigEnabled =
@@ -2224,6 +2231,14 @@ public class Config {
 
   public String getCiVisibilityCompilerPluginVersion() {
     return ciVisibilityCompilerPluginVersion;
+  }
+
+  public String getCiVisibilityJacocoPluginVersion() {
+    return ciVisibilityJacocoPluginVersion;
+  }
+
+  public String getCiVisibilityJacocoPluginIncludes() {
+    return ciVisibilityJacocoPluginIncludes;
   }
 
   public Integer getCiVisibilityDebugPort() {

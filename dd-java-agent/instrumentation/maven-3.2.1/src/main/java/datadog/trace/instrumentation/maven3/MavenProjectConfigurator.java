@@ -7,6 +7,7 @@ import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import org.apache.maven.model.Build;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.model.PluginExecution;
@@ -253,6 +254,44 @@ class MavenProjectConfigurator {
 
     projectProperties.setProperty(JACOCO_EXCL_CLASS_LOADERS_PROPERTY, updatedValue);
 
-    // FIXME enable plugin if it's not there and "skipJacoco" config is not set
+    String jacocoPluginVersion = Config.get().getCiVisibilityJacocoPluginVersion();
+    if (jacocoPluginVersion != null) {
+      configureJacocoPlugin(project, jacocoPluginVersion);
+    }
+  }
+
+  private static void configureJacocoPlugin(MavenProject project, String jacocoPluginVersion) {
+    Plugin jacocoPlugin = new Plugin();
+    jacocoPlugin.setGroupId("org.jacoco");
+    jacocoPlugin.setArtifactId("jacoco-maven-plugin");
+    jacocoPlugin.setVersion(jacocoPluginVersion);
+
+    PluginExecution execution = new PluginExecution();
+    execution.addGoal("prepare-agent");
+    jacocoPlugin.addExecution(execution);
+
+    String instrumentedPackagesStr = Config.get().getCiVisibilityJacocoPluginIncludes();
+    if (instrumentedPackagesStr != null && !instrumentedPackagesStr.isEmpty()) {
+      String[] instrumentedPackages = instrumentedPackagesStr.split(":");
+      configureJacocoInstrumentedPackages(execution, instrumentedPackages);
+    }
+
+    Build build = project.getBuild();
+    build.addPlugin(jacocoPlugin);
+  }
+
+  private static void configureJacocoInstrumentedPackages(
+      PluginExecution execution, String[] instrumentedPackages) {
+    Xpp3Dom includes = new Xpp3Dom("includes");
+    for (String instrumentedPackage : instrumentedPackages) {
+      Xpp3Dom include = new Xpp3Dom("include");
+      include.setValue(instrumentedPackage);
+      includes.addChild(include);
+    }
+
+    Xpp3Dom configuration = new Xpp3Dom("configuration");
+    configuration.addChild(includes);
+
+    execution.setConfiguration(configuration);
   }
 }

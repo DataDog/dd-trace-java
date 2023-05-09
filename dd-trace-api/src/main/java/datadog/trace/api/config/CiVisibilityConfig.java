@@ -20,6 +20,10 @@ public final class CiVisibilityConfig {
       "civisibility.per.test.code.coverage.enabled";
   public static final String CIVISIBILITY_COMPILER_PLUGIN_VERSION =
       "civisibility.compiler.plugin.version";
+  public static final String CIVISIBILITY_JACOCO_PLUGIN_VERSION =
+      "civisibility.jacoco.plugin.version";
+  public static final String CIVISIBILITY_JACOCO_PLUGIN_INCLUDES =
+      "civisibility.jacoco.plugin.includes";
   public static final String CIVISIBILITY_DEBUG_PORT = "civisibility.debug.port";
   public static final String CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE =
       "civisibility.test.events.handler.cache.size";
