@@ -109,7 +109,6 @@ public class DatadogSparkListener extends SparkListener {
             .withStartTimestamp(jobStart.time() * 1000)
             .withTag("job_id", jobStart.jobId())
             .withTag("stage_count", jobStart.stageInfos().size())
-            .withTag(DDTags.RESOURCE_NAME, jobStart.stageInfos().apply(0).name())
             .withSpanType("spark");
 
     if (isRunningOnDatabricks) {
@@ -135,6 +134,11 @@ public class DatadogSparkListener extends SparkListener {
     } else {
       // In non-databricks env, the spark application is the local root spans
       jobSpanBuilder.asChildOf(applicationSpan.context());
+    }
+
+    if (jobStart.stageInfos().nonEmpty()) {
+      // In the spark UI, the name of a job is the name of its last stage
+      jobSpanBuilder.withTag(DDTags.RESOURCE_NAME, jobStart.stageInfos().last().name());
     }
 
     AgentSpan jobSpan = jobSpanBuilder.start();
