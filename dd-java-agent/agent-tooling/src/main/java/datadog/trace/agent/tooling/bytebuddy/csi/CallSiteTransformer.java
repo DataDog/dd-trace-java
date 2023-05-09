@@ -142,6 +142,11 @@ public class CallSiteTransformer implements Instrumenter.AdviceTransformer {
     }
 
     @Override
+    public void instruction(final int opcode, final String type) {
+      mv.visitTypeInsn(opcode, type);
+    }
+
+    @Override
     public void loadConstant(final Object constant) {
       mv.visitLdcInsn(constant);
     }
