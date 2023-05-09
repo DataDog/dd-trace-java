@@ -38,48 +38,62 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     // S3
     request
         .getValueForField("Bucket", String.class)
-        .ifPresent(name -> span.setTag("aws.bucket.name", name));
-    request
-        .getValueForField("Bucket", String.class)
-        .ifPresent(name -> span.setTag("bucketname", name));
+        .ifPresent(name -> setBucketName(span, name));
     request
         .getValueForField("StorageClass", String.class)
         .ifPresent(storageClass -> span.setTag("aws.storage.class", storageClass));
+
     // SQS
     request
         .getValueForField("QueueUrl", String.class)
-        .ifPresent(name -> span.setTag("aws.queue.url", name));
+        .ifPresent(url -> span.setTag("aws.queue.url", url));
     request
         .getValueForField("QueueName", String.class)
-        .ifPresent(name -> span.setTag("aws.queue.name", name));
-    request
-        .getValueForField("QueueName", String.class)
-        .ifPresent(name -> span.setTag("queuename", name));
+        .ifPresent(name -> setQueueName(span, name));
+
     // SNS
     request
         .getValueForField("TopicArn", String.class)
-        .ifPresent(
-            name -> span.setTag("aws.topic.name", name.substring(name.lastIndexOf(':') + 1)));
-    request
-        .getValueForField("TopicArn", String.class)
-        .ifPresent(
-            name -> span.setTag("topicname", name.substring(name.lastIndexOf(':') + 1)));
+        .ifPresent(arn -> setTopicName(span, arn.substring(arn.lastIndexOf(':') + 1)));
+
     // Kinesis
     request
         .getValueForField("StreamName", String.class)
-        .ifPresent(name -> span.setTag("aws.stream.name", name));
-    request
-        .getValueForField("StreamName", String.class)
-        .ifPresent(name -> span.setTag("streamname", name));
+        .ifPresent(name -> setStreamName(span, name));
+
     // DynamoDB
     request
         .getValueForField("TableName", String.class)
-        .ifPresent(name -> span.setTag("aws.table.name", name));
-    request
-        .getValueForField("TableName", String.class)
-        .ifPresent(name -> span.setTag("tablename", name));
+        .ifPresent(name -> setTableName(span, name));
+
     return span;
   }
+
+  private static void setBucketName(AgentSpan span, String name) {
+    span.setTag("aws.bucket.name", name);
+    span.setTag("bucketname", name);
+  }
+
+  private static void setQueueName(AgentSpan span, String name) {
+    span.setTag("aws.queue.name", name);
+    span.setTag("queuename", name);
+  }
+
+  private static void setTopicName(AgentSpan span, String name) {
+    span.setTag("aws.topic.name", name);
+    span.setTag("topicname", name);
+  }
+
+  private static void setStreamName(AgentSpan span, String name) {
+    span.setTag("aws.stream.name", name);
+    span.setTag("streamname", name);
+  }
+
+  private static void setTableName(AgentSpan span, String name) {
+    span.setTag("aws.table.name", name);
+    span.setTag("tablename", name);
+  }
+
 
   public AgentSpan onAttributes(final AgentSpan span, final ExecutionAttributes attributes) {
     final String awsServiceName = attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME);
