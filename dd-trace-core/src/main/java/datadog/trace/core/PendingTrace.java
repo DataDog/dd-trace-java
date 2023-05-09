@@ -209,10 +209,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     }
     Integer prio = span.getSamplingPriority();
     if (prio == null) {
-      DDSpan rootSpan = span.getLocalRootSpan();
-      DDSpan spanToSample = rootSpan == null ? span : rootSpan;
-      tracer.sampler.sample(spanToSample);
-      prio = span.getSamplingPriority();
+      prio = span.forceSamplingDecision();
     }
     return prio;
   }
