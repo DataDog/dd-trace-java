@@ -1,5 +1,11 @@
 package com.datadog.debugger.instrumentation;
 
+import static com.datadog.debugger.instrumentation.ASMHelper.decodeSignature;
+import static com.datadog.debugger.instrumentation.ASMHelper.invokeInterface;
+import static com.datadog.debugger.instrumentation.ASMHelper.invokeStatic;
+import static com.datadog.debugger.instrumentation.ASMHelper.invokeVirtual;
+import static com.datadog.debugger.instrumentation.ASMHelper.isStaticField;
+import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
 import static com.datadog.debugger.instrumentation.Types.*;
 
 import com.datadog.debugger.el.InvalidValueException;
@@ -52,6 +58,8 @@ import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.TryCatchBlockNode;
+import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,7 +92,7 @@ public class MetricInstrumentor extends Instrumentor {
         case ENTRY:
         case DEFAULT:
           {
-            InsnList insnList = callMetric(metricProbe);
+            InsnList insnList = wrapTryCatch(callMetric(metricProbe));
             methodNode.instructions.insert(methodEnterLabel, insnList);
             break;
           }
@@ -100,9 +108,69 @@ public class MetricInstrumentor extends Instrumentor {
     }
   }
 
+  private InsnList wrapTryCatch(InsnList insnList) {
+    if (insnList == null || insnList == EMPTY_INSN_LIST) {
+      return EMPTY_INSN_LIST;
+    }
+    LabelNode startLabel = new LabelNode();
+    insnList.insert(startLabel);
+    LabelNode endLabel = new LabelNode();
+    insnList.add(endLabel);
+    InsnList handler = new InsnList();
+    LabelNode handlerLabel = new LabelNode();
+    handler.add(handlerLabel);
+    // stack [exception]
+    handler.add(new InsnNode(Opcodes.POP));
+    // stack []
+    handler.add(new JumpInsnNode(Opcodes.GOTO, endLabel));
+    methodNode.instructions.add(handler);
+    methodNode.tryCatchBlocks.add(
+        new TryCatchBlockNode(
+            startLabel, endLabel, handlerLabel, Type.getInternalName(Exception.class)));
+    return insnList;
+  }
+
   @Override
   protected InsnList getBeforeReturnInsnList(AbstractInsnNode node) {
-    return callMetric(metricProbe);
+    int size = 1;
+    int storeOpCode = 0;
+    int loadOpCode = 0;
+    switch (node.getOpcode()) {
+      case Opcodes.RET:
+      case Opcodes.RETURN:
+        return wrapTryCatch(callMetric(metricProbe));
+      case Opcodes.LRETURN:
+        storeOpCode = Opcodes.LSTORE;
+        loadOpCode = Opcodes.LLOAD;
+        size = 2;
+        break;
+      case Opcodes.DRETURN:
+        storeOpCode = Opcodes.DSTORE;
+        loadOpCode = Opcodes.DLOAD;
+        size = 2;
+        break;
+      case Opcodes.IRETURN:
+        storeOpCode = Opcodes.ISTORE;
+        loadOpCode = Opcodes.ILOAD;
+        break;
+      case Opcodes.FRETURN:
+        storeOpCode = Opcodes.FSTORE;
+        loadOpCode = Opcodes.FLOAD;
+        break;
+      case Opcodes.ARETURN:
+        storeOpCode = Opcodes.ASTORE;
+        loadOpCode = Opcodes.ALOAD;
+        break;
+      default:
+        throw new UnsupportedOperationException("Unsupported opcode: " + node.getOpcode());
+    }
+    InsnList insnList = wrapTryCatch(callMetric(metricProbe));
+    int tmpIdx = newVar(size);
+    // store return value from the stack to local before wrapped call
+    insnList.insert(new VarInsnNode(storeOpCode, tmpIdx));
+    // restore return value to the stack after wrapped call
+    insnList.add(new VarInsnNode(loadOpCode, tmpIdx));
+    return insnList;
   }
 
   private InsnList callCount(MetricProbe metricProbe) {
@@ -133,21 +201,23 @@ public class MetricInstrumentor extends Instrumentor {
     // stack [string]
     InsnList nullBranch = new InsnList();
     VisitorResult result;
+    Type resultType;
     try {
       result = metricProbe.getValue().getExpr().accept(new MetricValueVisitor(this, nullBranch));
+      resultType = result.type.getMainType();
       // stack [string, int|long]
-      convertIfRequired(result.type, Type.LONG_TYPE, result.insnList);
+      convertIfRequired(resultType, Type.LONG_TYPE, result.insnList);
       // stack [string, long]
       insnList.add(result.insnList);
-    } catch (InvalidValueException ex) {
+    } catch (InvalidValueException | UnsupportedOperationException ex) {
       reportError(ex.getMessage());
       return EMPTY_INSN_LIST;
     }
-    if (!isCompatible(result.type, Type.LONG_TYPE)) {
+    if (!isCompatible(resultType, Type.LONG_TYPE)) {
       reportError(
           String.format(
               "Incompatible type for expression: %s with expected type: %s",
-              result.type.getClassName(), Type.LONG_TYPE.getClassName()));
+              resultType.getClassName(), Type.LONG_TYPE.getClassName()));
       return EMPTY_INSN_LIST;
     }
     pushTags(insnList, addProbeIdWithTags(metricProbe.getId(), metricProbe.getTags()));
@@ -220,11 +290,11 @@ public class MetricInstrumentor extends Instrumentor {
             "No line info for " + (sourceLine.isSingleLine() ? "line " : "range ") + sourceLine);
       }
       if (beforeLabel != null) {
-        InsnList insnList = callMetric(metricProbe);
+        InsnList insnList = wrapTryCatch(callMetric(metricProbe));
         methodNode.instructions.insertBefore(beforeLabel.getNext(), insnList);
       }
       if (afterLabel != null && !sourceLine.isSingleLine()) {
-        InsnList insnList = callMetric(metricProbe);
+        InsnList insnList = wrapTryCatch(callMetric(metricProbe));
         methodNode.instructions.insert(afterLabel, insnList);
       }
     }
@@ -238,10 +308,10 @@ public class MetricInstrumentor extends Instrumentor {
   }
 
   private static class VisitorResult {
-    final Type type;
+    final ASMHelper.Type type;
     final InsnList insnList;
 
-    public VisitorResult(Type type, InsnList insnList) {
+    public VisitorResult(ASMHelper.Type type, InsnList insnList) {
       this.type = type;
       this.insnList = insnList;
     }
@@ -323,7 +393,32 @@ public class MetricInstrumentor extends Instrumentor {
 
     @Override
     public VisitorResult visit(LenExpression lenExpression) {
-      throw new UnsupportedOperationException();
+      VisitorResult visitorResult = lenExpression.getSource().accept(this);
+      Type type = visitorResult.type.getMainType();
+      if (type.equals(STRING_TYPE)) {
+        invokeVirtual(visitorResult.insnList, type, "length", Type.INT_TYPE);
+        return new VisitorResult(ASMHelper.INT_TYPE, visitorResult.insnList);
+      }
+      if (type.getSort() == Type.ARRAY) {
+        visitorResult.insnList.add(new InsnNode(Opcodes.ARRAYLENGTH));
+        return new VisitorResult(ASMHelper.INT_TYPE, visitorResult.insnList);
+      }
+      if (type.equals(COLLECTION_TYPE)
+          || type.equals(LIST_TYPE)
+          || type.equals(MAP_TYPE)
+          || type.equals(SET_TYPE)) {
+        invokeInterface(visitorResult.insnList, type, "size", Type.INT_TYPE);
+        return new VisitorResult(ASMHelper.INT_TYPE, visitorResult.insnList);
+      }
+      if (type.equals(ARRAYLIST_TYPE)
+          || type.equals(LINKEDLIST_TYPE)
+          || type.equals(HASHMAP_TYPE)
+          || type.equals(LINKEDHASHMAP_TYPE)
+          || type.equals(HASHSET_TYPE)) {
+        invokeVirtual(visitorResult.insnList, type, "size", Type.INT_TYPE);
+        return new VisitorResult(ASMHelper.INT_TYPE, visitorResult.insnList);
+      }
+      throw new UnsupportedOperationException(type.getClassName());
     }
 
     @Override
@@ -350,9 +445,9 @@ public class MetricInstrumentor extends Instrumentor {
     public VisitorResult visit(ValueRefExpression valueRefExpression) {
       String name = valueRefExpression.getSymbolName();
       InsnList insnList = new InsnList();
-      Type currentType;
+      ASMHelper.Type currentType;
       if (name.equals(ValueReferences.THIS)) {
-        currentType = Type.getObjectType(instrumentor.classNode.name);
+        currentType = new ASMHelper.Type(Type.getObjectType(instrumentor.classNode.name));
         insnList.add(new VarInsnNode(Opcodes.ALOAD, 0));
         // stack [this]
       } else {
@@ -369,7 +464,8 @@ public class MetricInstrumentor extends Instrumentor {
     public VisitorResult visit(GetMemberExpression getMemberExpression) {
       VisitorResult result = getMemberExpression.getTarget().accept(this);
       String name = getMemberExpression.getMemberName();
-      Type type = tryRetrieveField(result.type, name, result.insnList, false);
+      ASMHelper.Type type =
+          tryRetrieveField(result.type.getMainType(), name, result.insnList, false);
       if (type == null) {
         throw new InvalidValueException("Cannot resolve symbol " + name);
       }
@@ -379,7 +475,58 @@ public class MetricInstrumentor extends Instrumentor {
 
     @Override
     public VisitorResult visit(IndexExpression indexExpression) {
-      throw new UnsupportedOperationException();
+      InsnList insnList = new InsnList();
+      VisitorResult targetResult = indexExpression.getTarget().accept(this);
+      // stack [target_object]
+      insnList.add(targetResult.insnList);
+      VisitorResult keyResult = indexExpression.getKey().accept(this);
+      // stack [target_object, key_object]
+      insnList.add(keyResult.insnList);
+      Type targetType = targetResult.type.getMainType();
+      if (targetType.equals(MAP_TYPE)) {
+        invokeInterface(insnList, targetType, "get", OBJECT_TYPE, OBJECT_TYPE);
+        // stack [result_object]
+        return buildResultWithElementType(targetResult.type, insnList);
+      }
+      if (targetType.equals(HASHMAP_TYPE)) {
+        invokeVirtual(insnList, targetType, "get", OBJECT_TYPE, OBJECT_TYPE);
+        // stack [result_object]
+        return buildResultWithElementType(targetResult.type, insnList);
+      }
+      // for now on, we expect to be either an int or a long for accessing lists or arrays
+      if (keyResult.type.getMainType().equals(Type.LONG_TYPE)
+          || keyResult.type.getMainType().equals(Type.INT_TYPE)) {
+        if (keyResult.type.getMainType().equals(Type.LONG_TYPE)) {
+          insnList.add(new InsnNode(Opcodes.L2I));
+        }
+        if (targetType.getSort() == Type.ARRAY) {
+          insnList.add(new InsnNode(targetType.getElementType().getOpcode(Opcodes.IALOAD)));
+          return new VisitorResult(new ASMHelper.Type(targetType.getElementType()), insnList);
+        }
+        if (targetType.equals(LIST_TYPE)) {
+          invokeInterface(insnList, targetType, "get", OBJECT_TYPE, Type.INT_TYPE);
+          return buildResultWithElementType(targetResult.type, insnList);
+        }
+        if (targetType.equals(ARRAYLIST_TYPE) || targetType.equals(LINKEDLIST_TYPE)) {
+          invokeVirtual(insnList, targetType, "get", OBJECT_TYPE, Type.INT_TYPE);
+          return buildResultWithElementType(targetResult.type, insnList);
+        }
+      } else {
+        throw new UnsupportedOperationException(
+            "Incompatible type for key: " + keyResult.type + ", expected int or long");
+      }
+      throw new UnsupportedOperationException(targetResult.type.toString());
+    }
+
+    private VisitorResult buildResultWithElementType(ASMHelper.Type targetType, InsnList insnList) {
+      // assume the first generic type of targetResult is the type of elements
+      ASMHelper.Type elementType =
+          targetType.getGenericTypes().isEmpty()
+              ? ASMHelper.OBJECT_TYPE
+              : targetType.getGenericTypes().get(0);
+      insnList.add(
+          new TypeInsnNode(Opcodes.CHECKCAST, elementType.getMainType().getInternalName()));
+      return new VisitorResult(elementType, insnList);
     }
 
     @Override
@@ -399,7 +546,9 @@ public class MetricInstrumentor extends Instrumentor {
 
     @Override
     public VisitorResult visit(StringValue stringValue) {
-      throw new UnsupportedOperationException();
+      InsnList insnList = new InsnList();
+      ldc(insnList, stringValue.getValue());
+      return new VisitorResult(ASMHelper.STRING_TYPE, insnList);
     }
 
     @Override
@@ -408,7 +557,7 @@ public class MetricInstrumentor extends Instrumentor {
       InsnList insnList = new InsnList();
       if (number instanceof Long) {
         ldc(insnList, number.longValue());
-        return new VisitorResult(Type.LONG_TYPE, insnList);
+        return new VisitorResult(ASMHelper.LONG_TYPE, insnList);
       }
       throw new InvalidValueException(
           "Unsupported constant value: " + number + " type: " + number.getClass().getTypeName());
@@ -429,8 +578,8 @@ public class MetricInstrumentor extends Instrumentor {
       throw new UnsupportedOperationException();
     }
 
-    private Type tryRetrieve(String name, InsnList insnList) {
-      Type result = tryRetrieveArgument(name, insnList);
+    private ASMHelper.Type tryRetrieve(String name, InsnList insnList) {
+      ASMHelper.Type result = tryRetrieveArgument(name, insnList);
       if (result != null) {
         return result;
       }
@@ -442,7 +591,7 @@ public class MetricInstrumentor extends Instrumentor {
           Type.getObjectType(instrumentor.classNode.name), name, insnList, true);
     }
 
-    private Type tryRetrieveArgument(String head, InsnList insnList) {
+    private ASMHelper.Type tryRetrieveArgument(String head, InsnList insnList) {
       Type[] argTypes = Type.getArgumentTypes(instrumentor.methodNode.desc);
       if (argTypes.length == 0) {
         // bail out if no args
@@ -464,14 +613,14 @@ public class MetricInstrumentor extends Instrumentor {
           VarInsnNode varInsnNode = new VarInsnNode(argType.getOpcode(Opcodes.ILOAD), slot);
           insnList.add(varInsnNode);
           // stack [arg]
-          return argType;
+          return new ASMHelper.Type(argType);
         }
         slot += argType.getSize();
       }
       return null;
     }
 
-    private Type tryRetrieveLocalVar(String head, InsnList insnList) {
+    private ASMHelper.Type tryRetrieveLocalVar(String head, InsnList insnList) {
       for (LocalVariableNode varNode : instrumentor.methodNode.localVariables) {
         if (varNode.name.equals(head)) {
           Type varType = Type.getType(varNode.desc);
@@ -479,19 +628,20 @@ public class MetricInstrumentor extends Instrumentor {
               new VarInsnNode(varType.getOpcode(Opcodes.ILOAD), varNode.index);
           insnList.add(varInsnNode);
           // stack [local]
-          return varType;
+          return new ASMHelper.Type(varType);
         }
       }
       return null;
     }
 
-    private Type tryRetrieveField(
+    private ASMHelper.Type tryRetrieveField(
         Type currentType, String fieldName, InsnList insnList, boolean useThisField) {
       Class<?> clazz;
+      ASMHelper.Type returnType = null;
       try {
         String className;
         String fieldDesc = null;
-        if (currentType.getClassName().equals(instrumentor.classNode.name)) { // this
+        if (currentType.getInternalName().equals(instrumentor.classNode.name)) { // this
           className = instrumentor.classNode.name;
           List<FieldNode> fieldList =
               instrumentor.isStatic
@@ -503,7 +653,11 @@ public class MetricInstrumentor extends Instrumentor {
                 continue; // or break?
               }
               fieldDesc = fieldNode.desc;
-              currentType = Type.getType(fieldNode.desc);
+              if (fieldNode.signature != null) {
+                returnType = decodeSignature(fieldNode.signature);
+              } else {
+                returnType = new ASMHelper.Type(Type.getType(fieldNode.desc));
+              }
               if (useThisField) {
                 insnList.add(new VarInsnNode(Opcodes.ALOAD, 0));
                 // stack [this]
@@ -516,7 +670,7 @@ public class MetricInstrumentor extends Instrumentor {
           clazz = Class.forName(className, true, instrumentor.classLoader);
           Field declaredField = clazz.getDeclaredField(fieldName); // no parent fields!
           fieldDesc = Type.getDescriptor(declaredField.getType());
-          currentType = Type.getType(declaredField.getType());
+          returnType = new ASMHelper.Type(Type.getType(declaredField.getType()));
         }
         if (fieldDesc == null) {
           return null;
@@ -541,7 +695,7 @@ public class MetricInstrumentor extends Instrumentor {
         LOGGER.debug(message, e);
         throw new InvalidValueException(message);
       }
-      return currentType;
+      return returnType;
     }
   }
 }
