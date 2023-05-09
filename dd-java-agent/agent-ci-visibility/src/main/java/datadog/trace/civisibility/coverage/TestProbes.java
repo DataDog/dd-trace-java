@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import org.jacoco.core.data.ExecutionData;
 
@@ -34,7 +35,12 @@ public class TestProbes implements CoverageProbeStore {
         new ArrayList<>(probeActivations.values());
     List<ExecutionData> executionDataList =
         executionDataAdapterList.stream()
-            .map(a -> a.toExecutionData(totalProbeCounts.get(a.getClassName())))
+            .map(
+                a -> {
+                  Integer totalProbeCount = totalProbeCounts.get(a.getClassName());
+                  return totalProbeCount != null ? a.toExecutionData(totalProbeCount) : null;
+                })
+            .filter(Objects::nonNull)
             .collect(Collectors.toList());
 
     TestReport testReport =

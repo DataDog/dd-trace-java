@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.maven3;
 
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.DatadogClassLoader;
+import datadog.trace.util.Strings;
 import java.io.File;
 import java.util.List;
 import java.util.Map;
@@ -28,14 +30,15 @@ class MavenProjectConfigurator {
 
   private static final MavenDependencyVersion ANNOTATION_PROCESSOR_PATHS_SUPPORTED_VERSION =
       MavenDependencyVersion.from("3.5");
+  private static final String JACOCO_EXCL_CLASS_LOADERS_PROPERTY = "jacoco.exclClassLoaders";
 
   void configureTracer(MavenProject project, String pluginKey) {
-    Plugin surefirePlugin = project.getPlugin(pluginKey);
-    if (surefirePlugin == null) {
+    Plugin plugin = project.getPlugin(pluginKey);
+    if (plugin == null) {
       return;
     }
 
-    Xpp3Dom pluginConfiguration = (Xpp3Dom) surefirePlugin.getConfiguration();
+    Xpp3Dom pluginConfiguration = (Xpp3Dom) plugin.getConfiguration();
     if (pluginConfiguration != null) {
       Xpp3Dom forkCount = pluginConfiguration.getChild("forkCount");
       if (forkCount != null && "0".equals(forkCount.getValue())) {
@@ -44,8 +47,16 @@ class MavenProjectConfigurator {
       }
     }
 
-    for (PluginExecution execution : surefirePlugin.getExecutions()) {
-      StringBuilder modifiedArgLine = new StringBuilder();
+    Properties projectProperties = project.getProperties();
+    String projectArgLine = projectProperties.getProperty("argLine");
+    if (projectArgLine == null) {
+      // otherwise reference to "@{argLine}" below will cause the build to fail
+      projectProperties.setProperty("argLine", "");
+    }
+
+    for (PluginExecution execution : plugin.getExecutions()) {
+      StringBuilder modifiedArgLine =
+          new StringBuilder("@{argLine} "); // include project-wide argLine
 
       // propagate to child process all "dd." system properties available in current process
       Properties systemProperties = System.getProperties();
@@ -229,5 +240,19 @@ class MavenProjectConfigurator {
     annotationProcessorPaths.addChild(annotationProcessorPath);
 
     return configuration;
+  }
+
+  void configureJacoco(MavenProject project) {
+    Properties projectProperties = project.getProperties();
+
+    String currentValue = projectProperties.getProperty(JACOCO_EXCL_CLASS_LOADERS_PROPERTY);
+    String updatedValue =
+        Strings.isNotBlank(currentValue)
+            ? currentValue + ":" + DatadogClassLoader.class.getName()
+            : DatadogClassLoader.class.getName();
+
+    projectProperties.setProperty(JACOCO_EXCL_CLASS_LOADERS_PROPERTY, updatedValue);
+
+    // FIXME enable plugin if it's not there and "skipJacoco" config is not set
   }
 }

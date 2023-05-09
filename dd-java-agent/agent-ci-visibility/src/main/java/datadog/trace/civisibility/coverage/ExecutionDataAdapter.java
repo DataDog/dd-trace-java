@@ -39,6 +39,9 @@ public class ExecutionDataAdapter {
     while (itr.hasNext()) {
       probeActivations.or(itr.next());
     }
+
+    probeActivations.stream().forEach(p -> probes[p] = true);
+
     return new ExecutionData(classId, className, probes);
   }
 }

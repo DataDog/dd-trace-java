@@ -16,6 +16,8 @@ public final class CiVisibilityConfig {
       "civisibility.auto.configuration.enabled";
   public static final String CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED =
       "civisibility.compiler.plugin.auto.configuration.enabled";
+  public static final String CIVISIBILITY_PER_TEST_CODE_COVERAGE_ENABLED =
+      "civisibility.per.test.code.coverage.enabled";
   public static final String CIVISIBILITY_COMPILER_PLUGIN_VERSION =
       "civisibility.compiler.plugin.version";
   public static final String CIVISIBILITY_DEBUG_PORT = "civisibility.debug.port";

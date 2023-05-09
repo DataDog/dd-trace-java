@@ -1,10 +1,6 @@
 package datadog.trace.instrumentation.jacoco;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresField;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.declaresMethod;
-import static net.bytebuddy.matcher.ElementMatchers.fieldType;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.nameEndsWith;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
@@ -13,8 +9,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -22,9 +20,15 @@ import org.objectweb.asm.Opcodes;
 
 @AutoService(Instrumenter.class)
 public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.WithTypeStructure {
+    implements Instrumenter.ForTypeHierarchy {
   public ProbeInserterInstrumentation() {
     super("jacoco");
+  }
+
+  @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    return super.isApplicable(enabledSystems)
+        && Config.get().isCiVisibilityPerTestCodeCoverageEnabled();
   }
 
   @Override
@@ -32,53 +36,59 @@ public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility
     return new String[] {packageName + ".ReflectiveMethodVisitor"};
   }
 
-  @Override
-  public ElementMatcher<TypeDescription> structureMatcher() {
-    return declaresField(
-            named("mv")
-                .and(
-                    fieldType(
-                        nameStartsWith("org.jacoco.agent.rt.internal")
-                            .and(nameEndsWith(".asm.MethodVisitor"))
-                            .and(
-                                declaresMethod(
-                                    named("visitMethodInsn")
-                                        .and(takesArguments(5))
-                                        .and(takesArgument(0, int.class))
-                                        .and(takesArgument(1, String.class))
-                                        .and(takesArgument(2, String.class))
-                                        .and(takesArgument(3, String.class))
-                                        .and(takesArgument(4, boolean.class))))
-                            .and(
-                                declaresMethod(
-                                    named("visitInsn")
-                                        .and(takesArguments(1))
-                                        .and(takesArgument(0, int.class))))
-                            .and(
-                                declaresMethod(
-                                    named("visitIntInsn")
-                                        .and(takesArguments(2))
-                                        .and(takesArgument(0, int.class))
-                                        .and(takesArgument(1, int.class))))
-                            .and(
-                                declaresMethod(
-                                    named("visitLdcInsn")
-                                        .and(takesArguments(1))
-                                        .and(takesArgument(0, Object.class)))))))
-        .and(
-            declaresField(
-                named("arrayStrategy")
-                    .and(
-                        fieldType(
-                            implementsInterface(
-                                    nameStartsWith("org.jacoco.agent.rt.internal")
-                                        .and(
-                                            nameEndsWith(
-                                                ".core.internal.instr.IProbeArrayStrategy")))
-                                .and(declaresField(named("className").and(fieldType(String.class))))
-                                .and(
-                                    declaresField(named("classId").and(fieldType(long.class))))))));
-  }
+  // FIXME try to reinstate this?
+  //  declaresField(named("mv")) does not work because the field is declared in superclass
+  //
+  // implementsInterface(nameStartsWith("org.jacoco.agent.rt.internal").and(nameEndsWith(".core.internal.instr.IProbeArrayStrategy"))) does not work because field type IS the interface
+  //  @Override
+  //  public ElementMatcher<TypeDescription> structureMatcher() {
+  //    return declaresField(
+  //            named("mv")
+  //                .and(
+  //                    fieldType(
+  //                        nameStartsWith("org.jacoco.agent.rt.internal")
+  //                            .and(nameEndsWith(".asm.MethodVisitor"))
+  //                            .and(
+  //                                declaresMethod(
+  //                                    named("visitMethodInsn")
+  //                                        .and(takesArguments(5))
+  //                                        .and(takesArgument(0, int.class))
+  //                                        .and(takesArgument(1, String.class))
+  //                                        .and(takesArgument(2, String.class))
+  //                                        .and(takesArgument(3, String.class))
+  //                                        .and(takesArgument(4, boolean.class))))
+  //                            .and(
+  //                                declaresMethod(
+  //                                    named("visitInsn")
+  //                                        .and(takesArguments(1))
+  //                                        .and(takesArgument(0, int.class))))
+  //                            .and(
+  //                                declaresMethod(
+  //                                    named("visitIntInsn")
+  //                                        .and(takesArguments(2))
+  //                                        .and(takesArgument(0, int.class))
+  //                                        .and(takesArgument(1, int.class))))
+  //                            .and(
+  //                                declaresMethod(
+  //                                    named("visitLdcInsn")
+  //                                        .and(takesArguments(1))
+  //                                        .and(takesArgument(0, Object.class)))))))
+  //        .and(
+  //            declaresField(
+  //                named("arrayStrategy")
+  //                    .and(
+  //                        fieldType(
+  //                            implementsInterface(
+  //                                    nameStartsWith("org.jacoco.agent.rt.internal")
+  //                                        .and(
+  //                                            nameEndsWith(
+  //                                                ".core.internal.instr.IProbeArrayStrategy")))
+  //
+  // .and(declaresField(named("className").and(fieldType(String.class))))
+  //                                .and(
+  //
+  // declaresField(named("classId").and(fieldType(long.class))))))));
+  //  }
 
   @Override
   public String hierarchyMarkerType() {
