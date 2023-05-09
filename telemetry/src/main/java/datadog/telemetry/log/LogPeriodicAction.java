@@ -9,7 +9,7 @@ import datadog.trace.util.stacktrace.StackUtils;
 
 public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAction {
 
-  private static final String[] PACKAGE_LIST = {"datadog.", "com.datadog.", "java.", "javax."};
+  static final String[] PACKAGE_LIST = {"datadog.", "com.datadog.", "java.", "javax."};
   private static final String RET = "\r\n";
 
   private static final String UNKNOWN = "<unknown>";
@@ -45,6 +45,7 @@ public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAct
 
     if (isDataDogCode(t)) {
       String msg = t.getMessage();
+      stackTrace.append(": ");
       if (msg == null || msg.isEmpty()) {
         stackTrace.append(UNKNOWN);
       } else {

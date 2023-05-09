@@ -25,7 +25,11 @@ class LogPeriodicActionTest extends DDSpecification {
 
   void 'push exception into the telemetry service'() {
     setup:
-    LogCollector.get().addLogMessage(LogMessageLevel.ERROR.toString(), "test", new Exception("test"))
+    try {
+      ExceptionHelper.throwExceptionFromDatadogCode(null)
+    } catch (Exception e) {
+      LogCollector.get().addLogMessage(LogMessageLevel.ERROR.toString(), "test", e)
+    }
 
     when:
     periodicAction.doIteration(telemetryService)
