@@ -32,12 +32,13 @@ class GitInfoProviderTest extends Specification {
       )
 
     def gitInfoBuilderB = givenABuilderReturning(
-      new GitInfo(null, "branch", "tag", new CommitInfo("sha"))
+      new GitInfo(null, "branch", "tag", new CommitInfo("sha")), 2
       )
 
     def gitInfoProvider = new GitInfoProvider()
-    gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderA)
+    // registering provider with higher order first, to check that the registration logic will do proper reordering after the second registration
     gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderB)
+    gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderA)
 
     when:
     def actualGitInfo = gitInfoProvider.getGitInfo(REPO_PATH)
@@ -238,8 +239,13 @@ class GitInfoProviderTest extends Specification {
   }
 
   private GitInfoBuilder givenABuilderReturning(GitInfo gitInfo) {
+    givenABuilderReturning(gitInfo, 1)
+  }
+
+  private GitInfoBuilder givenABuilderReturning(GitInfo gitInfo, int order) {
     def gitInfoBuilder = Stub(GitInfoBuilder)
     gitInfoBuilder.build(REPO_PATH) >> gitInfo
-    return gitInfoBuilder
+    gitInfoBuilder.order() >> order
+    gitInfoBuilder
   }
 }
