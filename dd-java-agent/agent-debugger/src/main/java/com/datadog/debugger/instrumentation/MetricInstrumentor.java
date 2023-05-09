@@ -36,6 +36,7 @@ import com.datadog.debugger.el.expressions.WhenExpression;
 import com.datadog.debugger.el.values.BooleanValue;
 import com.datadog.debugger.el.values.ListValue;
 import com.datadog.debugger.el.values.MapValue;
+import com.datadog.debugger.el.values.NullValue;
 import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.ObjectValue;
 import com.datadog.debugger.el.values.StringValue;
@@ -418,7 +419,7 @@ public class MetricInstrumentor extends Instrumentor {
         invokeVirtual(visitorResult.insnList, type, "size", Type.INT_TYPE);
         return new VisitorResult(ASMHelper.INT_TYPE, visitorResult.insnList);
       }
-      throw new UnsupportedOperationException(type.getClassName());
+      throw new InvalidValueException("Unsupported type for len operation: " + type.getClassName());
     }
 
     @Override
@@ -566,6 +567,13 @@ public class MetricInstrumentor extends Instrumentor {
     @Override
     public VisitorResult visit(BooleanValue booleanValue) {
       throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public VisitorResult visit(NullValue nullValue) {
+      InsnList instList = new InsnList();
+      instList.add(new InsnNode(Opcodes.ACONST_NULL));
+      return new VisitorResult(ASMHelper.OBJECT_TYPE, instList);
     }
 
     @Override
