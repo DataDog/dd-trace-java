@@ -39,9 +39,7 @@ final class HasContextField extends ElementMatcher.Junction.ForNonNullValues<Typ
     if (hasSuperStore) {
       // report if super-class was skipped from field-injection
       if (null != skipMatcher && skipMatcher.matches(superTarget)) {
-        synchronized (weakStoreIds) {
-          weakStoreIds.or(skippableStoreIds);
-        }
+        weakStoreIds.or(skippableStoreIds);
       }
     }
     return hasSuperStore;
