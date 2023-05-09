@@ -808,7 +808,7 @@ build_test_jobs: &build_test_jobs
       cacheType: inst
   - build:
       name: build_latestdep
-      gradleTarget: latestDepTest
+      gradleTarget: :instrumentationLatestDepTest
       cacheType: latestdep
   - build:
       name: build_smoke
@@ -927,7 +927,7 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
         - build_latestdep
       name: test_8_inst_latest
-      gradleTarget: "latestDepTest"
+      gradleTarget: ":instrumentationLatestDepTest"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
@@ -1199,7 +1199,7 @@ workflows:
           cacheType: inst
       - build_clean_cache:
           name: build_cache_latestdep
-          gradleTarget: latestDepTest
+          gradleTarget: :instrumentationLatestDepTest
           cacheType: latestdep
       - build_clean_cache:
           name: build_cache_smoke

@@ -160,31 +160,22 @@ allprojects { project ->
 
 
 def testAggregate(String baseTaskName, includePrefixes, excludePrefixes) {
-  final testTaskName = "${baseTaskName}Test"
-  tasks.register(testTaskName) { aggTest ->
-    subprojects { subproject ->
-      if (subproject.property("activePartition") && includePrefixes.any { subproject.path.startsWith(it) } && !excludePrefixes.any { subproject.path.startsWith(it) }) {
-        println(subproject.path)
-        def testTask = subproject.tasks.findByName("test")
-        if (testTask != null) {
-          aggTest.dependsOn(testTask)
+  def createRootTask = { rootTaskName, subProjTaskName ->
+    tasks.register(rootTaskName) { aggTest ->
+      subprojects { subproject ->
+        if (subproject.property("activePartition") && includePrefixes.any { subproject.path.startsWith(it) } && !excludePrefixes.any { subproject.path.startsWith(it) }) {
+          def testTask = subproject.tasks.findByName(subProjTaskName)
+          if (testTask != null) {
+            aggTest.dependsOn(testTask)
+          }
         }
       }
     }
   }
 
-  final checkTaskName = "${baseTaskName}Check"
-  tasks.register(checkTaskName) { aggCheck ->
-    subprojects { subproject ->
-      if (subproject.property("activePartition") && includePrefixes.any { subproject.path.startsWith(it) } && !excludePrefixes.any { subproject.path.startsWith(it) }) {
-        println(subproject.path)
-        def checkTask = subproject.tasks.findByName("check")
-        if (checkTask != null) {
-          aggCheck.dependsOn(checkTask)
-        }
-      }
-    }
-  }
+  createRootTask "${baseTaskName}Test", 'allTests'
+  createRootTask "${baseTaskName}LatestDepTest", 'allLatestDepTests'
+  createRootTask "${baseTaskName}Check", 'check'
 }
 
 testAggregate("smoke", [":dd-smoke-tests"], [])
