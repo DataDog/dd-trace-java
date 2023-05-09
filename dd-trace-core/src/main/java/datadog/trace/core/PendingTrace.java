@@ -196,20 +196,17 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
         LongRunningTracesTracker.UNDEFINED, LongRunningTracesTracker.TO_TRACK)) {
       return;
     }
-
-    Integer prio = evaluateSamplingPriority(span);
-    if (prio != null && prio <= 0) {
-      LONG_RUNNING_STATE.set(this, LongRunningTracesTracker.NOT_TRACKED);
-      return;
-    }
-
     RUNNING_TRACE_START_TIME_NANO.set(this, span.getStartTime());
     // If the pendingTraceBuffer is full, this trace won't be tracked by the
     // LongRunningTracesTracker.
     pendingTraceBuffer.enqueue(this);
   }
 
-  private Integer evaluateSamplingPriority(final DDSpan span) {
+  public Integer evaluateSamplingPriority() {
+    DDSpan span = spans.peek();
+    if (span == null) {
+      return null;
+    }
     Integer prio = span.getSamplingPriority();
     if (prio == null) {
       DDSpan rootSpan = span.getLocalRootSpan();

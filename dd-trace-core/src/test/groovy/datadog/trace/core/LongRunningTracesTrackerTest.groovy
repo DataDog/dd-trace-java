@@ -1,6 +1,7 @@
 package datadog.trace.core
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.communication.monitor.Monitoring
 import datadog.trace.api.Config
 import datadog.trace.api.DDTraceId
@@ -9,11 +10,11 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.test.util.DDSpecification
-import spock.lang.Specification
 
 class LongRunningTracesTrackerTest extends DDSpecification {
   Config config = Mock(Config)
   int maxTrackedTraces = 10
+  def sharedCommunicationObjects = Mock(SharedCommunicationObjects)
   DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(null, Monitoring.DISABLED, null, false, false)
   LongRunningTracesTracker tracker
   def tracer = Mock(CoreTracer)
@@ -27,7 +28,8 @@ class LongRunningTracesTrackerTest extends DDSpecification {
     traceConfig.getServiceMapping() >> [:]
     config.getLongRunningFlushInterval() >> 20
     config.longRunningTracesEnabled >> true
-    buffer = new PendingTraceBuffer.DelayingPendingTraceBuffer(maxTrackedTraces, SystemTimeSource.INSTANCE, config, features)
+    sharedCommunicationObjects.featuresDiscovery(_) >> features
+    buffer = new PendingTraceBuffer.DelayingPendingTraceBuffer(maxTrackedTraces, SystemTimeSource.INSTANCE, config, sharedCommunicationObjects)
     tracker = buffer.runningTracesTracker
     factory = new PendingTrace.Factory(tracer, buffer, SystemTimeSource.INSTANCE, false, HealthMetrics.NO_OP)
   }
@@ -125,5 +127,27 @@ class LongRunningTracesTrackerTest extends DDSpecification {
     PendingTrace trace = factory.create(DDTraceId.ONE)
     PendingTraceBufferTest::newSpanOf(trace, PrioritySampling.SAMPLER_KEEP)
     return trace
+  }
+
+  def "priority evaluation: #priority"() {
+    given:
+    def trace = newTraceToTrack()
+    def span = trace.spans.peek()
+    span.context().samplingPriority = priority
+    tracker.add(trace)
+
+    when:
+    tracker.flushAndCompact(tracker.maxTrackedDurationMilli - 1000)
+
+    then:
+    tracker.traceArray.size() == trackerExpectedSize
+    trace.longRunningTrackedState == traceExpectedState
+
+    where:
+    priority | trackerExpectedSize | traceExpectedState
+    PrioritySampling.SAMPLER_DROP | 0 | LongRunningTracesTracker.NOT_TRACKED
+    PrioritySampling.USER_DROP | 0 | LongRunningTracesTracker.NOT_TRACKED
+    PrioritySampling.USER_KEEP | 1 | LongRunningTracesTracker.WRITE_RUNNING_SPANS
+    PrioritySampling.SAMPLER_KEEP | 1 | LongRunningTracesTracker.WRITE_RUNNING_SPANS
   }
 }

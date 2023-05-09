@@ -77,6 +77,11 @@ public class LongRunningTracesTracker {
         continue;
       }
       if (shouldFlush(nowMilli, trace)) {
+        if (negativeOrNullPriority(trace)) {
+          trace.compareAndSetLongRunningState(TRACKED, NOT_TRACKED);
+          cleanSlot(i);
+          continue;
+        }
         trace.compareAndSetLongRunningState(TRACKED, WRITE_RUNNING_SPANS);
         trace.write();
       }
@@ -101,5 +106,10 @@ public class LongRunningTracesTracker {
     int lastElementIndex = traceArray.size() - 1;
     traceArray.set(index, traceArray.get(lastElementIndex));
     traceArray.remove(lastElementIndex);
+  }
+
+  private boolean negativeOrNullPriority(PendingTrace trace) {
+    Integer prio = trace.evaluateSamplingPriority();
+    return prio == null || prio <= 0;
   }
 }
