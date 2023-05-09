@@ -5,7 +5,6 @@ import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.IastAdvice.Propagation;
 import datadog.trace.api.iast.IastAdvice.Sink;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.PropagationTypes;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.sink.SsrfModule;
@@ -17,7 +16,7 @@ import javax.annotation.Nonnull;
 @CallSite(spi = IastAdvice.class)
 public class URLCallSite {
 
-  @Propagation(PropagationTypes.URL)
+  @Propagation
   @CallSite.After("void java.net.URL.<init>(java.lang.String)")
   @CallSite.After(
       "void java.net.URL.<init>(java.lang.String, java.lang.String, int, java.lang.String)")
@@ -42,7 +41,7 @@ public class URLCallSite {
     return result;
   }
 
-  @Propagation(PropagationTypes.URL)
+  @Propagation
   @CallSite.After("java.lang.String java.net.URL.toString()")
   @CallSite.After("java.lang.String java.net.URL.toExternalForm()")
   public static String afterToString(
@@ -58,7 +57,7 @@ public class URLCallSite {
     return result;
   }
 
-  @Propagation(PropagationTypes.URL)
+  @Propagation
   @CallSite.After("java.net.URI java.net.URL.toURI()")
   public static URI afterToURI(@CallSite.This final URL url, @CallSite.Return final URI result) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
