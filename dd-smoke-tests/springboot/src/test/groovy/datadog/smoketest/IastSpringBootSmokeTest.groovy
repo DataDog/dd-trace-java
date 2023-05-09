@@ -15,6 +15,7 @@ import java.util.function.Predicate
 
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED
+import static datadog.trace.api.config.IastConfig.IAST_REDACTION_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING
 
 @CompileDynamic
@@ -45,6 +46,7 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
       withSystemProperty(IAST_ENABLED, true),
       withSystemProperty(IAST_REQUEST_SAMPLING, 100),
       withSystemProperty(IAST_DEBUG_ENABLED, true),
+      withSystemProperty(IAST_REDACTION_ENABLED, false)
     ])
     command.addAll((String[]) ["-jar", springBootShadowJar, "--server.port=${httpPort}"])
     ProcessBuilder processBuilder = new ProcessBuilder(command)

@@ -1,12 +1,13 @@
 package com.datadog.iast.model;
 
 import com.datadog.iast.model.json.SourceIndex;
+import com.datadog.iast.util.Ranged;
 import java.util.Objects;
 import java.util.StringJoiner;
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
-public final class Range {
+public final class Range implements Ranged {
   private final @Nonnegative int start;
   private final @Nonnegative int length;
   private final @Nonnull @SourceIndex Source source;
@@ -17,10 +18,12 @@ public final class Range {
     this.source = source;
   }
 
+  @Override
   public int getStart() {
     return start;
   }
 
+  @Override
   public int getLength() {
     return length;
   }
