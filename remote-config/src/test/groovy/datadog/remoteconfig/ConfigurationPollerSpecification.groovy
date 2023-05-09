@@ -369,7 +369,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
 
       client.state.config_states.size() == 1
       with(client.state.config_states[0]) {
-        id == 'employee/ASM_DD/1.recommended.json/config'
+        id == '1.recommended.json'
         product == 'ASM_DD'
         version == 1
       }
@@ -913,13 +913,13 @@ class ConfigurationPollerSpecification extends DDSpecification {
       def liveDebuggingConfig = first.product == 'LIVE_DEBUGGING'? first : second
       def asmConfig = first.product == 'ASM_DD'? first : second
       with(liveDebuggingConfig) {
-        id == newConfigKey
+        id == '1ba66cc9-146a-3479-9e66-2b63fd580f48'
         product == 'LIVE_DEBUGGING'
         version == 3
         apply_error == null
       }
       with(asmConfig) {
-        id == 'employee/ASM_DD/1.recommended.json/config'
+        id == '1.recommended.json'
         product == 'ASM_DD'
         version == 1
         apply_state == APPLY_STATE_ERROR
