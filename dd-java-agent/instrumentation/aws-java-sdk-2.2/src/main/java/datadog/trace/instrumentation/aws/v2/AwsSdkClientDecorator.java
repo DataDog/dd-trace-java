@@ -36,9 +36,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
   public AgentSpan onSdkRequest(final AgentSpan span, final SdkRequest request) {
     // S3
-    request
-        .getValueForField("Bucket", String.class)
-        .ifPresent(name -> setBucketName(span, name));
+    request.getValueForField("Bucket", String.class).ifPresent(name -> setBucketName(span, name));
     request
         .getValueForField("StorageClass", String.class)
         .ifPresent(storageClass -> span.setTag("aws.storage.class", storageClass));
@@ -47,9 +45,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     request
         .getValueForField("QueueUrl", String.class)
         .ifPresent(url -> span.setTag("aws.queue.url", url));
-    request
-        .getValueForField("QueueName", String.class)
-        .ifPresent(name -> setQueueName(span, name));
+    request.getValueForField("QueueName", String.class).ifPresent(name -> setQueueName(span, name));
 
     // SNS
     request
@@ -62,9 +58,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         .ifPresent(name -> setStreamName(span, name));
 
     // DynamoDB
-    request
-        .getValueForField("TableName", String.class)
-        .ifPresent(name -> setTableName(span, name));
+    request.getValueForField("TableName", String.class).ifPresent(name -> setTableName(span, name));
 
     return span;
   }
@@ -93,7 +87,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     span.setTag("aws.table.name", name);
     span.setTag("tablename", name);
   }
-
 
   public AgentSpan onAttributes(final AgentSpan span, final ExecutionAttributes attributes) {
     final String awsServiceName = attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME);
