@@ -57,13 +57,6 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       DECORATE.onSdkRequest(span, context.request());
       DECORATE.onAttributes(span, executionAttributes);
     }
-    // Extract and print the host
-    String host = context.httpRequest().host();
-    if (host != null) {
-      System.out.println("SDK Host: " + host);
-    } else {
-      System.out.println("Host not found");
-    }
   }
 
   @Override
