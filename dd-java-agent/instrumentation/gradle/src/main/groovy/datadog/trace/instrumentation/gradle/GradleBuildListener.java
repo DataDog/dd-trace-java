@@ -60,6 +60,10 @@ public class GradleBuildListener extends BuildAdapter {
         String compilerPluginVersion = config.getCiVisibilityCompilerPluginVersion();
         GradleProjectConfigurator.INSTANCE.configureCompilerPlugin(project, compilerPluginVersion);
       }
+
+      if (config.isCiVisibilityPerTestCodeCoverageEnabled()) {
+        GradleProjectConfigurator.INSTANCE.configureJacoco(project);
+      }
     }
 
     Collection<GradleUtils.TestFramework> testFrameworks =
