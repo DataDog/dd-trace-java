@@ -38,6 +38,8 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
      *     otherwise
      */
     boolean setEnqueued(boolean enqueued);
+
+    boolean writeOnBufferFull();
   }
 
   private static class DelayingPendingTraceBuffer extends PendingTraceBuffer {
@@ -65,6 +67,10 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
         if (!queue.offer(pendingTrace)) {
           // Mark it as not in the queue
           pendingTrace.setEnqueued(false);
+
+          if (!pendingTrace.writeOnBufferFull()) {
+            return;
+          }
           // Queue is full, so we can't buffer this trace, write it out directly instead.
           pendingTrace.write();
         }
@@ -148,6 +154,11 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
 
       @Override
       public boolean setEnqueued(boolean enqueued) {
+        return true;
+      }
+
+      @Override
+      public boolean writeOnBufferFull() {
         return true;
       }
     }

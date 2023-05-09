@@ -428,6 +428,11 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     return IS_ENQUEUED.compareAndSet(this, expected, 1 - expected);
   }
 
+  public boolean writeOnBufferFull() {
+    return !compareAndSetLongRunningState(
+        LongRunningTracesTracker.TO_TRACK, LongRunningTracesTracker.NOT_TRACKED);
+  }
+
   public static long getDurationNano(CoreSpan<?> span) {
     long duration = span.getDurationNano();
     if (duration > 0) {

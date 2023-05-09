@@ -29,7 +29,7 @@ public class LongRunningTracesTracker {
     this.maxTrackedTraces = maxTrackedTraces;
     this.flushPeriodMilli = (int) TimeUnit.SECONDS.toMillis(config.getLongRunningFlushInterval());
     this.features = sharedCommunicationObjects.featuresDiscovery(config);
-  } // TODO flush missedAdd stats in health check class
+  }
 
   public boolean add(PendingTraceBuffer.Element element) {
     if (!(element instanceof PendingTrace)) {

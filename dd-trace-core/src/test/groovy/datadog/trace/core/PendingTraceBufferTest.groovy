@@ -203,6 +203,46 @@ class PendingTraceBufferTest extends DDSpecification {
     pendingTrace.isEnqueued == 0
   }
 
+  def "long-running trace: buffer full does not trigger write"() {
+    setup:
+    // Don't start the buffer thread
+
+    when: "Fill the buffer"
+    for (i in  1..buffer.queue.capacity()) {
+      addContinuation(newSpanOf(factory.create(DDTraceId.ONE))).finish()
+    }
+
+    then:
+    _ * tracer.captureTraceConfig() >> traceConfig
+    buffer.queue.size() == BUFFER_SIZE
+    buffer.queue.capacity() * bufferSpy.enqueue(_)
+    _ * bufferSpy.longRunningSpansEnabled()
+    _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * traceConfig.getServiceMapping() >> [:]
+    _ * tracer.getTimeWithNanoTicks(_)
+    0 * _
+
+    when:
+    def pendingTrace = factory.create(DDTraceId.ONE)
+    pendingTrace.longRunningTrackedState = LongRunningTracesTracker.TO_TRACK
+    addContinuation(newSpanOf(pendingTrace)).finish()
+
+    then:
+    then:
+    1 * tracer.captureTraceConfig() >> traceConfig
+    1 * bufferSpy.enqueue(_)
+    _ * bufferSpy.longRunningSpansEnabled()
+    0 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
+    _ * bufferSpy.longRunningSpansEnabled()
+    0 * tracer.write({ it.size() == 1 })
+    _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * traceConfig.getServiceMapping() >> [:]
+    _ * tracer.getTimeWithNanoTicks(_)
+    0 * _
+
+    pendingTrace.isEnqueued == 0
+  }
+
   def "continuation allows adding after root finished"() {
     setup:
     def latch = new CountDownLatch(1)
@@ -331,6 +371,10 @@ class PendingTraceBufferTest extends DDSpecification {
 
         @Override
         boolean setEnqueued(boolean enqueued) {
+          return true
+        }
+        @Override
+        boolean writeOnBufferFull() {
           return true
         }
       }
