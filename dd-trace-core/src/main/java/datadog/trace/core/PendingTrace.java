@@ -80,8 +80,12 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   private final HealthMetrics healthMetrics;
   private final TraceConfig traceConfig;
 
+  /**
+   * Contains finished spans. If the long-running trace feature is enabled it also contains running
+   * spans that can be written.
+   */
   private final ConcurrentLinkedDeque<DDSpan> spans;
-  // We must maintain a separate count because ConcurrentLinkedDeque.size() is a linear operation.
+
   private volatile int completedSpanCount = 0;
   private static final AtomicIntegerFieldUpdater<PendingTrace> COMPLETED_SPAN_COUNT =
       AtomicIntegerFieldUpdater.newUpdater(PendingTrace.class, "completedSpanCount");
@@ -425,6 +429,12 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     return IS_ENQUEUED.compareAndSet(this, expected, 1 - expected);
   }
 
+  /**
+   * Called when the pendingTraceBuffer is full and a pendingTrace is offered.
+   *
+   * <p>If the pendingTrace is not sent to the LongRunningTracesTracker, it will be immediately
+   * written. Otherwise, the pendingTrace won't be tracked and no write is triggered.
+   */
   public boolean writeOnBufferFull() {
     return !compareAndSetLongRunningState(
         LongRunningTracesTracker.TO_TRACK, LongRunningTracesTracker.NOT_TRACKED);

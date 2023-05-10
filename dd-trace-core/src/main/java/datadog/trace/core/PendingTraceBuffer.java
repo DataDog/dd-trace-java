@@ -61,7 +61,6 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       return runningTracesTracker != null;
     }
 
-    /** if the queue is full, pendingTrace trace will be written immediately. */
     @Override
     public void enqueue(Element pendingTrace) {
       if (pendingTrace.setEnqueued(true)) {
@@ -72,7 +71,6 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
           if (!pendingTrace.writeOnBufferFull()) {
             return;
           }
-          // Queue is full, so we can't buffer this trace, write it out directly instead.
           pendingTrace.write();
         }
       }
@@ -174,7 +172,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
             Element pendingTrace = null;
             if (longRunningSpansEnabled()) {
               pendingTrace = queue.poll(1, TimeUnit.SECONDS);
-              runningTracesTracker.flushAndCompact(System.currentTimeMillis());
+              runningTracesTracker.flushAndCompact(timeSource.getCurrentTimeMillis());
               if (pendingTrace == null) {
                 continue;
               }
