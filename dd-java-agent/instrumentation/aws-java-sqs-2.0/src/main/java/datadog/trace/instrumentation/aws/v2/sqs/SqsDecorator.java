@@ -68,6 +68,7 @@ public class SqsDecorator extends MessagingClientDecorator {
   public void onConsume(final AgentSpan span, final String queueUrl, String requestId) {
     span.setResourceName(SQS_RECEIVE);
     span.setTag("aws.service", "Sqs");
+    span.setTag("aws_service", "Sqs");
     span.setTag("aws.operation", "ReceiveMessage");
     span.setTag("aws.agent", COMPONENT_NAME);
     span.setTag("aws.queue.url", queueUrl);
