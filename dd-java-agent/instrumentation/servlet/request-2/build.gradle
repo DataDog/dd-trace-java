@@ -11,6 +11,12 @@ muzzle {
     module = 'javax.servlet-api'
     versions = "[3.0,)"
   }
+  pass{
+    name = 'servlet-common'
+    group = "javax.servlet"
+    module = 'javax.servlet-api'
+    versions = "[2.0,)"
+  }
   pass {
     name = 'servlet-2.x-and-3.0.x' // for Servlet2RequestBodyInstrumentation
     group = "javax.servlet"
@@ -22,13 +28,7 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'javax.servlet', name: 'servlet-api', version: '2.2'

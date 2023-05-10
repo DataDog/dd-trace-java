@@ -5,7 +5,7 @@ import datadog.communication.monitor.NoOpRecording
 import datadog.communication.monitor.Recording
 import datadog.trace.api.StatsDClient
 import datadog.trace.test.util.DDSpecification
-import org.junit.Assert
+import org.junit.jupiter.api.Assertions
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
@@ -81,7 +81,7 @@ class TimingTest extends DDSpecification {
       recording.start().stop()
       recording.reset()
     } catch (Throwable t) {
-      Assert.fail(t.getMessage())
+      Assertions.fail(t.getMessage())
     }
 
     where:

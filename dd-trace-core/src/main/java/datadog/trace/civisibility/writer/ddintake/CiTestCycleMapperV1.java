@@ -99,6 +99,13 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
         parentId = null;
         version = 1;
 
+      } else if (InternalSpanTypes.TEST_SESSION_END.equals(span.getType())) {
+        type = InternalSpanTypes.TEST_SESSION_END;
+        traceId = null;
+        spanId = null;
+        parentId = null;
+        version = 1;
+
       } else {
         type = SPAN_TYPE;
         traceId = span.getTraceId().toLong();
@@ -127,15 +134,15 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
 
       if (traceId != null) {
         writable.writeUTF8(TRACE_ID);
-        writable.writeLong(traceId);
+        writable.writeUnsignedLong(traceId);
       }
       if (spanId != null) {
         writable.writeUTF8(SPAN_ID);
-        writable.writeLong(spanId);
+        writable.writeUnsignedLong(spanId);
       }
       if (parentId != null) {
         writable.writeUTF8(PARENT_ID);
-        writable.writeLong(parentId);
+        writable.writeUnsignedLong(parentId);
       }
 
       for (String topLevelTag : topLevelTags) {

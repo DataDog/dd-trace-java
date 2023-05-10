@@ -8,12 +8,13 @@ import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase;
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.net.URI;
+import java.util.Map;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandler;
 import org.jboss.netty.channel.ChannelHandlerContext;
@@ -69,13 +70,17 @@ public class NettyHttpServerDecorator
 
   @Override
   protected URIDataAdapter url(final HttpRequest request) {
-    final URI uri = URI.create(request.getUri());
-    if ((uri.getHost() == null || uri.getHost().equals("")) && request.headers().contains(HOST)) {
-      return new URIDefaultDataAdapter(
-          URI.create("http://" + request.headers().get(HOST) + request.getUri()));
-    } else {
-      return new URIDefaultDataAdapter(uri);
-    }
+    return URIDataAdapterBase.fromURI(
+        request.getUri(),
+        uri -> {
+          if ((uri.getHost() == null || uri.getHost().equals(""))
+              && request.headers().contains(HOST)) {
+            return URIDataAdapterBase.fromURI(
+                "http://" + request.headers().get(HOST) + request.getUri(),
+                URIDefaultDataAdapter::new);
+          }
+          return new URIDefaultDataAdapter(uri);
+        });
   }
 
   @Override
@@ -118,7 +123,8 @@ public class NettyHttpServerDecorator
     }
 
     @Override
-    public boolean tryCommitBlockingResponse(int statusCode, BlockingContentType templateType) {
+    public boolean tryCommitBlockingResponse(
+        int statusCode, BlockingContentType templateType, Map<String, String> extraHeaders) {
       ChannelHandler handlerBefore = pipeline.get(HttpServerTracingHandler.class);
       if (handlerBefore == null) {
         handlerBefore = pipeline.get(HttpServerRequestTracingHandler.class);
@@ -133,7 +139,7 @@ public class NettyHttpServerDecorator
         pipeline.addAfter(
             handlerBefore.getClass().getName(),
             "blocking_handler",
-            new BlockingResponseHandler(statusCode, templateType));
+            new BlockingResponseHandler(statusCode, templateType, extraHeaders));
         pipeline.addBefore(
             "blocking_handler", "before_blocking_handler", new SimpleChannelUpstreamHandler());
       } catch (RuntimeException rte) {

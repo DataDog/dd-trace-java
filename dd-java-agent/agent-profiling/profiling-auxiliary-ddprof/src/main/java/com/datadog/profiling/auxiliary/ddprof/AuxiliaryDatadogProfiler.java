@@ -77,8 +77,6 @@ final class AuxiliaryDatadogProfiler implements AuxiliaryImplementation {
     } catch (Throwable t) {
       if (log.isDebugEnabled()) {
         log.warn("Exception occurred while attempting to emit config event", t);
-      } else {
-        log.warn("Exception occurred while attempting to emit config event: {}", t.toString());
       }
     }
   }

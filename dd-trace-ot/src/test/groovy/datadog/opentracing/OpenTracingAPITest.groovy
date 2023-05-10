@@ -326,9 +326,7 @@ class OpenTracingAPITest extends DDSpecification {
     1 * scopeListener.afterScopeActivated()
 
     testSpan.context().toSpanId() == tracer.getSpanId()
-    testSpan.context().toTraceId() == tracer.getTraceId()
-    testSpan.context().toSpanId() == tracer.tracer.getSpanId()
-    testSpan.context().toTraceId() == tracer.tracer.getTraceId()
+    testSpan.context().toTraceId() == tracer.tracer.activeSpan().context().traceId.toString()
 
     when:
     scope.close()

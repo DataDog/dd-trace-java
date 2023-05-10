@@ -1,6 +1,7 @@
 package datadog.trace.common.writer;
 
 import datadog.trace.relocate.api.IOLogger;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import org.slf4j.Logger;
 
@@ -64,6 +65,7 @@ public abstract class RemoteApi {
         + ".";
   }
 
+  @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
   protected static String getResponseBody(okhttp3.Response response) {
     if (response != null) {
       try {

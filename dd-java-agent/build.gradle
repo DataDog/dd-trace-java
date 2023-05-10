@@ -221,7 +221,7 @@ tasks.withType(Test).configureEach {
 
   doFirst {
     // Defining here to allow jacoco to be first on the command line.
-    jvmArgs "-javaagent:${shadowJar.archivePath}"
+    jvmArgs "-javaagent:${shadowJar.archiveFile.get()}"
   }
 
   testLogging {
@@ -239,7 +239,7 @@ tasks.register('checkAgentJarSize').configure {
   doLast {
     // Arbitrary limit to prevent unintentional increases to the agent jar size
     // Raise or lower as required
-    def megs = (project.rootProject.hasProperty("agentIncludeCwsTls") && agentIncludeCwsTls) ? 23 : 21
+    def megs = (project.rootProject.hasProperty("agentIncludeCwsTls") && agentIncludeCwsTls) ? 27 : 26
     assert shadowJar.archiveFile.get().getAsFile().length() <= megs * 1024 * 1024
   }
 

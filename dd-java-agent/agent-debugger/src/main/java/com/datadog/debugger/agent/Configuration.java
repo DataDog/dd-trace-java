@@ -3,6 +3,7 @@ package com.datadog.debugger.agent;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
 import com.squareup.moshi.Json;
 import java.util.ArrayList;
@@ -63,6 +64,7 @@ public class Configuration {
   private final Collection<MetricProbe> metricProbes;
   private final Collection<LogProbe> logProbes;
   private final Collection<SpanProbe> spanProbes;
+  private final Collection<SpanDecorationProbe> spanDecorationProbes;
   private final FilterList allowList;
   private final FilterList denyList;
   private final LogProbe.Sampling sampling;
@@ -76,7 +78,7 @@ public class Configuration {
       Collection<MetricProbe> metricProbes,
       Collection<LogProbe> logProbes,
       Collection<SpanProbe> spanProbes) {
-    this(serviceName, metricProbes, logProbes, spanProbes, null, null, null);
+    this(serviceName, metricProbes, logProbes, spanProbes, null, null, null, null);
   }
 
   public Configuration(
@@ -84,6 +86,7 @@ public class Configuration {
       Collection<MetricProbe> metricProbes,
       Collection<LogProbe> logProbes,
       Collection<SpanProbe> spanProbes,
+      Collection<SpanDecorationProbe> spanDecorationProbes,
       FilterList allowList,
       FilterList denyList,
       LogProbe.Sampling sampling) {
@@ -91,6 +94,7 @@ public class Configuration {
     this.metricProbes = metricProbes;
     this.logProbes = logProbes;
     this.spanProbes = spanProbes;
+    this.spanDecorationProbes = spanDecorationProbes;
     this.allowList = allowList;
     this.denyList = denyList;
     this.sampling = sampling;
@@ -110,6 +114,10 @@ public class Configuration {
 
   public Collection<SpanProbe> getSpanProbes() {
     return spanProbes;
+  }
+
+  public Collection<SpanDecorationProbe> getSpanDecorationProbes() {
+    return spanDecorationProbes;
   }
 
   public FilterList getAllowList() {
@@ -134,6 +142,9 @@ public class Configuration {
     }
     if (spanProbes != null) {
       result.addAll(spanProbes);
+    }
+    if (spanDecorationProbes != null) {
+      result.addAll(spanDecorationProbes);
     }
     return result;
   }
@@ -186,6 +197,7 @@ public class Configuration {
     private List<MetricProbe> metricProbes = null;
     private List<LogProbe> logProbes = null;
     private List<SpanProbe> spanProbes = null;
+    private List<SpanDecorationProbe> spanDecorationProbes = null;
     private FilterList allowList = null;
     private FilterList denyList = null;
     private LogProbe.Sampling sampling = null;
@@ -216,6 +228,14 @@ public class Configuration {
         spanProbes = new ArrayList<>();
       }
       spanProbes.add(probe);
+      return this;
+    }
+
+    public Configuration.Builder add(SpanDecorationProbe probe) {
+      if (spanDecorationProbes == null) {
+        spanDecorationProbes = new ArrayList<>();
+      }
+      spanDecorationProbes.add(probe);
       return this;
     }
 
@@ -256,6 +276,16 @@ public class Configuration {
       return this;
     }
 
+    public Configuration.Builder addSpanDecorationProbes(Collection<SpanDecorationProbe> probes) {
+      if (probes == null) {
+        return this;
+      }
+      for (SpanDecorationProbe probe : probes) {
+        add(probe);
+      }
+      return this;
+    }
+
     public Configuration.Builder addAllowList(FilterList newAllowList) {
       if (newAllowList == null) {
         return this;
@@ -291,6 +321,8 @@ public class Configuration {
       }
       addMetricProbes(other.getMetricProbes());
       addLogProbes(other.getLogProbes());
+      addSpanProbes(other.getSpanProbes());
+      addSpanDecorationProbes(other.getSpanDecorationProbes());
       addAllowList(other.getAllowList());
       addDenyList(other.getDenyList());
       add(other.getSampling());
@@ -299,7 +331,14 @@ public class Configuration {
 
     public Configuration build() {
       return new Configuration(
-          service, metricProbes, logProbes, spanProbes, allowList, denyList, sampling);
+          service,
+          metricProbes,
+          logProbes,
+          spanProbes,
+          spanDecorationProbes,
+          allowList,
+          denyList,
+          sampling);
     }
   }
 }

@@ -30,17 +30,21 @@ public final class FieldBackedContextMatcher {
      * (classBeingRedefined == null) and we have to add same fields again if
      * the class we added fields to before is being transformed again.
      */
-    boolean canInjectContextField =
+    boolean canInject =
         classBeingRedefined == null || implementsContextAccessor(classBeingRedefined);
 
-    if (canInjectContextField) {
-      return shouldInjectContextField.matches(target);
-    }
+    boolean injectContextField = canInject && shouldInjectContextField.matches(target);
 
     if (log.isDebugEnabled()) {
-      // must be a re-define of a class that we weren't able to field-inject on startup
-      // - make sure we'd have field-injected (if we'd had the chance) before reporting
-      if (shouldInjectContextField.matches(target)) {
+      if (injectContextField) {
+        log.debug(
+            "Added context-store field - instrumentation.target.class={} instrumentation.target.context={}->{}",
+            target.getName(),
+            keyType,
+            valueType);
+      } else if (!canInject && shouldInjectContextField.matches(target)) {
+        // must be a re-define of a class that we weren't able to field-inject on startup
+        // - make sure we'd have field-injected (if we'd had the chance) before reporting
         log.debug(
             "Failed to add context-store field - instrumentation.target.class={} instrumentation.target.context={}->{}",
             target.getName(),
@@ -49,7 +53,7 @@ public final class FieldBackedContextMatcher {
       }
     }
 
-    return false;
+    return injectContextField;
   }
 
   public String describe() {

@@ -67,6 +67,46 @@ dependencies {
   testImplementation project(':dd-smoke-tests')
 }
 
+tasks.packageSources {
+  dependsOn 'unzip'
+}
+
+tasks.sourcesJar {
+  dependsOn 'unzip'
+}
+
+tasks.javadocJar {
+  dependsOn 'unzip'
+}
+
+tasks.bootWar {
+  dependsOn 'unzip'
+}
+
+tasks.bootWarMainClassName {
+  dependsOn 'unzip'
+}
+
+tasks.war {
+  dependsOn 'unzip'
+}
+
+tasks.javadocJar{
+  dependsOn 'unzip'
+}
+
+tasks.packageSources{
+  dependsOn 'unzip'
+}
+
+tasks.sourcesJar{
+  dependsOn 'unzip'
+}
+
+tasks.matching({it.name.startsWith('compileTest')}).configureEach {
+  dependsOn 'war', 'bootWar', 'unzip'
+}
+
 tasks.withType(Test).configureEach {
   dependsOn "war", "bootWar", "unzip"
   jvmArgs "-Ddatadog.smoketest.springboot.war.path=${tasks.bootWar.archiveFile.get().getAsFile()}"

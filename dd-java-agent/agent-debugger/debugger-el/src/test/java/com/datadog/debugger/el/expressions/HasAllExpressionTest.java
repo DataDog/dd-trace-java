@@ -4,6 +4,7 @@ import static com.datadog.debugger.el.DSL.*;
 import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.el.RefResolverHelper;
@@ -110,8 +111,11 @@ class HasAllExpressionTest {
     GetMemberExpression fldRef = getMember(ref(ValueReferences.ITERATOR_REF), "testField");
     ValueRefExpression itRef = ref(ValueReferences.ITERATOR_REF);
 
-    expression = all(targetExpression, eq(fldRef, value(10)));
-    assertFalse(expression.evaluate(ctx));
+    RuntimeException runtimeException =
+        assertThrows(
+            RuntimeException.class,
+            () -> all(targetExpression, eq(fldRef, value(10))).evaluate(ctx));
+    assertEquals("Cannot dereference to field: testField", runtimeException.getMessage());
 
     expression = all(targetExpression, eq(itRef, value("hello")));
     assertFalse(expression.evaluate(ctx));
@@ -134,8 +138,11 @@ class HasAllExpressionTest {
     ValueRefExpression fldRef = ref(ValueReferences.ITERATOR_REF + "testField");
     ValueRefExpression itRef = ref(ValueReferences.ITERATOR_REF);
 
-    expression = all(targetExpression, eq(fldRef, value(10)));
-    assertFalse(expression.evaluate(ctx));
+    RuntimeException runtimeException =
+        assertThrows(
+            RuntimeException.class,
+            () -> all(targetExpression, eq(fldRef, value(10))).evaluate(ctx));
+    assertEquals("Cannot find synthetic var: ittestField", runtimeException.getMessage());
 
     expression = all(targetExpression, eq(itRef, value("hello")));
     assertFalse(expression.evaluate(ctx));

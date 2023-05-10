@@ -3,10 +3,12 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.source.WebModule
+import groovy.transform.CompileDynamic
 
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletRequestWrapper
 
+@CompileDynamic
 class TestGetParameterInstrumentation extends AgentTestRunner {
 
   @Override
@@ -15,34 +17,34 @@ class TestGetParameterInstrumentation extends AgentTestRunner {
     injectSysConfig("dd.iast.enabled", "true")
   }
 
-  def 'test getParameter'() {
-
-    setup:
-    WebModule iastModule = Mock(WebModule)
+  void 'test getParameter'() {
+    final iastModule = Mock(WebModule)
     InstrumentationBridge.registerIastModule(iastModule)
-    final List arrayList = new ArrayList()
-    arrayList.add("A")
-    arrayList.add("B")
-    final servletRequest = Mock(HttpServletRequest)
-    servletRequest.getParameter("param") >> "value"
-    servletRequest.getParameterValues("param1") >> ["value1", "value2"]
-    servletRequest.getParameterNames() >> {return Collections.enumeration(arrayList)}
+    final map = [param1: ['value1', 'value2'] as String[]]
+    final servletRequest = Mock(HttpServletRequest) {
+      getParameter(_ as String) >> { map.get(it[0]).first() }
+      getParameterValues(_ as String) >> { map.get(it[0]) }
+      getParameterNames() >> { Collections.enumeration(map.keySet()) }
+    }
     final wrapper = new HttpServletRequestWrapper(servletRequest)
-    final ServletRequestTestSuite testSuite = new ServletRequestTestSuite(wrapper)
-
+    final testSuite = new ServletRequestTestSuite(wrapper)
 
     when:
-    testSuite.getParameter("param")
-    String[] resultValues = testSuite.getParameterValues("param1")
-    List<String> paramNames = testSuite.getParameterNames().toList()
+    testSuite.getParameter('param1')
 
     then:
-    resultValues.size() == 2
-    paramNames.size() == 2
-    1 * iastModule.onParameterValue("param","value")
-    1 * iastModule.onParameterValue("param1", "value1")
-    1 * iastModule.onParameterValue("param1", "value2")
-    1 * iastModule.onParameterName("A")
-    1 * iastModule.onParameterName("B")
+    1 * iastModule.onParameterValue('param1', 'value1')
+
+    when:
+    testSuite.getParameterValues('param1')
+
+    then:
+    1 * iastModule.onParameterValues('param1', ['value1', 'value2'])
+
+    when:
+    testSuite.getParameterNames()
+
+    then:
+    1 * iastModule.onParameterNames(['param1'])
   }
 }

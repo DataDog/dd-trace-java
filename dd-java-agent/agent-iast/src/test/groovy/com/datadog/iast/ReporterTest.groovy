@@ -5,6 +5,7 @@ import com.datadog.iast.model.Location
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityBatch
 import com.datadog.iast.model.VulnerabilityType
+import datadog.trace.api.Config
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
@@ -15,7 +16,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.test.util.DDSpecification
-import groovy.json.JsonSlurper
+import datadog.trace.util.AgentTaskScheduler
+import org.skyscreamer.jsonassert.JSONAssert
 import spock.lang.Shared
 
 import java.util.concurrent.CountDownLatch
@@ -36,7 +38,6 @@ class ReporterTest extends DDSpecification {
 
   void 'basic vulnerability reporting'() {
     given:
-    final slurper = new JsonSlurper()
     final Reporter reporter = new Reporter()
     final traceSegment = Mock(TraceSegment)
     final ctx = new IastRequestContext()
@@ -61,7 +62,7 @@ class ReporterTest extends DDSpecification {
 
     then:
     1 * traceSegment.setDataTop('iast', _) >> { batch = it[1] as VulnerabilityBatch }
-    slurper.parseText(batch.toString()) == slurper.parseText('''{
+    JSONAssert.assertEquals('''{
       "vulnerabilities": [
         {
           "evidence": { "value":"MD5"},
@@ -69,20 +70,19 @@ class ReporterTest extends DDSpecification {
           "location": {
             "spanId":123456,
             "line":1,
-            "path":
-            "foo"
+            "path": "foo",
+            "method": "foo"
           },
           "type":"WEAK_HASH"
         }
       ]
-    }''')
+    }''', batch.toString(), true)
     1 * traceSegment.setTagTop('manual.keep', true)
     0 * _
   }
 
   void 'two vulnerabilities'() {
     given:
-    final slurper = new JsonSlurper()
     final Reporter reporter = new Reporter()
     final traceSegment = Mock(TraceSegment)
     final ctx = new IastRequestContext()
@@ -113,7 +113,7 @@ class ReporterTest extends DDSpecification {
 
     then:
     1 * traceSegment.setDataTop('iast', _) >> { batch = it[1] as VulnerabilityBatch }
-    slurper.parseText(batch.toString()) == slurper.parseText('''{
+    JSONAssert.assertEquals('''{
       "vulnerabilities": [
         {
           "evidence": { "value":"MD5" },
@@ -121,7 +121,8 @@ class ReporterTest extends DDSpecification {
           "location": {
             "spanId":123456,
             "line":1,
-            "path":"foo"
+            "path":"foo",
+            "method": "foo"
           },
           "type":"WEAK_HASH"
         },
@@ -131,12 +132,13 @@ class ReporterTest extends DDSpecification {
           "location": {
             "spanId":123456,
             "line":2,
-            "path":"foo"
+            "path":"foo",
+            "method": "foo"
           },
           "type":"WEAK_HASH"
         }
       ]
-    }''')
+    }''', batch.toString(), true)
     1 * traceSegment.setTagTop('manual.keep', true)
     0 * _
   }
@@ -345,7 +347,7 @@ class ReporterTest extends DDSpecification {
     final executors = Executors.newCachedThreadPool()
     final int size = 32
     final latch = new CountDownLatch(size)
-    final predicate = new Reporter.HashBasedDeduplication(size >> 3) // maximum of 4 hashes
+    final predicate = new Reporter.HashBasedDeduplication(size >> 3, null) // maximum of 4 hashes
     final Reporter reporter = new Reporter({ final Vulnerability vul ->
       latch.countDown()
       predicate.test(vul)
@@ -370,6 +372,18 @@ class ReporterTest extends DDSpecification {
     executors.awaitTermination(5, TimeUnit.SECONDS)
     executors.isTerminated()
     batch.vulnerabilities.size() >= 8
+  }
+
+  void 'cache reset is scheduled'() {
+    given:
+    final AgentTaskScheduler scheduler = Mock()
+
+    when:
+    new Reporter(Config.get(), scheduler)
+
+    then: 'there are vulnerabilities reported'
+    1 * scheduler.scheduleAtFixedRate(_, 1, 1, TimeUnit.HOURS)
+    0 * _
   }
 
   private AgentSpan spanWithBatch(final VulnerabilityBatch batch) {

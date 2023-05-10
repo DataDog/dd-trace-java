@@ -37,7 +37,7 @@ public class AppSecUserConfig {
       ds.exclusions = true;
     }
     if (!this.customRules.isEmpty()) {
-      ds.rules = true;
+      ds.customRules = true;
     }
     // data not included here
     return ds;

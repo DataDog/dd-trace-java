@@ -3,7 +3,6 @@ package datadog.trace.bootstrap.instrumentation.decorator.http;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.decorator.http.utils.IPAddressUtil;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -18,17 +17,6 @@ public class ClientIpAddressResolver {
   private static final Function<String, InetAddress> PLAIN_IP_ADDRESS_PARSER =
       new ParsePlainIpAddress();
   private static final Function<String, InetAddress> FORWARDED_PARSER = new ParseForwarded();
-  private static final Function<String, InetAddress> VIA_PARSER = new ParseVia();
-
-  private static final int BIT_X_FORWARDED_FOR = 1;
-  private static final int BIT_X_REAL_IP = 1 << 1;
-  private static final int BIT_CLIENT_IP = 1 << 2;
-  private static final int BIT_X_FORWARDED = 1 << 3;
-  private static final int BIT_X_CLUSTER_CLIENT_IP = 1 << 4;
-  private static final int BIT_FORWARDED_FOR = 1 << 5;
-  private static final int BIT_FORWARDED = 1 << 6;
-  private static final int BIT_VIA = 1 << 7;
-  private static final int BIT_TRUE_CLIENT_IP = 1 << 8;
 
   /**
    * Infers the IP address of the client according to our specified procedure. This method doesn't
@@ -71,109 +59,88 @@ public class ClientIpAddressResolver {
     // we don't have a set ip header to look exclusively at
     // the order of the headers is the order in the RFC
 
-    int foundHeaders = 0;
     InetAddress result = null;
     InetAddress addr = tryHeader(context.getXForwardedFor(), PLAIN_IP_ADDRESS_PARSER);
     if (addr != null) {
-      foundHeaders |= BIT_X_FORWARDED_FOR;
+      if (!isIpAddrPrivate(addr)) {
+        return addr;
+      }
       result = addr;
     }
 
     addr = tryHeader(context.getXRealIp(), PLAIN_IP_ADDRESS_PARSER);
     if (addr != null) {
-      foundHeaders |= BIT_X_REAL_IP;
-      result = preferPublic(result, addr);
-    }
-
-    addr = tryHeader(context.getClientIp(), PLAIN_IP_ADDRESS_PARSER);
-    if (addr != null) {
-      foundHeaders |= BIT_CLIENT_IP;
-      result = preferPublic(result, addr);
-    }
-
-    addr = tryHeader(context.getXForwarded(), FORWARDED_PARSER);
-    if (addr != null) {
-      foundHeaders |= BIT_X_FORWARDED;
-      result = preferPublic(result, addr);
-    }
-
-    addr = tryHeader(context.getXClusterClientIp(), PLAIN_IP_ADDRESS_PARSER);
-    if (addr != null) {
-      foundHeaders |= BIT_X_CLUSTER_CLIENT_IP;
-      result = preferPublic(result, addr);
-    }
-
-    addr = tryHeader(context.getForwardedFor(), PLAIN_IP_ADDRESS_PARSER);
-    if (addr != null) {
-      foundHeaders |= BIT_FORWARDED_FOR;
-      result = preferPublic(result, addr);
-    }
-
-    addr = tryHeader(context.getForwarded(), FORWARDED_PARSER);
-    if (addr != null) {
-      foundHeaders |= BIT_FORWARDED;
-      result = preferPublic(result, addr);
-    }
-
-    addr = tryHeader(context.getVia(), VIA_PARSER);
-    if (addr != null) {
-      foundHeaders |= BIT_VIA;
-      result = preferPublic(result, addr);
+      if (!isIpAddrPrivate(addr)) {
+        return addr;
+      }
+      result = coalesce(result, addr);
     }
 
     addr = tryHeader(context.getTrueClientIp(), PLAIN_IP_ADDRESS_PARSER);
     if (addr != null) {
-      foundHeaders |= BIT_TRUE_CLIENT_IP;
-      result = preferPublic(result, addr);
+      if (!isIpAddrPrivate(addr)) {
+        return addr;
+      }
+      result = coalesce(result, addr);
     }
 
-    reportMultipleHeaders(foundHeaders, span);
+    addr = tryHeader(context.getXClientIp(), PLAIN_IP_ADDRESS_PARSER);
+    if (addr != null) {
+      if (!isIpAddrPrivate(addr)) {
+        return addr;
+      }
+      result = coalesce(result, addr);
+    }
+
+    addr = tryHeader(context.getXForwarded(), FORWARDED_PARSER);
+    if (addr != null) {
+      if (!isIpAddrPrivate(addr)) {
+        return addr;
+      }
+      result = coalesce(result, addr);
+    }
+
+    addr = tryHeader(context.getForwardedFor(), PLAIN_IP_ADDRESS_PARSER);
+    if (addr != null) {
+      if (!isIpAddrPrivate(addr)) {
+        return addr;
+      }
+      result = coalesce(result, addr);
+    }
+
+    addr = tryHeader(context.getXClusterClientIp(), PLAIN_IP_ADDRESS_PARSER);
+    if (addr != null) {
+      if (!isIpAddrPrivate(addr)) {
+        return addr;
+      }
+      result = coalesce(result, addr);
+    }
+
+    addr = tryHeader(context.getFastlyClientIp(), PLAIN_IP_ADDRESS_PARSER);
+    if (addr != null) {
+      if (!isIpAddrPrivate(addr)) {
+        return addr;
+      }
+      result = coalesce(result, addr);
+    }
+
+    addr = tryHeader(context.getCfConnectingIp(), PLAIN_IP_ADDRESS_PARSER);
+    if (addr != null) {
+      if (!isIpAddrPrivate(addr)) {
+        return addr;
+      }
+      result = coalesce(result, addr);
+    }
+
+    addr = tryHeader(context.getCfConnectingIpv6(), PLAIN_IP_ADDRESS_PARSER);
+    if (addr != null) {
+      if (!isIpAddrPrivate(addr)) {
+        return addr;
+      }
+      result = coalesce(result, addr);
+    }
 
     return result;
-  }
-
-  @SuppressFBWarnings("SF_SWITCH_NO_DEFAULT")
-  private static void reportMultipleHeaders(int foundHeaders, MutableSpan span) {
-    if (Integer.bitCount(foundHeaders) <= 1) {
-      return;
-    }
-
-    StringBuilder sb = new StringBuilder();
-    while (foundHeaders != 0) {
-      int bit = Integer.highestOneBit(foundHeaders);
-      switch (bit) {
-        case BIT_X_FORWARDED_FOR:
-          sb.append("x-forward-for,");
-          break;
-        case BIT_X_REAL_IP:
-          sb.append("x-real-ip,");
-          break;
-        case BIT_CLIENT_IP:
-          sb.append("client-ip,");
-          break;
-        case BIT_X_FORWARDED:
-          sb.append("x-forwarded,");
-          break;
-        case BIT_X_CLUSTER_CLIENT_IP:
-          sb.append("x-cluster-client-ip,");
-          break;
-        case BIT_FORWARDED_FOR:
-          sb.append("forwarded-for,");
-          break;
-        case BIT_FORWARDED:
-          sb.append("forwarded,");
-          break;
-        case BIT_VIA:
-          sb.append("via,");
-          break;
-        case BIT_TRUE_CLIENT_IP:
-          sb.append("true-client-ip,");
-          break;
-      }
-      foundHeaders ^= bit;
-    }
-    sb.setLength(sb.length() - 1);
-    span.setTag("_dd.multiple-ip-headers", sb.toString());
   }
 
   private static InetAddress preferPublic(InetAddress prevAddr, InetAddress newAddr) {
@@ -183,74 +150,19 @@ public class ClientIpAddressResolver {
     return prevAddr;
   }
 
+  private static <T> T coalesce(T one, T two) {
+    if (one != null) {
+      return one;
+    }
+    return two;
+  }
+
   private static InetAddress tryHeader(String headerValue, Function<String, InetAddress> parseFun) {
     if (headerValue == null || headerValue.isEmpty()) {
       return null;
     }
 
     return parseFun.apply(headerValue);
-  }
-
-  private static class ParseVia implements Function<String, InetAddress> {
-    @Override
-    public InetAddress apply(String str) {
-      int pos = 0;
-      int end = str.length();
-      InetAddress result = null;
-      InetAddress resultPrivate = null;
-      do {
-        int posComma = str.indexOf(',', pos);
-        int endCur = posComma == -1 ? end : posComma;
-
-        // skip initial whitespace, after a comma separating several
-        // values for instance
-        pos = skipWs(str, pos, endCur);
-        if (pos != endCur) {
-          // https://httpwg.org/specs/rfc7230.html#header.via
-          // skip over protocol/version
-          pos = skipNonWs(str, pos, endCur);
-          pos = skipWs(str, pos, endCur);
-          if (pos != endCur) {
-            // we can have a trailing comment, so try find next whitespace
-            endCur = skipNonWs(str, pos, endCur);
-
-            InetAddress addr = parseIpAddressAndMaybePort(str.substring(pos, endCur));
-            if (addr != null) {
-              if (isIpAddrPrivate(addr)) {
-                if (resultPrivate == null) {
-                  resultPrivate = addr;
-                }
-              } else {
-                result = addr;
-              }
-            }
-          }
-        }
-        pos = (posComma != -1 && posComma + 1 < end) ? (posComma + 1) : -1;
-      } while (result == null && pos != -1);
-
-      return result != null ? result : resultPrivate;
-    }
-
-    private static int skipNonWs(String str, int pos, int endCur) {
-      for (; pos < endCur; pos++) {
-        char c = str.charAt(pos);
-        if (c == ' ' || c == '\t') {
-          break;
-        }
-      }
-      return pos;
-    }
-
-    private static int skipWs(String str, int pos, int endCur) {
-      for (; pos < endCur; pos++) {
-        char c = str.charAt(pos);
-        if (c != ' ' && c != '\t') {
-          break;
-        }
-      }
-      return pos;
-    }
   }
 
   private static class ParsePlainIpAddress implements Function<String, InetAddress> {

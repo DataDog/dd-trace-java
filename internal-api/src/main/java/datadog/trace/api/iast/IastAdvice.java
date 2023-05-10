@@ -14,9 +14,6 @@ public interface IastAdvice {
   @Target({ElementType.METHOD, ElementType.TYPE})
   @Retention(RetentionPolicy.RUNTIME)
   @interface Propagation {
-    /** Propagation type (STRING, JSON, URL ...) */
-    String value();
-
     Kind kind() default Kind.PROPAGATION;
   }
 

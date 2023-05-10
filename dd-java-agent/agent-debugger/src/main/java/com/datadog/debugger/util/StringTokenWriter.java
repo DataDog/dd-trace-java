@@ -1,7 +1,7 @@
 package com.datadog.debugger.util;
 
 import com.datadog.debugger.el.Value;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.EvaluationError;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
@@ -12,12 +12,12 @@ import java.util.Map;
  */
 public class StringTokenWriter implements SerializerWithLimits.TokenWriter {
   private final StringBuilder sb;
-  private final List<Snapshot.EvaluationError> evalErrors;
+  private final List<EvaluationError> evalErrors;
   private boolean initial;
   private boolean inCollection;
   private boolean inMapEntry;
 
-  public StringTokenWriter(StringBuilder sb, List<Snapshot.EvaluationError> evalErrors) {
+  public StringTokenWriter(StringBuilder sb, List<EvaluationError> evalErrors) {
     this.sb = sb;
     this.evalErrors = evalErrors;
   }
@@ -142,17 +142,21 @@ public class StringTokenWriter implements SerializerWithLimits.TokenWriter {
     initial = false;
     String fieldName = field.getName();
     sb.append(fieldName).append('=').append(Value.undefinedValue());
-    evalErrors.add(
-        new Snapshot.EvaluationError(fieldName, "Cannot extract field: " + ex.toString()));
+    evalErrors.add(new EvaluationError(fieldName, "Cannot extract field: " + ex.toString()));
   }
 
   @Override
-  public void objectMaxFieldCount() {
-    sb.append(", ...");
-  }
-
-  @Override
-  public void reachedMaxDepth() {
-    sb.append("...");
+  public void notCaptured(SerializerWithLimits.NotCapturedReason reason) {
+    switch (reason) {
+      case MAX_DEPTH:
+      case TIMEOUT:
+        sb.append("...");
+        break;
+      case FIELD_COUNT:
+        sb.append(", ...");
+        break;
+      default:
+        throw new RuntimeException("Unsupported NotCapturedReason: " + reason);
+    }
   }
 }

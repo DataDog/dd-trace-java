@@ -2,6 +2,7 @@ package datadog.telemetry;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigCollector;
+import datadog.trace.api.WafMetricCollector;
 import java.io.IOException;
 import java.util.List;
 import java.util.Queue;
@@ -25,6 +26,8 @@ public class TelemetryRunnable implements Runnable {
 
   private int consecutiveFailures;
 
+  private long collectMetricsTimestamp;
+
   public TelemetryRunnable(
       OkHttpClient okHttpClient,
       TelemetryService telemetryService,
@@ -41,6 +44,7 @@ public class TelemetryRunnable implements Runnable {
     this.telemetryService = telemetryService;
     this.actions = actions;
     this.sleeper = sleeper;
+    this.collectMetricsTimestamp = 0;
   }
 
   @Override
@@ -76,6 +80,14 @@ public class TelemetryRunnable implements Runnable {
   }
 
   private boolean mainLoopIteration() throws InterruptedException {
+
+    // Collect request metrics every N seconds (default 10s)
+    long currentTime = System.currentTimeMillis();
+    if (currentTime - collectMetricsTimestamp > Config.get().getTelemetryMetricsInterval()) {
+      collectMetricsTimestamp = currentTime;
+      WafMetricCollector.get().prepareRequestMetrics();
+    }
+
     for (TelemetryPeriodicAction action : this.actions) {
       action.doIteration(this.telemetryService);
     }
@@ -101,7 +113,9 @@ public class TelemetryRunnable implements Runnable {
 
   private void successWait() {
     consecutiveFailures = 0;
-    final int waitMs = telemetryService.getHeartbeatInterval();
+    final int waitMs =
+        Math.min(telemetryService.getMetricsInterval(), telemetryService.getHeartbeatInterval());
+    // Find which interval is less - more often collect data
     sleeper.sleep(waitMs);
   }
 
@@ -119,21 +133,18 @@ public class TelemetryRunnable implements Runnable {
   }
 
   private SendResult sendRequest(Request request) {
-    Response response;
-    try {
-      response = okHttpClient.newCall(request).execute();
+    try (Response response = okHttpClient.newCall(request).execute()) {
+      if (response.code() == 404) {
+        log.debug("Telemetry endpoint is disabled, dropping message");
+        return SendResult.DROP;
+      }
+      if (response.code() != 202) {
+        log.debug(
+            "Telemetry Intake Service responded with: {} {} ", response.code(), response.message());
+        return SendResult.FAILURE;
+      }
     } catch (IOException e) {
       log.debug("IOException on HTTP request to Telemetry Intake Service: {}", e.toString());
-      return SendResult.FAILURE;
-    }
-
-    if (response.code() == 404) {
-      log.debug("Telemetry endpoint is disabled, dropping message");
-      return SendResult.DROP;
-    }
-    if (response.code() != 202) {
-      log.debug(
-          "Telemetry Intake Service responded with: {} {} ", response.code(), response.message());
       return SendResult.FAILURE;
     }
 
@@ -144,7 +155,7 @@ public class TelemetryRunnable implements Runnable {
   enum SendResult {
     SUCCESS,
     FAILURE,
-    DROP;
+    DROP
   }
 
   interface ThreadSleeper {

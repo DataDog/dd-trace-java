@@ -4,7 +4,9 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.CommandInjectionModule
 import foo.bar.TestRuntimeSuite
+import groovy.transform.CompileDynamic
 
+@CompileDynamic
 class RuntimeCallSiteTest extends AgentTestRunner {
 
   @Override
@@ -40,7 +42,7 @@ class RuntimeCallSiteTest extends AgentTestRunner {
     new TestRuntimeSuite(runtime).exec(command, env)
 
     then:
-    1 * iastModule.onRuntimeExec(command)
+    1 * iastModule.onRuntimeExec(env, command)
     1 * runtime.exec(command, env)
     0 * _
   }
@@ -73,7 +75,7 @@ class RuntimeCallSiteTest extends AgentTestRunner {
     new TestRuntimeSuite(runtime).exec(command, env)
 
     then:
-    1 * iastModule.onRuntimeExec(command)
+    1 * iastModule.onRuntimeExec(env, command)
     1 * runtime.exec(command, env)
     0 * _
   }
@@ -91,7 +93,7 @@ class RuntimeCallSiteTest extends AgentTestRunner {
     new TestRuntimeSuite(runtime).exec(command, env, file)
 
     then:
-    1 * iastModule.onRuntimeExec(command)
+    1 * iastModule.onRuntimeExec(env, command)
     1 * runtime.exec(command, env, file)
     0 * _
   }
@@ -109,7 +111,7 @@ class RuntimeCallSiteTest extends AgentTestRunner {
     new TestRuntimeSuite(runtime).exec(command, env, file)
 
     then:
-    1 * iastModule.onRuntimeExec(command)
+    1 * iastModule.onRuntimeExec(env, command)
     1 * runtime.exec(command, env, file)
     0 * _
   }

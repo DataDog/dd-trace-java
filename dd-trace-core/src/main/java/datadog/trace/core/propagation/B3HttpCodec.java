@@ -3,15 +3,18 @@ package datadog.trace.core.propagation;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,26 +37,81 @@ class B3HttpCodec {
     // This class should not be created. This also makes code coverage checks happy.
   }
 
-  public static final HttpCodec.Injector INJECTOR =
-      new HttpCodec.Injector() {
-        @Override
-        public <C> void inject(
-            DDSpanContext context, C carrier, AgentPropagation.Setter<C> setter) {
-          SINGLE_INJECTOR.inject(context, carrier, setter);
-          MULTI_INJECTOR.inject(context, carrier, setter);
-        }
-      };
+  public static HttpCodec.Injector newCombinedInjector(boolean paddingEnabled) {
+    return new HttpCodec.CompoundInjector(
+        Arrays.asList(newSingleInjector(paddingEnabled), newMultiInjector(paddingEnabled)));
+  }
 
-  public static final HttpCodec.Injector MULTI_INJECTOR = new B3MultiInjector();
+  public static HttpCodec.Injector newMultiInjector(boolean paddingEnalbed) {
+    return new B3MultiInjector(paddingEnalbed);
+  }
 
-  public static final HttpCodec.Injector SINGLE_INJECTOR = new B3SingleInjector();
+  public static HttpCodec.Injector newSingleInjector(boolean paddingEnabled) {
+    return new B3SingleInjector(paddingEnabled);
+  }
 
-  private static class B3MultiInjector implements HttpCodec.Injector {
+  private abstract static class B3Injector implements HttpCodec.Injector {
+    private final boolean paddingEnabled;
+
+    public B3Injector(boolean paddingEnabled) {
+      this.paddingEnabled = paddingEnabled;
+    }
+
+    /**
+     * Get the TraceId {@link String} representation to inject according the following logic:
+     *
+     * <ul>
+     *   <li>Returns a 32 lower-case hexadecimal character if padding is enabled or for 128-bit
+     *       TraceIds,
+     *   <li>Returns the original String representation if the trace was parsed from B3 extractor,
+     *   <li>Return a non-padded lower-case hexadecimal String for remaining 64-bit TraceIds.
+     * </ul>
+     *
+     * @param context The context to get the TraceId from.
+     * @return The TraceId {@link String} representation to inject.
+     */
+    protected final String getInjectedTraceId(DDSpanContext context) {
+      DDTraceId traceId = context.getTraceId();
+      if (this.paddingEnabled || traceId instanceof DD128bTraceId) {
+        return traceId.toHexString();
+      } else if (traceId instanceof B3TraceId) {
+        return ((B3TraceId) traceId).getOriginal();
+      } else {
+        return DDSpanId.toHexString(traceId.toLong());
+      }
+    }
+
+    /**
+     * Get the SpanId {@link String} representation to inject according the following logic:
+     *
+     * <ul>
+     *   <li>Returns a 16 lower-case hexadecimal character if padding is enabled,
+     *   <li>Returns a non-padded lower-case hexadecimal character otherwise.
+     * </ul>
+     *
+     * @param context The context to get the SpanId from.
+     * @return The SpanId {@link String} representation to inject.
+     */
+    protected final String getInjectedSpanId(DDSpanContext context) {
+      long spanId = context.getSpanId();
+      if (this.paddingEnabled) {
+        return DDSpanId.toHexStringPadded(spanId);
+      } else {
+        return DDSpanId.toHexString(spanId);
+      }
+    }
+  }
+
+  private static final class B3MultiInjector extends B3Injector {
+    public B3MultiInjector(boolean paddingEnabled) {
+      super(paddingEnabled);
+    }
+
     @Override
     public <C> void inject(
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
-      final String injectedTraceId = context.getTraceId().toHexStringOrOriginal();
-      final String injectedSpanId = DDSpanId.toHexString(context.getSpanId());
+      final String injectedTraceId = getInjectedTraceId(context);
+      final String injectedSpanId = getInjectedSpanId(context);
       setter.set(carrier, TRACE_ID_KEY, injectedTraceId);
       setter.set(carrier, SPAN_ID_KEY, injectedSpanId);
       if (context.lockSamplingPriority()) {
@@ -61,26 +119,35 @@ class B3HttpCodec {
             convertSamplingPriority(context.getSamplingPriority());
         setter.set(carrier, SAMPLING_PRIORITY_KEY, injectedSamplingPriority);
       }
-      log.debug("{} - B3 parent context injected - {}", context.getTraceId(), injectedTraceId);
+      log.debug(
+          "{} - B3 parent context injected - {} {}",
+          context.getTraceId(),
+          injectedTraceId,
+          injectedSpanId);
     }
   }
 
-  private static class B3SingleInjector implements HttpCodec.Injector {
+  private static final class B3SingleInjector extends B3Injector {
+    public B3SingleInjector(boolean paddingEnabled) {
+      super(paddingEnabled);
+    }
+
     @Override
     public <C> void inject(
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
-      final String injectedTraceId = context.getTraceId().toHexStringOrOriginal();
-      final String injectedSpanId = DDSpanId.toHexString(context.getSpanId());
-      final StringBuilder injectedB3Id = new StringBuilder(100);
-      injectedB3Id.append(injectedTraceId).append('-').append(injectedSpanId);
+      final String injectedTraceId = getInjectedTraceId(context);
+      final String injectedSpanId = getInjectedSpanId(context);
+      final StringBuilder injectedB3IdBuilder = new StringBuilder(100);
+      injectedB3IdBuilder.append(injectedTraceId).append('-').append(injectedSpanId);
 
       if (context.lockSamplingPriority()) {
         final String injectedSamplingPriority =
             convertSamplingPriority(context.getSamplingPriority());
-        injectedB3Id.append('-').append(injectedSamplingPriority);
+        injectedB3IdBuilder.append('-').append(injectedSamplingPriority);
       }
-      setter.set(carrier, B3_KEY, injectedB3Id.toString());
-      log.debug("{} - B3 parent context injected - {}", context.getTraceId(), injectedTraceId);
+      String injectedB3Id = injectedB3IdBuilder.toString();
+      setter.set(carrier, B3_KEY, injectedB3Id);
+      log.debug("{} - B3 parent context injected - {}", context.getTraceId(), injectedB3Id);
     }
   }
 
@@ -90,50 +157,28 @@ class B3HttpCodec {
 
   // Only used from tests
   static HttpCodec.Extractor newExtractor(
-      final Map<String, String> tagMapping, Map<String, String> baggageMapping) {
-    Config config = Config.get();
+      Config config, Supplier<TraceConfig> traceConfigSupplier) {
     final List<HttpCodec.Extractor> extractors = new ArrayList<>(2);
-    extractors.add(newSingleExtractor(tagMapping, baggageMapping, config));
-    extractors.add(newMultiExtractor(tagMapping, baggageMapping, config));
+    extractors.add(newSingleExtractor(config, traceConfigSupplier));
+    extractors.add(newMultiExtractor(config, traceConfigSupplier));
     return new HttpCodec.CompoundExtractor(extractors);
   }
 
   public static HttpCodec.Extractor newMultiExtractor(
-      final Map<String, String> tagMapping,
-      Map<String, String> baggageMapping,
-      final Config config) {
+      Config config, Supplier<TraceConfig> traceConfigSupplier) {
     return new TagContextExtractor(
-        tagMapping,
-        baggageMapping,
-        new ContextInterpreter.Factory() {
-          @Override
-          protected ContextInterpreter construct(
-              final Map<String, String> mapping, Map<String, String> baggageMapping) {
-            return new B3MultiContextInterpreter(mapping, baggageMapping, config);
-          }
-        });
+        traceConfigSupplier, () -> new B3MultiContextInterpreter(config));
   }
 
   public static HttpCodec.Extractor newSingleExtractor(
-      final Map<String, String> tagMapping,
-      Map<String, String> baggageMapping,
-      final Config config) {
+      Config config, Supplier<TraceConfig> traceConfigSupplier) {
     return new TagContextExtractor(
-        tagMapping,
-        baggageMapping,
-        new ContextInterpreter.Factory() {
-          @Override
-          protected ContextInterpreter construct(
-              final Map<String, String> mapping, Map<String, String> baggageMapping) {
-            return new B3SingleContextInterpreter(mapping, baggageMapping, config);
-          }
-        });
+        traceConfigSupplier, () -> new B3SingleContextInterpreter(config));
   }
 
   private abstract static class B3BaseContextInterpreter extends ContextInterpreter {
-    public B3BaseContextInterpreter(
-        Map<String, String> taggedHeaders, Map<String, String> baggageMapping, Config config) {
-      super(taggedHeaders, baggageMapping, config);
+    public B3BaseContextInterpreter(Config config) {
+      super(config);
     }
 
     protected void setSpanId(final String sId) {
@@ -151,7 +196,8 @@ class B3HttpCodec {
         traceId = DDTraceId.ZERO;
         return false;
       } else {
-        traceId = DDTraceId.fromHexTruncatedWithOriginal(tId);
+        B3TraceId b3TraceId = B3TraceId.fromHex(tId);
+        traceId = b3TraceId.toLong() == 0 ? DDTraceId.ZERO : b3TraceId;
       }
       if (tags.isEmpty()) {
         tags = new TreeMap<>();
@@ -162,11 +208,8 @@ class B3HttpCodec {
   }
 
   private static final class B3MultiContextInterpreter extends B3BaseContextInterpreter {
-    private B3MultiContextInterpreter(
-        final Map<String, String> taggedHeaders,
-        Map<String, String> baggageMapping,
-        Config config) {
-      super(taggedHeaders, baggageMapping, config);
+    private B3MultiContextInterpreter(Config config) {
+      super(config);
     }
 
     @Override
@@ -220,9 +263,8 @@ class B3HttpCodec {
   }
 
   private static final class B3SingleContextInterpreter extends B3BaseContextInterpreter {
-    public B3SingleContextInterpreter(
-        Map<String, String> taggedHeaders, Map<String, String> baggageMapping, Config config) {
-      super(taggedHeaders, baggageMapping, config);
+    public B3SingleContextInterpreter(Config config) {
+      super(config);
     }
 
     @Override

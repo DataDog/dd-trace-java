@@ -135,15 +135,17 @@ public interface SpanSamplingWorker extends AutoCloseable {
           for (DDSpan span : trace) {
             if (singleSpanSampler.setSamplingPriority(span)) {
               sampledSpans.add(span);
+              healthMetrics.onSingleSpanSample();
             } else {
               unsampledSpans.add(span);
+              healthMetrics.onSingleSpanUnsampled();
             }
           }
 
           int samplingPriority = trace.get(0).samplingPriority();
           if (sampledSpans.size() > 0 && !primaryQueue.offer(sampledSpans)) {
             // couldn't send sampled spans because the queue is full, count entire trace as dropped
-            healthMetrics.onFailedPublish(samplingPriority);
+            healthMetrics.onFailedPublish(samplingPriority, trace.size());
             log.debug(
                 "Sampled spans written to overfilled buffer after single span sampling. Counted but dropping trace: {}",
                 trace);
@@ -151,18 +153,19 @@ public interface SpanSamplingWorker extends AutoCloseable {
               && (droppingPolicy.active() || !secondaryQueue.offer(unsampledSpans))) {
             if (sampledSpans.isEmpty()) {
               // dropped all spans because none of the spans sampled
-              healthMetrics.onFailedPublish(samplingPriority);
+              healthMetrics.onFailedPublish(samplingPriority, unsampledSpans.size());
               log.debug(
-                  "Trace is empty after single span sampling. Counted but dropping trace: {}",
+                  "Trace is empty. None of the spans have been sampled by single span sampling. Counted but dropping trace: {}",
                   trace);
             } else {
               healthMetrics.onPartialPublish(unsampledSpans.size());
               log.debug(
-                  "Unsampled spans dropped after single span sampling because Dropping Policy is active or the queue is full. Counted partial trace: {}",
+                  "Unsampled spans dropped after single span sampling because Dropping Policy is active (droppingPolicy.active()={}) or the queue is full. Counted partial trace: {}",
+                  droppingPolicy.active(),
                   sampledSpans);
             }
           } else {
-            // published all sampled and unsampled spans
+            log.debug("Entire trace has been published: {}", trace);
             healthMetrics.onPublish(trace, samplingPriority);
           }
           afterOnEvent();

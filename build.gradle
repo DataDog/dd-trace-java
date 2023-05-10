@@ -11,19 +11,16 @@ buildscript {
 }
 
 plugins {
-  id 'com.github.ben-manes.versions' version '0.27.0'
-
   id "com.diffplug.spotless" version "6.11.0"
-  id 'com.github.spotbugs' version '4.6.0'
-  id "de.thetaphi.forbiddenapis" version "3.2"
+  id 'com.github.spotbugs' version '5.0.14'
+  id "de.thetaphi.forbiddenapis" version "3.5.1"
 
-  id 'org.unbroken-dome.test-sets' version '4.0.0'
   id 'pl.allegro.tech.build.axion-release' version '1.14.4'
-  id 'io.github.gradle-nexus.publish-plugin' version '1.0.0'
+  id 'io.github.gradle-nexus.publish-plugin' version '1.3.0'
 
   id "com.github.johnrengelman.shadow" version "7.1.2" apply false
-  id "me.champeau.jmh" version "0.6.5" apply false
-  id 'org.gradle.playframework' version '0.12' apply false
+  id "me.champeau.jmh" version "0.7.0" apply false
+  id 'org.gradle.playframework' version '0.13' apply false
   id 'info.solidsoft.pitest' version '1.9.11'  apply false
 }
 
@@ -148,11 +145,26 @@ allprojects {
   }
 }
 
-def testAggregate(String taskName, includePrefixes, excludePrefixes) {
-  tasks.register(taskName) { aggTest ->
+allprojects { project ->
+  project.ext {
+    activePartition = true
+  }
+  final boolean shouldUseTaskPartitions = project.rootProject.hasProperty("taskPartitionCount") && project.rootProject.hasProperty("taskPartition")
+  if (shouldUseTaskPartitions) {
+    final int taskPartitionCount = project.rootProject.property("taskPartitionCount") as int
+    final int taskPartition = project.rootProject.property("taskPartition") as int
+    final currentTaskPartition = project.path.hashCode() % taskPartitionCount
+    project.setProperty("activePartition", currentTaskPartition == taskPartition)
+  }
+}
+
+
+def testAggregate(String baseTaskName, includePrefixes, excludePrefixes) {
+  final testTaskName = "${baseTaskName}Test"
+  tasks.register(testTaskName) { aggTest ->
     subprojects { subproject ->
-      println(subproject.path)
-      if (includePrefixes.any { subproject.path.startsWith(it) } && !excludePrefixes.any { subproject.path.startsWith(it) }) {
+      if (subproject.property("activePartition") && includePrefixes.any { subproject.path.startsWith(it) } && !excludePrefixes.any { subproject.path.startsWith(it) }) {
+        println(subproject.path)
         def testTask = subproject.tasks.findByName("test")
         if (testTask != null) {
           aggTest.dependsOn(testTask)
@@ -160,10 +172,23 @@ def testAggregate(String taskName, includePrefixes, excludePrefixes) {
       }
     }
   }
+
+  final checkTaskName = "${baseTaskName}Check"
+  tasks.register(checkTaskName) { aggCheck ->
+    subprojects { subproject ->
+      if (subproject.property("activePartition") && includePrefixes.any { subproject.path.startsWith(it) } && !excludePrefixes.any { subproject.path.startsWith(it) }) {
+        println(subproject.path)
+        def checkTask = subproject.tasks.findByName("check")
+        if (checkTask != null) {
+          aggCheck.dependsOn(checkTask)
+        }
+      }
+    }
+  }
 }
 
-testAggregate("smokeTest", [":dd-smoke-tests"], [])
-testAggregate("instrumentationTest", [":dd-java-agent:instrumentation"], [])
-testAggregate("profilingTest", [":dd-java-agent:agent-profiling"], [])
-testAggregate("debuggerTest", [":dd-java-agent:agent-debugger"], [])
-testAggregate("baseTest", [":"], [":dd-java-agent:instrumentation", ":dd-smoke-tests", ":dd-java-agent:agent-profiling"])
+testAggregate("smoke", [":dd-smoke-tests"], [])
+testAggregate("instrumentation", [":dd-java-agent:instrumentation"], [])
+testAggregate("profiling", [":dd-java-agent:agent-profiling"], [])
+testAggregate("debugger", [":dd-java-agent:agent-debugger"], [])
+testAggregate("base", [":"], [":dd-java-agent:instrumentation", ":dd-smoke-tests", ":dd-java-agent:agent-profiling"])

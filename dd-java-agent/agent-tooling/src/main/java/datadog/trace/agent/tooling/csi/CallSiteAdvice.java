@@ -26,6 +26,9 @@ public interface CallSiteAdvice {
     /** Executes an instruction without parameters */
     void instruction(int opcode);
 
+    /** Executes an instruction with a type parameter */
+    void instruction(int opcode, String type);
+
     /** Loads a constant into the stack */
     void loadConstant(Object constant);
 
@@ -70,6 +73,11 @@ public interface CallSiteAdvice {
     COPY,
     /** Copies the parameters in an array and prepends it */
     PREPEND_ARRAY,
+    /**
+     * Copies the parameters in an array, prepends it and swaps the array with the uninitialized
+     * instance in a ctor
+     */
+    PREPEND_ARRAY_CTOR,
     /** Copies the parameters in an array and appends it */
     APPEND_ARRAY
   }

@@ -2,6 +2,7 @@ package datadog.trace.core;
 
 import datadog.communication.monitor.Recording;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
@@ -72,6 +73,8 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   private final TimeSource timeSource;
   private final boolean strictTraceWrites;
   private final HealthMetrics healthMetrics;
+  private final TraceConfig traceConfig;
+
   private final ConcurrentLinkedDeque<DDSpan> finishedSpans = new ConcurrentLinkedDeque<>();
 
   // We must maintain a separate count because ConcurrentLinkedDeque.size() is a linear operation.
@@ -121,10 +124,15 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     this.timeSource = timeSource;
     this.strictTraceWrites = strictTraceWrites;
     this.healthMetrics = healthMetrics;
+    this.traceConfig = tracer.captureTraceConfig();
   }
 
   CoreTracer getTracer() {
     return tracer;
+  }
+
+  String mapServiceName(String serviceName) {
+    return traceConfig.getServiceMapping().getOrDefault(serviceName, serviceName);
   }
 
   /**
@@ -168,6 +176,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     // There is a benign race here where the span added above can get written out by a writer in
     // progress before the count has been incremented. It's being taken care of in the internal
     // write method.
+    healthMetrics.onFinishSpan();
     COMPLETED_SPAN_COUNT.incrementAndGet(this);
     return decrementRefAndMaybeWrite(span == getRootSpan());
   }

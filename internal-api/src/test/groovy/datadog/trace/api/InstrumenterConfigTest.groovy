@@ -76,4 +76,46 @@ class InstrumenterConfigTest extends DDSpecification {
     where:
     preset << ['INVALID', '']
   }
+
+  def "appsec enabled = #input"() {
+    setup:
+    if (input != null) {
+      injectSysConfig("appsec.enabled", input)
+    }
+
+    expect:
+    InstrumenterConfig.get().getAppSecActivation() == expected
+
+    where:
+    input      | expected
+    null       | ProductActivation.ENABLED_INACTIVE
+    ""         | ProductActivation.ENABLED_INACTIVE
+    "bad"      | ProductActivation.FULLY_DISABLED
+    "false"    | ProductActivation.FULLY_DISABLED
+    "0"        | ProductActivation.FULLY_DISABLED
+    "true"     | ProductActivation.FULLY_ENABLED
+    "1"        | ProductActivation.FULLY_ENABLED
+    "inactive" | ProductActivation.ENABLED_INACTIVE
+  }
+
+  def "iast enabled = #input"() {
+    setup:
+    if (input != null) {
+      injectSysConfig("iast.enabled", input)
+    }
+
+    expect:
+    InstrumenterConfig.get().getIastActivation() == expected
+
+    where:
+    input      | expected
+    null       | ProductActivation.FULLY_DISABLED
+    ""         | ProductActivation.FULLY_DISABLED
+    "bad"      | ProductActivation.FULLY_DISABLED
+    "false"    | ProductActivation.FULLY_DISABLED
+    "0"        | ProductActivation.FULLY_DISABLED
+    "true"     | ProductActivation.FULLY_ENABLED
+    "1"        | ProductActivation.FULLY_ENABLED
+    "inactive" | ProductActivation.ENABLED_INACTIVE
+  }
 }

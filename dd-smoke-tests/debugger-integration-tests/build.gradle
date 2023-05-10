@@ -2,10 +2,6 @@ plugins {
   id "com.github.johnrengelman.shadow"
 }
 
-ext {
-  enableJunitPlatform = true
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 
 description = 'Debugger Integration Tests.'
@@ -44,10 +40,10 @@ tasks.withType(Test).configureEach {
   //  }
   //  doFirst {
   //    if (isLatestJdk) {
-  //      jvmArgs "-Ddatadog.smoketest.shadowJar.external.path=${project(':dd-smoke-tests:debugger-integration-tests:latest-jdk-app').tasks.shadowJar.archivePath}"
+  //      jvmArgs "-Ddatadog.smoketest.shadowJar.external.path=${project(':dd-smoke-tests:debugger-integration-tests:latest-jdk-app').tasks.shadowJar.archiveFile.get()}"
   //    }
   //  }
 
-  jvmArgs "-Ddatadog.smoketest.shadowJar.path=${tasks.shadowJar.archivePath}"
+  jvmArgs "-Ddatadog.smoketest.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }
 

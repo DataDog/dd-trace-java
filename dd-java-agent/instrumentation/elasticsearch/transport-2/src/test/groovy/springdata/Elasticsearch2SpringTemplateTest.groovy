@@ -377,7 +377,7 @@ class Elasticsearch2SpringTemplateV1ForkedTest extends Elasticsearch2SpringTempl
 
   @Override
   String service() {
-    return datadog.trace.api.Config.get().getServiceName() + "-elasticsearch"
+    return datadog.trace.api.Config.get().getServiceName()
   }
 
   @Override

@@ -6,18 +6,13 @@ muzzle {
     versions = "[2.0.0,)"
     extraDependency 'com.amazonaws:amazon-sqs-java-messaging-lib:2.0.0'
     assertInverse = true
+    skipVersions += '2.20.34' // broken jar on maven central
   }
 }
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'software.amazon.awssdk', name: 'sqs', version: '2.2.0'
@@ -32,6 +27,6 @@ dependencies {
   testImplementation group: 'org.elasticmq', name: 'elasticmq-rest-sqs_2.13', version: '1.2.3'
   testImplementation group: 'com.amazonaws', name: 'amazon-sqs-java-messaging-lib', version: '2.0.0'
 
-  latestDepTestImplementation group: 'software.amazon.awssdk', name: 'sqs', version: '+'
+  latestDepTestImplementation group: 'software.amazon.awssdk', name: 'sqs', version: '2.20.33'
   latestDepTestImplementation group: 'com.amazonaws', name: 'amazon-sqs-java-messaging-lib', version: '2.0.+'
 }

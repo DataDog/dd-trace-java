@@ -21,7 +21,13 @@ spotless {
   groovyGradle {
     toggleOffOn()
     // same as groovy, but for .gradle (defaults to '*.gradle')
-    target '*.gradle', 'gradle/**/*.gradle'
+    if (project == project.rootProject) {
+      // only do this for the root project since the instrumentation project has a subproject and directory named gradle
+      // that will confuse task dependencies
+      target '*.gradle', 'gradle/**/*.gradle'
+    } else {
+      target '*.gradle'
+    }
     greclipse().configFile(configPath + '/enforcement/spotless-groovy.properties')
   }
 

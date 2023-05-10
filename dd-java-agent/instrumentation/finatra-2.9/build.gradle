@@ -2,16 +2,9 @@
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/test-with-scala.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  // Up to 20.7 where the server structure changes
-  latestPre207Test {
-    dirName = 'test'
-  }
-
-  latestDepTest
-}
+// Up to 20.7 where the server structure changes
+addTestSuiteForDir('latestPre207Test', 'test')
+addTestSuite('latestDepTest')
 
 muzzle {
   // There are some weird library issues below 2.9 so can't assert inverse

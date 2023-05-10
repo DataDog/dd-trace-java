@@ -93,6 +93,17 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
         "No line info for range 4-10", mockSink.getCurrentDiagnostics().get(0).getMessage());
   }
 
+  @Test
+  public void spanThrows() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    MockTracer tracer = installSingleSpan(CLASS_NAME, "main", "int (java.lang.String)", null);
+    tracer.setThrowing(true);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    assertEquals(3, result);
+    assertEquals(0, tracer.spans.size());
+  }
+
   private MockTracer installSingleSpan(
       String typeName, String methodName, String signature, String... tags) {
     SpanProbe spanProbe = createSpan(SPAN_ID, typeName, methodName, signature, tags);
@@ -120,7 +131,8 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
     currentTransformer = new DebuggerTransformer(config, configuration);
     instr.addTransformer(currentTransformer);
     mockSink = new MockSink();
-    DebuggerContext.init(mockSink, null, null);
+    DebuggerAgentHelper.injectSink(mockSink);
+    DebuggerContext.init(null, null);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     MockTracer mockTracer = new MockTracer();
     DebuggerContext.initTracer(mockTracer);
@@ -129,12 +141,20 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
 
   static class MockTracer implements DebuggerContext.Tracer {
     List<MockSpan> spans = new ArrayList<>();
+    boolean throwing;
 
     @Override
     public DebuggerSpan createSpan(String resourceName, String[] tags) {
+      if (throwing) {
+        throw new IllegalArgumentException("oops");
+      }
       MockSpan mockSpan = new MockSpan(resourceName, tags);
       spans.add(mockSpan);
       return mockSpan;
+    }
+
+    public void setThrowing(boolean value) {
+      this.throwing = value;
     }
   }
 
@@ -167,7 +187,7 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
   private static SpanProbe createSpan(
       String id, String typeName, String methodName, String signature, String[] tags) {
     return SpanProbe.builder()
-        .probeId(id)
+        .probeId(id, 0)
         .where(typeName, methodName, signature)
         .tags(tags)
         .build();
@@ -175,6 +195,10 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
 
   private static SpanProbe createSpan(
       String id, String sourceFile, int lineFrom, int lineTill, String[] tags) {
-    return SpanProbe.builder().probeId(id).where(sourceFile, lineFrom, lineTill).tags(tags).build();
+    return SpanProbe.builder()
+        .probeId(id, 0)
+        .where(sourceFile, lineFrom, lineTill)
+        .tags(tags)
+        .build();
   }
 }

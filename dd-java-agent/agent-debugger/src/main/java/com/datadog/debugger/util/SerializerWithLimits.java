@@ -1,7 +1,8 @@
 package com.datadog.debugger.util;
 
+import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.Limits;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -39,6 +40,12 @@ public class SerializerWithLimits {
         return true;
     }
     return false;
+  }
+
+  enum NotCapturedReason {
+    MAX_DEPTH,
+    FIELD_COUNT,
+    TIMEOUT
   }
 
   public interface TokenWriter {
@@ -86,23 +93,28 @@ public class SerializerWithLimits {
 
     void objectFieldPrologue(Field field, Object value, int maxDepth) throws Exception;
 
-    void objectMaxFieldCount() throws Exception;
-
     void handleFieldException(Exception ex, Field field);
 
     void objectEpilogue(Object value) throws Exception;
 
-    void reachedMaxDepth() throws Exception;
+    void notCaptured(NotCapturedReason reason) throws Exception;
   }
 
   private final TokenWriter tokenWriter;
+  private final TimeoutChecker timeoutChecker;
 
-  public SerializerWithLimits(TokenWriter tokenWriter) {
+  public SerializerWithLimits(TokenWriter tokenWriter, TimeoutChecker timeoutChecker) {
     this.tokenWriter = tokenWriter;
+    this.timeoutChecker = timeoutChecker;
   }
 
   public void serialize(Object value, String type, Limits limits) throws Exception {
     tokenWriter.prologue(value, type);
+    if (timeoutChecker.isTimedOut(System.currentTimeMillis())) {
+      tokenWriter.notCaptured(NotCapturedReason.TIMEOUT);
+      tokenWriter.epilogue(value);
+      return;
+    }
     if (value == null) {
       tokenWriter.nullValue();
     } else if (isPrimitive(type) || WellKnownClasses.isToStringSafe(type)) {
@@ -166,7 +178,7 @@ public class SerializerWithLimits {
     } else if (limits.maxReferenceDepth > 0) {
       serializeObjectValue(value, limits);
     } else {
-      tokenWriter.reachedMaxDepth();
+      tokenWriter.notCaptured(NotCapturedReason.MAX_DEPTH);
     }
     tokenWriter.epilogue(value);
   }
@@ -188,7 +200,7 @@ public class SerializerWithLimits {
           onField(field, fieldValue, limits);
           processedFieldCount++;
           if (processedFieldCount >= limits.maxFieldCount) {
-            tokenWriter.objectMaxFieldCount();
+            tokenWriter.notCaptured(NotCapturedReason.FIELD_COUNT);
             break classLoop;
           }
         } catch (Exception e) {
@@ -209,8 +221,8 @@ public class SerializerWithLimits {
       typeName = value != null ? value.getClass().getTypeName() : field.getType().getTypeName();
     }
     serialize(
-        value instanceof Snapshot.CapturedValue
-            ? ((Snapshot.CapturedValue) value).getValue()
+        value instanceof CapturedContext.CapturedValue
+            ? ((CapturedContext.CapturedValue) value).getValue()
             : value,
         typeName,
         newLimits);

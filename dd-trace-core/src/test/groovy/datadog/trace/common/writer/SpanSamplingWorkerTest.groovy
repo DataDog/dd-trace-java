@@ -181,7 +181,7 @@ class SpanSamplingWorkerTest extends DDSpecification {
 
     then:
     1 * healthMetrics.onPublish([span1, span2], PrioritySampling.USER_DROP)
-    0 * healthMetrics.onFailedPublish(_)
+    0 * healthMetrics.onFailedPublish(_,_)
     0 * healthMetrics.onPartialPublish(_)
 
     cleanup:
@@ -225,7 +225,7 @@ class SpanSamplingWorkerTest extends DDSpecification {
     assert secondaryQueue.isEmpty()
 
     then:
-    1 * healthMetrics.onFailedPublish(PrioritySampling.SAMPLER_DROP)
+    1 * healthMetrics.onFailedPublish(PrioritySampling.SAMPLER_DROP,_)
     0 * healthMetrics.onPublish(_, _)
     0 * healthMetrics.onPartialPublish(_)
 
@@ -260,7 +260,7 @@ class SpanSamplingWorkerTest extends DDSpecification {
 
     then:
     1 * healthMetrics.onPublish([span1, span2], PrioritySampling.SAMPLER_DROP)
-    0 * healthMetrics.onFailedPublish(_)
+    0 * healthMetrics.onFailedPublish(_,_)
     0 * healthMetrics.onPartialPublish(_)
 
     cleanup:
@@ -296,7 +296,7 @@ class SpanSamplingWorkerTest extends DDSpecification {
     then:
     1 * healthMetrics.onPublish([span1, span2, span3], PrioritySampling.SAMPLER_DROP)
     0 * healthMetrics.onPartialPublish(_)
-    0 * healthMetrics.onFailedPublish(_)
+    0 * healthMetrics.onFailedPublish(_,_)
 
     cleanup:
     worker.close()
@@ -333,7 +333,7 @@ class SpanSamplingWorkerTest extends DDSpecification {
 
     then:
     1 * healthMetrics.onPartialPublish(2)
-    0 * healthMetrics.onFailedPublish(_)
+    0 * healthMetrics.onFailedPublish(_,_)
     0 * healthMetrics.onPublish(_, _)
 
     cleanup:
@@ -381,7 +381,7 @@ class SpanSamplingWorkerTest extends DDSpecification {
     latch.await(10, TimeUnit.SECONDS)
 
     then:
-    1 * healthMetrics.onFailedPublish(PrioritySampling.SAMPLER_DROP)
+    1 * healthMetrics.onFailedPublish(PrioritySampling.SAMPLER_DROP,_)
     0 * healthMetrics.onPartialPublish(_)
     0 * healthMetrics.onPublish(_, _)
 

@@ -12,6 +12,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class MergedAsmData extends AbstractList<Map<String, Object>> {
+  public static final String KEY_BUNDLED_RULE_DATA = "<rule data bundled in rule config>";
+
   private final Map<String /* cfg key */, List<Map<String, Object>>> configs;
   private List<Map<String, Object>> mergedData;
 
