@@ -15,7 +15,11 @@ public final class State {
       AtomicReferenceFieldUpdater.newUpdater(
           State.class, AgentScope.Continuation.class, "continuation");
 
+  private static final AtomicReferenceFieldUpdater<State, Object> QUEUE_TIMER =
+      AtomicReferenceFieldUpdater.newUpdater(State.class, Object.class, "queueTimer");
+
   private volatile AgentScope.Continuation continuation = null;
+  private volatile Object queueTimer = null;
 
   private State() {}
 
@@ -66,5 +70,18 @@ public final class State {
     }
     CONTINUATION.compareAndSet(this, continuation, null);
     return continuation;
+  }
+
+  /**
+   * Caller responsible for not doing this twice...
+   *
+   * @param queueTimer caller's timer implementation
+   */
+  public void setQueueTimer(Object queueTimer) {
+    QUEUE_TIMER.lazySet(this, queueTimer);
+  }
+
+  public Object getQueueTimer() {
+    return QUEUE_TIMER.getAndSet(this, null);
   }
 }

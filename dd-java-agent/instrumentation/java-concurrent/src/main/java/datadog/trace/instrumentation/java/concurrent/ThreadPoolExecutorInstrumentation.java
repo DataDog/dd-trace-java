@@ -142,13 +142,19 @@ public final class ThreadPoolExecutorInstrumentation extends Instrumenter.Tracin
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void capture(
         @Advice.This final ThreadPoolExecutor zis,
-        @Advice.Argument(readOnly = false, value = 0) Runnable task) {
+        @Advice.Argument(readOnly = false, value = 0) Runnable task,
+        @Advice.FieldValue("workQueue") Object queue) {
       if (TPEHelper.shouldPropagate(
           InstrumentationContext.get(ThreadPoolExecutor.class, Boolean.class), zis)) {
         if (TPEHelper.useWrapping(task)) {
           task = Wrapper.wrap(task);
         } else {
-          TPEHelper.capture(InstrumentationContext.get(Runnable.class, State.class), task);
+          // FIXME this is an ok start but is just going to be FutureTask a lot of the time
+          Object timer =
+              task == null
+                  ? null
+                  : QueueTimer.startTimer(task.getClass(), queue.getClass(), zis.getClass());
+          TPEHelper.capture(InstrumentationContext.get(Runnable.class, State.class), task, timer);
         }
       }
     }
@@ -164,6 +170,8 @@ public final class ThreadPoolExecutorInstrumentation extends Instrumenter.Tracin
         if (TPEHelper.useWrapping(task)) {
           task = Wrapper.unwrap(task);
         } else {
+          QueueTimer.stopTimer(
+              InstrumentationContext.get(Runnable.class, State.class).get(task).getQueueTimer());
           return TPEHelper.startScope(
               InstrumentationContext.get(Runnable.class, State.class), task);
         }
