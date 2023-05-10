@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.de
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_DISPATCH_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.instrumentation.jetty9.JettyDecorator.DECORATE;
@@ -133,8 +134,27 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
-        @Advice.This final HttpChannel<?> channel, @Advice.Local("agentSpan") AgentSpan span) {
+        @Advice.This final HttpChannel<?> channel,
+        @Advice.Local("agentSpan") AgentSpan span,
+        @Advice.Local("isDispatch") boolean isDispatch) {
       Request req = channel.getRequest();
+
+      // same logic as in Servlet3Advice. We need to activate/finish the dispatch span here
+      // because we don't know if a servlet is going to be called and therefore whether
+      // Servlet3Advice will have an opportunity to run.
+      // If there is no servlet involved, the span would not be finished.
+      Object dispatchSpan = req.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
+      if (dispatchSpan instanceof AgentSpan) {
+        // this is not great, but we leave the attribute. This is because
+        // Set{Servlet,Context}PathAdvice
+        // looks for this attribute, and we need a way to tell Servlet3Advice not to activate
+        // the root span, stored in DD_SPAN_ATTRIBUTE.
+        // req.removeAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
+        isDispatch = true;
+        span = (AgentSpan) dispatchSpan;
+        AgentScope scope = activateSpan(span);
+        return scope;
+      }
 
       Object existingSpan = req.getAttribute(DD_SPAN_ATTRIBUTE);
       if (existingSpan instanceof AgentSpan) {
@@ -155,7 +175,23 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void closeScope(@Advice.Enter final AgentScope scope) {
+    public static void onExit(
+        @Advice.Enter final AgentScope scope,
+        @Advice.Local("agentSpan") AgentSpan span,
+        @Advice.Local("isDispatch") boolean isDispatch,
+        @Advice.Thrown Throwable t) {
+      if (isDispatch) {
+        if (t != null) {
+          DECORATE.onError(span, t);
+        } else {
+          // handle()/run() catches most exceptions and handles before the method returns.
+          // It also recycles the request, clearing the attribute javax.servlet.error.exception
+          // To keep things simple, we're not reporting the exception on the dispatch span
+        }
+        DECORATE.beforeFinish(span);
+        span.finish();
+      }
+
       scope.close();
     }
   }
