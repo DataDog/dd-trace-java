@@ -129,6 +129,37 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     hasVulnerability(type('WEAK_HASH').and(evidence('MD5'))))
   }
 
+  def "insecure cookie vulnerability is present"() {
+    setup:
+    String url = "http://localhost:${httpPort}/insecure_cookie"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isSuccessful()
+    response.header("Set-Cookie").contains("user-id")
+    waitForSpan(new PollingConditions(timeout: 5),
+    hasVulnerability(type('INSECURE_COOKIE').and(evidence('user-id'))))
+  }
+
+  def "insecure cookie  vulnerability from addheader is present"() {
+    setup:
+    String url = "http://localhost:${httpPort}/insecure_cookie_from_header"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isSuccessful()
+    response.header("Set-Cookie").contains("user-id")
+    waitForSpan(new PollingConditions(timeout: 5),
+    hasVulnerability(type('INSECURE_COOKIE').and(evidence('user-id'))))
+  }
+
+
   def "weak hash vulnerability is present on boot"() {
     setup:
     String url = "http://localhost:${httpPort}/greeting"
