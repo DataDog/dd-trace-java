@@ -7,9 +7,10 @@ import datadog.trace.api.Config;
 import datadog.trace.api.iast.sink.InsecureCookieModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+
+import javax.annotation.Nonnull;
 import java.net.HttpCookie;
 import java.util.List;
-import javax.annotation.Nonnull;
 
 public class InsecureCookieModuleImpl extends SinkModuleBase implements InsecureCookieModule {
 
@@ -39,18 +40,18 @@ public class InsecureCookieModuleImpl extends SinkModuleBase implements Insecure
     }
     try {
       List<HttpCookie> cookies = HttpCookie.parse(value);
-    } catch (IllegalArgumentException e) {
-      return;
-    }
-    for (HttpCookie cookie : cookies) {
-      if (!cookie.getSecure()) {
-        final AgentSpan span = AgentTracer.activeSpan();
-        if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
+      for (HttpCookie cookie : cookies) {
+        if (!cookie.getSecure()) {
+          final AgentSpan span = AgentTracer.activeSpan();
+          if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
+            return;
+          }
+          report(span, VulnerabilityType.INSECURE_COOKIE, new Evidence(cookie.getName()));
           return;
         }
-        report(span, VulnerabilityType.INSECURE_COOKIE, new Evidence(cookie.getName()));
-        return;
       }
+    } catch (IllegalArgumentException e) {
+      return;
     }
   }
 }
