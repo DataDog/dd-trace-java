@@ -8,10 +8,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -62,10 +64,15 @@ public class FormDataParserInstrumentation extends Instrumenter.AppSec
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class DoParseAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
         @Advice.FieldValue("exchange") HttpServerExchange exchange,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx,
+        @Advice.Thrown(readOnly = false) Throwable t) {
+      if (t != null) {
+        return;
+      }
+
       CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
       BiFunction<RequestContext, Object, Flow<Void>> callback =
           cbp.getCallback(EVENTS.requestBodyProcessed());
@@ -77,7 +84,19 @@ public class FormDataParserInstrumentation extends Instrumenter.AppSec
         return;
       }
 
-      callback.apply(reqCtx, new FormDataMap(attachment));
+      Flow<Void> flow = callback.apply(reqCtx, new FormDataMap(attachment));
+      Flow.Action action = flow.getAction();
+      if (action instanceof Flow.Action.RequestBlockingAction) {
+        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+        BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
+        if (blockResponseFunction != null) {
+          blockResponseFunction.tryCommitBlockingResponse(
+              rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+          if (t == null) {
+            t = new BlockingException("Blocked request (for FormEncodedDataParser/doParse)");
+          }
+        }
+      }
     }
   }
 }

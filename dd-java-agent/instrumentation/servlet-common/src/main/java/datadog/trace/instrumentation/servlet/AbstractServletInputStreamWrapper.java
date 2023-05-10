@@ -19,7 +19,7 @@ public abstract class AbstractServletInputStreamWrapper extends ServletInputStre
     if (numRead > 0) {
       storedByteBody.appendData(b, 0, numRead);
     } else if (numRead == -1) {
-      storedByteBody.maybeNotify();
+      storedByteBody.maybeNotifyAndBlock();
     }
     return numRead;
   }
@@ -30,7 +30,7 @@ public abstract class AbstractServletInputStreamWrapper extends ServletInputStre
     if (numRead > 0) {
       storedByteBody.appendData(b, off, off + numRead);
     } else if (numRead == -1) {
-      storedByteBody.maybeNotify();
+      storedByteBody.maybeNotifyAndBlock();
     }
     return numRead;
   }
@@ -39,7 +39,7 @@ public abstract class AbstractServletInputStreamWrapper extends ServletInputStre
   public int read() throws IOException {
     int read = is.read();
     if (read == -1) {
-      storedByteBody.maybeNotify();
+      storedByteBody.maybeNotifyAndBlock();
     }
     storedByteBody.appendData(read);
     return read;
@@ -51,7 +51,7 @@ public abstract class AbstractServletInputStreamWrapper extends ServletInputStre
     if (numRead > 0) {
       storedByteBody.appendData(b, off, off + numRead);
     } else if (numRead == -1) {
-      storedByteBody.maybeNotify();
+      storedByteBody.maybeNotifyAndBlock();
     }
 
     return numRead;
@@ -70,7 +70,7 @@ public abstract class AbstractServletInputStreamWrapper extends ServletInputStre
   @Override
   public void close() throws IOException {
     is.close();
-    storedByteBody.maybeNotify();
+    storedByteBody.maybeNotifyAndBlock();
   }
 
   @Override

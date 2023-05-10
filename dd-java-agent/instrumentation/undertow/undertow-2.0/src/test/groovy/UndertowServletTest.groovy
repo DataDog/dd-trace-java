@@ -1,3 +1,19 @@
+import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.base.HttpServer
+import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import datadog.trace.bootstrap.instrumentation.api.Tags
+import io.undertow.Handlers
+import io.undertow.Undertow
+import io.undertow.UndertowOptions
+import io.undertow.servlet.api.DeploymentInfo
+import io.undertow.servlet.api.DeploymentManager
+import io.undertow.servlet.api.ServletContainer
+import io.undertow.servlet.api.ServletInfo
+
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
@@ -11,19 +27,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
-
-import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.agent.test.base.HttpServer
-import datadog.trace.agent.test.base.HttpServerTest
-import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
-import datadog.trace.bootstrap.instrumentation.api.Tags
-import io.undertow.Handlers
-import io.undertow.Undertow
-import io.undertow.UndertowOptions
-import io.undertow.servlet.api.DeploymentInfo
-import io.undertow.servlet.api.DeploymentManager
-import io.undertow.servlet.api.ServletContainer
-import io.undertow.servlet.api.ServletInfo
 
 abstract class UndertowServletTest extends HttpServerTest<Undertow> {
   private static final CONTEXT = "ctx"
@@ -50,6 +53,9 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
         .addServlet(new ServletInfo("ExceptionServlet", ExceptionServlet).addMapping(EXCEPTION.getPath()))
         .addServlet(new ServletInfo("UserBlockServlet", UserBlockServlet).addMapping(USER_BLOCK.path))
         .addServlet(new ServletInfo("NotHereServlet", NotHereServlet).addMapping(NOT_HERE.path))
+        .addServlet(new ServletInfo("CreatedServlet", CreatedServlet).addMapping(CREATED.path))
+        .addServlet(new ServletInfo("CreatedISServlet", CreatedISServlet).addMapping(CREATED_IS.path))
+        .addServlet(new ServletInfo("BodyUrlEncodedServlet", BodyUrlEncodedServlet).addMapping(BODY_URLENCODED.path))
 
       DeploymentManager manager = container.addDeployment(builder)
       manager.deploy()
@@ -102,6 +108,21 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
 
   @Override
   boolean testBlocking() {
+    true
+  }
+
+  @Override
+  boolean testRequestBody() {
+    true
+  }
+
+  @Override
+  boolean testRequestBodyISVariant() {
+    true
+  }
+
+  @Override
+  boolean testBodyUrlencoded() {
     true
   }
 

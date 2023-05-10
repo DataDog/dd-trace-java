@@ -7,10 +7,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -111,6 +113,7 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
         @Advice.FieldValue(value = "paramHashStringArray", readOnly = false)
             Hashtable<String, String[]> paramValuesField,
         @Advice.Enter final int depth,
+        @Advice.Thrown(readOnly = false) Throwable t,
         @ActiveRequestContext RequestContext reqCtx) {
       if (depth > 0) {
         return;
@@ -128,7 +131,19 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
         if (callback == null) {
           return;
         }
-        callback.apply(reqCtx, paramValuesField);
+        Flow<Void> flow = callback.apply(reqCtx, paramValuesField);
+        Flow.Action action = flow.getAction();
+        if (action instanceof Flow.Action.RequestBlockingAction) {
+          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+          BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
+          if (blockResponseFunction != null) {
+            blockResponseFunction.tryCommitBlockingResponse(
+                rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+            if (t == null) {
+              t = new BlockingException("Blocked request (for processParameters)");
+            }
+          }
+        }
       } finally {
         if (origParamValues != null) {
           origParamValues.putAll(paramValuesField);

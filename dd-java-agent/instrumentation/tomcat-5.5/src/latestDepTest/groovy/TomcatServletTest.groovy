@@ -1,10 +1,6 @@
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
-import static org.junit.Assume.assumeTrue
-
 import com.google.common.io.Files
 import datadog.trace.agent.test.base.HttpServer
+import datadog.trace.instrumentation.servlet5.TestServlet5
 import jakarta.servlet.Servlet
 import jakarta.servlet.ServletException
 import org.apache.catalina.Context
@@ -14,10 +10,14 @@ import org.apache.catalina.connector.Response
 import org.apache.catalina.core.StandardHost
 import org.apache.catalina.startup.Tomcat
 import org.apache.catalina.valves.ErrorReportValve
-import org.apache.catalina.valves.RemoteIpValve
 import org.apache.tomcat.JarScanFilter
 import org.apache.tomcat.JarScanType
 import spock.lang.Unroll
+
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
+import static org.junit.Assume.assumeTrue
 
 @Unroll
 class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
@@ -53,7 +53,6 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
       setupServlets(servletContext)
 
       (server.host as StandardHost).errorReportValveClass = ErrorHandlerValve.name
-      server.host.pipeline.addValve(new RemoteIpValve())
     }
 
     @Override
@@ -161,7 +160,7 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
 
   @Override
   Class<Servlet> servlet() {
-    TestServlet
+    TestServlet5
   }
 
   def "test exception with custom status"() {

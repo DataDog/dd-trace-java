@@ -1,8 +1,16 @@
 muzzle {
   pass {
+    name = 'jersey_2'
     group = 'org.glassfish.jersey.core'
     module = 'jersey-common'
     versions = '[2,3)'
+    assertInverse = true
+  }
+  pass {
+    name = 'jersey_2+3'
+    group = 'org.glassfish.jersey.core'
+    module = 'jersey-common'
+    versions = '[2,4)'
     assertInverse = true
   }
 }

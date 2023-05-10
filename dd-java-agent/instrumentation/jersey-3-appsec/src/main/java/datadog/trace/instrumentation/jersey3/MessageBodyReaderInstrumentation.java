@@ -5,9 +5,11 @@ import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -18,6 +20,7 @@ import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 
 // keep in sync with jersey2 (javax packages)
+// TODO: seems to be only tested in system-tests
 @AutoService(Instrumenter.class)
 public class MessageBodyReaderInstrumentation extends Instrumenter.AppSec
     implements Instrumenter.ForSingleType {
@@ -41,10 +44,12 @@ public class MessageBodyReaderInstrumentation extends Instrumenter.AppSec
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class ReaderInterceptorExecutorProceedAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
-        @Advice.Return final Object ret, @ActiveRequestContext RequestContext reqCtx) {
-      if (ret == null) {
+        @Advice.Return final Object ret,
+        @ActiveRequestContext RequestContext reqCtx,
+        @Advice.Thrown(readOnly = false) Throwable t) {
+      if (ret == null || t != null) {
         return;
       }
 
@@ -61,7 +66,18 @@ public class MessageBodyReaderInstrumentation extends Instrumenter.AppSec
       if (callback == null) {
         return;
       }
-      callback.apply(reqCtx, objToPass);
+
+      Flow<Void> flow = callback.apply(reqCtx, objToPass);
+      Flow.Action action = flow.getAction();
+      if (action instanceof Flow.Action.RequestBlockingAction) {
+        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+        BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
+        if (blockResponseFunction != null) {
+          blockResponseFunction.tryCommitBlockingResponse(
+              rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+          t = new BlockingException("Blocked request (for ReaderInterceptorExecutor/proceed)");
+        }
+      }
     }
   }
 }

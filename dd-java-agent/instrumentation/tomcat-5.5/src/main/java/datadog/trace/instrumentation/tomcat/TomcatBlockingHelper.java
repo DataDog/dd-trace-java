@@ -4,10 +4,13 @@ import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper.TemplateType;
+import java.io.IOException;
 import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
@@ -58,21 +61,49 @@ public class TomcatBlockingHelper {
     }
 
     try {
-      OutputStream os = (OutputStream) GET_OUTPUT_STREAM.invoke(resp);
-      if (templateType != BlockingContentType.NONE) {
-        TemplateType type =
-            BlockingActionHelper.determineTemplateType(templateType, request.getHeader("Accept"));
-        byte[] template = BlockingActionHelper.getTemplate(type);
-
-        resp.setHeader("Content-length", Integer.toString(template.length));
-        resp.setHeader("Content-type", BlockingActionHelper.getContentType(type));
-        os.write(template);
+      try {
+        tryWriteWithOutputStream(request, resp, templateType);
+      } catch (IllegalStateException ise) {
+        tryWriteWithWriter(request, resp, templateType);
       }
-      os.close();
     } catch (Throwable e) {
       log.info("Error sending error page", e);
     }
     return true;
+  }
+
+  private static void tryWriteWithOutputStream(
+      Request request, Response resp, BlockingContentType templateType) throws Throwable {
+    OutputStream os = (OutputStream) GET_OUTPUT_STREAM.invoke(resp);
+    if (templateType != BlockingContentType.NONE) {
+      TemplateType type =
+          BlockingActionHelper.determineTemplateType(templateType, request.getHeader("Accept"));
+      byte[] template = BlockingActionHelper.getTemplate(type);
+
+      resp.setHeader("Content-length", Integer.toString(template.length));
+      resp.setHeader("Content-type", BlockingActionHelper.getContentType(type));
+      os.write(template);
+    }
+    os.close();
+  }
+
+  private static void tryWriteWithWriter(
+      Request request, Response resp, BlockingContentType templateType) throws IOException {
+    PrintWriter writer = resp.getWriter();
+    if (templateType != BlockingContentType.NONE) {
+      TemplateType type =
+          BlockingActionHelper.determineTemplateType(templateType, request.getHeader("Accept"));
+      byte[] template = BlockingActionHelper.getTemplate(type);
+      String templateStr = new String(template, StandardCharsets.UTF_8);
+
+      resp.setHeader("Content-length", Integer.toString(template.length));
+      if ("utf-8".equalsIgnoreCase(resp.getCharacterEncoding())) {
+        resp.setHeader("Content-length", Integer.toString(template.length));
+      } // otherwise we don't really know the size after encoding, so don't set the header
+      resp.setHeader("Content-type", BlockingActionHelper.getContentType(type));
+      writer.write(templateStr);
+    }
+    writer.close();
   }
 
   private static boolean start(Response resp, int statusCode) {

@@ -5,7 +5,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import ratpack.server.internal.RequestBody;
 
+/** @see RequestBody#readStream() the instrumented method */
 @AutoService(Instrumenter.class)
 public class RatpackRequestBodyInstrumentation extends Instrumenter.AppSec
     implements Instrumenter.ForSingleType {

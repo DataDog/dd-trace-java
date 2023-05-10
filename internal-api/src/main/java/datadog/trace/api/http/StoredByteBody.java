@@ -113,6 +113,13 @@ public class StoredByteBody implements StoredBodySupplier {
     return storedCharBody.maybeNotify();
   }
 
+  // may throw BlockingException. If used directly in advice, make use of @Advice.Throwable to
+  // propagate
+  public void maybeNotifyAndBlock() {
+    commit(true);
+    storedCharBody.maybeNotifyAndBlock();
+  }
+
   @Override
   public synchronized CharSequence get() {
     commit(false);
