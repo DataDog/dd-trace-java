@@ -27,7 +27,6 @@ import datadog.trace.common.metrics.EventListener
 import datadog.trace.common.metrics.Sink
 import datadog.trace.common.writer.DDAgentWriter
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.common.writer.MultiWriter
 import datadog.trace.common.writer.Writer
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
@@ -97,10 +96,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @SuppressWarnings('PropertyName')
   @Shared
   DDAgentWriter TEST_AGENT_WRITER
-
-  @SuppressWarnings('PropertyName')
-  @Shared
-  MultiWriter TEST_MULTI_WRITER
 
   @SuppressWarnings('PropertyName')
   @Shared
@@ -198,17 +193,13 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
       TEST_DATA_STREAMS_MONITORING = new DefaultDataStreamsMonitoring(sink, features, SystemTimeSource.INSTANCE, wellKnownTags, TEST_DATA_STREAMS_WRITER, bucketDuration)
     }
-    def writers = new Writer[2]
     TEST_WRITER = new ListWriter()
-    writers[0] = TEST_WRITER
     TEST_AGENT_WRITER = DDAgentWriter.builder().build()
-    writers[1] = TEST_AGENT_WRITER
-    TEST_MULTI_WRITER = new MultiWriter(writers)
 
     TEST_TRACER =
       Spy(
       CoreTracer.builder()
-      .writer(TEST_MULTI_WRITER)
+      .writer(TEST_WRITER)
       .idGenerationStrategy(IdGenerationStrategy.fromName("SEQUENTIAL"))
       .statsDClient(STATS_D_CLIENT)
       .strictTraceWrites(useStrictTraceWrites())
@@ -250,7 +241,14 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     println "Starting test: ${getSpecificationContext().getCurrentIteration().getName()}"
     TEST_TRACER.flush()
+    TEST_AGENT_WRITER.flush()
     TEST_SPANS.clear()
+    try {
+      TEST_AGENT_WRITER.start()
+    } catch (IllegalStateException) {
+      // do nothing
+    }
+
     TEST_WRITER.start()
     TEST_DATA_STREAMS_WRITER.clear()
     TEST_DATA_STREAMS_MONITORING.clear()
@@ -264,7 +262,13 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   }
 
   void cleanup() {
+    def array = TEST_WRITER.toArray()
+    def traces = (Arrays.asList(array) as List<List<DDSpan>>)
+    for (trace in traces) {
+      TEST_AGENT_WRITER.write(trace)
+    }
     TEST_TRACER.flush()
+    TEST_AGENT_WRITER.flush()
     def util = new MockUtil()
     util.detachMock(STATS_D_CLIENT)
     util.detachMock(TEST_CHECKPOINTER)
@@ -277,6 +281,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   void cleanupSpec() {
     TEST_TRACER?.close()
+    TEST_AGENT_WRITER?.close()
 
     if (null != activeTransformer) {
       INSTRUMENTATION.removeTransformer(activeTransformer)
