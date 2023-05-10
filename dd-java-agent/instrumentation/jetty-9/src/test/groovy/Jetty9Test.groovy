@@ -2,6 +2,7 @@ import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.servlet3.TestServlet3
+import groovy.transform.CompileStatic
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.AbstractHandler
@@ -124,7 +125,7 @@ abstract class Jetty9Test extends HttpServerTest<Server> {
       }
 
       @Override
-      protected void service(HttpServletRequest req, HttpServletResponse resp) {
+      void service(HttpServletRequest req, HttpServletResponse resp) {
         HttpServerTest.ServerEndpoint endpoint = determineEndpoint(req)
         if (endpoint == UNKNOWN || endpoint == NOT_FOUND) {
           resp.status = NOT_FOUND.status
@@ -135,6 +136,7 @@ abstract class Jetty9Test extends HttpServerTest<Server> {
       }
     }
 
+    @CompileStatic
     static void handleRequest(Request request, HttpServletResponse response) {
       INSTANCE.testServlet3.service(request, response)
     }

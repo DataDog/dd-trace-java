@@ -53,8 +53,9 @@ class TestServlet3 {
       getEndpoint(req)
     }
 
+    // this method is not instrumented by the servlet advice
     @Override
-    protected void service(HttpServletRequest req, HttpServletResponse resp) {
+    void service(HttpServletRequest req, HttpServletResponse resp) {
       HttpServerTest.ServerEndpoint endpoint = determineEndpoint(req)
       HttpServerTest.controller(endpoint) {
         resp.contentType = "text/plain"
