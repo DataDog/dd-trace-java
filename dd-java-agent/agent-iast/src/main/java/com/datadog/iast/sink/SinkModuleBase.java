@@ -35,31 +35,33 @@ public abstract class SinkModuleBase implements HasDependencies {
     stackWalker = dependencies.getStackWalker();
   }
 
-  protected final <E> void checkInjection(
+  protected final <E> @Nullable Evidence checkInjection(
       @Nullable final AgentSpan span,
       @Nonnull final IastRequestContext ctx,
       @Nonnull final InjectionType type,
       @Nonnull final E value) {
     TaintedObject taintedObject = ctx.getTaintedObjects().get(value);
     if (taintedObject == null) {
-      return;
+      return null;
     }
     if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
-      return;
+      return null;
     }
-    report(span, type, new Evidence(value.toString(), taintedObject.getRanges()));
+    final Evidence result = new Evidence(value.toString(), taintedObject.getRanges());
+    report(span, type, result);
+    return result;
   }
 
-  protected final <E> void checkInjection(
+  protected final <E> @Nullable Evidence checkInjection(
       @Nullable final AgentSpan span,
       @Nonnull final InjectionType type,
       @Nonnull final RangesProvider<E> rangeProvider) {
     final int rangeCount = rangeProvider.rangeCount();
     if (rangeCount == 0) {
-      return;
+      return null;
     }
     if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
-      return;
+      return null;
     }
     String evidence;
     Range[] targetRanges;
@@ -89,7 +91,48 @@ public abstract class SinkModuleBase implements HasDependencies {
       evidence = builder.toString();
     }
 
-    report(span, type, new Evidence(evidence, targetRanges));
+    final Evidence result = new Evidence(evidence, targetRanges);
+    report(span, type, result);
+    return result;
+  }
+
+  protected final <E> @Nullable Evidence checkInjection(
+      @Nullable final AgentSpan span,
+      @Nonnull final InjectionType type,
+      @Nonnull final RangesProvider<E>... rangeProviders) {
+    int rangeCount = 0;
+    for (final RangesProvider<E> provider : rangeProviders) {
+      rangeCount += provider.rangeCount();
+    }
+    if (rangeCount == 0) {
+      return null;
+    }
+    if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
+      return null;
+    }
+    final StringBuilder evidence = new StringBuilder();
+    final Range[] targetRanges = new Range[rangeCount];
+    int rangeIndex = 0;
+    for (final RangesProvider<E> rangeProvider : rangeProviders) {
+      for (int i = 0; i < rangeProvider.size(); i++) {
+        final E item = rangeProvider.value(i);
+        if (item != null) {
+          if (evidence.length() > 0) {
+            evidence.append(type.evidenceSeparator());
+          }
+          final Range[] taintedRanges = rangeProvider.ranges(item);
+          if (taintedRanges != null) {
+            Ranges.copyShift(taintedRanges, targetRanges, rangeIndex, evidence.length());
+            rangeIndex += taintedRanges.length;
+          }
+          evidence.append(item);
+        }
+      }
+    }
+
+    final Evidence result = new Evidence(evidence.toString(), targetRanges);
+    report(span, type, result);
+    return result;
   }
 
   protected final void report(

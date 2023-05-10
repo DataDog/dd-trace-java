@@ -4,12 +4,12 @@ import graphql.language.AstPrinter;
 import graphql.language.AstTransformer;
 import graphql.language.BooleanValue;
 import graphql.language.EnumValue;
+import graphql.language.FloatValue;
+import graphql.language.IntValue;
 import graphql.language.Node;
 import graphql.language.NodeVisitor;
 import graphql.language.NodeVisitorStub;
-import graphql.language.NullValue;
-import graphql.language.Value;
-import graphql.language.VariableReference;
+import graphql.language.StringValue;
 import graphql.util.TraversalControl;
 import graphql.util.TraverserContext;
 import graphql.util.TreeTransformerUtil;
@@ -24,24 +24,22 @@ public final class GraphQLQuerySanitizer extends NodeVisitorStub {
   }
 
   @Override
-  protected TraversalControl visitValue(Value<?> node, TraverserContext<Node> context) {
-    EnumValue newValue = new EnumValue("?");
-    return TreeTransformerUtil.changeNode(context, newValue);
-  }
-
-  @Override
-  public TraversalControl visitVariableReference(
-      VariableReference node, TraverserContext<Node> context) {
-    return super.visitValue(node, context);
+  public TraversalControl visitIntValue(IntValue node, TraverserContext<Node> context) {
+    return TreeTransformerUtil.changeNode(context, new EnumValue("{Int}"));
   }
 
   @Override
   public TraversalControl visitBooleanValue(BooleanValue node, TraverserContext<Node> context) {
-    return super.visitValue(node, context);
+    return TreeTransformerUtil.changeNode(context, new EnumValue("{Boolean}"));
   }
 
   @Override
-  public TraversalControl visitNullValue(NullValue node, TraverserContext<Node> context) {
-    return super.visitValue(node, context);
+  public TraversalControl visitFloatValue(FloatValue node, TraverserContext<Node> context) {
+    return TreeTransformerUtil.changeNode(context, new EnumValue("{Float}"));
+  }
+
+  @Override
+  public TraversalControl visitStringValue(StringValue node, TraverserContext<Node> context) {
+    return TreeTransformerUtil.changeNode(context, new EnumValue("{String}"));
   }
 }

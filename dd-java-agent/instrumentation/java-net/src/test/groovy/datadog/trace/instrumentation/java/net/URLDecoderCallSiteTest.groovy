@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.java.net
 
 import datadog.trace.api.iast.InstrumentationBridge
-import datadog.trace.api.iast.propagation.UrlModule
+import datadog.trace.api.iast.propagation.CodecModule
 import foo.bar.TestURLDecoderCallSiteSuite
 import datadog.trace.agent.test.AgentTestRunner
 
@@ -14,7 +14,7 @@ class URLDecoderCallSiteTest extends AgentTestRunner {
 
   def 'test decode'() {
     setup:
-    final iastModule = Mock(UrlModule)
+    final iastModule = Mock(CodecModule)
     InstrumentationBridge.registerIastModule(iastModule)
 
     when:
@@ -22,7 +22,7 @@ class URLDecoderCallSiteTest extends AgentTestRunner {
 
     then:
     result == 'test'
-    1 * iastModule.onDecode('test', null, 'test')
+    1 * iastModule.onUrlDecode('test', null, 'test')
     0 * _
 
     when:
@@ -35,7 +35,7 @@ class URLDecoderCallSiteTest extends AgentTestRunner {
 
   def 'test decode with encoding'() {
     setup:
-    final iastModule = Mock(UrlModule)
+    final iastModule = Mock(CodecModule)
     InstrumentationBridge.registerIastModule(iastModule)
 
     when:
@@ -43,7 +43,7 @@ class URLDecoderCallSiteTest extends AgentTestRunner {
 
     then:
     result == 'test'
-    1 * iastModule.onDecode('test', 'utf-8', 'test')
+    1 * iastModule.onUrlDecode('test', 'utf-8', 'test')
     0 * _
 
     when:

@@ -314,7 +314,7 @@ class Elasticsearch2NodeClientV1ForkedTest extends Elasticsearch2NodeClientTest 
 
   @Override
   String service() {
-    return Config.get().getServiceName() + "-elasticsearch"
+    return Config.get().getServiceName()
   }
 
   @Override

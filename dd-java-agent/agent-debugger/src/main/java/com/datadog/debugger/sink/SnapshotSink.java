@@ -1,9 +1,8 @@
 package com.datadog.debugger.sink;
 
+import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.debugger.DebuggerContext;
-import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.util.TagsHelper;
 import java.util.ArrayList;
 import java.util.List;
@@ -57,6 +56,6 @@ public class SnapshotSink {
   }
 
   String serializeSnapshot(String serviceName, Snapshot snapshot) {
-    return DebuggerContext.serializeSnapshot(serviceName, snapshot);
+    return DebuggerAgent.getSnapshotSerializer().serializeSnapshot(serviceName, snapshot);
   }
 }

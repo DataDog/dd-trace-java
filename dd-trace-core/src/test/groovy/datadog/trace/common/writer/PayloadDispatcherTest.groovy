@@ -119,7 +119,7 @@ class PayloadDispatcherTest extends DDSpecification {
     when:
     dispatcher.addTrace(trace)
     then:
-    1 * healthMetrics.onFailedPublish(PrioritySampling.UNSET)
+    1 * healthMetrics.onFailedPublish(PrioritySampling.UNSET,_)
   }
 
   def "trace and span counts are reset after access"() {
@@ -149,11 +149,9 @@ class PayloadDispatcherTest extends DDSpecification {
 
   def realSpan() {
     CoreTracer tracer = Mock(CoreTracer)
-    tracer.mapServiceName(_) >> { String serviceName ->
-      serviceName
-    }
     PendingTrace trace = Mock(PendingTrace)
     trace.getTracer() >> tracer
+    trace.mapServiceName(_) >> { String serviceName -> serviceName }
     def context = new DDSpanContext(
       DDTraceId.ONE,
       1,

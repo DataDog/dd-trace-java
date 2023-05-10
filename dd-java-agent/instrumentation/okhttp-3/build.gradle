@@ -9,13 +9,7 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly(group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.0.0')
@@ -34,4 +28,7 @@ dependencies {
   }
   latestDepTestImplementation group: 'com.squareup.okhttp3', name: 'okhttp', version: '[3.11.0, 4)'
   latestDepTestImplementation group: 'com.squareup.okio', name: 'okio', version: '1.+'
+
+  testRuntimeOnly(project(':dd-java-agent:instrumentation:iast-instrumenter'))
+  testRuntimeOnly(project(':dd-java-agent:instrumentation:java-net'))
 }

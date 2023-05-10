@@ -132,9 +132,9 @@ public class DatadogRequestSpan implements RequestSpan, StatusSettable<Integer> 
 
   @Override
   public void setSuccess(Integer context) {
-    if (context == 0 && shouldSetStatus()) {
-      span.setError(false);
-    }
+    // We can get a call to setSuccess from StatusSettingCompletableFuture before we intercept an
+    // exception.
+    // So do nothing here.
   }
 
   @Override

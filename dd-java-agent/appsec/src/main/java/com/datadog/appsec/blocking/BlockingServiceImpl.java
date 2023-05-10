@@ -15,6 +15,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.util.Map;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,17 +57,20 @@ public class BlockingServiceImpl implements BlockingService {
 
     if (action instanceof Flow.Action.RequestBlockingAction) {
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-      return new BlockingDetails(rba.getStatusCode(), rba.getBlockingContentType());
+      return new BlockingDetails(
+          rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
     }
     return null;
   }
 
   @Override
-  public boolean tryCommitBlockingResponse(int statusCode, BlockingContentType templateType) {
+  public boolean tryCommitBlockingResponse(
+      int statusCode, BlockingContentType templateType, Map<String, String> extraHeaders) {
     log.info(
-        "Will try to commit blocking response statusCode={} templateType={}",
+        "Will try to commit blocking response statusCode={} templateType={} extraHeaders={}",
         statusCode,
-        templateType);
+        templateType,
+        extraHeaders);
     RequestContext reqCtx = getRequestContext();
     if (reqCtx == null) {
       return false;
@@ -79,7 +83,8 @@ public class BlockingServiceImpl implements BlockingService {
     }
 
     log.debug("About to call block response function: {}", blockResponseFunction);
-    boolean res = blockResponseFunction.tryCommitBlockingResponse(statusCode, templateType);
+    boolean res =
+        blockResponseFunction.tryCommitBlockingResponse(statusCode, templateType, extraHeaders);
     if (res) {
       TraceSegment traceSegment = reqCtx.getTraceSegment();
       if (traceSegment != null) {

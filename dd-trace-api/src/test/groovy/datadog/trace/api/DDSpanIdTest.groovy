@@ -99,7 +99,7 @@ class DDSpanIdTest extends DDSpecification {
 
   def "fail on illegal hex String"() {
     when:
-    DDTraceId.fromHex(hexId)
+    DDSpanId.fromHex(hexId)
 
     then:
     thrown NumberFormatException

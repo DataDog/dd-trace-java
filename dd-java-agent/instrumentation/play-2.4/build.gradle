@@ -33,13 +33,7 @@ repositories {
   }
 }
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'com.typesafe.play', name: 'play_2.11', version: '2.4.0'

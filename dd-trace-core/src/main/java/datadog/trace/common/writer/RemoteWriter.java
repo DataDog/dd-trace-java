@@ -83,9 +83,11 @@ public abstract class RemoteWriter implements Writer {
         final int samplingPriority = root.samplingPriority();
         switch (traceProcessingWorker.publish(root, samplingPriority, trace)) {
           case ENQUEUED_FOR_SERIALIZATION:
+            log.debug("Enqueued for serialization: {}", trace);
             healthMetrics.onPublish(trace, samplingPriority);
             break;
           case ENQUEUED_FOR_SINGLE_SPAN_SAMPLING:
+            log.debug("Enqueued for single span sampling: {}", trace);
             break;
           case DROPPED_BY_POLICY:
             handleDroppedTrace("Dropping policy is active", trace, samplingPriority);
@@ -106,7 +108,8 @@ public abstract class RemoteWriter implements Writer {
   private void handleDroppedTrace(
       final String reason, final List<DDSpan> trace, final int samplingPriority) {
     log.debug("{}. Counted but dropping trace: {}", reason, trace);
-    healthMetrics.onFailedPublish(samplingPriority);
+    healthMetrics.onFailedPublish(
+        trace.isEmpty() ? 0 : trace.get(0).samplingPriority(), trace.size());
     incrementDropCounts(trace.size());
   }
 
@@ -140,8 +143,8 @@ public abstract class RemoteWriter implements Writer {
     final boolean flushed = flush();
     closed = true;
     traceProcessingWorker.close();
-    healthMetrics.close();
     healthMetrics.onShutdown(flushed);
+    healthMetrics.close();
   }
 
   @Override

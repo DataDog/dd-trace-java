@@ -1,13 +1,16 @@
 package com.datadog.debugger.instrumentation;
 
+import static com.datadog.debugger.instrumentation.ASMHelper.invokeInterface;
+import static com.datadog.debugger.instrumentation.ASMHelper.invokeStatic;
+import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
 import static com.datadog.debugger.instrumentation.Types.DEBUGGER_CONTEXT_TYPE;
 import static com.datadog.debugger.instrumentation.Types.DEBUGGER_SPAN_TYPE;
 import static com.datadog.debugger.instrumentation.Types.STRING_TYPE;
+import static com.datadog.debugger.instrumentation.Types.THROWABLE_TYPE;
 import static com.datadog.debugger.util.ClassFileHelper.stripPackagePath;
 
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.probe.Where;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import java.util.List;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
@@ -27,10 +30,12 @@ public class SpanInstrumentor extends Instrumentor {
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics) {
-    super(spanProbe, classLoader, classNode, methodNode, diagnostics);
+      List<DiagnosticMessage> diagnostics,
+      List<String> probeIds) {
+    super(spanProbe, classLoader, classNode, methodNode, diagnostics, probeIds);
   }
 
+  @Override
   public void instrument() {
     if (isLineProbe) {
       fillLineMap();
@@ -62,8 +67,7 @@ public class SpanInstrumentor extends Instrumentor {
     // stack [exception, exception, span]
     handler.add(new InsnNode(Opcodes.SWAP));
     // stack [exception, span, exception]
-    invokeInterface(
-        handler, DEBUGGER_SPAN_TYPE, "setError", Type.VOID_TYPE, Type.getType(Throwable.class));
+    invokeInterface(handler, DEBUGGER_SPAN_TYPE, "setError", Type.VOID_TYPE, THROWABLE_TYPE);
     // stack [exception]
     debuggerSpanFinish(handler);
     handler.add(new InsnNode(Opcodes.ATHROW));

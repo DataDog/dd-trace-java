@@ -3,8 +3,9 @@ package datadog.trace.instrumentation.rabbitmq.amqp;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.AMQP_COMMAND;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CLIENT_DECORATE;
+import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.OPERATION_AMQP_DELIVER;
+import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.RABBITMQ_AMQP;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
@@ -12,6 +13,7 @@ import com.rabbitmq.client.Command;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -65,7 +67,9 @@ public class RabbitCommandInstrumentation extends Instrumenter.Tracing
       final AgentSpan span = activeSpan();
 
       if (span != null && command.getMethod() != null) {
-        if (span.getSpanName().equals(AMQP_COMMAND)) {
+        // now we have 3 different operations on schema v1
+        if (!span.getSpanName().equals(OPERATION_AMQP_DELIVER.toString())
+            && RABBITMQ_AMQP.equals(span.getTag(Tags.COMPONENT))) {
           CLIENT_DECORATE.onCommand(span, command);
         }
       }

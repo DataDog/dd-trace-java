@@ -161,7 +161,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
     false    | null        | "12345"      | false
   }
 
-  def "test moshi toJson SNSEvent"() {
+  def "test moshi toJson SQSEvent"() {
     given:
     def myEvent = new SQSEvent()
     List<SQSEvent.SQSMessage> records = new ArrayList<>()

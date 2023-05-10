@@ -19,6 +19,7 @@ import javax.annotation.Nullable;
  */
 public interface TaintedMap extends Iterable<TaintedObject> {
 
+  /** Insert an element if it is not already present. */
   void put(@Nonnull TaintedObject to);
 
   @Nullable

@@ -389,3 +389,4 @@ class TraceAnnotationsTest extends AgentTestRunner {
     }
   }
 }
+

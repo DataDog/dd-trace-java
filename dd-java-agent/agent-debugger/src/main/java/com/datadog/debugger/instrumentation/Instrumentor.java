@@ -1,11 +1,11 @@
 package com.datadog.debugger.instrumentation;
 
+import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
 import static com.datadog.debugger.instrumentation.Types.STRING_TYPE;
 
+import com.datadog.debugger.instrumentation.DiagnosticMessage.Kind;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Where;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage.Kind;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -14,12 +14,10 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
-import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.LineNumberNode;
 import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodInsnNode;
@@ -27,7 +25,7 @@ import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 
 /** Common class for generating instrumentation */
-public class Instrumentor {
+public abstract class Instrumentor {
   protected static final String CONSTRUCTOR_NAME = "<init>";
   protected static final String PROBEID_TAG_NAME = "debugger.probeid";
 
@@ -36,6 +34,7 @@ public class Instrumentor {
   protected final ClassNode classNode;
   protected final MethodNode methodNode;
   protected final List<DiagnosticMessage> diagnostics;
+  protected final List<String> probeIds;
   protected final boolean isStatic;
   protected final boolean isLineProbe;
   protected final LineMap lineMap = new LineMap();
@@ -50,12 +49,14 @@ public class Instrumentor {
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics) {
+      List<DiagnosticMessage> diagnostics,
+      List<String> probeIds) {
     this.definition = definition;
     this.classLoader = classLoader;
     this.classNode = classNode;
     this.methodNode = methodNode;
     this.diagnostics = diagnostics;
+    this.probeIds = probeIds;
     Where.SourceLine[] sourceLines = definition.getWhere().getSourceLines();
     isLineProbe = sourceLines != null && sourceLines.length > 0;
     isStatic = (methodNode.access & Opcodes.ACC_STATIC) != 0;
@@ -67,6 +68,8 @@ public class Instrumentor {
     }
     localVarsBySlot = extractLocalVariables(argTypes);
   }
+
+  public abstract void instrument();
 
   private LocalVariableNode[] extractLocalVariables(Type[] argTypes) {
     if (methodNode.localVariables == null || methodNode.localVariables.isEmpty()) {
@@ -197,6 +200,7 @@ public class Instrumentor {
       case Opcodes.DRETURN:
       case Opcodes.ARETURN:
         {
+          // stack [ret_value]
           InsnList beforeReturnInsnList = getBeforeReturnInsnList(node);
           if (beforeReturnInsnList != null) {
             methodNode.instructions.insertBefore(node, beforeReturnInsnList);
@@ -236,30 +240,6 @@ public class Instrumentor {
     return new InsnList();
   }
 
-  protected static void invokeStatic(
-      InsnList insnList, Type owner, String name, Type returnType, Type... argTypes) {
-    // expected stack: [arg_type_1 ... arg_type_N]
-    insnList.add(
-        new MethodInsnNode(
-            Opcodes.INVOKESTATIC,
-            owner.getInternalName(),
-            name,
-            Type.getMethodDescriptor(returnType, argTypes),
-            false)); // stack: [ret_type]
-  }
-
-  protected static void ldc(InsnList insnList, int val) {
-    insnList.add(new LdcInsnNode(val));
-  }
-
-  protected static void ldc(InsnList insnList, long val) {
-    insnList.add(new LdcInsnNode(val));
-  }
-
-  protected static void ldc(InsnList insnList, Object val) {
-    insnList.add(val == null ? new InsnNode(Opcodes.ACONST_NULL) : new LdcInsnNode(val));
-  }
-
   protected void pushTags(InsnList insnList, ProbeDefinition.Tag[] tags) {
     if (tags == null || tags.length == 0) {
       insnList.add(new InsnNode(Opcodes.ACONST_NULL));
@@ -278,37 +258,15 @@ public class Instrumentor {
   }
 
   protected int newVar(Type type) {
-    int varId = methodNode.maxLocals + (type.getSize());
-    methodNode.maxLocals = varId;
+    int varId = methodNode.maxLocals + 1;
+    methodNode.maxLocals += type.getSize();
     return varId;
   }
 
-  protected void invokeVirtual(
-      InsnList insnList, Type owner, String name, Type returnType, Type... argTypes) {
-    // expected stack: [this, arg_type_1 ... arg_type_N]
-    insnList.add(
-        new MethodInsnNode(
-            Opcodes.INVOKEVIRTUAL,
-            owner.getInternalName(),
-            name,
-            Type.getMethodDescriptor(returnType, argTypes),
-            false)); // stack: [ret_type]
-  }
-
-  protected void invokeInterface(
-      InsnList insnList, Type owner, String name, Type returnType, Type... argTypes) {
-    // expected stack: [this, arg_type_1 ... arg_type_N]
-    insnList.add(
-        new MethodInsnNode(
-            Opcodes.INVOKEINTERFACE,
-            owner.getInternalName(),
-            name,
-            Type.getMethodDescriptor(returnType, argTypes),
-            true)); // stack: [ret_type]
-  }
-
-  protected static boolean isStaticField(FieldNode fieldNode) {
-    return (fieldNode.access & Opcodes.ACC_STATIC) != 0;
+  protected int newVar(int size) {
+    int varId = methodNode.maxLocals + 1;
+    methodNode.maxLocals += size;
+    return varId;
   }
 
   protected void reportError(String message) {

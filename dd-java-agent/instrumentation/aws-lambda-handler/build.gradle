@@ -1,16 +1,17 @@
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest {
-    dirName = 'test'
-    environment "_HANDLER", "Handler"
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
 
 test {
+  environment "_HANDLER", "Handler"
+}
+
+forkedTest {
+  environment "_HANDLER", "Handler"
+}
+
+latestDepTest {
   environment "_HANDLER", "Handler"
 }
 

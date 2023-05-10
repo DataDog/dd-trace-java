@@ -1,5 +1,10 @@
 package datadog.trace.civisibility.git;
 
+import datadog.trace.api.git.CommitInfo;
+import datadog.trace.api.git.GitInfo;
+import datadog.trace.api.git.GitUtils;
+import datadog.trace.api.git.PersonInfo;
+import datadog.trace.api.git.RawParseUtils;
 import datadog.trace.civisibility.git.pack.GitPackObject;
 import datadog.trace.civisibility.git.pack.GitPackUtils;
 import datadog.trace.civisibility.git.pack.V2PackGitInfoExtractor;

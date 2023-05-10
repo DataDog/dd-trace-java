@@ -6,20 +6,25 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_BROKER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
 
 public class SqsDecorator extends MessagingClientDecorator {
-
-  public static final CharSequence AWS_HTTP = UTF8BytesString.create("aws.http");
   static final CharSequence COMPONENT_NAME = UTF8BytesString.create("java-aws-sdk");
-
+  public static final CharSequence SQS_INBOUND_OPERATION =
+      UTF8BytesString.create(
+          SpanNaming.instance().namingSchema().messaging().inboundOperation("sqs"));
   public static final CharSequence SQS_RECEIVE = UTF8BytesString.create("SQS.ReceiveMessage");
   public static final CharSequence SQS_DELIVER = UTF8BytesString.create("SQS.DeliverMessage");
-
-  public static final boolean SQS_LEGACY_TRACING = Config.get().isLegacyTracingEnabled(true, "sqs");
-
+  public static final CharSequence SQS_TIME_IN_QUEUE_OPERATION =
+      SpanNaming.instance().namingSchema().messaging().timeInQueueOperation("sqs");
+  public static final boolean SQS_LEGACY_TRACING =
+      Config.get().isLegacyTracingEnabled(SpanNaming.instance().version() == 0, "sqs");
+  public static final boolean TIME_IN_QUEUE_ENABLED =
+      Config.get()
+          .isTimeInQueueEnabled(!SQS_LEGACY_TRACING && SpanNaming.instance().version() == 0, "sqs");
   private final String spanKind;
   private final CharSequence spanType;
   private final String serviceName;
@@ -32,7 +37,9 @@ public class SqsDecorator extends MessagingClientDecorator {
 
   public static final SqsDecorator BROKER_DECORATE =
       new SqsDecorator(
-          SPAN_KIND_BROKER, MESSAGE_BROKER, null /* service name will be set later on */);
+          SPAN_KIND_BROKER,
+          MESSAGE_BROKER,
+          SpanNaming.instance().namingSchema().messaging().timeInQueueService("sqs"));
 
   protected SqsDecorator(String spanKind, CharSequence spanType, String serviceName) {
     this.spanKind = spanKind;
@@ -74,7 +81,6 @@ public class SqsDecorator extends MessagingClientDecorator {
   }
 
   public void onTimeInQueue(final AgentSpan span, final String queueUrl) {
-    span.setServiceName("sqs");
     span.setResourceName(SQS_DELIVER);
     span.setTag("aws.queue.url", queueUrl);
   }

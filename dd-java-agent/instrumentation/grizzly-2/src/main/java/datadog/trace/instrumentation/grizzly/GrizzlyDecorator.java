@@ -8,6 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
+import java.util.Map;
 import org.glassfish.grizzly.http.server.Request;
 import org.glassfish.grizzly.http.server.Response;
 import org.slf4j.Logger;
@@ -83,7 +84,8 @@ public class GrizzlyDecorator extends HttpServerDecorator<Request, Request, Resp
     }
 
     @Override
-    public boolean tryCommitBlockingResponse(int statusCode, BlockingContentType templateType) {
+    public boolean tryCommitBlockingResponse(
+        int statusCode, BlockingContentType templateType, Map<String, String> extraHeaders) {
       AgentScope agentScope = AgentTracer.get().activeScope();
       if (agentScope == null) {
         log.warn("Can't block: no active scope");
@@ -91,7 +93,12 @@ public class GrizzlyDecorator extends HttpServerDecorator<Request, Request, Resp
       }
 
       return GrizzlyBlockingHelper.block(
-          this.request, this.request.getResponse(), statusCode, templateType, agentScope);
+          this.request,
+          this.request.getResponse(),
+          statusCode,
+          templateType,
+          extraHeaders,
+          agentScope);
     }
   }
 }

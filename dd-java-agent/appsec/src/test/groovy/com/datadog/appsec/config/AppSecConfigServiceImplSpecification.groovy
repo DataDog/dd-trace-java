@@ -375,7 +375,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       mergedAsmData = casc.mergedAsmData
       mergedUpdateConfig = casc.mergedUpdateConfig
     }
-    mergedUpdateConfig.rules.isEmpty() == true
+    mergedUpdateConfig.numberOfRules == 0
     mergedUpdateConfig.rawConfig['rules_override'].isEmpty() == false
     mergedAsmData.isEmpty() == false
 
@@ -392,7 +392,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       mergedUpdateConfig = casc.mergedUpdateConfig
     }
 
-    mergedUpdateConfig.rules.isEmpty() == false
+    mergedUpdateConfig.numberOfRules > 0
     mergedUpdateConfig.rawConfig['rules_override'].isEmpty() == true
     mergedAsmData.isEmpty() == true
   }

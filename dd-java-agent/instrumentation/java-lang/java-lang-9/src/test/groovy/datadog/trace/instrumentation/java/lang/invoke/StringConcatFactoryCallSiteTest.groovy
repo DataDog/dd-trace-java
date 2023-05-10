@@ -184,14 +184,14 @@ class StringConcatFactoryCallSiteTest extends AgentTestRunner {
     0 * _
 
     where:
-    method                                                                 | expectedResult           | expectedArgs
-    { it -> stringPlusWithPrimitive('Hello World! in ', (int) 2023) }      | 'Hello World! in 2023'   | ['Hello World! in ', '2023']
-    { it -> stringPlusWithPrimitive('Give me a number : ', (byte) 5) }     | 'Give me a number : 5'   | ['Give me a number : ', '5']
-    { it -> stringPlusWithPrimitive('Give me a number : ', (short) 5) }    | 'Give me a number : 5'   | ['Give me a number : ', '5']
-    { it -> stringPlusWithPrimitive('Are you mad? ', (boolean) false) }    | 'Are you mad? false'     | ['Are you mad? ', 'false']
-    { it -> stringPlusWithPrimitive('Give me a letter : ', (char) 'c') }   | 'Give me a letter : c'   | ['Give me a letter : ', 'c']
-    { it -> stringPlusWithPrimitive('Hello World! in ', (long) 2023) }     | 'Hello World! in 2023'   | ['Hello World! in ', '2023']
-    { it -> stringPlusWithPrimitive('Hello World! in ', (float) 2023.0) }  | 'Hello World! in 2023.0' | ['Hello World! in ', '2023.0']
-    { it -> stringPlusWithPrimitive('Hello World! in ', (double) 2023.0) } | 'Hello World! in 2023.0' | ['Hello World! in ', '2023.0']
+    expectedResult           | expectedArgs                   | method
+    'Hello World! in 2023'   | ['Hello World! in ', '2023']   | { it -> stringPlusWithPrimitive('Hello World! in ', (int) 2023) }
+    'Give me a number : 5'   | ['Give me a number : ', '5']   | { it -> stringPlusWithPrimitive('Give me a number : ', (byte) 5) }
+    'Give me a number : 5'   | ['Give me a number : ', '5']   | { it -> stringPlusWithPrimitive('Give me a number : ', (short) 5) }
+    'Are you mad? false'     | ['Are you mad? ', 'false']     | { it -> stringPlusWithPrimitive('Are you mad? ', (boolean) false) }
+    'Give me a letter : c'   | ['Give me a letter : ', 'c']   | { it -> stringPlusWithPrimitive('Give me a letter : ', (char) 'c') }
+    'Hello World! in 2023'   | ['Hello World! in ', '2023']   | { it -> stringPlusWithPrimitive('Hello World! in ', (long) 2023) }
+    'Hello World! in 2023.0' | ['Hello World! in ', '2023.0'] | { it -> stringPlusWithPrimitive('Hello World! in ', (float) 2023.0) }
+    'Hello World! in 2023.0' | ['Hello World! in ', '2023.0'] | { it -> stringPlusWithPrimitive('Hello World! in ', (double) 2023.0) }
   }
 }

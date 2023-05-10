@@ -5,7 +5,6 @@ import datadog.communication.monitor.Monitoring
 import datadog.communication.monitor.NoOpCounter
 import datadog.trace.api.StatsDClient
 import datadog.trace.test.util.DDSpecification
-import org.junit.Assert
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
@@ -50,7 +49,7 @@ class CounterTest extends DDSpecification {
       counter.increment(1)
       counter.incrementErrorCount("cause", 1)
     } catch (Throwable t) {
-      Assert.fail(t.getMessage())
+      Assertions.fail(t.getMessage())
     }
   }
 }

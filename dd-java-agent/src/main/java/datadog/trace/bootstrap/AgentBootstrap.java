@@ -68,8 +68,9 @@ public final class AgentBootstrap {
       if (agentClass.getClassLoader() != null) {
         throw new IllegalStateException("DD Java Agent NOT added to bootstrap classpath.");
       }
-      final Method startMethod = agentClass.getMethod("start", Instrumentation.class, URL.class);
-      startMethod.invoke(null, inst, agentJarURL);
+      final Method startMethod =
+          agentClass.getMethod("start", Instrumentation.class, URL.class, String.class);
+      startMethod.invoke(null, inst, agentJarURL, agentArgs);
     } catch (final Throwable ex) {
       if (exceptionCauseChainContains(
           ex, "datadog.trace.util.throwable.FatalAgentMisconfigurationError")) {

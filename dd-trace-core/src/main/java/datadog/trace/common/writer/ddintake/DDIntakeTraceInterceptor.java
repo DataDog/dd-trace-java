@@ -5,8 +5,8 @@ import static datadog.trace.util.TraceUtils.normalizeOperationName;
 import static datadog.trace.util.TraceUtils.normalizeServiceName;
 import static datadog.trace.util.TraceUtils.normalizeSpanType;
 
+import datadog.trace.api.interceptor.AbstractTraceInterceptor;
 import datadog.trace.api.interceptor.MutableSpan;
-import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpan;
 import datadog.trace.util.TraceUtils;
@@ -14,11 +14,16 @@ import java.util.Collection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DDIntakeTraceInterceptor implements TraceInterceptor {
+public class DDIntakeTraceInterceptor extends AbstractTraceInterceptor {
 
-  public static final DDIntakeTraceInterceptor INSTANCE = new DDIntakeTraceInterceptor();
+  public static final DDIntakeTraceInterceptor INSTANCE =
+      new DDIntakeTraceInterceptor(Priority.DD_INTAKE);
 
   private static final Logger log = LoggerFactory.getLogger(DDIntakeTraceInterceptor.class);
+
+  protected DDIntakeTraceInterceptor(Priority priority) {
+    super(priority);
+  }
 
   @Override
   public Collection<? extends MutableSpan> onTraceComplete(
@@ -58,10 +63,5 @@ public class DDIntakeTraceInterceptor implements TraceInterceptor {
           span);
       span.setHttpStatusCode(0);
     }
-  }
-
-  @Override
-  public int priority() {
-    return 1;
   }
 }

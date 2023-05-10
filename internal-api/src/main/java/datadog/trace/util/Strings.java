@@ -176,7 +176,19 @@ public final class Strings {
    */
   @Nonnull
   public static String propertyNameToEnvironmentVariableName(final String setting) {
-    return "DD_" + setting.replace('.', '_').replace('-', '_').toUpperCase();
+    return "DD_" + toEnvVar(setting);
+  }
+
+  /**
+   * Converts the system property name, e.g. 'dd.service.name' into a public environment variable
+   * name, e.g. `DD_SERVICE_NAME`.
+   *
+   * @param setting The system property name, e.g. `dd.service.name`
+   * @return The public facing environment variable name
+   */
+  @Nonnull
+  public static String systemPropertyNameToEnvironmentVariableName(final String setting) {
+    return setting.replace('.', '_').replace('-', '_').toUpperCase();
   }
 
   /**
@@ -269,5 +281,33 @@ public final class Strings {
     }
     json.append("]");
     return json.toString();
+  }
+
+  /**
+   * Checks that a string is not blank, i.e. contains at least one character that is not a
+   * whitespace
+   *
+   * @param s The string to be checked
+   * @return {@code true} if string is not blank, {@code false} otherwise (string is {@code null},
+   *     empty, or contains only whitespace characters)
+   */
+  public static boolean isNotBlank(String s) {
+    if (s == null || s.isEmpty()) {
+      return false;
+    }
+
+    // the code below traverses string characters one by one
+    // and checks if there is any character that is not a whitespace (space, tab, newline, etc);
+    final int length = s.length();
+    for (int offset = 0; offset < length; ) {
+      // codepoints are used instead of chars, to properly handle non-unicode symbols
+      final int codepoint = s.codePointAt(offset);
+      if (!Character.isWhitespace(codepoint)) {
+        return true;
+      }
+      offset += Character.charCount(codepoint);
+    }
+
+    return false;
   }
 }

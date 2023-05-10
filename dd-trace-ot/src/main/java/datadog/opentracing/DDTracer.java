@@ -4,7 +4,8 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.StatsDClient;
-import datadog.trace.api.experimental.ProfilingContext;
+import datadog.trace.api.experimental.DataStreamsCheckpointer;
+import datadog.trace.api.experimental.Profiling;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.InternalTracer;
 import datadog.trace.api.internal.TraceSegment;
@@ -438,6 +439,11 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   }
 
   @Override
+  public DataStreamsCheckpointer getDataStreamsCheckpointer() {
+    return tracer.getDataStreamsCheckpointer();
+  }
+
+  @Override
   public ScopeManager scopeManager() {
     return scopeManager;
   }
@@ -498,8 +504,8 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   }
 
   @Override
-  public ProfilingContext getProfilingContext() {
-    return tracer != null ? tracer.getProfilingContext() : ProfilingContext.NoOp.INSTANCE;
+  public Profiling getProfilingContext() {
+    return tracer != null ? tracer.getProfilingContext() : Profiling.NoOp.INSTANCE;
   }
 
   @Override

@@ -99,9 +99,11 @@ class FieldInjectionForkedTest extends AgentTestRunner {
   def "get/put test"() {
     when:
     instance1.putContextCount(10)
+    instance1.putContextCount2(10)
 
     then:
     instance1.getContextCount() == 10
+    instance1.getContextCount2() == 10
 
     where:
     instance1                     | _

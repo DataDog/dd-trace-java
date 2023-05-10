@@ -137,7 +137,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
 
     then: "monitor is notified of unsuccessful publication"
     1 * worker.publish(_, _, trace) >> publishResult
-    1 * monitor.onFailedPublish(_)
+    1 * monitor.onFailedPublish(_,_)
     0 * _
 
     where:
@@ -149,7 +149,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
     writer.write([])
 
     then: "monitor is notified of unsuccessful publication"
-    1 * monitor.onFailedPublish(_)
+    1 * monitor.onFailedPublish(_,_)
     0 * _
   }
 
@@ -162,7 +162,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
     writer.write(trace)
 
     then:
-    1 * monitor.onFailedPublish(_)
+    1 * monitor.onFailedPublish(_,_)
     0 * _
   }
 
@@ -191,8 +191,8 @@ class DDAgentWriterTest extends DDCoreSpecification {
 
   def newSpan() {
     CoreTracer tracer = Mock(CoreTracer)
-    tracer.mapServiceName(_) >> { String serviceName -> serviceName }
     PendingTrace trace = Mock(PendingTrace)
+    trace.mapServiceName(_) >> { String serviceName -> serviceName }
     trace.getTracer() >> tracer
     def context = new DDSpanContext(
       DDTraceId.ONE,

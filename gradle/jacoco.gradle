@@ -22,8 +22,8 @@ tasks.register('forkedTestJacocoData') {
 tasks.named('jacocoTestReport').configure {
   dependsOn('test', 'forkedTestJacocoData')
   reports {
-    xml.enabled true
-    csv.enabled false
+    xml.required = true
+    csv.required = false
     html.destination file("${buildDir}/reports/jacoco/")
   }
 }

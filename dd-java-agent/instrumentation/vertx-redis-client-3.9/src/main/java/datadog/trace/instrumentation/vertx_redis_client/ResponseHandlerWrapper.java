@@ -8,7 +8,7 @@ import io.vertx.redis.client.Response;
 
 public class ResponseHandlerWrapper implements Handler<AsyncResult<Response>> {
   private final Handler<AsyncResult<Response>> handler;
-  private final AgentSpan clientSpan;
+  public final AgentSpan clientSpan;
   private final AgentScope.Continuation parentContinuation;
   private boolean handled = false;
 

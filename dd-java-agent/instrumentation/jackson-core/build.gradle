@@ -1,25 +1,26 @@
 muzzle {
   pass {
-    coreJdk()
+    group = 'com.fasterxml.jackson.core'
+    module = 'jackson-core'
+    versions = "[2.0.0,3)"
+    assertInverse = true
+  }
+
+  pass {
+    name = 'jackson-databind'
+    group = 'com.fasterxml.jackson.core'
+    module = 'jackson-databind'
+    versions = "[2.0.0,3)"
+    assertInverse = true
   }
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'org.unbroken-dome.test-sets'
-apply plugin: 'call-site-instrumentation'
 
-csi {
-  javaVersion = JavaLanguageVersion.of(8)
-}
-
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.14.1')
-  testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.14.1')
-  testRuntimeClasspath project(':dd-java-agent:instrumentation:iast-instrumenter')
+  compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.14.0')
+  compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.14.0')
+  testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.14.0')
 }

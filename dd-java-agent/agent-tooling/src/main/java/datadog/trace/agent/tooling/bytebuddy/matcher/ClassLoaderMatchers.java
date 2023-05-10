@@ -3,11 +3,11 @@ package datadog.trace.agent.tooling.bytebuddy.matcher;
 import static datadog.trace.bootstrap.AgentClassLoading.PROBING_CLASSLOADER;
 import static net.bytebuddy.matcher.ElementMatchers.any;
 
-import datadog.trace.agent.tooling.WeakCaches;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Tracer;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.PatchLogger;
-import datadog.trace.bootstrap.WeakCache;
 import datadog.trace.util.Strings;
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -128,7 +128,7 @@ public final class ClassLoaderMatchers {
   static final List<String> hasClassResourceNames = new ArrayList<>();
 
   /** Cache of classloader-instance -> has-class mask. */
-  static final WeakCache<ClassLoader, BitSet> hasClassCache = WeakCaches.newWeakCache(64);
+  static final DDCache<ClassLoader, BitSet> hasClassCache = DDCaches.newFixedSizeWeakKeyCache(512);
 
   /** Distinct result used to mark an incompatible classloader that the tracer should skip. */
   static final BitSet INCOMPATIBLE_CLASS_LOADER = new BitSet();

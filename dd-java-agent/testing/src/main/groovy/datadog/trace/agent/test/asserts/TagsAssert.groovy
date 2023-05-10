@@ -3,6 +3,7 @@ package datadog.trace.agent.test.asserts
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
+import datadog.trace.api.naming.SpanNaming
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.common.sampling.RateByServiceTraceSampler
@@ -46,6 +47,7 @@ class TagsAssert {
     assertedTags.add(TraceMapper.SAMPLING_PRIORITY_KEY.toString())
     assertedTags.add("_sample_rate")
     assertedTags.add(DDTags.PID_TAG)
+    assertedTags.add(DDTags.SCHEMA_VERSION_TAG_KEY)
 
     assert tags["thread.name"] != null
     assert tags["thread.id"] != null
@@ -53,6 +55,9 @@ class TagsAssert {
     // FIXME: DQH - Too much conditional logic?  Maybe create specialized methods for client & server cases
 
     boolean isRoot = (DDSpanId.ZERO == spanParentId)
+    if (isRoot) {
+      assert tags[DDTags.SCHEMA_VERSION_TAG_KEY] == SpanNaming.instance().version()
+    }
     if (isRoot || distributedRootSpan) {
       // If runtime id is actually different here, it might indicate that
       // the Config class was loaded on multiple different class loaders.

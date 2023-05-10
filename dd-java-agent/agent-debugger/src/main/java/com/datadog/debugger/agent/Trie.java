@@ -1,7 +1,10 @@
 package com.datadog.debugger.agent;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 // TODO This naive implementation should be improved
@@ -83,6 +86,29 @@ public class Trie {
       node = node.children.values().iterator().next();
     }
     return node.str;
+  }
+
+  /**
+   * @param prefix prefix to search into the trie
+   * @return all the strings that match the given prefix
+   */
+  public Collection<String> getStringsStartingWith(String prefix) {
+    TrieNode node = searchNode(prefix, false);
+    if (node == null) {
+      return Collections.emptyList();
+    }
+    List<String> result = new ArrayList<>();
+    traverse(node, result);
+    return result;
+  }
+
+  private void traverse(TrieNode currentNode, List<String> result) {
+    if (currentNode.str != null) {
+      result.add(currentNode.str);
+    }
+    for (TrieNode nextNode : currentNode.children.values()) {
+      traverse(nextNode, result);
+    }
   }
 
   /**

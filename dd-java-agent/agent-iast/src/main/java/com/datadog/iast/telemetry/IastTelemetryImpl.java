@@ -44,7 +44,7 @@ public class IastTelemetryImpl implements IastTelemetry {
       final Collection<MetricData> metrics = collector.drainMetrics();
       if (!metrics.isEmpty()) {
         addMetricsToTrace(trace, metrics);
-        IastTelemetryCollector.Holder.GLOBAL.merge(metrics);
+        addMetricsToTelemetry(metrics);
       }
     }
   }
@@ -61,6 +61,13 @@ public class IastTelemetryImpl implements IastTelemetry {
     for (final Map.Entry<IastMetric, Long> entry : flatten.entrySet()) {
       final String tagName = String.format(TRACE_METRIC_PATTERN, entry.getKey().getName());
       trace.setTagTop(tagName, entry.getValue());
+    }
+  }
+
+  private static void addMetricsToTelemetry(final Collection<MetricData> metrics) {
+    boolean added = IastTelemetryCollector.Holder.GLOBAL.merge(metrics);
+    if (!added) {
+      IastTelemetryCollector.LOGGER.debug("Failed to add global metrics after request");
     }
   }
 

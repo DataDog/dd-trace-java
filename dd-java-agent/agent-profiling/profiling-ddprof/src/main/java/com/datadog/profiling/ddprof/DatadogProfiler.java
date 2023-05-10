@@ -51,6 +51,10 @@ import org.slf4j.LoggerFactory;
 public final class DatadogProfiler {
   private static final Logger log = LoggerFactory.getLogger(DatadogProfiler.class);
 
+  private static final int[] EMPTY = new int[0];
+
+  private static final String OPERATION = "_dd.trace.operation";
+
   private static final class Singleton {
     private static final DatadogProfiler INSTANCE = newInstance();
   }
@@ -83,7 +87,13 @@ public final class DatadogProfiler {
     return instance;
   }
 
-  static DatadogProfiler newInstance(ConfigProvider configProvider) {
+  public static DatadogProfiler newInstance(ConfigProvider configProvider) {
+    // do not recreate the default instance
+    // it is ok to use identity check as we are requiring the exact same instance
+    if (configProvider == Singleton.INSTANCE.configProvider) {
+      return Singleton.INSTANCE;
+    }
+
     DatadogProfiler instance = null;
     try {
       instance = new DatadogProfiler(configProvider);
@@ -151,7 +161,7 @@ public final class DatadogProfiler {
     }
     this.orderedContextAttributes = new ArrayList<>(contextAttributes);
     if (isSpanNameContextAttributeEnabled(configProvider)) {
-      orderedContextAttributes.add(0, "operation");
+      orderedContextAttributes.add(OPERATION);
     }
     this.contextSetter = new ContextSetter(profiler, orderedContextAttributes);
     try {
@@ -326,7 +336,7 @@ public final class DatadogProfiler {
   }
 
   public int operationNameOffset() {
-    return offsetOf("operation");
+    return offsetOf(OPERATION);
   }
 
   public int offsetOf(String attribute) {
@@ -338,7 +348,7 @@ public final class DatadogProfiler {
       try {
         profiler.setContext(spanId, rootSpanId);
       } catch (IllegalStateException e) {
-        log.warn("Failed to clear context", e);
+        log.debug("Failed to clear context", e);
       }
     }
   }
@@ -348,7 +358,7 @@ public final class DatadogProfiler {
       try {
         profiler.setContext(0L, 0L);
       } catch (IllegalStateException e) {
-        log.warn("Failed to set context", e);
+        log.debug("Failed to set context", e);
       }
     }
   }
@@ -394,5 +404,12 @@ public final class DatadogProfiler {
       return contextSetter.encode(constant.toString());
     }
     return 0;
+  }
+
+  public int[] snapshot() {
+    if (contextSetter != null) {
+      return contextSetter.snapshotTags();
+    }
+    return EMPTY;
   }
 }

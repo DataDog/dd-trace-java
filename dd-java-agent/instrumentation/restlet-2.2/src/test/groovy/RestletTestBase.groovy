@@ -109,6 +109,11 @@ abstract class RestletTestBase extends HttpServerTest<Component> {
   }
 
   @Override
+  boolean testBadUrl() {
+    false
+  }
+
+  @Override
   Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
     switch (endpoint) {
       case NOT_FOUND:

@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.aws.v0;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
-import static datadog.trace.instrumentation.aws.v0.OnErrorDecorator.AWS_HTTP;
 import static datadog.trace.instrumentation.aws.v0.OnErrorDecorator.DECORATE;
 import static datadog.trace.instrumentation.aws.v0.OnErrorDecorator.SPAN_CONTEXT_KEY;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -37,7 +36,9 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".OnErrorDecorator"};
+    return new String[] {
+      packageName + ".OnErrorDecorator", packageName + ".AwsNameCache",
+    };
   }
 
   @Override
@@ -56,7 +57,7 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing
       final AgentScope scope = activeScope();
       // check name in case TracingRequestHandler failed to activate the span
       if (scope != null
-          && (AWS_HTTP.equals(scope.span().getSpanName())
+          && (AwsNameCache.spanName(request).equals(scope.span().getSpanName())
               || scope.span() instanceof AgentTracer.NoopAgentSpan)) {
         scope.close();
       }
@@ -87,7 +88,9 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing
 
     @Override
     public String[] helperClassNames() {
-      return new String[] {packageName + ".OnErrorDecorator"};
+      return new String[] {
+        packageName + ".OnErrorDecorator", packageName + ".AwsNameCache",
+      };
     }
 
     @Override
@@ -106,7 +109,7 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing
         final AgentScope scope = activeScope();
         // check name in case TracingRequestHandler failed to activate the span
         if (scope != null
-            && (AWS_HTTP.equals(scope.span().getSpanName())
+            && (AwsNameCache.spanName(request).equals(scope.span().getSpanName())
                 || scope.span() instanceof AgentTracer.NoopAgentSpan)) {
           scope.close();
         }

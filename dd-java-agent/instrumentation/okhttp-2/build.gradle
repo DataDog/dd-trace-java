@@ -9,17 +9,17 @@ muzzle {
     versions = "[2.2,3)"
     assertInverse = true
   }
+  pass {
+    name = 'okhttp-2.4' // for IastHttpUrlInstrumentation
+    group = "com.squareup.okhttp"
+    module = "okhttp"
+    versions = "[2.4,3)"
+  }
 }
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly(group: 'com.squareup.okhttp', name: 'okhttp', version: '2.2.0')
@@ -38,6 +38,9 @@ dependencies {
     exclude module: 'okhttp'
   }
   testImplementation group: 'com.squareup.okhttp', name: 'okhttp', version: '2.2.0'
+
+  testRuntimeOnly(project(':dd-java-agent:instrumentation:iast-instrumenter'))
+  testRuntimeOnly(project(':dd-java-agent:instrumentation:java-net'))
 
   latestDepTestImplementation group: 'com.squareup.okhttp', name: 'okhttp', version: '[2.6,3)'
 }

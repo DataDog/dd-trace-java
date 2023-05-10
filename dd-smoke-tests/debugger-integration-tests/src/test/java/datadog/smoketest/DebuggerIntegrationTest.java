@@ -14,9 +14,11 @@ import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Platform;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.util.TagsHelper;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -37,7 +39,8 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
   private static final Logger LOG = LoggerFactory.getLogger(DebuggerIntegrationTest.class);
   private static final String DEBUGGER_TEST_APP_CLASS =
       "datadog.smoketest.debugger.DebuggerTestApplication";
-  private static final String PROBE_ID = "123356536";
+  private static final ProbeId PROBE_ID = new ProbeId("123356536", 0);
+  private static final ProbeId PROBE_ID2 = new ProbeId("1233565368", 12);
   private static final String MAIN_CLASS_NAME = "Main";
 
   @Override
@@ -188,9 +191,6 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
     System.out.println(bodyStr);
     Snapshot snapshot = adapter.fromJson(bodyStr).get(0).getDebugger().getSnapshot();
     assertEquals("123356536", snapshot.getProbe().getId());
-    assertEquals(
-        "ProbeCondition{dslExpression='argStr == \"foobar\"'}",
-        snapshot.getProbe().getScript().toString());
     assertFullMethodCaptureArgs(snapshot.getCaptures().getEntry());
   }
 
@@ -220,7 +220,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
         intakeRequest.getMessage());
   }
 
-  private void assertFullMethodCaptureArgs(Snapshot.CapturedContext context) {
+  private void assertFullMethodCaptureArgs(CapturedContext context) {
     if (Platform.isJ9()) {
       // skip for J9/OpenJ9 as we cannot get local variable debug info.
       return;
@@ -239,7 +239,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
     List<LogProbe> probes = new ArrayList<>();
     for (int i = 0; i < 10; i++) {
       probes.add(
-          LogProbe.builder().probeId("12335653" + i).where(MAIN_CLASS_NAME, METHOD_NAME).build());
+          LogProbe.builder().probeId(getProbeId(i)).where(MAIN_CLASS_NAME, METHOD_NAME).build());
     }
     setCurrentConfiguration(createConfig(probes));
     final int NB_SNAPSHOTS = 10;
@@ -264,9 +264,13 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
     }
     assertEquals(NB_SNAPSHOTS, probeIds.size());
     for (int i = 0; i < NB_SNAPSHOTS; i++) {
-      assertTrue(probeIds.contains("12335653" + i));
+      assertTrue(probeIds.contains(String.valueOf(i)));
     }
     assertFalse(logHasErrors(logFilePath, it -> false));
+  }
+
+  private ProbeId getProbeId(int i) {
+    return new ProbeId(String.valueOf(i), 0);
   }
 
   private static void assertContainsLogLine(Path logFilePath, String containsLine)

@@ -51,6 +51,7 @@ public class BatchUploader {
   private final String apiKey;
   private final DebuggerMetrics debuggerMetrics;
   private final boolean instrumentTheWorld;
+  private final RatelimitedLogger ratelimitedLogger;
 
   private final Phaser inflightRequests = new Phaser(1);
 
@@ -72,6 +73,7 @@ public class BatchUploader {
     urlBase = HttpUrl.get(url);
     log.debug("Started SnapshotUploader with target url {}", urlBase);
     apiKey = config.getApiKey();
+    this.ratelimitedLogger = ratelimitedLogger;
     responseCallback = new ResponseCallback(ratelimitedLogger, inflightRequests);
     // This is the same thing OkHttp Dispatcher is doing except thread naming and daemonization
     okHttpExecutorService =
@@ -124,11 +126,11 @@ public class BatchUploader {
         debuggerMetrics.count("batch.uploaded", 1);
       } else {
         debuggerMetrics.count("request.queue.full", 1);
-        log.warn("Cannot upload batch data: too many enqueued requests!");
+        ratelimitedLogger.warn("Cannot upload batch data: too many enqueued requests!");
       }
     } catch (final IllegalStateException | IOException e) {
       debuggerMetrics.count("batch.upload.error", 1);
-      log.warn("Problem uploading batch!", e);
+      ratelimitedLogger.warn("Problem uploading batch!", e);
     }
   }
 
@@ -225,16 +227,16 @@ public class BatchUploader {
           // Retrieve body content for detailed error messages
           if (body != null && MediaType.get("application/json").equals(body.contentType())) {
             try {
-              log.warn(
+              ratelimitedLogger.warn(
                   "Failed to upload batch: unexpected response code {} {} {}",
                   response.message(),
                   response.code(),
                   body.string());
             } catch (IOException ex) {
-              log.warn("error while getting error message body", ex);
+              ratelimitedLogger.warn("error while getting error message body", ex);
             }
           } else {
-            log.warn(
+            ratelimitedLogger.warn(
                 "Failed to upload batch: unexpected response code {} {}",
                 response.message(),
                 response.code());
