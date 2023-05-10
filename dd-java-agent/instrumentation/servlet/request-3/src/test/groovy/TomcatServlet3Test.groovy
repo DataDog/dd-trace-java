@@ -111,6 +111,11 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
   }
 
   @Override
+  boolean testBadUrl() {
+    false
+  }
+
+  @Override
   String component() {
     return "tomcat-server"
   }
@@ -364,6 +369,7 @@ class TomcatServlet3TestAsync extends TomcatServlet3Test {
     // The exception will just cause an async timeout
     false
   }
+
 }
 
 class TomcatServlet3AsyncV1ForkedTest extends TomcatServlet3TestAsync implements TestingGenericHttpNamingConventions.ServerV1 {

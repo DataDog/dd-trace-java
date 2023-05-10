@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.servlet3
 
 import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint
 import groovy.servlet.AbstractHttpServlet
 
 import javax.servlet.AsyncEvent
@@ -48,9 +49,13 @@ class TestServlet3 {
 
   @WebServlet
   static class Sync extends AbstractHttpServlet {
+    protected ServerEndpoint determineEndpoint(HttpServletRequest req) {
+      getEndpoint(req)
+    }
+
     @Override
     protected void service(HttpServletRequest req, HttpServletResponse resp) {
-      HttpServerTest.ServerEndpoint endpoint = getEndpoint(req)
+      HttpServerTest.ServerEndpoint endpoint = determineEndpoint(req)
       HttpServerTest.controller(endpoint) {
         resp.contentType = "text/plain"
         resp.addHeader(HttpServerTest.IG_RESPONSE_HEADER, HttpServerTest.IG_RESPONSE_HEADER_VALUE)

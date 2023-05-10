@@ -172,6 +172,14 @@ class UndertowTest extends HttpServerTest<Undertow> {
   }
 
   @Override
+  boolean testRequestBody() {
+    // no low-level method to get Reader
+    // see io.undertow.servlet.spec.HttpServletRequestImpl
+    // getReader is implemented in terms of exchange.getInputStream()
+    false
+  }
+
+  @Override
   boolean testRequestBodyISVariant() {
     false // interception of the exchange InputStream not implemented
   }

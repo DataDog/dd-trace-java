@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.gateway.RequestContextSlot;
@@ -91,15 +92,25 @@ public class GrizzlyCharBodyInstrumentation extends Instrumenter.AppSec
   }
 
   static class NIOReaderReadAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    static void after(@Advice.This final NIOReader thiz, @Advice.Return int ret) {
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    static void after(
+        @Advice.This final NIOReader thiz,
+        @Advice.Return int ret,
+        @Advice.Thrown(readOnly = false) Throwable t) {
+      if (t != null) {
+        return;
+      }
       StoredCharBody storedCharBody =
           InstrumentationContext.get(NIOReader.class, StoredCharBody.class).get(thiz);
       if (storedCharBody == null) {
         return;
       }
       if (ret == -1) {
-        storedCharBody.maybeNotify();
+        try {
+          storedCharBody.maybeNotifyAndBlock();
+        } catch (BlockingException be) {
+          t = be;
+        }
         return;
       }
       storedCharBody.appendData(ret);
@@ -107,18 +118,26 @@ public class GrizzlyCharBodyInstrumentation extends Instrumenter.AppSec
   }
 
   static class NIOReaderReadCharArrayAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
         @Advice.This final NIOReader thiz,
         @Advice.Argument(0) char[] charArray,
-        @Advice.Return int ret) {
+        @Advice.Return int ret,
+        @Advice.Thrown(readOnly = false) Throwable t) {
+      if (t != null) {
+        return;
+      }
       StoredCharBody storedCharBody =
           InstrumentationContext.get(NIOReader.class, StoredCharBody.class).get(thiz);
       if (storedCharBody == null) {
         return;
       }
       if (ret == -1) {
-        storedCharBody.maybeNotify();
+        try {
+          storedCharBody.maybeNotifyAndBlock();
+        } catch (BlockingException be) {
+          t = be;
+        }
         return;
       }
       storedCharBody.appendData(charArray, 0, ret);
@@ -126,19 +145,27 @@ public class GrizzlyCharBodyInstrumentation extends Instrumenter.AppSec
   }
 
   static class NIOReaderReadCharArrayIntIntAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
         @Advice.This final NIOReader thiz,
         @Advice.Argument(0) char[] charArray,
         @Advice.Argument(1) int off,
-        @Advice.Return int ret) {
+        @Advice.Return int ret,
+        @Advice.Thrown(readOnly = false) Throwable t) {
+      if (t != null) {
+        return;
+      }
       StoredCharBody storedCharBody =
           InstrumentationContext.get(NIOReader.class, StoredCharBody.class).get(thiz);
       if (storedCharBody == null) {
         return;
       }
       if (ret == -1) {
-        storedCharBody.maybeNotify();
+        try {
+          storedCharBody.maybeNotifyAndBlock();
+        } catch (BlockingException be) {
+          t = be;
+        }
         return;
       }
       storedCharBody.appendData(charArray, off, off + ret);
@@ -158,13 +185,14 @@ public class GrizzlyCharBodyInstrumentation extends Instrumenter.AppSec
       return charBuffer.position();
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
         @Advice.Local("storedCharBody") StoredCharBody storedCharBody,
         @Advice.Argument(0) CharBuffer charBuffer,
         @Advice.Enter int initPos,
-        @Advice.Return int ret) {
-      if (storedCharBody == null) {
+        @Advice.Return int ret,
+        @Advice.Thrown(readOnly = false) Throwable t) {
+      if (storedCharBody == null || t != null) {
         return;
       }
       if (ret > 0) {
@@ -178,21 +206,35 @@ public class GrizzlyCharBodyInstrumentation extends Instrumenter.AppSec
         charBuffer.limit(finalLimit);
         charBuffer.position(finalPos);
       } else if (ret == -1) {
-        storedCharBody.maybeNotify();
+        try {
+          storedCharBody.maybeNotifyAndBlock();
+        } catch (BlockingException be) {
+          t = be;
+        }
       }
     }
   }
 
   static class NIOReaderIsFinishedAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    static void after(@Advice.This final NIOReader thiz, @Advice.Return boolean ret) {
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    static void after(
+        @Advice.This final NIOReader thiz,
+        @Advice.Return boolean ret,
+        @Advice.Thrown(readOnly = false) Throwable t) {
+      if (t != null) {
+        return;
+      }
       StoredCharBody storedCharBody =
           InstrumentationContext.get(NIOReader.class, StoredCharBody.class).get(thiz);
       if (storedCharBody == null) {
         return;
       }
       if (ret) {
-        storedCharBody.maybeNotify();
+        try {
+          storedCharBody.maybeNotifyAndBlock();
+        } catch (BlockingException be) {
+          t = be;
+        }
       }
     }
   }

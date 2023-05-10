@@ -5,10 +5,12 @@ import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -24,6 +26,8 @@ import net.bytebuddy.asm.Advice;
 import org.glassfish.grizzly.http.util.Parameters;
 
 // tested in GlassFishServerTest
+// TODO: we could maybe test in this proj as well, with a server using
+// org.glassfish.grizzly.http.server.HttpHandler
 @AutoService(Instrumenter.class)
 public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
     implements Instrumenter.ForSingleType {
@@ -82,7 +86,8 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
         @Advice.Local("origParamHashValues") Map<String, ArrayList<String>> origParamValues,
         @Advice.FieldValue("paramHashValues") final Map<String, ArrayList<String>> paramValuesField,
         @Advice.Enter final int depth,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx,
+        @Advice.Thrown(readOnly = false) Throwable t) {
       if (depth > 0) {
         return;
       }
@@ -99,7 +104,19 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
         if (callback == null) {
           return;
         }
-        callback.apply(reqCtx, paramValuesField);
+        Flow<Void> flow = callback.apply(reqCtx, paramValuesField);
+        Flow.Action action = flow.getAction();
+        if (action instanceof Flow.Action.RequestBlockingAction) {
+          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+          BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
+          if (blockResponseFunction != null) {
+            blockResponseFunction.tryCommitBlockingResponse(
+                rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+            if (t == null) {
+              t = new BlockingException("Blocked request (for Parameters/processParameters)");
+            }
+          }
+        }
       } finally {
         if (origParamValues != null) {
           paramValuesField.putAll(origParamValues);

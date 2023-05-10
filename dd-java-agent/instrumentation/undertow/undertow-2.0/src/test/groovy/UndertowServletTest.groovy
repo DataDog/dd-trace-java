@@ -38,6 +38,9 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
         .addServlet(new ServletInfo("ExceptionServlet", ExceptionServlet).addMapping(EXCEPTION.getPath()))
         .addServlet(new ServletInfo("UserBlockServlet", UserBlockServlet).addMapping(USER_BLOCK.path))
         .addServlet(new ServletInfo("NotHereServlet", NotHereServlet).addMapping(NOT_HERE.path))
+        .addServlet(new ServletInfo("CreatedServlet", CreatedServlet).addMapping(CREATED.path))
+        .addServlet(new ServletInfo("CreatedISServlet", CreatedISServlet).addMapping(CREATED_IS.path))
+        .addServlet(new ServletInfo("BodyUrlEncodedServlet", BodyUrlEncodedServlet).addMapping(BODY_URLENCODED.path))
 
       DeploymentManager manager = container.addDeployment(builder)
       manager.deploy()
@@ -90,6 +93,21 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
 
   @Override
   boolean testBlocking() {
+    true
+  }
+
+  @Override
+  boolean testRequestBody() {
+    true
+  }
+
+  @Override
+  boolean testRequestBodyISVariant() {
+    true
+  }
+
+  @Override
+  boolean testBodyUrlencoded() {
     true
   }
 

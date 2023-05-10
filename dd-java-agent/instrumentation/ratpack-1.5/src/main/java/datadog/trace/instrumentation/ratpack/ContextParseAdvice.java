@@ -2,8 +2,10 @@ package datadog.trace.instrumentation.ratpack;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -17,10 +19,13 @@ import ratpack.form.Form;
 public class ContextParseAdvice {
 
   // for now ignore that the parser can be configured to mix in the query string
-  @Advice.OnMethodExit(suppress = Throwable.class)
-  static void after(@Advice.Return Object obj_, @ActiveRequestContext RequestContext reqCtx) {
+  @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+  static void after(
+      @Advice.Return Object obj_,
+      @ActiveRequestContext RequestContext reqCtx,
+      @Advice.Thrown(readOnly = false) Throwable t) {
     Object obj = obj_;
-    if (obj == null) {
+    if (obj == null || t != null) {
       return;
     }
     if (obj instanceof Form) {
@@ -34,6 +39,17 @@ public class ContextParseAdvice {
     if (callback == null) {
       return;
     }
-    callback.apply(reqCtx, obj);
+    Flow<Void> flow = callback.apply(reqCtx, obj);
+    Flow.Action action = flow.getAction();
+    if (action instanceof Flow.Action.RequestBlockingAction) {
+      BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+      if (brf != null) {
+        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+        brf.tryCommitBlockingResponse(
+            rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+
+        t = new BlockingException("Blocked request (for DefaultContext/parse)");
+      }
+    }
   }
 }
