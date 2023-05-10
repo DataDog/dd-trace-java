@@ -7,10 +7,9 @@ import datadog.trace.api.Config;
 import datadog.trace.api.iast.sink.InsecureCookieModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-
-import javax.annotation.Nonnull;
 import java.net.HttpCookie;
 import java.util.List;
+import javax.annotation.Nonnull;
 
 public class InsecureCookieModuleImpl extends SinkModuleBase implements InsecureCookieModule {
 
