@@ -37,7 +37,7 @@ public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
   @Override
   public Logger getLogger(String name) {
     // Native image builder can't see telemetry and won't use it
-    if (Platform.isNativeImageBuilder() && !telemetryLogCollectionEnabled) {
+    if (Platform.isNativeImageBuilder() || !telemetryLogCollectionEnabled) {
       return new DDLogger(getHelperFactory(), name);
     } else {
       return new DDTelemetryLogger(getHelperFactory(), name);
