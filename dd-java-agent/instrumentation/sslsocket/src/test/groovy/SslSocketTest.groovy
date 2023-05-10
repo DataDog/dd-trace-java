@@ -48,7 +48,7 @@ class SslSocketTest extends AgentTestRunner {
     //    msgSupplierField.set(null, factoryMock)
 
     // Mock extractor
-    Class extractorItfcCls = Class.forName("datadog.trace.bootstrap.instrumentation.usm.UsmExtractor")
+    Class extractorItfcCls = Class.forName("datadog.trace.bootstrap.instrumentation.usm.Extractor")
     Class extractorSupplierCls = extractorItfcCls.getClasses()[0]
     Field extractorSupplierField = extractorSupplierCls.getDeclaredField("SUPPLIER")
     extractorSupplierField.setAccessible(true)

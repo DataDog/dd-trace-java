@@ -22,7 +22,7 @@ public class MessageEncoder {
 
     // message created by the transport layer of async frameworks (e.g: SocketChannel)
     // to allow correlation between the tuple of peer domain and peer port against the actual connection
-    // (used by SocketChannelImpl instrumentation)
+    // (used by SocketChannel instrumentation)
     CONNECTION_BY_PEER,
 
     // message created by the SSL encryption layer of async frameworks (SSLEngine)

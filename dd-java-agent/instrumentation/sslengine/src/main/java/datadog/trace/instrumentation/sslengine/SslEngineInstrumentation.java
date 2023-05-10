@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.sslsocket;
+package datadog.trace.instrumentation.sslengine;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
