@@ -87,12 +87,29 @@ public class RemoteConfigRequest {
         String id,
         Collection<String> productNames,
         TracerInfo tracerInfo,
-        long capabilities) {
+        final long capabilities) {
       this.clientState = clientState;
       this.id = id;
       this.products = productNames;
       this.tracerInfo = tracerInfo;
-      this.capabilities = new byte[] {(byte) capabilities};
+
+      // Little-endian encoding of the `long` capabilities, stripping any trailing zero bytes
+      // (except the first one)
+      int size = 1;
+      long accum = capabilities;
+      for (int i = 0; i < 8; i++) {
+        accum = accum >>> 8;
+        if (accum == 0) {
+          size = i + 1;
+          break;
+        }
+      }
+      this.capabilities = new byte[size];
+      accum = capabilities;
+      for (int i = 0; i < size; i++) {
+        this.capabilities[i] = (byte) accum;
+        accum = accum >>> 8;
+      }
     }
 
     public TracerInfo getTracerInfo() {
