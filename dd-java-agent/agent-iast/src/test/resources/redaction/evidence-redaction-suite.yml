@@ -1077,7 +1077,7 @@ suite:
             "type": "COMMAND_INJECTION",
             "evidence": {
               "valueParts": [
-                { "value": "cat" },
+                { "value": "cat " },
                 { "redacted": true },
                 { "source": 0, "redacted": true}
               ]
@@ -1113,9 +1113,43 @@ suite:
             "type": "COMMAND_INJECTION",
             "evidence": {
               "valueParts": [
-                { "value": "$1 cat" },
+                { "value": "$1 cat " },
                 { "redacted": true },
                 { "source": 0, "redacted": true}
+              ]
+            }
+          }
+        ]
+      }
+  - type: 'VULNERABILITIES'
+    description: 'Command injection does not redact ranges with only whitespaces'
+    input: >
+      [
+        {
+          "type": "COMMAND_INJECTION",
+          "evidence": {
+            "value": "ls -lah",
+            "ranges": [
+              { "start" : 0, "length" : 2, "source": { "origin": "http.request.parameter", "name": "command", "value": "ls" } },
+              { "start" : 3, "length" : 4, "source": { "origin": "http.request.parameter", "name": "argument", "value": "-lah" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "command", "value": "ls" },
+          { "origin": "http.request.parameter", "name": "argument", "redacted": true }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "COMMAND_INJECTION",
+            "evidence": {
+              "valueParts": [
+                { "source": 0, "value": "ls" },
+                { "value": " " },
+                { "source": 1, "redacted": true}
               ]
             }
           }
