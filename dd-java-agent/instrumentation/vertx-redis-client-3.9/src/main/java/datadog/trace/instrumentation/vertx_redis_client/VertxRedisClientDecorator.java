@@ -70,9 +70,6 @@ public class VertxRedisClientDecorator
     return socketAddress.host();
   }
 
-  @Override
-  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
-
   public AgentSpan startAndDecorateSpan(String command) {
     UTF8BytesString upperCase =
         commandCache.computeIfAbsent(command, key -> UTF8BytesString.create(key.toUpperCase()));

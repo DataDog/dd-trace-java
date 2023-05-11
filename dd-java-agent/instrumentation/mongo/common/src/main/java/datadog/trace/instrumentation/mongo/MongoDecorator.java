@@ -21,7 +21,8 @@ import org.bson.ByteBuf;
 
 public abstract class MongoDecorator
     extends DBTypeProcessingDatabaseClientDecorator<CommandStartedEvent> {
-  private static final String DB_TYPE = "mongo";
+  private static final String DB_TYPE =
+      SpanNaming.instance().namingSchema().database().normalizedName("mongo");
   private static final String SERVICE_NAME =
       SpanNaming.instance()
           .namingSchema()
@@ -106,9 +107,6 @@ public abstract class MongoDecorator
     // Fallback to db name.
     return event.getDatabaseName();
   }
-
-  @Override
-  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
 
   protected abstract BsonScrubber newScrubber();
 

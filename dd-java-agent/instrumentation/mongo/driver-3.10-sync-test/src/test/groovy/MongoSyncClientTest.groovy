@@ -248,6 +248,11 @@ class MongoSyncClientV0ForkedTest extends MongoSyncClientTest {
   String operation() {
     return V0_OPERATION
   }
+
+  @Override
+  String dbType() {
+    return V0_DB_TYPE
+  }
 }
 
 class MongoSyncClientV1ForkedTest extends MongoSyncClientTest {
@@ -265,5 +270,10 @@ class MongoSyncClientV1ForkedTest extends MongoSyncClientTest {
   @Override
   String operation() {
     return V1_OPERATION
+  }
+
+  @Override
+  String dbType() {
+    return V1_DB_TYPE
   }
 }
