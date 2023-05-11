@@ -42,6 +42,7 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
 
     List<String> command = new ArrayList<>()
     command.add(javaPath())
+    //command.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005")
     command.addAll(defaultJavaProperties)
     command.addAll([
       withSystemProperty(IAST_ENABLED, true),
@@ -158,6 +159,34 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     response.header("Set-Cookie").contains("user-id")
     waitForSpan(new PollingConditions(timeout: 5),
     hasVulnerability(type('INSECURE_COOKIE').and(evidence('user-id'))))
+  }
+
+  def "unvalidated  redirect from addheader is present"() {
+    setup:
+    String url = "http://localhost:${httpPort}/unvalidated_redirect_from_header?param=redirected"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isRedirect()
+    response.header("Location").contains("redirected")
+    waitForSpan(new PollingConditions(timeout: 5),
+    hasVulnerability(type('UNVALIDATED_REDIRECT')))
+  }
+
+  def "unvalidated  redirect from sendRedirect is present"() {
+    setup:
+    String url = "http://localhost:${httpPort}/unvalidated_redirect_from_send_redirect?param=redirected"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isRedirect()
+    hasVulnerabilityInLogs(type('UNVALIDATED_REDIRECT').and(withSpan()))
   }
 
 
