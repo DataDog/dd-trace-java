@@ -51,6 +51,7 @@ public final class TraceInstrumentationConfig {
 
   public static final String JDBC_CONNECTION_CLASS_NAME = "trace.jdbc.connection.class.name";
   public static final String JDBC_SQL_OBFUSCATION  = "jdbc.sql.obfuscation";
+  public static final String MONGO_OBFUSCATION  = "mongo.obfuscation";
   public static final String REDIS_COMMAND_ARGS  = "redis.command.args";
   public static final String RUNTIME_CONTEXT_FIELD_INJECTION =
       "trace.runtime.context.field.injection";
