@@ -337,6 +337,19 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     waitForSpan(new PollingConditions(timeout: 5), hasVulnerability(type('SSRF')))
   }
 
+  void 'test iast metrics stored in spans'() {
+    setup:
+    final url = "http://localhost:${httpPort}/cmdi/runtime?cmd=ls"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    waitForSpan(new PollingConditions(timeout: 5),
+    hasMetric('_dd.iast.telemetry.executed.sink.command_injection', 1))
+  }
+
   private static Function<DecodedSpan, Boolean> hasMetric(final String name, final Object value) {
     return new Function<DecodedSpan, Boolean>() {
         @Override
