@@ -13,6 +13,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response>
     implements AgentPropagation.Setter<Request<?>> {
@@ -36,6 +38,17 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       SpanNaming.instance().namingSchema().cloud().serviceForRequest(AWS, null);
   public static final AwsSdkClientDecorator DECORATE = new AwsSdkClientDecorator();
 
+  private static String simplifyServiceName(String awsServiceName) {
+    if (awsServiceName != null) {
+      Pattern pattern = Pattern.compile("Amazon\\s?(\\w+)");
+      Matcher matcher = pattern.matcher(awsServiceName);
+      if (matcher.find()) {
+        return matcher.group(1).toLowerCase();
+      }
+    }
+    return awsServiceName;
+  }
+
   @Override
   public AgentSpan onRequest(final AgentSpan span, final Request request) {
     // Call super first because we override the resource name below.
@@ -47,6 +60,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
     span.setTag("aws.agent", COMPONENT_NAME);
     span.setTag("aws.service", awsServiceName);
+    span.setTag("aws_service", simplifyServiceName(awsServiceName));
     span.setTag("aws.operation", awsOperation.getSimpleName());
     span.setTag("aws.endpoint", request.getEndpoint().toString());
 
@@ -74,6 +88,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     String bucketName = access.getBucketName(originalRequest);
     if (null != bucketName) {
       span.setTag("aws.bucket.name", bucketName);
+      span.setTag("bucketname", bucketName);
     }
     String queueUrl = access.getQueueUrl(originalRequest);
     if (null != queueUrl) {
@@ -82,18 +97,22 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     String queueName = access.getQueueName(originalRequest);
     if (null != queueName) {
       span.setTag("aws.queue.name", queueName);
+      span.setTag("queuename", queueName);
     }
     String topicArn = access.getTopicArn(originalRequest);
     if (null != topicArn) {
       span.setTag("aws.topic.name", topicArn.substring(topicArn.lastIndexOf(':') + 1));
+      span.setTag("topicname", topicArn.substring(topicArn.lastIndexOf(':') + 1));
     }
     String streamName = access.getStreamName(originalRequest);
     if (null != streamName) {
       span.setTag("aws.stream.name", streamName);
+      span.setTag("streamname", streamName);
     }
     String tableName = access.getTableName(originalRequest);
     if (null != tableName) {
       span.setTag("aws.table.name", tableName);
+      span.setTag("tablename", tableName);
     }
 
     return span;
