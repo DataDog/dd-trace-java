@@ -93,22 +93,12 @@ public class RemoteConfigRequest {
       this.products = productNames;
       this.tracerInfo = tracerInfo;
 
-      // Little-endian encoding of the `long` capabilities, stripping any trailing zero bytes
+      // Big-endian encoding of the `long` capabilities, stripping any trailing zero bytes
       // (except the first one)
-      int size = 1;
-      long accum = capabilities;
-      for (int i = 0; i < 8; i++) {
-        accum = accum >>> 8;
-        if (accum == 0) {
-          size = i + 1;
-          break;
-        }
-      }
+      final int size = Math.max(1, Long.BYTES - Long.numberOfLeadingZeros(capabilities) / 8);
       this.capabilities = new byte[size];
-      accum = capabilities;
-      for (int i = 0; i < size; i++) {
-        this.capabilities[i] = (byte) accum;
-        accum = accum >>> 8;
+      for (int i = size - 1; i >= 0; i--) {
+        this.capabilities[size - i - 1] = (byte) (capabilities >>> (i * 8));
       }
     }
 

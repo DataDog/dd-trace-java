@@ -1404,9 +1404,9 @@ class ConfigurationPollerSpecification extends DDSpecification {
     capabilities          | encoded
     0                     | new byte[]{0}
     14L                   | new byte[]{14}
-    1 << 8                | new byte[]{0, 1}
-    1 << 9                | new byte[]{0, 2}
-    -9223372036854775807L | new byte[]{1, 0, 0, 0, 0, 0, 0, 128}
+    1 << 8                | new byte[]{1, 0}
+    1 << 9                | new byte[]{2, 0}
+    -9223372036854775807L | new byte[]{128, 0, 0, 0, 0, 0, 0, 1}
   }
 
   private static final String SAMPLE_RESP_BODY = """
