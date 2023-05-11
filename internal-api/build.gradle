@@ -102,6 +102,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.DynamicConfig.Builder",
   "datadog.trace.api.DynamicConfig.State",
   "datadog.trace.api.InstrumenterConfig",
+  "datadog.trace.api.ResolverCacheConfig.*",
   // can't reliably force same identity hash for different instance to cover branch
   "datadog.trace.api.cache.FixedSizeCache.IdentityHash",
   "datadog.trace.api.cache.FixedSizeWeakKeyCache",
