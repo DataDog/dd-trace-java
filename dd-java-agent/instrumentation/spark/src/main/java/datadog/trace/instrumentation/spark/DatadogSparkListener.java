@@ -75,6 +75,7 @@ public class DatadogSparkListener extends SparkListener {
         applicationSpan.setTag("config." + conf._1.replace(".", "_"), conf._2);
       }
     }
+    applicationSpan.setTag("config.spark_version", sparkVersion);
   }
 
   @Override
@@ -151,6 +152,7 @@ public class DatadogSparkListener extends SparkListener {
         }
       }
     }
+    jobSpan.setTag("config.spark_version", sparkVersion);
 
     jobStart.stageInfos().foreach(stage -> stageToJob.put(stage.stageId(), jobStart.jobId()));
 
@@ -354,8 +356,7 @@ public class DatadogSparkListener extends SparkListener {
         .withSpanType("spark")
         // The volume is quite low and dropping a trace can will to incomplete data
         .withTag(DDTags.MANUAL_KEEP, true)
-        .withTag("app_id", appId)
-        .withTag("spark_version", sparkVersion);
+        .withTag("app_id", appId);
   }
 
   private long stageSpanKey(int stageId, int attemptId) {
