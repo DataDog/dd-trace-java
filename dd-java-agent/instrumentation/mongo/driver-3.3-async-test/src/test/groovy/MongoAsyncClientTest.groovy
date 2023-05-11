@@ -229,7 +229,7 @@ abstract class MongoAsyncClientTest extends MongoBaseTest {
   }
 }
 
-class MongoAsyncClientV0ForkedTest extends MongoAsyncClientTest {
+class MongoAsyncClientV0Test extends MongoAsyncClientTest {
 
   @Override
   int version() {

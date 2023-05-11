@@ -154,7 +154,8 @@ abstract class AbstractCouchbaseTest extends VersionedNamingTestBase {
         if (bucketName != null) {
           "bucket" bucketName
         }
-        defaultTags()
+        //FIXME: check for peer.service when available
+        defaultTagsNoPeerService()
       }
     }
   }

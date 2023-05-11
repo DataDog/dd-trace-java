@@ -774,6 +774,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
         if (exception) {
           errorTags(exception.class, exception.message)
         }
+        peerServiceFrom(Tags.PEER_HOSTNAME)
         defaultTags()
       }
     }

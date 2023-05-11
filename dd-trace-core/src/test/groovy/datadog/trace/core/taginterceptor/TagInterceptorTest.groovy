@@ -1,5 +1,10 @@
 package datadog.trace.core.taginterceptor
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME
+import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE
+import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
+
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
@@ -13,11 +18,6 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.core.CoreSpan
 import datadog.trace.core.test.DDCoreSpecification
-
-import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
-import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME
-import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE
-import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
 
 class TagInterceptorTest extends DDCoreSpecification {
   def setup() {
@@ -655,5 +655,23 @@ class TagInterceptorTest extends DDCoreSpecification {
     "/with-method"              | "POST /with-method" | [(Tags.HTTP_METHOD): "Post"]
 
     ignore = meta.put(Tags.HTTP_URL, value)
+  }
+
+  def "when user sets peer.service the source should be peer.service"() {
+    setup:
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    def span = tracer.buildSpan("fakeOperation").start()
+
+
+    when:
+    span.setTag(Tags.PEER_SERVICE, "test")
+
+    then:
+    span.getTag(DDTags.PEER_SERVICE_SOURCE) == "peer.service"
+
+    cleanup:
+    span.finish()
+    tracer.close()
   }
 }

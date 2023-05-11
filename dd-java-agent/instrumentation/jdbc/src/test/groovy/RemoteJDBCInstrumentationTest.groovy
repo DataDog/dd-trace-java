@@ -220,6 +220,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
             if (addDbmTag) {
               "$InstrumentationTags.DBM_TRACE_INJECTED" true
             }
+            peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
         }
@@ -280,6 +281,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
             // since Connection.getClientInfo will not provide the username
             "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
             "$Tags.DB_OPERATION" operation
+            peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
         }
@@ -338,6 +340,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
             // since Connection.getClientInfo will not provide the username
             "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
             "$Tags.DB_OPERATION" operation
+            peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
         }
@@ -458,6 +461,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
             if (addDbmTag) {
               "$InstrumentationTags.DBM_TRACE_INJECTED" true
             }
+            peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
         }

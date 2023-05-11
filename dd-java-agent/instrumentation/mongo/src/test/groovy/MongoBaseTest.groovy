@@ -125,6 +125,7 @@ abstract class MongoBaseTest extends VersionedNamingTestBase {
         "$Tags.DB_TYPE" dbType
         "$Tags.DB_INSTANCE" instance
         "$Tags.DB_OPERATION" mongoOp
+        peerServiceFrom(Tags.DB_INSTANCE)
         defaultTags()
       }
     }

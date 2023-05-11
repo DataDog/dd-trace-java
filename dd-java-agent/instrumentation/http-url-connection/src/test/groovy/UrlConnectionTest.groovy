@@ -105,7 +105,7 @@ abstract class UrlConnectionTest extends VersionedNamingTestBase {
             // FIXME: These tags really make no sense for non-http connections, why do we set them?
             "$Tags.HTTP_URL" "$url"
             errorTags IllegalArgumentException, String
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }

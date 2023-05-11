@@ -78,7 +78,7 @@ abstract class Elasticsearch2NodeClientTest extends VersionedNamingTestBase {
             "$Tags.DB_TYPE" "elasticsearch"
             "elasticsearch.action" "ClusterHealthAction"
             "elasticsearch.request" "ClusterHealthRequest"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -109,7 +109,7 @@ abstract class Elasticsearch2NodeClientTest extends VersionedNamingTestBase {
             "elasticsearch.request" "GetRequest"
             "elasticsearch.request.indices" indexName
             errorTags IndexNotFoundException, "no such index"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -174,7 +174,7 @@ abstract class Elasticsearch2NodeClientTest extends VersionedNamingTestBase {
             "elasticsearch.action" "CreateIndexAction"
             "elasticsearch.request" "CreateIndexRequest"
             "elasticsearch.request.indices" indexName
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -190,7 +190,7 @@ abstract class Elasticsearch2NodeClientTest extends VersionedNamingTestBase {
             "$Tags.DB_TYPE" "elasticsearch"
             "elasticsearch.action" "ClusterHealthAction"
             "elasticsearch.request" "ClusterHealthRequest"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -212,6 +212,7 @@ abstract class Elasticsearch2NodeClientTest extends VersionedNamingTestBase {
             "elasticsearch.type" indexType
             "elasticsearch.id" "1"
             "elasticsearch.version"(-1)
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -232,6 +233,7 @@ abstract class Elasticsearch2NodeClientTest extends VersionedNamingTestBase {
             "elasticsearch.request" "IndexRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.write.type" indexType
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -249,7 +251,7 @@ abstract class Elasticsearch2NodeClientTest extends VersionedNamingTestBase {
             "elasticsearch.action" "PutMappingAction"
             "elasticsearch.request" "PutMappingRequest"
             "elasticsearch.request.indices" indexName
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -271,6 +273,7 @@ abstract class Elasticsearch2NodeClientTest extends VersionedNamingTestBase {
             "elasticsearch.type" indexType
             "elasticsearch.id" "1"
             "elasticsearch.version" 1
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -287,7 +290,7 @@ abstract class Elasticsearch2NodeClientTest extends VersionedNamingTestBase {
   }
 }
 
-class Elasticsearch2NodeClientV0ForkedTest extends Elasticsearch2NodeClientTest {
+class Elasticsearch2NodeClientV0Test extends Elasticsearch2NodeClientTest {
 
   @Override
   int version() {

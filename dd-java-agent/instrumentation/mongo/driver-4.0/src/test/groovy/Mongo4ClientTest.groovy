@@ -232,7 +232,7 @@ abstract class Mongo4ClientTest extends MongoBaseTest {
   }
 }
 
-class Mongo4ClientV0ForkedTest extends Mongo4ClientTest {
+class Mongo4ClientV0Test extends Mongo4ClientTest {
 
   @Override
   int version() {

@@ -8,6 +8,7 @@ public class NamingSchemaV1 implements NamingSchema {
   private final NamingSchema.ForCloud cloudNaming = new CloudNamingV1();
   private final NamingSchema.ForDatabase databaseNaming = new DatabaseNamingV1();
   private final NamingSchema.ForMessaging messagingNaming = new MessagingNamingV1();
+  private final NamingSchema.ForPeerService peerServiceNaming = new PeerServiceNamingV1();
   private final NamingSchema.ForServer serverNaming = new ServerNamingV1();
 
   @Override
@@ -33,6 +34,11 @@ public class NamingSchemaV1 implements NamingSchema {
   @Override
   public ForMessaging messaging() {
     return messagingNaming;
+  }
+
+  @Override
+  public ForPeerService peerService() {
+    return peerServiceNaming;
   }
 
   @Override

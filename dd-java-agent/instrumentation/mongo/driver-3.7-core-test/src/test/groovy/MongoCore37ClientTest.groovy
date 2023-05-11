@@ -232,7 +232,7 @@ abstract class MongoCore37ClientTest extends MongoBaseTest {
   }
 }
 
-class MongoCore37ClientV0ForkedTest extends MongoCore37ClientTest {
+class MongoCore37ClientV0Test extends MongoCore37ClientTest {
 
   @Override
   int version() {

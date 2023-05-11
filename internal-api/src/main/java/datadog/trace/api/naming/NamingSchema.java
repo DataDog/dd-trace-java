@@ -1,5 +1,6 @@
 package datadog.trace.api.naming;
 
+import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -45,6 +46,13 @@ public interface NamingSchema {
    * @return a {@link NamingSchema.ForServer} instance.
    */
   ForServer server();
+
+  /**
+   * Policy for peer service tags calculation
+   *
+   * @return
+   */
+  ForPeerService peerService();
 
   interface ForCache {
     /**
@@ -207,6 +215,24 @@ public interface NamingSchema {
      */
     @Nonnull
     String timeInQueueOperation(@Nonnull String messagingSystem);
+  }
+
+  interface ForPeerService {
+    /**
+     * Whenever the schema supports peer service calculation
+     *
+     * @return
+     */
+    boolean supports();
+
+    /**
+     * Calculate the tags to be added to a span to represent the peer service
+     *
+     * @param unsafeTags the span tags. Map che be mutated
+     * @return the input tags
+     */
+    @Nonnull
+    Map<String, Object> tags(@Nonnull Map<String, Object> unsafeTags);
   }
 
   interface ForServer {

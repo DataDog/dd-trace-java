@@ -293,7 +293,7 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
         def deliverParentSpan = null
         trace(1) {
           deliverParentSpan = span(0)
-          rabbitSpan(it, "basic.publish $exchangeName -> <all>",false, null, operationForProducer())
+          rabbitSpan(it, "basic.publish $exchangeName -> <all>", false, null, operationForProducer())
         }
         if (hasQueueSpan()) {
           trace(2) {
@@ -305,7 +305,7 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
           trace(1) {
             // TODO - test with and without feature enabled once Config is easier to control
             rabbitSpan(it, "basic.deliver $resourceQueueName", true, deliverParentSpan,
-              operationForConsumer(),null, null, setTimestamp)
+              operationForConsumer(), null, null, setTimestamp)
           }
         }
       }
@@ -391,7 +391,7 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
       def deliverParentSpan = null
       trace(1) {
         deliverParentSpan = span(0)
-        rabbitSpan(it, "basic.publish $exchangeName -> <all>",false, null, operationForProducer())
+        rabbitSpan(it, "basic.publish $exchangeName -> <all>", false, null, operationForProducer())
       }
       if (hasQueueSpan()) {
         trace(2) {
@@ -443,14 +443,14 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
     }
 
     where:
-    command                 | exception             | exptectedOperation      | errorMsg                     | closure
-    "exchange.declare"      | IOException           | operation()             | null                         | {
+    command                 | exception             | exptectedOperation     | errorMsg                                           | closure
+    "exchange.declare"      | IOException           | operation()            | null                                               | {
       it.exchangeDeclare("some-exchange", "invalid-type", true)
     }
-    "Channel.basicConsume"  | IllegalStateException | operation()  | "Invalid configuration: 'queue' must be non-null." | {
+    "Channel.basicConsume"  | IllegalStateException | operation()            | "Invalid configuration: 'queue' must be non-null." | {
       it.basicConsume(null, null)
     }
-    "basic.get <generated>" | IOException           | operationForConsumer()  | null                                               | {
+    "basic.get <generated>" | IOException           | operationForConsumer() | null                                               | {
       it.basicGet("amq.gen-invalid-channel", true)
     }
   }
@@ -479,7 +479,7 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
       def publishSpan = null
       trace(1) {
         publishSpan = span(0)
-        rabbitSpan(it, "basic.publish <default> -> some-routing-queue",false, null, operationForProducer())
+        rabbitSpan(it, "basic.publish <default> -> some-routing-queue", false, null, operationForProducer())
       }
       if (hasQueueSpan()) {
         trace(2) {
@@ -662,7 +662,7 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
       } else {
         trace(1) {
           if (noParent) {
-            rabbitSpan(it, "basic.$type $queueName",false, null, operationForConsumer())
+            rabbitSpan(it, "basic.$type $queueName", false, null, operationForConsumer())
           } else {
             rabbitSpan(it, "basic.$type $queueName", true, publishSpan, operationForConsumer())
           }
@@ -832,10 +832,15 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
         if (exception) {
           errorTags(exception.class, errorMsg)
         }
-        if ({ isDataStreamsEnabled() }){
+        if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
         }
-        defaultTags(distributedRootSpan)
+        if ([Tags.SPAN_KIND_PRODUCER, Tags.SPAN_KIND_CLIENT].any({ it == tag(Tags.SPAN_KIND) })) {
+          peerServiceFrom(Tags.PEER_HOSTNAME)
+          defaultTags(distributedRootSpan)
+        } else {
+          defaultTagsNoPeerService(distributedRootSpan)
+        }
       }
     }
   }
@@ -871,7 +876,7 @@ abstract class RabbitMQForkedTest extends RabbitMQTestBase {
   }
 
   @Override
-  String service()  {
+  String service() {
     return "RabbitMQTest"
   }
 
@@ -886,7 +891,7 @@ abstract class RabbitMQForkedTest extends RabbitMQTestBase {
   }
 }
 
-class RabbitMQNamingV0ForkedTest extends RabbitMQForkedTest {
+class RabbitMQNamingV0Test extends RabbitMQForkedTest {
 
 }
 
@@ -926,7 +931,7 @@ class RabbitMQDatastreamsDisabledForkedTest extends RabbitMQTestBase {
   }
 
   @Override
-  String service()  {
+  String service() {
     return "RabbitMQDatastreamsDisabledForkedTest"
   }
 
@@ -956,7 +961,7 @@ class RabbitMQSplitByDestinationForkedTest extends RabbitMQTestBase {
   }
 
   @Override
-  String service()  {
+  String service() {
     return "RabbitMQTest"
   }
 
