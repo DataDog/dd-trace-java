@@ -53,7 +53,8 @@ public class DDTestImpl implements DDTest {
             .ignoreActiveSpan()
             .asChildOf(null)
             .withRequestContextData(
-                RequestContextSlot.CI_VISIBILITY, InstrumentationBridge.getCoverageProbeStore());
+                RequestContextSlot.CI_VISIBILITY,
+                InstrumentationBridge.createCoverageProbeStore(sourcePathResolver));
 
     if (startTime != null) {
       spanBuilder = spanBuilder.withStartTimestamp(startTime);

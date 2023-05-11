@@ -1,21 +1,19 @@
 package datadog.trace.civisibility.coverage;
 
-import java.util.*;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 class TestReportFileEntry {
   private final Set<Segment> segments = new TreeSet<>();
-  private String sourceFileName;
+  private final String sourceFileName;
 
-  public TestReportFileEntry setSourceFileName(String packageName, String sourceFileName) {
-    this.sourceFileName = packageName + "/" + sourceFileName;
-    return this;
+  TestReportFileEntry(String sourceFileName) {
+    this.sourceFileName = sourceFileName;
   }
 
-  public TestReportFileEntry incrementLine(
-      int lineNumber, int instructionCounter, int branchCounter) {
+  public void incrementLine(int lineNumber, int instructionCounter, int branchCounter) {
     segments.add(new Segment(lineNumber, -1, lineNumber, -1, instructionCounter + branchCounter));
-    return this;
   }
 
   public boolean hasSegments() {

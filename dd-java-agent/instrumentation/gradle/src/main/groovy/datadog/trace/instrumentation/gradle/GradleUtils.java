@@ -16,7 +16,6 @@ public abstract class GradleUtils {
 
   private static final String TEST_TASK_CLASS_NAME = "org.gradle.api.tasks.testing.Test";
 
-  // TODO figure out why Test class cannot be used
   public static boolean isTestTask(Task task) {
     if (!(task instanceof JavaForkOptions)) {
       return false;

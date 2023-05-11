@@ -122,7 +122,7 @@ public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility
   public static class VisitMaxsAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static void enter(@Advice.Argument(value = 0, readOnly = false) int maxStack) {
-      maxStack = maxStack + 1;
+      maxStack = maxStack + 2;
     }
   }
 
@@ -133,7 +133,7 @@ public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility
         @Advice.FieldValue(value = "arrayStrategy") final Object arrayStrategy,
         @Advice.Argument(0) final int id)
         throws NoSuchMethodException, InvocationTargetException, IllegalAccessException,
-            NoSuchFieldException {
+            NoSuchFieldException, ClassNotFoundException {
       Field classNameField = arrayStrategy.getClass().getDeclaredField("className");
       classNameField.setAccessible(true);
       String className = (String) classNameField.get(arrayStrategy);
@@ -147,12 +147,14 @@ public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility
 
         methodVisitor.visitLdcInsn(classId);
         methodVisitor.visitLdcInsn(className);
+        methodVisitor.pushClass(className);
         methodVisitor.push(id);
+
         methodVisitor.visitMethodInsn(
             Opcodes.INVOKESTATIC,
             "datadog/trace/api/civisibility/InstrumentationBridge",
             "currentCoverageProbeStoreRecord",
-            "(JLjava/lang/String;I)V",
+            "(JLjava/lang/String;Ljava/lang/Class;I)V",
             false);
       }
     }
