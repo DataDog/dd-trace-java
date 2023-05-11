@@ -4,6 +4,8 @@ import datadog.smoketest.springboot.TestBean;
 import ddtest.client.sources.Hasher;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import javax.servlet.http.Cookie;
@@ -114,6 +116,18 @@ public class IastWebController {
   public String cookie(final HttpServletRequest request) {
     final Cookie cookie = request.getCookies()[0];
     return "Cookie is: " + cookie.getName() + "=" + cookie.getValue();
+  }
+
+  @SuppressWarnings("CatchMayIgnoreException")
+  @PostMapping("/ssrf")
+  public String ssrf(@RequestParam("url") final String url) {
+    try {
+      final URL target = new URL(url);
+      final HttpURLConnection conn = (HttpURLConnection) target.openConnection();
+      conn.disconnect();
+    } catch (final Exception e) {
+    }
+    return "Url is: " + url;
   }
 
   private void withProcess(final Operation<Process> op) {
