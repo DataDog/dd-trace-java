@@ -26,11 +26,6 @@ public class ContextDataInjectorFactoryInstrumentation extends Instrumenter.Trac
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isLogsInjectionEnabled();
-  }
-
-  @Override
   public String instrumentedType() {
     return "org.apache.logging.log4j.core.impl.ContextDataInjectorFactory";
   }

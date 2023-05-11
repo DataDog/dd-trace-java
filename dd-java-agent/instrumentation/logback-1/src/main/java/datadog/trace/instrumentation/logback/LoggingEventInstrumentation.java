@@ -33,11 +33,6 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isLogsInjectionEnabled();
-  }
-
-  @Override
   public String hierarchyMarkerType() {
     return "ch.qos.logback.classic.spi.ILoggingEvent";
   }

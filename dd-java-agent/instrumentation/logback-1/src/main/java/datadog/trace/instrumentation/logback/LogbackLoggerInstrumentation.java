@@ -31,11 +31,6 @@ public class LogbackLoggerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isLogsInjectionEnabled();
-  }
-
-  @Override
   public String instrumentedType() {
     return "ch.qos.logback.classic.Logger";
   }

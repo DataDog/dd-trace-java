@@ -21,11 +21,6 @@ public class ThreadContextInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isLogsInjectionEnabled();
-  }
-
-  @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     // Avoid matching log4j 2.7+ which has its own instrumentation.
     return not(hasClassNamed("org.apache.logging.log4j.core.impl.ContextDataInjectorFactory"));

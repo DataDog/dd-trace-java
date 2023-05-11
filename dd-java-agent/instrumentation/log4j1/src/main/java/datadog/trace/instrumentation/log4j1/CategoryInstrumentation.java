@@ -30,11 +30,6 @@ public class CategoryInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isLogsInjectionEnabled();
-  }
-
-  @Override
   public String instrumentedType() {
     return "org.apache.log4j.Category";
   }

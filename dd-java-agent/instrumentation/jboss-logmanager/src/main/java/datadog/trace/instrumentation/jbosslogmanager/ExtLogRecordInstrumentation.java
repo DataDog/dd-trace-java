@@ -34,11 +34,6 @@ public class ExtLogRecordInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isLogsInjectionEnabled();
-  }
-
-  @Override
   public String hierarchyMarkerType() {
     return "org.jboss.logmanager.ExtLogRecord";
   }
