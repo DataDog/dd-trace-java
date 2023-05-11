@@ -32,6 +32,7 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.config.UsmConfig;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
+import datadog.trace.api.profiling.Timer;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -873,6 +874,13 @@ public class Agent {
                               .getDeclaredConstructor()
                               .newInstance();
                   tracer.registerCheckpointer(endpointCheckpointer);
+                  Timer timer =
+                      (Timer)
+                          AGENT_CLASSLOADER
+                              .loadClass("com.datadog.profiling.controller.openjdk.JFRTimer")
+                              .getDeclaredConstructor()
+                              .newInstance();
+                  tracer.registerTimer(timer);
                 } catch (Throwable e) {
                   if (e instanceof InvocationTargetException) {
                     e = e.getCause();

@@ -205,6 +205,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PASSWORD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_USERNAME;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_DELAY;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_DELAY_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST;
@@ -536,6 +538,8 @@ public class Config {
   private final boolean profilingExcludeAgentThreads;
   private final boolean profilingUploadSummaryOn413Enabled;
   private final boolean profilingRecordExceptionMessage;
+
+  private final boolean profilingQueueingTimeEnabled;
 
   private final boolean crashTrackingAgentless;
   private final Map<String, String> crashTrackingTags;
@@ -1215,6 +1219,10 @@ public class Config {
     profilingRecordExceptionMessage =
         configProvider.getBoolean(
             PROFILING_EXCEPTION_RECORD_MESSAGE, PROFILING_EXCEPTION_RECORD_MESSAGE_DEFAULT);
+
+    profilingQueueingTimeEnabled =
+        configProvider.getBoolean(
+            PROFILING_QUEUEING_TIME_ENABLED, PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
 
     profilingUploadSummaryOn413Enabled =
         configProvider.getBoolean(
@@ -1970,6 +1978,10 @@ public class Config {
 
   public boolean isDatadogProfilerEnabled() {
     return isDatadogProfilerEnabled;
+  }
+
+  public boolean isProfilingQueueingTimeEnabled() {
+    return profilingQueueingTimeEnabled;
   }
 
   public static boolean isDatadogProfilerSafeInCurrentEnvironment() {
