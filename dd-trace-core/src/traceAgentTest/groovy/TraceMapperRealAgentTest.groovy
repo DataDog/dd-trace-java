@@ -1,12 +1,10 @@
-
-
-import datadog.trace.api.StatsDClient
-import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
-import datadog.trace.common.writer.PayloadDispatcher
+import datadog.communication.http.OkHttpUtils
+import datadog.trace.api.StatsDClient
+import datadog.trace.common.writer.PayloadDispatcherImpl
+import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.DDAgentMapperDiscovery
 import datadog.trace.core.CoreSpan
-import datadog.communication.http.OkHttpUtils
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.MonitoringImpl
 import datadog.trace.test.util.DDSpecification
@@ -43,7 +41,7 @@ class TraceMapperRealAgentTest extends DDSpecification {
   def "send random traces"() {
     setup:
     HealthMetrics healthMetrics = Mock(HealthMetrics)
-    PayloadDispatcher dispatcher = new PayloadDispatcher(new DDAgentMapperDiscovery(v05 ? v05Discovery : v04Discovery), v05 ? v05Api : v04Api, healthMetrics, monitoring)
+    PayloadDispatcherImpl dispatcher = new PayloadDispatcherImpl(new DDAgentMapperDiscovery(v05 ? v05Discovery : v04Discovery), v05 ? v05Api : v04Api, healthMetrics, monitoring)
     List<List<CoreSpan>> traces = generateRandomTraces(traceCount, lowCardinality)
     when:
     for (List<CoreSpan> trace : traces) {
