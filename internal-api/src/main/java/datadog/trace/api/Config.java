@@ -151,6 +151,7 @@ import static datadog.trace.api.config.GeneralConfig.API_KEY;
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.AZURE_APP_SERVICES;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_ARGS;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_HOST;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_NAMED_PIPE;
@@ -1536,7 +1537,7 @@ public class Config {
 
     servletAsyncTimeoutError = configProvider.getBoolean(SERVLET_ASYNC_TIMEOUT_ERROR, true);
 
-    debugEnabled = isDebugMode();
+    debugEnabled = configProvider.getBoolean(TRACE_DEBUG, false);
 
     cwsEnabled = configProvider.getBoolean(CWS_ENABLED, DEFAULT_CWS_ENABLED);
     cwsTlsRefresh = configProvider.getInteger(CWS_TLS_REFRESH, DEFAULT_CWS_TLS_REFRESH);
@@ -3027,22 +3028,6 @@ public class Config {
   public <T extends Enum<T>> T getEnumValue(
       final String name, final Class<T> type, final T defaultValue) {
     return configProvider.getEnum(name, type, defaultValue);
-  }
-
-  private static boolean isDebugMode() {
-    final String tracerDebugLevelSysprop = "dd.trace.debug";
-    final String tracerDebugLevelProp = getProp(tracerDebugLevelSysprop);
-
-    if (tracerDebugLevelProp != null) {
-      return Boolean.parseBoolean(tracerDebugLevelProp);
-    }
-
-    final String tracerDebugLevelEnv = getEnv(toEnvVar(tracerDebugLevelSysprop));
-
-    if (tracerDebugLevelEnv != null) {
-      return Boolean.parseBoolean(tracerDebugLevelEnv);
-    }
-    return false;
   }
 
   /**
