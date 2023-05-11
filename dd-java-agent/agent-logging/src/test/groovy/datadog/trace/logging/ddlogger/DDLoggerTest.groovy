@@ -36,7 +36,7 @@ class DDLoggerTest extends LogValidatingSpecification {
     when:
     Properties props = new Properties()
     props.setProperty(Keys.DEFAULT_LOG_LEVEL, level)
-    def factory = new SwitchableLogLevelFactory(new SLCompatFactory(props))
+    def factory = new SLCompatFactory(props)
     def logger = new DDLogger(factory, "foo.bar")
 
     then:
@@ -86,7 +86,7 @@ class DDLoggerTest extends LogValidatingSpecification {
     def validator = createValidator("foo.bar")
     def printStream = new PrintStream(validator.outputStream, true)
     def settings = new SLCompatSettings(props, null, printStream)
-    def factory = new SwitchableLogLevelFactory(new SLCompatFactory(props, settings))
+    def factory = new SLCompatFactory(props, settings)
     def logger = new DDLogger(factory, "foo.bar")
 
     then: {
@@ -219,7 +219,7 @@ class DDLoggerTest extends LogValidatingSpecification {
     def outputStream = new ByteArrayOutputStream()
     def printStream = new PrintStream(outputStream, true)
     def settings = new SLCompatSettings(props, null, printStream)
-    def factory = new SwitchableLogLevelFactory(new SLCompatFactory(props, settings))
+    def factory = new SLCompatFactory(props, settings)
     def logger = new DDLogger(factory, "foo")
 
     when:
@@ -262,7 +262,7 @@ class DDLoggerTest extends LogValidatingSpecification {
     def outputStream = new ByteArrayOutputStream()
     def printStream = new PrintStream(outputStream, true)
     def settings = new SLCompatSettings(props, null, printStream)
-    def factory = new SwitchableLogLevelFactory(new SLCompatFactory(props, settings))
+    def factory = new SLCompatFactory(props, settings)
     def logger = new DDLogger(factory, "foo")
 
     when:
@@ -348,7 +348,7 @@ class DDLoggerTest extends LogValidatingSpecification {
       props.setProperty(Keys.WARN_LEVEL_STRING, warn)
     }
     def settings = new SLCompatSettings(props)
-    def factory = new SwitchableLogLevelFactory(new SLCompatFactory(props, settings))
+    def factory = new SLCompatFactory(props, settings)
 
     expect:
     factory.settingsDescription == [
