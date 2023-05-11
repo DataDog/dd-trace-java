@@ -220,17 +220,13 @@ public final class Memoizer {
       }
     }
 
-    // don't cache the result if it's based on partial/incomplete type information
-    if (memo.get(isPartial.matcherId)) {
-      return memo;
-    }
-
-    // we're only interested in the type if there's at least one external match
-    if (memo.nextSetBit(INTERNAL_MATCHERS) < 0) {
+    // update no-match filter if there's no interesting matches and result is complete
+    if (memo.nextSetBit(INTERNAL_MATCHERS) < 0 && !memo.get(isPartial.matcherId)) {
       NoMatchFilter.add(name);
       return NO_MATCH;
     }
 
+    // otherwise share result for this location (other locations may have different results)
     if (namesAreUnique || name.startsWith("java.") || !(type instanceof WithLocation)) {
       memos.share(name, null, null, memo);
     } else {
