@@ -70,7 +70,7 @@ class SparkTest extends AgentTestRunner {
 
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.id", "1234")
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.runId", "9012")
-    sparkSession.sparkContext().setLocalProperty("spark.databricks.clusterUsageTags.clusterName", "job-1234-run-5678-Job_cluster>")
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.clusterUsageTags.clusterName", "job-1234-run-5678-Job_cluster")
     TestSparkComputation.generateTestSparkComputation(sparkSession)
 
     expect:
@@ -81,8 +81,8 @@ class SparkTest extends AgentTestRunner {
           resourceName "count at TestSparkComputation.java:12"
           spanType "spark"
           errored false
-          traceId new BigInteger("8944764253919609482")
-          parentSpanId new BigInteger("15104224823446433673")
+          traceId 8944764253919609482G
+          parentSpanId 15104224823446433673G
         }
         span {
           operationName "spark.stage"
