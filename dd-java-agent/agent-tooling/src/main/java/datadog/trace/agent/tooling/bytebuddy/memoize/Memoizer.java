@@ -67,15 +67,17 @@ public final class Memoizer {
   static final ThreadLocal<Map<String, BitSet>> localMemosHolder =
       ThreadLocal.withInitial(HashMap::new);
 
-  private static final int INTERNAL_MATCHERS = 2; // isClass and isConcrete
+  private static final int INTERNAL_MATCHERS = 3; // isClass, isConcrete, isPartial
 
   // memoize whether the type is a class
-  static final ElementMatcher.Junction<TypeDescription> isClass =
-      prepare(MatcherKind.CLASS, ElementMatchers.any(), true);
+  static final MemoizingMatcher isClass = prepare(MatcherKind.CLASS, ElementMatchers.any(), true);
 
   // memoize whether the type is a concrete class, i.e. no abstract methods
-  static final ElementMatcher.Junction<TypeDescription> isConcrete =
+  static final MemoizingMatcher isConcrete =
       prepare(MatcherKind.CLASS, not(ElementMatchers.isAbstract()), false);
+
+  // memoize whether this is based on partial information due to missing types
+  static final MemoizingMatcher isPartial = prepare(MatcherKind.TYPE, ElementMatchers.none(), true);
 
   public static void resetState() {
     // no need to reset the state if we haven't added any external matchers
@@ -94,7 +96,7 @@ public final class Memoizer {
   }
 
   /** Prepares a matcher for memoization. */
-  static <T> ElementMatcher.Junction<TypeDescription> prepare(
+  static <T> MemoizingMatcher prepare(
       MatcherKind kind, ElementMatcher.Junction<T> matcher, boolean inherited) {
 
     MemoizingMatcher memoizingMatcher =
@@ -202,6 +204,8 @@ public final class Memoizer {
       }
       record(type.isInterface() ? interfaceMatcherIds : classMatcherIds, type, memo);
     } catch (Throwable e) {
+      // we're missing some type information so record the result as partial
+      memo.set(isPartial.matcherId);
       if (log.isDebugEnabled()) {
         log.debug(
             "{} recording matches for type {}: {}",
@@ -214,6 +218,11 @@ public final class Memoizer {
       if (wasFullParsing) {
         TypePoolFacade.enableFullDescriptions();
       }
+    }
+
+    // don't cache the result if it's based on partial/incomplete type information
+    if (memo.get(isPartial.matcherId)) {
+      return memo;
     }
 
     // we're only interested in the type if there's at least one external match
