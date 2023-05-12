@@ -131,6 +131,10 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     return tracer;
   }
 
+  TraceConfig getTraceConfig() {
+    return traceConfig;
+  }
+
   String mapServiceName(String serviceName) {
     return traceConfig.getServiceMapping().getOrDefault(serviceName, serviceName);
   }
