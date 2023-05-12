@@ -6,6 +6,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.EndpointTracker;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
@@ -716,6 +717,11 @@ public class AgentTracer {
     @Override
     public byte getResourceNamePriority() {
       return Byte.MAX_VALUE;
+    }
+
+    @Override
+    public TraceConfig getTraceConfig() {
+      return null;
     }
   }
 
