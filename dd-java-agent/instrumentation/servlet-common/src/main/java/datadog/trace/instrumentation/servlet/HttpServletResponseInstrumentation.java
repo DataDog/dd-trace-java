@@ -68,16 +68,8 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Iast
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.Argument(0) final String name, @Advice.Argument(1) String value) {
-      if ("Set-Cookie".equalsIgnoreCase(name) && null != value && value.length() > 0) {
-        final InsecureCookieModule module = InstrumentationBridge.INSECURE_COOKIE;
-        if (module != null) {
-          module.onCookieHeader(value);
-        }
-      } else if ("Location".equals(name) && null != value && value.length() > 0) {
-        final UnvalidatedRedirectModule module = InstrumentationBridge.UNVALIDATED_REDIRECT;
-        if (module != null) {
-          module.onRedirect(value);
-        }
+      if (null != value && value.length() > 0) {
+        InstrumentationBridge.onHeader(name, value);
       }
     }
   }

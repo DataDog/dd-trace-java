@@ -6,6 +6,7 @@ import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
@@ -54,6 +55,24 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
     null         | null
     '/var'       | null
     '/==>var<==' | "/==>var<=="
+  }
+
+  void 'if onHeader receives a Location header call onRedirect'() {
+    setup:
+    final urm = Spy(UnvalidatedRedirectModuleImpl)
+    InstrumentationBridge.registerIastModule(urm)
+
+    when:
+    urm.onHeader(headerName, "value")
+
+    then:
+    expected * urm.onRedirect("value")
+
+    where:
+    headerName | expected
+    "blah"     | 0
+    "Location" | 1
+    "location" | 1
   }
 
   private String mapTainted(final String value) {

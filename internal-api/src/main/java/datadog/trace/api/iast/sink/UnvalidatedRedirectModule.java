@@ -1,9 +1,8 @@
 package datadog.trace.api.iast.sink;
 
-import datadog.trace.api.iast.IastModule;
 import javax.annotation.Nullable;
 
-public interface UnvalidatedRedirectModule extends IastModule {
+public interface UnvalidatedRedirectModule extends HttpHeaderModule {
 
   void onRedirect(@Nullable String value);
 }

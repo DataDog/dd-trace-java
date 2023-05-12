@@ -125,4 +125,13 @@ public abstract class InstrumentationBridge {
     SSRF = null;
     UNVALIDATED_REDIRECT = null;
   }
+
+  public static void onHeader(final String name, final String value) {
+    if (INSECURE_COOKIE != null) {
+      INSECURE_COOKIE.onHeader(name, value);
+    }
+    if (UNVALIDATED_REDIRECT != null) {
+      UNVALIDATED_REDIRECT.onHeader(name, value);
+    }
+  }
 }

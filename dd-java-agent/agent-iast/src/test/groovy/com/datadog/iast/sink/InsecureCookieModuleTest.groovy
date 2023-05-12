@@ -6,11 +6,12 @@ import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import groovy.transform.CompileDynamic
 
 @CompileDynamic
-class InsecureCookieModuleTest  extends IastModuleImplTestBase {
+class InsecureCookieModuleTest extends IastModuleImplTestBase {
 
   private List<Object> objectHolder
 
@@ -53,8 +54,8 @@ class InsecureCookieModuleTest  extends IastModuleImplTestBase {
     }
 
     where:
-    cookieValue                     | expected
-    "user-id=7"                     | "user-id"
+    cookieValue | expected
+    "user-id=7" | "user-id"
   }
 
   void 'report insecure cookie with InsecureCookieModule.onCookie'() {
@@ -77,8 +78,8 @@ class InsecureCookieModuleTest  extends IastModuleImplTestBase {
     }
 
     where:
-    cookieName                     | expected
-    "user-id"                     | "user-id"
+    cookieName | expected
+    "user-id"  | "user-id"
   }
 
   void 'cases where nothing is reported during InsecureCookieModule.onCookie'() {
@@ -92,12 +93,12 @@ class InsecureCookieModuleTest  extends IastModuleImplTestBase {
     0 * reporter._
 
     where:
-    cookieValue           | isSecure
-    "user-id"             | true
-    null                  | true
-    null                  | false
-    ""                    | false
-    ""                    | true
+    cookieValue | isSecure
+    "user-id"   | true
+    null        | true
+    null        | false
+    ""          | false
+    ""          | true
   }
 
 
@@ -112,12 +113,31 @@ class InsecureCookieModuleTest  extends IastModuleImplTestBase {
     0 * reporter._
 
     where:
-    cookieValue           | _
-    null                  | _
-    "user-id=7; Secure"   | _
-    "user-id7; Secure"    | _
-    "user-id=7;Secure"    | _
-    "blah"                | _
-    ""                    | _
+    cookieValue         | _
+    null                | _
+    "user-id=7; Secure" | _
+    "user-id7; Secure"  | _
+    "user-id=7;Secure"  | _
+    "blah"              | _
+    ""                  | _
+  }
+
+  void 'if onHeader receives a cookie header call onCookieHeader'(final String headerName, final int expected) {
+    setup:
+    final icm = Spy(InsecureCookieModuleImpl)
+    InstrumentationBridge.registerIastModule(icm)
+
+    when:
+    icm.onHeader(headerName, "value")
+
+    then:
+    expected * icm.onCookieHeader("value")
+
+
+    where:
+    headerName   | expected
+    "blah"       | 0
+    "Set-Cookie" | 1
+    "set-cookie" | 1
   }
 }

@@ -24,4 +24,11 @@ public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
     }
     checkInjection(span, ctx, VulnerabilityType.UNVALIDATED_REDIRECT, value);
   }
+
+  @Override
+  public void onHeader(String name, String value) {
+    if ("Location".equalsIgnoreCase(name)) {
+      onRedirect(value);
+    }
+  }
 }
