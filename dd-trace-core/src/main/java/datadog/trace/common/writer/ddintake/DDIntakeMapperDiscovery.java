@@ -2,6 +2,7 @@ package datadog.trace.common.writer.ddintake;
 
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.intake.TrackType;
+import datadog.trace.civisibility.writer.ddintake.CiTestCovMapperV2;
 import datadog.trace.civisibility.writer.ddintake.CiTestCycleMapperV1;
 import datadog.trace.common.writer.RemoteMapper;
 import datadog.trace.common.writer.RemoteMapperDiscovery;
@@ -32,6 +33,8 @@ public class DDIntakeMapperDiscovery implements RemoteMapperDiscovery {
     reset();
     if (TrackType.CITESTCYCLE.equals(trackType)) {
       mapper = new CiTestCycleMapperV1(wellKnownTags);
+    } else if (TrackType.CITESTCOV.equals(trackType)) {
+      mapper = new CiTestCovMapperV2();
     } else {
       mapper = RemoteMapper.NO_OP;
     }

@@ -166,8 +166,7 @@ public class DDTestImpl implements DDTest {
     }
 
     CoverageProbeStore probes = span.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY);
-    probes.report(
-        moduleContext.getParentId(), moduleContext.getId(), suiteContext.getId(), span.getSpanId());
+    probes.report(moduleContext.getParentId(), suiteContext.getId(), span.getSpanId());
 
     scope.close();
 

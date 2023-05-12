@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.coverage;
 
+import datadog.trace.api.civisibility.coverage.TestReportFileEntry;
 import org.jacoco.core.analysis.IClassCoverage;
 import org.jacoco.core.analysis.ICounter;
 import org.jacoco.core.analysis.ICoverageVisitor;

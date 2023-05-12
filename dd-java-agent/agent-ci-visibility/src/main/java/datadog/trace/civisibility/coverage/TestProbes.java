@@ -1,13 +1,17 @@
 package datadog.trace.civisibility.coverage;
 
 import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
+import datadog.trace.api.civisibility.coverage.TestReport;
+import datadog.trace.api.civisibility.coverage.TestReportFileEntry;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.Utils;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import org.jacoco.core.data.ExecutionData;
+import javax.annotation.Nullable;
+import org.jacoco.core.analysis.Analyzer;
+import org.jacoco.core.data.ExecutionDataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,6 +24,7 @@ public class TestProbes implements CoverageProbeStore {
   // Unbounded data structure that only exists within a single test span
   private final Map<Class<?>, ExecutionDataAdapter> probeActivations;
   private final SourcePathResolver sourcePathResolver;
+  private volatile TestReport testReport;
 
   TestProbes(SourcePathResolver sourcePathResolver) {
     this.sourcePathResolver = sourcePathResolver;
@@ -34,10 +39,8 @@ public class TestProbes implements CoverageProbeStore {
   }
 
   @Override
-  public void report(Long testSessionId, long testModuleId, long testSuiteId, long spanId) {
-
-    TestReport testReport = new TestReport(testSessionId, testModuleId, testSuiteId, spanId);
-
+  public void report(Long testSessionId, Long testSuiteId, long spanId) {
+    Map<String, TestReportFileEntry> testReportFileEntries = new HashMap<>();
     for (Map.Entry<Class<?>, ExecutionDataAdapter> e : probeActivations.entrySet()) {
       ExecutionDataAdapter executionDataAdapter = e.getValue();
       String className = executionDataAdapter.getClassName();
@@ -59,8 +62,14 @@ public class TestProbes implements CoverageProbeStore {
       }
 
       try (InputStream is = Utils.getClassStream(clazz)) {
-        ExecutionData executionData = executionDataAdapter.toExecutionData(totalProbeCount);
-        testReport.generate(is, sourcePath, executionData);
+        TestReportFileEntry fileEntry =
+            testReportFileEntries.computeIfAbsent(sourcePath, TestReportFileEntry::new);
+
+        ExecutionDataStore store = new ExecutionDataStore();
+        store.put(executionDataAdapter.toExecutionData(totalProbeCount));
+
+        Analyzer analyzer = new Analyzer(store, new SourceAnalyzer(fileEntry));
+        analyzer.analyzeClass(is, null);
 
       } catch (Exception exception) {
         log.debug(
@@ -71,7 +80,13 @@ public class TestProbes implements CoverageProbeStore {
       }
     }
 
-    testReport.log();
+    testReport = new TestReport(testSessionId, testSuiteId, spanId, testReportFileEntries);
+  }
+
+  @Nullable
+  @Override
+  public TestReport getReport() {
+    return testReport;
   }
 
   public static class TestProbesFactory implements CoverageProbeStore.Factory {
