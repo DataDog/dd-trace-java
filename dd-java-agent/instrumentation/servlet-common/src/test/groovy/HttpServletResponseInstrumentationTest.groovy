@@ -77,161 +77,15 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
 
   void 'insecure cookie added using addHeader'() {
     setup:
-    final cookieModule = Mock(InsecureCookieModule)
-    InstrumentationBridge.registerIastModule(cookieModule)
-    final redirectModule = Mock(UnvalidatedRedirectModule)
-    InstrumentationBridge.registerIastModule(redirectModule)
+    final module = Mock(InsecureCookieModule)
+    InstrumentationBridge.registerIastModule(module)
     final response = new DummyResponse()
 
     when:
     response.addHeader("Set-Cookie", "user-id=7")
 
     then:
-    1 * cookieModule.onCookieHeader('user-id=7')
-    0 * redirectModule.onRedirect(_)
-    0 * _
-  }
-
-  void 'unvalidated redirect added using addHeader'() {
-    setup:
-    final cookieModule = Mock(InsecureCookieModule)
-    InstrumentationBridge.registerIastModule(cookieModule)
-    final redirectModule = Mock(UnvalidatedRedirectModule)
-    InstrumentationBridge.registerIastModule(redirectModule)
-    final response = new DummyResponse()
-
-    when:
-    response.addHeader("Location", "http://dummy.location.com")
-
-    then:
-    1 * redirectModule.onRedirect('http://dummy.location.com')
-    0 * cookieModule.onCookieHeader(_)
-    0 * _
-  }
-
-  void 'null parameters added using addHeader'() {
-    setup:
-    final cookieModule = Mock(InsecureCookieModule)
-    InstrumentationBridge.registerIastModule(cookieModule)
-    final redirectModule = Mock(UnvalidatedRedirectModule)
-    InstrumentationBridge.registerIastModule(redirectModule)
-    final response = new DummyResponse()
-
-    when:
-    response.addHeader(null, null)
-
-    then:
-    noExceptionThrown()
-    0 * cookieModule.onCookieHeader(_)
-    0 * redirectModule.onRedirect(_)
-    0 * _
-  }
-
-  void 'null value added using addHeader to set cookies'() {
-    setup:
-    final cookieModule = Mock(InsecureCookieModule)
-    InstrumentationBridge.registerIastModule(cookieModule)
-    final redirectModule = Mock(UnvalidatedRedirectModule)
-    InstrumentationBridge.registerIastModule(redirectModule)
-    final response = new DummyResponse()
-
-    when:
-    response.addHeader("Set-Cookie", null)
-
-    then:
-    noExceptionThrown()
-    0 * cookieModule.onCookieHeader(_)
-    0 * redirectModule.onRedirect(_)
-    0 * _
-  }
-
-  void 'null value added using addHeader to set location'() {
-    setup:
-    final cookieModule = Mock(InsecureCookieModule)
-    InstrumentationBridge.registerIastModule(cookieModule)
-    final redirectModule = Mock(UnvalidatedRedirectModule)
-    InstrumentationBridge.registerIastModule(redirectModule)
-    final response = new DummyResponse()
-
-    when:
-    response.addHeader("Location", null)
-
-    then:
-    noExceptionThrown()
-    0 * cookieModule.onCookieHeader(_)
-    0 * redirectModule.onRedirect(_)
-    0 * _
-  }
-
-  void 'null header name added using addHeader'() {
-    setup:
-    final cookieModule = Mock(InsecureCookieModule)
-    InstrumentationBridge.registerIastModule(cookieModule)
-    final redirectModule = Mock(UnvalidatedRedirectModule)
-    InstrumentationBridge.registerIastModule(redirectModule)
-    final response = new DummyResponse()
-
-    when:
-    response.addHeader(null, "user-id=7")
-
-    then:
-    noExceptionThrown()
-    0 * cookieModule.onCookieHeader(_)
-    0 * redirectModule.onRedirect(_)
-    0 * _
-  }
-
-
-  void 'secure cookie added using addHeader'() {
-    setup:
-    final cookieModule = Mock(InsecureCookieModule)
-    InstrumentationBridge.registerIastModule(cookieModule)
-    final redirectModule = Mock(UnvalidatedRedirectModule)
-    InstrumentationBridge.registerIastModule(redirectModule)
-    final response = new DummyResponse()
-
-    when:
-    response.addHeader("Set-Cookie", "user-id=7; Secure")
-
-    then:
-    1 * cookieModule.onCookieHeader('user-id=7; Secure')
-    0 * redirectModule.onRedirect(_)
-    0 * _
-  }
-
-
-  void 'adding non cookie header'() {
-    setup:
-    final cookieModule = Mock(InsecureCookieModule)
-    InstrumentationBridge.registerIastModule(cookieModule)
-    final redirectModule = Mock(UnvalidatedRedirectModule)
-    InstrumentationBridge.registerIastModule(redirectModule)
-    final response = new DummyResponse()
-
-    when:
-    response.addHeader("Custom-Header", "user-id=7")
-
-    then:
-    0 * cookieModule.onCookieHeader(_)
-    0 * redirectModule.onRedirect(_)
-    0 * _
-  }
-
-  void 'cookie without name value pair'() {
-    setup:
-    final cookieModule = Mock(InsecureCookieModule)
-    InstrumentationBridge.registerIastModule(cookieModule)
-    final redirectModule = Mock(UnvalidatedRedirectModule)
-    InstrumentationBridge.registerIastModule(redirectModule)
-    final response = new DummyResponse()
-
-    when:
-    response.addHeader("Set-Cookie", "user-id")
-
-    then:
-    1 * cookieModule.onCookieHeader('user-id')
-    0 * redirectModule.onRedirect(_)
-    0 * _
+    1 * module.onHeader("Set-Cookie", 'user-id=7')
   }
 
 
@@ -247,44 +101,36 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.setHeader("Set-Cookie", "user-id=7")
 
     then:
-    1 * cookieModule.onCookieHeader('user-id=7')
-    0 * redirectModule.onRedirect(_)
-    0 * _
+    1 * cookieModule.onHeader('Set-Cookie', 'user-id=7')
   }
 
-  void 'secure cookie added using setHeader'() {
+  void 'unvalidated redirect checked using addHeader'() {
     setup:
-    final cookieModule = Mock(InsecureCookieModule)
-    InstrumentationBridge.registerIastModule(cookieModule)
     final redirectModule = Mock(UnvalidatedRedirectModule)
     InstrumentationBridge.registerIastModule(redirectModule)
     final response = new DummyResponse()
 
     when:
-    response.setHeader("Set-Cookie", "user-id=7; Secure")
+    response.addHeader("Location", "http://dummy.url.com")
 
     then:
-    1 * cookieModule.onCookieHeader('user-id=7; Secure')
-    0 * redirectModule.onRedirect(_)
-    0 * _
+    1 * redirectModule.onHeader('Location', 'http://dummy.url.com')
   }
 
-  void 'secure cookie added using setHeader without spaces'() {
+
+  void 'unvalidated redirect checked setHeader'() {
     setup:
-    final cookieModule = Mock(InsecureCookieModule)
-    InstrumentationBridge.registerIastModule(cookieModule)
     final redirectModule = Mock(UnvalidatedRedirectModule)
     InstrumentationBridge.registerIastModule(redirectModule)
     final response = new DummyResponse()
 
     when:
-    response.setHeader("Set-Cookie", "user-id=7;Secure")
+    response.setHeader("Location", "http://dummy.url.com")
 
     then:
-    1 * cookieModule.onCookieHeader('user-id=7;Secure')
-    0 * redirectModule.onRedirect(_)
-    0 * _
+    1 * redirectModule.onHeader('Location', 'http://dummy.url.com')
   }
+
 
   void 'redirection added using sendRedirect'() {
     setup:
