@@ -5,6 +5,7 @@ import com.datadog.debugger.util.MoshiHelper;
 import com.datadog.debugger.util.MoshiSnapshotHelper;
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import java.util.Map;
@@ -174,6 +175,10 @@ public class JsonSnapshotSerializer implements DebuggerContext.ValueSerializer {
 
     public Snapshot getSnapshot() {
       return snapshot;
+    }
+
+    public String getRuntimeId() {
+      return Config.get().getRuntimeId();
     }
   }
 }
