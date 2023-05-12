@@ -648,6 +648,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return pendingTraceFactory.create(id);
   }
 
+  PendingTrace createTrace(DDTraceId id, TraceConfig traceConfig) {
+    return pendingTraceFactory.create(id, traceConfig);
+  }
+
   /**
    * If an application is using a non-system classloader, that classloader should be registered
    * here. Due to the way Spring Boot structures its' executable jar, this might log some warnings.
@@ -1457,9 +1461,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           propagationTags = propagationTagsFactory.empty();
         }
 
+        TraceConfig traceConfig;
+
         // Get header tags and set origin whether propagating or not.
         if (parentContext instanceof TagContext) {
           TagContext tc = (TagContext) parentContext;
+          traceConfig = tc.getTraceConfig();
           coreTags = tc.getTags();
           origin = tc.getOrigin();
           baggage = tc.getBaggage();
@@ -1467,6 +1474,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           requestContextDataIast = tc.getRequestContextDataIast();
           ciVisibilityContextData = tc.getCiVisibilityContextData();
         } else {
+          traceConfig = null;
           coreTags = null;
           origin = null;
           baggage = null;
@@ -1477,7 +1485,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
         rootSpanTags = localRootSpanTags;
 
-        parentTrace = createTrace(traceId);
+        parentTrace = createTrace(traceId, traceConfig);
 
         if (endToEndStartTime > 0) {
           parentTrace.beginEndToEnd(endToEndStartTime);
