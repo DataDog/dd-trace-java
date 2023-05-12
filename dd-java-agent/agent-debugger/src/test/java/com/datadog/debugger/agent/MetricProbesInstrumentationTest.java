@@ -770,7 +770,7 @@ public class MetricProbesInstrumentationTest {
         createMetricBuilder(METRIC_ID2, MAPNULL_METRIC, GAUGE)
             .where(CLASS_NAME, "f", "()")
             .valueScript(
-                new ValueScript(DSL.index(DSL.ref("strMap"), DSL.nullValue()), "map[null]"))
+                new ValueScript(DSL.index(DSL.ref("strMap"), DSL.nullValue()), "strMap[null]"))
             .evaluateAt(MethodLocation.EXIT)
             .build();
     MetricProbe metricProbe3 =
