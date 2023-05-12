@@ -107,6 +107,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" address.port
             "$Tags.PEER_HOSTNAME" "localhost"
             "aws.service" "AmazonSQS"
+            "aws_service" "sqs"
             "aws.endpoint" "http://localhost:${address.port}"
             "aws.operation" "SendMessageRequest"
             "aws.agent" "java-aws-sdk"
@@ -129,6 +130,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "java-aws-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             "aws.service" "AmazonSQS"
+            "aws_service" "sqs"
             "aws.operation" "ReceiveMessageRequest"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
@@ -193,6 +195,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" address.port
             "$Tags.PEER_HOSTNAME" "localhost"
             "aws.service" "AmazonSQS"
+            "aws_service" "sqs"
             "aws.endpoint" "http://localhost:${address.port}"
             "aws.operation" "SendMessageRequest"
             "aws.agent" "java-aws-sdk"
@@ -215,6 +218,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "java-aws-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             "aws.service" "AmazonSQS"
+            "aws_service" "sqs"
             "aws.operation" "ReceiveMessageRequest"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
@@ -257,6 +261,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" address.port
             "$Tags.PEER_HOSTNAME" "localhost"
             "aws.service" "AmazonSQS"
+            "aws_service" "sqs"
             "aws.endpoint" "http://localhost:${address.port}"
             "aws.operation" "DeleteMessageRequest"
             "aws.agent" "java-aws-sdk"
