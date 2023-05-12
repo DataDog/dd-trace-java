@@ -3458,7 +3458,7 @@ public class Config {
         + cwsEnabled
         + ", cwsTlsRefresh="
         + cwsTlsRefresh
-        + ", longRunningTracesEnabled="
+        + ", longRunningTraceEnabled="
         + longRunningTraceEnabled
         + ", longRunningTraceFlushInterval="
         + longRunningTraceFlushInterval
