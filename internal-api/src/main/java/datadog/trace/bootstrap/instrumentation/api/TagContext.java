@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.sampling.PrioritySampling;
 import java.util.Collections;
 import java.util.Map;
@@ -24,12 +25,15 @@ public class TagContext implements AgentSpan.Context.Extracted {
 
   private final int samplingPriority;
 
+  private final TraceConfig traceConfig;
+
   public TagContext() {
-    this(null, null);
+    // FIXME: remove no-arg constructor and take trace config?
+    this(null, null, null);
   }
 
-  public TagContext(final String origin, final Map<String, String> tags) {
-    this(origin, tags, null, null, PrioritySampling.UNSET);
+  public TagContext(final String origin, final Map<String, String> tags, TraceConfig traceConfig) {
+    this(origin, tags, null, null, PrioritySampling.UNSET, traceConfig);
   }
 
   public TagContext(
@@ -37,12 +41,14 @@ public class TagContext implements AgentSpan.Context.Extracted {
       final Map<String, String> tags,
       HttpHeaders httpHeaders,
       final Map<String, String> baggage,
-      int samplingPriority) {
+      int samplingPriority,
+      TraceConfig traceConfig) {
     this.origin = origin;
     this.tags = tags;
     this.httpHeaders = httpHeaders == null ? EMPTY_HTTP_HEADERS : httpHeaders;
     this.baggage = baggage == null ? Collections.emptyMap() : baggage;
     this.samplingPriority = samplingPriority;
+    this.traceConfig = traceConfig;
   }
 
   public final CharSequence getOrigin() {
@@ -192,6 +198,11 @@ public class TagContext implements AgentSpan.Context.Extracted {
   @Override
   public PathwayContext getPathwayContext() {
     return null;
+  }
+
+  @Override
+  public TraceConfig getTraceConfig() {
+    return traceConfig;
   }
 
   public static class HttpHeaders {

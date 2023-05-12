@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation;
 
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import java.util.Map;
 
@@ -22,8 +23,9 @@ public class ExtractedContext extends TagContext {
       final Map<String, String> baggage,
       final Map<String, String> tags,
       final HttpHeaders httpHeaders,
-      final PropagationTags propagationTags) {
-    super(origin, tags, httpHeaders, baggage, samplingPriority);
+      final PropagationTags propagationTags,
+      final TraceConfig traceConfig) {
+    super(origin, tags, httpHeaders, baggage, samplingPriority, traceConfig);
     this.traceId = traceId;
     this.spanId = spanId;
     this.endToEndStartTime = endToEndStartTime;

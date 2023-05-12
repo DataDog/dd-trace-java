@@ -644,8 +644,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
    *
    * @return a PendingTrace
    */
-  public PendingTrace createTrace(DDTraceId id) {
-    return pendingTraceFactory.create(id);
+  public PendingTrace createTrace(DDTraceId id, TraceConfig traceConfig) {
+    return pendingTraceFactory.create(id, traceConfig);
   }
 
   /**
@@ -1430,6 +1430,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         propagationTags = propagationTagsFactory.empty();
       } else {
         long endToEndStartTime;
+        final TraceConfig traceConfig;
 
         if (parentContext instanceof ExtractedContext) {
           // Propagate external trace
@@ -1466,6 +1467,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           requestContextDataAppSec = tc.getRequestContextDataAppSec();
           requestContextDataIast = tc.getRequestContextDataIast();
           ciVisibilityContextData = tc.getCiVisibilityContextData();
+          traceConfig = tc.getTraceConfig();
         } else {
           coreTags = null;
           origin = null;
@@ -1473,11 +1475,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           requestContextDataAppSec = null;
           requestContextDataIast = null;
           ciVisibilityContextData = null;
+          traceConfig = captureTraceConfig();
         }
 
         rootSpanTags = localRootSpanTags;
 
-        parentTrace = createTrace(traceId);
+        parentTrace = createTrace(traceId, traceConfig);
 
         if (endToEndStartTime > 0) {
           parentTrace.beginEndToEnd(endToEndStartTime);

@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
@@ -179,6 +180,8 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
     Iterable<Map.Entry<String, String>> baggageItems();
 
     PathwayContext getPathwayContext();
+
+    TraceConfig getTraceConfig();
 
     interface Extracted extends Context {
       String getForwarded();

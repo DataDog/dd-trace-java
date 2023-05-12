@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.java.lang;
 
+import datadog.trace.api.TraceConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
@@ -22,7 +23,7 @@ class ProcessImplStartAdvice {
     AgentTracer.TracerAPI tracer = AgentTracer.get();
 
     Map<String, String> tags = ProcessImplInstrumentationHelpers.createTags(command);
-    TagContext tagContext = new TagContext("appsec", tags);
+    TagContext tagContext = new TagContext("appsec", tags, AgentTracer.traceConfig());
     AgentSpan span = tracer.startSpan("command_execution", tagContext);
     span.setSpanType("system");
     span.setResourceName(ProcessImplInstrumentationHelpers.determineResource(command));

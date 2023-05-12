@@ -6,6 +6,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.EndpointTracker;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
@@ -93,6 +94,15 @@ public class AgentTracer {
 
   public static AgentSpan noopSpan() {
     return get().noopSpan();
+  }
+
+  public static TraceConfig traceConfig() {
+    AgentSpan span = activeSpan();
+    if (span != null) {
+      return span.context().getTraceConfig();
+    } else {
+      return get().captureTraceConfig();
+    }
   }
 
   public static final TracerAPI NOOP_TRACER = new NoopTracerAPI();
@@ -184,6 +194,8 @@ public class AgentTracer {
     void notifyExtensionEnd(AgentSpan span, Object result, boolean isError);
 
     DataStreamsMonitoring getDataStreamsMonitoring();
+
+    TraceConfig captureTraceConfig();
   }
 
   public interface SpanBuilder {
@@ -310,6 +322,12 @@ public class AgentTracer {
 
     @Override
     public TraceSegment getTraceSegment() {
+      return null;
+    }
+
+    @Override
+    public TraceConfig captureTraceConfig() {
+      // FIXME: what to return here?
       return null;
     }
 
@@ -931,6 +949,12 @@ public class AgentTracer {
 
     @Override
     public String getCustomIpHeader() {
+      return null;
+    }
+
+    @Override
+    public TraceConfig getTraceConfig() {
+      // FIXME What to do here?
       return null;
     }
   }

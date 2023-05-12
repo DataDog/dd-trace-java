@@ -54,6 +54,8 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   private final boolean clientIpWithoutAppSec;
   private boolean collectIpHeaders;
 
+  private TraceConfig traceConfig;
+
   protected static final boolean LOG_EXTRACT_HEADER_NAMES = Config.get().isLogExtractHeaderNames();
   private static final DDCache<String, String> CACHE = DDCaches.newFixedSizeCache(64);
 
@@ -221,6 +223,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
             || this.clientIpResolutionEnabled && ActiveSubsystems.APPSEC_ACTIVE;
     taggedHeaders = traceConfig.getTaggedHeaders();
     baggageMapping = traceConfig.getBaggageMapping();
+    this.traceConfig = traceConfig;
     return this;
   }
 
@@ -238,7 +241,8 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
                 baggage,
                 tags,
                 httpHeaders,
-                propagationTags);
+                propagationTags,
+                traceConfig);
         return context;
       } else if (origin != null
           || !tags.isEmpty()
@@ -246,7 +250,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
           || !baggage.isEmpty()
           || samplingPriority != PrioritySampling.UNSET) {
         return new TagContext(
-            origin, tags, httpHeaders, baggage, samplingPriorityOrDefault(samplingPriority));
+            origin, tags, httpHeaders, baggage, samplingPriorityOrDefault(samplingPriority), traceConfig);
       }
     }
     return null;

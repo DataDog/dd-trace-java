@@ -6,6 +6,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.config.TracerConfig;
@@ -844,5 +845,10 @@ public class DDSpanContext
     // TODO is this decided?
     String tagKey = "_dd." + key + ".json";
     this.setTag(tagKey, value);
+  }
+
+  @Override
+  public TraceConfig getTraceConfig() {
+    return trace.getTraceConfig();
   }
 }
