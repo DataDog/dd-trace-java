@@ -969,9 +969,18 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public String getTraceId() {
-    final AgentSpan activeSpan = activeSpan();
-    if (activeSpan instanceof DDSpan) {
-      DDTraceId traceId = activeSpan.getTraceId();
+    return getTraceId(activeSpan());
+  }
+
+  @Override
+  public String getSpanId() {
+    return getSpanId(activeSpan());
+  }
+
+  @Override
+  public String getTraceId(AgentSpan span) {
+    if (span != null && span.getTraceId() != null) {
+      DDTraceId traceId = span.getTraceId();
       // Return padded hexadecimal string representation if 128-bit TraceId logging is enabled and
       // TraceId is a 128-bit ID, otherwise use the default numerical string representation.
       if (this.logs128bTraceIdEnabled && traceId.toHighOrderLong() != 0) {
@@ -984,10 +993,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public String getSpanId() {
-    final AgentSpan activeSpan = activeSpan();
-    if (activeSpan instanceof DDSpan) {
-      return DDSpanId.toString(activeSpan.getSpanId());
+  public String getSpanId(AgentSpan span) {
+    if (span != null) {
+      return DDSpanId.toString(span.getSpanId());
     }
     return "0";
   }
