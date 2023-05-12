@@ -5,18 +5,11 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
-import datadog.trace.api.DDSpanId
-import datadog.trace.api.DDTraceId
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.intake.TrackType
-import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
-import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.Payload
 import datadog.trace.core.DDSpan
-import datadog.trace.core.DDSpanContext
-import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
 import org.msgpack.jackson.dataformat.MessagePackFactory
@@ -315,38 +308,5 @@ class DDIntakeApiTest extends DDCoreSpecification {
     return mapper.newPayload()
       .withBody(traceCapture.traceCount,
       traces.isEmpty() ? ByteBuffer.allocate(0) : traceCapture.buffer)
-  }
-
-  DDSpan buildSpan(long timestamp, CharSequence spanType, Map<String, Object> tags) {
-    def tracer = tracerBuilder().writer(new ListWriter()).build()
-
-    def context = new DDSpanContext(
-      DDTraceId.ONE,
-      1,
-      DDSpanId.ZERO,
-      null,
-      "fakeService",
-      "fakeOperation",
-      "fakeResource",
-      PrioritySampling.SAMPLER_KEEP,
-      null,
-      [:],
-      false,
-      spanType,
-      0,
-      tracer.pendingTraceFactory.create(DDTraceId.ONE),
-      null,
-      null,
-      AgentTracer.NoopPathwayContext.INSTANCE,
-      false,
-      PropagationTags.factory().empty())
-
-    def span = DDSpan.create(timestamp, context)
-    for (Map.Entry<String, Object> e : tags.entrySet()) {
-      span.setTag(e.key, e.value)
-    }
-
-    tracer.close()
-    return span
   }
 }

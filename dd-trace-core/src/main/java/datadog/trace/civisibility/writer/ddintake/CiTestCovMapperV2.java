@@ -6,9 +6,9 @@ import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
-import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
 import datadog.trace.api.civisibility.coverage.TestReport;
 import datadog.trace.api.civisibility.coverage.TestReportFileEntry;
+import datadog.trace.api.civisibility.coverage.TestReportHolder;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -117,7 +117,7 @@ public class CiTestCovMapperV2 implements RemoteMapper {
 
   private static TestReport getTestReport(CoreSpan<?> span) {
     if (span instanceof AgentSpan) {
-      CoverageProbeStore probes =
+      TestReportHolder probes =
           ((AgentSpan) span).getRequestContext().getData(RequestContextSlot.CI_VISIBILITY);
       if (probes != null) {
         return probes.getReport();

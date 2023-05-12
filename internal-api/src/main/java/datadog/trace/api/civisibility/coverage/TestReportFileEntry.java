@@ -12,8 +12,10 @@ public class TestReportFileEntry {
     this.sourceFileName = sourceFileName;
   }
 
-  public void incrementLine(int lineNumber, int instructionCounter, int branchCounter) {
+  public TestReportFileEntry incrementLine(
+      int lineNumber, int instructionCounter, int branchCounter) {
     segments.add(new Segment(lineNumber, -1, lineNumber, -1, instructionCounter + branchCounter));
+    return this;
   }
 
   public boolean hasSegments() {
