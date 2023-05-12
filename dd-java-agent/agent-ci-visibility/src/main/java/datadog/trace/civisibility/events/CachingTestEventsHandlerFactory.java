@@ -9,18 +9,18 @@ import java.util.Objects;
 public class CachingTestEventsHandlerFactory implements TestEventsHandler.Factory {
 
   private final TestEventsHandler.Factory delegate;
-  private final DDCache<CacheKey, TestEventsHandler> gitInfoCache;
+  private final DDCache<CacheKey, TestEventsHandler> testEventsHandlerCache;
 
   public CachingTestEventsHandlerFactory(TestEventsHandler.Factory delegate, int cacheSize) {
     this.delegate = delegate;
-    gitInfoCache = DDCaches.newFixedSizeCache(cacheSize);
+    testEventsHandlerCache = DDCaches.newFixedSizeCache(cacheSize);
   }
 
   @Override
   public TestEventsHandler create(
       String component, String testFramework, String testFrameworkVersion, Path path) {
     CacheKey key = new CacheKey(component, testFramework, testFrameworkVersion, path);
-    return gitInfoCache.computeIfAbsent(
+    return testEventsHandlerCache.computeIfAbsent(
         key, k -> delegate.create(k.component, k.testFramework, k.testFrameworkVersion, k.path));
   }
 
