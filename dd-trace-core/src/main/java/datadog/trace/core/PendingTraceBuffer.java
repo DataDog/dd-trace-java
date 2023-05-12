@@ -228,7 +228,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       this.queue = new MpscBlockingConsumerArrayQueue<>(bufferSize);
       this.worker = newAgentThread(TRACE_MONITOR, new Worker());
       this.timeSource = timeSource;
-      boolean runningSpansEnabled = config.isLongRunningTracesEnabled();
+      boolean runningSpansEnabled = config.isLongRunningTraceEnabled();
       this.runningTracesTracker =
           runningSpansEnabled
               ? new LongRunningTracesTracker(

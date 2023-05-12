@@ -99,7 +99,6 @@ class PendingTraceBufferTest extends DDSpecification {
 
     then:
     trace.pendingReferenceCount == 0
-    1 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.write({ it.size() == 1 })
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     _ * tracer.getPartialFlushMinSpans() >> 10
@@ -134,7 +133,6 @@ class PendingTraceBufferTest extends DDSpecification {
     trace.size() == 0
     trace.pendingReferenceCount == 0
     _ * bufferSpy.longRunningSpansEnabled()
-    1 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.write({ it.size() == 2 })
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     _ * tracer.getPartialFlushMinSpans() >> 10
@@ -192,13 +190,12 @@ class PendingTraceBufferTest extends DDSpecification {
     then:
     1 * tracer.captureTraceConfig() >> traceConfig
     1 * bufferSpy.enqueue(_)
-    _ * bufferSpy.longRunningSpansEnabled()
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     _ * bufferSpy.longRunningSpansEnabled()
     1 * tracer.write({ it.size() == 1 })
     _ * tracer.getPartialFlushMinSpans() >> 10
     _ * traceConfig.getServiceMapping() >> [:]
-    3 * tracer.getTimeWithNanoTicks(_)
+    2 * tracer.getTimeWithNanoTicks(_)
     0 * _
     pendingTrace.isEnqueued == 0
   }
@@ -286,7 +283,6 @@ class PendingTraceBufferTest extends DDSpecification {
     trace.pendingReferenceCount == 0
     trace.rootSpanWritten
     _ * bufferSpy.longRunningSpansEnabled()
-    1 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     1 * tracer.write({ it.size() == 2 }) >> {
       latch.countDown()
@@ -318,7 +314,7 @@ class PendingTraceBufferTest extends DDSpecification {
       parentLatch.countDown()
     }
     _ * tracer.getPartialFlushMinSpans() >> 10
-    2 * tracer.getTimeWithNanoTicks(_)
+    1 * tracer.getTimeWithNanoTicks(_)
     0 * _
 
     when:
@@ -413,7 +409,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * tracer.write({ it.size() == 1 })
     1 * tracer.getPartialFlushMinSpans() >> 10000
     1 * traceConfig.getServiceMapping() >> [:]
-    3 * tracer.getTimeWithNanoTicks(_)
+    2 * tracer.getTimeWithNanoTicks(_)
     0 * _
 
     when: "fail to fill the buffer"

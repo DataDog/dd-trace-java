@@ -17,9 +17,9 @@ public class LongRunningTracesTracker {
   private final int flushPeriodMilli;
   private final long maxTrackedDurationMilli = TimeUnit.HOURS.toMillis(12);
   private final List<PendingTrace> traceArray = new ArrayList<>(1 << 4);
-  private int missedAdd = 0;
-  private int writes = 0;
-  private int expires = 0;
+  private int dropped = 0;
+  private int write = 0;
+  private int expired = 0;
 
   public static final int NOT_TRACKED = -1;
   public static final int UNDEFINED = 0;
@@ -34,7 +34,8 @@ public class LongRunningTracesTracker {
       SharedCommunicationObjects sharedCommunicationObjects,
       HealthMetrics healthMetrics) {
     this.maxTrackedTraces = maxTrackedTraces;
-    this.flushPeriodMilli = (int) TimeUnit.SECONDS.toMillis(config.getLongRunningFlushInterval());
+    this.flushPeriodMilli =
+        (int) TimeUnit.SECONDS.toMillis(config.getLongRunningTraceFlushInterval());
     this.features = sharedCommunicationObjects.featuresDiscovery(config);
     this.healthMetrics = healthMetrics;
   }
@@ -53,11 +54,11 @@ public class LongRunningTracesTracker {
   }
 
   private void addTrace(PendingTrace trace) {
-    if (trace == null || trace.empty()) {
+    if (trace.empty()) {
       return;
     }
     if (traceArray.size() == maxTrackedTraces) {
-      missedAdd++;
+      dropped++;
       return;
     }
     traceArray.add(trace);
@@ -79,9 +80,9 @@ public class LongRunningTracesTracker {
         cleanSlot(i);
         continue;
       }
-      if (expired(nowMilli, trace)) {
+      if (hasExpired(nowMilli, trace)) {
         trace.compareAndSetLongRunningState(WRITE_RUNNING_SPANS, EXPIRED);
-        expires++;
+        expired++;
         cleanSlot(i);
         continue;
       }
@@ -92,7 +93,7 @@ public class LongRunningTracesTracker {
           continue;
         }
         trace.compareAndSetLongRunningState(TRACKED, WRITE_RUNNING_SPANS);
-        writes++;
+        write++;
         trace.write();
       }
       i++;
@@ -101,7 +102,7 @@ public class LongRunningTracesTracker {
     flushStats();
   }
 
-  private boolean expired(long nowMilli, PendingTrace trace) {
+  private boolean hasExpired(long nowMilli, PendingTrace trace) {
     return (nowMilli - TimeUnit.NANOSECONDS.toMillis(trace.getRunningTraceStartTime()))
         > maxTrackedDurationMilli;
   }
@@ -125,9 +126,9 @@ public class LongRunningTracesTracker {
   }
 
   private void flushStats() {
-    healthMetrics.onLongRunningUpdate(missedAdd, writes, expires);
-    missedAdd = 0;
-    writes = 0;
-    expires = 0;
+    healthMetrics.onLongRunningUpdate(dropped, write, expired);
+    dropped = 0;
+    write = 0;
+    expired = 0;
   }
 }

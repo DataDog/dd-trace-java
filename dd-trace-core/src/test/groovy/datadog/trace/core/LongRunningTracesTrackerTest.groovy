@@ -26,8 +26,8 @@ class LongRunningTracesTrackerTest extends DDSpecification {
     features.supportsLongRunning = true
     tracer.captureTraceConfig() >> traceConfig
     traceConfig.getServiceMapping() >> [:]
-    config.getLongRunningFlushInterval() >> 20
-    config.longRunningTracesEnabled >> true
+    config.getLongRunningTraceFlushInterval() >> 20
+    config.longRunningTraceEnabled >> true
     sharedCommunicationObjects.featuresDiscovery(_) >> features
     buffer = new PendingTraceBuffer.DelayingPendingTraceBuffer(maxTrackedTraces, SystemTimeSource.INSTANCE, config, sharedCommunicationObjects, HealthMetrics.NO_OP)
     tracker = buffer.runningTracesTracker
@@ -86,7 +86,7 @@ class LongRunningTracesTrackerTest extends DDSpecification {
 
     then:
     tracker.traceArray.size() == maxTrackedTraces
-    tracker.missedAdd == 1
+    tracker.dropped == 1
   }
 
   def "expired traces"() {

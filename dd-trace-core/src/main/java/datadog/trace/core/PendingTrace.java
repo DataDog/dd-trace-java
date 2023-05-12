@@ -364,8 +364,11 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     int completedSpans = 0;
     boolean runningSpanSeen = false;
     long firstRunningSpanID = 0;
-    long nowNano = getCurrentTimeNano();
-    setLastWriteTime(nowNano);
+    long nowNano = 0;
+    if (writeRunningSpans) {
+      nowNano = getCurrentTimeNano();
+      setLastWriteTime(nowNano);
+    }
 
     DDSpan span = spans.pollFirst();
     while (null != span) {
@@ -440,6 +443,12 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
         LongRunningTracesTracker.TO_TRACK, LongRunningTracesTracker.NOT_TRACKED);
   }
 
+  /**
+   * Calculates the duration of a span in nanoseconds for the transport layer
+   *
+   * <p>As the internal duration of a running span is 0, the duration is set to the difference
+   * between the span's start time and the time of the write trigger.
+   */
   public static long getDurationNano(CoreSpan<?> span) {
     long duration = span.getDurationNano();
     if (duration > 0) {

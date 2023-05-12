@@ -74,6 +74,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESOLVER_ENABLED;
@@ -1470,21 +1471,23 @@ public class Config {
     boolean longRunningEnabled =
         configProvider.getBoolean(
             TracerConfig.TRACE_LONG_RUNNING_ENABLED,
-            ConfigDefaults.DEFAULT_LONG_RUNNING_TRACE_ENABLED);
-    this.longRunningTraceFlushInterval =
+            ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_ENABLED);
+    long longRunningTraceFlushInterval =
         configProvider.getLong(
             TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL,
-            ConfigDefaults.DEFAULT_LONG_RUNNING_TRACE_FLUSH_INTERVAL);
+            ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
 
     if (longRunningEnabled
         && (longRunningTraceFlushInterval < 20 || longRunningTraceFlushInterval > 450)) {
       log.warn(
-          "Provided long running trace flush interval of {} seconds. It should be between 20 seconds and 7.5 minutes. T"
-              + "he feature is disabled.",
-          longRunningTraceFlushInterval);
-      longRunningEnabled = false;
+          "Provided long running trace flush interval of {} seconds. It should be between 20 seconds and 7.5 minutes."
+              + "Setting the flush interval to the default value of {} seconds .",
+          longRunningTraceFlushInterval,
+          DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
+      longRunningTraceFlushInterval = DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL;
     }
     this.longRunningTraceEnabled = longRunningEnabled;
+    this.longRunningTraceFlushInterval = longRunningTraceFlushInterval;
 
     if (profilingAgentless && apiKey == null) {
       log.warn(
@@ -1550,11 +1553,11 @@ public class Config {
     return instrumenterConfig.isTraceEnabled();
   }
 
-  public boolean isLongRunningTracesEnabled() {
+  public boolean isLongRunningTraceEnabled() {
     return longRunningTraceEnabled;
   }
 
-  public long getLongRunningFlushInterval() {
+  public long getLongRunningTraceFlushInterval() {
     return longRunningTraceFlushInterval;
   }
 
@@ -3411,6 +3414,10 @@ public class Config {
         + cwsEnabled
         + ", cwsTlsRefresh="
         + cwsTlsRefresh
+        + ", longRunningTracesEnabled="
+        + longRunningTraceEnabled
+        + ", longRunningTraceFlushInterval="
+        + longRunningTraceFlushInterval
         + '}';
   }
 }

@@ -106,9 +106,9 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
       CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter longRunningTracesWrite =
       CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter longRunningTracesMisses =
+  private final FixedSizeStripedLongCounter longRunningTracesDropped =
       CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter longRunningTracesExpires =
+  private final FixedSizeStripedLongCounter longRunningTracesExpired =
       CountersFactory.createFixedSizeStripedCounter(8);
 
   private final StatsDClient statsd;
@@ -315,10 +315,10 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   @Override
-  public void onLongRunningUpdate(final int missedAdd, final int writes, final int expires) {
-    longRunningTracesWrite.inc(writes);
-    longRunningTracesMisses.inc(missedAdd);
-    longRunningTracesExpires.inc(expires);
+  public void onLongRunningUpdate(final int dropped, final int write, final int expired) {
+    longRunningTracesWrite.inc(write);
+    longRunningTracesDropped.inc(dropped);
+    longRunningTracesExpired.inc(expired);
   }
 
   private void onSendAttempt(
@@ -439,9 +439,9 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
           target.statsd, "scope.error.stack-overflow", target.scopeStackOverflow, NO_TAGS);
       reportIfChanged(target.statsd, "long-running.write", target.longRunningTracesWrite, NO_TAGS);
       reportIfChanged(
-          target.statsd, "long-running.dropped", target.longRunningTracesMisses, NO_TAGS);
+          target.statsd, "long-running.dropped", target.longRunningTracesDropped, NO_TAGS);
       reportIfChanged(
-          target.statsd, "long-running.expired", target.longRunningTracesExpires, NO_TAGS);
+          target.statsd, "long-running.expired", target.longRunningTracesExpired, NO_TAGS);
     }
 
     private void reportIfChanged(

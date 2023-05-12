@@ -286,8 +286,8 @@ class ConfigTest extends DDSpecification {
     config.traceSamplingOperationRules == [b: "1"]
     config.traceSampleRate == 0.5
     config.traceRateLimit == 200
-    config.isLongRunningTracesEnabled()
-    config.getLongRunningFlushInterval() == 250
+    config.isLongRunningTraceEnabled()
+    config.getLongRunningTraceFlushInterval() == 250
 
     config.profilingEnabled == true
     config.profilingUrl == "new url"
@@ -461,8 +461,8 @@ class ConfigTest extends DDSpecification {
     config.traceSamplingOperationRules == [b: "1"]
     config.traceSampleRate == 0.5
     config.traceRateLimit == 200
-    config.isLongRunningTracesEnabled()
-    config.getLongRunningFlushInterval() == 333
+    config.isLongRunningTraceEnabled()
+    config.getLongRunningTraceFlushInterval() == 333
     config.traceRateLimit == 200
 
     config.profilingEnabled == true
@@ -534,8 +534,8 @@ class ConfigTest extends DDSpecification {
     config.jmxFetchMetricsConfigs == ["some/file"]
     config.reportHostName == true
     config.xDatadogTagsMaxLength == 42
-    config.isLongRunningTracesEnabled()
-    config.getLongRunningFlushInterval() == 81
+    config.isLongRunningTraceEnabled()
+    config.getLongRunningTraceFlushInterval() == 81
   }
 
   def "sys props override env vars"() {
@@ -562,8 +562,8 @@ class ConfigTest extends DDSpecification {
     config.agentHost == "somewhere"
     config.agentPort == 123
     config.agentUrl == "http://somewhere:123"
-    config.longRunningTracesEnabled
-    config.longRunningFlushInterval == 300
+    config.longRunningTraceEnabled
+    config.longRunningTraceFlushInterval == 300
   }
 
   def "default when configured incorrectly"() {
@@ -616,7 +616,7 @@ class ConfigTest extends DDSpecification {
     config.propagationStylesToInject.toList() == [PropagationStyle.DATADOG]
     config.tracePropagationStylesToExtract.toList() == [DATADOG]
     config.tracePropagationStylesToInject.toList() == [DATADOG]
-    config.longRunningTracesEnabled == false
+    config.longRunningTraceEnabled == false
   }
 
   def "sys props and env vars overrides for trace_agent_port and agent_port_legacy as expected"() {
@@ -2320,7 +2320,7 @@ class ConfigTest extends DDSpecification {
     Config config = Config.get(prop)
 
     then:
-    config.longRunningTracesEnabled == expectedResult
+    config.longRunningTraceEnabled == expectedResult
 
     where:
     flushInterval | expectedResult

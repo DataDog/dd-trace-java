@@ -89,7 +89,7 @@ class PendingTraceTest extends PendingTraceTestBase {
     1 * healthMetrics.onCreateTrace()
   }
 
-  def "don't write running spans"() {
+  def "write when writeRunningSpans is disabled: only completed spans are written"() {
     setup:
     def tracer = Mock(CoreTracer)
     def traceConfig = Mock(TraceConfig)
@@ -124,7 +124,7 @@ class PendingTraceTest extends PendingTraceTestBase {
     trace.spans.pop() == unfinishedSpan
   }
 
-  def "write running spans"() {
+  def "write when writeRunningSpans is enabled: complete and running spans are written"() {
     setup:
     def tracer = Mock(CoreTracer)
     def traceConfig = Mock(TraceConfig)
