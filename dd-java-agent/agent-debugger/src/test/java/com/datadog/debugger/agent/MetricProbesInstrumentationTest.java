@@ -755,6 +755,49 @@ public class MetricProbesInstrumentationTest {
   }
 
   @Test
+  public void nullExpression() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot06";
+    String NULLLEN_METRIC = "nulllen";
+    String MAPNULL_METRIC = "mapnull";
+    String NULL_METRIC = "null";
+    MetricProbe metricProbe1 =
+        createMetricBuilder(METRIC_ID1, NULLLEN_METRIC, GAUGE)
+            .where(CLASS_NAME, "f", "()")
+            .valueScript(new ValueScript(DSL.len(DSL.nullValue()), "len(null)"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricProbe metricProbe2 =
+        createMetricBuilder(METRIC_ID2, MAPNULL_METRIC, GAUGE)
+            .where(CLASS_NAME, "f", "()")
+            .valueScript(
+                new ValueScript(DSL.index(DSL.ref("strMap"), DSL.nullValue()), "strMap[null]"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricProbe metricProbe3 =
+        createMetricBuilder(METRIC_ID3, NULL_METRIC, GAUGE)
+            .where(CLASS_NAME, "f", "()")
+            .valueScript(new ValueScript(DSL.nullValue(), "null"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricForwarderListener listener =
+        installMetricProbes(metricProbe1, metricProbe2, metricProbe3);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assertions.assertEquals(42, result);
+    Assertions.assertEquals(0, listener.gauges.size());
+    Assertions.assertEquals(3, mockSink.getCurrentDiagnostics().size());
+    Assertions.assertEquals(
+        "Unsupported type for len operation: java.lang.Object",
+        mockSink.getCurrentDiagnostics().get(0).getMessage());
+    Assertions.assertEquals(
+        "Incompatible type for expression: java.lang.String with expected type: long",
+        mockSink.getCurrentDiagnostics().get(1).getMessage());
+    Assertions.assertEquals(
+        "Incompatible type for expression: java.lang.Object with expected type: long",
+        mockSink.getCurrentDiagnostics().get(2).getMessage());
+  }
+
+  @Test
   public void indexExpression() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot22";
     String ARRAYIDX_METRIC = "arrayindex";

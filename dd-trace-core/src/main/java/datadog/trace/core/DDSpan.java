@@ -14,6 +14,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointTracker;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.profiling.TransientProfilingContextHolder;
@@ -758,5 +759,10 @@ public class DDSpan
   @Override
   public Object getWrapper() {
     return WRAPPER_FIELD_UPDATER.get(this);
+  }
+
+  @Override
+  public TraceConfig getTraceConfig() {
+    return context.getTrace().getTraceConfig();
   }
 }
