@@ -351,12 +351,7 @@ public class DatadogSparkListener extends SparkListener {
   }
 
   private AgentTracer.SpanBuilder buildSparkSpan(String spanName) {
-    return tracer
-        .buildSpan(spanName)
-        .withSpanType("spark")
-        // The volume is quite low and dropping a trace can will to incomplete data
-        .withTag(DDTags.MANUAL_KEEP, true)
-        .withTag("app_id", appId);
+    return tracer.buildSpan(spanName).withSpanType("spark").withTag("app_id", appId);
   }
 
   private long stageSpanKey(int stageId, int attemptId) {
