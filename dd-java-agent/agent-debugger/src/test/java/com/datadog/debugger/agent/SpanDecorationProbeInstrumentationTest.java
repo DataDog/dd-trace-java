@@ -65,7 +65,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     assertEquals(42, result);
     MutableSpan span = traceInterceptor.getFirstSpan();
     assertEquals("1", span.getTags().get("tag1"));
-    assertEquals(PROBE_ID.getId(), span.getTags().get("_dd.tag1.probe_id"));
+    assertEquals(PROBE_ID.getId(), span.getTags().get("_dd.di.tag1.probe_id"));
   }
 
   @Test
@@ -151,7 +151,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     assertNull(span.getTags().get("tag1"));
     assertEquals(
         "com.datadog.debugger.el.EvaluationException: Cannot find symbol: noarg",
-        span.getTags().get("_dd.tag1.evaluation_error"));
+        span.getTags().get("_dd.di.tag1.evaluation_error"));
   }
 
   @Test
@@ -181,7 +181,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     assertEquals(42, result);
     MutableSpan span = traceInterceptor.getFirstSpan();
     assertEquals("1", span.getTags().get("tag1"));
-    assertEquals(PROBE_ID.getId(), span.getTags().get("_dd.tag1.probe_id"));
+    assertEquals(PROBE_ID.getId(), span.getTags().get("_dd.di.tag1.probe_id"));
   }
 
   @Test

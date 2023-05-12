@@ -32,8 +32,8 @@ import org.slf4j.LoggerFactory;
 
 public class SpanDecorationProbe extends ProbeDefinition {
   private static final Logger LOGGER = LoggerFactory.getLogger(SpanDecorationProbe.class);
-  private static final String PROBEID_DD_TAGS_FORMAT = "_dd.%s.probe_id";
-  private static final String EVALERROR_DD_TAGS_FORMAT = "_dd.%s.evaluation_error";
+  private static final String PROBEID_DD_TAGS_FORMAT = "_dd.di.%s.probe_id";
+  private static final String EVALERROR_DD_TAGS_FORMAT = "_dd.di.%s.evaluation_error";
 
   public enum TargetSpan {
     ACTIVE,
