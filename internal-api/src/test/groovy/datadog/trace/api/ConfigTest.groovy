@@ -12,6 +12,7 @@ import spock.lang.Unroll
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
 import static datadog.trace.api.DDTags.HOST_TAG
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE
@@ -2312,23 +2313,24 @@ class ConfigTest extends DDSpecification {
     config.serviceName == "args service name"
   }
 
-  def "long running trace disabled on invalid flush_interval: #flushInterval"() {
+  def "long running trace invalid flush_interval set to default: #configuredFlushInterval"() {
     when:
     def prop = new Properties()
     prop.setProperty(TRACE_LONG_RUNNING_ENABLED, "true")
-    prop.setProperty(TRACE_LONG_RUNNING_FLUSH_INTERVAL, flushInterval)
+    prop.setProperty(TRACE_LONG_RUNNING_FLUSH_INTERVAL, configuredFlushInterval)
     Config config = Config.get(prop)
 
     then:
-    config.longRunningTraceEnabled == expectedResult
+    config.longRunningTraceEnabled == true
+    config.longRunningTraceFlushInterval == flushInterval
 
     where:
-    flushInterval | expectedResult
-    "invalid"     | true
-    "-1"          | false
-    "19"          | false
-    "451"         | false
-    "20"          | true
-    "450"         | true
+    configuredFlushInterval | flushInterval
+    "invalid"     | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
+    "-1"          | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
+    "19"          | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
+    "451"         | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
+    "20"          | 20
+    "450"         | 450
   }
 }
