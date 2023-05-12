@@ -35,7 +35,11 @@ public class DebuggerContext {
 
     void gauge(String name, long value, String[] tags);
 
+    void gauge(String name, double value, String[] tags);
+
     void histogram(String name, long value, String[] tags);
+
+    void histogram(String name, double value, String[] tags);
   }
 
   public interface Tracer {
@@ -120,8 +124,34 @@ public class DebuggerContext {
     }
   }
 
+  /** Updates the specified gauge metric No-op if no implementation is available */
+  public static void gauge(String name, double value, String[] tags) {
+    try {
+      MetricForwarder forwarder = metricForwarder;
+      if (forwarder == null) {
+        return;
+      }
+      forwarder.gauge(name, value, tags);
+    } catch (Exception ex) {
+      LOGGER.debug("Error in gauge: ", ex);
+    }
+  }
+
   /** Updates the specified histogram metric No-op if no implementation is available */
   public static void histogram(String name, long value, String[] tags) {
+    try {
+      MetricForwarder forwarder = metricForwarder;
+      if (forwarder == null) {
+        return;
+      }
+      forwarder.histogram(name, value, tags);
+    } catch (Exception ex) {
+      LOGGER.debug("Error in histogram: ", ex);
+    }
+  }
+
+  /** Updates the specified histogram metric No-op if no implementation is available */
+  public static void histogram(String name, double value, String[] tags) {
     try {
       MetricForwarder forwarder = metricForwarder;
       if (forwarder == null) {

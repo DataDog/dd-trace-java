@@ -48,6 +48,7 @@ import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
@@ -188,17 +189,17 @@ public class MetricInstrumentor extends Instrumentor {
       invokeStatic(
           insnList,
           DEBUGGER_CONTEXT_TYPE,
-          "count",
+          metricProbe.getKind().getMetricMethodName(),
           Type.VOID_TYPE,
           STRING_TYPE,
           Type.LONG_TYPE,
           Types.asArray(STRING_TYPE, 1));
       return insnList;
     }
-    return internalCallMetric("count", metricProbe);
+    return internalCallMetric(metricProbe);
   }
 
-  private InsnList internalCallMetric(String metricMethodName, MetricProbe metricProbe) {
+  private InsnList internalCallMetric(MetricProbe metricProbe) {
     InsnList insnList = new InsnList();
     insnList.add(new LdcInsnNode(metricProbe.getMetricName()));
     // stack [string]
@@ -207,55 +208,66 @@ public class MetricInstrumentor extends Instrumentor {
     Type resultType;
     try {
       result = metricProbe.getValue().getExpr().accept(new MetricValueVisitor(this, nullBranch));
-      resultType = result.type.getMainType();
-      // stack [string, int|long]
-      convertIfRequired(resultType, Type.LONG_TYPE, result.insnList);
-      // stack [string, long]
-      insnList.add(result.insnList);
     } catch (InvalidValueException | UnsupportedOperationException ex) {
       reportError(ex.getMessage());
       return EMPTY_INSN_LIST;
     }
-    if (!isCompatible(resultType, Type.LONG_TYPE)) {
+    resultType = result.type.getMainType();
+    MetricProbe.MetricKind kind = metricProbe.getKind();
+    if (!kind.isCompatible(resultType)) {
+      String expectedTypes =
+          kind.getSupportedTypes().stream()
+              .map(Type::getClassName)
+              .collect(Collectors.joining(","));
       reportError(
           String.format(
-              "Incompatible type for expression: %s with expected type: %s",
-              resultType.getClassName(), Type.LONG_TYPE.getClassName()));
+              "Incompatible type for expression: %s with expected types: [%s]",
+              resultType.getClassName(), expectedTypes));
       return EMPTY_INSN_LIST;
     }
+    // stack [string, int|long|float|double]
+    resultType = convertIfRequired(resultType, result.insnList);
+    // stack [string, long|double]
+    insnList.add(result.insnList);
     pushTags(insnList, addProbeIdWithTags(metricProbe.getId(), metricProbe.getTags()));
-    // stack [string, long, array]
+    // stack [string, long|double, array]
     invokeStatic(
         insnList,
         DEBUGGER_CONTEXT_TYPE,
-        metricMethodName,
+        kind.getMetricMethodName(),
         Type.VOID_TYPE,
         STRING_TYPE,
-        Type.LONG_TYPE,
+        resultType,
         Types.asArray(STRING_TYPE, 1));
     // stack []
     insnList.add(nullBranch);
     return insnList;
   }
 
-  private void convertIfRequired(Type currentType, Type expectedType, InsnList insnList) {
-    if (expectedType == Type.LONG_TYPE && currentType == Type.INT_TYPE) {
+  private Type convertIfRequired(Type currentType, InsnList insnList) {
+    if (currentType == Type.INT_TYPE) {
       insnList.add(new InsnNode(Opcodes.I2L));
+      return Type.LONG_TYPE;
     }
+    if (currentType == Type.FLOAT_TYPE) {
+      insnList.add(new InsnNode(Opcodes.F2D));
+      return Type.DOUBLE_TYPE;
+    }
+    return currentType;
   }
 
   private InsnList callGauge(MetricProbe metricProbe) {
     if (metricProbe.getValue() == null) {
       return EMPTY_INSN_LIST;
     }
-    return internalCallMetric("gauge", metricProbe);
+    return internalCallMetric(metricProbe);
   }
 
   private InsnList callHistogram(MetricProbe metricProbe) {
     if (metricProbe.getValue() == null) {
       return EMPTY_INSN_LIST;
     }
-    return internalCallMetric("histogram", metricProbe);
+    return internalCallMetric(metricProbe);
   }
 
   private InsnList callMetric(MetricProbe metricProbe) {
