@@ -14,6 +14,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_BUILD_INSTRU
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLIENT_IP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_ENABLED;
@@ -114,6 +115,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DEBUG_POR
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_ID;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SESSION_ID;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_TAGS;
@@ -576,6 +578,7 @@ public class Config {
   private final boolean ciVisibilityCompilerPluginAutoConfigurationEnabled;
   private final String ciVisibilityCompilerPluginVersion;
   private final Integer ciVisibilityDebugPort;
+  private final int ciVisibilityTestEventsHandlerCacheSize;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1316,6 +1319,11 @@ public class Config {
         configProvider.getBoolean(
             CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED,
             DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED);
+
+    ciVisibilityTestEventsHandlerCacheSize =
+        configProvider.getInteger(
+            CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE,
+            DEFAULT_CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE);
 
     ciVisibilitySessionId = configProvider.getLong(CIVISIBILITY_SESSION_ID);
     ciVisibilityModuleId = configProvider.getLong(CIVISIBILITY_MODULE_ID);
@@ -2122,6 +2130,10 @@ public class Config {
 
   public boolean isCiVisibilityBuildInstrumentationEnabled() {
     return ciVisibilityBuildInstrumentationEnabled;
+  }
+
+  public int getCiVisibilityTestEventsHandlerCacheSize() {
+    return ciVisibilityTestEventsHandlerCacheSize;
   }
 
   public Long getCiVisibilitySessionId() {
