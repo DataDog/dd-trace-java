@@ -184,6 +184,10 @@ public class AgentTracer {
     void notifyExtensionEnd(AgentSpan span, Object result, boolean isError);
 
     DataStreamsMonitoring getDataStreamsMonitoring();
+
+    String getTraceId(AgentSpan span);
+
+    String getSpanId(AgentSpan span);
   }
 
   public interface SpanBuilder {
@@ -320,6 +324,16 @@ public class AgentTracer {
 
     @Override
     public String getSpanId() {
+      return null;
+    }
+
+    @Override
+    public String getTraceId(AgentSpan span) {
+      return null;
+    }
+
+    @Override
+    public String getSpanId(AgentSpan span) {
       return null;
     }
 
