@@ -149,9 +149,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     assertEquals(42, result);
     MutableSpan span = traceInterceptor.getFirstSpan();
     assertNull(span.getTags().get("tag1"));
-    assertEquals(
-        "com.datadog.debugger.el.EvaluationException: Cannot find symbol: noarg",
-        span.getTags().get("_dd.di.tag1.evaluation_error"));
+    assertEquals("Cannot find symbol: noarg", span.getTags().get("_dd.di.tag1.evaluation_error"));
   }
 
   @Test

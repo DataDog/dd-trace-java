@@ -157,7 +157,7 @@ public class SpanDecorationProbe extends ProbeDefinition {
         } catch (EvaluationException ex) {
           LOGGER.debug("Evaluation error: ", ex);
           status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
-          spanStatus.addTag(String.format(EVALERROR_DD_TAGS_FORMAT, tagName), ex.toString());
+          spanStatus.addTag(String.format(EVALERROR_DD_TAGS_FORMAT, tagName), ex.getMessage());
         }
       }
     }
