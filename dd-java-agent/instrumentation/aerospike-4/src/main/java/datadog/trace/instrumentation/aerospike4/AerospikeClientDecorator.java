@@ -109,7 +109,4 @@ public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDeco
     beforeFinish(span);
     span.finish();
   }
-
-  @Override
-  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
 }

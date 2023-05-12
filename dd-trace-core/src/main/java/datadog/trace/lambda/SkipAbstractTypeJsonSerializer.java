@@ -8,7 +8,10 @@ import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
+import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public final class SkipAbstractTypeJsonSerializer<T> extends JsonAdapter<T> {
   private final JsonAdapter<T> delegate;
@@ -24,8 +27,40 @@ public final class SkipAbstractTypeJsonSerializer<T> extends JsonAdapter<T> {
 
   @Override
   public void toJson(JsonWriter writer, T value) throws IOException {
-    delegate.toJson(writer, value);
+    // nothing to do when we deal with an unsupported type, let's skip it.
+    writer.beginObject();
+    writer.endObject();
   }
+
+  private static boolean isPlatformClass(String canonicalName) {
+    return canonicalName.startsWith("java.") || canonicalName.startsWith("javax.");
+  }
+
+  private static final HashSet<String> allowedCanonicalNames =
+      Stream.of(
+              "java.util.List",
+              "java.util.Map",
+              "java.util.Set",
+              "java.util.Collection",
+              "java.lang.Object",
+              "java.lang.Integer",
+              "java.lang.Double",
+              "java.lang.Long",
+              "java.lang.Short",
+              "java.lang.Float",
+              "java.lang.Boolean",
+              "java.lang.Byte",
+              "java.lang.Character",
+              "java.lang.String",
+              "int",
+              "double",
+              "long",
+              "short",
+              "float",
+              "boolean",
+              "byte",
+              "char")
+          .collect(Collectors.toCollection(HashSet::new));
 
   public static <T> Factory newFactory() {
     return new Factory() {
@@ -35,7 +70,12 @@ public final class SkipAbstractTypeJsonSerializer<T> extends JsonAdapter<T> {
         if (!(requestedType instanceof Class<?>)) {
           return null;
         }
-        if (Modifier.isAbstract(((Class<?>) requestedType).getModifiers())) {
+        String typeName = ((Class<?>) requestedType).getTypeName();
+        if (allowedCanonicalNames.contains(typeName)) {
+          return null;
+        }
+        boolean isAbstract = Modifier.isAbstract(((Class<?>) requestedType).getModifiers());
+        if (isAbstract || isPlatformClass(typeName)) {
           JsonAdapter<T> delegate = moshi.nextAdapter(this, Object.class, annotations);
           return new SkipAbstractTypeJsonSerializer<>(delegate);
         }

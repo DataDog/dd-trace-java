@@ -27,7 +27,8 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
       withSystemProperty(datadog.trace.api.config.IastConfig.IAST_ENABLED, true),
       withSystemProperty(datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING, 100),
       withSystemProperty(datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED, true),
-      withSystemProperty(datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED, false)
+      withSystemProperty(datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED, false),
+      withSystemProperty(datadog.trace.api.config.IastConfig.IAST_REDACTION_ENABLED, false)
     ])
     if (Platform.isJavaVersionAtLeast(17)) {
       command.addAll((String[]) ["--add-opens", "java.base/java.lang=ALL-UNNAMED"])

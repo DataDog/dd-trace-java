@@ -1,6 +1,8 @@
 package datadog.trace.api.naming.v0;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.naming.NamingSchema;
+import datadog.trace.api.naming.v1.PeerServiceNamingV1;
 
 public class NamingSchemaV0 implements NamingSchema {
   private final NamingSchema.ForCache cacheNaming = new CacheNamingV0();
@@ -8,6 +10,10 @@ public class NamingSchemaV0 implements NamingSchema {
   private final NamingSchema.ForCloud cloudNaming = new CloudNamingV0();
   private final NamingSchema.ForDatabase databaseNaming = new DatabaseNamingV0();
   private final NamingSchema.ForMessaging messagingNaming = new MessagingNamingV0();
+  private final NamingSchema.ForPeerService peerServiceNaming =
+      Config.get().isPeerServiceDefaultsEnabled()
+          ? new PeerServiceNamingV1()
+          : new PeerServiceNamingV0();
   private final NamingSchema.ForServer serverNaming = new ServerNamingV0();
 
   @Override
@@ -38,5 +44,10 @@ public class NamingSchemaV0 implements NamingSchema {
   @Override
   public ForServer server() {
     return serverNaming;
+  }
+
+  @Override
+  public ForPeerService peerService() {
+    return peerServiceNaming;
   }
 }

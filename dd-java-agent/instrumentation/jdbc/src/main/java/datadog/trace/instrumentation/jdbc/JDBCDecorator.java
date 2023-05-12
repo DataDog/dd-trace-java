@@ -222,4 +222,11 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     sb.append(samplingPriority > 0 ? "-01" : "-00");
     return sb.toString();
   }
+
+  @Override
+  protected void postProcessServiceAndOperationName(
+      AgentSpan span, DatabaseClientDecorator.NamingEntry namingEntry) {
+    span.setServiceName(namingEntry.getService());
+    span.setOperationName(namingEntry.getOperation());
+  }
 }

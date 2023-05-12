@@ -21,4 +21,9 @@ public class CILocalGitInfoBuilder implements GitInfoBuilder {
     return new LocalFSGitInfoExtractor()
         .headCommit(Paths.get(repositoryPath, gitFolderName).toFile().getAbsolutePath());
   }
+
+  @Override
+  public int order() {
+    return 2;
+  }
 }

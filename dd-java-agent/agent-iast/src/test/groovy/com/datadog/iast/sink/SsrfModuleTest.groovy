@@ -36,28 +36,25 @@ class SsrfModuleTest extends IastModuleImplTestBase {
 
   void 'test SSRF detection'() {
     when:
-    def reported = module.onURLConnection(url)
+    module.onURLConnection(url)
 
     then: 'report is not called if no active span'
     tracer.activeSpan() >> null
-    !reported
     0 * reporter.report(_, _)
 
     when:
-    reported = module.onURLConnection(url)
+    module.onURLConnection(url)
 
     then: 'report is not called if url is not tainted'
     tracer.activeSpan() >> span
-    !reported
     0 * reporter.report(_, _)
 
     when:
     taint(url)
-    reported = module.onURLConnection(url)
+    module.onURLConnection(url)
 
     then: 'report is called when the url is tainted'
     tracer.activeSpan() >> span
-    reported
     1 * reporter.report(span, { Vulnerability vul -> vul.type == VulnerabilityType.SSRF })
 
     where:

@@ -201,6 +201,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             if (addDbmTag) {
               "$InstrumentationTags.DBM_TRACE_INJECTED" true
             }
+            peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
         }
@@ -272,6 +273,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             // since Connection.getClientInfo will not provide the username
             "$Tags.DB_USER" jdbcUserNames.get(driver)
             "$Tags.DB_OPERATION" operation
+            peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
         }
@@ -326,6 +328,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             // since Connection.getClientInfo will not provide the username
             "$Tags.DB_USER" jdbcUserNames.get(driver)
             "$Tags.DB_OPERATION" operation
+            peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
         }
@@ -380,6 +383,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             // since Connection.getClientInfo will not provide the username
             "$Tags.DB_USER" jdbcUserNames.get(driver)
             "${Tags.DB_OPERATION}" operation
+            peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
         }
@@ -437,6 +441,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             if (addDbmTag) {
               "$InstrumentationTags.DBM_TRACE_INJECTED" true
             }
+            peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
         }
@@ -493,6 +498,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.DB_USER" username
             }
             "$Tags.DB_OPERATION" operation
+            peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
         }
@@ -569,6 +575,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             if (addDbmTag && !prepareStatement) {
               "$InstrumentationTags.DBM_TRACE_INJECTED" true
             }
+            peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
         }
@@ -619,7 +626,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
           childOf span(0)
           tags {
             "$Tags.COMPONENT" "java-jdbc-connection"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
         if (recursive) {
@@ -629,7 +636,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             childOf span(1)
             tags {
               "$Tags.COMPONENT" "java-jdbc-connection"
-              defaultTags()
+              defaultTagsNoPeerService()
             }
           }
         }
@@ -683,7 +690,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             if (addDbmTag) {
               "$InstrumentationTags.DBM_TRACE_INJECTED" true
             }
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -752,6 +759,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             "$Tags.DB_INSTANCE" dbName.toLowerCase()
             "$Tags.DB_USER" "SA"
             "$Tags.DB_OPERATION" "SELECT"
+            peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
         }
@@ -771,6 +779,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.DB_INSTANCE" dbName.toLowerCase()
               "$Tags.DB_USER" "SA"
               "$Tags.DB_OPERATION" "SELECT"
+              peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
             }
           }
@@ -825,7 +834,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
   protected abstract boolean dbmTraceInjected()
 }
 
-class JDBCInstrumentationV0ForkedTest extends JDBCInstrumentationTest {
+class JDBCInstrumentationV0Test extends JDBCInstrumentationTest {
 
   @Override
   int version() {

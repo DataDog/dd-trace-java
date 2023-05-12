@@ -709,14 +709,18 @@ abstract class SpymemcachedTest extends VersionedNamingTestBase {
           "$Tags.PEER_HOSTNAME" memcachedAddress.getHostName()
           "$Tags.PEER_HOST_IPV4" InetAddress.getByName(memcachedAddress.getHostName()).getHostAddress()
           "$Tags.PEER_PORT" memcachedAddress.getPort()
+          peerServiceFrom(Tags.PEER_HOSTNAME)
+          defaultTags()
+        } else {
+          defaultTagsNoPeerService()
         }
-        defaultTags()
+
       }
     }
   }
 }
 
-class SpymemcachedV0ForkedTest extends SpymemcachedTest {
+class SpymemcachedV0Test extends SpymemcachedTest {
 
   @Override
   int version() {

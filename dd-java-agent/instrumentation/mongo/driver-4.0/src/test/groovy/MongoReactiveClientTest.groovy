@@ -396,7 +396,7 @@ abstract class MongoReactiveClientTest extends MongoBaseTest {
   }
 }
 
-class MongoReactiveClientV0ForkedTest extends MongoReactiveClientTest {
+class MongoReactiveClientV0Test extends MongoReactiveClientTest {
 
   @Override
   int version() {
@@ -411,6 +411,11 @@ class MongoReactiveClientV0ForkedTest extends MongoReactiveClientTest {
   @Override
   String operation() {
     return V0_OPERATION
+  }
+
+  @Override
+  String dbType() {
+    return V0_DB_TYPE
   }
 }
 
@@ -429,5 +434,10 @@ class MongoReactiveClientV1ForkedTest extends MongoReactiveClientTest {
   @Override
   String operation() {
     return V1_OPERATION
+  }
+
+  @Override
+  String dbType() {
+    return V1_DB_TYPE
   }
 }

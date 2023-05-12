@@ -86,7 +86,7 @@ abstract class Elasticsearch2SpringTemplateTest extends VersionedNamingTestBase 
             "elasticsearch.request" "RefreshRequest"
             "elasticsearch.request.indices" indexName
             errorTags IndexNotFoundException, "no such index"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -143,7 +143,7 @@ abstract class Elasticsearch2SpringTemplateTest extends VersionedNamingTestBase 
             "elasticsearch.action" "CreateIndexAction"
             "elasticsearch.request" "CreateIndexRequest"
             "elasticsearch.request.indices" indexName
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -159,7 +159,7 @@ abstract class Elasticsearch2SpringTemplateTest extends VersionedNamingTestBase 
             "$Tags.DB_TYPE" "elasticsearch"
             "elasticsearch.action" "ClusterHealthAction"
             "elasticsearch.request" "ClusterHealthRequest"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -177,7 +177,7 @@ abstract class Elasticsearch2SpringTemplateTest extends VersionedNamingTestBase 
             "elasticsearch.request" "SearchRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.search.types" indexType
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -197,6 +197,7 @@ abstract class Elasticsearch2SpringTemplateTest extends VersionedNamingTestBase 
             "elasticsearch.request" "IndexRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.write.type" indexType
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -214,7 +215,7 @@ abstract class Elasticsearch2SpringTemplateTest extends VersionedNamingTestBase 
             "elasticsearch.action" "PutMappingAction"
             "elasticsearch.request" "PutMappingRequest"
             "elasticsearch.request.indices" indexName
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -234,7 +235,7 @@ abstract class Elasticsearch2SpringTemplateTest extends VersionedNamingTestBase 
             "elasticsearch.shard.broadcast.failed" 0
             "elasticsearch.shard.broadcast.successful" 5
             "elasticsearch.shard.broadcast.total" 10
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -252,7 +253,7 @@ abstract class Elasticsearch2SpringTemplateTest extends VersionedNamingTestBase 
             "elasticsearch.request" "SearchRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.search.types" indexType
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -336,7 +337,7 @@ abstract class Elasticsearch2SpringTemplateTest extends VersionedNamingTestBase 
             "elasticsearch.action" "SearchAction"
             "elasticsearch.request" "SearchRequest"
             "elasticsearch.request.indices" indexName
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -350,7 +351,7 @@ abstract class Elasticsearch2SpringTemplateTest extends VersionedNamingTestBase 
   }
 }
 
-class Elasticsearch2SpringTemplateV0ForkedTest extends Elasticsearch2SpringTemplateTest {
+class Elasticsearch2SpringTemplateV0Test extends Elasticsearch2SpringTemplateTest {
 
   @Override
   int version() {

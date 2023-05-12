@@ -1,3 +1,4 @@
+import datadog.trace.api.Config
 import io.vertx.core.AsyncResult
 import io.vertx.core.Handler
 import io.vertx.redis.client.Command
@@ -6,7 +7,22 @@ import io.vertx.redis.client.Response
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
-class VertxRedisForkedTest extends VertxRedisTestBase {
+class VertxRedisV1ForkedTest extends VertxRedisTestBase {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return Config.get().getServiceName()
+  }
+
+  @Override
+  String operation() {
+    return "redis.command"
+  }
 
   def "set and get command"() {
     when:

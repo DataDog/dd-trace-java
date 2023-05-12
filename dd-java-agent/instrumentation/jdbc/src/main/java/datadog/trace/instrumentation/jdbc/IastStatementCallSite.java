@@ -6,9 +6,13 @@ import datadog.trace.api.iast.IastAdvice.Sink;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.SqlInjectionModule;
+import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
+import java.sql.Statement;
 
 @Sink(VulnerabilityTypes.SQL_INJECTION)
-@CallSite(spi = IastAdvice.class)
+@CallSite(
+    spi = IastAdvice.class,
+    helpers = {JDBCDecorator.class})
 public class IastStatementCallSite {
 
   @CallSite.Before("void java.sql.Statement.addBatch(java.lang.String)")
@@ -26,11 +30,13 @@ public class IastStatementCallSite {
   @CallSite.Before("long java.sql.Statement.executeLargeUpdate(java.lang.String, int[])")
   @CallSite.Before(
       "long java.sql.Statement.executeLargeUpdate(java.lang.String, java.lang.String[])")
-  public static void beforeExecute(@CallSite.Argument(0) String sql) {
+  public static void beforeExecute(
+      @CallSite.This Statement statement, @CallSite.Argument(0) String sql) {
     final SqlInjectionModule module = InstrumentationBridge.SQL_INJECTION;
     if (module != null) {
       try {
-        module.onJdbcQuery(sql);
+        final DBInfo dbInfo = JDBCDecorator.parseDBInfoFromConnection(statement.getConnection());
+        module.onJdbcQuery(sql, dbInfo.getType());
       } catch (final Throwable e) {
         module.onUnexpectedException("beforeExecute threw", e);
       }

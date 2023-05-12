@@ -2,10 +2,13 @@ package datadog.trace.api.git;
 
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.util.Strings;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -20,7 +23,7 @@ public class GitInfoProvider {
     INSTANCE.registerGitInfoBuilder(new EmbeddedGitInfoBuilder());
   }
 
-  private final Collection<GitInfoBuilder> builders = new CopyOnWriteArrayList<>();
+  private volatile Collection<GitInfoBuilder> builders = Collections.emptyList();
 
   // in regular cases git info has to be built only once,
   // but there is a rare exception:
@@ -49,58 +52,61 @@ public class GitInfoProvider {
             .map(builder -> builder.build(repositoryPath))
             .collect(Collectors.toList());
 
-    String commitSha = firstNonNull(infos, gi -> gi.getCommit().getSha());
+    String commitSha = firstNonBlank(infos, gi -> gi.getCommit().getSha());
     return new GitInfo(
-        firstNonNull(infos, gi -> GitUtils.filterSensitiveInfo(gi.getRepositoryURL())),
-        firstNonNull(infos, GitInfo::getBranch),
-        firstNonNull(infos, GitInfo::getTag),
+        firstNonBlank(infos, gi -> GitUtils.filterSensitiveInfo(gi.getRepositoryURL())),
+        firstNonBlank(infos, GitInfo::getBranch),
+        firstNonBlank(infos, GitInfo::getTag),
         new CommitInfo(
             commitSha,
             new PersonInfo(
-                firstNonNullWithMatchingCommit(
+                firstNonBlankWithMatchingCommit(
                     infos, commitSha, gi -> gi.getCommit().getAuthor().getName()),
-                firstNonNullWithMatchingCommit(
+                firstNonBlankWithMatchingCommit(
                     infos, commitSha, gi -> gi.getCommit().getAuthor().getEmail()),
-                firstNonNullWithMatchingCommit(
+                firstNonBlankWithMatchingCommit(
                     infos, commitSha, gi -> gi.getCommit().getAuthor().getIso8601Date())),
             new PersonInfo(
-                firstNonNullWithMatchingCommit(
+                firstNonBlankWithMatchingCommit(
                     infos, commitSha, gi -> gi.getCommit().getCommitter().getName()),
-                firstNonNullWithMatchingCommit(
+                firstNonBlankWithMatchingCommit(
                     infos, commitSha, gi -> gi.getCommit().getCommitter().getEmail()),
-                firstNonNullWithMatchingCommit(
+                firstNonBlankWithMatchingCommit(
                     infos, commitSha, gi -> gi.getCommit().getCommitter().getIso8601Date())),
-            firstNonNullWithMatchingCommit(
+            firstNonBlankWithMatchingCommit(
                 infos, commitSha, gi -> gi.getCommit().getFullMessage())));
   }
 
-  private static String firstNonNull(
+  private static String firstNonBlank(
       Iterable<GitInfo> gitInfos, Function<GitInfo, String> function) {
     for (GitInfo gitInfo : gitInfos) {
       String result = function.apply(gitInfo);
-      if (result != null) {
+      if (Strings.isNotBlank(result)) {
         return result;
       }
     }
     return null;
   }
 
-  private static String firstNonNullWithMatchingCommit(
+  private static String firstNonBlankWithMatchingCommit(
       Iterable<GitInfo> gitInfos, String commitSha, Function<GitInfo, String> function) {
     for (GitInfo gitInfo : gitInfos) {
       if (commitSha != null && !commitSha.equalsIgnoreCase(gitInfo.getCommit().getSha())) {
         continue;
       }
       String result = function.apply(gitInfo);
-      if (result != null) {
+      if (Strings.isNotBlank(result)) {
         return result;
       }
     }
     return null;
   }
 
-  public void registerGitInfoBuilder(GitInfoBuilder builder) {
-    builders.add(builder);
+  public synchronized void registerGitInfoBuilder(GitInfoBuilder builder) {
+    List<GitInfoBuilder> updatedBuilders = new ArrayList<>(builders);
+    updatedBuilders.add(builder);
+    updatedBuilders.sort(Comparator.comparingInt(GitInfoBuilder::order));
+    builders = updatedBuilders;
     gitInfoCache.clear();
   }
 }

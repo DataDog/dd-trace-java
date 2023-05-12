@@ -148,6 +148,25 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  public void resolutionThrows() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    LogProbe lineProbe = createProbe(PROBE_ID1, CLASS_NAME, "main", "int (java.lang.String)", "8");
+    LogProbe methodProbe = createProbe(PROBE_ID2, CLASS_NAME, "main", "int (java.lang.String)");
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, lineProbe, methodProbe);
+    DebuggerAgentHelper.injectSink(listener);
+    DebuggerContext.init(
+        (id, clazz) -> {
+          throw new IllegalArgumentException("oops");
+        },
+        null);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    Assertions.assertEquals(3, result);
+    Assertions.assertEquals(0, listener.snapshots.size());
+  }
+
+  @Test
   public void constructor() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot02";
     DebuggerTransformerTest.TestSnapshotListener listener =

@@ -207,7 +207,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   private final PropagationTags.Factory propagationTagsFactory;
 
-  TraceConfig captureTraceConfig() {
+  public TraceConfig captureTraceConfig() {
     return dynamicConfig.captureTraceConfig();
   }
 
@@ -402,9 +402,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               config,
               config.getTracePropagationStylesToInject(),
               invertMap(config.getBaggageMapping())));
-      extractor(
-          HttpCodec.createExtractor(
-              config, config.getRequestHeaderTags(), config.getBaggageMapping()));
       // Explicitly skip setting scope manager because it depends on statsDClient
       localRootSpanTags(config.getLocalRootSpanTags());
       defaultSpanTags(config.getMergedSpanTags());
@@ -485,10 +482,19 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     endpointCheckpointer = EndpointCheckpointerHolder.create();
     this.serviceName = serviceName;
-    this.dynamicConfig = DynamicConfig.create().setServiceMapping(serviceNameMappings).apply();
+    this.dynamicConfig =
+        DynamicConfig.create()
+            .setServiceMapping(serviceNameMappings)
+            .setTaggedHeaders(taggedHeaders)
+            .setBaggageMapping(baggageMapping)
+            .apply();
     this.sampler = sampler;
     this.injector = injector;
-    this.extractor = extractor;
+    if (extractor != null) {
+      this.extractor = extractor;
+    } else {
+      this.extractor = HttpCodec.createExtractor(config, this::captureTraceConfig);
+    }
     this.logs128bTraceIdEnabled = InstrumenterConfig.get().isLogs128bTraceIdEnabled();
     this.localRootSpanTags = localRootSpanTags;
     this.defaultSpanTags = defaultSpanTags;
@@ -1273,7 +1279,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     @Override
     public CoreSpanBuilder withTag(final String tag, final String string) {
-      return withTag(tag, (Object) string);
+      return withTag(tag, (Object) (string == null || string.isEmpty() ? null : string));
     }
 
     @Override

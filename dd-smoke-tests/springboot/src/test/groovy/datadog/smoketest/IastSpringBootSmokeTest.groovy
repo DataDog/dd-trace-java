@@ -3,6 +3,7 @@ package datadog.smoketest
 import datadog.trace.test.agent.decoder.DecodedSpan
 import groovy.json.JsonSlurper
 import groovy.transform.CompileDynamic
+import okhttp3.FormBody
 import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -15,6 +16,7 @@ import java.util.function.Predicate
 
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED
+import static datadog.trace.api.config.IastConfig.IAST_REDACTION_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING
 
 @CompileDynamic
@@ -45,6 +47,7 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
       withSystemProperty(IAST_ENABLED, true),
       withSystemProperty(IAST_REQUEST_SAMPLING, 100),
       withSystemProperty(IAST_DEBUG_ENABLED, true),
+      withSystemProperty(IAST_REDACTION_ENABLED, false)
     ])
     command.addAll((String[]) ["-jar", springBootShadowJar, "--server.port=${httpPort}"])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
@@ -126,6 +129,37 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     waitForSpan(new PollingConditions(timeout: 5),
     hasVulnerability(type('WEAK_HASH').and(evidence('MD5'))))
   }
+
+  def "insecure cookie vulnerability is present"() {
+    setup:
+    String url = "http://localhost:${httpPort}/insecure_cookie"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isSuccessful()
+    response.header("Set-Cookie").contains("user-id")
+    waitForSpan(new PollingConditions(timeout: 5),
+    hasVulnerability(type('INSECURE_COOKIE').and(evidence('user-id'))))
+  }
+
+  def "insecure cookie  vulnerability from addheader is present"() {
+    setup:
+    String url = "http://localhost:${httpPort}/insecure_cookie_from_header"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isSuccessful()
+    response.header("Set-Cookie").contains("user-id")
+    waitForSpan(new PollingConditions(timeout: 5),
+    hasVulnerability(type('INSECURE_COOKIE').and(evidence('user-id'))))
+  }
+
 
   def "weak hash vulnerability is present on boot"() {
     setup:
@@ -397,6 +431,32 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
           firstRange?.source?.name == 'var2'
       }
     }
+  }
+
+  void 'ssrf is present'() {
+    setup:
+    final url = "http://localhost:${httpPort}/ssrf"
+    final body = new FormBody.Builder().add('url', 'https://dd.datad0g.com/').build()
+    final request = new Request.Builder().url(url).post(body).build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    waitForSpan(new PollingConditions(timeout: 5), hasVulnerability(type('SSRF')))
+  }
+
+  void 'test iast metrics stored in spans'() {
+    setup:
+    final url = "http://localhost:${httpPort}/cmdi/runtime?cmd=ls"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    waitForSpan(new PollingConditions(timeout: 5),
+    hasMetric('_dd.iast.telemetry.executed.sink.command_injection', 1))
   }
 
   private static Function<DecodedSpan, Boolean> hasMetric(final String name, final Object value) {

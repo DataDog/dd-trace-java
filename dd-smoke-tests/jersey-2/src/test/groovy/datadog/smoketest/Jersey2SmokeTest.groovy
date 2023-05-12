@@ -37,6 +37,7 @@ class Jersey2SmokeTest extends AbstractServerSmokeTest {
       withSystemProperty(IastConfig.IAST_REQUEST_SAMPLING, 100),
       withSystemProperty(IastConfig.IAST_DEBUG_ENABLED, true),
       withSystemProperty(IastConfig.IAST_DEDUPLICATION_ENABLED, false),
+      withSystemProperty(IastConfig.IAST_REDACTION_ENABLED, false),
       withSystemProperty("integration.grizzly.enabled", true)
     ])
     if (Platform.isJavaVersionAtLeast(17)){
