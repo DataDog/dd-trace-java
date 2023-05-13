@@ -649,6 +649,7 @@ public class MetricInstrumentor extends Instrumentor {
       try {
         String className;
         String fieldDesc = null;
+        boolean isAccessible = true;
         if (currentType.getInternalName().equals(instrumentor.classNode.name)) { // this
           className = instrumentor.classNode.name;
           List<FieldNode> fieldList =
@@ -677,6 +678,7 @@ public class MetricInstrumentor extends Instrumentor {
           className = currentType.getClassName();
           clazz = Class.forName(className, true, instrumentor.classLoader);
           Field declaredField = clazz.getDeclaredField(fieldName); // no parent fields!
+          isAccessible = declaredField.isAccessible();
           fieldDesc = Type.getDescriptor(declaredField.getType());
           returnType = new ASMHelper.Type(Type.getType(declaredField.getType()));
         }
@@ -688,9 +690,15 @@ public class MetricInstrumentor extends Instrumentor {
         // stack [target_object, target_object]
         LabelNode nullNode = new LabelNode();
         insnList.add(new JumpInsnNode(Opcodes.IFNULL, nullNode));
-        // stack [target_object]
-        insnList.add(new FieldInsnNode(Opcodes.GETFIELD, className, fieldName, fieldDesc));
-        // stack: [field_value]
+        if (isAccessible) {
+          // stack [target_object]
+          insnList.add(new FieldInsnNode(Opcodes.GETFIELD, className, fieldName, fieldDesc));
+          // stack: [field_value]
+        } else {
+          ldc(insnList, fieldName);
+          // stack: [target_object, string]
+          emitReflectiveCall(insnList, returnType);
+        }
         // build null branch which will be added later after the call to emit metric
         LabelNode gotoNode = new LabelNode();
         nullBranch.add(new JumpInsnNode(Opcodes.GOTO, gotoNode));
@@ -704,6 +712,50 @@ public class MetricInstrumentor extends Instrumentor {
         throw new InvalidValueException(message);
       }
       return returnType;
+    }
+
+    private String getReflectiveMethodName(int sort) {
+      switch (sort) {
+        case Type.LONG:
+          return "getFieldValueAsLong";
+        case Type.INT:
+          return "getFieldValueAsInt";
+        case Type.DOUBLE:
+          return "getFieldValueAsDouble";
+        case Type.FLOAT:
+          return "getFieldValueAsFloat";
+        case Type.SHORT:
+          return "getFieldValueAsShort";
+        case Type.CHAR:
+          return "getFieldValueAsChar";
+        case Type.BYTE:
+          return "getFieldValueAsByte";
+        case Type.BOOLEAN:
+          return "getFieldValueAsBoolean";
+        case Type.OBJECT:
+          return "getFieldValue";
+        default:
+          throw new IllegalArgumentException("Unsupported type sort:" + sort);
+      }
+    }
+
+    private void emitReflectiveCall(InsnList insnList, ASMHelper.Type fieldType) {
+      int sort = fieldType.getMainType().getSort();
+      String methodName = getReflectiveMethodName(sort);
+      // stack: [target_object, string]
+      Type returnType = sort == Type.OBJECT ? OBJECT_TYPE : fieldType.getMainType();
+      invokeStatic(
+          insnList,
+          REFLECTIVE_FIELD_VALUE_RESOLVER_TYPE,
+          methodName,
+          returnType,
+          OBJECT_TYPE,
+          STRING_TYPE);
+      if (sort == Type.OBJECT) {
+        insnList.add(
+            new TypeInsnNode(Opcodes.CHECKCAST, fieldType.getMainType().getInternalName()));
+      }
+      // stack: [field_value]
     }
   }
 }
