@@ -86,7 +86,6 @@ public class IastWebController {
   public String unvalidatedRedirectFromSendRedirect(
       @RequestParam String param, HttpServletResponse response) throws IOException {
     response.sendRedirect(param);
-    response.setStatus(HttpStatus.FOUND.value());
     return "Unvalidated redirect";
   }
 
@@ -187,7 +186,6 @@ public class IastWebController {
     return "ok User Principal name: " + userPrincipal.getName();
   }
 
-  @SuppressWarnings("CatchMayIgnoreException")
   @PostMapping("/ssrf")
   public String ssrf(@RequestParam("url") final String url) {
     try {
