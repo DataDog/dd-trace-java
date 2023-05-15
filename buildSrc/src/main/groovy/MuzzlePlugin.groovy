@@ -33,6 +33,7 @@ import org.gradle.workers.WorkAction
 import org.gradle.workers.WorkParameters
 import org.gradle.workers.WorkerExecutor
 
+import javax.annotation.Nonnull
 import java.lang.reflect.Method
 import java.util.regex.Pattern
 
@@ -58,6 +59,26 @@ class MuzzlePlugin implements Plugin<Project> {
     MUZZLE_REPOS = Collections.unmodifiableList(Arrays.asList(central, restlet, typesafe))
   }
 
+  static class TestedArtifact implements Comparable<TestedArtifact> {
+    private final String name
+    private final Version low
+    private final Version high
+
+    TestedArtifact(@Nonnull String name, @Nonnull Version low, @Nonnull Version high) {
+      this.name = name
+      this.low = low
+      this.high = high
+    }
+
+    @Override
+    int compareTo(@Nonnull TestedArtifact o) {
+      int byName = name <=> o.name
+      if (byName == 0) {
+        return low <=> o.low
+      }
+      return byName
+    }
+  }
   @Override
   void apply(Project project) {
     def childProjects = project.rootProject.getChildProjects().get('dd-java-agent').getChildProjects()
@@ -129,7 +150,7 @@ class MuzzlePlugin implements Plugin<Project> {
 
     final RepositorySystem system = newRepositorySystem()
     final RepositorySystemSession session = newRepositorySystemSession(system)
-
+    final SortedSet<TestedArtifact> testedArtifacts = new TreeSet<>()
     project.afterEvaluate {
       // use runAfter to set up task finalizers in version order
       Task runAfter = project.tasks.muzzle
@@ -142,12 +163,16 @@ class MuzzlePlugin implements Plugin<Project> {
         if (muzzleDirective.coreJdk) {
           runLast = runAfter = addMuzzleTask(muzzleDirective, null, project, runAfter, muzzleBootstrap, muzzleTooling)
         } else {
-          runLast = muzzleDirectiveToArtifacts(muzzleDirective, system, session).inject(runLast) { last, Artifact singleVersion ->
+          def range = resolveVersionRange(muzzleDirective, system, session)
+          if (!range.versions.empty) {
+            testedArtifacts.add(new TestedArtifact(muzzleDirective.group + ":" + muzzleDirective.module, range.lowestVersion, range.highestVersion))
+          }
+          runLast = muzzleDirectiveToArtifacts(muzzleDirective, range).inject(runLast) { last, Artifact singleVersion ->
             runAfter = addMuzzleTask(muzzleDirective, singleVersion, project, runAfter, muzzleBootstrap, muzzleTooling)
           }
           if (muzzleDirective.assertInverse) {
             runLast = inverseOf(muzzleDirective, system, session).inject(runLast) { last1, MuzzleDirective inverseDirective ->
-              muzzleDirectiveToArtifacts(inverseDirective, system, session).inject(last1) { last2, Artifact singleVersion ->
+              muzzleDirectiveToArtifacts(inverseDirective, resolveVersionRange(inverseDirective, system, session)).inject(last1) { last2, Artifact singleVersion ->
                 runAfter = addMuzzleTask(inverseDirective, singleVersion, project, runAfter, muzzleBootstrap, muzzleTooling)
               }
             }
@@ -156,12 +181,21 @@ class MuzzlePlugin implements Plugin<Project> {
       }
       def timingTask = project.task("muzzle-end") {
         doLast {
+          dumpVersionRanges(project, testedArtifacts)
           long endTime = System.currentTimeMillis()
           generateResultsXML(project, endTime - startTime)
         }
       }
       runLast.finalizedBy(timingTask)
     }
+  }
+
+  private static void dumpVersionRanges(Project project, final SortedSet<TestedArtifact> versions) {
+    def filename = project.path.replaceFirst('^:', '').replace(':', '_')
+    def dir = project.file("${project.rootProject.buildDir}/muzzle-deps-results")
+    dir.mkdirs()
+    def file = project.file("${dir}/${filename}.csv")
+    file.text = versions.collect {[it.name, it.low.toString(), it.high.toString()].join(",")}.join("\n")
   }
 
   private static void generateResultsXML(Project project, long millis) {
@@ -206,20 +240,21 @@ class MuzzlePlugin implements Plugin<Project> {
     return cp
   }
 
-  /**
-   * Convert a muzzle directive to a list of artifacts
-   */
-  private static Set<Artifact> muzzleDirectiveToArtifacts(MuzzleDirective muzzleDirective, RepositorySystem system, RepositorySystemSession session) {
+  private static VersionRangeResult resolveVersionRange(MuzzleDirective muzzleDirective, RepositorySystem system, RepositorySystemSession session) {
     final Artifact directiveArtifact = new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, muzzleDirective.classifier ?: "", "jar", muzzleDirective.versions)
 
     final VersionRangeRequest rangeRequest = new VersionRangeRequest()
     rangeRequest.setRepositories(muzzleDirective.getRepositories(MUZZLE_REPOS))
     rangeRequest.setArtifact(directiveArtifact)
-    final VersionRangeResult rangeResult = system.resolveVersionRange(session, rangeRequest)
-    final Set<Version> versions = filterAndLimitVersions(rangeResult, muzzleDirective.skipVersions)
+    return system.resolveVersionRange(session, rangeRequest)
+  }
 
-//    println "Range Request: " + rangeRequest
-//    println "Range Result: " + rangeResult
+  /**
+   * Convert a muzzle directive to a list of artifacts
+   */
+  private static Set<Artifact> muzzleDirectiveToArtifacts(MuzzleDirective muzzleDirective, VersionRangeResult rangeResult) {
+
+    final Set<Version> versions = filterAndLimitVersions(rangeResult, muzzleDirective.skipVersions)
 
     final Set<Artifact> allVersionArtifacts = versions.collect { version ->
       new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, muzzleDirective.classifier ?: "", "jar", version.toString())

@@ -329,11 +329,6 @@ jobs:
           when: on_fail
           command: .circleci/collect_reports.sh --destination ./check_reports --move
 
-      - run:
-          name: Delete reports
-          when: on_success
-          command: .circleci/collect_reports.sh --destination ./check_reports --delete
-
       - store_artifacts:
           path: ./check_reports
 
@@ -755,7 +750,19 @@ jobs:
           name: Collect Reports
           when: on_fail
           command: .circleci/collect_reports.sh
-
+      - run:
+          name: Collect Muzzle Dependency Reports
+          when: always
+          command: .circleci/collect_muzzle_deps.sh
+       - run:
+          name: Stash Dependency Reports
+          command: |
+            mkdir muzzle_reports
+            cp reports/muzzle.csv muzzle_reports/muzzle-${CIRCLE_NODE_INDEX}.csv
+      - persist_to_workspace:
+          root: .
+          paths:
+            - muzzle_reports
       - store_artifacts:
           path: ./reports
 
@@ -763,6 +770,21 @@ jobs:
           path: workspace/build/muzzle-test-results
 
       - display_memory_usage
+
+  muzzle-dep-report:
+      <<: *defaults
+      resource_class: medium
+      steps:
+        - attach_workspace:
+            at: .
+        - run:
+            name: Merge Muzzle Dependency Reports
+            when: always
+            command:  |
+              mkdir reports
+              find ./muzzle_reports -type f -exec cat {} + | sort | uniq > ./reports/muzzle.csv
+        - store_artifacts:
+            path: ./reports
 
   system-tests:
     machine:
@@ -1206,6 +1228,10 @@ build_test_jobs: &build_test_jobs
             - master
             - project/*
             - release/*
+
+  - muzzle-dep-report:
+      requires:
+        - muzzle
 
   - system-tests:
       requires:
