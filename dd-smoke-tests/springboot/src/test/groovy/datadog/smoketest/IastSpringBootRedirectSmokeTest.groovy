@@ -1,8 +1,6 @@
 package datadog.smoketest
 
-
 import groovy.transform.CompileDynamic
-import okhttp3.MediaType
 import okhttp3.Request
 import spock.util.concurrent.PollingConditions
 
@@ -13,10 +11,6 @@ import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING
 
 @CompileDynamic
 class IastSpringBootRedirectSmokeTest extends AbstractSpringBootIastTest {
-
-  private static final String TAG_NAME = '_dd.iast.json'
-
-  private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8")
 
   @Override
   def logLevel() {
