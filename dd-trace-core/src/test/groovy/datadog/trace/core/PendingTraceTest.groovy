@@ -76,7 +76,7 @@ class PendingTraceTest extends PendingTraceTestBase {
     def healthMetrics = Mock(HealthMetrics)
     tracer.captureTraceConfig() >> traceConfig
     traceConfig.getServiceMapping() >> [:]
-    PendingTrace trace = new PendingTrace(tracer,DDTraceId.from(0),buffer,Mock(TimeSource),false,healthMetrics)
+    PendingTrace trace = new PendingTrace(tracer,DDTraceId.from(0),buffer,Mock(TimeSource),null,false,healthMetrics)
     when:
     rootSpan = createSimpleSpan(trace)
     trace.registerSpan(rootSpan)
@@ -97,7 +97,7 @@ class PendingTraceTest extends PendingTraceTestBase {
     def healthMetrics = Mock(HealthMetrics)
     tracer.captureTraceConfig() >> traceConfig
     traceConfig.getServiceMapping() >> [:]
-    PendingTrace trace = new PendingTrace(tracer,DDTraceId.from(0),buffer,Mock(TimeSource),false,healthMetrics)
+    PendingTrace trace = new PendingTrace(tracer,DDTraceId.from(0),buffer,Mock(TimeSource),null,false,healthMetrics)
     buffer.longRunningSpansEnabled() >> true
 
     def span1 = createSimpleSpanWithID(trace,39)
@@ -132,7 +132,7 @@ class PendingTraceTest extends PendingTraceTestBase {
     def healthMetrics = Mock(HealthMetrics)
     tracer.captureTraceConfig() >> traceConfig
     traceConfig.getServiceMapping() >> [:]
-    PendingTrace trace = new PendingTrace(tracer,DDTraceId.from(0),buffer,Mock(TimeSource),false,healthMetrics)
+    PendingTrace trace = new PendingTrace(tracer,DDTraceId.from(0),buffer,Mock(TimeSource),null, false,healthMetrics)
     buffer.longRunningSpansEnabled() >> true
 
     def span1 = createSimpleSpanWithID(trace,39)
