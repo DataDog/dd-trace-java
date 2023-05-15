@@ -741,6 +741,11 @@ jobs:
           when: on_fail
           command: .circleci/collect_reports.sh
 
+      - run:
+          name: Collect Muzzle Dependency Reports
+          when: always
+          command: .circleci/collect_muzzle_deps.sh
+
       - store_artifacts:
           path: ./reports
 
