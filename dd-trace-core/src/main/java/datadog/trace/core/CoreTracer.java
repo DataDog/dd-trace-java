@@ -45,6 +45,7 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.profiling.Timer;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.api.time.SystemTimeSource;
@@ -177,6 +178,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final boolean disableSamplingMechanismValidation;
   private final TimeSource timeSource;
   private final ProfilingContextIntegration profilingContextIntegration;
+
+  private Timer timer = Timer.NoOp.INSTANCE;
 
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
@@ -890,6 +893,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return dataStreamsMonitoring;
   }
 
+  @Override
+  public Timer getTimer() {
+    return timer;
+  }
+
   private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 1, MINUTES);
 
   /**
@@ -1087,6 +1095,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public void registerCheckpointer(EndpointCheckpointer implementation) {
     endpointCheckpointer.register(implementation);
+  }
+
+  @Override
+  public void registerTimer(Timer timer) {
+    this.timer = timer;
   }
 
   @Override
