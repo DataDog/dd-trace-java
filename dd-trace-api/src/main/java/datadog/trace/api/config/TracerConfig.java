@@ -106,6 +106,10 @@ public final class TracerConfig {
 
   public static final String TRACE_SPAN_ATTRIBUTE_SCHEMA = "trace.span.attribute.schema";
 
+  public static final String TRACE_LONG_RUNNING_ENABLED = "trace.experimental.long-running.enabled";
+
+  public static final String TRACE_LONG_RUNNING_FLUSH_INTERVAL =
+      "trace.experimental.long-running.flush.interval";
   public static final String TRACE_PEER_SERVICE_DEFAULTS_ENABLED =
       "trace.peer.service.defaults.enabled";
 
