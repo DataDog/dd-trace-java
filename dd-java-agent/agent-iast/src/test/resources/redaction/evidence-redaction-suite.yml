@@ -208,7 +208,7 @@ suite:
         ]
       }
   - type: 'VULNERABILITIES'
-    description: 'Query with string literal $1'
+    description: 'Query with single quoted string literal $1'
     parameters:
       $1:
         - john
@@ -248,11 +248,12 @@ suite:
         ]
       }
   - type: 'VULNERABILITIES'
-    description: '$1 query with string literal $2'
+    description: '$1 query with double quoted string literal $2'
     parameters:
       $1:
         - MYSQL
         - MARIADB
+        - SQLITE
       $2:
         - john
         - username with 🌉 surrogate
@@ -332,6 +333,7 @@ suite:
       $1:
         - MYSQL
         - MARIADB
+        - SQLITE
     context: >
       { "DATABASE": "$1" }
     input: >
