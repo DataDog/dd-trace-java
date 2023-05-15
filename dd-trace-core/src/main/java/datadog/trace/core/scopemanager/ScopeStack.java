@@ -86,14 +86,18 @@ final class ScopeStack {
     // avoid calling close() as we're already in that method, instead just clear any
     // remaining references so the scope gets removed in the subsequent cleanup() call
     top.clearReferences();
-    top.span.finishWithEndToEnd();
+    if (top.context.span() != null) {
+      top.context.span().finishWithEndToEnd();
+    }
     // now do the same for any previous iteration scopes ahead of the expected scope
     for (ContinuableScope scope : stack) {
       if (scope.source() != ScopeSource.ITERATION.id()) {
         return expectedScope.equals(scope);
       } else {
         scope.clearReferences();
-        scope.span.finishWithEndToEnd();
+        if (scope.context.span() != null) {
+          scope.context.span().finishWithEndToEnd();
+        }
       }
     }
     return false; // we didn't find the expected scope
@@ -111,12 +115,15 @@ final class ScopeStack {
   }
 
   private void onTopChanged(ContinuableScope top) {
-    AgentSpan.Context context = top.span.context();
-    if (context instanceof ProfilerContext) {
-      try {
-        profilingContextIntegration.setContext((ProfilerContext) context);
-      } catch (Throwable e) {
-        ContinuableScopeManager.ratelimitedLog.warn("Unexpected profiling exception", e);
+    AgentSpan span;
+    if ((span = top.context.span()) != null) {
+      AgentSpan.Context context = span.context();
+      if (context instanceof ProfilerContext) {
+        try {
+          profilingContextIntegration.setContext((ProfilerContext) context);
+        } catch (Throwable e) {
+          ContinuableScopeManager.ratelimitedLog.warn("Unexpected profiling exception", e);
+        }
       }
     }
   }

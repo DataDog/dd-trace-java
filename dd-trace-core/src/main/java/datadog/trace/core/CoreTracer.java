@@ -46,6 +46,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring;
 import datadog.trace.bootstrap.instrumentation.api.AgentHistogram;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
@@ -809,6 +810,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public AgentScope activateNext(AgentSpan span) {
     return scopeManager.activateNext(span);
+  }
+
+  @Override
+  public AgentScope activateContext(AgentScopeContext context) {
+    return scopeManager.activateContext(context);
   }
 
   public TagInterceptor getTagInterceptor() {

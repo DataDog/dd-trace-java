@@ -4,6 +4,8 @@ import datadog.trace.context.TraceScope;
 import java.io.Closeable;
 
 public interface AgentScope extends TraceScope, Closeable {
+  AgentScopeContext context();
+
   AgentSpan span();
 
   byte source();
@@ -21,7 +23,6 @@ public interface AgentScope extends TraceScope, Closeable {
   void close();
 
   interface Continuation extends TraceScope.Continuation {
-
     @Override
     AgentScope activate();
 

@@ -18,4 +18,6 @@ public interface AgentScopeManager extends ScopeStateAware {
   void closePrevious(boolean finishSpan);
 
   AgentScope activateNext(AgentSpan span);
+
+  AgentScope activateContext(AgentScopeContext context);
 }

@@ -229,6 +229,8 @@ public class AgentTracer {
 
     AgentScope activateNext(AgentSpan span);
 
+    AgentScope activateContext(AgentScopeContext context);
+
     AgentSpan activeSpan();
 
     AgentScope activeScope();
@@ -369,6 +371,11 @@ public class AgentTracer {
 
     @Override
     public AgentScope activateNext(final AgentSpan span) {
+      return NoopAgentScope.INSTANCE;
+    }
+
+    @Override
+    public AgentScope activateContext(AgentScopeContext context) {
       return NoopAgentScope.INSTANCE;
     }
 
@@ -814,6 +821,11 @@ public class AgentTracer {
     private NoopAgentScope() {}
 
     @Override
+    public AgentScopeContext context() {
+      return NoopAgentScopeContext.INSTANCE;
+    }
+
+    @Override
     public AgentSpan span() {
       return NoopAgentSpan.INSTANCE;
     }
@@ -842,6 +854,30 @@ public class AgentTracer {
     @Override
     public boolean isAsyncPropagating() {
       return false;
+    }
+  }
+
+  public static final class NoopAgentScopeContext implements AgentScopeContext {
+    public static final NoopAgentScopeContext INSTANCE = new NoopAgentScopeContext();
+
+    @Override
+    public AgentSpan span() {
+      return null;
+    }
+
+    @Override
+    public Baggage baggage() {
+      return null;
+    }
+
+    @Override
+    public <T> T get(ContextKey<T> key) {
+      return null;
+    }
+
+    @Override
+    public <T> AgentScopeContext with(ContextKey<T> key, T value) {
+      return INSTANCE;
     }
   }
 
