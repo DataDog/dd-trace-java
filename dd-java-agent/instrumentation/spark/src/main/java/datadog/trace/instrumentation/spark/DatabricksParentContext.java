@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.spark;
 
+import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -39,7 +40,7 @@ public class DatabricksParentContext implements AgentSpan.Context {
       spanId = computeSpanId(digest, jobId, taskRunId);
     } else {
       traceId = DDTraceId.ZERO;
-      spanId = 0;
+      spanId = DDSpanId.ZERO;
     }
   }
 

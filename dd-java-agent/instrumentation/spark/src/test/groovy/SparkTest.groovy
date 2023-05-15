@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.instrumentation.spark.DatabricksParentContext
 import org.apache.spark.sql.SparkSession
@@ -111,15 +112,15 @@ class SparkTest extends AgentTestRunner {
 
     expect:
     contextWithJobRunId.getTraceId() == DDTraceId.from("8944764253919609482")
-    contextWithJobRunId.getSpanId() == -3342519250263117943L
+    contextWithJobRunId.getSpanId() == DDSpanId.from("15104224823446433673")
 
     contextWithoutJobRunId.getTraceId() == DDTraceId.from("15104224823446433673")
-    contextWithoutJobRunId.getSpanId() == -3342519250263117943L
+    contextWithoutJobRunId.getSpanId() == DDSpanId.from("15104224823446433673")
 
     contextWithoutJobId.getTraceId() == DDTraceId.ZERO
-    contextWithoutJobId.getSpanId() == 0
+    contextWithoutJobId.getSpanId() == DDSpanId.ZERO
 
     contextWithoutTaskRunId.getTraceId() == DDTraceId.ZERO
-    contextWithoutTaskRunId.getSpanId() == 0
+    contextWithoutTaskRunId.getSpanId() == DDSpanId.ZERO
   }
 }
