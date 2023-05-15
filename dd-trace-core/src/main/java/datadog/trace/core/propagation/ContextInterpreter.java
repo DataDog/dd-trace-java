@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.TreeMap;
 
 public abstract class ContextInterpreter implements AgentPropagation.KeyClassifier {
+  private TraceConfig traceConfig;
 
   protected Map<String, String> taggedHeaders;
   protected Map<String, String> baggageMapping;
@@ -206,6 +207,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   }
 
   public ContextInterpreter reset(TraceConfig traceConfig) {
+    this.traceConfig = traceConfig;
     traceId = DDTraceId.ZERO;
     spanId = DDSpanId.ZERO;
     samplingPriority = PrioritySampling.UNSET;
@@ -238,7 +240,8 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
                 baggage,
                 tags,
                 httpHeaders,
-                propagationTags);
+                propagationTags,
+                traceConfig);
         return context;
       } else if (origin != null
           || !tags.isEmpty()
@@ -246,7 +249,12 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
           || !baggage.isEmpty()
           || samplingPriority != PrioritySampling.UNSET) {
         return new TagContext(
-            origin, tags, httpHeaders, baggage, samplingPriorityOrDefault(samplingPriority));
+            origin,
+            tags,
+            httpHeaders,
+            baggage,
+            samplingPriorityOrDefault(samplingPriority),
+            traceConfig);
       }
     }
     return null;

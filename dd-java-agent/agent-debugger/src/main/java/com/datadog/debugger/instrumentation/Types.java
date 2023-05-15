@@ -22,6 +22,7 @@ import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerSpan;
 import datadog.trace.bootstrap.debugger.MethodLocation;
+import datadog.trace.bootstrap.debugger.el.ReflectiveFieldValueResolver;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -64,6 +65,8 @@ public final class Types {
   public static final Type METHOD_LOCATION_TYPE = Type.getType(MethodLocation.class);
   public static final Type CLASS_TYPE = Type.getType(Class.class);
   public static final Type DEBUGGER_SPAN_TYPE = Type.getType(DebuggerSpan.class);
+  public static final Type REFLECTIVE_FIELD_VALUE_RESOLVER_TYPE =
+      Type.getType(ReflectiveFieldValueResolver.class);
 
   // special initialization methods
   public static final String CONSTRUCTOR = "<init>";

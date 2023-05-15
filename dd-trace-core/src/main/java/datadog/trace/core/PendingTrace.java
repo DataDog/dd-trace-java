@@ -64,9 +64,20 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
       this.healthMetrics = healthMetrics;
     }
 
+    /** Used by tests and benchmarks. */
     PendingTrace create(@Nonnull DDTraceId traceId) {
+      return create(traceId, null);
+    }
+
+    PendingTrace create(@Nonnull DDTraceId traceId, TraceConfig traceConfig) {
       return new PendingTrace(
-          tracer, traceId, pendingTraceBuffer, timeSource, strictTraceWrites, healthMetrics);
+          tracer,
+          traceId,
+          pendingTraceBuffer,
+          timeSource,
+          traceConfig,
+          strictTraceWrites,
+          healthMetrics);
     }
   }
 
@@ -135,12 +146,14 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
       @Nonnull DDTraceId traceId,
       @Nonnull PendingTraceBuffer pendingTraceBuffer,
       @Nonnull TimeSource timeSource,
+      TraceConfig traceConfig,
       boolean strictTraceWrites,
       HealthMetrics healthMetrics) {
     this.tracer = tracer;
     this.traceId = traceId;
     this.pendingTraceBuffer = pendingTraceBuffer;
     this.timeSource = timeSource;
+    this.traceConfig = traceConfig != null ? traceConfig : tracer.captureTraceConfig();
     this.strictTraceWrites = strictTraceWrites;
     this.healthMetrics = healthMetrics;
     this.traceConfig = tracer.captureTraceConfig();
@@ -149,6 +162,10 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
 
   CoreTracer getTracer() {
     return tracer;
+  }
+
+  TraceConfig getTraceConfig() {
+    return traceConfig;
   }
 
   String mapServiceName(String serviceName) {

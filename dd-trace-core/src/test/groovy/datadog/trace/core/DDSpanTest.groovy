@@ -273,7 +273,7 @@ class DDSpanTest extends DDCoreSpecification {
     where:
     extractedContext                                                                                                                           | _
     new TagContext("some-origin", [:])                                                                                                         | _
-    new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, "some-origin", 0, [:], [:], null, propagationTagsFactory.empty()) | _
+    new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, "some-origin", propagationTagsFactory.empty()) | _
   }
 
   def "isRootSpan() in and not in the context of distributed tracing"() {
@@ -292,7 +292,7 @@ class DDSpanTest extends DDCoreSpecification {
     where:
     extractedContext                                                                                                                        | isTraceRootSpan
     null                                                                                                                                    | true
-    new ExtractedContext(DDTraceId.from(123), 456, PrioritySampling.SAMPLER_KEEP, "789", 0, [:], [:], null, propagationTagsFactory.empty()) | false
+    new ExtractedContext(DDTraceId.from(123), 456, PrioritySampling.SAMPLER_KEEP, "789", propagationTagsFactory.empty()) | false
   }
 
   def "getApplicationRootSpan() in and not in the context of distributed tracing"() {
@@ -314,7 +314,7 @@ class DDSpanTest extends DDCoreSpecification {
     where:
     extractedContext                                                                                                                          | isTraceRootSpan
     null                                                                                                                                      | true
-    new ExtractedContext(DDTraceId.from(123), 456, PrioritySampling.SAMPLER_KEEP, "789", 0, [:], [:], null, propagationTagsFactory.empty()) | false
+    new ExtractedContext(DDTraceId.from(123), 456, PrioritySampling.SAMPLER_KEEP, "789", propagationTagsFactory.empty()) | false
   }
 
   def 'publishing of root span closes the request context data'() {
