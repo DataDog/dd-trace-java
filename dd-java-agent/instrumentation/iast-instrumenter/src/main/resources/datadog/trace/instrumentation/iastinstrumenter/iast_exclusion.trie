@@ -188,6 +188,8 @@
 2 org.springframework.jdbc.core.JdbcTemplate$*
 # https://github.com/spring-projects/spring-petclinic
 0 org.springframework.samples.*
+# Used by insecure-bank
+2 org.springframework.security.web.authentication.*
 2 org.springframework.web.context.request.*
 2 org.springframework.web.util.WebUtils
 # Need for ServletRequestCallSite.getInputStream()

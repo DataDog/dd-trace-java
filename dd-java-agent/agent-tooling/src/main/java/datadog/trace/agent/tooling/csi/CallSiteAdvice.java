@@ -26,6 +26,9 @@ public interface CallSiteAdvice {
     /** Executes an instruction without parameters */
     void instruction(int opcode);
 
+    /** Executes an instruction with a type parameter */
+    void instruction(int opcode, String type);
+
     /** Loads a constant into the stack */
     void loadConstant(Object constant);
 

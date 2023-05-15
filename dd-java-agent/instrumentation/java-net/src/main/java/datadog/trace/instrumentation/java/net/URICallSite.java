@@ -3,13 +3,12 @@ package datadog.trace.instrumentation.java.net;
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.PropagationTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import java.net.URI;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-@IastAdvice.Propagation(PropagationTypes.URI)
+@IastAdvice.Propagation
 @CallSite(spi = IastAdvice.class)
 public class URICallSite {
 

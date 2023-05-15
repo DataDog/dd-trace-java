@@ -36,6 +36,7 @@ class Jersey3SmokeTest extends AbstractServerSmokeTest {
       withSystemProperty(IAST_REQUEST_SAMPLING, 100),
       withSystemProperty(IAST_DEBUG_ENABLED, true),
       withSystemProperty(IAST_DEDUPLICATION_ENABLED, false),
+      withSystemProperty(IAST_REDACTION_ENABLED, false),
       withSystemProperty("integration.grizzly.enabled", true)
     ])
     //command.add("-Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=8000")

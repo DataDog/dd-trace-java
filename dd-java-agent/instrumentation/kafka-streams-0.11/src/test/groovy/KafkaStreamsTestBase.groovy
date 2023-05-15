@@ -160,7 +160,7 @@ abstract class KafkaStreamsTestBase extends VersionedNamingTestBase {
             if ({ isDataStreamsEnabled() }){
               "$DDTags.PATHWAY_HASH" { String }
             }
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -226,7 +226,7 @@ abstract class KafkaStreamsTestBase extends VersionedNamingTestBase {
             if ({isDataStreamsEnabled()}) {
               "$DDTags.PATHWAY_HASH" { String }
             }
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }

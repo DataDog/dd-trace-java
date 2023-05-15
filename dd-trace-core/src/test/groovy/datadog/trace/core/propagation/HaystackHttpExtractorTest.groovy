@@ -1,6 +1,8 @@
 package datadog.trace.core.propagation
 
+import datadog.trace.api.Config
 import datadog.trace.api.DD64bTraceId
+import datadog.trace.api.DynamicConfig
 
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
@@ -18,13 +20,17 @@ import datadog.trace.test.util.DDSpecification
 
 class HaystackHttpExtractorTest extends DDSpecification {
 
-  HttpCodec.Extractor extractor = HaystackHttpCodec.newExtractor(
-  ["SOME_HEADER": "some-tag"],
-  ["SOME_CUSTOM_BAGGAGE_HEADER": "some-baggage", "SOME_CUSTOM_BAGGAGE_HEADER_2": "some-CaseSensitive-baggage"])
+  DynamicConfig dynamicConfig
+  HttpCodec.Extractor extractor
 
   boolean origAppSecActive
 
   void setup() {
+    DynamicConfig dynamicConfig = DynamicConfig.create()
+      .setTaggedHeaders(["SOME_HEADER": "some-tag"])
+      .setBaggageMapping(["SOME_CUSTOM_BAGGAGE_HEADER": "some-baggage", "SOME_CUSTOM_BAGGAGE_HEADER_2": "some-CaseSensitive-baggage"])
+      .apply()
+    extractor = HaystackHttpCodec.newExtractor(Config.get(), { dynamicConfig.captureTraceConfig() })
     origAppSecActive = ActiveSubsystems.APPSEC_ACTIVE
     ActiveSubsystems.APPSEC_ACTIVE = true
 

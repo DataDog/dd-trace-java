@@ -24,7 +24,9 @@ import org.example.TestSucceedNested
 import org.example.TestSucceedWithCategories
 import org.example.TestSuiteSetUpAssumption
 import org.example.TestTemplate
+import org.junit.jupiter.engine.JupiterTestEngine
 import org.junit.platform.engine.DiscoverySelector
+import org.junit.platform.launcher.core.LauncherConfig
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder
 import org.junit.platform.launcher.core.LauncherFactory
 import org.opentest4j.AssertionFailedError
@@ -576,7 +578,13 @@ class JUnit5Test extends CiVisibilityTest {
       .selectors(selectors)
       .build()
 
-    def launcher = LauncherFactory.create()
+    def launcherConfig = LauncherConfig
+      .builder()
+      .enableTestEngineAutoRegistration(false)
+      .addTestEngines(new JupiterTestEngine())
+      .build()
+
+    def launcher = LauncherFactory.create(launcherConfig)
     launcher.execute(launcherReq)
   }
 

@@ -1,8 +1,12 @@
 package com.datadog.debugger.instrumentation;
 
+import static com.datadog.debugger.instrumentation.ASMHelper.invokeInterface;
+import static com.datadog.debugger.instrumentation.ASMHelper.invokeStatic;
+import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
 import static com.datadog.debugger.instrumentation.Types.DEBUGGER_CONTEXT_TYPE;
 import static com.datadog.debugger.instrumentation.Types.DEBUGGER_SPAN_TYPE;
 import static com.datadog.debugger.instrumentation.Types.STRING_TYPE;
+import static com.datadog.debugger.instrumentation.Types.THROWABLE_TYPE;
 import static com.datadog.debugger.util.ClassFileHelper.stripPackagePath;
 
 import com.datadog.debugger.probe.SpanProbe;
@@ -63,8 +67,7 @@ public class SpanInstrumentor extends Instrumentor {
     // stack [exception, exception, span]
     handler.add(new InsnNode(Opcodes.SWAP));
     // stack [exception, span, exception]
-    invokeInterface(
-        handler, DEBUGGER_SPAN_TYPE, "setError", Type.VOID_TYPE, Type.getType(Throwable.class));
+    invokeInterface(handler, DEBUGGER_SPAN_TYPE, "setError", Type.VOID_TYPE, THROWABLE_TYPE);
     // stack [exception]
     debuggerSpanFinish(handler);
     handler.add(new InsnNode(Opcodes.ATHROW));

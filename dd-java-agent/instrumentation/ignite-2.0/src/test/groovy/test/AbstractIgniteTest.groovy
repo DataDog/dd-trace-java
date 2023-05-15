@@ -79,7 +79,7 @@ abstract class AbstractIgniteTest extends VersionedNamingTestBase {
           "ignite.instance" igniteClient.name()
         }
         "ignite.version" igniteClient.version().toString()
-        defaultTags()
+        defaultTagsNoPeerService()
       }
     }
   }

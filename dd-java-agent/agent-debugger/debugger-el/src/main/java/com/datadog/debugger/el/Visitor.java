@@ -26,6 +26,7 @@ import com.datadog.debugger.el.expressions.WhenExpression;
 import com.datadog.debugger.el.values.BooleanValue;
 import com.datadog.debugger.el.values.ListValue;
 import com.datadog.debugger.el.values.MapValue;
+import com.datadog.debugger.el.values.NullValue;
 import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.ObjectValue;
 import com.datadog.debugger.el.values.StringValue;
@@ -84,6 +85,8 @@ public interface Visitor<R> {
   R visit(NumericValue numericValue);
 
   R visit(BooleanValue booleanValue);
+
+  R visit(NullValue nullValue);
 
   R visit(ListValue listValue);
 

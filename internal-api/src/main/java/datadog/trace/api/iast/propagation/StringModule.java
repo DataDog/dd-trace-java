@@ -8,11 +8,11 @@ public interface StringModule extends IastModule {
 
   void onStringConcat(@Nonnull String left, @Nullable String right, @Nonnull String result);
 
-  void onStringBuilderInit(@Nonnull StringBuilder builder, @Nullable CharSequence param);
+  void onStringBuilderInit(@Nonnull CharSequence builder, @Nullable CharSequence param);
 
-  void onStringBuilderAppend(@Nonnull StringBuilder builder, @Nullable CharSequence param);
+  void onStringBuilderAppend(@Nonnull CharSequence builder, @Nullable CharSequence param);
 
-  void onStringBuilderToString(@Nonnull StringBuilder builder, @Nonnull String result);
+  void onStringBuilderToString(@Nonnull CharSequence builder, @Nonnull String result);
 
   void onStringConcatFactory(
       @Nullable String result,

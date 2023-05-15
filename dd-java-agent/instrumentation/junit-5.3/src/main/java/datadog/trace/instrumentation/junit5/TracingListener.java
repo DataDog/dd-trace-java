@@ -5,12 +5,17 @@ import datadog.trace.api.civisibility.events.TestEventsHandler;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
-import org.junit.jupiter.api.Test;
+import javax.annotation.Nullable;
+import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.TestSource;
 import org.junit.platform.engine.TestTag;
+import org.junit.platform.engine.UniqueId;
 import org.junit.platform.engine.support.descriptor.ClassSource;
 import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.launcher.TestExecutionListener;
@@ -19,16 +24,27 @@ import org.junit.platform.launcher.TestPlan;
 
 public class TracingListener implements TestExecutionListener {
 
+  private static final String SPOCK_ENGINE_ID = "spock";
+  private final Map<String, String> versionByTestEngineId = new HashMap<>();
   private final TestEventsHandler testEventsHandler;
 
   private volatile TestPlan testPlan;
 
-  public TracingListener() {
-    Package testPackage = Test.class.getPackage();
-    String version = testPackage != null ? testPackage.getImplementationVersion() : null;
+  public TracingListener(Collection<TestEngine> testEngines) {
+    for (TestEngine testEngine : testEngines) {
+      String testEngineId = testEngine.getId();
+      versionByTestEngineId.put(testEngineId, testEngine.getVersion().orElse(null));
+    }
+
+    String testEngineId =
+        versionByTestEngineId.size() == 1 ? versionByTestEngineId.keySet().iterator().next() : null;
+    String testFramework = getTestFramework(testEngineId);
+    String testFrameworkVersion = versionByTestEngineId.get(testEngineId);
+
     Path currentPath = Paths.get("").toAbsolutePath();
     testEventsHandler =
-        InstrumentationBridge.createTestEventsHandler("junit", "junit5", version, currentPath);
+        InstrumentationBridge.createTestEventsHandler(
+            "junit", testFramework, testFrameworkVersion, currentPath);
   }
 
   @Override
@@ -62,31 +78,39 @@ public class TracingListener implements TestExecutionListener {
   }
 
   private void containerExecutionStarted(final TestIdentifier testIdentifier) {
-    if (JUnit5Utils.isRootContainer(testIdentifier) || JUnit5Utils.isTestCase(testIdentifier)) {
+    if (TestFrameworkUtils.isRootContainer(testIdentifier)
+        || TestFrameworkUtils.isTestCase(testIdentifier)) {
       return;
     }
 
-    Class<?> testClass = JUnit5Utils.getJavaClass(testIdentifier);
+    Class<?> testClass = TestFrameworkUtils.getJavaClass(testIdentifier);
     String testSuiteName =
         testClass != null ? testClass.getName() : testIdentifier.getLegacyReportingName();
+
+    String testEngineId = getTestEngineId(testIdentifier);
+    String testFramework = getTestFramework(testEngineId);
+    String testFrameworkVersion = versionByTestEngineId.get(testEngineId);
+
     List<String> tags =
         testIdentifier.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
-    testEventsHandler.onTestSuiteStart(testSuiteName, testClass, tags);
+    testEventsHandler.onTestSuiteStart(
+        testSuiteName, testFramework, testFrameworkVersion, testClass, tags);
   }
 
   private void containerExecutionFinished(
       final TestIdentifier testIdentifier, final TestExecutionResult testExecutionResult) {
-    if (JUnit5Utils.isRootContainer(testIdentifier) || JUnit5Utils.isTestCase(testIdentifier)) {
+    if (TestFrameworkUtils.isRootContainer(testIdentifier)
+        || TestFrameworkUtils.isTestCase(testIdentifier)) {
       return;
     }
 
-    Class<?> testClass = JUnit5Utils.getJavaClass(testIdentifier);
+    Class<?> testClass = TestFrameworkUtils.getJavaClass(testIdentifier);
     String testSuiteName =
         testClass != null ? testClass.getName() : testIdentifier.getLegacyReportingName();
 
     Throwable throwable = testExecutionResult.getThrowable().orElse(null);
     if (throwable != null) {
-      if (JUnit5Utils.isAssumptionFailure(throwable)) {
+      if (TestFrameworkUtils.isAssumptionFailure(throwable)) {
 
         String reason = throwable.getMessage();
         testEventsHandler.onTestSuiteSkip(testSuiteName, testClass, reason);
@@ -111,18 +135,43 @@ public class TracingListener implements TestExecutionListener {
 
     MethodSource methodSource = (MethodSource) testSource;
 
-    String testSuitName = methodSource.getClassName();
-    String testName = methodSource.getMethodName();
-    String testParameters = JUnit5Utils.getParameters(methodSource, testIdentifier);
+    String testEngineId = getTestEngineId(testIdentifier);
+    String testFramework = getTestFramework(testEngineId);
+    String testFrameworkVersion = versionByTestEngineId.get(testEngineId);
 
+    String testSuitName = methodSource.getClassName();
+    String testName = getTestName(testIdentifier, methodSource, testEngineId);
+
+    String testParameters = TestFrameworkUtils.getParameters(methodSource, testIdentifier);
     List<String> tags =
         testIdentifier.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
 
-    Class<?> testClass = JUnit5Utils.getTestClass(methodSource);
-    Method testMethod = JUnit5Utils.getTestMethod(methodSource);
+    Class<?> testClass = TestFrameworkUtils.getTestClass(methodSource);
+    Method testMethod = getTestMethod(methodSource, testEngineId);
 
     testEventsHandler.onTestStart(
-        testSuitName, testName, testParameters, tags, testClass, testMethod);
+        testSuitName,
+        testName,
+        testFramework,
+        testFrameworkVersion,
+        testParameters,
+        tags,
+        testClass,
+        testMethod);
+  }
+
+  private static String getTestName(
+      TestIdentifier testIdentifier, MethodSource methodSource, String testEngineId) {
+    return SPOCK_ENGINE_ID.equals(testEngineId)
+        ? testIdentifier.getDisplayName()
+        : methodSource.getMethodName();
+  }
+
+  @Nullable
+  private static Method getTestMethod(MethodSource methodSource, String testEngineId) {
+    return SPOCK_ENGINE_ID.equals(testEngineId)
+        ? TestFrameworkUtils.getSpockTestMethod(methodSource)
+        : TestFrameworkUtils.getTestMethod(methodSource);
   }
 
   private void testCaseExecutionFinished(
@@ -132,15 +181,17 @@ public class TracingListener implements TestExecutionListener {
       return;
     }
 
+    String testEngineId = getTestEngineId(testIdentifier);
+
     MethodSource methodSource = (MethodSource) testSource;
     String testSuiteName = methodSource.getClassName();
-    Class<?> testClass = JUnit5Utils.getTestClass(methodSource);
-    String testName = methodSource.getMethodName();
-    String testParameters = JUnit5Utils.getParameters(methodSource, testIdentifier);
+    Class<?> testClass = TestFrameworkUtils.getTestClass(methodSource);
+    String testName = getTestName(testIdentifier, methodSource, testEngineId);
+    String testParameters = TestFrameworkUtils.getParameters(methodSource, testIdentifier);
 
     Throwable throwable = testExecutionResult.getThrowable().orElse(null);
     if (throwable != null) {
-      if (JUnit5Utils.isAssumptionFailure(throwable)) {
+      if (TestFrameworkUtils.isAssumptionFailure(throwable)) {
         testEventsHandler.onTestSkip(
             testSuiteName, testClass, testName, testParameters, throwable.getMessage());
       } else {
@@ -167,13 +218,19 @@ public class TracingListener implements TestExecutionListener {
   }
 
   private void containerExecutionSkipped(final TestIdentifier testIdentifier, final String reason) {
-    Class<?> testClass = JUnit5Utils.getJavaClass(testIdentifier);
+    Class<?> testClass = TestFrameworkUtils.getJavaClass(testIdentifier);
     String testSuiteName =
         testClass != null ? testClass.getName() : testIdentifier.getLegacyReportingName();
+
+    String testEngineId = getTestEngineId(testIdentifier);
+    String testFramework = getTestFramework(testEngineId);
+    String testFrameworkVersion = versionByTestEngineId.get(testEngineId);
+
     List<String> tags =
         testIdentifier.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
 
-    testEventsHandler.onTestSuiteStart(testSuiteName, testClass, tags);
+    testEventsHandler.onTestSuiteStart(
+        testSuiteName, testFramework, testFrameworkVersion, testClass, tags);
     testEventsHandler.onTestSuiteSkip(testSuiteName, testClass, reason);
 
     for (TestIdentifier child : testPlan.getChildren(testIdentifier)) {
@@ -185,16 +242,38 @@ public class TracingListener implements TestExecutionListener {
 
   private void testCaseExecutionSkipped(
       final TestIdentifier testIdentifier, final MethodSource methodSource, final String reason) {
+    String testEngineId = getTestEngineId(testIdentifier);
+    String testFramework = getTestFramework(testEngineId);
+    String testFrameworkVersion = versionByTestEngineId.get(testEngineId);
+
     String testSuiteName = methodSource.getClassName();
-    String testName = methodSource.getMethodName();
-    String testParameters = JUnit5Utils.getParameters(methodSource, testIdentifier);
+    String testName = getTestName(testIdentifier, methodSource, testEngineId);
+
+    String testParameters = TestFrameworkUtils.getParameters(methodSource, testIdentifier);
     List<String> tags =
         testIdentifier.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
 
-    Class<?> testClass = JUnit5Utils.getTestClass(methodSource);
-    Method testMethod = JUnit5Utils.getTestMethod(methodSource);
+    Class<?> testClass = TestFrameworkUtils.getTestClass(methodSource);
+    Method testMethod = getTestMethod(methodSource, testEngineId);
 
     testEventsHandler.onTestIgnore(
-        testSuiteName, testName, testParameters, tags, testClass, testMethod, reason);
+        testSuiteName,
+        testName,
+        testFramework,
+        testFrameworkVersion,
+        testParameters,
+        tags,
+        testClass,
+        testMethod,
+        reason);
+  }
+
+  private static @Nullable String getTestEngineId(final TestIdentifier testIdentifier) {
+    UniqueId uniqueId = UniqueId.parse(testIdentifier.getUniqueId());
+    return uniqueId.getEngineId().orElse(null);
+  }
+
+  private static @Nullable String getTestFramework(String testEngineId) {
+    return testEngineId != null && testEngineId.startsWith("junit") ? "junit5" : testEngineId;
   }
 }

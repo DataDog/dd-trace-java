@@ -282,4 +282,32 @@ public final class Strings {
     json.append("]");
     return json.toString();
   }
+
+  /**
+   * Checks that a string is not blank, i.e. contains at least one character that is not a
+   * whitespace
+   *
+   * @param s The string to be checked
+   * @return {@code true} if string is not blank, {@code false} otherwise (string is {@code null},
+   *     empty, or contains only whitespace characters)
+   */
+  public static boolean isNotBlank(String s) {
+    if (s == null || s.isEmpty()) {
+      return false;
+    }
+
+    // the code below traverses string characters one by one
+    // and checks if there is any character that is not a whitespace (space, tab, newline, etc);
+    final int length = s.length();
+    for (int offset = 0; offset < length; ) {
+      // codepoints are used instead of chars, to properly handle non-unicode symbols
+      final int codepoint = s.codePointAt(offset);
+      if (!Character.isWhitespace(codepoint)) {
+        return true;
+      }
+      offset += Character.charCount(codepoint);
+    }
+
+    return false;
+  }
 }

@@ -233,6 +233,7 @@ abstract class CassandraClientTest extends VersionedNamingTestBase {
         if (throwable != null) {
           errorTags(throwable)
         }
+        peerServiceFrom(Tags.PEER_HOSTNAME)
         defaultTags()
       }
     }

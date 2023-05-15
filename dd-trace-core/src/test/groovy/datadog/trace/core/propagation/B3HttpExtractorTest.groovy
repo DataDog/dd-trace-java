@@ -1,6 +1,8 @@
 package datadog.trace.core.propagation
 
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
+import datadog.trace.api.DynamicConfig
 import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.api.sampling.PrioritySampling
@@ -16,11 +18,16 @@ import static datadog.trace.core.propagation.B3HttpCodec.TRACE_ID_KEY
 
 class B3HttpExtractorTest extends DDSpecification {
 
-  HttpCodec.Extractor extractor = B3HttpCodec.newExtractor(["SOME_HEADER": "some-tag"],[:])
-
+  DynamicConfig dynamicConfig
+  HttpCodec.Extractor extractor
   boolean origAppSecActive
 
   void setup() {
+    dynamicConfig = DynamicConfig.create()
+      .setTaggedHeaders(["SOME_HEADER": "some-tag"])
+      .setBaggageMapping([:])
+      .apply()
+    extractor = B3HttpCodec.newExtractor(Config.get(), { dynamicConfig.captureTraceConfig() })
     origAppSecActive = ActiveSubsystems.APPSEC_ACTIVE
     ActiveSubsystems.APPSEC_ACTIVE = true
 

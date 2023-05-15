@@ -27,6 +27,9 @@ public class GradleBuildListenerInstrumentation extends Instrumenter.CiVisibilit
     return new String[] {
       packageName + ".GradleUtils",
       packageName + ".GradleUtils$TestFramework",
+      packageName + ".GradleProjectConfigurator",
+      packageName + ".GradleProjectConfigurator$_configureTracer_closure1",
+      packageName + ".GradleProjectConfigurator$_configureCompilerPlugin_closure2",
       packageName + ".GradleBuildListener",
       packageName + ".GradleBuildListener$TestTaskExecutionListener"
     };

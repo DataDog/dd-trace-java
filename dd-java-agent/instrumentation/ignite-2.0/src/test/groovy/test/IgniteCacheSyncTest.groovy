@@ -130,7 +130,7 @@ abstract class IgniteCacheSyncTest extends AbstractIgniteTest {
               "ignite.instance" igniteClient.name()
             }
             "ignite.version" igniteClient.version().toString()
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -189,7 +189,7 @@ abstract class IgniteCacheSyncTest extends AbstractIgniteTest {
               "ignite.instance" igniteClient.name()
             }
             "ignite.version" igniteClient.version().toString()
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -241,7 +241,7 @@ abstract class IgniteCacheSyncTest extends AbstractIgniteTest {
               "ignite.instance" igniteClient.name()
             }
             "ignite.version" igniteClient.version().toString()
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }

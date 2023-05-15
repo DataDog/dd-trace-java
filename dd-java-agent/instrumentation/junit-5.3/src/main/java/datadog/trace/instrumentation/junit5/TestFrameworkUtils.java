@@ -1,15 +1,23 @@
 package datadog.trace.instrumentation.junit5;
 
 import datadog.trace.util.Strings;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
+import java.util.Collection;
+import java.util.LinkedHashSet;
+import java.util.ServiceLoader;
+import java.util.Set;
 import org.junit.platform.commons.JUnitException;
+import org.junit.platform.commons.util.ClassLoaderUtils;
 import org.junit.platform.commons.util.ReflectionUtils;
+import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.TestSource;
 import org.junit.platform.engine.support.descriptor.ClassSource;
 import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.launcher.TestIdentifier;
+import org.junit.platform.launcher.core.LauncherConfig;
 
-public abstract class JUnit5Utils {
+public abstract class TestFrameworkUtils {
 
   private static final Method GET_JAVA_CLASS;
   private static final Method GET_JAVA_METHOD;
@@ -97,6 +105,46 @@ public abstract class JUnit5Utils {
     }
   }
 
+  public static Method getSpockTestMethod(MethodSource methodSource) {
+    String methodName = methodSource.getMethodName();
+    if (methodName == null) {
+      return null;
+    }
+
+    Class<?> testClass = TestFrameworkUtils.getTestClass(methodSource);
+    if (testClass == null) {
+      return null;
+    }
+
+    try {
+      // annotation class has to be loaded like this since at runtime
+      // it is absent from the classloader that loads instrumentation code
+      Class<Annotation> featureMetadataClass =
+          (Class<Annotation>)
+              testClass
+                  .getClassLoader()
+                  .loadClass("org.spockframework.runtime.model.FeatureMetadata");
+      Method nameMethod = featureMetadataClass.getDeclaredMethod("name");
+
+      for (Method declaredMethod : testClass.getDeclaredMethods()) {
+        Annotation featureMetadata = declaredMethod.getAnnotation(featureMetadataClass);
+        if (featureMetadata == null) {
+          continue;
+        }
+
+        String annotatedName = (String) nameMethod.invoke(featureMetadata);
+        if (methodName.equals(annotatedName)) {
+          return declaredMethod;
+        }
+      }
+
+    } catch (Exception e) {
+      // ignore
+    }
+
+    return null;
+  }
+
   public static String getParameters(MethodSource methodSource, TestIdentifier testIdentifier) {
     if (methodSource.getMethodParameterTypes() == null
         || methodSource.getMethodParameterTypes().isEmpty()) {
@@ -136,5 +184,15 @@ public abstract class JUnit5Utils {
       default:
         return false;
     }
+  }
+
+  public static Collection<TestEngine> getTestEngines(LauncherConfig config) {
+    Set<TestEngine> engines = new LinkedHashSet<>();
+    if (config.isTestEngineAutoRegistrationEnabled()) {
+      ClassLoader defaultClassLoader = ClassLoaderUtils.getDefaultClassLoader();
+      ServiceLoader.load(TestEngine.class, defaultClassLoader).forEach(engines::add);
+    }
+    engines.addAll(config.getAdditionalTestEngines());
+    return engines;
   }
 }

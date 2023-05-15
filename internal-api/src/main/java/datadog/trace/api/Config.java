@@ -44,6 +44,9 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_DEBUG_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_NAME_PATTERN;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_VALUE_PATTERN;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
@@ -162,6 +165,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE;
+import static datadog.trace.api.config.IastConfig.IAST_REDACTION_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_TELEMETRY_VERBOSITY;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_HASH_ALGORITHMS;
@@ -201,6 +205,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PASSWORD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_USERNAME;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_DELAY;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_DELAY_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST;
@@ -299,6 +305,8 @@ import static datadog.trace.api.config.TracerConfig.TRACE_GIT_METADATA_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
+import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_DEFAULTS_ENABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE_EXTRACT;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE_INJECT;
@@ -429,8 +437,9 @@ public class Config {
   private final boolean prioritySamplingEnabled;
   private final String prioritySamplingForce;
   private final boolean traceResolverEnabled;
-
   private final int spanAttributeSchemaVersion;
+  private final boolean peerServiceDefaultsEnabled;
+  private final Map<String, String> peerServiceMapping;
   private final Map<String, String> serviceMapping;
   private final Map<String, String> tags;
   private final Map<String, String> spanTags;
@@ -530,6 +539,8 @@ public class Config {
   private final boolean profilingUploadSummaryOn413Enabled;
   private final boolean profilingRecordExceptionMessage;
 
+  private final boolean profilingQueueingTimeEnabled;
+
   private final boolean crashTrackingAgentless;
   private final Map<String, String> crashTrackingTags;
 
@@ -553,6 +564,9 @@ public class Config {
   private final float iastRequestSampling;
   private final boolean iastDebugEnabled;
   private final Verbosity iastTelemetryVerbosity;
+  private final boolean iastRedactionEnabled;
+  private final String iastRedactionNamePattern;
+  private final String iastRedactionValuePattern;
 
   private final boolean ciVisibilityAgentlessEnabled;
   private final String ciVisibilityAgentlessUrl;
@@ -869,6 +883,12 @@ public class Config {
     baggageMapping = configProvider.getMergedMap(BAGGAGE_MAPPING);
 
     spanAttributeSchemaVersion = schemaVersionFromConfig();
+
+    // only used in v0. in v1+ defaults are always calculated regardless this feature flag
+    peerServiceDefaultsEnabled =
+        configProvider.getBoolean(TRACE_PEER_SERVICE_DEFAULTS_ENABLED, false);
+
+    peerServiceMapping = configProvider.getMergedMap(TRACE_PEER_SERVICE_MAPPING);
 
     httpServerPathResourceNameMapping =
         configProvider.getOrderedMap(TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING);
@@ -1200,6 +1220,10 @@ public class Config {
         configProvider.getBoolean(
             PROFILING_EXCEPTION_RECORD_MESSAGE, PROFILING_EXCEPTION_RECORD_MESSAGE_DEFAULT);
 
+    profilingQueueingTimeEnabled =
+        configProvider.getBoolean(
+            PROFILING_QUEUEING_TIME_ENABLED, PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
+
     profilingUploadSummaryOn413Enabled =
         configProvider.getBoolean(
             PROFILING_UPLOAD_SUMMARY_ON_413, PROFILING_UPLOAD_SUMMARY_ON_413_DEFAULT);
@@ -1279,6 +1303,14 @@ public class Config {
             configProvider.getString(IAST_WEAK_CIPHER_ALGORITHMS));
     iastTelemetryVerbosity =
         configProvider.getEnum(IAST_TELEMETRY_VERBOSITY, Verbosity.class, Verbosity.INFORMATION);
+    iastRedactionEnabled =
+        configProvider.getBoolean(IAST_REDACTION_ENABLED, DEFAULT_IAST_REDACTION_ENABLED);
+    iastRedactionNamePattern =
+        configProvider.getString(
+            DEFAULT_IAST_REDACTION_NAME_PATTERN, DEFAULT_IAST_REDACTION_NAME_PATTERN);
+    iastRedactionValuePattern =
+        configProvider.getString(
+            DEFAULT_IAST_REDACTION_VALUE_PATTERN, DEFAULT_IAST_REDACTION_VALUE_PATTERN);
 
     ciVisibilityAgentlessEnabled =
         configProvider.getBoolean(
@@ -1594,6 +1626,14 @@ public class Config {
 
   public int getSpanAttributeSchemaVersion() {
     return spanAttributeSchemaVersion;
+  }
+
+  public boolean isPeerServiceDefaultsEnabled() {
+    return peerServiceDefaultsEnabled;
+  }
+
+  public Map<String, String> getPeerServiceMapping() {
+    return peerServiceMapping;
   }
 
   public Map<String, String> getServiceMapping() {
@@ -1940,6 +1980,10 @@ public class Config {
     return isDatadogProfilerEnabled;
   }
 
+  public boolean isProfilingQueueingTimeEnabled() {
+    return profilingQueueingTimeEnabled;
+  }
+
   public static boolean isDatadogProfilerSafeInCurrentEnvironment() {
     // don't want to put this logic (which will evolve) in the public ProfilingConfig, and can't
     // access Platform there
@@ -2054,6 +2098,18 @@ public class Config {
 
   public Verbosity getIastTelemetryVerbosity() {
     return iastTelemetryVerbosity;
+  }
+
+  public boolean isIastRedactionEnabled() {
+    return iastRedactionEnabled;
+  }
+
+  public String getIastRedactionNamePattern() {
+    return iastRedactionNamePattern;
+  }
+
+  public String getIastRedactionValuePattern() {
+    return iastRedactionValuePattern;
   }
 
   public boolean isCiVisibilityEnabled() {

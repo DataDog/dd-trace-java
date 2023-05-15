@@ -16,4 +16,9 @@ public class CIProviderGitInfoBuilder implements GitInfoBuilder {
     CIProviderInfo ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(currentPath);
     return ciProviderInfo.buildCIGitInfo();
   }
+
+  @Override
+  public int order() {
+    return 1;
+  }
 }

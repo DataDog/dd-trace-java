@@ -3,51 +3,51 @@ package datadog.trace.instrumentation.java.lang
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.StringModule
+import foo.bar.TestStringBufferSuite
 import foo.bar.TestStringBuilderSuite
 
 class StringBuilderCallSiteTest extends AgentTestRunner {
 
   @Override
   protected void configurePreAgent() {
-    injectSysConfig("dd.iast.enabled", "true")
+    injectSysConfig('dd.iast.enabled', 'true')
   }
 
-  def 'test string builder new call site'(final CharSequence param, final String expected) {
+  void 'test string builder new call site'() {
     setup:
-    StringModule iastModule = Mock(StringModule)
+    final iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
 
     when:
-    final result = param.class == String ?
-      TestStringBuilderSuite.init((String) param) :
-      TestStringBuilderSuite.init(param)
+    final result = param.class == String ? suite.init((String) param) : suite.init(param)
 
     then:
     result.toString() == expected
     if (param.class == String) {
-      1 * iastModule.onStringBuilderInit(_ as StringBuilder, (String) param)
+      1 * iastModule.onStringBuilderInit(_, (String) param)
     } else {
-      1 * iastModule.onStringBuilderInit(_ as StringBuilder, param)
+      1 * iastModule.onStringBuilderInit(_, param)
     }
     0 * _
 
     where:
-    param                            | expected
-    new StringBuffer('Hello World!') | 'Hello World!'
-    'Hello World!'                   | 'Hello World!'
+    suite                        | param                             | expected
+    new TestStringBuilderSuite() | new StringBuffer('Hello World!')  | 'Hello World!'
+    new TestStringBuilderSuite() | 'Hello World!'                    | 'Hello World!'
+    new TestStringBufferSuite()  | new StringBuilder('Hello World!') | 'Hello World!'
+    new TestStringBufferSuite()  | 'Hello World!'                    | 'Hello World!'
   }
 
-  def 'test string builder append call site'(final CharSequence param, final String expected) {
+  void 'test string builder append call site'() {
     setup:
-    StringModule iastModule = Mock(StringModule)
+    final iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
-    final target = new StringBuilder('Hello ')
 
     when:
     if (param.class == String) {
-      TestStringBuilderSuite.append(target, (String) param)
+      suite.append(target, (String) param)
     } else {
-      TestStringBuilderSuite.append(target, param)
+      suite.append(target, param)
     }
 
     then:
@@ -61,33 +61,39 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     0 * _
 
     where:
-    param                      | expected
-    new StringBuffer('World!') | 'Hello World!'
-    'World!'                   | 'Hello World!'
+    suite                        | target                      | param                       | expected
+    new TestStringBuilderSuite() | new StringBuilder('Hello ') | new StringBuffer('World!')  | 'Hello World!'
+    new TestStringBuilderSuite() | new StringBuilder('Hello ') | 'World!'                    | 'Hello World!'
+    new TestStringBufferSuite()  | new StringBuffer('Hello ')  | new StringBuilder('World!') | 'Hello World!'
+    new TestStringBufferSuite()  | new StringBuffer('Hello ')  | 'World!'                    | 'Hello World!'
   }
 
-  def 'test string builder toString call site'() {
+  void 'test string builder toString call site'() {
     setup:
-    StringModule iastModule = Mock(StringModule)
+    final iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
-    final target = new StringBuilder('Hello World!')
 
     when:
-    final result = TestStringBuilderSuite.toString(target)
+    final result = suite.toString(target)
 
     then:
     result == 'Hello World!'
     1 * iastModule.onStringBuilderToString(target, _ as String)
     0 * _
+
+    where:
+    suite                        | target
+    new TestStringBuilderSuite() | new StringBuilder('Hello World!')
+    new TestStringBufferSuite()  | new StringBuffer('Hello World!')
   }
 
-  def 'test string builder call site in plus operations (JDK8)'() {
+  void 'test string builder call site in plus operations (JDK8)'() {
     setup:
-    StringModule iastModule = Mock(StringModule)
+    final iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
 
     when:
-    final result = TestStringBuilderSuite.plus('Hello ', 'World!')
+    final result = new TestStringBuilderSuite().plus('Hello ', 'World!')
 
     then:
     result == 'Hello World!'
@@ -98,15 +104,15 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     0 * _
   }
 
-  def 'test string builder call site in plus operations with multiple objects (JDK8)'() {
+  void 'test string builder call site in plus operations with multiple objects (JDK8)'() {
     setup:
-    StringModule iastModule = Mock(StringModule)
+    final iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final args = ['Come to my website ', new URL('https://www.datadoghq.com/'), ' today is ', new Date()] as Object[]
     final expected = args.join()
 
     when:
-    final result = TestStringBuilderSuite.plus(args)
+    final result = new TestStringBuilderSuite().plus(args)
 
     then:
     result == expected
@@ -126,20 +132,20 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     0 * _
   }
 
-  def 'test string builder call site in plus operations throwing exceptions (JDK8)'() {
+  void 'test string builder call site in plus operations throwing exceptions (JDK8)'() {
     setup:
-    StringModule iastModule = Mock(StringModule)
+    final iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
 
     when:
-    TestStringBuilderSuite.plus('Hello', new BrokenToString())
+    new TestStringBuilderSuite().plus('Hello', new BrokenToString())
 
     then:
     1 * iastModule.onStringBuilderAppend(_, 'Hello')
     _ * TEST_CHECKPOINTER._
     0 * _
     final ex = thrown(NuclearException)
-    ex.stackTrace.find {it.className == StringBuilderCallSite.name } == null
+    ex.stackTrace.find { it.className == StringBuilderCallSite.name } == null
   }
 
   private static class BrokenToString {

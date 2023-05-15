@@ -70,9 +70,6 @@ public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecora
     return super.onConnection(span, connection);
   }
 
-  @Override
-  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
-
   public AgentSpan onCommand(final AgentSpan span, final RedisCommand<?, ?, ?> command) {
     span.setResourceName(
         null == command ? "Redis Command" : getCommandResourceName(command.getType()));

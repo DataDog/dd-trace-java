@@ -587,7 +587,7 @@ abstract class TimeInQueueForkedTestBase extends VersionedNamingTestBase {
       tags {
         "$Tags.COMPONENT" "jms"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
-        defaultTags()
+        defaultTagsNoPeerService()
       }
     }
   }
@@ -631,7 +631,7 @@ abstract class TimeInQueueForkedTestBase extends VersionedNamingTestBase {
       tags {
         "$Tags.COMPONENT" "jms"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_BROKER
-        defaultTags(true)
+        defaultTagsNoPeerService(true)
       }
     }
   }

@@ -60,9 +60,6 @@ public class MemcacheClientDecorator
     return null;
   }
 
-  @Override
-  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
-
   public AgentSpan onOperation(final AgentSpan span, final String methodName) {
 
     // optimization over string.replaceFirst()
