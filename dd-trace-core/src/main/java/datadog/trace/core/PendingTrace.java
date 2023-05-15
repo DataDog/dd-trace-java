@@ -156,7 +156,6 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     this.traceConfig = traceConfig != null ? traceConfig : tracer.captureTraceConfig();
     this.strictTraceWrites = strictTraceWrites;
     this.healthMetrics = healthMetrics;
-    this.traceConfig = tracer.captureTraceConfig();
     this.spans = new ConcurrentLinkedDeque<>();
   }
 
