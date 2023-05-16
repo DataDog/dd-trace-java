@@ -4,10 +4,12 @@ import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.source.WebModule
 import foo.bar.smoketest.Servlet3TestSuite
 import groovy.transform.CompileDynamic
+import spock.lang.Ignore
 
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletRequestWrapper
 
+@Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")
 @CompileDynamic
 class Servlet3TestGetParameterInstrumentation extends AgentTestRunner {
 

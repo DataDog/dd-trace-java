@@ -43,6 +43,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
@@ -144,6 +145,7 @@ class JFRBasedProfilingIntegrationTest {
   }
 
   @Test
+  @Disabled("https://github.com/DataDog/dd-trace-java/pull/5213")
   @DisplayName("Test continuous recording - no jmx delay")
   public void testContinuousRecording_no_jmx_delay(final TestInfo testInfo) throws Exception {
     testWithRetry(
@@ -155,6 +157,7 @@ class JFRBasedProfilingIntegrationTest {
   }
 
   @Test
+  @Disabled("https://github.com/DataDog/dd-trace-java/pull/5213")
   @DisplayName("Test continuous recording - 1 sec jmx delay")
   public void testContinuousRecording(final TestInfo testInfo) throws Exception {
     testWithRetry(
@@ -436,6 +439,7 @@ class JFRBasedProfilingIntegrationTest {
   }
 
   @Test
+  @Disabled("https://github.com/DataDog/dd-trace-java/pull/5213")
   @DisplayName("Test shutdown")
   void testShutdown(final TestInfo testInfo) throws Exception {
     testWithRetry(

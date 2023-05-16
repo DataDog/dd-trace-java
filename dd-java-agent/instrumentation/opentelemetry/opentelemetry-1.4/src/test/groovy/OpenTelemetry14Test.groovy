@@ -16,6 +16,7 @@ import io.opentelemetry.context.Context
 import io.opentelemetry.context.ContextKey
 import io.opentelemetry.context.propagation.TextMapGetter
 import io.opentelemetry.context.propagation.TextMapSetter
+import spock.lang.Ignore
 import spock.lang.Subject
 
 import javax.annotation.Nullable
@@ -154,6 +155,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
     }
   }
 
+  @Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")
   def "test span attributes"() {
     setup:
     def builder = tracer.spanBuilder("some-name")

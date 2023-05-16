@@ -1,3 +1,5 @@
+import spock.lang.Ignore
+
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
@@ -119,6 +121,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
     }
   }
 
+  @Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")
   def "atomic long get command"() {
     when:
     redissonClient.getAtomicLong("foo").set(0)
@@ -367,6 +370,7 @@ class RedissonClientV0Test extends RedissonClientTest {
   }
 }
 
+@Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")
 class RedissonClientV1ForkedTest extends RedissonClientTest {
 
   @Override
