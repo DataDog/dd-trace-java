@@ -17,11 +17,13 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
+import datadog.trace.bootstrap.instrumentation.api.PathwayContextHolder;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.core.datastreams.DefaultPathwayContextHolder;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.tagprocessor.PeerServiceCalculator;
@@ -36,7 +38,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -135,7 +136,7 @@ public class DDSpanContext
 
   private final PropagationTags propagationTags;
 
-  private volatile PathwayContext pathwayContext;
+  private PathwayContextHolder pathwayContextHolder;
 
   private volatile BlockResponseFunction blockResponseFunction;
 
@@ -275,7 +276,7 @@ public class DDSpanContext
     this.ciVisibilityContextData = CiVisibilityContextData;
 
     assert pathwayContext != null;
-    this.pathwayContext = pathwayContext;
+    this.pathwayContextHolder = new DefaultPathwayContextHolder(pathwayContext);
 
     // The +1 is the magic number from the tags below that we set at the end,
     // and "* 4 / 3" is to make sure that we don't resize immediately
@@ -587,25 +588,11 @@ public class DDSpanContext
 
   @Override
   public PathwayContext getPathwayContext() {
-    return pathwayContext;
+    return pathwayContextHolder.getPathwayContext();
   }
 
-  public void mergePathwayContext(PathwayContext pathwayContext) {
-    if (pathwayContext == null) {
-      return;
-    }
-
-    // This is purposely not thread safe
-    // The code randomly chooses between the two PathwayContexts.
-    // If there is a race, then that's okay
-    if (this.pathwayContext.isStarted()) {
-      // Randomly select between keeping the current context (0) or replacing (1)
-      if (ThreadLocalRandom.current().nextInt(2) == 1) {
-        this.pathwayContext = pathwayContext;
-      }
-    } else {
-      this.pathwayContext = pathwayContext;
-    }
+  void mergePathwayContext(PathwayContext pathwayContext) {
+    pathwayContextHolder.mergePathwayContext(pathwayContext);
   }
 
   public CoreTracer getTracer() {

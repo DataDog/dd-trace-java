@@ -10,7 +10,7 @@ import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.sampling.PrioritySampling;
 import java.util.Map;
 
-public interface AgentSpan extends MutableSpan, IGSpanInfo {
+public interface AgentSpan extends MutableSpan, IGSpanInfo, PathwayContextHolder {
   ContextKey<AgentSpan> CONTEXT_KEY = named("dd-span-key");
 
   DDTraceId getTraceId();
@@ -142,8 +142,6 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
   /** RequestContext for the Instrumentation Gateway */
   RequestContext getRequestContext();
-
-  void mergePathwayContext(PathwayContext pathwayContext);
 
   Integer forceSamplingDecision();
 

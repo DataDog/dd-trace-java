@@ -630,6 +630,11 @@ public class AgentTracer {
     }
 
     @Override
+    public PathwayContext getPathwayContext() {
+      return NoopPathwayContext.INSTANCE;
+    }
+
+    @Override
     public void mergePathwayContext(PathwayContext pathwayContext) {}
 
     @Override
