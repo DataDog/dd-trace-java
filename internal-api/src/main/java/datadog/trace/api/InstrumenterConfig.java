@@ -69,7 +69,6 @@ public class InstrumenterConfig {
 
   private final boolean traceEnabled;
   private final boolean traceOtelEnabled;
-  private final boolean logsInjectionEnabled;
   private final boolean logsMDCTagsInjectionEnabled;
   private final boolean logs128bTraceIdEnabled;
   private final boolean profilingEnabled;
@@ -122,8 +121,6 @@ public class InstrumenterConfig {
 
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
-    logsInjectionEnabled =
-        configProvider.getBoolean(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
     logsMDCTagsInjectionEnabled = configProvider.getBoolean(LOGS_MDC_TAGS_INJECTION_ENABLED, true);
     logs128bTraceIdEnabled =
         configProvider.getBoolean(
@@ -216,10 +213,6 @@ public class InstrumenterConfig {
 
   public boolean isTraceOtelEnabled() {
     return traceOtelEnabled;
-  }
-
-  public boolean isLogsInjectionEnabled() {
-    return logsInjectionEnabled;
   }
 
   public boolean isLogsMDCTagsInjectionEnabled() {
@@ -389,8 +382,6 @@ public class InstrumenterConfig {
         + traceEnabled
         + ", traceOtelEnabled="
         + traceOtelEnabled
-        + ", logsInjectionEnabled="
-        + logsInjectionEnabled
         + ", logsMDCTagsInjectionEnabled="
         + logsMDCTagsInjectionEnabled
         + ", logs128bTraceIdEnabled="

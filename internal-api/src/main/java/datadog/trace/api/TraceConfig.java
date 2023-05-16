@@ -10,4 +10,6 @@ public interface TraceConfig {
   Map<String, String> getTaggedHeaders();
 
   Map<String, String> getBaggageMapping();
+
+  boolean isLogInjectionEnabled();
 }

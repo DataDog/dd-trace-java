@@ -189,6 +189,8 @@ public class AgentTracer {
     String getTraceId(AgentSpan span);
 
     String getSpanId(AgentSpan span);
+
+    TraceConfig getTraceConfig();
   }
 
   public interface SpanBuilder {
@@ -335,6 +337,11 @@ public class AgentTracer {
 
     @Override
     public String getSpanId(AgentSpan span) {
+      return null;
+    }
+
+    @Override
+    public TraceConfig getTraceConfig() {
       return null;
     }
 

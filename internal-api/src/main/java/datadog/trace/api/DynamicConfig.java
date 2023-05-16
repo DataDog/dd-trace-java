@@ -30,16 +30,19 @@ public final class DynamicConfig {
     Map<String, String> serviceMapping;
     Map<String, String> taggedHeaders;
     Map<String, String> baggageMapping;
+    boolean logInjectionEnabled;
 
     Builder(State state) {
       if (null == state) {
         this.serviceMapping = Collections.emptyMap();
         this.taggedHeaders = Collections.emptyMap();
         this.baggageMapping = Collections.emptyMap();
+        this.logInjectionEnabled = ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
       } else {
         this.serviceMapping = state.serviceMapping;
         this.taggedHeaders = state.taggedHeaders;
         this.baggageMapping = state.baggageMapping;
+        this.logInjectionEnabled = state.logInjectionEnabled;
       }
     }
 
@@ -55,6 +58,11 @@ public final class DynamicConfig {
 
     public Builder setBaggageMapping(Map<String, String> baggageMapping) {
       this.baggageMapping = cleanMapping(baggageMapping, true, false);
+      return this;
+    }
+
+    public Builder setLogInjectionEnabled(boolean logInjectionEnabled) {
+      this.logInjectionEnabled = logInjectionEnabled;
       return this;
     }
 
@@ -88,11 +96,13 @@ public final class DynamicConfig {
     final Map<String, String> serviceMapping;
     final Map<String, String> taggedHeaders;
     final Map<String, String> baggageMapping;
+    final boolean logInjectionEnabled;
 
     State(Builder builder) {
       this.serviceMapping = builder.serviceMapping;
       this.taggedHeaders = builder.taggedHeaders;
       this.baggageMapping = builder.baggageMapping;
+      this.logInjectionEnabled = builder.logInjectionEnabled;
     }
 
     public Map<String, String> getServiceMapping() {
@@ -105,6 +115,10 @@ public final class DynamicConfig {
 
     public Map<String, String> getBaggageMapping() {
       return baggageMapping;
+    }
+
+    public boolean isLogInjectionEnabled() {
+      return logInjectionEnabled;
     }
   }
 }
