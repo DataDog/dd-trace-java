@@ -93,6 +93,7 @@ public class SqlRegexpTokenizer extends AbstractRegexTokenizer {
         "mysql"::equalsIgnoreCase,
         () -> buildPattern(NUMERIC_LITERAL, MYSQL_STRING_LITERAL, LINE_COMMENT, BLOCK_COMMENT)),
     MARIADB("mariadb"::equalsIgnoreCase, MYSQL::buildPattern),
+    SQLITE("sqlite"::equalsIgnoreCase, MYSQL::buildPattern),
     ANSI(
         dialect -> true,
         () -> buildPattern(NUMERIC_LITERAL, STRING_LITERAL, LINE_COMMENT, BLOCK_COMMENT));
