@@ -104,7 +104,7 @@ class InsecureCookieModuleTest  extends IastModuleImplTestBase {
   void 'cases where nothing is reported during InsecureCookieModule.onCookieHeader'() {
 
     when:
-    module.onCookie(cookieValue)
+    module.onCookieHeader(cookieValue)
 
     then:
     0 * tracer.activeSpan()

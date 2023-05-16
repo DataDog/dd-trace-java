@@ -104,6 +104,12 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
       CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter clientSpansWithoutContext =
       CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter longRunningTracesWrite =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter longRunningTracesDropped =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter longRunningTracesExpired =
+      CountersFactory.createFixedSizeStripedCounter(8);
 
   private final StatsDClient statsd;
   private final long interval;
@@ -308,6 +314,13 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
     onSendAttempt(traceCount, sizeInBytes, response);
   }
 
+  @Override
+  public void onLongRunningUpdate(final int dropped, final int write, final int expired) {
+    longRunningTracesWrite.inc(write);
+    longRunningTracesDropped.inc(dropped);
+    longRunningTracesExpired.inc(expired);
+  }
+
   private void onSendAttempt(
       final int traceCount, final int sizeInBytes, final RemoteApi.Response response) {
     statsd.incrementCounter("api.requests.total", NO_TAGS);
@@ -424,6 +437,11 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
       reportIfChanged(target.statsd, "scope.close.count", target.closedScopes, NO_TAGS);
       reportIfChanged(
           target.statsd, "scope.error.stack-overflow", target.scopeStackOverflow, NO_TAGS);
+      reportIfChanged(target.statsd, "long-running.write", target.longRunningTracesWrite, NO_TAGS);
+      reportIfChanged(
+          target.statsd, "long-running.dropped", target.longRunningTracesDropped, NO_TAGS);
+      reportIfChanged(
+          target.statsd, "long-running.expired", target.longRunningTracesExpired, NO_TAGS);
     }
 
     private void reportIfChanged(

@@ -872,6 +872,45 @@ public class MetricProbesInstrumentationTest {
         mockSink.getCurrentDiagnostics().get(0).getMessage());
   }
 
+  @Test
+  public void privateFieldValue() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot04";
+    final String STRVALUE_METRIC = "strvalue_count";
+    final String LONGVALUE_METRIC = "longvalue_count";
+    final String INTVALUE_METRIC = "intvalue_count";
+    MetricProbe metricProbe1 =
+        createMetricBuilder(METRIC_ID1, STRVALUE_METRIC, GAUGE)
+            .where(CLASS_NAME, 24)
+            .valueScript(
+                new ValueScript(
+                    DSL.len(DSL.getMember(DSL.ref("sdata"), "strValue")), "len(sdata.strValue)"))
+            .build();
+    MetricProbe metricProbe2 =
+        createMetricBuilder(METRIC_ID2, LONGVALUE_METRIC, GAUGE)
+            .where(CLASS_NAME, 24)
+            .valueScript(
+                new ValueScript(
+                    DSL.getMember(DSL.getMember(DSL.ref("cdata"), "s2"), "longValue"),
+                    "cdata.s2.longValue"))
+            .build();
+    MetricProbe metricProbe3 =
+        createMetricBuilder(METRIC_ID3, INTVALUE_METRIC, GAUGE)
+            .where(CLASS_NAME, 24)
+            .valueScript(
+                new ValueScript(
+                    DSL.getMember(DSL.getMember(DSL.ref("cdata"), "s2"), "intValue"),
+                    "cdata.s2.intValue"))
+            .build();
+    MetricForwarderListener listener =
+        installMetricProbes(metricProbe1, metricProbe2, metricProbe3);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assertions.assertEquals(143, result);
+    Assertions.assertEquals(3, listener.gauges.get(STRVALUE_METRIC));
+    Assertions.assertEquals(1042, listener.gauges.get(LONGVALUE_METRIC));
+    Assertions.assertEquals(202, listener.gauges.get(INTVALUE_METRIC));
+  }
+
   private MetricForwarderListener installSingleMetric(
       String metricName,
       MetricProbe.MetricKind metricKind,

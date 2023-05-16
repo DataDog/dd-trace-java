@@ -45,7 +45,7 @@ public class SparkInstrumentation extends Instrumenter.Tracing
   public static class InjectListener {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void enter(@Advice.This SparkContext sparkContext) {
-      DatadogSparkListener listener = new DatadogSparkListener(sparkContext.getConf());
+      DatadogSparkListener listener = new DatadogSparkListener(sparkContext);
       sparkContext.listenerBus().addToSharedQueue(listener);
     }
   }

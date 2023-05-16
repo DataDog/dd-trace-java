@@ -114,6 +114,10 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration.NoOp",
   // debug
   'datadog.trace.api.iast.Taintable.DebugLogger',
+  // stubs
+  'datadog.trace.api.profiling.Timing.NoOp',
+  'datadog.trace.api.profiling.Timer.NoOp',
+  'datadog.trace.api.profiling.Timer.TimerType'
 ]
 
 excludedClassesBranchCoverage = [

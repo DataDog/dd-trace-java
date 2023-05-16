@@ -146,7 +146,7 @@ class DDSpanTest extends DDCoreSpecification {
     then:
     finish
     span.context().trace.pendingReferenceCount == 1
-    span.context().trace.finishedSpans.isEmpty()
+    span.context().trace.spans.isEmpty()
     writer.isEmpty()
 
     and: "duration is recorded as negative to allow publishing"
@@ -165,7 +165,7 @@ class DDSpanTest extends DDCoreSpecification {
     then: "have no effect"
     !finish
     span.context().trace.pendingReferenceCount == 1
-    span.context().trace.finishedSpans.isEmpty()
+    span.context().trace.spans.isEmpty()
     writer.isEmpty()
 
     when:

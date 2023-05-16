@@ -77,6 +77,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESOLVER_ENABLED;
@@ -91,7 +92,6 @@ import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG;
 import static datadog.trace.api.DDTags.SCHEMA_VERSION_TAG_KEY;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
-import static datadog.trace.api.Platform.GC.Z;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
@@ -205,6 +205,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PASSWORD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_USERNAME;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_DELAY;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_DELAY_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST;
@@ -537,6 +539,8 @@ public class Config {
   private final boolean profilingUploadSummaryOn413Enabled;
   private final boolean profilingRecordExceptionMessage;
 
+  private final boolean profilingQueueingTimeEnabled;
+
   private final boolean crashTrackingAgentless;
   private final Map<String, String> crashTrackingTags;
 
@@ -680,6 +684,9 @@ public class Config {
   private final String primaryTag;
 
   private final ConfigProvider configProvider;
+
+  private final boolean longRunningTraceEnabled;
+  private final long longRunningTraceFlushInterval;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -1216,6 +1223,10 @@ public class Config {
         configProvider.getBoolean(
             PROFILING_EXCEPTION_RECORD_MESSAGE, PROFILING_EXCEPTION_RECORD_MESSAGE_DEFAULT);
 
+    profilingQueueingTimeEnabled =
+        configProvider.getBoolean(
+            PROFILING_QUEUEING_TIME_ENABLED, PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
+
     profilingUploadSummaryOn413Enabled =
         configProvider.getBoolean(
             PROFILING_UPLOAD_SUMMARY_ON_413, PROFILING_UPLOAD_SUMMARY_ON_413_DEFAULT);
@@ -1488,6 +1499,27 @@ public class Config {
     // Setting this last because we have a few places where this can come from
     apiKey = tmpApiKey;
 
+    boolean longRunningEnabled =
+        configProvider.getBoolean(
+            TracerConfig.TRACE_LONG_RUNNING_ENABLED,
+            ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_ENABLED);
+    long longRunningTraceFlushInterval =
+        configProvider.getLong(
+            TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL,
+            ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
+
+    if (longRunningEnabled
+        && (longRunningTraceFlushInterval < 20 || longRunningTraceFlushInterval > 450)) {
+      log.warn(
+          "Provided long running trace flush interval of {} seconds. It should be between 20 seconds and 7.5 minutes."
+              + "Setting the flush interval to the default value of {} seconds .",
+          longRunningTraceFlushInterval,
+          DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
+      longRunningTraceFlushInterval = DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL;
+    }
+    this.longRunningTraceEnabled = longRunningEnabled;
+    this.longRunningTraceFlushInterval = longRunningTraceFlushInterval;
+
     if (profilingAgentless && apiKey == null) {
       log.warn(
           "Agentless profiling activated but no api key provided. Profile uploading will likely fail");
@@ -1550,6 +1582,14 @@ public class Config {
 
   public boolean isTraceEnabled() {
     return instrumenterConfig.isTraceEnabled();
+  }
+
+  public boolean isLongRunningTraceEnabled() {
+    return longRunningTraceEnabled;
+  }
+
+  public long getLongRunningTraceFlushInterval() {
+    return longRunningTraceFlushInterval;
   }
 
   public boolean isIntegrationSynapseLegacyOperationName() {
@@ -1972,17 +2012,19 @@ public class Config {
     return isDatadogProfilerEnabled;
   }
 
+  public boolean isProfilingQueueingTimeEnabled() {
+    return profilingQueueingTimeEnabled;
+  }
+
   public static boolean isDatadogProfilerSafeInCurrentEnvironment() {
     // don't want to put this logic (which will evolve) in the public ProfilingConfig, and can't
     // access Platform there
-    // we encountered AsyncGetCallTrace bugs when ZGC is enabled
-
     boolean result =
-        Platform.activeGarbageCollector() != Z
-            && (Platform.isJ9()
-                || Platform.isJavaVersionAtLeast(17, 0, 5)
-                || (Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 17))
-                || (Platform.isJavaVersion(8) && Platform.isJavaVersionAtLeast(8, 0, 352)));
+        Platform.isJ9()
+            || !Platform.isJavaVersion(18) // missing AGCT fixes
+            || Platform.isJavaVersionAtLeast(17, 0, 5)
+            || (Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 17))
+            || (Platform.isJavaVersion(8) && Platform.isJavaVersionAtLeast(8, 0, 352));
 
     if (result && Platform.isJ9()) {
       // Semeru JDK 11 and JDK 17 have problems with unloaded classes and jmethodids, leading to JVM
@@ -3425,6 +3467,10 @@ public class Config {
         + cwsEnabled
         + ", cwsTlsRefresh="
         + cwsTlsRefresh
+        + ", longRunningTraceEnabled="
+        + longRunningTraceEnabled
+        + ", longRunningTraceFlushInterval="
+        + longRunningTraceFlushInterval
         + '}';
   }
 }
