@@ -517,6 +517,10 @@ public class DDSpan
     return context.getRequestContext();
   }
 
+  public PathwayContext getPathwayContext() {
+    return context.getPathwayContext();
+  }
+
   @Override
   public void mergePathwayContext(PathwayContext pathwayContext) {
     context.mergePathwayContext(pathwayContext);
