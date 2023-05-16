@@ -4,6 +4,7 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
+import io.vertx.core.http.HttpServerOptions;
 import io.vertx.ext.web.Router;
 import java.math.BigInteger;
 import java.util.concurrent.ThreadLocalRandom;
@@ -43,7 +44,7 @@ public class MainVerticle extends AbstractVerticle {
                     .end(randomFactorial().toString()));
 
     vertx
-        .createHttpServer()
+        .createHttpServer(new HttpServerOptions().setHandle100ContinueAutomatically(true))
         .requestHandler(
             req -> {
               if (req.path().startsWith("/routes")) {
