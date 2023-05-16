@@ -34,7 +34,8 @@ public final class SpanDecoratingContextDataInjector implements ContextDataInjec
     StringMap contextData = delegate.injectContextData(list, reusable);
 
     AgentSpan span = activeSpan();
-    TraceConfig traceConfig = span == null ? AgentTracer.get().captureTraceConfig() : span.getTraceConfig();
+    TraceConfig traceConfig =
+        span == null ? AgentTracer.get().captureTraceConfig() : span.getTraceConfig();
 
     boolean injectLogs = traceConfig != null && traceConfig.isLogInjectionEnabled();
 
