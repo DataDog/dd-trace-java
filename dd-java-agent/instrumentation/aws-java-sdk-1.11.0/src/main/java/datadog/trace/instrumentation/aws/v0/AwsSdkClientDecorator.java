@@ -10,6 +10,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
@@ -58,11 +59,11 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     final AmazonWebServiceRequest originalRequest = request.getOriginalRequest();
     final Class<?> awsOperation = originalRequest.getClass();
 
-    span.setTag("aws.agent", COMPONENT_NAME);
-    span.setTag("aws.service", awsServiceName);
-    span.setTag("aws_service", simplifyServiceName(awsServiceName));
-    span.setTag("aws.operation", awsOperation.getSimpleName());
-    span.setTag("aws.endpoint", request.getEndpoint().toString());
+    span.setTag(InstrumentationTags.AWS_AGENT, COMPONENT_NAME);
+    span.setTag(InstrumentationTags.AWS_SERVICE, awsServiceName);
+    span.setTag(InstrumentationTags.TOP_LEVEL_AWS_SERVICE, simplifyServiceName(awsServiceName));
+    span.setTag(InstrumentationTags.AWS_OPERATION, awsOperation.getSimpleName());
+    span.setTag(InstrumentationTags.AWS_ENDPOINT, request.getEndpoint().toString());
 
     CharSequence awsRequestName = AwsNameCache.getQualifiedName(request);
 
@@ -87,32 +88,34 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     RequestAccess access = RequestAccess.of(originalRequest);
     String bucketName = access.getBucketName(originalRequest);
     if (null != bucketName) {
-      span.setTag("aws.bucket.name", bucketName);
-      span.setTag("bucketname", bucketName);
+      span.setTag(InstrumentationTags.AWS_BUCKET_NAME, bucketName);
+      span.setTag(InstrumentationTags.BUCKET_NAME, bucketName);
     }
     String queueUrl = access.getQueueUrl(originalRequest);
     if (null != queueUrl) {
-      span.setTag("aws.queue.url", queueUrl);
+      span.setTag(InstrumentationTags.AWS_QUEUE_URL, queueUrl);
     }
     String queueName = access.getQueueName(originalRequest);
     if (null != queueName) {
-      span.setTag("aws.queue.name", queueName);
-      span.setTag("queuename", queueName);
+      span.setTag(InstrumentationTags.AWS_QUEUE_NAME, queueName);
+      span.setTag(InstrumentationTags.QUEUE_NAME, queueName);
     }
     String topicArn = access.getTopicArn(originalRequest);
     if (null != topicArn) {
-      span.setTag("aws.topic.name", topicArn.substring(topicArn.lastIndexOf(':') + 1));
-      span.setTag("topicname", topicArn.substring(topicArn.lastIndexOf(':') + 1));
+      span.setTag(
+          InstrumentationTags.AWS_TOPIC_NAME, topicArn.substring(topicArn.lastIndexOf(':') + 1));
+      span.setTag(
+          InstrumentationTags.TOPIC_NAME, topicArn.substring(topicArn.lastIndexOf(':') + 1));
     }
     String streamName = access.getStreamName(originalRequest);
     if (null != streamName) {
-      span.setTag("aws.stream.name", streamName);
-      span.setTag("streamname", streamName);
+      span.setTag(InstrumentationTags.AWS_STREAM_NAME, streamName);
+      span.setTag(InstrumentationTags.STREAM_NAME, streamName);
     }
     String tableName = access.getTableName(originalRequest);
     if (null != tableName) {
-      span.setTag("aws.table.name", tableName);
-      span.setTag("tablename", tableName);
+      span.setTag(InstrumentationTags.AWS_TABLE_NAME, tableName);
+      span.setTag(InstrumentationTags.TABLE_NAME, tableName);
     }
 
     return span;
@@ -122,7 +125,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   public AgentSpan onResponse(final AgentSpan span, final Response response) {
     if (response.getAwsResponse() instanceof AmazonWebServiceResponse) {
       final AmazonWebServiceResponse awsResp = (AmazonWebServiceResponse) response.getAwsResponse();
-      span.setTag("aws.requestId", awsResp.getRequestId());
+      span.setTag(InstrumentationTags.AWS_REQUEST_ID, awsResp.getRequestId());
     }
     return super.onResponse(span, response);
   }
