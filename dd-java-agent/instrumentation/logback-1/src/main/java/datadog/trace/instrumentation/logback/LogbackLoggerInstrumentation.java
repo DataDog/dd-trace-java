@@ -17,6 +17,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
@@ -58,8 +59,12 @@ public class LogbackLoggerInstrumentation extends Instrumenter.Tracing
       AgentSpan span = activeSpan();
 
       if (span != null) {
-        InstrumentationContext.get(ILoggingEvent.class, AgentSpan.Context.class)
-            .put(event, span.context());
+        TraceConfig traceConfig = span.getTraceConfig();
+
+        if (traceConfig != null && traceConfig.isLogInjectionEnabled()) {
+          InstrumentationContext.get(ILoggingEvent.class, AgentSpan.Context.class)
+              .put(event, span.context());
+        }
       }
     }
   }
