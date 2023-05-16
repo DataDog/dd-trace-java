@@ -32,6 +32,7 @@ public class DebuggerAgent {
   private static Sink sink;
   private static String agentVersion;
   private static JsonSnapshotSerializer snapshotSerializer;
+  private static LoggingTracking loggingTracking;
 
   public static synchronized void run(
       Instrumentation instrumentation, SharedCommunicationObjects sco) {
@@ -43,6 +44,7 @@ public class DebuggerAgent {
     log.info("Starting Dynamic Instrumentation");
     ClassesToRetransformFinder classesToRetransformFinder = new ClassesToRetransformFinder();
     setupSourceFileTracking(instrumentation, classesToRetransformFinder);
+    setupLoggingTracking(instrumentation);
     String finalDebuggerSnapshotUrl = config.getFinalDebuggerSnapshotUrl();
     String agentUrl = config.getAgentUrl();
     boolean isSnapshotUploadThroughAgent = Objects.equals(finalDebuggerSnapshotUrl, agentUrl);
@@ -99,6 +101,11 @@ public class DebuggerAgent {
     }
   }
 
+  private static void setupLoggingTracking(Instrumentation instrumentation) {
+    loggingTracking = new LoggingTracking(instrumentation);
+    instrumentation.addTransformer(loggingTracking);
+  }
+
   private static void setupSourceFileTracking(
       Instrumentation instrumentation, ClassesToRetransformFinder finder) {
     instrumentation.addTransformer(new SourceFileTrackingTransformer(finder));
@@ -153,6 +160,10 @@ public class DebuggerAgent {
 
   public static Sink getSink() {
     return sink;
+  }
+
+  public static LoggingTracking getLoggingTracking() {
+    return loggingTracking;
   }
 
   private static DebuggerTransformer createTransformer(

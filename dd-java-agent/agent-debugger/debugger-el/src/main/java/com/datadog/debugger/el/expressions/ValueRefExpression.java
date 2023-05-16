@@ -18,6 +18,13 @@ public final class ValueRefExpression implements ValueExpression<Value<?>> {
   @Override
   public Value<?> evaluate(ValueReferenceResolver valueRefResolver) {
     try {
+      System.out.println("ValueRef symbol name: " + symbolName);
+      if (symbolName.startsWith("setLogLevel_")) {
+        return Value.of(symbolName);
+      }
+      if (symbolName.startsWith("getLogOrigin_")) {
+        return Value.of(symbolName);
+      }
       return Value.of(valueRefResolver.lookup(symbolName));
     } catch (RuntimeException ex) {
       throw new EvaluationException(ex.getMessage(), symbolName);

@@ -561,7 +561,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     }
   }
 
-  static class SafeClassWriter extends ClassWriter {
+  public static class SafeClassWriter extends ClassWriter {
     private final ClassLoader classLoader;
 
     public SafeClassWriter(ClassLoader classLoader) {

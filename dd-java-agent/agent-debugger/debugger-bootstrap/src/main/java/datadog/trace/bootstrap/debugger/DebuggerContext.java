@@ -269,4 +269,17 @@ public class DebuggerContext {
       LOGGER.debug("Error in commit: ", ex);
     }
   }
+
+  public static void getLogOrigin(String msg, String logPattern) {
+    if (msg == null) {
+      return;
+    }
+    if (msg.contains(logPattern)) {
+      StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+      System.out.println("===> LOG ORIGIN: ");
+      for (StackTraceElement element : stackTrace) {
+        System.out.println(element.toString());
+      }
+    }
+  }
 }

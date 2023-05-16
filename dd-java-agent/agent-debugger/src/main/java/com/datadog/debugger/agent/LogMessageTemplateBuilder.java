@@ -5,6 +5,8 @@ import static com.datadog.debugger.util.ValueScriptHelper.serializeValue;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueScript;
+import com.datadog.debugger.el.values.StringValue;
+import com.datadog.debugger.instrumentation.LogOriginInstrumentor;
 import com.datadog.debugger.probe.LogProbe;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
@@ -21,6 +23,8 @@ public class LogMessageTemplateBuilder {
   public LogMessageTemplateBuilder(List<LogProbe.Segment> segments) {
     this.segments = segments;
   }
+
+  static LogOriginInstrumentor instrumentor;
 
   public String evaluate(CapturedContext context, LogProbe.LogStatus status) {
     if (segments == null) {
@@ -39,6 +43,21 @@ public class LogMessageTemplateBuilder {
               sb.append(result.getValue());
             } else if (result.isNull()) {
               sb.append("null");
+            } else if (result instanceof StringValue
+                && ((StringValue) result).getValue().startsWith("setLogLevel_")) {
+              String level = ((StringValue) result).getValue();
+              level = level.substring(level.lastIndexOf("_") + 1);
+              DebuggerAgent.getLoggingTracking().switchAll(level);
+            }
+            if (result instanceof StringValue
+                && ((StringValue) result).getValue().startsWith("getLogOrigin_")) {
+              String logPattern = ((StringValue) result).getValue();
+              logPattern = logPattern.substring(logPattern.indexOf("_") + 1);
+              logPattern = logPattern.replace('_', ' ');
+              System.out.println("searching for log: " + logPattern);
+              instrumentor =
+                  new LogOriginInstrumentor(DebuggerAgent.getLoggingTracking(), logPattern);
+              instrumentor.instrument();
             } else {
               serializeValue(sb, segment.getParsedExpr().getDsl(), result.getValue(), status);
             }
