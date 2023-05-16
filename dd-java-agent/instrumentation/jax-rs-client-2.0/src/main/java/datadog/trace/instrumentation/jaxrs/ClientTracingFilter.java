@@ -31,7 +31,7 @@ public class ClientTracingFilter implements ClientRequestFilter, ClientResponseF
       propagate().inject(span, requestContext.getHeaders(), SETTER);
       propagate()
           .injectPathwayContext(
-              span,
+              scope.context(),
               requestContext.getHeaders(),
               SETTER,
               HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);

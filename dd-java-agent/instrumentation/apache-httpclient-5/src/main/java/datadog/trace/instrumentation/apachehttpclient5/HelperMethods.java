@@ -64,7 +64,7 @@ public class HelperMethods {
       propagate().inject(span, request, SETTER);
       propagate()
           .injectPathwayContext(
-              span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+              scope.context(), request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
     }
 
     return scope;

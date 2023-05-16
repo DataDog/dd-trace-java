@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.rabbitmq.amqp;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateContext;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_COMMAND;
@@ -19,14 +20,7 @@ import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.Envelope;
 import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
-import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.instrumentation.api.*;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -222,10 +216,12 @@ public class RabbitDecorator extends MessagingClientDecorator {
       // spans are written out together by the TraceStructureWriter when running in strict mode
     }
     final AgentSpan span = startSpan(OPERATION_AMQP_INBOUND, parentContext, spanStartMicros);
+    AgentScopeContext context = activeContext().with(AgentSpan.CONTEXT_KEY, span);
 
     if (null != headers) {
-      PathwayContext pathwayContext =
-          propagate().extractPathwayContext(headers, ContextVisitors.objectValuesMap());
+      context =
+          propagate().extractPathwayContext(context, headers, ContextVisitors.objectValuesMap());
+      PathwayContext pathwayContext = context.get(PathwayContext.CONTEXT_KEY);
       span.mergePathwayContext(pathwayContext);
       LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
       sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
@@ -245,7 +241,7 @@ public class RabbitDecorator extends MessagingClientDecorator {
       span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, spanStartMillis - produceMillis));
     }
     CONSUMER_DECORATE.afterStart(span);
-    AgentScope scope = activateSpan(span);
+    AgentScope scope = activateContext(context);
     if (null != queueSpan) {
       queueSpan.finish(spanStartMicros);
     }

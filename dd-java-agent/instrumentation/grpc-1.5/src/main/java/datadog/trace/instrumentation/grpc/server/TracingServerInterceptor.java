@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.grpc.server;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.grpc.server.GrpcExtractAdapter.GETTER;
@@ -19,6 +21,7 @@ import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -61,14 +64,17 @@ public class TracingServerInterceptor implements ServerInterceptor {
       return next.startCall(call, headers);
     }
 
+    AgentScopeContext context = activeContext();
     Context spanContext = propagate().extract(headers, GETTER);
     AgentTracer.TracerAPI tracer = tracer();
     spanContext = callIGCallbackRequestStarted(tracer, spanContext);
 
     CallbackProvider cbp = tracer.getCallbackProvider(RequestContextSlot.APPSEC);
     final AgentSpan span = startSpan(GRPC_SERVER, spanContext).setMeasured(true);
+    context = context.with(AgentSpan.CONTEXT_KEY, span);
 
-    PathwayContext pathwayContext = propagate().extractPathwayContext(headers, GETTER);
+    context = propagate().extractPathwayContext(context, headers, GETTER);
+    PathwayContext pathwayContext = context.get(PathwayContext.CONTEXT_KEY);
     span.mergePathwayContext(pathwayContext);
     AgentTracer.get().setDataStreamCheckpoint(span, SERVER_PATHWAY_EDGE_TAGS);
 
@@ -82,7 +88,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     DECORATE.onCall(span, call);
 
     final ServerCall.Listener<ReqT> result;
-    try (AgentScope scope = activateSpan(span)) {
+    try (AgentScope scope = activateContext(context)) {
       // Wrap the server call so that we can decorate the span
       // with the resulting status
       final TracingServerCall<ReqT, RespT> tracingServerCall = new TracingServerCall<>(span, call);

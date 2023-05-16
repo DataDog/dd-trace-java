@@ -15,6 +15,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.grpc.ClientCall;
@@ -35,7 +36,7 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-    return Collections.singletonMap("io.grpc.ClientCall", AgentSpan.class.getName());
+    return Collections.singletonMap("io.grpc.ClientCall", AgentScopeContext.class.getName());
   }
 
   @Override
@@ -64,10 +65,11 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
   public static final class Capture {
     @Advice.OnMethodExit
     public static void capture(@Advice.This io.grpc.ClientCall<?, ?> call) {
-      AgentSpan span = AgentTracer.activeSpan();
+      AgentScopeContext context = AgentTracer.activeContext();
+      AgentSpan span = context.span();
       // embed the span in the call only if a grpc.client span is active
       if (null != span && OPERATION_NAME.equals(span.getOperationName())) {
-        InstrumentationContext.get(ClientCall.class, AgentSpan.class).put(call, span);
+        InstrumentationContext.get(ClientCall.class, AgentScopeContext.class).put(call, context);
       }
     }
   }
@@ -78,10 +80,12 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
         @Advice.This ClientCall<?, ?> call,
         @Advice.Argument(1) Metadata headers,
         @Advice.Local("$$ddSpan") AgentSpan span) {
-      span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
+      AgentScopeContext context =
+          InstrumentationContext.get(ClientCall.class, AgentScopeContext.class).get(call);
+      span = context == null ? null : context.span();
       if (null != span) {
         propagate().inject(span, headers, SETTER);
-        propagate().injectPathwayContext(span, headers, SETTER, CLIENT_PATHWAY_EDGE_TAGS);
+        propagate().injectPathwayContext(context, headers, SETTER, CLIENT_PATHWAY_EDGE_TAGS);
         return activateSpan(span);
       }
       return null;
@@ -109,7 +113,9 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodEnter
     public static void before(
         @Advice.This ClientCall<?, ?> call, @Advice.Argument(1) Throwable cause) {
-      AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
+      AgentScopeContext context =
+          InstrumentationContext.get(ClientCall.class, AgentScopeContext.class).remove(call);
+      AgentSpan span = context == null ? null : context.span();
       if (null != span) {
         if (cause instanceof StatusException) {
           DECORATE.onClose(span, ((StatusException) cause).getStatus());
@@ -123,7 +129,9 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void closeObserver(
         @Advice.This ClientCall<?, ?> call, @Advice.Argument(1) Status status) {
-      AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
+      AgentScopeContext context =
+          InstrumentationContext.get(ClientCall.class, AgentScopeContext.class).remove(call);
+      AgentSpan span = context == null ? null : context.span();
       if (null != span) {
         DECORATE.onClose(span, status);
         span.finish();

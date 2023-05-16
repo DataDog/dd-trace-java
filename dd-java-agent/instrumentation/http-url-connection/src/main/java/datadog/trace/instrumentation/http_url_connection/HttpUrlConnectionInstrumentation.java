@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.http_url_connection;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.httpurlconnection.HeadersInjectAdapter.SETTER;
 import static java.util.Collections.singletonMap;
@@ -75,7 +76,7 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing
             propagate().inject(span, thiz, SETTER);
             propagate()
                 .injectPathwayContext(
-                    span, thiz, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+                    activeContext(), thiz, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
           }
         }
         return state;

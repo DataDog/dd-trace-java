@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
@@ -77,7 +78,10 @@ public final class JaxRsClientV1Instrumentation extends Instrumenter.Tracing
         propagate().inject(span, request.getHeaders(), SETTER);
         propagate()
             .injectPathwayContext(
-                span, request.getHeaders(), SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+                activeContext(),
+                request.getHeaders(),
+                SETTER,
+                HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
         return activateSpan(span);
       }
       return null;

@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.apachehttpclient5;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
 import org.apache.hc.core5.http.HttpException;
@@ -9,10 +10,13 @@ import org.apache.hc.core5.http.nio.RequestChannel;
 import org.apache.hc.core5.http.protocol.HttpContext;
 
 public class DelegatingRequestProducer implements AsyncRequestProducer {
+  final AgentScopeContext context;
   final AgentSpan span;
   final AsyncRequestProducer delegate;
 
-  public DelegatingRequestProducer(final AgentSpan span, final AsyncRequestProducer delegate) {
+  public DelegatingRequestProducer(
+      final AgentScopeContext context, final AgentSpan span, final AsyncRequestProducer delegate) {
+    this.context = context;
     this.span = span;
     this.delegate = delegate;
   }
@@ -25,7 +29,8 @@ public class DelegatingRequestProducer implements AsyncRequestProducer {
   @Override
   public void sendRequest(RequestChannel channel, HttpContext context)
       throws HttpException, IOException {
-    DelegatingRequestChannel requestChannel = new DelegatingRequestChannel(channel, span);
+    DelegatingRequestChannel requestChannel =
+        new DelegatingRequestChannel(channel, this.context, span);
     delegate.sendRequest(requestChannel, context);
   }
 

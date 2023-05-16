@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.apachehttpasyncclient.HttpHeadersInjectAdapter.SETTER;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.io.IOException;
@@ -16,10 +17,15 @@ import org.apache.http.nio.protocol.HttpAsyncRequestProducer;
 import org.apache.http.protocol.HttpContext;
 
 public class DelegatingRequestProducer implements HttpAsyncRequestProducer {
+  final AgentScopeContext context;
   final AgentSpan span;
   final HttpAsyncRequestProducer delegate;
 
-  public DelegatingRequestProducer(final AgentSpan span, final HttpAsyncRequestProducer delegate) {
+  public DelegatingRequestProducer(
+      final AgentScopeContext context,
+      final AgentSpan span,
+      final HttpAsyncRequestProducer delegate) {
+    this.context = context;
     this.span = span;
     this.delegate = delegate;
   }
@@ -36,7 +42,8 @@ public class DelegatingRequestProducer implements HttpAsyncRequestProducer {
 
     propagate().inject(span, request, SETTER);
     propagate()
-        .injectPathwayContext(span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+        .injectPathwayContext(
+            context, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
 
     return request;
   }

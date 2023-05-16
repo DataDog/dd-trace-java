@@ -1,7 +1,8 @@
 package datadog.trace.instrumentation.kafka_streams;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateContext;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
@@ -29,6 +30,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
@@ -213,6 +215,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         return;
       }
 
+      AgentScopeContext context = activeContext();
       AgentSpan span, queueSpan = null;
       StreamTaskContext streamTaskContext =
           InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
@@ -232,7 +235,8 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
           // spans are written out together by TraceStructureWriter when running in strict mode
         }
 
-        PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, SR_GETTER);
+        context = propagate().extractBinaryPathwayContext(context, record, SR_GETTER);
+        PathwayContext pathwayContext = context.get(PathwayContext.CONTEXT_KEY);
         span.mergePathwayContext(pathwayContext);
         LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
         sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
@@ -252,7 +256,8 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
 
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onConsume(span, record, node);
-      AgentScope agentScope = activateSpan(span);
+      context = context.with(AgentSpan.CONTEXT_KEY, span);
+      AgentScope agentScope = activateContext(context);
       if (null != queueSpan) {
         queueSpan.finish();
       }
@@ -278,6 +283,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         return;
       }
 
+      AgentScopeContext context = activeContext();
       AgentSpan span, queueSpan = null;
       StreamTaskContext streamTaskContext =
           InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
@@ -297,7 +303,8 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
           // spans are written out together by TraceStructureWriter when running in strict mode
         }
 
-        PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, PR_GETTER);
+        context = propagate().extractBinaryPathwayContext(context, record, PR_GETTER);
+        PathwayContext pathwayContext = context.get(PathwayContext.CONTEXT_KEY);
         span.mergePathwayContext(pathwayContext);
         LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
         sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
@@ -317,7 +324,8 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
 
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onConsume(span, record, node);
-      AgentScope agentScope = activateSpan(span);
+      context = context.with(AgentSpan.CONTEXT_KEY, span);
+      AgentScope agentScope = activateContext(context);
       if (null != queueSpan) {
         queueSpan.finish();
       }

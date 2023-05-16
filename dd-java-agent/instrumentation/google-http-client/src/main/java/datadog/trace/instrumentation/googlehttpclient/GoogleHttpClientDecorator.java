@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.googlehttpclient;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.instrumentation.googlehttpclient.HeadersInjectAdapter.SETTER;
 
@@ -39,7 +40,8 @@ public class GoogleHttpClientDecorator extends HttpClientDecorator<HttpRequest, 
     DECORATE.onRequest(span, request);
     propagate().inject(span, request, SETTER);
     propagate()
-        .injectPathwayContext(span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+        .injectPathwayContext(
+            activeContext(), request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
     return span;
   }
 

@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.httpclient;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.instrumentation.httpclient.HttpHeadersInjectAdapter.KEEP;
@@ -21,7 +22,7 @@ public class HeadersAdvice {
     propagate().inject(span, headerMap, SETTER);
     propagate()
         .injectPathwayContext(
-            span, headerMap, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+            activeContext(), headerMap, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
     headers = HttpHeaders.of(headerMap, KEEP);
   }
 }

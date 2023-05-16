@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.kafka_clients;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -16,6 +18,7 @@ import static datadog.trace.instrumentation.kafka_clients.TextMapExtractAdapter.
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -84,8 +87,10 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
             // The queueSpan will be finished after inner span has been activated to ensure that
             // spans are written out together by TraceStructureWriter when running in strict mode
           }
-          PathwayContext pathwayContext =
-              propagate().extractBinaryPathwayContext(val.headers(), GETTER);
+          AgentScopeContext extracted =
+              propagate().extractBinaryPathwayContext(activeContext(), val.headers(), GETTER);
+          activateContext(extracted);
+          PathwayContext pathwayContext = extracted.get(PathwayContext.CONTEXT_KEY);
           span.mergePathwayContext(pathwayContext);
 
           LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();

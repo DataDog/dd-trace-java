@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.kafka_clients;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
@@ -21,6 +21,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.util.LinkedHashMap;
@@ -72,7 +73,8 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
         @Advice.FieldValue("producerConfig") ProducerConfig producerConfig,
         @Advice.Argument(value = 0, readOnly = false) ProducerRecord record,
         @Advice.Argument(value = 1, readOnly = false) Callback callback) {
-      final AgentSpan parent = activeSpan();
+      final AgentScopeContext context = activeContext();
+      final AgentSpan parent = context.span();
       final AgentSpan span = startSpan(KAFKA_PRODUCE);
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, record, producerConfig);
@@ -99,7 +101,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
         sortedTags.put(TYPE_TAG, "kafka");
         try {
           propagate().inject(span, record.headers(), SETTER);
-          propagate().injectBinaryPathwayContext(span, record.headers(), SETTER, sortedTags);
+          propagate().injectBinaryPathwayContext(context, record.headers(), SETTER, sortedTags);
         } catch (final IllegalStateException e) {
           // headers must be read-only from reused record. try again with new one.
           record =
@@ -112,7 +114,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
                   record.headers());
 
           propagate().inject(span, record.headers(), SETTER);
-          propagate().injectBinaryPathwayContext(span, record.headers(), SETTER, sortedTags);
+          propagate().injectBinaryPathwayContext(context, record.headers(), SETTER, sortedTags);
         }
         if (TIME_IN_QUEUE_ENABLED) {
           SETTER.injectTimeInQueue(record.headers());

@@ -29,7 +29,10 @@ public class TracingInterceptor implements Interceptor {
       propagate().inject(span, requestBuilder, SETTER);
       propagate()
           .injectPathwayContext(
-              span, requestBuilder, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+              scope.context(),
+              requestBuilder,
+              SETTER,
+              HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
 
       final Response response;
       try {

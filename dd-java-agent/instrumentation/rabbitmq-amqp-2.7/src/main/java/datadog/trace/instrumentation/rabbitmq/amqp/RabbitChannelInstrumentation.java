@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEnd
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -181,7 +182,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing
           && !config.isRabbitPropagationDisabledForDestination(exchange)) {
         // We need to copy the BasicProperties and provide a header map we can modify
         Map<String, Object> headers = props.getHeaders();
-        headers = (headers == null) ? new HashMap<String, Object>() : new HashMap<>(headers);
+        headers = (headers == null) ? new HashMap<>() : new HashMap<>(headers);
         if (TIME_IN_QUEUE_ENABLED) {
           RabbitDecorator.injectTimeInQueueStart(headers);
         }
@@ -192,7 +193,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing
         sortedTags.put(
             HAS_ROUTING_KEY_TAG, routingKey == null || routingKey.equals("") ? "false" : "true");
         sortedTags.put(TYPE_TAG, "rabbitmq");
-        propagate().injectPathwayContext(span, headers, SETTER, sortedTags);
+        propagate().injectPathwayContext(activeContext(), headers, SETTER, sortedTags);
         props =
             new AMQP.BasicProperties(
                 props.getContentType(),

@@ -88,6 +88,25 @@ public class AgentTracer {
     return get().activeScope();
   }
 
+  /**
+   * Actives a scoped context.
+   *
+   * @param context The context to activate.
+   * @return The scope of the newly activated context.
+   */
+  public static AgentScope activateContext(AgentScopeContext context) {
+    return get().activateContext(context);
+  }
+
+  /**
+   * Gets the active context.
+   *
+   * @return The active context, or an empty context if no active scope.
+   */
+  public static AgentScopeContext activeContext() {
+    return get().activeContext();
+  }
+
   public static AgentPropagation propagate() {
     return get().propagate();
   }
@@ -151,6 +170,13 @@ public class AgentTracer {
     AgentSpan activeSpan();
 
     AgentScope activeScope();
+
+    /**
+     * Gets the active context.
+     *
+     * @return The active context, or an empty context if no active scope.
+     */
+    AgentScopeContext activeContext();
 
     AgentPropagation propagate();
 
@@ -288,6 +314,11 @@ public class AgentTracer {
     }
 
     @Override
+    public AgentScopeContext activeContext() {
+      return NoopAgentScopeContext.INSTANCE;
+    }
+
+    @Override
     public AgentPropagation propagate() {
       return NoopAgentPropagation.INSTANCE;
     }
@@ -393,14 +424,17 @@ public class AgentTracer {
 
     @Override
     public <C> void injectBinaryPathwayContext(
-        AgentSpan span,
+        AgentScopeContext context,
         C carrier,
         BinarySetter<C> setter,
         LinkedHashMap<String, String> sortedTags) {}
 
     @Override
     public <C> void injectPathwayContext(
-        AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags) {}
+        AgentScopeContext context,
+        C carrier,
+        Setter<C> setter,
+        LinkedHashMap<String, String> sortedTags) {}
 
     @Override
     public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
@@ -408,14 +442,15 @@ public class AgentTracer {
     }
 
     @Override
-    public <C> PathwayContext extractBinaryPathwayContext(
-        C carrier, BinaryContextVisitor<C> getter) {
-      return null;
+    public <C> AgentScopeContext extractBinaryPathwayContext(
+        AgentScopeContext context, C carrier, BinaryContextVisitor<C> getter) {
+      return NoopAgentScopeContext.INSTANCE;
     }
 
     @Override
-    public <C> PathwayContext extractPathwayContext(C carrier, ContextVisitor<C> getter) {
-      return null;
+    public <C> AgentScopeContext extractPathwayContext(
+        AgentScopeContext context, C carrier, ContextVisitor<C> getter) {
+      return NoopAgentScopeContext.INSTANCE;
     }
 
     @Override
@@ -832,14 +867,17 @@ public class AgentTracer {
 
     @Override
     public <C> void injectBinaryPathwayContext(
-        AgentSpan span,
+        AgentScopeContext context,
         C carrier,
         BinarySetter<C> setter,
         LinkedHashMap<String, String> sortedTags) {}
 
     @Override
     public <C> void injectPathwayContext(
-        AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags) {}
+        AgentScopeContext context,
+        C carrier,
+        Setter<C> setter,
+        LinkedHashMap<String, String> sortedTags) {}
 
     @Override
     public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
@@ -847,14 +885,15 @@ public class AgentTracer {
     }
 
     @Override
-    public <C> PathwayContext extractBinaryPathwayContext(
-        C carrier, BinaryContextVisitor<C> getter) {
-      return null;
+    public <C> AgentScopeContext extractBinaryPathwayContext(
+        AgentScopeContext context, C carrier, BinaryContextVisitor<C> getter) {
+      return NoopAgentScopeContext.INSTANCE;
     }
 
     @Override
-    public <C> PathwayContext extractPathwayContext(C carrier, ContextVisitor<C> getter) {
-      return null;
+    public <C> AgentScopeContext extractPathwayContext(
+        AgentScopeContext context, C carrier, ContextVisitor<C> getter) {
+      return NoopAgentScopeContext.INSTANCE;
     }
   }
 

@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.grizzly.client;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -73,7 +74,7 @@ public final class AsyncHttpClientInstrumentation extends Instrumenter.Tracing
       propagate().inject(span, request, SETTER);
       propagate()
           .injectPathwayContext(
-              span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+              activeContext(), request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
       InstrumentationContext.get(AsyncHandler.class, Pair.class)
           .put(handler, Pair.of(parentSpan, span));
     }

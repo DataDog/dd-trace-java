@@ -4,7 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT;
@@ -25,6 +25,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
@@ -87,7 +88,8 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Tracing
         @Advice.This final RequestDispatcher dispatcher,
         @Advice.Local("_requestSpan") Object requestSpan,
         @Advice.Argument(0) final ServletRequest request) {
-      final AgentSpan parentSpan = activeSpan();
+      final AgentScopeContext context = activeContext();
+      final AgentSpan parentSpan = context.span();
 
       final Object servletSpanObject = request.getAttribute(DD_SPAN_ATTRIBUTE);
       final AgentSpan servletSpan =
@@ -122,7 +124,7 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Tracing
       propagate().inject(span, request, SETTER);
       propagate()
           .injectPathwayContext(
-              span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+              context, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
 
       // temporarily replace from request to avoid spring resource name bubbling up:
       requestSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);

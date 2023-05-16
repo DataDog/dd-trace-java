@@ -82,6 +82,7 @@ import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
+import datadog.trace.core.scopemanager.ScopeContext;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.lambda.LambdaHandler;
@@ -776,6 +777,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
+  public AgentScopeContext activeContext() {
+    AgentScope activeScope = this.scopeManager.active();
+    return activeScope == null ? ScopeContext.empty() : activeScope.context();
+  }
+
+  @Override
   public AgentPropagation propagate() {
     return this;
   }
@@ -802,17 +809,43 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public <C> void injectBinaryPathwayContext(
-      AgentSpan span, C carrier, BinarySetter<C> setter, LinkedHashMap<String, String> sortedTags) {
-    PathwayContext pathwayContext = span.context().getPathwayContext();
+      AgentScopeContext context,
+      C carrier,
+      BinarySetter<C> setter,
+      LinkedHashMap<String, String> sortedTags) {
+    PathwayContext pathwayContext = context.get(PathwayContext.CONTEXT_KEY);
+    if (pathwayContext == null) {
+      return;
+    }
     pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring);
-
     try {
-      byte[] encodedContext = span.context().getPathwayContext().encode();
-
+      byte[] encodedContext = pathwayContext.encode();
       if (encodedContext != null) {
         log.debug("Injecting pathway context {}", pathwayContext);
         setter.set(carrier, PathwayContext.PROPAGATION_KEY_BASE64, encodedContext);
-        injectPathwayTags(span, pathwayContext);
+        injectPathwayTags(context.span(), pathwayContext);
+      }
+    } catch (IOException e) {
+      log.debug("Unable to set encode pathway context", e);
+    }
+  }
+
+  @Override
+  public <C> void injectPathwayContext(
+      AgentScopeContext context,
+      C carrier,
+      Setter<C> setter,
+      LinkedHashMap<String, String> sortedTags) {
+    PathwayContext pathwayContext = context.get(PathwayContext.CONTEXT_KEY);
+    if (pathwayContext == null) {
+      return;
+    }
+    pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring);
+    try {
+      String encodedContext = pathwayContext.strEncode();
+      if (encodedContext != null) {
+        setter.set(carrier, PathwayContext.PROPAGATION_KEY_BASE64, encodedContext);
+        injectPathwayTags(context.span(), pathwayContext);
       }
     } catch (IOException e) {
       log.debug("Unable to set encode pathway context", e);
@@ -821,24 +854,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   private static void injectPathwayTags(AgentSpan span, PathwayContext pathwayContext) {
     long pathwayHash = pathwayContext.getHash();
-    if (pathwayHash != 0) {
+    if (span != null && pathwayHash != 0) {
       span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayHash));
-    }
-  }
-
-  @Override
-  public <C> void injectPathwayContext(
-      AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags) {
-    PathwayContext pathwayContext = span.context().getPathwayContext();
-    pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring);
-    try {
-      String encodedContext = pathwayContext.strEncode();
-      if (encodedContext != null) {
-        setter.set(carrier, PathwayContext.PROPAGATION_KEY_BASE64, encodedContext);
-        injectPathwayTags(span, pathwayContext);
-      }
-    } catch (IOException e) {
-      log.debug("Unable to set encode pathway context", e);
     }
   }
 
@@ -865,13 +882,18 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public <C> PathwayContext extractBinaryPathwayContext(C carrier, BinaryContextVisitor<C> getter) {
-    return dataStreamsMonitoring.extractBinaryPathwayContext(carrier, getter);
+  public <C> AgentScopeContext extractBinaryPathwayContext(
+      AgentScopeContext context, C carrier, BinaryContextVisitor<C> getter) {
+    return context.with(
+        PathwayContext.CONTEXT_KEY,
+        dataStreamsMonitoring.extractBinaryPathwayContext(carrier, getter));
   }
 
   @Override
-  public <C> PathwayContext extractPathwayContext(C carrier, ContextVisitor<C> getter) {
-    return dataStreamsMonitoring.extractPathwayContext(carrier, getter);
+  public <C> AgentScopeContext extractPathwayContext(
+      AgentScopeContext context, C carrier, ContextVisitor<C> getter) {
+    return context.with(
+        PathwayContext.CONTEXT_KEY, dataStreamsMonitoring.extractPathwayContext(carrier, getter));
   }
 
   @Override
@@ -1050,8 +1072,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return;
     }
 
-    PathwayContext pathwayContext =
-        extractPathwayContext(carrier, DataStreamsContextCarrierAdapter.INSTANCE);
+    AgentScopeContext extracted =
+        extractPathwayContext(
+            ScopeContext.empty(), carrier, DataStreamsContextCarrierAdapter.INSTANCE);
+    PathwayContext pathwayContext = extracted.get(PathwayContext.CONTEXT_KEY);
     span.mergePathwayContext(pathwayContext);
 
     LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
@@ -1064,23 +1088,19 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void setProduceCheckpoint(String type, String target, DataStreamsContextCarrier carrier) {
+    // TODO Looks like it is not used any more… Can we delete it?
     if (type == null || type.isEmpty() || target == null || target.isEmpty()) {
       log.warn("SetProduceCheckpoint should be called with non-empty type and target");
       return;
     }
 
-    AgentSpan span = activeSpan();
-    if (span == null) {
-      log.warn("SetProduceCheckpoint is called with no active span");
-      return;
-    }
-
+    AgentScopeContext context = activeContext();
     LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
     sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
     sortedTags.put(TOPIC_TAG, target);
     sortedTags.put(TYPE_TAG, type);
 
-    injectPathwayContext(span, carrier, DataStreamsContextCarrierAdapter.INSTANCE, sortedTags);
+    injectPathwayContext(context, carrier, DataStreamsContextCarrierAdapter.INSTANCE, sortedTags);
   }
 
   @Override

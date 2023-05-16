@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.playws2;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.playws.HeadersInjectAdapter.SETTER;
@@ -32,7 +33,7 @@ public class PlayWSClientInstrumentation extends BasePlayWSClientInstrumentation
       propagate().inject(span, request, SETTER);
       propagate()
           .injectPathwayContext(
-              span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+              activeContext(), request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
 
       if (asyncHandler instanceof StreamedAsyncHandler) {
         asyncHandler = new StreamedAsyncHandlerWrapper((StreamedAsyncHandler) asyncHandler, span);

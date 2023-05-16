@@ -67,7 +67,7 @@ public class CommonsHttpClientInstrumentation extends Instrumenter.Tracing
       propagate().inject(span, httpMethod, SETTER);
       propagate()
           .injectPathwayContext(
-              span, httpMethod, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+              scope.context(), httpMethod, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
 
       return scope;
     }

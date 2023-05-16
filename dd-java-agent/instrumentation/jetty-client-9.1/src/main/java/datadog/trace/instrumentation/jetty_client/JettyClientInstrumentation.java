@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.jetty_client;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
@@ -88,7 +89,7 @@ public class JettyClientInstrumentation extends Instrumenter.Tracing
       propagate().inject(span, request, SETTER);
       propagate()
           .injectPathwayContext(
-              span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+              activeContext(), request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
       return span;
     }
 

@@ -15,11 +15,17 @@ public interface AgentPropagation {
 
   // The input tags should be sorted.
   <C> void injectBinaryPathwayContext(
-      AgentSpan span, C carrier, BinarySetter<C> setter, LinkedHashMap<String, String> sortedTags);
+      AgentScopeContext context,
+      C carrier,
+      BinarySetter<C> setter,
+      LinkedHashMap<String, String> sortedTags);
 
   // The input tags should be sorted.
   <C> void injectPathwayContext(
-      AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags);
+      AgentScopeContext context,
+      C carrier,
+      Setter<C> setter,
+      LinkedHashMap<String, String> sortedTags);
 
   interface Setter<C> {
     void set(C carrier, String key, String value);
@@ -31,9 +37,11 @@ public interface AgentPropagation {
 
   <C> AgentSpan.Context.Extracted extract(C carrier, ContextVisitor<C> getter);
 
-  <C> PathwayContext extractBinaryPathwayContext(C carrier, BinaryContextVisitor<C> getter);
+  <C> AgentScopeContext extractBinaryPathwayContext(
+      AgentScopeContext context, C carrier, BinaryContextVisitor<C> getter);
 
-  <C> PathwayContext extractPathwayContext(C carrier, ContextVisitor<C> getter);
+  <C> AgentScopeContext extractPathwayContext(
+      AgentScopeContext context, C carrier, ContextVisitor<C> getter);
 
   interface KeyClassifier {
 
