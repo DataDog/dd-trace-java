@@ -15,8 +15,10 @@ import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.HashMap;
 import java.util.Map;
@@ -145,8 +147,16 @@ public class ExtLogRecordInstrumentation extends Instrumenter.Tracing
           InstrumentationContext.get(ExtLogRecord.class, AgentSpan.Context.class).get(record);
       boolean mdcTagsInjectionEnabled = instrumenterConfig.isLogsMDCTagsInjectionEnabled();
 
+      boolean logInjectionEnabled;
+      if (context != null) {
+        logInjectionEnabled = true;
+      } else {
+        TraceConfig traceConfig = AgentTracer.get().captureTraceConfig();
+        logInjectionEnabled = traceConfig != null && traceConfig.isLogInjectionEnabled();
+      }
+
       // Nothing to add so return early
-      if (context == null && !mdcTagsInjectionEnabled) {
+      if (!logInjectionEnabled && (context == null && !mdcTagsInjectionEnabled)) {
         return;
       }
 

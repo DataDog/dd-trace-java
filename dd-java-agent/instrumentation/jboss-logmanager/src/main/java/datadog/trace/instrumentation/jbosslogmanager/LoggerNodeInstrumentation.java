@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -53,8 +54,11 @@ public class LoggerNodeInstrumentation extends Instrumenter.Tracing
       AgentSpan span = activeSpan();
 
       if (span != null) {
-        InstrumentationContext.get(ExtLogRecord.class, AgentSpan.Context.class)
-            .put(record, span.context());
+        TraceConfig traceConfig = span.getTraceConfig();
+        if (traceConfig != null && traceConfig.isLogInjectionEnabled()) {
+          InstrumentationContext.get(ExtLogRecord.class, AgentSpan.Context.class)
+              .put(record, span.context());
+        }
       }
 
       return true;
