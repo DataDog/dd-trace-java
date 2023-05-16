@@ -190,7 +190,7 @@ public class AgentTracer {
 
     String getSpanId(AgentSpan span);
 
-    TraceConfig getTraceConfig();
+    TraceConfig captureTraceConfig();
   }
 
   public interface SpanBuilder {
@@ -341,7 +341,7 @@ public class AgentTracer {
     }
 
     @Override
-    public TraceConfig getTraceConfig() {
+    public TraceConfig captureTraceConfig() {
       return null;
     }
 

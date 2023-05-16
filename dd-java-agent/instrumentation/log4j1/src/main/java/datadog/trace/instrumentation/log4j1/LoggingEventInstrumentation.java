@@ -132,7 +132,7 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
         if (context != null) {
           logInjectionEnabled = true;
         } else {
-          TraceConfig traceConfig = AgentTracer.get().getTraceConfig();
+          TraceConfig traceConfig = AgentTracer.get().captureTraceConfig();
           logInjectionEnabled = traceConfig != null && traceConfig.isLogInjectionEnabled();
         }
 
