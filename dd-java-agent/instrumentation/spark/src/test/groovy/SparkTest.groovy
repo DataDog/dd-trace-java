@@ -74,8 +74,13 @@ class SparkTest extends AgentTestRunner {
     sparkSession.sparkContext().setLocalProperty("spark.databricks.clusterUsageTags.clusterName", "job-1234-run-5678-Job_cluster")
     TestSparkComputation.generateTestSparkComputation(sparkSession)
 
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.job.id", null)
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.job.runId", null)
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.clusterUsageTags.clusterName", null)
+    TestSparkComputation.generateTestSparkComputation(sparkSession)
+
     expect:
-    assertTraces(1) {
+    assertTraces(2) {
       trace(3) {
         span {
           operationName "spark.job"
@@ -84,6 +89,29 @@ class SparkTest extends AgentTestRunner {
           errored false
           traceId 8944764253919609482G
           parentSpanId 15104224823446433673G
+        }
+        span {
+          operationName "spark.stage"
+          resourceName "count at TestSparkComputation.java:12"
+          spanType "spark"
+          errored false
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.stage"
+          resourceName "distinct at TestSparkComputation.java:12"
+          spanType "spark"
+          errored false
+          childOf(span(0))
+        }
+      }
+      trace(3) {
+        span {
+          operationName "spark.job"
+          resourceName "count at TestSparkComputation.java:12"
+          spanType "spark"
+          errored false
+          parent()
         }
         span {
           operationName "spark.stage"

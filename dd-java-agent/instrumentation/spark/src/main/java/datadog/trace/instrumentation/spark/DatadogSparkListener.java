@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.spark;
 
 import datadog.trace.api.DDTags;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -135,7 +136,10 @@ public class DatadogSparkListener extends SparkListener {
 
         AgentSpan.Context parentContext =
             new DatabricksParentContext(databricksJobId, databricksJobRunId, databricksTaskRunId);
-        jobSpanBuilder.asChildOf(parentContext);
+
+        if (parentContext.getTraceId() != DDTraceId.ZERO) {
+          jobSpanBuilder.asChildOf(parentContext);
+        }
       }
     } else {
       // In non-databricks env, the spark application is the local root spans
