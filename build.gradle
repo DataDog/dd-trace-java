@@ -153,7 +153,7 @@ allprojects { project ->
   if (shouldUseTaskPartitions) {
     final int taskPartitionCount = project.rootProject.property("taskPartitionCount") as int
     final int taskPartition = project.rootProject.property("taskPartition") as int
-    final currentTaskPartition = project.path.hashCode() % taskPartitionCount
+    final currentTaskPartition = Math.abs(project.path.hashCode() % taskPartitionCount)
     project.setProperty("activePartition", currentTaskPartition == taskPartition)
   }
 }
