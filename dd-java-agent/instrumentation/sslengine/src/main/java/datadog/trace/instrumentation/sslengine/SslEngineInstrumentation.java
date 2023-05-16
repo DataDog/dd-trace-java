@@ -58,19 +58,18 @@ public final class SslEngineInstrumentation extends Instrumenter.Usm
         @Advice.Argument(0) final ByteBuffer[] srcs,
         @Advice.Return SSLEngineResult result) {
 
-      // no source buffer - usually happens during handshake
-      if (srcs.length == 0) {
-        System.out.println("[wrap] no source buffers");
-      }
-      // before accomplishing the handshake, the session doesn't have a session id, as it is
+      // We want to skip the TLS handshake message, since we are not interested in capturing those,
+      // because it doesn't contain any actual data
+
+      // first condition - No source buffer - usually happens during handshake
+      // second condition - Before accomplishing the handshake, the session doesn't have a session
+      // id, as it is
       // generated during the handshake kickstart.
-      else if (thiz.getSession().getId().length == 0) {
-        System.out.println("[wrap] still handshaking");
+      if (srcs.length != 0 || thiz.getSession().getId().length == 0) {
+        log.debug("Got a handshake message in wrap hook, skipping");
       } else if (result.bytesConsumed() > 0) {
         byte[] b = new byte[result.bytesConsumed()];
         int consumed = 0;
-        System.out.println(
-            "[wrap] handling " + srcs.length + " buffers, consumed: " + result.bytesConsumed());
         for (int i = 0; i < srcs.length && consumed < b.length; i++) {
           int oldPos = srcs[i].position();
           srcs[i].position(srcs[i].arrayOffset());
@@ -84,7 +83,6 @@ public final class SslEngineInstrumentation extends Instrumenter.Usm
         Buffer message =
             MessageEncoder.encode(MessageEncoder.MessageType.ASYNC_PAYLOAD, peer, payload);
         Extractor.Supplier.send(message);
-        System.out.println("[wrap] sent a wrap message");
       }
     }
   }
@@ -100,14 +98,9 @@ public final class SslEngineInstrumentation extends Instrumenter.Usm
       // before accomplishing the handshake, the session doesn't have a session id, as it is
       // generated during the handshake kickstart.
       if (thiz.getSession().getId().length == 0) {
-        System.out.println("[unwrap] still handshaking");
+        log.debug("Got a handshake message in unwrap hook, skipping");
       } else {
         if (result.bytesProduced() > 0 && dst.limit() >= result.bytesProduced()) {
-          System.out.println(
-              "[unwrap] processing dst buffer, produced: "
-                  + result.bytesProduced()
-                  + " dst limit: "
-                  + dst.limit());
           byte[] b = new byte[result.bytesProduced()];
           int oldPos = dst.position();
           dst.position(dst.arrayOffset());
@@ -119,10 +112,9 @@ public final class SslEngineInstrumentation extends Instrumenter.Usm
           Buffer message =
               MessageEncoder.encode(MessageEncoder.MessageType.ASYNC_PAYLOAD, peer, payload);
           Extractor.Supplier.send(message);
-          System.out.println("[unwrap] sent an unwrap message");
         } else {
-          System.out.println(
-              "[unwrap] invalid dst buffer, produced: "
+          log.error(
+              "Got invalid dst buffer in unwrap, produced: "
                   + result.bytesProduced()
                   + " dst limit: "
                   + dst.limit());

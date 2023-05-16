@@ -1,9 +1,9 @@
 package datadog.trace.bootstrap.instrumentation.sslsocket;
 
-import datadog.trace.bootstrap.instrumentation.usm.Payload;
-import datadog.trace.bootstrap.instrumentation.usm.MessageEncoder;
 import datadog.trace.bootstrap.instrumentation.usm.Connection;
 import datadog.trace.bootstrap.instrumentation.usm.Extractor;
+import datadog.trace.bootstrap.instrumentation.usm.MessageEncoder;
+import datadog.trace.bootstrap.instrumentation.usm.Payload;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,8 +36,9 @@ public class UsmFilterInputStream extends FilterInputStream {
             socket.getInetAddress(),
             socket.getPort(),
             isIPv6);
-    Payload payload = new Payload(b,off,len);
-    Buffer message = MessageEncoder.encode(MessageEncoder.MessageType.SYNCHRONOUS_PAYLOAD,connection,payload);
+    Payload payload = new Payload(b, off, len);
+    Buffer message =
+        MessageEncoder.encode(MessageEncoder.MessageType.SYNCHRONOUS_PAYLOAD, connection, payload);
     Extractor.Supplier.send(message);
     return bytesRead;
   }

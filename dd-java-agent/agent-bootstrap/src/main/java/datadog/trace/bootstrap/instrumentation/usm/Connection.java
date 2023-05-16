@@ -1,19 +1,21 @@
 package datadog.trace.bootstrap.instrumentation.usm;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class Connection implements Encodable {
 
   private static final Logger log = LoggerFactory.getLogger(Connection.class);
 
-  // size of the connection struct:
-  // SrcIP [16 bytes] || DstIP [16 bytes] || Src Port [2 bytes] || Dst port [2
-  // bytes] || Reserved [4 bytes] || Pid [4 bytes] || Metadata [4 bytes]
-  // As defined in https://github.com/DataDog/datadog-agent/blob/main/pkg/network/ebpf/c/conn_tuple.h
+  /*
+   Size of the connection struct:
+      ______________________________________________________________________________________________________________________________________________
+      |SrcIP [16 bytes] || DstIP [16 bytes] || Src Port [2 bytes] || Dst port [2 bytes] || Reserved [4 bytes] || Pid [4 bytes] || Metadata [4 bytes]|
+      |_____________________________________________________________________________________________________________________________________________|
+   As defined in https://github.com/DataDog/datadog-agent/blob/main/pkg/network/ebpf/c/conn_tuple.h
+  */
   static final int CONNECTION_INFO_SIZE = 48;
   static final int IP_MAX_BYTES_LENGTH = 16;
   static final int IP_V4_BYTES_LENGTH = 4;
@@ -40,20 +42,12 @@ public final class Connection implements Encodable {
   @Override
   /*
   Encodes the connection into a given buffer (Visitor pattern).
-   */
+  */
   public void encode(ByteBuffer buffer) {
     log.debug("encoding connection:");
-    log.debug(
-        "\tsrc host: "
-            + srcIp.toString()
-            + " src port: "
-            + srcPort);
+    log.debug("\tsrc host: " + srcIp.toString() + " src port: " + srcPort);
     if (dstIp != null) {
-      log.debug(
-          "\tdst host: "
-              + dstIp
-              + " dst port: "
-              + dstPort);
+      log.debug("\tdst host: " + dstIp + " dst port: " + dstPort);
     }
     byte[] srcIPBuffer = srcIp.getAddress();
     // if IPv4 (4 bytes long), encode it into low part of the reserved space
@@ -75,9 +69,8 @@ public final class Connection implements Encodable {
       } else {
         buffer.put(dstIPBuffer, 0, dstIPBuffer.length);
       }
-    }
-    else {
-      //advance buffer position to skip the buffer
+    } else {
+      // advance buffer position to skip the buffer
       buffer.position(buffer.position() + IP_MAX_BYTES_LENGTH);
     }
 
@@ -85,10 +78,10 @@ public final class Connection implements Encodable {
     buffer.putShort((short) srcPort);
     buffer.putShort((short) dstPort);
 
-    buffer.putInt( 0);
+    buffer.putInt(0);
     // use 0 for Pid, since we determine the Pid on the kernel side using the bpf
     // helper bpf_get_current_pid_tgid
-    buffer.putInt( 0);
+    buffer.putInt(0);
 
     // we turn on the first bit - indicating it is a tcp connection
     int metadata = 1;

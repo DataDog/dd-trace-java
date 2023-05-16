@@ -1,9 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.usm;
 
+import java.nio.ByteBuffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.nio.ByteBuffer;
 
 public final class Payload implements Encodable {
 
@@ -17,7 +16,8 @@ public final class Payload implements Encodable {
   private final byte[] payload;
   private final int offset;
   private final int length;
-  public Payload(byte[] buffer, int bufferOffset, int len){
+
+  public Payload(byte[] buffer, int bufferOffset, int len) {
     payload = buffer;
     offset = bufferOffset;
     length = len;
@@ -25,13 +25,13 @@ public final class Payload implements Encodable {
 
   @Override
   public int size() {
-    //payload length + the actual payload limited to MAX_HTTPS_BUFFER_SIZE
+    // payload length + the actual payload limited to MAX_HTTPS_BUFFER_SIZE
     return MAX_HTTPS_BUFFER_SIZE + Integer.BYTES;
   }
 
   @Override
   public void encode(ByteBuffer buffer) {
-    log.debug("encoding payload of size " + (length-offset));
+    log.debug("encoding payload of size " + (length - offset));
     // check the buffer is not larger than max allowed,
     if (length - offset <= MAX_HTTPS_BUFFER_SIZE) {
       buffer.putInt(length);
