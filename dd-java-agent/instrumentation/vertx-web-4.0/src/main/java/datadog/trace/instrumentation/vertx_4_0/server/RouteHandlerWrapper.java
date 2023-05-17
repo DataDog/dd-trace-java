@@ -58,9 +58,10 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
     final String method = routingContext.request().method().name();
     final String mountPoint = routingContext.mountPoint();
 
-    String path = routingContext.currentRoute().getPath();
+    // getName returns the name of the route, if not path or the pattern or null
+    String path = routingContext.currentRoute().getName();
 
-    if (mountPoint != null) {
+    if (mountPoint != null && path != null) {
       final String noBackslashhMountPoint =
           mountPoint.endsWith("/")
               ? mountPoint.substring(0, mountPoint.lastIndexOf("/"))
