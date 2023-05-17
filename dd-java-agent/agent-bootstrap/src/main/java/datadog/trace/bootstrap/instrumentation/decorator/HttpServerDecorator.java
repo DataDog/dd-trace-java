@@ -2,7 +2,6 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.gateway.Events.EVENTS;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
@@ -24,7 +23,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -133,8 +131,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (null != carrier && null != getter) {
-      PathwayContext pathwayContext = propagate().extractPathwayContext(carrier, getter);
-      span.mergePathwayContext(pathwayContext);
       tracer().setDataStreamCheckpoint(span, SERVER_PATHWAY_EDGE_TAGS);
     }
     return span;
