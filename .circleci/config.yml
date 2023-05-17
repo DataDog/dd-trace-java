@@ -556,10 +556,6 @@ jobs:
           when: always
           command: .circleci/upload_ciapp.sh << parameters.stage >> << parameters.testJvm >> || true
 
-  xlarge_tests:
-    <<: *tests
-
-    steps:
       - run:
           name: Get APM Test Agent Trace Check Results
           when: always
@@ -575,6 +571,9 @@ jobs:
               exit 1
             fi
 
+  xlarge_tests:
+    <<: *tests
+
     docker:
       - image: &default_container << pipeline.parameters.docker_image >>:<< pipeline.parameters.docker_image_tag >>
       - image: williamconti549/dd-apm-test-agent:pool-failures
@@ -584,6 +583,7 @@ jobs:
           - DD_SUPPRESS_TRACE_PARSE_ERRORS=true
           - DD_POOL_TRACE_CHECK_FAILURES=true
     resource_class: xlarge
+
 
   huge_tests:
     <<: *tests
