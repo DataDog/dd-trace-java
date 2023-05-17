@@ -35,7 +35,7 @@ public abstract class DDTraceId {
    * @throws NumberFormatException If the given {@link String} does not represent a valid number.
    */
   public static DDTraceId from(String s) throws NumberFormatException {
-    return DD64bTraceId.create(LongStringUtils.parseUnsignedLong(s), s);
+    return s.length() > 16 ? DD128bTraceId.fromHex(s) : DD64bTraceId.create(LongStringUtils.parseUnsignedLong(s), s);
   }
 
   /**
