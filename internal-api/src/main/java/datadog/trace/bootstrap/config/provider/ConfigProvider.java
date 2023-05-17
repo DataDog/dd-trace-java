@@ -168,17 +168,17 @@ public final class ConfigProvider {
 
   private <T> T get(String key, T defaultValue, Class<T> type, String... aliases) {
     for (ConfigProvider.Source source : sources) {
-      T value;
       try {
-        value = ConfigConverter.valueOf(source.get(key, aliases), type);
-      } catch (NumberFormatException ex) {
-        continue;
-      }
-      if (value != null) {
-        if (collectConfig) {
-          ConfigCollector.get().put(key, value);
+        String sourceValue = source.get(key, aliases);
+        T value = ConfigConverter.valueOf(sourceValue, type);
+        if (value != null) {
+          if (collectConfig) {
+            ConfigCollector.get().put(key, sourceValue);
+          }
+          return value;
         }
-        return value;
+      } catch (NumberFormatException ex) {
+        // continue
       }
     }
     return defaultValue;
