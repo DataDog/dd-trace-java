@@ -558,12 +558,31 @@ jobs:
 
   xlarge_tests:
     <<: *tests
+
+    steps:
+      - run:
+          name: Get APM Test Agent Trace Check Results
+          when: always
+          command: |
+            RESPONSE=$(curl -s -w "\n%{http_code}" -o response.txt http://localhost:8126/test/check_trace/failures)
+            RESPONSE_CODE=$(echo "$RESPONSE" | awk 'END {print $NF}')
+            if [[ $RESPONSE_CODE -eq 200 ]]; then
+              echo "All Check Traces returned successful! (HTTP 200)"
+            else
+              echo "Check Traces failed with response code: $RESPONSE_CODE"
+              echo "Failures:"
+              cat response.txt
+              exit 1
+            fi
+
     docker:
       - image: &default_container << pipeline.parameters.docker_image >>:<< pipeline.parameters.docker_image_tag >>
-      - image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
+      - image: williamconti549/dd-apm-test-agent:pool-failures
         environment:
           - LOG_LEVEL=DEBUG
           - TRACE_LANGUAGE=java
+          - DD_SUPPRESS_TRACE_PARSE_ERRORS=true
+          - DD_POOL_TRACE_CHECK_FAILURES=true
     resource_class: xlarge
 
   huge_tests:
