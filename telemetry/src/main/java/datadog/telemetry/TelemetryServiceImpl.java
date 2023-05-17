@@ -67,8 +67,8 @@ public class TelemetryServiceImpl implements TelemetryService {
   public TelemetryServiceImpl(
       Supplier<RequestBuilder> requestBuilderSupplier,
       TimeSource timeSource,
-      int heartBeatIntervalSec,
-      int metricsIntervalSec) {
+      float heartBeatIntervalSec,
+      float metricsIntervalSec) {
     this(
         requestBuilderSupplier,
         timeSource,
@@ -82,14 +82,14 @@ public class TelemetryServiceImpl implements TelemetryService {
   TelemetryServiceImpl(
       Supplier<RequestBuilder> requestBuilderSupplier,
       TimeSource timeSource,
-      int heartBeatIntervalSec,
-      int metricsIntervalSec,
+      float heartBeatIntervalSec,
+      float metricsIntervalSec,
       int maxElementsPerReq,
       int maxDepsPerReq) {
     this.requestBuilderSupplier = requestBuilderSupplier;
     this.timeSource = timeSource;
-    this.heartbeatIntervalMs = heartBeatIntervalSec * 1000; // we use time in milliseconds
-    this.metricsIntervalMs = metricsIntervalSec * 1000;
+    this.heartbeatIntervalMs = (int) (heartBeatIntervalSec * 1000); // we use time in milliseconds
+    this.metricsIntervalMs = (int) (metricsIntervalSec * 1000);
     this.openTracingIntegrationEnabled = false;
     this.openTelemetryIntegrationEnabled = false;
     this.maxElementsPerReq = maxElementsPerReq;
