@@ -311,6 +311,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     if (resp) {
       1 * this.span.getRequestContext()
     }
+    _ * span.getTag('error.type')
     0 * _
 
     where:
