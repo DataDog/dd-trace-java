@@ -166,6 +166,8 @@ import static datadog.trace.api.config.GeneralConfig.VERSION;
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE;
 import static datadog.trace.api.config.IastConfig.IAST_REDACTION_ENABLED;
+import static datadog.trace.api.config.IastConfig.IAST_REDACTION_NAME_PATTERN;
+import static datadog.trace.api.config.IastConfig.IAST_REDACTION_VALUE_PATTERN;
 import static datadog.trace.api.config.IastConfig.IAST_TELEMETRY_VERBOSITY;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_HASH_ALGORITHMS;
@@ -1309,11 +1311,10 @@ public class Config {
     iastRedactionEnabled =
         configProvider.getBoolean(IAST_REDACTION_ENABLED, DEFAULT_IAST_REDACTION_ENABLED);
     iastRedactionNamePattern =
-        configProvider.getString(
-            DEFAULT_IAST_REDACTION_NAME_PATTERN, DEFAULT_IAST_REDACTION_NAME_PATTERN);
+        configProvider.getString(IAST_REDACTION_NAME_PATTERN, DEFAULT_IAST_REDACTION_NAME_PATTERN);
     iastRedactionValuePattern =
         configProvider.getString(
-            DEFAULT_IAST_REDACTION_VALUE_PATTERN, DEFAULT_IAST_REDACTION_VALUE_PATTERN);
+            IAST_REDACTION_VALUE_PATTERN, DEFAULT_IAST_REDACTION_VALUE_PATTERN);
 
     ciVisibilityAgentlessEnabled =
         configProvider.getBoolean(
