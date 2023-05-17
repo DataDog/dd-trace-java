@@ -24,6 +24,8 @@ public final class CiVisibilityConfig {
       "civisibility.jacoco.plugin.version";
   public static final String CIVISIBILITY_JACOCO_PLUGIN_INCLUDES =
       "civisibility.jacoco.plugin.includes";
+  public static final String CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES =
+      "civisibility.jacoco.plugin.excludes";
   public static final String CIVISIBILITY_DEBUG_PORT = "civisibility.debug.port";
   public static final String CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE =
       "civisibility.test.events.handler.cache.size";

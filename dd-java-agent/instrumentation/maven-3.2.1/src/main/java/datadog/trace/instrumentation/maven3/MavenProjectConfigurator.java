@@ -270,10 +270,14 @@ class MavenProjectConfigurator {
     execution.addGoal("prepare-agent");
     jacocoPlugin.addExecution(execution);
 
-    String instrumentedPackagesStr = Config.get().getCiVisibilityJacocoPluginIncludes();
-    if (instrumentedPackagesStr != null && !instrumentedPackagesStr.isEmpty()) {
-      String[] instrumentedPackages = instrumentedPackagesStr.split(":");
+    List<String> instrumentedPackages = Config.get().getCiVisibilityJacocoPluginIncludes();
+    if (instrumentedPackages != null && !instrumentedPackages.isEmpty()) {
       configureJacocoInstrumentedPackages(execution, instrumentedPackages);
+    } else {
+      List<String> excludedPackages = Config.get().getCiVisibilityJacocoPluginExcludes();
+      if (excludedPackages != null && !excludedPackages.isEmpty()) {
+        configureExcludedPackages(execution, excludedPackages);
+      }
     }
 
     Build build = project.getBuild();
@@ -281,7 +285,7 @@ class MavenProjectConfigurator {
   }
 
   private static void configureJacocoInstrumentedPackages(
-      PluginExecution execution, String[] instrumentedPackages) {
+      PluginExecution execution, List<String> instrumentedPackages) {
     Xpp3Dom includes = new Xpp3Dom("includes");
     for (String instrumentedPackage : instrumentedPackages) {
       Xpp3Dom include = new Xpp3Dom("include");
@@ -291,6 +295,21 @@ class MavenProjectConfigurator {
 
     Xpp3Dom configuration = new Xpp3Dom("configuration");
     configuration.addChild(includes);
+
+    execution.setConfiguration(configuration);
+  }
+
+  private static void configureExcludedPackages(
+      PluginExecution execution, List<String> excludedPackages) {
+    Xpp3Dom excludes = new Xpp3Dom("excludes");
+    for (String excludedPackage : excludedPackages) {
+      Xpp3Dom exclude = new Xpp3Dom("exclude");
+      exclude.setValue(excludedPackage);
+      excludes.addChild(exclude);
+    }
+
+    Xpp3Dom configuration = new Xpp3Dom("configuration");
+    configuration.addChild(excludes);
 
     execution.setConfiguration(configuration);
   }

@@ -13,6 +13,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_AUTO_CONFIGU
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_PER_TEST_CODE_COVERAGE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE;
@@ -113,6 +114,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_BUILD_INS
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_ID;
@@ -589,7 +591,9 @@ public class Config {
   private final boolean ciVisibilityPerTestCodeCoverageEnabled;
   private final String ciVisibilityCompilerPluginVersion;
   private final String ciVisibilityJacocoPluginVersion;
-  private final String ciVisibilityJacocoPluginIncludes;
+  private final List<String> ciVisibilityJacocoPluginIncludes;
+  private final List<String> ciVisibilityJacocoPluginExcludes;
+  private final String[] ciVisibilityJacocoPluginExcludedClassnames;
   private final Integer ciVisibilityDebugPort;
   private final int ciVisibilityTestEventsHandlerCacheSize;
 
@@ -1380,7 +1384,17 @@ public class Config {
             CIVISIBILITY_COMPILER_PLUGIN_VERSION, DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION);
     ciVisibilityJacocoPluginVersion = configProvider.getString(CIVISIBILITY_JACOCO_PLUGIN_VERSION);
     ciVisibilityJacocoPluginIncludes =
-        configProvider.getString(CIVISIBILITY_JACOCO_PLUGIN_INCLUDES);
+        Arrays.asList(
+            configProvider.getString(CIVISIBILITY_JACOCO_PLUGIN_INCLUDES, ":").split(":"));
+    ciVisibilityJacocoPluginExcludes =
+        Arrays.asList(
+            configProvider
+                .getString(
+                    CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES,
+                    DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES)
+                .split(":"));
+    ciVisibilityJacocoPluginExcludedClassnames =
+        computeCiVisibilityJacocoPluginExcludedClassnames(ciVisibilityJacocoPluginExcludes);
     ciVisibilityDebugPort = configProvider.getInteger(CIVISIBILITY_DEBUG_PORT);
 
     remoteConfigEnabled =
@@ -1556,6 +1570,13 @@ public class Config {
     }
 
     log.debug("New instance: {}", this);
+  }
+
+  private String[] computeCiVisibilityJacocoPluginExcludedClassnames(
+      List<String> ciVisibilityJacocoPluginExcludes) {
+    return ciVisibilityJacocoPluginExcludes.stream()
+        .map(s -> (s.endsWith("*") ? s.substring(0, s.length() - 1) : s).replace('.', '/'))
+        .toArray(String[]::new);
   }
 
   public ConfigProvider configProvider() {
@@ -2237,8 +2258,16 @@ public class Config {
     return ciVisibilityJacocoPluginVersion;
   }
 
-  public String getCiVisibilityJacocoPluginIncludes() {
+  public List<String> getCiVisibilityJacocoPluginIncludes() {
     return ciVisibilityJacocoPluginIncludes;
+  }
+
+  public List<String> getCiVisibilityJacocoPluginExcludes() {
+    return ciVisibilityJacocoPluginExcludes;
+  }
+
+  public String[] getCiVisibilityJacocoPluginExcludedClassnames() {
+    return ciVisibilityJacocoPluginExcludedClassnames;
   }
 
   public Integer getCiVisibilityDebugPort() {

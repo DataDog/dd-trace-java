@@ -141,8 +141,14 @@ class GradleProjectConfigurator {
     forEveryTestTask project, { task ->
       task.jacoco.excludeClassLoaders += [DatadogClassLoader.name]
 
-      if (config.ciVisibilityJacocoPluginIncludes != null && !config.ciVisibilityJacocoPluginIncludes.empty) {
-        task.jacoco.includes += Arrays.asList(config.ciVisibilityJacocoPluginIncludes.split(":"))
+      Collection<String> instrumentedPackages = config.ciVisibilityJacocoPluginIncludes
+      if (instrumentedPackages != null && !instrumentedPackages.empty) {
+        task.jacoco.includes += instrumentedPackages
+      } else {
+        Collection<String> excludedPackages = config.ciVisibilityJacocoPluginExcludes
+        if (excludedPackages != null && !excludedPackages.empty) {
+          task.jacoco.excludes += excludedPackages
+        }
       }
     }
   }
