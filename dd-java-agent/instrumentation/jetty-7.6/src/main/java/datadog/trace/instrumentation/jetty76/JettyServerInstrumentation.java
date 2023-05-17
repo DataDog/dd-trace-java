@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jetty76;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_FIN_DISP_LIST_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
@@ -17,6 +18,7 @@ import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.jetty.ConnectionHandleRequestVisitor;
 import java.util.Map;
@@ -147,6 +149,7 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
         @Advice.Local("newSpan") AgentSpan span) {
       Request req = connection.getRequest();
 
+      // TODO:context store the context here instead
       Object existingSpan = req.getAttribute(DD_SPAN_ATTRIBUTE);
       if (existingSpan instanceof AgentSpan) {
         // Request already gone through initial processing, so just activate the span.
@@ -154,11 +157,13 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
       }
 
       final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(req);
-      span = DECORATE.startSpan(req, extractedContext);
+      AgentScopeContext context = DECORATE.startSpanContext(req, extractedContext);
+      span = context.span();
+      span.setMeasured(true);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, req, req, extractedContext);
 
-      final AgentScope scope = activateSpan(span);
+      final AgentScope scope = activateContext(context);
       scope.setAsyncPropagation(true);
       req.setAttribute(DD_SPAN_ATTRIBUTE, span);
       req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());

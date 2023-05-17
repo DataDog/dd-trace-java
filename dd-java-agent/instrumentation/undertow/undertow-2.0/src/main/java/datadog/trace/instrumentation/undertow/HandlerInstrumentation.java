@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.undertow;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateContext;
 import static datadog.trace.instrumentation.undertow.UndertowBlockingHandler.REQUEST_BLOCKING_DATA;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DD_UNDERTOW_CONTINUATION;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DECORATE;
@@ -15,6 +15,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.gateway.Flow.Action.RequestBlockingAction;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.undertow.server.HttpHandler;
@@ -89,11 +90,13 @@ public final class HandlerInstrumentation extends Instrumenter.Tracing
       }
 
       final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(exchange);
-      final AgentSpan span = DECORATE.startSpan(exchange, extractedContext).setMeasured(true);
+      final AgentScopeContext context = DECORATE.startSpanContext(exchange, extractedContext);
+      final AgentSpan span = context.span();
+      span.setMeasured(true);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, exchange, exchange, extractedContext);
 
-      scope = activateSpan(span);
+      scope = activateContext(context);
       scope.setAsyncPropagation(true);
 
       exchange.putAttachment(DD_UNDERTOW_CONTINUATION, scope.capture());

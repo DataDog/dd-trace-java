@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.jetty9;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
@@ -19,6 +20,7 @@ import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.util.Arrays;
@@ -136,17 +138,20 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
         @Advice.This final HttpChannel<?> channel, @Advice.Local("agentSpan") AgentSpan span) {
       Request req = channel.getRequest();
 
+      // TODO:context store the context here instead
       Object existingSpan = req.getAttribute(DD_SPAN_ATTRIBUTE);
       if (existingSpan instanceof AgentSpan) {
         return activateSpan((AgentSpan) existingSpan);
       }
 
       final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(req);
-      span = DECORATE.startSpan(req, extractedContext);
+      AgentScopeContext context = DECORATE.startSpanContext(req, extractedContext);
+      span = context.span();
+      span.setMeasured(true);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, req, req, extractedContext);
 
-      final AgentScope scope = activateSpan(span);
+      final AgentScope scope = activateContext(context);
       scope.setAsyncPropagation(true);
       req.setAttribute(DD_SPAN_ATTRIBUTE, span);
       req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());

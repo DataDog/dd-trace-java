@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.liberty20;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.liberty20.LibertyDecorator.DD_EXTRACTED_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.liberty20.LibertyDecorator.DD_SPAN_ATTRIBUTE;
@@ -16,6 +17,7 @@ import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -78,6 +80,7 @@ public final class LibertyServerInstrumentation extends Instrumenter.Tracing
       // if we try to get an attribute that doesn't exist open liberty might complain with an
       // exception
       try {
+        // TODO:context store the context here instead
         Object existingSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);
         if (existingSpan instanceof AgentSpan) {
           scope = activateSpan((AgentSpan) existingSpan);
@@ -88,11 +91,12 @@ public final class LibertyServerInstrumentation extends Instrumenter.Tracing
 
       final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(request);
       request.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, extractedContext);
-      final AgentSpan span = DECORATE.startSpan(request, extractedContext);
+      final AgentScopeContext context = DECORATE.startSpanContext(request, extractedContext);
+      final AgentSpan span = context.span();
 
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request, request, extractedContext);
-      scope = activateSpan(span);
+      scope = activateContext(context);
       scope.setAsyncPropagation(true);
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);
       request.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());

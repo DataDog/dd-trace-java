@@ -81,8 +81,9 @@ public class HandleVisitor extends MethodVisitor {
     if (agentSpanVar == -1) {
       lookForStore =
           !lookForStore
-              && opcode == Opcodes.INVOKEVIRTUAL
-              && name.equals("startSpan")
+              && opcode == Opcodes.INVOKEINTERFACE
+              && owner.equals("datadog/trace/bootstrap/instrumentation/api/AgentScopeContext")
+              && name.equals("span")
               && descriptor.endsWith("Ldatadog/trace/bootstrap/instrumentation/api/AgentSpan;");
     } else if (!success
         && opcode == Opcodes.INVOKEVIRTUAL

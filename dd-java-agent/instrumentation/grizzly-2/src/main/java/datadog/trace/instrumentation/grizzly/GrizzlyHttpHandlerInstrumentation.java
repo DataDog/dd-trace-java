@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.grizzly;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.grizzly.GrizzlyDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -13,6 +13,7 @@ import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import net.bytebuddy.asm.Advice;
@@ -71,11 +72,12 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing
       }
 
       final Context.Extracted parentContext = DECORATE.extract(request);
-      final AgentSpan span = DECORATE.startSpan(request, parentContext);
+      final AgentScopeContext context = DECORATE.startSpanContext(request, parentContext);
+      final AgentSpan span = context.span();
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request, request, parentContext);
 
-      final AgentScope scope = activateSpan(span);
+      final AgentScope scope = activateContext(context);
       scope.setAsyncPropagation(true);
 
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);

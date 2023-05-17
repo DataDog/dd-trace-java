@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.play23;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateContext;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.play23.PlayHttpServerDecorator.DECORATE;
@@ -8,8 +9,10 @@ import static datadog.trace.instrumentation.play23.PlayHttpServerDecorator.PLAY_
 import static datadog.trace.instrumentation.play23.PlayHttpServerDecorator.REPORT_HTTP_STATUS;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
 import play.api.mvc.Action;
 import play.api.mvc.Headers;
@@ -20,20 +23,28 @@ import scala.concurrent.Future;
 public class PlayAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.Argument(0) final Request req) {
+    final AgentScopeContext context;
     final AgentSpan span;
     if (activeSpan() == null) {
       Headers headers = req.headers();
       final Context.Extracted extractedContext = DECORATE.extract(headers);
-      span = DECORATE.startSpan(headers, extractedContext);
+      context = DECORATE.startSpanContext(headers, extractedContext);
+      span = context.span();
     } else {
       // An upstream framework (e.g. akka-http, netty) has already started the span.
       // Do not extract the context.
       span = startSpan(PLAY_REQUEST);
       span.setMeasured(true);
+      AgentScopeContext activeContext = activeContext();
+      if (activeContext != null) {
+        context = activeContext.with(AgentSpan.CONTEXT_KEY, span);
+      } else {
+        context = AgentTracer.get().contextFromSpan(span);
+      }
     }
     DECORATE.afterStart(span);
 
-    final AgentScope scope = activateSpan(span);
+    final AgentScope scope = activateContext(context);
     scope.setAsyncPropagation(true);
     return scope;
   }

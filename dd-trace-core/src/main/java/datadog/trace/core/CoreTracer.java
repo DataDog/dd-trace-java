@@ -9,7 +9,6 @@ import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
-import static datadog.trace.core.scopemanager.ScopeContext.fromSpan;
 import static datadog.trace.core.scopemanager.ScopeContext.withSpan;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
@@ -84,6 +83,7 @@ import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
+import datadog.trace.core.scopemanager.ScopeContext;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.lambda.LambdaHandler;
@@ -745,7 +745,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public AgentScope.Continuation captureSpan(final AgentSpan span) {
-    return scopeManager.capture(fromSpan(span));
+    return scopeManager.capture(contextFromSpan(span));
   }
 
   @Override
@@ -761,6 +761,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public AgentScope activateContext(AgentScopeContext context) {
     return scopeManager.activateContext(context);
+  }
+
+  @Override
+  public AgentScopeContext contextFromSpan(AgentSpan span) {
+    return ScopeContext.fromSpan(span);
   }
 
   public TagInterceptor getTagInterceptor() {

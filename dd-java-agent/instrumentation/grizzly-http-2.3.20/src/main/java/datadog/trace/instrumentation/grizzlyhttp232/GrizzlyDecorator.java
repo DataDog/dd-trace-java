@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.grizzlyhttp232;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateContext;
 
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -9,6 +9,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -112,14 +113,16 @@ public class GrizzlyDecorator
     }
     HttpRequestPacket httpRequest = (HttpRequestPacket) httpHeader;
     HttpResponsePacket httpResponse = httpRequest.getResponse();
-    AgentSpan.Context.Extracted context = DECORATE.extract(httpRequest);
-    AgentSpan span = DECORATE.startSpan(httpRequest, context);
-    AgentScope scope = activateSpan(span);
+    AgentSpan.Context.Extracted extracted = DECORATE.extract(httpRequest);
+    AgentScopeContext context = DECORATE.startSpanContext(httpRequest, extracted);
+    final AgentSpan span = context.span();
+
+    AgentScope scope = activateContext(context);
     scope.setAsyncPropagation(true);
     DECORATE.afterStart(span);
     ctx.getAttributes().setAttribute(DD_SPAN_ATTRIBUTE, span);
     ctx.getAttributes().setAttribute(DD_RESPONSE_ATTRIBUTE, httpResponse);
-    DECORATE.onRequest(span, httpRequest, httpRequest, context);
+    DECORATE.onRequest(span, httpRequest, httpRequest, extracted);
 
     Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
     if (rba != null && thiz instanceof HttpServerFilter) {

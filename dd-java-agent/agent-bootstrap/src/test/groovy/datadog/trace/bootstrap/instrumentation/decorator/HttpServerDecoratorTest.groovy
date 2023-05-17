@@ -302,8 +302,8 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     if (status) {
       1 * this.span.setHttpStatusCode(status)
     }
-    if (error) {
-      1 * this.span.setError(true)
+    if (resp) {
+      1 * this.span.setError(error)
     }
     if (status == 404) {
       1 * this.span.setResourceName({ it as String == "404" }, ResourceNamePriorities.HTTP_404)
@@ -425,7 +425,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def decorator = newDecorator(mTracer)
 
     when:
-    decorator.startSpan(headers, null)
+    decorator.startSpanContext(headers, null)
 
     then:
     1 * mSpan.setMeasured(true) >> mSpan

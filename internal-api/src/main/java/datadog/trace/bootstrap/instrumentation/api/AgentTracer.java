@@ -59,6 +59,10 @@ public class AgentTracer {
     return get().activateSpan(span, ScopeSource.INSTRUMENTATION, isAsyncPropagating);
   }
 
+  public static AgentScope activateContext(AgentScopeContext context) {
+    return get().activateContext(context);
+  }
+
   public static AgentScope.Continuation captureSpan(final AgentSpan span) {
     // TODO:context fix this to work with a context instead
     return get().captureSpan(span);
@@ -87,6 +91,10 @@ public class AgentTracer {
 
   public static AgentScope activeScope() {
     return get().activeScope();
+  }
+
+  public static AgentScopeContext activeContext() {
+    return get().activeContext();
   }
 
   public static AgentPropagation propagate() {
@@ -148,6 +156,8 @@ public class AgentTracer {
     AgentScope activateNext(AgentSpan span);
 
     AgentScope activateContext(AgentScopeContext context);
+
+    AgentScopeContext contextFromSpan(AgentSpan span);
 
     AgentSpan activeSpan();
 
@@ -278,6 +288,11 @@ public class AgentTracer {
     @Override
     public AgentScope activateContext(AgentScopeContext context) {
       return NoopAgentScope.INSTANCE;
+    }
+
+    @Override
+    public AgentScopeContext contextFromSpan(AgentSpan span) {
+      return null;
     }
 
     @Override

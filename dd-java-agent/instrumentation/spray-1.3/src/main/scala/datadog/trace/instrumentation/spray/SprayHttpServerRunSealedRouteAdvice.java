@@ -1,12 +1,15 @@
 package datadog.trace.instrumentation.spray;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateContext;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.spray.SprayHttpServerDecorator.DECORATE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
 import spray.http.HttpRequest;
 import spray.routing.RequestContext;
@@ -14,6 +17,7 @@ import spray.routing.RequestContext;
 public class SprayHttpServerRunSealedRouteAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope enter(@Advice.Argument(value = 1, readOnly = false) RequestContext ctx) {
+    final AgentScopeContext context;
     final AgentSpan span;
     final AgentSpan.Context.Extracted extractedContext;
     if (activeSpan() == null) {
@@ -21,15 +25,22 @@ public class SprayHttpServerRunSealedRouteAdvice {
       // TODO: Add test for it
       final HttpRequest request = ctx.request();
       extractedContext = DECORATE.extract(request);
-      span = DECORATE.startSpan(request, extractedContext);
+      context = DECORATE.startSpanContext(request, extractedContext);
+      span = context.span();
     } else {
       extractedContext = null;
       span = startSpan(DECORATE.spanName());
+      AgentScopeContext activeContext = activeContext();
+      if (activeContext != null) {
+        context = activeContext.with(AgentSpan.CONTEXT_KEY, span);
+      } else {
+        context = AgentTracer.get().contextFromSpan(span);
+      }
     }
 
     DECORATE.afterStart(span);
 
-    final AgentScope scope = activateSpan(span);
+    final AgentScope scope = activateContext(context);
     scope.setAsyncPropagation(true);
     ctx = SprayHelper.wrapRequestContext(ctx, scope.span(), extractedContext);
     return scope;

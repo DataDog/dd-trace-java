@@ -2,7 +2,9 @@ package datadog.trace.instrumentation.synapse3;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.SYNAPSE_SPAN_KEY;
@@ -12,7 +14,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
 import org.apache.http.HttpRequest;
 import org.apache.http.nio.NHttpServerConnection;
@@ -68,12 +72,20 @@ public final class SynapseServerInstrumentation extends Instrumenter.Tracing
       HttpRequest request = connection.getHttpRequest();
       AgentSpan.Context.Extracted extractedContext = DECORATE.extract(request);
 
-      AgentSpan span;
+      final AgentSpan span;
+      final AgentScopeContext context;
       if (null != extractedContext) {
-        span = DECORATE.startSpan(request, extractedContext);
+        context = DECORATE.startSpanContext(request, extractedContext);
+        span = context.span();
       } else {
         span = startSpan(DECORATE.spanName());
         span.setMeasured(true);
+        AgentScopeContext activeContext = activeContext();
+        if (activeContext != null) {
+          context = activeContext.with(AgentSpan.CONTEXT_KEY, span);
+        } else {
+          context = AgentTracer.get().contextFromSpan(span);
+        }
       }
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, connection, request, extractedContext);
@@ -81,7 +93,7 @@ public final class SynapseServerInstrumentation extends Instrumenter.Tracing
       // capture span to be finished by one of the various server response advices
       connection.getContext().setAttribute(SYNAPSE_SPAN_KEY, span);
 
-      return activateSpan(span);
+      return activateContext(context);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

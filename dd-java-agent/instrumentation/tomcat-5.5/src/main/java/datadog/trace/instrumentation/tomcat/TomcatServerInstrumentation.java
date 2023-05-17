@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.tomcat;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_NON_STATIC;
 import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_PUBLIC;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
@@ -19,6 +20,7 @@ import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -123,11 +125,12 @@ public final class TomcatServerInstrumentation extends Instrumenter.Tracing
       final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(req);
       req.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, extractedContext);
 
-      final AgentSpan span = DECORATE.startSpan(req, extractedContext);
+      final AgentScopeContext context = DECORATE.startSpanContext(req, extractedContext);
+      final AgentSpan span = context.span();
       // This span is finished when Request.recycle() is called by RequestInstrumentation.
       DECORATE.afterStart(span);
 
-      final AgentScope scope = activateSpan(span);
+      final AgentScope scope = activateContext(context);
       scope.setAsyncPropagation(true);
       req.setAttribute(DD_SPAN_ATTRIBUTE, span);
       req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());

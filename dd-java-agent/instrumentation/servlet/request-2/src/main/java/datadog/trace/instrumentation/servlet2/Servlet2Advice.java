@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.servlet2;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.servlet2.Servlet2Decorator.DECORATE;
 
@@ -11,6 +11,7 @@ import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
 import java.security.Principal;
@@ -49,11 +50,13 @@ public class Servlet2Advice {
     }
 
     final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(httpServletRequest);
-    final AgentSpan span = DECORATE.startSpan(httpServletRequest, extractedContext);
+    final AgentScopeContext context =
+        DECORATE.startSpanContext(httpServletRequest, extractedContext);
+    final AgentSpan span = context.span();
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, httpServletRequest, httpServletRequest, extractedContext);
 
-    scope = activateSpan(span);
+    scope = activateContext(context);
     scope.setAsyncPropagation(true);
 
     httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);

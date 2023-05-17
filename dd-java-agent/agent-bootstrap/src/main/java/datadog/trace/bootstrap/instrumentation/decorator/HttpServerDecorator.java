@@ -18,6 +18,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -121,7 +122,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return tracer().propagate().extract(carrier, getter);
   }
 
-  public AgentSpan startSpan(REQUEST_CARRIER carrier, AgentSpan.Context.Extracted context) {
+  public AgentScopeContext startSpanContext(
+      REQUEST_CARRIER carrier, AgentSpan.Context.Extracted context) {
     AgentSpan span = tracer().startSpan(spanName(), callIGCallbackStart(context)).setMeasured(true);
     Flow<Void> flow = callIGCallbackRequestHeaders(span, carrier);
     if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
@@ -133,7 +135,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       span.mergePathwayContext(pathwayContext);
       tracer().setDataStreamCheckpoint(span, SERVER_PATHWAY_EDGE_TAGS);
     }
-    return span;
+    return tracer().contextFromSpan(span);
   }
 
   public AgentSpan onRequest(

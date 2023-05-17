@@ -1,11 +1,13 @@
 package datadog.trace.instrumentation.netty38.server;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.netty38.server.NettyHttpServerDecorator.DECORATE;
 
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.instrumentation.netty38.ChannelTraceContext;
@@ -46,12 +48,13 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
 
     final HttpRequest request = (HttpRequest) msg.getMessage();
     final HttpHeaders headers = request.headers();
-    final Context.Extracted context = DECORATE.extract(headers);
-    final AgentSpan span = DECORATE.startSpan(headers, context);
+    final Context.Extracted extracted = DECORATE.extract(headers);
+    final AgentScopeContext context = DECORATE.startSpanContext(headers, extracted);
+    final AgentSpan span = context.span();
 
-    try (final AgentScope scope = activateSpan(span)) {
+    try (final AgentScope scope = activateContext(context)) {
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, ctx.getChannel(), request, context);
+      DECORATE.onRequest(span, ctx.getChannel(), request, extracted);
 
       scope.setAsyncPropagation(true);
 
