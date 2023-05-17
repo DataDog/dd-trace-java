@@ -4,5 +4,5 @@ import javax.annotation.Nullable;
 
 public interface UnvalidatedRedirectModule extends HttpHeaderModule {
 
-  void onRedirect(@Nullable String value);
+  void onRedirect(@Nullable Object value);
 }

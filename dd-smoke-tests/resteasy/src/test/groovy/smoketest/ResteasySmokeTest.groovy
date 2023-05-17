@@ -12,7 +12,7 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
 
 
   @Override
-  def logLevel(){
+  def logLevel() {
     return "debug"
   }
 
@@ -168,6 +168,34 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
     assert response.code() == 200
     processTestLogLines {
       it.contains("SQL_INJECTION") && it.contains("smoketest.resteasy.DB") && it.contains("sortedsetValue1")
+    }
+  }
+
+  def "unvalidated  redirect from location header is present"() {
+    setup:
+    def url = "http://localhost:${httpPort}/hello/setlocationheader?param=setheader"
+
+    when:
+    def request = new Request.Builder().url(url).get().build()
+    client.newCall(request).execute()
+
+    then:
+    processTestLogLines {
+      it.contains("UNVALIDATED_REDIRECT") && it.contains("setheader")
+    }
+  }
+
+  def "unvalidated  redirect from location header is present"() {
+    setup:
+    def url = "http://localhost:${httpPort}/hello/setresponselocation?param=setlocation"
+
+    when:
+    def request = new Request.Builder().url(url).get().build()
+    client.newCall(request).execute()
+
+    then:
+    processTestLogLines {
+      it.contains("UNVALIDATED_REDIRECT") && it.contains("setlocation")
     }
   }
 

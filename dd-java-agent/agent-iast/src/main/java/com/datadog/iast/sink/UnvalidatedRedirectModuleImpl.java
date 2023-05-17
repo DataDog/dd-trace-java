@@ -13,8 +13,8 @@ public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
     implements UnvalidatedRedirectModule {
 
   @Override
-  public void onRedirect(final @Nullable String value) {
-    if (!canBeTainted(value)) {
+  public void onRedirect(final @Nullable Object value) {
+    if (value instanceof String && !canBeTainted((String) value)) {
       return;
     }
     final AgentSpan span = AgentTracer.activeSpan();

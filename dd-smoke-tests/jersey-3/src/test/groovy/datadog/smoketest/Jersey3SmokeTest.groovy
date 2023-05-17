@@ -8,14 +8,18 @@ import spock.util.concurrent.PollingConditions
 import java.util.function.Function
 import java.util.function.Predicate
 
-import static datadog.trace.api.config.IastConfig.*
+import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
+import static datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED
+import static datadog.trace.api.config.IastConfig.IAST_ENABLED
+import static datadog.trace.api.config.IastConfig.IAST_REDACTION_ENABLED
+import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING
 
 class Jersey3SmokeTest extends AbstractServerSmokeTest {
 
   private static final String TAG_NAME = '_dd.iast.json'
 
   @Override
-  def logLevel(){
+  def logLevel() {
     return "debug"
   }
 
@@ -116,6 +120,35 @@ class Jersey3SmokeTest extends AbstractServerSmokeTest {
     assert response.code() == 200
     waitForSpan(new PollingConditions(timeout: 5),
     hasVulnerability(type('SQL_INJECTION').and(evidence('cookieValue'))))
+  }
+
+
+  def "unvalidated  redirect from location header is present"() {
+    setup:
+    def url = "http://localhost:${httpPort}/hello/setlocationheader?param=queryParamValue"
+
+    when:
+    def request = new Request.Builder().url(url).get().build()
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isRedirect()
+    waitForSpan(new PollingConditions(timeout: 5),
+    hasVulnerability(type('UNVALIDATED_REDIRECT')))
+  }
+
+  def "unvalidated  redirect from location is present"() {
+    setup:
+    def url = "http://localhost:${httpPort}/hello/setresponselocation?param=queryParamValue"
+
+    when:
+    def request = new Request.Builder().url(url).get().build()
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isRedirect()
+    waitForSpan(new PollingConditions(timeout: 5),
+    hasVulnerability(type('UNVALIDATED_REDIRECT')))
   }
 
   private static String withSystemProperty(final String config, final Object value) {
