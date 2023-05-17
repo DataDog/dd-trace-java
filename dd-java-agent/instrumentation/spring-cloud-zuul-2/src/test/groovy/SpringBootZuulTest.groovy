@@ -76,6 +76,12 @@ class SpringBootZuulTest extends HttpServerTest<ConfigurableApplicationContext> 
     false // Zuul forwards to the error handler instead
   }
 
+  //@Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")
+  @Override
+  boolean testBadUrl() {
+    false
+  }
+
   int spanCount(ServerEndpoint endpoint) {
     if (endpoint == REDIRECT) {
       // Spring is generates a RenderView and ResponseSpan for REDIRECT

@@ -174,4 +174,10 @@ class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
   String expectedOperationName() {
     "netty.request"
   }
+
+  //@Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")
+  @Override
+  boolean testBadUrl() {
+    false
+  }
 }
