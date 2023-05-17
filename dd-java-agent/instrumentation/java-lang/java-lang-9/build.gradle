@@ -2,6 +2,10 @@ plugins {
   id 'idea'
 }
 
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_9
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'call-site-instrumentation'
 

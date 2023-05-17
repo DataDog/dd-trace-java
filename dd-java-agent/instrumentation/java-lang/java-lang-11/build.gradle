@@ -2,6 +2,10 @@ plugins {
   id 'idea'
 }
 
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_11
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'call-site-instrumentation'
 
@@ -14,15 +18,6 @@ muzzle {
 idea {
   module {
     jdkName = '11'
-  }
-}
-
-if (!JavaVersion.current().java11Compatible) {
-  project.afterEvaluate {
-    tasks.each {
-      logger.info("Disabling task $it.path (requires Java 11)")
-      it.enabled = false
-    }
   }
 }
 
