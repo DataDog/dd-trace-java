@@ -11,6 +11,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   compileOnly group: 'org.glassfish.jersey.core', name: 'jersey-common', version: '3.0.0'
+  compileOnly group: 'org.glassfish.jersey.core', name: 'jersey-server', version: '3.0.0'
 }
 
 // tested in GrizzlyTest/GrizzlyAsyncTest

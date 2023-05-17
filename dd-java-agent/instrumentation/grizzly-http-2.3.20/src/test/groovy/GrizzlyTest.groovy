@@ -12,6 +12,7 @@ import javax.ws.rs.HeaderParam
 import javax.ws.rs.NotFoundException
 import javax.ws.rs.POST
 import javax.ws.rs.Path
+import javax.ws.rs.PathParam
 import javax.ws.rs.QueryParam
 import javax.ws.rs.container.ContainerRequestContext
 import javax.ws.rs.container.ContainerResponseContext
@@ -28,6 +29,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
@@ -119,6 +121,16 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     false
   }
 
+  @Override
+  String testPathParam() {
+    "/path/?/param"
+  }
+
+  @Override
+  Map<String, ?> expectedIGPathParams() {
+    [id: ['123']]
+  }
+
   static class SimpleExceptionMapper implements ExceptionMapper<Throwable> {
 
     @Override
@@ -147,6 +159,14 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
       controller(CREATED) {
         String body = "${CREATED.body}: ${reqBody}"
         Response.status(CREATED.status).entity(body).build()
+      }
+    }
+
+    @GET
+    @Path("/path/{id}/param")
+    Response pathParam(@PathParam("id") String id) {
+      controller(PATH_PARAM) {
+        Response.status(PATH_PARAM.status).entity(id).build()
       }
     }
 
