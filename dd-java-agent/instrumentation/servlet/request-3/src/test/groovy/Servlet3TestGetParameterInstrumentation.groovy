@@ -1,5 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.source.WebModule
 import foo.bar.smoketest.Servlet3TestSuite
@@ -15,8 +14,11 @@ class Servlet3TestGetParameterInstrumentation extends AgentTestRunner {
 
   @Override
   protected void configurePreAgent() {
-    injectSysConfig(TracerConfig.SCOPE_ITERATION_KEEP_ALIVE, "1") // don't let iteration spans linger
     injectSysConfig("dd.iast.enabled", "true")
+  }
+
+  void cleanup() {
+    InstrumentationBridge.clearIastModules()
   }
 
   void 'test getParameter'() {
