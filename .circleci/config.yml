@@ -563,9 +563,11 @@ jobs:
             RESPONSE=$(curl -s -w "\n%{http_code}" -o response.txt http://localhost:8126/test/check_trace/failures)
             RESPONSE_CODE=$(echo "$RESPONSE" | awk 'END {print $NF}')
             if [[ $RESPONSE_CODE -eq 200 ]]; then
-              echo "All Check Traces returned successful! (HTTP 200)"
+              echo "All APM Test Agent Check Traces returned successful! (HTTP 200)"
+            elif [[ $RESPONSE_CODE -eq 404 ]]; then
+              echo "APM Test Agent was not used for testing. No checks failed."
             else
-              echo "Check Traces failed with response code: $RESPONSE_CODE"
+              echo "APM Test Agent Check Traces failed with response code: $RESPONSE_CODE"
               echo "Failures:"
               cat response.txt
               exit 1
@@ -575,7 +577,7 @@ jobs:
     <<: *tests
 
     docker:
-      - image: &default_container << pipeline.parameters.docker_image >>:<< pipeline.parameters.docker_image_tag >>
+      - image: << pipeline.parameters.docker_image >>:<< parameters.testJvm >>
       - image: williamconti549/dd-apm-test-agent:pool-failures
         environment:
           - LOG_LEVEL=DEBUG
