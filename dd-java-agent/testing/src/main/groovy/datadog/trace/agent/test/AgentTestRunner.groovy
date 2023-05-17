@@ -99,6 +99,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   @SuppressWarnings('PropertyName')
   @Shared
+  Boolean USE_TEST_AGENT_WRITER
+
+  @SuppressWarnings('PropertyName')
+  @Shared
   TracerAPI TEST_TRACER
 
   @SuppressWarnings('PropertyName')
@@ -194,7 +198,12 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       TEST_DATA_STREAMS_MONITORING = new DefaultDataStreamsMonitoring(sink, features, SystemTimeSource.INSTANCE, wellKnownTags, TEST_DATA_STREAMS_WRITER, bucketDuration)
     }
     TEST_WRITER = new ListWriter()
-    TEST_AGENT_WRITER = DDAgentWriter.builder().build()
+
+    USE_TEST_AGENT_WRITER = System.getenv("CI_USE_TEST_AGENT").equals("true") && !(System.getProperty("CI_USE_TEST_AGENT").equals("false"))
+    if (USE_TEST_AGENT_WRITER) {
+      // emit traces to the APM Test-Agent for Cross-Tracer Testing Trace Checks
+      TEST_AGENT_WRITER = DDAgentWriter.builder().build()
+    }
 
     TEST_TRACER =
       Spy(
@@ -241,12 +250,15 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     println "Starting test: ${getSpecificationContext().getCurrentIteration().getName()}"
     TEST_TRACER.flush()
-    TEST_AGENT_WRITER.flush()
     TEST_SPANS.clear()
-    try {
-      TEST_AGENT_WRITER.start()
-    } catch (IllegalStateException) {
-      // do nothing
+
+    if (USE_TEST_AGENT_WRITER) {
+      TEST_AGENT_WRITER.flush()
+      try {
+        TEST_AGENT_WRITER.start()
+      } catch (IllegalStateException) {
+        // do nothing
+      }
     }
 
     TEST_WRITER.start()
@@ -262,13 +274,17 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   }
 
   void cleanup() {
-    def array = TEST_WRITER.toArray()
-    def traces = (Arrays.asList(array) as List<List<DDSpan>>)
-    for (trace in traces) {
-      TEST_AGENT_WRITER.write(trace)
+    if (USE_TEST_AGENT_WRITER) {
+      // write ListWriter traces to the AgentWriter at cleanup so trace-processing changes occur after span assertions
+      def array = TEST_WRITER.toArray()
+      def traces = (Arrays.asList(array) as List<List<DDSpan>>)
+      for (trace in traces) {
+        TEST_AGENT_WRITER.write(trace)
+      }
+      TEST_AGENT_WRITER.flush()
     }
     TEST_TRACER.flush()
-    TEST_AGENT_WRITER.flush()
+
     def util = new MockUtil()
     util.detachMock(STATS_D_CLIENT)
     util.detachMock(TEST_CHECKPOINTER)

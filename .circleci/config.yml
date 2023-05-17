@@ -586,6 +586,8 @@ jobs:
 
     docker:
       - image: << pipeline.parameters.docker_image >>:<< parameters.testJvm >>
+        environment:
+          - CI_USE_TEST_AGENT=true
       - image: williamconti549/dd-apm-test-agent:pool-failures
         environment:
           - LOG_LEVEL=DEBUG
