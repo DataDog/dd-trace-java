@@ -5,15 +5,17 @@ package datadog.trace.bootstrap.instrumentation.api;
  */
 public interface AgentScopeManager extends ScopeStateAware {
 
-  AgentScope activate(AgentSpan span, ScopeSource source);
+  AgentScope activate(AgentScopeContext context, ScopeSource source);
 
-  AgentScope activate(AgentSpan span, ScopeSource source, boolean isAsyncPropagating);
+  AgentScope activate(AgentScopeContext context, ScopeSource source, boolean isAsyncPropagating);
 
   AgentScope active();
 
   AgentSpan activeSpan();
 
-  AgentScope.Continuation captureSpan(AgentSpan span);
+  AgentScopeContext activeContext();
+
+  AgentScope.Continuation capture(AgentScopeContext context);
 
   void closePrevious(boolean finishSpan);
 

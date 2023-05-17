@@ -19,7 +19,6 @@ import java.util.Objects;
  * and can be retrieved using {@link AgentScopeManager#active()}.
  */
 public class ScopeContext implements AgentScopeContext {
-  public static final ContextKey<AgentSpan> SPAN_KEY = named("dd-span-key");
   public static final ContextKey<Baggage> BAGGAGE_KEY = named("dd-baggage-key");
   private final AgentSpan span;
   private final Baggage baggage;
@@ -35,23 +34,40 @@ public class ScopeContext implements AgentScopeContext {
     this.store = store;
   }
 
+  private static final ScopeContext EMPTY = new ScopeContext(null, null, null);
+
   /**
    * Get an empty {@link ScopeContext} instance.
    *
    * @return An empty {@link ScopeContext} instance.
    */
   public static ScopeContext empty() {
-    return new ScopeContext(null, null, null);
+    return EMPTY;
   }
 
   /**
-   * Create a new context inheriting those values with another span.
+   * Create a new context with a new span.
    *
    * @param span The span to store to the new context.
    * @return The new context instance.
    */
   public static AgentScopeContext fromSpan(AgentSpan span) {
     return new ScopeContext(span, null, null);
+  }
+
+  /**
+   * Create a new context with a new span, inheriting the provided context.
+   *
+   * @param context The context to inherit.
+   * @param span The span to store to the new context.
+   * @return The new context instance.
+   */
+  public static AgentScopeContext withSpan(AgentScopeContext context, AgentSpan span) {
+    if (context != null) {
+      return context.with(AgentSpan.CONTEXT_KEY, span);
+    } else {
+      return ScopeContext.fromSpan(span);
+    }
   }
 
   @Override
@@ -69,7 +85,7 @@ public class ScopeContext implements AgentScopeContext {
   public <T> T get(ContextKey<T> key) {
     if (key == null) {
       return null;
-    } else if (key == SPAN_KEY) {
+    } else if (key == AgentSpan.CONTEXT_KEY) {
       return (T) this.span;
     } else if (key == BAGGAGE_KEY) {
       return (T) this.baggage;
@@ -91,9 +107,15 @@ public class ScopeContext implements AgentScopeContext {
     AgentSpan newSpan = this.span;
     Baggage newBaggage = this.baggage;
     Object[] newStore = this.store;
-    if (key == SPAN_KEY) {
+    if (key == AgentSpan.CONTEXT_KEY) {
+      if (value == newSpan) {
+        return this;
+      }
       newSpan = (AgentSpan) value;
     } else if (key == BAGGAGE_KEY) {
+      if (value == newBaggage) {
+        return this;
+      }
       newBaggage = (Baggage) value;
     } else if (this.store == null) {
       newStore = new Object[] {key, value};
@@ -121,6 +143,7 @@ public class ScopeContext implements AgentScopeContext {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     ScopeContext that = (ScopeContext) o;
+    // TODO:context the store needs to be involved
     return Objects.equals(span, that.span) && Objects.equals(baggage, that.baggage);
   }
 

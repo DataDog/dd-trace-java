@@ -11,6 +11,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.ScopeState;
+import datadog.trace.core.scopemanager.ScopeContext;
 import datadog.trace.util.AgentTaskScheduler;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
@@ -76,16 +77,16 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
   }
 
   @Override
-  public AgentScope activate(final AgentSpan agentSpan, final ScopeSource source) {
-    final Span span = converter.toSpan(agentSpan);
+  public AgentScope activate(final AgentScopeContext context, final ScopeSource source) {
+    final Span span = converter.toSpan(context);
     final Scope scope = delegate.activate(span);
     return converter.toAgentScope(span, scope);
   }
 
   @Override
   public AgentScope activate(
-      final AgentSpan agentSpan, final ScopeSource source, boolean isAsyncPropagating) {
-    final Span span = converter.toSpan(agentSpan);
+      final AgentScopeContext context, final ScopeSource source, boolean isAsyncPropagating) {
+    final Span span = converter.toSpan(context);
     final Scope scope = delegate.activate(span);
     final AgentScope agentScope = converter.toAgentScope(span, scope);
     agentScope.setAsyncPropagation(isAsyncPropagating);
@@ -113,9 +114,15 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
   }
 
   @Override
-  public AgentScope.Continuation captureSpan(final AgentSpan span) {
+  public AgentScopeContext activeContext() {
+    AgentScope scope = active();
+    return scope == null ? null : scope.context();
+  }
+
+  @Override
+  public AgentScope.Continuation capture(final AgentScopeContext context) {
     // I can't see a better way to do this, and I don't know if this even makes sense.
-    try (AgentScope scope = this.activate(span, ScopeSource.INSTRUMENTATION)) {
+    try (AgentScope scope = this.activate(context, ScopeSource.INSTRUMENTATION)) {
       return scope.capture();
     }
   }
@@ -161,7 +168,8 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
 
     @Override
     public void activate() {
-      CustomScopeManagerWrapper.this.activate(span, ScopeSource.INSTRUMENTATION);
+      CustomScopeManagerWrapper.this.activate(
+          ScopeContext.fromSpan(span), ScopeSource.INSTRUMENTATION);
     }
 
     @Override

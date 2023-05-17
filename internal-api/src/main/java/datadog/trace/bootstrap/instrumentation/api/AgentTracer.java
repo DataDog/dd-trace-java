@@ -60,6 +60,7 @@ public class AgentTracer {
   }
 
   public static AgentScope.Continuation captureSpan(final AgentSpan span) {
+    // TODO:context fix this to work with a context instead
     return get().captureSpan(span);
   }
 
@@ -151,6 +152,8 @@ public class AgentTracer {
     AgentSpan activeSpan();
 
     AgentScope activeScope();
+
+    AgentScopeContext activeContext();
 
     AgentPropagation propagate();
 
@@ -284,6 +287,11 @@ public class AgentTracer {
 
     @Override
     public AgentScope activeScope() {
+      return null;
+    }
+
+    @Override
+    public AgentScopeContext activeContext() {
       return null;
     }
 

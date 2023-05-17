@@ -4,7 +4,7 @@ import datadog.trace.api.config.TracerConfig
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentScope
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentScopeContext
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.test.DDCoreSpecification
@@ -34,7 +34,7 @@ class ScopeManagerDepthTest extends DDCoreSpecification {
     scope instanceof NoopAgentScope
 
     when: "activate a noop scope over the limit"
-    scope = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.MANUAL)
+    scope = scopeManager.activate(NoopAgentScopeContext.INSTANCE, ScopeSource.MANUAL)
 
     then: "still have a noop instance"
     scope instanceof NoopAgentScope
@@ -76,7 +76,7 @@ class ScopeManagerDepthTest extends DDCoreSpecification {
     scopeManager.scopeStack().depth() == defaultLimit + 1
 
     when: "activate a noop span"
-    scope = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.MANUAL)
+    scope = scopeManager.activate(NoopAgentScopeContext.INSTANCE, ScopeSource.MANUAL)
 
     then: "a real instance is still returned"
     !(scope instanceof NoopAgentScope)

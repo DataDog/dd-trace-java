@@ -35,6 +35,10 @@ class TypeConverter {
     }
   }
 
+  public OTSpan toSpan(final AgentScopeContext context) {
+    return context == null ? null : toSpan(context.span());
+  }
+
   public OTSpan toSpan(final AgentSpan agentSpan) {
     if (agentSpan == null) {
       return null;

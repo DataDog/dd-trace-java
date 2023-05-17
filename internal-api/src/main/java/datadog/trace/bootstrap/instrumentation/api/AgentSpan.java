@@ -9,6 +9,7 @@ import datadog.trace.api.sampling.PrioritySampling;
 import java.util.Map;
 
 public interface AgentSpan extends MutableSpan, IGSpanInfo {
+  ContextKey<AgentSpan> CONTEXT_KEY = ContextKey.named("dd-span-key");
 
   DDTraceId getTraceId();
 

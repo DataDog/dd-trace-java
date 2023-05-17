@@ -9,6 +9,8 @@ import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
+import static datadog.trace.core.scopemanager.ScopeContext.fromSpan;
+import static datadog.trace.core.scopemanager.ScopeContext.withSpan;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -724,22 +726,26 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   public AgentScope activateSpan(final AgentSpan span) {
-    return scopeManager.activate(span, ScopeSource.INSTRUMENTATION, DEFAULT_ASYNC_PROPAGATING);
+    return scopeManager.activate(
+        withSpan(scopeManager.activeContext(), span),
+        ScopeSource.INSTRUMENTATION,
+        DEFAULT_ASYNC_PROPAGATING);
   }
 
   @Override
   public AgentScope activateSpan(final AgentSpan span, final ScopeSource source) {
-    return scopeManager.activate(span, source);
+    return scopeManager.activate(withSpan(scopeManager.activeContext(), span), source);
   }
 
   @Override
   public AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating) {
-    return scopeManager.activate(span, source, isAsyncPropagating);
+    return scopeManager.activate(
+        withSpan(scopeManager.activeContext(), span), source, isAsyncPropagating);
   }
 
   @Override
   public AgentScope.Continuation captureSpan(final AgentSpan span) {
-    return scopeManager.captureSpan(span);
+    return scopeManager.capture(fromSpan(span));
   }
 
   @Override
@@ -773,6 +779,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public AgentScope activeScope() {
     return scopeManager.active();
+  }
+
+  @Override
+  public AgentScopeContext activeContext() {
+    return scopeManager.activeContext();
   }
 
   @Override

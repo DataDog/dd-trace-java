@@ -13,6 +13,7 @@ import datadog.trace.context.TraceScope
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.scopemanager.ContinuableScopeManager
+import datadog.trace.core.scopemanager.ScopeContext
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Subject
 import spock.lang.Timeout
@@ -22,6 +23,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.trace.core.PendingTraceBuffer.BUFFER_SIZE
+import static datadog.trace.core.scopemanager.ScopeContext.fromSpan
 
 @Timeout(5)
 class PendingTraceBufferTest extends DDSpecification {
@@ -379,7 +381,7 @@ class PendingTraceBufferTest extends DDSpecification {
   }
 
   def addContinuation(DDSpan span) {
-    def scope = scopeManager.activate(span, ScopeSource.INSTRUMENTATION, true)
+    def scope = scopeManager.activate(fromSpan(span), ScopeSource.INSTRUMENTATION, true)
     continuations << scope.capture()
     scope.close()
     return span
