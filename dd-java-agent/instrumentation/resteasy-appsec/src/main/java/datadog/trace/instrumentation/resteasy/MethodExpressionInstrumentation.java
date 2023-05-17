@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.resteasy;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -17,51 +16,59 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.util.Map;
 import java.util.function.BiFunction;
+import javax.ws.rs.core.MultivaluedMap;
 import net.bytebuddy.asm.Advice;
+import org.jboss.resteasy.spi.HttpRequest;
 
 @AutoService(Instrumenter.class)
-public class MessageBodyReaderInvocationInstrumentation extends Instrumenter.AppSec
-    implements Instrumenter.ForKnownTypes {
+public class MethodExpressionInstrumentation extends Instrumenter.AppSec
+    implements Instrumenter.ForSingleType {
 
-  public MessageBodyReaderInvocationInstrumentation() {
+  public MethodExpressionInstrumentation() {
     super("resteasy");
   }
 
   @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {"org.jboss.resteasy.core.interception.AbstractReaderInterceptorContext"};
+  public String instrumentedType() {
+    return "org.jboss.resteasy.core.registry.MethodExpression";
   }
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        named("readFrom")
-            .and(takesArguments(1))
-            .and(takesArgument(0, nameEndsWith(".MessageBodyReader"))),
-        MessageBodyReaderInvocationInstrumentation.class.getName()
-            + "$AbstractReaderInterceptorAdvice");
+        named("populatePathParams")
+            .and(takesArguments(3))
+            .and(takesArgument(0, named("org.jboss.resteasy.spi.HttpRequest")))
+            .and(takesArgument(1, named("java.util.regex.Matcher")))
+            .and(takesArgument(2, String.class)),
+        MethodExpressionInstrumentation.class.getName() + "$PopulatePathParamsAdvice");
   }
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
-  public static class AbstractReaderInterceptorAdvice {
+  public static class PopulatePathParamsAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
-        @Advice.Return final Object ret,
+        @Advice.Argument(0) HttpRequest req,
         @ActiveRequestContext RequestContext reqCtx,
         @Advice.Thrown(readOnly = false) Throwable t) {
-      if (ret == null) {
+      if (t != null) {
+        return;
+      }
+
+      MultivaluedMap<String, String> pathParameters = req.getUri().getPathParameters();
+      if (pathParameters.isEmpty()) {
         return;
       }
 
       CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      BiFunction<RequestContext, Object, Flow<Void>> callback =
-          cbp.getCallback(EVENTS.requestBodyProcessed());
+      BiFunction<RequestContext, Map<String, ?>, Flow<Void>> callback =
+          cbp.getCallback(EVENTS.requestPathParams());
       if (callback == null) {
         return;
       }
-
-      Flow<Void> flow = callback.apply(reqCtx, ret);
+      Flow<Void> flow = callback.apply(reqCtx, pathParameters);
       Flow.Action action = flow.getAction();
       if (action instanceof Flow.Action.RequestBlockingAction) {
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
@@ -69,9 +76,7 @@ public class MessageBodyReaderInvocationInstrumentation extends Instrumenter.App
         if (blockResponseFunction != null) {
           blockResponseFunction.tryCommitBlockingResponse(
               rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
-          t =
-              new BlockingException(
-                  "Blocked request (for AbstractReaderInterceptorContext/readFrom)");
+          t = new BlockingException("Blocked request (for MethodExpression/populatePathParams)");
         }
       }
     }
