@@ -18,6 +18,7 @@ public class InternalSpanTypes {
   public static final CharSequence MEMCACHED = UTF8BytesString.create(DDSpanTypes.MEMCACHED);
   public static final CharSequence ELASTICSEARCH =
       UTF8BytesString.create(DDSpanTypes.ELASTICSEARCH);
+  public static final CharSequence OPENSEARCH = UTF8BytesString.create(DDSpanTypes.OPENSEARCH);
   public static final CharSequence HIBERNATE = UTF8BytesString.create(DDSpanTypes.HIBERNATE);
   public static final CharSequence AEROSPIKE = UTF8BytesString.create(DDSpanTypes.AEROSPIKE);
   public static final CharSequence DATANUCLEUS = UTF8BytesString.create(DDSpanTypes.DATANUCLEUS);
