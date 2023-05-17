@@ -121,7 +121,6 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
     }
   }
 
-  @Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")
   def "atomic long get command"() {
     when:
     redissonClient.getAtomicLong("foo").set(0)

@@ -139,7 +139,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
         span {
           serviceName service()
           operationName operation()
-          resourceName "GET"
+          resourceName "INCRBY"
           spanType DDSpanTypes.REDIS
           measured true
           tags {
@@ -266,7 +266,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
     then:
     assertTraces(1) {
       trace(1) {
-        redisSpan(it, "SREM")
+        redisSpan(it, "RPUSH")
       }
     }
   }
