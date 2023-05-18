@@ -65,6 +65,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private AgentTaskScheduler.Scheduled<DefaultDataStreamsMonitoring> cancellation;
   private volatile long nextFeatureCheck;
   private volatile boolean supportsDataStreams = false;
+  private volatile boolean agentSupportsDataStreams = false;
+  private volatile boolean configSupportsDataStreams = false;
 
   public DefaultDataStreamsMonitoring(
       Config config, SharedCommunicationObjects sharedCommunicationObjects, TimeSource timeSource) {
@@ -117,12 +119,15 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       features.discoverIfOutdated();
     }
 
-    if (features.supportsDataStreams()) {
-      supportsDataStreams = true;
-    } else {
-      supportsDataStreams = false;
+    checkDynamicConfig();
+    agentSupportsDataStreams = features.supportsDataStreams();
+
+    if (!configSupportsDataStreams) {
+      log.debug("Data streams is disabled");
+    } else if (!agentSupportsDataStreams) {
       log.debug("Data streams is disabled or not supported by agent");
     }
+    supportsDataStreams = configSupportsDataStreams && agentSupportsDataStreams;
 
     nextFeatureCheck = timeSource.getCurrentTimeNanos() + FEATURE_CHECK_INTERVAL_NANOS;
 
@@ -141,7 +146,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public PathwayContext newPathwayContext() {
-    return new DefaultPathwayContext(timeSource, wellKnownTags);
+    if (configSupportsDataStreams) {
+      return new DefaultPathwayContext(timeSource, wellKnownTags);
+    } else {
+      return AgentTracer.NoopPathwayContext.INSTANCE;
+    }
   }
 
   @Override
@@ -258,6 +267,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
           InboxItem payload = inbox.take();
 
           if (payload == REPORT) {
+            checkDynamicConfig();
+
             if (supportsDataStreams) {
               flush(timeSource.getCurrentTimeNanos());
             } else if (timeSource.getCurrentTimeNanos() >= nextFeatureCheck) {
@@ -345,16 +356,26 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     }
   }
 
+  private void checkDynamicConfig() {
+    // FIXME add code
+    supportsDataStreams = agentSupportsDataStreams && configSupportsDataStreams;
+  }
+
   private void checkFeatures() {
-    boolean oldValue = supportsDataStreams;
+    boolean oldValue = agentSupportsDataStreams;
 
     features.discoverIfOutdated();
-    supportsDataStreams = features.supportsDataStreams();
-    if (oldValue && !supportsDataStreams) {
+    agentSupportsDataStreams = features.supportsDataStreams();
+    if (oldValue && !agentSupportsDataStreams && configSupportsDataStreams) {
       log.info("Disabling data streams reporting because it is not supported by the agent");
-    } else if (!oldValue && supportsDataStreams) {
+    } else if (!oldValue && agentSupportsDataStreams && configSupportsDataStreams) {
       log.info("Agent upgrade detected. Enabling data streams because it is now supported");
+    } else if (!oldValue && agentSupportsDataStreams && !configSupportsDataStreams) {
+      log.info("Agent upgrade detected. Not enabling data streams because it is disabled by config");
     }
+
+    supportsDataStreams = agentSupportsDataStreams && configSupportsDataStreams;
+
     nextFeatureCheck = timeSource.getCurrentTimeNanos() + FEATURE_CHECK_INTERVAL_NANOS;
   }
 

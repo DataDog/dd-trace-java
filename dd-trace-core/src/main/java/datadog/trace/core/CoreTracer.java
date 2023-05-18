@@ -602,8 +602,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         MetricsAggregator::start, metricsAggregator, 1, SECONDS);
 
     if (dataStreamsMonitoring == null) {
-      this.dataStreamsMonitoring =
-          createDataStreamsMonitoring(config, sharedCommunicationObjects, this.timeSource);
+      this.dataStreamsMonitoring = new DefaultDataStreamsMonitoring(config, sharedCommunicationObjects, timeSource);
     } else {
       this.dataStreamsMonitoring = dataStreamsMonitoring;
     }
@@ -1132,17 +1131,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     return constantTags.toArray(new String[0]);
-  }
-
-  @SuppressForbidden
-  private static DataStreamsMonitoring createDataStreamsMonitoring(
-      Config config, SharedCommunicationObjects sharedCommunicationObjects, TimeSource timeSource) {
-    if (config.isDataStreamsEnabled()) {
-      return new DefaultDataStreamsMonitoring(config, sharedCommunicationObjects, timeSource);
-    } else {
-      log.debug("Data streams monitoring not enabled.");
-      return new NoopDataStreamsMonitoring();
-    }
   }
 
   Recording writeTimer() {
