@@ -39,7 +39,10 @@ public class DefaultConnectionInstrumentation extends AbstractConnectionInstrume
     // SAP HANA in-memory DB
     "com.sap.db.jdbc.ConnectionSapDB",
     // for testing purposes
-    "test.TestConnection"
+    "test.TestConnection",
+      // 达梦db
+      "dm.jdbc.driver.DmdbConnection"
+
   };
 
   @Override

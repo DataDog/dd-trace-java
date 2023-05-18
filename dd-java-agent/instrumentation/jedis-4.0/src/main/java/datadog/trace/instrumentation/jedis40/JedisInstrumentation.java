@@ -13,11 +13,14 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
+import redis.clients.jedis.CommandArguments;
 import redis.clients.jedis.CommandObject;
 import redis.clients.jedis.Connection;
 import redis.clients.jedis.JedisClientDecorator;
 import redis.clients.jedis.Protocol;
+import redis.clients.jedis.args.Rawable;
 import redis.clients.jedis.commands.ProtocolCommand;
+
 
 @AutoService(Instrumenter.class)
 public final class JedisInstrumentation extends Instrumenter.Tracing
@@ -60,7 +63,12 @@ public final class JedisInstrumentation extends Instrumenter.Tracing
       DECORATE.onConnection(span, thiz);
 
       final ProtocolCommand command = commandObject.getArguments().getCommand();
-
+      final CommandArguments args = commandObject.getArguments();
+      StringBuilder args1 = new StringBuilder();
+      for (Rawable arg : args){
+        args1.append(new String(arg.getRaw()));
+      }
+      DECORATE.setRaw(span,args1.toString());
       if (command instanceof Protocol.Command) {
         DECORATE.onStatement(span, ((Protocol.Command) command).name());
       } else {

@@ -1,0 +1,18 @@
+muzzle {
+  pass {
+    group = "com.aliyun.openservices"
+    module = "ons-client"
+    versions = "[1.8.0.Final,1.8.8.7.Final)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'com.aliyun.openservices', name: 'ons-client', version: '1.8.0.Final'
+}
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}
