@@ -51,13 +51,14 @@ class MavenProjectConfigurator {
     Properties projectProperties = project.getProperties();
     String projectArgLine = projectProperties.getProperty("argLine");
     if (projectArgLine == null) {
-      // otherwise reference to "@{argLine}" below will cause the build to fail
+      // otherwise reference to "@{argLine}" below might cause the build to fail
       projectProperties.setProperty("argLine", "");
     }
 
     for (PluginExecution execution : plugin.getExecutions()) {
-      StringBuilder modifiedArgLine =
-          new StringBuilder("@{argLine} "); // include project-wide argLine
+      // include project-wide argLine
+      // (it might be modified by other plugins earlier in the build cycle, e.g. by Jacoco)
+      StringBuilder modifiedArgLine = new StringBuilder("@{argLine} ");
 
       // propagate to child process all "dd." system properties available in current process
       Properties systemProperties = System.getProperties();
