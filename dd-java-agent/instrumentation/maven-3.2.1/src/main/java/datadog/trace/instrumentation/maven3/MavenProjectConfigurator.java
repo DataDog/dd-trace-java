@@ -9,6 +9,8 @@ import java.util.Map;
 import java.util.Properties;
 import org.apache.maven.model.Build;
 import org.apache.maven.model.Dependency;
+import org.apache.maven.model.InputLocation;
+import org.apache.maven.model.InputSource;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.model.PluginExecution;
 import org.apache.maven.project.MavenProject;
@@ -262,10 +264,24 @@ class MavenProjectConfigurator {
   }
 
   private static void configureJacocoPlugin(MavenProject project, String jacocoPluginVersion) {
+    if (project.getPlugin("org.jacoco:jacoco-maven-plugin") != null) {
+      return; // jacoco is already configured for this project
+    }
+
     Plugin jacocoPlugin = new Plugin();
     jacocoPlugin.setGroupId("org.jacoco");
     jacocoPlugin.setArtifactId("jacoco-maven-plugin");
     jacocoPlugin.setVersion(jacocoPluginVersion);
+
+    // a little trick to avoid triggering
+    // Maven Enforcer Plugin's "Require Plugin Versions" rule:
+    // we're making it look like version was specified explicitly
+    // in the project's config files
+    InputSource versionSource = new InputSource();
+    versionSource.setLocation("injected-by-dd-java-agent");
+    versionSource.setModelId("injected-by-dd-java-agent");
+    InputLocation versionLocation = new InputLocation(0, 0, versionSource);
+    jacocoPlugin.setLocation("version", versionLocation);
 
     PluginExecution execution = new PluginExecution();
     execution.addGoal("prepare-agent");
