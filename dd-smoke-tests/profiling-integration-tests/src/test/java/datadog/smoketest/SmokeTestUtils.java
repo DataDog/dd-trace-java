@@ -52,6 +52,7 @@ final class SmokeTestUtils {
                 "-Ddd.profiling.agentless=false",
                 "-Ddd.profiling.start-delay=" + profilingStartDelaySecs,
                 "-Ddd." + ProfilingConfig.PROFILING_START_FORCE_FIRST + "=true",
+                "-Ddd.profiling.ddprof.alloc.enabled=true",
                 "-Ddd.profiling.upload.period=" + profilingUploadPeriodSecs,
                 "-Ddd.profiling.hotspots.enabled=true",
                 "-Ddd.profiling.legacy.tracing.integration=false",
