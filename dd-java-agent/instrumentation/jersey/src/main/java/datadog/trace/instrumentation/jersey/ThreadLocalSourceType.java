@@ -6,7 +6,7 @@ public class ThreadLocalSourceType {
   private static final ThreadLocal<Byte> SOURCE =
       ThreadLocal.withInitial(() -> SourceTypes.REQUEST_PARAMETER_VALUE);
 
-  public static void set(Byte source) {
+  public static void set(byte source) {
     SOURCE.set(source);
   }
 

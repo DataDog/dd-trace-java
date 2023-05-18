@@ -1,5 +1,6 @@
 plugins {
   id "com.github.johnrengelman.shadow"
+  id 'java-test-fixtures'
 }
 
 
@@ -38,6 +39,7 @@ dependencies {
 
   testImplementation project(':dd-smoke-tests')
   implementation project(':dd-smoke-tests:iast-util')
+  testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
 }
 
 tasks.withType(Test).configureEach {
