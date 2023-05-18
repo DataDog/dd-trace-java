@@ -87,7 +87,7 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Iast
   }
 
   public static class EncodeURLAdvice {
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(@Advice.Argument(0) final String url, @Advice.Return String encoded) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
