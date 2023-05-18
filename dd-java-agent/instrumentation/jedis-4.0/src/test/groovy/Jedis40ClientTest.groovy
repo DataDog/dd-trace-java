@@ -100,6 +100,7 @@ abstract class Jedis40ClientTest extends VersionedNamingTestBase {
             "$Tags.DB_TYPE" "redis"
             "$Tags.PEER_HOSTNAME" "localhost"
             peerServiceFrom(Tags.PEER_HOSTNAME)
+            defaultTags()
           }
         }
       }

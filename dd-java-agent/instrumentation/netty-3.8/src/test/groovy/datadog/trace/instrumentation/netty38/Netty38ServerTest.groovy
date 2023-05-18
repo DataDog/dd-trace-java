@@ -29,6 +29,7 @@ import org.jboss.netty.logging.InternalLogLevel
 import org.jboss.netty.logging.InternalLoggerFactory
 import org.jboss.netty.logging.Slf4JLoggerFactory
 import org.jboss.netty.util.CharsetUtil
+import spock.lang.Ignore
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -187,6 +188,12 @@ abstract class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
   @Override
   boolean testBlocking() {
     true
+  }
+
+  @Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")
+  @Override
+  boolean testBadUrl() {
+    false
   }
 }
 

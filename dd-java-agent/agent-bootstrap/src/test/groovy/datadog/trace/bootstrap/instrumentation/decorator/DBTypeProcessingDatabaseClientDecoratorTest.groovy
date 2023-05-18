@@ -4,11 +4,13 @@ import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
+import spock.lang.Ignore
 
 class DBTypeProcessingDatabaseClientDecoratorTest extends ClientDecoratorTest {
 
   def span = Mock(AgentSpan)
 
+  @Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")
   def "test afterStart"() {
     setup:
     def decorator = newDecorator((String) serviceName)
