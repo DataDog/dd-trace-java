@@ -16,6 +16,6 @@ fpm_wrapper "datadog-apm-library-java" "$VERSION" \
   --input-type dir \
   --url "https://github.com/DataDog/dd-trace-java" \
   --license "Apache License 2.0" \
-  --description "Datadog APM client library for Java"
+  --description "Datadog APM client library for Java" \
   dd-java-agent.jar="$LIBRARIES_INSTALL_BASE/java/dd-java-agent.jar" \
   auto_inject-java.version="$LIBRARIES_INSTALL_BASE/java/version"
