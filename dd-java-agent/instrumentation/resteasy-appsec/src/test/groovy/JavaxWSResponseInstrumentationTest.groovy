@@ -12,7 +12,7 @@ class JavaxWSResponseInstrumentationTest extends AgentTestRunner {
     injectSysConfig("dd.iast.enabled", "true")
   }
 
-  def 'change location header triggers onHeader callback'() {
+  void 'change location header triggers onHeader callback'() {
     setup:
     final module = Mock(UnvalidatedRedirectModule)
     InstrumentationBridge.registerIastModule(module)
@@ -24,7 +24,7 @@ class JavaxWSResponseInstrumentationTest extends AgentTestRunner {
     1 * module.onHeader('Location', 'https://dummy.location.com/test')
   }
 
-  def 'change location triggers onRedirect callback'() {
+  void 'change location triggers onRedirect callback'() {
     setup:
     final module = Mock(UnvalidatedRedirectModule)
     InstrumentationBridge.registerIastModule(module)
@@ -34,6 +34,6 @@ class JavaxWSResponseInstrumentationTest extends AgentTestRunner {
     Response.status(Response.Status.TEMPORARY_REDIRECT).location(uri)
 
     then:
-    1 * module.onRedirect(uri)
+    1 * module.onURIRedirect(uri)
   }
 }

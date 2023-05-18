@@ -9,6 +9,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
+import java.net.URI;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -55,11 +56,11 @@ public class JakartaWSResponseInstrumentation extends Instrumenter.Iast
 
   public static class RedirectionAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(@Advice.Argument(0) final Object location) {
+    public static void onEnter(@Advice.Argument(0) final URI location) {
       final UnvalidatedRedirectModule module = InstrumentationBridge.UNVALIDATED_REDIRECT;
       if (module != null) {
         if (null != location) {
-          module.onRedirect(location);
+          module.onURIRedirect(location);
         }
       }
     }

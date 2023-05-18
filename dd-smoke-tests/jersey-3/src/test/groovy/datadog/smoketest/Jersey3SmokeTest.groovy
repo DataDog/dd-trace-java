@@ -50,7 +50,7 @@ class Jersey3SmokeTest extends AbstractServerSmokeTest {
     processBuilder.directory(new File(buildDirectory))
   }
 
-  def "Test path parameter in Jersey"() {
+  void "Test path parameter in Jersey"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/bypathparam/pathParamValue"
 
@@ -68,7 +68,7 @@ class Jersey3SmokeTest extends AbstractServerSmokeTest {
     hasVulnerability(type('SQL_INJECTION').and(evidence('pathParamValue'))))
   }
 
-  def "Test query parameter in Jersey"() {
+  void "Test query parameter in Jersey"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/byqueryparam?param=queryParamValue"
 
@@ -86,7 +86,7 @@ class Jersey3SmokeTest extends AbstractServerSmokeTest {
     hasVulnerability(type('SQL_INJECTION').and(evidence('queryParamValue'))))
   }
 
-  def "Test header in Jersey"() {
+  void "Test header in Jersey"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/byheader"
 
@@ -104,7 +104,7 @@ class Jersey3SmokeTest extends AbstractServerSmokeTest {
     hasVulnerability(type('SQL_INJECTION').and(evidence('pepito'))))
   }
 
-  def "Test cookie in Jersey"() {
+  void "Test cookie in Jersey"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/bycookie"
 
@@ -123,7 +123,7 @@ class Jersey3SmokeTest extends AbstractServerSmokeTest {
   }
 
 
-  def "unvalidated  redirect from location header is present"() {
+  void "unvalidated  redirect from location header is present"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/setlocationheader?param=queryParamValue"
 
@@ -137,7 +137,7 @@ class Jersey3SmokeTest extends AbstractServerSmokeTest {
     hasVulnerability(type('UNVALIDATED_REDIRECT')))
   }
 
-  def "unvalidated  redirect from location is present"() {
+  void "unvalidated  redirect from location is present"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/setresponselocation?param=queryParamValue"
 
