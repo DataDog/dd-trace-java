@@ -31,6 +31,11 @@ public class MethodExpressionInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
+  public String muzzleDirective() {
+    return "jaxrs";
+  }
+
+  @Override
   public String instrumentedType() {
     return "org.jboss.resteasy.core.registry.MethodExpression";
   }

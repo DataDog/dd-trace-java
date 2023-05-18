@@ -38,6 +38,11 @@ public class DecodedFormParametersInstrumentation extends Instrumenter.AppSec
       "org.jboss.resteasy.plugins.server.netty.NettyHttpRequest";
 
   @Override
+  public String muzzleDirective() {
+    return "jaxrs";
+  }
+
+  @Override
   public String[] knownMatchingTypes() {
     return new String[] {
       "org.jboss.resteasy.plugins.server.BaseHttpRequest",

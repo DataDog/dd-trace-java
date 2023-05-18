@@ -12,10 +12,12 @@ import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import okhttp3.HttpUrl
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import org.codehaus.jackson.map.ObjectMapper
+import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput
 import spock.lang.Shared
 
 import javax.ws.rs.Consumes
@@ -222,10 +224,59 @@ abstract class AbstractResteasyAppsecTest extends AgentTestRunner {
 
   def 'test instrumentation gateway path params — blocking'() {
     setup:
-    def url = HttpUrl.get(address.resolve("/paramString/foobar")).newBuilder().build()
+    def url = HttpUrl.get(address.resolve("/paramString/foobar"))
     def request = new Request.Builder().url(url)
       .header('x-block', 'true')
       .method('GET', null).build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.code() == 403
+    response.body().charStream().text.contains('"title":"You\'ve been blocked"')
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      it.error &&
+        it.tags['error.type'] == BlockingException.name
+    } != null
+  }
+
+  def 'test instrumentation gateway multipart request body endpoint #endpoint'() {
+    setup:
+    def url = HttpUrl.get(address.resolve(endpoint))
+    RequestBody formBody = new MultipartBody.Builder()
+      .setType(MultipartBody.FORM)
+      .addFormDataPart('a', 'x').build()
+    def request = new Request.Builder().url(url).method('POST', formBody).build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.body().charStream().text in ['[a:[x]]', '[a:x]']
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      it.getTag('request.body.converted') in ['[a:[x]]', '[a:x]']
+    }
+
+    where:
+    endpoint << ['/body-multipart', '/body-multipart-map']
+  }
+
+  def 'test instrumentation gateway multipart request body — blocking'() {
+    setup:
+    def url = HttpUrl.get(address.resolve('/body-multipart'))
+    RequestBody formBody = new MultipartBody.Builder()
+      .setType(MultipartBody.FORM)
+      .addFormDataPart('a', 'x').build()
+    def request = new Request.Builder().url(url)
+      .header('x-block', 'true')
+      .method('POST', formBody).build()
     def response = client.newCall(request).execute()
 
     expect:
@@ -249,6 +300,23 @@ abstract class AbstractResteasyAppsecTest extends AgentTestRunner {
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
     Response bodyUrlencoded(@FormParam("a") List<String> a) {
       Response.status(BODY_URLENCODED.status).entity([a: a] as String).build()
+    }
+
+    @POST
+    @Path("body-multipart")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    Response bodyMultipart(MultipartFormDataInput input) {
+      def map = input.formDataMap.collectEntries {
+        [it.key, it.value.collect { p -> p.bodyAsString }]
+      }
+      Response.status(200).entity(map as String).build()
+    }
+
+    @POST
+    @Path("body-multipart-map")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    Response bodyMultipartMap(Map<String, String> map) {
+      Response.status(200).entity(map as String).build()
     }
 
     @POST
