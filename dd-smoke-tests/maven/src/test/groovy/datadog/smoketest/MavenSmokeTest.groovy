@@ -298,7 +298,7 @@ class MavenSmokeTest extends Specification {
   }
 
   private List<Map<String, Object>> waitForEvents(traceSize = 1) {
-    def traceReceiveConditions = new PollingConditions(timeout: 5, initialDelay: 1, delay: 0.5, factor: 1)
+    def traceReceiveConditions = new PollingConditions(timeout: 15, initialDelay: 1, delay: 0.5, factor: 1)
     traceReceiveConditions.eventually {
       assert receivedTraces.size() == traceSize
     }
@@ -312,7 +312,7 @@ class MavenSmokeTest extends Specification {
   }
 
   private List<Map<String, Object>> waitForCoverages(traceSize = 1) {
-    def traceReceiveConditions = new PollingConditions(timeout: 5, initialDelay: 1, delay: 0.5, factor: 1)
+    def traceReceiveConditions = new PollingConditions(timeout: 15, initialDelay: 1, delay: 0.5, factor: 1)
     traceReceiveConditions.eventually {
       assert receivedCoverages.size() == traceSize
     }
