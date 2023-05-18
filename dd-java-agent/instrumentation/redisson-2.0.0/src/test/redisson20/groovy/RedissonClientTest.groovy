@@ -36,7 +36,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
   Config config = new Config()
 
   @Shared
-  SingleServerConfig singleServerConfig = config.useSingleServer().setAddress("127.0.0.1:${port}")
+  SingleServerConfig singleServerConfig = config.useSingleServer().setAddress("localhost:${port}")
 
   @Shared
   RedissonClient redissonClient
