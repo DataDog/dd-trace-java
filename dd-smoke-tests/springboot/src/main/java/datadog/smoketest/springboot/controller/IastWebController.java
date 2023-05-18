@@ -4,6 +4,7 @@ import datadog.smoketest.springboot.TestBean;
 import ddtest.client.sources.Hasher;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
+import java.io.IOException;
 import java.net.HttpCookie;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -71,6 +72,21 @@ public class IastWebController {
     response.addHeader("Set-Cookie", cookie.toString());
     response.setStatus(HttpStatus.OK.value());
     return "Insecure cookie page";
+  }
+
+  @GetMapping("/unvalidated_redirect_from_header")
+  public String unvalidatedRedirectFromHeader(
+      @RequestParam String param, HttpServletResponse response) {
+    response.addHeader("Location", param);
+    response.setStatus(HttpStatus.FOUND.value());
+    return "Unvalidated redirect";
+  }
+
+  @GetMapping("/unvalidated_redirect_from_send_redirect")
+  public String unvalidatedRedirectFromSendRedirect(
+      @RequestParam String param, HttpServletResponse response) throws IOException {
+    response.sendRedirect(param);
+    return "Unvalidated redirect";
   }
 
   @RequestMapping("/async_weakhash")
@@ -170,7 +186,6 @@ public class IastWebController {
     return "ok User Principal name: " + userPrincipal.getName();
   }
 
-  @SuppressWarnings("CatchMayIgnoreException")
   @PostMapping("/ssrf")
   public String ssrf(@RequestParam("url") final String url) {
     try {
