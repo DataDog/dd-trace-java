@@ -586,7 +586,7 @@ public class Config {
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
   private final String remoteConfigUrl;
-  private final int remoteConfigPollIntervalSeconds;
+  private final float remoteConfigPollIntervalSeconds;
   private final long remoteConfigMaxPayloadSize;
   private final String remoteConfigTargetsKeyId;
   private final String remoteConfigTargetsKey;
@@ -671,8 +671,8 @@ public class Config {
 
   private final boolean iastDeduplicationEnabled;
 
-  private final int telemetryHeartbeatInterval;
-  private final int telemetryMetricsInterval;
+  private final float telemetryHeartbeatInterval;
+  private final float telemetryMetricsInterval;
   private final boolean isTelemetryDependencyServiceEnabled;
 
   private final boolean azureAppServices;
@@ -1237,22 +1237,21 @@ public class Config {
         configProvider.getBoolean(CRASH_TRACKING_AGENTLESS, CRASH_TRACKING_AGENTLESS_DEFAULT);
     crashTrackingTags = configProvider.getMergedMap(CRASH_TRACKING_TAGS);
 
-    int telemetryInterval =
-        configProvider.getInteger(
-            TELEMETRY_HEARTBEAT_INTERVAL, DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL);
-    if (telemetryInterval < 1 || telemetryInterval > 3600) {
+    float telemetryInterval =
+        configProvider.getFloat(TELEMETRY_HEARTBEAT_INTERVAL, DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL);
+    if (telemetryInterval < 0.1 || telemetryInterval > 3600) {
       log.warn(
-          "Wrong Telemetry heartbeat interval: {}. The value must be in range 1-3600",
+          "Invalid Telemetry heartbeat interval: {}. The value must be in range 0.1-3600",
           telemetryInterval);
       telemetryInterval = DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
     }
     telemetryHeartbeatInterval = telemetryInterval;
 
     telemetryInterval =
-        configProvider.getInteger(TELEMETRY_METRICS_INTERVAL, DEFAULT_TELEMETRY_METRICS_INTERVAL);
-    if (telemetryInterval < 1 || telemetryInterval > 3600) {
+        configProvider.getFloat(TELEMETRY_METRICS_INTERVAL, DEFAULT_TELEMETRY_METRICS_INTERVAL);
+    if (telemetryInterval < 0.1 || telemetryInterval > 3600) {
       log.warn(
-          "Wrong Telemetry metrics interval: {}. The value must be in range 1-3600",
+          "Invalid Telemetry metrics interval: {}. The value must be in range 0.1-3600",
           telemetryInterval);
       telemetryInterval = DEFAULT_TELEMETRY_METRICS_INTERVAL;
     }
@@ -1369,7 +1368,7 @@ public class Config {
             REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED, DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED);
     remoteConfigUrl = configProvider.getString(REMOTE_CONFIG_URL);
     remoteConfigPollIntervalSeconds =
-        configProvider.getInteger(
+        configProvider.getFloat(
             REMOTE_CONFIG_POLL_INTERVAL_SECONDS, DEFAULT_REMOTE_CONFIG_POLL_INTERVAL_SECONDS);
     remoteConfigMaxPayloadSize =
         configProvider.getInteger(
@@ -2046,11 +2045,11 @@ public class Config {
     return instrumenterConfig.isTelemetryEnabled();
   }
 
-  public int getTelemetryHeartbeatInterval() {
+  public float getTelemetryHeartbeatInterval() {
     return telemetryHeartbeatInterval;
   }
 
-  public int getTelemetryMetricsInterval() {
+  public float getTelemetryMetricsInterval() {
     return telemetryMetricsInterval;
   }
 
@@ -2228,7 +2227,7 @@ public class Config {
     return remoteConfigUrl;
   }
 
-  public int getRemoteConfigPollIntervalSeconds() {
+  public float getRemoteConfigPollIntervalSeconds() {
     return remoteConfigPollIntervalSeconds;
   }
 
