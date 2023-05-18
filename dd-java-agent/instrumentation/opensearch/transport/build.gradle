@@ -4,12 +4,14 @@ muzzle {
     group = "org.opensearch.client"
     module = "transport"
     versions = "[1.0,)"
+    javaVersion = '11'
     assertInverse = true
   }
   pass {
     group = "org.opensearch"
     module = "opensearch"
     versions = "[1.0,)"
+    javaVersion = '11'
     assertInverse = true
   }
 }
