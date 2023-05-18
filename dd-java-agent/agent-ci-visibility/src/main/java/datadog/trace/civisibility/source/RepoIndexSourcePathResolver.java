@@ -136,7 +136,7 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
 
       int sourceRootIdx = index.trie.apply(classNameWithExtension);
       if (sourceRootIdx < 0) {
-        log.warn("Could not find source root for package-private class {}", c.getName());
+        log.debug("Could not find source root for package-private class {}", c.getName());
         return null;
       }
 
