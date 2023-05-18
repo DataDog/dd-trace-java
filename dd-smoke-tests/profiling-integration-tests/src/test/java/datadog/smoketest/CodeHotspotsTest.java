@@ -160,7 +160,6 @@ public final class CodeHotspotsTest {
   }
 
   @Test
-  @Disabled("https://github.com/DataDog/dd-trace-java/pull/5213")
   @DisplayName("Test batch app")
   void testBatch() throws Exception {
     System.out.println("Test batch app");
