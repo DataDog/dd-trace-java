@@ -11,6 +11,7 @@ import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -254,6 +255,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       InstrumentationResult result =
           InstrumentationResult.Factory.blocked(
               fullyQualifiedClassName,
+              definitions,
               new DiagnosticMessage(
                   DiagnosticMessage.Kind.WARN,
                   "Instrumentation denied for " + fullyQualifiedClassName));
@@ -265,6 +267,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       InstrumentationResult result =
           InstrumentationResult.Factory.blocked(
               fullyQualifiedClassName,
+              definitions,
               new DiagnosticMessage(
                   DiagnosticMessage.Kind.WARN,
                   "Instrumentation not allowed for " + fullyQualifiedClassName));
@@ -371,9 +374,10 @@ public class DebuggerTransformer implements ClassFileTransformer {
           if (listener != null) {
             listener.instrumentationResult(definition, result);
           }
+          List<DiagnosticMessage> diagnosticMessages =
+              result.getDiagnostics().get(definition.getProbeId());
           if (!result.getDiagnostics().isEmpty()) {
-            DebuggerAgent.getSink()
-                .addDiagnostics(definition.getProbeId(), result.getDiagnostics());
+            DebuggerAgent.getSink().addDiagnostics(definition.getProbeId(), diagnosticMessages);
           }
         }
       }
@@ -416,7 +420,9 @@ public class DebuggerTransformer implements ClassFileTransformer {
       ClassNode classNode,
       List<ProbeDefinition> definitions,
       MethodNode methodNode) {
-    List<DiagnosticMessage> diagnostics = new ArrayList<>();
+    Map<ProbeId, List<DiagnosticMessage>> diagnostics = new HashMap<>();
+    definitions.forEach(
+        probeDefinition -> diagnostics.put(probeDefinition.getProbeId(), new ArrayList<>()));
     InstrumentationResult.Status status =
         preCheckInstrumentation(diagnostics, classLoader, methodNode);
     if (status != InstrumentationResult.Status.ERROR) {
@@ -426,29 +432,37 @@ public class DebuggerTransformer implements ClassFileTransformer {
           if (definition instanceof LogProbe) {
             logProbes.add(definition);
           } else {
-            definition.instrument(classLoader, classNode, methodNode, diagnostics);
+            List<DiagnosticMessage> probeDiagnostics = diagnostics.get(definition.getProbeId());
+            definition.instrument(classLoader, classNode, methodNode, probeDiagnostics);
           }
         }
         if (logProbes.size() > 0) {
           List<String> probesIds = logProbes.stream().map(ProbeDefinition::getId).collect(toList());
-          logProbes.get(0).instrument(classLoader, classNode, methodNode, diagnostics, probesIds);
+          List<DiagnosticMessage> probeDiagnostics = diagnostics.get(logProbes.get(0).getProbeId());
+          logProbes
+              .get(0)
+              .instrument(classLoader, classNode, methodNode, probeDiagnostics, probesIds);
         }
       } catch (Throwable t) {
         log.warn("Exception during instrumentation: ", t);
         status = InstrumentationResult.Status.ERROR;
-        diagnostics.add(new DiagnosticMessage(DiagnosticMessage.Kind.ERROR, t));
+        addDiagnosticForAllProbes(
+            new DiagnosticMessage(DiagnosticMessage.Kind.ERROR, t), diagnostics);
       }
     }
     return new InstrumentationResult(status, diagnostics, classNode, methodNode);
   }
 
   private InstrumentationResult.Status preCheckInstrumentation(
-      List<DiagnosticMessage> diagnostics, ClassLoader classLoader, MethodNode methodNode) {
+      Map<ProbeId, List<DiagnosticMessage>> diagnostics,
+      ClassLoader classLoader,
+      MethodNode methodNode) {
     if ((methodNode.access & (Opcodes.ACC_NATIVE | Opcodes.ACC_ABSTRACT)) != 0) {
       if (!instrumentTheWorld) {
-        diagnostics.add(
+        addDiagnosticForAllProbes(
             new DiagnosticMessage(
-                DiagnosticMessage.Kind.ERROR, "Cannot instrument an abstract or native method"));
+                DiagnosticMessage.Kind.ERROR, "Cannot instrument an abstract or native method"),
+            diagnostics);
       }
       return InstrumentationResult.Status.ERROR;
     }
@@ -463,13 +477,19 @@ public class DebuggerTransformer implements ClassFileTransformer {
       // source:
       // https://github.com/openjdk/jdk/blob/1581e3faa06358f192799b3a89718028c7f6a24b/src/hotspot/share/classfile/javaClasses.cpp#L4392-L4412
       if (!instrumentTheWorld) {
-        diagnostics.add(
+        addDiagnosticForAllProbes(
             new DiagnosticMessage(
-                DiagnosticMessage.Kind.ERROR, "Cannot instrument class in DelegatingClassLoader"));
+                DiagnosticMessage.Kind.ERROR, "Cannot instrument class in DelegatingClassLoader"),
+            diagnostics);
       }
       return InstrumentationResult.Status.ERROR;
     }
     return InstrumentationResult.Status.INSTALLED;
+  }
+
+  private static void addDiagnosticForAllProbes(
+      DiagnosticMessage diagnosticMessage, Map<ProbeId, List<DiagnosticMessage>> diagnostics) {
+    diagnostics.forEach((probeId, diagnosticMessages) -> diagnosticMessages.add(diagnosticMessage));
   }
 
   private List<MethodNode> matchMethodDescription(ClassNode classNode, Where where) {

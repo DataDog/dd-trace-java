@@ -2,6 +2,7 @@ import datadog.smoketest.AbstractServerSmokeTest
 import datadog.trace.test.agent.decoder.DecodedSpan
 import groovy.json.JsonSlurper
 import groovy.transform.CompileDynamic
+import okhttp3.FormBody
 import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -40,7 +41,8 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     command.addAll([
       withSystemProperty(IAST_ENABLED, true),
       withSystemProperty(IAST_REQUEST_SAMPLING, 100),
-      withSystemProperty(IAST_DEBUG_ENABLED, true)
+      withSystemProperty(IAST_DEBUG_ENABLED, true),
+      withSystemProperty(IAST_REDACTION_ENABLED, false)
     ])
     command.addAll((String[]) ["-jar", springBootShadowJar, "--server.port=${httpPort}"])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
@@ -320,6 +322,32 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
         tainted.ranges[0].source.name == 'name' &&
         tainted.ranges[0].source.origin == 'http.request.cookie.value'
     }
+  }
+
+  void 'ssrf is present'() {
+    setup:
+    final url = "http://localhost:${httpPort}/ssrf"
+    final body = new FormBody.Builder().add('url', 'https://dd.datad0g.com/').build()
+    final request = new Request.Builder().url(url).post(body).build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    waitForSpan(new PollingConditions(timeout: 5), hasVulnerability(type('SSRF')))
+  }
+
+  void 'test iast metrics stored in spans'() {
+    setup:
+    final url = "http://localhost:${httpPort}/cmdi/runtime?cmd=ls"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    waitForSpan(new PollingConditions(timeout: 5),
+    hasMetric('_dd.iast.telemetry.executed.sink.command_injection', 1))
   }
 
   private static Function<DecodedSpan, Boolean> hasMetric(final String name, final Object value) {

@@ -81,7 +81,4 @@ public class ElasticsearchRestClientDecorator extends DBTypeProcessingDatabaseCl
     }
     return span;
   }
-
-  @Override
-  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
 }

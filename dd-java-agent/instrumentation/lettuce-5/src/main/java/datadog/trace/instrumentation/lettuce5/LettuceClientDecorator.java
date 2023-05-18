@@ -58,9 +58,6 @@ public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecora
   }
 
   @Override
-  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
-
-  @Override
   public AgentSpan onConnection(final AgentSpan span, final RedisURI connection) {
     if (connection != null) {
       setPeerPort(span, connection.getPort());

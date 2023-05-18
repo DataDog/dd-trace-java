@@ -112,7 +112,7 @@ public final class ProfilingConfig {
   public static final String PROFILING_DATADOG_PROFILER_STACKDEPTH = "profiling.ddprof.stackdepth";
   public static final int PROFILING_DATADOG_PROFILER_STACKDEPTH_DEFAULT = 512;
   public static final String PROFILING_DATADOG_PROFILER_CSTACK = "profiling.ddprof.cstack";
-  public static final String PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT = "no";
+  public static final String PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT = "fp";
   public static final String PROFILING_DATADOG_PROFILER_SAFEMODE = "profiling.ddprof.safemode";
   public static final int PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT =
       12; // POP_METHOD|UNWIND_NATIVE
@@ -151,7 +151,7 @@ public final class ProfilingConfig {
       "profiling.experimental.context.attributes.span.name.enabled";
 
   public static final String PROFILING_QUEUEING_TIME_ENABLED =
-      "profiling.ddprof.experimental.queueing.time.enabled";
+      "profiling.experimental.queueing.time.enabled";
 
   public static final boolean PROFILING_QUEUEING_TIME_ENABLED_DEFAULT = false;
 

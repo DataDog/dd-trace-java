@@ -8,7 +8,13 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
-import static datadog.trace.core.taginterceptor.RuleFlags.Feature.*;
+import static datadog.trace.core.taginterceptor.RuleFlags.Feature.FORCE_MANUAL_DROP;
+import static datadog.trace.core.taginterceptor.RuleFlags.Feature.PEER_SERVICE;
+import static datadog.trace.core.taginterceptor.RuleFlags.Feature.RESOURCE_NAME;
+import static datadog.trace.core.taginterceptor.RuleFlags.Feature.SERVICE_NAME;
+import static datadog.trace.core.taginterceptor.RuleFlags.Feature.STATUS_404;
+import static datadog.trace.core.taginterceptor.RuleFlags.Feature.STATUS_404_DECORATOR;
+import static datadog.trace.core.taginterceptor.RuleFlags.Feature.URL_AS_RESOURCE_NAME;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
@@ -74,6 +80,8 @@ public class TagInterceptor {
       case "service":
         return interceptServiceName(SERVICE_NAME, span, value);
       case Tags.PEER_SERVICE:
+        // we still need to intercept and add this tag when the user manually set
+        span.setTag(DDTags.PEER_SERVICE_SOURCE, Tags.PEER_SERVICE);
         return interceptServiceName(PEER_SERVICE, span, value);
       case DDTags.MANUAL_KEEP:
         if (asBoolean(value)) {

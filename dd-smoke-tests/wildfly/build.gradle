@@ -84,6 +84,7 @@ def wildflyDir="${buildDir}/${serverName}-${serverModule}-${serverVersion}"
 
 tasks.register("unzip", Copy) {
   dependsOn tasks.earBuild
+  mustRunAfter tasks.compileTestGroovy
   def zipFileNamePrefix = "servlet"
   def zipPath = project.configurations.serverFile.find {
     it.name.startsWith(zipFileNamePrefix)

@@ -152,9 +152,11 @@ abstract class GrpcStreamingTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.RPC_SERVICE" "example.Greeter"
             "status.code" "OK"
             "request.type" "example.Helloworld\$Response"
             "response.type" "example.Helloworld\$Response"
+            peerServiceFrom(Tags.RPC_SERVICE)
             defaultTags()
           }
         }
@@ -169,7 +171,7 @@ abstract class GrpcStreamingTest extends VersionedNamingTestBase {
               "$Tags.COMPONENT" "grpc-client"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
               "message.type" "example.Helloworld\$Response"
-              defaultTags()
+              defaultTagsNoPeerService()
             }
           }
         }

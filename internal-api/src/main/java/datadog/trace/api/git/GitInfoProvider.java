@@ -4,9 +4,11 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.util.Strings;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -21,7 +23,7 @@ public class GitInfoProvider {
     INSTANCE.registerGitInfoBuilder(new EmbeddedGitInfoBuilder());
   }
 
-  private final Collection<GitInfoBuilder> builders = new CopyOnWriteArrayList<>();
+  private volatile Collection<GitInfoBuilder> builders = Collections.emptyList();
 
   // in regular cases git info has to be built only once,
   // but there is a rare exception:
@@ -100,8 +102,11 @@ public class GitInfoProvider {
     return null;
   }
 
-  public void registerGitInfoBuilder(GitInfoBuilder builder) {
-    builders.add(builder);
+  public synchronized void registerGitInfoBuilder(GitInfoBuilder builder) {
+    List<GitInfoBuilder> updatedBuilders = new ArrayList<>(builders);
+    updatedBuilders.add(builder);
+    updatedBuilders.sort(Comparator.comparingInt(GitInfoBuilder::order));
+    builders = updatedBuilders;
     gitInfoCache.clear();
   }
 }

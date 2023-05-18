@@ -55,7 +55,7 @@ public class StringModuleImpl implements StringModule {
 
   @Override
   public void onStringBuilderInit(
-      @Nonnull final StringBuilder builder, @Nullable final CharSequence param) {
+      @Nonnull final CharSequence builder, @Nullable final CharSequence param) {
     if (!canBeTainted(param)) {
       return;
     }
@@ -73,7 +73,7 @@ public class StringModuleImpl implements StringModule {
 
   @Override
   public void onStringBuilderAppend(
-      @Nonnull final StringBuilder builder, @Nullable final CharSequence param) {
+      @Nonnull final CharSequence builder, @Nullable final CharSequence param) {
     if (!canBeTainted(builder) || !canBeTainted(param)) {
       return;
     }
@@ -103,7 +103,7 @@ public class StringModuleImpl implements StringModule {
 
   @Override
   public void onStringBuilderToString(
-      @Nonnull final StringBuilder builder, @Nonnull final String result) {
+      @Nonnull final CharSequence builder, @Nonnull final String result) {
     if (!canBeTainted(builder) || !canBeTainted(result)) {
       return;
     }

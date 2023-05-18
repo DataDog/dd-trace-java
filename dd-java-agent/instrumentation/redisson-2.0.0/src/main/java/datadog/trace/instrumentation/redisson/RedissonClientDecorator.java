@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.redisson;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
@@ -58,7 +57,4 @@ public class RedissonClientDecorator
   protected CharSequence dbHostname(CommandData<?, ?> commandData) {
     return null;
   }
-
-  @Override
-  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
 }

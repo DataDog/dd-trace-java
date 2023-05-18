@@ -397,6 +397,19 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
               .addArgument(new BooleanLiteralExpr(false));
       body.addStatement(invokeStatic);
     }
+    if (advice instanceof AroundSpecification || advice instanceof AfterSpecification) {
+      final MethodType pointcut = advice.getPointcut();
+      final Type expectedReturn =
+          pointcut.isConstructor() ? pointcut.getOwner() : pointcut.getMethodType().getReturnType();
+      if (!expectedReturn.equals(method.getMethodType().getReturnType())) {
+        body.addStatement(
+            new MethodCallExpr()
+                .setScope(new NameExpr("handler"))
+                .setName("instruction")
+                .addArgument(opCode("CHECKCAST"))
+                .addArgument(new StringLiteralExpr(expectedReturn.getInternalName())));
+      }
+    }
   }
 
   private static void writeOriginalMethodCall(

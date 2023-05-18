@@ -120,24 +120,30 @@ class LegacyAws2ClientForkedTest extends AgentTestRunner {
             "$Tags.HTTP_METHOD" "$method"
             "$Tags.HTTP_STATUS" 200
             "aws.service" "$service"
+            "aws_service" "$service"
             "aws.operation" "${operation}"
             "aws.agent" "java-aws-sdk"
             "aws.requestId" "$requestId"
             if (service == "S3") {
               "aws.bucket.name" "somebucket"
+              "bucketname" "somebucket"
               if (operation == "PutObject") {
                 "aws.storage.class" "GLACIER"
               }
             } else if (service == "Sqs" && operation == "CreateQueue") {
               "aws.queue.name" "somequeue"
+              "queuename" "somequeue"
             } else if (service == "Sqs" && operation == "SendMessage") {
               "aws.queue.url" "someurl"
             } else if (service == "Sns" && operation == "Publish") {
               "aws.topic.name" "some-topic"
+              "topicname" "some-topic"
             } else if (service == "DynamoDb") {
               "aws.table.name" "sometable"
+              "tablename" "sometable"
             } else if (service == "Kinesis") {
               "aws.stream.name" "somestream"
+              "streamname" "somestream"
             }
             defaultTags()
           }
@@ -252,21 +258,27 @@ class LegacyAws2ClientForkedTest extends AgentTestRunner {
             "$Tags.HTTP_METHOD" "$method"
             "$Tags.HTTP_STATUS" 200
             "aws.service" "$service"
+            "aws_service" "$service"
             "aws.operation" "${operation}"
             "aws.agent" "java-aws-sdk"
             "aws.requestId" "$requestId"
             if (service == "S3") {
               "aws.bucket.name" "somebucket"
+              "bucketname" "somebucket"
             } else if (service == "Sqs" && operation == "CreateQueue") {
               "aws.queue.name" "somequeue"
+              "queuename" "somequeue"
             } else if (service == "Sqs" && operation == "SendMessage") {
               "aws.queue.url" "someurl"
             } else if (service == "Sns" && operation == "Publish") {
               "aws.topic.name" "some-topic"
+              "topicname" "some-topic"
             } else if (service == "DynamoDb") {
               "aws.table.name" "sometable"
+              "tablename" "sometable"
             } else if (service == "Kinesis") {
               "aws.stream.name" "somestream"
+              "streamname" "somestream"
             }
             defaultTags()
           }
@@ -383,9 +395,11 @@ class LegacyAws2ClientForkedTest extends AgentTestRunner {
             "$Tags.HTTP_URL" "$server.address/somebucket/somekey"
             "$Tags.HTTP_METHOD" "GET"
             "aws.service" "S3"
+            "aws_service" "S3"
             "aws.operation" "GetObject"
             "aws.agent" "java-aws-sdk"
             "aws.bucket.name" "somebucket"
+            "bucketname" "somebucket"
             errorTags SdkClientException, "Unable to execute HTTP request: Read timed out"
             defaultTags()
           }

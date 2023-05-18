@@ -37,6 +37,7 @@ public class MetricProbesInstrumentationTest {
   private static final ProbeId METRIC_ID = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 0);
   private static final ProbeId METRIC_ID1 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f6", 0);
   private static final ProbeId METRIC_ID2 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f7", 0);
+  private static final ProbeId METRIC_ID3 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f9", 0);
   private static final String SERVICE_NAME = "service-name";
   private static final String METRIC_PROBEID_TAG =
       "debugger.probeid:beae1807-f3b0-4ea8-a74f-826790c5e6f8";
@@ -146,6 +147,38 @@ public class MetricProbesInstrumentationTest {
     Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME));
     Assertions.assertEquals(
         "Cannot resolve symbol value", mockSink.getCurrentDiagnostics().get(0).getMessage());
+  }
+
+  @Test
+  public void multiInvalidValueMetric() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    String METRIC_NAME = "call_count";
+    MetricProbe metric1 =
+        MetricProbe.builder()
+            .probeId(METRIC_ID1)
+            .metricName(METRIC_NAME)
+            .kind(COUNT)
+            .where(CLASS_NAME, "main", "int (java.lang.String)")
+            .valueScript(new ValueScript(DSL.ref("value"), "value"))
+            .build();
+    MetricProbe metric2 =
+        MetricProbe.builder()
+            .probeId(METRIC_ID2)
+            .metricName(METRIC_NAME)
+            .kind(COUNT)
+            .where(CLASS_NAME, "main", "int (java.lang.String)")
+            .valueScript(new ValueScript(DSL.ref("invalid"), "invalid"))
+            .build();
+    MetricForwarderListener listener = installMetricProbes(metric1, metric2);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    Assertions.assertEquals(3, result);
+    Assertions.assertEquals(0, listener.counters.size());
+    Assertions.assertEquals(2, mockSink.getCurrentDiagnostics().size());
+    Assertions.assertEquals(
+        "Cannot resolve symbol value", mockSink.getCurrentDiagnostics().get(0).getMessage());
+    Assertions.assertEquals(
+        "Cannot resolve symbol invalid", mockSink.getCurrentDiagnostics().get(1).getMessage());
   }
 
   @Test
@@ -587,7 +620,6 @@ public class MetricProbesInstrumentationTest {
             "f",
             "()",
             new ValueScript(DSL.ref("strValue"), "strValue"));
-
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "f").get();
     Assertions.assertEquals(42, result);
@@ -595,6 +627,25 @@ public class MetricProbesInstrumentationTest {
     Assertions.assertEquals(
         "Incompatible type for expression: java.lang.String with expected type: long",
         mockSink.getCurrentDiagnostics().get(0).getMessage());
+  }
+
+  @Test
+  public void metricThrows() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot06";
+    ValueScript valueScript =
+        new ValueScript(DSL.getMember(DSL.ref("this"), "intValue"), "intValue");
+    MetricProbe countProbe =
+        createMetric(METRIC_ID1, "field_count", COUNT, CLASS_NAME, "f", "()", valueScript, null);
+    MetricProbe gaugeProbe =
+        createMetric(METRIC_ID2, "field_gauge", GAUGE, CLASS_NAME, "f", "()", valueScript, null);
+    MetricProbe histogramProbe =
+        createMetric(
+            METRIC_ID3, "field_histo", HISTOGRAM, CLASS_NAME, "f", "()", valueScript, null);
+    MetricForwarderListener listener = installMetricProbes(countProbe, gaugeProbe, histogramProbe);
+    listener.setThrowing(true);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assertions.assertEquals(42, result);
   }
 
   @Test
@@ -661,6 +712,203 @@ public class MetricProbesInstrumentationTest {
     Assertions.assertEquals(42, result);
     Assertions.assertTrue(listener.counters.containsKey(METRIC_NAME));
     Assertions.assertEquals(48, listener.counters.get(METRIC_NAME).longValue());
+  }
+
+  @Test
+  public void lenExpression() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot06";
+    String STRLEN_METRIC = "strlen";
+    String LISTSIZE_METRIC = "listsize";
+    String MAPSIZE_METRIC = "mapsize";
+    MetricProbe metricProbe1 =
+        createMetricBuilder(METRIC_ID, STRLEN_METRIC, GAUGE)
+            .where(CLASS_NAME, "f", "()")
+            .valueScript(new ValueScript(DSL.len(DSL.ref("strValue")), "len(strValue)"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricProbe metricProbe2 =
+        createMetricBuilder(METRIC_ID, LISTSIZE_METRIC, GAUGE)
+            .where(CLASS_NAME, "f", "()")
+            .valueScript(new ValueScript(DSL.len(DSL.ref("strList")), "len(strList)"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricProbe metricProbe3 =
+        createMetricBuilder(METRIC_ID, MAPSIZE_METRIC, GAUGE)
+            .where(CLASS_NAME, "f", "()")
+            .valueScript(new ValueScript(DSL.len(DSL.ref("strMap")), "len(strMap)"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricForwarderListener listener =
+        installMetricProbes(metricProbe1, metricProbe2, metricProbe3);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assertions.assertEquals(42, result);
+    Assertions.assertTrue(listener.gauges.containsKey(STRLEN_METRIC));
+    Assertions.assertEquals(
+        4, listener.gauges.get(STRLEN_METRIC).longValue()); // <=> "done".length()
+    Assertions.assertTrue(listener.gauges.containsKey(LISTSIZE_METRIC));
+    Assertions.assertEquals(
+        3, listener.gauges.get(LISTSIZE_METRIC).longValue()); // <=> strList.size()
+    Assertions.assertTrue(listener.gauges.containsKey(MAPSIZE_METRIC));
+    Assertions.assertEquals(
+        1, listener.gauges.get(MAPSIZE_METRIC).longValue()); // <=> strMap.size()
+  }
+
+  @Test
+  public void nullExpression() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot06";
+    String NULLLEN_METRIC = "nulllen";
+    String MAPNULL_METRIC = "mapnull";
+    String NULL_METRIC = "null";
+    MetricProbe metricProbe1 =
+        createMetricBuilder(METRIC_ID1, NULLLEN_METRIC, GAUGE)
+            .where(CLASS_NAME, "f", "()")
+            .valueScript(new ValueScript(DSL.len(DSL.nullValue()), "len(null)"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricProbe metricProbe2 =
+        createMetricBuilder(METRIC_ID2, MAPNULL_METRIC, GAUGE)
+            .where(CLASS_NAME, "f", "()")
+            .valueScript(
+                new ValueScript(DSL.index(DSL.ref("strMap"), DSL.nullValue()), "strMap[null]"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricProbe metricProbe3 =
+        createMetricBuilder(METRIC_ID3, NULL_METRIC, GAUGE)
+            .where(CLASS_NAME, "f", "()")
+            .valueScript(new ValueScript(DSL.nullValue(), "null"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricForwarderListener listener =
+        installMetricProbes(metricProbe1, metricProbe2, metricProbe3);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assertions.assertEquals(42, result);
+    Assertions.assertEquals(0, listener.gauges.size());
+    Assertions.assertEquals(3, mockSink.getCurrentDiagnostics().size());
+    Assertions.assertEquals(
+        "Unsupported type for len operation: java.lang.Object",
+        mockSink.getCurrentDiagnostics().get(0).getMessage());
+    Assertions.assertEquals(
+        "Incompatible type for expression: java.lang.String with expected type: long",
+        mockSink.getCurrentDiagnostics().get(1).getMessage());
+    Assertions.assertEquals(
+        "Incompatible type for expression: java.lang.Object with expected type: long",
+        mockSink.getCurrentDiagnostics().get(2).getMessage());
+  }
+
+  @Test
+  public void indexExpression() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot22";
+    String ARRAYIDX_METRIC = "arrayindex";
+    String LISTIDX_METRIC = "listindex";
+    String MAPIDX_METRIC = "mapindex";
+    MetricProbe metricProbe1 =
+        createMetricBuilder(METRIC_ID, ARRAYIDX_METRIC, GAUGE)
+            .where(CLASS_NAME, "doit", "(String)")
+            .valueScript(
+                new ValueScript(DSL.index(DSL.ref("intArray"), DSL.value(4)), "intArray[4]"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricProbe metricProbe2 =
+        createMetricBuilder(METRIC_ID, LISTIDX_METRIC, GAUGE)
+            .where(CLASS_NAME, "doit", "(String)")
+            .valueScript(
+                new ValueScript(
+                    DSL.len(DSL.index(DSL.ref("strList"), DSL.value(1))), "len(strList[1])"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricProbe metricProbe3 =
+        createMetricBuilder(METRIC_ID, MAPIDX_METRIC, GAUGE)
+            .where(CLASS_NAME, "doit", "(String)")
+            .valueScript(
+                new ValueScript(
+                    DSL.len(DSL.index(DSL.ref("strMap"), DSL.value("foo1"))),
+                    "len(strMap['foo1'])"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricForwarderListener listener =
+        installMetricProbes(metricProbe1, metricProbe2, metricProbe3);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assertions.assertEquals(42, result);
+    Assertions.assertTrue(listener.gauges.containsKey(ARRAYIDX_METRIC));
+    Assertions.assertEquals(4, listener.gauges.get(ARRAYIDX_METRIC).longValue());
+    Assertions.assertTrue(listener.gauges.containsKey(LISTIDX_METRIC));
+    Assertions.assertEquals(3, listener.gauges.get(LISTIDX_METRIC).longValue());
+    Assertions.assertTrue(listener.gauges.containsKey(MAPIDX_METRIC));
+    Assertions.assertEquals(4, listener.gauges.get(MAPIDX_METRIC).longValue());
+  }
+
+  @Test
+  public void indexInvalidKeyTypeExpression() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot22";
+    String ARRAYSTRIDX_METRIC = "arrayStrIndex";
+    String ARRAYOOBIDX_METRIC = "arrayOutOfBoundsIndex";
+    MetricProbe metricProbe1 =
+        createMetricBuilder(METRIC_ID, ARRAYSTRIDX_METRIC, GAUGE)
+            .where(CLASS_NAME, "doit", "(String)")
+            .valueScript(
+                new ValueScript(
+                    DSL.index(DSL.ref("intArray"), DSL.value("foo")), "intArray['foo']"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricProbe metricProbe2 =
+        createMetricBuilder(METRIC_ID, ARRAYOOBIDX_METRIC, GAUGE)
+            .where(CLASS_NAME, "doit", "(String)")
+            // generates ArrayOutOfBoundsException
+            .valueScript(
+                new ValueScript(DSL.index(DSL.ref("intArray"), DSL.value(42)), "intArray[42]"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricForwarderListener listener = installMetricProbes(metricProbe1, metricProbe2);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assertions.assertEquals(42, result);
+    Assertions.assertFalse(listener.gauges.containsKey(ARRAYSTRIDX_METRIC));
+    Assertions.assertFalse(listener.gauges.containsKey(ARRAYOOBIDX_METRIC));
+    Assertions.assertEquals(
+        "Incompatible type for key: Type{mainType=Ljava/lang/String;, genericTypes=[]}, expected int or long",
+        mockSink.getCurrentDiagnostics().get(0).getMessage());
+  }
+
+  @Test
+  public void privateFieldValue() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot04";
+    final String STRVALUE_METRIC = "strvalue_count";
+    final String LONGVALUE_METRIC = "longvalue_count";
+    final String INTVALUE_METRIC = "intvalue_count";
+    MetricProbe metricProbe1 =
+        createMetricBuilder(METRIC_ID1, STRVALUE_METRIC, GAUGE)
+            .where(CLASS_NAME, 24)
+            .valueScript(
+                new ValueScript(
+                    DSL.len(DSL.getMember(DSL.ref("sdata"), "strValue")), "len(sdata.strValue)"))
+            .build();
+    MetricProbe metricProbe2 =
+        createMetricBuilder(METRIC_ID2, LONGVALUE_METRIC, GAUGE)
+            .where(CLASS_NAME, 24)
+            .valueScript(
+                new ValueScript(
+                    DSL.getMember(DSL.getMember(DSL.ref("cdata"), "s2"), "longValue"),
+                    "cdata.s2.longValue"))
+            .build();
+    MetricProbe metricProbe3 =
+        createMetricBuilder(METRIC_ID3, INTVALUE_METRIC, GAUGE)
+            .where(CLASS_NAME, 24)
+            .valueScript(
+                new ValueScript(
+                    DSL.getMember(DSL.getMember(DSL.ref("cdata"), "s2"), "intValue"),
+                    "cdata.s2.intValue"))
+            .build();
+    MetricForwarderListener listener =
+        installMetricProbes(metricProbe1, metricProbe2, metricProbe3);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assertions.assertEquals(143, result);
+    Assertions.assertEquals(3, listener.gauges.get(STRVALUE_METRIC));
+    Assertions.assertEquals(1042, listener.gauges.get(LONGVALUE_METRIC));
+    Assertions.assertEquals(202, listener.gauges.get(INTVALUE_METRIC));
   }
 
   private MetricForwarderListener installSingleMetric(
@@ -765,23 +1013,37 @@ public class MetricProbesInstrumentationTest {
     Map<String, Long> gauges = new HashMap<>();
     Map<String, Long> histrograms = new HashMap<>();
     String[] lastTags = null;
+    boolean throwing;
 
     @Override
     public void count(String name, long delta, String[] tags) {
+      if (throwing) {
+        throw new IllegalArgumentException("oops");
+      }
       counters.compute(name, (key, value) -> value != null ? value + delta : delta);
       lastTags = tags;
     }
 
     @Override
     public void gauge(String name, long value, String[] tags) {
+      if (throwing) {
+        throw new IllegalArgumentException("oops");
+      }
       gauges.put(name, value);
       lastTags = tags;
     }
 
     @Override
     public void histogram(String name, long value, String[] tags) {
+      if (throwing) {
+        throw new IllegalArgumentException("oops");
+      }
       histrograms.put(name, value);
       lastTags = tags;
+    }
+
+    public void setThrowing(boolean value) {
+      this.throwing = value;
     }
   }
 

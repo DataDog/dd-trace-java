@@ -134,7 +134,7 @@ class KafkaStreamsTest extends AgentTestRunner {
             if ({ isDataStreamsEnabled()}) {
               "$DDTags.PATHWAY_HASH" { String }
             }
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -183,7 +183,7 @@ class KafkaStreamsTest extends AgentTestRunner {
             if ({ isDataStreamsEnabled()}) {
               "$DDTags.PATHWAY_HASH" { String }
             }
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }

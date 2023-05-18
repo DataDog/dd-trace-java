@@ -23,6 +23,7 @@ import io.netty.handler.codec.http.HttpResponseStatus
 import io.netty.handler.logging.LogLevel
 import io.netty.handler.logging.LoggingHandler
 import io.netty.util.CharsetUtil
+import spock.lang.Ignore
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -156,6 +157,12 @@ abstract class Netty40ServerTest extends HttpServerTest<EventLoopGroup> {
   @Override
   boolean testBlocking() {
     true
+  }
+
+  @Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")
+  @Override
+  boolean testBadUrl() {
+    false
   }
 }
 

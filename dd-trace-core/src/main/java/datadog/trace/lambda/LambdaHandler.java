@@ -91,15 +91,7 @@ public class LambdaHandler {
               propagationTagsFactory.fromHeaderValue(
                   PropagationTags.HeaderType.DATADOG, response.headers().get(DATADOG_TAGS_KEY));
           return new ExtractedContext(
-              DDTraceId.from(traceID),
-              DDSpanId.ZERO,
-              samplingPriority,
-              null,
-              0,
-              null,
-              null,
-              null,
-              propagationTags);
+              DDTraceId.from(traceID), DDSpanId.ZERO, samplingPriority, null, propagationTags);
         } else {
           log.debug(
               "could not find traceID or sampling priority in notifyStartInvocation, not injecting the context");

@@ -477,7 +477,7 @@ class JMS1Test extends AgentTestRunner {
             "$Tags.COMPONENT" "jms"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -591,7 +591,7 @@ class JMS1Test extends AgentTestRunner {
               "$Tags.COMPONENT" "jms"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
               "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-              defaultTags()
+              defaultTagsNoPeerService()
             }
           }
         }
@@ -644,7 +644,7 @@ class JMS1Test extends AgentTestRunner {
               "$Tags.COMPONENT" "jms"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
               "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-              defaultTags()
+              defaultTagsNoPeerService()
             }
           }
         }
@@ -704,7 +704,7 @@ class JMS1Test extends AgentTestRunner {
               "$Tags.COMPONENT" "jms"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
               "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-              defaultTags()
+              defaultTagsNoPeerService()
             }
           }
         }
@@ -896,7 +896,7 @@ class JMS1Test extends AgentTestRunner {
       tags {
         "$Tags.COMPONENT" "jms"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
-        defaultTags()
+        defaultTagsNoPeerService()
       }
     }
   }
@@ -923,7 +923,7 @@ class JMS1Test extends AgentTestRunner {
         if (!isTimestampDisabled) {
           "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
         }
-        defaultTags(true)
+        defaultTagsNoPeerService(true)
       }
     }
   }

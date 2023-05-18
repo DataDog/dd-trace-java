@@ -220,6 +220,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
             if (addDbmTag) {
               "$InstrumentationTags.DBM_TRACE_INJECTED" true
             }
+            peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
         }
@@ -280,6 +281,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
             // since Connection.getClientInfo will not provide the username
             "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
             "$Tags.DB_OPERATION" operation
+            peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
         }
@@ -338,6 +340,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
             // since Connection.getClientInfo will not provide the username
             "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
             "$Tags.DB_OPERATION" operation
+            peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
         }
@@ -458,6 +461,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
             if (addDbmTag) {
               "$InstrumentationTags.DBM_TRACE_INJECTED" true
             }
+            peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
         }
@@ -516,7 +520,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
   protected abstract boolean dbmTraceInjected()
 }
 
-class RemoteJDBCInstrumentationV0ForkedTest extends RemoteJDBCInstrumentationTest {
+class RemoteJDBCInstrumentationV0Test extends RemoteJDBCInstrumentationTest {
 
   @Override
   int version() {
@@ -541,13 +545,6 @@ class RemoteJDBCInstrumentationV0ForkedTest extends RemoteJDBCInstrumentationTes
 
 class RemoteJDBCInstrumentationV1ForkedTest extends RemoteJDBCInstrumentationTest {
 
-  def remapDbType(String dbType) {
-    if ("postgresql" == dbType) {
-      return "postgres"
-    }
-    return dbType
-  }
-
   @Override
   int version() {
     return 1
@@ -560,7 +557,7 @@ class RemoteJDBCInstrumentationV1ForkedTest extends RemoteJDBCInstrumentationTes
 
   @Override
   protected String operation(String dbType) {
-    return "${remapDbType(dbType)}.query"
+    return "${dbType}.query"
   }
 
   @Override
@@ -570,13 +567,6 @@ class RemoteJDBCInstrumentationV1ForkedTest extends RemoteJDBCInstrumentationTes
 }
 
 class RemoteDBMTraceInjectedForkedTest extends RemoteJDBCInstrumentationTest {
-
-  def remapDbType(String dbType) {
-    if ("postgresql" == dbType) {
-      return "postgres"
-    }
-    return dbType
-  }
 
   @Override
   void configurePreAgent() {
@@ -601,6 +591,6 @@ class RemoteDBMTraceInjectedForkedTest extends RemoteJDBCInstrumentationTest {
 
   @Override
   protected String operation(String dbType) {
-    return "${remapDbType(dbType)}.query"
+    return "${dbType}.query"
   }
 }
