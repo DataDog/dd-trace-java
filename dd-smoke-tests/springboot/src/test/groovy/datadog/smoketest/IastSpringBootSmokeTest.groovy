@@ -1,18 +1,11 @@
 package datadog.smoketest
 
-import datadog.trace.test.agent.decoder.DecodedSpan
-import groovy.json.JsonSlurper
 import groovy.transform.CompileDynamic
 import okhttp3.FormBody
-import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
 import spock.util.concurrent.PollingConditions
-
-import java.util.concurrent.TimeoutException
-import java.util.function.Function
-import java.util.function.Predicate
 
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED
@@ -20,11 +13,7 @@ import static datadog.trace.api.config.IastConfig.IAST_REDACTION_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING
 
 @CompileDynamic
-class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
-
-  private static final String TAG_NAME = '_dd.iast.json'
-
-  private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8")
+class IastSpringBootSmokeTest extends AbstractSpringBootIastTest {
 
   @Override
   def logLevel() {
@@ -459,97 +448,4 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     hasMetric('_dd.iast.telemetry.executed.sink.command_injection', 1))
   }
 
-  private static Function<DecodedSpan, Boolean> hasMetric(final String name, final Object value) {
-    return { span -> value == span.metrics.get(name) }
-  }
-
-  private static Function<DecodedSpan, Boolean> hasVulnerability(final Predicate<?> predicate) {
-    return { span ->
-      final iastMeta = span.meta.get(TAG_NAME)
-      if (!iastMeta) {
-        return false
-      }
-      final vulnerabilities = parseVulnerabilities(iastMeta)
-      return vulnerabilities.stream().anyMatch(predicate)
-    }
-  }
-
-  private boolean hasVulnerabilityInLogs(final Predicate<?> predicate) {
-    def found = false
-    checkLogPostExit { final String log ->
-      final index = log.indexOf(TAG_NAME)
-      if (index >= 0) {
-        final vulnerabilities = parseVulnerabilities(log, index)
-        found |= vulnerabilities.stream().anyMatch(predicate)
-      }
-    }
-    return found
-  }
-
-  private void hasTainted(final Closure<Boolean> matcher) {
-    final slurper = new JsonSlurper()
-    final tainteds = []
-    try {
-      processTestLogLines { String log ->
-        final index = log.indexOf('tainted=')
-        if (index >= 0) {
-          final tainted = slurper.parse(new StringReader(log.substring(index + 8)))
-          tainteds.add(tainted)
-          if (matcher.call(tainted)) {
-            return true // found
-          }
-        }
-      }
-    } catch (TimeoutException toe) {
-      throw new AssertionError("No matching tainted found. Tainteds found: ${tainteds}")
-    }
-  }
-
-
-  private static Collection<?> parseVulnerabilities(final String log, final int startIndex) {
-    final chars = log.toCharArray()
-    final builder = new StringBuilder()
-    def level = 0
-    for (int i = log.indexOf('{', startIndex); i < chars.length; i++) {
-      final current = chars[i]
-      if (current == '{' as char) {
-        level++
-      } else if (current == '}' as char) {
-        level--
-      }
-      builder.append(chars[i])
-      if (level == 0) {
-        break
-      }
-    }
-    return parseVulnerabilities(builder.toString())
-  }
-
-  private static Collection<?> parseVulnerabilities(final String iastJson) {
-    final slurper = new JsonSlurper()
-    final parsed = slurper.parseText(iastJson)
-    return parsed['vulnerabilities'] as Collection
-  }
-
-  private static Predicate<?> type(final String type) {
-    return { vul ->
-      vul.type == type
-    }
-  }
-
-  private static Predicate<?> evidence(final String value) {
-    return { vul ->
-      vul.evidence.value == value
-    }
-  }
-
-  private static Predicate<?> withSpan() {
-    return { vul ->
-      vul.location.spanId > 0
-    }
-  }
-
-  private static String withSystemProperty(final String config, final Object value) {
-    return "-Ddd.${config}=${value}"
-  }
 }

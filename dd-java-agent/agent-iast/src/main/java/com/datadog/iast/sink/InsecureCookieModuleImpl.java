@@ -53,4 +53,11 @@ public class InsecureCookieModuleImpl extends SinkModuleBase implements Insecure
       return;
     }
   }
+
+  @Override
+  public void onHeader(String name, String value) {
+    if ("Set-Cookie".equalsIgnoreCase(name)) {
+      onCookieHeader(value);
+    }
+  }
 }
