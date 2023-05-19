@@ -19,6 +19,11 @@ public class UriRoutingContextGetPathSegmentsInstrumentation extends Instrumente
   }
 
   @Override
+  public String muzzleDirective() {
+    return "jersey-server";
+  }
+
+  @Override
   public String instrumentedType() {
     return "org.glassfish.jersey.server.internal.routing.UriRoutingContext";
   }

@@ -1,4 +1,5 @@
 import datadog.appsec.api.blocking.Blocking
+import org.glassfish.jersey.media.multipart.FormDataParam
 
 import javax.ws.rs.Consumes
 import javax.ws.rs.FormParam
@@ -16,6 +17,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
@@ -86,6 +88,17 @@ class GrizzlyAsyncTest extends GrizzlyTest {
       executor.execute {
         controller(BODY_URLENCODED) {
           asyncResponse.resume(Response.status(BODY_URLENCODED.status).entity([a: [a]] as String).build())
+        }
+      }
+    }
+
+    @POST
+    @Path("body-multipart")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    Response bodyMultipart(@Suspended final AsyncResponse asyncResponse, @FormDataParam("a") List<String> a) {
+      executor.execute {
+        controller(BODY_MULTIPART) {
+          asyncResponse.resume(Response.status(BODY_MULTIPART.status).entity([a: a] as String).build())
         }
       }
     }

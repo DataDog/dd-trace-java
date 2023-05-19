@@ -35,6 +35,7 @@ import groovy.transform.Canonical
 import groovy.transform.CompileStatic
 import okhttp3.HttpUrl
 import okhttp3.MediaType
+import okhttp3.MultipartBody
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
@@ -48,6 +49,7 @@ import java.util.function.Function
 import java.util.function.Supplier
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS
@@ -305,6 +307,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     false
   }
 
+  boolean testBodyMultipart() {
+    false
+  }
+
   boolean testBodyJson() {
     false
   }
@@ -355,6 +361,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     CREATED("created", 201, "created"),
     CREATED_IS("created_input_stream", 201, "created"),
     BODY_URLENCODED("body-urlencoded?ignore=pair", 200, '[a:[x]]'),
+    BODY_MULTIPART("body-multipart?ignore=pair", 200, '[a:[x]]'),
     BODY_JSON("body-json", 200, '{"a":"x"}'),
     REDIRECT("redirect", 302, "/redirected"),
     FORWARDED("forwarded", 200, "1.2.3.4"),
@@ -809,7 +816,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   def "test path param"() {
     setup:
     assumeTrue(testPathParam() != null)
-    def request = request(PATH_PARAM, method, body).build()
+    def request = request(PATH_PARAM, 'GET', null).build()
     def response = client.newCall(request).execute()
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
@@ -823,7 +830,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assertTraces(1) {
       trace(spanCount(PATH_PARAM)) {
         sortSpansByStart()
-        serverSpan(it, null, null, method, PATH_PARAM)
+        serverSpan(it, null, null, 'GET', PATH_PARAM)
         if (hasHandlerSpan()) {
           handlerSpan(it, PATH_PARAM)
         }
@@ -842,10 +849,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         edgeTags.size() == DSM_EDGE_TAGS.size()
       }
     }
-
-    where:
-    method = "GET"
-    body = null
   }
 
   def "test path param publishes to IG"() {
@@ -1355,6 +1358,41 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
+
+  def 'test instrumentation gateway multipart request body'() {
+    setup:
+    assumeTrue(testBodyMultipart())
+    def body = new MultipartBody.Builder()
+      .setType(MultipartBody.FORM)
+      .addFormDataPart('a', 'x')
+      .build()
+    def request = request(BODY_MULTIPART, 'POST', body).build()
+    def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
+
+    expect:
+    response.body().charStream().text == '[a:[x]]'
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      it.getTag('request.body.converted') == '[a:[x]]'
+    }
+
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
+  }
+
   def 'test instrumentation gateway json request body'() {
     setup:
     assumeTrue(testBodyJson())
@@ -1617,8 +1655,18 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     'plain text'    | testRequestBody()          | CREATED         | headerForPlainTextBody() | 'text/plain'                        | 'my body'
     'plain text IS' | testRequestBodyISVariant() | CREATED_IS      | headerForPlainTextBody() | 'text/plain'                        | 'my body'
     'urlencoded'    | testBodyUrlencoded()       | BODY_URLENCODED | IG_BODY_CONVERTED_HEADER | 'application/x-www-form-urlencoded' | 'a=x'
+    'multipart'     | testBodyMultipart()        | BODY_MULTIPART  | IG_BODY_CONVERTED_HEADER | MULTIPART_CONTENT_TYPE              | MULTIPART_BODY
     'json'          | testBodyJson()             | BODY_JSON       | IG_BODY_CONVERTED_HEADER | 'application/json'                  | '{"a": "x"}'
   }
+
+  private final static String MULTIPART_CONTENT_TYPE = 'multipart/form-data; boundary=------------------------943d3207457896a3'
+  private final static String MULTIPART_BODY = '''
+      --------------------------943d3207457896a3
+      Content-Disposition: form-data; name="a"
+
+      x
+      --------------------------943d3207457896a3--
+  '''.stripIndent()[1..-1]
 
   private String headerForPlainTextBody() {
     requestBodyNoStreaming ? IG_BODY_CONVERTED_HEADER : IG_BODY_END_BLOCK_HEADER

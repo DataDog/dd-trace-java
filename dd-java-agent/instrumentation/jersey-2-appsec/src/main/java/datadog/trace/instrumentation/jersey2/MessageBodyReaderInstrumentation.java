@@ -58,6 +58,13 @@ public class MessageBodyReaderInstrumentation extends Instrumenter.AppSec
         return;
       }
 
+      if (ret.getClass()
+          .getName()
+          .equals("org.glassfish.jersey.media.multipart.FormDataMultiPart")) {
+        // likely handled already by MultiPartReaderServerSideInstrumentation
+        return;
+      }
+
       Object objToPass;
       if (ret instanceof Form) {
         objToPass = ((Form) ret).asMap();

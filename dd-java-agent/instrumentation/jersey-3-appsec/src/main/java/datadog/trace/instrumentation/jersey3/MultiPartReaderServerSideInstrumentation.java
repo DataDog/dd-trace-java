@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.jersey3;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static net.bytebuddy.matcher.ElementMatchers.isProtected;
+import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
@@ -15,60 +17,55 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import jakarta.ws.rs.core.Form;
+import jakarta.ws.rs.core.MediaType;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
+import org.glassfish.jersey.media.multipart.BodyPart;
+import org.glassfish.jersey.media.multipart.FormDataBodyPart;
+import org.glassfish.jersey.media.multipart.MultiPart;
+import org.glassfish.jersey.message.internal.MediaTypes;
 
-// keep in sync with jersey2 (javax packages)
 @AutoService(Instrumenter.class)
-public class MessageBodyReaderInstrumentation extends Instrumenter.AppSec
+public class MultiPartReaderServerSideInstrumentation extends Instrumenter.AppSec
     implements Instrumenter.ForSingleType {
-  public MessageBodyReaderInstrumentation() {
+
+  public MultiPartReaderServerSideInstrumentation() {
     super("jersey");
   }
 
   @Override
   public String muzzleDirective() {
-    return "jersey-common";
+    return "multipart";
   }
 
-  // This is a caller for the MessageBodyReaders in jersey
-  // We instrument it instead of the MessageBodyReaders in order to avoid hierarchy inspections
   @Override
   public String instrumentedType() {
-    return "org.glassfish.jersey.message.internal.ReaderInterceptorExecutor";
+    return "org.glassfish.jersey.media.multipart.internal.MultiPartReaderServerSide";
   }
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        named("proceed").and(takesArguments(0)),
-        getClass().getName() + "$ReaderInterceptorExecutorProceedAdvice");
+        named("readMultiPart")
+            .and(isProtected())
+            .and(returns(named("org.glassfish.jersey.media.multipart.MultiPart")))
+            .and(takesArguments(6)),
+        getClass().getName() + "$ReadMultiPartAdvice");
   }
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
-  public static class ReaderInterceptorExecutorProceedAdvice {
+  public static class ReadMultiPartAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
-        @Advice.Return final Object ret,
+        @Advice.Return final MultiPart ret,
         @ActiveRequestContext RequestContext reqCtx,
         @Advice.Thrown(readOnly = false) Throwable t) {
       if (ret == null || t != null) {
         return;
-      }
-
-      if (ret.getClass()
-          .getName()
-          .equals("org.glassfish.jersey.media.multipart.FormDataMultiPart")) {
-        // likely handled already by MultiPartReaderServerSideInstrumentation
-        return;
-      }
-
-      Object objToPass;
-      if (ret instanceof Form) {
-        objToPass = ((Form) ret).asMap();
-      } else {
-        objToPass = ret;
       }
 
       CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
@@ -78,7 +75,30 @@ public class MessageBodyReaderInstrumentation extends Instrumenter.AppSec
         return;
       }
 
-      Flow<Void> flow = callback.apply(reqCtx, objToPass);
+      Map<String, List<String>> map = new HashMap<>();
+      for (BodyPart bodyPart : ret.getBodyParts()) {
+        if (!(bodyPart instanceof FormDataBodyPart)) {
+          continue;
+        }
+        FormDataBodyPart dataBodyPart = (FormDataBodyPart) bodyPart;
+        if (!MediaTypes.typeEqual(MediaType.TEXT_PLAIN_TYPE, dataBodyPart.getMediaType())) {
+          continue;
+        }
+        // if the type of dataBodyPart.getEntity() is BodyPartEntity, it is safe to read the part
+        // more than once. So we're not depriving the application of the data by consuming it here
+        String v = dataBodyPart.getValue();
+
+        String name = dataBodyPart.getName();
+        List<String> values = map.get(name);
+        if (values == null) {
+          values = new ArrayList<>();
+          map.put(name, values);
+        }
+
+        values.add(v);
+      }
+
+      Flow<Void> flow = callback.apply(reqCtx, map);
       Flow.Action action = flow.getAction();
       if (action instanceof Flow.Action.RequestBlockingAction) {
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
@@ -86,7 +106,7 @@ public class MessageBodyReaderInstrumentation extends Instrumenter.AppSec
         if (blockResponseFunction != null) {
           blockResponseFunction.tryCommitBlockingResponse(
               rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
-          t = new BlockingException("Blocked request (for ReaderInterceptorExecutor/proceed)");
+          t = new BlockingException("Blocked request (for MultiPartReaderClientSide/readFrom)");
         }
       }
     }

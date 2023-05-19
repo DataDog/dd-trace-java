@@ -3,6 +3,8 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.instrumentation.grizzlyhttp232.GrizzlyDecorator
 import org.glassfish.grizzly.http.server.HttpServer
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory
+import org.glassfish.jersey.media.multipart.FormDataParam
+import org.glassfish.jersey.media.multipart.MultiPartFeature
 import org.glassfish.jersey.server.ResourceConfig
 
 import javax.ws.rs.Consumes
@@ -24,6 +26,7 @@ import javax.ws.rs.ext.Provider
 import java.util.concurrent.TimeoutException
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
@@ -54,6 +57,7 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
       ResourceConfig rc = new ResourceConfig()
       rc.register(SimpleExceptionMapper)
       rc.register(resource())
+      rc.register(MultiPartFeature)
       rc.register(ResponseServerFilter)
       rc.register(new TestMessageBodyReader())
       server = GrizzlyHttpServerFactory.createHttpServer(new URI("http://localhost:0"), rc, false)
@@ -102,6 +106,11 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
 
   @Override
   boolean testBodyUrlencoded() {
+    true
+  }
+
+  @Override
+  boolean testBodyMultipart() {
     true
   }
 
@@ -184,6 +193,15 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     Response bodyUrlencoded(@FormParam("a") List<String> a) {
       controller(BODY_URLENCODED) {
         Response.status(BODY_URLENCODED.status).entity([a: a] as String).build()
+      }
+    }
+
+    @POST
+    @Path("body-multipart")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    Response bodyMultipart(@FormDataParam("a") List<String> a) {
+      controller(BODY_MULTIPART) {
+        Response.status(BODY_MULTIPART.status).entity([a: a] as String).build()
       }
     }
 

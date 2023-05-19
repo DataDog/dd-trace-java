@@ -20,7 +20,7 @@ public class UriRoutingContextGetPathSegmentsInstrumentation extends Instrumente
 
   @Override
   public String muzzleDirective() {
-    return "jersey_2";
+    return "jersey_server_2";
   }
 
   @Override
