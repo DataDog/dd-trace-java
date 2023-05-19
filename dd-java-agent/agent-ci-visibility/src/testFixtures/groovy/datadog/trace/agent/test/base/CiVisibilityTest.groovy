@@ -66,7 +66,7 @@ abstract class CiVisibilityTest extends AgentTestRunner {
 
     InstrumentationBridge.registerBuildEventsHandlerFactory { decorator -> new BuildEventsHandlerImpl<>() }
 
-    InstrumentationBridge.registerCoverageProbeStoreFactory = new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory()
+    InstrumentationBridge.registerCoverageProbeStoreFactory(new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory())
   }
 
   @Override
