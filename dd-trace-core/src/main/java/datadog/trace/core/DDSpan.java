@@ -778,7 +778,7 @@ public class DDSpan
   }
 
   @Override
-  public TraceConfig getTraceConfig() {
+  public TraceConfig traceConfig() {
     return context.getTrace().getTraceConfig();
   }
 }

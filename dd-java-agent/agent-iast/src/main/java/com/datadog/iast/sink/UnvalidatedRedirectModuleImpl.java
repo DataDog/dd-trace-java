@@ -7,6 +7,7 @@ import com.datadog.iast.model.VulnerabilityType;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.net.URI;
 import javax.annotation.Nullable;
 
 public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
@@ -23,6 +24,19 @@ public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
       return;
     }
     checkInjection(span, ctx, VulnerabilityType.UNVALIDATED_REDIRECT, value);
+  }
+
+  @Override
+  public void onURIRedirect(@Nullable URI uri) {
+    if (uri == null) {
+      return;
+    }
+    final AgentSpan span = AgentTracer.activeSpan();
+    final IastRequestContext ctx = IastRequestContext.get(span);
+    if (ctx == null) {
+      return;
+    }
+    checkInjection(span, ctx, VulnerabilityType.UNVALIDATED_REDIRECT, uri);
   }
 
   @Override

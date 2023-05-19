@@ -2,11 +2,13 @@ package com.datadog.iast.sink
 
 import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.IastRequestContext
+import com.datadog.iast.model.Source
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
@@ -36,7 +38,7 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
     overheadController.consumeQuota(_, _) >> true
   }
 
-  void 'iast module detects redirect (#value)'(final String value, final String expected) {
+  void 'iast module detects String redirect (#value)'(final String value, final String expected) {
     setup:
     final param = mapTainted(value)
 
@@ -45,7 +47,7 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
 
     then:
     if (expected != null) {
-      1 * reporter.report(_, _) >> { args -> assertVulnerability(args[1] as Vulnerability, expected) }
+      1 * reporter.report(_, _) >> { args -> assertEvidence(args[1] as Vulnerability, expected) }
     } else {
       0 * reporter.report(_, _)
     }
@@ -55,6 +57,26 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
     null         | null
     '/var'       | null
     '/==>var<==' | "/==>var<=="
+  }
+
+  void 'iast module detects URI redirect (#value)'(final URI value, final String expected) {
+    setup:
+    ctx.taintedObjects.taintInputObject(value, new Source(SourceTypes.NONE, null, null))
+
+    when:
+    module.onURIRedirect(value)
+
+    then:
+    if (expected != null) {
+      1 * reporter.report(_, _) >> { args -> assertVulnerability(args[1] as Vulnerability) }
+    } else {
+      0 * reporter.report(_, _)
+    }
+
+    where:
+    value                                | expected
+    null                                 | null
+    new URI("http://dummy.location.com") | true
   }
 
   void 'if onHeader receives a Location header call onRedirect'() {
@@ -81,10 +103,14 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
     return result
   }
 
-  private static void assertVulnerability(final Vulnerability vuln, final String expected) {
+  private static void assertVulnerability(final Vulnerability vuln) {
     assert vuln != null
     assert vuln.getType() == VulnerabilityType.UNVALIDATED_REDIRECT
     assert vuln.getLocation() != null
+  }
+
+  private static void assertEvidence(final Vulnerability vuln, final String expected) {
+    assertVulnerability(vuln)
     final evidence = vuln.getEvidence()
     assert evidence != null
     final formatted = taintFormat(evidence.getValue(), evidence.getRanges())

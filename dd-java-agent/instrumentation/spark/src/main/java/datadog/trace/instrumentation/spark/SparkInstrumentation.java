@@ -29,6 +29,7 @@ public class SparkInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".DatabricksParentContext",
       packageName + ".DatadogSparkListener",
       packageName + ".SparkAggregatedTaskMetrics",
       packageName + ".SparkConfAllowList",

@@ -57,7 +57,7 @@ public class TelemetryServiceImpl implements TelemetryService {
 
   private final Queue<Request> queue = new ArrayBlockingQueue<>(16);
 
-  private long lastPreparationTimestamp;
+  private long lastHeartBeatTimestamp;
   /*
    * Keep track of Open Tracing and Open Telemetry integrations activation as they are mutually exclusive.
    */
@@ -221,14 +221,11 @@ public class TelemetryServiceImpl implements TelemetryService {
     }
 
     // Heartbeat request if needed
-    long curTime = this.timeSource.getCurrentTimeMillis();
-    if (!queue.isEmpty()) {
-      lastPreparationTimestamp = curTime;
-    }
-    if (curTime - lastPreparationTimestamp > heartbeatIntervalMs) {
+    final long curTime = this.timeSource.getCurrentTimeMillis();
+    if (curTime - lastHeartBeatTimestamp >= heartbeatIntervalMs) {
       Request request = requestBuilderSupplier.get().build(RequestType.APP_HEARTBEAT);
       queue.offer(request);
-      lastPreparationTimestamp = curTime;
+      lastHeartBeatTimestamp = curTime;
     }
 
     return queue;

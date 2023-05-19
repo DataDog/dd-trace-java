@@ -6,6 +6,7 @@ import datadog.trace.api.naming.v0.NamingSchemaV0
 import datadog.trace.api.naming.v1.NamingSchemaV1
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.DDSpecification
+import spock.lang.Ignore
 
 class PeerServiceCalculatorTest extends DDSpecification {
   def "schema v0 : peer service is not calculated by default"() {
@@ -78,6 +79,7 @@ class PeerServiceCalculatorTest extends DDSpecification {
     "server"   | false
   }
 
+  @Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")
   def "should apply peer service mappings if configured"() {
     setup:
     injectSysConfig(TracerConfig.TRACE_PEER_SERVICE_MAPPING, "service1:best_service,userService:my_service")
