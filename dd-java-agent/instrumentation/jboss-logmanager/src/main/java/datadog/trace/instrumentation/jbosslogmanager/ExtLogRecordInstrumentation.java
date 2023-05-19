@@ -148,21 +148,18 @@ public class ExtLogRecordInstrumentation extends Instrumenter.Tracing
       AgentSpan.Context context =
           InstrumentationContext.get(ExtLogRecord.class, AgentSpan.Context.class).get(record);
 
-      // Nothing to add so return early
-      if (context == null) {
-        return;
-      }
-
       Map<String, String> correlationValues = new HashMap<>(8);
 
-      DDTraceId traceId = context.getTraceId();
-      String traceIdValue =
-          InstrumenterConfig.get().isLogs128bTraceIdEnabled() && traceId.toHighOrderLong() != 0
-              ? traceId.toHexString()
-              : traceId.toString();
-      correlationValues.put(CorrelationIdentifier.getTraceIdKey(), traceIdValue);
-      correlationValues.put(
-          CorrelationIdentifier.getSpanIdKey(), DDSpanId.toString(context.getSpanId()));
+      if (context != null) {
+        DDTraceId traceId = context.getTraceId();
+        String traceIdValue =
+            InstrumenterConfig.get().isLogs128bTraceIdEnabled() && traceId.toHighOrderLong() != 0
+                ? traceId.toHexString()
+                : traceId.toString();
+        correlationValues.put(CorrelationIdentifier.getTraceIdKey(), traceIdValue);
+        correlationValues.put(
+            CorrelationIdentifier.getSpanIdKey(), DDSpanId.toString(context.getSpanId()));
+      }
 
       String serviceName = Config.get().getServiceName();
       if (null != serviceName && !serviceName.isEmpty()) {
