@@ -1,5 +1,7 @@
 package smoketest.resteasy;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Set;
@@ -12,6 +14,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 
 @Path("/hello")
 public class Resource {
@@ -80,5 +83,17 @@ public class Resource {
       throws SQLException {
     DB.store(param.iterator().next());
     return "RestEasy: hello " + param;
+  }
+
+  @Path("/setlocationheader")
+  @GET
+  public Response locationHeader(@QueryParam("param") String param) {
+    return Response.status(Response.Status.TEMPORARY_REDIRECT).header("Location", param).build();
+  }
+
+  @Path("/setresponselocation")
+  @GET
+  public Response responseLocation(@QueryParam("param") String param) throws URISyntaxException {
+    return Response.status(Response.Status.TEMPORARY_REDIRECT).location(new URI(param)).build();
   }
 }

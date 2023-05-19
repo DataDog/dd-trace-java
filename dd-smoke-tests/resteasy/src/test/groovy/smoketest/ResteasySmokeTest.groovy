@@ -12,7 +12,7 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
 
 
   @Override
-  def logLevel(){
+  def logLevel() {
     return "debug"
   }
 
@@ -38,7 +38,7 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
     processBuilder.directory(new File(buildDirectory))
   }
 
-  def "test path parameter"() {
+  void "test path parameter"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/bypathparam/pathParamValue"
 
@@ -57,7 +57,7 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
     }
   }
 
-  def "Test query parameter in RestEasy"() {
+  void "Test query parameter in RestEasy"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/byqueryparam?param=queryParamValue"
 
@@ -76,7 +76,7 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
     }
   }
 
-  def "Test header in RestEasy"() {
+  void "Test header in RestEasy"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/byheader"
 
@@ -95,7 +95,7 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
     }
   }
 
-  def "Test cookie in RestEasy"() {
+  void "Test cookie in RestEasy"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/bycookie"
 
@@ -114,7 +114,7 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
     }
   }
 
-  def "Test collection injection in RestEasy"() {
+  void "Test collection injection in RestEasy"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/collection?param=value1&param=value2"
 
@@ -133,7 +133,7 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
     }
   }
 
-  def "Test Set injection in RestEasy"() {
+  void "Test Set injection in RestEasy"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/set?param=setValue1&param=setValue2"
 
@@ -152,7 +152,7 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
     }
   }
 
-  def "Test Sorted Set injection in RestEasy"() {
+  void "Test Sorted Set injection in RestEasy"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/sortedset?param=sortedsetValue1&param=sortedsetValue2"
 
@@ -168,6 +168,34 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
     assert response.code() == 200
     processTestLogLines {
       it.contains("SQL_INJECTION") && it.contains("smoketest.resteasy.DB") && it.contains("sortedsetValue1")
+    }
+  }
+
+  void "unvalidated  redirect from location header is present"() {
+    setup:
+    def url = "http://localhost:${httpPort}/hello/setlocationheader?param=setheader"
+
+    when:
+    def request = new Request.Builder().url(url).get().build()
+    client.newCall(request).execute()
+
+    then:
+    processTestLogLines {
+      it.contains("UNVALIDATED_REDIRECT") && it.contains("setheader")
+    }
+  }
+
+  void "unvalidated  redirect from location header is present"() {
+    setup:
+    def url = "http://localhost:${httpPort}/hello/setresponselocation?param=setlocation"
+
+    when:
+    def request = new Request.Builder().url(url).get().build()
+    client.newCall(request).execute()
+
+    then:
+    processTestLogLines {
+      it.contains("UNVALIDATED_REDIRECT") && it.contains("setlocation")
     }
   }
 
