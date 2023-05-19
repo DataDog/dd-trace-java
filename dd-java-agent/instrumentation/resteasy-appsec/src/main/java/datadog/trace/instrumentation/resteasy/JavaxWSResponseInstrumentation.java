@@ -28,7 +28,8 @@ public class JavaxWSResponseInstrumentation extends Instrumenter.Iast
         named("header").and(isPublic().and(takesArguments(String.class, Object.class))),
         JavaxWSResponseInstrumentation.class.getName() + "$HeaderAdvice");
     transformation.applyAdvice(
-        named("location"), JavaxWSResponseInstrumentation.class.getName() + "$RedirectionAdvice");
+        named("location").and(isPublic().and(takesArguments(URI.class))),
+        JavaxWSResponseInstrumentation.class.getName() + "$RedirectionAdvice");
   }
 
   @Override
