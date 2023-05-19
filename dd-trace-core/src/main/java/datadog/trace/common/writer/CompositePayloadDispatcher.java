@@ -36,7 +36,7 @@ public class CompositePayloadDispatcher implements PayloadDispatcher {
 
   @Override
   public Collection<Class<? extends RemoteApi>> getApis() {
-    Collection<Class<? extends RemoteApi>> apis = new ArrayList<>();
+    Collection<Class<? extends RemoteApi>> apis = new ArrayList<>(delegates.length);
     for (PayloadDispatcher delegate : delegates) {
       apis.addAll(delegate.getApis());
     }
