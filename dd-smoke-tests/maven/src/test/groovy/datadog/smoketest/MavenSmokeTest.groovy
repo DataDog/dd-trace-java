@@ -32,7 +32,7 @@ class MavenSmokeTest extends Specification {
   private static final String TEST_SERVICE_NAME = "test-maven-service"
   private static final String TEST_ENVIRONMENT_NAME = "integration-test"
 
-  private static final int PROCESS_TIMEOUT_SECS = 30
+  private static final int PROCESS_TIMEOUT_SECS = 60
 
   @Shared
   @TempDir
@@ -179,7 +179,7 @@ class MavenSmokeTest extends Specification {
       files          : [
         [
           filename: "src/test/java/datadog/smoke/TestSucceed.java",
-          segments: [[7, -1, 7, -1, 3], [11, -1, 11, -1, 2], [12, -1, 12, -1, 1]]
+          segments: [[7, -1, 7, -1, -1], [11, -1, 12, -1, -1]]
         ]
       ]
     ]

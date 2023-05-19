@@ -20,11 +20,10 @@ import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.stream.Collectors;
 import okhttp3.MultipartBody;
 import okhttp3.RequestBody;
@@ -85,18 +84,18 @@ public class CiTestCovMapperV2 implements RemoteMapper {
       writable.writeUTF8(SPAN_ID);
       writable.writeLong(testReport.getSpanId());
 
-      Map<String, TestReportFileEntry> fileEntries = testReport.getTestReportFileEntries();
+      Collection<TestReportFileEntry> fileEntries = testReport.getTestReportFileEntries();
 
       writable.writeUTF8(FILES);
       writable.startArray(fileEntries.size());
 
-      for (TestReportFileEntry entry : fileEntries.values()) {
+      for (TestReportFileEntry entry : fileEntries) {
         writable.startMap(2);
 
         writable.writeUTF8(FILENAME);
         writable.writeString(entry.getSourceFileName(), null);
 
-        Set<TestReportFileEntry.Segment> segments = entry.getSegments();
+        Collection<TestReportFileEntry.Segment> segments = entry.getSegments();
 
         writable.writeUTF8(SEGMENTS);
         writable.startArray(segments.size());

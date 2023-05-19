@@ -200,7 +200,7 @@ class GradleDaemonSmokeTest extends Specification {
       files          : [
         [
           filename: "src/test/java/datadog/smoke/TestSucceed.java",
-          segments: [[11, -1, 11, -1, 2], [12, -1, 12, -1, 1]]
+          segments: [[11, -1, 12, -1, -1]]
         ]
       ]
     ]
@@ -315,7 +315,7 @@ class GradleDaemonSmokeTest extends Specification {
       files          : [
         [
           filename: "src/test/java/datadog/smoke/TestSucceed.java",
-          segments: [[11, -1, 11, -1, 2], [12, -1, 12, -1, 1]]
+          segments: [[11, -1, 12, -1, -1]]
         ]
       ]
     ]
@@ -827,7 +827,9 @@ class GradleDaemonSmokeTest extends Specification {
 
   private static boolean isSupported(String gradleVersion) {
     // https://docs.gradle.org/current/userguide/compatibility.html
-    if (Jvm.current.java19Compatible) {
+    if (Jvm.current.java20Compatible) {
+      return gradleVersion >= "8.1"
+    } else if (Jvm.current.java19) {
       return gradleVersion >= "7.6"
     } else if (Jvm.current.java18) {
       return gradleVersion >= "7.5"

@@ -1,19 +1,19 @@
 package datadog.trace.api.civisibility.coverage;
 
-import java.util.Map;
+import java.util.Collection;
 
 public class TestReport {
 
   private final Long testSessionId;
   private final Long testSuiteId;
   private final long spanId;
-  private final Map<String, TestReportFileEntry> testReportFileEntries;
+  private final Collection<TestReportFileEntry> testReportFileEntries;
 
   public TestReport(
       Long testSessionId,
       Long testSuiteId,
       long spanId,
-      Map<String, TestReportFileEntry> testReportFileEntries) {
+      Collection<TestReportFileEntry> testReportFileEntries) {
     this.testSessionId = testSessionId;
     this.testSuiteId = testSuiteId;
     this.spanId = spanId;
@@ -32,7 +32,7 @@ public class TestReport {
     return spanId;
   }
 
-  public Map<String, TestReportFileEntry> getTestReportFileEntries() {
+  public Collection<TestReportFileEntry> getTestReportFileEntries() {
     return testReportFileEntries;
   }
 

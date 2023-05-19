@@ -6,7 +6,10 @@ import datadog.trace.api.civisibility.coverage.TestReportFileEntry;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.Utils;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
@@ -40,7 +43,7 @@ public class TestProbes implements CoverageProbeStore {
 
   @Override
   public void report(Long testSessionId, Long testSuiteId, long spanId) {
-    Map<String, TestReportFileEntry> testReportFileEntries = new HashMap<>();
+    Map<String, List<TestReportFileEntry.Segment>> segmentsBySourcePath = new HashMap<>();
     for (Map.Entry<Class<?>, ExecutionDataAdapter> e : probeActivations.entrySet()) {
       ExecutionDataAdapter executionDataAdapter = e.getValue();
       String className = executionDataAdapter.getClassName();
@@ -62,13 +65,13 @@ public class TestProbes implements CoverageProbeStore {
       }
 
       try (InputStream is = Utils.getClassStream(clazz)) {
-        TestReportFileEntry fileEntry =
-            testReportFileEntries.computeIfAbsent(sourcePath, TestReportFileEntry::new);
+        List<TestReportFileEntry.Segment> segments =
+            segmentsBySourcePath.computeIfAbsent(sourcePath, key -> new ArrayList<>());
 
         ExecutionDataStore store = new ExecutionDataStore();
         store.put(executionDataAdapter.toExecutionData(totalProbeCount));
 
-        Analyzer analyzer = new Analyzer(store, new SourceAnalyzer(fileEntry));
+        Analyzer analyzer = new Analyzer(store, new SourceAnalyzer(segments));
         analyzer.analyzeClass(is, null);
 
       } catch (Exception exception) {
@@ -80,7 +83,41 @@ public class TestProbes implements CoverageProbeStore {
       }
     }
 
-    testReport = new TestReport(testSessionId, testSuiteId, spanId, testReportFileEntries);
+    List<TestReportFileEntry> fileEntries = new ArrayList<>(segmentsBySourcePath.size());
+    for (Map.Entry<String, List<TestReportFileEntry.Segment>> e : segmentsBySourcePath.entrySet()) {
+      String sourcePath = e.getKey();
+
+      List<TestReportFileEntry.Segment> segments = e.getValue();
+      segments.sort(Comparator.naturalOrder());
+
+      List<TestReportFileEntry.Segment> compressedSegments = getCompressedSegments(segments);
+      fileEntries.add(new TestReportFileEntry(sourcePath, compressedSegments));
+    }
+
+    testReport = new TestReport(testSessionId, testSuiteId, spanId, fileEntries);
+  }
+
+  private static List<TestReportFileEntry.Segment> getCompressedSegments(
+      List<TestReportFileEntry.Segment> segments) {
+    List<TestReportFileEntry.Segment> compressedSegments = new ArrayList<>();
+
+    int startLine = -1, endLine = -1;
+    for (TestReportFileEntry.Segment segment : segments) {
+      if (segment.getStartLine() <= endLine + 1) {
+        endLine = Math.max(endLine, segment.getEndLine());
+      } else {
+        if (startLine > 0) {
+          compressedSegments.add(new TestReportFileEntry.Segment(startLine, -1, endLine, -1, -1));
+        }
+        startLine = segment.getStartLine();
+        endLine = segment.getEndLine();
+      }
+    }
+
+    if (startLine > 0) {
+      compressedSegments.add(new TestReportFileEntry.Segment(startLine, -1, endLine, -1, -1));
+    }
+    return compressedSegments;
   }
 
   @Nullable
