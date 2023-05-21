@@ -24,7 +24,7 @@ class OpensearchRestClientTest extends AgentTestRunner {
   @Shared
   Node testNode
   @Shared
-  File esWorkingDir
+  File aosWorkingDir
   @Shared
   String clusterName = UUID.randomUUID().toString()
 
@@ -33,12 +33,12 @@ class OpensearchRestClientTest extends AgentTestRunner {
 
   def setupSpec() {
 
-    esWorkingDir = File.createTempDir("test-es-working-dir-", "")
-    esWorkingDir.deleteOnExit()
-    println "ES work dir: $esWorkingDir"
+    aosWorkingDir = File.createTempDir("test-aos-working-dir-", "")
+    aosWorkingDir.deleteOnExit()
+    println "AOS work dir: $aosWorkingDir"
 
     def settings = Settings.builder()
-      .put("path.home", esWorkingDir.path)
+      .put("path.home", aosWorkingDir.path)
       .put("cluster.name", clusterName)
       .put("node.name", "test-node")
       .put("transport.type", "netty4")
@@ -60,9 +60,9 @@ class OpensearchRestClientTest extends AgentTestRunner {
 
   def cleanupSpec() {
     testNode?.close()
-    if (esWorkingDir != null) {
-      FileSystemUtils.deleteSubDirectories(esWorkingDir.toPath())
-      esWorkingDir.delete()
+    if (aosWorkingDir != null) {
+      FileSystemUtils.deleteSubDirectories(aosWorkingDir.toPath())
+      aosWorkingDir.delete()
     }
   }
 

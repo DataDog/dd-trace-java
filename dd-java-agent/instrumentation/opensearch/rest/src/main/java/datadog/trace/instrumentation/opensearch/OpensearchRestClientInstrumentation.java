@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.opensearch;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -16,7 +15,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
 import org.opensearch.client.ResponseListener;
@@ -27,12 +25,6 @@ public class OpensearchRestClientInstrumentation extends Instrumenter.Tracing
 
   public OpensearchRestClientInstrumentation() {
     super("opensearch", "opensearch-rest");
-  }
-
-  @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Avoid matching pre-ES7 releases which have their own instrumentations.
-    return hasClassNamed("org.opensearch.client.RestClient$InternalRequest");
   }
 
   @Override

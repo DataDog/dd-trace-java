@@ -66,8 +66,6 @@ public class OpensearchTransportClientDecorator extends DBTypeProcessingDatabase
   public AgentSpan onRequest(final AgentSpan span, final Class action, final Class request) {
     if (action != null) {
       String actionName = action.getSimpleName();
-      // ES 7.9 internally changes PutMappingAction to AutoPutMappingAction for
-      // documents with unmapped fields; reverse this to get the original action
       if ("AutoPutMappingAction".equals(actionName)) {
         actionName = "PutMappingAction";
       }
