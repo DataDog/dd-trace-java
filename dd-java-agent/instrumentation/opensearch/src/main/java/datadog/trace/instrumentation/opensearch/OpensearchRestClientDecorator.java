@@ -83,12 +83,9 @@ public class OpensearchRestClientDecorator extends DBTypeProcessingDatabaseClien
       while ((bodyline = bodyBufferedReader.readLine()) != null) {
         bodyStringBuffer.append(bodyline);
       }
+      bodyBufferedReader.close();
     } catch (IOException e) {
       return "";
-    } finally {
-      if (bodyBufferedReader != null) {
-        bodyBufferedReader.close();
-      }
     }
     return bodyStringBuffer.toString();
   }
