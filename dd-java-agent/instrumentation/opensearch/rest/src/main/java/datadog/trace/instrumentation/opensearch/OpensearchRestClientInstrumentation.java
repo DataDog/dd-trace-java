@@ -67,7 +67,12 @@ public class OpensearchRestClientInstrumentation extends Instrumenter.Tracing
 
       final AgentSpan span = startSpan(OPERATION_NAME);
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, request.getMethod(), request.getEndpoint());
+      DECORATE.onRequest(
+          span,
+          request.getMethod(),
+          request.getEndpoint(),
+          request.getEntity(),
+          request.getParameters());
 
       if (responseListener != null) {
         responseListener = new RestResponseListener(responseListener, span);

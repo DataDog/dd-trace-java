@@ -16,7 +16,6 @@ import org.opensearch.action.support.broadcast.BroadcastResponse;
 import org.opensearch.action.support.nodes.BaseNodesResponse;
 import org.opensearch.action.support.replication.ReplicationResponse;
 
-/** This class is identical to version 6's instrumentation. */
 public class TransportActionListener<T extends ActionResponse> implements ActionListener<T> {
 
   private final ActionListener<T> listener;
