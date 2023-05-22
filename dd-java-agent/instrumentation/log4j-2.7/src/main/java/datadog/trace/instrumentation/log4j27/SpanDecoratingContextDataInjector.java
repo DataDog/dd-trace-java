@@ -34,20 +34,17 @@ public final class SpanDecoratingContextDataInjector implements ContextDataInjec
     // We're at most adding 5 tags
     StringMap newContextData = new SortedArrayStringMap(contextData.size() + 5);
 
-    InstrumenterConfig instrumenterConfig = InstrumenterConfig.get();
-    if (instrumenterConfig.isLogsMDCTagsInjectionEnabled()) {
-      String env = Config.get().getEnv();
-      if (null != env && !env.isEmpty()) {
-        newContextData.putValue(Tags.DD_ENV, env);
-      }
-      String serviceName = Config.get().getServiceName();
-      if (null != serviceName && !serviceName.isEmpty()) {
-        newContextData.putValue(Tags.DD_SERVICE, serviceName);
-      }
-      String version = Config.get().getVersion();
-      if (null != version && !version.isEmpty()) {
-        newContextData.putValue(Tags.DD_VERSION, version);
-      }
+    String env = Config.get().getEnv();
+    if (null != env && !env.isEmpty()) {
+      newContextData.putValue(Tags.DD_ENV, env);
+    }
+    String serviceName = Config.get().getServiceName();
+    if (null != serviceName && !serviceName.isEmpty()) {
+      newContextData.putValue(Tags.DD_SERVICE, serviceName);
+    }
+    String version = Config.get().getVersion();
+    if (null != version && !version.isEmpty()) {
+      newContextData.putValue(Tags.DD_VERSION, version);
     }
 
     AgentSpan span = activeSpan();
@@ -55,7 +52,7 @@ public final class SpanDecoratingContextDataInjector implements ContextDataInjec
     if (span != null) {
       DDTraceId traceId = span.context().getTraceId();
       String traceIdValue =
-          instrumenterConfig.isLogs128bTraceIdEnabled() && traceId.toHighOrderLong() != 0
+          InstrumenterConfig.get().isLogs128bTraceIdEnabled() && traceId.toHighOrderLong() != 0
               ? traceId.toHexString()
               : traceId.toString();
       newContextData.putValue(CorrelationIdentifier.getTraceIdKey(), traceIdValue);

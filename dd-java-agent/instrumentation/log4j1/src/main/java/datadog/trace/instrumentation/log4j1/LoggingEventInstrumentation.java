@@ -128,20 +128,17 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
 
         Hashtable mdc = new Hashtable();
 
-        InstrumenterConfig instrumenterConfig = InstrumenterConfig.get();
-        if (instrumenterConfig.isLogsMDCTagsInjectionEnabled()) {
-          String serviceName = Config.get().getServiceName();
-          if (null != serviceName && !serviceName.isEmpty()) {
-            mdc.put(Tags.DD_SERVICE, serviceName);
-          }
-          String env = Config.get().getEnv();
-          if (null != env && !env.isEmpty()) {
-            mdc.put(Tags.DD_ENV, env);
-          }
-          String version = Config.get().getVersion();
-          if (null != version && !version.isEmpty()) {
-            mdc.put(Tags.DD_VERSION, version);
-          }
+        String serviceName = Config.get().getServiceName();
+        if (null != serviceName && !serviceName.isEmpty()) {
+          mdc.put(Tags.DD_SERVICE, serviceName);
+        }
+        String env = Config.get().getEnv();
+        if (null != env && !env.isEmpty()) {
+          mdc.put(Tags.DD_ENV, env);
+        }
+        String version = Config.get().getVersion();
+        if (null != version && !version.isEmpty()) {
+          mdc.put(Tags.DD_VERSION, version);
         }
 
         AgentSpan.Context context =
@@ -149,7 +146,7 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
         if (context != null) {
           DDTraceId traceId = context.getTraceId();
           String traceIdValue =
-              instrumenterConfig.isLogs128bTraceIdEnabled() && traceId.toHighOrderLong() != 0
+              InstrumenterConfig.get().isLogs128bTraceIdEnabled() && traceId.toHighOrderLong() != 0
                   ? traceId.toHexString()
                   : traceId.toString();
           mdc.put(CorrelationIdentifier.getTraceIdKey(), traceIdValue);
