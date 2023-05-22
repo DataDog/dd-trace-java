@@ -23,9 +23,7 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
 
   def "test writes message"() {
     given:
-    def trace = givenTrace(new TestReport(1, 2, 3, [
-      "source": new TestReportFileEntry("source").incrementLine(4, 5, 6)
-    ]))
+    def trace = givenTrace(new TestReport(1, 2, 3, [new TestReportFileEntry("source", [new TestReportFileEntry.Segment(4, -1, 4, -1, 11)])]))
 
     when:
     def message = getMappedMessage(trace)
@@ -52,12 +50,14 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
   def "test writes message with multiple files and multiple lines"() {
     given:
     def trace = givenTrace(new TestReport(1, 2, 3, [
-      "sourceA": new TestReportFileEntry("sourceA")
-      .incrementLine(4, 1, 0)
-      .incrementLine(5, 1, 0),
-      "sourceB": new TestReportFileEntry("sourceB")
-      .incrementLine(20, 1, 0)
-      .incrementLine(21, 1, 0)
+      new TestReportFileEntry("sourceA", [
+        new TestReportFileEntry.Segment(4, -1, 4, -1, 1),
+        new TestReportFileEntry.Segment(5, -1, 5, -1, 1)
+      ]),
+      new TestReportFileEntry("sourceB", [
+        new TestReportFileEntry.Segment(20, -1, 20, -1, 1),
+        new TestReportFileEntry.Segment(21, -1, 21, -1, 1)
+      ])
     ]))
 
     when:
@@ -90,9 +90,11 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
     given:
     def trace = givenTrace(
       new TestReport(1, 2, 3, [
-        "sourceA": new TestReportFileEntry("sourceA").incrementLine(14, 1, 0)]),
+        new TestReportFileEntry("sourceA", [new TestReportFileEntry.Segment(14, -1, 14, -1, 1),])
+      ]),
       new TestReport(1, 2, 4, [
-        "sourceB": new TestReportFileEntry("sourceB").incrementLine(24, 1, 0)])
+        new TestReportFileEntry("sourceB", [new TestReportFileEntry.Segment(24, -1, 24, -1, 1),])
+      ]),
       )
 
     when:
@@ -130,12 +132,7 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
 
   def "skips spans that have no reports"() {
     given:
-    def trace = givenTrace(null,
-      new TestReport(1, 2, 3, [
-        "source": new TestReportFileEntry("source").incrementLine(4, 5, 6)
-      ]),
-      null
-      )
+    def trace = givenTrace(null, new TestReport(1, 2, 3, [new TestReportFileEntry("source", [new TestReportFileEntry.Segment(4, -1, 4, -1, 11)])]), null)
 
     when:
     def message = getMappedMessage(trace)
@@ -163,9 +160,9 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
     given:
     def trace = givenTrace(
       new TestReport(1, 2, 3, [
-        "source": new TestReportFileEntry("source").incrementLine(4, 5, 6)
+        new TestReportFileEntry("source", [new TestReportFileEntry.Segment(4, -1, 4, -1, 11)])
       ]),
-      new TestReport(1, 2, 4, [:])
+      new TestReport(1, 2, 4, [])
       )
 
     when:
