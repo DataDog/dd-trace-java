@@ -17,6 +17,7 @@ class IastOkHttp3InstrumentationTest extends AgentTestRunner {
     // HttpUrl gets loaded early so we have to disable the advice transformer
     IastHttpUrlInstrumentation.DISABLE_ADVICE_TRANSFORMER = true
     injectSysConfig('dd.iast.enabled', 'true')
+    System.setProperty("CI_USE_TEST_AGENT", "false")
   }
 
   @AutoCleanup
