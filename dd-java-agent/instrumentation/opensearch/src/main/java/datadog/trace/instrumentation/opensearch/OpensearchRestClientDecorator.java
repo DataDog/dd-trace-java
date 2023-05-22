@@ -12,8 +12,6 @@ import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabas
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.http.HttpEntity;
@@ -109,15 +107,7 @@ public class OpensearchRestClientDecorator extends DBTypeProcessingDatabaseClien
       if (queryParametersStringBuffer.length() >= 1) {
         queryParametersStringBuffer.deleteCharAt(queryParametersStringBuffer.length() - 1);
       }
-      String opensearchParams;
-      try {
-        opensearchParams =
-            URLEncoder.encode(
-                queryParametersStringBuffer.toString(), StandardCharsets.UTF_8.toString());
-      } catch (UnsupportedEncodingException e) {
-        opensearchParams = "";
-      }
-      span.setTag("opensearch.params", opensearchParams);
+      span.setTag("opensearch.params", queryParametersStringBuffer.toString());
     }
     return HTTP_RESOURCE_DECORATOR.withClientPath(span, method, endpoint);
   }
