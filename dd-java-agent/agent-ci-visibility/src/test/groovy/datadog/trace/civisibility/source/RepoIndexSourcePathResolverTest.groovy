@@ -12,7 +12,7 @@ class RepoIndexSourcePathResolverTest extends Specification {
 
   def sourceRootResolver = Stub(SourceRootResolver)
   def fileSystem = Jimfs.newFileSystem(Configuration.unix())
-  def repoRoot = "/repo/root"
+  def repoRoot = getRepoRoot()
 
   def "test source path resolution"() {
     setup:
@@ -150,6 +150,19 @@ class RepoIndexSourcePathResolverTest extends Specification {
 
   private static String generateSourceFileName(Class c, String sourceRoot, RepoIndexSourcePathResolver.SourceType sourceType = RepoIndexSourcePathResolver.SourceType.GROOVY) {
     return sourceRoot + File.separator + c.getName().replace(".", File.separator) + sourceType.extension
+  }
+
+  private static getRepoRoot() {
+    def a = RepoIndexSourcePathResolverTest.protectionDomain.codeSource.location.file
+    def b = RepoIndexSourcePathResolver.protectionDomain.codeSource.location.file
+
+    def min = Math.min(a.length(), b.length())
+    for (int i = 0; i < min; i++) {
+      if (a.charAt(i) != b.charAt(i)) {
+        return a.substring(0, i)
+      }
+    }
+    return a.substring(0, min)
   }
 
   private static final class InnerClass {
