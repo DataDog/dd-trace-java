@@ -20,7 +20,6 @@ public class GitInfoProvider {
   static {
     INSTANCE = new GitInfoProvider();
     INSTANCE.registerGitInfoBuilder(new UserSuppliedGitInfoBuilder());
-    INSTANCE.registerGitInfoBuilder(new EmbeddedGitInfoBuilder());
   }
 
   private volatile Collection<GitInfoBuilder> builders = Collections.emptyList();
