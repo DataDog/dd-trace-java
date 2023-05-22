@@ -106,4 +106,6 @@ tasks.register('filterLogbackClassic', Sync) {
   exclude 'META-INF/**'
   into ext.filteredLogbackDir
 }
+// we have no tests running on the test target, but the config is shared w/ forkedTest
+test.dependsOn filterLogbackClassic
 forkedTest.dependsOn filterLogbackClassic
