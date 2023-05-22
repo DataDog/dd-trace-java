@@ -61,4 +61,16 @@ class IastSpringBootRedirectSmokeTest extends AbstractIastServerSmokeTest {
     //org.msgpack.core.MessageTypeException: Expected String, but got Nil (c0)
     hasVulnerabilityInLogs { vul -> vul.type == 'UNVALIDATED_REDIRECT' }
   }
+
+  def "unvalidated  redirect from forward is present"() {
+    setup:
+    String url = "http://localhost:${httpPort}/unvalidated_redirect_from_forward?param=redirected"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerabilityInLogs(type('UNVALIDATED_REDIRECT').and(withSpan()))
+  }
 }

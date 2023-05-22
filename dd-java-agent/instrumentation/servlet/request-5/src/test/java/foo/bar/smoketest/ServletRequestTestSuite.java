@@ -1,14 +1,13 @@
-package datadog.smoketest.controller;
+package foo.bar.smoketest;
 
-import java.io.BufferedReader;
-import java.io.IOException;
+import jakarta.servlet.RequestDispatcher;
 import java.util.Enumeration;
-import javax.servlet.RequestDispatcher;
-import javax.servlet.ServletInputStream;
 
 public interface ServletRequestTestSuite<E> {
 
   void init(final E request);
+
+  java.util.Map<String, String[]> getParameterMap();
 
   String getParameter(String paramName);
 
@@ -17,8 +16,4 @@ public interface ServletRequestTestSuite<E> {
   Enumeration getParameterNames();
 
   RequestDispatcher getRequestDispatcher(String path);
-
-  ServletInputStream getInputStream() throws IOException;
-
-  BufferedReader getReader() throws IOException;
 }
