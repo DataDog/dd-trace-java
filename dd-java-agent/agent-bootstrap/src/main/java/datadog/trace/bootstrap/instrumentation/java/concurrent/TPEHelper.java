@@ -12,6 +12,7 @@ import datadog.trace.api.profiling.Timer;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 import java.util.Set;
 import java.util.concurrent.ThreadPoolExecutor;
 
@@ -127,7 +128,8 @@ public final class TPEHelper {
   @SuppressWarnings("deprecation")
   public static void startQueuingTimer(
       ContextStore<Runnable, State> taskContextStore, ThreadPoolExecutor executor, Runnable task) {
-    if (Config.get().isProfilingQueueingTimeEnabled()) {
+    if (Config.get().isProfilingQueueingTimeEnabled()
+        && InstrumentationBasedProfiling.isJFRReady()) {
       State state = taskContextStore.get(task);
       if (task != null && state != null) {
         QueueTiming timing =
