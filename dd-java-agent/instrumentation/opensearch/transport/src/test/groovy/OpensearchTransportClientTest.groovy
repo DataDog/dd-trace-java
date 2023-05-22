@@ -11,7 +11,6 @@ import org.opensearch.index.IndexNotFoundException
 import org.opensearch.node.InternalSettingsPreparer
 import org.opensearch.node.Node
 import org.opensearch.transport.Netty4Plugin
-import org.opensearch.transport.RemoteTransportException
 import org.opensearch.transport.TransportService
 import org.opensearch.transport.client.PreBuiltTransportClient
 import spock.lang.Shared
