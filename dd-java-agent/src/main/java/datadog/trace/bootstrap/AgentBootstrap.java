@@ -62,10 +62,6 @@ public final class AgentBootstrap {
       return;
     }
 
-    // for dynamic injection flow, we need to "register" the args since jvm doesn't
-    // handle them as it does in a startup flow via -D flag
-    parseAsSystemProperties(agentArgs);
-
     try {
       final URL agentJarURL = installAgentJar(inst);
       final Class<?> agentClass = Class.forName("datadog.trace.bootstrap.Agent", true, null);
@@ -232,29 +228,6 @@ public final class AgentBootstrap {
     inst.appendToBootstrapClassLoaderSearch(new JarFile(javaagentFile));
 
     return ddJavaAgentJarURL;
-  }
-
-  public static void parseAsSystemProperties(String str) {
-    if (str == null || str.length() == 0) return;
-
-    int begin = 0;
-    for (int sep_idx = str.indexOf(' ');
-        begin < str.length() && sep_idx != -1;
-        sep_idx = str.indexOf(' ', begin)) {
-      parseProperty(str.substring(begin, sep_idx));
-      begin = sep_idx + 1;
-      while (begin < str.length() && str.charAt(begin) == ' ') {
-        begin++;
-      }
-    }
-    parseProperty(str.substring(begin));
-  }
-
-  private static void parseProperty(String prop) {
-    int sep = prop.indexOf('=');
-    if (sep == -1) return;
-
-    System.setProperty(prop.substring(0, sep), prop.substring(sep + 1));
   }
 
   @SuppressForbidden
