@@ -422,7 +422,7 @@ class ConfigurationComparerTest {
           PROBE_ID.getId(),
           new InstrumentationResult(
               InstrumentationResult.Status.INSTALLED,
-              Collections.emptyList(),
+              Collections.emptyMap(),
               classNode,
               new MethodNode()));
     }

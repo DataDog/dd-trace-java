@@ -30,6 +30,7 @@ public class Tags {
   public static final String PEER_SERVICE = "peer.service";
   public static final String PEER_HOSTNAME = "peer.hostname";
   public static final String PEER_PORT = "peer.port";
+  public static final String RPC_SERVICE = "rpc.service";
   public static final String SAMPLING_PRIORITY = "sampling.priority";
   public static final String SPAN_KIND = "span.kind";
   public static final String COMPONENT = "component";

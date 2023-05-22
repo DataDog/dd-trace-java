@@ -57,7 +57,7 @@ public class TelemetryServiceImpl implements TelemetryService {
 
   private final Queue<Request> queue = new ArrayBlockingQueue<>(16);
 
-  private long lastPreparationTimestamp;
+  private long lastHeartBeatTimestamp;
   /*
    * Keep track of Open Tracing and Open Telemetry integrations activation as they are mutually exclusive.
    */
@@ -67,8 +67,8 @@ public class TelemetryServiceImpl implements TelemetryService {
   public TelemetryServiceImpl(
       Supplier<RequestBuilder> requestBuilderSupplier,
       TimeSource timeSource,
-      int heartBeatIntervalSec,
-      int metricsIntervalSec) {
+      float heartBeatIntervalSec,
+      float metricsIntervalSec) {
     this(
         requestBuilderSupplier,
         timeSource,
@@ -82,14 +82,14 @@ public class TelemetryServiceImpl implements TelemetryService {
   TelemetryServiceImpl(
       Supplier<RequestBuilder> requestBuilderSupplier,
       TimeSource timeSource,
-      int heartBeatIntervalSec,
-      int metricsIntervalSec,
+      float heartBeatIntervalSec,
+      float metricsIntervalSec,
       int maxElementsPerReq,
       int maxDepsPerReq) {
     this.requestBuilderSupplier = requestBuilderSupplier;
     this.timeSource = timeSource;
-    this.heartbeatIntervalMs = heartBeatIntervalSec * 1000; // we use time in milliseconds
-    this.metricsIntervalMs = metricsIntervalSec * 1000;
+    this.heartbeatIntervalMs = (int) (heartBeatIntervalSec * 1000); // we use time in milliseconds
+    this.metricsIntervalMs = (int) (metricsIntervalSec * 1000);
     this.openTracingIntegrationEnabled = false;
     this.openTelemetryIntegrationEnabled = false;
     this.maxElementsPerReq = maxElementsPerReq;
@@ -221,14 +221,11 @@ public class TelemetryServiceImpl implements TelemetryService {
     }
 
     // Heartbeat request if needed
-    long curTime = this.timeSource.getCurrentTimeMillis();
-    if (!queue.isEmpty()) {
-      lastPreparationTimestamp = curTime;
-    }
-    if (curTime - lastPreparationTimestamp > heartbeatIntervalMs) {
+    final long curTime = this.timeSource.getCurrentTimeMillis();
+    if (curTime - lastHeartBeatTimestamp >= heartbeatIntervalMs) {
       Request request = requestBuilderSupplier.get().build(RequestType.APP_HEARTBEAT);
       queue.offer(request);
-      lastPreparationTimestamp = curTime;
+      lastHeartBeatTimestamp = curTime;
     }
 
     return queue;

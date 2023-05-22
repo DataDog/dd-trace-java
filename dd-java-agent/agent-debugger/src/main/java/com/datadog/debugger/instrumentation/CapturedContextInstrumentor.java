@@ -1,5 +1,9 @@
 package com.datadog.debugger.instrumentation;
 
+import static com.datadog.debugger.instrumentation.ASMHelper.invokeStatic;
+import static com.datadog.debugger.instrumentation.ASMHelper.invokeVirtual;
+import static com.datadog.debugger.instrumentation.ASMHelper.isStaticField;
+import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
 import static com.datadog.debugger.instrumentation.Types.CAPTURED_CONTEXT_TYPE;
 import static com.datadog.debugger.instrumentation.Types.CAPTURED_VALUE;
 import static com.datadog.debugger.instrumentation.Types.CAPTURE_THROWABLE_TYPE;
@@ -110,7 +114,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
             DEBUGGER_CONTEXT_TYPE,
             "isReadyToCapture",
             Type.BOOLEAN_TYPE,
-            Type.getType(String[].class));
+            STRING_ARRAY_TYPE);
         // stack [boolean]
         LabelNode targetNode = new LabelNode();
         insnList.add(new JumpInsnNode(Opcodes.IFEQ, targetNode));
@@ -131,7 +135,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
             CAPTURED_CONTEXT_TYPE,
             CLASS_TYPE,
             INT_TYPE,
-            Type.getType(String[].class));
+            STRING_ARRAY_TYPE);
         // stack []
         insnList.add(targetNode);
         methodNode.instructions.insertBefore(beforeLabel.getNext(), insnList);
@@ -276,7 +280,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
           DEBUGGER_CONTEXT_TYPE,
           "isReadyToCapture",
           Type.BOOLEAN_TYPE,
-          Type.getType(String[].class));
+          STRING_ARRAY_TYPE);
       // stack [boolean]
       LabelNode targetNode = new LabelNode();
       LabelNode gotoNode = new LabelNode();
@@ -695,8 +699,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
                 Type.getType(CorrelationAccess.class));
             // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
             // access]
-            invokeVirtual(
-                insnList, CORRELATION_ACCESS_TYPE, "getTraceId", Type.getType(String.class));
+            invokeVirtual(insnList, CORRELATION_ACCESS_TYPE, "getTraceId", STRING_TYPE);
             // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
             // field_value]
             break;
@@ -710,8 +713,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
                 Type.getType(CorrelationAccess.class));
             // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
             // access]
-            invokeVirtual(
-                insnList, CORRELATION_ACCESS_TYPE, "getSpanId", Type.getType(String.class));
+            invokeVirtual(insnList, CORRELATION_ACCESS_TYPE, "getSpanId", STRING_TYPE);
             // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
             // field_value]
             break;

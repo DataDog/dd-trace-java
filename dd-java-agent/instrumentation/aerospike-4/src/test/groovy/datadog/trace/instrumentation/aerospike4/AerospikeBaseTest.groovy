@@ -62,6 +62,7 @@ abstract class AerospikeBaseTest extends VersionedNamingTestBase {
         "$Tags.PEER_PORT" aerospikePort
         "$Tags.DB_TYPE" "aerospike"
         "$Tags.DB_INSTANCE" "test"
+        peerServiceFrom(Tags.DB_INSTANCE)
         defaultTags()
       }
     }

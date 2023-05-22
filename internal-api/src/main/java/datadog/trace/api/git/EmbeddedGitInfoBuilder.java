@@ -67,4 +67,9 @@ public class EmbeddedGitInfoBuilder implements GitInfoBuilder {
                 committerTime),
             gitProperties.getProperty("git.commit.message.full")));
   }
+
+  @Override
+  public int order() {
+    return Integer.MAX_VALUE;
+  }
 }

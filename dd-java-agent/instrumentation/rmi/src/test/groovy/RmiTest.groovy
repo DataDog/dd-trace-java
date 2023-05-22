@@ -63,7 +63,9 @@ abstract class RmiTest extends VersionedNamingTestBase {
 
           tags {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.RPC_SERVICE" "rmi.app.Greeter"
             "$Tags.COMPONENT" "rmi-client"
+            peerServiceFrom(Tags.RPC_SERVICE)
             defaultTags()
           }
         }
@@ -144,8 +146,10 @@ abstract class RmiTest extends VersionedNamingTestBase {
 
           tags {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.RPC_SERVICE" "rmi.app.Greeter"
             "$Tags.COMPONENT" "rmi-client"
             errorTags(RuntimeException, String)
+            peerServiceFrom(Tags.RPC_SERVICE)
             defaultTags()
           }
         }
@@ -198,6 +202,8 @@ abstract class RmiTest extends VersionedNamingTestBase {
           tags {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.COMPONENT" "rmi-client"
+            "$Tags.RPC_SERVICE" "rmi.app.Greeter"
+            peerServiceFrom(Tags.RPC_SERVICE)
             defaultTags()
           }
         }
@@ -223,7 +229,7 @@ abstract class RmiTest extends VersionedNamingTestBase {
   }
 }
 
-class RmiV0ForkedTest extends RmiTest {
+class RmiV0Test extends RmiTest {
 
   @Override
   int version() {

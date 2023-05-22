@@ -98,4 +98,9 @@ public class UserSuppliedGitInfoBuilder implements GitInfoBuilder {
 
     return gitInfo;
   }
+
+  @Override
+  public int order() {
+    return 0;
+  }
 }

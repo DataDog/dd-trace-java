@@ -73,6 +73,8 @@ public abstract class HealthMetrics implements AutoCloseable {
   public void onFailedSend(
       final int traceCount, final int sizeInBytes, final RemoteApi.Response response) {}
 
+  public void onLongRunningUpdate(final int dropped, final int write, final int expired) {}
+
   @Override
   public void close() {}
 }

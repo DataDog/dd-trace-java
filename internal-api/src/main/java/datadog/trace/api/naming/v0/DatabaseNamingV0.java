@@ -4,6 +4,11 @@ import datadog.trace.api.naming.NamingSchema;
 import javax.annotation.Nonnull;
 
 public class DatabaseNamingV0 implements NamingSchema.ForDatabase {
+  @Override
+  public String normalizedName(@Nonnull String rawName) {
+    return rawName;
+  }
+
   @Nonnull
   @Override
   public String operation(@Nonnull String databaseType) {

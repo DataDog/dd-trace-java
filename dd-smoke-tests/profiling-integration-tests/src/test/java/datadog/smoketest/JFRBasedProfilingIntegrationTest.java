@@ -43,6 +43,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
@@ -144,6 +145,7 @@ class JFRBasedProfilingIntegrationTest {
   }
 
   @Test
+  @Disabled("https://github.com/DataDog/dd-trace-java/pull/5213")
   @DisplayName("Test continuous recording - no jmx delay")
   public void testContinuousRecording_no_jmx_delay(final TestInfo testInfo) throws Exception {
     testWithRetry(
@@ -155,6 +157,7 @@ class JFRBasedProfilingIntegrationTest {
   }
 
   @Test
+  @Disabled("https://github.com/DataDog/dd-trace-java/pull/5213")
   @DisplayName("Test continuous recording - 1 sec jmx delay")
   public void testContinuousRecording(final TestInfo testInfo) throws Exception {
     testWithRetry(
@@ -436,6 +439,7 @@ class JFRBasedProfilingIntegrationTest {
   }
 
   @Test
+  @Disabled("https://github.com/DataDog/dd-trace-java/pull/5213")
   @DisplayName("Test shutdown")
   void testShutdown(final TestInfo testInfo) throws Exception {
     testWithRetry(
@@ -603,6 +607,7 @@ class JFRBasedProfilingIntegrationTest {
     assertEquals(Runtime.getRuntime().availableProcessors(), val);
 
     assertTrue(events.apply(ItemFilters.type("datadog.ProfilerSetting")).hasItems());
+    assertTrue(events.apply(ItemFilters.type("datadog.QueueTime")).hasItems());
   }
 
   private static <T> T getParameter(
@@ -687,7 +692,7 @@ class JFRBasedProfilingIntegrationTest {
             "-Ddd.profiling.endpoint.collection.enabled=" + endpointCollectionEnabled,
             "-Ddd.profiling.upload.timeout=" + PROFILING_UPLOAD_TIMEOUT_SECONDS,
             "-Ddd.profiling.debug.dump_path=/tmp/dd-profiler",
-            "-Ddd.profiling.ddprof.experimental.queueing.time.enabled=true",
+            "-Ddd.profiling.experimental.queueing.time.enabled=true",
             "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
             "-Ddd.profiling.experimental.context.attributes=foo,bar",
             "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",

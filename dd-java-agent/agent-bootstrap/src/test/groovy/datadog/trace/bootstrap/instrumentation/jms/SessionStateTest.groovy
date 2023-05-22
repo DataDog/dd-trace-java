@@ -29,7 +29,7 @@ class SessionStateTest extends DDSpecification {
 
   def "when buffer overflows, spans are finished eagerly"() {
     setup:
-    def sessionState = new SessionState(0, true)
+    def sessionState = new SessionState(0, false)
     def span1 = Mock(AgentSpan)
     def span2 = Mock(AgentSpan)
     when: "fill the buffer"
@@ -56,7 +56,7 @@ class SessionStateTest extends DDSpecification {
     setup:
     def started = new CountDownLatch(100)
     def stopped = new CountDownLatch(1)
-    def sessionState = new SessionState(0, false)
+    def sessionState = new SessionState(0, true)
     def finishingTimes = []
     when: "add time-in-queue spans without triggering eviction"
     def workers = (1..100).collect {

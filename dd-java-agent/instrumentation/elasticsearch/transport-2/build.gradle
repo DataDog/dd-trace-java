@@ -15,7 +15,7 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteForDir('latestDepTest', 'latestDepTest')
 
 dependencies {
   compileOnly group: 'org.elasticsearch', name: 'elasticsearch', version: '2.0.0'

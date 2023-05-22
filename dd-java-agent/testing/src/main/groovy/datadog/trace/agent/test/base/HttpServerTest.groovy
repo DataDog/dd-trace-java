@@ -1395,7 +1395,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     response.code() == 418
     if (expectedJson) {
       response.header('Content-type') =~ /(?i)\Aapplication\/json(?:;\s?charset=utf-8)?\z/
-      response.body().charStream().text.contains('"title": "You\'ve been blocked"')
+      response.body().charStream().text.contains('"title":"You\'ve been blocked"')
     } else {
       response.header('Content-type') =~ /(?i)\Atext\/html;\s?charset=utf-8\z/
       response.body().charStream().text.contains("<title>You've been blocked</title>")
@@ -1442,7 +1442,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     expect:
     response.code() == 418
     response.header('Content-type') =~ /(?i)\Aapplication\/json(?:;\s?charset=utf-8)?\z/
-    response.body().charStream().text.contains('"title": "You\'ve been blocked"')
+    response.body().charStream().text.contains('"title":"You\'ve been blocked"')
 
     when:
     TEST_WRITER.waitForTraces(1)
@@ -1552,7 +1552,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     response.code() == USER_BLOCK.status
     response.header('Content-type') =~ /(?i)\Aapplication\/json(?:;\s?charset=utf-8)?\z/
     response.header('X-Header') == 'X-Header-Value'
-    response.body().charStream().text.contains('"title": "You\'ve been blocked"')
+    response.body().charStream().text.contains('"title":"You\'ve been blocked"')
 
     when:
     TEST_WRITER.waitForTraces(1)

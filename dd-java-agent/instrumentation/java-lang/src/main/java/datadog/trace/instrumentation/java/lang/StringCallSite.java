@@ -4,7 +4,6 @@ import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.IastAdvice.Propagation;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.PropagationTypes;
 import datadog.trace.api.iast.propagation.CodecModule;
 import datadog.trace.api.iast.propagation.StringModule;
 import datadog.trace.util.stacktrace.StackUtils;
@@ -15,7 +14,7 @@ import java.util.Locale;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-@Propagation(PropagationTypes.STRING)
+@Propagation
 @CallSite(spi = IastAdvice.class)
 public class StringCallSite {
 

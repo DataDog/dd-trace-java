@@ -159,6 +159,7 @@ class ScalikeJDBCInstrumentationTest extends AgentTestRunner {
               "$Tags.DB_USER" username
             }
             "$Tags.DB_OPERATION" "SELECT"
+            peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
         }
@@ -171,7 +172,7 @@ class ScalikeJDBCInstrumentationTest extends AgentTestRunner {
           errored false
           tags {
             "$Tags.COMPONENT" "java-jdbc-connection"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }

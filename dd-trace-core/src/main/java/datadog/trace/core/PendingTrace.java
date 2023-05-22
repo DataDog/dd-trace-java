@@ -10,6 +10,7 @@ import datadog.trace.core.monitor.HealthMetrics;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -33,7 +34,11 @@ import org.slf4j.LoggerFactory;
  *       </ul>
  * </ul>
  *
- * Delayed write is handled by PendingTraceBuffer. <br>
+ * Delayed write is handled by PendingTraceBuffer.
+ *
+ * <p>When the long-running traces feature is enabled, periodic writes are triggered by the
+ * PendingTraceBuffer in addition to the other write conditions. Running spans are also written in
+ * that case. <br>
  */
 public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
 
@@ -59,9 +64,20 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
       this.healthMetrics = healthMetrics;
     }
 
+    /** Used by tests and benchmarks. */
     PendingTrace create(@Nonnull DDTraceId traceId) {
+      return create(traceId, null);
+    }
+
+    PendingTrace create(@Nonnull DDTraceId traceId, TraceConfig traceConfig) {
       return new PendingTrace(
-          tracer, traceId, pendingTraceBuffer, timeSource, strictTraceWrites, healthMetrics);
+          tracer,
+          traceId,
+          pendingTraceBuffer,
+          timeSource,
+          traceConfig,
+          strictTraceWrites,
+          healthMetrics);
     }
   }
 
@@ -75,9 +91,12 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   private final HealthMetrics healthMetrics;
   private final TraceConfig traceConfig;
 
-  private final ConcurrentLinkedDeque<DDSpan> finishedSpans = new ConcurrentLinkedDeque<>();
+  /**
+   * Contains finished spans. If the long-running trace feature is enabled it also contains running
+   * spans that can be written.
+   */
+  private final ConcurrentLinkedDeque<DDSpan> spans;
 
-  // We must maintain a separate count because ConcurrentLinkedDeque.size() is a linear operation.
   private volatile int completedSpanCount = 0;
   private static final AtomicIntegerFieldUpdater<PendingTrace> COMPLETED_SPAN_COUNT =
       AtomicIntegerFieldUpdater.newUpdater(PendingTrace.class, "completedSpanCount");
@@ -89,6 +108,17 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   private volatile int isEnqueued = 0;
   private static final AtomicIntegerFieldUpdater<PendingTrace> IS_ENQUEUED =
       AtomicIntegerFieldUpdater.newUpdater(PendingTrace.class, "isEnqueued");
+
+  private volatile int longRunningTrackedState = LongRunningTracesTracker.UNDEFINED;
+  private static final AtomicIntegerFieldUpdater<PendingTrace> LONG_RUNNING_STATE =
+      AtomicIntegerFieldUpdater.newUpdater(PendingTrace.class, "longRunningTrackedState");
+
+  private volatile long runningTraceStartTimeNano = 0;
+  private static final AtomicLongFieldUpdater<PendingTrace> RUNNING_TRACE_START_TIME_NANO =
+      AtomicLongFieldUpdater.newUpdater(PendingTrace.class, "runningTraceStartTimeNano");
+  private volatile long lastWriteTimeNano = 0;
+  private static final AtomicLongFieldUpdater<PendingTrace> LAST_WRITE_TIME_NANO =
+      AtomicLongFieldUpdater.newUpdater(PendingTrace.class, "lastWriteTimeNano");
 
   /**
    * During a trace there are cases where the root span must be accessed (e.g. priority sampling and
@@ -116,19 +146,25 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
       @Nonnull DDTraceId traceId,
       @Nonnull PendingTraceBuffer pendingTraceBuffer,
       @Nonnull TimeSource timeSource,
+      TraceConfig traceConfig,
       boolean strictTraceWrites,
       HealthMetrics healthMetrics) {
     this.tracer = tracer;
     this.traceId = traceId;
     this.pendingTraceBuffer = pendingTraceBuffer;
     this.timeSource = timeSource;
+    this.traceConfig = traceConfig != null ? traceConfig : tracer.captureTraceConfig();
     this.strictTraceWrites = strictTraceWrites;
     this.healthMetrics = healthMetrics;
-    this.traceConfig = tracer.captureTraceConfig();
+    this.spans = new ConcurrentLinkedDeque<>();
   }
 
   CoreTracer getTracer() {
     return tracer;
+  }
+
+  TraceConfig getTraceConfig() {
+    return traceConfig;
   }
 
   String mapServiceName(String serviceName) {
@@ -169,10 +205,47 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     ROOT_SPAN.compareAndSet(this, null, span);
     PENDING_REFERENCE_COUNT.incrementAndGet(this);
     healthMetrics.onCreateSpan();
+    if (pendingTraceBuffer.longRunningSpansEnabled()) {
+      spans.addFirst(span);
+      trackRunningTrace(span);
+    }
+  }
+
+  void trackRunningTrace(final DDSpan span) {
+    if (!compareAndSetLongRunningState(
+        LongRunningTracesTracker.UNDEFINED, LongRunningTracesTracker.TO_TRACK)) {
+      return;
+    }
+    RUNNING_TRACE_START_TIME_NANO.set(this, span.getStartTime());
+    // If the pendingTraceBuffer is full, this trace won't be tracked by the
+    // LongRunningTracesTracker.
+    pendingTraceBuffer.enqueue(this);
+  }
+
+  public Integer evaluateSamplingPriority() {
+    DDSpan span = spans.peek();
+    if (span == null) {
+      return null;
+    }
+    Integer prio = span.getSamplingPriority();
+    if (prio == null) {
+      prio = span.forceSamplingDecision();
+    }
+    return prio;
+  }
+
+  public boolean compareAndSetLongRunningState(int expected, int newState) {
+    return LONG_RUNNING_STATE.compareAndSet(this, expected, newState);
+  }
+
+  boolean empty() {
+    return 0 >= COMPLETED_SPAN_COUNT.get(this) + PENDING_REFERENCE_COUNT.get(this);
   }
 
   PublishState onPublish(final DDSpan span) {
-    finishedSpans.addFirst(span);
+    if (!pendingTraceBuffer.longRunningSpansEnabled()) {
+      spans.addFirst(span);
+    }
     // There is a benign race here where the span added above can get written out by a writer in
     // progress before the count has been incremented. It's being taken care of in the internal
     // write method.
@@ -190,8 +263,10 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   @Override
   public long oldestFinishedTime() {
     long oldest = Long.MAX_VALUE;
-    for (DDSpan span : finishedSpans) {
-      oldest = Math.min(oldest, span.getStartTime() + span.getDurationNano());
+    for (DDSpan span : spans) {
+      if (span.isFinished()) {
+        oldest = Math.min(oldest, span.getStartTime() + span.getDurationNano());
+      }
     }
     return oldest;
   }
@@ -262,15 +337,21 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   }
 
   private int write(boolean isPartial) {
-    if (!finishedSpans.isEmpty()) {
+    if (!spans.isEmpty()) {
       try (Recording recording = tracer.writeTimer()) {
         // Only one writer at a time
         final List<DDSpan> trace;
+        int completedSpans = 0;
         synchronized (this) {
           if (!isPartial) {
             rootSpanWritten = true;
           }
           int size = size();
+          boolean writeRunningSpans =
+              LongRunningTracesTracker.WRITE_RUNNING_SPANS == LONG_RUNNING_STATE.get(this);
+          if (writeRunningSpans) {
+            size += pendingReferenceCount;
+          }
           // If we get here and size is below 0, then the writer before us wrote out at least one
           // more trace than the size it had when it started. Those span(s) had been added to
           // finishedSpans by some other thread(s) while the existing spans were being written, but
@@ -279,24 +360,58 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
           // was negative will be written by someone even if we don't write them right now.
           if (size > 0 && (!isPartial || size > tracer.getPartialFlushMinSpans())) {
             trace = new ArrayList<>(size);
-            DDSpan span = finishedSpans.pollFirst();
-            while (null != span) {
-              trace.add(span);
-              span = finishedSpans.pollFirst();
-            }
+            completedSpans = enqueueSpansToWrite(trace, writeRunningSpans);
           } else {
             trace = EMPTY;
           }
         }
         if (!trace.isEmpty()) {
-          COMPLETED_SPAN_COUNT.addAndGet(this, -trace.size());
+          COMPLETED_SPAN_COUNT.addAndGet(this, -completedSpans);
           tracer.write(trace);
           healthMetrics.onCreateTrace();
-          return trace.size();
+          return completedSpans;
         }
       }
     }
     return 0;
+  }
+
+  public int enqueueSpansToWrite(List<DDSpan> trace, boolean writeRunningSpans) {
+    int completedSpans = 0;
+    boolean runningSpanSeen = false;
+    long firstRunningSpanID = 0;
+    long nowNano = 0;
+    if (writeRunningSpans) {
+      nowNano = getCurrentTimeNano();
+      setLastWriteTime(nowNano);
+    }
+
+    DDSpan span = spans.pollFirst();
+    while (null != span) {
+      if (runningSpanSeen && span.getSpanId() == firstRunningSpanID) {
+        // we iterated on all spans as we circled back to the first running span
+        spans.addFirst(span);
+        break;
+      }
+      if (span.isFinished()) {
+        trace.add(span);
+        completedSpans++;
+      } else {
+        // keep the running span in the list
+        spans.add(span);
+        if (!runningSpanSeen) {
+          runningSpanSeen = true;
+          firstRunningSpanID = span.getSpanId();
+        }
+        if (writeRunningSpans) {
+          span.setLongRunningVersion(
+              (int) TimeUnit.NANOSECONDS.toMillis(nowNano - span.getStartTime()));
+          trace.add(span);
+        }
+      }
+      span = spans.pollFirst();
+    }
+    return completedSpans;
   }
 
   public int size() {
@@ -315,9 +430,51 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     return endToEndStartTime;
   }
 
+  public long getLastWriteTime() {
+    return LAST_WRITE_TIME_NANO.get(this);
+  }
+
+  public long getRunningTraceStartTime() {
+    return RUNNING_TRACE_START_TIME_NANO.get(this);
+  }
+
+  public void setLastWriteTime(long now) {
+    LAST_WRITE_TIME_NANO.set(this, now);
+  }
+
   @Override
   public boolean setEnqueued(boolean enqueued) {
     int expected = enqueued ? 0 : 1;
     return IS_ENQUEUED.compareAndSet(this, expected, 1 - expected);
+  }
+
+  /**
+   * Called when the pendingTraceBuffer is full and a pendingTrace is offered.
+   *
+   * <p>If the pendingTrace is not sent to the LongRunningTracesTracker, it will be immediately
+   * written. Otherwise, the pendingTrace won't be tracked and no write is triggered.
+   */
+  public boolean writeOnBufferFull() {
+    return !compareAndSetLongRunningState(
+        LongRunningTracesTracker.TO_TRACK, LongRunningTracesTracker.NOT_TRACKED);
+  }
+
+  /**
+   * Calculates the duration of a span in nanoseconds for the transport layer
+   *
+   * <p>As the internal duration of a running span is 0, the duration is set to the difference
+   * between the span's start time and the time of the write trigger.
+   */
+  public static long getDurationNano(CoreSpan<?> span) {
+    long duration = span.getDurationNano();
+    if (duration > 0) {
+      return duration;
+    }
+    if (!(span instanceof DDSpan)) {
+      return duration;
+    }
+    DDSpan ddSpan = (DDSpan) span;
+    PendingTrace trace = ddSpan.context().getTrace();
+    return trace.getLastWriteTime() - span.getStartTime();
   }
 }

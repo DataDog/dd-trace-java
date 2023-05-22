@@ -6,14 +6,15 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -156,50 +157,28 @@ class B3HttpCodec {
 
   // Only used from tests
   static HttpCodec.Extractor newExtractor(
-      final Map<String, String> tagMapping, Map<String, String> baggageMapping) {
-    Config config = Config.get();
+      Config config, Supplier<TraceConfig> traceConfigSupplier) {
     final List<HttpCodec.Extractor> extractors = new ArrayList<>(2);
-    extractors.add(newSingleExtractor(tagMapping, baggageMapping, config));
-    extractors.add(newMultiExtractor(tagMapping, baggageMapping, config));
+    extractors.add(newSingleExtractor(config, traceConfigSupplier));
+    extractors.add(newMultiExtractor(config, traceConfigSupplier));
     return new HttpCodec.CompoundExtractor(extractors);
   }
 
   public static HttpCodec.Extractor newMultiExtractor(
-      final Map<String, String> tagMapping,
-      Map<String, String> baggageMapping,
-      final Config config) {
+      Config config, Supplier<TraceConfig> traceConfigSupplier) {
     return new TagContextExtractor(
-        tagMapping,
-        baggageMapping,
-        new ContextInterpreter.Factory() {
-          @Override
-          protected ContextInterpreter construct(
-              final Map<String, String> mapping, Map<String, String> baggageMapping) {
-            return new B3MultiContextInterpreter(mapping, baggageMapping, config);
-          }
-        });
+        traceConfigSupplier, () -> new B3MultiContextInterpreter(config));
   }
 
   public static HttpCodec.Extractor newSingleExtractor(
-      final Map<String, String> tagMapping,
-      Map<String, String> baggageMapping,
-      final Config config) {
+      Config config, Supplier<TraceConfig> traceConfigSupplier) {
     return new TagContextExtractor(
-        tagMapping,
-        baggageMapping,
-        new ContextInterpreter.Factory() {
-          @Override
-          protected ContextInterpreter construct(
-              final Map<String, String> mapping, Map<String, String> baggageMapping) {
-            return new B3SingleContextInterpreter(mapping, baggageMapping, config);
-          }
-        });
+        traceConfigSupplier, () -> new B3SingleContextInterpreter(config));
   }
 
   private abstract static class B3BaseContextInterpreter extends ContextInterpreter {
-    public B3BaseContextInterpreter(
-        Map<String, String> taggedHeaders, Map<String, String> baggageMapping, Config config) {
-      super(taggedHeaders, baggageMapping, config);
+    public B3BaseContextInterpreter(Config config) {
+      super(config);
     }
 
     protected void setSpanId(final String sId) {
@@ -229,11 +208,8 @@ class B3HttpCodec {
   }
 
   private static final class B3MultiContextInterpreter extends B3BaseContextInterpreter {
-    private B3MultiContextInterpreter(
-        final Map<String, String> taggedHeaders,
-        Map<String, String> baggageMapping,
-        Config config) {
-      super(taggedHeaders, baggageMapping, config);
+    private B3MultiContextInterpreter(Config config) {
+      super(config);
     }
 
     @Override
@@ -287,9 +263,8 @@ class B3HttpCodec {
   }
 
   private static final class B3SingleContextInterpreter extends B3BaseContextInterpreter {
-    public B3SingleContextInterpreter(
-        Map<String, String> taggedHeaders, Map<String, String> baggageMapping, Config config) {
-      super(taggedHeaders, baggageMapping, config);
+    public B3SingleContextInterpreter(Config config) {
+      super(config);
     }
 
     @Override

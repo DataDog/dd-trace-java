@@ -11,11 +11,13 @@ import datadog.trace.api.DD64bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -124,24 +126,14 @@ class XRayHttpCodec {
   }
 
   public static HttpCodec.Extractor newExtractor(
-      Map<String, String> tagMapping, Map<String, String> baggageMapping) {
-    return new TagContextExtractor(
-        tagMapping,
-        baggageMapping,
-        new ContextInterpreter.Factory() {
-          @Override
-          protected ContextInterpreter construct(
-              Map<String, String> mapping, Map<String, String> baggageMapping) {
-            return new XRayContextInterpreter(mapping, baggageMapping);
-          }
-        });
+      Config config, Supplier<TraceConfig> traceConfigSupplier) {
+    return new TagContextExtractor(traceConfigSupplier, () -> new XRayContextInterpreter(config));
   }
 
   static class XRayContextInterpreter extends ContextInterpreter {
 
-    private XRayContextInterpreter(
-        Map<String, String> taggedHeaders, Map<String, String> baggageMapping) {
-      super(taggedHeaders, baggageMapping, Config.get());
+    private XRayContextInterpreter(Config config) {
+      super(config);
     }
 
     @Override

@@ -898,6 +898,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         if ({isDataStreamsEnabled()}) {
           "$DDTags.PATHWAY_HASH" { String }
         }
+        peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
         defaultTags()
       }
     }

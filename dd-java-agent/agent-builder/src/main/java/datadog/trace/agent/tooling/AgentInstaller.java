@@ -7,6 +7,7 @@ import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDOutlinePoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
+import datadog.trace.agent.tooling.bytebuddy.memoize.MemoizedMatchers;
 import datadog.trace.agent.tooling.usm.UsmExtractorImpl;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.IntegrationsCollector;
@@ -100,8 +101,12 @@ public class AgentInstaller {
       DDCachingPoolStrategy.registerAsSupplier();
     }
 
+    if (InstrumenterConfig.get().isResolverMemoizingEnabled()) {
+      MemoizedMatchers.registerAsSupplier();
+    } else {
+      DDElementMatchers.registerAsSupplier();
+    }
     DDElementMatchers.registerAsSupplier();
-    UsmExtractorImpl.registerAsSupplier();
 
     if (enabledSystems.contains(Instrumenter.TargetSystem.USM)) {
       UsmExtractorImpl.registerAsSupplier();

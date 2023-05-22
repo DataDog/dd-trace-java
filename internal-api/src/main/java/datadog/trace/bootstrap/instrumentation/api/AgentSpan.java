@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
@@ -142,6 +143,8 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
   void mergePathwayContext(PathwayContext pathwayContext);
 
   Integer forceSamplingDecision();
+
+  TraceConfig traceConfig();
 
   interface Context {
     /**

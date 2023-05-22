@@ -8,14 +8,18 @@ import spock.util.concurrent.PollingConditions
 import java.util.function.Function
 import java.util.function.Predicate
 
-import static datadog.trace.api.config.IastConfig.*
+import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
+import static datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED
+import static datadog.trace.api.config.IastConfig.IAST_ENABLED
+import static datadog.trace.api.config.IastConfig.IAST_REDACTION_ENABLED
+import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING
 
 class Jersey3SmokeTest extends AbstractServerSmokeTest {
 
   private static final String TAG_NAME = '_dd.iast.json'
 
   @Override
-  def logLevel(){
+  def logLevel() {
     return "debug"
   }
 
@@ -36,6 +40,7 @@ class Jersey3SmokeTest extends AbstractServerSmokeTest {
       withSystemProperty(IAST_REQUEST_SAMPLING, 100),
       withSystemProperty(IAST_DEBUG_ENABLED, true),
       withSystemProperty(IAST_DEDUPLICATION_ENABLED, false),
+      withSystemProperty(IAST_REDACTION_ENABLED, false),
       withSystemProperty("integration.grizzly.enabled", true)
     ])
     //command.add("-Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=8000")
@@ -45,7 +50,7 @@ class Jersey3SmokeTest extends AbstractServerSmokeTest {
     processBuilder.directory(new File(buildDirectory))
   }
 
-  def "Test path parameter in Jersey"() {
+  void "Test path parameter in Jersey"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/bypathparam/pathParamValue"
 
@@ -63,7 +68,7 @@ class Jersey3SmokeTest extends AbstractServerSmokeTest {
     hasVulnerability(type('SQL_INJECTION').and(evidence('pathParamValue'))))
   }
 
-  def "Test query parameter in Jersey"() {
+  void "Test query parameter in Jersey"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/byqueryparam?param=queryParamValue"
 
@@ -81,7 +86,7 @@ class Jersey3SmokeTest extends AbstractServerSmokeTest {
     hasVulnerability(type('SQL_INJECTION').and(evidence('queryParamValue'))))
   }
 
-  def "Test header in Jersey"() {
+  void "Test header in Jersey"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/byheader"
 
@@ -99,7 +104,7 @@ class Jersey3SmokeTest extends AbstractServerSmokeTest {
     hasVulnerability(type('SQL_INJECTION').and(evidence('pepito'))))
   }
 
-  def "Test cookie in Jersey"() {
+  void "Test cookie in Jersey"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/bycookie"
 
@@ -115,6 +120,35 @@ class Jersey3SmokeTest extends AbstractServerSmokeTest {
     assert response.code() == 200
     waitForSpan(new PollingConditions(timeout: 5),
     hasVulnerability(type('SQL_INJECTION').and(evidence('cookieValue'))))
+  }
+
+
+  void "unvalidated  redirect from location header is present"() {
+    setup:
+    def url = "http://localhost:${httpPort}/hello/setlocationheader?param=queryParamValue"
+
+    when:
+    def request = new Request.Builder().url(url).get().build()
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isRedirect()
+    waitForSpan(new PollingConditions(timeout: 5),
+    hasVulnerability(type('UNVALIDATED_REDIRECT')))
+  }
+
+  void "unvalidated  redirect from location is present"() {
+    setup:
+    def url = "http://localhost:${httpPort}/hello/setresponselocation?param=queryParamValue"
+
+    when:
+    def request = new Request.Builder().url(url).get().build()
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isRedirect()
+    waitForSpan(new PollingConditions(timeout: 5),
+    hasVulnerability(type('UNVALIDATED_REDIRECT')))
   }
 
   private static String withSystemProperty(final String config, final Object value) {

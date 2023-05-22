@@ -24,6 +24,8 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
+import datadog.trace.core.tagprocessor.PeerServiceCalculator;
+import datadog.trace.core.tagprocessor.PostProcessorChain;
 import datadog.trace.core.tagprocessor.QueryObfuscator;
 import datadog.trace.core.tagprocessor.TagsPostProcessor;
 import datadog.trace.util.TagsHelper;
@@ -82,7 +84,9 @@ public class DDSpanContext
   private volatile short httpStatusCode;
 
   private static final TagsPostProcessor postProcessor =
-      new QueryObfuscator(Config.get().getObfuscationQueryRegexp());
+      new PostProcessorChain(
+          new PeerServiceCalculator(),
+          new QueryObfuscator(Config.get().getObfuscationQueryRegexp()));
 
   /**
    * Tags are associated to the current span, they will not propagate to the children span.
@@ -710,7 +714,7 @@ public class DDSpanContext
     }
   }
 
-  public void processTagsAndBaggage(final MetadataConsumer consumer) {
+  public void processTagsAndBaggage(final MetadataConsumer consumer, int longRunningVersion) {
     synchronized (unsafeTags) {
       Map<String, String> baggageItemsWithPropagationTags = new HashMap<>(baggageItems);
       propagationTags.fillTagMap(baggageItemsWithPropagationTags);
@@ -725,7 +729,8 @@ public class DDSpanContext
               topLevel,
               httpStatusCode == 0 ? null : HTTP_STATUSES.get(httpStatusCode),
               // Get origin from rootSpan.context
-              getOrigin()));
+              getOrigin(),
+              longRunningVersion));
     }
   }
 

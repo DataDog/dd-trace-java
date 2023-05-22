@@ -1,7 +1,9 @@
 package datadog.trace.core.propagation
 
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.DynamicConfig
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.core.CoreTracer
 import datadog.trace.test.util.StringUtils
@@ -85,7 +87,11 @@ class B3HttpInjectorTest extends DDCoreSpecification {
       (TRACE_ID_KEY.toUpperCase()): traceId,
       (SPAN_ID_KEY.toUpperCase()) : spanId,
     ]
-    HttpCodec.Extractor extractor = B3HttpCodec.newExtractor(Collections.emptyMap(),Collections.emptyMap())
+    DynamicConfig dynamicConfig = DynamicConfig.create()
+      .setTaggedHeaders([:])
+      .setBaggageMapping([:])
+      .apply()
+    HttpCodec.Extractor extractor = B3HttpCodec.newExtractor(Config.get(), { dynamicConfig.captureTraceConfig() })
     final TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
     final DDSpanContext mockedContext = mockedContext(tracer, context)
     final Map<String, String> carrier = Mock()

@@ -11,6 +11,7 @@ import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -19,6 +20,7 @@ import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,24 +87,8 @@ class W3CHttpCodec {
   }
 
   public static HttpCodec.Extractor newExtractor(
-      final Map<String, String> tagMapping, final Map<String, String> baggageMapping) {
-    return newExtractor(tagMapping, baggageMapping, Config.get());
-  }
-
-  public static HttpCodec.Extractor newExtractor(
-      final Map<String, String> tagMapping,
-      final Map<String, String> baggageMapping,
-      final Config config) {
-    return new TagContextExtractor(
-        tagMapping,
-        baggageMapping,
-        new ContextInterpreter.Factory() {
-          @Override
-          protected ContextInterpreter construct(
-              Map<String, String> mapping, Map<String, String> baggageMapping) {
-            return new W3CContextInterpreter(mapping, baggageMapping, config);
-          }
-        });
+      Config config, Supplier<TraceConfig> traceConfigSupplier) {
+    return new TagContextExtractor(traceConfigSupplier, () -> new W3CContextInterpreter(config));
   }
 
   private static class W3CContextInterpreter extends ContextInterpreter {
@@ -119,17 +105,16 @@ class W3CHttpCodec {
     private String tracestateHeader = null;
     private String traceparentHeader = null;
 
-    private W3CContextInterpreter(
-        Map<String, String> taggedHeaders, Map<String, String> baggageMapping, Config config) {
-      super(taggedHeaders, baggageMapping, config);
+    private W3CContextInterpreter(Config config) {
+      super(config);
       datadogTagsFactory = PropagationTags.factory(config);
     }
 
     @Override
-    public ContextInterpreter reset() {
+    public ContextInterpreter reset(TraceConfig traceConfig) {
       tracestateHeader = null;
       traceparentHeader = null;
-      return super.reset();
+      return super.reset(traceConfig);
     }
 
     @Override

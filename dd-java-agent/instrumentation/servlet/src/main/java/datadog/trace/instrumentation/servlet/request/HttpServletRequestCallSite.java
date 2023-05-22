@@ -5,7 +5,6 @@ import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.IastAdvice.Propagation;
 import datadog.trace.api.iast.IastAdvice.Source;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.PropagationTypes;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.source.WebModule;
@@ -108,7 +107,7 @@ public class HttpServletRequestCallSite {
     }
   }
 
-  @Propagation(PropagationTypes.COOKIE)
+  @Propagation
   @CallSite.After("javax.servlet.http.Cookie[] javax.servlet.http.HttpServletRequest.getCookies()")
   @CallSite.After(
       "javax.servlet.http.Cookie[] javax.servlet.http.HttpServletRequestWrapper.getCookies()")

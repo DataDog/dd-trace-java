@@ -27,6 +27,7 @@ import com.datadog.debugger.el.expressions.WhenExpression;
 import com.datadog.debugger.el.values.BooleanValue;
 import com.datadog.debugger.el.values.ListValue;
 import com.datadog.debugger.el.values.MapValue;
+import com.datadog.debugger.el.values.NullValue;
 import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.ObjectValue;
 import com.datadog.debugger.el.values.StringValue;
@@ -238,6 +239,11 @@ public class PrettyPrintVisitor implements Visitor<String> {
       return "null";
     }
     return String.valueOf(booleanValue.value.booleanValue());
+  }
+
+  @Override
+  public String visit(NullValue nullValue) {
+    return "null";
   }
 
   @Override

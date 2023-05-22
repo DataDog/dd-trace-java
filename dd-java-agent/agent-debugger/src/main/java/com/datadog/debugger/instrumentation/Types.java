@@ -22,8 +22,16 @@ import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerSpan;
 import datadog.trace.bootstrap.debugger.MethodLocation;
+import datadog.trace.bootstrap.debugger.el.ReflectiveFieldValueResolver;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.StringTokenizer;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
@@ -38,8 +46,15 @@ public final class Types {
   public static final Type OBJECT_ARRAY_TYPE = Type.getType(Object[].class);
   public static final Type STRING_ARRAY_TYPE = Type.getType(String[].class);
   public static final Type OBJECT_TYPE = Type.getType(Object.class);
+  public static final Type COLLECTION_TYPE = Type.getType(Collection.class);
   public static final Type MAP_TYPE = Type.getType(Map.class);
   public static final Type HASHMAP_TYPE = Type.getType(HashMap.class);
+  public static final Type LINKEDHASHMAP_TYPE = Type.getType(LinkedHashMap.class);
+  public static final Type ARRAYLIST_TYPE = Type.getType(ArrayList.class);
+  public static final Type LINKEDLIST_TYPE = Type.getType(LinkedList.class);
+  public static final Type LIST_TYPE = Type.getType(List.class);
+  public static final Type HASHSET_TYPE = Type.getType(HashSet.class);
+  public static final Type SET_TYPE = Type.getType(Set.class);
   public static final Type CAPTURED_VALUE = Type.getType(CapturedContext.CapturedValue.class);
   public static final Type CAPTURED_CONTEXT_TYPE = Type.getType(CapturedContext.class);
   public static final Type CAPTURE_THROWABLE_TYPE =
@@ -50,6 +65,8 @@ public final class Types {
   public static final Type METHOD_LOCATION_TYPE = Type.getType(MethodLocation.class);
   public static final Type CLASS_TYPE = Type.getType(Class.class);
   public static final Type DEBUGGER_SPAN_TYPE = Type.getType(DebuggerSpan.class);
+  public static final Type REFLECTIVE_FIELD_VALUE_RESOLVER_TYPE =
+      Type.getType(ReflectiveFieldValueResolver.class);
 
   // special initialization methods
   public static final String CONSTRUCTOR = "<init>";

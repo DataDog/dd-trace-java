@@ -152,6 +152,7 @@ abstract class CassandraClientTest extends VersionedNamingTestBase {
         "$Tags.PEER_PORT" port
         "$Tags.DB_TYPE" "cassandra"
         "$Tags.DB_INSTANCE" keyspace
+        peerServiceFrom(Tags.PEER_HOSTNAME)
         defaultTags()
       }
     }

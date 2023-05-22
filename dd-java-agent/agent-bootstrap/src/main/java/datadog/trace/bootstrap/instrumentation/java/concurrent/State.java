@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ContinuationClaim.CLAIMED;
 
+import datadog.trace.api.profiling.Timing;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -16,6 +17,11 @@ public final class State {
           State.class, AgentScope.Continuation.class, "continuation");
 
   private volatile AgentScope.Continuation continuation = null;
+
+  private static final AtomicReferenceFieldUpdater<State, Timing> TIMING =
+      AtomicReferenceFieldUpdater.newUpdater(State.class, Timing.class, "timing");
+
+  private volatile Timing timing = null;
 
   private State() {}
 
@@ -66,5 +72,16 @@ public final class State {
     }
     CONTINUATION.compareAndSet(this, continuation, null);
     return continuation;
+  }
+
+  public void setTiming(Timing timing) {
+    TIMING.lazySet(this, timing);
+  }
+
+  public void stopTiming() {
+    Timing timing = TIMING.getAndSet(this, null);
+    if (timing != null) {
+      timing.close();
+    }
   }
 }
