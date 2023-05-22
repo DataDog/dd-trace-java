@@ -167,7 +167,7 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
             span.getTraceId(),
             span.getLocalRootSpan().getSpanId(),
             span.context().getSpanId(),
-            span.getTraceConfig());
+            span.traceConfig());
       } catch (Throwable e) {
         ContinuableScopeManager.log.debug(
             "ExtendedScopeListener threw exception in afterActivated()", e);

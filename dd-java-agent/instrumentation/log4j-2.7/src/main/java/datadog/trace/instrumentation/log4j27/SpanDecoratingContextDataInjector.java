@@ -11,7 +11,6 @@ import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.InstrumenterConfig;
-import datadog.trace.api.TraceConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -34,12 +33,8 @@ public final class SpanDecoratingContextDataInjector implements ContextDataInjec
     StringMap contextData = delegate.injectContextData(list, reusable);
 
     AgentSpan span = activeSpan();
-    TraceConfig traceConfig =
-        span == null ? AgentTracer.get().captureTraceConfig() : span.getTraceConfig();
 
-    boolean injectLogs = traceConfig != null && traceConfig.isLogInjectionEnabled();
-
-    if (!injectLogs) {
+    if (!AgentTracer.traceConfig(activeSpan()).isLogInjectionEnabled()) {
       return contextData;
     }
 

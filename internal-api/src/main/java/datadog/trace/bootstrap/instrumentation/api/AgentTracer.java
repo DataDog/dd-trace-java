@@ -360,11 +360,6 @@ public class AgentTracer {
     }
 
     @Override
-    public TraceConfig captureTraceConfig() {
-      return null;
-    }
-
-    @Override
     public boolean addTraceInterceptor(final TraceInterceptor traceInterceptor) {
       return false;
     }

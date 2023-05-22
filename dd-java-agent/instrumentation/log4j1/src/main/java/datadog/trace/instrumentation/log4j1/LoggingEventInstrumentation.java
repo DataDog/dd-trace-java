@@ -13,7 +13,6 @@ import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.InstrumenterConfig;
-import datadog.trace.api.TraceConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -66,6 +65,14 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
         return;
       }
 
+      AgentSpan.Context context =
+          InstrumentationContext.get(LoggingEvent.class, AgentSpan.Context.class).get(event);
+
+      // Nothing to add so return early
+      if (context == null && !AgentTracer.traceConfig().isLogInjectionEnabled()) {
+        return;
+      }
+
       switch (key) {
         case Tags.DD_SERVICE:
           value = Config.get().getServiceName();
@@ -87,8 +94,6 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
           break;
         case "dd.trace_id":
           {
-            AgentSpan.Context context =
-                InstrumentationContext.get(LoggingEvent.class, AgentSpan.Context.class).get(event);
             DDTraceId traceId = context.getTraceId();
             if (traceId.toHighOrderLong() != 0
                 && InstrumenterConfig.get().isLogs128bTraceIdEnabled()) {
@@ -100,11 +105,7 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
           break;
         case "dd.span_id":
           {
-            AgentSpan.Context context =
-                InstrumentationContext.get(LoggingEvent.class, AgentSpan.Context.class).get(event);
-            if (context != null) {
-              value = DDSpanId.toString(context.getSpanId());
-            }
+            value = DDSpanId.toString(context.getSpanId());
           }
           break;
         default:
@@ -128,28 +129,22 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
         AgentSpan.Context context =
             InstrumentationContext.get(LoggingEvent.class, AgentSpan.Context.class).get(event);
 
-        boolean logInjectionEnabled;
-        if (context != null) {
-          logInjectionEnabled = true;
-        } else {
-          TraceConfig traceConfig = AgentTracer.get().captureTraceConfig();
-          logInjectionEnabled = traceConfig != null && traceConfig.isLogInjectionEnabled();
+        // Nothing to add so return early
+        if (context == null && !AgentTracer.traceConfig().isLogInjectionEnabled()) {
+          return;
         }
 
-        InstrumenterConfig instrumenterConfig = InstrumenterConfig.get();
-        if (logInjectionEnabled && instrumenterConfig.isLogsMDCTagsInjectionEnabled()) {
-          String serviceName = Config.get().getServiceName();
-          if (null != serviceName && !serviceName.isEmpty()) {
-            mdc.put(Tags.DD_SERVICE, serviceName);
-          }
-          String env = Config.get().getEnv();
-          if (null != env && !env.isEmpty()) {
-            mdc.put(Tags.DD_ENV, env);
-          }
-          String version = Config.get().getVersion();
-          if (null != version && !version.isEmpty()) {
-            mdc.put(Tags.DD_VERSION, version);
-          }
+        String serviceName = Config.get().getServiceName();
+        if (null != serviceName && !serviceName.isEmpty()) {
+          mdc.put(Tags.DD_SERVICE, serviceName);
+        }
+        String env = Config.get().getEnv();
+        if (null != env && !env.isEmpty()) {
+          mdc.put(Tags.DD_ENV, env);
+        }
+        String version = Config.get().getVersion();
+        if (null != version && !version.isEmpty()) {
+          mdc.put(Tags.DD_VERSION, version);
         }
 
         if (context != null) {
