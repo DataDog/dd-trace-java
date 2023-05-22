@@ -8,7 +8,11 @@ import org.slf4j.LoggerFactory;
 public final class Peer implements Encodable {
 
   private static final Logger log = LoggerFactory.getLogger(Peer.class);
-  static final int MAX_DOMAIN_LENGTH = 63;
+
+  // We are limited in system-probe side, hence we can't increase this due to stack limit of ebpf programs
+  // Must be equal to https://github.com/DataDog/datadog-agent/tree/main/pkg/network/ebpf/tls/java/types.h
+  // (-1 as last byte is reserved for '\0')
+  static final int MAX_DOMAIN_LENGTH = 47;
   private final String domain;
   private final int port;
 
