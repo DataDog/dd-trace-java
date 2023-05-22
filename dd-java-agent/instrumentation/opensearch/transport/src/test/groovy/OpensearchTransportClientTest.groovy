@@ -58,7 +58,6 @@ class OpensearchTransportClientTest extends AgentTestRunner {
       .build()
       )
     client.addTransportAddress(tcpPublishAddress)
-    Thread.sleep(10000)
     runUnderTrace("setup") {
       // this may potentially create multiple requests and therefore multiple spans, so we wrap this call
       // into a top level trace to get exactly one trace in the result.
@@ -83,7 +82,6 @@ class OpensearchTransportClientTest extends AgentTestRunner {
 
     expect:
     status.name() == "GREEN"
-    Thread.sleep(10000)
     assertTraces(2) {
       trace(1) {
         span {
@@ -134,7 +132,6 @@ class OpensearchTransportClientTest extends AgentTestRunner {
     thrown IndexNotFoundException
 
     and:
-    Thread.sleep(10000)
     assertTraces(2) {
       trace(1) {
         span {
@@ -186,7 +183,6 @@ class OpensearchTransportClientTest extends AgentTestRunner {
     setup:
     assert TEST_WRITER == []
     def indexResult = client.admin().indices().prepareCreate(indexName).get()
-    Thread.sleep(10000)
     TEST_WRITER.waitForTraces(1)
 
     expect:
@@ -218,7 +214,6 @@ class OpensearchTransportClientTest extends AgentTestRunner {
     result.index == indexName
 
     and:
-    Thread.sleep(10000)
     assertTraces(5) {
       trace(1) {
         span {
