@@ -401,6 +401,8 @@ public class Config {
 
   private static final Logger log = LoggerFactory.getLogger(Config.class);
 
+  private static final Pattern COLON = Pattern.compile(":");
+
   private final InstrumenterConfig instrumenterConfig;
 
   private final long startTimeMillis = System.currentTimeMillis();
@@ -1393,14 +1395,13 @@ public class Config {
     ciVisibilityJacocoPluginVersion = configProvider.getString(CIVISIBILITY_JACOCO_PLUGIN_VERSION);
     ciVisibilityJacocoPluginIncludes =
         Arrays.asList(
-            configProvider.getString(CIVISIBILITY_JACOCO_PLUGIN_INCLUDES, ":").split(":"));
+            COLON.split(configProvider.getString(CIVISIBILITY_JACOCO_PLUGIN_INCLUDES, ":")));
     ciVisibilityJacocoPluginExcludes =
         Arrays.asList(
-            configProvider
-                .getString(
+            COLON.split(
+                configProvider.getString(
                     CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES,
-                    DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES)
-                .split(":"));
+                    DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES)));
     ciVisibilityJacocoPluginExcludedClassnames =
         computeCiVisibilityJacocoPluginExcludedClassnames(ciVisibilityJacocoPluginExcludes);
     ciVisibilityDebugPort = configProvider.getInteger(CIVISIBILITY_DEBUG_PORT);
