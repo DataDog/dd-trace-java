@@ -27,7 +27,7 @@ import datadog.trace.common.metrics.EventListener
 import datadog.trace.common.metrics.Sink
 import datadog.trace.common.writer.DDAgentWriter
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.common.writer.Writer
+import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.PendingTrace
@@ -82,6 +82,22 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   static {
     configureLoggingLevels()
+  }
+
+  static void addEnvironmentVariablesToHeaders(DDAgentWriter agentWriter) {
+    StringBuilder ddEnvVars = new StringBuilder()
+    for (Map.Entry<String, String> entry : System.getenv().entrySet()) {
+      if (entry.getKey().startsWith("DD_")) {
+        if (ddEnvVars.length() > 0) {
+          ddEnvVars.append(";")
+        }
+        ddEnvVars.append(entry.getKey()).append("=").append(entry.getValue())
+      }
+    }
+
+    if (ddEnvVars.length() > 0) {
+      ((DDAgentApi) agentWriter.api).setHeader("X-Datadog-Trace-Env-Variables", ddEnvVars.toString())
+    }
   }
 
   /**
@@ -275,6 +291,9 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   void cleanup() {
     if (USE_TEST_AGENT_WRITER) {
+      // save Datadog environment to DDAgentWriter header
+      addEnvironmentVariablesToHeaders(TEST_AGENT_WRITER)
+
       // write ListWriter traces to the AgentWriter at cleanup so trace-processing changes occur after span assertions
       def array = TEST_WRITER.toArray()
       def traces = (Arrays.asList(array) as List<List<DDSpan>>)
