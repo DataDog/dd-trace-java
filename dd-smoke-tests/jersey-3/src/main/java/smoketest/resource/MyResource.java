@@ -8,6 +8,9 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.sql.SQLException;
 import smoketest.DB;
 
@@ -50,5 +53,17 @@ public class MyResource {
   public String byCookie(@CookieParam("cookieName") String param) throws SQLException {
     DB.store(param);
     return "Jersey: hello " + param;
+  }
+
+  @Path("/setlocationheader")
+  @GET
+  public Response locationHeader(@QueryParam("param") String param) {
+    return Response.status(Response.Status.TEMPORARY_REDIRECT).header("Location", param).build();
+  }
+
+  @Path("/setresponselocation")
+  @GET
+  public Response responseLocation(@QueryParam("param") String param) throws URISyntaxException {
+    return Response.status(Response.Status.TEMPORARY_REDIRECT).location(new URI(param)).build();
   }
 }

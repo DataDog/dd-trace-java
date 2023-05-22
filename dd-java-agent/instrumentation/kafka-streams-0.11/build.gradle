@@ -35,7 +35,7 @@ dependencies {
   latestDepTestImplementation group: 'org.assertj', name: 'assertj-core', version: '3.+'
 }
 
-configurations.testRuntimeOnly {
-  // spock-core depends on assertj version that is not compatible with kafka-streams
+configurations.testRuntimeClasspath {
+  // spock-core depends on assertj version that is not compatible with kafka-clients
   resolutionStrategy.force 'org.assertj:assertj-core:2.9.1'
 }

@@ -155,7 +155,7 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
         if (context != null) {
           DDTraceId traceId = context.getTraceId();
           String traceIdValue =
-              instrumenterConfig.isLogs128bTraceIdEnabled() && traceId.toHighOrderLong() != 0
+              InstrumenterConfig.get().isLogs128bTraceIdEnabled() && traceId.toHighOrderLong() != 0
                   ? traceId.toHexString()
                   : traceId.toString();
           mdc.put(CorrelationIdentifier.getTraceIdKey(), traceIdValue);

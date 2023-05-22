@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.spark;
 
 import datadog.trace.api.DDTags;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -8,6 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import org.apache.spark.SparkConf;
+import org.apache.spark.SparkContext;
 import org.apache.spark.TaskFailedReason;
 import org.apache.spark.scheduler.*;
 import scala.Tuple2;
@@ -21,6 +23,8 @@ public class DatadogSparkListener extends SparkListener {
   private final int MAX_COLLECTION_SIZE = 1000;
 
   private final SparkConf sparkConf;
+  private final String sparkVersion;
+  private final String appId;
 
   private final AgentTracer.TracerAPI tracer;
 
@@ -44,9 +48,11 @@ public class DatadogSparkListener extends SparkListener {
   private int maxExecutorCount = 0;
   private long availableExecutorTime = 0;
 
-  public DatadogSparkListener(SparkConf _sparkConf) {
+  public DatadogSparkListener(SparkContext sparkContext) {
     tracer = AgentTracer.get();
-    sparkConf = _sparkConf;
+    sparkConf = sparkContext.getConf();
+    sparkVersion = sparkContext.version();
+    appId = sparkContext.applicationId();
 
     isRunningOnDatabricks = sparkConf.contains("spark.databricks.sparkContextId");
   }
@@ -54,18 +60,14 @@ public class DatadogSparkListener extends SparkListener {
   @Override
   public void onApplicationStart(SparkListenerApplicationStart applicationStart) {
     applicationSpan =
-        tracer
-            .buildSpan("spark.application")
+        buildSparkSpan("spark.application")
             .withStartTimestamp(applicationStart.time() * 1000)
             .withTag("application_name", applicationStart.appName())
             .withTag("spark_user", applicationStart.sparkUser())
-            .withSpanType("spark")
             .start();
 
     applicationSpan.setMeasured(true);
 
-    if (applicationStart.appId().isDefined())
-      applicationSpan.setTag("app_id", applicationStart.appId().get());
     if (applicationStart.appAttemptId().isDefined())
       applicationSpan.setTag("app_attempt_id", applicationStart.appAttemptId().get());
 
@@ -74,6 +76,7 @@ public class DatadogSparkListener extends SparkListener {
         applicationSpan.setTag("config." + conf._1.replace(".", "_"), conf._2);
       }
     }
+    applicationSpan.setTag("config.spark_version", sparkVersion);
   }
 
   @Override
@@ -104,12 +107,10 @@ public class DatadogSparkListener extends SparkListener {
     }
 
     AgentTracer.SpanBuilder jobSpanBuilder =
-        tracer
-            .buildSpan("spark.job")
+        buildSparkSpan("spark.job")
             .withStartTimestamp(jobStart.time() * 1000)
             .withTag("job_id", jobStart.jobId())
-            .withTag("stage_count", jobStart.stageInfos().size())
-            .withSpanType("spark");
+            .withTag("stage_count", jobStart.stageInfos().size());
 
     if (isRunningOnDatabricks) {
       // In databricks, the spark jobs are the local root spans so adding the spark conf parameters
@@ -121,15 +122,24 @@ public class DatadogSparkListener extends SparkListener {
       }
 
       if (jobStart.properties() != null) {
-        // ids to link those spans to databricks job/task traces
-        jobSpanBuilder.withTag(
-            "databricks_job_id", jobStart.properties().get("spark.databricks.job.id"));
-        jobSpanBuilder.withTag(
-            "databricks_job_run_id", getDatabricksJobRunId(jobStart.properties()));
+        String databricksJobId = (String) jobStart.properties().get("spark.databricks.job.id");
+        String databricksJobRunId = getDatabricksJobRunId(jobStart.properties());
 
         // spark.databricks.job.runId is the runId of the task, not of the Job
-        jobSpanBuilder.withTag(
-            "databricks_task_run_id", jobStart.properties().get("spark.databricks.job.runId"));
+        String databricksTaskRunId =
+            (String) jobStart.properties().get("spark.databricks.job.runId");
+
+        // ids to link those spans to databricks job/task traces
+        jobSpanBuilder.withTag("databricks_job_id", databricksJobId);
+        jobSpanBuilder.withTag("databricks_job_run_id", databricksJobRunId);
+        jobSpanBuilder.withTag("databricks_task_run_id", databricksTaskRunId);
+
+        AgentSpan.Context parentContext =
+            new DatabricksParentContext(databricksJobId, databricksJobRunId, databricksTaskRunId);
+
+        if (parentContext.getTraceId() != DDTraceId.ZERO) {
+          jobSpanBuilder.asChildOf(parentContext);
+        }
       }
     } else {
       // In non-databricks env, the spark application is the local root spans
@@ -152,6 +162,7 @@ public class DatadogSparkListener extends SparkListener {
         }
       }
     }
+    jobSpan.setTag("config.spark_version", sparkVersion);
 
     jobStart.stageInfos().foreach(stage -> stageToJob.put(stage.stageId(), jobStart.jobId()));
 
@@ -211,8 +222,7 @@ public class DatadogSparkListener extends SparkListener {
     }
 
     AgentSpan stageSpan =
-        tracer
-            .buildSpan("spark.stage")
+        buildSparkSpan("spark.stage")
             .asChildOf(jobSpan.context())
             .withStartTimestamp(submissionTimeMs * 1000)
             .withTag("stage_id", stageId)
@@ -221,7 +231,6 @@ public class DatadogSparkListener extends SparkListener {
             .withTag("parent_stages_ids", stageSubmitted.stageInfo().parentIds())
             .withTag("details", stageSubmitted.stageInfo().details())
             .withTag(DDTags.RESOURCE_NAME, stageSubmitted.stageInfo().name())
-            .withSpanType("spark")
             .start();
 
     stageSpan.setMeasured(true);
@@ -303,8 +312,7 @@ public class DatadogSparkListener extends SparkListener {
 
   private void sendTaskSpan(AgentSpan stageSpan, SparkListenerTaskEnd taskEnd) {
     AgentSpan taskSpan =
-        tracer
-            .buildSpan("spark.task")
+        buildSparkSpan("spark.task")
             .asChildOf(stageSpan.context())
             .withStartTimestamp(taskEnd.taskInfo().launchTime() * 1000)
             .withTag("task_id", taskEnd.taskInfo().taskId())
@@ -317,7 +325,6 @@ public class DatadogSparkListener extends SparkListener {
             .withTag("task_locality", taskEnd.taskInfo().taskLocality().toString())
             .withTag("speculative", taskEnd.taskInfo().speculative())
             .withTag("status", taskEnd.taskInfo().status())
-            .withSpanType("spark")
             .start();
 
     if (taskEnd.reason() instanceof TaskFailedReason) {
@@ -351,6 +358,10 @@ public class DatadogSparkListener extends SparkListener {
       availableExecutorTime +=
           (executorRemoved.time() - executor.time()) * executor.executorInfo().totalCores();
     }
+  }
+
+  private AgentTracer.SpanBuilder buildSparkSpan(String spanName) {
+    return tracer.buildSpan(spanName).withSpanType("spark").withTag("app_id", appId);
   }
 
   private long stageSpanKey(int stageId, int attemptId) {

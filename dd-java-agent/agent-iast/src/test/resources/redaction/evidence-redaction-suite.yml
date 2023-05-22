@@ -208,7 +208,7 @@ suite:
         ]
       }
   - type: 'VULNERABILITIES'
-    description: 'Query with string literal $1'
+    description: 'Query with single quoted string literal $1'
     parameters:
       $1:
         - john
@@ -248,11 +248,12 @@ suite:
         ]
       }
   - type: 'VULNERABILITIES'
-    description: '$1 query with string literal $2'
+    description: '$1 query with double quoted string literal $2'
     parameters:
       $1:
         - MYSQL
         - MARIADB
+        - SQLITE
       $2:
         - john
         - username with 🌉 surrogate
@@ -332,6 +333,7 @@ suite:
       $1:
         - MYSQL
         - MARIADB
+        - SQLITE
     context: >
       { "DATABASE": "$1" }
     input: >
@@ -367,7 +369,54 @@ suite:
         ]
       }
   - type: 'VULNERABILITIES'
-    description: '$1 query with escaped string literal'
+    description: '$1 query with arbitrary escaped string literal'
+    parameters:
+      $1:
+        - ORACLE
+      $2:
+        - '%'
+        - '$'
+        - 'Z'
+    context: >
+      { "DATABASE": "$1" }
+    input: >
+      [
+        {
+          "type": "SQL_INJECTION",
+          "evidence": {
+            "value": "select * from users where username = q'$2I'm an escaped string$2' and common_name = 'doe' or last_name = q'$2I'm another escaped string$2'",
+            "ranges": [
+              { "start" : 14, "length" : 5, "source": { "origin": "http.request.parameter", "name": "table", "value": "users" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "table", "value": "users" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "SQL_INJECTION",
+            "evidence": {
+              "valueParts": [
+                { "value": "select * from " },
+                { "source": 0, "value": "users" },
+                { "value": " where username = q'$2" },
+                { "redacted": true },
+                { "value": "$2' and common_name = '" },
+                { "redacted": true },
+                { "value": "' or last_name = q'$2" },
+                { "redacted": true },
+                { "value": "$2'" }
+              ]
+            }
+          }
+        ]
+      }
+  - type: 'VULNERABILITIES'
+    description: '$1 query with matched escaped string literal (< and >)'
     parameters:
       $1:
         - ORACLE
@@ -378,7 +427,7 @@ suite:
         {
           "type": "SQL_INJECTION",
           "evidence": {
-            "value": "select * from users where username = q'<I'm an escaped string>'",
+            "value": "select * from users where username = q'<I'm an escaped string>' and common_name = 'doe' or last_name = q'!I'm another escaped string!'",
             "ranges": [
               { "start" : 14, "length" : 5, "source": { "origin": "http.request.parameter", "name": "table", "value": "users" } }
             ]
@@ -399,7 +448,11 @@ suite:
                 { "source": 0, "value": "users" },
                 { "value": " where username = q'<" },
                 { "redacted": true },
-                { "value": ">'" }
+                { "value": ">' and common_name = '" },
+                { "redacted": true },
+                { "value": "' or last_name = q'!" },
+                { "redacted": true },
+                { "value": "!'" }
               ]
             }
           }
@@ -420,7 +473,7 @@ suite:
         {
           "type": "SQL_INJECTION",
           "evidence": {
-            "value": "select * from users where username = $2I'm an escaped string$2",
+            "value": "select * from users where username = $2I'm an escaped string$2 and common_name = 'doe' or last_name = $TEST$I'm another escaped string$$$TEST$",
             "ranges": [
               { "start" : 14, "length" : 5, "source": { "origin": "http.request.parameter", "name": "table", "value": "users" } }
             ]
@@ -441,7 +494,11 @@ suite:
                 { "source": 0, "value": "users" },
                 { "value": " where username = $2" },
                 { "redacted": true },
-                { "value": "$2" }
+                { "value": "$2 and common_name = '" },
+                { "redacted": true },
+                { "value": "' or last_name = $TEST$" },
+                { "redacted": true },
+                { "value": "$TEST$" }
               ]
             }
           }
@@ -859,6 +916,50 @@ suite:
                 { "redacted": true },
                 { "value": "' and user_id_123 > " },
                 { "redacted": true } 
+              ]
+            }
+          }
+        ]
+      }
+
+  - type: 'VULNERABILITIES'
+    description: 'Query with tainted range in two LIKEs with not tainted % char'
+    input: >
+      [
+        {
+          "type": "SQL_INJECTION",
+          "evidence": {
+            "value": "select * from table where name LIKE '%searchparam%' OR description LIKE '%searchparam%'",
+            "ranges": [
+              {
+                "start": 38, "length": 11, "source": { "origin": "http.request.parameter", "name": "query", "value": "searchparam" }
+              },
+              {
+                "start": 74, "length": 11, "source": { "origin": "http.request.parameter", "name": "query", "value": "searchparam" }
+              }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "query", "redacted": true }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "SQL_INJECTION",
+            "evidence": {
+              "valueParts": [
+                { "value": "select * from table where name LIKE '" },
+                { "redacted": true },
+                { "source": 0, "redacted": true },
+                { "redacted": true },
+                { "value": "' OR description LIKE '" },
+                { "redacted": true },
+                { "source": 0, "redacted": true },
+                { "redacted": true },
+                { "value": "'" }
               ]
             }
           }

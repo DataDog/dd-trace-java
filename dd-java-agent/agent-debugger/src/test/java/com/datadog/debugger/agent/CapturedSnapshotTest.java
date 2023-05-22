@@ -673,7 +673,7 @@ public class CapturedSnapshotTest {
     CapturedContext.CapturedValue simpleData =
         snapshot.getCaptures().getReturn().getLocals().get("simpleData");
     Map<String, CapturedContext.CapturedValue> simpleDataFields = getFields(simpleData);
-    Assertions.assertEquals(3, simpleDataFields.size());
+    Assertions.assertEquals(4, simpleDataFields.size());
     Assertions.assertEquals("foo", simpleDataFields.get("strValue").getValue());
     Assertions.assertEquals(42, simpleDataFields.get("intValue").getValue());
     Assertions.assertEquals(DEPTH_REASON, simpleDataFields.get("listValue").getNotCapturedReason());

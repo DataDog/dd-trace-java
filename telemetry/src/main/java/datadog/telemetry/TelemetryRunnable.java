@@ -83,7 +83,7 @@ public class TelemetryRunnable implements Runnable {
 
     // Collect request metrics every N seconds (default 10s)
     long currentTime = System.currentTimeMillis();
-    if (currentTime - collectMetricsTimestamp > Config.get().getTelemetryMetricsInterval()) {
+    if (currentTime - collectMetricsTimestamp > telemetryService.getMetricsInterval()) {
       collectMetricsTimestamp = currentTime;
       WafMetricCollector.get().prepareRequestMetrics();
     }

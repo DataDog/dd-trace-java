@@ -31,7 +31,7 @@ dependencies {
   latestDepTestImplementation deps.guava
 }
 
-configurations.testRuntimeOnly {
+configurations.testRuntimeClasspath {
   // spock-core depends on assertj version that is not compatible with kafka-clients
   resolutionStrategy.force 'org.assertj:assertj-core:2.9.1'
 }

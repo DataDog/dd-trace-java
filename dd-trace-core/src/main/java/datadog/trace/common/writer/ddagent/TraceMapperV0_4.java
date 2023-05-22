@@ -8,6 +8,7 @@ import datadog.trace.common.writer.Payload;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
+import datadog.trace.core.PendingTrace;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
@@ -55,6 +56,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
           (writeSamplingPriority && metadata.hasSamplingPriority() ? 1 : 0)
               + (metadata.measured() ? 1 : 0)
               + (metadata.topLevel() ? 1 : 0)
+              + (metadata.longRunningVersion() != 0 ? 1 : 0)
               + 1;
       for (Map.Entry<String, Object> tag : metadata.getTags().entrySet()) {
         Object value = tag.getValue();
@@ -80,6 +82,15 @@ public final class TraceMapperV0_4 implements TraceMapper {
       if (metadata.topLevel()) {
         writable.writeUTF8(InstrumentationTags.DD_TOP_LEVEL);
         writable.writeInt(1);
+      }
+      if (metadata.longRunningVersion() != 0) {
+        if (metadata.longRunningVersion() > 0) {
+          writable.writeUTF8(InstrumentationTags.DD_PARTIAL_VERSION);
+          writable.writeInt(metadata.longRunningVersion());
+        } else {
+          writable.writeUTF8(InstrumentationTags.DD_WAS_LONG_RUNNING);
+          writable.writeInt(1);
+        }
       }
       writable.writeUTF8(THREAD_ID);
       writable.writeLong(metadata.getThreadId());
@@ -197,7 +208,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
       writable.writeLong(span.getStartTime());
       /* 8  */
       writable.writeUTF8(DURATION);
-      writable.writeLong(span.getDurationNano());
+      writable.writeLong(PendingTrace.getDurationNano(span));
       /* 9  */
       writable.writeUTF8(TYPE);
       writable.writeString(span.getType(), null);

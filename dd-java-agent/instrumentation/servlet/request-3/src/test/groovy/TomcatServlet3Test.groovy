@@ -115,6 +115,14 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
     return "tomcat-server"
   }
 
+  //@Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")
+  @Override
+  boolean testBadUrl() {
+    // Tomcat seems to exit too early:
+    //   java.lang.IllegalArgumentException: Invalid character found in the request target. The valid characters are defined in RFC 7230 and RFC 3986
+    false
+  }
+
   @Override
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.throwsException) {

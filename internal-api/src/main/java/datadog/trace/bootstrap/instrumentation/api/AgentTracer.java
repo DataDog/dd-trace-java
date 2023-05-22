@@ -19,6 +19,7 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.InternalTracer;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.profiling.Timer;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
@@ -78,6 +79,20 @@ public class AgentTracer {
    */
   public static AgentScope activateNext(final AgentSpan span) {
     return get().activateNext(span);
+  }
+
+  public static TraceConfig traceConfig(final AgentSpan span) {
+    if (null != span) {
+      TraceConfig traceConfig = span.traceConfig();
+      if (null != traceConfig) {
+        return traceConfig;
+      }
+    }
+    return get().captureTraceConfig();
+  }
+
+  public static TraceConfig traceConfig() {
+    return get().captureTraceConfig();
   }
 
   public static AgentSpan activeSpan() {
@@ -172,6 +187,8 @@ public class AgentTracer {
      */
     void registerCheckpointer(EndpointCheckpointer checkpointer);
 
+    void registerTimer(Timer timer);
+
     SubscriptionService getSubscriptionService(RequestContextSlot slot);
 
     CallbackProvider getCallbackProvider(RequestContextSlot slot);
@@ -185,6 +202,8 @@ public class AgentTracer {
     void notifyExtensionEnd(AgentSpan span, Object result, boolean isError);
 
     DataStreamsMonitoring getDataStreamsMonitoring();
+
+    Timer getTimer();
 
     String getTraceId(AgentSpan span);
 
@@ -362,6 +381,9 @@ public class AgentTracer {
     public void registerCheckpointer(EndpointCheckpointer checkpointer) {}
 
     @Override
+    public void registerTimer(Timer timer) {}
+
+    @Override
     public SubscriptionService getSubscriptionService(RequestContextSlot slot) {
       return SubscriptionService.SubscriptionServiceNoop.INSTANCE;
     }
@@ -454,6 +476,16 @@ public class AgentTracer {
     @Override
     public void setProduceCheckpoint(
         String type, String target, DataStreamsContextCarrier carrier) {}
+
+    @Override
+    public Timer getTimer() {
+      return Timer.NoOp.INSTANCE;
+    }
+
+    @Override
+    public TraceConfig captureTraceConfig() {
+      return null;
+    }
   }
 
   public static final class NoopAgentSpan implements AgentSpan {
@@ -741,7 +773,7 @@ public class AgentTracer {
     }
 
     @Override
-    public TraceConfig getTraceConfig() {
+    public TraceConfig traceConfig() {
       return null;
     }
   }

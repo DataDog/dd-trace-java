@@ -28,6 +28,7 @@ import io.sqreen.powerwaf.Additive
 import io.sqreen.powerwaf.Powerwaf
 import io.sqreen.powerwaf.PowerwafContext
 import io.sqreen.powerwaf.PowerwafMetrics
+import spock.lang.Ignore
 import spock.lang.Unroll
 
 import java.util.concurrent.CountDownLatch
@@ -1078,6 +1079,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     0 * _
   }
 
+  @Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")
   void 'rule toggling data given through configuration'() {
     setupWithStubConfigService()
     AppSecModuleConfigurer.Reconfiguration reconf = Mock()

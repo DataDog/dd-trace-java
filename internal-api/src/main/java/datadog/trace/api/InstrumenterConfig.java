@@ -215,7 +215,7 @@ public class InstrumenterConfig {
 
   public boolean isLogsMDCTagsInjectionEnabled() {
     return logsMDCTagsInjectionEnabled && !Platform.isNativeImageBuilder();
-  }
+
 
   public boolean isLogs128bTraceIdEnabled() {
     return logs128bTraceIdEnabled;

@@ -34,7 +34,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
   Config config = new Config()
 
   @Shared
-  SingleServerConfig singleServerConfig = config.useSingleServer().setAddress("127.0.0.1:${port}")
+  SingleServerConfig singleServerConfig = config.useSingleServer().setAddress("localhost:${port}")
 
   @Shared
   RedissonClient redissonClient
@@ -139,7 +139,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
         span {
           serviceName service()
           operationName operation()
-          resourceName "GET"
+          resourceName "INCRBY"
           spanType DDSpanTypes.REDIS
           measured true
           tags {
@@ -266,7 +266,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
     then:
     assertTraces(1) {
       trace(1) {
-        redisSpan(it, "SREM")
+        redisSpan(it, "RPUSH")
       }
     }
   }
