@@ -412,4 +412,16 @@ public final class DatadogProfiler {
     }
     return EMPTY;
   }
+
+  public void recordSetting(String name, String value) {
+    if (profiler != null) {
+      profiler.recordSetting(name, value);
+    }
+  }
+
+  public void recordSetting(String name, String value, String unit) {
+    if (profiler != null) {
+      profiler.recordSetting(name, value, unit);
+    }
+  }
 }
