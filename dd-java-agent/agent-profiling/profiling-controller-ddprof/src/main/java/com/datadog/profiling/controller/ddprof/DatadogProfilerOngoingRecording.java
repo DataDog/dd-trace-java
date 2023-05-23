@@ -16,9 +16,11 @@
 package com.datadog.profiling.controller.ddprof;
 
 import com.datadog.profiling.controller.OngoingRecording;
+import com.datadog.profiling.controller.ProfilerSettingsSupport;
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.ddprof.DatadogProfiler;
+import datadog.trace.api.Platform;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import java.time.Instant;
 import org.slf4j.Logger;
@@ -26,6 +28,8 @@ import org.slf4j.LoggerFactory;
 
 public class DatadogProfilerOngoingRecording implements OngoingRecording {
   private static final Logger log = LoggerFactory.getLogger(DatadogProfilerOngoingRecording.class);
+
+  private final ProfilerSettingsSupport configMemento;
 
   private final OngoingRecording recording;
   private final Instant started = Instant.now();
@@ -38,10 +42,12 @@ public class DatadogProfilerOngoingRecording implements OngoingRecording {
       throw new UnsupportedEnvironmentException("Failed to start Datadog profiler");
     }
     log.debug("Recording {} started", recordingName);
+    this.configMemento = Platform.isJ9() ? new DatadogProfilerSettings(datadogProfiler) : null;
   }
 
   @Override
   public RecordingData stop() {
+    publishConfig();
     return recording.stop();
   }
 
@@ -52,11 +58,18 @@ public class DatadogProfilerOngoingRecording implements OngoingRecording {
 
   @Override
   public RecordingData snapshot(final Instant start, ProfilingSnapshot.Kind kind) {
+    publishConfig();
     return recording.snapshot(start, kind);
   }
 
   @Override
   public void close() {
     recording.close();
+  }
+
+  private void publishConfig() {
+    if (configMemento != null) {
+      configMemento.publish();
+    }
   }
 }
