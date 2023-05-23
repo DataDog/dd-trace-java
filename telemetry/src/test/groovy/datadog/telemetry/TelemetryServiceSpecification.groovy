@@ -29,8 +29,8 @@ class TelemetryServiceSpecification extends DDSpecification {
   TimeSource timeSource = Mock()
   RequestBuilder requestBuilder = Spy(new RequestBuilder(HttpUrl.get("https://example.com")))
   Supplier<RequestBuilder> requestBuilderSupplier = () -> requestBuilder
-  TelemetryServiceImpl telemetryService =
-  new TelemetryServiceImpl(requestBuilderSupplier, timeSource, 60, 10)
+  TelemetryService telemetryService =
+  new TelemetryService(requestBuilderSupplier, timeSource, 60, 10)
 
   String getRequestType(Request request) {
     request.header("DD-Telemetry-Request-Type")
@@ -259,7 +259,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     def logMessage
 
     when:
-    def telemetry = new TelemetryServiceImpl(requestBuilderSupplier, timeSource, 1, 1, 10, 1)
+    def telemetry = new TelemetryService(requestBuilderSupplier, timeSource, 1, 1, 10, 1)
     logMessage = new LogMessage(message: 'hello world', level: LogMessageLevel.DEBUG)
     for (int i=0; i<messages; i++) {
       telemetry.addLogMessage(logMessage)
@@ -287,7 +287,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     def telemetry
 
     when:
-    telemetry = new TelemetryServiceImpl(requestBuilderSupplier, timeSource, 1, 1, 1, 10)
+    telemetry = new TelemetryService(requestBuilderSupplier, timeSource, 1, 1, 1, 10)
     dep = new Dependency(name: 'dep')
     for (int i=0; i<15; i++) {
       telemetry.addDependency(dep)
