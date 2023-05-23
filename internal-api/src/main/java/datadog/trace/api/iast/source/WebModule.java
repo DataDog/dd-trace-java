@@ -42,4 +42,6 @@ public interface WebModule extends IastModule {
 
   void onRequestMatrixParameter(
       @Nonnull String paramName, @Nullable String value, @Nonnull Object iastRequestContext);
+
+  void onInjectedParameter(String parameterName, String result, byte b);
 }
