@@ -55,6 +55,8 @@ public final class DatadogProfiler {
 
   private static final String OPERATION = "_dd.trace.operation";
 
+  private static final int MAX_NUM_ENDPOINTS = 8192;
+
   private static final class Singleton {
     private static final DatadogProfiler INSTANCE = newInstance();
   }
@@ -333,6 +335,17 @@ public final class DatadogProfiler {
     String cmdString = cmd.toString();
     log.debug("Datadog profiler command line: {}", cmdString);
     return cmdString;
+  }
+
+  public void recordTraceRoot(long rootSpanId, String endpoint) {
+    if (profiler != null) {
+      if (!profiler.recordTraceRoot(rootSpanId, endpoint, MAX_NUM_ENDPOINTS)) {
+        log.debug(
+            "Endpoint event not written because more than {} distinct endpoints have been encountered."
+                + " This avoids excessive memory overhead.",
+            MAX_NUM_ENDPOINTS);
+      }
+    }
   }
 
   public int operationNameOffset() {
