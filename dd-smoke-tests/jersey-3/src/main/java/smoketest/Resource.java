@@ -1,25 +1,24 @@
-package com.restserver;
+package smoketest;
 
+import jakarta.ws.rs.CookieParam;
+import jakarta.ws.rs.FormParam;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.HeaderParam;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.Cookie;
+import jakarta.ws.rs.core.Form;
+import jakarta.ws.rs.core.HttpHeaders;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.sql.SQLException;
 import java.util.Map;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.CookieParam;
-import javax.ws.rs.FormParam;
-import javax.ws.rs.GET;
-import javax.ws.rs.HeaderParam;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.Cookie;
-import javax.ws.rs.core.Form;
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
 
 @Path("/hello")
 public class Resource {
@@ -62,15 +61,6 @@ public class Resource {
     return "Jersey: hello " + param;
   }
 
-  @Path("/puttest")
-  @POST
-  @Produces(MediaType.APPLICATION_JSON)
-  @Consumes(MediaType.APPLICATION_JSON)
-  public Response put(TestEntity testEntity) throws SQLException, URISyntaxException {
-    DB.store(testEntity.param1);
-    return Response.status(Status.CREATED).build();
-  }
-
   @GET
   @Path("/cookiename")
   public String sourceCookieName(@Context final HttpHeaders headers) throws SQLException {
@@ -88,7 +78,7 @@ public class Resource {
   public String sourceHeaderName(@Context final HttpHeaders headers) throws SQLException {
     for (String headerName : headers.getRequestHeaders().keySet()) {
       DB.store(headerName);
-      return "Jersey: header stored";
+      return "Jersey: hello " + headerName;
     }
     return "cookie not found";
   }
@@ -121,5 +111,17 @@ public class Resource {
       return "Jersey: hello " + paramName;
     }
     return String.format("Parameter name not found");
+  }
+
+  @Path("/setlocationheader")
+  @GET
+  public Response locationHeader(@QueryParam("param") String param) {
+    return Response.status(Response.Status.TEMPORARY_REDIRECT).header("Location", param).build();
+  }
+
+  @Path("/setresponselocation")
+  @GET
+  public Response responseLocation(@QueryParam("param") String param) throws URISyntaxException {
+    return Response.status(Response.Status.TEMPORARY_REDIRECT).location(new URI(param)).build();
   }
 }

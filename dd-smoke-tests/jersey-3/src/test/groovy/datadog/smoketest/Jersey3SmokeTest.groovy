@@ -2,6 +2,7 @@ package datadog.smoketest
 
 import datadog.trace.test.agent.decoder.DecodedSpan
 import groovy.json.JsonSlurper
+import okhttp3.FormBody
 import okhttp3.Request
 import spock.util.concurrent.PollingConditions
 
@@ -50,7 +51,7 @@ class Jersey3SmokeTest extends AbstractServerSmokeTest {
     processBuilder.directory(new File(buildDirectory))
   }
 
-  void "Test path parameter in Jersey"() {
+  def "path parameter"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/bypathparam/pathParamValue"
 
@@ -68,7 +69,7 @@ class Jersey3SmokeTest extends AbstractServerSmokeTest {
     hasVulnerability(type('SQL_INJECTION').and(evidence('pathParamValue'))))
   }
 
-  void "Test query parameter in Jersey"() {
+  def "query parameter"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/byqueryparam?param=queryParamValue"
 
@@ -86,7 +87,8 @@ class Jersey3SmokeTest extends AbstractServerSmokeTest {
     hasVulnerability(type('SQL_INJECTION').and(evidence('queryParamValue'))))
   }
 
-  void "Test header in Jersey"() {
+
+  def "header"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/byheader"
 
@@ -104,7 +106,26 @@ class Jersey3SmokeTest extends AbstractServerSmokeTest {
     hasVulnerability(type('SQL_INJECTION').and(evidence('pepito'))))
   }
 
-  void "Test cookie in Jersey"() {
+  def "header name"() {
+    setup:
+    def url = "http://localhost:${httpPort}/hello/headername"
+
+    when:
+    def request = new Request.Builder().url(url).header("X-Custom-header", "pepito").get().build()
+    def response = client.newCall(request).execute()
+
+    then:
+    String body = response.body().string()
+    assert body != null
+    assert response.body().contentType().toString().contains("text/plain")
+    assert body.contains("Jersey: hello x-custom-header")
+    assert response.code() == 200
+    waitForSpan(new PollingConditions(timeout: 5),
+    hasVulnerability(type('SQL_INJECTION').and(evidence('x-custom-header'))))
+  }
+
+
+  def "cookie"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/bycookie"
 
@@ -150,6 +171,84 @@ class Jersey3SmokeTest extends AbstractServerSmokeTest {
     waitForSpan(new PollingConditions(timeout: 5),
     hasVulnerability(type('UNVALIDATED_REDIRECT')))
   }
+
+  def "cookie name from Cookie object"() {
+    setup:
+    def url = "http://localhost:${httpPort}/hello/cookiename"
+
+    when:
+    def request = new Request.Builder().url(url).addHeader("Cookie", "cookieName=cookieValue").get().build()
+    def response = client.newCall(request).execute()
+
+    then:
+    String body = response.body().string()
+    assert body != null
+    assert response.body().contentType().toString().contains("text/plain")
+    assert body.contains("Jersey: hello cookieName")
+    assert response.code() == 200
+    waitForSpan(new PollingConditions(timeout: 5),
+    hasVulnerability(type('SQL_INJECTION').and(evidence('cookieName'))))
+  }
+
+  def "cookie value from Cookie object"() {
+    setup:
+    def url = "http://localhost:${httpPort}/hello/cookieobjectvalue"
+
+    when:
+    def request = new Request.Builder().url(url).addHeader("Cookie", "cookieName=cookieObjectValue").get().build()
+    def response = client.newCall(request).execute()
+
+    then:
+    String body = response.body().string()
+    assert body != null
+    assert response.body().contentType().toString().contains("text/plain")
+    assert body.contains("Jersey: hello cookieObjectValue")
+    assert response.code() == 200
+    waitForSpan(new PollingConditions(timeout: 5),
+    hasVulnerability(type('SQL_INJECTION').and(evidence('cookieObjectValue'))))
+  }
+
+  def "form parameter values"() {
+    setup:
+    def url = "http://localhost:${httpPort}/hello/formparameter"
+
+    when:
+    def formBody = new FormBody.Builder()
+    formBody.add("formParam1Name", "formParam1Value")
+    def request = new Request.Builder().url(url).post(formBody.build()).build()
+    def response = client.newCall(request).execute()
+
+    then:
+    String body = response.body().string()
+    assert body != null
+    assert response.body().contentType().toString().contains("text/plain")
+    assert body.contains("Jersey: hello formParam1Value")
+    assert response.code() == 200
+    waitForSpan(new PollingConditions(timeout: 5),
+    hasVulnerability(type('SQL_INJECTION').and(evidence('formParam1Value'))))
+  }
+
+  def "form parameter name"() {
+    setup:
+    def url = "http://localhost:${httpPort}/hello/formparametername"
+
+    when:
+    def formBody = new FormBody.Builder()
+    formBody.add("formParam1Name", "formParam1Value")
+    def request = new Request.Builder().url(url).post(formBody.build()).build()
+    def response = client.newCall(request).execute()
+
+    then:
+    String body = response.body().string()
+    assert body != null
+    assert response.body().contentType().toString().contains("text/plain")
+    assert body.contains("Jersey: hello formParam1Name")
+    assert response.code() == 200
+    waitForSpan(new PollingConditions(timeout: 5),
+    hasVulnerability(type('SQL_INJECTION').and(evidence('formParam1Name'))))
+  }
+
+
 
   private static String withSystemProperty(final String config, final Object value) {
     return "-Ddd.${config}=${value}"
