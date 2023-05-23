@@ -41,10 +41,18 @@
             "name": "uuid",
             "value":
             {
-              "dsl": "uuid",
-              "json": {
-                "ref": "uuid"
-              }
+              "template": "uuid={uuid}",
+              "segments": [
+                {
+                  "str": "uuid="
+                },
+                {
+                  "dsl": "uuid",
+                  "json": {
+                    "ref": "uuid"
+                  }
+                }
+              ]
             }
           }
         ]
@@ -69,20 +77,28 @@
             "name": "uuid",
             "value":
             {
-              "dsl": "uuid",
-              "json": {
-                "ref": "uuid"
-              }
+              "template": "uuid={uuid}",
+              "segments": [{
+                "str": "uuid="
+              }, {
+                "dsl": "uuid",
+                "json": {
+                  "ref": "uuid"
+                }
+              }]
             }
           },
           {
             "name": "tag2",
             "value":
             {
-              "dsl": "arg2",
-              "json": {
-                "ref": "arg2"
-              }
+              "template": "{arg2}",
+              "segments": [{
+                "dsl": "arg2",
+                "json": {
+                  "ref": "arg2"
+                }
+              }]
             }
           }
         ]
@@ -135,10 +151,15 @@
             "name": "uuid",
             "value":
             {
-              "dsl": "uuid",
-              "json": {
-                "ref": "uuid"
-              }
+              "template": "uuid={uuid}",
+              "segments": [{
+                "str": "uuid="
+              },{
+                "dsl": "uuid",
+                "json": {
+                  "ref": "uuid"
+                }
+              }]
             }
           }
         ]

@@ -61,18 +61,19 @@ public class ValueScript implements DebuggerScript<Value<?>> {
     String[] parts = PERIOD_PATTERN.split(refPath);
     String head;
     int startIdx = 1;
-    if (parts[0].equals("this") && parts.length >= 2) {
-      head = parts[0] + "." + parts[1];
-      startIdx++;
-    } else {
-      head = parts[0];
-    }
+    head = parts[0];
     ValueExpression<?> current;
     Matcher matcher = INDEX_PATTERN.matcher(head);
     if (matcher.matches()) {
       String key = matcher.group(2);
-      ValueExpression<?> keyExpr =
-          key.matches("[0-9]+") ? DSL.value(Integer.parseInt(key)) : DSL.value(key);
+      ValueExpression<?> keyExpr;
+      if (key.matches("[0-9]+")) {
+        keyExpr = DSL.value(Integer.parseInt(key));
+      } else if (key.matches("[\"'].*[\"']")) {
+        keyExpr = DSL.value(key.substring(1, key.length() - 1));
+      } else {
+        keyExpr = parseRefPath(key);
+      }
       current = DSL.index(DSL.ref(matcher.group(1)), keyExpr);
     } else {
       current = DSL.ref(head);

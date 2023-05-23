@@ -10,8 +10,8 @@ import java.security.ProtectionDomain
 import static org.hamcrest.Matchers.is
 import static org.junit.Assert.assertThat
 
-class DependencyServiceImplSpecification extends DepSpecification {
-  DependencyServiceImpl depService = new DependencyServiceImpl()
+class DependencyServiceSpecification extends DepSpecification {
+  DependencyService depService = new DependencyService()
 
   void 'no uris pushed should result in empty list'() {
     when:

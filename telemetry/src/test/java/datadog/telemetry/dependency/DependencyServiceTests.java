@@ -27,9 +27,9 @@ import org.jboss.vfs.VirtualFileAssembly;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-public class DependencyServiceImplTests {
+public class DependencyServiceTests {
 
-  DependencyServiceImpl depService = new DependencyServiceImpl();
+  DependencyService depService = new DependencyService();
   Closeable assemblyHandle;
   TempFileProvider tempFileProvider;
 
@@ -48,7 +48,7 @@ public class DependencyServiceImplTests {
     Instrumentation instrumentation =
         (Instrumentation)
             Proxy.newProxyInstance(
-                DependencyServiceImplTests.class.getClassLoader(),
+                DependencyServiceTests.class.getClassLoader(),
                 new Class<?>[] {Instrumentation.class},
                 (proxy, method, args) -> {
                   if (method.getName().equals("addTransformer")) {
