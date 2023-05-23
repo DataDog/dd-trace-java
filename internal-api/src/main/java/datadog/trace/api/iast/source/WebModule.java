@@ -19,6 +19,8 @@ public interface WebModule extends IastModule {
    */
   void onParameterValue(@Nullable String paramName, @Nullable String paramValue);
 
+  void onPathParameterValue(@Nullable String paramName, @Nullable String paramValue);
+
   void onParameterValues(@Nullable String paramName, @Nullable String[] paramValue);
 
   void onParameterValues(@Nullable String paramName, @Nullable Collection<String> paramValues);
