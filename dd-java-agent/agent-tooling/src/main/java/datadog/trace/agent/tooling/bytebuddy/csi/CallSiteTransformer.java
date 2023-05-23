@@ -41,7 +41,7 @@ public class CallSiteTransformer implements Instrumenter.AdviceTransformer {
       final ClassLoader classLoader,
       final JavaModule module,
       final ProtectionDomain pd) {
-    Advices discovered = advices.findAdvices(type, classLoader);
+    Advices discovered = advices.findAdvices(builder, type, classLoader);
     return discovered.isEmpty() ? builder : builder.visit(new CallSiteVisitorWrapper(discovered));
   }
 
