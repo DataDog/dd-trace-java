@@ -265,6 +265,7 @@ public class DatadogSparkListener extends SparkListener {
 
     SparkAggregatedTaskMetrics stageMetric = stageMetrics.remove(stageSpanKey);
     if (stageMetric != null) {
+      stageMetric.computeSkewTime();
       stageMetric.setSpanMetrics(span, "spark_stage_metrics");
       applicationMetrics.accumulateStageMetrics(stageMetric);
 

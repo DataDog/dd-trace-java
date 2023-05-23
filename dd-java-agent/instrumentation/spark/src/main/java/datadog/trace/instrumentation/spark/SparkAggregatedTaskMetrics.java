@@ -1,11 +1,17 @@
 package datadog.trace.instrumentation.spark;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import org.apache.spark.TaskFailedReason;
 import org.apache.spark.executor.TaskMetrics;
 import org.apache.spark.scheduler.SparkListenerTaskEnd;
 
 class SparkAggregatedTaskMetrics {
+
+  private static final long MAX_RETAINED_TASKS = 20000;
+
   private long executorDeserializeTime = 0L;
   private long executorDeserializeCpuTime = 0L;
   private long executorRunTime = 0L;
@@ -37,6 +43,9 @@ class SparkAggregatedTaskMetrics {
   private long taskFailedCount = 0L;
   private long taskRetriedCount = 0L;
   private long taskWithOutputCount = 0L;
+
+  private final List<Long> taskDurations = new ArrayList<>();
+  private long skewTime = 0L;
 
   public void addTaskMetrics(SparkListenerTaskEnd taskEnd) {
     taskCompletedCount += 1;
@@ -82,6 +91,23 @@ class SparkAggregatedTaskMetrics {
       if (taskMetrics.outputMetrics().recordsWritten() >= 1) {
         taskWithOutputCount += 1;
       }
+
+      if (taskDurations.size() < MAX_RETAINED_TASKS) {
+        taskDurations.add(taskMetrics.executorRunTime());
+      }
+    }
+  }
+
+  public void computeSkewTime() {
+    if (taskDurations.size() > 0) {
+      Collections.sort(taskDurations);
+
+      int medianIndex = taskDurations.size() / 2;
+      long median = taskDurations.get(medianIndex);
+      long max = taskDurations.get(taskDurations.size() - 1);
+      skewTime = max - median;
+
+      taskDurations.clear();
     }
   }
 
@@ -117,6 +143,8 @@ class SparkAggregatedTaskMetrics {
     taskFailedCount += stageMetrics.taskFailedCount;
     taskRetriedCount += stageMetrics.taskRetriedCount;
     taskWithOutputCount += stageMetrics.taskWithOutputCount;
+
+    skewTime += stageMetrics.skewTime;
   }
 
   public void setSpanMetrics(AgentSpan span, String prefix) {
@@ -151,5 +179,7 @@ class SparkAggregatedTaskMetrics {
     span.setMetric(prefix + ".task_failed_count", taskFailedCount);
     span.setMetric(prefix + ".task_retried_count", taskRetriedCount);
     span.setMetric(prefix + ".task_with_output_count", taskWithOutputCount);
+
+    span.setMetric(prefix + ".skew_time", skewTime);
   }
 }
