@@ -35,6 +35,7 @@ import datadog.trace.bootstrap.instrumentation.api.DataStreamsMonitoring
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring
 import datadog.trace.bootstrap.instrumentation.api.NoopDataStreamsMonitoring
 import datadog.trace.test.util.DDSpecification
+import datadog.trace.util.Strings
 import de.thetaphi.forbiddenapis.SuppressForbidden
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import groovy.transform.stc.ClosureParams
@@ -86,14 +87,13 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   static void addEnvironmentVariablesToHeaders(DDAgentWriter agentWriter) {
     StringBuilder ddEnvVars = new StringBuilder()
-    for (Map.Entry<String, String> entry : System.getenv().entrySet()) {
-      if (entry.getKey().startsWith("DD_")) {
-        if (ddEnvVars.length() > 0) {
-          ddEnvVars.append(";")
-        }
-        ddEnvVars.append(entry.getKey()).append("=").append(entry.getValue())
+    for (Map.Entry<Object, Object> entry : System.getProperties().entrySet()) {
+      if (entry.getKey().toString().startsWith("dd.")) {
+        ddEnvVars.append(Strings.systemPropertyNameToEnvironmentVariableName(entry.getKey().toString()))
+          .append("=").append(entry.getValue()).append(",")
       }
     }
+    ddEnvVars.append("DD_SERVICE").append("=").append(Config.get().getServiceName())
 
     if (ddEnvVars.length() > 0) {
       ((DDAgentApi) agentWriter.api).setHeader("X-Datadog-Trace-Env-Variables", ddEnvVars.toString())
@@ -170,6 +170,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     return false
   }
 
+  protected boolean isTestAgentEnabled() {
+    return System.getenv("CI_USE_TEST_AGENT").equals("true")
+  }
+
   private static void configureLoggingLevels() {
     def logger = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)
     if (!(logger instanceof Logger)) {
@@ -215,7 +219,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     }
     TEST_WRITER = new ListWriter()
 
-    USE_TEST_AGENT_WRITER = System.getenv("CI_USE_TEST_AGENT").equals("true") && !(System.getProperty("CI_USE_TEST_AGENT").equals("false"))
+    USE_TEST_AGENT_WRITER = this.isTestAgentEnabled()
     if (USE_TEST_AGENT_WRITER) {
       // emit traces to the APM Test-Agent for Cross-Tracer Testing Trace Checks
       TEST_AGENT_WRITER = DDAgentWriter.builder().build()
@@ -273,7 +277,8 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       try {
         TEST_AGENT_WRITER.start()
       } catch (IllegalStateException) {
-        // do nothing
+        // catch the illegalStateException caused by calling start() on the TraceProcessingWorker.serializerThread twice
+        // Test Agent Writer will not emit traces without calling start()
       }
     }
 
