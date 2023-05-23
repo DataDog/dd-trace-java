@@ -28,11 +28,10 @@ class TelemetrySystemSpecification extends DDSpecification {
   void 'create telemetry thread'() {
     setup:
     def telemetryService = Mock(TelemetryService)
-    def okHttpClient = Mock(OkHttpClient)
     def depService = Mock(DependencyService)
 
     when:
-    def thread = TelemetrySystem.createTelemetryRunnable(telemetryService, okHttpClient, depService)
+    def thread = TelemetrySystem.createTelemetryRunnable(telemetryService, depService)
 
     then:
     thread != null
