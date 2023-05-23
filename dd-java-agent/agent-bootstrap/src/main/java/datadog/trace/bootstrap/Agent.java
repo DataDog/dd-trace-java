@@ -746,15 +746,16 @@ public class Agent {
     }
   }
 
-  private static void maybeStartCiVisibility(Class<?> scoClass, Object o) {
+  private static void maybeStartCiVisibility(Class<?> scoClass, Object sco) {
     if (ciVisibilityEnabled) {
       StaticEventLogger.begin("CI Visibility");
 
       try {
         final Class<?> ciVisibilitySysClass =
             AGENT_CLASSLOADER.loadClass("datadog.trace.civisibility.CiVisibilitySystem");
-        final Method ciVisibilityInstallerMethod = ciVisibilitySysClass.getMethod("start");
-        ciVisibilityInstallerMethod.invoke(null);
+        final Method ciVisibilityInstallerMethod =
+            ciVisibilitySysClass.getMethod("start", scoClass);
+        ciVisibilityInstallerMethod.invoke(null, sco);
       } catch (final Throwable e) {
         log.warn("Not starting CI Visibility subsystem", e);
       }

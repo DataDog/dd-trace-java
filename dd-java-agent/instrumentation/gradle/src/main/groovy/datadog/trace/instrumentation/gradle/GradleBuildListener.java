@@ -35,6 +35,7 @@ public class GradleBuildListener extends BuildAdapter {
     }
     Gradle gradle = settings.getGradle();
     Path projectRoot = settings.getRootDir().toPath();
+    InstrumentationBridge.startGitTreeDataUpload(projectRoot);
     TestDecorator gradleDecorator =
         InstrumentationBridge.createTestDecorator("gradle", null, null, projectRoot);
     ProjectDescriptor rootProject = settings.getRootProject();

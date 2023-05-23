@@ -11,6 +11,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.nio.file.Path;
+import java.util.function.Consumer;
 
 public abstract class InstrumentationBridge {
 
@@ -18,6 +19,7 @@ public abstract class InstrumentationBridge {
   private static volatile TestEventsHandler.Factory TEST_EVENTS_HANDLER_FACTORY;
   private static volatile BuildEventsHandler.Factory BUILD_EVENTS_HANDLER_FACTORY;
   private static volatile CoverageProbeStore.Factory COVERAGE_PROBE_STORE_FACTORY;
+  private static volatile Consumer<Path> GIT_TREE_DATA_UPLOADER;
 
   public static void registerTestDecoratorFactory(TestDecorator.Factory testDecoratorFactory) {
     TEST_DECORATOR_FACTORY = testDecoratorFactory;
@@ -75,5 +77,13 @@ public abstract class InstrumentationBridge {
     if (probes != null) {
       probes.record(clazz, classId, className, probeId);
     }
+  }
+
+  public static void registerGitTreeDataUploader(Consumer<Path> gitTreeDataUploader) {
+    GIT_TREE_DATA_UPLOADER = gitTreeDataUploader;
+  }
+
+  public static void startGitTreeDataUpload(Path path) {
+    GIT_TREE_DATA_UPLOADER.accept(path);
   }
 }

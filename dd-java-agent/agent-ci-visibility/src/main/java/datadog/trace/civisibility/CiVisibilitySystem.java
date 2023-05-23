@@ -1,5 +1,6 @@
 package datadog.trace.civisibility;
 
+import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIVisibility;
 import datadog.trace.api.civisibility.DDTestSession;
@@ -15,19 +16,26 @@ import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.ci.CIProviderInfoFactory;
 import datadog.trace.civisibility.ci.CITagsProviderImpl;
 import datadog.trace.civisibility.codeowners.CodeownersProvider;
+import datadog.trace.civisibility.communication.BackendApi;
+import datadog.trace.civisibility.communication.BackendApiFactory;
 import datadog.trace.civisibility.coverage.TestProbes;
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl;
 import datadog.trace.civisibility.events.CachingTestEventsHandlerFactory;
 import datadog.trace.civisibility.events.TestEventsHandlerImpl;
 import datadog.trace.civisibility.git.CILocalGitInfoBuilder;
 import datadog.trace.civisibility.git.CIProviderGitInfoBuilder;
+import datadog.trace.civisibility.git.tree.GitClient;
+import datadog.trace.civisibility.git.tree.GitDataApi;
+import datadog.trace.civisibility.git.tree.GitDataUploader;
 import datadog.trace.civisibility.source.BestEfforSourcePathResolver;
 import datadog.trace.civisibility.source.CompilerAidedSourcePathResolver;
 import datadog.trace.civisibility.source.MethodLinesResolverImpl;
 import datadog.trace.civisibility.source.RepoIndexSourcePathResolver;
+import datadog.trace.util.AgentThreadFactory;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +45,9 @@ public class CiVisibilitySystem {
 
   private static final String GIT_FOLDER_NAME = ".git";
 
-  public static void start() {
+  private static final Consumer<Path> NO_OP_GIT_TREE_DATA_UPLOADER = path -> {};
+
+  public static void start(SharedCommunicationObjects sharedCommunicationObjects) {
     Config config = Config.get();
     if (!config.isCiVisibilityEnabled()) {
       LOGGER.debug("CI Visibility is disabled");
@@ -59,6 +69,8 @@ public class CiVisibilitySystem {
     CIVisibility.registerSessionFactory(CiVisibilitySystem::createTestSession);
 
     InstrumentationBridge.registerCoverageProbeStoreFactory(new TestProbes.TestProbesFactory());
+    InstrumentationBridge.registerGitTreeDataUploader(
+        buildGitTreeDataUploader(config, sharedCommunicationObjects));
   }
 
   private static DDTestSession createTestSession(
@@ -130,5 +142,42 @@ public class CiVisibilitySystem {
     } else {
       return path -> null;
     }
+  }
+
+  private static Consumer<Path> buildGitTreeDataUploader(
+      Config config, SharedCommunicationObjects sharedCommunicationObjects) {
+    if (!config.isCiVisibilityGitTreeDataUploadEnabled()) {
+      return NO_OP_GIT_TREE_DATA_UPLOADER;
+    }
+
+    BackendApiFactory backendApiFactory =
+        new BackendApiFactory(Config.get(), sharedCommunicationObjects);
+    BackendApi backendApi = backendApiFactory.createBackendApi();
+    if (backendApi == null) {
+      LOGGER.warn(
+          "Git tree data upload will be skipped since backend API client could not be obtained");
+      return NO_OP_GIT_TREE_DATA_UPLOADER;
+    }
+
+    return path -> uploadGitTreeData(config, backendApi, path);
+  }
+
+  private static void uploadGitTreeData(Config config, BackendApi backendApi, Path path) {
+    String repoRoot = getRepositoryRoot(path);
+    long commandTimeoutMillis = config.getCiVisibilityGitTreeCommandTimeoutMillis();
+    String remoteName = config.getCiVisibilityGitRemoteName();
+
+    GitDataApi gitDataApi = new GitDataApi(backendApi);
+    GitClient gitClient = new GitClient(repoRoot, commandTimeoutMillis);
+    GitDataUploader gitDataUploader = new GitDataUploader(gitDataApi, gitClient, remoteName);
+
+    Thread gitTreeDataUploadThread =
+        AgentThreadFactory.newAgentThread(
+            AgentThreadFactory.AgentThread.CI_GIT_TREE_DATA_UPLOADER,
+            gitDataUploader::uploadGitData);
+    // we want to wait for git data upload to finish
+    // even if tests finish faster
+    gitTreeDataUploadThread.setDaemon(false);
+    gitTreeDataUploadThread.start();
   }
 }

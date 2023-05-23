@@ -37,6 +37,7 @@ public class MavenExecutionListener extends AbstractExecutionListener {
     MavenProject currentProject = session.getCurrentProject();
     Path projectRoot = currentProject.getBasedir().toPath();
 
+    InstrumentationBridge.startGitTreeDataUpload(projectRoot);
     TestDecorator mavenDecorator =
         InstrumentationBridge.createTestDecorator("maven", null, null, projectRoot);
 

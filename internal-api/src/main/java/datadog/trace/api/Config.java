@@ -10,9 +10,13 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_METRICS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_REMOTE_NAME;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_TREE_COMMAND_TIMEOUT_MILLIS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_TREE_DATA_UPLOAD_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_PER_TEST_CODE_COVERAGE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED;
@@ -111,10 +115,14 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENT_JAR_URI;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AUTO_CONFIGURATION_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_REMOTE_NAME;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_TREE_COMMAND_TIMEOUT_MILLIS;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_TREE_DATA_UPLOAD_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION;
@@ -144,6 +152,8 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_VERIFY_BYTECODE;
 import static datadog.trace.api.config.GeneralConfig.API_KEY;
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
+import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY;
+import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.AZURE_APP_SERVICES;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_ARGS;
@@ -424,9 +434,11 @@ public class Config {
   /** This is the version of the runtime, ex: 1.8.0_332, 11.0.15, 17.0.3 */
   private final String runtimeVersion;
 
+  private final String applicationKey;
   /**
    * Note: this has effect only on profiling site. Traces are sent to Datadog agent and are not
-   * affected by this setting.
+   * affected by this setting. If CI Visibility is used with agentless mode, api key is used when
+   * sending data (including traces) to backend
    */
   private final String apiKey;
   /**
@@ -601,6 +613,10 @@ public class Config {
   private final String[] ciVisibilityJacocoPluginExcludedClassnames;
   private final Integer ciVisibilityDebugPort;
   private final int ciVisibilityTestEventsHandlerCacheSize;
+  private final boolean ciVisibilityGitTreeDataUploadEnabled;
+  private final long ciVisibilityGitTreeCommandTimeoutMillis;
+  private final String ciVisibilityGitRemoteName;
+  private final long ciVisibilityBackendApiTimeoutMillis;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -740,6 +756,21 @@ public class Config {
       }
     }
     site = configProvider.getString(SITE, DEFAULT_SITE);
+
+    String tmpApplicationKey =
+        configProvider.getStringExcludingSource(
+            APPLICATION_KEY, null, SystemPropertiesConfigSource.class);
+    String applicationKeyFile = configProvider.getString(APPLICATION_KEY_FILE);
+    if (applicationKeyFile != null) {
+      try {
+        tmpApplicationKey =
+            new String(Files.readAllBytes(Paths.get(applicationKeyFile)), StandardCharsets.UTF_8)
+                .trim();
+      } catch (final IOException e) {
+        log.error("Cannot read API key from file {}, skipping", applicationKeyFile, e);
+      }
+    }
+    applicationKey = tmpApplicationKey;
 
     String userProvidedServiceName =
         configProvider.getStringExcludingSource(
@@ -1405,6 +1436,21 @@ public class Config {
     ciVisibilityJacocoPluginExcludedClassnames =
         computeCiVisibilityJacocoPluginExcludedClassnames(ciVisibilityJacocoPluginExcludes);
     ciVisibilityDebugPort = configProvider.getInteger(CIVISIBILITY_DEBUG_PORT);
+    ciVisibilityGitTreeDataUploadEnabled =
+        configProvider.getBoolean(
+            CIVISIBILITY_GIT_TREE_DATA_UPLOAD_ENABLED,
+            DEFAULT_CIVISIBILITY_GIT_TREE_DATA_UPLOAD_ENABLED);
+    ciVisibilityGitTreeCommandTimeoutMillis =
+        configProvider.getLong(
+            CIVISIBILITY_GIT_TREE_COMMAND_TIMEOUT_MILLIS,
+            DEFAULT_CIVISIBILITY_GIT_TREE_COMMAND_TIMEOUT_MILLIS);
+    ciVisibilityBackendApiTimeoutMillis =
+        configProvider.getLong(
+            CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS,
+            DEFAULT_CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS);
+    ciVisibilityGitRemoteName =
+        configProvider.getString(
+            CIVISIBILITY_GIT_REMOTE_NAME, DEFAULT_CIVISIBILITY_GIT_REMOTE_NAME);
 
     remoteConfigEnabled =
         configProvider.getBoolean(REMOTE_CONFIG_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED);
@@ -1610,6 +1656,10 @@ public class Config {
 
   public String getApiKey() {
     return apiKey;
+  }
+
+  public String getApplicationKey() {
+    return applicationKey;
   }
 
   public String getSite() {
@@ -2285,6 +2335,22 @@ public class Config {
 
   public Integer getCiVisibilityDebugPort() {
     return ciVisibilityDebugPort;
+  }
+
+  public boolean isCiVisibilityGitTreeDataUploadEnabled() {
+    return ciVisibilityGitTreeDataUploadEnabled;
+  }
+
+  public long getCiVisibilityGitTreeCommandTimeoutMillis() {
+    return ciVisibilityGitTreeCommandTimeoutMillis;
+  }
+
+  public long getCiVisibilityBackendApiTimeoutMillis() {
+    return ciVisibilityBackendApiTimeoutMillis;
+  }
+
+  public String getCiVisibilityGitRemoteName() {
+    return ciVisibilityGitRemoteName;
   }
 
   public String getAppSecRulesFile() {
