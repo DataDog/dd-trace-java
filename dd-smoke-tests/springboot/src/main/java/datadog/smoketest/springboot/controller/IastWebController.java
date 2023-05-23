@@ -29,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.view.RedirectView;
 
 @RestController
 public class IastWebController {
@@ -82,7 +83,8 @@ public class IastWebController {
   @GetMapping("/unvalidated_redirect_from_header")
   public String unvalidatedRedirectFromHeader(
       @RequestParam String param, HttpServletResponse response) {
-    response.addHeader("Location", param);
+    String encoded = response.encodeURL(param);
+    response.addHeader("Location", encoded);
     response.setStatus(HttpStatus.FOUND.value());
     return "Unvalidated redirect";
   }
@@ -90,7 +92,8 @@ public class IastWebController {
   @GetMapping("/unvalidated_redirect_from_send_redirect")
   public String unvalidatedRedirectFromSendRedirect(
       @RequestParam String param, HttpServletResponse response) throws IOException {
-    response.sendRedirect(param);
+    String encoded = response.encodeRedirectURL(param);
+    response.sendRedirect(encoded);
     return "Unvalidated redirect";
   }
 
@@ -100,6 +103,12 @@ public class IastWebController {
       throws IOException, ServletException {
     request.getRequestDispatcher(param).forward(request, response);
     return "Unvalidated redirect";
+  }
+
+  @GetMapping("/unvalidated_redirect_from_redirect_view")
+  public RedirectView unvalidatedRedirectFromRedirectView(
+      @RequestParam String param, HttpServletResponse response) {
+    return new RedirectView(param);
   }
 
   @RequestMapping("/async_weakhash")
