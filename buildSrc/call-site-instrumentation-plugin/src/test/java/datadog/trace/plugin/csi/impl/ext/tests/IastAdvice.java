@@ -12,6 +12,6 @@ public interface IastAdvice {
   @interface Source {
 
     /** Source type */
-    String value();
+    byte value();
   }
 }

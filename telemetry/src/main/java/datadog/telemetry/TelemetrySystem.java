@@ -4,8 +4,8 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.telemetry.TelemetryRunnable.TelemetryPeriodicAction;
 import datadog.telemetry.dependency.DependencyPeriodicAction;
 import datadog.telemetry.dependency.DependencyService;
-import datadog.telemetry.iast.IastTelemetryPeriodicAction;
 import datadog.telemetry.integration.IntegrationPeriodicAction;
+import datadog.telemetry.metric.IastMetricPeriodicAction;
 import datadog.telemetry.metric.WafMetricPeriodicAction;
 import datadog.trace.api.Config;
 import datadog.trace.api.iast.telemetry.Verbosity;
@@ -46,7 +46,7 @@ public class TelemetrySystem {
     actions.add(new IntegrationPeriodicAction());
     actions.add(new WafMetricPeriodicAction());
     if (Verbosity.OFF != Config.get().getIastTelemetryVerbosity()) {
-      actions.add(new IastTelemetryPeriodicAction());
+      actions.add(new IastMetricPeriodicAction());
     }
     if (null != dependencyService) {
       actions.add(new DependencyPeriodicAction(dependencyService));

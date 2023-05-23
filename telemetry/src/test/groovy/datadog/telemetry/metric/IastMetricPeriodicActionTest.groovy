@@ -1,24 +1,25 @@
-package datadog.telemetry.iast
+package datadog.telemetry.metric
 
 import datadog.telemetry.TelemetryService
 import datadog.telemetry.api.Metric
 import datadog.trace.api.iast.telemetry.IastMetric
-import datadog.trace.api.iast.telemetry.IastTelemetryCollector
+import datadog.trace.api.iast.telemetry.IastMetricCollector
 import groovy.transform.CompileDynamic
 import spock.lang.Specification
 
 @CompileDynamic
-class IastTelemetryPeriodicActionTest extends Specification {
+class IastMetricPeriodicActionTest extends Specification {
 
   void 'test metric'() {
     given:
-    final action = new IastTelemetryPeriodicAction()
+    final action = new IastMetricPeriodicAction()
     final service = Mock(TelemetryService)
     final iastMetric = IastMetric.EXECUTED_TAINTED
     final value = 23L
 
     when:
-    IastTelemetryCollector.add(iastMetric, value)
+    IastMetricCollector.add(iastMetric, value)
+    IastMetricCollector.get().prepareMetrics()
     action.doIteration(service)
 
     then:
@@ -28,24 +29,24 @@ class IastTelemetryPeriodicActionTest extends Specification {
 
   void 'test tagged metric'() {
     given:
-    final action = new IastTelemetryPeriodicAction()
+    final action = new IastMetricPeriodicAction()
     final service = Mock(TelemetryService)
-    final iastMetric = IastMetric.INSTRUMENTED_SOURCE
+    final iastMetric = IastMetric.INSTRUMENTED_SOURCE_REQUEST_PARAMETER_VALUE
     final value = 23L
-    final tag = 'my_source'
 
     when:
-    IastTelemetryCollector.add(iastMetric, value, tag)
+    IastMetricCollector.add(iastMetric, value)
+    IastMetricCollector.get().prepareMetrics()
     action.doIteration(service)
 
     then:
-    1 * service.addMetric({ matches(it, iastMetric, value, ["${iastMetric.tag}:${tag}"]) })
+    1 * service.addMetric({ matches(it, iastMetric, value, ["${iastMetric.tagName}:${iastMetric.tagValue}"]) })
     0 * _
   }
 
   void 'test with no metrics'() {
     given:
-    final action = new IastTelemetryPeriodicAction()
+    final action = new IastMetricPeriodicAction()
     final service = Mock(TelemetryService)
 
     when:
@@ -56,7 +57,7 @@ class IastTelemetryPeriodicActionTest extends Specification {
   }
 
   private static boolean matches(final Metric metric, final IastMetric iastMetric, final long value, final List<String> tags) {
-    if (metric.namespace != IastTelemetryPeriodicAction.NAMESPACE) {
+    if (metric.namespace != 'iast') {
       return false
     }
     if (metric.metric != iastMetric.name) {

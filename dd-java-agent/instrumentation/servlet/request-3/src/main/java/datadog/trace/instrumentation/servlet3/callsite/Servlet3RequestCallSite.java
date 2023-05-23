@@ -12,7 +12,7 @@ import javax.servlet.ServletRequest;
 @CallSite(spi = IastAdvice.class)
 public class Servlet3RequestCallSite {
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
   @CallSite.After("java.util.Map javax.servlet.ServletRequest.getParameterMap()")
   @CallSite.After("java.util.Map javax.servlet.http.HttpServletRequest.getParameterMap()")
   @CallSite.After("java.util.Map javax.servlet.http.HttpServletRequestWrapper.getParameterMap()")
