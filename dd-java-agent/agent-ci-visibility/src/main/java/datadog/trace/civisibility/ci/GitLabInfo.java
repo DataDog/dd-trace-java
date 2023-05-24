@@ -57,22 +57,13 @@ class GitLabInfo implements CIProviderInfo {
         .ciPipelineId(System.getenv(GITLAB_PIPELINE_ID))
         .ciPipelineName(System.getenv(GITLAB_PIPELINE_NAME))
         .ciPipelineNumber(System.getenv(GITLAB_PIPELINE_NUMBER))
-        .ciPipelineUrl(buildPipelineUrl())
+        .ciPipelineUrl(System.getenv(GITLAB_PIPELINE_URL))
         .ciStageName(System.getenv(GITLAB_STAGE_NAME))
         .ciJobName(System.getenv(GITLAB_JOB_NAME))
         .ciJobUrl(System.getenv(GITLAB_JOB_URL))
         .ciWorkspace(expandTilde(System.getenv(GITLAB_WORKSPACE_PATH)))
         .ciEnvVars(GITLAB_PROJECT_URL, GITLAB_PIPELINE_ID, GITLAB_JOB_ID)
         .build();
-  }
-
-  private String buildPipelineUrl() {
-    final String pipelineUrl = System.getenv(GITLAB_PIPELINE_URL);
-    if (pipelineUrl == null || pipelineUrl.isEmpty()) {
-      return null;
-    }
-
-    return pipelineUrl.replace("/-/pipelines/", "/pipelines/");
   }
 
   private PersonInfo buildGitCommitAuthor() {
