@@ -15,6 +15,7 @@ import java.lang.reflect.Modifier
 import java.util.concurrent.Phaser
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
@@ -95,6 +96,7 @@ class TestServlet3 {
             resp.writer.print(endpoint.bodyForQuery(req.queryString))
             break
           case BODY_URLENCODED:
+          case BODY_MULTIPART:
             resp.status = endpoint.status
             resp.writer.print(
               req.parameterMap

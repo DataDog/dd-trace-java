@@ -91,6 +91,7 @@ dependencies {
   latestDepTestImplementation group: 'org.apache.tomcat', name: 'jakartaee-migration', version: '1.+'
 
   latestDepTestRuntimeOnly(project(':dd-java-agent:instrumentation:tomcat-appsec-6'))
+  latestDepTestRuntimeOnly(project(':dd-java-agent:instrumentation:tomcat-appsec-7'))
 }
 
 // Exclude all the dependencies from test for latestDepTest since the names are completely different.

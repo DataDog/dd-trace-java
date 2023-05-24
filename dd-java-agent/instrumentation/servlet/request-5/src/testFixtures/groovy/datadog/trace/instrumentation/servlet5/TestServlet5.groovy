@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletResponse
 import java.lang.reflect.Field
 import java.lang.reflect.Modifier
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS
@@ -66,6 +67,7 @@ class TestServlet5 extends HttpServlet {
           resp.status = endpoint.status
           resp.writer.print(req.getHeader("x-forwarded-for"))
           break
+        case BODY_MULTIPART:
         case BODY_URLENCODED:
           resp.status = endpoint.status
           resp.writer.print(

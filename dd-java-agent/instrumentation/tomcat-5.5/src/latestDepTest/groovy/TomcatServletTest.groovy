@@ -42,6 +42,7 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
         applicationDir.deleteOnExit()
       }
       Context servletContext = server.addWebapp("/$context", applicationDir.getAbsolutePath())
+      servletContext.allowCasualMultipartParsing = true
       // Speed up startup by disabling jar scanning:
       servletContext.getJarScanner().setJarScanFilter(new JarScanFilter() {
           @Override
@@ -104,6 +105,11 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
 
   @Override
   boolean testRequestBodyISVariant() {
+    true
+  }
+
+  @Override
+  boolean testBodyMultipart() {
     true
   }
 

@@ -1658,13 +1658,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   }
 
   private final static String MULTIPART_CONTENT_TYPE = 'multipart/form-data; boundary=------------------------943d3207457896a3'
-  private final static String MULTIPART_BODY = '''
-      --------------------------943d3207457896a3
-      Content-Disposition: form-data; name="a"
-
-      x
-      --------------------------943d3207457896a3--
-  '''.stripIndent()[1..-1]
+  private final static String MULTIPART_BODY =
+  '--------------------------943d3207457896a3\r\n' +
+  'Content-Disposition: form-data; name="a"\r\n' +
+  '\r\n' +
+  'x\r\n' +
+  '--------------------------943d3207457896a3--'
 
   private String headerForPlainTextBody() {
     requestBodyNoStreaming ? IG_BODY_CONVERTED_HEADER : IG_BODY_END_BLOCK_HEADER

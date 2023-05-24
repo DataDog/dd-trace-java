@@ -57,6 +57,7 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
         applicationDir.deleteOnExit()
       }
       Context servletContext = server.addWebapp("/$context", applicationDir.getAbsolutePath())
+      servletContext.allowCasualMultipartParsing = true
       // Speed up startup by disabling jar scanning:
       servletContext.getJarScanner().setJarScanFilter(new JarScanFilter() {
           @Override
@@ -344,6 +345,16 @@ class TestAccessLogValve extends ValveBase implements AccessLog {
 }
 
 class TomcatServlet3TestSync extends TomcatServlet3Test {
+
+  @Override
+  boolean testBodyUrlencoded() {
+    true
+  }
+
+  @Override
+  boolean testBodyMultipart() {
+    true
+  }
 
   @Override
   Class<Servlet> servlet() {
