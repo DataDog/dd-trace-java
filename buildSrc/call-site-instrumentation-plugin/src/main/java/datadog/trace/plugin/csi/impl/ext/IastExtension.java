@@ -14,12 +14,14 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.TypeDeclaration;
+import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.expr.ArrayCreationExpr;
 import com.github.javaparser.ast.expr.ArrayInitializerExpr;
 import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.BooleanLiteralExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
+import com.github.javaparser.ast.expr.MemberValuePair;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
@@ -59,9 +61,9 @@ public class IastExtension implements Extension {
   static final String IAST_ADVICE_FQCN = "datadog.trace.api.iast." + IAST_ADVICE_CLASS;
   private static final String HAS_TELEMETRY_INTERFACE = IAST_ADVICE_CLASS + ".HasTelemetry";
   private static final String KIND_CLASS = IAST_ADVICE_CLASS + ".Kind";
-  private static final String IAST_TELEMETRY_COLLECTOR_CLASS = "IastTelemetryCollector";
-  private static final String IAST_TELEMETRY_COLLECTOR_FQCN =
-      "datadog.trace.api.iast.telemetry." + IAST_TELEMETRY_COLLECTOR_CLASS;
+  private static final String IAST_METRIC_COLLECTOR_CLASS = "IastMetricCollector";
+  private static final String IAST_METRIC_COLLECTOR_FQCN =
+      "datadog.trace.api.iast.telemetry." + IAST_METRIC_COLLECTOR_CLASS;
   private static final String IAST_METRIC_CLASS = "IastMetric";
   private static final String IAST_METRIC_FQCN =
       "datadog.trace.api.iast.telemetry." + IAST_METRIC_CLASS;
@@ -92,7 +94,7 @@ public class IastExtension implements Extension {
         configuration.getTargetFolder().resolve(callSiteFile + WITH_TELEMETRY_SUFFIX + ".java");
     callSite.setStorage(newFile);
     final TypeDeclaration<?> callSiteType = getPrimaryType(callSite);
-    callSite.addImport(IAST_TELEMETRY_COLLECTOR_FQCN);
+    callSite.addImport(IAST_METRIC_COLLECTOR_FQCN);
     callSite.addImport(IAST_METRIC_FQCN);
     final String name = callSiteType.getNameAsString() + WITH_TELEMETRY_SUFFIX;
     final ClassOrInterfaceDeclaration withTelemetry = callSiteType.asClassOrInterfaceDeclaration();
@@ -127,7 +129,7 @@ public class IastExtension implements Extension {
       final TypeResolver resolver, final AdviceResult advice, final AdviceMetadata metaData)
       throws FileNotFoundException {
     final CompilationUnit adviceSource = parseJavaFile(resolver, advice.getFile());
-    adviceSource.addImport(IAST_TELEMETRY_COLLECTOR_FQCN);
+    adviceSource.addImport(IAST_METRIC_COLLECTOR_FQCN);
     adviceSource.addImport(IAST_METRIC_FQCN);
     adviceSource.addImport(IAST_ADVICE_FQCN);
     final ClassOrInterfaceDeclaration mainType =
@@ -178,7 +180,7 @@ public class IastExtension implements Extension {
       final AdviceMetadata metaData) {
     final MethodDeclaration applyMethod = mainType.getMethodsByName("apply").get(0);
     final BlockStmt ifTelemetry = new BlockStmt();
-    ifTelemetry.addStatement(iastTelemetryCollectorAddMethod(javaClass, metaData, "INSTRUMENTED"));
+    ifTelemetry.addStatement(iastTelemetryCollectorAddMethod(metaData, "INSTRUMENTED"));
     applyMethod
         .getBody()
         .get()
@@ -276,33 +278,29 @@ public class IastExtension implements Extension {
       final AdviceMetadata metaData) {
     final BlockStmt body = method.getBody().get();
     if (!body.getStatements().isEmpty()
-        && body.getStatements().get(0).toString().contains(IAST_TELEMETRY_COLLECTOR_CLASS)) {
+        && body.getStatements().get(0).toString().contains(IAST_METRIC_COLLECTOR_CLASS)) {
       return; // call site already processed
     }
-    body.addStatement(0, iastTelemetryCollectorAddMethod(javaClass, metaData, "EXECUTED"));
+    body.addStatement(0, iastTelemetryCollectorAddMethod(metaData, "EXECUTED"));
     javaClass.getStorage().get().save();
   }
 
   private MethodCallExpr iastTelemetryCollectorAddMethod(
-      final CompilationUnit javaClass, final AdviceMetadata metaData, final String type) {
-    final MethodCallExpr incMethod =
-        new MethodCallExpr()
-            .setScope(new NameExpr(IAST_TELEMETRY_COLLECTOR_CLASS))
-            .setName("add")
-            .addArgument(
-                new FieldAccessExpr()
-                    .setScope(new NameExpr(IAST_METRIC_CLASS))
-                    .setName(type + "_" + metaData.getKind()))
-            .addArgument(intLiteral(1));
+      final AdviceMetadata metaData, final String type) {
+    final StringBuilder metric = new StringBuilder(type).append("_").append(metaData.getKind());
     if (metaData.getTag() != null) {
+      // Uses the name of the field to compose the name of the metric
       final Expression tag = metaData.getTag();
-      if (tag.isFieldAccessExpr()) {
-        final ResolvedType resolvedTag = tag.asFieldAccessExpr().getScope().calculateResolvedType();
-        javaClass.addImport(resolvedTag.describe());
-      }
-      incMethod.addArgument(metaData.getTag());
+      metric.append("_").append(tag.asFieldAccessExpr().getName());
     }
-    return incMethod;
+    return new MethodCallExpr()
+        .setScope(new NameExpr(IAST_METRIC_COLLECTOR_CLASS))
+        .setName("add")
+        .addArgument(
+            new FieldAccessExpr()
+                .setScope(new NameExpr(IAST_METRIC_CLASS))
+                .setName(metric.toString()))
+        .addArgument(intLiteral(1));
   }
 
   private List<AdviceResult> findAdvices(
@@ -373,21 +371,38 @@ public class IastExtension implements Extension {
     }
 
     private static AdviceMetadata findAdviceMetadata(final BodyDeclaration<?> target) {
-      return Stream.of("Source", "Propagation", "Sink")
-          .map(target::getAnnotationByName)
-          .filter(Optional::isPresent)
-          .map(Optional::get)
-          .findFirst()
+      return target.getAnnotations().stream()
+          .filter(AdviceMetadata::isAdviceAnnotation)
           .map(
               annotation -> {
-                final Expression tag =
-                    annotation.isSingleMemberAnnotationExpr()
-                        ? annotation.asSingleMemberAnnotationExpr().getMemberValue()
-                        : null;
+                final Expression tag = getAdviceAnnotationExpression(annotation);
                 final String typeName = annotation.getName().getId();
                 return new AdviceMetadata(typeName.toUpperCase(), tag);
               })
+          .findFirst()
           .orElse(null);
+    }
+
+    private static boolean isAdviceAnnotation(final AnnotationExpr expr) {
+      final String identifier = expr.getName().getIdentifier();
+      return identifier.equals("Source")
+          || identifier.equals("Propagation")
+          || identifier.equals("Sink");
+    }
+
+    private static Expression getAdviceAnnotationExpression(final AnnotationExpr expr) {
+      if (expr.isMarkerAnnotationExpr()) {
+        return null;
+      } else if (expr.isSingleMemberAnnotationExpr()) {
+        return expr.asSingleMemberAnnotationExpr().getMemberValue();
+      } else {
+        final List<MemberValuePair> pairs = expr.asNormalAnnotationExpr().getPairs();
+        return pairs.stream()
+            .filter(it -> it.getName().toString().equals("value"))
+            .map(MemberValuePair::getValue)
+            .findFirst()
+            .orElse(null);
+      }
     }
 
     public String getKind() {

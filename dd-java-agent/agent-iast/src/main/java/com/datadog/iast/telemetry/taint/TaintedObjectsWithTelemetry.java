@@ -9,7 +9,7 @@ import com.datadog.iast.model.Source;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.iast.telemetry.IastTelemetryCollector;
+import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -63,9 +63,9 @@ public abstract class TaintedObjectsWithTelemetry {
       delegate.release();
       final RequestContext ctx = getRequestContext();
       if (delegate.isFlat()) {
-        IastTelemetryCollector.add(TAINTED_FLAT_MODE, 1, ctx);
+        IastMetricCollector.add(TAINTED_FLAT_MODE, 1, ctx);
       } else {
-        IastTelemetryCollector.add(REQUEST_TAINTED, delegate.getEstimatedSize(), ctx);
+        IastMetricCollector.add(REQUEST_TAINTED, delegate.getEstimatedSize(), ctx);
       }
     }
 
@@ -101,21 +101,21 @@ public abstract class TaintedObjectsWithTelemetry {
     @Override
     public TaintedObject taintInputString(@Nonnull String obj, @Nonnull Source source) {
       final TaintedObject result = delegate.taintInputString(obj, source);
-      IastTelemetryCollector.add(EXECUTED_TAINTED, 1, getRequestContext());
+      IastMetricCollector.add(EXECUTED_TAINTED, 1, getRequestContext());
       return result;
     }
 
     @Override
     public TaintedObject taintInputObject(@Nonnull Object obj, @Nonnull Source source) {
       final TaintedObject result = delegate.taintInputObject(obj, source);
-      IastTelemetryCollector.add(EXECUTED_TAINTED, 1, getRequestContext());
+      IastMetricCollector.add(EXECUTED_TAINTED, 1, getRequestContext());
       return result;
     }
 
     @Override
     public TaintedObject taint(@Nonnull Object obj, @Nonnull Range[] ranges) {
       final TaintedObject result = delegate.taint(obj, ranges);
-      IastTelemetryCollector.add(EXECUTED_TAINTED, 1, getRequestContext());
+      IastMetricCollector.add(EXECUTED_TAINTED, 1, getRequestContext());
       return result;
     }
   }

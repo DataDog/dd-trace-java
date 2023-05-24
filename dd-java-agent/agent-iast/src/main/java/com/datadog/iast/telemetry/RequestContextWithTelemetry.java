@@ -2,22 +2,22 @@ package com.datadog.iast.telemetry;
 
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.taint.TaintedObjects;
-import datadog.trace.api.iast.telemetry.IastTelemetryCollector;
-import datadog.trace.api.iast.telemetry.IastTelemetryCollector.HasTelemetryCollector;
+import datadog.trace.api.iast.telemetry.IastMetricCollector;
+import datadog.trace.api.iast.telemetry.IastMetricCollector.HasTelemetryCollector;
 
 public class RequestContextWithTelemetry extends IastRequestContext
     implements HasTelemetryCollector {
 
-  private final IastTelemetryCollector collector;
+  private final IastMetricCollector collector;
 
   public RequestContextWithTelemetry(
-      final TaintedObjects taintedObjects, final IastTelemetryCollector collector) {
+      final TaintedObjects taintedObjects, final IastMetricCollector collector) {
     super(taintedObjects);
     this.collector = collector;
   }
 
   @Override
-  public IastTelemetryCollector getTelemetryCollector() {
+  public IastMetricCollector getTelemetryCollector() {
     return collector;
   }
 }

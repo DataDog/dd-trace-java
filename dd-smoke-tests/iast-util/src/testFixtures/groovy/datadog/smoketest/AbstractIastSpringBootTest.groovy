@@ -433,4 +433,22 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     then:
     hasMetric('_dd.iast.telemetry.executed.sink.command_injection', 1)
   }
+
+  void 'weak randomness is present in #evidence'() {
+    setup:
+    final url = "http://localhost:${httpPort}/weak_randomness?mode=${evidence}"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'WEAK_RANDOMNESS' && vul.evidence.value == evidence }
+
+    where:
+    evidence                                 | _
+    'java.util.Random'                       | _
+    'java.util.concurrent.ThreadLocalRandom' | _
+    'java.lang.Math'                         | _
+  }
 }

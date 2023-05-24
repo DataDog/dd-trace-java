@@ -8,7 +8,7 @@ import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.telemetry.IastMetric
-import datadog.trace.api.iast.telemetry.IastTelemetryCollector
+import datadog.trace.api.iast.telemetry.IastMetricCollector
 import datadog.trace.api.iast.telemetry.Verbosity
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -22,10 +22,10 @@ class TaintedObjectsWithTelemetryTest extends DDSpecification {
   @Shared
   protected static final AgentTracer.TracerAPI ORIGINAL_TRACER = AgentTracer.get()
 
-  private IastTelemetryCollector mockCollector
+  private IastMetricCollector mockCollector
 
   void setup() {
-    mockCollector = Mock(IastTelemetryCollector)
+    mockCollector = Mock(IastMetricCollector)
     final iastCtx = Mock(RequestContextWithTelemetry) {
       getTelemetryCollector() >> mockCollector
     }
@@ -56,9 +56,9 @@ class TaintedObjectsWithTelemetryTest extends DDSpecification {
 
     then:
     if (IastMetric.REQUEST_TAINTED.isEnabled(verbosity)) {
-      1 * mockCollector.addMetric(IastMetric.REQUEST_TAINTED, taintedObjects.getEstimatedSize(), null)
+      1 * mockCollector.addMetric(IastMetric.REQUEST_TAINTED, taintedObjects.getEstimatedSize())
     } else {
-      0 * mockCollector.addMetric(_, _, _)
+      0 * mockCollector.addMetric
     }
 
     where:
@@ -76,9 +76,9 @@ class TaintedObjectsWithTelemetryTest extends DDSpecification {
 
     then:
     if (IastMetric.EXECUTED_TAINTED.isEnabled(verbosity)) {
-      3 * mockCollector.addMetric(IastMetric.EXECUTED_TAINTED, 1, null) // two calls with one element
+      3 * mockCollector.addMetric(IastMetric.EXECUTED_TAINTED, 1) // two calls with one element
     } else {
-      0 * mockCollector.addMetric(_, _, _)
+      0 * mockCollector.addMetric
     }
 
     where:
@@ -96,9 +96,9 @@ class TaintedObjectsWithTelemetryTest extends DDSpecification {
 
     then:
     if (IastMetric.TAINTED_FLAT_MODE.isEnabled(verbosity) && taintedObjects.isFlat()) {
-      1 * mockCollector.addMetric(IastMetric.TAINTED_FLAT_MODE, _, _)
+      1 * mockCollector.addMetric(IastMetric.TAINTED_FLAT_MODE, _)
     } else {
-      0 * mockCollector.addMetric(_, _, _)
+      0 * mockCollector.addMetric
     }
 
     where:

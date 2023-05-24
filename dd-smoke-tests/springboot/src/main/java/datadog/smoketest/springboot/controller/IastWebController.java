@@ -11,6 +11,9 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.security.Principal;
+import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
+import javax.servlet.ServletException;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -31,10 +34,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class IastWebController {
 
   private final Hasher hasher;
+  private final Random random;
 
   public IastWebController() {
     hasher = new Hasher();
     hasher.sha1();
+    random = new Random();
   }
 
   @RequestMapping("/greeting")
@@ -86,6 +91,14 @@ public class IastWebController {
   public String unvalidatedRedirectFromSendRedirect(
       @RequestParam String param, HttpServletResponse response) throws IOException {
     response.sendRedirect(param);
+    return "Unvalidated redirect";
+  }
+
+  @GetMapping("/unvalidated_redirect_from_forward")
+  public String unvalidatedRedirectFromForward(
+      @RequestParam String param, HttpServletRequest request, HttpServletResponse response)
+      throws IOException, ServletException {
+    request.getRequestDispatcher(param).forward(request, response);
     return "Unvalidated redirect";
   }
 
@@ -190,6 +203,19 @@ public class IastWebController {
     } catch (final Exception e) {
     }
     return "Url is: " + url;
+  }
+
+  @GetMapping("/weak_randomness")
+  public String weak_randomness(@RequestParam("mode") final Class<?> mode) {
+    final double result;
+    if (mode == ThreadLocalRandom.class) {
+      result = ThreadLocalRandom.current().nextDouble();
+    } else if (mode == Math.class) {
+      result = Math.random();
+    } else {
+      result = random.nextDouble();
+    }
+    return "Random : " + result;
   }
 
   private void withProcess(final Operation<Process> op) {
