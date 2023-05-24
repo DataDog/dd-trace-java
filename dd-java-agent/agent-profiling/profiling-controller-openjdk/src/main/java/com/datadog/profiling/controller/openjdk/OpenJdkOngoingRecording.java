@@ -76,9 +76,9 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
         case WALL:
           {
             log.debug("Disabling built-in wall-time tracing events");
-            recording.disable("jdk.JavaMonitorWait");
-            recording.disable("jdk.ThreadPark");
-            recording.disable("jdk.ThreadSleep");
+            //recording.disable("jdk.JavaMonitorWait");
+            //recording.disable("jdk.ThreadPark");
+            //recording.disable("jdk.ThreadSleep");
             break;
           }
         case ALLOCATION:
