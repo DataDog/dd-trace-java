@@ -26,7 +26,7 @@ class UndertowTest extends HttpServerTest<Undertow> {
       undertowServer = Undertow.builder()
         .addHttpListener(port, "localhost")
         .setServerOption(UndertowOptions.DECODE_URL, true)
-        .setHandler(Handlers.path()
+        .setHandler(Handlers.httpContinueRead(Handlers.path()
         .addExactPath(SUCCESS.getPath()) { exchange ->
           controller(SUCCESS) {
             exchange.getResponseSender().send(SUCCESS.body)
@@ -119,7 +119,7 @@ class UndertowTest extends HttpServerTest<Undertow> {
             }
           }
         }
-        ).build()
+        )).build()
     }
 
     @Override

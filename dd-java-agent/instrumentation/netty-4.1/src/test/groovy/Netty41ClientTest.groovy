@@ -1,3 +1,8 @@
+import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static org.asynchttpclient.Dsl.asyncHttpClient
+
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.agent.test.naming.TestingNettyHttpNamingConventions
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -10,17 +15,16 @@ import io.netty.handler.codec.http.HttpRequestEncoder
 import io.netty.handler.codec.http.HttpVersion
 import io.netty.handler.ssl.SslContextBuilder
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory
-import org.asynchttpclient.*
+import org.asynchttpclient.AsyncCompletionHandler
+import org.asynchttpclient.AsyncHttpClient
+import org.asynchttpclient.BoundRequestBuilder
+import org.asynchttpclient.DefaultAsyncHttpClientConfig
+import org.asynchttpclient.Response
 import org.asynchttpclient.proxy.ProxyServer
 import spock.lang.AutoCleanup
 import spock.lang.Timeout
 
 import java.util.concurrent.ExecutionException
-
-import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static org.asynchttpclient.Dsl.asyncHttpClient
 
 @Timeout(5)
 abstract class Netty41ClientTest extends HttpClientTest {
