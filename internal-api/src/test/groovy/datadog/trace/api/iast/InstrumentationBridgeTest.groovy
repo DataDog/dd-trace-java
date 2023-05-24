@@ -9,8 +9,10 @@ import datadog.trace.api.iast.sink.LdapInjectionModule
 import datadog.trace.api.iast.sink.PathTraversalModule
 import datadog.trace.api.iast.sink.SqlInjectionModule
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
+import datadog.trace.api.iast.sink.SsrfModule
 import datadog.trace.api.iast.sink.WeakCipherModule
 import datadog.trace.api.iast.sink.WeakHashModule
+import datadog.trace.api.iast.sink.WeakRandomnessModule
 import datadog.trace.api.iast.source.WebModule
 import datadog.trace.test.util.DDSpecification
 
@@ -26,6 +28,9 @@ class InstrumentationBridgeTest extends DDSpecification {
     CommandInjectionModule,
     PathTraversalModule,
     LdapInjectionModule,
+    SsrfModule,
+    UnvalidatedRedirectModule,
+    WeakRandomnessModule
   ]
 
   def cleanup() {
