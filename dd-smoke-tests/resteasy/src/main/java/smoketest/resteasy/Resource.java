@@ -2,7 +2,6 @@ package smoketest.resteasy;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.sql.SQLException;
 import java.util.List;
 import java.util.Set;
 import java.util.SortedSet;
@@ -30,58 +29,49 @@ public class Resource {
   @Path("/bypathparam/{name}")
   @GET
   @Produces(MediaType.TEXT_PLAIN)
-  public String byPathParam(@PathParam("name") String name) throws SQLException {
-    DB.store(name);
+  public String byPathParam(@PathParam("name") String name) {
     return "RestEasy: hello " + name;
   }
 
   @Path("/byqueryparam")
   @GET
   @Produces(MediaType.TEXT_PLAIN)
-  public String byQueryParam(@QueryParam("param") String param) throws SQLException {
-    DB.store(param);
+  public String byQueryParam(@QueryParam("param") String param) {
     return "RestEasy: hello " + param;
   }
 
   @Path("/byheader")
   @GET
   @Produces(MediaType.TEXT_PLAIN)
-  public String byHeader(@HeaderParam("X-Custom-header") String param) throws SQLException {
-    DB.store(param);
+  public String byHeader(@HeaderParam("X-Custom-header") String param) {
     return "RestEasy: hello " + param;
   }
 
   @Path("/bycookie")
   @GET
   @Produces(MediaType.TEXT_PLAIN)
-  public String byCookie(@CookieParam("cookieName") String param) throws SQLException {
-    DB.store(param);
+  public String byCookie(@CookieParam("cookieName") String param) {
     return "RestEasy: hello " + param;
   }
 
   @Path("/collection")
   @GET
   @Produces(MediaType.TEXT_PLAIN)
-  public String collectionByQueryParam(@QueryParam("param") List<String> param)
-      throws SQLException {
-    DB.store(param.get(0));
+  public String collectionByQueryParam(@QueryParam("param") List<String> param) {
     return "RestEasy: hello " + param;
   }
 
   @Path("/set")
   @GET
   @Produces(MediaType.TEXT_PLAIN)
-  public String setByQueryParam(@QueryParam("param") Set<String> param) throws SQLException {
-    DB.store(param.iterator().next());
+  public String setByQueryParam(@QueryParam("param") Set<String> param) {
     return "RestEasy: hello " + param;
   }
 
   @Path("/sortedset")
   @GET
   @Produces(MediaType.TEXT_PLAIN)
-  public String sortedSetByQueryParam(@QueryParam("param") SortedSet<String> param)
-      throws SQLException {
-    DB.store(param.iterator().next());
+  public String sortedSetByQueryParam(@QueryParam("param") SortedSet<String> param) {
     return "RestEasy: hello " + param;
   }
 

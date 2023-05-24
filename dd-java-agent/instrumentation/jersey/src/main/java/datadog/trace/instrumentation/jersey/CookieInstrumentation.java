@@ -52,7 +52,7 @@ public class CookieInstrumentation extends Instrumenter.Iast implements Instrume
         @Advice.This Object self) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taintIfInputIsTainted(SourceTypes.REQUEST_COOKIE_NAME, name, cookieValue, self);
+        module.taintIfInputIsTainted(SourceTypes.REQUEST_COOKIE_VALUE, name, cookieValue, self);
       }
     }
   }

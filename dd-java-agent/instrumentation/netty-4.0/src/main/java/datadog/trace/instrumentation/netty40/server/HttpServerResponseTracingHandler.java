@@ -11,6 +11,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpResponseStatus;
 
 @ChannelHandler.Sharable
 public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdapter {
@@ -35,9 +36,11 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
         span.finish(); // Finish the span manually since finishSpanOnClose was false
         throw throwable;
       }
-      DECORATE.onResponse(span, response);
-      DECORATE.beforeFinish(span);
-      span.finish(); // Finish the span manually since finishSpanOnClose was false
+      if (response.getStatus() != HttpResponseStatus.CONTINUE) {
+        DECORATE.onResponse(span, response);
+        DECORATE.beforeFinish(span);
+        span.finish(); // Finish the span manually since finishSpanOnClose was false
+      }
     }
   }
 }
