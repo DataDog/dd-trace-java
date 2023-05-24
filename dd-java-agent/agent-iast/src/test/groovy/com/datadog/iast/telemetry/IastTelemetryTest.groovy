@@ -3,17 +3,13 @@ package com.datadog.iast.telemetry
 import com.datadog.iast.IastRequestContext
 import datadog.trace.api.Config
 import datadog.trace.api.iast.telemetry.IastMetric
-import datadog.trace.api.iast.telemetry.IastTelemetryCollector
+import datadog.trace.api.iast.telemetry.IastMetricCollector
 import datadog.trace.api.iast.telemetry.Verbosity
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.test.util.DDSpecification
 import groovy.transform.CompileDynamic
 import groovy.transform.ToString
 
-import static datadog.trace.api.iast.SourceTypes.REQUEST_HEADER_VALUE_STRING
-import static datadog.trace.api.iast.SourceTypes.REQUEST_PARAMETER_VALUE_STRING
-import static datadog.trace.api.iast.VulnerabilityTypes.COMMAND_INJECTION
-import static datadog.trace.api.iast.VulnerabilityTypes.SQL_INJECTION
 import static datadog.trace.api.iast.telemetry.IastMetric.*
 
 @CompileDynamic
@@ -69,15 +65,15 @@ class IastTelemetryTest extends DDSpecification {
     final context = telemetry.onRequestStarted()
 
     then:
-    context instanceof IastTelemetryCollector.HasTelemetryCollector
+    context instanceof IastMetricCollector.HasTelemetryCollector
 
     when:
-    final collector = (context as IastTelemetryCollector.HasTelemetryCollector).telemetryCollector
-    collector.addMetric(metric, 1, null)
+    final collector = (context as IastMetricCollector.HasTelemetryCollector).telemetryCollector
+    collector.addMetric(metric, 1)
     telemetry.onRequestEnded(context, trace)
 
     then:
-    1 * trace.setTagTop(String.format(IastTelemetry.TRACE_METRIC_PATTERN, metric.name), 1L)
+    1 * trace.setTagTop(String.format(IastTelemetry.TRACE_METRIC_PATTERN, metric.spanTag), 1L)
     0 * _
   }
 
@@ -86,16 +82,15 @@ class IastTelemetryTest extends DDSpecification {
     final telemetry = new IastTelemetryImpl(Verbosity.DEBUG)
     final trace = Mock(TraceSegment)
     final context = telemetry.onRequestStarted()
-    final collector = (context as IastTelemetryCollector.HasTelemetryCollector).telemetryCollector
-    metrics.each { collector.addMetric(it.metric, it.value, it.tag) }
+    final collector = (context as IastMetricCollector.HasTelemetryCollector).telemetryCollector
+    metrics.each { collector.addMetric(it.metric, it.value) }
 
     when:
     telemetry.onRequestEnded(context, trace)
 
     then:
     metrics.findAll { it.metric.scope == Scope.REQUEST }.each {
-      final name = "${it.metric.name}${it.tag ? '.' + it.tag.toLowerCase().replaceAll('\\.', '_') : ''}"
-      1 * trace.setTagTop(String.format(IastTelemetry.TRACE_METRIC_PATTERN, name), it.value)
+      1 * trace.setTagTop(String.format(IastTelemetry.TRACE_METRIC_PATTERN, it.metric.spanTag), it.value)
     }
     0 * _
 
@@ -103,25 +98,24 @@ class IastTelemetryTest extends DDSpecification {
     metrics                                                            | description
     [
       metric(REQUEST_TAINTED, 123),
-      metric(EXECUTED_SOURCE, 2L, REQUEST_PARAMETER_VALUE_STRING),
-      metric(EXECUTED_SOURCE, 4L, REQUEST_HEADER_VALUE_STRING),
-      metric(EXECUTED_SINK, 1L, SQL_INJECTION),
-      metric(EXECUTED_SINK, 2L, COMMAND_INJECTION),
+      metric(EXECUTED_SOURCE_REQUEST_PARAMETER_VALUE, 2L),
+      metric(EXECUTED_SOURCE_REQUEST_HEADER_VALUE, 4L),
+      metric(EXECUTED_SINK_SQL_INJECTION, 1L),
+      metric(EXECUTED_SINK_COMMAND_INJECTION, 2L),
     ]                                                                  | 'List of only request scoped metrics'
     [
       metric(REQUEST_TAINTED, 123),
-      metric(INSTRUMENTED_SOURCE, 2L, REQUEST_PARAMETER_VALUE_STRING),
+      metric(INSTRUMENTED_SOURCE_REQUEST_PARAMETER_VALUE, 2L),
     ]                                                                  | 'Mix between global and request scoped metrics'
   }
 
-  private static Data metric(final IastMetric metric, final long value, final String tag = null) {
-    return new Data(metric: metric, value: value, tag: tag)
+  private static Data metric(final IastMetric metric, final long value) {
+    return new Data(metric: metric, value: value)
   }
 
   @ToString
   private static class Data {
     IastMetric metric
     long value
-    String tag
   }
 }

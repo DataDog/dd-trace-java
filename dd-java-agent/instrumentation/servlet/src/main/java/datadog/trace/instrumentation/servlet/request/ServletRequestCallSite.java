@@ -23,7 +23,7 @@ import javax.servlet.ServletRequest;
 @CallSite(spi = IastAdvice.class)
 public class ServletRequestCallSite {
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
   @CallSite.After("java.lang.String javax.servlet.ServletRequest.getParameter(java.lang.String)")
   @CallSite.After(
       "java.lang.String javax.servlet.http.HttpServletRequest.getParameter(java.lang.String)")
@@ -46,7 +46,7 @@ public class ServletRequestCallSite {
     return paramValue;
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_NAME_STRING)
+  @Source(SourceTypes.REQUEST_PARAMETER_NAME)
   @CallSite.After("java.util.Enumeration javax.servlet.ServletRequest.getParameterNames()")
   @CallSite.After("java.util.Enumeration javax.servlet.http.HttpServletRequest.getParameterNames()")
   @CallSite.After(
@@ -79,7 +79,7 @@ public class ServletRequestCallSite {
     }
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
   @CallSite.After(
       "java.lang.String[] javax.servlet.ServletRequest.getParameterValues(java.lang.String)")
   @CallSite.After(

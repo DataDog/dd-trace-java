@@ -1,6 +1,6 @@
 package datadog.trace.api;
 
-import java.util.Arrays;
+import datadog.trace.api.telemetry.MetricCollector;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -10,7 +10,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class WafMetricCollector {
+public class WafMetricCollector implements MetricCollector<WafMetricCollector.WafMetric> {
 
   public static final WafMetricCollector INSTANCE = new WafMetricCollector();
 
@@ -20,7 +20,8 @@ public class WafMetricCollector {
 
   private static final String NAMESPACE = "appsec";
 
-  private static final BlockingQueue<WafMetric> rawMetricsQueue = new ArrayBlockingQueue<>(1024);
+  private static final BlockingQueue<WafMetric> rawMetricsQueue =
+      new ArrayBlockingQueue<>(RAW_QUEUE_SIZE);
 
   private static final AtomicInteger wafInitCounter = new AtomicInteger();
   private static final AtomicInteger wafUpdatesCounter = new AtomicInteger();
@@ -53,7 +54,7 @@ public class WafMetricCollector {
     if (rulesVersion != null
         && WafMetricCollector.rulesVersion != null
         && !rulesVersion.equals(WafMetricCollector.rulesVersion)) {
-      WafMetricCollector.get().prepareRequestMetrics();
+      WafMetricCollector.get().prepareMetrics();
     }
     WafMetricCollector.rulesVersion = rulesVersion;
   }
@@ -70,6 +71,7 @@ public class WafMetricCollector {
     wafBlockedRequestCounter.increment();
   }
 
+  @Override
   public Collection<WafMetric> drain() {
     if (!rawMetricsQueue.isEmpty()) {
       List<WafMetric> list = new LinkedList<>();
@@ -81,7 +83,8 @@ public class WafMetricCollector {
     return Collections.emptyList();
   }
 
-  public void prepareRequestMetrics() {
+  @Override
+  public void prepareMetrics() {
     // Requests
     if (wafRequestCounter.get() > 0) {
       if (!rawMetricsQueue.offer(
@@ -120,19 +123,10 @@ public class WafMetricCollector {
     }
   }
 
-  public abstract static class WafMetric {
-    public final String metricName;
-    public final long timestamp;
-    public final long counter;
-    public final String namespace;
-    public final List<String> tags;
+  public abstract static class WafMetric extends MetricCollector.Metric {
 
-    public WafMetric(String metricName, long counter, final String... tags) {
-      this.metricName = metricName;
-      this.timestamp = System.currentTimeMillis() / 1000;
-      this.counter = counter;
-      this.namespace = NAMESPACE;
-      this.tags = Arrays.asList(tags);
+    public WafMetric(String metricName, long counter, String... tags) {
+      super(NAMESPACE, true, metricName, counter, tags);
     }
   }
 
