@@ -115,10 +115,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   @SuppressWarnings('PropertyName')
   @Shared
-  Boolean USE_TEST_AGENT_WRITER
-
-  @SuppressWarnings('PropertyName')
-  @Shared
   TracerAPI TEST_TRACER
 
   @SuppressWarnings('PropertyName')
@@ -219,8 +215,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     }
     TEST_WRITER = new ListWriter()
 
-    USE_TEST_AGENT_WRITER = this.isTestAgentEnabled()
-    if (USE_TEST_AGENT_WRITER) {
+    if (isTestAgentEnabled()) {
       // emit traces to the APM Test-Agent for Cross-Tracer Testing Trace Checks
       TEST_AGENT_WRITER = DDAgentWriter.builder().build()
     }
@@ -272,11 +267,11 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     TEST_TRACER.flush()
     TEST_SPANS.clear()
 
-    if (USE_TEST_AGENT_WRITER) {
+    if (isTestAgentEnabled()) {
       TEST_AGENT_WRITER.flush()
       try {
         TEST_AGENT_WRITER.start()
-      } catch (IllegalStateException) {
+      } catch (ignored) {
         // catch the illegalStateException caused by calling start() on the TraceProcessingWorker.serializerThread twice
         // Test Agent Writer will not emit traces without calling start()
       }
@@ -295,15 +290,14 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   }
 
   void cleanup() {
-    if (USE_TEST_AGENT_WRITER) {
+    if (isTestAgentEnabled()) {
       // save Datadog environment to DDAgentWriter header
       addEnvironmentVariablesToHeaders(TEST_AGENT_WRITER)
 
       // write ListWriter traces to the AgentWriter at cleanup so trace-processing changes occur after span assertions
-      def array = TEST_WRITER.toArray()
-      def traces = (Arrays.asList(array) as List<List<DDSpan>>)
+      def traces = TEST_WRITER.toArray()
       for (trace in traces) {
-        TEST_AGENT_WRITER.write(trace)
+        TEST_AGENT_WRITER.write(trace as List<DDSpan>)
       }
       TEST_AGENT_WRITER.flush()
     }
