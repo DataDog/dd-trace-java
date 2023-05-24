@@ -13,6 +13,7 @@ import java.nio.file.Paths;
 import java.security.Principal;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
+import javax.servlet.ServletException;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -90,6 +91,14 @@ public class IastWebController {
   public String unvalidatedRedirectFromSendRedirect(
       @RequestParam String param, HttpServletResponse response) throws IOException {
     response.sendRedirect(param);
+    return "Unvalidated redirect";
+  }
+
+  @GetMapping("/unvalidated_redirect_from_forward")
+  public String unvalidatedRedirectFromForward(
+      @RequestParam String param, HttpServletRequest request, HttpServletResponse response)
+      throws IOException, ServletException {
+    request.getRequestDispatcher(param).forward(request, response);
     return "Unvalidated redirect";
   }
 
