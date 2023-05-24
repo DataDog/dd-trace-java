@@ -73,6 +73,8 @@ public class Tags {
   public static final String CI_JOB_NAME = "ci.job.name";
   public static final String CI_JOB_URL = "ci.job.url";
   public static final String CI_WORKSPACE_PATH = "ci.workspace_path";
+  public static final String CI_NODE_NAME = "ci.node.name";
+  public static final String CI_NODE_LABELS = "ci.node.labels";
 
   public static final String GIT_REPOSITORY_URL = "git.repository_url";
   public static final String GIT_COMMIT_SHA = "git.commit.sha";
