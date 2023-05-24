@@ -10,6 +10,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.servlet.http.Cookie;
@@ -17,7 +18,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.websocket.server.PathParam;
 import org.springframework.http.HttpStatus;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.MatrixVariable;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -154,9 +154,10 @@ public class IastWebController {
   @GetMapping("/matrix/{var1}/{var2}")
   public String matrixAndPathVariables(
       @PathVariable String var1,
-      @MatrixVariable(pathVar = "var1") MultiValueMap<String, String> m1,
-      @MatrixVariable(pathVar = "var2") MultiValueMap<String, String> m2) {
-    return "{var1=" + var1 + ", m1=" + m1 + ", m2=" + m2 + "}";
+      @MatrixVariable(pathVar = "var1") Map<String, String> m1,
+      @PathVariable String var2,
+      @MatrixVariable(pathVar = "var2") Map<String, String> m2) {
+    return "{var1=" + var1 + ", m1=" + m1 + ", var2=" + var2 + ", m2=" + m2 + "}";
   }
 
   @PostMapping("/request_body/test")
