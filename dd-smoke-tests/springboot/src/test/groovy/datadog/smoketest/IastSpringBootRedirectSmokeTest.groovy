@@ -43,7 +43,7 @@ class IastSpringBootRedirectSmokeTest extends AbstractIastServerSmokeTest {
     then:
     response.isRedirect()
     response.header("Location").contains("redirected")
-    hasVulnerability { vul -> vul.type == 'UNVALIDATED_REDIRECT' }
+    hasVulnerability { vul -> vul.type == 'UNVALIDATED_REDIRECT' && vul.location.method == 'unvalidatedRedirectFromHeader' }
   }
 
   def "unvalidated  redirect from sendRedirect is present"() {
@@ -59,7 +59,7 @@ class IastSpringBootRedirectSmokeTest extends AbstractIastServerSmokeTest {
     // TODO: span deserialization fails when checking the vulnerability
     // === Failure during message v0.4 decoding ===
     //org.msgpack.core.MessageTypeException: Expected String, but got Nil (c0)
-    hasVulnerabilityInLogs { vul -> vul.type == 'UNVALIDATED_REDIRECT' }
+    hasVulnerabilityInLogs { vul -> vul.type == 'UNVALIDATED_REDIRECT' && vul.location.method == 'unvalidatedRedirectFromSendRedirect' }
   }
 
   def "unvalidated  redirect from forward is present"() {
@@ -71,6 +71,6 @@ class IastSpringBootRedirectSmokeTest extends AbstractIastServerSmokeTest {
     client.newCall(request).execute()
 
     then:
-    hasVulnerabilityInLogs(type('UNVALIDATED_REDIRECT').and(withSpan()))
+    hasVulnerabilityInLogs { vul -> vul.type == 'UNVALIDATED_REDIRECT' && vul.location.method == 'unvalidatedRedirectFromForward' }
   }
 }
