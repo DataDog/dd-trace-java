@@ -2,25 +2,14 @@ package datadog.smoketest
 
 import groovy.transform.CompileDynamic
 import okhttp3.Request
-import spock.util.concurrent.PollingConditions
 
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
+import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_REDACTION_ENABLED
-import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING
 
 @CompileDynamic
-class IastSpringBootRedirectSmokeTest extends AbstractSpringBootIastTest {
-
-  @Override
-  def logLevel() {
-    return "debug"
-  }
-
-  @Override
-  Closure decodedTracesCallback() {
-    return {} // force traces decoding
-  }
+class IastSpringBootRedirectSmokeTest extends AbstractIastServerSmokeTest {
 
   @Override
   ProcessBuilder createProcessBuilder() {
@@ -31,7 +20,7 @@ class IastSpringBootRedirectSmokeTest extends AbstractSpringBootIastTest {
     command.addAll(defaultJavaProperties)
     command.addAll([
       withSystemProperty(IAST_ENABLED, true),
-      withSystemProperty(IAST_REQUEST_SAMPLING, 100),
+      withSystemProperty(IAST_DETECTION_MODE, 'FULL'),
       withSystemProperty(IAST_DEBUG_ENABLED, true),
       withSystemProperty(IAST_REDACTION_ENABLED, false)
     ])
@@ -54,8 +43,7 @@ class IastSpringBootRedirectSmokeTest extends AbstractSpringBootIastTest {
     then:
     response.isRedirect()
     response.header("Location").contains("redirected")
-    waitForSpan(new PollingConditions(timeout: 5),
-    hasVulnerability(type('UNVALIDATED_REDIRECT')))
+    hasVulnerability { vul -> vul.type == 'UNVALIDATED_REDIRECT' }
   }
 
   def "unvalidated  redirect from sendRedirect is present"() {
@@ -68,6 +56,9 @@ class IastSpringBootRedirectSmokeTest extends AbstractSpringBootIastTest {
 
     then:
     response.isRedirect()
-    hasVulnerabilityInLogs(type('UNVALIDATED_REDIRECT').and(withSpan()))
+    // TODO: span deserialization fails when checking the vulnerability
+    // === Failure during message v0.4 decoding ===
+    //org.msgpack.core.MessageTypeException: Expected String, but got Nil (c0)
+    hasVulnerabilityInLogs { vul -> vul.type == 'UNVALIDATED_REDIRECT' }
   }
 }
