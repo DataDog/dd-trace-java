@@ -778,7 +778,7 @@ jobs:
       - run:
           name: Install requirements
           command: |
-            cd system-tests/parametric
+            cd system-tests
             pyenv local system
             python3.9 --version
             python3.9 -m pip install wheel
