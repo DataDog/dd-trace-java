@@ -35,6 +35,7 @@ import datadog.trace.util.AgentThreadFactory;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -145,13 +146,12 @@ public class CiVisibilitySystem {
   }
 
   private static Consumer<Path> buildGitTreeDataUploader(
-      Config config, SharedCommunicationObjects sharedCommunicationObjects) {
+      Config config, SharedCommunicationObjects sco) {
     if (!config.isCiVisibilityGitTreeDataUploadEnabled()) {
       return NO_OP_GIT_TREE_DATA_UPLOADER;
     }
 
-    BackendApiFactory backendApiFactory =
-        new BackendApiFactory(Config.get(), sharedCommunicationObjects);
+    BackendApiFactory backendApiFactory = new BackendApiFactory(config, sco);
     BackendApi backendApi = backendApiFactory.createBackendApi();
     if (backendApi == null) {
       LOGGER.warn(
@@ -179,5 +179,20 @@ public class CiVisibilitySystem {
     // even if tests finish faster
     gitTreeDataUploadThread.setDaemon(false);
     gitTreeDataUploadThread.start();
+
+    // maven has a way of calling System.exit() when the build is done.
+    // this is a hack to make it wait until git data upload has finished
+    Thread gitTreeShutdownHook =
+        AgentThreadFactory.newAgentThread(
+            AgentThreadFactory.AgentThread.CI_GIT_TREE_SHUTDOWN_HOOK,
+            () -> {
+              try {
+                gitTreeDataUploadThread.join(TimeUnit.MINUTES.toMillis(1));
+              } catch (InterruptedException e) {
+                // ignore
+              }
+            });
+    gitTreeShutdownHook.setDaemon(false);
+    Runtime.getRuntime().addShutdownHook(gitTreeShutdownHook);
   }
 }

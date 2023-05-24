@@ -6,11 +6,18 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.nio.file.FileStore;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 public class GitClient {
+
+  private static final String DD_TEMP_DIRECTORY_PREFIX = "dd-ci-vis-";
 
   private final String repoRoot;
   private final long timeoutMillis;
@@ -23,24 +30,92 @@ public class GitClient {
   public String getRemoteUrl(String remoteName)
       throws IOException, TimeoutException, InterruptedException {
     return executeCommand(
-            IOUtils::readFully, "git", "config", "--get", "remote." + remoteName + ".url")
+            IOUtils::readFully, null, "git", "config", "--get", "remote." + remoteName + ".url")
         .trim();
   }
 
   public List<String> getLatestCommits()
       throws IOException, TimeoutException, InterruptedException {
     return executeCommand(
-        IOUtils::readLines, "git", "log", "--format=%H", "-n", "1000", "--since='1 month ago'");
+        IOUtils::readLines,
+        null,
+        "git",
+        "log",
+        "--format=%H",
+        "-n",
+        "1000",
+        "--since='1 month ago'");
   }
 
-  private <T> T executeCommand(OutputParser<T> outputParser, String... command)
+  public List<String> getObjects(List<String> commitsToSkip)
+      throws IOException, TimeoutException, InterruptedException {
+    String[] command = new String[7 + commitsToSkip.size()];
+    command[0] = "git";
+    command[1] = "rev-list";
+    command[2] = "--objects";
+    command[3] = "--no-object-names";
+    command[4] = "--filter=blob:none";
+    command[5] = "--since='1 month ago'";
+    command[6] = "HEAD";
+
+    int count = 7;
+    for (String commit : commitsToSkip) {
+      command[count++] = "^" + commit;
+    }
+
+    return executeCommand(IOUtils::readLines, null, command);
+  }
+
+  public Path createPackFiles(List<String> objectHashes)
+      throws IOException, TimeoutException, InterruptedException {
+    byte[] input = Strings.join("\n", objectHashes).getBytes(Charset.defaultCharset());
+
+    Path tempDirectory = createTempDirectory();
+    String basename = Strings.random(8);
+    String path = tempDirectory.toString() + File.separator + basename;
+
+    executeCommand(
+        OutputParser.IGNORE,
+        input,
+        "git",
+        "pack-objects",
+        "--compression=9",
+        "--max-pack-size=3m",
+        path);
+    return tempDirectory;
+  }
+
+  private Path createTempDirectory() throws IOException {
+    Path repoRootDirectory = Paths.get(repoRoot);
+    FileStore repoRootFileStore = Files.getFileStore(repoRootDirectory);
+
+    Path tempDirectory = Files.createTempDirectory(DD_TEMP_DIRECTORY_PREFIX);
+    FileStore tempDirectoryStore = Files.getFileStore(tempDirectory);
+
+    if (Objects.equals(tempDirectoryStore, repoRootFileStore)) {
+      return tempDirectory;
+    } else {
+      // default temp-file directory and repo root are located on different devices,
+      // so we have to create our temp dir inside repo root
+      // otherwise git command will fail
+      Files.delete(tempDirectory);
+      return Files.createTempDirectory(repoRootDirectory, DD_TEMP_DIRECTORY_PREFIX);
+    }
+  }
+
+  private <T> T executeCommand(OutputParser<T> outputParser, byte[] input, String... command)
       throws IOException, TimeoutException, InterruptedException {
     ProcessBuilder processBuilder = new ProcessBuilder(command);
     processBuilder.directory(new File(repoRoot));
 
     Process p = processBuilder.start();
     try {
-      if (p.waitFor(timeoutMillis, TimeUnit.SECONDS)) {
+      if (input != null) {
+        p.getOutputStream().write(input);
+        p.getOutputStream().close();
+      }
+
+      if (p.waitFor(timeoutMillis, TimeUnit.MILLISECONDS)) {
         int exitValue = p.exitValue();
         if (exitValue != 0) {
           throw new IOException(
@@ -65,6 +140,8 @@ public class GitClient {
   }
 
   private interface OutputParser<T> {
+    OutputParser<Void> IGNORE = is -> null;
+
     T parse(InputStream inputStream) throws IOException;
   }
 }

@@ -7,6 +7,7 @@ import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nonnull;
 
 public final class Strings {
@@ -309,5 +310,19 @@ public final class Strings {
     }
 
     return false;
+  }
+
+  /**
+   * Generates a random string of the given length from lowercase characters a-z
+   *
+   * @param length length of the string
+   * @return random string containing lowercase latin characters
+   */
+  public static String random(int length) {
+    char[] c = new char[length];
+    for (int i = 0; i < length; i++) {
+      c[i] = (char) ('a' + ThreadLocalRandom.current().nextInt(26));
+    }
+    return new String(c);
   }
 }
