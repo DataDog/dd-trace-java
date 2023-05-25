@@ -225,6 +225,10 @@ commands:
             - ~/dd-trace-java/workspace
 
   setup_system_tests:
+    parameters:
+      systemTestsCommit:
+        type: string
+        default: c3184d10358ee72d17ca6d7bddcb77d2146233e3
     steps:
       - generate_cache_ids
 
@@ -251,8 +255,13 @@ commands:
             docker-compose --version
 
       - run:
-          name: Clone System Tests repo
-          command: git clone https://github.com/DataDog/system-tests.git
+          name: Clone system-tests
+          command: |
+            git init system-tests
+            cd system-tests
+            git remote add origin https://github.com/DataDog/system-tests.git
+            git fetch origin << parameters.systemTestsCommit >>
+            git reset --hard FETCH_HEAD
 
 jobs:
   build:
