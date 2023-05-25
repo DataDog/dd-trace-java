@@ -10,7 +10,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.RemoteApi;
-import datadog.trace.common.writer.RemoteResponseListener;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.util.concurrent.TimeUnit;
@@ -152,9 +151,6 @@ public class DDIntakeApi extends RemoteApi {
       return Response.failed(e);
     }
   }
-
-  @Override
-  public void addResponseListener(RemoteResponseListener listener) {}
 
   @Override
   protected Logger getLogger() {
