@@ -67,11 +67,6 @@ public class SparkInstrumentation extends Instrumenter.Tracing
     public static void enter(@Advice.Argument(1) int exitCode, @Advice.Argument(2) String msg) {
       if (DatadogSparkListener.listener != null) {
         DatadogSparkListener.listener.finishApplication(System.currentTimeMillis(), exitCode, msg);
-        try {
-          // So that traces have the time to be submitted to the agent before the JVM gets shutdown
-          Thread.sleep(150);
-        } catch (InterruptedException ignored) {
-        }
       }
     }
   }
