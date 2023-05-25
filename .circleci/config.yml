@@ -23,6 +23,8 @@ instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 
+default_system_tests_commit: &default_system_tests_commit c3184d10358ee72d17ca6d7bddcb77d2146233e3
+
 parameters:
   gradle_flags:
     # Using no-daemon is important for the caches to be in a consistent state
@@ -228,7 +230,6 @@ commands:
     parameters:
       systemTestsCommit:
         type: string
-        default: c3184d10358ee72d17ca6d7bddcb77d2146233e3
     steps:
       - generate_cache_ids
 
@@ -704,8 +705,12 @@ jobs:
     parameters:
       weblog-variant:
         type: string
+      systemTestsCommit:
+        type: string
+        default: *default_system_tests_commit
     steps:
-      - setup_system_tests
+      - setup_system_tests:
+          systemTestsCommit: << parameters.systemTestsCommit >>
 
       - run:
           name: Copy jar file to system test binaries folder
@@ -773,8 +778,13 @@ jobs:
       # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
       image: ubuntu-2004:current
     resource_class: large
+    parameters:
+      systemTestsCommit:
+        type: string
+        default: *default_system_tests_commit
     steps:
-      - setup_system_tests
+      - setup_system_tests:
+          systemTestsCommit: << parameters.systemTestsCommit >>
 
       - run:
           name: Copy jar files to system test binaries folder
@@ -802,34 +812,36 @@ jobs:
             ./run.sh
 
 build_test_jobs: &build_test_jobs
-  - build:
+  - build: &job_build_lib
       name: build_lib
       gradleTarget: shadowJar
       cacheType: lib
       collectLibs: true
-  - build:
+  - build: &job_build_base
       name: build_base
       gradleTarget: :baseTest
       cacheType: base
-  - build:
+  - build: &job_build_inst
       name: build_inst
       gradleTarget: :instrumentationTest
       cacheType: inst
-  - build:
+  - build: &job_build_latestdep
       name: build_latestdep
       gradleTarget: latestDepTest
       cacheType: latestdep
-  - build:
+  - build: &job_build_smoke
       name: build_smoke
       gradleTarget: :smokeTest
       cacheType: smoke
-  - build:
+  - build: &job_build_profiling
       name: build_profiling
       gradleTarget: :profilingTest
       cacheType: profiling
   - spotless
 
-  - fan_in:
+  - fan_in: &job_ok_to_test_fan_in
+      name: ok_to_test
+      stage: ok_to_test
       requires:
         - build_lib
         - build_base
@@ -837,50 +849,48 @@ build_test_jobs: &build_test_jobs
         - build_smoke
         - build_profiling
         - spotless
-      name: ok_to_test
-      stage: ok_to_test
 
-  - check:
+  - check: &job_check_base
+      name: check_base
       requires:
         - ok_to_test
-      name: check_base
       gradleTarget: ":baseCheck"
       cacheType: base
 
-  - check:
+  - check: &job_check_inst
+      name: check_inst
       requires:
         - ok_to_test
-      name: check_inst
       gradleTarget: ":instrumentationCheck"
       cacheType: inst
 
-  - check:
+  - check: &job_check_smoke
+      name: check_smoke
       requires:
         - ok_to_test
-      name: check_smoke
       gradleTarget: ":smokeCheck"
       cacheType: smoke
 
-  - check:
+  - check: &job_check_profiling
+      name: check_profiling
       requires:
         - ok_to_test
-      name: check_profiling
       gradleTarget: ":profilingCheck"
       cacheType: profiling
 
-  - fan_in:
+  - fan_in: &job_check_fan_in
+      name: check
+      stage: check
       requires:
         - check_base
         - check_inst
         - check_smoke
         - check_profiling
-      name: check
-      stage: check
 
-  - tests:
+  - tests: &job_test_base
+      name: z_test_<< matrix.testJvm >>_base
       requires:
         - ok_to_test
-      name: z_test_<< matrix.testJvm >>_base
       triggeredBy: *core_modules
       gradleTarget: ":baseTest"
       gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests"
@@ -891,10 +901,10 @@ build_test_jobs: &build_test_jobs
       matrix:
         <<: *test_matrix
 
-  - tests:
+  - tests: &job_test_8_base
+      name: z_test_8_base
       requires:
         - ok_to_test
-      name: z_test_8_base
       triggeredBy: *core_modules
       gradleTarget: :baseTest jacocoTestReport jacocoTestCoverageVerification
       gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests"
@@ -904,10 +914,10 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 4
       testJvm: "8"
 
-  - xlarge_tests:
+  - xlarge_tests: &job_test_int
+      name: z_test_<< matrix.testJvm >>_inst
       requires:
         - ok_to_test
-      name: z_test_<< matrix.testJvm >>_inst
       gradleTarget: ":instrumentationTest"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
@@ -918,10 +928,10 @@ build_test_jobs: &build_test_jobs
       matrix:
         <<: *test_matrix
 
-  - xlarge_tests:
+  - xlarge_tests: &job_test_8_inst
+      name: z_test_8_inst
       requires:
         - ok_to_test
-      name: z_test_8_inst
       gradleTarget: ":instrumentationTest"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
@@ -931,11 +941,11 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 4
       testJvm: "8"
 
-  - xlarge_tests:
+  - xlarge_tests: &job_test_8_inst_latest
+      name: test_8_inst_latest
       requires:
         - ok_to_test
         - build_latestdep
-      name: test_8_inst_latest
       gradleTarget: "latestDepTest"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
@@ -945,10 +955,10 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 4
       testJvm: "8"
 
-  - tests:
+  - tests: &job_test_8_flaky_base
+      name: z_test_8_flaky_base
       requires:
         - ok_to_test
-      name: z_test_8_flaky_base
       gradleTarget: ":baseTest"
       gradleParameters: "-PrunFlakyTests"
       continueOnFailure: true
@@ -959,10 +969,10 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 4
       testJvm: "8"
 
-  - xlarge_tests:
+  - xlarge_tests: &job_test_8_flaky_inst
+      name: z_test_8_flaky_inst
       requires:
         - ok_to_test
-      name: z_test_8_flaky_inst
       gradleTarget: ":instrumentationTest"
       gradleParameters: "-PrunFlakyTests"
       continueOnFailure: true
@@ -973,10 +983,10 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 4
       testJvm: "8"
 
-  - tests:
+  - tests: &job_test_8_flaky_smoke
+      name: z_test_8_flaky_smoke
       requires:
         - ok_to_test
-      name: z_test_8_flaky_smoke
       gradleTarget: ":smokeTest"
       gradleParameters: "-PrunFlakyTests"
       continueOnFailure: true
@@ -986,7 +996,8 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 4
       testJvm: "8"
 
-  - tests:
+  - tests: &job_test_profiling
+      name: test_<< matrix.testJvm >>_profiling
       requires:
         - ok_to_test
       maxWorkers: 4
@@ -995,14 +1006,13 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *profiling_modules
       stage: profiling
       cacheType: profiling
-      name: test_<< matrix.testJvm >>_profiling
       matrix:
         <<: *profiling_test_matrix
 
-  - tests:
+  - tests: &job_test_debugger
+      name: test_<< matrix.testJvm >>_debugger
       requires:
         - ok_to_test
-      name: test_<< matrix.testJvm >>_debugger
       maxWorkers: 4
       gradleTarget: ":debuggerTest"
       gradleParameters: "-PskipFlakyTests"
@@ -1012,10 +1022,10 @@ build_test_jobs: &build_test_jobs
       matrix:
         <<: *profiling_test_matrix
 
-  - tests:
+  - tests: &job_test_smoke
+      name: z_test_<< matrix.testJvm >>_smoke
       requires:
         - ok_to_test
-      name: z_test_<< matrix.testJvm >>_smoke
       gradleTarget: "stageMainDist :smokeTest"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
@@ -1025,10 +1035,10 @@ build_test_jobs: &build_test_jobs
       matrix:
         <<: *test_matrix
 
-  - tests:
+  - tests: &job_test_semeru11_smoke
+      name: test_semeru11_smoke
       requires:
         - ok_to_test
-      name: test_semeru11_smoke
       gradleTarget: "stageMainDist :smokeTest"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
@@ -1037,10 +1047,10 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 3
       testJvm: "semeru11"
 
-  - tests:
+  - tests: &job_test_semeru17_smoke
+      name: test_semeru17_smoke
       requires:
         - ok_to_test
-      name: test_semeru17_smoke
       gradleTarget: "stageMainDist :smokeTest"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
@@ -1049,19 +1059,19 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 3
       testJvm: "semeru17"
 
-  - tests:
+  - tests: &job_test_graalvm17_smoke
+      name: test_graalvm17_smoke
       requires:
         - ok_to_test
-      name: test_graalvm17_smoke
       gradleTarget: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
       stage: smoke
       cacheType: smoke
       testJvm: "graalvm17"
 
-  - tests:
+  - tests: &job_test_8_smoke
+      name: z_test_8_smoke
       requires:
         - ok_to_test
-      name: z_test_8_smoke
       gradleTarget: "stageMainDist :smokeTest"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
@@ -1070,17 +1080,17 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 3
       testJvm: "8"
 
-  - fan_in:
+  - fan_in: &job_test_fan_in
+      name: test_<< matrix.testJvm >>
       requires:
         - z_test_<< matrix.testJvm >>_base
         - z_test_<< matrix.testJvm >>_inst
         - z_test_<< matrix.testJvm >>_smoke
-      name: test_<< matrix.testJvm >>
       stage: tracing
       matrix:
         <<: *test_matrix
 
-  - fan_in:
+  - fan_in: &job_test_8_fan_in
       requires:
         - z_test_8_base
         - z_test_8_inst
@@ -1089,7 +1099,7 @@ build_test_jobs: &build_test_jobs
       stage: tracing
       testJvm: "8"
 
-  - agent_integration_tests:
+  - agent_integration_tests: &job_agent_integration_tests
       requires:
         - ok_to_test
       triggeredBy: *agent_integration_tests_modules
@@ -1097,11 +1107,11 @@ build_test_jobs: &build_test_jobs
       cacheType: base
       testJvm: "8"
 
-  - test_published_artifacts:
+  - test_published_artifacts: &job_test_published_artifacts
       requires:
         - ok_to_test
 
-  - muzzle:
+  - muzzle: &job_muzzle
       requires:
         - ok_to_test
       filters:
@@ -1111,17 +1121,17 @@ build_test_jobs: &build_test_jobs
             - project/*
             - release/*
 
-  - system-tests:
+  - system-tests: &job_system_tests
       requires:
         - ok_to_test
       matrix:
           <<: *system_test_matrix
 
-  - parametric-tests:
+  - parametric-tests: &job_parametric_tests
       requires:
         - ok_to_test
 
-  - fan_in:
+  - fan_in: &job_profiling_fan_in
       requires:
         - test_published_artifacts
         - test_8_profiling
@@ -1133,7 +1143,7 @@ build_test_jobs: &build_test_jobs
       name: profiling
       stage: profiling
 
-  - fan_in:
+  - fan_in: &job_debugger_fan_in
       requires:
         - test_published_artifacts
         - test_8_debugger
@@ -1147,7 +1157,7 @@ build_test_jobs: &build_test_jobs
 
   # This job requires all the jobs needed for a successful build, so GitHub only needs to enforce this one,
   # and it will be simpler to require different JVM versions for different branches and old releases
-  - fan_in:
+  - fan_in: &job_required_fan_in
       requires:
         - check
         - test_published_artifacts
@@ -1163,6 +1173,89 @@ build_test_jobs: &build_test_jobs
         - debugger
       name: required
       stage: required
+
+build_test_jobs_nightly: &build_test_jobs_nightly
+  - build:
+      <<: *job_build_lib
+  - build:
+      <<: *job_build_base
+  - build:
+      <<: *job_build_inst
+  - build:
+      <<: *job_build_latestdep
+  - build:
+      <<: *job_build_smoke
+  - build:
+      <<: *job_build_profiling
+  - spotless
+  - fan_in:
+      <<: *job_ok_to_test_fan_in
+  - check:
+      <<: *job_check_base
+  - check:
+      <<: *job_check_inst
+  - check:
+      <<: *job_check_smoke
+  - check:
+      <<: *job_check_profiling
+  - fan_in:
+      <<: *job_check_fan_in
+  - tests:
+      <<: *job_test_base
+  - tests:
+      <<: *job_test_8_base
+  - xlarge_tests:
+      <<: *job_test_int
+  - xlarge_tests:
+      <<: *job_test_8_inst
+  - xlarge_tests:
+      <<: *job_test_8_inst_latest
+  - tests:
+      <<: *job_test_8_flaky_base
+  - xlarge_tests:
+      <<: *job_test_8_flaky_inst
+  - tests:
+      <<: *job_test_8_flaky_smoke
+  - tests:
+      <<: *job_test_profiling
+  - tests:
+      <<: *job_test_debugger
+  - tests:
+      <<: *job_test_smoke
+  - tests:
+      <<: *job_test_semeru11_smoke
+  - tests:
+      <<: *job_test_semeru17_smoke
+  - tests:
+      <<: *job_test_graalvm17_smoke
+  - tests:
+      <<: *job_test_8_smoke
+  - fan_in:
+      <<: *job_test_fan_in
+  - fan_in:
+      <<: *job_test_8_fan_in
+  - agent_integration_tests:
+      <<: *job_agent_integration_tests
+  - test_published_artifacts:
+      <<: *job_test_published_artifacts
+  - muzzle:
+      <<: *job_muzzle
+  - system-tests:
+      requires:
+        - ok_to_test
+      matrix:
+          <<: *system_test_matrix
+      systemTestsCommit: main
+  - parametric-tests:
+      requires:
+        - ok_to_test
+      systemTestsCommit: main
+  - fan_in:
+      <<: *job_profiling_fan_in
+  - fan_in:
+      <<: *job_debugger_fan_in
+  - fan_in:
+      <<: *job_required_fan_in
 
 workflows:
   build_test:
@@ -1180,7 +1273,7 @@ workflows:
               only:
                 - master
     jobs:
-      *build_test_jobs
+      *build_test_jobs_nightly
 
   weekly:
     triggers:
