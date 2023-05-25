@@ -85,4 +85,31 @@ class IastSpringBootRedirectSmokeTest extends AbstractIastServerSmokeTest {
     then:
     hasVulnerabilityInLogs { vul -> vul.type == 'UNVALIDATED_REDIRECT' && vul.location.method == 'unvalidatedRedirectFromRedirectView' }
   }
+
+  def "unvalidated  redirect from ModelAndView is present"() {
+    setup:
+    String url = "http://localhost:${httpPort}/unvalidated_redirect_from_model_and_view?param=redirected"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerabilityInLogs { vul -> vul.type == 'UNVALIDATED_REDIRECT' && vul.location.method == 'unvalidatedRedirectFromModelAndView' }
+  }
+
+
+  def "unvalidated  redirect forward from ModelAndView is present"() {
+    setup:
+    String url = "http://localhost:${httpPort}/unvalidated_redirect_forward_from_model_and_view?param=redirected"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerabilityInLogs { vul -> vul.type == 'UNVALIDATED_REDIRECT' && vul.location.method == 'unvalidatedRedirectForwardFromModelAndView' }
+  }
+
+
 }
