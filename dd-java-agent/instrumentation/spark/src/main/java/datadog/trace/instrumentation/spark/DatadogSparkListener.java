@@ -20,6 +20,8 @@ import scala.Tuple2;
  * driver and in the same thread
  */
 public class DatadogSparkListener extends SparkListener {
+  public static DatadogSparkListener listener = null;
+
   private final int MAX_COLLECTION_SIZE = 1000;
 
   private final SparkConf sparkConf;
@@ -47,6 +49,8 @@ public class DatadogSparkListener extends SparkListener {
   private int currentExecutorCount = 0;
   private int maxExecutorCount = 0;
   private long availableExecutorTime = 0;
+
+  private boolean applicationEnded = false;
 
   public DatadogSparkListener(SparkContext sparkContext) {
     tracer = AgentTracer.get();
@@ -81,15 +85,28 @@ public class DatadogSparkListener extends SparkListener {
 
   @Override
   public void onApplicationEnd(SparkListenerApplicationEnd applicationEnd) {
-    if (lastJobFailed) {
+    finishApplication(applicationEnd.time(), 0, null);
+  }
+
+  public void finishApplication(long time, int exitCode, String msg) {
+    if (applicationEnded) {
+      return;
+    }
+    applicationEnded = true;
+
+    if (exitCode != 0) {
+      applicationSpan.setError(true);
+      applicationSpan.setTag(
+          DDTags.ERROR_TYPE, "Spark Application Failed with exit code " + exitCode);
+      applicationSpan.setTag(DDTags.ERROR_MSG, msg);
+    } else if (lastJobFailed) {
       applicationSpan.setError(true);
       applicationSpan.setTag(DDTags.ERROR_TYPE, "Spark Application Failed");
       applicationSpan.setTag(DDTags.ERROR_MSG, lastJobFailedMessage);
     }
 
     for (SparkListenerExecutorAdded executor : liveExecutors.values()) {
-      availableExecutorTime +=
-          (applicationEnd.time() - executor.time()) * executor.executorInfo().totalCores();
+      availableExecutorTime += (time - executor.time()) * executor.executorInfo().totalCores();
     }
 
     applicationMetrics.setSpanMetrics(applicationSpan, "spark_application_metrics");
@@ -97,7 +114,7 @@ public class DatadogSparkListener extends SparkListener {
     applicationSpan.setMetric(
         "spark_application_metrics.available_executor_time", availableExecutorTime);
 
-    applicationSpan.finish(applicationEnd.time() * 1000);
+    applicationSpan.finish(time * 1000);
   }
 
   @Override
