@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
@@ -40,9 +39,9 @@ public final class SessionState {
         }
       };
 
-  // hard bound at 8192 captured spans, degrade to finishing spans early
+  // hard bound of captured spans, degrade to finishing spans early
   // if transactions are very large, rather than use lots of space
-  static final int MAX_CAPTURED_SPANS = 8192;
+  static final int MAX_CAPTURED_SPANS = 512;
 
   private static final int MAX_TRACKED_THREADS = 100;
   private static final int MIN_EVICTED_THREADS = 10;
@@ -272,7 +271,7 @@ public final class SessionState {
     // didn't find enough stopped threads, so evict oldest N time-in-queue spans
     if (evictedThreads < MIN_EVICTED_THREADS) {
       for (Map.Entry<Thread, TimeInQueue> entry : oldestEntries) {
-        if (((ConcurrentMap<?, ?>) timeInQueueSpans).remove(entry.getKey(), entry.getValue())) {
+        if (timeInQueueSpans.remove(entry.getKey(), entry.getValue())) {
           maybeFinishTimeInQueueSpan(entry.getValue());
         }
       }
