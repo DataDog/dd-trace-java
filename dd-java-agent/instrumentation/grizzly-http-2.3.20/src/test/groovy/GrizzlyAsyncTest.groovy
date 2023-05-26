@@ -1,4 +1,5 @@
 import datadog.appsec.api.blocking.Blocking
+import org.glassfish.jersey.media.multipart.FormDataParam
 
 import javax.ws.rs.Consumes
 import javax.ws.rs.FormParam
@@ -6,6 +7,7 @@ import javax.ws.rs.GET
 import javax.ws.rs.HeaderParam
 import javax.ws.rs.POST
 import javax.ws.rs.Path
+import javax.ws.rs.PathParam
 import javax.ws.rs.QueryParam
 import javax.ws.rs.container.AsyncResponse
 import javax.ws.rs.container.Suspended
@@ -15,11 +17,13 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
@@ -60,6 +64,14 @@ class GrizzlyAsyncTest extends GrizzlyTest {
     }
 
     @GET
+    @Path("/path/{id}/param")
+    Response pathParam(@PathParam("id") String id) {
+      controller(PATH_PARAM) {
+        Response.status(PATH_PARAM.status).entity(id).build()
+      }
+    }
+
+    @GET
     @Path("forwarded")
     Response forwarded(@Suspended final AsyncResponse asyncResponse, @HeaderParam("x-forwarded-for") String forwarded) {
       executor.execute {
@@ -76,6 +88,17 @@ class GrizzlyAsyncTest extends GrizzlyTest {
       executor.execute {
         controller(BODY_URLENCODED) {
           asyncResponse.resume(Response.status(BODY_URLENCODED.status).entity([a: [a]] as String).build())
+        }
+      }
+    }
+
+    @POST
+    @Path("body-multipart")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    Response bodyMultipart(@Suspended final AsyncResponse asyncResponse, @FormDataParam("a") List<String> a) {
+      executor.execute {
+        controller(BODY_MULTIPART) {
+          asyncResponse.resume(Response.status(BODY_MULTIPART.status).entity([a: a] as String).build())
         }
       }
     }

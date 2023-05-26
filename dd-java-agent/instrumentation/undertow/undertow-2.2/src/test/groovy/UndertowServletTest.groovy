@@ -1,3 +1,6 @@
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
@@ -44,6 +47,9 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
         .addServlet(new ServletInfo("ErrorServlet", ErrorServlet).addMapping(ERROR.getPath()))
         .addServlet(new ServletInfo("ExceptionServlet", ExceptionServlet).addMapping(EXCEPTION.getPath()))
         .addServlet(new ServletInfo("UserBlockServlet", UserBlockServlet).addMapping(USER_BLOCK.path))
+        .addServlet(new ServletInfo("CreatedServlet", CreatedServlet).addMapping(CREATED.path))
+        .addServlet(new ServletInfo("CreatedISServlet", CreatedISServlet).addMapping(CREATED_IS.path))
+        .addServlet(new ServletInfo("BodyUrlEncodedServlet", BodyUrlEncodedServlet).addMapping(BODY_URLENCODED.path))
 
       DeploymentManager manager = container.addDeployment(builder)
       manager.deploy()
@@ -97,6 +103,21 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
 
   @Override
   boolean testBlocking() {
+    true
+  }
+
+  @Override
+  boolean testRequestBody() {
+    true
+  }
+
+  @Override
+  boolean testRequestBodyISVariant() {
+    true
+  }
+
+  @Override
+  boolean testBodyUrlencoded() {
     true
   }
 

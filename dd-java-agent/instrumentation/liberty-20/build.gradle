@@ -31,6 +31,7 @@ dependencies {
   testImplementation files({ tasks.installOpenLibertyDeps.wsServerJar })
   testRuntimeOnly project(':dd-java-agent:instrumentation:osgi-4.3')
   testRuntimeOnly files({ tasks.filterLogbackClassic.filteredLogbackDir })
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-3')
 
   webappCompileOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '3.0.1'
   // compileOnly to avoid bringing all the test dependencies to the test app
@@ -85,7 +86,7 @@ tasks.register('installOpenLibertyDeps', Copy) {
   into extractDir
   outputs.file ext.serverXmlFile
 }
-test.dependsOn webappClasses, installOpenLibertyDeps
+forkedTest.dependsOn webappClasses, installOpenLibertyDeps
 forkedTest {
   jvmArgs += ["-Dserver.xml=${installOpenLibertyDeps.serverXmlFile.absoluteFile}"]
 }
@@ -95,7 +96,7 @@ tasks.register('webappCopyJars', Sync) {
   into project.layout.buildDirectory.dir("$relAppDir/WEB-INF/lib")
   dependsOn ':dd-java-agent:instrumentation:servlet:request-3:testFixturesJar'
 }
-test.dependsOn webappCopyJars
+forkedTest.dependsOn webappCopyJars
 
 tasks.register('filterLogbackClassic', Sync) {
   ext.filteredLogbackDir = project.layout.buildDirectory.dir('filteredLogback')
@@ -105,4 +106,6 @@ tasks.register('filterLogbackClassic', Sync) {
   exclude 'META-INF/**'
   into ext.filteredLogbackDir
 }
+// we have no tests running on the test target, but the config is shared w/ forkedTest
 test.dependsOn filterLogbackClassic
+forkedTest.dependsOn filterLogbackClassic

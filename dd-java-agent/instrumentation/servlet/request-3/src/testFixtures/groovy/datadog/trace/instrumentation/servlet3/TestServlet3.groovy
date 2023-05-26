@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.servlet3
 
 import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint
 import groovy.servlet.AbstractHttpServlet
 
 import javax.servlet.AsyncEvent
@@ -14,6 +15,7 @@ import java.lang.reflect.Modifier
 import java.util.concurrent.Phaser
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
@@ -48,9 +50,14 @@ class TestServlet3 {
 
   @WebServlet
   static class Sync extends AbstractHttpServlet {
+    protected ServerEndpoint determineEndpoint(HttpServletRequest req) {
+      getEndpoint(req)
+    }
+
+    // this method is not instrumented by the servlet advice
     @Override
-    protected void service(HttpServletRequest req, HttpServletResponse resp) {
-      HttpServerTest.ServerEndpoint endpoint = getEndpoint(req)
+    void service(HttpServletRequest req, HttpServletResponse resp) {
+      HttpServerTest.ServerEndpoint endpoint = determineEndpoint(req)
       HttpServerTest.controller(endpoint) {
         resp.contentType = "text/plain"
         resp.addHeader(HttpServerTest.IG_RESPONSE_HEADER, HttpServerTest.IG_RESPONSE_HEADER_VALUE)
@@ -89,6 +96,7 @@ class TestServlet3 {
             resp.writer.print(endpoint.bodyForQuery(req.queryString))
             break
           case BODY_URLENCODED:
+          case BODY_MULTIPART:
             resp.status = endpoint.status
             resp.writer.print(
               req.parameterMap

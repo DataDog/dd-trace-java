@@ -1,6 +1,13 @@
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED;
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS;
+import static datadog.trace.agent.test.base.HttpServerTest.controller;
+
+import com.google.common.io.CharStreams;
 import datadog.trace.agent.test.base.HttpServerTest;
 import groovy.lang.Closure;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -136,6 +143,44 @@ public class TestServlets {
           new Closure(null) {
             public Object doCall() throws Exception {
               throw new Exception(endpoint.getBody());
+            }
+          });
+    }
+  }
+
+  @WebServlet("/created")
+  public static class CreatedServlet extends HttpServlet {
+    @Override
+    protected void doPost(final HttpServletRequest req, final HttpServletResponse resp) {
+      controller(
+          CREATED,
+          new Closure(this) {
+            public Object doCall() throws IOException {
+              resp.setStatus(CREATED.getStatus());
+              resp.getWriter()
+                  .print(CREATED.getBody() + ": " + CharStreams.toString(req.getReader()));
+              return null;
+            }
+          });
+    }
+  }
+
+  @WebServlet("/created_input_stream")
+  public static class CreatedISServlet extends HttpServlet {
+    @Override
+    protected void doPost(final HttpServletRequest req, final HttpServletResponse resp) {
+      controller(
+          CREATED_IS,
+          new Closure(this) {
+            public Object doCall() throws IOException {
+              resp.setStatus(CREATED_IS.getStatus());
+              resp.getWriter()
+                  .print(
+                      CREATED_IS.getBody()
+                          + ": "
+                          + CharStreams.toString(
+                              new InputStreamReader(req.getInputStream(), StandardCharsets.UTF_8)));
+              return null;
             }
           });
     }

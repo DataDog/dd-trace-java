@@ -5,6 +5,7 @@ import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.function.TriConsumer;
@@ -287,7 +288,12 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
     // explicitly set here because some other decorators might already set an error without
     // looking at the status code
-    span.setError(SERVER_ERROR_STATUSES.get(status));
+    // XXX: the logic is questionable: span.error becomes equivalent to status 5xx,
+    // even if the server chooses not to respond with 5xx to an error.
+    // Anyway, we def don't want it applied to blocked requests
+    if (!BlockingException.class.getName().equals(span.getTag("error.type"))) {
+      span.setError(SERVER_ERROR_STATUSES.get(status));
+    }
 
     if (SHOULD_SET_404_RESOURCE_NAME && status == 404) {
       span.setResourceName(NOT_FOUND_RESOURCE_NAME, ResourceNamePriorities.HTTP_404);
