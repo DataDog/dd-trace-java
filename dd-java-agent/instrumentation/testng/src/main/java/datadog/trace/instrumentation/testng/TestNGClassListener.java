@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.testng;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,16 +39,10 @@ public abstract class TestNGClassListener {
           onBeforeClass(testClass, parallelized);
 
           // populate methods with the lock held to ensure that the other threads cannot see
-          // partially populated set
-          return getTestMethods(k);
+          // partially populated collection
+          ITestNGMethod[] testMethods = testClass.getTestMethods();
+          return new ArrayList<>(Arrays.asList(testMethods));
         });
-  }
-
-  private Collection<ITestNGMethod> getTestMethods(ITestClass testClass) {
-    ITestNGMethod[] testMethods = testClass.getTestMethods();
-    Collection<ITestNGMethod> set = ConcurrentHashMap.newKeySet(testMethods.length);
-    set.addAll(Arrays.asList(testMethods));
-    return set;
   }
 
   public void invokeAfterClass(ITestClass testClass, IMethodInstance methodInstance) {
