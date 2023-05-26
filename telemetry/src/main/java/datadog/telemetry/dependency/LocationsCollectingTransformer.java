@@ -13,14 +13,14 @@ class LocationsCollectingTransformer implements ClassFileTransformer {
   private static final Logger log = LoggerFactory.getLogger(LocationsCollectingTransformer.class);
 
   private static final int MAX_CACHED_JARS = 1024;
-  private final DependencyServiceImpl dependencyService;
+  private final DependencyService dependencyService;
   private final DDCache<ProtectionDomain, Boolean> seenDomains =
       DDCaches.newFixedSizeWeakKeyCache(MAX_CACHED_JARS);
 
   private final ProtectionDomain tracerDomain =
       LocationsCollectingTransformer.class.getProtectionDomain();
 
-  public LocationsCollectingTransformer(DependencyServiceImpl dependencyService) {
+  public LocationsCollectingTransformer(DependencyService dependencyService) {
     this.dependencyService = dependencyService;
   }
 

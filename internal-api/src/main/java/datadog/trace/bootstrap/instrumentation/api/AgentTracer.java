@@ -81,6 +81,20 @@ public class AgentTracer {
     return get().activateNext(span);
   }
 
+  public static TraceConfig traceConfig(final AgentSpan span) {
+    if (null != span) {
+      TraceConfig traceConfig = span.traceConfig();
+      if (null != traceConfig) {
+        return traceConfig;
+      }
+    }
+    return get().captureTraceConfig();
+  }
+
+  public static TraceConfig traceConfig() {
+    return get().captureTraceConfig();
+  }
+
   public static AgentSpan activeSpan() {
     return get().activeSpan();
   }
@@ -194,6 +208,8 @@ public class AgentTracer {
     String getTraceId(AgentSpan span);
 
     String getSpanId(AgentSpan span);
+
+    TraceConfig captureTraceConfig();
   }
 
   public interface SpanBuilder {
@@ -459,6 +475,11 @@ public class AgentTracer {
     @Override
     public Timer getTimer() {
       return Timer.NoOp.INSTANCE;
+    }
+
+    @Override
+    public TraceConfig captureTraceConfig() {
+      return null;
     }
   }
 
@@ -747,7 +768,7 @@ public class AgentTracer {
     }
 
     @Override
-    public TraceConfig getTraceConfig() {
+    public TraceConfig traceConfig() {
       return null;
     }
   }

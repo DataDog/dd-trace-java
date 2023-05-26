@@ -714,7 +714,7 @@ public class DDSpanContext
     }
   }
 
-  public void processTagsAndBaggage(final MetadataConsumer consumer) {
+  public void processTagsAndBaggage(final MetadataConsumer consumer, int longRunningVersion) {
     synchronized (unsafeTags) {
       Map<String, String> baggageItemsWithPropagationTags = new HashMap<>(baggageItems);
       propagationTags.fillTagMap(baggageItemsWithPropagationTags);
@@ -729,7 +729,8 @@ public class DDSpanContext
               topLevel,
               httpStatusCode == 0 ? null : HTTP_STATUSES.get(httpStatusCode),
               // Get origin from rootSpan.context
-              getOrigin()));
+              getOrigin(),
+              longRunningVersion));
     }
   }
 

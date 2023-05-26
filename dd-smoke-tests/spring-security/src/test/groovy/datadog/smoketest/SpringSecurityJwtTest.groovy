@@ -9,29 +9,22 @@ import com.nimbusds.jose.jwk.RSAKey
 import com.nimbusds.jose.jwk.gen.RSAKeyGenerator
 import com.nimbusds.jwt.JWTClaimsSet
 import com.nimbusds.jwt.SignedJWT
-import groovy.json.JsonSlurper
 import groovy.transform.CompileDynamic
 import okhttp3.Request
 import okhttp3.Response
 
 import java.security.KeyPair
 import java.text.ParseException
-import java.util.concurrent.TimeoutException
 import java.util.stream.Collectors
 
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
+import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED
-import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING
 
 @CompileDynamic
-class SpringSecurityJwtTest extends AbstractServerSmokeTest {
+class SpringSecurityJwtTest extends AbstractIastServerSmokeTest {
 
   static final RSAKey rsaJWK = new RSAKeyGenerator(2048).generate()
-
-  @Override
-  def logLevel() {
-    return "debug"
-  }
 
   @Override
   ProcessBuilder createProcessBuilder() {
@@ -46,7 +39,7 @@ class SpringSecurityJwtTest extends AbstractServerSmokeTest {
     command.addAll(defaultJavaProperties)
     command.addAll([
       withSystemProperty(IAST_ENABLED, true),
-      withSystemProperty(IAST_REQUEST_SAMPLING, 100),
+      withSystemProperty(IAST_DETECTION_MODE, 'FULL'),
       withSystemProperty(IAST_DEBUG_ENABLED, true),
     ])
     command.addAll((String[]) [
@@ -94,10 +87,6 @@ class SpringSecurityJwtTest extends AbstractServerSmokeTest {
     }
   }
 
-  private static String withSystemProperty(final String config, final Object value) {
-    return "-Ddd.${config}=${value}"
-  }
-
   private static String buildClassPath(){
     String cp = System.getProperty("java.class.path")
     String separator = System.getProperty("path.separator")
@@ -118,25 +107,6 @@ class SpringSecurityJwtTest extends AbstractServerSmokeTest {
     ).collect(Collectors.joining(separator))
 
     return mainJar + ":" + result
-  }
-
-  private void hasTainted(final Closure<Boolean> matcher) {
-    final slurper = new JsonSlurper()
-    final tainteds = []
-    try {
-      processTestLogLines { String log ->
-        final index = log.indexOf('tainted=')
-        if (index >= 0) {
-          final tainted = slurper.parse(new StringReader(log.substring(index + 8)))
-          tainteds.add(tainted)
-          if (matcher.call(tainted)) {
-            return true
-          }
-        }
-      }
-    } catch (TimeoutException toe) {
-      throw new AssertionError("No matching tainted found. Tainteds found: ${tainteds}")
-    }
   }
 
   String generateToken(RSAKey rsaJWK) throws JOSEException, ParseException {

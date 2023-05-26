@@ -397,7 +397,7 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
               .addArgument(new BooleanLiteralExpr(false));
       body.addStatement(invokeStatic);
     }
-    if (advice instanceof AroundSpecification || advice instanceof AfterSpecification) {
+    if (requiresCast(advice)) {
       final MethodType pointcut = advice.getPointcut();
       final Type expectedReturn =
           pointcut.isConstructor() ? pointcut.getOwner() : pointcut.getMethodType().getReturnType();
@@ -410,6 +410,16 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
                 .addArgument(new StringLiteralExpr(expectedReturn.getInternalName())));
       }
     }
+  }
+
+  private static boolean requiresCast(final AdviceSpecification advice) {
+    if (advice instanceof AroundSpecification) {
+      return true; // around always replaces the original method call
+    }
+    if (advice instanceof AfterSpecification) {
+      return !advice.isInvokeDynamic(); // dynamic invokes original method call returns CallSite
+    }
+    return false;
   }
 
   private static void writeOriginalMethodCall(

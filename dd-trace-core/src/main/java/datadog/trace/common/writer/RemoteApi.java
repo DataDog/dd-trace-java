@@ -16,7 +16,7 @@ public abstract class RemoteApi {
 
   protected void countAndLogSuccessfulSend(final int traceCount, final int sizeInBytes) {
     // count the successful traces
-    this.sentTraces += traceCount;
+    sentTraces += traceCount;
 
     ioLogger.success(createSendLogMessage(traceCount, sizeInBytes, "Success"));
   }
@@ -27,7 +27,7 @@ public abstract class RemoteApi {
       final okhttp3.Response response,
       final IOException outer) {
     // count the failed traces
-    this.failedTraces += traceCount;
+    failedTraces += traceCount;
     // these are used to catch and log if there is a failure in debug logging the response body
     String responseBody = getResponseBody(response);
     String sendErrorString =
@@ -55,13 +55,13 @@ public abstract class RemoteApi {
         + ")"
         + " traces."
         + " Total: "
-        + this.totalTraces
+        + totalTraces
         + ", Received: "
-        + this.receivedTraces
+        + receivedTraces
         + ", Sent: "
-        + this.sentTraces
+        + sentTraces
         + ", Failed: "
-        + this.failedTraces
+        + failedTraces
         + ".";
   }
 
@@ -77,8 +77,6 @@ public abstract class RemoteApi {
   }
 
   protected abstract Response sendSerializedTraces(final Payload payload);
-
-  protected abstract void addResponseListener(final RemoteResponseListener listener);
 
   protected abstract Logger getLogger();
 

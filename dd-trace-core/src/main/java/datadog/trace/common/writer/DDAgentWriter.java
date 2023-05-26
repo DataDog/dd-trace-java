@@ -144,7 +144,7 @@ public class DDAgentWriter extends RemoteWriter {
 
       final DDAgentMapperDiscovery mapperDiscovery = new DDAgentMapperDiscovery(featureDiscovery);
       final PayloadDispatcher dispatcher =
-          new PayloadDispatcher(mapperDiscovery, agentApi, healthMetrics, monitoring);
+          new PayloadDispatcherImpl(mapperDiscovery, agentApi, healthMetrics, monitoring);
       final TraceProcessingWorker traceProcessingWorker =
           new TraceProcessingWorker(
               traceBufferSize,
@@ -156,48 +156,15 @@ public class DDAgentWriter extends RemoteWriter {
               TimeUnit.SECONDS,
               singleSpanSampler);
 
-      return new DDAgentWriter(
-          featureDiscovery,
-          agentApi,
-          healthMetrics,
-          dispatcher,
-          traceProcessingWorker,
-          alwaysFlush);
+      return new DDAgentWriter(traceProcessingWorker, dispatcher, healthMetrics, alwaysFlush);
     }
   }
 
-  private DDAgentWriter(
-      DDAgentFeaturesDiscovery discovery,
-      DDAgentApi api,
-      HealthMetrics healthMetrics,
-      PayloadDispatcher dispatcher,
+  DDAgentWriter(
       TraceProcessingWorker worker,
-      boolean alwaysFlush) {
-    super(api, worker, dispatcher, healthMetrics, alwaysFlush);
-  }
-
-  private DDAgentWriter(
-      DDAgentFeaturesDiscovery discovery,
-      DDAgentApi api,
-      HealthMetrics healthMetrics,
-      Monitoring monitoring,
-      TraceProcessingWorker worker) {
-    this(
-        discovery,
-        api,
-        healthMetrics,
-        new PayloadDispatcher(
-            new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring),
-        worker,
-        false);
-  }
-
-  private DDAgentWriter(
-      DDAgentFeaturesDiscovery discovery,
-      DDAgentApi api,
-      HealthMetrics healthMetrics,
       PayloadDispatcher dispatcher,
-      TraceProcessingWorker worker) {
-    this(discovery, api, healthMetrics, dispatcher, worker, false);
+      HealthMetrics healthMetrics,
+      boolean alwaysFlush) {
+    super(worker, dispatcher, healthMetrics, alwaysFlush);
   }
 }

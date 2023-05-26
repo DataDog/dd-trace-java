@@ -369,7 +369,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
 
       client.state.config_states.size() == 1
       with(client.state.config_states[0]) {
-        id == 'employee/ASM_DD/1.recommended.json/config'
+        id == '1.recommended.json'
         product == 'ASM_DD'
         version == 1
       }
@@ -855,7 +855,8 @@ class ConfigurationPollerSpecification extends DDSpecification {
   }
 
   void 'exception applying one config should not prevent others from being applied'() {
-    String newConfigKey = 'datadog/2/LIVE_DEBUGGING/1ba66cc9-146a-3479-9e66-2b63fd580f48/config'
+    String newConfigId = '1ba66cc9-146a-3479-9e66-2b63fd580f48'
+    String newConfigKey = "datadog/2/LIVE_DEBUGGING/${newConfigId}/config"
 
     when:
     poller.addListener(Product.ASM_DD,
@@ -913,13 +914,13 @@ class ConfigurationPollerSpecification extends DDSpecification {
       def liveDebuggingConfig = first.product == 'LIVE_DEBUGGING'? first : second
       def asmConfig = first.product == 'ASM_DD'? first : second
       with(liveDebuggingConfig) {
-        id == newConfigKey
+        id == newConfigId
         product == 'LIVE_DEBUGGING'
         version == 3
         apply_error == null
       }
       with(asmConfig) {
-        id == 'employee/ASM_DD/1.recommended.json/config'
+        id == '1.recommended.json'
         product == 'ASM_DD'
         version == 1
         apply_state == APPLY_STATE_ERROR

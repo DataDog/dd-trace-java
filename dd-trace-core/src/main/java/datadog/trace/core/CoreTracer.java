@@ -210,6 +210,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   private final PropagationTags.Factory propagationTagsFactory;
 
+  @Override
   public TraceConfig captureTraceConfig() {
     return dynamicConfig.captureTraceConfig();
   }
@@ -564,7 +565,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     pendingTraceBuffer =
         strictTraceWrites
             ? PendingTraceBuffer.discarding()
-            : PendingTraceBuffer.delaying(this.timeSource);
+            : PendingTraceBuffer.delaying(
+                this.timeSource, config, sharedCommunicationObjects, healthMetrics);
     pendingTraceFactory =
         new PendingTrace.Factory(
             this, pendingTraceBuffer, this.timeSource, strictTraceWrites, healthMetrics);

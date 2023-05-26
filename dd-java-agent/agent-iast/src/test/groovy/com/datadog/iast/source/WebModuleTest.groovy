@@ -302,4 +302,29 @@ class WebModuleTest extends IastModuleImplTestBase {
     tainted.ranges.length == 1
     tainted.ranges.first().source.origin == SourceTypes.REQUEST_QUERY
   }
+
+  void 'test onInjectedParameter'(){
+    given:
+    final span = Mock(AgentSpan)
+    tracer.activeSpan() >> span
+    final reqCtx = Mock(RequestContext)
+    span.getRequestContext() >> reqCtx
+    final ctx = new IastRequestContext()
+    reqCtx.getData(RequestContextSlot.IAST) >> ctx
+    String value = "value"
+
+    when:
+    module.onInjectedParameter("name", value, SourceTypes.REQUEST_BODY)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    1 * span.getRequestContext() >> reqCtx
+    1 * reqCtx.getData(RequestContextSlot.IAST) >> ctx
+    0 * _
+
+    final tainted = ctx.getTaintedObjects().get(value)
+    tainted != null
+    tainted.ranges.length == 1
+    tainted.ranges.first().source.origin == SourceTypes.REQUEST_BODY
+  }
 }

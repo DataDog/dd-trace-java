@@ -9,7 +9,6 @@ import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.internal.inject.ParamConverters.StringConstructor;
 import org.glassfish.jersey.server.ResourceConfig;
 import smoketest.config.AutoScanFeature;
-import smoketest.resource.MyResource;
 
 public class MainApp {
   public static final byte[] debugMarker = "debugmarker".getBytes();
@@ -25,7 +24,7 @@ public class MainApp {
     // scan packages
     final ResourceConfig config = new ResourceConfig();
     // config.packages(true, "com.mkyong");
-    config.register(MyResource.class);
+    config.register(Resource.class);
 
     // enable auto scan @Contract and @Service
     config.register(AutoScanFeature.class);

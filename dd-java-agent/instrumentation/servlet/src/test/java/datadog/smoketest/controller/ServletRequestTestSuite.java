@@ -3,33 +3,22 @@ package datadog.smoketest.controller;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.Enumeration;
+import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletInputStream;
-import javax.servlet.ServletRequest;
 
-public class ServletRequestTestSuite {
-  ServletRequest request;
+public interface ServletRequestTestSuite<E> {
 
-  public ServletRequestTestSuite(ServletRequest request) {
-    this.request = request;
-  }
+  void init(final E request);
 
-  public String getParameter(String paramName) {
-    return request.getParameter(paramName);
-  }
+  String getParameter(String paramName);
 
-  public String[] getParameterValues(String paramName) {
-    return request.getParameterValues(paramName);
-  }
+  String[] getParameterValues(String paramName);
 
-  public Enumeration getParameterNames() {
-    return request.getParameterNames();
-  }
+  Enumeration getParameterNames();
 
-  public ServletInputStream getInputStream() throws IOException {
-    return request.getInputStream();
-  }
+  RequestDispatcher getRequestDispatcher(String path);
 
-  public BufferedReader getReader() throws IOException {
-    return request.getReader();
-  }
+  ServletInputStream getInputStream() throws IOException;
+
+  BufferedReader getReader() throws IOException;
 }

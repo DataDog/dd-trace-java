@@ -92,6 +92,14 @@ public class DDSpan
   private volatile Flow.Action.RequestBlockingAction requestBlockingAction;
 
   /**
+   * Version of a span that can be set by the long running spans feature:
+   * <li>eq 0 -> span is not long running.
+   * <li>lt 0 -> finished span that had running versions previously written.
+   * <li>gt 0 -> long running span and its write version.
+   */
+  private volatile int longRunningVersion = 0;
+
+  /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
    *
    * @param timestampMicro if greater than zero, use this time instead of the current time
@@ -118,6 +126,7 @@ public class DDSpan
   private void finishAndAddToTrace(final long durationNano) {
     // ensure a min duration of 1
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano))) {
+      setLongRunningVersion(-this.longRunningVersion);
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
       log.debug("Finished span ({}): {}", publishState, this);
     } else {
@@ -665,7 +674,7 @@ public class DDSpan
 
   @Override
   public void processTagsAndBaggage(final MetadataConsumer consumer) {
-    context.processTagsAndBaggage(consumer);
+    context.processTagsAndBaggage(consumer, longRunningVersion);
   }
 
   @Override
@@ -761,8 +770,15 @@ public class DDSpan
     return WRAPPER_FIELD_UPDATER.get(this);
   }
 
+  public void setLongRunningVersion(int longRunningVersion) {
+    if (this.longRunningVersion < 0) {
+      return;
+    }
+    this.longRunningVersion = longRunningVersion;
+  }
+
   @Override
-  public TraceConfig getTraceConfig() {
+  public TraceConfig traceConfig() {
     return context.getTrace().getTraceConfig();
   }
 }

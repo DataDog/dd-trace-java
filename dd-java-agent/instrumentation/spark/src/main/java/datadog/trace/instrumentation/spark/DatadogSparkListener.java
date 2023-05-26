@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.spark;
 
 import datadog.trace.api.DDTags;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -121,15 +122,24 @@ public class DatadogSparkListener extends SparkListener {
       }
 
       if (jobStart.properties() != null) {
-        // ids to link those spans to databricks job/task traces
-        jobSpanBuilder.withTag(
-            "databricks_job_id", jobStart.properties().get("spark.databricks.job.id"));
-        jobSpanBuilder.withTag(
-            "databricks_job_run_id", getDatabricksJobRunId(jobStart.properties()));
+        String databricksJobId = (String) jobStart.properties().get("spark.databricks.job.id");
+        String databricksJobRunId = getDatabricksJobRunId(jobStart.properties());
 
         // spark.databricks.job.runId is the runId of the task, not of the Job
-        jobSpanBuilder.withTag(
-            "databricks_task_run_id", jobStart.properties().get("spark.databricks.job.runId"));
+        String databricksTaskRunId =
+            (String) jobStart.properties().get("spark.databricks.job.runId");
+
+        // ids to link those spans to databricks job/task traces
+        jobSpanBuilder.withTag("databricks_job_id", databricksJobId);
+        jobSpanBuilder.withTag("databricks_job_run_id", databricksJobRunId);
+        jobSpanBuilder.withTag("databricks_task_run_id", databricksTaskRunId);
+
+        AgentSpan.Context parentContext =
+            new DatabricksParentContext(databricksJobId, databricksJobRunId, databricksTaskRunId);
+
+        if (parentContext.getTraceId() != DDTraceId.ZERO) {
+          jobSpanBuilder.asChildOf(parentContext);
+        }
       }
     } else {
       // In non-databricks env, the spark application is the local root spans

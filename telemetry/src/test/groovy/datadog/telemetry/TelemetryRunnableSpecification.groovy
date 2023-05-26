@@ -30,7 +30,7 @@ class TelemetryRunnableSpecification extends DDSpecification {
 
   OkHttpClient okHttpClient = Mock()
   TelemetryRunnable.ThreadSleeper sleeper = Mock()
-  TelemetryServiceImpl telemetryService = Mock()
+  TelemetryService telemetryService = Mock()
   TelemetryRunnable.TelemetryPeriodicAction periodicAction = Mock()
   TelemetryRunnable runnable = new TelemetryRunnable(okHttpClient, telemetryService, [periodicAction], sleeper)
   Thread t = new Thread(runnable)
@@ -55,6 +55,7 @@ class TelemetryRunnableSpecification extends DDSpecification {
     1 * telemetryService.addConfiguration(_)
     1 * periodicAction.doIteration(telemetryService)
     1 * telemetryService.addStartedRequest()
+    1 * telemetryService.getMetricsInterval()
 
     then:
     1 * periodicAction.doIteration(telemetryService)
@@ -96,6 +97,7 @@ class TelemetryRunnableSpecification extends DDSpecification {
     1 * telemetryService.addConfiguration(_)
     1 * periodicAction.doIteration(telemetryService)
     1 * telemetryService.addStartedRequest()
+    1 * telemetryService.getMetricsInterval()
 
     then:
     1 * periodicAction.doIteration(telemetryService)
@@ -131,6 +133,7 @@ class TelemetryRunnableSpecification extends DDSpecification {
     1 * telemetryService.addConfiguration(_)
     1 * periodicAction.doIteration(telemetryService)
     1 * telemetryService.addStartedRequest()
+    1 * telemetryService.getMetricsInterval()
 
     then:
     1 * periodicAction.doIteration(telemetryService)
@@ -164,6 +167,7 @@ class TelemetryRunnableSpecification extends DDSpecification {
     1 * telemetryService.addConfiguration(_)
     1 * periodicAction.doIteration(telemetryService)
     1 * telemetryService.addStartedRequest()
+    1 * telemetryService.getMetricsInterval()
 
     then:
     1 * periodicAction.doIteration(telemetryService)
@@ -178,6 +182,7 @@ class TelemetryRunnableSpecification extends DDSpecification {
     1 * sleeper.sleep(3_000)
 
     then:
+    1 * telemetryService.getMetricsInterval()
     1 * periodicAction.doIteration(telemetryService)
     1 * telemetryService.prepareRequests() >> queue
     1 * okHttpClient.newCall(REQUEST) >> call

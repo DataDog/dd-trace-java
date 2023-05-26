@@ -100,7 +100,7 @@ class BaseCallSiteTest extends DDSpecification {
     }
     return Mock(Advices) {
       isEmpty() >> advices.isEmpty()
-      findAdvices(_ as TypeDescription, _ as ClassLoader) >> it
+      findAdvices(_ as DynamicType.Builder, _ as TypeDescription, _ as ClassLoader) >> it
       findAdvice(_ as Pointcut) >> { params ->
         final pointcut = (params as Object[])[0] as Pointcut
         adviceFinder.call(pointcut.type(), pointcut.method(), pointcut.descriptor())

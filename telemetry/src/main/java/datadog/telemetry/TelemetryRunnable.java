@@ -1,11 +1,12 @@
 package datadog.telemetry;
 
+import datadog.telemetry.metric.MetricPeriodicAction;
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigCollector;
-import datadog.trace.api.WafMetricCollector;
 import java.io.IOException;
 import java.util.List;
 import java.util.Queue;
+import java.util.stream.Collectors;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -22,6 +23,7 @@ public class TelemetryRunnable implements Runnable {
   private final OkHttpClient okHttpClient;
   private final TelemetryService telemetryService;
   private final List<TelemetryPeriodicAction> actions;
+  private final List<MetricPeriodicAction> metrics;
   private final ThreadSleeper sleeper;
 
   private int consecutiveFailures;
@@ -45,6 +47,15 @@ public class TelemetryRunnable implements Runnable {
     this.actions = actions;
     this.sleeper = sleeper;
     this.collectMetricsTimestamp = 0;
+    this.metrics = findMetricPeriodicActions(actions);
+  }
+
+  private List<MetricPeriodicAction> findMetricPeriodicActions(
+      final List<TelemetryPeriodicAction> actions) {
+    return actions.stream()
+        .filter(MetricPeriodicAction.class::isInstance)
+        .map(it -> (MetricPeriodicAction) it)
+        .collect(Collectors.toList());
   }
 
   @Override
@@ -81,11 +92,13 @@ public class TelemetryRunnable implements Runnable {
 
   private boolean mainLoopIteration() throws InterruptedException {
 
-    // Collect request metrics every N seconds (default 10s)
+    // Collect metrics every N seconds (default 10s)
     long currentTime = System.currentTimeMillis();
-    if (currentTime - collectMetricsTimestamp > Config.get().getTelemetryMetricsInterval()) {
+    if (currentTime - collectMetricsTimestamp > telemetryService.getMetricsInterval()) {
       collectMetricsTimestamp = currentTime;
-      WafMetricCollector.get().prepareRequestMetrics();
+      for (MetricPeriodicAction metric : metrics) {
+        metric.collector().prepareMetrics();
+      }
     }
 
     for (TelemetryPeriodicAction action : this.actions) {

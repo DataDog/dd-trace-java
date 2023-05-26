@@ -48,7 +48,7 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
     WafMetricCollector.get().wafRequest()
     WafMetricCollector.get().wafRequestBlocked()
     WafMetricCollector.get().wafRequest()
-    WafMetricCollector.get().prepareRequestMetrics()
+    WafMetricCollector.get().prepareMetrics()
     periodicAction.doIteration(telemetryService)
 
     then:
@@ -96,7 +96,7 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
     WafMetricCollector.get().wafRequest()
     WafMetricCollector.get().wafRequestTriggered()
     WafMetricCollector.get().wafRequestBlocked()
-    WafMetricCollector.get().prepareRequestMetrics()
+    WafMetricCollector.get().prepareMetrics()
     periodicAction.doIteration(telemetryService)
 
     then: 'following waf.request have a new event_rules_version tag'

@@ -76,18 +76,38 @@ public class ProfilingTestApplication {
     System.out.println("accumulated: " + accumulator);
   }
 
+  @Trace
   private static void submitWorkToTPE() throws ExecutionException, InterruptedException {
     AtomicInteger it = new AtomicInteger();
     for (int i = 0; i < 100; i++) {
-      EXECUTOR_SERVICE.submit(it::getAndIncrement).get();
+      EXECUTOR_SERVICE
+          .submit(
+              () -> {
+                try {
+                  Thread.sleep(10);
+                  it.incrementAndGet();
+                } catch (InterruptedException e) {
+                }
+              })
+          .get();
     }
     List<Callable<Integer>> runnables =
         IntStream.range(0, 100)
-            .mapToObj(i -> (Callable<Integer>) it::getAndIncrement)
+            .mapToObj(
+                i ->
+                    (Callable<Integer>)
+                        () -> {
+                          try {
+                            Thread.sleep(10);
+                          } catch (InterruptedException e) {
+                          }
+                          return it.getAndIncrement();
+                        })
             .collect(Collectors.toList());
     for (Future f : EXECUTOR_SERVICE.invokeAll(runnables)) {
       f.get();
     }
+    System.out.println("incremented: " + it.get());
   }
 
   private static void setupDeadlock() {

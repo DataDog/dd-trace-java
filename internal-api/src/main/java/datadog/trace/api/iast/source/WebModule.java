@@ -19,6 +19,8 @@ public interface WebModule extends IastModule {
    */
   void onParameterValue(@Nullable String paramName, @Nullable String paramValue);
 
+  void onPathParameterValue(@Nullable String paramName, @Nullable String paramValue);
+
   void onParameterValues(@Nullable String paramName, @Nullable String[] paramValue);
 
   void onParameterValues(@Nullable String paramName, @Nullable Collection<String> paramValues);
@@ -42,4 +44,6 @@ public interface WebModule extends IastModule {
 
   void onRequestMatrixParameter(
       @Nonnull String paramName, @Nullable String value, @Nonnull Object iastRequestContext);
+
+  void onInjectedParameter(String parameterName, String result, byte b);
 }

@@ -1,0 +1,15 @@
+muzzle {
+  pass {
+    group = 'org.apache.tomcat'
+    module = 'tomcat-catalina'
+    versions = '[7.0.0,]'
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'org.apache.tomcat', name: 'tomcat-catalina', version: '7.0.0'
+}
+
+// testing happens in tomcat-5.5 module

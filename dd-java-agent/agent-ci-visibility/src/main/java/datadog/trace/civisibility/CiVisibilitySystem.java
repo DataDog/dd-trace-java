@@ -16,6 +16,7 @@ import datadog.trace.civisibility.ci.CIProviderInfoFactory;
 import datadog.trace.civisibility.ci.CITagsProviderImpl;
 import datadog.trace.civisibility.codeowners.CodeownersProvider;
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl;
+import datadog.trace.civisibility.events.CachingTestEventsHandlerFactory;
 import datadog.trace.civisibility.events.TestEventsHandlerImpl;
 import datadog.trace.civisibility.git.CILocalGitInfoBuilder;
 import datadog.trace.civisibility.git.CIProviderGitInfoBuilder;
@@ -36,13 +37,18 @@ public class CiVisibilitySystem {
   private static final String GIT_FOLDER_NAME = ".git";
 
   public static void start() {
-    if (!Config.get().isCiVisibilityEnabled()) {
+    Config config = Config.get();
+    if (!config.isCiVisibilityEnabled()) {
       LOGGER.debug("CI Visibility is disabled");
       return;
     }
 
-    InstrumentationBridge.registerTestEventsHandlerFactory(
-        CiVisibilitySystem::createTestEventsHandler);
+    TestEventsHandler.Factory factory =
+        new CachingTestEventsHandlerFactory(
+            CiVisibilitySystem::createTestEventsHandler,
+            config.getCiVisibilityTestEventsHandlerCacheSize());
+
+    InstrumentationBridge.registerTestEventsHandlerFactory(factory);
     InstrumentationBridge.registerBuildEventsHandlerFactory(BuildEventsHandlerImpl::new);
     InstrumentationBridge.registerTestDecoratorFactory(CiVisibilitySystem::createTestDecorator);
 

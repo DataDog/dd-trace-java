@@ -4,9 +4,8 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.telemetry.TelemetryRunnable.TelemetryPeriodicAction;
 import datadog.telemetry.dependency.DependencyPeriodicAction;
 import datadog.telemetry.dependency.DependencyService;
-import datadog.telemetry.dependency.DependencyServiceImpl;
-import datadog.telemetry.iast.IastTelemetryPeriodicAction;
 import datadog.telemetry.integration.IntegrationPeriodicAction;
+import datadog.telemetry.metric.IastMetricPeriodicAction;
 import datadog.telemetry.metric.WafMetricPeriodicAction;
 import datadog.trace.api.Config;
 import datadog.trace.api.iast.telemetry.Verbosity;
@@ -29,7 +28,7 @@ public class TelemetrySystem {
 
   static DependencyService createDependencyService(Instrumentation instrumentation) {
     if (instrumentation != null && Config.get().isTelemetryDependencyServiceEnabled()) {
-      DependencyServiceImpl dependencyService = new DependencyServiceImpl();
+      DependencyService dependencyService = new DependencyService();
       dependencyService.installOn(instrumentation);
       dependencyService.schedulePeriodicResolution();
       return dependencyService;
@@ -47,7 +46,7 @@ public class TelemetrySystem {
     actions.add(new IntegrationPeriodicAction());
     actions.add(new WafMetricPeriodicAction());
     if (Verbosity.OFF != Config.get().getIastTelemetryVerbosity()) {
-      actions.add(new IastTelemetryPeriodicAction());
+      actions.add(new IastMetricPeriodicAction());
     }
     if (null != dependencyService) {
       actions.add(new DependencyPeriodicAction(dependencyService));
@@ -63,7 +62,7 @@ public class TelemetrySystem {
       Instrumentation instrumentation, SharedCommunicationObjects sco) {
     DependencyService dependencyService = createDependencyService(instrumentation);
     TelemetryService telemetryService =
-        new TelemetryServiceImpl(
+        new TelemetryService(
             new RequestBuilderSupplier(sco.agentUrl),
             SystemTimeSource.INSTANCE,
             Config.get().getTelemetryHeartbeatInterval(),

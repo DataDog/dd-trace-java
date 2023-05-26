@@ -31,7 +31,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTIO
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_INSTALLER_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
-import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MEASURE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_CONFIG;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_DIR;
@@ -70,7 +69,6 @@ public class InstrumenterConfig {
   private final boolean traceEnabled;
   private final boolean traceOtelEnabled;
   private final boolean logsInjectionEnabled;
-  private final boolean logsMDCTagsInjectionEnabled;
   private final boolean logs128bTraceIdEnabled;
   private final boolean profilingEnabled;
   private final boolean ciVisibilityEnabled;
@@ -124,7 +122,6 @@ public class InstrumenterConfig {
     traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
     logsInjectionEnabled =
         configProvider.getBoolean(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
-    logsMDCTagsInjectionEnabled = configProvider.getBoolean(LOGS_MDC_TAGS_INJECTION_ENABLED, true);
     logs128bTraceIdEnabled =
         configProvider.getBoolean(
             TRACE_128_BIT_TRACEID_LOGGING_ENABLED, DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED);
@@ -220,10 +217,6 @@ public class InstrumenterConfig {
 
   public boolean isLogsInjectionEnabled() {
     return logsInjectionEnabled;
-  }
-
-  public boolean isLogsMDCTagsInjectionEnabled() {
-    return logsMDCTagsInjectionEnabled && !Platform.isNativeImageBuilder();
   }
 
   public boolean isLogs128bTraceIdEnabled() {
@@ -391,8 +384,6 @@ public class InstrumenterConfig {
         + traceOtelEnabled
         + ", logsInjectionEnabled="
         + logsInjectionEnabled
-        + ", logsMDCTagsInjectionEnabled="
-        + logsMDCTagsInjectionEnabled
         + ", logs128bTraceIdEnabled="
         + logs128bTraceIdEnabled
         + ", profilingEnabled="

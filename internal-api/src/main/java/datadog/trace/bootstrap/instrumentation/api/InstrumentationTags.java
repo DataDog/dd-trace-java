@@ -87,4 +87,8 @@ public class InstrumentationTags {
   public static final String DBM_TRACE_INJECTED = "_dd.dbm_trace_injected";
   public static final UTF8BytesString DD_MEASURED = UTF8BytesString.create("_dd.measured");
   public static final UTF8BytesString DD_TOP_LEVEL = UTF8BytesString.create("_dd.top_level");
+  public static final UTF8BytesString DD_PARTIAL_VERSION =
+      UTF8BytesString.create("_dd.partial_version");
+  public static final UTF8BytesString DD_WAS_LONG_RUNNING =
+      UTF8BytesString.create("_dd.was_long_running");
 }
