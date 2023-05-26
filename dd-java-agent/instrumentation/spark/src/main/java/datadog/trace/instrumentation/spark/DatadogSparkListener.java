@@ -440,6 +440,10 @@ public class DatadogSparkListener extends SparkListener {
   }
 
   private String getErrorMessageWithoutStackTrace(String errorMessage) {
+    if (errorMessage == null) {
+      return null;
+    }
+
     int stackTraceIndex = errorMessage.indexOf("\tat ");
     if (stackTraceIndex != -1) {
       return errorMessage.substring(0, stackTraceIndex);
