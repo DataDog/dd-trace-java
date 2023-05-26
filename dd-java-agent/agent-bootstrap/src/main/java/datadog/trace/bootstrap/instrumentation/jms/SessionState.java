@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
@@ -43,6 +44,9 @@ public final class SessionState {
   // if transactions are very large, rather than use lots of space
   static final int MAX_CAPTURED_SPANS = 512;
 
+  // mimic implicit message ack if oldest unacknowledged message span is too old
+  static final long MAX_UNACKNOWLEDGED_AGE = TimeUnit.MINUTES.toMillis(60);
+
   private static final int MAX_TRACKED_THREADS = 100;
   private static final int MIN_EVICTED_THREADS = 10;
 
@@ -54,6 +58,7 @@ public final class SessionState {
 
   // consumer-related session state
   private final Deque<AgentSpan> capturedSpans;
+  private long oldestCaptureTime;
   private final Map<Thread, TimeInQueue> timeInQueueSpans;
   private volatile int timeInQueueSpanCount = 0;
 
@@ -126,6 +131,9 @@ public final class SessionState {
   private void captureMessageSpan(AgentSpan span) {
     if (null != capturedSpans) {
       synchronized (capturedSpans) {
+        if (isClientAcknowledge() && implicitMessageAck()) {
+          finishCapturedSpans(); // time-in-queues spans have a different clean-up mechanism
+        }
         if (capturedSpans.size() < MAX_CAPTURED_SPANS) {
           // change capture direction of the deque on each commit/ack
           // avoids mixing new spans with the old group while still supporting LIFO
@@ -140,6 +148,17 @@ public final class SessionState {
     }
     // unable to capture span; finish it to avoid unbounded growth
     span.finish();
+  }
+
+  private boolean implicitMessageAck() {
+    long now = System.currentTimeMillis();
+    if (oldestCaptureTime == 0) {
+      oldestCaptureTime = now;
+    } else if ((now - oldestCaptureTime) > MAX_UNACKNOWLEDGED_AGE) {
+      oldestCaptureTime = now;
+      return true;
+    }
+    return false;
   }
 
   public void onAcknowledgeOrRecover() {
