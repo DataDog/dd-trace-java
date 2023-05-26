@@ -131,4 +131,9 @@ class JettyServletHandlerTest extends AbstractServlet3Test<Server, ServletHandle
   boolean testNotFound() {
     false
   }
+
+  @Override
+  boolean testBadUrl() {
+    false
+  }
 }

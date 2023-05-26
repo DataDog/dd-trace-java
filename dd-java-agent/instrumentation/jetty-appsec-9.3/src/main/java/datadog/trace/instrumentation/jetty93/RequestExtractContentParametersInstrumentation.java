@@ -5,10 +5,12 @@ import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -52,10 +54,11 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class ExtractContentParametersAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
         @Advice.FieldValue("_contentParameters") final MultiMap<String> map,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx,
+        @Advice.Thrown(readOnly = false) Throwable t) {
       if (map == null || map.isEmpty()) {
         return;
       }
@@ -66,7 +69,20 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
       if (callback == null) {
         return;
       }
-      callback.apply(reqCtx, map);
+
+      Flow<Void> flow = callback.apply(reqCtx, map);
+      Flow.Action action = flow.getAction();
+      if (action instanceof Flow.Action.RequestBlockingAction) {
+        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+        BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
+        if (blockResponseFunction != null) {
+          blockResponseFunction.tryCommitBlockingResponse(
+              rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+          if (t == null) {
+            t = new BlockingException("Blocked request (for Request/extractContentParameters)");
+          }
+        }
+      }
     }
   }
 }

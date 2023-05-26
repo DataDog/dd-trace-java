@@ -3,7 +3,6 @@ import com.sun.enterprise.v3.services.impl.GrizzlyProxy
 import com.sun.enterprise.v3.services.impl.GrizzlyService
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
-import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import org.glassfish.embeddable.BootstrapProperties
 import org.glassfish.embeddable.Deployer
 import org.glassfish.embeddable.GlassFish
@@ -85,7 +84,7 @@ class GlassFishServerTest extends HttpServerTest<GlassFish> {
 
   @Override
   String component() {
-    return Servlet3Decorator.DECORATE.component()
+    "java-web-servlet"
   }
 
   @Override
@@ -111,6 +110,26 @@ class GlassFishServerTest extends HttpServerTest<GlassFish> {
   @Override
   boolean testBodyUrlencoded() {
     true
+  }
+
+  @Override
+  boolean testRequestBody() {
+    true
+  }
+
+  @Override
+  boolean testRequestBodyISVariant() {
+    true
+  }
+
+  @Override
+  boolean testBlocking() {
+    true
+  }
+
+  @Override
+  boolean testUserBlocking() {
+    false
   }
 
   @Override

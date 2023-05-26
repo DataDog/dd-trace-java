@@ -3,6 +3,8 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.instrumentation.grizzlyhttp232.GrizzlyDecorator
 import org.glassfish.grizzly.http.server.HttpServer
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory
+import org.glassfish.jersey.media.multipart.FormDataParam
+import org.glassfish.jersey.media.multipart.MultiPartFeature
 import org.glassfish.jersey.server.ResourceConfig
 
 import javax.ws.rs.Consumes
@@ -12,6 +14,7 @@ import javax.ws.rs.HeaderParam
 import javax.ws.rs.NotFoundException
 import javax.ws.rs.POST
 import javax.ws.rs.Path
+import javax.ws.rs.PathParam
 import javax.ws.rs.QueryParam
 import javax.ws.rs.container.ContainerRequestContext
 import javax.ws.rs.container.ContainerResponseContext
@@ -23,11 +26,13 @@ import javax.ws.rs.ext.Provider
 import java.util.concurrent.TimeoutException
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
@@ -52,6 +57,7 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
       ResourceConfig rc = new ResourceConfig()
       rc.register(SimpleExceptionMapper)
       rc.register(resource())
+      rc.register(MultiPartFeature)
       rc.register(ResponseServerFilter)
       rc.register(new TestMessageBodyReader())
       server = GrizzlyHttpServerFactory.createHttpServer(new URI("http://localhost:0"), rc, false)
@@ -104,6 +110,11 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
   }
 
   @Override
+  boolean testBodyMultipart() {
+    true
+  }
+
+  @Override
   boolean testBodyJson() {
     true
   }
@@ -117,6 +128,16 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
   @Override
   boolean testBadUrl() {
     false
+  }
+
+  @Override
+  String testPathParam() {
+    "/path/?/param"
+  }
+
+  @Override
+  Map<String, ?> expectedIGPathParams() {
+    [id: ['123']]
   }
 
   static class SimpleExceptionMapper implements ExceptionMapper<Throwable> {
@@ -151,6 +172,14 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     }
 
     @GET
+    @Path("/path/{id}/param")
+    Response pathParam(@PathParam("id") String id) {
+      controller(PATH_PARAM) {
+        Response.status(PATH_PARAM.status).entity(id).build()
+      }
+    }
+
+    @GET
     @Path("forwarded")
     Response forwarded(@HeaderParam("x-forwarded-for") String forwarded) {
       controller(FORWARDED) {
@@ -164,6 +193,15 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     Response bodyUrlencoded(@FormParam("a") List<String> a) {
       controller(BODY_URLENCODED) {
         Response.status(BODY_URLENCODED.status).entity([a: a] as String).build()
+      }
+    }
+
+    @POST
+    @Path("body-multipart")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    Response bodyMultipart(@FormDataParam("a") List<String> a) {
+      controller(BODY_MULTIPART) {
+        Response.status(BODY_MULTIPART.status).entity([a: a] as String).build()
       }
     }
 

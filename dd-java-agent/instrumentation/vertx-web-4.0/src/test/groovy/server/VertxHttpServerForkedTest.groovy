@@ -108,6 +108,11 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
   }
 
   @Override
+  boolean testRequestBody() {
+    true
+  }
+
+  @Override
   boolean testBodyUrlencoded() {
     true
   }
@@ -119,6 +124,11 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
 
   @Override
   boolean testBlocking() {
+    true
+  }
+
+  @Override
+  boolean isRequestBodyNoStreaming() {
     true
   }
 

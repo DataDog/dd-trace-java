@@ -84,7 +84,7 @@ class RatpackAsyncHttpServerTest extends RatpackHttpServerTest {
 
                     @Override
                     void onError(Throwable t) {
-                      outerDelegate.ctx.error(t)
+                      outerDelegate.error(t)
                     }
 
                     @Override

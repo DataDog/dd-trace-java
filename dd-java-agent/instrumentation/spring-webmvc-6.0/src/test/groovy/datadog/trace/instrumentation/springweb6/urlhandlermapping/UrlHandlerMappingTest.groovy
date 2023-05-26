@@ -9,6 +9,7 @@ import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.source.WebModule
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
+import datadog.trace.instrumentation.springweb6.SetupSpecHelper
 import datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator
 import datadog.trace.instrumentation.springweb6.boot.SecurityConfig
 import datadog.trace.instrumentation.tomcat.TomcatDecorator
@@ -83,6 +84,10 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
     'servlet.request'
   }
 
+  def setupSpec() {
+    SetupSpecHelper.provideBlockResponseFunction()
+  }
+
   @Override
   boolean testException() {
     // generates extra trace for the error handling invocation
@@ -107,6 +112,16 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
 
   @Override
   boolean testBadUrl() {
+    false
+  }
+
+  @Override
+  boolean testBlocking() {
+    true
+  }
+
+  @Override
+  boolean testUserBlocking() {
     false
   }
 

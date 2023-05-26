@@ -16,6 +16,11 @@ public class QueryParamInjectorInstrumentation extends Instrumenter.Iast
   }
 
   @Override
+  public String muzzleDirective() {
+    return "jaxrs";
+  }
+
+  @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         named("inject").and(isPublic()).and(takesArguments(2)),

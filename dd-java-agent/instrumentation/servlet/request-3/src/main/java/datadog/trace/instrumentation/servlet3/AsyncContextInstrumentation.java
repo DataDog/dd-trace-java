@@ -89,13 +89,17 @@ public final class AsyncContextInstrumentation extends Instrumenter.Tracing
 
         final AgentSpan span = startSpan(SERVLET_DISPATCH, parent.context());
         // This span should get finished by Servlet3Advice
+        // However, when using Jetty without servlets (directly org.eclipse.jetty.server.Handler),
+        // that's not the case (see jetty's HandleAdvice)
         DECORATE.afterStart(span);
 
         // These are pulled from attributes because jetty clears them from the request too early.
         span.setTag(SERVLET_CONTEXT, request.getAttribute(DD_CONTEXT_PATH_ATTRIBUTE));
         span.setTag(SERVLET_PATH, request.getAttribute(DD_SERVLET_PATH_ATTRIBUTE));
 
-        request.setAttribute(DD_DISPATCH_SPAN_ATTRIBUTE, span);
+        synchronized (request) {
+          request.setAttribute(DD_DISPATCH_SPAN_ATTRIBUTE, span);
+        }
 
         if (args.length == 1 && args[0] instanceof String) {
           span.setResourceName((String) args[0]);
