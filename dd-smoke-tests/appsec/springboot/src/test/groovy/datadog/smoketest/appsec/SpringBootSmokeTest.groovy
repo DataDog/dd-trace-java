@@ -43,7 +43,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     waitForTraceCount(200) == 200
     rootSpans.size() == 200
     forEachRootSpanTrigger {
-      assert it['rule']['tags']['type'] == 'security_scanner'
+      assert it['rule']['tags']['type'] == 'attack_tool'
     }
     rootSpans.each { assert it.meta['actor.ip'] == '1.2.3.4' }
     rootSpans.each {
@@ -128,7 +128,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     then:
     rootSpans.size() == 1
     forEachRootSpanTrigger {
-      assert it['rule']['tags']['type'] == 'security_scanner'
+      assert it['rule']['tags']['type'] == 'attack_tool'
     }
   }
 }
