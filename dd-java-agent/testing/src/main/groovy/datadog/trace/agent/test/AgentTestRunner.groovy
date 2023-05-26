@@ -5,6 +5,7 @@ import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.util.ContextInitializer
 import com.google.common.collect.Sets
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.communication.monitor.Monitoring
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.checkpoints.TestEndpointCheckpointer
 import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery
@@ -45,6 +46,8 @@ import net.bytebuddy.agent.builder.AgentBuilder
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.dynamic.DynamicType
 import net.bytebuddy.utility.JavaModule
+import okhttp3.HttpUrl
+import okhttp3.OkHttpClient
 import org.junit.runner.RunWith
 import org.slf4j.LoggerFactory
 import org.spockframework.mock.MockUtil
@@ -57,6 +60,10 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
+import static datadog.communication.http.OkHttpUtils.buildHttpClient
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
 /**
  * A spock test runner which automatically applies instrumentation and exposes a global trace
@@ -85,7 +92,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     configureLoggingLevels()
   }
 
-  static void addEnvironmentVariablesToHeaders(DDAgentWriter agentWriter) {
+  static void addEnvironmentVariablesToHeaders(DDAgentApi agentapi) {
     StringBuilder ddEnvVars = new StringBuilder()
     for (Map.Entry<Object, Object> entry : System.getProperties().entrySet()) {
       if (entry.getKey().toString().startsWith("dd.")) {
@@ -96,7 +103,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     ddEnvVars.append("DD_SERVICE").append("=").append(Config.get().getServiceName())
 
     if (ddEnvVars.length() > 0) {
-      ((DDAgentApi) agentWriter.api).setHeader("X-Datadog-Trace-Env-Variables", ddEnvVars.toString())
+      agentapi.setHeader("X-Datadog-Trace-Env-Variables", ddEnvVars.toString())
     }
   }
 
@@ -112,6 +119,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @SuppressWarnings('PropertyName')
   @Shared
   DDAgentWriter TEST_AGENT_WRITER
+
+  @SuppressWarnings('PropertyName')
+  @Shared
+  DDAgentApi TEST_AGENT_API
 
   @SuppressWarnings('PropertyName')
   @Shared
@@ -217,7 +228,11 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     if (isTestAgentEnabled()) {
       // emit traces to the APM Test-Agent for Cross-Tracer Testing Trace Checks
-      TEST_AGENT_WRITER = DDAgentWriter.builder().build()
+      HttpUrl agentUrl = HttpUrl.get("http://" + DEFAULT_AGENT_HOST + ":" + DEFAULT_TRACE_AGENT_PORT)
+      OkHttpClient client = buildHttpClient(agentUrl, null, null, TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT))
+      DDAgentFeaturesDiscovery featureDiscovery = new DDAgentFeaturesDiscovery(client, Monitoring.DISABLED, agentUrl, Config.get().isTraceAgentV05Enabled(), Config.get().isTracerMetricsEnabled())
+      TEST_AGENT_API = new DDAgentApi(client, agentUrl, featureDiscovery, Monitoring.DISABLED, Config.get().isTracerMetricsEnabled())
+      TEST_AGENT_WRITER = DDAgentWriter.builder().agentApi(TEST_AGENT_API).build()
     }
 
     TEST_TRACER =
@@ -292,7 +307,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   void cleanup() {
     if (isTestAgentEnabled()) {
       // save Datadog environment to DDAgentWriter header
-      addEnvironmentVariablesToHeaders(TEST_AGENT_WRITER)
+      addEnvironmentVariablesToHeaders(TEST_AGENT_API)
 
       // write ListWriter traces to the AgentWriter at cleanup so trace-processing changes occur after span assertions
       def traces = TEST_WRITER.toArray()
