@@ -75,17 +75,18 @@ public class DependencyResolver {
     }
 
     List<Dependency> dependencies = Collections.emptyList();
-    try (JarFile file = new JarFile(jar, false /* no verify */);
-        InputStream is = Files.newInputStream(jar.toPath())) {
+    try (JarFile file = new JarFile(jar, false /* no verify */)) {
 
       // Try to get from maven properties
       dependencies = Dependency.fromMavenPom(file);
 
       // Try to guess from manifest or file name
       if (dependencies.isEmpty()) {
-        Manifest manifest = file.getManifest();
-        dependencies =
-            Collections.singletonList(Dependency.guessFallbackNoPom(manifest, jar.getName(), is));
+        try (InputStream is = Files.newInputStream(jar.toPath())) {
+          Manifest manifest = file.getManifest();
+          dependencies =
+              Collections.singletonList(Dependency.guessFallbackNoPom(manifest, jar.getName(), is));
+        }
       }
     } catch (IOException e) {
       log.debug("unable to read jar file {}", jar, e);
