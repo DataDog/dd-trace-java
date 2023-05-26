@@ -26,7 +26,7 @@ class TelemetryRunnableSpecification extends DDSpecification {
   Thread t = null
 
   void cleanup() {
-    if (t != null && t.isAlive()) {
+    if (t?.isAlive()) {
       t.interrupt()
       t.join()
     }

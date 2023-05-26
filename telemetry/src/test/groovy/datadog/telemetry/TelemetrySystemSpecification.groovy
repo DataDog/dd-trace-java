@@ -35,6 +35,8 @@ class TelemetrySystemSpecification extends DDSpecification {
 
     then:
     thread != null
+
+    cleanup:
     TelemetrySystem.stop()
   }
 
