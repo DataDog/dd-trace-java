@@ -9,6 +9,12 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import org.apache.http.HttpEntity;
 import org.elasticsearch.client.Response;
 
 public class ElasticsearchRestClientDecorator extends DBTypeProcessingDatabaseClientDecorator {
@@ -68,9 +74,43 @@ public class ElasticsearchRestClientDecorator extends DBTypeProcessingDatabaseCl
     return null;
   }
 
-  public AgentSpan onRequest(final AgentSpan span, final String method, final String endpoint) {
+  private String getElasticsearchRequestBody(HttpEntity entity) {
+    StringBuffer bodyStringBuffer = new StringBuffer();
+    try {
+      BufferedReader bodyBufferedReader =
+          new BufferedReader(new InputStreamReader(entity.getContent(), StandardCharsets.UTF_8));
+      String bodyline;
+      while ((bodyline = bodyBufferedReader.readLine()) != null) {
+        bodyStringBuffer.append(bodyline);
+      }
+      bodyBufferedReader.close();
+    } catch (IOException e) {
+      return "";
+    }
+    return bodyStringBuffer.toString();
+  }
+
+  public AgentSpan onRequest(
+      final AgentSpan span,
+      final String method,
+      final String endpoint,
+      final HttpEntity entity,
+      final Map<String, String> parameters) {
     span.setTag(Tags.HTTP_METHOD, method);
     span.setTag(Tags.HTTP_URL, endpoint);
+    if (entity != null) {
+      span.setTag("elasticsearch.body", getElasticsearchRequestBody(entity));
+    }
+    if (parameters != null) {
+      StringBuffer queryParametersStringBuffer = new StringBuffer();
+      for (Map.Entry<String, String> parameter : parameters.entrySet()) {
+        queryParametersStringBuffer.append(parameter.getKey() + "=" + parameter.getValue() + "&");
+      }
+      if (queryParametersStringBuffer.length() >= 1) {
+        queryParametersStringBuffer.deleteCharAt(queryParametersStringBuffer.length() - 1);
+      }
+      span.setTag("elasticsearch.params", queryParametersStringBuffer.toString());
+    }
     return HTTP_RESOURCE_DECORATOR.withClientPath(span, method, endpoint);
   }
 
