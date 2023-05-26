@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.testng;
 
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import org.testng.ClassMethodMap;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import org.testng.IMethodInstance;
 import org.testng.ITestClass;
 import org.testng.ITestNGMethod;
@@ -23,65 +23,48 @@ import org.testng.ITestNGMethod;
  *
  * <p>The other problem is that if an {@code @AfterClass} method throws an exception, standard
  * listener will be notified BEFORE this exception is thrown and will have no way of reacting to it.
- *
- * <p>The listener tries to replicate standard class events logic as closely as possible, the only
- * exception being {@code onAfterClass()} listener invocation time.
  */
 public abstract class TestNGClassListener {
 
-  public void onBeforeClass(
-      ITestClass testClass, ClassMethodMap classMethodMap, IMethodInstance methodInstance) {
-    if (isFirstMethodInSuite(testClass, classMethodMap, methodInstance)) {
-      onBeforeClass(testClass);
-    }
+  private final ConcurrentMap<ITestClass, Collection<ITestNGMethod>> methodsAwaitingExecution =
+      new ConcurrentHashMap<>();
+
+  public void invokeBeforeClass(ITestClass testClass, boolean parallelized) {
+    methodsAwaitingExecution.computeIfAbsent(
+        testClass,
+        k -> {
+          // firing event with the lock held to ensure that the other threads wait until test suite
+          // state is initialized
+          onBeforeClass(testClass, parallelized);
+
+          // populate methods with the lock held to ensure that the other threads cannot see
+          // partially populated set
+          return getTestMethods(k);
+        });
   }
 
-  public void onAfterClass(
-      ITestClass testClass, ClassMethodMap classMethodMap, IMethodInstance methodInstance) {
-    if (isLastMethodInSuite(testClass, classMethodMap, methodInstance)) {
+  private Collection<ITestNGMethod> getTestMethods(ITestClass testClass) {
+    ITestNGMethod[] testMethods = testClass.getTestMethods();
+    Collection<ITestNGMethod> set = ConcurrentHashMap.newKeySet(testMethods.length);
+    set.addAll(Arrays.asList(testMethods));
+    return set;
+  }
+
+  public void invokeAfterClass(ITestClass testClass, IMethodInstance methodInstance) {
+    Collection<ITestNGMethod> remainingMethods =
+        methodsAwaitingExecution.computeIfPresent(
+            testClass,
+            (k, v) -> {
+              v.remove(methodInstance.getMethod());
+              return !v.isEmpty() ? v : null;
+            });
+
+    if (remainingMethods == null) {
       onAfterClass(testClass);
     }
   }
 
-  private boolean isFirstMethodInSuite(
-      ITestClass testClass, ClassMethodMap classMethodMap, IMethodInstance methodInstance) {
-    Map<ITestClass, Set<Object>> invokedBeforeClassMethods =
-        classMethodMap.getInvokedBeforeClassMethods();
-    synchronized (testClass) {
-      // synchronization on testClass is the protocol used by TestNG
-      Set<Object> instances =
-          invokedBeforeClassMethods.computeIfAbsent(testClass, k -> new HashSet<>());
-      Object instance = methodInstance.getInstance();
-
-      ITestNGMethod[] beforeClassMethods = testClass.getBeforeClassMethods();
-      if (beforeClassMethods == null || beforeClassMethods.length == 0) {
-        // TestNG will not bother filling the set in this case, so we have to do it
-        return instances.add(instance);
-      } else {
-        return !instances.contains(instance);
-      }
-    }
-  }
-
-  private boolean isLastMethodInSuite(
-      ITestClass testClass, ClassMethodMap classMethodMap, IMethodInstance methodInstance) {
-    ITestNGMethod[] afterClassMethods = testClass.getAfterClassMethods();
-    if (afterClassMethods == null || afterClassMethods.length == 0) {
-      // TestNG will not bother cleaning the map in this case, so we have to do it
-      ITestNGMethod testNGMethod = methodInstance.getMethod();
-      Object instance = methodInstance.getInstance();
-      return classMethodMap.removeAndCheckIfLast(testNGMethod, instance);
-    } else {
-      // TestNG will clean the map.
-      // We create a dummy method and "remove" it,
-      // checking that no methods from the same testClass remain in the map
-      ITestNGMethod testNGMethod = new TestNGMethod(testClass);
-      Object instance = methodInstance.getInstance();
-      return classMethodMap.removeAndCheckIfLast(testNGMethod, instance);
-    }
-  }
-
-  protected abstract void onBeforeClass(ITestClass testClass);
+  protected abstract void onBeforeClass(ITestClass testClass, boolean parallelized);
 
   protected abstract void onAfterClass(ITestClass testClass);
 }
