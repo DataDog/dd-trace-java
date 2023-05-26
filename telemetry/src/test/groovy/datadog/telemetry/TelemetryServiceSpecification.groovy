@@ -29,7 +29,7 @@ class TelemetryServiceSpecification extends DDSpecification {
 
   OkHttpClient httpClient = Mock()
   RequestBuilder requestBuilder = Spy(new RequestBuilder(HttpUrl.get("https://example.com")))
-  Supplier<RequestBuilder> requestBuilderSupplier = () -> requestBuilder
+  Supplier<RequestBuilder> requestBuilderSupplier = { requestBuilder }
   TelemetryService telemetryService = new TelemetryService(httpClient, requestBuilderSupplier)
 
   def dummyRequest = new Request.Builder().url(HttpUrl.get("https://example.com")).build()
@@ -38,12 +38,12 @@ class TelemetryServiceSpecification extends DDSpecification {
     Stub(Call) {
       execute() >> {
         new Response.Builder()
-        .request(dummyRequest)
-        .protocol(Protocol.HTTP_1_1)
-        .message("OK")
-        .body(ResponseBody.create(MediaType.get("text/plain"), "OK"))
-        .code(code)
-        .build()
+          .request(dummyRequest)
+          .protocol(Protocol.HTTP_1_1)
+          .message("OK")
+          .body(ResponseBody.create(MediaType.get("text/plain"), "OK"))
+          .code(code)
+          .build()
       }
     }
   }
@@ -66,8 +66,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     telemetryService.sendIntervalRequests()
 
     then: 'app-started'
-    1 * requestBuilder.build(RequestType.APP_STARTED, {
-      AppStarted p ->
+    1 * requestBuilder.build(RequestType.APP_STARTED, { AppStarted p ->
       p.requestType == RequestType.APP_STARTED
       p.configuration == null
       p.dependencies.isEmpty()
@@ -102,8 +101,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     telemetryService.sendIntervalRequests()
 
     then:
-    1 * requestBuilder.build(RequestType.APP_STARTED, {
-      AppStarted p ->
+    1 * requestBuilder.build(RequestType.APP_STARTED, { AppStarted p ->
       p.requestType == RequestType.APP_STARTED
       p.configuration == [confKeyValue]
       p.dependencies == [dependency]
@@ -116,22 +114,19 @@ class TelemetryServiceSpecification extends DDSpecification {
     1 * httpClient.newCall(_) >> okResponse
 
     then:
-    1 * requestBuilder.build(RequestType.GENERATE_METRICS, {
-      GenerateMetrics p ->
+    1 * requestBuilder.build(RequestType.GENERATE_METRICS, { GenerateMetrics p ->
       p.series == [metric]
     })
     1 * httpClient.newCall(_) >> okResponse
 
     then:
-    1 * requestBuilder.build(RequestType.DISTRIBUTIONS, {
-      Distributions p ->
+    1 * requestBuilder.build(RequestType.DISTRIBUTIONS, { Distributions p ->
       p.series == [distribution]
     })
     1 * httpClient.newCall(_) >> okResponse
 
     then:
-    1 * requestBuilder.build(RequestType.LOGS, {
-      Logs p ->
+    1 * requestBuilder.build(RequestType.LOGS, { Logs p ->
       p.messages == [logMessage]
     })
     1 * httpClient.newCall(_) >> okResponse
@@ -145,8 +140,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     telemetryService.sendIntervalRequests()
 
     then:
-    1 * requestBuilder.build(RequestType.APP_STARTED, {
-      AppStarted p ->
+    1 * requestBuilder.build(RequestType.APP_STARTED, { AppStarted p ->
       p.requestType == RequestType.APP_STARTED
       p.configuration == null
       p.dependencies == []
@@ -175,36 +169,31 @@ class TelemetryServiceSpecification extends DDSpecification {
     1 * httpClient.newCall(_) >> okResponse
 
     then:
-    1 * requestBuilder.build(RequestType.APP_INTEGRATIONS_CHANGE, {
-      AppIntegrationsChange p ->
+    1 * requestBuilder.build(RequestType.APP_INTEGRATIONS_CHANGE, { AppIntegrationsChange p ->
       p.integrations == [integration]
     })
     1 * httpClient.newCall(_) >> okResponse
 
     then:
-    1 * requestBuilder.build(RequestType.APP_DEPENDENCIES_LOADED, {
-      AppDependenciesLoaded p ->
+    1 * requestBuilder.build(RequestType.APP_DEPENDENCIES_LOADED, { AppDependenciesLoaded p ->
       p.dependencies == [dependency]
     })
     1 * httpClient.newCall(_) >> okResponse
 
     then:
-    1 * requestBuilder.build(RequestType.GENERATE_METRICS, {
-      GenerateMetrics p ->
+    1 * requestBuilder.build(RequestType.GENERATE_METRICS, { GenerateMetrics p ->
       p.series == [metric]
     })
     1 * httpClient.newCall(_) >> okResponse
 
     then:
-    1 * requestBuilder.build(RequestType.DISTRIBUTIONS, {
-      Distributions p ->
+    1 * requestBuilder.build(RequestType.DISTRIBUTIONS, { Distributions p ->
       p.series == [distribution]
     })
     1 * httpClient.newCall(_) >> okResponse
 
     then:
-    1 * requestBuilder.build(RequestType.LOGS, {
-      Logs p ->
+    1 * requestBuilder.build(RequestType.LOGS, { Logs p ->
       p.messages == [logMessage]
     })
     1 * httpClient.newCall(_) >> okResponse
@@ -218,8 +207,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     telemetryService.sendIntervalRequests()
 
     then: 'app-started is attempted'
-    1 * requestBuilder.build(RequestType.APP_STARTED, {
-      AppStarted p ->
+    1 * requestBuilder.build(RequestType.APP_STARTED, { AppStarted p ->
       p.requestType == RequestType.APP_STARTED
       p.configuration == null
       p.dependencies.isEmpty()
@@ -232,8 +220,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     telemetryService.sendIntervalRequests()
 
     then: 'app-started is attempted'
-    1 * requestBuilder.build(RequestType.APP_STARTED, {
-      AppStarted p ->
+    1 * requestBuilder.build(RequestType.APP_STARTED, { AppStarted p ->
       p.requestType == RequestType.APP_STARTED
       p.configuration == null
       p.dependencies.isEmpty()
@@ -246,8 +233,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     telemetryService.sendIntervalRequests()
 
     then: 'app-started is attempted'
-    1 * requestBuilder.build(RequestType.APP_STARTED, {
-      AppStarted p ->
+    1 * requestBuilder.build(RequestType.APP_STARTED, { AppStarted p ->
       p.requestType == RequestType.APP_STARTED
       p.configuration == null
       p.dependencies.isEmpty()
@@ -260,8 +246,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     telemetryService.sendIntervalRequests()
 
     then:
-    1 * requestBuilder.build(RequestType.APP_STARTED, {
-      AppStarted p ->
+    1 * requestBuilder.build(RequestType.APP_STARTED, { AppStarted p ->
       p.requestType == RequestType.APP_STARTED
       p.configuration == null
       p.dependencies.isEmpty()

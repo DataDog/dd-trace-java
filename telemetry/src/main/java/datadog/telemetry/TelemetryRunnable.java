@@ -40,8 +40,8 @@ public class TelemetryRunnable implements Runnable {
     this.actionsAtMetricsInterval = findMetricPeriodicActions(actions);
     this.sleeper = sleeper;
     this.timeSource = timeSource;
-    this.metricsIntervalMs = (int) (Config.get().getTelemetryMetricsInterval() * 1000);
-    this.heartbeatIntervalMs = (int) (Config.get().getTelemetryHeartbeatInterval() * 1000);
+    this.metricsIntervalMs = (long) (Config.get().getTelemetryMetricsInterval() * 1000);
+    this.heartbeatIntervalMs = (long) (Config.get().getTelemetryHeartbeatInterval() * 1000);
     this.lastMetricsIntervalMs = 0;
     this.lastHeartbeatIntervalMs = 0;
   }

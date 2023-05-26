@@ -19,8 +19,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Supplier;
@@ -55,8 +53,6 @@ public class TelemetryService {
 
   private final BlockingQueue<DistributionSeries> distributionSeries =
       new LinkedBlockingQueue<>(1024);
-
-  private final Queue<Request> queue = new ArrayBlockingQueue<>(16);
 
   private boolean sentAppStarted;
 
