@@ -29,6 +29,7 @@ tasks.register('quarkusBuild', Exec) {
   .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
+evaluationDependsOn ':dd-trace-api'
 quarkusBuild {
   dependsOn project(':dd-trace-api').tasks.named("jar")
 }

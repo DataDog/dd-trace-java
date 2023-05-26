@@ -4,7 +4,6 @@ import okhttp3.FormBody
 import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
-import spock.lang.Ignore
 
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE
@@ -368,12 +367,10 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     }
   }
 
-  // TODO @IAST support this source in spring boot 2.6
-  @Ignore
   @SuppressWarnings('CyclomaticComplexity')
   void 'tainting of path variables — RequestMappingInfoHandlerMapping variant'() {
     given:
-    String url = "http://localhost:${httpPort}/matrix/value;xxx=aaa,bbb;yyy=ccc/zzz=ddd"
+    String url = "http://localhost:${httpPort}/matrix/value1;xxx=aaa,bbb;yyy=ccc/value2;zzz=ddd"
     def request = new Request.Builder().url(url).get().build()
 
     when:
@@ -382,20 +379,21 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     then:
     hasTainted { tainted ->
       final firstRange = tainted.ranges[0]
-      tainted.value == 'value' &&
+      tainted.value == 'value1' &&
         firstRange?.source?.origin == 'http.request.path.parameter' &&
         firstRange?.source?.name == 'var1'
     }
     ['xxx', 'aaa', 'bbb', 'yyy', 'ccc'].each {
       hasTainted { tainted ->
         final firstRange = tainted.ranges[0]
-        firstRange?.source?.origin == 'http.request.matrix.parameter' &&
+        tainted.value == it &&
+          firstRange?.source?.origin == 'http.request.matrix.parameter' &&
           firstRange?.source?.name == 'var1'
       }
     }
     hasTainted { tainted ->
       final firstRange = tainted.ranges[0]
-      tainted.value == 'zzz=ddd' &&
+      tainted.value == 'value2' &&
         firstRange?.source?.origin == 'http.request.path.parameter' &&
         firstRange?.source?.name == 'var2'
     }

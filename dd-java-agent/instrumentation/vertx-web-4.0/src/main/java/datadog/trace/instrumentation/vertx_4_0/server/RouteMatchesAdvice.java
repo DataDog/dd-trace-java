@@ -5,9 +5,12 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 class RouteMatchesAdvice {
-  @Advice.OnMethodExit(suppress = Throwable.class)
-  static void after(@Advice.Return int ret, @Advice.Argument(0) final RoutingContext ctx) {
-    if (ret != 0) {
+  @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+  static void after(
+      @Advice.Return int ret,
+      @Advice.Argument(0) final RoutingContext ctx,
+      @Advice.Thrown(readOnly = false) Throwable t) {
+    if (ret != 0 || t != null) {
       return;
     }
     Map<String, String> params = ctx.pathParams();
@@ -15,13 +18,17 @@ class RouteMatchesAdvice {
       return;
     }
 
-    PathParameterPublishingHelper.publishParams(params);
+    Throwable throwable = PathParameterPublishingHelper.publishParams(params);
+    t = throwable;
   }
 
   static class BooleanReturnVariant {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    static void after(@Advice.Return boolean ret, @Advice.Argument(0) final RoutingContext ctx) {
-      if (!ret) {
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    static void after(
+        @Advice.Return boolean ret,
+        @Advice.Argument(0) final RoutingContext ctx,
+        @Advice.Thrown(readOnly = false) Throwable t) {
+      if (!ret || t != null) {
         return;
       }
       Map<String, String> params = ctx.pathParams();
@@ -29,7 +36,8 @@ class RouteMatchesAdvice {
         return;
       }
 
-      PathParameterPublishingHelper.publishParams(params);
+      Throwable throwable = PathParameterPublishingHelper.publishParams(params);
+      t = throwable;
     }
   }
 }

@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.gateway.RequestContextSlot;
@@ -118,7 +119,7 @@ public class GrizzlyByteBodyInstrumentation extends Instrumenter.AppSec
         return;
       }
       if (ret == -1) {
-        storedByteBody.maybeNotify();
+        storedByteBody.maybeNotifyAndBlock();
         return;
       }
       storedByteBody.appendData(ret);
@@ -126,11 +127,15 @@ public class GrizzlyByteBodyInstrumentation extends Instrumenter.AppSec
   }
 
   static class NIOInputStreamReadByteArrayAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
         @Advice.This final NIOInputStream thiz,
         @Advice.Argument(0) byte[] byteArray,
-        @Advice.Return int ret) {
+        @Advice.Return int ret,
+        @Advice.Thrown(readOnly = false) Throwable t) {
+      if (t != null) {
+        return;
+      }
       StoredByteBody storedByteBody =
           InstrumentationContext.get(NIOInputStream.class, StoredByteBody.class).get(thiz);
       if (storedByteBody == null) {
@@ -138,7 +143,11 @@ public class GrizzlyByteBodyInstrumentation extends Instrumenter.AppSec
       }
 
       if (ret == -1) {
-        storedByteBody.maybeNotify();
+        try {
+          storedByteBody.maybeNotifyAndBlock();
+        } catch (BlockingException be) {
+          t = be;
+        }
         return;
       }
       storedByteBody.appendData(byteArray, 0, ret);
@@ -146,19 +155,28 @@ public class GrizzlyByteBodyInstrumentation extends Instrumenter.AppSec
   }
 
   static class NIOInputStreamReadByteArrayIntIntAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
         @Advice.This final NIOInputStream thiz,
         @Advice.Argument(0) byte[] byteArray,
         @Advice.Argument(1) int off,
-        @Advice.Return int ret) {
+        @Advice.Return int ret,
+        @Advice.Thrown(readOnly = false) Throwable t) {
+      if (t != null) {
+        return;
+      }
+
       StoredByteBody storedByteBody =
           InstrumentationContext.get(NIOInputStream.class, StoredByteBody.class).get(thiz);
       if (storedByteBody == null) {
         return;
       }
       if (ret == -1) {
-        storedByteBody.maybeNotify();
+        try {
+          storedByteBody.maybeNotifyAndBlock();
+        } catch (BlockingException be) {
+          t = be;
+        }
         return;
       }
       storedByteBody.appendData(byteArray, off, off + ret);
@@ -183,15 +201,25 @@ public class GrizzlyByteBodyInstrumentation extends Instrumenter.AppSec
   }
 
   static class NIOInputStreamIsFinishedAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    static void after(@Advice.This final NIOInputStream thiz, @Advice.Return boolean ret) {
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    static void after(
+        @Advice.This final NIOInputStream thiz,
+        @Advice.Return boolean ret,
+        @Advice.Thrown(readOnly = false) Throwable t) {
+      if (t != null) {
+        return;
+      }
       StoredByteBody storedByteBody =
           InstrumentationContext.get(NIOInputStream.class, StoredByteBody.class).get(thiz);
       if (storedByteBody == null) {
         return;
       }
       if (ret) {
-        storedByteBody.maybeNotify();
+        try {
+          storedByteBody.maybeNotifyAndBlock();
+        } catch (BlockingException be) {
+          t = be;
+        }
       }
     }
   }
