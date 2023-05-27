@@ -236,6 +236,38 @@ abstract class TimeInQueueForkedTestBase extends VersionedNamingTestBase {
     session.createTemporaryTopic()   | "Temporary Topic"
   }
 
+  def "sending messages to #jmsResourceName with listener acknowledgement generates time-in-queue spans"() {
+    setup:
+    def producerSession = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)
+    def producer = producerSession.createProducer(destination)
+    def consumerSession = connection.createSession(false, Session.CLIENT_ACKNOWLEDGE)
+    def consumer = consumerSession.createConsumer(destination)
+
+    when:
+    consumer.setMessageListener { it.acknowledge() }
+    producer.send(message1)
+
+    then:
+    assertTraces(2, SORT_TRACES_BY_ID) {
+      producerTrace(it, jmsResourceName)
+      trace(2) {
+        timeInQueueSpan(it, jmsResourceName, trace(0)[0])
+        consumerSpan(it, jmsResourceName, trace(1)[0], false)
+      }
+    }
+
+    cleanup:
+    producerSession.close()
+    consumerSession.close()
+
+    where:
+    destination                      | jmsResourceName
+    session.createQueue("someQueue") | "Queue someQueue"
+    session.createTopic("someTopic") | "Topic someTopic"
+    session.createTemporaryQueue()   | "Temporary Queue"
+    session.createTemporaryTopic()   | "Temporary Topic"
+  }
+
   def "sending messages to #jmsResourceName with transacted acknowledgement generates time-in-queue spans"() {
     setup:
     def producerSession = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)
@@ -298,6 +330,38 @@ abstract class TimeInQueueForkedTestBase extends VersionedNamingTestBase {
         consumerSpan(it, jmsResourceName, trace(6)[0], false)
         consumerSpan(it, jmsResourceName, trace(6)[0], false)
         consumerSpan(it, jmsResourceName, trace(6)[0], false)
+      }
+    }
+
+    cleanup:
+    producerSession.close()
+    consumerSession.close()
+
+    where:
+    destination                      | jmsResourceName
+    session.createQueue("someQueue") | "Queue someQueue"
+    session.createTopic("someTopic") | "Topic someTopic"
+    session.createTemporaryQueue()   | "Temporary Queue"
+    session.createTemporaryTopic()   | "Temporary Topic"
+  }
+
+  def "sending messages to #jmsResourceName with listener commit generates time-in-queue spans"() {
+    setup:
+    def producerSession = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)
+    def producer = producerSession.createProducer(destination)
+    def consumerSession = connection.createSession(true, Session.SESSION_TRANSACTED)
+    def consumer = consumerSession.createConsumer(destination)
+
+    when:
+    consumer.setMessageListener { consumerSession.commit() }
+    producer.send(message1)
+
+    then:
+    assertTraces(2, SORT_TRACES_BY_ID) {
+      producerTrace(it, jmsResourceName)
+      trace(2) {
+        timeInQueueSpan(it, jmsResourceName, trace(0)[0])
+        consumerSpan(it, jmsResourceName, trace(1)[0], false)
       }
     }
 
