@@ -138,7 +138,10 @@ final class FixedSizeWeightedCache<K, V> implements DDCache<K, V> {
       if (TOTAL_WEIGHT_ESTIMATE_UPDATER.compareAndSet(this, oldEstimate, newEstimate)) {
         elements[pos] = new Weighed<>(key, value, weight);
         if (newEstimate > totalWeightLimit) {
-          beginSweep(pos, weight); // caching will be disabled until this completes
+          // totalWeightEstimate is now above the limit, making the cache read-only to others.
+          // As we sweep the cache we evict elements to move the estimate back below the limit.
+          // When we publish the reduced estimate, the cache becomes writable again.
+          beginSweep(pos, weight);
         }
         break;
       }
