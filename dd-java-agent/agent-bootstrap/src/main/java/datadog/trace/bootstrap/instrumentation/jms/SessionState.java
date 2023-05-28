@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.jms;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayDeque;
@@ -45,7 +46,8 @@ public final class SessionState {
   static final int MAX_CAPTURED_SPANS = 512;
 
   // mimic implicit message ack if oldest unacknowledged message span is too old
-  static final long MAX_UNACKNOWLEDGED_AGE = TimeUnit.MINUTES.toMillis(60);
+  static final long UNACKNOWLEDGED_MAX_AGE =
+      TimeUnit.SECONDS.toMillis(Config.get().getJmsUnacknowledgedMaxAge());
 
   private static final int MAX_TRACKED_THREADS = 100;
   private static final int MIN_EVICTED_THREADS = 10;
@@ -154,7 +156,7 @@ public final class SessionState {
     long now = System.currentTimeMillis();
     if (oldestCaptureTime == 0) {
       oldestCaptureTime = now;
-    } else if ((now - oldestCaptureTime) > MAX_UNACKNOWLEDGED_AGE) {
+    } else if ((now - oldestCaptureTime) > UNACKNOWLEDGED_MAX_AGE) {
       oldestCaptureTime = now;
       return true;
     }
