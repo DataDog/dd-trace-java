@@ -5,9 +5,12 @@ import datadog.trace.plugin.csi.impl.CallSiteSpecification.AdviceSpecification
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.AfterSpecification
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.AroundSpecification
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.BeforeSpecification
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.transform.CompileDynamic
 import org.objectweb.asm.Type
 
+import javax.annotation.Nonnull
+import javax.annotation.Nullable
 import javax.servlet.ServletRequest
 import java.lang.invoke.MethodHandles
 import java.lang.invoke.MethodType
@@ -463,6 +466,32 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     then:
     result.clazz.className == TestMinJavaVersion.name
     result.minJavaVersion == 9
+  }
+
+  @CallSite
+  static class TestWithOtherAnnotations {
+    @CallSite.Around("java.lang.StringBuilder java.lang.StringBuilder.append(java.lang.Object)")
+    @CallSite.Around("java.lang.StringBuffer java.lang.StringBuffer.append(java.lang.Object)")
+    @Nonnull
+    @SuppressFBWarnings(
+      "NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE") // we do check for null on self
+    // parameter
+    static Appendable aroundAppend(@CallSite.This @Nullable final Appendable self, @CallSite.Argument(0) @Nullable final Object param) throws Throwable {
+      return self.append(param.toString())
+    }
+  }
+
+  void 'test specification builder with multiple method annotations'() {
+    setup:
+    final advice = fetchClass(TestWithOtherAnnotations)
+    final specificationBuilder = new AsmSpecificationBuilder()
+
+    when:
+    final result = specificationBuilder.build(advice).orElseThrow(RuntimeException::new)
+
+    then:
+    result.clazz.className == TestWithOtherAnnotations.name
+    result.advices.size() == 2
   }
 
   private static List<Integer> getArguments(final AdviceSpecification advice) {
