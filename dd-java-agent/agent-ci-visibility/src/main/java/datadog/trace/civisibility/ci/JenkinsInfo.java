@@ -10,8 +10,11 @@ import datadog.trace.api.civisibility.ci.CIInfo;
 import datadog.trace.api.civisibility.ci.CIProviderInfo;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
+import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @SuppressForbidden
@@ -31,6 +34,8 @@ class JenkinsInfo implements CIProviderInfo {
   public static final String JENKINS_GIT_COMMIT = "GIT_COMMIT";
   public static final String JENKINS_GIT_BRANCH = "GIT_BRANCH";
   public static final String JENKINS_DD_CUSTOM_TRACE_ID = "DD_CUSTOM_TRACE_ID";
+  public static final String JENKINS_NODE_NAME = "NODE_NAME";
+  public static final String JENKINS_NODE_LABELS = "NODE_LABELS";
 
   @Override
   public GitInfo buildCIGitInfo() {
@@ -52,8 +57,19 @@ class JenkinsInfo implements CIProviderInfo {
         .ciPipelineNumber(System.getenv(JENKINS_PIPELINE_NUMBER))
         .ciPipelineUrl(System.getenv(JENKINS_PIPELINE_URL))
         .ciWorkspace(expandTilde(System.getenv(JENKINS_WORKSPACE_PATH)))
+        .ciNodeName(System.getenv(JENKINS_NODE_NAME))
+        .ciNodeLabels(buildCiNodeLabels())
         .ciEnvVars(JENKINS_DD_CUSTOM_TRACE_ID)
         .build();
+  }
+
+  private String buildCiNodeLabels() {
+    String labels = System.getenv(JENKINS_NODE_LABELS);
+    if (labels == null || labels.isEmpty()) {
+      return labels;
+    }
+    List<String> labelsList = Arrays.asList(labels.split(" "));
+    return Strings.toJson(labelsList);
   }
 
   private String buildGitRepositoryUrl() {

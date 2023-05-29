@@ -21,6 +21,8 @@ public class CIInfo {
     private String ciPipelineUrl;
     private String ciJobUrl;
     private String ciWorkspace;
+    private String ciNodeName;
+    private String ciNodeLabels;
     private Map<String, String> ciEnvVars;
 
     public Builder ciProviderName(String ciProviderName) {
@@ -68,6 +70,16 @@ public class CIInfo {
       return this;
     }
 
+    public Builder ciNodeName(String ciNodeName) {
+      this.ciNodeName = ciNodeName;
+      return this;
+    }
+
+    public Builder ciNodeLabels(String ciNodeLabels) {
+      this.ciNodeLabels = ciNodeLabels;
+      return this;
+    }
+
     public Builder ciEnvVars(String... ciEnvVarKeysArray) {
       if (ciEnvVarKeysArray == null || ciEnvVarKeysArray.length == 0) {
         return this;
@@ -94,6 +106,8 @@ public class CIInfo {
           ciPipelineUrl,
           ciJobUrl,
           ciWorkspace,
+          ciNodeName,
+          ciNodeLabels,
           ciEnvVars);
     }
   }
@@ -107,10 +121,12 @@ public class CIInfo {
   private final String ciPipelineUrl;
   private final String ciJobUrl;
   private final String ciWorkspace;
+  private final String ciNodeName;
+  private final String ciNodeLabels;
   private final Map<String, String> ciEnvVars;
 
   public CIInfo() {
-    this(null, null, null, null, null, null, null, null, null, null);
+    this(null, null, null, null, null, null, null, null, null, null, null, null);
   }
 
   public CIInfo(
@@ -123,6 +139,8 @@ public class CIInfo {
       String ciPipelineUrl,
       String ciJobUrl,
       String ciWorkspace,
+      String ciNodeName,
+      String ciNodeLabels,
       Map<String, String> ciEnvVars) {
     this.ciProviderName = ciProviderName;
     this.ciPipelineId = ciPipelineId;
@@ -133,6 +151,8 @@ public class CIInfo {
     this.ciPipelineUrl = ciPipelineUrl;
     this.ciJobUrl = ciJobUrl;
     this.ciWorkspace = ciWorkspace;
+    this.ciNodeName = ciNodeName;
+    this.ciNodeLabels = ciNodeLabels;
     this.ciEnvVars = ciEnvVars;
   }
 
@@ -172,6 +192,14 @@ public class CIInfo {
     return ciWorkspace;
   }
 
+  public String getCiNodeName() {
+    return ciNodeName;
+  }
+
+  public String getCiNodeLabels() {
+    return ciNodeLabels;
+  }
+
   public Map<String, String> getCiEnvVars() {
     return ciEnvVars;
   }
@@ -194,6 +222,8 @@ public class CIInfo {
         && Objects.equals(ciPipelineUrl, ciInfo.ciPipelineUrl)
         && Objects.equals(ciJobUrl, ciInfo.ciJobUrl)
         && Objects.equals(ciWorkspace, ciInfo.ciWorkspace)
+        && Objects.equals(ciNodeName, ciInfo.ciNodeName)
+        && Objects.equals(ciNodeLabels, ciInfo.ciNodeLabels)
         && Objects.equals(ciEnvVars, ciInfo.ciEnvVars);
   }
 
@@ -209,6 +239,8 @@ public class CIInfo {
     hash = 31 * hash + (ciPipelineUrl == null ? 0 : ciPipelineUrl.hashCode());
     hash = 31 * hash + (ciJobUrl == null ? 0 : ciJobUrl.hashCode());
     hash = 31 * hash + (ciWorkspace == null ? 0 : ciWorkspace.hashCode());
+    hash = 31 * hash + (ciNodeName == null ? 0 : ciNodeName.hashCode());
+    hash = 31 * hash + (ciNodeLabels == null ? 0 : ciNodeLabels.hashCode());
     hash = 31 * hash + (ciEnvVars == null ? 0 : ciEnvVars.hashCode());
     return hash;
   }
@@ -242,6 +274,12 @@ public class CIInfo {
         + '\''
         + ", ciWorkspace='"
         + ciWorkspace
+        + '\''
+        + ", ciNodeName='"
+        + ciNodeName
+        + '\''
+        + ", ciNodeLabels='"
+        + ciNodeLabels
         + '\''
         + ", ciEnvVars='"
         + ciEnvVars
