@@ -44,6 +44,8 @@ public class CITagsProviderImpl implements CITagsProvider {
         .withCiPipelineUrl(ciInfo.getCiPipelineUrl())
         .withCiJorUrl(ciInfo.getCiJobUrl())
         .withCiWorkspacePath(ciInfo.getCiWorkspace())
+        .withCiNodeName(ciInfo.getCiNodeName())
+        .withCiNodeLabels(ciInfo.getCiNodeLabels())
         .withCiEnvVars(ciInfo.getCiEnvVars())
         .withGitRepositoryUrl(gitInfo)
         .withGitCommit(gitInfo)
@@ -97,6 +99,14 @@ public class CITagsProviderImpl implements CITagsProvider {
 
     public CITagsBuilder withCiWorkspacePath(final String ciWorkspacePath) {
       return putTagValue(Tags.CI_WORKSPACE_PATH, ciWorkspacePath);
+    }
+
+    public CITagsBuilder withCiNodeName(final String ciNodeName) {
+      return putTagValue(Tags.CI_NODE_NAME, ciNodeName);
+    }
+
+    public CITagsBuilder withCiNodeLabels(final String ciNodeLabels) {
+      return putTagValue(Tags.CI_NODE_LABELS, ciNodeLabels);
     }
 
     public CITagsBuilder withCiEnvVars(final Map<String, String> ciEnvVars) {

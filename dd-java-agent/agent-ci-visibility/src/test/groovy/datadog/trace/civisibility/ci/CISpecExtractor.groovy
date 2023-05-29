@@ -1,12 +1,31 @@
 package datadog.trace.civisibility.ci
 
 import datadog.trace.api.DDTags
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import groovy.json.JsonSlurper
+
+import java.util.function.BiPredicate
 
 class CISpecExtractor {
 
-  private static final Set<String> JSON_TAGS = new HashSet<>(Arrays.asList(DDTags.CI_ENV_VARS))
   private static final JsonSlurper JSON_SLURPER = new JsonSlurper()
+
+  private static final Map<String, BiPredicate<String, String>> CUSTOM_COMPARATORS = new HashMap<>()
+
+  static {
+    CUSTOM_COMPARATORS.put(DDTags.CI_ENV_VARS, new BiPredicate<String, String>() {
+        @Override
+        boolean test(String e, String a) {
+          return JSON_SLURPER.parseText(e) == JSON_SLURPER.parseText(a)
+        }
+      })
+    CUSTOM_COMPARATORS.put(Tags.CI_NODE_LABELS, new BiPredicate<String, String>() {
+        @Override
+        boolean test(String e, String a) {
+          return JSON_SLURPER.parseText(e).sort() == JSON_SLURPER.parseText(a).sort()
+        }
+      })
+  }
 
   static extract(String ciProviderName) {
     if ("unknown" == ciProviderName) {
@@ -42,18 +61,20 @@ class CISpecExtractor {
         if ((tags[val] && !ciTags[val]) || (!tags[val] && ciTags[val])) {
           mismatches.add("tag " + val + " is expected to have value \"" + tags[val] + "\", but has value \"" + ciTags[val] + "\"")
         } else {
-          def expectedValue
-          def actualValue
-          if (JSON_TAGS.contains(val)) {
-            actualValue = JSON_SLURPER.parseText(ciTags[val])
-            expectedValue = JSON_SLURPER.parseText(tags[val])
+          def expectedValue = tags[val]
+          def actualValue = ciTags[val]
+
+          boolean success
+
+          def customComparator = CUSTOM_COMPARATORS.get(val)
+          if (customComparator != null) {
+            success = customComparator.test(expectedValue, actualValue)
           } else {
-            actualValue = ciTags[val]
-            expectedValue = tags[val]
+            success = actualValue == expectedValue
           }
 
-          if (actualValue != expectedValue) {
-            mismatches.add("tag " + val + " is expected to have value \"" + expectedValue + "\", but has value \"" + actualValue + "\"")
+          if (!success) {
+            mismatches.add("tag " + val + " comparison failed. Expected:  \"" + expectedValue + "\", actual: \"" + actualValue + "\"")
           }
         }
         expectedKeysIterator.remove()
