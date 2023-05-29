@@ -39,6 +39,13 @@ public class TestStringBuilderSuite implements TestAbstractStringBuilderSuite<St
   }
 
   @Override
+  public void append(final StringBuilder builder, final Object param) {
+    LOGGER.debug("Before string builder append {}", param);
+    final StringBuilder result = builder.append(param);
+    LOGGER.debug("After string builder append {}", result);
+  }
+
+  @Override
   public String toString(final StringBuilder builder) {
     LOGGER.debug("Before string builder toString {}", builder);
     final String result = builder.toString();

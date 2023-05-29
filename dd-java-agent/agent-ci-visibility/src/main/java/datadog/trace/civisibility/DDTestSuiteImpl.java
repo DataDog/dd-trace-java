@@ -34,6 +34,7 @@ public class DDTestSuiteImpl implements DDTestSuite {
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
   private final MethodLinesResolver methodLinesResolver;
+  private final boolean parallelized;
 
   public DDTestSuiteImpl(
       TestContext moduleContext,
@@ -45,7 +46,8 @@ public class DDTestSuiteImpl implements DDTestSuite {
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
-      MethodLinesResolver methodLinesResolver) {
+      MethodLinesResolver methodLinesResolver,
+      boolean parallelized) {
     this.moduleName = moduleName;
     this.moduleContext = moduleContext;
     this.testSuiteName = testSuiteName;
@@ -54,6 +56,7 @@ public class DDTestSuiteImpl implements DDTestSuite {
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
+    this.parallelized = parallelized;
 
     AgentSpan moduleSpan = this.moduleContext.getSpan();
     AgentSpan.Context moduleSpanContext = moduleSpan != null ? moduleSpan.context() : null;
@@ -89,8 +92,10 @@ public class DDTestSuiteImpl implements DDTestSuite {
 
     testDecorator.afterStart(span);
 
-    final AgentScope scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
+    if (!parallelized) {
+      final AgentScope scope = activateSpan(span);
+      scope.setAsyncPropagation(true);
+    }
   }
 
   @Override
@@ -115,23 +120,25 @@ public class DDTestSuiteImpl implements DDTestSuite {
 
   @Override
   public void end(@Nullable Long endTime) {
-    final AgentScope scope = AgentTracer.activeScope();
-    if (scope == null) {
-      throw new IllegalStateException(
-          "No active scope present, it is possible that end() was called multiple times");
-    }
+    if (!parallelized) {
+      final AgentScope scope = AgentTracer.activeScope();
+      if (scope == null) {
+        throw new IllegalStateException(
+            "No active scope present, it is possible that end() was called multiple times");
+      }
 
-    AgentSpan scopeSpan = scope.span();
-    if (scopeSpan != span) {
-      throw new IllegalStateException(
-          "Active scope does not correspond to the finished suite, "
-              + "it is possible that end() was called multiple times "
-              + "or an operation that was started by the suite is still in progress; "
-              + "active scope span is: "
-              + scopeSpan);
-    }
+      AgentSpan scopeSpan = scope.span();
+      if (scopeSpan != span) {
+        throw new IllegalStateException(
+            "Active scope does not correspond to the finished suite, "
+                + "it is possible that end() was called multiple times "
+                + "or an operation that was started by the suite is still in progress; "
+                + "active scope span is: "
+                + scopeSpan);
+      }
 
-    scope.close();
+      scope.close();
+    }
 
     testDecorator.beforeFinish(span);
 

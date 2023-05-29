@@ -46,6 +46,8 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     when:
     if (param.class == String) {
       suite.append(target, (String) param)
+    } else if (param.class == CharSequence) {
+      suite.append(target, (CharSequence) param)
     } else {
       suite.append(target, param)
     }
@@ -55,17 +57,37 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     if (param.class == String) {
       1 * iastModule.onStringBuilderAppend(target, (String) param)
     } else {
-      1 * iastModule.onStringBuilderAppend(target, param)
+      1 * iastModule.onStringBuilderAppend(target, param.toString())
     }
     _ * TEST_CHECKPOINTER._
     0 * _
 
     where:
     suite                        | target                      | param                       | expected
+    new TestStringBuilderSuite() | new StringBuilder('Hello ') | 23.5F                       | 'Hello 23.5'
     new TestStringBuilderSuite() | new StringBuilder('Hello ') | new StringBuffer('World!')  | 'Hello World!'
     new TestStringBuilderSuite() | new StringBuilder('Hello ') | 'World!'                    | 'Hello World!'
+    new TestStringBufferSuite()  | new StringBuffer('Hello ')  | 23.5F                       | 'Hello 23.5'
     new TestStringBufferSuite()  | new StringBuffer('Hello ')  | new StringBuilder('World!') | 'Hello World!'
     new TestStringBufferSuite()  | new StringBuffer('Hello ')  | 'World!'                    | 'Hello World!'
+  }
+
+  void 'test string builder append object throwing exceptions'() {
+    setup:
+    final iastModule = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(iastModule)
+
+    when:
+    suite.append(target, new BrokenToString())
+
+    then:
+    final ex = thrown(NuclearException)
+    ex.stackTrace.find { it.className == StringBuilderCallSite.name } == null
+
+    where:
+    suite                        | target
+    new TestStringBuilderSuite() | new StringBuilder('Hello ')
+    new TestStringBufferSuite()  | new StringBuffer('Hello ')
   }
 
   void 'test string builder toString call site'() {
@@ -118,16 +140,20 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     result == expected
 
     1 * iastModule.onStringBuilderAppend(_ as StringBuilder, '')
+    1 * iastModule.onStringBuilderAppend(_ as StringBuilder, args[0])
     1 * iastModule.onStringBuilderToString(_ as StringBuilder, args[0])
 
     1 * iastModule.onStringBuilderAppend(_ as StringBuilder, args[0])
+    1 * iastModule.onStringBuilderAppend(_ as StringBuilder, args[1].toString())
     1 * iastModule.onStringBuilderToString(_ as StringBuilder, args[0..1].join())
 
     1 * iastModule.onStringBuilderAppend(_ as StringBuilder, args[0..1].join())
+    1 * iastModule.onStringBuilderAppend(_ as StringBuilder, args[2])
     1 * iastModule.onStringBuilderToString(_ as StringBuilder, args[0..2].join())
 
     1 * iastModule.onStringBuilderAppend(_ as StringBuilder, args[0..2].join())
-    1 * iastModule.onStringBuilderToString(_ as StringBuilder, expected)
+    1 * iastModule.onStringBuilderAppend(_ as StringBuilder, args[3].toString())
+    1 * iastModule.onStringBuilderToString(_ as StringBuilder, args[0..3].join())
 
     0 * _
   }

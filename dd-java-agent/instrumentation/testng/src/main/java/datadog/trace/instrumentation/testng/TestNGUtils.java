@@ -15,6 +15,7 @@ import org.testng.ITestResult;
 import org.testng.annotations.Test;
 import org.testng.internal.ConstructorOrMethod;
 import org.testng.internal.ITestResultNotifier;
+import org.testng.xml.XmlTest;
 
 public abstract class TestNGUtils {
 
@@ -108,6 +109,32 @@ public abstract class TestNGUtils {
 
     } catch (Exception e) {
       throw new RuntimeException("Could not get tracing listener", e);
+    }
+  }
+
+  private static final Method XML_TEST_GET_PARALLEL = getParallelMethod();
+
+  private static Method getParallelMethod() {
+    try {
+      return XmlTest.class.getMethod("getParallel");
+    } catch (NoSuchMethodException e) {
+      return null;
+    }
+  }
+
+  public static boolean isParallelized(ITestClass testClass) {
+    try {
+      // reflection needs to be used since XmlTest#getParallel
+      // has different return type in different versions,
+      // and if the method is invoked directly,
+      // the instrumentation will not get past Muzzle checks
+      Object parallel =
+          XML_TEST_GET_PARALLEL != null
+              ? XML_TEST_GET_PARALLEL.invoke(testClass.getXmlTest())
+              : null;
+      return parallel != null && "methods".equals(parallel.toString());
+    } catch (Exception e) {
+      return false;
     }
   }
 }

@@ -14,7 +14,7 @@ class MetricPeriodicActionTest extends Specification {
   void 'test that common metrics are joined before being sent to telemetry'() {
     given:
     final service = Mock(TelemetryService)
-    final metricCollector = Mock(MetricCollector<MetricCollector.Metric>)
+    final MetricCollector<MetricCollector.Metric> metricCollector = Mock()
     final action = new DefaultMetricPeriodicAction(metricCollector)
 
     when:
@@ -22,10 +22,9 @@ class MetricPeriodicActionTest extends Specification {
 
     then:
     metricCollector.drain() >> metrics
-    expected.each {
-      Metric metric ->
-      1 * service.addMetric({
-        it -> assertMetric(it, metric)
+    expected.each { Metric metric ->
+      1 * service.addMetric({ it ->
+        assertMetric(it, metric)
       })
     }
     0 * _
