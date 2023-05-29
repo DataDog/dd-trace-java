@@ -14,17 +14,18 @@ import datadog.telemetry.api.Logs;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.Payload;
 import datadog.telemetry.api.RequestType;
-import datadog.trace.api.time.TimeSource;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
+import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,12 +39,10 @@ public class TelemetryService {
   // https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/producing-telemetry.md#when-to-use-it-1
   private static final int MAX_DEPENDENCIES_PER_REQUEST = 2000;
 
+  private final OkHttpClient httpClient;
   private final Supplier<RequestBuilder> requestBuilderSupplier;
-  private final TimeSource timeSource;
   private final int maxElementsPerReq;
   private final int maxDepsPerReq;
-  private final int heartbeatIntervalMs;
-  private final int metricsIntervalMs;
   private final BlockingQueue<KeyValue> configurations = new LinkedBlockingQueue<>();
   private final BlockingQueue<Integration> integrations = new LinkedBlockingQueue<>();
   private final BlockingQueue<Dependency> dependencies = new LinkedBlockingQueue<>();
@@ -55,9 +54,8 @@ public class TelemetryService {
   private final BlockingQueue<DistributionSeries> distributionSeries =
       new LinkedBlockingQueue<>(1024);
 
-  private final Queue<Request> queue = new ArrayBlockingQueue<>(16);
+  private boolean sentAppStarted;
 
-  private long lastHeartBeatTimestamp;
   /*
    * Keep track of Open Tracing and Open Telemetry integrations activation as they are mutually exclusive.
    */
@@ -65,50 +63,24 @@ public class TelemetryService {
   private boolean openTelemetryIntegrationEnabled;
 
   public TelemetryService(
-      Supplier<RequestBuilder> requestBuilderSupplier,
-      TimeSource timeSource,
-      float heartBeatIntervalSec,
-      float metricsIntervalSec) {
+      final OkHttpClient httpClient, final Supplier<RequestBuilder> requestBuilderSupplier) {
     this(
-        requestBuilderSupplier,
-        timeSource,
-        heartBeatIntervalSec,
-        metricsIntervalSec,
-        MAX_ELEMENTS_PER_REQUEST,
-        MAX_DEPENDENCIES_PER_REQUEST);
+        httpClient, requestBuilderSupplier, MAX_ELEMENTS_PER_REQUEST, MAX_DEPENDENCIES_PER_REQUEST);
   }
 
-  // For testing purpose
+  // For testing purposes
   TelemetryService(
-      Supplier<RequestBuilder> requestBuilderSupplier,
-      TimeSource timeSource,
-      float heartBeatIntervalSec,
-      float metricsIntervalSec,
-      int maxElementsPerReq,
-      int maxDepsPerReq) {
+      final OkHttpClient httpClient,
+      final Supplier<RequestBuilder> requestBuilderSupplier,
+      final int maxElementsPerReq,
+      final int maxDepsPerReq) {
+    this.httpClient = httpClient;
     this.requestBuilderSupplier = requestBuilderSupplier;
-    this.timeSource = timeSource;
-    this.heartbeatIntervalMs = (int) (heartBeatIntervalSec * 1000); // we use time in milliseconds
-    this.metricsIntervalMs = (int) (metricsIntervalSec * 1000);
+    this.sentAppStarted = false;
     this.openTracingIntegrationEnabled = false;
     this.openTelemetryIntegrationEnabled = false;
     this.maxElementsPerReq = maxElementsPerReq;
     this.maxDepsPerReq = maxDepsPerReq;
-  }
-
-  public void addStartedRequest() {
-    Payload payload =
-        new AppStarted()
-            ._configuration(drainOrNull(configurations)) // absent if nothing
-            .integrations(drainOrEmpty(integrations, maxElementsPerReq)) // empty list if nothing
-            .dependencies(drainOrEmpty(dependencies, maxDepsPerReq)) // empty list if nothing
-            .requestType(RequestType.APP_STARTED);
-
-    queue.offer(requestBuilderSupplier.get().build(RequestType.APP_STARTED, payload));
-  }
-
-  public Request appClosingRequest() {
-    return requestBuilderSupplier.get().build(RequestType.APP_CLOSING);
   }
 
   public boolean addConfiguration(Map<String, Object> configuration) {
@@ -147,87 +119,148 @@ public class TelemetryService {
     return this.distributionSeries.offer(series);
   }
 
-  public Queue<Request> prepareRequests() {
-    // New integrations
-    while (!integrations.isEmpty()) {
-      Payload payload =
-          new AppIntegrationsChange().integrations(drainOrEmpty(integrations, maxElementsPerReq));
-      Request request =
-          requestBuilderSupplier
-              .get()
-              .build(
-                  RequestType.APP_INTEGRATIONS_CHANGE,
-                  payload.requestType(RequestType.APP_INTEGRATIONS_CHANGE));
-      queue.offer(request);
+  public void sendAppClosingRequest() {
+    sendRequest(RequestType.APP_CLOSING, null);
+  }
+
+  public void sendIntervalRequests() {
+    final State state =
+        new State(
+            configurations, integrations, dependencies, metrics, distributionSeries, logMessages);
+    if (!sentAppStarted) {
+      final Payload payload =
+          new AppStarted()
+              ._configuration(state.configurations.getOrNull()) // absent if nothing
+              .integrations(state.integrations.get(maxElementsPerReq)) // empty list if nothing
+              .dependencies(state.dependencies.get(maxDepsPerReq)) // empty list if nothing
+              .requestType(RequestType.APP_STARTED);
+      if (sendRequest(RequestType.APP_STARTED, payload) != SendResult.SUCCESS) {
+        // Do not send other telemetry messages unless app-started has been sent successfully.
+        state.rollback();
+        return;
+      }
+      sentAppStarted = true;
+      state.commit();
     }
 
-    // New dependencies
-    while (!dependencies.isEmpty()) {
-      Payload payload =
-          new AppDependenciesLoaded().dependencies(drainOrEmpty(dependencies, maxDepsPerReq));
-      Request request =
-          requestBuilderSupplier
-              .get()
-              .build(
-                  RequestType.APP_DEPENDENCIES_LOADED,
-                  payload.requestType(RequestType.APP_DEPENDENCIES_LOADED));
-      queue.offer(request);
+    if (sendRequest(RequestType.APP_HEARTBEAT, null) == SendResult.NOT_FOUND) {
+      state.rollback();
+      return;
     }
 
-    // New metrics
-    while (!metrics.isEmpty()) {
-      Payload payload =
+    while (!state.integrations.isEmpty()) {
+      final Payload payload =
+          new AppIntegrationsChange()
+              .integrations(state.integrations.get(maxElementsPerReq))
+              .requestType(RequestType.APP_INTEGRATIONS_CHANGE);
+      final SendResult result = sendRequest(RequestType.APP_INTEGRATIONS_CHANGE, payload);
+      if (result == SendResult.SUCCESS) {
+        state.commit();
+      } else if (result == SendResult.NOT_FOUND) {
+        state.rollback();
+        return;
+      } else {
+        state.integrations.rollback();
+        break;
+      }
+    }
+
+    while (!state.dependencies.isEmpty()) {
+      final Payload payload =
+          new AppDependenciesLoaded()
+              .dependencies(state.dependencies.get(maxDepsPerReq))
+              .requestType(RequestType.APP_DEPENDENCIES_LOADED);
+      final SendResult result = sendRequest(RequestType.APP_DEPENDENCIES_LOADED, payload);
+      if (result == SendResult.SUCCESS) {
+        state.commit();
+      } else if (result == SendResult.NOT_FOUND) {
+        state.rollback();
+        return;
+      } else {
+        state.integrations.rollback();
+        break;
+      }
+    }
+
+    while (!state.metrics.isEmpty()) {
+      final Payload payload =
           new GenerateMetrics()
               .namespace(TELEMETRY_NAMESPACE_TAG_TRACER)
-              .series(drainOrEmpty(metrics, maxElementsPerReq));
-      Request request =
-          requestBuilderSupplier
-              .get()
-              .build(
-                  RequestType.GENERATE_METRICS, payload.requestType(RequestType.GENERATE_METRICS));
-      queue.offer(request);
+              .series(state.metrics.get(maxElementsPerReq))
+              .requestType(RequestType.GENERATE_METRICS);
+      final SendResult result = sendRequest(RequestType.GENERATE_METRICS, payload);
+      if (result == SendResult.SUCCESS) {
+        state.commit();
+      } else if (result == SendResult.NOT_FOUND) {
+        state.rollback();
+        return;
+      } else {
+        state.metrics.rollback();
+        break;
+      }
     }
 
-    // New messages
-    while (!logMessages.isEmpty()) {
-      Payload payload = new Logs().messages(drainOrEmpty(logMessages, maxElementsPerReq));
-      Request request =
-          requestBuilderSupplier
-              .get()
-              .build(RequestType.LOGS, payload.requestType(RequestType.LOGS));
-      queue.offer(request);
-    }
-
-    // New Distributions
-    while (!distributionSeries.isEmpty()) {
-      Payload payload =
+    while (!state.distributionSeries.isEmpty()) {
+      final Payload payload =
           new Distributions()
               .namespace(TELEMETRY_NAMESPACE_TAG_TRACER)
-              .series(drainOrEmpty(distributionSeries, maxElementsPerReq));
-      Request request =
-          requestBuilderSupplier
-              .get()
-              .build(RequestType.DISTRIBUTIONS, payload.requestType(RequestType.DISTRIBUTIONS));
-      queue.offer(request);
+              .series(state.distributionSeries.get(maxElementsPerReq))
+              .requestType(RequestType.DISTRIBUTIONS);
+      final SendResult result = sendRequest(RequestType.DISTRIBUTIONS, payload);
+      if (result == SendResult.SUCCESS) {
+        state.commit();
+      } else if (result == SendResult.NOT_FOUND) {
+        state.rollback();
+        return;
+      } else {
+        state.distributionSeries.rollback();
+        break;
+      }
     }
 
-    // Heartbeat request if needed
-    final long curTime = this.timeSource.getCurrentTimeMillis();
-    if (curTime - lastHeartBeatTimestamp >= heartbeatIntervalMs) {
-      Request request = requestBuilderSupplier.get().build(RequestType.APP_HEARTBEAT);
-      queue.offer(request);
-      lastHeartBeatTimestamp = curTime;
+    while (!state.logMessages.isEmpty()) {
+      final Payload payload =
+          new Logs()
+              .messages(state.logMessages.get(maxElementsPerReq))
+              .requestType(RequestType.LOGS);
+      final SendResult result = sendRequest(RequestType.LOGS, payload);
+      if (result == SendResult.SUCCESS) {
+        state.commit();
+      } else if (result == SendResult.NOT_FOUND) {
+        state.rollback();
+        return;
+      } else {
+        state.logMessages.rollback();
+        break;
+      }
+    }
+  }
+
+  private SendResult sendRequest(final RequestType type, final Payload payload) {
+    final Request request = requestBuilderSupplier.get().build(type, payload);
+    try (Response response = httpClient.newCall(request).execute()) {
+      if (response.code() == 404) {
+        log.debug("Telemetry endpoint is disabled, dropping {} message", type);
+        return SendResult.NOT_FOUND;
+      }
+      if (response.code() != 202) {
+        log.debug(
+            "Telemetry message {} failed with: {} {} ", type, response.code(), response.message());
+        return SendResult.FAILURE;
+      }
+    } catch (IOException e) {
+      log.debug("Telemetry message {} failed with exception: {}", type, e.toString());
+      return SendResult.FAILURE;
     }
 
-    return queue;
+    log.debug("Telemetry message {} sent successfully", type);
+    return SendResult.SUCCESS;
   }
 
-  public int getHeartbeatInterval() {
-    return heartbeatIntervalMs;
-  }
-
-  public int getMetricsInterval() {
-    return metricsIntervalMs;
+  enum SendResult {
+    SUCCESS,
+    FAILURE,
+    NOT_FOUND
   }
 
   private void warnAboutExclusiveIntegrations() {
@@ -237,21 +270,105 @@ public class TelemetryService {
     }
   }
 
-  private static <T> List<T> drainOrNull(BlockingQueue<T> srcQueue) {
-    return drainOrDefault(srcQueue, null, Integer.MAX_VALUE);
-  }
+  private static class StateList<T> {
+    private final BlockingQueue<T> queue;
+    private List<T> batch;
+    private int consumed;
 
-  private static <T> List<T> drainOrEmpty(BlockingQueue<T> srcQueue, int maxItems) {
-    return drainOrDefault(srcQueue, Collections.<T>emptyList(), maxItems);
-  }
-
-  private static <T> List<T> drainOrDefault(
-      BlockingQueue<T> srcQueue, List<T> defaultList, int maxItems) {
-    List<T> list = new LinkedList<>();
-    int drained = srcQueue.drainTo(list, maxItems);
-    if (drained > 0) {
-      return list;
+    public StateList(final BlockingQueue<T> queue) {
+      this.queue = queue;
+      final int size = queue.size();
+      this.batch = new ArrayList<>(size);
+      queue.drainTo(this.batch);
+      this.consumed = 0;
     }
-    return defaultList;
+
+    public boolean isEmpty() {
+      return consumed >= batch.size();
+    }
+
+    @Nullable
+    public List<T> getOrNull() {
+      final List<T> result = get();
+      if (result.isEmpty()) {
+        return null;
+      }
+      return result;
+    }
+
+    public List<T> get() {
+      return get(batch.size());
+    }
+
+    public List<T> get(final int maxSize) {
+      if (consumed >= batch.size()) {
+        return Collections.emptyList();
+      }
+      final int toIndex = Math.min(batch.size(), consumed + maxSize);
+      final List<T> result = batch.subList(consumed, toIndex);
+      consumed += result.size();
+      return result;
+    }
+
+    public void commit() {
+      if (consumed >= batch.size()) {
+        batch = Collections.emptyList();
+      } else {
+        batch = batch.subList(consumed, batch.size());
+      }
+      consumed = 0;
+    }
+
+    public void rollback() {
+      for (final T element : batch) {
+        // Ignore result, if the queue is full, we'll just lose data.
+        // TODO: Emit a metric when data is lost.
+        queue.offer(element);
+      }
+      batch = Collections.emptyList();
+      consumed = 0;
+    }
+  }
+
+  private static class State {
+    private final StateList<KeyValue> configurations;
+    private final StateList<Integration> integrations;
+    private final StateList<Dependency> dependencies;
+    private final StateList<Metric> metrics;
+    private final StateList<DistributionSeries> distributionSeries;
+    private final StateList<LogMessage> logMessages;
+
+    public State(
+        BlockingQueue<KeyValue> configurations,
+        BlockingQueue<Integration> integrations,
+        BlockingQueue<Dependency> dependencies,
+        BlockingQueue<Metric> metrics,
+        BlockingQueue<DistributionSeries> distributionSeries,
+        BlockingQueue<LogMessage> logMessages) {
+      this.configurations = new StateList<>(configurations);
+      this.integrations = new StateList<>(integrations);
+      this.dependencies = new StateList<>(dependencies);
+      this.metrics = new StateList<>(metrics);
+      this.distributionSeries = new StateList<>(distributionSeries);
+      this.logMessages = new StateList<>(logMessages);
+    }
+
+    public void rollback() {
+      this.configurations.rollback();
+      this.integrations.rollback();
+      this.dependencies.rollback();
+      this.metrics.rollback();
+      this.distributionSeries.rollback();
+      this.logMessages.rollback();
+    }
+
+    public void commit() {
+      this.configurations.commit();
+      this.integrations.commit();
+      this.dependencies.commit();
+      this.metrics.commit();
+      this.distributionSeries.commit();
+      this.logMessages.commit();
+    }
   }
 }
