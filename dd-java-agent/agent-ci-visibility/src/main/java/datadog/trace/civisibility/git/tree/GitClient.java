@@ -36,6 +36,11 @@ public class GitClient {
 
   public List<String> getLatestCommits()
       throws IOException, TimeoutException, InterruptedException {
+    return getCommits(1000, "1 month ago");
+  }
+
+  List<String> getCommits(int limit, String since)
+      throws IOException, TimeoutException, InterruptedException {
     return executeCommand(
         IOUtils::readLines,
         null,
@@ -43,11 +48,16 @@ public class GitClient {
         "log",
         "--format=%H",
         "-n",
-        "1000",
-        "--since='1 month ago'");
+        String.valueOf(limit),
+        String.format("--since='%s'", since));
   }
 
   public List<String> getObjects(List<String> commitsToSkip)
+      throws IOException, TimeoutException, InterruptedException {
+    return getObjects("HEAD", "1 month ago", commitsToSkip);
+  }
+
+  List<String> getObjects(String commit, String since, List<String> commitsToSkip)
       throws IOException, TimeoutException, InterruptedException {
     String[] command = new String[7 + commitsToSkip.size()];
     command[0] = "git";
@@ -55,12 +65,12 @@ public class GitClient {
     command[2] = "--objects";
     command[3] = "--no-object-names";
     command[4] = "--filter=blob:none";
-    command[5] = "--since='1 month ago'";
-    command[6] = "HEAD";
+    command[5] = String.format("--since='%s'", since);
+    command[6] = commit;
 
     int count = 7;
-    for (String commit : commitsToSkip) {
-      command[count++] = "^" + commit;
+    for (String commitToSkip : commitsToSkip) {
+      command[count++] = "^" + commitToSkip;
     }
 
     return executeCommand(IOUtils::readLines, null, command);

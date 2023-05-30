@@ -8,7 +8,6 @@ dependencies {
   api project(':dd-java-agent:testing')
   api project(':utils:test-utils')
   api project(':utils:test-agent-utils:decoder')
-  api group: 'commons-fileupload', name: 'commons-fileupload', version: '1.5'
 }
 
 Project parent_project = project

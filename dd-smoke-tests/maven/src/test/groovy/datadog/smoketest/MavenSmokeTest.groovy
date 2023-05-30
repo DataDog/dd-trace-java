@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.test.util.MultipartRequestParser
 import datadog.trace.util.Strings
 import org.apache.maven.wrapper.MavenWrapperMain
 import org.msgpack.jackson.dataformat.MessagePackFactory
