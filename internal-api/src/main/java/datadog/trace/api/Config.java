@@ -1466,7 +1466,9 @@ public class Config {
 
     igniteCacheIncludeKeys = configProvider.getBoolean(IGNITE_CACHE_INCLUDE_KEYS, false);
 
-    obfuscationQueryRegexp = configProvider.getString(OBFUSCATION_QUERY_STRING_REGEXP);
+    obfuscationQueryRegexp =
+        configProvider.getString(
+            OBFUSCATION_QUERY_STRING_REGEXP, null, "obfuscation.query.string.regexp");
 
     playReportHttpStatus = configProvider.getBoolean(PLAY_REPORT_HTTP_STATUS, false);
 
