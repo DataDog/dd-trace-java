@@ -12,6 +12,7 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.ProductActivation
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
@@ -134,7 +135,11 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
-
+    // we inject this config because it's statically assigned and we cannot inject this at test level without forking
+    // not starting with "/" made full url (http://..) matching but not the path portion (because starting with /)
+    // this settings should not affect test results
+    injectSysConfig(TracerConfig.TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING, "**/success:*")
+    
     injectSysConfig(HEADER_TAGS, 'x-datadog-test-both-header:both_header_tag')
     injectSysConfig(REQUEST_HEADER_TAGS, 'x-datadog-test-request-header:request_header_tag')
     // We don't inject a matching response header tag here since it would be always on and show up in all the tests
