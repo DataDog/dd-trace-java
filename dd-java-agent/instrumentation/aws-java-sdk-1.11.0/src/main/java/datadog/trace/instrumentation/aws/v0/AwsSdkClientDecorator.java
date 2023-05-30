@@ -7,9 +7,12 @@ import com.amazonaws.AmazonWebServiceResponse;
 import com.amazonaws.Request;
 import com.amazonaws.Response;
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
@@ -72,28 +75,50 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
     RequestAccess access = RequestAccess.of(originalRequest);
     String bucketName = access.getBucketName(originalRequest);
+    String bestPrecursor = null;
+    String bestPeerService = null;
     if (null != bucketName) {
-      span.setTag("aws.bucket.name", bucketName);
+      span.setTag(InstrumentationTags.AWS_BUCKET_NAME, bucketName);
+      bestPrecursor = InstrumentationTags.AWS_BUCKET_NAME;
+      bestPeerService = bucketName;
     }
     String queueUrl = access.getQueueUrl(originalRequest);
     if (null != queueUrl) {
-      span.setTag("aws.queue.url", queueUrl);
+      span.setTag(InstrumentationTags.AWS_QUEUE_URL, queueUrl);
+      bestPrecursor = InstrumentationTags.AWS_QUEUE_URL;
+      bestPeerService = queueUrl;
     }
     String queueName = access.getQueueName(originalRequest);
     if (null != queueName) {
-      span.setTag("aws.queue.name", queueName);
+      span.setTag(InstrumentationTags.AWS_QUEUE_NAME, queueName);
+      bestPrecursor = InstrumentationTags.AWS_QUEUE_NAME;
+      bestPeerService = queueName;
     }
     String topicArn = access.getTopicArn(originalRequest);
     if (null != topicArn) {
-      span.setTag("aws.topic.name", topicArn.substring(topicArn.lastIndexOf(':') + 1));
+      final String topicName = topicArn.substring(topicArn.lastIndexOf(':') + 1);
+      span.setTag(InstrumentationTags.AWS_TOPIC_NAME, topicName);
+      bestPrecursor = InstrumentationTags.AWS_TOPIC_NAME;
+      bestPeerService = topicName;
     }
     String streamName = access.getStreamName(originalRequest);
     if (null != streamName) {
-      span.setTag("aws.stream.name", streamName);
+      span.setTag(InstrumentationTags.AWS_STREAM_NAME, streamName);
+      bestPrecursor = InstrumentationTags.AWS_STREAM_NAME;
+      bestPeerService = streamName;
     }
     String tableName = access.getTableName(originalRequest);
     if (null != tableName) {
-      span.setTag("aws.table.name", tableName);
+      span.setTag(InstrumentationTags.AWS_TABLE_NAME, tableName);
+      bestPrecursor = InstrumentationTags.AWS_TABLE_NAME;
+      bestPeerService = tableName;
+    }
+
+    // for aws we can calculate this eagerly without needing to have to looking up tags in the peer
+    // service interceptor
+    if (bestPrecursor != null && SpanNaming.instance().namingSchema().peerService().supports()) {
+      span.setTag(Tags.PEER_SERVICE, bestPeerService);
+      span.setTag(DDTags.PEER_SERVICE_SOURCE, bestPrecursor);
     }
 
     return span;
