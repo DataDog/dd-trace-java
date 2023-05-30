@@ -43,9 +43,7 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Iast
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
-        named("addCookie").and(takesArguments(Cookie.class)),
-        getClass().getName() + "$AddCookieAdvice");
+    transformation.applyAdvice(named("addCookie"), getClass().getName() + "$AddCookieAdvice");
     transformation.applyAdvice(
         namedOneOf("setHeader", "addHeader").and(takesArguments(String.class, String.class)),
         getClass().getName() + "$AddHeaderAdvice");
@@ -56,11 +54,14 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Iast
 
   public static class AddCookieAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(@Advice.Argument(0) final Cookie cookie) {
+    public static void onEnter(@Advice.Argument(0) final Object o) {
       final InsecureCookieModule module = InstrumentationBridge.INSECURE_COOKIE;
       if (module != null) {
-        if (null != cookie) {
-          module.onCookie(cookie.getName(), cookie.getSecure());
+        if (null != o) {
+          if (o instanceof Cookie) {
+            Cookie cookie = (Cookie) o;
+            module.onCookie(cookie.getName(), cookie.getSecure());
+          }
         }
       }
     }
