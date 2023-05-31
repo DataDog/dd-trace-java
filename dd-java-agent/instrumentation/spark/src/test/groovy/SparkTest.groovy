@@ -2,6 +2,10 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.instrumentation.spark.DatabricksParentContext
+import org.apache.hadoop.yarn.api.records.FinalApplicationStatus
+import org.apache.hadoop.yarn.conf.YarnConfiguration
+import org.apache.spark.deploy.yarn.ApplicationMaster
+import org.apache.spark.deploy.yarn.ApplicationMasterArguments
 import org.apache.spark.sql.SparkSession
 
 class SparkTest extends AgentTestRunner {
@@ -15,11 +19,11 @@ class SparkTest extends AgentTestRunner {
   def "generate application span with child job and stages"() {
     setup:
     def sparkSession = SparkSession.builder()
-      .config("spark.master", "local")
-      .config("spark.default.parallelism", "2") // Small parallelism to speed up tests
-      .config("spark.sql.shuffle.partitions", "2")
-      .appName("Sample Spark App")
-      .getOrCreate()
+    .config("spark.master", "local")
+    .config("spark.default.parallelism", "2") // Small parallelism to speed up tests
+    .config("spark.sql.shuffle.partitions", "2")
+    .appName("Sample Spark App")
+    .getOrCreate()
 
     TestSparkComputation.generateTestSparkComputation(sparkSession)
 
@@ -60,14 +64,52 @@ class SparkTest extends AgentTestRunner {
     }
   }
 
+  private def createApplicationMaster(SparkSession spark) {
+    // Constructor of ApplicationMaster changed starting spark 3.0
+    if (spark.version() < "3") {
+      return new ApplicationMaster(new ApplicationMasterArguments(new String[]{}))
+    }
+
+    return new ApplicationMaster(
+    new ApplicationMasterArguments(new String[]{}),
+    spark.sparkContext().conf(),
+    new YarnConfiguration()
+    )
+  }
+
+  def "instrument yarn application master finish"() {
+    setup:
+    def spark = SparkSession.builder().config("spark.master", "local").getOrCreate()
+    def am = createApplicationMaster(spark)
+    am.finish(FinalApplicationStatus.FAILED, 9, "Some YARN message")
+
+    expect:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "spark.application"
+          resourceName "spark.application"
+          spanType "spark"
+          assert span.tags["error.type"] == "Spark Application Failed with exit code 9"
+          assert span.tags["error.message"] == "Some YARN message"
+          errored true
+          parent()
+        }
+      }
+    }
+
+    cleanup:
+    spark.stop()
+  }
+
   def "generate databricks spans"() {
     setup:
     def sparkSession = SparkSession.builder()
-      .config("spark.master", "local")
-      .config("spark.default.parallelism", "2") // Small parallelism to speed up tests
-      .config("spark.sql.shuffle.partitions", "2")
-      .config("spark.databricks.sparkContextId", "some_id")
-      .getOrCreate()
+    .config("spark.master", "local")
+    .config("spark.default.parallelism", "2") // Small parallelism to speed up tests
+    .config("spark.sql.shuffle.partitions", "2")
+    .config("spark.databricks.sparkContextId", "some_id")
+    .getOrCreate()
 
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.id", "1234")
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.runId", "9012")
