@@ -1,5 +1,13 @@
 package server
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static server.VertxTestServer.CONFIG_HTTP_SERVER_PORT
+
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
@@ -15,14 +23,6 @@ import io.vertx.core.impl.VertxInternal
 import io.vertx.core.json.JsonObject
 
 import java.util.concurrent.CompletableFuture
-
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static server.VertxTestServer.CONFIG_HTTP_SERVER_PORT
 
 class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
 
@@ -103,6 +103,16 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
   @Override
   Map<String, ?> expectedIGPathParams() {
     [id: '123']
+  }
+
+  @Override
+  boolean testRequestBody() {
+    true
+  }
+
+  @Override
+  boolean isRequestBodyNoStreaming() {
+    true
   }
 
   @Override

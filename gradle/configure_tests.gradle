@@ -65,6 +65,20 @@ tasks.withType(Test).configureEach {
   }
 
   timeout = testTimeoutDuration
+
+  check.dependsOn it
+}
+
+Task allTestsTask = tasks.maybeCreate('allTests')
+Task allLatestDepTestsTask = tasks.maybeCreate('allLatestDepTests')
+project.afterEvaluate {
+  tasks.withType(Test).each {
+    if (it.name.containsIgnoreCase('latest')) {
+      allLatestDepTestsTask.dependsOn it
+    } else if (it.name != 'traceAgentTest') {
+      allTestsTask.dependsOn it
+    }
+  }
 }
 
 // Setup flaky tests jobs. Done in afterEvaluate so that it applies to latestDepTest.

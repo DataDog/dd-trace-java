@@ -14,6 +14,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_BUILD_INSTRU
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLIENT_IP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_ENABLED;
@@ -114,6 +115,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DEBUG_POR
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_ID;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SESSION_ID;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_TAGS;
@@ -166,6 +168,8 @@ import static datadog.trace.api.config.GeneralConfig.VERSION;
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE;
 import static datadog.trace.api.config.IastConfig.IAST_REDACTION_ENABLED;
+import static datadog.trace.api.config.IastConfig.IAST_REDACTION_NAME_PATTERN;
+import static datadog.trace.api.config.IastConfig.IAST_REDACTION_VALUE_PATTERN;
 import static datadog.trace.api.config.IastConfig.IAST_TELEMETRY_VERBOSITY;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_HASH_ALGORITHMS;
@@ -249,6 +253,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.IGNITE_CACHE_I
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_UNACKNOWLEDGED_MAX_AGE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MESSAGE_BROKER_SPLIT_BY_DESTINATION;
@@ -580,11 +585,12 @@ public class Config {
   private final boolean ciVisibilityCompilerPluginAutoConfigurationEnabled;
   private final String ciVisibilityCompilerPluginVersion;
   private final Integer ciVisibilityDebugPort;
+  private final int ciVisibilityTestEventsHandlerCacheSize;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
   private final String remoteConfigUrl;
-  private final int remoteConfigPollIntervalSeconds;
+  private final float remoteConfigPollIntervalSeconds;
   private final long remoteConfigMaxPayloadSize;
   private final String remoteConfigTargetsKeyId;
   private final String remoteConfigTargetsKey;
@@ -615,6 +621,7 @@ public class Config {
   private final boolean jmsPropagationEnabled;
   private final Set<String> jmsPropagationDisabledTopics;
   private final Set<String> jmsPropagationDisabledQueues;
+  private final int jmsUnacknowledgedMaxAge;
 
   private final boolean rabbitPropagationEnabled;
   private final Set<String> rabbitPropagationDisabledQueues;
@@ -669,8 +676,8 @@ public class Config {
 
   private final boolean iastDeduplicationEnabled;
 
-  private final int telemetryHeartbeatInterval;
-  private final int telemetryMetricsInterval;
+  private final float telemetryHeartbeatInterval;
+  private final float telemetryMetricsInterval;
   private final boolean isTelemetryDependencyServiceEnabled;
 
   private final boolean azureAppServices;
@@ -1235,22 +1242,21 @@ public class Config {
         configProvider.getBoolean(CRASH_TRACKING_AGENTLESS, CRASH_TRACKING_AGENTLESS_DEFAULT);
     crashTrackingTags = configProvider.getMergedMap(CRASH_TRACKING_TAGS);
 
-    int telemetryInterval =
-        configProvider.getInteger(
-            TELEMETRY_HEARTBEAT_INTERVAL, DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL);
-    if (telemetryInterval < 1 || telemetryInterval > 3600) {
+    float telemetryInterval =
+        configProvider.getFloat(TELEMETRY_HEARTBEAT_INTERVAL, DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL);
+    if (telemetryInterval < 0.1 || telemetryInterval > 3600) {
       log.warn(
-          "Wrong Telemetry heartbeat interval: {}. The value must be in range 1-3600",
+          "Invalid Telemetry heartbeat interval: {}. The value must be in range 0.1-3600",
           telemetryInterval);
       telemetryInterval = DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
     }
     telemetryHeartbeatInterval = telemetryInterval;
 
     telemetryInterval =
-        configProvider.getInteger(TELEMETRY_METRICS_INTERVAL, DEFAULT_TELEMETRY_METRICS_INTERVAL);
-    if (telemetryInterval < 1 || telemetryInterval > 3600) {
+        configProvider.getFloat(TELEMETRY_METRICS_INTERVAL, DEFAULT_TELEMETRY_METRICS_INTERVAL);
+    if (telemetryInterval < 0.1 || telemetryInterval > 3600) {
       log.warn(
-          "Wrong Telemetry metrics interval: {}. The value must be in range 1-3600",
+          "Invalid Telemetry metrics interval: {}. The value must be in range 0.1-3600",
           telemetryInterval);
       telemetryInterval = DEFAULT_TELEMETRY_METRICS_INTERVAL;
     }
@@ -1309,11 +1315,10 @@ public class Config {
     iastRedactionEnabled =
         configProvider.getBoolean(IAST_REDACTION_ENABLED, DEFAULT_IAST_REDACTION_ENABLED);
     iastRedactionNamePattern =
-        configProvider.getString(
-            DEFAULT_IAST_REDACTION_NAME_PATTERN, DEFAULT_IAST_REDACTION_NAME_PATTERN);
+        configProvider.getString(IAST_REDACTION_NAME_PATTERN, DEFAULT_IAST_REDACTION_NAME_PATTERN);
     iastRedactionValuePattern =
         configProvider.getString(
-            DEFAULT_IAST_REDACTION_VALUE_PATTERN, DEFAULT_IAST_REDACTION_VALUE_PATTERN);
+            IAST_REDACTION_VALUE_PATTERN, DEFAULT_IAST_REDACTION_VALUE_PATTERN);
 
     ciVisibilityAgentlessEnabled =
         configProvider.getBoolean(
@@ -1327,6 +1332,11 @@ public class Config {
         configProvider.getBoolean(
             CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED,
             DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED);
+
+    ciVisibilityTestEventsHandlerCacheSize =
+        configProvider.getInteger(
+            CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE,
+            DEFAULT_CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE);
 
     ciVisibilitySessionId = configProvider.getLong(CIVISIBILITY_SESSION_ID);
     ciVisibilityModuleId = configProvider.getLong(CIVISIBILITY_MODULE_ID);
@@ -1368,7 +1378,7 @@ public class Config {
             REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED, DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED);
     remoteConfigUrl = configProvider.getString(REMOTE_CONFIG_URL);
     remoteConfigPollIntervalSeconds =
-        configProvider.getInteger(
+        configProvider.getFloat(
             REMOTE_CONFIG_POLL_INTERVAL_SECONDS, DEFAULT_REMOTE_CONFIG_POLL_INTERVAL_SECONDS);
     remoteConfigMaxPayloadSize =
         configProvider.getInteger(
@@ -1425,6 +1435,7 @@ public class Config {
         tryMakeImmutableSet(configProvider.getList(JMS_PROPAGATION_DISABLED_TOPICS));
     jmsPropagationDisabledQueues =
         tryMakeImmutableSet(configProvider.getList(JMS_PROPAGATION_DISABLED_QUEUES));
+    jmsUnacknowledgedMaxAge = configProvider.getInteger(JMS_UNACKNOWLEDGED_MAX_AGE, 3600);
 
     rabbitPropagationEnabled = isPropagationEnabled(true, "rabbit", "rabbitmq");
     rabbitPropagationDisabledQueues =
@@ -1455,7 +1466,9 @@ public class Config {
 
     igniteCacheIncludeKeys = configProvider.getBoolean(IGNITE_CACHE_INCLUDE_KEYS, false);
 
-    obfuscationQueryRegexp = configProvider.getString(OBFUSCATION_QUERY_STRING_REGEXP);
+    obfuscationQueryRegexp =
+        configProvider.getString(
+            OBFUSCATION_QUERY_STRING_REGEXP, null, "obfuscation.query.string.regexp");
 
     playReportHttpStatus = configProvider.getBoolean(PLAY_REPORT_HTTP_STATUS, false);
 
@@ -2045,11 +2058,11 @@ public class Config {
     return instrumenterConfig.isTelemetryEnabled();
   }
 
-  public int getTelemetryHeartbeatInterval() {
+  public float getTelemetryHeartbeatInterval() {
     return telemetryHeartbeatInterval;
   }
 
-  public int getTelemetryMetricsInterval() {
+  public float getTelemetryMetricsInterval() {
     return telemetryMetricsInterval;
   }
 
@@ -2166,6 +2179,10 @@ public class Config {
     return ciVisibilityBuildInstrumentationEnabled;
   }
 
+  public int getCiVisibilityTestEventsHandlerCacheSize() {
+    return ciVisibilityTestEventsHandlerCacheSize;
+  }
+
   public Long getCiVisibilitySessionId() {
     return ciVisibilitySessionId;
   }
@@ -2227,7 +2244,7 @@ public class Config {
     return remoteConfigUrl;
   }
 
-  public int getRemoteConfigPollIntervalSeconds() {
+  public float getRemoteConfigPollIntervalSeconds() {
     return remoteConfigPollIntervalSeconds;
   }
 
@@ -2325,6 +2342,10 @@ public class Config {
     return null != queueOrTopic
         && (jmsPropagationDisabledQueues.contains(queueOrTopic)
             || jmsPropagationDisabledTopics.contains(queueOrTopic));
+  }
+
+  public int getJmsUnacknowledgedMaxAge() {
+    return jmsUnacknowledgedMaxAge;
   }
 
   public boolean isKafkaClientBase64DecodingEnabled() {

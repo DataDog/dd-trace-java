@@ -75,9 +75,11 @@ public class Json2ParserInstrumentation extends Instrumenter.Iast
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(@Advice.This JsonParser jsonParser, @Advice.Return String result) {
-      final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        module.taintIfInputIsTainted(result, jsonParser);
+      if (jsonParser != null && result != null) {
+        final PropagationModule module = InstrumentationBridge.PROPAGATION;
+        if (module != null) {
+          module.taintIfInputIsTainted(result, jsonParser);
+        }
       }
     }
   }

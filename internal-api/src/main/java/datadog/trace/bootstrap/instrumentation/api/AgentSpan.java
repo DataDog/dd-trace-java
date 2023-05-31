@@ -144,7 +144,7 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
   Integer forceSamplingDecision();
 
-  TraceConfig getTraceConfig();
+  TraceConfig traceConfig();
 
   interface Context {
     /**

@@ -90,6 +90,12 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     true
   }
 
+  //@Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")
+  @Override
+  boolean testBadUrl() {
+    false
+  }
+
   static class SimpleExceptionMapper implements ExceptionMapper<Throwable> {
 
     @Override

@@ -103,8 +103,11 @@ trait IastRequestContextPreparationTrait {
         } else {
           content = '(value not shown)' // toString() may trigger tainting
         }
+        // Some Scala classes will produce a "Malformed class name" when calling Class#getSimpleName in JDK 8,
+        // so be sure to call Class#getName instead.
+        // See https://github.com/scala/bug/issues/2034
         LOGGER.debug("taint: {}[{}] {}",
-          o.getClass().simpleName, Integer.toHexString(System.identityHashCode(o)), content)
+          o.getClass().getName(), Integer.toHexString(System.identityHashCode(o)), content)
       }
     }
   }

@@ -94,7 +94,7 @@ public class TracingListener implements TestExecutionListener {
     List<String> tags =
         testIdentifier.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
     testEventsHandler.onTestSuiteStart(
-        testSuiteName, testFramework, testFrameworkVersion, testClass, tags);
+        testSuiteName, testFramework, testFrameworkVersion, testClass, tags, false);
   }
 
   private void containerExecutionFinished(
@@ -230,7 +230,7 @@ public class TracingListener implements TestExecutionListener {
         testIdentifier.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
 
     testEventsHandler.onTestSuiteStart(
-        testSuiteName, testFramework, testFrameworkVersion, testClass, tags);
+        testSuiteName, testFramework, testFrameworkVersion, testClass, tags, false);
     testEventsHandler.onTestSuiteSkip(testSuiteName, testClass, reason);
 
     for (TestIdentifier child : testPlan.getChildren(testIdentifier)) {

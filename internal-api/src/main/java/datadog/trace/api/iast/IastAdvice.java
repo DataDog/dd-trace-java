@@ -30,7 +30,7 @@ public interface IastAdvice {
   @Retention(RetentionPolicy.RUNTIME)
   @interface Source {
     /** Source type */
-    String value();
+    byte value();
 
     Kind kind() default Kind.SOURCE;
   }

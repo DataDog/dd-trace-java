@@ -21,11 +21,12 @@ public class PathParamInjectorAdvice {
             Collection collection = (Collection) result;
             for (Object o : collection) {
               if (o instanceof String) {
-                module.onParameterValue(paramName, (String) o);
+
+                module.onPathParameterValue(paramName, (String) o);
               }
             }
           } else {
-            module.onParameterValue(paramName, (String) result);
+            module.onPathParameterValue(paramName, (String) result);
           }
         } catch (final Throwable e) {
           module.onUnexpectedException("PathParamInjectorAdvice.onExit threw", e);

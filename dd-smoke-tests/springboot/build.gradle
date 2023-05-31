@@ -1,5 +1,6 @@
 plugins {
   id "com.github.johnrengelman.shadow"
+  id 'java-test-fixtures'
 }
 
 ext {
@@ -27,6 +28,8 @@ dependencies {
   implementation group: 'org.springframework', name: 'spring-web', version: '1.5.18.RELEASE'
 
   testImplementation project(':dd-smoke-tests')
+  testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
+
   implementation project(':dd-smoke-tests:iast-util')
 }
 

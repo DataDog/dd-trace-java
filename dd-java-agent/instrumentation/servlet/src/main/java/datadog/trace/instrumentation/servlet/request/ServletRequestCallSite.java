@@ -3,10 +3,13 @@ package datadog.trace.instrumentation.servlet.request;
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.IastAdvice.Propagation;
+import datadog.trace.api.iast.IastAdvice.Sink;
 import datadog.trace.api.iast.IastAdvice.Source;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
+import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
 import datadog.trace.api.iast.source.WebModule;
 import datadog.trace.util.stacktrace.StackUtils;
 import java.io.BufferedReader;
@@ -20,7 +23,7 @@ import javax.servlet.ServletRequest;
 @CallSite(spi = IastAdvice.class)
 public class ServletRequestCallSite {
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
   @CallSite.After("java.lang.String javax.servlet.ServletRequest.getParameter(java.lang.String)")
   @CallSite.After(
       "java.lang.String javax.servlet.http.HttpServletRequest.getParameter(java.lang.String)")
@@ -43,7 +46,7 @@ public class ServletRequestCallSite {
     return paramValue;
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_NAME_STRING)
+  @Source(SourceTypes.REQUEST_PARAMETER_NAME)
   @CallSite.After("java.util.Enumeration javax.servlet.ServletRequest.getParameterNames()")
   @CallSite.After("java.util.Enumeration javax.servlet.http.HttpServletRequest.getParameterNames()")
   @CallSite.After(
@@ -76,7 +79,7 @@ public class ServletRequestCallSite {
     }
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
   @CallSite.After(
       "java.lang.String[] javax.servlet.ServletRequest.getParameterValues(java.lang.String)")
   @CallSite.After(
@@ -141,5 +144,25 @@ public class ServletRequestCallSite {
       }
     }
     return bufferedReader;
+  }
+
+  @Sink(VulnerabilityTypes.UNVALIDATED_REDIRECT)
+  @CallSite.Before(
+      "javax.servlet.RequestDispatcher javax.servlet.ServletRequest.getRequestDispatcher(java.lang.String)")
+  @CallSite.Before(
+      "javax.servlet.RequestDispatcher javax.servlet.http.HttpServletRequest.getRequestDispatcher(java.lang.String)")
+  @CallSite.Before(
+      "javax.servlet.RequestDispatcher javax.servlet.http.HttpServletRequestWrapper.getRequestDispatcher(java.lang.String)")
+  @CallSite.Before(
+      "javax.servlet.RequestDispatcher javax.servlet.ServletRequestWrapper.getRequestDispatcher(java.lang.String)")
+  public static void beforeRequestDispatcher(@CallSite.Argument final String path) {
+    final UnvalidatedRedirectModule module = InstrumentationBridge.UNVALIDATED_REDIRECT;
+    if (module != null) {
+      try {
+        module.onRedirect(path);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("beforeRequestDispatcher threw", e);
+      }
+    }
   }
 }

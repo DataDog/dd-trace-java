@@ -92,7 +92,7 @@ public class RatpackServerDecorator extends HttpServerDecorator<Request, Request
   }
 
   @Override
-  public AgentSpan onError(final AgentSpan span, final Throwable throwable) {
+  public AgentSpan onError(final AgentSpan span, Throwable throwable) {
     // Attempt to unwrap ratpack.handling.internal.HandlerException without direct reference.
     if (throwable instanceof Error && throwable.getCause() != null) {
       return super.onError(span, throwable.getCause());

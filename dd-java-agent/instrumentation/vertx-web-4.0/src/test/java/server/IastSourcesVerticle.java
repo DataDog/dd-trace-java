@@ -139,6 +139,7 @@ public class IastSourcesVerticle extends AbstractVerticle {
       serverOptions.setTrustOptions(certificate.trustOptions());
       serverOptions.setKeyCertOptions(certificate.keyCertOptions());
     }
+    serverOptions.setHandle100ContinueAutomatically(true);
     vertx
         .createHttpServer(serverOptions)
         .requestHandler(router)

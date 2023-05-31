@@ -62,7 +62,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_PARTIAL_FLUSH_MIN_SPANS = 1000;
   static final boolean DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED = false;
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
-  static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = false;
+  static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = true;
 
   static final boolean DEFAULT_CLIENT_IP_ENABLED = false;
 
@@ -111,6 +111,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED = true;
   static final String DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION = "0.1.6";
+  static final int DEFAULT_CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE = 4;
 
   static final boolean DEFAULT_REMOTE_CONFIG_ENABLED = true;
   static final boolean DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED = false;

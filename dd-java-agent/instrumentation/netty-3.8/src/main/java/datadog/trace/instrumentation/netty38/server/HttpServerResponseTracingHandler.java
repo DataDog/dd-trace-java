@@ -12,6 +12,7 @@ import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelDownstreamHandler;
 import org.jboss.netty.handler.codec.http.HttpResponse;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 public class HttpServerResponseTracingHandler extends SimpleChannelDownstreamHandler {
 
@@ -45,9 +46,11 @@ public class HttpServerResponseTracingHandler extends SimpleChannelDownstreamHan
         span.finish(); // Finish the span manually since finishSpanOnClose was false
         throw throwable;
       }
-      DECORATE.onResponse(span, response);
-      DECORATE.beforeFinish(span);
-      span.finish(); // Finish the span manually since finishSpanOnClose was false
+      if (response.getStatus() != HttpResponseStatus.CONTINUE) {
+        DECORATE.onResponse(span, response);
+        DECORATE.beforeFinish(span);
+        span.finish(); // Finish the span manually since finishSpanOnClose was false
+      }
     }
   }
 }

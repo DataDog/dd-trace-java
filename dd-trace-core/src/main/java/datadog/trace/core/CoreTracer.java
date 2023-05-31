@@ -210,6 +210,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   private final PropagationTags.Factory propagationTagsFactory;
 
+  @Override
   public TraceConfig captureTraceConfig() {
     return dynamicConfig.captureTraceConfig();
   }

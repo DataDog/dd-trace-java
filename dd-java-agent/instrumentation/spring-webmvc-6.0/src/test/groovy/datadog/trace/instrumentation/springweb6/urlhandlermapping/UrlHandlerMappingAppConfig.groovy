@@ -4,17 +4,22 @@ import datadog.trace.agent.test.base.HttpServerTest
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.boot.autoconfigure.SpringBootApplication
+import org.springframework.boot.web.servlet.filter.OrderedRequestContextFilter
 import org.springframework.context.annotation.Bean
 import org.springframework.core.Ordered
 import org.springframework.stereotype.Controller
 import org.springframework.util.AntPathMatcher
+import org.springframework.web.filter.RequestContextFilter
 import org.springframework.web.servlet.HandlerMapping
 import org.springframework.web.servlet.ModelAndView
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 import org.springframework.web.servlet.handler.SimpleUrlHandlerMapping
 import org.springframework.web.servlet.mvc.AbstractController
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.*
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.forPath
 
 @SpringBootApplication
 class UrlHandlerMappingAppConfig implements WebMvcConfigurer {
@@ -28,6 +33,11 @@ class UrlHandlerMappingAppConfig implements WebMvcConfigurer {
     def ret = new SimpleUrlHandlerMapping(urlProperties, Ordered.HIGHEST_PRECEDENCE)
     ret.setPatternParser(null)
     ret
+  }
+
+  @Bean
+  RequestContextFilter requestContextFilter() {
+    new OrderedRequestContextFilter(order: Ordered.HIGHEST_PRECEDENCE)
   }
 }
 

@@ -19,7 +19,7 @@ import javax.servlet.http.HttpServletRequest;
 @CallSite(spi = IastAdvice.class)
 public class HttpServletRequestCallSite {
 
-  @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
+  @Source(SourceTypes.REQUEST_HEADER_VALUE)
   @CallSite.After(
       "java.lang.String javax.servlet.http.HttpServletRequest.getHeader(java.lang.String)")
   @CallSite.After(
@@ -39,7 +39,7 @@ public class HttpServletRequestCallSite {
     return headerValue;
   }
 
-  @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
+  @Source(SourceTypes.REQUEST_HEADER_VALUE)
   @CallSite.After(
       "java.util.Enumeration javax.servlet.http.HttpServletRequest.getHeaders(java.lang.String)")
   @CallSite.After(
@@ -74,7 +74,7 @@ public class HttpServletRequestCallSite {
     }
   }
 
-  @Source(SourceTypes.REQUEST_HEADER_NAME_STRING)
+  @Source(SourceTypes.REQUEST_HEADER_NAME)
   @CallSite.After("java.util.Enumeration javax.servlet.http.HttpServletRequest.getHeaderNames()")
   @CallSite.After(
       "java.util.Enumeration javax.servlet.http.HttpServletRequestWrapper.getHeaderNames()")
@@ -126,7 +126,7 @@ public class HttpServletRequestCallSite {
     return cookies;
   }
 
-  @Source(SourceTypes.REQUEST_QUERY_STRING)
+  @Source(SourceTypes.REQUEST_QUERY)
   @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequest.getQueryString()")
   @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequestWrapper.getQueryString()")
   public static String afterGetQueryString(

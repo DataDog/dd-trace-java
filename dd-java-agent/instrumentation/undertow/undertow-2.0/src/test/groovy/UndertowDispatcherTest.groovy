@@ -22,7 +22,7 @@ abstract class UndertowDispatcherTest extends HttpServerTest<Undertow> {
       undertowServer = Undertow.builder()
         .addHttpListener(port, "localhost")
         .setServerOption(UndertowOptions.DECODE_URL, true)
-        .setHandler(Handlers.path()
+        .setHandler(Handlers.httpContinueRead (Handlers.path()
         .addExactPath(SUCCESS.getPath()) { exchange ->
           exchange.dispatch(
             new Runnable() {
@@ -121,7 +121,7 @@ abstract class UndertowDispatcherTest extends HttpServerTest<Undertow> {
             }
           }
         }
-        ).build()
+        )).build()
     }
 
     @Override

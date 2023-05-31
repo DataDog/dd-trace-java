@@ -20,6 +20,7 @@ import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.web.servlet.handler.HandlerInterceptorAdapter
 import org.springframework.web.servlet.view.RedirectView
 import spock.lang.Shared
+import test.SetupSpecHelper
 
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
@@ -78,6 +79,10 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     }
   }
 
+  def setupSpec() {
+    SetupSpecHelper.provideBlockResponseFunction()
+  }
+
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
@@ -131,6 +136,16 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   @Override
   boolean testBadUrl() {
     false
+  }
+
+  @Override
+  boolean testBlocking() {
+    true
+  }
+
+  @Override
+  boolean testUserBlocking() {
+    true
   }
 
   @Override

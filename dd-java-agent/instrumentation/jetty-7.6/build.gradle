@@ -25,6 +25,9 @@ dependencies {
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '7.6.0.v20120127'
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '7.6.0.v20120127'
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-continuation', version: '7.6.0.v20120127'
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-3'))
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-2')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jetty-appsec-7')
 
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '8.+'
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '8.+'

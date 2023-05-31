@@ -20,7 +20,7 @@ class IastVertxSmokeTest extends AbstractIastVertxSmokeTest {
     command.addAll((String[]) [
       //'-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005',
       withSystemProperty(IAST_ENABLED, true),
-      withSystemProperty(IAST_REQUEST_SAMPLING, 100),
+      withSystemProperty(IAST_DETECTION_MODE, 'FULL'),
       withSystemProperty(IAST_DEBUG_ENABLED, true),
       '-Ddd.app.customlogmanager=true',
       "-Dvertx.http.port=${httpPort}",

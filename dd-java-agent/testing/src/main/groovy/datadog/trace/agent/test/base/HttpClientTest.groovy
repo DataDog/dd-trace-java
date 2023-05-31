@@ -6,6 +6,7 @@ import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.server.http.HttpProxy
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.api.config.TracerConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
@@ -91,6 +92,15 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   @Override
   boolean isDataStreamsEnabled() {
     true
+  }
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    // we inject this config because it's statically assigned and we cannot inject this at test level without forking
+    // not starting with "/" made full url (http://..) matching but not the path portion (because starting with /)
+    // this settings should not affect test results
+    injectSysConfig(TracerConfig.TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING, "**/success:*")
   }
 
   def setupSpec() {
