@@ -35,7 +35,6 @@ import datadog.trace.util.AgentThreadFactory;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -187,7 +186,8 @@ public class CiVisibilitySystem {
             AgentThreadFactory.AgentThread.CI_GIT_TREE_SHUTDOWN_HOOK,
             () -> {
               try {
-                gitTreeDataUploadThread.join(TimeUnit.MINUTES.toMillis(1));
+                long uploadTimeoutMillis = config.getCiVisibilityGitTreeDataUploadTimeoutMillis();
+                gitTreeDataUploadThread.join(uploadTimeoutMillis);
               } catch (InterruptedException e) {
                 // ignore
               }

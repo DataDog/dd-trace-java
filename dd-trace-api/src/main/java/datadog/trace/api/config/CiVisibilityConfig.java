@@ -33,6 +33,8 @@ public final class CiVisibilityConfig {
       "civisibility.test.events.handler.cache.size";
   public static final String CIVISIBILITY_GIT_TREE_DATA_UPLOAD_ENABLED =
       "civisibility.git.tree.data.upload.enabled";
+  public static final String CIVISIBILITY_GIT_TREE_DATA_UPLOAD_TIMEOUT_MILLIS =
+      "civisibility.git.tree.data.upload.timeout.millis";
   public static final String CIVISIBILITY_GIT_TREE_COMMAND_TIMEOUT_MILLIS =
       "civisibility.git.tree.command.timeout.millis";
   public static final String CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS =

@@ -17,6 +17,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_COMPILER_PLU
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_REMOTE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_TREE_COMMAND_TIMEOUT_MILLIS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_TREE_DATA_UPLOAD_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_TREE_DATA_UPLOAD_TIMEOUT_MILLIS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_PER_TEST_CODE_COVERAGE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED;
@@ -123,6 +124,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DEBUG_POR
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_REMOTE_NAME;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_TREE_COMMAND_TIMEOUT_MILLIS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_TREE_DATA_UPLOAD_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_TREE_DATA_UPLOAD_TIMEOUT_MILLIS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION;
@@ -617,6 +619,7 @@ public class Config {
   private final long ciVisibilityGitTreeCommandTimeoutMillis;
   private final String ciVisibilityGitRemoteName;
   private final long ciVisibilityBackendApiTimeoutMillis;
+  private final long ciVisibilityGitTreeDataUploadTimeoutMillis;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1448,6 +1451,10 @@ public class Config {
         configProvider.getLong(
             CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS,
             DEFAULT_CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS);
+    ciVisibilityGitTreeDataUploadTimeoutMillis =
+        configProvider.getLong(
+            CIVISIBILITY_GIT_TREE_DATA_UPLOAD_TIMEOUT_MILLIS,
+            DEFAULT_CIVISIBILITY_GIT_TREE_DATA_UPLOAD_TIMEOUT_MILLIS);
     ciVisibilityGitRemoteName =
         configProvider.getString(
             CIVISIBILITY_GIT_REMOTE_NAME, DEFAULT_CIVISIBILITY_GIT_REMOTE_NAME);
@@ -2347,6 +2354,10 @@ public class Config {
 
   public long getCiVisibilityBackendApiTimeoutMillis() {
     return ciVisibilityBackendApiTimeoutMillis;
+  }
+
+  public long getCiVisibilityGitTreeDataUploadTimeoutMillis() {
+    return ciVisibilityGitTreeDataUploadTimeoutMillis;
   }
 
   public String getCiVisibilityGitRemoteName() {
