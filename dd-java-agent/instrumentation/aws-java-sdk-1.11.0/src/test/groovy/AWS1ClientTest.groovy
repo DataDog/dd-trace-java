@@ -204,21 +204,22 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
             <ResponseMetadata><RequestId>27daac76-34dd-47df-bd01-1f6e873584a0</RequestId></ResponseMetadata>
         </SendMessageResponse>
       """  | "aws.queue.url"
-    "SNS"        | "Publish"           | "POST" | "/"                   | AmazonSNSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.publish(new PublishRequest("arn:aws:sns::123:some-topic", "")) }       | ["aws.topic.name": "some-topic", "topicname": "some-topic"]  | ""
+    "SNS"        | "Publish"           | "POST" | "/"                   | AmazonSNSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.publish(new PublishRequest("arn:aws:sns::123:some-topic", "")) }       | ["aws.topic.name": "some-topic", "topicname": "some-topic"]  | """
         <PublishResponse xmlns="https://sns.amazonaws.com/doc/2010-03-31/">
             <PublishResult>
                 <MessageId>567910cd-659e-55d4-8ccb-5aaf14679dc0</MessageId>
             </PublishResult>
             <ResponseMetadata><RequestId>d74b8436-ae13-5ab4-a9ff-ce54dfea72a0</RequestId></ResponseMetadata>
         </PublishResponse>
-      """      | "aws.topic.name"
+    """      | "aws.topic.name"
     "EC2"        | "AllocateAddress"   |  "POST" | "/"                   | AmazonEC2ClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.allocateAddress() }                                          | [:]                               | """
         <AllocateAddressResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
-           <requestId>59dbff89-35bd-4eac-99ed-be587EXAMPLE</requestId>
-           <publicIp>192.0.2.1</publicIp>
-           <domain>standard</domain>
+          <requestId>59dbff89-35bd-4eac-99ed-be587EXAMPLE</requestId>
+          <publicIp>192.0.2.1</publicIp>
+          <domain>standard</domain>
         </AllocateAddressResponse>
-      """   | null
+    """   | null
+
     "RDS"        | "DeleteOptionGroup" |  "POST" | "/"                   | AmazonRDSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.deleteOptionGroup(new DeleteOptionGroupRequest()) }          | [:]                               | """
         <DeleteOptionGroupResponse xmlns="http://rds.amazonaws.com/doc/2014-09-01/">
           <ResponseMetadata>
