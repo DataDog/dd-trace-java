@@ -31,12 +31,12 @@ public class BackendApiFactory {
       String apiKey = config.getApiKey();
       if (apiKey == null || apiKey.isEmpty()) {
         throw new FatalAgentMisconfigurationError(
-            "Agentless mode is enabled and application key is not set. Please set application key");
+            "Agentless mode is enabled and api key is not set. Please set application key");
       }
       String applicationKey = config.getApplicationKey();
       if (applicationKey == null || applicationKey.isEmpty()) {
-        throw new FatalAgentMisconfigurationError(
-            "Agentless mode is enabled and application key is not set. Please set application key");
+        log.warn(
+            "Agentless mode is enabled and application key is not set. Some CI Visibility features will be unavailable");
       }
       return new IntakeApi(site, apiKey, applicationKey, timeoutMillis, retryPolicyFactory);
     }

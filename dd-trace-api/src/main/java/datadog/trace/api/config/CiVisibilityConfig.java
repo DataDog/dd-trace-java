@@ -18,8 +18,8 @@ public final class CiVisibilityConfig {
       "civisibility.auto.configuration.enabled";
   public static final String CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED =
       "civisibility.compiler.plugin.auto.configuration.enabled";
-  public static final String CIVISIBILITY_PER_TEST_CODE_COVERAGE_ENABLED =
-      "civisibility.per.test.code.coverage.enabled";
+  public static final String CIVISIBILITY_CODE_COVERAGE_ENABLED =
+      "civisibility.code.coverage.enabled";
   public static final String CIVISIBILITY_COMPILER_PLUGIN_VERSION =
       "civisibility.compiler.plugin.version";
   public static final String CIVISIBILITY_JACOCO_PLUGIN_VERSION =
@@ -31,12 +31,11 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_DEBUG_PORT = "civisibility.debug.port";
   public static final String CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE =
       "civisibility.test.events.handler.cache.size";
-  public static final String CIVISIBILITY_GIT_TREE_DATA_UPLOAD_ENABLED =
-      "civisibility.git.tree.data.upload.enabled";
-  public static final String CIVISIBILITY_GIT_TREE_DATA_UPLOAD_TIMEOUT_MILLIS =
-      "civisibility.git.tree.data.upload.timeout.millis";
-  public static final String CIVISIBILITY_GIT_TREE_COMMAND_TIMEOUT_MILLIS =
-      "civisibility.git.tree.command.timeout.millis";
+  public static final String CIVISIBILITY_GIT_UPLOAD_ENABLED = "civisibility.git.upload.enabled";
+  public static final String CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS =
+      "civisibility.git.upload.timeout.millis";
+  public static final String CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS =
+      "civisibility.git.command.timeout.millis";
   public static final String CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS =
       "civisibility.backend.api.timeout.millis";
   public static final String CIVISIBILITY_GIT_REMOTE_NAME = "civisibility.git.remote.name";

@@ -47,12 +47,15 @@ public class CiVisibilitySystem {
 
   private static final Consumer<Path> NO_OP_GIT_TREE_DATA_UPLOADER = path -> {};
 
-  public static void start(SharedCommunicationObjects sharedCommunicationObjects) {
+  public static void start(SharedCommunicationObjects sco) {
     Config config = Config.get();
     if (!config.isCiVisibilityEnabled()) {
       LOGGER.debug("CI Visibility is disabled");
       return;
     }
+
+    BackendApiFactory backendApiFactory = new BackendApiFactory(config, sco);
+    BackendApi backendApi = backendApiFactory.createBackendApi();
 
     TestEventsHandler.Factory factory =
         new CachingTestEventsHandlerFactory(
@@ -69,8 +72,7 @@ public class CiVisibilitySystem {
     CIVisibility.registerSessionFactory(CiVisibilitySystem::createTestSession);
 
     InstrumentationBridge.registerCoverageProbeStoreFactory(new TestProbes.TestProbesFactory());
-    InstrumentationBridge.registerGitTreeDataUploader(
-        buildGitTreeDataUploader(config, sharedCommunicationObjects));
+    InstrumentationBridge.registerGitTreeDataUploader(buildGitTreeDataUploader(config, backendApi));
   }
 
   private static DDTestSession createTestSession(
@@ -144,14 +146,11 @@ public class CiVisibilitySystem {
     }
   }
 
-  private static Consumer<Path> buildGitTreeDataUploader(
-      Config config, SharedCommunicationObjects sco) {
-    if (!config.isCiVisibilityGitTreeDataUploadEnabled()) {
+  private static Consumer<Path> buildGitTreeDataUploader(Config config, BackendApi backendApi) {
+    if (!config.isCiVisibilityGitUploadEnabled()) {
       return NO_OP_GIT_TREE_DATA_UPLOADER;
     }
 
-    BackendApiFactory backendApiFactory = new BackendApiFactory(config, sco);
-    BackendApi backendApi = backendApiFactory.createBackendApi();
     if (backendApi == null) {
       LOGGER.warn(
           "Git tree data upload will be skipped since backend API client could not be obtained");
@@ -163,7 +162,7 @@ public class CiVisibilitySystem {
 
   private static void uploadGitTreeData(Config config, BackendApi backendApi, Path path) {
     String repoRoot = getRepositoryRoot(path);
-    long commandTimeoutMillis = config.getCiVisibilityGitTreeCommandTimeoutMillis();
+    long commandTimeoutMillis = config.getCiVisibilityGitCommandTimeoutMillis();
     String remoteName = config.getCiVisibilityGitRemoteName();
 
     GitDataApi gitDataApi = new GitDataApi(backendApi);
@@ -186,7 +185,7 @@ public class CiVisibilitySystem {
             AgentThreadFactory.AgentThread.CI_GIT_TREE_SHUTDOWN_HOOK,
             () -> {
               try {
-                long uploadTimeoutMillis = config.getCiVisibilityGitTreeDataUploadTimeoutMillis();
+                long uploadTimeoutMillis = config.getCiVisibilityGitUploadTimeoutMillis();
                 gitTreeDataUploadThread.join(uploadTimeoutMillis);
               } catch (InterruptedException e) {
                 // ignore
