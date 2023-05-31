@@ -7,6 +7,8 @@ import com.amazonaws.AmazonWebServiceResponse;
 import com.amazonaws.Request;
 import com.amazonaws.Response;
 import datadog.trace.api.Config;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -39,10 +41,17 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       SpanNaming.instance().namingSchema().cloud().serviceForRequest(AWS, null);
   public static final AwsSdkClientDecorator DECORATE = new AwsSdkClientDecorator();
 
+  private static final DDCache<String, String> serviceNameCache = DDCaches.newFixedSizeCache(128);
+  private static final Pattern AWS_SERVICE_NAME_PATTERN = Pattern.compile("Amazon\\s?(\\w+)");
+
   private static String simplifyServiceName(String awsServiceName) {
+    return serviceNameCache.computeIfAbsent(
+        awsServiceName, AwsSdkClientDecorator::applyServiceNamePattern);
+  }
+
+  private static String applyServiceNamePattern(String awsServiceName) {
     if (awsServiceName != null) {
-      Pattern pattern = Pattern.compile("Amazon\\s?(\\w+)");
-      Matcher matcher = pattern.matcher(awsServiceName);
+      Matcher matcher = AWS_SERVICE_NAME_PATTERN.matcher(awsServiceName);
       if (matcher.find()) {
         return matcher.group(1).toLowerCase();
       }
