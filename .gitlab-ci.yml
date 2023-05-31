@@ -2,12 +2,14 @@ include:
   - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
   - remote: https://gitlab-templates.ddbuild.io/apm/packaging.yml
   - local: ".gitlab/benchmarks.yml"
+  - local: ".gitlab/exploration-tests.yml"
 
 stages:
   - build
   - package
   - deploy
   - benchmarks
+  - exploration-tests
   - generate-signing-key
 
 variables:
