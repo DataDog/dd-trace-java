@@ -18,6 +18,7 @@ import org.example.TestSkippedNested
 import org.example.TestSucceed
 import org.example.TestSucceedAndSkipped
 import org.example.TestSucceedGroups
+import org.example.TestSucceedMultiple
 import org.example.TestSucceedNested
 import org.testng.TestNG
 
@@ -495,6 +496,31 @@ abstract class TestNGTest extends CiVisibilityTest {
 
     where:
     testTags = testCaseTagsIfSuiteSetUpFailedOrSkipped("Ignore reason in class")
+  }
+
+  def "test successful test cases executed in parallel"() {
+    setup:
+    def testNG = new TestNG()
+    testNG.setTestClasses(TestSucceedMultiple)
+    testNG.setOutputDirectory(testOutputDir)
+    testNG.setParallel("methods")
+    testNG.run()
+
+    expect:
+    ListWriterAssert.assertTraces(TEST_WRITER, 3, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long testSuiteId
+      trace(2, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSucceedMultiple", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedMultiple", "test_succeed", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedMultiple", "test_succeed_another", CIConstants.TEST_PASS)
+      }
+    })
   }
 
   @Override

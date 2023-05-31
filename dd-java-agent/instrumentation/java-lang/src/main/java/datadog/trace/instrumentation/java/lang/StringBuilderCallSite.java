@@ -79,7 +79,9 @@ public class StringBuilderCallSite {
       }
       return result;
     } catch (final Throwable e) {
-      throw StackUtils.removeLast(e);
+      final String clazz = StringBuilderCallSite.class.getName();
+      throw StackUtils.filterUntil(
+          e, s -> s.getClassName().equals(clazz) && s.getMethodName().equals("aroundAppend"));
     }
   }
 

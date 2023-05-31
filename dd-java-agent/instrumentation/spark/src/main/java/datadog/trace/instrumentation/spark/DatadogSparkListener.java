@@ -16,10 +16,15 @@ import scala.Tuple2;
 
 /**
  * Implementation of the SparkListener {@link org.apache.spark.scheduler.SparkListener} to generate
- * spans from the execution of a spark application. All the callbacks are called inside the spark
- * driver and in the same thread
+ * spans from the execution of a spark application.
+ *
+ * <p>All the callbacks are called inside the spark driver and in the same thread, but since some
+ * methods (like finishApplication) are called from the instrumentation advice, thread-safety is
+ * still needed
  */
 public class DatadogSparkListener extends SparkListener {
+  public static volatile DatadogSparkListener listener = null;
+
   private final int MAX_COLLECTION_SIZE = 1000;
 
   private final SparkConf sparkConf;
@@ -48,6 +53,8 @@ public class DatadogSparkListener extends SparkListener {
   private int maxExecutorCount = 0;
   private long availableExecutorTime = 0;
 
+  private boolean applicationEnded = false;
+
   public DatadogSparkListener(SparkContext sparkContext) {
     tracer = AgentTracer.get();
     sparkConf = sparkContext.getConf();
@@ -58,7 +65,7 @@ public class DatadogSparkListener extends SparkListener {
   }
 
   @Override
-  public void onApplicationStart(SparkListenerApplicationStart applicationStart) {
+  public synchronized void onApplicationStart(SparkListenerApplicationStart applicationStart) {
     applicationSpan =
         buildSparkSpan("spark.application")
             .withStartTimestamp(applicationStart.time() * 1000)
@@ -81,15 +88,28 @@ public class DatadogSparkListener extends SparkListener {
 
   @Override
   public void onApplicationEnd(SparkListenerApplicationEnd applicationEnd) {
-    if (lastJobFailed) {
+    finishApplication(applicationEnd.time(), 0, null);
+  }
+
+  public synchronized void finishApplication(long time, int exitCode, String msg) {
+    if (applicationEnded) {
+      return;
+    }
+    applicationEnded = true;
+
+    if (exitCode != 0) {
+      applicationSpan.setError(true);
+      applicationSpan.setTag(
+          DDTags.ERROR_TYPE, "Spark Application Failed with exit code " + exitCode);
+      applicationSpan.setTag(DDTags.ERROR_MSG, msg);
+    } else if (lastJobFailed) {
       applicationSpan.setError(true);
       applicationSpan.setTag(DDTags.ERROR_TYPE, "Spark Application Failed");
       applicationSpan.setTag(DDTags.ERROR_MSG, lastJobFailedMessage);
     }
 
     for (SparkListenerExecutorAdded executor : liveExecutors.values()) {
-      availableExecutorTime +=
-          (applicationEnd.time() - executor.time()) * executor.executorInfo().totalCores();
+      availableExecutorTime += (time - executor.time()) * executor.executorInfo().totalCores();
     }
 
     applicationMetrics.setSpanMetrics(applicationSpan, "spark_application_metrics");
@@ -97,11 +117,11 @@ public class DatadogSparkListener extends SparkListener {
     applicationSpan.setMetric(
         "spark_application_metrics.available_executor_time", availableExecutorTime);
 
-    applicationSpan.finish(applicationEnd.time() * 1000);
+    applicationSpan.finish(time * 1000);
   }
 
   @Override
-  public void onJobStart(SparkListenerJobStart jobStart) {
+  public synchronized void onJobStart(SparkListenerJobStart jobStart) {
     if (jobSpans.size() > MAX_COLLECTION_SIZE) {
       return;
     }
@@ -170,7 +190,7 @@ public class DatadogSparkListener extends SparkListener {
   }
 
   @Override
-  public void onJobEnd(SparkListenerJobEnd jobEnd) {
+  public synchronized void onJobEnd(SparkListenerJobEnd jobEnd) {
     AgentSpan jobSpan = jobSpans.remove(jobEnd.jobId());
     if (jobSpan == null) {
       return;
@@ -196,7 +216,7 @@ public class DatadogSparkListener extends SparkListener {
   }
 
   @Override
-  public void onStageSubmitted(SparkListenerStageSubmitted stageSubmitted) {
+  public synchronized void onStageSubmitted(SparkListenerStageSubmitted stageSubmitted) {
     if (stageSpans.size() > MAX_COLLECTION_SIZE) {
       return;
     }
@@ -239,7 +259,7 @@ public class DatadogSparkListener extends SparkListener {
   }
 
   @Override
-  public void onStageCompleted(SparkListenerStageCompleted stageCompleted) {
+  public synchronized void onStageCompleted(SparkListenerStageCompleted stageCompleted) {
     StageInfo stageInfo = stageCompleted.stageInfo();
     int stageId = stageInfo.stageId();
     int stageAttemptId = stageInfo.attemptNumber();
@@ -340,7 +360,7 @@ public class DatadogSparkListener extends SparkListener {
   }
 
   @Override
-  public void onExecutorAdded(SparkListenerExecutorAdded executorAdded) {
+  public synchronized void onExecutorAdded(SparkListenerExecutorAdded executorAdded) {
     currentExecutorCount += 1;
     maxExecutorCount = Math.max(maxExecutorCount, currentExecutorCount);
 
@@ -350,7 +370,7 @@ public class DatadogSparkListener extends SparkListener {
   }
 
   @Override
-  public void onExecutorRemoved(SparkListenerExecutorRemoved executorRemoved) {
+  public synchronized void onExecutorRemoved(SparkListenerExecutorRemoved executorRemoved) {
     currentExecutorCount -= 1;
 
     SparkListenerExecutorAdded executor = liveExecutors.remove(executorRemoved.executorId());

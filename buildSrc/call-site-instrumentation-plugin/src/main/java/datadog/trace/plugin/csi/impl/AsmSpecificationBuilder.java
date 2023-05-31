@@ -182,9 +182,8 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
     private final SpecificationVisitor spec;
     private final MethodType advice;
     private final Map<Integer, ParameterSpecification> parameters = new HashMap<>();
-    private final List<String> signatures = new ArrayList<>();
-    private boolean inokeDynamic;
-    private AdviceSpecificationCtor adviceCtor;
+    private final Map<AdviceSpecificationCtor, List<AdviceSpecificationData>> adviceData =
+        new HashMap<>();
 
     public AdviceMethodVisitor(
         @Nonnull final SpecificationVisitor spec,
@@ -197,15 +196,19 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
 
     @Override
     public AnnotationVisitor visitAnnotation(final String descriptor, final boolean visible) {
-      adviceCtor = ADVICE_BUILDERS.get(descriptor);
-      if (adviceCtor != null) {
+      AdviceSpecificationCtor ctor = ADVICE_BUILDERS.get(descriptor);
+      if (ctor != null) {
+        final List<AdviceSpecificationData> list =
+            adviceData.computeIfAbsent(ctor, c -> new ArrayList<>());
+        final AdviceSpecificationData data = new AdviceSpecificationData();
+        list.add(data);
         return new AnnotationVisitor(ASM_API_VERSION) {
           @Override
           public void visit(final String key, final Object value) {
             if ("value".equals(key)) {
-              signatures.add((String) value);
+              data.signature = (String) value;
             } else if ("invokeDynamic".equals(key)) {
-              inokeDynamic = (boolean) value;
+              data.invokeDynamic = (boolean) value;
             }
           }
         };
@@ -233,7 +236,7 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
     @Override
     public AnnotationVisitor visitParameterAnnotation(
         final int parameter, final String descriptor, final boolean visible) {
-      if (adviceCtor != null) {
+      if (!adviceData.isEmpty()) {
         final ParameterSpecificationCtor parameterCtor = PARAMETER_BUILDERS.get(descriptor);
         if (parameterCtor != null) {
           ParameterSpecification parameterSpec = parameterCtor.build();
@@ -265,11 +268,13 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
 
     @Override
     public void visitEnd() {
-      if (adviceCtor != null) {
-        signatures.stream()
-            .map(sig -> adviceCtor.build(advice, parameters, sig, inokeDynamic))
-            .forEach(spec.advices::add);
-      }
+      adviceData.forEach(
+          (adviceCtor, list) ->
+              list.stream()
+                  .map(
+                      data ->
+                          adviceCtor.build(advice, parameters, data.signature, data.invokeDynamic))
+                  .forEach(spec.advices::add));
     }
   }
 
@@ -285,5 +290,10 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
   @FunctionalInterface
   private interface ParameterSpecificationCtor {
     ParameterSpecification build();
+  }
+
+  private static class AdviceSpecificationData {
+    private String signature;
+    private boolean invokeDynamic;
   }
 }

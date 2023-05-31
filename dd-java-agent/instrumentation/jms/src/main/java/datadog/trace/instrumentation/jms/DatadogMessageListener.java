@@ -60,21 +60,22 @@ public class DatadogMessageListener implements MessageListener {
     }
     CONSUMER_DECORATE.afterStart(span);
     CONSUMER_DECORATE.onConsume(span, message, consumerState.getConsumerResourceName());
+    SessionState sessionState = consumerState.getSessionState();
+    if (sessionState.isClientAcknowledge()) {
+      // consumed spans will be finished by a call to Message.acknowledge
+      sessionState.finishOnAcknowledge(span);
+      messageAckStore.put(message, sessionState);
+    } else if (sessionState.isTransactedSession()) {
+      // span will be finished by Session.commit/rollback/close
+      sessionState.finishOnCommit(span);
+    }
     try (AgentScope scope = activateSpan(span)) {
       messageListener.onMessage(message);
     } catch (RuntimeException | Error thrown) {
       CONSUMER_DECORATE.onError(span, thrown);
       throw thrown;
     } finally {
-      SessionState sessionState = consumerState.getSessionState();
-      if (sessionState.isClientAcknowledge()) {
-        // consumed spans will be finished by a call to Message.acknowledge
-        sessionState.finishOnAcknowledge(span);
-        messageAckStore.put(message, sessionState);
-      } else if (sessionState.isTransactedSession()) {
-        // span will be finished by Session.commit/rollback/close
-        sessionState.finishOnCommit(span);
-      } else { // Session.AUTO_ACKNOWLEDGE
+      if (sessionState.isAutoAcknowledge()) {
         span.finish();
         consumerState.finishTimeInQueueSpan(false);
       }

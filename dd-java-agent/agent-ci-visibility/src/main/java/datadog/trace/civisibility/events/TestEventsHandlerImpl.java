@@ -104,7 +104,8 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       final @Nullable String testFramework,
       final @Nullable String testFrameworkVersion,
       final @Nullable Class<?> testClass,
-      final @Nullable Collection<String> categories) {
+      final @Nullable Collection<String> categories,
+      boolean parallelized) {
     if (skipTrace(testClass)) {
       return;
     }
@@ -114,7 +115,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       return;
     }
 
-    DDTestSuite testSuite = testModule.testSuiteStart(testSuiteName, testClass, null);
+    DDTestSuite testSuite = testModule.testSuiteStart(testSuiteName, testClass, null, parallelized);
 
     if (testFramework != null) {
       testSuite.setTag(Tags.TEST_FRAMEWORK, testFramework);

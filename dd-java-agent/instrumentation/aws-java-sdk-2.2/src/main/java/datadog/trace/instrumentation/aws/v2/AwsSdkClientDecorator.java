@@ -1,15 +1,19 @@
 package datadog.trace.instrumentation.aws.v2;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
+import javax.annotation.Nonnull;
 import software.amazon.awssdk.awscore.AwsResponse;
 import software.amazon.awssdk.core.SdkRequest;
 import software.amazon.awssdk.core.SdkResponse;
@@ -69,7 +73,11 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     // SQS
     request
         .getValueForField("QueueUrl", String.class)
-        .ifPresent(url -> span.setTag("aws.queue.url", url));
+        .ifPresent(
+            url -> {
+              span.setTag(InstrumentationTags.AWS_QUEUE_URL, url);
+              setPeerService(span, InstrumentationTags.AWS_QUEUE_URL, url);
+            });
     request.getValueForField("QueueName", String.class).ifPresent(name -> setQueueName(span, name));
 
     // SNS
@@ -88,29 +96,42 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     return span;
   }
 
+  private static void setPeerService(
+      @Nonnull final AgentSpan span, @Nonnull final String precursor, @Nonnull final String value) {
+    if (SpanNaming.instance().namingSchema().peerService().supports()) {
+      span.setTag(Tags.PEER_SERVICE, value);
+      span.setTag(DDTags.PEER_SERVICE_SOURCE, precursor);
+    }
+  }
+
   private static void setBucketName(AgentSpan span, String name) {
-    span.setTag("aws.bucket.name", name);
+    span.setTag(InstrumentationTags.AWS_BUCKET_NAME, name);
     span.setTag("bucketname", name);
+    setPeerService(span, InstrumentationTags.AWS_BUCKET_NAME, name);
   }
 
   private static void setQueueName(AgentSpan span, String name) {
-    span.setTag("aws.queue.name", name);
+    span.setTag(InstrumentationTags.AWS_QUEUE_NAME, name);
     span.setTag("queuename", name);
+    setPeerService(span, InstrumentationTags.AWS_QUEUE_NAME, name);
   }
 
   private static void setTopicName(AgentSpan span, String name) {
-    span.setTag("aws.topic.name", name);
+    span.setTag(InstrumentationTags.AWS_TOPIC_NAME, name);
     span.setTag("topicname", name);
+    setPeerService(span, InstrumentationTags.AWS_TOPIC_NAME, name);
   }
 
   private static void setStreamName(AgentSpan span, String name) {
-    span.setTag("aws.stream.name", name);
+    span.setTag(InstrumentationTags.AWS_STREAM_NAME, name);
     span.setTag("streamname", name);
+    setPeerService(span, InstrumentationTags.AWS_STREAM_NAME, name);
   }
 
   private static void setTableName(AgentSpan span, String name) {
-    span.setTag("aws.table.name", name);
+    span.setTag(InstrumentationTags.AWS_TABLE_NAME, name);
     span.setTag("tablename", name);
+    setPeerService(span, InstrumentationTags.AWS_TABLE_NAME, name);
   }
 
   public AgentSpan onAttributes(final AgentSpan span, final ExecutionAttributes attributes) {

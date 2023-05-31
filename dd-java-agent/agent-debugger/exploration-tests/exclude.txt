@@ -1,0 +1,7 @@
+org/junit/internal/Throwables
+org/jacoco/agent/rt/*
+datadog/trace/bootstrap/debugger/*
+datadog/slf4j/*
+datadog/trace/logging/*
+datadog/trace/api/sampling/*
+datadog/trace/util/*
