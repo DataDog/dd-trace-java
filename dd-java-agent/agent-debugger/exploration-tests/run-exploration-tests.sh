@@ -4,8 +4,8 @@ NAME=$1
 COMMAND=$2
 echo " === running debugger java exploration tests === "
 echo "Downloading java agent..."
-curl -OL https://binaries.ddbuild.io/slydog-dd-trace-java/e0daeff9258b19b2e071c8a7382d902bc46b46ea/dd-java-agent-debugger.jar
-export JAVA_TOOL_OPTIONS="-javaagent:`pwd`/dd-java-agent-debugger.jar -Ddatadog.slf4j.simpleLogger.log.com.datadog.debugger=debug -Ddd.trace.enabled=false -Ddd.debugger.enabled=true -Ddd.debugger.instrument.the.world=true -Ddd.debugger.classfile.dump.enabled=false -Ddd.debugger.verify.bytecode=true -Ddd.debugger.exclude.file=/exploration-tests/exclude.txt"
+curl -Lo dd-java-agent.jar https://dtdg.co/latest-java-tracer
+export JAVA_TOOL_OPTIONS="-javaagent:`pwd`/dd-java-agent.jar -Ddatadog.slf4j.simpleLogger.log.com.datadog.debugger=debug -Ddd.trace.enabled=false -Ddd.dynamic.instrumentation.enabled=true -Ddd.dynamic.instrumentation.instrument.the.world=true -Ddd.dynamic.instrumentation.classfile.dump.enabled=false -Ddd.dynamic.instrumentation.verify.bytecode=true -Ddd.dynamic.instrumentation.exclude.file=/exploration-tests/exclude.txt"
 echo "$JAVA_TOOL_OPTIONS"
 cd $NAME
 echo "Building repository $NAME..."

@@ -20,6 +20,7 @@ build-exploration-tests-image:
   after_script:
     - cd $CI_PROJECT_DIR
     - cp /exploration-tests/$PROJECT/agent.log agent.log
+    - gzip agent.log
   stage: exploration-tests
   when: manual
   tags: [ "runner:main"]
@@ -27,7 +28,7 @@ build-exploration-tests-image:
   image: $EXPLORATION_TESTS_IMAGE
   artifacts:
     paths:
-      - agent.log
+      - agent.log.gz
 
 
 exploration-tests-jackson-core:
