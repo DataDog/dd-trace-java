@@ -87,14 +87,16 @@ public abstract class Instrumentor {
     // as stated into the JVM spec:
     // https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-2.html#jvms-2.6.1
     // so we reassigned local var in arg slots if they are empty
-    int slot = isStatic ? 0 : 1;
-    int localVarTableIdx = slot;
-    for (Type t : argTypes) {
-      if (localVars[slot] == null) {
-        localVars[slot] = sortedLocalVars.get(localVarTableIdx);
+    if (argTypes.length < localVars.length) {
+      int slot = isStatic ? 0 : 1;
+      int localVarTableIdx = slot;
+      for (Type t : argTypes) {
+        if (localVars[slot] == null && localVarTableIdx < sortedLocalVars.size()) {
+          localVars[slot] = sortedLocalVars.get(localVarTableIdx);
+        }
+        slot += t.getSize();
+        localVarTableIdx++;
       }
-      slot += t.getSize();
-      localVarTableIdx++;
     }
     return localVars;
   }

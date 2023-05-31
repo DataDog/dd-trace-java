@@ -447,7 +447,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     int slot = isStatic ? 0 : 1;
     for (Type argType : argTypes) {
       String currentArgName = null;
-      if (localVarsBySlot.length > 0) {
+      if (slot < localVarsBySlot.length) {
         LocalVariableNode localVarNode = localVarsBySlot[slot];
         currentArgName = localVarNode != null ? localVarNode.name : null;
       }
