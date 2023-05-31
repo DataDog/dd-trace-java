@@ -105,7 +105,10 @@ public class DatadogSparkListener extends SparkListener {
       applicationSpan.setError(true);
       applicationSpan.setTag(
           DDTags.ERROR_TYPE, "Spark Application Failed with exit code " + exitCode);
-      applicationSpan.setTag(DDTags.ERROR_MSG, msg);
+
+      String errorMessage = getErrorMessageWithoutStackTrace(msg);
+      applicationSpan.setTag(DDTags.ERROR_MSG, errorMessage);
+      applicationSpan.setTag(DDTags.ERROR_STACK, msg);
     } else if (lastJobFailed) {
       applicationSpan.setError(true);
       applicationSpan.setTag(DDTags.ERROR_TYPE, "Spark Application Failed");

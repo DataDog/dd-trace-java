@@ -81,7 +81,7 @@ class SparkTest extends AgentTestRunner {
     setup:
     def spark = SparkSession.builder().config("spark.master", "local").getOrCreate()
     def am = createApplicationMaster(spark)
-    am.finish(FinalApplicationStatus.FAILED, 9, "Some YARN message")
+    am.finish(FinalApplicationStatus.FAILED, 9, "User class threw exception: org.apache.spark.sql.AnalysisException: Column 'foo' does not exist\n\tat com.datadog.spark.MySparkApp.main(MySparkApp.scala:6)")
 
     expect:
     assertTraces(1) {
@@ -91,7 +91,8 @@ class SparkTest extends AgentTestRunner {
           resourceName "spark.application"
           spanType "spark"
           assert span.tags["error.type"] == "Spark Application Failed with exit code 9"
-          assert span.tags["error.message"] == "Some YARN message"
+          assert span.tags["error.message"] == "User class threw exception: org.apache.spark.sql.AnalysisException: Column 'foo' does not exist\n"
+          assert span.tags["error.stack"] == "User class threw exception: org.apache.spark.sql.AnalysisException: Column 'foo' does not exist\n\tat com.datadog.spark.MySparkApp.main(MySparkApp.scala:6)"
           errored true
           parent()
         }
@@ -104,8 +105,8 @@ class SparkTest extends AgentTestRunner {
 
   def "generate error tags in failed spans"() {
     def sparkSession = SparkSession.builder()
-      .config("spark.master", "local")
-      .getOrCreate()
+    .config("spark.master", "local")
+    .getOrCreate()
 
     try {
       TestSparkComputation.generateTestFailingSparkComputation(sparkSession)
