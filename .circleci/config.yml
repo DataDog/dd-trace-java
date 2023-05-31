@@ -782,9 +782,9 @@ jobs:
           name: Copy jar files to system test binaries folder
           command: |
             ls -la ~/dd-trace-java/workspace/dd-trace-api/build/libs
-            ls -la ~/dd-trace-java/workspace/dd-trace-ot/build/libs
+            ls -la ~/dd-trace-java/workspace/dd-java-agent/build/libs
             cp ~/dd-trace-java/workspace/dd-trace-api/build/libs/*.jar system-tests/binaries/
-            cp ~/dd-trace-java/workspace/dd-trace-ot/build/libs/*.jar system-tests/binaries/
+            cp ~/dd-trace-java/workspace/dd-java-agent/build/libs/*.jar system-tests/binaries/
 
       - run:
           name: Install requirements
