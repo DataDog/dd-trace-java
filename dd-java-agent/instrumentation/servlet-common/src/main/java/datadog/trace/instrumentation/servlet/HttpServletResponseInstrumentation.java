@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.not;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
@@ -43,7 +44,9 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Iast
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(named("addCookie"), getClass().getName() + "$AddCookieAdvice");
+    transformation.applyAdvice(
+        named("addCookie").and(takesArgument(0, named("javax.servlet.http.Cookie"))),
+        getClass().getName() + "$AddCookieAdvice");
     transformation.applyAdvice(
         namedOneOf("setHeader", "addHeader").and(takesArguments(String.class, String.class)),
         getClass().getName() + "$AddHeaderAdvice");
