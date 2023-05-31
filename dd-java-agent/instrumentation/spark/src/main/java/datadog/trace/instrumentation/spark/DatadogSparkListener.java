@@ -5,9 +5,12 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import org.apache.spark.ExceptionFailure;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
 import org.apache.spark.TaskFailedReason;
@@ -49,6 +52,7 @@ public class DatadogSparkListener extends SparkListener {
 
   private boolean lastJobFailed = false;
   private String lastJobFailedMessage;
+  private String lastJobFailedStackTrace;
   private int currentExecutorCount = 0;
   private int maxExecutorCount = 0;
   private long availableExecutorTime = 0;
@@ -101,11 +105,15 @@ public class DatadogSparkListener extends SparkListener {
       applicationSpan.setError(true);
       applicationSpan.setTag(
           DDTags.ERROR_TYPE, "Spark Application Failed with exit code " + exitCode);
-      applicationSpan.setTag(DDTags.ERROR_MSG, msg);
+
+      String errorMessage = getErrorMessageWithoutStackTrace(msg);
+      applicationSpan.setTag(DDTags.ERROR_MSG, errorMessage);
+      applicationSpan.setTag(DDTags.ERROR_STACK, msg);
     } else if (lastJobFailed) {
       applicationSpan.setError(true);
       applicationSpan.setTag(DDTags.ERROR_TYPE, "Spark Application Failed");
       applicationSpan.setTag(DDTags.ERROR_MSG, lastJobFailedMessage);
+      applicationSpan.setTag(DDTags.ERROR_STACK, lastJobFailedStackTrace);
     }
 
     for (SparkListenerExecutorAdded executor : liveExecutors.values()) {
@@ -199,12 +207,18 @@ public class DatadogSparkListener extends SparkListener {
     lastJobFailed = false;
     if (jobEnd.jobResult() instanceof JobFailed) {
       JobFailed jobFailed = (JobFailed) jobEnd.jobResult();
+      Exception exception = jobFailed.exception();
+
+      String errorMessage = getErrorMessageWithoutStackTrace(exception.getMessage());
+      String errorStackTrace = stackTraceToString(exception);
 
       jobSpan.setError(true);
-      jobSpan.setErrorMessage(jobFailed.exception().toString());
+      jobSpan.setErrorMessage(errorMessage);
+      jobSpan.setTag(DDTags.ERROR_STACK, errorStackTrace);
       jobSpan.setTag(DDTags.ERROR_TYPE, "Spark Job Failed");
       lastJobFailed = true;
-      lastJobFailedMessage = jobFailed.exception().toString();
+      lastJobFailedMessage = errorMessage;
+      lastJobFailedStackTrace = errorStackTrace;
     }
 
     SparkAggregatedTaskMetrics metrics = jobMetrics.remove(jobEnd.jobId());
@@ -277,7 +291,8 @@ public class DatadogSparkListener extends SparkListener {
 
     if (stageInfo.failureReason().isDefined()) {
       span.setError(true);
-      span.setErrorMessage(stageInfo.failureReason().get());
+      span.setErrorMessage(getErrorMessageWithoutStackTrace(stageInfo.failureReason().get()));
+      span.setTag(DDTags.ERROR_STACK, stageInfo.failureReason().get());
       span.setTag(DDTags.ERROR_TYPE, "Spark Stage Failed");
     }
 
@@ -322,6 +337,12 @@ public class DatadogSparkListener extends SparkListener {
       return;
     }
 
+    // Only sending tasks that can lead to failure
+    TaskFailedReason reason = (TaskFailedReason) taskEnd.reason();
+    if (!reason.countTowardsTaskFailures()) {
+      return;
+    }
+
     AgentSpan stageSpan = stageSpans.get(stageSpanKey);
     if (stageSpan == null) {
       return;
@@ -351,8 +372,18 @@ public class DatadogSparkListener extends SparkListener {
       TaskFailedReason reason = (TaskFailedReason) taskEnd.reason();
 
       taskSpan.setError(true);
-      taskSpan.setErrorMessage(reason.toErrorString());
       taskSpan.setTag(DDTags.ERROR_TYPE, "Spark Task Failed");
+
+      if (reason instanceof ExceptionFailure) {
+        ExceptionFailure exceptionFailure = (ExceptionFailure) reason;
+
+        taskSpan.setErrorMessage(
+            String.format("%s: %s", exceptionFailure.className(), exceptionFailure.description()));
+        taskSpan.setTag(DDTags.ERROR_STACK, exceptionFailure.fullStackTrace());
+      } else {
+        taskSpan.setErrorMessage(reason.toErrorString());
+      }
+
       taskSpan.setTag("count_towards_task_failures", reason.countTowardsTaskFailures());
     }
 
@@ -403,5 +434,24 @@ public class DatadogSparkListener extends SparkListener {
     }
 
     return null;
+  }
+
+  private String stackTraceToString(Throwable e) {
+    StringWriter stringWriter = new StringWriter();
+    e.printStackTrace(new PrintWriter(stringWriter));
+    return stringWriter.toString();
+  }
+
+  private String getErrorMessageWithoutStackTrace(String errorMessage) {
+    if (errorMessage == null) {
+      return null;
+    }
+
+    int stackTraceIndex = errorMessage.indexOf("\tat ");
+    if (stackTraceIndex != -1) {
+      return errorMessage.substring(0, stackTraceIndex);
+    }
+
+    return errorMessage;
   }
 }

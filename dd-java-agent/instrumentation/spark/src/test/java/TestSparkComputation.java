@@ -11,4 +11,13 @@ public class TestSparkComputation {
     // - the second one triggered by the count() action
     sparkSession.sparkContext().range(1, 10, 1, 2).distinct().count();
   }
+
+  public static void generateTestFailingSparkComputation(SparkSession sparkSession) {
+    sparkSession
+        .sparkContext()
+        .range(1, 10, 1, 2)
+        .toJavaRDD()
+        .map(x -> ((Long) null).toString())
+        .collect();
+  }
 }

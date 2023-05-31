@@ -81,7 +81,7 @@ class SparkTest extends AgentTestRunner {
     setup:
     def spark = SparkSession.builder().config("spark.master", "local").getOrCreate()
     def am = createApplicationMaster(spark)
-    am.finish(FinalApplicationStatus.FAILED, 9, "Some YARN message")
+    am.finish(FinalApplicationStatus.FAILED, 9, "User class threw exception: org.apache.spark.sql.AnalysisException: Column 'foo' does not exist\n\tat com.datadog.spark.MySparkApp.main(MySparkApp.scala:6)")
 
     expect:
     assertTraces(1) {
@@ -91,7 +91,8 @@ class SparkTest extends AgentTestRunner {
           resourceName "spark.application"
           spanType "spark"
           assert span.tags["error.type"] == "Spark Application Failed with exit code 9"
-          assert span.tags["error.message"] == "Some YARN message"
+          assert span.tags["error.message"] == "User class threw exception: org.apache.spark.sql.AnalysisException: Column 'foo' does not exist\n"
+          assert span.tags["error.stack"] == "User class threw exception: org.apache.spark.sql.AnalysisException: Column 'foo' does not exist\n\tat com.datadog.spark.MySparkApp.main(MySparkApp.scala:6)"
           errored true
           parent()
         }
@@ -100,6 +101,64 @@ class SparkTest extends AgentTestRunner {
 
     cleanup:
     spark.stop()
+  }
+
+  def "generate error tags in failed spans"() {
+    def sparkSession = SparkSession.builder()
+    .config("spark.master", "local")
+    .getOrCreate()
+
+    try {
+      TestSparkComputation.generateTestFailingSparkComputation(sparkSession)
+    }
+    catch (Exception ignored) {}
+
+    sparkSession.stop()
+
+    expect:
+    assertTraces(1) {
+      trace(4) {
+        span {
+          operationName "spark.application"
+          resourceName "spark.application"
+          spanType "spark"
+          errored true
+          parent()
+          assert span.tags["error.type"] == "Spark Application Failed"
+          assert span.tags["error.message"] =~ /^Job aborted due to stage failure.*java.lang.NullPointerException$/
+          assert span.tags["error.stack"] =~ /(?s)^org.apache.spark.SparkException.*Caused by: java.lang.NullPointerException.*$/
+        }
+        span {
+          operationName "spark.job"
+          resourceName "collect at TestSparkComputation.java:21"
+          spanType "spark"
+          errored true
+          childOf(span(0))
+          assert span.tags["error.type"] == "Spark Job Failed"
+          assert span.tags["error.message"] =~ /^Job aborted due to stage failure.*java.lang.NullPointerException$/
+          assert span.tags["error.stack"] =~ /(?s)^org.apache.spark.SparkException.*Caused by: java.lang.NullPointerException.*$/
+        }
+        span {
+          operationName "spark.stage"
+          resourceName "collect at TestSparkComputation.java:21"
+          spanType "spark"
+          errored true
+          childOf(span(1))
+          assert span.tags["error.type"] == "Spark Stage Failed"
+          assert span.tags["error.message"] =~ /^Job aborted due to stage failure.*java.lang.NullPointerException$/
+          assert span.tags["error.stack"] =~ /(?s).*\n\tat TestSparkComputation.{500,}\$/
+        }
+        span {
+          operationName "spark.task"
+          spanType "spark"
+          errored true
+          childOf(span(2))
+          assert span.tags["error.type"] == "Spark Task Failed"
+          assert span.tags["error.message"] == "java.lang.NullPointerException: null"
+          assert span.tags["error.stack"] =~ /(?s)^java.lang.NullPointerException\n\tat TestSparkComputation.{500,}\$/
+        }
+      }
+    }
   }
 
   def "generate databricks spans"() {
@@ -171,6 +230,9 @@ class SparkTest extends AgentTestRunner {
         }
       }
     }
+
+    cleanup:
+    sparkSession.stop()
   }
 
   def "compute the databricks parent context"() {
