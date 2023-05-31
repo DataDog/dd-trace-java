@@ -139,7 +139,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     // not starting with "/" made full url (http://..) matching but not the path portion (because starting with /)
     // this settings should not affect test results
     injectSysConfig(TracerConfig.TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING, "**/success:*")
-    
+
     injectSysConfig(HEADER_TAGS, 'x-datadog-test-both-header:both_header_tag')
     injectSysConfig(REQUEST_HEADER_TAGS, 'x-datadog-test-request-header:request_header_tag')
     // We don't inject a matching response header tag here since it would be always on and show up in all the tests
