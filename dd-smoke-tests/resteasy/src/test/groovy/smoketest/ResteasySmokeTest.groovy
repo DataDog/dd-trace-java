@@ -214,4 +214,16 @@ class ResteasySmokeTest extends AbstractIastServerSmokeTest {
     then:
     hasVulnerability { vul -> vul.type == 'UNVALIDATED_REDIRECT' }
   }
+
+  void "insecure cookie"() {
+    setup:
+    def url = "http://localhost:${httpPort}/hello/insecurecookie"
+
+    when:
+    def request = new Request.Builder().url(url).get().build()
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'INSECURE_COOKIE' }
+  }
 }

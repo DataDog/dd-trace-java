@@ -15,10 +15,10 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class JakartaWSResponseInstrumentation extends Instrumenter.Iast
+public class JavaxWSResponseInstrumentation extends Instrumenter.Iast
     implements Instrumenter.ForTypeHierarchy {
 
-  public JakartaWSResponseInstrumentation() {
+  public JavaxWSResponseInstrumentation() {
     super("jersey");
   }
 
@@ -26,15 +26,15 @@ public class JakartaWSResponseInstrumentation extends Instrumenter.Iast
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         named("header").and(isPublic().and(takesArguments(String.class, Object.class))),
-        JakartaWSResponseInstrumentation.class.getName() + "$HeaderAdvice");
+        JavaxWSResponseInstrumentation.class.getName() + "$HeaderAdvice");
     transformation.applyAdvice(
         named("location").and(isPublic().and(takesArguments(URI.class))),
-        JakartaWSResponseInstrumentation.class.getName() + "$RedirectionAdvice");
+        JavaxWSResponseInstrumentation.class.getName() + "$RedirectionAdvice");
   }
 
   @Override
   public String hierarchyMarkerType() {
-    return "jakarta.ws.rs.core.Response$ResponseBuilder";
+    return "javax.ws.rs.core.Response$ResponseBuilder";
   }
 
   @Override

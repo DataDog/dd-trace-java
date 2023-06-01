@@ -2,7 +2,9 @@ package datadog.trace.instrumentation.jersey
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.sink.InsecureCookieModule
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
+import jakarta.ws.rs.core.NewCookie
 import jakarta.ws.rs.core.Response
 
 class JakartaWSResponseInstrumentationTest extends AgentTestRunner {
@@ -15,14 +17,20 @@ class JakartaWSResponseInstrumentationTest extends AgentTestRunner {
 
   void 'change location header triggers onHeader callback'() {
     setup:
-    final module = Mock(UnvalidatedRedirectModule)
-    InstrumentationBridge.registerIastModule(module)
+    final redirectionModule = Mock(UnvalidatedRedirectModule)
+    InstrumentationBridge.registerIastModule(redirectionModule)
+    final insecureCookieModule = Mock(InsecureCookieModule)
+    InstrumentationBridge.registerIastModule(insecureCookieModule)
+
+
 
     when:
     Response.status(Response.Status.TEMPORARY_REDIRECT).header("Location", "https://dummy.location.com/test")
 
     then:
-    1 * module.onHeader('Location', 'https://dummy.location.com/test')
+    1 * redirectionModule.onHeader('Location', 'https://dummy.location.com/test')
+    1 * insecureCookieModule.onHeader('Location', 'https://dummy.location.com/test')
+    0 * _
   }
 
   void 'change location triggers onRedirect callback'() {
@@ -36,5 +44,32 @@ class JakartaWSResponseInstrumentationTest extends AgentTestRunner {
 
     then:
     1 * module.onURIRedirect(uri)
+  }
+
+  def 'insecure cookie added using Response.cookie'(){
+    setup:
+    final module = Mock(InsecureCookieModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    Response.ok().cookie(new NewCookie("user-id", "7"))
+
+    then:
+    1 * module.onHeader('Set-Cookie', 'user-id=7;Version=1')
+    0 * _
+  }
+
+  def 'insecure cookies added using Response.cookie'(){
+    setup:
+    final module = Mock(InsecureCookieModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    Response.ok().cookie(new NewCookie("user-id", "7"), new NewCookie("ttt", "1"))
+
+    then:
+    1 * module.onHeader('Set-Cookie', 'user-id=7;Version=1')
+    1 * module.onHeader('Set-Cookie', 'ttt=1;Version=1')
+    0 * _
   }
 }
