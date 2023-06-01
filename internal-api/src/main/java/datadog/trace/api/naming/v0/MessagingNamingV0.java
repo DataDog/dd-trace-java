@@ -4,6 +4,12 @@ import datadog.trace.api.naming.NamingSchema;
 import javax.annotation.Nonnull;
 
 public class MessagingNamingV0 implements NamingSchema.ForMessaging {
+  private final boolean allowsFakeServices;
+
+  public MessagingNamingV0(boolean allowsFakeServices) {
+    this.allowsFakeServices = allowsFakeServices;
+  }
+
   @Nonnull
   @Override
   public String outboundOperation(@Nonnull final String messagingSystem) {
@@ -17,7 +23,10 @@ public class MessagingNamingV0 implements NamingSchema.ForMessaging {
   @Override
   public String outboundService(
       @Nonnull final String ddService, @Nonnull final String messagingSystem) {
-    return messagingSystem;
+    if (allowsFakeServices) {
+      return messagingSystem;
+    }
+    return ddService;
   }
 
   @Nonnull
@@ -37,7 +46,10 @@ public class MessagingNamingV0 implements NamingSchema.ForMessaging {
   @Override
   public String inboundService(
       @Nonnull final String ddService, @Nonnull final String messagingSystem) {
-    return messagingSystem;
+    if (allowsFakeServices) {
+      return messagingSystem;
+    }
+    return ddService;
   }
 
   @Override

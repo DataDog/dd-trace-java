@@ -4,6 +4,7 @@ import datadog.trace.api.naming.NamingSchema;
 import javax.annotation.Nonnull;
 
 public class ClientNamingV0 implements NamingSchema.ForClient {
+
   @Nonnull
   @Override
   public String operationForProtocol(@Nonnull String protocol) {
