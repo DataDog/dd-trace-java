@@ -8,14 +8,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
-import datadog.trace.advice.ActiveRequestContext;
-import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
@@ -49,6 +48,8 @@ public class ParsePartsInstrumentation extends Instrumenter.AppSec
   public String[] helperClassNames() {
     return new String[] {
       "datadog.trace.instrumentation.tomcat7.ParameterCollector",
+      "datadog.trace.instrumentation.tomcat7.ParameterCollector$ParameterCollectorNoop",
+      "datadog.trace.instrumentation.tomcat7.ParameterCollector$ParameterCollectorImpl",
     };
   }
 
@@ -66,20 +67,31 @@ public class ParsePartsInstrumentation extends Instrumenter.AppSec
     return new VisitingTransformer(new ParsePartsVisitorWrapper());
   }
 
-  @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class ParsePartsAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    static void before(@Advice.Local("collector") ParameterCollector collector) {
+    static void before(
+        @Advice.Local("collector") ParameterCollector collector,
+        @Advice.Local("reqCtx") RequestContext reqCtx) {
+      AgentSpan agentSpan = AgentTracer.activeSpan();
+      if (agentSpan != null) {
+        RequestContext requestContext = agentSpan.getRequestContext();
+        if (requestContext != null && requestContext.getData(RequestContextSlot.APPSEC) != null) {
+          reqCtx = requestContext;
+          collector = new ParameterCollector.ParameterCollectorImpl();
+          return;
+        }
+      }
+
       // this variable is used in the custom instrumentation below
-      collector = new ParameterCollector();
+      collector = ParameterCollector.ParameterCollectorNoop.INSTANCE;
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
         @Advice.Local("collector") ParameterCollector collector,
-        @ActiveRequestContext RequestContext reqCtx,
+        @Advice.Local("reqCtx") RequestContext reqCtx,
         @Advice.Thrown(readOnly = false) Throwable t) {
-      if (t != null) {
+      if (t != null || reqCtx == null) {
         return;
       }
 
@@ -93,7 +105,7 @@ public class ParsePartsInstrumentation extends Instrumenter.AppSec
       if (callback == null) {
         return;
       }
-      Flow<Void> flow = callback.apply(reqCtx, collector.map);
+      Flow<Void> flow = callback.apply(reqCtx, collector.getMap());
       Flow.Action action = flow.getAction();
       if (action instanceof Flow.Action.RequestBlockingAction) {
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
@@ -175,11 +187,11 @@ public class ParsePartsInstrumentation extends Instrumenter.AppSec
         super.visitInsn(Opcodes.DUP2_X1);
         // stack: ..., key, value, collParams, key, value
         super.visitMethodInsn(
-            Opcodes.INVOKEVIRTUAL,
+            Opcodes.INVOKEINTERFACE,
             Type.getInternalName(ParameterCollector.class),
             "put",
             "(Ljava/lang/String;Ljava/lang/String;)V",
-            false);
+            true);
         // original stack
       } else if (opcode == Opcodes.INVOKEVIRTUAL
           && owner.equals("org/apache/tomcat/util/http/Parameters")
@@ -190,11 +202,11 @@ public class ParsePartsInstrumentation extends Instrumenter.AppSec
         super.visitInsn(Opcodes.POP);
         super.visitInsn(Opcodes.DUP2_X1);
         super.visitMethodInsn(
-            Opcodes.INVOKEVIRTUAL,
+            Opcodes.INVOKEINTERFACE,
             Type.getInternalName(ParameterCollector.class),
             "put",
             "(Ljava/lang/String;[Ljava/lang/String;)V",
-            false);
+            true);
       }
       super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
     }
