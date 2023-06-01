@@ -73,4 +73,82 @@ class IastSpringBootRedirectSmokeTest extends AbstractIastServerSmokeTest {
     then:
     hasVulnerabilityInLogs { vul -> vul.type == 'UNVALIDATED_REDIRECT' && vul.location.method == 'unvalidatedRedirectFromForward' }
   }
+
+  def "unvalidated  redirect from RedirectView is present"() {
+    setup:
+    String url = "http://localhost:${httpPort}/unvalidated_redirect_from_redirect_view?param=redirected"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isRedirect()
+    hasVulnerabilityInLogs { vul -> vul.type == 'UNVALIDATED_REDIRECT' && vul.location.method == 'unvalidatedRedirectFromRedirectView' }
+  }
+
+  def "unvalidated  redirect from ModelAndView is present"() {
+    setup:
+    String url = "http://localhost:${httpPort}/unvalidated_redirect_from_model_and_view?param=redirected"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isRedirect()
+    hasVulnerabilityInLogs { vul -> vul.type == 'UNVALIDATED_REDIRECT' && vul.location.method == 'unvalidatedRedirectFromModelAndView' }
+  }
+
+
+  def "unvalidated  redirect forward from ModelAndView is present"() {
+    setup:
+    String url = "http://localhost:${httpPort}/unvalidated_redirect_forward_from_model_and_view?param=redirected"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerabilityInLogs { vul -> vul.type == 'UNVALIDATED_REDIRECT' && vul.location.method == 'unvalidatedRedirectForwardFromModelAndView' }
+  }
+
+
+  def "unvalidated  redirect from string"() {
+    setup:
+    String url = "http://localhost:${httpPort}/unvalidated_redirect_from_string?param=redirected"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isRedirect()
+    hasVulnerabilityInLogs { vul -> vul.type == 'UNVALIDATED_REDIRECT' && vul.location.method == 'unvalidatedRedirectFromString' }
+  }
+
+  def "unvalidated  redirect forward from string"() {
+    setup:
+    String url = "http://localhost:${httpPort}/unvalidated_redirect_forward_from_string?param=redirected"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    hasVulnerabilityInLogs { vul -> vul.type == 'UNVALIDATED_REDIRECT' && vul.location.method == 'unvalidatedRedirectForwardFromString' }
+  }
+
+  def "get View from tainted string"() {
+    setup:
+    String url = "http://localhost:${httpPort}/get_view_from_tainted_string?param=redirected"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    hasVulnerabilityInLogs { vul -> vul.type == 'UNVALIDATED_REDIRECT' && vul.location.method == 'getViewfromTaintedString' }
+  }
+
 }
