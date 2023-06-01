@@ -38,6 +38,17 @@ class SparkAggregatedTaskMetrics {
   private long taskRetriedCount = 0L;
   private long taskWithOutputCount = 0L;
 
+  private long attributedAvailableExecutorTime = 0L;
+  private long previousAvailableExecutorTime = 0L;
+  private long executorRunTimeSinceLastStage = 0L;
+  private long totalExecutorRunTimeSinceLastStage = 0L;
+
+  public SparkAggregatedTaskMetrics() {}
+
+  public SparkAggregatedTaskMetrics(long availableExecutorTime) {
+    this.previousAvailableExecutorTime = availableExecutorTime;
+  }
+
   public void addTaskMetrics(SparkListenerTaskEnd taskEnd) {
     taskCompletedCount += 1;
 
@@ -82,7 +93,28 @@ class SparkAggregatedTaskMetrics {
       if (taskMetrics.outputMetrics().recordsWritten() >= 1) {
         taskWithOutputCount += 1;
       }
+
+      executorRunTimeSinceLastStage += taskMetrics.executorRunTime();
     }
+  }
+
+  public void recordExecutorRunTime(long executorRunTime) {
+    totalExecutorRunTimeSinceLastStage += executorRunTime;
+  }
+
+  public void allocateAvailableExecutorTime(long availableExecutorTime) {
+    long executorTime = availableExecutorTime - previousAvailableExecutorTime;
+    long runTime = executorRunTimeSinceLastStage;
+    long totalRunTime = totalExecutorRunTimeSinceLastStage;
+
+    if (totalRunTime > 0) {
+      double ratio = (double) runTime / totalRunTime;
+      attributedAvailableExecutorTime += (long) (ratio * executorTime);
+    }
+
+    previousAvailableExecutorTime = availableExecutorTime;
+    executorRunTimeSinceLastStage = 0;
+    totalExecutorRunTimeSinceLastStage = 0;
   }
 
   public void accumulateStageMetrics(SparkAggregatedTaskMetrics stageMetrics) {
@@ -117,6 +149,8 @@ class SparkAggregatedTaskMetrics {
     taskFailedCount += stageMetrics.taskFailedCount;
     taskRetriedCount += stageMetrics.taskRetriedCount;
     taskWithOutputCount += stageMetrics.taskWithOutputCount;
+
+    attributedAvailableExecutorTime += stageMetrics.attributedAvailableExecutorTime;
   }
 
   public void setSpanMetrics(AgentSpan span, String prefix) {
@@ -151,5 +185,7 @@ class SparkAggregatedTaskMetrics {
     span.setMetric(prefix + ".task_failed_count", taskFailedCount);
     span.setMetric(prefix + ".task_retried_count", taskRetriedCount);
     span.setMetric(prefix + ".task_with_output_count", taskWithOutputCount);
+
+    span.setMetric(prefix + ".available_executor_time", attributedAvailableExecutorTime);
   }
 }
