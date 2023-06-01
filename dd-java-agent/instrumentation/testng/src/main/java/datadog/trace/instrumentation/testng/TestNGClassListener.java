@@ -1,13 +1,14 @@
 package datadog.trace.instrumentation.testng;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.testng.IMethodInstance;
 import org.testng.ITestClass;
 import org.testng.ITestNGMethod;
+import org.testng.internal.ConstructorOrMethod;
 
 /**
  * This is a custom class events handler that solves two problems:
@@ -27,12 +28,12 @@ import org.testng.ITestNGMethod;
  */
 public abstract class TestNGClassListener {
 
-  private final ConcurrentMap<ITestClass, Collection<ITestNGMethod>> methodsAwaitingExecution =
+  private final ConcurrentMap<Class<?>, Collection<ConstructorOrMethod>> methodsAwaitingExecution =
       new ConcurrentHashMap<>();
 
   public void invokeBeforeClass(ITestClass testClass, boolean parallelized) {
     methodsAwaitingExecution.computeIfAbsent(
-        testClass,
+        testClass.getRealClass(),
         k -> {
           // firing event with the lock held to ensure that the other threads wait until test suite
           // state is initialized
@@ -41,16 +42,23 @@ public abstract class TestNGClassListener {
           // populate methods with the lock held to ensure that the other threads cannot see
           // partially populated collection
           ITestNGMethod[] testMethods = testClass.getTestMethods();
-          return new ArrayList<>(Arrays.asList(testMethods));
+          List<ConstructorOrMethod> methods = new ArrayList<>(testMethods.length);
+          for (ITestNGMethod testMethod : testMethods) {
+            ConstructorOrMethod constructorOrMethod = testMethod.getConstructorOrMethod();
+            methods.add(constructorOrMethod);
+          }
+          return methods;
         });
   }
 
   public void invokeAfterClass(ITestClass testClass, IMethodInstance methodInstance) {
-    Collection<ITestNGMethod> remainingMethods =
+    Collection<ConstructorOrMethod> remainingMethods =
         methodsAwaitingExecution.computeIfPresent(
-            testClass,
+            testClass.getRealClass(),
             (k, v) -> {
-              v.remove(methodInstance.getMethod());
+              ITestNGMethod method = methodInstance.getMethod();
+              ConstructorOrMethod constructorOrMethod = method.getConstructorOrMethod();
+              v.remove(constructorOrMethod);
               return !v.isEmpty() ? v : null;
             });
 
