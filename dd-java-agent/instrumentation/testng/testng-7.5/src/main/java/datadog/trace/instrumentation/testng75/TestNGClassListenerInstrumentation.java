@@ -63,7 +63,8 @@ public class TestNGClassListenerInstrumentation extends Instrumenter.CiVisibilit
 
       XmlTest xmlTest = testClass.getXmlTest();
       XmlSuite.ParallelMode parallel = xmlTest.getParallel();
-      boolean parallelized = parallel == XmlSuite.ParallelMode.METHODS;
+      boolean parallelized =
+          parallel == XmlSuite.ParallelMode.METHODS || parallel == XmlSuite.ParallelMode.TESTS;
 
       TestNGClassListener listener = TestNGUtils.getTestNGClassListener(testContext);
       listener.invokeBeforeClass(testClass, parallelized);
