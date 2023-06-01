@@ -20,4 +20,8 @@ public class TestSparkComputation {
         .map(x -> ((Long) null).toString())
         .collect();
   }
+
+  public static String getSparkVersion() {
+    return org.apache.spark.package$.MODULE$.SPARK_VERSION();
+  }
 }

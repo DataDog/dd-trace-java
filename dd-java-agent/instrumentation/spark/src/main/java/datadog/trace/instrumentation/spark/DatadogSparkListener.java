@@ -12,7 +12,6 @@ import java.util.Map;
 import java.util.Properties;
 import org.apache.spark.ExceptionFailure;
 import org.apache.spark.SparkConf;
-import org.apache.spark.SparkContext;
 import org.apache.spark.TaskFailedReason;
 import org.apache.spark.scheduler.*;
 import scala.Tuple2;
@@ -59,11 +58,12 @@ public class DatadogSparkListener extends SparkListener {
 
   private boolean applicationEnded = false;
 
-  public DatadogSparkListener(SparkContext sparkContext) {
+  public DatadogSparkListener(SparkConf sparkConf, String appId, String sparkVersion) {
     tracer = AgentTracer.get();
-    sparkConf = sparkContext.getConf();
-    sparkVersion = sparkContext.version();
-    appId = sparkContext.applicationId();
+
+    this.sparkConf = sparkConf;
+    this.appId = appId;
+    this.sparkVersion = sparkVersion;
 
     isRunningOnDatabricks = sparkConf.contains("spark.databricks.sparkContextId");
   }
