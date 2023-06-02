@@ -345,7 +345,7 @@ public class SerializerWithLimits {
     Iterator<?> it = collection.iterator();
     while (i < maxSize && it.hasNext()) {
       Object val = it.next();
-      serialize(val, val.getClass().getTypeName(), newLimits);
+      serialize(val, val != null ? val.getClass().getTypeName() : null, newLimits);
       i++;
     }
     return maxSize == colSize;
@@ -363,8 +363,8 @@ public class SerializerWithLimits {
       tokenWriter.mapEntryPrologue(entry);
       Object keyObj = entry.getKey();
       Object valObj = entry.getValue();
-      serialize(keyObj, keyObj.getClass().getTypeName(), newLimits);
-      serialize(valObj, valObj.getClass().getTypeName(), newLimits);
+      serialize(keyObj, keyObj != null ? keyObj.getClass().getTypeName() : null, newLimits);
+      serialize(valObj, valObj != null ? valObj.getClass().getTypeName() : null, newLimits);
       tokenWriter.mapEntryEpilogue(entry);
       i++;
     }

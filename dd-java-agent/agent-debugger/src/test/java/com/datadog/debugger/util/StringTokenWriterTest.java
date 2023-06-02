@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.debugger.Limits.DEFAULT_FIELD_COUNT;
 import static datadog.trace.bootstrap.debugger.Limits.DEFAULT_LENGTH;
 import static datadog.trace.bootstrap.debugger.Limits.DEFAULT_REFERENCE_DEPTH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
@@ -75,6 +76,25 @@ class StringTokenWriterTest {
         serializeValue(
             new LeafClass(),
             new Limits(DEFAULT_REFERENCE_DEPTH, DEFAULT_COLLECTION_SIZE, DEFAULT_LENGTH, 2)));
+  }
+
+  @Test
+  public void collections() throws Exception {
+    List<String> list = new ArrayList<>();
+    list.add("foo");
+    list.add("bar");
+    list.add(null);
+    assertEquals("[foo, bar, null]", serializeValue(list, Limits.DEFAULT));
+  }
+
+  @Test
+  public void maps() throws Exception {
+    HashMap<String, String> map = new HashMap<>();
+    map.put("foo1", "bar1");
+    map.put(null, null);
+    String serializedStr = serializeValue(map, Limits.DEFAULT);
+    assertTrue(serializedStr.contains("[foo1=bar1]"));
+    assertTrue(serializedStr.contains("[null=null]"));
   }
 
   static class Person {
