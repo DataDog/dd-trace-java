@@ -1,8 +1,8 @@
 package datadog.trace.api.iast.sink;
 
+import java.net.URI;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.net.URI;
 
 public interface UnvalidatedRedirectModule extends HttpHeaderModule {
 

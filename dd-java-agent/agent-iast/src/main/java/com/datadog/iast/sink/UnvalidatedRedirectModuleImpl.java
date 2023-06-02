@@ -12,10 +12,9 @@ import com.datadog.iast.taint.TaintedObject;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-
+import java.net.URI;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.net.URI;
 
 public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
     implements UnvalidatedRedirectModule {
