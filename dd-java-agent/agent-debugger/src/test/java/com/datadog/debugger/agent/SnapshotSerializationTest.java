@@ -50,6 +50,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
@@ -715,6 +716,56 @@ public class SnapshotSerializationTest {
     MoshiSnapshotHelper.CapturedValueAdapter capturedValueAdapter =
         new MoshiSnapshotHelper.CapturedValueAdapter();
     Assertions.assertEquals("null", capturedValueAdapter.toJson(null));
+  }
+
+  @Test
+  public void collectionValueThrows() throws IOException {
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
+    Snapshot snapshot = createSnapshot();
+    CapturedContext context = new CapturedContext();
+    CapturedContext.CapturedValue mapField =
+        CapturedContext.CapturedValue.of(
+            "listField",
+            List.class.getTypeName(),
+            new ArrayList<String>() {
+              @Override
+              public int size() {
+                throw new UnsupportedOperationException();
+              }
+            });
+    context.addFields(new CapturedContext.CapturedValue[] {mapField});
+    snapshot.setExit(context);
+    String buffer = adapter.toJson(snapshot);
+    System.out.println(buffer);
+    Map<String, Object> fields = getFieldsFromJson(buffer);
+    Map<String, Object> mapFieldObj = (Map<String, Object>) fields.get("listField");
+    Assertions.assertEquals(
+        "java.lang.UnsupportedOperationException", mapFieldObj.get(NOT_CAPTURED_REASON));
+  }
+
+  @Test
+  public void mapValueThrows() throws IOException {
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
+    Snapshot snapshot = createSnapshot();
+    CapturedContext context = new CapturedContext();
+    CapturedContext.CapturedValue mapField =
+        CapturedContext.CapturedValue.of(
+            "mapField",
+            Map.class.getTypeName(),
+            new HashMap<String, String>() {
+              @Override
+              public Set<Entry<String, String>> entrySet() {
+                throw new UnsupportedOperationException();
+              }
+            });
+    context.addFields(new CapturedContext.CapturedValue[] {mapField});
+    snapshot.setExit(context);
+    String buffer = adapter.toJson(snapshot);
+    System.out.println(buffer);
+    Map<String, Object> fields = getFieldsFromJson(buffer);
+    Map<String, Object> mapFieldObj = (Map<String, Object>) fields.get("mapField");
+    Assertions.assertEquals(
+        "java.lang.UnsupportedOperationException", mapFieldObj.get(NOT_CAPTURED_REASON));
   }
 
   private Map<String, Object> doLength(int maxLength) throws IOException {
