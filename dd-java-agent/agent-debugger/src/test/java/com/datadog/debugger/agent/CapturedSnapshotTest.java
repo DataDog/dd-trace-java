@@ -1372,6 +1372,24 @@ public class CapturedSnapshotTest {
         snapshot.getEvaluationErrors().get(1).getMessage());
   }
 
+  @Test
+  public void enumConstructorArgs() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot23";
+    final String ENUM_CLASS = CLASS_NAME + "$MyEnum";
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(ENUM_CLASS, createProbe(PROBE_ID, ENUM_CLASS, "<init>", null));
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "2").get();
+    Assertions.assertEquals(2, result);
+    assertSnapshots(listener, 3, PROBE_ID);
+    Map<String, CapturedContext.CapturedValue> arguments =
+        listener.snapshots.get(0).getCaptures().getEntry().getArguments();
+    assertEquals(3, arguments.size());
+    assertTrue(arguments.containsKey("this"));
+    assertTrue(arguments.containsKey("p1")); // this the hidden ordinal arg of an enum
+    assertTrue(arguments.containsKey("strValue"));
+  }
+
   private DebuggerTransformerTest.TestSnapshotListener setupInstrumentTheWorldTransformer(
       String excludeFileName) {
     Config config = mock(Config.class);
