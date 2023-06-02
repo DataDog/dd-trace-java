@@ -39,11 +39,8 @@ public final class InvocableHandlerMethodInstrumentation extends Instrumenter.Ia
         @Advice.Return Object returned, @Advice.This InvocableHandlerMethod self) {
       final UnvalidatedRedirectModule module = InstrumentationBridge.UNVALIDATED_REDIRECT;
       if (module != null && returned != null) {
-        String clazz =
-            self.getMethod() != null && self.getMethod().getDeclaringClass() != null
-                ? self.getMethod().getDeclaringClass().getName()
-                : null;
-        String method = self.getMethod() != null ? self.getMethod().getName() : null;
+        String clazz = self.getMethod().getDeclaringClass().getName();
+        String method = self.getMethod().getName();
         if (returned instanceof AbstractUrlBasedView) {
           module.onRedirect(((AbstractUrlBasedView) returned).getUrl(), clazz, method);
         } else if (returned instanceof ModelAndView) {
