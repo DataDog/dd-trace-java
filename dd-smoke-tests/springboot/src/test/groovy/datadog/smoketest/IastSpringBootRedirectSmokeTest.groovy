@@ -133,7 +133,7 @@ class IastSpringBootRedirectSmokeTest extends AbstractIastServerSmokeTest {
     def request = new Request.Builder().url(url).get().build()
 
     when:
-    def response = client.newCall(request).execute()
+    client.newCall(request).execute()
 
     then:
     hasVulnerabilityInLogs { vul -> vul.type == 'UNVALIDATED_REDIRECT' && vul.location.method == 'unvalidatedRedirectForwardFromString' }
@@ -145,7 +145,7 @@ class IastSpringBootRedirectSmokeTest extends AbstractIastServerSmokeTest {
     def request = new Request.Builder().url(url).get().build()
 
     when:
-    def response = client.newCall(request).execute()
+    client.newCall(request).execute()
 
     then:
     hasVulnerabilityInLogs { vul -> vul.type == 'UNVALIDATED_REDIRECT' && vul.location.method == 'getViewfromTaintedString' }
