@@ -1,10 +1,16 @@
 package datadog.trace.instrumentation.springsecurity6;
 
+import datadog.trace.api.Config;
+import datadog.trace.api.UserEventTrackingMode;
+import datadog.trace.bootstrap.instrumentation.decorator.UserEventDecorator;
 import net.bytebuddy.asm.Advice;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+
+import static datadog.trace.api.UserEventTrackingMode.EXTENDED;
+import static datadog.trace.api.UserEventTrackingMode.SAFE;
 
 public class LoginAdvice {
 
@@ -29,17 +35,19 @@ public class LoginAdvice {
 
     // Restore original value
     hideUserNotFoundExceptions = originalValue;
+    System.out.println("Login Advice");
 
-    if (throwable == null && result.isAuthenticated()) {
-      System.out.format("Login success [%s]\r\n", result.getName());
-    } else {
-      if (throwable instanceof UsernameNotFoundException) {
-        System.out.format("Login failed user not found [%s]\r\n", authentication.getName());
+    UserEventTrackingMode mode = Config.get().getAppSecUserEventsTrackingMode();
+    if (mode == SAFE) {
+      if (throwable == null && result.isAuthenticated()) {
+        UserEventDecorator.DECORATE.onLoginSuccess(null, null);
+      } else if (throwable instanceof UsernameNotFoundException) {
+        UserEventDecorator.DECORATE.onLoginFailure(null, null, false);
       } else if (throwable instanceof BadCredentialsException) {
-        System.out.format("Login failed user exist [%s]\r\n", authentication.getName());
-      } else {
-        System.out.println("Login failed - unknown reason");
+        UserEventDecorator.DECORATE.onLoginFailure(null, null, true);
       }
+    } else if (mode == EXTENDED) {
+      // TODO: Implement advanced logic to collect and report sensitive data
     }
   }
 }

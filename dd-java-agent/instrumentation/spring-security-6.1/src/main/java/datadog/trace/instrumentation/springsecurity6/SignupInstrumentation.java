@@ -34,6 +34,14 @@ public class SignupInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {
+         "datadog.trace.bootstrap.instrumentation.decorator.UserEventDecorator"
+    };
+  }
+
+
+  @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         isMethod()

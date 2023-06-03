@@ -108,6 +108,8 @@ import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG;
 import static datadog.trace.api.DDTags.SCHEMA_VERSION_TAG_KEY;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
+import static datadog.trace.api.UserEventTrackingMode.SAFE;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
@@ -606,6 +608,7 @@ public class Config {
   private final String appSecObfuscationParameterValueRegexp;
   private final String appSecHttpBlockedTemplateHtml;
   private final String appSecHttpBlockedTemplateJson;
+  private final UserEventTrackingMode appSecUserEventsTracking;
 
   private final IastDetectionMode iastDetectionMode;
   private final int iastMaxConcurrentRequests;
@@ -1380,6 +1383,9 @@ public class Config {
         configProvider.getString(APPSEC_HTTP_BLOCKED_TEMPLATE_HTML, null);
     appSecHttpBlockedTemplateJson =
         configProvider.getString(APPSEC_HTTP_BLOCKED_TEMPLATE_JSON, null);
+    appSecUserEventsTracking =
+        configProvider.getEnum(
+            APPSEC_AUTOMATED_USER_EVENTS_TRACKING, UserEventTrackingMode.class, SAFE);
 
     iastDebugEnabled = configProvider.getBoolean(IAST_DEBUG_ENABLED, DEFAULT_IAST_DEBUG_ENABLED);
 
@@ -2303,6 +2309,10 @@ public class Config {
 
   public String getAppSecHttpBlockedTemplateJson() {
     return appSecHttpBlockedTemplateJson;
+  }
+
+  public UserEventTrackingMode getAppSecUserEventsTrackingMode() {
+    return appSecUserEventsTracking;
   }
 
   public ProductActivation getIastActivation() {
