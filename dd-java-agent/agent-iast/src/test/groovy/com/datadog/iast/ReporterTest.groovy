@@ -6,9 +6,9 @@ import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityBatch
 import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.Config
-import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.internal.TraceSegment
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -66,7 +66,7 @@ class ReporterTest extends DDSpecification {
       "vulnerabilities": [
         {
           "evidence": { "value":"MD5"},
-          "hash":1042880134,
+          "hash":937504662,
           "location": {
             "spanId":123456,
             "line":1,
@@ -117,7 +117,7 @@ class ReporterTest extends DDSpecification {
       "vulnerabilities": [
         {
           "evidence": { "value":"MD5" },
-          "hash":1042880134,
+          "hash":937504662,
           "location": {
             "spanId":123456,
             "line":1,
@@ -128,7 +128,7 @@ class ReporterTest extends DDSpecification {
         },
         {
           "evidence": {"value":"MD4"},
-          "hash":748468584,
+          "hash":101266699,
           "location": {
             "spanId":123456,
             "line":2,
