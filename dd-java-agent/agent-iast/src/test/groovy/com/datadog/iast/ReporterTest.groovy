@@ -66,7 +66,7 @@ class ReporterTest extends DDSpecification {
       "vulnerabilities": [
         {
           "evidence": { "value":"MD5"},
-          "hash":937504662,
+          "hash":1042880134,
           "location": {
             "spanId":123456,
             "line":1,
@@ -117,7 +117,7 @@ class ReporterTest extends DDSpecification {
       "vulnerabilities": [
         {
           "evidence": { "value":"MD5" },
-          "hash":937504662,
+          "hash":1042880134,
           "location": {
             "spanId":123456,
             "line":1,
@@ -128,7 +128,7 @@ class ReporterTest extends DDSpecification {
         },
         {
           "evidence": {"value":"MD4"},
-          "hash":101266699,
+          "hash":748468584,
           "location": {
             "spanId":123456,
             "line":2,
