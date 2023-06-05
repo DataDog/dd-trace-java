@@ -524,6 +524,35 @@ abstract class TestNGTest extends CiVisibilityTest {
     })
   }
 
+  def "test parameterized tests executed in parallel"() {
+    setup:
+    def testNG = new TestNG()
+    testNG.setTestClasses(TestParameterized)
+    testNG.setOutputDirectory(testOutputDir)
+    testNG.setParallel("methods")
+    testNG.run()
+
+    expect:
+    ListWriterAssert.assertTraces(TEST_WRITER, 3, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long testSuiteId
+      trace(2, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestParameterized", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterized", "parameterized_test_succeed", CIConstants.TEST_PASS, testTags_0)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterized", "parameterized_test_succeed", CIConstants.TEST_PASS, testTags_1)
+      }
+    })
+
+    where:
+    testTags_0 = [(Tags.TEST_PARAMETERS): '{"arguments":{"0":"hello","1":"true"}}']
+    testTags_1 = [(Tags.TEST_PARAMETERS): '{"arguments":{"0":"\\\"goodbye\\\"","1":"false"}}']
+  }
+
   def "test successful test cases executed in parallel with TESTS parallel mode"() {
     setup:
     def suiteXml = """

@@ -32,7 +32,7 @@ public abstract class TestNGClassListener {
   private final ConcurrentMap<Class<?>, Collection<ConstructorOrMethod>> methodsAwaitingExecution =
       new ConcurrentHashMap<>();
 
-  public void registerTestMethods(ITestNGMethod[] testMethods) {
+  public void registerTestMethods(Collection<ITestNGMethod> testMethods) {
     for (ITestNGMethod testMethod : testMethods) {
       ITestClass testClass = testMethod.getTestClass();
       Class<?> realClass = testClass.getRealClass();
