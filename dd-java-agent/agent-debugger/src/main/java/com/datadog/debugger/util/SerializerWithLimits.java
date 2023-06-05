@@ -7,6 +7,7 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -75,7 +76,7 @@ public class SerializerWithLimits {
 
     void mapEntryEpilogue(Map.Entry<?, ?> entry) throws Exception;
 
-    void mapEpilogue(Map<?, ?> map, boolean isComplete) throws Exception;
+    void mapEpilogue(boolean isComplete, int size) throws Exception;
 
     void objectPrologue(Object value) throws Exception;
 
@@ -98,6 +99,8 @@ public class SerializerWithLimits {
     void objectEpilogue(Object value) throws Exception;
 
     void notCaptured(NotCapturedReason reason) throws Exception;
+
+    void notCaptured(String reason) throws Exception;
   }
 
   private final TokenWriter tokenWriter;
@@ -166,15 +169,33 @@ public class SerializerWithLimits {
       tokenWriter.arrayEpilogue(value, isComplete, arraySize);
     } else if (value instanceof Collection && (limits.maxReferenceDepth > 0)) {
       tokenWriter.collectionPrologue(value);
-      Collection<?> col = (Collection<?>) value;
-      boolean isComplete = serializeCollection(col, limits);
-      tokenWriter.collectionEpilogue(value, isComplete, col.size());
+      Collection<?> col;
+      boolean isComplete = true;
+      int size = 0;
+      try {
+        col = (Collection<?>) value;
+        size = col.size(); // /!\ alien call /!\
+        isComplete = serializeCollection(col, limits); // /!\ contains alien calls /!\
+        tokenWriter.collectionEpilogue(value, isComplete, size);
+      } catch (Exception ex) {
+        tokenWriter.collectionEpilogue(value, isComplete, size);
+        tokenWriter.notCaptured(ex.toString());
+      }
     } else if (value instanceof Map && (limits.maxReferenceDepth > 0)) {
       tokenWriter.mapPrologue(value);
-      Map<?, ?> map = (Map<?, ?>) value;
-      Set<? extends Map.Entry<?, ?>> entries = map.entrySet();
-      boolean isComplete = serializeMap(entries, limits);
-      tokenWriter.mapEpilogue(map, isComplete);
+      Map<?, ?> map = Collections.emptyMap();
+      boolean isComplete = true;
+      int size = 0;
+      try {
+        map = (Map<?, ?>) value;
+        size = map.size(); // /!\ alien call /!\
+        Set<? extends Map.Entry<?, ?>> entries = map.entrySet(); // /!\ alien call /!\
+        isComplete = serializeMap(entries, limits); // /!\ contains alien calls /!\
+        tokenWriter.mapEpilogue(isComplete, size);
+      } catch (Exception ex) {
+        tokenWriter.mapEpilogue(isComplete, size);
+        tokenWriter.notCaptured(ex.toString());
+      }
     } else if (limits.maxReferenceDepth > 0) {
       serializeObjectValue(value, limits);
     } else {
@@ -338,13 +359,13 @@ public class SerializerWithLimits {
 
   private boolean serializeCollection(Collection<?> collection, Limits limits) throws Exception {
     // /!\ here we assume that Collection#Size is O(1) /!\
-    int colSize = collection.size();
+    int colSize = collection.size(); // /!\ alien call /!\
     int maxSize = Math.min(colSize, limits.maxCollectionSize);
     Limits newLimits = Limits.decDepthLimits(limits);
     int i = 0;
-    Iterator<?> it = collection.iterator();
-    while (i < maxSize && it.hasNext()) {
-      Object val = it.next();
+    Iterator<?> it = collection.iterator(); // /!\ alien call /!\
+    while (i < maxSize && it.hasNext()) { // /!\ alien call /!\
+      Object val = it.next(); // /!\ alien call /!\
       serialize(val, val != null ? val.getClass().getTypeName() : null, newLimits);
       i++;
     }
@@ -353,16 +374,16 @@ public class SerializerWithLimits {
 
   private boolean serializeMap(Set<? extends Map.Entry<?, ?>> entries, Limits limits)
       throws Exception {
-    int mapSize = entries.size();
+    int mapSize = entries.size(); // /!\ alien call /!\
     int maxSize = Math.min(mapSize, limits.maxCollectionSize);
     Limits newLimits = Limits.decDepthLimits(limits);
     int i = 0;
-    Iterator<?> it = entries.iterator();
-    while (i < maxSize && it.hasNext()) {
-      Map.Entry<?, ?> entry = (Map.Entry<?, ?>) it.next();
+    Iterator<?> it = entries.iterator(); // /!\ alien call /!\
+    while (i < maxSize && it.hasNext()) { // /!\ alien call /!\
+      Map.Entry<?, ?> entry = (Map.Entry<?, ?>) it.next(); // /!\ alien call /!\
       tokenWriter.mapEntryPrologue(entry);
-      Object keyObj = entry.getKey();
-      Object valObj = entry.getValue();
+      Object keyObj = entry.getKey(); // /!\ alien call /!\
+      Object valObj = entry.getValue(); // /!\ alien call /!\
       serialize(keyObj, keyObj != null ? keyObj.getClass().getTypeName() : null, newLimits);
       serialize(valObj, valObj != null ? valObj.getClass().getTypeName() : null, newLimits);
       tokenWriter.mapEntryEpilogue(entry);

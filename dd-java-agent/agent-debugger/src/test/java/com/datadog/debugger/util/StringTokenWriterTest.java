@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 
@@ -95,6 +96,32 @@ class StringTokenWriterTest {
     String serializedStr = serializeValue(map, Limits.DEFAULT);
     assertTrue(serializedStr.contains("[foo1=bar1]"));
     assertTrue(serializedStr.contains("[null=null]"));
+  }
+
+  @Test
+  public void arrayListSizeThrows() throws Exception {
+    class MyArrayList<T> extends ArrayList<T> {
+      @Override
+      public int size() {
+        throw new UnsupportedOperationException("size");
+      }
+    }
+    assertEquals(
+        "[](Error: java.lang.UnsupportedOperationException: size)",
+        serializeValue(new MyArrayList<>(), Limits.DEFAULT));
+  }
+
+  @Test
+  public void entrySetThrows() throws Exception {
+    class MyMap<K, V> extends HashMap<K, V> {
+      @Override
+      public Set<Entry<K, V>> entrySet() {
+        throw new UnsupportedOperationException("entrySet");
+      }
+    }
+    assertEquals(
+        "{}(Error: java.lang.UnsupportedOperationException: entrySet)",
+        serializeValue(new MyMap<String, String>(), Limits.DEFAULT));
   }
 
   static class Person {
