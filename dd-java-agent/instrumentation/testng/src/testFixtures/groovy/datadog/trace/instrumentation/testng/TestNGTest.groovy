@@ -577,6 +577,59 @@ abstract class TestNGTest extends CiVisibilityTest {
     })
   }
 
+  def "test successful test cases executed in parallel with TESTS parallel mode and not all test methods included"() {
+    setup:
+    def suiteXml = """
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd" >
+<suite name="API Test Suite" parallel="tests" configfailurepolicy="continue">
+    <test name="Test A">
+        <classes>
+            <class name="org.example.TestSucceedThreeCases">
+                <methods>
+                    <include name="test_succeed_a"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+
+    <test name="Test B">
+        <classes>
+            <class name="org.example.TestSucceedThreeCases">
+                <methods>
+                    <include name="test_succeed_b"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+</suite>
+    """
+
+    def parser = new SuiteXmlParser()
+    def xmlSuite = parser.parse("testng.xml", new ByteArrayInputStream(suiteXml.bytes), true)
+
+    def testNG = new TestNG()
+    testNG.setOutputDirectory(testOutputDir)
+    testNG.setParallel("tests")
+    testNG.setXmlSuites(Collections.singletonList(xmlSuite))
+    testNG.run()
+
+    expect:
+    ListWriterAssert.assertTraces(TEST_WRITER, 3, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long testSuiteId
+      trace(2, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSucceedThreeCases", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedThreeCases", "test_succeed_a", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedThreeCases", "test_succeed_b", CIConstants.TEST_PASS)
+      }
+    })
+  }
+
   @Override
   String expectedOperationPrefix() {
     return "testng"
