@@ -723,7 +723,7 @@ public class SnapshotSerializationTest {
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();
     CapturedContext context = new CapturedContext();
-    CapturedContext.CapturedValue mapField =
+    CapturedContext.CapturedValue listField =
         CapturedContext.CapturedValue.of(
             "listField",
             List.class.getTypeName(),
@@ -733,7 +733,7 @@ public class SnapshotSerializationTest {
                 throw new UnsupportedOperationException();
               }
             });
-    context.addFields(new CapturedContext.CapturedValue[] {mapField});
+    context.addFields(new CapturedContext.CapturedValue[] {listField});
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
     System.out.println(buffer);
