@@ -30,13 +30,15 @@ public class HttpServerResponseInstrumentation extends Instrumenter.Iast
   public void adviceTransformations(final AdviceTransformation transformation) {
     transformation.applyAdvice(
         named("putHeader")
-            .and(takesArguments(CharSequence.class, CharSequence.class)
-            .or(takesArguments(String.class, String.class))),
+            .and(
+                takesArguments(CharSequence.class, CharSequence.class)
+                    .or(takesArguments(String.class, String.class))),
         HttpServerResponseInstrumentation.class.getName() + "$PutHeaderAdvice1");
     transformation.applyAdvice(
         named("putHeader")
-            .and(takesArguments(CharSequence.class, Iterable.class)
-            .or(takesArguments(String.class, Iterable.class))),
+            .and(
+                takesArguments(CharSequence.class, Iterable.class)
+                    .or(takesArguments(String.class, Iterable.class))),
         HttpServerResponseInstrumentation.class.getName() + "$PutHeaderAdvice2");
   }
 
