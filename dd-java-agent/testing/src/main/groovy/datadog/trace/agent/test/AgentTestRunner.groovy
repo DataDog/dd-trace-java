@@ -14,16 +14,14 @@ import datadog.trace.agent.tooling.AgentInstaller
 import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
-import datadog.trace.api.Config
-import datadog.trace.api.DDSpanId
-import datadog.trace.api.IdGenerationStrategy
-import datadog.trace.api.StatsDClient
-import datadog.trace.api.WellKnownTags
+import datadog.trace.api.*
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
+import datadog.trace.bootstrap.instrumentation.api.DataStreamsMonitoring
+import datadog.trace.bootstrap.instrumentation.api.NoopDataStreamsMonitoring
 import datadog.trace.common.metrics.EventListener
 import datadog.trace.common.metrics.Sink
 import datadog.trace.common.writer.DDAgentWriter
@@ -32,9 +30,7 @@ import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.PendingTrace
-import datadog.trace.bootstrap.instrumentation.api.DataStreamsMonitoring
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring
-import datadog.trace.bootstrap.instrumentation.api.NoopDataStreamsMonitoring
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.Strings
 import de.thetaphi.forbiddenapis.SuppressForbidden
@@ -61,10 +57,9 @@ import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.communication.http.OkHttpUtils.buildHttpClient
-import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST
-import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
+import static datadog.trace.api.ConfigDefaults.*
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
+
 /**
  * A spock test runner which automatically applies instrumentation and exposes a global trace
  * writer.
@@ -100,7 +95,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
           .append("=").append(entry.getValue()).append(",")
       }
     }
-    ddEnvVars.append("DD_SERVICE").append("=").append(Config.get().getServiceName())
+    ddEnvVars.append("DD_SERVICE=").append(Config.get().getServiceName())
 
     if (ddEnvVars.length() > 0) {
       agentapi.setHeader("X-Datadog-Trace-Env-Variables", ddEnvVars.toString())
