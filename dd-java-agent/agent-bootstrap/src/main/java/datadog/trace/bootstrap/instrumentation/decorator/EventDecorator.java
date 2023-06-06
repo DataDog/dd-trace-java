@@ -11,8 +11,6 @@ import javax.annotation.Nonnull;
 
 public class EventDecorator {
 
-  public static final EventDecorator DECORATE = new EventDecorator();
-
   public void onEvent(@Nonnull TraceSegment segment, String eventName, Map<String, String> tags) {
     segment.setTagTop("appsec.events." + eventName + ".track", true, true);
     segment.setTagTop(DDTags.MANUAL_KEEP, true);
@@ -24,11 +22,7 @@ public class EventDecorator {
     }
 
     if (tags != null && !tags.isEmpty()) {
-      for (Map.Entry<String, String> entry : tags.entrySet()) {
-        String key = "appsec.events." + eventName + "." + entry.getKey();
-        String value = entry.getValue();
-        segment.setTagTop(key, value);
-      }
+      segment.setTagTop("appsec.events." + eventName, tags);
     }
   }
 }
