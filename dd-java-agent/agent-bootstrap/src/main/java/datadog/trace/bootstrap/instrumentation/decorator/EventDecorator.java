@@ -17,7 +17,7 @@ public class EventDecorator {
     segment.setTagTop("appsec.events." + eventName + ".track", true, true);
     segment.setTagTop(DDTags.MANUAL_KEEP, true);
 
-    // Report user event trackcing mode ("safe" or "extended")
+    // Report user event tracking mode ("safe" or "extended")
     UserEventTrackingMode mode = Config.get().getAppSecUserEventsTrackingMode();
     if (mode != DISABLED) {
       segment.setTagTop("_dd.appsec.events." + eventName + ".auto.mode", mode.toString());
@@ -25,7 +25,7 @@ public class EventDecorator {
 
     if (tags != null && !tags.isEmpty()) {
       for (Map.Entry<String, String> entry : tags.entrySet()) {
-        String key = "appsec.events." + eventName + entry.getKey();
+        String key = "appsec.events." + eventName + "." + entry.getKey();
         String value = entry.getValue();
         segment.setTagTop(key, value);
       }

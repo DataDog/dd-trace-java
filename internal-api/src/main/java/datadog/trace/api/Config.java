@@ -1383,9 +1383,8 @@ public class Config {
         configProvider.getString(APPSEC_HTTP_BLOCKED_TEMPLATE_HTML, null);
     appSecHttpBlockedTemplateJson =
         configProvider.getString(APPSEC_HTTP_BLOCKED_TEMPLATE_JSON, null);
-    appSecUserEventsTracking =
-        configProvider.getEnum(
-            APPSEC_AUTOMATED_USER_EVENTS_TRACKING, UserEventTrackingMode.class, SAFE);
+    appSecUserEventsTracking = UserEventTrackingMode.fromString(
+        configProvider.getStringNotEmpty(APPSEC_AUTOMATED_USER_EVENTS_TRACKING, SAFE.toString()));
 
     iastDebugEnabled = configProvider.getBoolean(IAST_DEBUG_ENABLED, DEFAULT_IAST_DEBUG_ENABLED);
 
