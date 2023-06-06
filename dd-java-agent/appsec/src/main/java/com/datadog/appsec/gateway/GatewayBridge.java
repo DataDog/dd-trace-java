@@ -382,9 +382,8 @@ public class GatewayBridge {
         });
   }
 
-  // currently unused; doesn't do anything useful
   public void stop() {
-    // TODO: resetting IG not possible
+    subscriptionService.reset();
   }
 
   private static class RequestContextSupplier implements Flow<AppSecRequestContext> {

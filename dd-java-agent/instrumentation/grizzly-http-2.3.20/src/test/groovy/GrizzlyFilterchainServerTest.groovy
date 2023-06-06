@@ -38,14 +38,6 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static org.glassfish.grizzly.memory.Buffers.wrap
 
 class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
-
-  @Override
-  void configurePreAgent() {
-    super.configurePreAgent()
-
-    injectSysConfig("dd.integration.grizzly-filterchain.enabled", "true")
-  }
-
   private class GrizzlyFilterchainServer implements datadog.trace.agent.test.base.HttpServer {
     private TCPNIOTransport transport
     int port = 0

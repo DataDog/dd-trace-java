@@ -19,10 +19,10 @@ class TomcatServer implements HttpServer {
 
     def baseDir = Files.createTempDir()
     baseDir.deleteOnExit()
-    server.setBaseDir(baseDir.getAbsolutePath())
+    server.basedir = baseDir.absolutePath
 
-    server.setPort(0) // select random open port
-    server.getConnector().enableLookups = true // get localhost instead of 127.0.0.1
+    server.port = 0 // select random open port
+    server.connector.enableLookups = true // get localhost instead of 127.0.0.1
 
     final File applicationDir = new File(baseDir, "/webapps/ROOT")
     if (!applicationDir.exists()) {
@@ -32,12 +32,12 @@ class TomcatServer implements HttpServer {
     Context servletContext = server.addWebapp("/$context", applicationDir.getAbsolutePath())
     servletContext.allowCasualMultipartParsing = true
     // Speed up startup by disabling jar scanning:
-    servletContext.getJarScanner().setJarScanFilter(new JarScanFilter() {
+    servletContext.jarScanner.jarScanFilter = new JarScanFilter() {
         @Override
         boolean check(JarScanType jarScanType, String jarName) {
           return false
         }
-      })
+      }
 
     setupServlets(servletContext)
 
@@ -53,6 +53,13 @@ class TomcatServer implements HttpServer {
 
   @Override
   void stop() {
+    Thread.start {
+      sleep 50
+      // tomcat doesn't seem to interrupt accept() on stop()
+      // so connect to force the loop to continue
+      def sock = new Socket('localhost', port)
+      sock.close()
+    }
     server.stop()
     server.destroy()
   }
