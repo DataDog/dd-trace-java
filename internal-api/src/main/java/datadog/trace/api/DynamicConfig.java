@@ -8,12 +8,13 @@ import java.util.Map;
 
 /** Manages dynamic configuration for a particular {@link Tracer} instance. */
 public final class DynamicConfig {
+  private State initialState;
   private volatile State currentState;
 
   private DynamicConfig() {}
 
   public static Builder create() {
-    return new DynamicConfig().prepare();
+    return new DynamicConfig().initial();
   }
 
   /** Captures a snapshot of the configuration at the start of a trace. */
@@ -21,8 +22,19 @@ public final class DynamicConfig {
     return currentState;
   }
 
-  public Builder prepare() {
+  /** Start building a new configuration based on its initial state. */
+  public Builder initial() {
+    return new Builder(initialState);
+  }
+
+  /** Start building a new configuration based on its current state. */
+  public Builder current() {
     return new Builder(currentState);
+  }
+
+  /** Reset the configuration to its initial state. */
+  public void resetTraceConfig() {
+    currentState = initialState;
   }
 
   public final class Builder {
@@ -77,7 +89,10 @@ public final class DynamicConfig {
 
     /** Overwrites the current configuration with a new snapshot. */
     public DynamicConfig apply() {
-      DynamicConfig.this.currentState = new State(this);
+      currentState = new State(this);
+      if (null == initialState) {
+        initialState = currentState; // captured when constructing the dynamic config
+      }
       return DynamicConfig.this;
     }
   }
