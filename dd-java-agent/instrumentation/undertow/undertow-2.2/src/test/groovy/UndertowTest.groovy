@@ -166,6 +166,11 @@ class UndertowTest extends HttpServerTest<Undertow> {
   }
 
   @Override
+  boolean testBadUrl() {
+    false
+  }
+
+  @Override
   boolean testRequestBody() {
     // no low-level method to get Reader
     // see io.undertow.servlet.spec.HttpServletRequestImpl

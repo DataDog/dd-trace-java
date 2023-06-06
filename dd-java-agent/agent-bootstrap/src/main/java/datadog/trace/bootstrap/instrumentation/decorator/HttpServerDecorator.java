@@ -291,7 +291,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     // XXX: the logic is questionable: span.error becomes equivalent to status 5xx,
     // even if the server chooses not to respond with 5xx to an error.
     // Anyway, we def don't want it applied to blocked requests
-    if (!BlockingException.class.getName().equals(span.getTag("error.type"))) {
+    if (!BlockingException.class.getName().equals(span.getTag("error.type")) && !span.isError()) {
       span.setError(SERVER_ERROR_STATUSES.get(status));
     }
 

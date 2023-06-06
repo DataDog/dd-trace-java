@@ -303,7 +303,10 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       1 * this.span.setHttpStatusCode(status)
     }
     if (resp) {
-      1 * this.span.setError(error)
+      1 * this.span.isError() >> userErrored
+      if (!userErrored) {
+        1 * this.span.setError(error)
+      }
     }
     if (status == 404) {
       1 * this.span.setResourceName({ it as String == "404" }, ResourceNamePriorities.HTTP_404)
@@ -315,17 +318,17 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     0 * _
 
     where:
-    status | resp           | error
-    200    | [status: 200]  | false
-    399    | [status: 399]  | false
-    400    | [status: 400]  | false
-    404    | [status: 404]  | false
-    404    | [status: 404]  | false
-    499    | [status: 499]  | false
-    500    | [status: 500]  | true
-    600    | [status: 600]  | false
-    null   | [status: null] | false
-    null   | null           | false
+    status | resp           | error | userErrored
+    200    | [status: 200]  | false | false
+    399    | [status: 399]  | false | false
+    400    | [status: 400]  | false | false
+    404    | [status: 404]  | true  | true
+    404    | [status: 404]  | false | false
+    499    | [status: 499]  | false | false
+    500    | [status: 500]  | true  | false
+    600    | [status: 600]  | false | false
+    null   | [status: null] | false | false
+    null   | null           | false | false
   }
 
   @Override

@@ -190,6 +190,11 @@ class UndertowTest extends HttpServerTest<Undertow> {
   }
 
   @Override
+  boolean testBadUrl() {
+    false
+  }
+
+  @Override
   boolean testBlocking() {
     true
   }

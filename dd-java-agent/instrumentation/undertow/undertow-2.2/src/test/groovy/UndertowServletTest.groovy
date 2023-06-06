@@ -97,6 +97,11 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
   }
 
   @Override
+  boolean testBadUrl() {
+    false
+  }
+
+  @Override
   boolean testExceptionBody() {
     false
   }

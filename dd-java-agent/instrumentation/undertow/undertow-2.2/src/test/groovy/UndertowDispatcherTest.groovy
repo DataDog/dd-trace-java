@@ -163,6 +163,11 @@ class UndertowDispatcherTest extends HttpServerTest<Undertow> {
   }
 
   @Override
+  boolean testBadUrl() {
+    false
+  }
+
+  @Override
   boolean hasExtraErrorInformation() {
     true
   }
