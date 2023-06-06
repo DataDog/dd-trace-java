@@ -567,9 +567,49 @@ jobs:
           when: always
           command: .circleci/upload_ciapp.sh << parameters.stage >> << parameters.testJvm >> || true
 
+      - run:
+          name: Get APM Test Agent Trace Check Results
+          when: always
+          command: |
+            set +e  # Disable exiting from testagent response failure
+            STATUS_RESPONSE=$(curl -s -w "%{http_code}" -o /dev/null http://localhost:8126/info) || true
+            set -e
+            STATUS_RESPONSE_CODE=$(echo "STATUS_RESPONSE" | awk 'END {print $NF}')
+            if [[ $STATUS_RESPONSE_CODE -eq 200 ]]; then
+              echo "APM Test Agent is running. (HTTP 200)"
+            else
+              echo "APM Test Agent is not running and was not used for testing. No checks failed."
+              exit 0
+            fi
+            RESPONSE=$(curl -s -w "\n%{http_code}" -o response.txt http://localhost:8126/test/trace_check/failures)
+            RESPONSE_CODE=$(echo "$RESPONSE" | awk 'END {print $NF}')
+            if [[ $RESPONSE_CODE -eq 200 ]]; then
+              echo "All APM Test Agent Check Traces returned successful! (HTTP 200)"
+            elif [[ $RESPONSE_CODE -eq 404 ]]; then
+              echo "Real APM Agent running in place of TestAgent, no checks to validate!"
+            else
+              echo "APM Test Agent Check Traces failed with response code: $RESPONSE_CODE"
+              echo "Failures:"
+              cat response.txt
+              exit 1
+            fi
+
   xlarge_tests:
     <<: *tests
+
+    docker:
+      - image: << pipeline.parameters.docker_image >>:<< parameters.testJvm >>
+        environment:
+          - CI_USE_TEST_AGENT=true
+      - image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
+        environment:
+          - LOG_LEVEL=DEBUG
+          - TRACE_LANGUAGE=java
+          - DD_SUPPRESS_TRACE_PARSE_ERRORS=true
+          - DD_POOL_TRACE_CHECK_FAILURES=true
+          - DD_DISABLE_ERROR_RESPONSES=true
     resource_class: xlarge
+
 
   huge_tests:
     <<: *tests
