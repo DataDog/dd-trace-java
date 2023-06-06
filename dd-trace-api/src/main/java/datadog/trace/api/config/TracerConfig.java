@@ -113,6 +113,9 @@ public final class TracerConfig {
   public static final String TRACE_PEER_SERVICE_DEFAULTS_ENABLED =
       "trace.peer.service.defaults.enabled";
 
+  public static final String TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED =
+      "trace.remove.integration-service-names.enabled";
+
   public static final String TRACE_PEER_SERVICE_MAPPING = "trace.peer.service.mapping";
 
   private TracerConfig() {}

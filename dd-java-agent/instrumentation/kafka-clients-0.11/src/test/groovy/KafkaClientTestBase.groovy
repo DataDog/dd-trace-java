@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import datadog.trace.api.Config
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -1097,8 +1098,8 @@ class KafkaClientLegacyTracingV1ForkedTest extends KafkaClientLegacyTracingForke
   }
 
   @Override
-  String serviceForTimeInQueue() {
-    "kafka-queue"
+  String service() {
+    return Config.get().getServiceName()
   }
 }
 
