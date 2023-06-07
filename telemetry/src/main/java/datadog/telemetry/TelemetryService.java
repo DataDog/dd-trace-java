@@ -130,7 +130,7 @@ public class TelemetryService {
     if (!sentAppStarted) {
       final Payload payload =
           new AppStarted()
-              ._configuration(state.configurations.getOrNull()) // absent if nothing
+              .configuration(state.configurations.getOrNull()) // absent if nothing
               .integrations(state.integrations.get(maxElementsPerReq)) // empty list if nothing
               .dependencies(state.dependencies.get(maxDepsPerReq)) // empty list if nothing
               .requestType(RequestType.APP_STARTED);

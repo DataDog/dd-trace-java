@@ -24,26 +24,26 @@ public class AppStarted extends Payload {
   private List<Integration> integrations = new ArrayList<Integration>();
 
   /**
-   * Get _configuration
+   * Get configuration
    *
-   * @return _configuration
+   * @return configuration
    */
   public List<KeyValue> getConfiguration() {
     return configuration;
   }
 
-  /** Set _configuration */
+  /** Set configuration */
   public void setConfiguration(List<KeyValue> configuration) {
     this.configuration = configuration;
   }
 
-  public AppStarted _configuration(List<KeyValue> _configuration) {
-    this.configuration = _configuration;
+  public AppStarted configuration(List<KeyValue> configuration) {
+    this.configuration = configuration;
     return this;
   }
 
-  public AppStarted addConfigurationItem(KeyValue _configurationItem) {
-    this.configuration.add(_configurationItem);
+  public AppStarted addConfigurationItem(KeyValue configurationItem) {
+    this.configuration.add(configurationItem);
     return this;
   }
 
@@ -101,7 +101,7 @@ public class AppStarted extends Payload {
     StringBuilder sb = new StringBuilder();
     sb.append("class AppStarted {\n");
     sb.append("    ").append(super.toString()).append("\n");
-    sb.append("    _configuration: ").append(configuration).append("\n");
+    sb.append("    configuration: ").append(configuration).append("\n");
     sb.append("    dependencies: ").append(dependencies).append("\n");
     sb.append("    integrations: ").append(integrations).append("\n");
     sb.append("}");
