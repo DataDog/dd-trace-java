@@ -1,6 +1,10 @@
 package datadog.trace.core
 
-
+import datadog.communication.ddagent.SharedCommunicationObjects
+import datadog.remoteconfig.ConfigurationPoller
+import datadog.remoteconfig.Product
+import datadog.remoteconfig.state.ParsedConfigKey
+import datadog.remoteconfig.state.ProductListener
 import datadog.trace.api.Config
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
@@ -17,6 +21,8 @@ import datadog.trace.core.propagation.DatadogHttpCodec
 import datadog.trace.core.propagation.HttpCodec
 import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Timeout
+
+import java.nio.charset.StandardCharsets
 
 import static datadog.trace.api.config.GeneralConfig.ENV
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED
@@ -399,6 +405,43 @@ class CoreTracerTest extends DDCoreSpecification {
     cleanup:
     child.finish()
     root.finish()
+    tracer.close()
+  }
+
+  def "verify configuration polling"() {
+    setup:
+    def key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config")
+    def sco = Mock(SharedCommunicationObjects)
+    def poller = Mock(ConfigurationPoller)
+    sco.configurationPoller(_ as Config) >> poller
+    def updater
+
+    when:
+    def tracer = CoreTracer.builder()
+      .sharedCommunicationObjects(sco)
+      .pollForTracingConfiguration()
+      .build()
+
+    then:
+    1 * poller.addListener(Product.APM_TRACING, _ as ProductListener) >> {
+      updater = it[1] // capture config updater for further testing
+    }
+    and:
+    tracer.captureTraceConfig().serviceMapping == [:]
+
+    when:
+    updater.accept(key, '{"tracing_service_mapping":{"foo":"bar"}}'.getBytes(StandardCharsets.UTF_8), null)
+
+    then:
+    tracer.captureTraceConfig().serviceMapping == ['foo':'bar']
+
+    when:
+    updater.remove(key, null)
+
+    then:
+    tracer.captureTraceConfig().serviceMapping == [:]
+
+    cleanup:
     tracer.close()
   }
 }
