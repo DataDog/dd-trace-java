@@ -15,9 +15,9 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class Vertx4HttpServertResponseInstrumentation extends Instrumenter.Iast
+public class Vertx39HttpServertResponseInstrumentation extends Instrumenter.Iast
     implements Instrumenter.ForTypeHierarchy {
-  public Vertx4HttpServertResponseInstrumentation() {
+  public Vertx39HttpServertResponseInstrumentation() {
     super("vertx", "vertx-4.0", "response");
   }
 
@@ -27,7 +27,7 @@ public class Vertx4HttpServertResponseInstrumentation extends Instrumenter.Iast
         named("addCookie")
             .and(takesArgument(0, named("io.vertx.core.http.Cookie")))
             .and(isPublic()),
-        Vertx4HttpServertResponseInstrumentation.class.getName() + "$InstrumenterAdvice");
+        Vertx39HttpServertResponseInstrumentation.class.getName() + "$InstrumenterAdvice");
   }
 
   @Override

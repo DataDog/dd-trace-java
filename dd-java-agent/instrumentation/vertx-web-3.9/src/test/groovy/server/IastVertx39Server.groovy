@@ -31,7 +31,7 @@ class IastVertx39Server extends IastHttpServerTest<Vertx> {
       final CompletableFuture<Void> future = new CompletableFuture<>()
       server.deployVerticle(verticle().name,
         new DeploymentOptions()
-        .setConfig(new JsonObject().put(server.VertxTestServer.CONFIG_HTTP_SERVER_PORT, port))
+        .setConfig(new JsonObject().put(Vertx39TestServer.CONFIG_HTTP_SERVER_PORT, port))
         .setInstances(1)) { res ->
           if (!res.succeeded()) {
             throw new RuntimeException("Cannot deploy server Verticle", res.cause())

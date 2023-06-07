@@ -5,7 +5,7 @@ import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.InsecureCookieModule
 import okhttp3.Request
 
-class InsecureCookieTest extends IastVertx39Server {
+class Vertx39InsecureCookieTest extends IastVertx39Server {
 
 
   void 'test insecure Cookie'(){

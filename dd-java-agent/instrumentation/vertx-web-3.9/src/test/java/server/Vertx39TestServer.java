@@ -31,7 +31,7 @@ import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
 
-public class VertxTestServer extends AbstractVerticle {
+public class Vertx39TestServer extends AbstractVerticle {
   public static final String CONFIG_HTTP_SERVER_PORT = "http.server.port";
 
   @Override
@@ -196,7 +196,7 @@ public class VertxTestServer extends AbstractVerticle {
                     () -> ctx.response().setStatusCode(ERROR.getStatus()).end(ERROR.getBody())));
     router
         .route(EXCEPTION.getPath())
-        .handler(ctx -> controller(ctx, EXCEPTION, VertxTestServer::exception));
+        .handler(ctx -> controller(ctx, EXCEPTION, Vertx39TestServer::exception));
 
     router = customizeAfterRoutes(router);
 
