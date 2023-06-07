@@ -814,7 +814,8 @@ jobs:
     machine:
       # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
       image: ubuntu-2004:current
-    resource_class: xlarge
+    resource_class: large
+    parallelism: 4
     steps:
       - setup_system_tests
 
@@ -839,10 +840,19 @@ jobs:
       - run:
           name: Run
           command: |
+            set -e
             cd system-tests/parametric
+            TEST_FILES=$(circleci tests glob "test_*.py" | circleci tests split --split-by=timings)
+            mkdir -p test-results
             export CLIENTS_ENABLED=java
-            export PYTEST_WORKER_COUNT=8
-            ./run.sh --log-cli-level=DEBUG --durations=30
+            export PYTEST_WORKER_COUNT=4
+            ./run.sh --log-cli-level=DEBUG --durations=30 -vv --junitxml=test-results/junit.xml $TEST_FILES
+            # TODO upload the junit xml to test dashboard
+
+      - store_test_results:
+          path: system-tests/parametric/test-results
+      - store_artifacts:
+          path: system-tests/parametric/test-results
 
 build_test_jobs: &build_test_jobs
   - build:
