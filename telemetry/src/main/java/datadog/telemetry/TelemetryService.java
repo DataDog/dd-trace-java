@@ -1,5 +1,6 @@
 package datadog.telemetry;
 
+import datadog.telemetry.api.AppClientConfigurationChange;
 import datadog.telemetry.api.AppDependenciesLoaded;
 import datadog.telemetry.api.AppIntegrationsChange;
 import datadog.telemetry.api.AppStarted;
@@ -146,6 +147,23 @@ public class TelemetryService {
     if (sendRequest(RequestType.APP_HEARTBEAT, null) == SendResult.NOT_FOUND) {
       state.rollback();
       return;
+    }
+
+    while (!state.configurations.isEmpty()) {
+      final Payload payload =
+          new AppClientConfigurationChange()
+              .configuration(state.configurations.get(maxElementsPerReq))
+              .requestType(RequestType.APP_CLIENT_CONFIGURATION_CHANGE);
+      final SendResult result = sendRequest(RequestType.APP_CLIENT_CONFIGURATION_CHANGE, payload);
+      if (result == SendResult.SUCCESS) {
+        state.commit();
+      } else if (result == SendResult.NOT_FOUND) {
+        state.rollback();
+        return;
+      } else {
+        state.configurations.rollback();
+        break;
+      }
     }
 
     while (!state.integrations.isEmpty()) {

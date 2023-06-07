@@ -14,6 +14,9 @@ public enum RequestType {
   @com.squareup.moshi.Json(name = "app-started")
   APP_STARTED("app-started"),
 
+  @com.squareup.moshi.Json(name = "app-client-configuration-change")
+  APP_CLIENT_CONFIGURATION_CHANGE("app-client-configuration-change"),
+
   @com.squareup.moshi.Json(name = "app-dependencies-loaded")
   APP_DEPENDENCIES_LOADED("app-dependencies-loaded"),
 
