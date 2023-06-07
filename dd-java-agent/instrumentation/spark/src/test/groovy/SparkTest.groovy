@@ -105,7 +105,7 @@ class SparkTest extends AgentTestRunner {
 
   def "generate error tags in failed spans"() {
     def sparkSession = SparkSession.builder()
-    .config("spark.master", "local")
+    .config("spark.master", "local[2]")
     .getOrCreate()
 
     try {
