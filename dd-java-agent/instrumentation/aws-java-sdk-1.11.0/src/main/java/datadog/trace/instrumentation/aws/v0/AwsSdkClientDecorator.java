@@ -8,6 +8,8 @@ import com.amazonaws.Request;
 import com.amazonaws.Response;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -16,6 +18,8 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response>
     implements AgentPropagation.Setter<Request<?>> {
@@ -38,6 +42,24 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       SpanNaming.instance().namingSchema().cloud().serviceForRequest(AWS, null);
   public static final AwsSdkClientDecorator DECORATE = new AwsSdkClientDecorator();
 
+  private static final DDCache<String, String> serviceNameCache = DDCaches.newFixedSizeCache(128);
+  private static final Pattern AWS_SERVICE_NAME_PATTERN = Pattern.compile("Amazon\\s?(\\w+)");
+
+  private static String simplifyServiceName(String awsServiceName) {
+    return serviceNameCache.computeIfAbsent(
+        awsServiceName, AwsSdkClientDecorator::applyServiceNamePattern);
+  }
+
+  private static String applyServiceNamePattern(String awsServiceName) {
+    if (awsServiceName != null) {
+      Matcher matcher = AWS_SERVICE_NAME_PATTERN.matcher(awsServiceName);
+      if (matcher.find()) {
+        return matcher.group(1).toLowerCase();
+      }
+    }
+    return awsServiceName;
+  }
+
   @Override
   public AgentSpan onRequest(final AgentSpan span, final Request request) {
     // Call super first because we override the resource name below.
@@ -47,10 +69,11 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     final AmazonWebServiceRequest originalRequest = request.getOriginalRequest();
     final Class<?> awsOperation = originalRequest.getClass();
 
-    span.setTag("aws.agent", COMPONENT_NAME);
-    span.setTag("aws.service", awsServiceName);
-    span.setTag("aws.operation", awsOperation.getSimpleName());
-    span.setTag("aws.endpoint", request.getEndpoint().toString());
+    span.setTag(InstrumentationTags.AWS_AGENT, COMPONENT_NAME);
+    span.setTag(InstrumentationTags.AWS_SERVICE, awsServiceName);
+    span.setTag(InstrumentationTags.TOP_LEVEL_AWS_SERVICE, simplifyServiceName(awsServiceName));
+    span.setTag(InstrumentationTags.AWS_OPERATION, awsOperation.getSimpleName());
+    span.setTag(InstrumentationTags.AWS_ENDPOINT, request.getEndpoint().toString());
 
     CharSequence awsRequestName = AwsNameCache.getQualifiedName(request);
 
@@ -78,6 +101,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     String bestPeerService = null;
     if (null != bucketName) {
       span.setTag(InstrumentationTags.AWS_BUCKET_NAME, bucketName);
+      span.setTag(InstrumentationTags.BUCKET_NAME, bucketName);
       bestPrecursor = InstrumentationTags.AWS_BUCKET_NAME;
       bestPeerService = bucketName;
     }
@@ -90,6 +114,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     String queueName = access.getQueueName(originalRequest);
     if (null != queueName) {
       span.setTag(InstrumentationTags.AWS_QUEUE_NAME, queueName);
+      span.setTag(InstrumentationTags.QUEUE_NAME, queueName);
       bestPrecursor = InstrumentationTags.AWS_QUEUE_NAME;
       bestPeerService = queueName;
     }
@@ -97,18 +122,21 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     if (null != topicArn) {
       final String topicName = topicArn.substring(topicArn.lastIndexOf(':') + 1);
       span.setTag(InstrumentationTags.AWS_TOPIC_NAME, topicName);
+      span.setTag(InstrumentationTags.TOPIC_NAME, topicName);
       bestPrecursor = InstrumentationTags.AWS_TOPIC_NAME;
       bestPeerService = topicName;
     }
     String streamName = access.getStreamName(originalRequest);
     if (null != streamName) {
       span.setTag(InstrumentationTags.AWS_STREAM_NAME, streamName);
+      span.setTag(InstrumentationTags.STREAM_NAME, streamName);
       bestPrecursor = InstrumentationTags.AWS_STREAM_NAME;
       bestPeerService = streamName;
     }
     String tableName = access.getTableName(originalRequest);
     if (null != tableName) {
       span.setTag(InstrumentationTags.AWS_TABLE_NAME, tableName);
+      span.setTag(InstrumentationTags.TABLE_NAME, tableName);
       bestPrecursor = InstrumentationTags.AWS_TABLE_NAME;
       bestPeerService = tableName;
     }
@@ -127,7 +155,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   public AgentSpan onResponse(final AgentSpan span, final Response response) {
     if (response.getAwsResponse() instanceof AmazonWebServiceResponse) {
       final AmazonWebServiceResponse awsResp = (AmazonWebServiceResponse) response.getAwsResponse();
-      span.setTag("aws.requestId", awsResp.getRequestId());
+      span.setTag(InstrumentationTags.AWS_REQUEST_ID, awsResp.getRequestId());
     }
     return super.onResponse(span, response);
   }

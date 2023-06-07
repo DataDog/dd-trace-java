@@ -67,7 +67,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     request.getValueForField("Bucket", String.class).ifPresent(name -> setBucketName(span, name));
     request
         .getValueForField("StorageClass", String.class)
-        .ifPresent(storageClass -> span.setTag("aws.storage.class", storageClass));
+        .ifPresent(
+            storageClass -> span.setTag(InstrumentationTags.AWS_STORAGE_CLASS, storageClass));
 
     // SQS
     request
@@ -105,31 +106,31 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
   private static void setBucketName(AgentSpan span, String name) {
     span.setTag(InstrumentationTags.AWS_BUCKET_NAME, name);
-    span.setTag("bucketname", name);
+    span.setTag(InstrumentationTags.BUCKET_NAME, name);
     setPeerService(span, InstrumentationTags.AWS_BUCKET_NAME, name);
   }
 
   private static void setQueueName(AgentSpan span, String name) {
     span.setTag(InstrumentationTags.AWS_QUEUE_NAME, name);
-    span.setTag("queuename", name);
+    span.setTag(InstrumentationTags.QUEUE_NAME, name);
     setPeerService(span, InstrumentationTags.AWS_QUEUE_NAME, name);
   }
 
   private static void setTopicName(AgentSpan span, String name) {
     span.setTag(InstrumentationTags.AWS_TOPIC_NAME, name);
-    span.setTag("topicname", name);
+    span.setTag(InstrumentationTags.TOPIC_NAME, name);
     setPeerService(span, InstrumentationTags.AWS_TOPIC_NAME, name);
   }
 
   private static void setStreamName(AgentSpan span, String name) {
     span.setTag(InstrumentationTags.AWS_STREAM_NAME, name);
-    span.setTag("streamname", name);
+    span.setTag(InstrumentationTags.STREAM_NAME, name);
     setPeerService(span, InstrumentationTags.AWS_STREAM_NAME, name);
   }
 
   private static void setTableName(AgentSpan span, String name) {
     span.setTag(InstrumentationTags.AWS_TABLE_NAME, name);
-    span.setTag("tablename", name);
+    span.setTag(InstrumentationTags.TABLE_NAME, name);
     setPeerService(span, InstrumentationTags.AWS_TABLE_NAME, name);
   }
 
@@ -156,10 +157,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         span.setServiceName(GENERIC_SERVICE_NAME);
         break;
     }
-    span.setTag("aws.agent", COMPONENT_NAME);
-    span.setTag("aws.service", awsServiceName);
-    span.setTag("aws_service", awsServiceName);
-    span.setTag("aws.operation", awsOperationName);
+    span.setTag(InstrumentationTags.AWS_AGENT, COMPONENT_NAME);
+    span.setTag(InstrumentationTags.AWS_SERVICE, awsServiceName);
+    span.setTag(InstrumentationTags.TOP_LEVEL_AWS_SERVICE, awsServiceName);
+    span.setTag(InstrumentationTags.AWS_OPERATION, awsOperationName);
 
     return span;
   }
@@ -167,7 +168,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   // Not overriding the super.  Should call both with each type of response.
   public AgentSpan onResponse(final AgentSpan span, final SdkResponse response) {
     if (response instanceof AwsResponse) {
-      span.setTag("aws.requestId", ((AwsResponse) response).responseMetadata().requestId());
+      span.setTag(
+          InstrumentationTags.AWS_REQUEST_ID,
+          ((AwsResponse) response).responseMetadata().requestId());
     }
     return span;
   }
