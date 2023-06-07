@@ -8,6 +8,7 @@ import io.vertx.ext.web.Cookie;
 import io.vertx.ext.web.RoutingContext;
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.Vector;
 
 public enum IastHandler implements Handler<RoutingContext> {
   HEADER("/header") {
@@ -80,6 +81,21 @@ public enum IastHandler implements Handler<RoutingContext> {
     @Override
     public void handle(final RoutingContext rc) {
       rc.response().end("Received " + rc.getBodyAsJsonArray());
+    }
+  },
+  INSECURE_COOKIE_HEADER("/insecurecookieheader") {
+    @Override
+    public void handle(final RoutingContext rc) {
+      rc.response().putHeader("Set-Cookie", "user-id=7").end("Received ");
+    }
+  },
+  INSECURE_COOKIE_HEADER2("/insecurecookieheader2") {
+    @Override
+    public void handle(final RoutingContext rc) {
+      Vector<String> values = new Vector<>();
+      values.add("firstcookie=b");
+      values.add("user-id=7");
+      rc.response().putHeader("Set-cookie", values).end("Received ");
     }
   },
   EVENT_BUS("/eventBus") {
