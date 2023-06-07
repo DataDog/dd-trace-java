@@ -1290,6 +1290,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         EndpointTracker tracker = tracer.onRootSpanStarted(span);
         span.setEndpointTracker(tracker);
       }
+      span.setTag("trace_128_bit_id",span.getTraceId().toString());
       return span;
     }
 

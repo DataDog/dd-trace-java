@@ -51,7 +51,9 @@ public final class JedisInstrumentation extends Instrumenter.Tracing
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
-        @Advice.Argument(0) final ProtocolCommand command, @Advice.This final Connection thiz) {
+        @Advice.Argument(0) final ProtocolCommand command,
+        @Advice.This final Connection thiz,
+        @Advice.Argument(2)final byte[][] args) {
       if (CallDepthThreadLocalMap.incrementCallDepth(Connection.class) > 0) {
         return null;
       }
@@ -66,6 +68,13 @@ public final class JedisInstrumentation extends Instrumenter.Tracing
         // us if that changes
         DECORATE.onStatement(span, new String(command.getRaw()));
       }
+      StringBuilder args1 = new StringBuilder();
+      for(int i = 0; i < args.length; i++) {
+        args1.append(new String(args[i]));
+        args1.append(" ");
+      }
+
+      DECORATE.setRaw(span,args1.toString());
       return activateSpan(span);
     }
 
