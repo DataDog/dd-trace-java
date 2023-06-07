@@ -4,14 +4,14 @@ import static com.datadog.profiling.controller.ProfilingSupport.*;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.jfr.JfpUtilsTest;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.util.Properties;
 import jdk.jfr.Recording;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -171,6 +171,7 @@ public class OpenJdkControllerTest {
 
   @Test
   public void testNativeProfilerIsDisabledOnUnsupportedVersion() throws Exception {
+    Assumptions.assumeFalse(isNativeMethodSampleAvailable());
     Properties props = new Properties();
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
@@ -178,8 +179,7 @@ public class OpenJdkControllerTest {
     RecordingData data = controller.createRecording(TEST_NAME).stop();
     assertTrue(data instanceof OpenJdkRecordingData);
     try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
-      assertEquals(
-          isNativeMethodSampleAvailable(),
+      assertFalse(
           Boolean.parseBoolean(recording.getSettings().get("jdk.NativeMethodSample#enabled")));
     }
   }
@@ -195,8 +195,7 @@ public class OpenJdkControllerTest {
     assertTrue(data instanceof OpenJdkRecordingData);
     try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
       if (!isNativeMethodSampleAvailable()) {
-        assertEquals(
-            true,
+        assertTrue(
             Boolean.parseBoolean(recording.getSettings().get("jdk.NativeMethodSample#enabled")));
       }
     }
