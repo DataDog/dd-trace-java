@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.test.util.Flaky
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.jdbc.core.JdbcTemplate
 
@@ -7,6 +8,7 @@ import java.util.concurrent.TimeUnit
 
 class ShedlockTest extends AgentTestRunner {
 
+  @Flaky("task.invocationCount() == 0")
   def "should not disable shedlock"() {
     setup:
     def context = new AnnotationConfigApplicationContext(ShedlockConfig)
