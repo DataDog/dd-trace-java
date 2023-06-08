@@ -4,10 +4,8 @@ import com.datadog.iast.IastRequestContext
 import com.datadog.iast.IastSystem
 import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
-import com.datadog.iast.taint.TaintedMap
 import com.datadog.iast.taint.TaintedObject
 import com.datadog.iast.taint.TaintedObjects
-import com.datadog.iast.telemetry.NoOpTelemetry
 import datadog.trace.api.gateway.CallbackProvider
 import datadog.trace.api.gateway.EventType
 import datadog.trace.api.gateway.Events
@@ -29,7 +27,7 @@ trait IastRequestContextPreparationTrait {
 
   static void iastSystemSetup(Closure reqEndAction = null) {
     def ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.IAST)
-    IastSystem.start(ss, new NoopOverheadController(), new NoOpTelemetry())
+    IastSystem.start(ss, new NoopOverheadController())
 
     EventType<Supplier<Flow<Object>>> requestStarted = Events.get().requestStarted()
     EventType<BiFunction<RequestContext, IGSpanInfo, Flow<Void>>> requestEnded =
@@ -69,10 +67,6 @@ trait IastRequestContextPreparationTrait {
       TaintedObjects delegate
 
       List<Object> objects = Collections.synchronizedList([])
-
-      TaintedMap getTaintedMap() {
-        delegate.map
-      }
 
       TaintedObject taintInputString(String obj, Source source) {
         objects << obj

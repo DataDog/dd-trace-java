@@ -17,7 +17,8 @@ import com.datadog.iast.sink.WeakCipherModuleImpl;
 import com.datadog.iast.sink.WeakHashModuleImpl;
 import com.datadog.iast.sink.WeakRandomnessModuleImpl;
 import com.datadog.iast.source.WebModuleImpl;
-import com.datadog.iast.telemetry.IastTelemetry;
+import com.datadog.iast.telemetry.TelemetryRequestEndedHandler;
+import com.datadog.iast.telemetry.TelemetryRequestStartedHandler;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.gateway.EventType;
@@ -28,6 +29,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.iast.IastModule;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
 import java.util.function.BiFunction;
@@ -43,13 +45,10 @@ public class IastSystem {
   public static boolean DEBUG = false;
 
   public static void start(final SubscriptionService ss) {
-    start(ss, null, null);
+    start(ss, null);
   }
 
-  public static void start(
-      final SubscriptionService ss,
-      OverheadController overheadController,
-      IastTelemetry telemetry) {
+  public static void start(final SubscriptionService ss, OverheadController overheadController) {
     final Config config = Config.get();
     if (config.getIastActivation() != ProductActivation.FULLY_ENABLED) {
       LOGGER.debug("IAST is disabled");
@@ -61,15 +60,12 @@ public class IastSystem {
     if (overheadController == null) {
       overheadController = OverheadController.build(config, AgentTaskScheduler.INSTANCE);
     }
-    if (telemetry == null) {
-      telemetry = IastTelemetry.build(config);
-    }
     final Dependencies dependencies =
-        new Dependencies(
-            config, reporter, overheadController, telemetry, StackWalkerFactory.INSTANCE);
+        new Dependencies(config, reporter, overheadController, StackWalkerFactory.INSTANCE);
+    final boolean addTelemetry = config.getIastTelemetryVerbosity() != Verbosity.OFF;
     iastModules().forEach(registerModule(dependencies));
-    registerRequestStartedCallback(ss, dependencies);
-    registerRequestEndedCallback(ss, dependencies);
+    registerRequestStartedCallback(ss, addTelemetry, dependencies);
+    registerRequestEndedCallback(ss, addTelemetry, dependencies);
     LOGGER.debug("IAST started");
   }
 
@@ -102,15 +98,20 @@ public class IastSystem {
   }
 
   private static void registerRequestStartedCallback(
-      final SubscriptionService ss, final Dependencies dependencies) {
+      final SubscriptionService ss, final boolean addTelemetry, final Dependencies dependencies) {
     final EventType<Supplier<Flow<Object>>> event = Events.get().requestStarted();
-    ss.registerCallback(event, new RequestStartedHandler(dependencies));
+    final Supplier<Flow<Object>> handler =
+        addTelemetry
+            ? new TelemetryRequestStartedHandler(dependencies)
+            : new RequestStartedHandler(dependencies);
+    ss.registerCallback(event, handler);
   }
 
   private static void registerRequestEndedCallback(
-      final SubscriptionService ss, final Dependencies dependencies) {
+      final SubscriptionService ss, final boolean addTelemetry, final Dependencies dependencies) {
     final EventType<BiFunction<RequestContext, IGSpanInfo, Flow<Void>>> event =
         Events.get().requestEnded();
-    ss.registerCallback(event, new RequestEndedHandler(dependencies));
+    final RequestEndedHandler handler = new RequestEndedHandler(dependencies);
+    ss.registerCallback(event, addTelemetry ? new TelemetryRequestEndedHandler(handler) : handler);
   }
 }

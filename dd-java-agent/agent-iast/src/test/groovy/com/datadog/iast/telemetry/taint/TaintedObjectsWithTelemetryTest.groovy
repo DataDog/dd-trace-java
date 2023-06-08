@@ -1,9 +1,11 @@
 package com.datadog.iast.telemetry.taint
 
+import com.datadog.iast.IastRequestContext
 import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
+import com.datadog.iast.taint.Ranges
+import com.datadog.iast.taint.TaintedObject
 import com.datadog.iast.taint.TaintedObjects
-import com.datadog.iast.telemetry.RequestContextWithTelemetry
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.SourceTypes
@@ -26,8 +28,8 @@ class TaintedObjectsWithTelemetryTest extends DDSpecification {
 
   void setup() {
     mockCollector = Mock(IastMetricCollector)
-    final iastCtx = Mock(RequestContextWithTelemetry) {
-      getTelemetryCollector() >> mockCollector
+    final iastCtx = Mock(IastRequestContext) {
+      getMetricCollector() >> mockCollector
     }
     final ctx = Mock(RequestContext) {
       getData(RequestContextSlot.IAST) >> iastCtx
@@ -47,8 +49,10 @@ class TaintedObjectsWithTelemetryTest extends DDSpecification {
 
   void 'test request.tainted with #verbosity'() {
     given:
+    final tainteds = [tainted(), tainted()]
     final taintedObjects = TaintedObjectsWithTelemetry.build(verbosity, Mock(TaintedObjects) {
-      getEstimatedSize() >> 2
+      iterator() >> tainteds.iterator()
+      count() >> tainteds.size()
     })
 
     when:
@@ -56,7 +60,7 @@ class TaintedObjectsWithTelemetryTest extends DDSpecification {
 
     then:
     if (IastMetric.REQUEST_TAINTED.isEnabled(verbosity)) {
-      1 * mockCollector.addMetric(IastMetric.REQUEST_TAINTED, taintedObjects.getEstimatedSize())
+      1 * mockCollector.addMetric(IastMetric.REQUEST_TAINTED, tainteds.size())
     } else {
       0 * mockCollector.addMetric
     }
@@ -103,5 +107,9 @@ class TaintedObjectsWithTelemetryTest extends DDSpecification {
 
     where:
     verbosity << Verbosity.values().toList()
+  }
+
+  private TaintedObject tainted() {
+    return new TaintedObject(UUID.randomUUID(), Ranges.EMPTY, null)
   }
 }
