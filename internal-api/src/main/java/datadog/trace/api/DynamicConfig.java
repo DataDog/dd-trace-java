@@ -1,5 +1,8 @@
 package datadog.trace.api;
 
+import static datadog.trace.api.config.TracerConfig.BAGGAGE_MAPPING;
+import static datadog.trace.api.config.TracerConfig.HEADER_TAGS;
+import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 
 import java.util.Collections;
@@ -89,9 +92,18 @@ public final class DynamicConfig {
 
     /** Overwrites the current configuration with a new snapshot. */
     public DynamicConfig apply() {
-      currentState = new State(this);
-      if (null == initialState) {
-        initialState = currentState; // captured when constructing the dynamic config
+      State newState = new State(this);
+      State oldState = currentState;
+      if (null == oldState) {
+        initialState = newState; // captured when constructing the dynamic config
+        currentState = newState;
+      } else {
+        currentState = newState;
+        Map<String, Object> update = new HashMap<>();
+        update.put(SERVICE_MAPPING, newState.serviceMapping);
+        update.put(HEADER_TAGS, newState.taggedHeaders);
+        update.put(BAGGAGE_MAPPING, newState.baggageMapping);
+        ConfigCollector.get().putAll(update);
       }
       return DynamicConfig.this;
     }
