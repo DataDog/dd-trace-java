@@ -117,7 +117,7 @@ class SparkListenerTest extends AgentTestRunner {
     return new SparkListenerStageCompleted(stageInfo)
   }
 
-  private taskEndEvent(Integer stageId, Long launchTime, Long runTime) {
+  private taskEndEvent(Integer stageId, Long launchTime, Long executorTime, Long deserializeTime = 0L, Long resultSerializeTime = 0L) {
     def taskInfo = new TaskInfo(
       0,
       0,
@@ -130,7 +130,9 @@ class SparkListenerTest extends AgentTestRunner {
       )
 
     def taskMetrics = new TaskMetrics()
-    taskMetrics.setExecutorRunTime(runTime)
+    taskMetrics.setExecutorRunTime(executorTime)
+    taskMetrics.setExecutorDeserializeTime(deserializeTime)
+    taskMetrics.setResultSerializationTime(resultSerializeTime)
 
     if (TestSparkComputation.getSparkVersion() < "3") {
       return new SparkListenerTaskEnd(
@@ -205,15 +207,15 @@ class SparkListenerTest extends AgentTestRunner {
     listener.onApplicationStart(applicationStartEvent(1000L))
 
     listener.onExecutorAdded(executorAddedEvent(1100L, "executor-1", 4))
-    listener.onJobStart(jobStartEvent(1, 2000L, [1, 2, 3]))
-    listener.onStageSubmitted(stageSubmittedEvent(1, 2000L))
-    listener.onTaskEnd(taskEndEvent(1, 2000L, 100L))
+    listener.onJobStart(jobStartEvent(1, 1900L, [1, 2, 3]))
+    listener.onStageSubmitted(stageSubmittedEvent(1, 1900L))
+    listener.onTaskEnd(taskEndEvent(1, 1900L, 100L, 100L))
     listener.onStageCompleted(stageCompletedEvent(1, 2100L))
 
     listener.onStageSubmitted(stageSubmittedEvent(2, 2100L))
     listener.onStageSubmitted(stageSubmittedEvent(3, 2100L))
 
-    listener.onTaskEnd(taskEndEvent(2, 2100L, 500L))
+    listener.onTaskEnd(taskEndEvent(2, 2100L, 400L, 0L, 100L))
     listener.onTaskEnd(taskEndEvent(2, 2100L, 500L))
     listener.onTaskEnd(taskEndEvent(3, 2100L, 500L))
     listener.onTaskEnd(taskEndEvent(3, 2100L, 500L))
@@ -233,7 +235,7 @@ class SparkListenerTest extends AgentTestRunner {
      This spark application is composed of one executor of 4 cores available during 2000 units of time.
      The test is generating the following scenario where each character represents 100 units of time
      of a core, that can be executing a task of the corresponding stage id or be idle
-     Core1: .........12222233333
+     Core1: ........112222233333
      Core2: ..........222223333.
      Core3: ..........33333.....
      Core4: ..........33333.....
@@ -243,13 +245,17 @@ class SparkListenerTest extends AgentTestRunner {
         span {
           operationName "spark.application"
           assert span.tags["spark_application_metrics.available_executor_time"] == 8000L
-          assert span.tags["spark_application_metrics.executor_run_time"] == 3000L
+          assert span.tags["spark_application_metrics.executor_run_time"] == 2900L
+          assert span.tags["spark_application_metrics.executor_deserialize_time"] == 100L
+          assert span.tags["spark_application_metrics.result_serialization_time"] == 100L
           spanType "spark"
         }
         span {
           operationName "spark.job"
-          assert span.tags["spark_job_metrics.available_executor_time"] == 4400L
-          assert span.tags["spark_job_metrics.executor_run_time"] == 3000L
+          assert span.tags["spark_job_metrics.available_executor_time"] == 4800L
+          assert span.tags["spark_job_metrics.executor_run_time"] == 2900L
+          assert span.tags["spark_job_metrics.executor_deserialize_time"] == 100L
+          assert span.tags["spark_job_metrics.result_serialization_time"] == 100L
           spanType "spark"
           childOf(span(0))
         }
@@ -258,6 +264,8 @@ class SparkListenerTest extends AgentTestRunner {
           assert span.tags["stage_id"] == 3
           assert span.tags["spark_stage_metrics.available_executor_time"] == 3000L
           assert span.tags["spark_stage_metrics.executor_run_time"] == 1900L
+          assert span.tags["spark_stage_metrics.executor_deserialize_time"] == 0L
+          assert span.tags["spark_stage_metrics.result_serialization_time"] == 0L
           spanType "spark"
           childOf(span(1))
         }
@@ -265,15 +273,19 @@ class SparkListenerTest extends AgentTestRunner {
           operationName "spark.stage"
           assert span.tags["stage_id"] == 2
           assert span.tags["spark_stage_metrics.available_executor_time"] == 1000L
-          assert span.tags["spark_stage_metrics.executor_run_time"] == 1000L
+          assert span.tags["spark_stage_metrics.executor_run_time"] == 900L
+          assert span.tags["spark_stage_metrics.executor_deserialize_time"] == 0L
+          assert span.tags["spark_stage_metrics.result_serialization_time"] == 100L
           spanType "spark"
           childOf(span(1))
         }
         span {
           operationName "spark.stage"
           assert span.tags["stage_id"] == 1
-          assert span.tags["spark_stage_metrics.available_executor_time"] == 400L
+          assert span.tags["spark_stage_metrics.available_executor_time"] == 800L
           assert span.tags["spark_stage_metrics.executor_run_time"] == 100L
+          assert span.tags["spark_stage_metrics.executor_deserialize_time"] == 100L
+          assert span.tags["spark_stage_metrics.result_serialization_time"] == 0L
           spanType "spark"
           childOf(span(1))
         }

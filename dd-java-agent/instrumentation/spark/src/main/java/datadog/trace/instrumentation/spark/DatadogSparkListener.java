@@ -338,9 +338,9 @@ public class DatadogSparkListener extends SparkListener {
 
     if (taskEnd.taskMetrics() != null) {
       // Record the runtime in each active stage in order to allocate the available executor time
-      long executorRunTime = taskEnd.taskMetrics().executorRunTime();
+      long taskRunTime = SparkAggregatedTaskMetrics.computeTaskRunTime(taskEnd.taskMetrics());
       for (SparkAggregatedTaskMetrics aggMetrics : stageMetrics.values()) {
-        aggMetrics.recordExecutorRunTime(executorRunTime);
+        aggMetrics.recordTotalTaskRunTime(taskRunTime);
       }
     }
 

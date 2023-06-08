@@ -40,8 +40,8 @@ class SparkAggregatedTaskMetrics {
 
   private long attributedAvailableExecutorTime = 0L;
   private long previousAvailableExecutorTime = 0L;
-  private long executorRunTimeSinceLastStage = 0L;
-  private long totalExecutorRunTimeSinceLastStage = 0L;
+  private long taskRunTimeSinceLastStage = 0L;
+  private long totalTaskRunTimeSinceLastStage = 0L;
 
   public SparkAggregatedTaskMetrics() {}
 
@@ -94,18 +94,18 @@ class SparkAggregatedTaskMetrics {
         taskWithOutputCount += 1;
       }
 
-      executorRunTimeSinceLastStage += taskMetrics.executorRunTime();
+      taskRunTimeSinceLastStage += computeTaskRunTime(taskMetrics);
     }
   }
 
-  public void recordExecutorRunTime(long executorRunTime) {
-    totalExecutorRunTimeSinceLastStage += executorRunTime;
+  public void recordTotalTaskRunTime(long taskRunTime) {
+    totalTaskRunTimeSinceLastStage += taskRunTime;
   }
 
   public void allocateAvailableExecutorTime(long availableExecutorTime) {
     long executorTime = availableExecutorTime - previousAvailableExecutorTime;
-    long runTime = executorRunTimeSinceLastStage;
-    long totalRunTime = totalExecutorRunTimeSinceLastStage;
+    long runTime = taskRunTimeSinceLastStage;
+    long totalRunTime = totalTaskRunTimeSinceLastStage;
 
     if (totalRunTime > 0) {
       double ratio = (double) runTime / totalRunTime;
@@ -113,8 +113,8 @@ class SparkAggregatedTaskMetrics {
     }
 
     previousAvailableExecutorTime = availableExecutorTime;
-    executorRunTimeSinceLastStage = 0;
-    totalExecutorRunTimeSinceLastStage = 0;
+    taskRunTimeSinceLastStage = 0;
+    totalTaskRunTimeSinceLastStage = 0;
   }
 
   public void accumulateStageMetrics(SparkAggregatedTaskMetrics stageMetrics) {
@@ -187,5 +187,11 @@ class SparkAggregatedTaskMetrics {
     span.setMetric(prefix + ".task_with_output_count", taskWithOutputCount);
 
     span.setMetric(prefix + ".available_executor_time", attributedAvailableExecutorTime);
+  }
+
+  public static long computeTaskRunTime(TaskMetrics metrics) {
+    return metrics.executorDeserializeTime()
+        + metrics.executorRunTime()
+        + metrics.resultSerializationTime();
   }
 }
