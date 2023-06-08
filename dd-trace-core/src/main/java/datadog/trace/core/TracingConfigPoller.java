@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING;
 
@@ -93,6 +94,7 @@ final class TracingConfigPoller {
     DynamicConfig.Builder builder = dynamicConfig.initial();
     maybeOverride(builder::setServiceMapping, overrides.serviceMapping, SERVICE_MAPPING);
     maybeOverride(builder::setTaggedHeaders, overrides.taggedHeaders, HEADER_TAGS);
+    maybeOverride(builder::setLogsInjectionEnabled, overrides.logsInjectionEnabled, LOGS_INJECTION_ENABLED);
     builder.apply();
     log.debug("Applied APM_TRACING overrides");
   }
@@ -115,5 +117,8 @@ final class TracingConfigPoller {
 
     @Json(name = "tracing_header_tags")
     public Map<String, String> taggedHeaders;
+
+    @Json(name = "logs_injection_enabled")
+    public Boolean logsInjectionEnabled;
   }
 }
