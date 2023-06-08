@@ -8,6 +8,7 @@ import datadog.trace.api.iast.sink.HttpResponseHeaderModule;
 import datadog.trace.api.iast.sink.InsecureCookieModule;
 import datadog.trace.api.iast.sink.LdapInjectionModule;
 import datadog.trace.api.iast.sink.NoHttpOnlyCookieModule;
+import datadog.trace.api.iast.sink.NoSameSiteCookieModule;
 import datadog.trace.api.iast.sink.PathTraversalModule;
 import datadog.trace.api.iast.sink.SqlInjectionModule;
 import datadog.trace.api.iast.sink.SsrfModule;
@@ -32,11 +33,11 @@ public abstract class InstrumentationBridge {
   public static volatile PropagationModule PROPAGATION;
   public static volatile InsecureCookieModule INSECURE_COOKIE;
   public static volatile NoHttpOnlyCookieModule NO_HTTPONLY_COOKIE;
+  public static volatile NoSameSiteCookieModule NO_SAMESITE_COOKIE;
   public static volatile SsrfModule SSRF;
   public static volatile UnvalidatedRedirectModule UNVALIDATED_REDIRECT;
   public static volatile WeakRandomnessModule WEAK_RANDOMNESS;
-  public static final HttpResponseHeaderModule.Delegated RESPONSE_HEADER_MODULE =
-      new HttpResponseHeaderModule.Delegated();
+  public static volatile HttpResponseHeaderModule RESPONSE_HEADER_MODULE;
 
   private InstrumentationBridge() {}
 
@@ -65,6 +66,8 @@ public abstract class InstrumentationBridge {
       INSECURE_COOKIE = (InsecureCookieModule) module;
     } else if (module instanceof NoHttpOnlyCookieModule) {
       NO_HTTPONLY_COOKIE = (NoHttpOnlyCookieModule) module;
+    } else if (module instanceof NoSameSiteCookieModule) {
+      NO_SAMESITE_COOKIE = (NoSameSiteCookieModule) module;
     } else if (module instanceof SsrfModule) {
       SSRF = (SsrfModule) module;
     } else if (module instanceof UnvalidatedRedirectModule) {
@@ -74,8 +77,11 @@ public abstract class InstrumentationBridge {
     } else {
       throw new UnsupportedOperationException("Module not yet supported: " + module);
     }
-    if (module instanceof HttpResponseHeaderModule) {
-      RESPONSE_HEADER_MODULE.addDelegate((HttpResponseHeaderModule) module);
+    if (module instanceof HttpResponseHeaderModule.ForHeader && null != RESPONSE_HEADER_MODULE) {
+      RESPONSE_HEADER_MODULE.addDelegate((HttpResponseHeaderModule.ForHeader) module);
+    }
+    if (module instanceof HttpResponseHeaderModule.ForCookie && null != RESPONSE_HEADER_MODULE) {
+      RESPONSE_HEADER_MODULE.addDelegate((HttpResponseHeaderModule.ForCookie) module);
     }
   }
 
@@ -118,6 +124,9 @@ public abstract class InstrumentationBridge {
     if (type == NoHttpOnlyCookieModule.class) {
       return (E) NO_HTTPONLY_COOKIE;
     }
+    if (type == NoSameSiteCookieModule.class) {
+      return (E) NO_SAMESITE_COOKIE;
+    }
     if (type == SsrfModule.class) {
       return (E) SSRF;
     }
@@ -144,9 +153,12 @@ public abstract class InstrumentationBridge {
     PROPAGATION = null;
     INSECURE_COOKIE = null;
     NO_HTTPONLY_COOKIE = null;
+    NO_SAMESITE_COOKIE = null;
     SSRF = null;
     UNVALIDATED_REDIRECT = null;
     WEAK_RANDOMNESS = null;
-    RESPONSE_HEADER_MODULE.clear();
+    if (null != RESPONSE_HEADER_MODULE) {
+      RESPONSE_HEADER_MODULE.clearDelegates();
+    }
   }
 }

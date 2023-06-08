@@ -135,14 +135,13 @@ public abstract class SinkModuleBase implements HasDependencies {
     return result;
   }
 
-  protected final void report(
+  protected final Location report(
       @Nullable final AgentSpan span,
       @Nonnull final VulnerabilityType type,
       @Nonnull final Evidence evidence) {
-    reporter.report(
-        span,
-        new Vulnerability(
-            type, Location.forSpanAndStack(spanId(span), getCurrentStackTrace()), evidence));
+    Location location = Location.forSpanAndStack(spanId(span), getCurrentStackTrace());
+    reporter.report(span, new Vulnerability(type, location, evidence));
+    return location;
   }
 
   protected StackTraceElement getCurrentStackTrace() {

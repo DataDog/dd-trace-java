@@ -6,6 +6,7 @@ import com.datadog.iast.propagation.FastCodecModule;
 import com.datadog.iast.propagation.PropagationModuleImpl;
 import com.datadog.iast.propagation.StringModuleImpl;
 import com.datadog.iast.sink.CommandInjectionModuleImpl;
+import com.datadog.iast.sink.HttpResponseHeaderModuleImpl;
 import com.datadog.iast.sink.InsecureCookieModuleImpl;
 import com.datadog.iast.sink.LdapInjectionModuleImpl;
 import com.datadog.iast.sink.NoHttpOnlyCookieModuleImpl;
@@ -61,6 +62,9 @@ public class IastSystem {
       overheadController = OverheadController.build(config, AgentTaskScheduler.INSTANCE);
     }
     final Dependencies dependencies =
+        new Dependencies(
+            config, reporter, overheadController, telemetry, StackWalkerFactory.INSTANCE);
+    InstrumentationBridge.registerIastModule(new HttpResponseHeaderModuleImpl());
         new Dependencies(config, reporter, overheadController, StackWalkerFactory.INSTANCE);
     final boolean addTelemetry = config.getIastTelemetryVerbosity() != Verbosity.OFF;
     iastModules().forEach(registerModule(dependencies));

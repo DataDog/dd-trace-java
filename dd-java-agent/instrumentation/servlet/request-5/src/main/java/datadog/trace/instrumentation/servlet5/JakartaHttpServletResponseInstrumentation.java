@@ -48,7 +48,7 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
     public static void onEnter(@Advice.Argument(0) final jakarta.servlet.http.Cookie cookie) {
       if (cookie != null) {
         InstrumentationBridge.RESPONSE_HEADER_MODULE.onCookie(
-            cookie.getName(), cookie.getValue(), cookie.getSecure(), cookie.isHttpOnly(), null);
+            cookie.getName(), cookie.getSecure(), cookie.isHttpOnly(), false);
       }
     }
   }

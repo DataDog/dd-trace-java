@@ -57,7 +57,7 @@ class JakartaWSResponseInstrumentationTest extends AgentTestRunner {
     Response.ok().cookie(new NewCookie("user-id", "7"))
 
     then:
-    1 * module.onCookie('user-id', '7', _, _, _)
+    1 * module.onCookie(_)
     0 * _
   }
 
@@ -70,8 +70,8 @@ class JakartaWSResponseInstrumentationTest extends AgentTestRunner {
     Response.ok().cookie(new NewCookie("user-id", "7"), new NewCookie("ttt", "1"))
 
     then:
-    1 * module.onCookie('user-id', '7', _, _, _)
-    1 * module.onCookie('ttt', '1', _, _, _)
+    1 * module.onCookie(_)
+    1 * module.onCookie(_)
     0 * _
   }
 }

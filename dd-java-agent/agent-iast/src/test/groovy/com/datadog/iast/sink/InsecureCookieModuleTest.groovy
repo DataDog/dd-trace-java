@@ -6,6 +6,7 @@ import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import com.datadog.iast.util.CookieSecurityInfo
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import groovy.transform.CompileDynamic
 
@@ -36,9 +37,11 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
   void 'report insecure cookie with InsecureCookieModule.onCookie'() {
     given:
     Vulnerability savedVul
+    final cookie = new CookieSecurityInfo(cookieValue)
+
 
     when:
-    module.onCookie('user-id', '7', false, false, null)
+    module.onCookie(cookie)
 
     then:
     1 * tracer.activeSpan() >> span
@@ -60,9 +63,10 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
   void 'report insecure cookie with InsecureCookieModule.onCookie'() {
     given:
     Vulnerability savedVul
+    final cookie = new CookieSecurityInfo(cookieName, isSecure, false, false)
 
     when:
-    module.onCookie(cookieName, cookieValue, isSecure, false, null)
+    module.onCookie(cookie)
 
     then:
     1 * tracer.activeSpan() >> span
@@ -83,10 +87,10 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
 
   void 'cases where nothing is  not reported during InsecureCookieModuleTest.onCookie'() {
     given:
-    final cookie = HttpCookie.parse(cookieValue).first()
+    final cookie = new CookieSecurityInfo(cookieValue)
 
     when:
-    module.onCookie(cookie.name, cookie.value, cookie.secure, cookie.httpOnly, null)
+    module.onCookie(cookie)
 
     then:
     0 * tracer.activeSpan()
@@ -101,11 +105,10 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
 
   void 'insecure cookie is not reported with InsecureCookieModule.onCookie'() {
     given:
-    final cookie = new HttpCookie(cookieName, cookieValue)
-    cookie.secure = isSecure
+    final cookie = new CookieSecurityInfo(cookieName, isSecure, false, false)
 
     when:
-    module.onCookie(cookie.name, cookie.value, cookie.secure, cookie.httpOnly, null)
+    module.onCookie(cookie)
 
     then:
     0 * tracer.activeSpan() >> span

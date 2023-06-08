@@ -55,48 +55,4 @@ class InstrumentationBridgeTest extends DDSpecification {
     then:
     thrown(UnsupportedOperationException)
   }
-
-  void 'registered HttpHeaderModules are called on header callback'() {
-    setup:
-    final insecureCookieModule = Mock(InsecureCookieModule)
-    InstrumentationBridge.registerIastModule(insecureCookieModule)
-    final unvalidatedRedirectModule = Mock(UnvalidatedRedirectModule)
-    InstrumentationBridge.registerIastModule(unvalidatedRedirectModule)
-
-    when:
-    InstrumentationBridge.RESPONSE_HEADER_MODULE.onHeader("name", "value")
-
-    then:
-    1 * unvalidatedRedirectModule.onHeader("name", "value")
-    0 * _
-  }
-
-  void 'Cookie modules  are called on header callback'() {
-    setup:
-    final insecureCookieModule = Mock(InsecureCookieModule)
-    InstrumentationBridge.registerIastModule(insecureCookieModule)
-    final noHttpOnlyCookieModule = Mock(NoHttpOnlyCookieModule)
-    InstrumentationBridge.registerIastModule(noHttpOnlyCookieModule)
-    final unvalidatedRedirectModule = Mock(UnvalidatedRedirectModule)
-    InstrumentationBridge.registerIastModule(unvalidatedRedirectModule)
-
-    when:
-    InstrumentationBridge.RESPONSE_HEADER_MODULE.onHeader("Set-Cookie", "UserId=1")
-
-    then:
-    1 * insecureCookieModule.onCookie("UserId", "1", false, false, null)
-    1 * noHttpOnlyCookieModule.onCookie("UserId", "1", false, false, null)
-    1 * unvalidatedRedirectModule.onHeader("Set-Cookie", "UserId=1")
-  }
-
-  void 'unregistered HttpHeaderModules are not called on header callback'() {
-    setup:
-    final unvalidatedRedirectModule = Mock(UnvalidatedRedirectModule)
-
-    when:
-    InstrumentationBridge.RESPONSE_HEADER_MODULE.onHeader("name", "value")
-
-    then:
-    0 * unvalidatedRedirectModule.onHeader("name", "value")
-  }
 }

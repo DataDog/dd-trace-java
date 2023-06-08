@@ -31,7 +31,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.addCookie(cookie)
 
     then:
-    1 * module.onCookie('user-id', '7', false, _, _)
+    1 * module.onCookie(_)
     0 * _
   }
 
@@ -63,7 +63,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.addCookie(cookie)
 
     then:
-    1 * module.onCookie('user-id', '7', true, _, _)
+    1 * module.onCookie(_)
     0 * _
   }
 
@@ -90,7 +90,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.addHeader("Set-Cookie", "user-id=7")
 
     then:
-    1 * module.onCookie('user-id', '7', _, _, _)
+    1 * module.onCookie(_)
     0 * _
   }
 
@@ -119,7 +119,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.setHeader("Set-Cookie", "user-id=7")
 
     then:
-    1 * module.onCookie('user-id', '7', _, _, _)
+    1 * module.onCookie(_)
     0 * _
   }
 

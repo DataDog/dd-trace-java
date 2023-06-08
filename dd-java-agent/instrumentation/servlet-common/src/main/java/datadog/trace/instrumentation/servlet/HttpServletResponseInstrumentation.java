@@ -58,7 +58,7 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Iast
     public static void onEnter(@Advice.Argument(0) final javax.servlet.http.Cookie cookie) {
       if (null != cookie) {
         InstrumentationBridge.RESPONSE_HEADER_MODULE.onCookie(
-            cookie.getName(), cookie.getValue(), cookie.getSecure(), false, null);
+            cookie.getName(), cookie.getSecure(), false, false);
       }
     }
   }
