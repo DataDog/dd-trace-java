@@ -49,7 +49,7 @@ class TelemetryServiceSpecification extends DDSpecification {
   }
 
   def okResponse = mockResponse(202)
-  def okButNotReallyResponse = mockResponse(200)
+  def continueResponse = mockResponse(100)
   def notFoundResponse = mockResponse(404)
   def serverErrorResponse = mockResponse(500)
 
@@ -239,7 +239,7 @@ class TelemetryServiceSpecification extends DDSpecification {
       p.dependencies.isEmpty()
       p.integrations.isEmpty()
     })
-    1 * httpClient.newCall(_) >> okButNotReallyResponse
+    1 * httpClient.newCall(_) >> continueResponse
     0 * _
 
     when: 'attempt with success'

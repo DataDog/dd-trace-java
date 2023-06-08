@@ -243,7 +243,7 @@ public class TelemetryService {
         log.debug("Telemetry endpoint is disabled, dropping {} message", type);
         return SendResult.NOT_FOUND;
       }
-      if (response.code() != 202) {
+      if (!response.isSuccessful()) {
         log.debug(
             "Telemetry message {} failed with: {} {} ", type, response.code(), response.message());
         return SendResult.FAILURE;
