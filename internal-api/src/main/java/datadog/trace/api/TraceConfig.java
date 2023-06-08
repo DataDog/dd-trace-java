@@ -7,7 +7,7 @@ public interface TraceConfig {
 
   Map<String, String> getServiceMapping();
 
-  Map<String, String> getTaggedHeaders();
+  Map<String, String> getHeaderTags();
 
   Map<String, String> getBaggageMapping();
 }

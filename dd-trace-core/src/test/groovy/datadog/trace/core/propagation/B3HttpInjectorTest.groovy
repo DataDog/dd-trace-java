@@ -88,7 +88,7 @@ class B3HttpInjectorTest extends DDCoreSpecification {
       (SPAN_ID_KEY.toUpperCase()) : spanId,
     ]
     DynamicConfig dynamicConfig = DynamicConfig.create()
-      .setTaggedHeaders([:])
+      .setHeaderTags([:])
       .setBaggageMapping([:])
       .apply()
     HttpCodec.Extractor extractor = B3HttpCodec.newExtractor(Config.get(), { dynamicConfig.captureTraceConfig() })

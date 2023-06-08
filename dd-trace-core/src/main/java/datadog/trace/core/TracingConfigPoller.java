@@ -92,7 +92,7 @@ final class TracingConfigPoller {
   void applyConfigOverrides(ConfigOverrides overrides) {
     DynamicConfig.Builder builder = dynamicConfig.initial();
     maybeOverride(builder::setServiceMapping, overrides.serviceMapping, SERVICE_MAPPING);
-    maybeOverride(builder::setTaggedHeaders, overrides.taggedHeaders, HEADER_TAGS);
+    maybeOverride(builder::setHeaderTags, overrides.headerTags, HEADER_TAGS);
     builder.apply();
     log.debug("Applied APM_TRACING overrides");
   }
@@ -114,6 +114,6 @@ final class TracingConfigPoller {
     public Map<String, String> serviceMapping;
 
     @Json(name = "tracing_header_tags")
-    public Map<String, String> taggedHeaders;
+    public Map<String, String> headerTags;
   }
 }

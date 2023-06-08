@@ -41,7 +41,7 @@ class W3CHttpExtractorTest extends DDSpecification {
 
   void setup() {
     dynamicConfig = DynamicConfig.create()
-      .setTaggedHeaders(["SOME_HEADER": "some-tag"])
+      .setHeaderTags(["SOME_HEADER": "some-tag"])
       .setBaggageMapping(["SOME_CUSTOM_BAGGAGE_HEADER": "some-baggage", "SOME_CUSTOM_BAGGAGE_HEADER_2": "some-CaseSensitive-baggage"])
       .apply()
     origAppSecActive = ActiveSubsystems.APPSEC_ACTIVE

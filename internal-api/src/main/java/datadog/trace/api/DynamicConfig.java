@@ -43,17 +43,17 @@ public final class DynamicConfig {
   public final class Builder {
 
     Map<String, String> serviceMapping;
-    Map<String, String> taggedHeaders;
+    Map<String, String> headerTags;
     Map<String, String> baggageMapping;
 
     Builder(State state) {
       if (null == state) {
         this.serviceMapping = Collections.emptyMap();
-        this.taggedHeaders = Collections.emptyMap();
+        this.headerTags = Collections.emptyMap();
         this.baggageMapping = Collections.emptyMap();
       } else {
         this.serviceMapping = state.serviceMapping;
-        this.taggedHeaders = state.taggedHeaders;
+        this.headerTags = state.headerTags;
         this.baggageMapping = state.baggageMapping;
       }
     }
@@ -63,8 +63,8 @@ public final class DynamicConfig {
       return this;
     }
 
-    public Builder setTaggedHeaders(Map<String, String> taggedHeaders) {
-      this.taggedHeaders = cleanMapping(taggedHeaders, true, true);
+    public Builder setHeaderTags(Map<String, String> headerTags) {
+      this.headerTags = cleanMapping(headerTags, true, true);
       return this;
     }
 
@@ -101,7 +101,7 @@ public final class DynamicConfig {
         currentState = newState;
         Map<String, Object> update = new HashMap<>();
         update.put(SERVICE_MAPPING, newState.serviceMapping);
-        update.put(HEADER_TAGS, newState.taggedHeaders);
+        update.put(HEADER_TAGS, newState.headerTags);
         update.put(BAGGAGE_MAPPING, newState.baggageMapping);
         ConfigCollector.get().putAll(update);
       }
@@ -113,12 +113,12 @@ public final class DynamicConfig {
   static final class State implements TraceConfig {
 
     final Map<String, String> serviceMapping;
-    final Map<String, String> taggedHeaders;
+    final Map<String, String> headerTags;
     final Map<String, String> baggageMapping;
 
     State(Builder builder) {
       this.serviceMapping = builder.serviceMapping;
-      this.taggedHeaders = builder.taggedHeaders;
+      this.headerTags = builder.headerTags;
       this.baggageMapping = builder.baggageMapping;
     }
 
@@ -126,8 +126,8 @@ public final class DynamicConfig {
       return serviceMapping;
     }
 
-    public Map<String, String> getTaggedHeaders() {
-      return taggedHeaders;
+    public Map<String, String> getHeaderTags() {
+      return headerTags;
     }
 
     public Map<String, String> getBaggageMapping() {
