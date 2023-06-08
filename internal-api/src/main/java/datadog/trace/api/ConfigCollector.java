@@ -44,7 +44,7 @@ public class ConfigCollector {
       if (COLLECTED_UPDATER.compareAndSet(this, current, merged)) {
         break; // success
       }
-      // remove any merged entries before next attempt
+      // roll back to original update before next attempt
       merged.keySet().retainAll(keysAndValues.keySet());
     }
   }
