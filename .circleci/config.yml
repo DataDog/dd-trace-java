@@ -45,6 +45,18 @@ parameters:
     default: base
 
 commands:
+  check_for_leftover_files:
+    steps:
+      - run:
+          name: Check for leftover files
+          command: |
+            LEFTOVER_FILES=$(find . -type f -regex '.*\.orig$')
+            if [[ "$LEFTOVER_FILES" != "" ]]
+            then
+              echo -e "Found leftover files in the commit:\n$LEFTOVER_FILES"
+              exit 1
+            fi
+
   generate_cache_ids:
     steps:
       - run:
@@ -84,6 +96,8 @@ commands:
                 git checkout "pull/${CCI_PR_NUMBER}/head"
               fi
             fi
+
+      - check_for_leftover_files
 
       - generate_cache_ids
 
