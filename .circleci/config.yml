@@ -372,12 +372,17 @@ jobs:
     <<: *defaults
 
     parameters:
+      parallelism:
+        type: integer
+        default: 1
       gradleTarget:
         type: string
       cacheType:
         type: string
 
     resource_class: large
+
+    parallelism: << parameters.parallelism >>
 
     steps:
       - setup_code
@@ -395,6 +400,7 @@ jobs:
             << parameters.gradleTarget >>
             -PskipTests
             -PrunBuildSrcTests
+            -PtaskPartitionCount=${CIRCLE_NODE_TOTAL} -PtaskPartition=${CIRCLE_NODE_INDEX}
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
 
@@ -916,6 +922,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: check_inst
+      parallelism: 4
       gradleTarget: ":instrumentationCheck"
       cacheType: inst
 
