@@ -14,7 +14,7 @@ jar {
   }
 }
 
-// User Java 17 to build application
+// Use Java 17 to build application
 def jdkVersion = 17
 def latestJdkHome = System.getenv("JAVA_${jdkVersion}_HOME")
 if (latestJdkHome != null) {
