@@ -36,7 +36,7 @@ public class UserDetailsManagerInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-        "datadog.trace.instrumentation.springsecurity6.SpringSecurityUserEventDecorator"
+      "datadog.trace.instrumentation.springsecurity6.SpringSecurityUserEventDecorator"
     };
   }
 
