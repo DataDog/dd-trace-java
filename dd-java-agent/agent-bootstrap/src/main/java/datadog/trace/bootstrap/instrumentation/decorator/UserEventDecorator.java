@@ -3,13 +3,11 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Map;
-import javax.annotation.Nonnull;
 
 public class UserEventDecorator extends EventDecorator {
 
-  public static final UserEventDecorator DECORATE = new UserEventDecorator();
-
   public void onLoginSuccess(String userId, Map<String, String> metadata) {
+    System.out.println("LoginSuccess("+userId+")");
     TraceSegment segment = AgentTracer.get().getTraceSegment();
     if (userId != null) {
       segment.setTagTop("usr.id", userId);
@@ -18,6 +16,7 @@ public class UserEventDecorator extends EventDecorator {
   }
 
   public void onLoginFailure(String userId, Map<String, String> metadata, boolean userExists) {
+    System.out.println("LoginFailure("+userId+", "+userExists+")");
     TraceSegment segment = AgentTracer.get().getTraceSegment();
     if (userId != null) {
       segment.setTagTop("appsec.events.users.login.failure.usr.id", userId);
@@ -26,7 +25,8 @@ public class UserEventDecorator extends EventDecorator {
     onEvent(segment, "users.login.failure", metadata);
   }
 
-  public void onSignup(String userId, @Nonnull Map<String, String> metadata) {
+  public void onSignup(String userId, Map<String, String> metadata) {
+    System.out.println("Signup("+userId+")");
     TraceSegment segment = AgentTracer.get().getTraceSegment();
     if (userId != null) {
       segment.setTagTop("usr.id", userId);

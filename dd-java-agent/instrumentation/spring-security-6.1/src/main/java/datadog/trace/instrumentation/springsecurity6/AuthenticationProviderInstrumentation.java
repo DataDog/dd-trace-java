@@ -13,10 +13,10 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class LoginInstrumentation extends Instrumenter.Tracing
+public class AuthenticationProviderInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
-  public LoginInstrumentation() {
+  public AuthenticationProviderInstrumentation() {
     super("spring-security");
   }
 
@@ -33,7 +33,7 @@ public class LoginInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-            "datadog.trace.bootstrap.instrumentation.decorator.UserEventDecorator"
+            "datadog.trace.instrumentation.springsecurity6.SpringSecurityUserEventDecorator"
     };
   }
 
@@ -45,6 +45,6 @@ public class LoginInstrumentation extends Instrumenter.Tracing
             .and(takesArgument(0, named("org.springframework.security.core.Authentication")))
             .and(returns(named("org.springframework.security.core.Authentication")))
             .and(isPublic()),
-        packageName + ".LoginAdvice");
+        packageName + ".AuthenticationProviderAdvice");
   }
 }

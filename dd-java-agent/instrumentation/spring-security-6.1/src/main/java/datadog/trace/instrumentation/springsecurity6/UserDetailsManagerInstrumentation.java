@@ -12,14 +12,14 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class SignupInstrumentation extends Instrumenter.Tracing
+public class UserDetailsManagerInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
-  public SignupInstrumentation() {
+  public UserDetailsManagerInstrumentation() {
     super("spring-security");
   }
 
-  public SignupInstrumentation(String instrumentationName, String... additionalNames) {
+  public UserDetailsManagerInstrumentation(String instrumentationName, String... additionalNames) {
     super(instrumentationName, additionalNames);
   }
 
@@ -36,10 +36,9 @@ public class SignupInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-         "datadog.trace.bootstrap.instrumentation.decorator.UserEventDecorator"
+        "datadog.trace.instrumentation.springsecurity6.SpringSecurityUserEventDecorator"
     };
   }
-
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
@@ -50,6 +49,6 @@ public class SignupInstrumentation extends Instrumenter.Tracing
                 takesArgument(
                     0, named("org.springframework.security.core.userdetails.UserDetails")))
             .and(isPublic()),
-        packageName + ".SignupAdvice");
+        packageName + ".UserDetailsManagerAdvice");
   }
 }
