@@ -1,5 +1,6 @@
 package com.datadog.debugger.agent;
 
+import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -46,16 +47,6 @@ public class DebuggerAgentTest {
   @Mock Instrumentation inst;
   final MockWebServer server = new MockWebServer();
   HttpUrl url;
-
-  private static void setFieldInConfig(Config config, String fieldName, Object value) {
-    try {
-      Field field = config.getClass().getDeclaredField(fieldName);
-      field.setAccessible(true);
-      field.set(config, value);
-    } catch (Throwable e) {
-      e.printStackTrace();
-    }
-  }
 
   private static void setFieldInContainerInfo(
       ContainerInfo containerInfo, String fieldName, Object value) {

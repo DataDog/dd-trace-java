@@ -1,8 +1,9 @@
 package datadog.trace.bootstrap.debugger;
 
-import static datadog.trace.bootstrap.debugger.util.TimeoutChecker.DEFAULT_TIME_OUT;
-
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -207,7 +208,8 @@ public class DebuggerContext {
       // only freeze the context when we have at lest one snapshot probe, and we should send
       // snapshot
       if (needFreeze) {
-        context.freeze(new TimeoutChecker(DEFAULT_TIME_OUT));
+        Duration timeout = Duration.of(Config.get().getDebuggerCaptureTimeout(), ChronoUnit.MILLIS);
+        context.freeze(new TimeoutChecker(timeout));
       }
     } catch (Exception ex) {
       LOGGER.debug("Error in evalContext: ", ex);

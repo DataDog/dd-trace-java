@@ -3,6 +3,7 @@ package com.datadog.debugger.agent;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.DEPTH_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.FIELD_COUNT_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
+import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doReturn;
@@ -25,7 +26,6 @@ import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.*;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
-import datadog.trace.test.util.Flaky;
 import groovy.lang.GroovyClassLoader;
 import java.io.File;
 import java.io.IOException;
@@ -58,6 +58,7 @@ import org.joor.Reflect;
 import org.joor.ReflectException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -77,6 +78,11 @@ public class CapturedSnapshotTest {
 
   private Instrumentation instr = ByteBuddyAgent.install();
   private ClassFileTransformer currentTransformer;
+
+  @BeforeEach
+  public void before() {
+    setFieldInConfig(Config.get(), "debuggerCaptureTimeout", 200);
+  }
 
   @AfterEach
   public void after() {
@@ -500,7 +506,6 @@ public class CapturedSnapshotTest {
   }
 
   @Test
-  @Flaky
   public void sourceFileProbeGroovy() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot201";
     DebuggerTransformerTest.TestSnapshotListener listener =
@@ -1599,6 +1604,9 @@ public class CapturedSnapshotTest {
     CapturedContext.CapturedValue valued = null;
     try {
       valued = VALUE_ADAPTER.fromJson(capturedValue.getStrValue());
+      if (valued.getNotCapturedReason() != null) {
+        Assertions.fail("NotCapturedReason: " + valued.getNotCapturedReason());
+      }
       Object obj = valued.getValue();
       return obj != null ? String.valueOf(obj) : null;
     } catch (IOException e) {
