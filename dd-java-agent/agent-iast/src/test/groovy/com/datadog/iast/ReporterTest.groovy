@@ -6,9 +6,9 @@ import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityBatch
 import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.Config
-import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.internal.TraceSegment
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer

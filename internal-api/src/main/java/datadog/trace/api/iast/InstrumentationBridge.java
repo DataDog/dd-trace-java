@@ -12,6 +12,7 @@ import datadog.trace.api.iast.sink.SsrfModule;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
 import datadog.trace.api.iast.sink.WeakCipherModule;
 import datadog.trace.api.iast.sink.WeakHashModule;
+import datadog.trace.api.iast.sink.WeakRandomnessModule;
 import datadog.trace.api.iast.source.WebModule;
 
 /** Bridge between instrumentations and {@link IastModule} instances. */
@@ -30,6 +31,7 @@ public abstract class InstrumentationBridge {
   public static volatile InsecureCookieModule INSECURE_COOKIE;
   public static volatile SsrfModule SSRF;
   public static volatile UnvalidatedRedirectModule UNVALIDATED_REDIRECT;
+  public static volatile WeakRandomnessModule WEAK_RANDOMNESS;
 
   private InstrumentationBridge() {}
 
@@ -60,12 +62,15 @@ public abstract class InstrumentationBridge {
       SSRF = (SsrfModule) module;
     } else if (module instanceof UnvalidatedRedirectModule) {
       UNVALIDATED_REDIRECT = (UnvalidatedRedirectModule) module;
+    } else if (module instanceof WeakRandomnessModule) {
+      WEAK_RANDOMNESS = (WeakRandomnessModule) module;
     } else {
       throw new UnsupportedOperationException("Module not yet supported: " + module);
     }
   }
 
   /** Mainly used for testing modules */
+  @SuppressWarnings("unchecked")
   public static <E extends IastModule> E getIastModule(final Class<E> type) {
     if (type == StringModule.class) {
       return (E) STRING;
@@ -106,6 +111,9 @@ public abstract class InstrumentationBridge {
     if (type == UnvalidatedRedirectModule.class) {
       return (E) UNVALIDATED_REDIRECT;
     }
+    if (type == WeakRandomnessModule.class) {
+      return (E) WEAK_RANDOMNESS;
+    }
     throw new UnsupportedOperationException("Module not yet supported: " + type);
   }
 
@@ -124,6 +132,7 @@ public abstract class InstrumentationBridge {
     INSECURE_COOKIE = null;
     SSRF = null;
     UNVALIDATED_REDIRECT = null;
+    WEAK_RANDOMNESS = null;
   }
 
   public static void onHeader(final String name, final String value) {

@@ -119,8 +119,7 @@ public class WriterFactory {
 
       remoteWriter =
           DDIntakeWriter.builder()
-              .intakeApi(remoteApi)
-              .trackType(trackType)
+              .addTrack(trackType, remoteApi)
               .prioritization(prioritization)
               .healthMetrics(new TracerHealthMetrics(statsDClient))
               .monitoring(commObjects.monitoring)
@@ -150,6 +149,10 @@ public class WriterFactory {
               commObjects.monitoring,
               config.isTracerMetricsEnabled());
 
+      if (sampler instanceof RemoteResponseListener) {
+        ddAgentApi.addResponseListener((RemoteResponseListener) sampler);
+      }
+
       remoteWriter =
           DDAgentWriter.builder()
               .agentApi(ddAgentApi)
@@ -160,10 +163,6 @@ public class WriterFactory {
               .alwaysFlush(alwaysFlush)
               .spanSamplingRules(singleSpanSampler)
               .build();
-    }
-
-    if (sampler instanceof RemoteResponseListener) {
-      remoteWriter.addResponseListener((RemoteResponseListener) sampler);
     }
 
     return remoteWriter;

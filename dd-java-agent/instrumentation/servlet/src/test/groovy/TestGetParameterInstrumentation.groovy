@@ -1,12 +1,12 @@
-import datadog.smoketest.controller.ServletRequestTestSuite
+import datadog.smoketest.controller.JavaxHttpServletRequestTestSuite
+import datadog.smoketest.controller.JavaxHttpServletRequestWrapperTestSuite
+import datadog.smoketest.controller.JavaxServletRequestTestSuite
+import datadog.smoketest.controller.JavaxServletRequestWrapperTestSuite
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.source.WebModule
 import groovy.transform.CompileDynamic
-
-import javax.servlet.http.HttpServletRequest
-import javax.servlet.http.HttpServletRequestWrapper
 
 @CompileDynamic
 class TestGetParameterInstrumentation extends AgentTestRunner {
@@ -21,13 +21,12 @@ class TestGetParameterInstrumentation extends AgentTestRunner {
     final iastModule = Mock(WebModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final map = [param1: ['value1', 'value2'] as String[]]
-    final servletRequest = Mock(HttpServletRequest) {
+    final servletRequest = Mock(clazz) {
       getParameter(_ as String) >> { map.get(it[0]).first() }
       getParameterValues(_ as String) >> { map.get(it[0]) }
       getParameterNames() >> { Collections.enumeration(map.keySet()) }
     }
-    final wrapper = new HttpServletRequestWrapper(servletRequest)
-    final testSuite = new ServletRequestTestSuite(wrapper)
+    testSuite.init(servletRequest)
 
     when:
     testSuite.getParameter('param1')
@@ -46,5 +45,12 @@ class TestGetParameterInstrumentation extends AgentTestRunner {
 
     then:
     1 * iastModule.onParameterNames(['param1'])
+
+    where:
+    testSuite                                     | clazz
+    new JavaxServletRequestTestSuite()            | javax.servlet.ServletRequest
+    new JavaxHttpServletRequestTestSuite()        | javax.servlet.http.HttpServletRequest
+    new JavaxServletRequestWrapperTestSuite()     | javax.servlet.ServletRequestWrapper
+    new JavaxHttpServletRequestWrapperTestSuite() | javax.servlet.http.HttpServletRequestWrapper
   }
 }

@@ -124,6 +124,16 @@ abstract class Liberty20Test extends HttpServerTest<Server> {
   }
 
   @Override
+  boolean testRequestBody() {
+    true
+  }
+
+  @Override
+  boolean testRequestBodyISVariant() {
+    true
+  }
+
+  @Override
   boolean hasExtraErrorInformation() {
     true
   }

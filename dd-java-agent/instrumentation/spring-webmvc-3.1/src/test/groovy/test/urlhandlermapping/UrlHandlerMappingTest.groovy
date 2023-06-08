@@ -15,6 +15,7 @@ import okhttp3.Response
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.context.embedded.EmbeddedWebApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
+import test.SetupSpecHelper
 import test.boot.SecurityConfig
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -80,6 +81,10 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
     'servlet.request'
   }
 
+  def setupSpec() {
+    SetupSpecHelper.provideBlockResponseFunction()
+  }
+
   @Override
   boolean testException() {
     // generates extra trace for the error handling invocation
@@ -104,6 +109,16 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
 
   @Override
   boolean testBadUrl() {
+    false
+  }
+
+  @Override
+  boolean testBlocking() {
+    true
+  }
+
+  @Override
+  boolean testUserBlocking() {
     false
   }
 

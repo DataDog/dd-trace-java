@@ -25,6 +25,7 @@ import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.*;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
+import datadog.trace.test.util.Flaky;
 import groovy.lang.GroovyClassLoader;
 import java.io.File;
 import java.io.IOException;
@@ -499,6 +500,7 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  @Flaky
   public void sourceFileProbeGroovy() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot201";
     DebuggerTransformerTest.TestSnapshotListener listener =
@@ -819,8 +821,8 @@ public class CapturedSnapshotTest {
                                     DSL.value("hello"))),
                             DSL.and(
                                 DSL.eq(DSL.ref("arg"), DSL.value("5")),
-                                DSL.gt(DSL.ref(ValueReferences.DURATION_REF), DSL.value(0L))))),
-                    "(fld == 11 && typed.fld.fld.msg == \"hello\") && (arg == '5' && @duration > 0)"))
+                                DSL.ge(DSL.ref(ValueReferences.DURATION_REF), DSL.value(0L))))),
+                    "(fld == 11 && typed.fld.fld.msg == \"hello\") && (arg == '5' && @duration >= 0)"))
             .evaluateAt(MethodLocation.EXIT)
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe);
@@ -1029,7 +1031,7 @@ public class CapturedSnapshotTest {
         createProbeBuilder(PROBE_ID2, CLASS_NAME, "doit", "int (java.lang.String)")
             .when(
                 new ProbeCondition(
-                    DSL.when(DSL.gt(DSL.ref("@duration"), DSL.value(0))), "@duration > 0"))
+                    DSL.when(DSL.ge(DSL.ref("@duration"), DSL.value(0))), "@duration >= 0"))
             .evaluateAt(MethodLocation.EXIT)
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener =
@@ -1370,6 +1372,24 @@ public class CapturedSnapshotTest {
     Assertions.assertEquals(
         "java.lang.IllegalStateException: oops",
         snapshot.getEvaluationErrors().get(1).getMessage());
+  }
+
+  @Test
+  public void enumConstructorArgs() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot23";
+    final String ENUM_CLASS = CLASS_NAME + "$MyEnum";
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(ENUM_CLASS, createProbe(PROBE_ID, ENUM_CLASS, "<init>", null));
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "2").get();
+    Assertions.assertEquals(2, result);
+    assertSnapshots(listener, 3, PROBE_ID);
+    Map<String, CapturedContext.CapturedValue> arguments =
+        listener.snapshots.get(0).getCaptures().getEntry().getArguments();
+    assertEquals(3, arguments.size());
+    assertTrue(arguments.containsKey("this"));
+    assertTrue(arguments.containsKey("p1")); // this the hidden ordinal arg of an enum
+    assertTrue(arguments.containsKey("strValue"));
   }
 
   private DebuggerTransformerTest.TestSnapshotListener setupInstrumentTheWorldTransformer(

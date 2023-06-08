@@ -43,7 +43,7 @@ public class RatpackTypedDataInstrumentation extends Instrumenter.AppSec
             .or(named("getBytes").and(takesArguments(0)))
             .or(named("writeTo").and(takesArguments(OutputStream.class)))
             .or(named("getInputStream").and(takesArguments(0))),
-        packageName + ".RatpackRequestBodyCallGetTextAdvice");
+        packageName + ".RatpackRequestBodyCallGetBufferAdvice");
     transformation.applyAdvice(
         named("getText").and(takesArguments(0).or(takesArguments(Charset.class))),
         packageName + ".RatpackRequestBodyGetTextCalledAdvice");

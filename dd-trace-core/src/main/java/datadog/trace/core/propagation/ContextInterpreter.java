@@ -234,7 +234,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
             new ExtractedContext(
                 traceId,
                 spanId,
-                samplingPriorityOrDefault(samplingPriority),
+                samplingPriorityOrDefault(traceId, samplingPriority),
                 origin,
                 endToEndStartTime,
                 baggage,
@@ -253,7 +253,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
             tags,
             httpHeaders,
             baggage,
-            samplingPriorityOrDefault(samplingPriority),
+            samplingPriorityOrDefault(traceId, samplingPriority),
             traceConfig);
       }
     }
@@ -279,8 +279,8 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     return httpHeaders;
   }
 
-  private int samplingPriorityOrDefault(int samplingPriority) {
-    return samplingPriority == PrioritySampling.UNSET
+  private int samplingPriorityOrDefault(DDTraceId traceId, int samplingPriority) {
+    return samplingPriority == PrioritySampling.UNSET || DDTraceId.ZERO.equals(traceId)
         ? defaultSamplingPriority()
         : samplingPriority;
   }

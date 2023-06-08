@@ -141,6 +141,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   /** Nanosecond offset to counter clock drift */
   private volatile long counterDrift;
 
+  private final TracingConfigPoller tracingConfigPoller;
+
   private final PendingTraceBuffer pendingTraceBuffer;
 
   /** Default service name if none provided on the trace or span */
@@ -267,6 +269,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private DataStreamsMonitoring dataStreamsMonitoring;
     private ProfilingContextIntegration profilingContextIntegration =
         ProfilingContextIntegration.NoOp.INSTANCE;
+    private boolean pollForTracingConfiguration;
     private boolean logInjectionEnabled;
 
     public CoreTracerBuilder serviceName(String serviceName) {
@@ -386,6 +389,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
+    public CoreTracerBuilder pollForTracingConfiguration() {
+      this.pollForTracingConfiguration = true;
+      return this;
+    }
+
     public CoreTracerBuilder logInjectionEnabled(boolean logInjectionEnabled) {
       this.logInjectionEnabled = logInjectionEnabled;
       return this;
@@ -450,6 +458,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           timeSource,
           dataStreamsMonitoring,
           profilingContextIntegration,
+          pollForTracingConfiguration,
           logInjectionEnabled);
     }
   }
@@ -479,6 +488,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final TimeSource timeSource,
       final DataStreamsMonitoring dataStreamsMonitoring,
       final ProfilingContextIntegration profilingContextIntegration,
+      final boolean pollForTracingConfiguration,
       final boolean logInjectionEnabled) {
 
     assert localRootSpanTags != null;
@@ -563,6 +573,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
     sharedCommunicationObjects.monitoring = monitoring;
     sharedCommunicationObjects.createRemaining(config);
+
+    tracingConfigPoller = new TracingConfigPoller(dynamicConfig);
+    if (pollForTracingConfiguration) {
+      tracingConfigPoller.start(config, sharedCommunicationObjects);
+    }
 
     if (writer == null) {
       this.writer =
@@ -1137,6 +1152,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void close() {
+    tracingConfigPoller.stop();
     pendingTraceBuffer.close();
     writer.close();
     statsDClient.close();

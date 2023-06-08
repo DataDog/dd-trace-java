@@ -4,6 +4,7 @@ import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -27,7 +28,6 @@ public abstract class RemoteWriter implements Writer {
 
   private static final Logger log = LoggerFactory.getLogger(RemoteWriter.class);
 
-  private final RemoteApi api;
   protected final TraceProcessingWorker traceProcessingWorker;
   private final PayloadDispatcher dispatcher;
   private final boolean alwaysFlush;
@@ -38,14 +38,12 @@ public abstract class RemoteWriter implements Writer {
   public final HealthMetrics healthMetrics;
 
   protected RemoteWriter(
-      final RemoteApi api,
       final TraceProcessingWorker traceProcessingWorker,
       final PayloadDispatcher dispatcher,
       final HealthMetrics healthMetrics,
       final int flushTimeout,
       final TimeUnit flushTimeoutUnit,
       final boolean alwaysFlush) {
-    this.api = api;
     this.traceProcessingWorker = traceProcessingWorker;
     this.dispatcher = dispatcher;
     this.healthMetrics = healthMetrics;
@@ -55,21 +53,12 @@ public abstract class RemoteWriter implements Writer {
   }
 
   protected RemoteWriter(
-      final RemoteApi api,
       final TraceProcessingWorker traceProcessingWorker,
       final PayloadDispatcher dispatcher,
       final HealthMetrics healthMetrics,
       final boolean alwaysFlush) {
     // Default constructor with 1 second of flush timeout. Used by the DDAgentWriter.
-    this(api, traceProcessingWorker, dispatcher, healthMetrics, 1, TimeUnit.SECONDS, alwaysFlush);
-  }
-
-  public void addResponseListener(final RemoteResponseListener listener) {
-    api.addResponseListener(listener);
-  }
-
-  public RemoteApi getApi() {
-    return api;
+    this(traceProcessingWorker, dispatcher, healthMetrics, 1, TimeUnit.SECONDS, alwaysFlush);
   }
 
   @Override
@@ -150,5 +139,10 @@ public abstract class RemoteWriter implements Writer {
   @Override
   public void incrementDropCounts(int spanCount) {
     dispatcher.onDroppedTrace(spanCount);
+  }
+
+  // used by tests
+  public Collection<Class<? extends RemoteApi>> getApis() {
+    return dispatcher.getApis();
   }
 }

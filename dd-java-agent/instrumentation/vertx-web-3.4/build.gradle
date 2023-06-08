@@ -38,6 +38,8 @@ dependencies {
 
   testImplementation project(':dd-java-agent:instrumentation:netty-4.1')
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+
 
   testImplementation group: 'io.vertx', name: 'vertx-web', version: '3.4.0'
   testImplementation group: 'io.vertx', name: 'vertx-web-client', version: '3.4.0'

@@ -4,6 +4,13 @@ import datadog.trace.api.naming.NamingSchema;
 import javax.annotation.Nonnull;
 
 public class CacheNamingV0 implements NamingSchema.ForCache {
+
+  private final boolean allowsFakeServices;
+
+  public CacheNamingV0(boolean allowsFakeServices) {
+    this.allowsFakeServices = allowsFakeServices;
+  }
+
   @Nonnull
   @Override
   public String operation(@Nonnull String cacheSystem) {
@@ -25,6 +32,10 @@ public class CacheNamingV0 implements NamingSchema.ForCache {
   @Nonnull
   @Override
   public String service(@Nonnull String ddService, @Nonnull String cacheSystem) {
+    if (!allowsFakeServices) {
+      return ddService;
+    }
+
     if ("hazelcast".equals(cacheSystem)) {
       return "hazelcast-sdk";
     }

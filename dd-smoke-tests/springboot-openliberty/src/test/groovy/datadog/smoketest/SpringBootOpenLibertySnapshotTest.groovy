@@ -22,6 +22,8 @@ class SpringBootOpenLibertySnapshotTest extends AbstractTestAgentSmokeTest {
     command.addAll((String[]) [
       "-Ddd.jmxfetch.enabled=false",
       '-Ddd.trace.integration.java-lang-appsec.enabled=false',
+      // The legacy mock agent we use here does not support v0.5.
+      "-Ddd.trace.agent.v0.5.enabled=false",
       "-jar",
       openLibertyShadowJar,
       "--server.port=${httpPort}"

@@ -4,6 +4,7 @@ import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServerTest
 import io.vertx.circuitbreaker.CircuitBreakerOptions
 import io.vertx.core.Future
+import io.vertx.core.http.HttpServerOptions
 import io.vertx.reactivex.circuitbreaker.CircuitBreaker
 import io.vertx.reactivex.core.AbstractVerticle
 import io.vertx.reactivex.core.MultiMap
@@ -39,6 +40,11 @@ class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTes
 
   @Override
   boolean testBodyJson() {
+    false
+  }
+
+  @Override
+  boolean testRequestBody() {
     false
   }
 
@@ -207,7 +213,7 @@ class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTes
         })
       }
 
-      super.@vertx.createHttpServer()
+      super.@vertx.createHttpServer(new HttpServerOptions().setHandle100ContinueAutomatically(true))
         .requestHandler { router.accept(it) }
         .listen(port) { startFuture.complete() }
     }

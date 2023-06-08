@@ -17,6 +17,24 @@ public class InstrumentationTags {
   public static final String TOMBSTONE = "tombstone";
   public static final String AWS_AGENT = "aws.agent";
   public static final String AWS_SERVICE = "aws.service";
+  public static final String TOP_LEVEL_AWS_SERVICE = "aws_service";
+  public static final String AWS_OPERATION = "aws.operation";
+  public static final String AWS_ENDPOINT = "aws.endpoint";
+  public static final String AWS_BUCKET_NAME = "aws.bucket.name";
+  public static final String BUCKET_NAME = "bucketname";
+  public static final String AWS_QUEUE_URL = "aws.queue.url";
+
+  public static final String AWS_QUEUE_NAME = "aws.queue.name";
+  public static final String QUEUE_NAME = "queuename";
+  public static final String AWS_TOPIC_NAME = "aws.topic.name";
+  public static final String TOPIC_NAME = "topicname";
+  public static final String AWS_STREAM_NAME = "aws.stream.name";
+  public static final String STREAM_NAME = "streamname";
+  public static final String AWS_TABLE_NAME = "aws.table.name";
+  public static final String TABLE_NAME = "tablename";
+  public static final String AWS_REQUEST_ID = "aws.requestId";
+  public static final String AWS_STORAGE_CLASS = "aws.storage.class";
+
   public static final String BUCKET = "bucket";
   public static final String COUCHBASE_OPERATION_ID = "couchbase.operation_id";
   public static final String ELASTICSEARCH_REQUEST_INDICES = "elasticsearch.request.indices";

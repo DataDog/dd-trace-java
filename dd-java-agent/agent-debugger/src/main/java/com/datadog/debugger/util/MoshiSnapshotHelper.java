@@ -402,14 +402,14 @@ public class MoshiSnapshotHelper {
       }
 
       @Override
-      public void mapEpilogue(Map<?, ?> map, boolean isComplete) throws Exception {
+      public void mapEpilogue(boolean isComplete, int size) throws Exception {
         jsonWriter.endArray();
         if (!isComplete) {
           jsonWriter.name(NOT_CAPTURED_REASON);
           jsonWriter.value(COLLECTION_SIZE_REASON);
         }
         jsonWriter.name(SIZE);
-        jsonWriter.value(String.valueOf(map.size()));
+        jsonWriter.value(String.valueOf(size));
       }
 
       @Override
@@ -425,6 +425,7 @@ public class MoshiSnapshotHelper {
 
       @Override
       public void handleFieldException(Exception ex, Field field) {
+        LOG.debug("Exception when extracting field={}", field.getName(), ex);
         String fieldName = field.getName();
         try {
           jsonWriter.name(fieldName);
@@ -468,6 +469,12 @@ public class MoshiSnapshotHelper {
           default:
             throw new RuntimeException("Unsupported NotCapturedReason: " + reason);
         }
+      }
+
+      @Override
+      public void notCaptured(String reason) throws Exception {
+        jsonWriter.name(NOT_CAPTURED_REASON);
+        jsonWriter.value(reason);
       }
     }
   }

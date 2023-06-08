@@ -87,6 +87,7 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
             "$Tags.PEER_PORT" address.port
             "$Tags.PEER_HOSTNAME" "localhost"
             "aws.service" "AmazonSQS"
+            "aws_service" "sqs"
             "aws.endpoint" "http://localhost:${address.port}"
             "aws.operation" "SendMessageRequest"
             "aws.agent" "java-aws-sdk"
@@ -132,6 +133,7 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
             "$Tags.PEER_PORT" address.port
             "$Tags.PEER_HOSTNAME" "localhost"
             "aws.service" "AmazonSQS"
+            "aws_service" "sqs"
             "aws.endpoint" "http://localhost:${address.port}"
             "aws.operation" "ReceiveMessageRequest"
             "aws.agent" "java-aws-sdk"
@@ -214,6 +216,7 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
             "$Tags.PEER_PORT" address.port
             "$Tags.PEER_HOSTNAME" "localhost"
             "aws.service" "AmazonSQS"
+            "aws_service" "sqs"
             "aws.endpoint" "http://localhost:${address.port}"
             "aws.operation" "SendMessageRequest"
             "aws.agent" "java-aws-sdk"
@@ -279,6 +282,7 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
             "$Tags.PEER_PORT" address.port
             "$Tags.PEER_HOSTNAME" "localhost"
             "aws.service" "AmazonSQS"
+            "aws_service" "sqs"
             "aws.endpoint" "http://localhost:${address.port}"
             "aws.operation" "DeleteMessageRequest"
             "aws.agent" "java-aws-sdk"
@@ -323,6 +327,7 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
             "$Tags.PEER_PORT" address.port
             "$Tags.PEER_HOSTNAME" "localhost"
             "aws.service" "AmazonSQS"
+            "aws_service" "sqs"
             "aws.endpoint" "http://localhost:${address.port}"
             "aws.operation" "ReceiveMessageRequest"
             "aws.agent" "java-aws-sdk"

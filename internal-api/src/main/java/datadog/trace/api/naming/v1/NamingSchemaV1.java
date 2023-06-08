@@ -42,6 +42,11 @@ public class NamingSchemaV1 implements NamingSchema {
   }
 
   @Override
+  public boolean allowFakeServices() {
+    return false;
+  }
+
+  @Override
   public ForServer server() {
     return serverNaming;
   }

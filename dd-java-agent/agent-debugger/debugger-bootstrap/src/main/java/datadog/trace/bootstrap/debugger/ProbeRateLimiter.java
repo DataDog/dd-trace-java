@@ -19,10 +19,10 @@ public final class ProbeRateLimiter {
 
   public static boolean tryProbe(String probeId) {
     // rate limiter engaged at ~1 probe per second (1 probes per 1s time window)
-    boolean result =
-        PROBE_SAMPLERS.computeIfAbsent(probeId, k -> createSampler(DEFAULT_RATE)).sample();
-    result &= GLOBAL_SAMPLER.sample();
-    return result;
+    if (GLOBAL_SAMPLER.sample()) {
+      return PROBE_SAMPLERS.computeIfAbsent(probeId, k -> createSampler(DEFAULT_RATE)).sample();
+    }
+    return false;
   }
 
   public static void setRate(String probeId, double rate) {

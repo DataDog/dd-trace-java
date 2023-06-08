@@ -1,6 +1,6 @@
 package smoketest
 
-import datadog.smoketest.AbstractServerSmokeTest
+import datadog.smoketest.AbstractIastServerSmokeTest
 import datadog.trace.api.Platform
 import okhttp3.Request
 import spock.lang.IgnoreIf
@@ -8,13 +8,7 @@ import spock.lang.IgnoreIf
 @IgnoreIf({
   System.getProperty("java.vendor").contains("IBM") && System.getProperty("java.version").contains("1.8.")
 })
-class ResteasySmokeTest extends AbstractServerSmokeTest {
-
-
-  @Override
-  def logLevel() {
-    return "debug"
-  }
+class ResteasySmokeTest extends AbstractIastServerSmokeTest {
 
   @Override
   ProcessBuilder createProcessBuilder() {
@@ -25,10 +19,8 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
     command.addAll(defaultJavaProperties)
     command.addAll([
       withSystemProperty(datadog.trace.api.config.IastConfig.IAST_ENABLED, true),
-      withSystemProperty(datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING, 100),
-      withSystemProperty(datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED, true),
-      withSystemProperty(datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED, false),
-      withSystemProperty(datadog.trace.api.config.IastConfig.IAST_REDACTION_ENABLED, false)
+      withSystemProperty(datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE, 'FULL'),
+      withSystemProperty(datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED, true)
     ])
     if (Platform.isJavaVersionAtLeast(17)) {
       command.addAll((String[]) ["--add-opens", "java.base/java.lang=ALL-UNNAMED"])
@@ -52,8 +44,9 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
     assert response.body().contentType().toString().contains("text/plain")
     assert body.contains("RestEasy: hello pathParamValue")
     assert response.code() == 200
-    processTestLogLines {
-      it.contains("SQL_INJECTION") && it.contains("smoketest.resteasy.DB") && it.contains("pathParamValue")
+    hasTainted { tainted ->
+      tainted.value == 'pathParamValue' &&
+        tainted.ranges[0].source.origin == 'http.request.path.parameter'
     }
   }
 
@@ -71,8 +64,10 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
     assert response.body().contentType().toString().contains("text/plain")
     assert body.contains("RestEasy: hello queryParamValue")
     assert response.code() == 200
-    processTestLogLines {
-      it.contains("SQL_INJECTION") && it.contains("smoketest.resteasy.DB") && it.contains("queryParamValue")
+    hasTainted { tainted ->
+      tainted.value == 'queryParamValue' &&
+        tainted.ranges[0].source.name == 'param' &&
+        tainted.ranges[0].source.origin == 'http.request.parameter'
     }
   }
 
@@ -90,8 +85,10 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
     assert response.body().contentType().toString().contains("text/plain")
     assert body.contains("RestEasy: hello pepito")
     assert response.code() == 200
-    processTestLogLines {
-      it.contains("SQL_INJECTION") && it.contains("smoketest.resteasy.DB") && it.contains("pepito")
+    hasTainted { tainted ->
+      tainted.value == 'pepito' &&
+        tainted.ranges[0].source.name == 'X-Custom-header' &&
+        tainted.ranges[0].source.origin == 'http.request.header'
     }
   }
 
@@ -109,8 +106,10 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
     assert response.body().contentType().toString().contains("text/plain")
     assert body.contains("RestEasy: hello cookieValue")
     assert response.code() == 200
-    processTestLogLines {
-      it.contains("SQL_INJECTION") && it.contains("smoketest.resteasy.DB") && it.contains("cookieValue")
+    hasTainted { tainted ->
+      tainted.value == 'cookieValue' &&
+        tainted.ranges[0].source.name == 'cookieName' &&
+        tainted.ranges[0].source.origin == 'http.request.cookie.value'
     }
   }
 
@@ -128,8 +127,15 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
     assert response.body().contentType().toString().contains("text/plain")
     assert body.contains("RestEasy: hello [value1, value2]")
     assert response.code() == 200
-    processTestLogLines {
-      it.contains("SQL_INJECTION") && it.contains("smoketest.resteasy.DB") && it.contains("value1")
+    hasTainted { tainted ->
+      tainted.value == 'value1' &&
+        tainted.ranges[0].source.name == 'param' &&
+        tainted.ranges[0].source.origin == 'http.request.parameter'
+    }
+    hasTainted { tainted ->
+      tainted.value == 'value2' &&
+        tainted.ranges[0].source.name == 'param' &&
+        tainted.ranges[0].source.origin == 'http.request.parameter'
     }
   }
 
@@ -147,8 +153,15 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
     assert response.body().contentType().toString().contains("text/plain")
     assert body.contains("setValue1")
     assert response.code() == 200
-    processTestLogLines {
-      it.contains("SQL_INJECTION") && it.contains("smoketest.resteasy.DB") && it.contains("setValue1")
+    hasTainted { tainted ->
+      tainted.value == 'setValue1' &&
+        tainted.ranges[0].source.name == 'param' &&
+        tainted.ranges[0].source.origin == 'http.request.parameter'
+    }
+    hasTainted { tainted ->
+      tainted.value == 'setValue2' &&
+        tainted.ranges[0].source.name == 'param' &&
+        tainted.ranges[0].source.origin == 'http.request.parameter'
     }
   }
 
@@ -166,8 +179,15 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
     assert response.body().contentType().toString().contains("text/plain")
     assert body.contains("sortedsetValue1")
     assert response.code() == 200
-    processTestLogLines {
-      it.contains("SQL_INJECTION") && it.contains("smoketest.resteasy.DB") && it.contains("sortedsetValue1")
+    hasTainted { tainted ->
+      tainted.value == 'sortedsetValue1' &&
+        tainted.ranges[0].source.name == 'param' &&
+        tainted.ranges[0].source.origin == 'http.request.parameter'
+    }
+    hasTainted { tainted ->
+      tainted.value == 'sortedsetValue2' &&
+        tainted.ranges[0].source.name == 'param' &&
+        tainted.ranges[0].source.origin == 'http.request.parameter'
     }
   }
 
@@ -180,9 +200,7 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
     client.newCall(request).execute()
 
     then:
-    processTestLogLines {
-      it.contains("UNVALIDATED_REDIRECT") && it.contains("setheader")
-    }
+    hasVulnerability { vul -> vul.type == 'UNVALIDATED_REDIRECT' }
   }
 
   void "unvalidated  redirect from location header is present"() {
@@ -194,13 +212,18 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
     client.newCall(request).execute()
 
     then:
-    processTestLogLines {
-      it.contains("UNVALIDATED_REDIRECT") && it.contains("setlocation")
-    }
+    hasVulnerability { vul -> vul.type == 'UNVALIDATED_REDIRECT' }
   }
 
+  void "insecure cookie"() {
+    setup:
+    def url = "http://localhost:${httpPort}/hello/insecurecookie"
 
-  private static String withSystemProperty(final String config, final Object value) {
-    return "-Ddd.${config}=${value}"
+    when:
+    def request = new Request.Builder().url(url).get().build()
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'INSECURE_COOKIE' }
   }
 }

@@ -254,6 +254,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.IGNITE_CACHE_I
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_UNACKNOWLEDGED_MAX_AGE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
@@ -317,6 +318,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE_EXTRACT;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE_INJECT;
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT;
+import static datadog.trace.api.config.TracerConfig.TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
@@ -445,6 +447,7 @@ public class Config {
   private final boolean traceResolverEnabled;
   private final int spanAttributeSchemaVersion;
   private final boolean peerServiceDefaultsEnabled;
+  private final boolean removeIntegrationServiceNamesEnabled;
   private final Map<String, String> peerServiceMapping;
   private final Map<String, String> serviceMapping;
   private final Map<String, String> tags;
@@ -623,6 +626,7 @@ public class Config {
   private final boolean jmsPropagationEnabled;
   private final Set<String> jmsPropagationDisabledTopics;
   private final Set<String> jmsPropagationDisabledQueues;
+  private final int jmsUnacknowledgedMaxAge;
 
   private final boolean rabbitPropagationEnabled;
   private final Set<String> rabbitPropagationDisabledQueues;
@@ -895,9 +899,13 @@ public class Config {
 
     spanAttributeSchemaVersion = schemaVersionFromConfig();
 
-    // only used in v0. in v1+ defaults are always calculated regardless this feature flag
+    // following two only used in v0.
+    // in v1+ defaults are always calculated regardless this feature flag
     peerServiceDefaultsEnabled =
         configProvider.getBoolean(TRACE_PEER_SERVICE_DEFAULTS_ENABLED, false);
+    // feature flag to remove fake services in v0
+    removeIntegrationServiceNamesEnabled =
+        configProvider.getBoolean(TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED, false);
 
     peerServiceMapping = configProvider.getMergedMap(TRACE_PEER_SERVICE_MAPPING);
 
@@ -1439,6 +1447,7 @@ public class Config {
         tryMakeImmutableSet(configProvider.getList(JMS_PROPAGATION_DISABLED_TOPICS));
     jmsPropagationDisabledQueues =
         tryMakeImmutableSet(configProvider.getList(JMS_PROPAGATION_DISABLED_QUEUES));
+    jmsUnacknowledgedMaxAge = configProvider.getInteger(JMS_UNACKNOWLEDGED_MAX_AGE, 3600);
 
     rabbitPropagationEnabled = isPropagationEnabled(true, "rabbit", "rabbitmq");
     rabbitPropagationDisabledQueues =
@@ -1469,7 +1478,9 @@ public class Config {
 
     igniteCacheIncludeKeys = configProvider.getBoolean(IGNITE_CACHE_INCLUDE_KEYS, false);
 
-    obfuscationQueryRegexp = configProvider.getString(OBFUSCATION_QUERY_STRING_REGEXP);
+    obfuscationQueryRegexp =
+        configProvider.getString(
+            OBFUSCATION_QUERY_STRING_REGEXP, null, "obfuscation.query.string.regexp");
 
     playReportHttpStatus = configProvider.getBoolean(PLAY_REPORT_HTTP_STATUS, false);
 
@@ -1676,6 +1687,10 @@ public class Config {
 
   public boolean isPeerServiceDefaultsEnabled() {
     return peerServiceDefaultsEnabled;
+  }
+
+  public boolean isRemoveIntegrationServiceNamesEnabled() {
+    return removeIntegrationServiceNamesEnabled;
   }
 
   public Map<String, String> getPeerServiceMapping() {
@@ -2345,6 +2360,10 @@ public class Config {
             || jmsPropagationDisabledTopics.contains(queueOrTopic));
   }
 
+  public int getJmsUnacknowledgedMaxAge() {
+    return jmsUnacknowledgedMaxAge;
+  }
+
   public boolean isKafkaClientBase64DecodingEnabled() {
     return kafkaClientBase64DecodingEnabled;
   }
@@ -2822,14 +2841,16 @@ public class Config {
 
   public boolean isLegacyTracingEnabled(
       final boolean defaultEnabled, final String... integrationNames) {
-    return configProvider.isEnabled(
-        Arrays.asList(integrationNames), "", ".legacy.tracing.enabled", defaultEnabled);
+    return SpanNaming.instance().namingSchema().allowFakeServices()
+        && configProvider.isEnabled(
+            Arrays.asList(integrationNames), "", ".legacy.tracing.enabled", defaultEnabled);
   }
 
   public boolean isTimeInQueueEnabled(
       final boolean defaultEnabled, final String... integrationNames) {
-    return configProvider.isEnabled(
-        Arrays.asList(integrationNames), "", ".time-in-queue.enabled", defaultEnabled);
+    return SpanNaming.instance().namingSchema().allowFakeServices()
+        && configProvider.isEnabled(
+            Arrays.asList(integrationNames), "", ".time-in-queue.enabled", defaultEnabled);
   }
 
   public boolean isEnabled(

@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.servlet5;
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.VulnerabilityTypes;
+import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
 import datadog.trace.api.iast.source.WebModule;
 import datadog.trace.util.stacktrace.StackUtils;
 import jakarta.servlet.ServletRequest;
@@ -121,5 +123,25 @@ public class JakartaServletRequestCallSite {
       }
     }
     return map;
+  }
+
+  @IastAdvice.Sink(VulnerabilityTypes.UNVALIDATED_REDIRECT)
+  @CallSite.Before(
+      "jakarta.servlet.RequestDispatcher jakarta.servlet.ServletRequest.getRequestDispatcher(java.lang.String)")
+  @CallSite.Before(
+      "jakarta.servlet.RequestDispatcher jakarta.servlet.http.HttpServletRequest.getRequestDispatcher(java.lang.String)")
+  @CallSite.Before(
+      "jakarta.servlet.RequestDispatcher jakarta.servlet.http.HttpServletRequestWrapper.getRequestDispatcher(java.lang.String)")
+  @CallSite.Before(
+      "jakarta.servlet.RequestDispatcher jakarta.servlet.ServletRequestWrapper.getRequestDispatcher(java.lang.String)")
+  public static void beforeRequestDispatcher(@CallSite.Argument final String path) {
+    final UnvalidatedRedirectModule module = InstrumentationBridge.UNVALIDATED_REDIRECT;
+    if (module != null) {
+      try {
+        module.onRedirect(path);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("beforeRequestDispatcher threw", e);
+      }
+    }
   }
 }

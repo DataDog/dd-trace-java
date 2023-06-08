@@ -4,29 +4,44 @@ import datadog.smoketest.springboot.TestBean;
 import ddtest.client.sources.Hasher;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
+import java.io.IOException;
+import java.net.HttpCookie;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
+import java.util.Map;
+import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
+import javax.servlet.ServletException;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.websocket.server.PathParam;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.MatrixVariable;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.view.RedirectView;
+import org.springframework.web.servlet.view.UrlBasedViewResolver;
 
 @RestController
 public class IastWebController {
 
   private final Hasher hasher;
+  private final Random random;
 
   public IastWebController() {
     hasher = new Hasher();
     hasher.sha1();
+    random = new Random();
   }
 
   @RequestMapping("/greeting")
@@ -38,6 +53,73 @@ public class IastWebController {
   public String weakhash() {
     hasher.md5().digest("Message body".getBytes(StandardCharsets.UTF_8));
     return "Weak Hash page";
+  }
+
+  @GetMapping("/insecure_cookie")
+  public String insecureCookie(HttpServletResponse response) {
+    Cookie cookie = new Cookie("user-id", "7");
+    response.addCookie(cookie);
+    response.setStatus(HttpStatus.OK.value());
+    return "Insecure cookie page";
+  }
+
+  @GetMapping("/secure_cookie")
+  public String secureCookie(HttpServletResponse response) {
+    Cookie cookie = new Cookie("user-id", "7");
+    cookie.setSecure(true);
+    response.addCookie(cookie);
+    response.setStatus(HttpStatus.OK.value());
+    return "Insecure cookie page";
+  }
+
+  @GetMapping("/insecure_cookie_from_header")
+  public String insecureCookieFromHeader(HttpServletResponse response) {
+    HttpCookie cookie = new HttpCookie("user-id", "7");
+
+    response.addHeader("Set-Cookie", cookie.toString());
+    response.setStatus(HttpStatus.OK.value());
+    return "Insecure cookie page";
+  }
+
+  @GetMapping("/unvalidated_redirect_from_header")
+  public String unvalidatedRedirectFromHeader(
+      @RequestParam String param, HttpServletResponse response) {
+    response.addHeader("Location", param);
+    response.setStatus(HttpStatus.FOUND.value());
+    return "Unvalidated redirect";
+  }
+
+  @GetMapping("/unvalidated_redirect_from_send_redirect")
+  public String unvalidatedRedirectFromSendRedirect(
+      @RequestParam String param, HttpServletResponse response) throws IOException {
+    response.sendRedirect(param);
+    return "Unvalidated redirect";
+  }
+
+  @GetMapping("/unvalidated_redirect_from_forward")
+  public String unvalidatedRedirectFromForward(
+      @RequestParam String param, HttpServletRequest request, HttpServletResponse response)
+      throws IOException, ServletException {
+    request.getRequestDispatcher(param).forward(request, response);
+    return "Unvalidated redirect";
+  }
+
+  @GetMapping("/unvalidated_redirect_from_redirect_view")
+  public RedirectView unvalidatedRedirectFromRedirectView(
+      @RequestParam String param, HttpServletResponse response) {
+    return new RedirectView(param);
+  }
+
+  @GetMapping("/unvalidated_redirect_from_model_and_view")
+  public ModelAndView unvalidatedRedirectFromModelAndView(
+      @RequestParam String param, HttpServletResponse response) {
+    return new ModelAndView(UrlBasedViewResolver.REDIRECT_URL_PREFIX + param);
+  }
+
+  @GetMapping("/unvalidated_redirect_forward_from_model_and_view")
+  public ModelAndView unvalidatedRedirectForwardFromModelAndView(
+      @RequestParam String param, HttpServletResponse response) {
+    return new ModelAndView(UrlBasedViewResolver.FORWARD_URL_PREFIX + param);
   }
 
   @RequestMapping("/async_weakhash")
@@ -99,6 +181,15 @@ public class IastWebController {
     return "PathParam is: " + param;
   }
 
+  @GetMapping("/matrix/{var1}/{var2}")
+  public String matrixAndPathVariables(
+      @PathVariable String var1,
+      @MatrixVariable(pathVar = "var1") Map<String, String> m1,
+      @PathVariable String var2,
+      @MatrixVariable(pathVar = "var2") Map<String, String> m2) {
+    return "{var1=" + var1 + ", m1=" + m1 + ", var2=" + var2 + ", m2=" + m2 + "}";
+  }
+
   @PostMapping("/request_body/test")
   public String jsonRequestBody(@RequestBody TestBean testBean) {
     return "@RequestBody to Test bean -> name: "
@@ -118,7 +209,6 @@ public class IastWebController {
     return "Cookie is: " + cookie.getName() + "=" + cookie.getValue();
   }
 
-  @SuppressWarnings("CatchMayIgnoreException")
   @PostMapping("/ssrf")
   public String ssrf(@RequestParam("url") final String url) {
     try {
@@ -128,6 +218,19 @@ public class IastWebController {
     } catch (final Exception e) {
     }
     return "Url is: " + url;
+  }
+
+  @GetMapping("/weak_randomness")
+  public String weak_randomness(@RequestParam("mode") final Class<?> mode) {
+    final double result;
+    if (mode == ThreadLocalRandom.class) {
+      result = ThreadLocalRandom.current().nextDouble();
+    } else if (mode == Math.class) {
+      result = Math.random();
+    } else {
+      result = random.nextDouble();
+    }
+    return "Random : " + result;
   }
 
   private void withProcess(final Operation<Process> op) {

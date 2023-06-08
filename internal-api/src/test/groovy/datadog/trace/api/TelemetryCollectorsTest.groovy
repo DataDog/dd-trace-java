@@ -29,7 +29,7 @@ class TelemetryCollectorsTest extends DDSpecification {
 
   def "put-get configurations"() {
     setup:
-    ConfigCollector.get().clear()
+    ConfigCollector.get().collect()
 
     when:
     ConfigCollector.get().put('key1', 'value1')
@@ -37,12 +37,12 @@ class TelemetryCollectorsTest extends DDSpecification {
     ConfigCollector.get().put('key1', 'replaced')
 
     then:
-    ConfigCollector.get() == [key1: 'replaced', key2: 'value2']
+    ConfigCollector.get().collect() == [key1: 'replaced', key2: 'value2']
   }
 
   def "no metrics - drain empty list"() {
     when:
-    WafMetricCollector.get().prepareRequestMetrics()
+    WafMetricCollector.get().prepareMetrics()
 
     then:
     WafMetricCollector.get().drain().isEmpty()
@@ -59,7 +59,7 @@ class TelemetryCollectorsTest extends DDSpecification {
     WafMetricCollector.get().wafRequestTriggered()
     WafMetricCollector.get().wafRequestBlocked()
 
-    WafMetricCollector.get().prepareRequestMetrics()
+    WafMetricCollector.get().prepareMetrics()
 
     then:
     def metrics = WafMetricCollector.get().drain()
@@ -142,7 +142,7 @@ class TelemetryCollectorsTest extends DDSpecification {
     when:
     (0..limit*2).each {
       collector.wafRequest()
-      collector.prepareRequestMetrics()
+      collector.prepareMetrics()
     }
 
     then:
@@ -152,7 +152,7 @@ class TelemetryCollectorsTest extends DDSpecification {
     when:
     (0..limit*2).each {
       collector.wafRequestTriggered()
-      collector.prepareRequestMetrics()
+      collector.prepareMetrics()
     }
 
     then:
@@ -162,7 +162,7 @@ class TelemetryCollectorsTest extends DDSpecification {
     when:
     (0..limit*2).each {
       collector.wafRequestBlocked()
-      collector.prepareRequestMetrics()
+      collector.prepareMetrics()
     }
 
     then:
@@ -172,12 +172,12 @@ class TelemetryCollectorsTest extends DDSpecification {
 
   def "hide pii configuration data"() {
     setup:
-    ConfigCollector.get().clear()
+    ConfigCollector.get().collect()
 
     when:
     ConfigCollector.get().put('DD_API_KEY', 'sensitive data')
 
     then:
-    ConfigCollector.get().get('DD_API_KEY') == '<hidden>'
+    ConfigCollector.get().collect().get('DD_API_KEY') == '<hidden>'
   }
 }

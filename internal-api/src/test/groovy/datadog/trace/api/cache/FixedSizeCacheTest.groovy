@@ -224,8 +224,9 @@ class FixedSizeCacheTest extends DDSpecification {
     where:
     cacheImpl << [
       { capacity -> DDCaches.newFixedSizeCache(capacity) },
+      { capacity -> DDCaches.newUnboundedCache(capacity) },
       { capacity ->
-        DDCaches.newUnboundedCache(capacity) }
+        DDCaches.newFixedSizeWeightedCache(capacity, String.&length, 1000)}
     ]
   }
 
@@ -265,6 +266,138 @@ class FixedSizeCacheTest extends DDSpecification {
     1 |  13    | 37    | "eleven" | "eleven_13_37" | true        | 4     // create new value in 1st occupied slot
     4 |  88    | 11    | "four"   | "four_88_11"   | false       | 4     // create new value in empty slot
     0 |  0     | 0     | null     | null           | false       | 3     // do nothing
+  }
+
+  def "weighted cache should store and retrieve values"() {
+    setup:
+    def fsCache = DDCaches.newFixedSizeWeightedCache(15, String.&length, 50)
+    def creationCount = new AtomicInteger(0)
+    def tvc = new TVC(creationCount)
+    def tk1 = new TKey(1, 1, "one")
+    def tk6 = new TKey(6, 6, "six")
+    def tk10 = new TKey(10, 10, "ten")
+    // insert some values that happen to be the chain of hashes 1 -> 6 -> 10
+    fsCache.computeIfAbsent(tk1, tvc)
+    fsCache.computeIfAbsent(tk6, tvc)
+    fsCache.computeIfAbsent(tk10, tvc)
+
+    expect:
+    fsCache.computeIfAbsent(tk, tvc) == value
+    creationCount.get() == count
+
+    where:
+    tk                        | value          | count
+    new TKey(1, 1, "foo")     | "one_value"    | 3     // used the cached tk1
+    new TKey(1, 6, "foo")     | "six_value"    | 3     // used the cached tk6
+    new TKey(1, 10, "foo")    | "ten_value"    | 3     // used the cached tk10
+    new TKey(6, 6, "foo")     | "six_value"    | 3     // used the cached tk6
+    new TKey(1, 11, "eleven") | "eleven_value" | 4     // create new value in an occupied slot
+    new TKey(4, 4, "four")    | "four_value"   | 4     // create new value in empty slot
+    null                      | null           | 3     // do nothing
+  }
+
+  def "weighted cache should respect total weight limit"() {
+    setup:
+    def fsCache = DDCaches.newFixedSizeWeightedCache(15, String.&length, 33)
+    def tenLetters = "ABCDEFGHIJ"
+    def twentyLetters = "ABCDEFGHIJABCDEFGHIJ"
+    def thirtyLetters = "ABCDEFGHIJABCDEFGHIJABCDEFGHIJ"
+    def fortyLetters = "ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ"
+    def tenDigits = "0123456789"
+    def fortyDashes = "----------------------------------------"
+    def tk1 = new TKey(1, 1, "one")
+    def tk6 = new TKey(6, 6, "six")
+    def tk10 = new TKey(10, 10, "ten")
+    def tk11 = new TKey(1, 11, "eleven")
+
+    when:
+    // insert some values that happen to be the chain of hashes 1 -> 6 -> 10
+    fsCache.computeIfAbsent(tk1, { tenDigits })
+    fsCache.computeIfAbsent(tk6, { tenDigits })
+    fsCache.computeIfAbsent(tk10, { tenDigits })
+
+    then:
+    // all elements cached, cache is at weight limit
+    fsCache.computeIfAbsent(tk1, { fortyDashes }) == tenDigits
+    fsCache.computeIfAbsent(tk6, { fortyDashes }) == tenDigits
+    fsCache.computeIfAbsent(tk10, { fortyDashes }) == tenDigits
+
+    when:
+    // replace tk1 entry with a new tk11 entry of the same size
+    fsCache.computeIfAbsent(tk11, { tenLetters })
+
+    then:
+    // cache reflects change, cache is still at weight limit
+    fsCache.computeIfAbsent(tk6, { fortyDashes }) == tenDigits
+    fsCache.computeIfAbsent(tk10, { fortyDashes }) == tenDigits
+    fsCache.computeIfAbsent(tk11, { fortyDashes }) == tenLetters
+
+    when:
+    // replace tk11 entry with a new tk1 entry that has a longer string
+    fsCache.computeIfAbsent(tk1, { twentyLetters })
+
+    then:
+    // tk1 and tk6 used up the weight limit, so tk10 has been evicted
+    fsCache.computeIfAbsent(tk1, { fortyDashes }) == twentyLetters
+    fsCache.computeIfAbsent(tk6, { fortyDashes }) == tenDigits
+
+    when:
+    // replace recently evicted tk10 with same-length string
+    fsCache.computeIfAbsent(tk10, { tenLetters })
+
+    then:
+    // now tk10 and tk1 use up the weight limit, so tk6 has been evicted
+    fsCache.computeIfAbsent(tk1, { fortyDashes }) == twentyLetters
+    fsCache.computeIfAbsent(tk10, { fortyDashes }) == tenLetters
+
+    when:
+    // replace recently evicted tk6 with same-length string
+    fsCache.computeIfAbsent(tk6, { tenLetters })
+
+    then:
+    // keeping tk6 and tk10 means no space for tk1, so it's been evicted
+    fsCache.computeIfAbsent(tk6, { fortyDashes }) == tenLetters
+    fsCache.computeIfAbsent(tk10, { fortyDashes }) == tenLetters
+
+    when:
+    // replace recently evicted tk1 with shorter string
+    fsCache.computeIfAbsent(tk1, { tenLetters })
+
+    then:
+    // all elements cached, cache is at weight limit
+    fsCache.computeIfAbsent(tk1, { fortyDashes }) == tenLetters
+    fsCache.computeIfAbsent(tk6, { fortyDashes }) == tenLetters
+    fsCache.computeIfAbsent(tk10, { fortyDashes }) == tenLetters
+
+    when:
+    // values already over the weight limit are never cached
+    fsCache.computeIfAbsent(tk11, { fortyLetters })
+
+    then:
+    // previous elements still cached, cache is at weight limit
+    fsCache.computeIfAbsent(tk1, { fortyDashes }) == tenLetters
+    fsCache.computeIfAbsent(tk6, { fortyDashes }) == tenLetters
+    fsCache.computeIfAbsent(tk10, { fortyDashes }) == tenLetters
+
+    when:
+    // add new tk11 entry that uses up the entire weight limit
+    fsCache.computeIfAbsent(tk11, { thirtyLetters })
+
+    then:
+    // tk11 element cached, cache is at weight limit
+    fsCache.computeIfAbsent(tk11, { fortyDashes }) == thirtyLetters
+
+    when:
+    // repopulate the original elements with different strings
+    fsCache.computeIfAbsent(tk1, { tenDigits })
+    fsCache.computeIfAbsent(tk6, { tenDigits })
+    fsCache.computeIfAbsent(tk10, { tenDigits })
+
+    then:
+    // all elements cached, cache is at weight limit
+    fsCache.computeIfAbsent(tk1, { fortyDashes }) == tenDigits
+    fsCache.computeIfAbsent(tk6, { fortyDashes }) == tenDigits
+    fsCache.computeIfAbsent(tk10, { fortyDashes }) == tenDigits
   }
 
   private static TKeyB tKeyB(int hash, int m, int n, String s) {
