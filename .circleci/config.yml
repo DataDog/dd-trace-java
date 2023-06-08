@@ -839,10 +839,18 @@ jobs:
       - run:
           name: Run
           command: |
+            set -e
             cd system-tests/parametric
+            mkdir -p test-results
             export CLIENTS_ENABLED=java
             export PYTEST_WORKER_COUNT=8
-            ./run.sh --log-cli-level=DEBUG --durations=30
+            ./run.sh --log-cli-level=DEBUG --durations=30 -vv --junitxml=test-results/junit.xml
+
+      - store_test_results:
+          path: system-tests/parametric/test-results
+
+      - store_artifacts:
+          path: system-tests/parametric/test-results
 
 build_test_jobs: &build_test_jobs
   - build:
