@@ -1453,11 +1453,12 @@ public class CapturedSnapshotTest {
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
     for (LogProbe probe : logProbes) {
       if (probe.getSampling() != null) {
-        ProbeRateLimiter.setRate(probe.getId(), probe.getSampling().getSnapshotsPerSecond());
+        ProbeRateLimiter.setRate(
+            probe.getId(), probe.getSampling().getSnapshotsPerSecond(), probe.isCaptureSnapshot());
       }
     }
     if (configuration.getSampling() != null) {
-      ProbeRateLimiter.setGlobalRate(configuration.getSampling().getSnapshotsPerSecond());
+      ProbeRateLimiter.setGlobalSnapshotRate(configuration.getSampling().getSnapshotsPerSecond());
     }
     return listener;
   }
