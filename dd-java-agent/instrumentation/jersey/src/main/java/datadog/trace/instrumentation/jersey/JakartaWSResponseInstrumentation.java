@@ -49,7 +49,7 @@ public class JakartaWSResponseInstrumentation extends Instrumenter.Iast
       if (null != headerValue) {
         String value = headerValue.toString();
         if (value.length() > 0) {
-          InstrumentationBridge.onHeader(headerName, value);
+          InstrumentationBridge.RESPONSE_HEADER_MODULE.onHeader(headerName, value);
         }
       }
     }

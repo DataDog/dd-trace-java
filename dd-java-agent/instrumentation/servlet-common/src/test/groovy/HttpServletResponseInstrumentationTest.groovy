@@ -15,6 +15,11 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
     injectSysConfig('dd.iast.enabled', 'true')
   }
 
+  @Override
+  void cleanup() {
+    InstrumentationBridge.clearIastModules()
+  }
+
   void 'insecure cookie added using addCookie'() {
     setup:
     final module = Mock(InsecureCookieModule)
@@ -26,7 +31,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.addCookie(cookie)
 
     then:
-    1 * module.onCookie("user-id", false)
+    1 * module.onCookie('user-id', '7', false, _, _)
     0 * _
   }
 
@@ -42,7 +47,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
     wrapper.addCookie(cookie)
 
     then:
-    1 * request.addCookie(cookie)
+    1 * request.addCookie(_)
     0 * _
   }
 
@@ -58,7 +63,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.addCookie(cookie)
 
     then:
-    1 * module.onCookie('user-id', true)
+    1 * module.onCookie('user-id', '7', true, _, _)
     0 * _
   }
 
@@ -85,7 +90,8 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.addHeader("Set-Cookie", "user-id=7")
 
     then:
-    1 * module.onHeader("Set-Cookie", 'user-id=7')
+    1 * module.onCookie('user-id', '7', _, _, _)
+    0 * _
   }
 
 
@@ -101,7 +107,9 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.setHeader("Set-Cookie", "user-id=7")
 
     then:
-    1 * cookieModule.onHeader('Set-Cookie', 'user-id=7')
+    1 * cookieModule.onCookie('user-id', '7', false, _, _)
+    1 * redirectModule.onHeader("Set-Cookie", "user-id=7")
+    0 * _
   }
 
   void 'unvalidated redirect checked using addHeader'() {
@@ -115,6 +123,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
 
     then:
     1 * redirectModule.onHeader('Location', 'http://dummy.url.com')
+    0 * _
   }
 
 
@@ -129,6 +138,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
 
     then:
     1 * redirectModule.onHeader('Location', 'http://dummy.url.com')
+    0 * _
   }
 
 

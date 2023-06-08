@@ -21,7 +21,7 @@ class Vertx39InsecureCookieTest extends IastVertx39Server {
     then:
     response.code() == 200
     response.body().string() == 'Cookie Set'
-    1 * module.onHeader('Set-Cookie', 'user-id=7')
+    1 * module.onCookie('user-id', '7', false, false, null)
   }
 
   void 'test secure Cookie'(){
@@ -37,6 +37,6 @@ class Vertx39InsecureCookieTest extends IastVertx39Server {
     then:
     response.code() == 200
     response.body().string() == 'Cookie Set'
-    1 * module.onHeader('Set-Cookie', 'user-id=7; Secure')
+    1 * module.onCookie('user-id', '7', true, false, null)
   }
 }

@@ -15,6 +15,11 @@ class JakartaWSResponseInstrumentationTest extends AgentTestRunner {
     injectSysConfig("dd.iast.enabled", "true")
   }
 
+  @Override
+  void cleanup() {
+    InstrumentationBridge.clearIastModules()
+  }
+
   void 'change location header triggers onHeader callback'() {
     setup:
     final redirectionModule = Mock(UnvalidatedRedirectModule)
@@ -22,14 +27,11 @@ class JakartaWSResponseInstrumentationTest extends AgentTestRunner {
     final insecureCookieModule = Mock(InsecureCookieModule)
     InstrumentationBridge.registerIastModule(insecureCookieModule)
 
-
-
     when:
     Response.status(Response.Status.TEMPORARY_REDIRECT).header("Location", "https://dummy.location.com/test")
 
     then:
     1 * redirectionModule.onHeader('Location', 'https://dummy.location.com/test')
-    1 * insecureCookieModule.onHeader('Location', 'https://dummy.location.com/test')
     0 * _
   }
 
@@ -55,7 +57,7 @@ class JakartaWSResponseInstrumentationTest extends AgentTestRunner {
     Response.ok().cookie(new NewCookie("user-id", "7"))
 
     then:
-    1 * module.onHeader('Set-Cookie', 'user-id=7;Version=1')
+    1 * module.onCookie('user-id', '7', _, _, _)
     0 * _
   }
 
@@ -68,8 +70,8 @@ class JakartaWSResponseInstrumentationTest extends AgentTestRunner {
     Response.ok().cookie(new NewCookie("user-id", "7"), new NewCookie("ttt", "1"))
 
     then:
-    1 * module.onHeader('Set-Cookie', 'user-id=7;Version=1')
-    1 * module.onHeader('Set-Cookie', 'ttt=1;Version=1')
+    1 * module.onCookie('user-id', '7', _, _, _)
+    1 * module.onCookie('ttt', '1', _, _, _)
     0 * _
   }
 }

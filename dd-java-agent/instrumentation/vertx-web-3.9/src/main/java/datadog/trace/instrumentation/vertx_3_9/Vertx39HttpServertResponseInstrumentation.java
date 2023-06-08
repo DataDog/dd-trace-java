@@ -42,7 +42,7 @@ public class Vertx39HttpServertResponseInstrumentation extends Instrumenter.Iast
   public static class InstrumenterAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.Argument(0) final Cookie cookie) {
-      InstrumentationBridge.onHeader("Set-Cookie", cookie.encode());
+      InstrumentationBridge.RESPONSE_HEADER_MODULE.onHeader("Set-Cookie", cookie.encode());
     }
   }
 }
