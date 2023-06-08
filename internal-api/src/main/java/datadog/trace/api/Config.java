@@ -483,7 +483,7 @@ public class Config {
   private final Set<TracePropagationStyle> tracePropagationStylesToExtract;
   private final Set<TracePropagationStyle> tracePropagationStylesToInject;
   private final int clockSyncPeriod;
-  private final boolean logInjectionEnabled;
+  private final boolean logsInjectionEnabled;
 
   private final String dogStatsDNamedPipe;
   private final int dogStatsDStartDelay;
@@ -1076,7 +1076,7 @@ public class Config {
 
     clockSyncPeriod = configProvider.getInteger(CLOCK_SYNC_PERIOD, DEFAULT_CLOCK_SYNC_PERIOD);
 
-    logInjectionEnabled =
+    logsInjectionEnabled =
         configProvider.getBoolean(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
 
     dogStatsDNamedPipe = configProvider.getString(DOGSTATSD_NAMED_PIPE);
@@ -1908,7 +1908,7 @@ public class Config {
   }
 
   public boolean isLogsInjectionEnabled() {
-    return logInjectionEnabled;
+    return logsInjectionEnabled;
   }
 
   public boolean isReportHostName() {

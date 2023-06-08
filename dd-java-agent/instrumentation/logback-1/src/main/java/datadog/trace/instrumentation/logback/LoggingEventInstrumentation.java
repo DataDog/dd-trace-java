@@ -80,7 +80,7 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
           InstrumentationContext.get(ILoggingEvent.class, AgentSpan.Context.class).get(event);
 
       // Nothing to add so return early
-      if (context == null && !AgentTracer.traceConfig().isLogInjectionEnabled()) {
+      if (context == null && !AgentTracer.traceConfig().isLogsInjectionEnabled()) {
         return;
       }
 

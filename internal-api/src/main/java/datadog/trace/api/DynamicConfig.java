@@ -45,19 +45,19 @@ public final class DynamicConfig {
     Map<String, String> serviceMapping;
     Map<String, String> taggedHeaders;
     Map<String, String> baggageMapping;
-    boolean logInjectionEnabled;
+    boolean logsInjectionEnabled;
 
     Builder(State state) {
       if (null == state) {
         this.serviceMapping = Collections.emptyMap();
         this.taggedHeaders = Collections.emptyMap();
         this.baggageMapping = Collections.emptyMap();
-        this.logInjectionEnabled = ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
+        this.logsInjectionEnabled = ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
       } else {
         this.serviceMapping = state.serviceMapping;
         this.taggedHeaders = state.taggedHeaders;
         this.baggageMapping = state.baggageMapping;
-        this.logInjectionEnabled = state.logInjectionEnabled;
+        this.logsInjectionEnabled = state.logsInjectionEnabled;
       }
     }
 
@@ -76,8 +76,8 @@ public final class DynamicConfig {
       return this;
     }
 
-    public Builder setLogInjectionEnabled(boolean logInjectionEnabled) {
-      this.logInjectionEnabled = logInjectionEnabled;
+    public Builder setLogsInjectionEnabled(boolean logsInjectionEnabled) {
+      this.logsInjectionEnabled = logsInjectionEnabled;
       return this;
     }
 
@@ -123,13 +123,13 @@ public final class DynamicConfig {
     final Map<String, String> serviceMapping;
     final Map<String, String> taggedHeaders;
     final Map<String, String> baggageMapping;
-    final boolean logInjectionEnabled;
+    final boolean logsInjectionEnabled;
 
     State(Builder builder) {
       this.serviceMapping = builder.serviceMapping;
       this.taggedHeaders = builder.taggedHeaders;
       this.baggageMapping = builder.baggageMapping;
-      this.logInjectionEnabled = builder.logInjectionEnabled;
+      this.logsInjectionEnabled = builder.logsInjectionEnabled;
     }
 
     public Map<String, String> getServiceMapping() {
@@ -144,8 +144,8 @@ public final class DynamicConfig {
       return baggageMapping;
     }
 
-    public boolean isLogInjectionEnabled() {
-      return logInjectionEnabled;
+    public boolean isLogsInjectionEnabled() {
+      return logsInjectionEnabled;
     }
   }
 }

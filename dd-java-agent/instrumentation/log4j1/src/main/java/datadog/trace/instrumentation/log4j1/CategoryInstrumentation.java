@@ -58,7 +58,7 @@ public class CategoryInstrumentation extends Instrumenter.Tracing
       if (span != null) {
         TraceConfig traceConfig = span.traceConfig();
 
-        if (traceConfig != null && traceConfig.isLogInjectionEnabled()) {
+        if (traceConfig != null && traceConfig.isLogsInjectionEnabled()) {
           InstrumentationContext.get(LoggingEvent.class, AgentSpan.Context.class)
               .put(event, span.context());
         }

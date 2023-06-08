@@ -86,7 +86,7 @@ public class ExtLogRecordInstrumentation extends Instrumenter.Tracing
           InstrumentationContext.get(ExtLogRecord.class, AgentSpan.Context.class).get(record);
 
       // Nothing to add so return early
-      if (context == null && !AgentTracer.traceConfig().isLogInjectionEnabled()) {
+      if (context == null && !AgentTracer.traceConfig().isLogsInjectionEnabled()) {
         return;
       }
 
@@ -145,7 +145,7 @@ public class ExtLogRecordInstrumentation extends Instrumenter.Tracing
           InstrumentationContext.get(ExtLogRecord.class, AgentSpan.Context.class).get(record);
 
       // Nothing to add so return early
-      if (context == null && !AgentTracer.traceConfig().isLogInjectionEnabled()) {
+      if (context == null && !AgentTracer.traceConfig().isLogsInjectionEnabled()) {
         return;
       }
 

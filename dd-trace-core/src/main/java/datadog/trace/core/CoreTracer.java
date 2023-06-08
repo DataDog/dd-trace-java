@@ -270,7 +270,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private ProfilingContextIntegration profilingContextIntegration =
         ProfilingContextIntegration.NoOp.INSTANCE;
     private boolean pollForTracingConfiguration;
-    private boolean logInjectionEnabled;
+    private boolean logsInjectionEnabled;
 
     public CoreTracerBuilder serviceName(String serviceName) {
       this.serviceName = serviceName;
@@ -394,8 +394,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
-    public CoreTracerBuilder logInjectionEnabled(boolean logInjectionEnabled) {
-      this.logInjectionEnabled = logInjectionEnabled;
+    public CoreTracerBuilder logsInjectionEnabled(boolean logsInjectionEnabled) {
+      this.logsInjectionEnabled = logsInjectionEnabled;
       return this;
     }
 
@@ -428,7 +428,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       baggageMapping(config.getBaggageMapping());
       partialFlushMinSpans(config.getPartialFlushMinSpans());
       strictTraceWrites(config.isTraceStrictWritesEnabled());
-      logInjectionEnabled(config.isLogsInjectionEnabled());
+      logsInjectionEnabled(config.isLogsInjectionEnabled());
 
       return this;
     }
@@ -459,7 +459,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           dataStreamsMonitoring,
           profilingContextIntegration,
           pollForTracingConfiguration,
-          logInjectionEnabled);
+          logsInjectionEnabled);
     }
   }
 
@@ -489,7 +489,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final DataStreamsMonitoring dataStreamsMonitoring,
       final ProfilingContextIntegration profilingContextIntegration,
       final boolean pollForTracingConfiguration,
-      final boolean logInjectionEnabled) {
+      final boolean logsInjectionEnabled) {
 
     assert localRootSpanTags != null;
     assert defaultSpanTags != null;
@@ -510,7 +510,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             .setServiceMapping(serviceNameMappings)
             .setTaggedHeaders(taggedHeaders)
             .setBaggageMapping(baggageMapping)
-            .setLogInjectionEnabled(logInjectionEnabled)
+            .setLogsInjectionEnabled(logsInjectionEnabled)
             .apply();
     this.sampler = sampler;
     this.injector = injector;

@@ -54,7 +54,7 @@ public class LoggerNodeInstrumentation extends Instrumenter.Tracing
 
       if (span != null) {
         TraceConfig traceConfig = span.traceConfig();
-        if (traceConfig != null && traceConfig.isLogInjectionEnabled()) {
+        if (traceConfig != null && traceConfig.isLogsInjectionEnabled()) {
           InstrumentationContext.get(ExtLogRecord.class, AgentSpan.Context.class)
               .put(record, span.context());
         }

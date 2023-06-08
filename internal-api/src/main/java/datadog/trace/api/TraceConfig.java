@@ -11,5 +11,5 @@ public interface TraceConfig {
 
   Map<String, String> getBaggageMapping();
 
-  boolean isLogInjectionEnabled();
+  boolean isLogsInjectionEnabled();
 }

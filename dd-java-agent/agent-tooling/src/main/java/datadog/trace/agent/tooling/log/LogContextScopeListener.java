@@ -20,7 +20,7 @@ public abstract class LogContextScopeListener
   @Override
   public void afterScopeActivated(
       DDTraceId traceId, long localRootSpanId, long spanId, TraceConfig traceConfig) {
-    if (traceConfig != null && traceConfig.isLogInjectionEnabled()) {
+    if (traceConfig != null && traceConfig.isLogsInjectionEnabled()) {
       add(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
       add(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
     }

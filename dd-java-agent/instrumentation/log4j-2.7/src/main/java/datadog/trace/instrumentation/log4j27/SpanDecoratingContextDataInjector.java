@@ -34,7 +34,7 @@ public final class SpanDecoratingContextDataInjector implements ContextDataInjec
 
     AgentSpan span = activeSpan();
 
-    if (!AgentTracer.traceConfig(activeSpan()).isLogInjectionEnabled()) {
+    if (!AgentTracer.traceConfig(activeSpan()).isLogsInjectionEnabled()) {
       return contextData;
     }
 
