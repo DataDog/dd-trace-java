@@ -95,7 +95,7 @@ excludedClassesCoverage += [
   "datadog.trace.util.PidHelper.Fallback",
   "datadog.trace.api.IntegrationsCollector.Holder",
   "datadog.trace.api.MetricCollector.Holder",
-  "datadog.trace.api.ConfigCollector.Holder",
+  "datadog.trace.api.ConfigCollector",
   "datadog.trace.api.Config.HostNameHolder",
   "datadog.trace.api.Config.RuntimeIdHolder",
   "datadog.trace.api.DynamicConfig",

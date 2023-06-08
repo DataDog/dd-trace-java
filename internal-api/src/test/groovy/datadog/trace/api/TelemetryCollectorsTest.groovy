@@ -29,7 +29,7 @@ class TelemetryCollectorsTest extends DDSpecification {
 
   def "put-get configurations"() {
     setup:
-    ConfigCollector.get().clear()
+    ConfigCollector.get().collect()
 
     when:
     ConfigCollector.get().put('key1', 'value1')
@@ -37,7 +37,7 @@ class TelemetryCollectorsTest extends DDSpecification {
     ConfigCollector.get().put('key1', 'replaced')
 
     then:
-    ConfigCollector.get() == [key1: 'replaced', key2: 'value2']
+    ConfigCollector.get().collect() == [key1: 'replaced', key2: 'value2']
   }
 
   def "no metrics - drain empty list"() {
@@ -172,12 +172,12 @@ class TelemetryCollectorsTest extends DDSpecification {
 
   def "hide pii configuration data"() {
     setup:
-    ConfigCollector.get().clear()
+    ConfigCollector.get().collect()
 
     when:
     ConfigCollector.get().put('DD_API_KEY', 'sensitive data')
 
     then:
-    ConfigCollector.get().get('DD_API_KEY') == '<hidden>'
+    ConfigCollector.get().collect().get('DD_API_KEY') == '<hidden>'
   }
 }

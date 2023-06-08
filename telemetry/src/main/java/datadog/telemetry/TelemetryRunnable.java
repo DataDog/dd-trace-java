@@ -6,6 +6,7 @@ import datadog.trace.api.ConfigCollector;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,7 +59,6 @@ public class TelemetryRunnable implements Runnable {
   public void run() {
     // Ensure that Config has been initialized, so ConfigCollector can collect all settings first.
     Config.get();
-    telemetryService.addConfiguration(ConfigCollector.get());
 
     while (!Thread.interrupted()) {
       try {
@@ -75,6 +75,11 @@ public class TelemetryRunnable implements Runnable {
   }
 
   private void mainLoopIteration() throws InterruptedException {
+    Map<String, Object> collectedConfig = ConfigCollector.get().collect();
+    if (!collectedConfig.isEmpty()) {
+      telemetryService.addConfiguration(collectedConfig);
+    }
+
     // Collect request metrics every N seconds (default 10s)
     final long currentTime = timeSource.getCurrentTimeMillis();
     if (currentTime - lastMetricsIntervalMs >= metricsIntervalMs) {
