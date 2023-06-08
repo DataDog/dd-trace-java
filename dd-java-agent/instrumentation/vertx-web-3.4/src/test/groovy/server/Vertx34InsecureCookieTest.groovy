@@ -26,6 +26,6 @@ class Vertx34InsecureCookieTest extends IastVertx34Server {
     then:
     response.code() == 200
     response.body().string() == 'success'
-    1 * module.onHeader('Set-Cookie', 'user-id=7')
+    1 * module.onCookies(_)
   }
 }

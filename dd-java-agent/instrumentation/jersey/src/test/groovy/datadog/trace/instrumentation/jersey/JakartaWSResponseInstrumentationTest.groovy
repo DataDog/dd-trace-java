@@ -22,14 +22,11 @@ class JakartaWSResponseInstrumentationTest extends AgentTestRunner {
     final insecureCookieModule = Mock(InsecureCookieModule)
     InstrumentationBridge.registerIastModule(insecureCookieModule)
 
-
-
     when:
     Response.status(Response.Status.TEMPORARY_REDIRECT).header("Location", "https://dummy.location.com/test")
 
     then:
     1 * redirectionModule.onHeader('Location', 'https://dummy.location.com/test')
-    1 * insecureCookieModule.onHeader('Location', 'https://dummy.location.com/test')
     0 * _
   }
 
@@ -55,7 +52,7 @@ class JakartaWSResponseInstrumentationTest extends AgentTestRunner {
     Response.ok().cookie(new NewCookie("user-id", "7"))
 
     then:
-    1 * module.onHeader('Set-Cookie', 'user-id=7;Version=1')
+    1 * module.onCookies(_)
     0 * _
   }
 
@@ -68,8 +65,6 @@ class JakartaWSResponseInstrumentationTest extends AgentTestRunner {
     Response.ok().cookie(new NewCookie("user-id", "7"), new NewCookie("ttt", "1"))
 
     then:
-    1 * module.onHeader('Set-Cookie', 'user-id=7;Version=1')
-    1 * module.onHeader('Set-Cookie', 'ttt=1;Version=1')
-    0 * _
+    2 * module.onCookies(_)
   }
 }

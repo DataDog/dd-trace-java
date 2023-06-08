@@ -4,8 +4,8 @@ import datadog.trace.api.iast.IastModule;
 import java.net.HttpCookie;
 import java.util.List;
 
-public interface InsecureCookieModule extends IastModule {
+public interface NoHttpOnlyCookieModule extends IastModule {
   public void onCookies(List<HttpCookie> cookies);
 
-  public void onCookie(String cookieName, boolean isSecure);
+  public void onCookie(String cookieName, boolean isHtmlOnly);
 }

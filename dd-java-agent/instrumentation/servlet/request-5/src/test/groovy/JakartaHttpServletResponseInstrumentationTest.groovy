@@ -2,6 +2,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.sink.InsecureCookieModule
+import datadog.trace.api.iast.sink.NoHttpOnlyCookieModule
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
 import foo.bar.smoketest.DummyResponse
 import jakarta.servlet.http.Cookie
@@ -84,13 +85,14 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.addHeader("Set-Cookie", "user-id=7")
 
     then:
-    1 * module.onHeader('Set-Cookie', 'user-id=7')
+    1 * module.onCookies(_)
   }
 
   void 'null parameters added using addHeader'() {
     setup:
-    final module = Mock(InsecureCookieModule)
-    InstrumentationBridge.registerIastModule(module)
+    InstrumentationBridge.registerIastModule(Mock(InsecureCookieModule))
+    InstrumentationBridge.registerIastModule(Mock(NoHttpOnlyCookieModule))
+    InstrumentationBridge.registerIastModule(Mock(UnvalidatedRedirectModule))
     final response = new DummyResponse()
 
     when:
@@ -98,7 +100,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
 
     then:
     noExceptionThrown()
-    0 * module.onHeader(null, null)
+    0 * _
   }
 
   void 'insecure cookie added using setHeader'() {
@@ -111,13 +113,14 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.setHeader("Set-Cookie", "user-id=7")
 
     then:
-    1 * module.onHeader('Set-Cookie', 'user-id=7')
+    1 * module.onCookies(_)
   }
 
   void 'null parameters added using setHeader'() {
     setup:
-    final module = Mock(InsecureCookieModule)
-    InstrumentationBridge.registerIastModule(module)
+    InstrumentationBridge.registerIastModule(Mock(InsecureCookieModule))
+    InstrumentationBridge.registerIastModule(Mock(NoHttpOnlyCookieModule))
+    InstrumentationBridge.registerIastModule(Mock(UnvalidatedRedirectModule))
     final response = new DummyResponse()
 
     when:
@@ -125,7 +128,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
 
     then:
     noExceptionThrown()
-    0 * module.onHeader(null, null)
+    0 * _
   }
 
   void 'unvalidated redirect checked using addHeader'() {

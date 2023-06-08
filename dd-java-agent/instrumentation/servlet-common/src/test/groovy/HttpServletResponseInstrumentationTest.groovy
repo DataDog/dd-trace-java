@@ -42,7 +42,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
     wrapper.addCookie(cookie)
 
     then:
-    1 * request.addCookie(cookie)
+    1 * request.addCookie(_)
     0 * _
   }
 
@@ -85,7 +85,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.addHeader("Set-Cookie", "user-id=7")
 
     then:
-    1 * module.onHeader("Set-Cookie", 'user-id=7')
+    1 * module.onCookies(_)
   }
 
 
@@ -101,7 +101,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.setHeader("Set-Cookie", "user-id=7")
 
     then:
-    1 * cookieModule.onHeader('Set-Cookie', 'user-id=7')
+    1 * cookieModule.onCookies(_)
   }
 
   void 'unvalidated redirect checked using addHeader'() {

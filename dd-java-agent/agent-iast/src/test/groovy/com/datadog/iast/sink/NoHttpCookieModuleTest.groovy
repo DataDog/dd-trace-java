@@ -10,18 +10,18 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import groovy.transform.CompileDynamic
 
 @CompileDynamic
-class InsecureCookieModuleTest extends IastModuleImplTestBase {
+class NoHttpCookieModuleTest extends IastModuleImplTestBase {
 
   private List<Object> objectHolder
 
   private IastRequestContext ctx
 
-  private InsecureCookieModuleImpl module
+  private NoHttpOnlyCookieModuleImpl module
 
   private AgentSpan span
 
   def setup() {
-    module = registerDependencies(new InsecureCookieModuleImpl())
+    module = registerDependencies(new NoHttpOnlyCookieModuleImpl())
     objectHolder = []
     ctx = new IastRequestContext()
     final reqCtx = Mock(RequestContext) {
@@ -33,7 +33,7 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
     }
   }
 
-  void 'report insecure cookie with InsecureCookieModule.onCookies'() {
+  void 'report NoHttp cookie with InsecureCookieModule.onCookies'() {
     given:
     Vulnerability savedVul
 
@@ -45,7 +45,7 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
     1 * overheadController.consumeQuota(_, _) >> true
     1 * reporter.report(_, _ as Vulnerability) >> { savedVul = it[1] }
     with(savedVul) {
-      type == VulnerabilityType.INSECURE_COOKIE
+      type == VulnerabilityType.NO_HTTP_ONLY_COOKIE
       location != null
       with(evidence) {
         value == expected
@@ -56,20 +56,19 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
     cookieValue | expected
     "user-id=7" | "user-id"
   }
-
-  void 'report insecure cookie with InsecureCookieModule.onCookie'() {
+  void 'report insecure cookie with NoHttpOnlyCookieModule.onCookie'() {
     given:
     Vulnerability savedVul
 
     when:
-    module.onCookie(cookieName, isSecure)
+    module.onCookie(cookieName, isHttpOnly)
 
     then:
     1 * tracer.activeSpan() >> span
     1 * overheadController.consumeQuota(_, _) >> true
     1 * reporter.report(_, _ as Vulnerability) >> { savedVul = it[1] }
     with(savedVul) {
-      type == VulnerabilityType.INSECURE_COOKIE
+      type == VulnerabilityType.NO_HTTP_ONLY_COOKIE
       location != null
       with(evidence) {
         value == expected
@@ -77,11 +76,11 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
     }
 
     where:
-    cookieName | isSecure | expected
+    cookieName | isHttpOnly | expected
     "user-id" | false | "user-id"
   }
 
-  void 'cases where nothing is  not reported during InsecureCookieModuleTest.onCookies'() {
+  void 'cases where nothing is reported during NoHttpModuleCookie.onCookies'() {
 
     when:
     module.onCookies(HttpCookie.parse(cookieValue))
@@ -93,14 +92,14 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
 
     where:
     cookieValue         | _
-    "user-id=7; Secure" | _
-    "user-id=7;Secure"  | _
+    "user-id=7; HttpOnly" | _
+    "user-id=7;HttpOnly"  | _
   }
 
-  void 'insecure cookie is not reported with InsecureCookieModule.onCookie'() {
+  void 'insecure no http only is not reported with NoHttpOnlyCookieModule.onCookie'() {
 
     when:
-    module.onCookie(cookieName, isSecure)
+    module.onCookie(cookieName, isHttpOnly)
 
     then:
     0 * tracer.activeSpan() >> span
@@ -108,7 +107,7 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
     0 * reporter.report(_, _ as Vulnerability) >> { savedVul = it[1] }
 
     where:
-    cookieName | isSecure
+    cookieName | isHttpOnly
     "user-id" | true
   }
 }

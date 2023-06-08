@@ -1,18 +1,8 @@
 package datadog.trace.api.iast
 
-
 import datadog.trace.api.iast.propagation.CodecModule
 import datadog.trace.api.iast.propagation.StringModule
-import datadog.trace.api.iast.sink.CommandInjectionModule
-import datadog.trace.api.iast.sink.InsecureCookieModule
-import datadog.trace.api.iast.sink.LdapInjectionModule
-import datadog.trace.api.iast.sink.PathTraversalModule
-import datadog.trace.api.iast.sink.SqlInjectionModule
-import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
-import datadog.trace.api.iast.sink.SsrfModule
-import datadog.trace.api.iast.sink.WeakCipherModule
-import datadog.trace.api.iast.sink.WeakHashModule
-import datadog.trace.api.iast.sink.WeakRandomnessModule
+import datadog.trace.api.iast.sink.*
 import datadog.trace.api.iast.source.WebModule
 import datadog.trace.test.util.DDSpecification
 
@@ -77,20 +67,35 @@ class InstrumentationBridgeTest extends DDSpecification {
     InstrumentationBridge.onHeader("name", "value")
 
     then:
-    1 * insecureCookieModule.onHeader("name", "value")
     1 * unvalidatedRedirectModule.onHeader("name", "value")
+  }
+
+  void 'Cookie modules  are called on header callback'() {
+    setup:
+    final insecureCookieModule = Mock(InsecureCookieModule)
+    InstrumentationBridge.registerIastModule(insecureCookieModule)
+    final noHttpOnlyCookieModule = Mock(NoHttpOnlyCookieModule)
+    InstrumentationBridge.registerIastModule(noHttpOnlyCookieModule)
+    final unvalidatedRedirectModule = Mock(UnvalidatedRedirectModule)
+    InstrumentationBridge.registerIastModule(unvalidatedRedirectModule)
+
+    when:
+    InstrumentationBridge.onHeader("Set-Cookie", "UserId=1")
+
+    then:
+    1 * insecureCookieModule.onCookies(_)
+    1 * noHttpOnlyCookieModule.onCookies(_)
+    1 * unvalidatedRedirectModule.onHeader("Set-Cookie", "UserId=1")
   }
 
   void 'unregistered HttpHeaderModules are not called on header callback'() {
     setup:
-    final insecureCookieModule = Mock(InsecureCookieModule)
     final unvalidatedRedirectModule = Mock(UnvalidatedRedirectModule)
 
     when:
     InstrumentationBridge.onHeader("name", "value")
 
     then:
-    0 * insecureCookieModule.onHeader("name", "value")
     0 * unvalidatedRedirectModule.onHeader("name", "value")
   }
 }

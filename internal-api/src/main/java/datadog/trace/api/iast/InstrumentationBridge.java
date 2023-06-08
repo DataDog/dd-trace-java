@@ -6,6 +6,7 @@ import datadog.trace.api.iast.propagation.StringModule;
 import datadog.trace.api.iast.sink.CommandInjectionModule;
 import datadog.trace.api.iast.sink.InsecureCookieModule;
 import datadog.trace.api.iast.sink.LdapInjectionModule;
+import datadog.trace.api.iast.sink.NoHttpOnlyCookieModule;
 import datadog.trace.api.iast.sink.PathTraversalModule;
 import datadog.trace.api.iast.sink.SqlInjectionModule;
 import datadog.trace.api.iast.sink.SsrfModule;
@@ -14,6 +15,8 @@ import datadog.trace.api.iast.sink.WeakCipherModule;
 import datadog.trace.api.iast.sink.WeakHashModule;
 import datadog.trace.api.iast.sink.WeakRandomnessModule;
 import datadog.trace.api.iast.source.WebModule;
+import java.net.HttpCookie;
+import java.util.List;
 
 /** Bridge between instrumentations and {@link IastModule} instances. */
 public abstract class InstrumentationBridge {
@@ -29,6 +32,7 @@ public abstract class InstrumentationBridge {
   public static volatile LdapInjectionModule LDAP_INJECTION;
   public static volatile PropagationModule PROPAGATION;
   public static volatile InsecureCookieModule INSECURE_COOKIE;
+  public static volatile NoHttpOnlyCookieModule NO_HTTP_ONLY_COOKIE;
   public static volatile SsrfModule SSRF;
   public static volatile UnvalidatedRedirectModule UNVALIDATED_REDIRECT;
   public static volatile WeakRandomnessModule WEAK_RANDOMNESS;
@@ -58,6 +62,8 @@ public abstract class InstrumentationBridge {
       PROPAGATION = (PropagationModule) module;
     } else if (module instanceof InsecureCookieModule) {
       INSECURE_COOKIE = (InsecureCookieModule) module;
+    } else if (module instanceof NoHttpOnlyCookieModule) {
+      NO_HTTP_ONLY_COOKIE = (NoHttpOnlyCookieModule) module;
     } else if (module instanceof SsrfModule) {
       SSRF = (SsrfModule) module;
     } else if (module instanceof UnvalidatedRedirectModule) {
@@ -105,6 +111,9 @@ public abstract class InstrumentationBridge {
     if (type == InsecureCookieModule.class) {
       return (E) INSECURE_COOKIE;
     }
+    if (type == NoHttpOnlyCookieModule.class) {
+      return (E) NO_HTTP_ONLY_COOKIE;
+    }
     if (type == SsrfModule.class) {
       return (E) SSRF;
     }
@@ -130,17 +139,42 @@ public abstract class InstrumentationBridge {
     LDAP_INJECTION = null;
     PROPAGATION = null;
     INSECURE_COOKIE = null;
+    NO_HTTP_ONLY_COOKIE = null;
     SSRF = null;
     UNVALIDATED_REDIRECT = null;
     WEAK_RANDOMNESS = null;
   }
 
   public static void onHeader(final String name, final String value) {
-    if (INSECURE_COOKIE != null) {
-      INSECURE_COOKIE.onHeader(name, value);
+    if (null != name && "Set-Cookie".equalsIgnoreCase(name)) {
+      if (INSECURE_COOKIE != null || NO_HTTP_ONLY_COOKIE != null) {
+        try {
+          List<HttpCookie> cookies = HttpCookie.parse(value);
+          if (INSECURE_COOKIE != null) {
+            INSECURE_COOKIE.onCookies(cookies);
+          }
+          if (NO_HTTP_ONLY_COOKIE != null) {
+            NO_HTTP_ONLY_COOKIE.onCookies(cookies);
+          }
+        } catch (IllegalArgumentException iae) {
+          // cookie is not parseable, ignore
+        }
+      }
     }
     if (UNVALIDATED_REDIRECT != null) {
       UNVALIDATED_REDIRECT.onHeader(name, value);
+    }
+  }
+
+  public static void onCookie(
+      final String cookieName, final boolean isSecure, final boolean isHtmlOnly) {
+    if (null != cookieName && cookieName.length() > 0) {
+      if (INSECURE_COOKIE != null) {
+        INSECURE_COOKIE.onCookie(cookieName, isSecure);
+      }
+      if (NO_HTTP_ONLY_COOKIE != null) {
+        NO_HTTP_ONLY_COOKIE.onCookie(cookieName, isHtmlOnly);
+      }
     }
   }
 }

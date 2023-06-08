@@ -12,7 +12,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import datadog.trace.api.iast.sink.InsecureCookieModule;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
 import javax.servlet.http.Cookie;
 import net.bytebuddy.asm.Advice;
@@ -58,11 +57,8 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Iast
   public static class AddCookieAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.Argument(0) final Cookie cookie) {
-      final InsecureCookieModule module = InstrumentationBridge.INSECURE_COOKIE;
-      if (module != null) {
-        if (null != cookie) {
-          module.onCookie(cookie.getName(), cookie.getSecure());
-        }
+      if (null != cookie) {
+        InstrumentationBridge.onCookie(cookie.getName(), cookie.getSecure(), false);
       }
     }
   }
