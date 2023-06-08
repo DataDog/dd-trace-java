@@ -175,7 +175,7 @@ class CoreTracerTest extends DDCoreSpecification {
     when:
     def tracer = tracerBuilder().build()
     // Datadog extractor gets placed first
-    def taggedHeaders = tracer.extractor.extractors[0].traceConfigSupplier.get().getHeaderTags
+    def taggedHeaders = tracer.extractor.extractors[0].traceConfigSupplier.get().headerTags
 
     then:
     tracer.defaultSpanTags == map
