@@ -113,6 +113,7 @@ class SparkTest extends AgentTestRunner {
     }
     catch (Exception ignored) {}
 
+    blockUntilChildSpansFinished(3)
     sparkSession.stop()
 
     expect:
