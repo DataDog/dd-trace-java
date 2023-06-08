@@ -92,7 +92,7 @@ public final class DynamicConfig {
 
     /** Overwrites the current configuration with a new snapshot. */
     public DynamicConfig apply() {
-      State newState = new State(this);
+      State newState = new State(this, initialState);
       State oldState = currentState;
       if (null == oldState) {
         initialState = newState; // captured when constructing the dynamic config
@@ -116,20 +116,33 @@ public final class DynamicConfig {
     final Map<String, String> headerTags;
     final Map<String, String> baggageMapping;
 
-    State(Builder builder) {
+    private final boolean overrideResponseTags;
+
+    State(Builder builder, State initialState) {
       this.serviceMapping = builder.serviceMapping;
       this.headerTags = builder.headerTags;
       this.baggageMapping = builder.baggageMapping;
+
+      // also apply headerTags to response headers if the initial reference has been overridden
+      this.overrideResponseTags = null != initialState && headerTags != initialState.headerTags;
     }
 
+    @Override
     public Map<String, String> getServiceMapping() {
       return serviceMapping;
     }
 
+    @Override
     public Map<String, String> getHeaderTags() {
       return headerTags;
     }
 
+    @Override
+    public Map<String, String> getResponseHeaderTags() {
+      return overrideResponseTags ? headerTags : Config.get().getResponseHeaderTags();
+    }
+
+    @Override
     public Map<String, String> getBaggageMapping() {
       return baggageMapping;
     }

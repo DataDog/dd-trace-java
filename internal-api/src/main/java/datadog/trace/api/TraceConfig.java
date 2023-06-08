@@ -9,5 +9,7 @@ public interface TraceConfig {
 
   Map<String, String> getHeaderTags();
 
+  Map<String, String> getResponseHeaderTags();
+
   Map<String, String> getBaggageMapping();
 }

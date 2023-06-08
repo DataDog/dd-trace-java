@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.appsec.api.blocking.BlockingException;
@@ -309,7 +310,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       AgentPropagation.ContextVisitor<RESPONSE> getter = responseGetter();
       if (getter != null) {
         ResponseHeaderTagClassifier tagger =
-            ResponseHeaderTagClassifier.create(span, Config.get().getResponseHeaderTags());
+            ResponseHeaderTagClassifier.create(span, traceConfig(span).getResponseHeaderTags());
         if (tagger != null) {
           getter.forEachKey(response, tagger);
         }
