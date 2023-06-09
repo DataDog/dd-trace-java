@@ -5,6 +5,7 @@ import static datadog.trace.api.config.TracerConfig.HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -59,24 +60,40 @@ public final class DynamicConfig {
     }
 
     public Builder setServiceMapping(Map<String, String> serviceMapping) {
+      return setServiceMapping(serviceMapping.entrySet());
+    }
+
+    public Builder setHeaderTags(Map<String, String> headerTags) {
+      return setHeaderTags(headerTags.entrySet());
+    }
+
+    public Builder setBaggageMapping(Map<String, String> baggageMapping) {
+      return setBaggageMapping(baggageMapping.entrySet());
+    }
+
+    public Builder setServiceMapping(
+        Collection<? extends Map.Entry<String, String>> serviceMapping) {
       this.serviceMapping = cleanMapping(serviceMapping, false, false);
       return this;
     }
 
-    public Builder setHeaderTags(Map<String, String> headerTags) {
+    public Builder setHeaderTags(Collection<? extends Map.Entry<String, String>> headerTags) {
       this.headerTags = cleanMapping(headerTags, true, true);
       return this;
     }
 
-    public Builder setBaggageMapping(Map<String, String> baggageMapping) {
+    public Builder setBaggageMapping(
+        Collection<? extends Map.Entry<String, String>> baggageMapping) {
       this.baggageMapping = cleanMapping(baggageMapping, true, false);
       return this;
     }
 
     private Map<String, String> cleanMapping(
-        Map<String, String> mapping, boolean lowerCaseKeys, boolean lowerCaseValues) {
+        Collection<? extends Map.Entry<String, String>> mapping,
+        boolean lowerCaseKeys,
+        boolean lowerCaseValues) {
       final Map<String, String> cleanedMapping = new HashMap<>(mapping.size() * 4 / 3);
-      for (Map.Entry<String, String> association : mapping.entrySet()) {
+      for (Map.Entry<String, String> association : mapping) {
         String key = association.getKey().trim();
         if (lowerCaseKeys) {
           key = key.toLowerCase();
