@@ -92,7 +92,11 @@ public class AppSecSystem {
     STARTED.set(true);
 
     String startedAppSecModules = Strings.join(", ", STARTED_MODULES_INFO.values());
-    log.info("AppSec is {} with {}", appSecEnabledConfig, startedAppSecModules);
+    if (appSecEnabledConfig == ProductActivation.FULLY_ENABLED) {
+      log.info("AppSec is {} with {}", appSecEnabledConfig, startedAppSecModules);
+    } else {
+      log.debug("AppSec is {} with {}", appSecEnabledConfig, startedAppSecModules);
+    }
   }
 
   private static RateLimiter getRateLimiter(Config config, Monitoring monitoring) {
