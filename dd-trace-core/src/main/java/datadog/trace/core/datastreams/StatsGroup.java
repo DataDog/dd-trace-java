@@ -12,6 +12,9 @@ public class StatsGroup {
   private final long parentHash;
   private final DDSketch pathwayLatency;
   private final DDSketch edgeLatency;
+  private long fanIns;
+  private long fanOuts;
+  private long dropped;
 
   public StatsGroup(List<String> edgeTags, long hash, long parentHash) {
     this.edgeTags = edgeTags;
@@ -19,11 +22,25 @@ public class StatsGroup {
     this.parentHash = parentHash;
     pathwayLatency = Histograms.newHistogram();
     edgeLatency = Histograms.newHistogram();
+    fanIns = 0;
+    fanOuts = 0;
+    dropped = 0;
   }
 
-  public void add(long pathwayLatencyNano, long edgeLatencyNano) {
-    pathwayLatency.accept(((double) pathwayLatencyNano) / NANOSECONDS_TO_SECOND);
-    edgeLatency.accept(((double) edgeLatencyNano) / NANOSECONDS_TO_SECOND);
+  public void add(long pathwayLatencyNano, long edgeLatencyNano, boolean isFanIn, boolean isFanOut, boolean isDropped, boolean ignoreLatencies) {
+    if (!ignoreLatencies) {
+      pathwayLatency.accept(((double) pathwayLatencyNano) / NANOSECONDS_TO_SECOND);
+      edgeLatency.accept(((double) edgeLatencyNano) / NANOSECONDS_TO_SECOND);
+    }
+    if (isFanIn) {
+      fanIns++;
+    }
+    if (isFanOut) {
+      fanOuts++;
+    }
+    if (isDropped) {
+      dropped++;
+    }
   }
 
   public List<String> getEdgeTags() {

@@ -473,6 +473,9 @@ public class AgentTracer {
         String type, String target, DataStreamsContextCarrier carrier) {}
 
     @Override
+    public void markTerminated() {}
+    
+    @Override
     public Timer getTimer() {
       return Timer.NoOp.INSTANCE;
     }

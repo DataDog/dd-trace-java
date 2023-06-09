@@ -42,9 +42,9 @@ public class DefaultDataStreamsMonitoring
   static final long FEATURE_CHECK_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
 
   private static final StatsPoint REPORT =
-      new StatsPoint(Collections.<String>emptyList(), 0, 0, 0, 0, 0);
+      new StatsPoint(Collections.<String>emptyList(), 0, 0, 0, 0, 0, false, false, false, false);
   private static final StatsPoint POISON_PILL =
-      new StatsPoint(Collections.<String>emptyList(), 0, 0, 0, 0, 0);
+      new StatsPoint(Collections.<String>emptyList(), 0, 0, 0, 0, 0, false, false, false, false);
 
   private final Map<Long, StatsBucket> timeToBucket = new HashMap<>();
   private final BlockingQueue<InboxItem> inbox = new MpscBlockingConsumerArrayQueue<>(1024);

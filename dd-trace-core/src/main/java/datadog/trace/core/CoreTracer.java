@@ -1103,6 +1103,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
+  public void markTerminated() {
+
+  }
+
+  @Override
   public void addScopeListener(final ScopeListener listener) {
     if (scopeManager instanceof ContinuableScopeManager) {
       ((ContinuableScopeManager) scopeManager).addScopeListener(listener);

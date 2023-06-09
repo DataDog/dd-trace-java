@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
@@ -45,6 +46,7 @@ public class DefaultPathwayContext implements PathwayContext {
   private long edgeStartNanoTicks;
   private long hash;
   private boolean started;
+  private AtomicInteger numChildren;
   // state variables used to memoize the pathway hash with
   // direction != current direction
   private long closestOppositeDirectionHash;
@@ -62,6 +64,7 @@ public class DefaultPathwayContext implements PathwayContext {
   public DefaultPathwayContext(TimeSource timeSource, WellKnownTags wellKnownTags) {
     this.timeSource = timeSource;
     this.wellKnownTags = wellKnownTags;
+    this.numChildren = new AtomicInteger();
   }
 
   private DefaultPathwayContext(
@@ -79,6 +82,7 @@ public class DefaultPathwayContext implements PathwayContext {
     this.hash = hash;
     this.closestOppositeDirectionHash = hash;
     this.started = true;
+    this.numChildren = new AtomicInteger();
   }
 
   @Override
@@ -98,6 +102,10 @@ public class DefaultPathwayContext implements PathwayContext {
     long nanoTicks = timeSource.getNanoTicks();
     lock.lock();
     try {
+      boolean fanOut = false;
+      if (numChildren.incrementAndGet() > 1) {
+        fanOut = true;
+      }
       // So far, each tag key has only one tag value, so we're initializing the capacity to match
       // the number of tag keys for now. We should revisit this later if it's no longer the case.
       List<String> allTags = new ArrayList<>(sortedTags.size());
@@ -149,7 +157,11 @@ public class DefaultPathwayContext implements PathwayContext {
               hash,
               timeSource.getCurrentTimeNanos(),
               pathwayLatencyNano,
-              edgeLatencyNano);
+              edgeLatencyNano,
+              /*fanIn=*/false,
+              fanOut,
+              /*dropped=*/false,
+              /*ignoreLatencies=*/false);
       edgeStartNanoTicks = nanoTicks;
       hash = newHash;
 
