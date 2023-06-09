@@ -175,7 +175,7 @@ class CoreTracerTest extends DDCoreSpecification {
     when:
     def tracer = tracerBuilder().build()
     // Datadog extractor gets placed first
-    def taggedHeaders = tracer.extractor.extractors[0].traceConfigSupplier.get().taggedHeaders
+    def taggedHeaders = tracer.extractor.extractors[0].traceConfigSupplier.get().headerTags
 
     then:
     tracer.defaultSpanTags == map
@@ -428,18 +428,41 @@ class CoreTracerTest extends DDCoreSpecification {
     }
     and:
     tracer.captureTraceConfig().serviceMapping == [:]
+    tracer.captureTraceConfig().headerTags == [:]
 
     when:
-    updater.accept(key, '{"tracing_service_mapping":{"foo":"bar"}}'.getBytes(StandardCharsets.UTF_8), null)
+    updater.accept(key, '''
+      {
+        "tracing_service_mapping":
+        [{
+           "from_name": "foobar",
+           "to_name": "bar"
+        }, {
+           "from_name": "snafu",
+           "to_name": "foo"
+        }]
+        ,
+        "tracing_header_tags":
+        [{
+           "header": "User-Agent",
+           "tag_name": "http.user_agent"
+        }, {
+           "header": "Referer",
+           "tag_name": "http.referer"
+        }]
+      }
+      '''.getBytes(StandardCharsets.UTF_8), null)
 
     then:
-    tracer.captureTraceConfig().serviceMapping == ['foo':'bar']
+    tracer.captureTraceConfig().serviceMapping == ['foobar':'bar', 'snafu':'foo']
+    tracer.captureTraceConfig().headerTags == ['user-agent':'http.user_agent', 'referer':'http.referer']
 
     when:
     updater.remove(key, null)
 
     then:
     tracer.captureTraceConfig().serviceMapping == [:]
+    tracer.captureTraceConfig().headerTags == [:]
 
     cleanup:
     tracer.close()

@@ -508,7 +508,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.dynamicConfig =
         DynamicConfig.create()
             .setServiceMapping(serviceNameMappings)
-            .setTaggedHeaders(taggedHeaders)
+            .setHeaderTags(taggedHeaders)
             .setBaggageMapping(baggageMapping)
             .setLogsInjectionEnabled(logsInjectionEnabled)
             .apply();
