@@ -91,6 +91,7 @@ include ':utils:version-utils'
 // smoke tests
 include ':dd-smoke-tests:cli'
 include ':dd-smoke-tests:custom-systemloader'
+include ':dd-smoke-tests:dynamic-config'
 include ':dd-smoke-tests:field-injection'
 include ':dd-smoke-tests:gradle'
 include ':dd-smoke-tests:java9-modules'
