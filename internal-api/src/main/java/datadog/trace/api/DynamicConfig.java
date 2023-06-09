@@ -43,17 +43,17 @@ public final class DynamicConfig {
   public final class Builder {
 
     Map<String, String> serviceMapping;
-    Map<String, String> taggedHeaders;
+    Map<String, String> headerTags;
     Map<String, String> baggageMapping;
 
     Builder(State state) {
       if (null == state) {
         this.serviceMapping = Collections.emptyMap();
-        this.taggedHeaders = Collections.emptyMap();
+        this.headerTags = Collections.emptyMap();
         this.baggageMapping = Collections.emptyMap();
       } else {
         this.serviceMapping = state.serviceMapping;
-        this.taggedHeaders = state.taggedHeaders;
+        this.headerTags = state.headerTags;
         this.baggageMapping = state.baggageMapping;
       }
     }
@@ -63,8 +63,8 @@ public final class DynamicConfig {
       return this;
     }
 
-    public Builder setTaggedHeaders(Map<String, String> taggedHeaders) {
-      this.taggedHeaders = cleanMapping(taggedHeaders, true, true);
+    public Builder setHeaderTags(Map<String, String> headerTags) {
+      this.headerTags = cleanMapping(headerTags, true, true);
       return this;
     }
 
@@ -92,7 +92,7 @@ public final class DynamicConfig {
 
     /** Overwrites the current configuration with a new snapshot. */
     public DynamicConfig apply() {
-      State newState = new State(this);
+      State newState = new State(this, initialState);
       State oldState = currentState;
       if (null == oldState) {
         initialState = newState; // captured when constructing the dynamic config
@@ -101,7 +101,7 @@ public final class DynamicConfig {
         currentState = newState;
         Map<String, Object> update = new HashMap<>();
         update.put(SERVICE_MAPPING, newState.serviceMapping);
-        update.put(HEADER_TAGS, newState.taggedHeaders);
+        update.put(HEADER_TAGS, newState.headerTags);
         update.put(BAGGAGE_MAPPING, newState.baggageMapping);
         ConfigCollector.get().putAll(update);
       }
@@ -113,23 +113,36 @@ public final class DynamicConfig {
   static final class State implements TraceConfig {
 
     final Map<String, String> serviceMapping;
-    final Map<String, String> taggedHeaders;
+    final Map<String, String> headerTags;
     final Map<String, String> baggageMapping;
 
-    State(Builder builder) {
+    private final boolean overrideResponseTags;
+
+    State(Builder builder, State initialState) {
       this.serviceMapping = builder.serviceMapping;
-      this.taggedHeaders = builder.taggedHeaders;
+      this.headerTags = builder.headerTags;
       this.baggageMapping = builder.baggageMapping;
+
+      // also apply headerTags to response headers if the initial reference has been overridden
+      this.overrideResponseTags = null != initialState && headerTags != initialState.headerTags;
     }
 
+    @Override
     public Map<String, String> getServiceMapping() {
       return serviceMapping;
     }
 
-    public Map<String, String> getTaggedHeaders() {
-      return taggedHeaders;
+    @Override
+    public Map<String, String> getHeaderTags() {
+      return headerTags;
     }
 
+    @Override
+    public Map<String, String> getResponseHeaderTags() {
+      return overrideResponseTags ? headerTags : Config.get().getResponseHeaderTags();
+    }
+
+    @Override
     public Map<String, String> getBaggageMapping() {
       return baggageMapping;
     }
