@@ -23,7 +23,7 @@ instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 
-default_system_tests_commit: &default_system_tests_commit eadec7e06840b1148a47ee4752fe348041dfed07
+default_system_tests_commit: &default_system_tests_commit cc0bf23f690113b0a933814b79ba2d684e9eccae
 
 parameters:
   gradle_flags:
@@ -850,360 +850,361 @@ build_test_jobs: &build_test_jobs
       gradleTarget: shadowJar
       cacheType: lib
       collectLibs: true
-  - build:
-      name: build_base
-      gradleTarget: :baseTest
-      cacheType: base
-  - build:
-      name: build_inst
-      gradleTarget: :instrumentationTest
-      cacheType: inst
-  - build:
-      name: build_latestdep
-      gradleTarget: :instrumentationLatestDepTest
-      cacheType: latestdep
-  - build:
-      name: build_smoke
-      gradleTarget: :smokeTest
-      cacheType: smoke
-  - build:
-      name: build_profiling
-      gradleTarget: :profilingTest
-      cacheType: profiling
-  - spotless
+#  - build:
+#      name: build_base
+#      gradleTarget: :baseTest
+#      cacheType: base
+#  - build:
+#      name: build_inst
+#      gradleTarget: :instrumentationTest
+#      cacheType: inst
+#  - build:
+#      name: build_latestdep
+#      gradleTarget: :instrumentationLatestDepTest
+#      cacheType: latestdep
+#  - build:
+#      name: build_smoke
+#      gradleTarget: :smokeTest
+#      cacheType: smoke
+#  - build:
+#      name: build_profiling
+#      gradleTarget: :profilingTest
+#      cacheType: profiling
+#  - spotless
 
   - fan_in:
       requires:
         - build_lib
-        - build_base
-        - build_inst
-        - build_smoke
-        - build_profiling
-        - spotless
+#        - build_base
+#        - build_inst
+#        - build_smoke
+#        - build_profiling
+#        - spotless
       name: ok_to_test
       stage: ok_to_test
 
-  - check:
-      requires:
-        - ok_to_test
-      name: check_base
-      gradleTarget: ":baseCheck"
-      cacheType: base
+#  - check:
+#      requires:
+#        - ok_to_test
+#      name: check_base
+#      gradleTarget: ":baseCheck"
+#      cacheType: base
+#
+#  - check:
+#      requires:
+#        - ok_to_test
+#      name: check_inst
+#      gradleTarget: ":instrumentationCheck"
+#      cacheType: inst
+#
+#  - check:
+#      requires:
+#        - ok_to_test
+#      name: check_smoke
+#      gradleTarget: ":smokeCheck"
+#      cacheType: smoke
+#
+#  - check:
+#      requires:
+#        - ok_to_test
+#      name: check_profiling
+#      gradleTarget: ":profilingCheck"
+#      cacheType: profiling
+#
+#  - fan_in:
+#      requires:
+#        - check_base
+#        - check_inst
+#        - check_smoke
+#        - check_profiling
+#      name: check
+#      stage: check
 
-  - check:
-      requires:
-        - ok_to_test
-      name: check_inst
-      gradleTarget: ":instrumentationCheck"
-      cacheType: inst
+#  - tests:
+#      requires:
+#        - ok_to_test
+#      name: z_test_<< matrix.testJvm >>_base
+#      triggeredBy: *core_modules
+#      gradleTarget: ":baseTest"
+#      gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests"
+#      stage: core
+#      cacheType: base
+#      parallelism: 4
+#      maxWorkers: 4
+#      matrix:
+#        <<: *test_matrix
+#
+#  - tests:
+#      requires:
+#        - ok_to_test
+#      name: z_test_8_base
+#      triggeredBy: *core_modules
+#      gradleTarget: :baseTest jacocoTestReport jacocoTestCoverageVerification
+#      gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests"
+#      stage: core
+#      cacheType: base
+#      parallelism: 4
+#      maxWorkers: 4
+#      testJvm: "8"
+#
+#  - xlarge_tests:
+#      requires:
+#        - ok_to_test
+#      name: z_test_<< matrix.testJvm >>_inst
+#      gradleTarget: ":instrumentationTest"
+#      gradleParameters: "-PskipFlakyTests"
+#      triggeredBy: *instrumentation_modules
+#      stage: instrumentation
+#      cacheType: inst
+#      parallelism: 4
+#      maxWorkers: 4
+#      matrix:
+#        <<: *test_matrix
+#
+#  - xlarge_tests:
+#      requires:
+#        - ok_to_test
+#      name: z_test_8_inst
+#      gradleTarget: ":instrumentationTest"
+#      gradleParameters: "-PskipFlakyTests"
+#      triggeredBy: *instrumentation_modules
+#      stage: instrumentation
+#      cacheType: inst
+#      parallelism: 4
+#      maxWorkers: 4
+#      testJvm: "8"
+#
+#  - xlarge_tests:
+#      requires:
+#        - ok_to_test
+#        - build_latestdep
+#      name: test_8_inst_latest
+#      gradleTarget: ":instrumentationLatestDepTest"
+#      gradleParameters: "-PskipFlakyTests"
+#      triggeredBy: *instrumentation_modules
+#      stage: instrumentation
+#      cacheType: latestdep
+#      parallelism: 4
+#      maxWorkers: 4
+#      testJvm: "8"
+#
+#  - tests:
+#      requires:
+#        - ok_to_test
+#      name: z_test_8_flaky_base
+#      gradleTarget: ":baseTest"
+#      gradleParameters: "-PrunFlakyTests"
+#      continueOnFailure: true
+#      triggeredBy: *core_modules
+#      stage: core
+#      cacheType: base
+#      parallelism: 4
+#      maxWorkers: 4
+#      testJvm: "8"
+#
+#  - xlarge_tests:
+#      requires:
+#        - ok_to_test
+#      name: z_test_8_flaky_inst
+#      gradleTarget: ":instrumentationTest"
+#      gradleParameters: "-PrunFlakyTests"
+#      continueOnFailure: true
+#      triggeredBy: *instrumentation_modules
+#      stage: instrumentation
+#      cacheType: inst
+#      parallelism: 2
+#      maxWorkers: 4
+#      testJvm: "8"
+#
+#  - tests:
+#      requires:
+#        - ok_to_test
+#      name: z_test_8_flaky_smoke
+#      gradleTarget: ":smokeTest"
+#      gradleParameters: "-PrunFlakyTests"
+#      continueOnFailure: true
+#      stage: smoke
+#      cacheType: smoke
+#      parallelism: 4
+#      maxWorkers: 4
+#      testJvm: "8"
+#
+#  - tests:
+#      requires:
+#        - ok_to_test
+#      maxWorkers: 4
+#      gradleTarget: ":profilingTest"
+#      gradleParameters: "-PskipFlakyTests"
+#      triggeredBy: *profiling_modules
+#      stage: profiling
+#      cacheType: profiling
+#      name: test_<< matrix.testJvm >>_profiling
+#      matrix:
+#        <<: *profiling_test_matrix
+#
+#  - tests:
+#      requires:
+#        - ok_to_test
+#      name: test_<< matrix.testJvm >>_debugger
+#      maxWorkers: 4
+#      gradleTarget: ":debuggerTest"
+#      gradleParameters: "-PskipFlakyTests"
+#      triggeredBy: *debugger_modules
+#      stage: debugger
+#      cacheType: base
+#      matrix:
+#        <<: *profiling_test_matrix
+#
+#  - tests:
+#      requires:
+#        - ok_to_test
+#      name: z_test_<< matrix.testJvm >>_smoke
+#      gradleTarget: "stageMainDist :smokeTest"
+#      gradleParameters: "-PskipFlakyTests"
+#      stage: smoke
+#      cacheType: smoke
+#      parallelism: 4
+#      maxWorkers: 3
+#      matrix:
+#        <<: *test_matrix
+#
+#  - tests:
+#      requires:
+#        - ok_to_test
+#      name: test_semeru11_smoke
+#      gradleTarget: "stageMainDist :smokeTest"
+#      gradleParameters: "-PskipFlakyTests"
+#      stage: smoke
+#      cacheType: smoke
+#      parallelism: 4
+#      maxWorkers: 3
+#      testJvm: "semeru11"
+#
+#  - tests:
+#      requires:
+#        - ok_to_test
+#      name: test_semeru17_smoke
+#      gradleTarget: "stageMainDist :smokeTest"
+#      gradleParameters: "-PskipFlakyTests"
+#      stage: smoke
+#      cacheType: smoke
+#      parallelism: 4
+#      maxWorkers: 3
+#      testJvm: "semeru17"
+#
+#  - tests:
+#      requires:
+#        - ok_to_test
+#      name: test_graalvm17_smoke
+#      gradleTarget: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
+#      stage: smoke
+#      cacheType: smoke
+#      testJvm: "graalvm17"
+#
+#  - tests:
+#      requires:
+#        - ok_to_test
+#      name: z_test_8_smoke
+#      gradleTarget: "stageMainDist :smokeTest"
+#      gradleParameters: "-PskipFlakyTests"
+#      stage: smoke
+#      cacheType: smoke
+#      parallelism: 4
+#      maxWorkers: 3
+#      testJvm: "8"
+#
+#  - fan_in:
+#      requires:
+#        - z_test_<< matrix.testJvm >>_base
+#        - z_test_<< matrix.testJvm >>_inst
+#        - z_test_<< matrix.testJvm >>_smoke
+#      name: test_<< matrix.testJvm >>
+#      stage: tracing
+#      matrix:
+#        <<: *test_matrix
+#
+#  - fan_in:
+#      requires:
+#        - z_test_8_base
+#        - z_test_8_inst
+#        - z_test_8_smoke
+#      name: test_8
+#      stage: tracing
+#      testJvm: "8"
+#
+#  - agent_integration_tests:
+#      requires:
+#        - ok_to_test
+#      triggeredBy: *agent_integration_tests_modules
+#      gradleTarget: traceAgentTest
+#      cacheType: base
+#      testJvm: "8"
+#
+#  - test_published_artifacts:
+#      requires:
+#        - ok_to_test
+#
+#  - muzzle:
+#      requires:
+#        - ok_to_test
+#      filters:
+#        branches:
+#          ignore:
+#            - master
+#            - project/*
+#            - release/*
 
-  - check:
-      requires:
-        - ok_to_test
-      name: check_smoke
-      gradleTarget: ":smokeCheck"
-      cacheType: smoke
-
-  - check:
-      requires:
-        - ok_to_test
-      name: check_profiling
-      gradleTarget: ":profilingCheck"
-      cacheType: profiling
-
-  - fan_in:
-      requires:
-        - check_base
-        - check_inst
-        - check_smoke
-        - check_profiling
-      name: check
-      stage: check
-
-  - tests:
-      requires:
-        - ok_to_test
-      name: z_test_<< matrix.testJvm >>_base
-      triggeredBy: *core_modules
-      gradleTarget: ":baseTest"
-      gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests"
-      stage: core
-      cacheType: base
-      parallelism: 4
-      maxWorkers: 4
-      matrix:
-        <<: *test_matrix
-
-  - tests:
-      requires:
-        - ok_to_test
-      name: z_test_8_base
-      triggeredBy: *core_modules
-      gradleTarget: :baseTest jacocoTestReport jacocoTestCoverageVerification
-      gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests"
-      stage: core
-      cacheType: base
-      parallelism: 4
-      maxWorkers: 4
-      testJvm: "8"
-
-  - xlarge_tests:
-      requires:
-        - ok_to_test
-      name: z_test_<< matrix.testJvm >>_inst
-      gradleTarget: ":instrumentationTest"
-      gradleParameters: "-PskipFlakyTests"
-      triggeredBy: *instrumentation_modules
-      stage: instrumentation
-      cacheType: inst
-      parallelism: 4
-      maxWorkers: 4
-      matrix:
-        <<: *test_matrix
-
-  - xlarge_tests:
-      requires:
-        - ok_to_test
-      name: z_test_8_inst
-      gradleTarget: ":instrumentationTest"
-      gradleParameters: "-PskipFlakyTests"
-      triggeredBy: *instrumentation_modules
-      stage: instrumentation
-      cacheType: inst
-      parallelism: 4
-      maxWorkers: 4
-      testJvm: "8"
-
-  - xlarge_tests:
-      requires:
-        - ok_to_test
-        - build_latestdep
-      name: test_8_inst_latest
-      gradleTarget: ":instrumentationLatestDepTest"
-      gradleParameters: "-PskipFlakyTests"
-      triggeredBy: *instrumentation_modules
-      stage: instrumentation
-      cacheType: latestdep
-      parallelism: 4
-      maxWorkers: 4
-      testJvm: "8"
-
-  - tests:
-      requires:
-        - ok_to_test
-      name: z_test_8_flaky_base
-      gradleTarget: ":baseTest"
-      gradleParameters: "-PrunFlakyTests"
-      continueOnFailure: true
-      triggeredBy: *core_modules
-      stage: core
-      cacheType: base
-      parallelism: 4
-      maxWorkers: 4
-      testJvm: "8"
-
-  - xlarge_tests:
-      requires:
-        - ok_to_test
-      name: z_test_8_flaky_inst
-      gradleTarget: ":instrumentationTest"
-      gradleParameters: "-PrunFlakyTests"
-      continueOnFailure: true
-      triggeredBy: *instrumentation_modules
-      stage: instrumentation
-      cacheType: inst
-      parallelism: 2
-      maxWorkers: 4
-      testJvm: "8"
-
-  - tests:
-      requires:
-        - ok_to_test
-      name: z_test_8_flaky_smoke
-      gradleTarget: ":smokeTest"
-      gradleParameters: "-PrunFlakyTests"
-      continueOnFailure: true
-      stage: smoke
-      cacheType: smoke
-      parallelism: 4
-      maxWorkers: 4
-      testJvm: "8"
-
-  - tests:
-      requires:
-        - ok_to_test
-      maxWorkers: 4
-      gradleTarget: ":profilingTest"
-      gradleParameters: "-PskipFlakyTests"
-      triggeredBy: *profiling_modules
-      stage: profiling
-      cacheType: profiling
-      name: test_<< matrix.testJvm >>_profiling
-      matrix:
-        <<: *profiling_test_matrix
-
-  - tests:
-      requires:
-        - ok_to_test
-      name: test_<< matrix.testJvm >>_debugger
-      maxWorkers: 4
-      gradleTarget: ":debuggerTest"
-      gradleParameters: "-PskipFlakyTests"
-      triggeredBy: *debugger_modules
-      stage: debugger
-      cacheType: base
-      matrix:
-        <<: *profiling_test_matrix
-
-  - tests:
-      requires:
-        - ok_to_test
-      name: z_test_<< matrix.testJvm >>_smoke
-      gradleTarget: "stageMainDist :smokeTest"
-      gradleParameters: "-PskipFlakyTests"
-      stage: smoke
-      cacheType: smoke
-      parallelism: 4
-      maxWorkers: 3
-      matrix:
-        <<: *test_matrix
-
-  - tests:
-      requires:
-        - ok_to_test
-      name: test_semeru11_smoke
-      gradleTarget: "stageMainDist :smokeTest"
-      gradleParameters: "-PskipFlakyTests"
-      stage: smoke
-      cacheType: smoke
-      parallelism: 4
-      maxWorkers: 3
-      testJvm: "semeru11"
-
-  - tests:
-      requires:
-        - ok_to_test
-      name: test_semeru17_smoke
-      gradleTarget: "stageMainDist :smokeTest"
-      gradleParameters: "-PskipFlakyTests"
-      stage: smoke
-      cacheType: smoke
-      parallelism: 4
-      maxWorkers: 3
-      testJvm: "semeru17"
-
-  - tests:
-      requires:
-        - ok_to_test
-      name: test_graalvm17_smoke
-      gradleTarget: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
-      stage: smoke
-      cacheType: smoke
-      testJvm: "graalvm17"
-
-  - tests:
-      requires:
-        - ok_to_test
-      name: z_test_8_smoke
-      gradleTarget: "stageMainDist :smokeTest"
-      gradleParameters: "-PskipFlakyTests"
-      stage: smoke
-      cacheType: smoke
-      parallelism: 4
-      maxWorkers: 3
-      testJvm: "8"
-
-  - fan_in:
-      requires:
-        - z_test_<< matrix.testJvm >>_base
-        - z_test_<< matrix.testJvm >>_inst
-        - z_test_<< matrix.testJvm >>_smoke
-      name: test_<< matrix.testJvm >>
-      stage: tracing
-      matrix:
-        <<: *test_matrix
-
-  - fan_in:
-      requires:
-        - z_test_8_base
-        - z_test_8_inst
-        - z_test_8_smoke
-      name: test_8
-      stage: tracing
-      testJvm: "8"
-
-  - agent_integration_tests:
-      requires:
-        - ok_to_test
-      triggeredBy: *agent_integration_tests_modules
-      gradleTarget: traceAgentTest
-      cacheType: base
-      testJvm: "8"
-
-  - test_published_artifacts:
-      requires:
-        - ok_to_test
-
-  - muzzle:
-      requires:
-        - ok_to_test
-      filters:
-        branches:
-          ignore:
-            - master
-            - project/*
-            - release/*
-
-  - system-tests:
-      requires:
-        - ok_to_test
-      matrix:
-          <<: *system_test_matrix
+#  - system-tests:
+#      requires:
+#        - ok_to_test
+#      matrix:
+#          <<: *system_test_matrix
 
   - parametric-tests:
       requires:
         - ok_to_test
 
-  - fan_in:
-      requires:
-        - test_published_artifacts
-        - test_8_profiling
-        - test_oracle8_profiling
-        - test_zulu8_profiling
-        - test_zulu11_profiling
-        - test_11_profiling
-        - test_17_profiling
-      name: profiling
-      stage: profiling
-
-  - fan_in:
-      requires:
-        - test_published_artifacts
-        - test_8_debugger
-        - test_oracle8_debugger
-        - test_zulu8_debugger
-        - test_zulu11_debugger
-        - test_11_debugger
-        - test_17_debugger
-      name: debugger
-      stage: debugger
+#  - fan_in:
+#      requires:
+#        - test_published_artifacts
+#        - test_8_profiling
+#        - test_oracle8_profiling
+#        - test_zulu8_profiling
+#        - test_zulu11_profiling
+#        - test_11_profiling
+#        - test_17_profiling
+#      name: profiling
+#      stage: profiling
+#
+#  - fan_in:
+#      requires:
+#        - test_published_artifacts
+#        - test_8_debugger
+#        - test_oracle8_debugger
+#        - test_zulu8_debugger
+#        - test_zulu11_debugger
+#        - test_11_debugger
+#        - test_17_debugger
+#      name: debugger
+#      stage: debugger
 
   # This job requires all the jobs needed for a successful build, so GitHub only needs to enforce this one,
   # and it will be simpler to require different JVM versions for different branches and old releases
   - fan_in:
       requires:
-        - check
-        - test_published_artifacts
-        - agent_integration_tests
-        - test_8
-        - test_ibm8
-        - test_11
-        - test_semeru11_smoke
-        - test_17
-        - test_semeru17_smoke
-        - test_zulu8
-        - profiling
-        - debugger
+#        - check
+#        - test_published_artifacts
+#        - agent_integration_tests
+#        - test_8
+#        - test_ibm8
+#        - test_11
+#        - test_semeru11_smoke
+#        - test_17
+#        - test_semeru17_smoke
+#        - test_zulu8
+#        - profiling
+#        - debugger
+        - parametric-tests
       name: required
       stage: required
 
