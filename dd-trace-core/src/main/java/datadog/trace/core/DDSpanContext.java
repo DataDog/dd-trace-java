@@ -16,6 +16,7 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
@@ -112,6 +113,8 @@ public class DDSpanContext
   private volatile CharSequence spanType;
   /** True indicates that the span reports an error */
   private volatile boolean errorFlag;
+
+  private volatile byte errorFlagPriority = ErrorPriorities.UNSET;
 
   private volatile boolean measured;
 
@@ -388,9 +391,10 @@ public class DDSpanContext
     return errorFlag;
   }
 
-  public void setErrorFlag(final boolean errorFlag) {
-    if (errorFlag != this.errorFlag) {
+  public void setErrorFlag(final boolean errorFlag, final byte priority) {
+    if (priority >= this.errorFlagPriority) {
       this.errorFlag = errorFlag;
+      this.errorFlagPriority = priority;
     }
   }
 
