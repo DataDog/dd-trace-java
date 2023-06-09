@@ -25,9 +25,11 @@ class DynamicServiceMappingSmokeTest extends AbstractSmokeTest {
 
   def "Updated service mapping observed"() {
     when:
-    def newConfig = """{"tracing_service_mapping":{
-                "${ServiceMappingApplication.ORIGINAL_SERVICE_NAME}":"${ServiceMappingApplication.MAPPED_SERVICE_NAME}"}
-            }""".toString()
+    def newConfig = """{"tracing_service_mapping":
+            [{
+                "from_name": "${ServiceMappingApplication.ORIGINAL_SERVICE_NAME}",
+                "to_name": "${ServiceMappingApplication.MAPPED_SERVICE_NAME}"
+            }]}""".toString()
     setRemoteConfig("datadog/2/APM_TRACING/config_overrides/config", newConfig)
 
     then:
