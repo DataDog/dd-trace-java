@@ -1,5 +1,6 @@
 package datadog.trace.api;
 
+import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TracerConfig.BAGGAGE_MAPPING;
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING;
@@ -128,6 +129,7 @@ public final class DynamicConfig {
         update.put(SERVICE_MAPPING, newState.serviceMapping);
         update.put(HEADER_TAGS, newState.headerTags);
         update.put(BAGGAGE_MAPPING, newState.baggageMapping);
+        update.put(LOGS_INJECTION_ENABLED, newState.logsInjectionEnabled);
         ConfigCollector.get().putAll(update);
       }
       return DynamicConfig.this;
