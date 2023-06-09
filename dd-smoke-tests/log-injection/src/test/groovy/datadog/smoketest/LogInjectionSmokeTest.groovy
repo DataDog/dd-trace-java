@@ -21,7 +21,7 @@ import static java.util.concurrent.TimeUnit.SECONDS
  */
 abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
   // Estimate for the amount of time instrumentation, plus request, plus some extra
-  static final int TIMEOUT_SECS = 60
+  static final int TIMEOUT_SECS = 30
 
   @Shared
   File outputLogFile
@@ -61,7 +61,9 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     // turn off these features as their debug output can break up our expected logging lines on IBM JVMs
     // causing random test failures (we are not testing these features here so they don't need to be on)
     command.add("-Ddd.instrumentation.telemetry.enabled=false")
-    command.add("-Ddd.remote_config.enabled=false")
+    command.add("-Ddd.remote_config.enabled=true")
+    command.add("-Ddd.remote_config.url=http://localhost:${server.address.port}/v0.7/config".toString())
+    command.add("-Ddd.remote_config.poll_interval.seconds=1")
     command.add("-Ddd.test.logfile=${outputLogFile.absolutePath}" as String)
     command.add("-Ddd.test.jsonlogfile=${outputJsonLogFile.absolutePath}" as String)
     if (noTags) {
@@ -107,37 +109,45 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     outputJsonLogFile?.delete()
   }
 
-  def assertRawLogLinesWithoutInjection(List<String> logLines, String firstTraceId, String firstSpanId, String secondTraceId, String secondSpanId) {
+  def assertRawLogLinesWithoutInjection(List<String> logLines, String firstTraceId, String firstSpanId, String secondTraceId, String secondSpanId,
+    String thirdTraceId, String thirdSpanId, String forthTraceId, String forthSpanId) {
     // Assert log line starts with backend name.
     // This avoids tests inadvertently passing because the incorrect backend is logging
     logLines.every { it.startsWith(backend())}
-    assert logLines.size() == 4
+    assert logLines.size() == 7
     assert logLines[0].endsWith("- BEFORE FIRST SPAN")
     assert logLines[1].endsWith("- INSIDE FIRST SPAN")
     assert logLines[2].endsWith("- AFTER FIRST SPAN")
     assert logLines[3].endsWith("- INSIDE SECOND SPAN")
+    assert logLines[4].endsWith("- INSIDE THIRD SPAN")
+    assert logLines[5].endsWith("- INSIDE FORTH SPAN")
+    assert logLines[6].endsWith("- AFTER FORTH SPAN")
 
     return true
   }
 
-  def assertRawLogLinesWithInjection(List<String> logLines, String firstTraceId, String firstSpanId, String secondTraceId, String secondSpanId) {
+  def assertRawLogLinesWithInjection(List<String> logLines, String firstTraceId, String firstSpanId, String secondTraceId, String secondSpanId,
+    String thirdTraceId, String thirdSpanId, String forthTraceId, String forthSpanId) {
     // Assert log line starts with backend name.
     // This avoids tests inadvertently passing because the incorrect backend is logging
     logLines.every { it.startsWith(backend()) }
     def tagsPart = noTags ? "  " : "${SERVICE_NAME} ${ENV} ${VERSION}"
-    assert logLines.size() == 4
+    assert logLines.size() == 7
     assert logLines[0].endsWith("- ${tagsPart}   - BEFORE FIRST SPAN") || logLines[0].endsWith("- ${tagsPart} 0 0 - BEFORE FIRST SPAN")
     assert logLines[1].endsWith("- ${tagsPart} ${firstTraceId} ${firstSpanId} - INSIDE FIRST SPAN")
     assert logLines[2].endsWith("- ${tagsPart}   - AFTER FIRST SPAN") || logLines[2].endsWith("- ${tagsPart} 0 0 - AFTER FIRST SPAN")
     assert logLines[3].endsWith("- ${tagsPart} ${secondTraceId} ${secondSpanId} - INSIDE SECOND SPAN")
-
+    assert logLines[4].endsWith("-      - INSIDE THIRD SPAN") || logLines[0].endsWith("-    0 0 - INSIDE THIRD SPAN")
+    assert logLines[5].endsWith("- ${tagsPart} ${forthTraceId} ${forthSpanId} - INSIDE FORTH SPAN")
+    assert logLines[6].endsWith("- ${tagsPart}   - AFTER FORTH SPAN") || logLines[0].endsWith("- ${tagsPart} 0 0 - AFTER FORTH SPAN")
     return true
   }
 
-  def assertJsonLinesWithInjection(List<String> rawLines, String firstTraceId, String firstSpanId, String secondTraceId, String secondSpanId) {
+  def assertJsonLinesWithInjection(List<String> rawLines, String firstTraceId, String firstSpanId, String secondTraceId, String secondSpanId,
+    String thirdTraceId, String thirdSpanId, String forthTraceId, String forthSpanId) {
     def logLines = rawLines.collect { println it; jsonAdapter.fromJson(it) as Map}
 
-    assert logLines.size() == 4
+    assert logLines.size() == 7
 
     // Log4j2's KeyValuePair for injecting static values into Json only exists in later versions of Log4j2
     // Its tested with Log4j2LatestBackend
@@ -164,6 +174,18 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     assert getFromContext(logLines[3], "dd.span_id")  == secondSpanId
     assert logLines[3]["message"] == "INSIDE SECOND SPAN"
 
+    assert getFromContext(logLines[4], "dd.trace_id") == null
+    assert getFromContext(logLines[4], "dd.span_id")  == null
+    assert logLines[4]["message"] == "INSIDE THIRD SPAN"
+
+    assert getFromContext(logLines[5], "dd.trace_id") == forthTraceId
+    assert getFromContext(logLines[5], "dd.span_id")  == forthSpanId
+    assert logLines[5]["message"] == "INSIDE FORTH SPAN"
+
+    assert getFromContext(logLines[6], "dd.trace_id") == null
+    assert getFromContext(logLines[6], "dd.span_id")  == null
+    assert logLines[6]["message"] == "AFTER FORTH SPAN"
+
     return true
   }
 
@@ -189,9 +211,19 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
 
   def "check raw file injection"() {
     when:
+    def count = waitForTraceCount(2)
+
+    def newConfig = """{"logs_injection_enabled":false}""".toString()
+    setRemoteConfig("datadog/2/APM_TRACING/config_overrides/config", newConfig)
+
+    count = waitForTraceCount(3)
+
+    setRemoteConfig("datadog/2/APM_TRACING/config_overrides/config", "{}")
+
     testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
     def exitValue = testedProcess.exitValue()
-    def count = waitForTraceCount(2)
+
+    count = waitForTraceCount(4)
 
     def logLines = outputLogFile.readLines()
     println "log lines: " + logLines
@@ -202,25 +234,33 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     def stdOutLines = new File(logFilePath).readLines()
     def (String firstTraceId, String firstSpanId) = parseTraceFromStdOut(stdOutLines.find { it.startsWith("FIRSTTRACEID")})
     def (String secondTraceId, String secondSpanId) = parseTraceFromStdOut(stdOutLines.find { it.startsWith("SECONDTRACEID")})
+    def (String thirdTraceId, String thirdSpanId) = parseTraceFromStdOut(stdOutLines.find { it.startsWith("THIRDTRACEID")})
+    def (String forthTraceId, String forthSpanId) = parseTraceFromStdOut(stdOutLines.find { it.startsWith("FORTHTRACEID")})
 
     then:
     exitValue == 0
-    count == 2
+    count == 4
     firstTraceId && firstTraceId != "0"
     checkTraceIdFormat(firstTraceId)
     firstSpanId && firstSpanId != "0"
     secondTraceId && secondTraceId != "0"
     checkTraceIdFormat(secondTraceId)
     secondSpanId && secondSpanId != "0"
+    thirdTraceId && thirdTraceId != "0"
+    checkTraceIdFormat(thirdTraceId)
+    thirdSpanId && thirdSpanId != "0"
+    forthTraceId && forthTraceId != "0"
+    checkTraceIdFormat(forthTraceId)
+    forthSpanId && forthSpanId != "0"
 
     if (injectsRawLogs()) {
-      assertRawLogLinesWithInjection(logLines, firstTraceId, firstSpanId, secondTraceId, secondSpanId)
+      assertRawLogLinesWithInjection(logLines, firstTraceId, firstSpanId, secondTraceId, secondSpanId, thirdTraceId, thirdSpanId, forthTraceId, forthSpanId)
     } else {
-      assertRawLogLinesWithoutInjection(logLines, firstTraceId, firstSpanId, secondTraceId, secondSpanId)
+      assertRawLogLinesWithoutInjection(logLines, firstTraceId, firstSpanId, secondTraceId, secondSpanId, thirdTraceId, thirdSpanId, forthTraceId, forthSpanId)
     }
 
     if (supportsJson()) {
-      assertJsonLinesWithInjection(jsonLogLines, firstTraceId, firstSpanId, secondTraceId, secondSpanId)
+      assertJsonLinesWithInjection(jsonLogLines, firstTraceId, firstSpanId, secondTraceId, secondSpanId, thirdTraceId, thirdSpanId, forthTraceId, forthSpanId)
     }
   }
 

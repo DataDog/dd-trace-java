@@ -63,6 +63,7 @@ tasks.named('processLoggingResources').configure {
 
 
 dependencies {
+  implementation project(path: ':dd-trace-ot', configuration: 'shadow')
   implementation project(':dd-trace-api')
 
   compileOnly deps.slf4j

@@ -88,8 +88,9 @@ final class TracingConfigPoller {
   void applyConfigOverrides(ConfigOverrides overrides) {
     DynamicConfig.Builder builder = dynamicConfig.initial();
     maybeOverride(builder::setServiceMapping, overrides.serviceMapping, SERVICE_MAPPING);
-    maybeOverride(builder::setHeaderTags, overrides.taggedHeaders, HEADER_TAGS);
-    maybeOverride(builder::setLogsInjectionEnabled, overrides.logsInjectionEnabled, LOGS_INJECTION_ENABLED);
+    maybeOverride(builder::setHeaderTags, overrides.headerTags, HEADER_TAGS);
+    maybeOverride(
+        builder::setLogsInjectionEnabled, overrides.logsInjectionEnabled, LOGS_INJECTION_ENABLED);
     builder.apply();
     log.debug("Applied APM_TRACING overrides");
   }
