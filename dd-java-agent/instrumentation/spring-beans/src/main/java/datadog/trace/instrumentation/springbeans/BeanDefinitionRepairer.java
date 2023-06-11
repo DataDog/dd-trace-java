@@ -1,8 +1,7 @@
-package datadog.trace.instrumentation.springweb;
+package datadog.trace.instrumentation.springbeans;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.support.RootBeanDefinition;
 
 /**
@@ -13,11 +12,6 @@ public final class BeanDefinitionRepairer {
 
   public static void register(Class<?> beanClass) {
     ddBeanClasses.put(beanClass.getName(), beanClass);
-  }
-
-  public static boolean isDatadogBean(BeanDefinition beanDefinition) {
-    String className = beanDefinition.getBeanClassName();
-    return null != className && ddBeanClasses.containsKey(className);
   }
 
   public static void repair(RootBeanDefinition beanDefinition) {

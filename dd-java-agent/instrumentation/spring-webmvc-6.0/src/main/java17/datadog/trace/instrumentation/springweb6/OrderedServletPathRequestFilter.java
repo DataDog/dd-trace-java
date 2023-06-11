@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.springweb6;
 
-import datadog.trace.instrumentation.springweb.BeanDefinitionRepairer;
 import org.springframework.beans.factory.annotation.AnnotatedGenericBeanDefinition;
 import org.springframework.core.Ordered;
 import org.springframework.web.filter.DelegatingFilterProxy;
@@ -22,8 +21,7 @@ public class OrderedServletPathRequestFilter extends DelegatingFilterProxy imple
 
     public BeanDefinition() {
       super(OrderedServletPathRequestFilter.class);
-      BeanDefinitionRepairer.register(OrderedServletPathRequestFilter.class);
-      setBeanClassName(OrderedServletPathRequestFilter.class.getName());
+      // don't call setBeanClassName as it overwrites 'beanClass'
       setScope(SCOPE_SINGLETON);
       setLazyInit(true);
     }

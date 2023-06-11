@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.springweb6;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.instrumentation.springweb.BeanDefinitionRepairer;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -91,8 +90,7 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
 
     public BeanDefinition() {
       super(HandlerMappingResourceNameFilter.class);
-      BeanDefinitionRepairer.register(HandlerMappingResourceNameFilter.class);
-      setBeanClassName(HandlerMappingResourceNameFilter.class.getName());
+      // don't call setBeanClassName as it overwrites 'beanClass'
       setScope(SCOPE_SINGLETON);
       setLazyInit(true);
     }
