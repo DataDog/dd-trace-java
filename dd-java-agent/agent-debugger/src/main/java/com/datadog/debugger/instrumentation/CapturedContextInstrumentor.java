@@ -248,6 +248,14 @@ public class CapturedContextInstrumentor extends Instrumentor {
     LabelNode handlerLabel = new LabelNode();
     InsnList handler = new InsnList();
     handler.add(handlerLabel);
+    // stack [exception]
+    handler.add(new VarInsnNode(Opcodes.ALOAD, entryContextVar));
+    // stack [exception, capturedcontext]
+    LabelNode targetNode = new LabelNode();
+    invokeVirtual(handler, CAPTURED_CONTEXT_TYPE, "isCapturing", BOOLEAN_TYPE);
+    // stack [exception, boolean]
+    handler.add(new JumpInsnNode(Opcodes.IFEQ, targetNode));
+    // stack [exception]
     handler.add(collectCapturedContext(Snapshot.Kind.UNHANDLED_EXCEPTION, endLabel));
     // stack: [exception, capturedcontext]
     ldc(handler, Type.getObjectType(classNode.name));
@@ -272,6 +280,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     invokeStatic(handler, DEBUGGER_CONTEXT_TYPE, "disableInProbe", VOID_TYPE);
     // stack [exception]
     handler.add(commit());
+    handler.add(targetNode);
     // stack [exception]
     handler.add(new InsnNode(Opcodes.ATHROW));
     // stack: []

@@ -12,15 +12,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Stores different kind of data (arguments, locals, fields, exception) for a specific location */
 public class CapturedContext implements ValueReferenceResolver {
   public static final CapturedContext EMPTY_CONTEXT = new CapturedContext(null);
   public static final CapturedContext EMPTY_CAPTURING_CONTEXT =
       new CapturedContext(ProbeImplementation.UNKNOWN);
-  private static final Logger LOGGER = LoggerFactory.getLogger(CapturedContext.class);
   private final transient Map<String, Object> extensions = new HashMap<>();
 
   private Map<String, CapturedValue> arguments;
