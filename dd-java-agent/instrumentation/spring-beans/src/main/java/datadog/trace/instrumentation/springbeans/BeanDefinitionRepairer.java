@@ -15,13 +15,11 @@ public final class BeanDefinitionRepairer {
   }
 
   public static void repair(RootBeanDefinition beanDefinition) {
-    if (!beanDefinition.hasBeanClass()) {
-      String className = beanDefinition.getBeanClassName();
-      if (null != className) {
-        Class<?> beanClass = ddBeanClasses.get(className);
-        if (null != beanClass) {
-          beanDefinition.setBeanClass(beanClass);
-        }
+    String className = beanDefinition.getBeanClassName();
+    if (null != className) {
+      Class<?> beanClass = ddBeanClasses.get(className);
+      if (null != beanClass) {
+        beanDefinition.setBeanClass(beanClass);
       }
     }
   }

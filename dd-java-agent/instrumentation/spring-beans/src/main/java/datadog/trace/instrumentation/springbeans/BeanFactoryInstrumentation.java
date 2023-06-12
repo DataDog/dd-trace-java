@@ -79,7 +79,9 @@ public class BeanFactoryInstrumentation extends Instrumenter.Tracing
   public static class BeanResolvingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.Argument(0) final RootBeanDefinition beanDefinition) {
-      BeanDefinitionRepairer.repair(beanDefinition);
+      if (!beanDefinition.hasBeanClass()) {
+        BeanDefinitionRepairer.repair(beanDefinition);
+      }
     }
   }
 }
