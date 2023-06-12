@@ -11,7 +11,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
-import jakarta.servlet.http.Cookie;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -46,8 +45,11 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
 
   public static class AddCookieAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(@Advice.Argument(0) final Cookie cookie) {
-      InstrumentationBridge.onCookie(cookie.getName(), cookie.getSecure(), cookie.isHttpOnly());
+    public static void onEnter(@Advice.Argument(0) final jakarta.servlet.http.Cookie cookie) {
+      if (cookie != null) {
+        InstrumentationBridge.RESPONSE_HEADER_MODULE.onCookie(
+            cookie.getName(), cookie.getValue(), cookie.getSecure(), cookie.isHttpOnly(), null);
+      }
     }
   }
 
@@ -56,7 +58,7 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
     public static void onEnter(
         @Advice.Argument(0) final String name, @Advice.Argument(1) String value) {
       if (null != value && value.length() > 0) {
-        InstrumentationBridge.onHeader(name, value);
+        InstrumentationBridge.RESPONSE_HEADER_MODULE.onHeader(name, value);
       }
     }
   }

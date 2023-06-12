@@ -33,12 +33,13 @@ class NoHttpCookieModuleTest extends IastModuleImplTestBase {
     }
   }
 
-  void 'report NoHttp cookie with InsecureCookieModule.onCookies'() {
+  void 'report NoHttp cookie with InsecureCookieModule.onCookie'() {
     given:
     Vulnerability savedVul
+    final cookie = HttpCookie.parse(cookieValue).first()
 
     when:
-    module.onCookies(HttpCookie.parse(cookieValue))
+    module.onCookie(cookie.name, cookie.value, cookie.secure, cookie.httpOnly, null)
 
     then:
     1 * tracer.activeSpan() >> span
@@ -56,12 +57,15 @@ class NoHttpCookieModuleTest extends IastModuleImplTestBase {
     cookieValue | expected
     "user-id=7" | "user-id"
   }
+
   void 'report insecure cookie with NoHttpOnlyCookieModule.onCookie'() {
     given:
     Vulnerability savedVul
+    final cookie = new HttpCookie(cookieName, cookieValue)
+    cookie.httpOnly = isHttpOnly
 
     when:
-    module.onCookie(cookieName, isHttpOnly)
+    module.onCookie(cookie.name, cookie.value, cookie.secure, cookie.httpOnly, null)
 
     then:
     1 * tracer.activeSpan() >> span
@@ -76,14 +80,16 @@ class NoHttpCookieModuleTest extends IastModuleImplTestBase {
     }
 
     where:
-    cookieName | isHttpOnly | expected
-    "user-id" | false | "user-id"
+    cookieName | cookieValue | isHttpOnly | expected
+    "user-id"  | "7"         | false      | "user-id"
   }
 
-  void 'cases where nothing is reported during NoHttpModuleCookie.onCookies'() {
+  void 'cases where nothing is reported during NoHttpModuleCookie.onCookie'() {
+    given:
+    final cookie = HttpCookie.parse(cookieValue).first()
 
     when:
-    module.onCookies(HttpCookie.parse(cookieValue))
+    module.onCookie(cookie.name, cookie.value, cookie.secure, cookie.httpOnly, null)
 
     then:
     0 * tracer.activeSpan()
@@ -91,23 +97,26 @@ class NoHttpCookieModuleTest extends IastModuleImplTestBase {
     0 * reporter._
 
     where:
-    cookieValue         | _
+    cookieValue           | _
     "user-id=7; HttpOnly" | _
     "user-id=7;HttpOnly"  | _
   }
 
   void 'insecure no http only is not reported with NoHttpOnlyCookieModule.onCookie'() {
+    given:
+    final cookie = new HttpCookie(cookieName, cookieValue)
+    cookie.httpOnly = isHttpOnly
 
     when:
-    module.onCookie(cookieName, isHttpOnly)
+    module.onCookie(cookie.name, cookie.value, cookie.secure, cookie.httpOnly, null)
 
     then:
     0 * tracer.activeSpan() >> span
     0 * overheadController.consumeQuota(_, _) >> true
-    0 * reporter.report(_, _ as Vulnerability) >> { savedVul = it[1] }
+    0 * reporter.report(_, _ as Vulnerability)
 
     where:
-    cookieName | isHttpOnly
-    "user-id" | true
+    cookieName | cookieValue | isHttpOnly
+    "user-id"  | "7"         | true
   }
 }

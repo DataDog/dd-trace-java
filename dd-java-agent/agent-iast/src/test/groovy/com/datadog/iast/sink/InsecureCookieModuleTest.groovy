@@ -33,12 +33,12 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
     }
   }
 
-  void 'report insecure cookie with InsecureCookieModule.onCookies'() {
+  void 'report insecure cookie with InsecureCookieModule.onCookie'() {
     given:
     Vulnerability savedVul
 
     when:
-    module.onCookies(HttpCookie.parse(cookieValue))
+    module.onCookie('user-id', '7', false, false, null)
 
     then:
     1 * tracer.activeSpan() >> span
@@ -62,7 +62,7 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
     Vulnerability savedVul
 
     when:
-    module.onCookie(cookieName, isSecure)
+    module.onCookie(cookieName, cookieValue, isSecure, false, null)
 
     then:
     1 * tracer.activeSpan() >> span
@@ -77,14 +77,16 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
     }
 
     where:
-    cookieName | isSecure | expected
-    "user-id" | false | "user-id"
+    cookieName | cookieValue | isSecure | expected
+    "user-id"  | "7"         | false    | "user-id"
   }
 
-  void 'cases where nothing is  not reported during InsecureCookieModuleTest.onCookies'() {
+  void 'cases where nothing is  not reported during InsecureCookieModuleTest.onCookie'() {
+    given:
+    final cookie = HttpCookie.parse(cookieValue).first()
 
     when:
-    module.onCookies(HttpCookie.parse(cookieValue))
+    module.onCookie(cookie.name, cookie.value, cookie.secure, cookie.httpOnly, null)
 
     then:
     0 * tracer.activeSpan()
@@ -98,17 +100,20 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
   }
 
   void 'insecure cookie is not reported with InsecureCookieModule.onCookie'() {
+    given:
+    final cookie = new HttpCookie(cookieName, cookieValue)
+    cookie.secure = isSecure
 
     when:
-    module.onCookie(cookieName, isSecure)
+    module.onCookie(cookie.name, cookie.value, cookie.secure, cookie.httpOnly, null)
 
     then:
     0 * tracer.activeSpan() >> span
     0 * overheadController.consumeQuota(_, _) >> true
-    0 * reporter.report(_, _ as Vulnerability) >> { savedVul = it[1] }
+    0 * reporter.report(_, _ as Vulnerability)
 
     where:
-    cookieName | isSecure
-    "user-id" | true
+    cookieName | cookieValue | isSecure
+    "user-id"  | "7"         | true
   }
 }

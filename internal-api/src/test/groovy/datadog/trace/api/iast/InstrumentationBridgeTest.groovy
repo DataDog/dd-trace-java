@@ -64,10 +64,11 @@ class InstrumentationBridgeTest extends DDSpecification {
     InstrumentationBridge.registerIastModule(unvalidatedRedirectModule)
 
     when:
-    InstrumentationBridge.onHeader("name", "value")
+    InstrumentationBridge.RESPONSE_HEADER_MODULE.onHeader("name", "value")
 
     then:
     1 * unvalidatedRedirectModule.onHeader("name", "value")
+    0 * _
   }
 
   void 'Cookie modules  are called on header callback'() {
@@ -80,11 +81,11 @@ class InstrumentationBridgeTest extends DDSpecification {
     InstrumentationBridge.registerIastModule(unvalidatedRedirectModule)
 
     when:
-    InstrumentationBridge.onHeader("Set-Cookie", "UserId=1")
+    InstrumentationBridge.RESPONSE_HEADER_MODULE.onHeader("Set-Cookie", "UserId=1")
 
     then:
-    1 * insecureCookieModule.onCookies(_)
-    1 * noHttpOnlyCookieModule.onCookies(_)
+    1 * insecureCookieModule.onCookie("UserId", "1", false, false, null)
+    1 * noHttpOnlyCookieModule.onCookie("UserId", "1", false, false, null)
     1 * unvalidatedRedirectModule.onHeader("Set-Cookie", "UserId=1")
   }
 
@@ -93,7 +94,7 @@ class InstrumentationBridgeTest extends DDSpecification {
     final unvalidatedRedirectModule = Mock(UnvalidatedRedirectModule)
 
     when:
-    InstrumentationBridge.onHeader("name", "value")
+    InstrumentationBridge.RESPONSE_HEADER_MODULE.onHeader("name", "value")
 
     then:
     0 * unvalidatedRedirectModule.onHeader("name", "value")

@@ -15,6 +15,11 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     injectSysConfig('dd.iast.enabled', 'true')
   }
 
+  @Override
+  void cleanup() {
+    InstrumentationBridge.clearIastModules()
+  }
+
   void 'insecure cookie added using addCookie'() {
     setup:
     final module = Mock(InsecureCookieModule)
@@ -26,7 +31,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.addCookie(cookie)
 
     then:
-    1 * module.onCookie("user-id", false)
+    1 * module.onCookie('user-id', '7', false, _, _)
     0 * _
   }
 
@@ -58,7 +63,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.addCookie(cookie)
 
     then:
-    1 * module.onCookie('user-id', true)
+    1 * module.onCookie('user-id', '7', true, _, _)
     0 * _
   }
 
@@ -85,7 +90,8 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.addHeader("Set-Cookie", "user-id=7")
 
     then:
-    1 * module.onCookies(_)
+    1 * module.onCookie('user-id', '7', _, _, _)
+    0 * _
   }
 
   void 'null parameters added using addHeader'() {
@@ -113,7 +119,8 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.setHeader("Set-Cookie", "user-id=7")
 
     then:
-    1 * module.onCookies(_)
+    1 * module.onCookie('user-id', '7', _, _, _)
+    0 * _
   }
 
   void 'null parameters added using setHeader'() {
@@ -142,6 +149,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
 
     then:
     1 * redirectModule.onHeader('Location', 'http://dummy.url.com')
+    0 * _
   }
 
 
@@ -156,6 +164,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
 
     then:
     1 * redirectModule.onHeader('Location', 'http://dummy.url.com')
+    0 * _
   }
 
 
