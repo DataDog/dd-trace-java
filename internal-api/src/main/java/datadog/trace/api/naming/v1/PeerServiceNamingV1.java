@@ -10,27 +10,31 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
-  private static final Map<Object, String[]> SPECIFIC_PRECURSORS_BY_COMPONENT = new HashMap<>(6);
+  private static final Map<Object, String[]> SPECIFIC_PRECURSORS_BY_COMPONENT =
+      initPrecursorsByComponent();
   private static final String[] DEFAULT_PRECURSORS = {Tags.DB_INSTANCE, Tags.PEER_HOSTNAME};
 
-  static {
+  private static Map<Object, String[]> initPrecursorsByComponent() {
+    final Map<Object, String[]> ret = new HashMap<>(7);
     // messaging
-    SPECIFIC_PRECURSORS_BY_COMPONENT.put(
-        "java-kafka", new String[] {InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS});
+    ret.put("java-kafka", new String[] {InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS});
     // database
-    SPECIFIC_PRECURSORS_BY_COMPONENT.put(
-        "hazelcast-sdk", new String[] {"hazelcast.instance", Tags.PEER_HOSTNAME});
+    ret.put("hazelcast-sdk", new String[] {"hazelcast.instance", Tags.PEER_HOSTNAME});
     // todo: add couchbase seed nodes when the precursor will be available
-    SPECIFIC_PRECURSORS_BY_COMPONENT.put(
-        "couchbase-client", new String[] {"net.peer.name", Tags.PEER_HOSTNAME});
+    ret.put("couchbase-client", new String[] {"net.peer.name", Tags.PEER_HOSTNAME});
 
     // fixme: cassandra instance is the keyspace and it's not adapted for the peer.service. Replace
     // with seed nodes when available
-    SPECIFIC_PRECURSORS_BY_COMPONENT.put("java-cassandra", new String[] {Tags.PEER_HOSTNAME});
+    ret.put("java-cassandra", new String[] {Tags.PEER_HOSTNAME});
     // rpc
     final String[] rpcPrecursors = {Tags.RPC_SERVICE, Tags.PEER_HOSTNAME};
-    SPECIFIC_PRECURSORS_BY_COMPONENT.put("grpc-client", rpcPrecursors);
-    SPECIFIC_PRECURSORS_BY_COMPONENT.put("rmi-client", rpcPrecursors);
+    ret.put("grpc-client", rpcPrecursors);
+    ret.put("rmi-client", rpcPrecursors);
+
+    // for aws sdk we calculate eagerly to avoid doing too much complex lookups
+    // this will avoid calculating defaults
+    ret.put("java-aws-sdk", new String[] {});
+    return ret;
   }
 
   @Override

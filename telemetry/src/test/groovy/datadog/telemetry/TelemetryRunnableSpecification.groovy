@@ -1,196 +1,173 @@
 package datadog.telemetry
 
+import datadog.telemetry.metric.MetricPeriodicAction
+import datadog.trace.api.telemetry.MetricCollector
+import datadog.trace.api.time.TimeSource
 import datadog.trace.test.util.DDSpecification
-import okhttp3.Call
-import okhttp3.OkHttpClient
-import okhttp3.Protocol
-import okhttp3.Request
-import okhttp3.Response
-import okhttp3.ResponseBody
+
+import java.util.concurrent.CyclicBarrier
+import java.util.concurrent.TimeUnit
 
 class TelemetryRunnableSpecification extends DDSpecification {
-  private static final Request REQUEST = new Request.Builder()
-  .url('https://example.com').build()
 
-  def okResponse() {
-    testResponse("msg", 202)
-  }
-  def badResponse() {
-    testResponse("msg", 500)
-  }
-  def notFoundResponse() {
-    testResponse("msg", 404)
-  }
+  static class TickSleeper implements TelemetryRunnable.ThreadSleeper {
+    CyclicBarrier sleeped = new CyclicBarrier(2)
+    CyclicBarrier go = new CyclicBarrier(2)
+    TelemetryRunnable.ThreadSleeper delegate
 
-  def testResponse(String msg, int code) {
-    return new Response.Builder().request(REQUEST).protocol(Protocol.HTTP_1_0)
-      .body(ResponseBody.create(null, new byte[0]))
-      .message(msg).code(code).build()
+    @Override
+    void sleep(long timeoutMs) {
+      delegate?.sleep(timeoutMs)
+      sleeped.await(10, TimeUnit.SECONDS)
+      go.await(10, TimeUnit.SECONDS)
+    }
   }
 
-  OkHttpClient okHttpClient = Mock()
-  TelemetryRunnable.ThreadSleeper sleeper = Mock()
-  TelemetryServiceImpl telemetryService = Mock()
-  TelemetryRunnable.TelemetryPeriodicAction periodicAction = Mock()
-  TelemetryRunnable runnable = new TelemetryRunnable(okHttpClient, telemetryService, [periodicAction], sleeper)
-  Thread t = new Thread(runnable)
+  Thread t = null
 
   void cleanup() {
-    if (t.isAlive()) {
+    if (t?.isAlive()) {
       t.interrupt()
       t.join()
     }
   }
 
-  void 'one loop run with one request'() {
+  void 'happy path'() {
     setup:
-    def queue = new ArrayDeque<>([REQUEST])
-    Call call = Mock()
+    TelemetryRunnable.ThreadSleeper sleeperMock = Mock()
+    TickSleeper sleeper = new TickSleeper(delegate: sleeperMock)
+    TimeSource timeSource = Mock()
+    TelemetryService telemetryService = Mock(TelemetryService)
+    MetricCollector<MetricCollector.Metric> metricCollector = Mock(MetricCollector)
+    MetricPeriodicAction metricAction = Stub(MetricPeriodicAction) {
+      collector() >> metricCollector
+    }
+    TelemetryRunnable.TelemetryPeriodicAction periodicAction = Mock(TelemetryRunnable.TelemetryPeriodicAction)
+    TelemetryRunnable runnable = new TelemetryRunnable(telemetryService, [metricAction, periodicAction], sleeper, timeSource)
+    t = new Thread(runnable)
 
-    when:
+    when: 'initial iteration before the first sleep (metrics and heartbeat)'
     t.start()
-    t.join()
+    sleeper.sleeped.await(10, TimeUnit.SECONDS)
 
     then:
-    1 * telemetryService.addConfiguration(_)
+    1 * timeSource.getCurrentTimeMillis() >> 60 * 1000
+    _ * telemetryService.addConfiguration(_)
+
+    then:
+    1 * metricCollector.prepareMetrics()
+
+    then:
+    1 * metricCollector.drain() >> []
     1 * periodicAction.doIteration(telemetryService)
-    1 * telemetryService.addStartedRequest()
 
     then:
-    1 * periodicAction.doIteration(telemetryService)
-    1 * telemetryService.prepareRequests() >> queue
-    1 * okHttpClient.newCall(REQUEST) >> call
-    1 * call.execute() >> okResponse()
-    queue.size() == 0
-
-    then:
-    1 * telemetryService.getHeartbeatInterval() >> 10_000L
-    1 * telemetryService.getMetricsInterval() >> 10_000L
-    1 * sleeper.sleep(10_000L) >> { t.interrupt() }
-
-    then:
-    1 * telemetryService.appClosingRequest() >> REQUEST
-    1 * okHttpClient.newCall(REQUEST) >> call
-    1 * call.execute() >> okResponse()
+    1 * telemetryService.sendIntervalRequests()
+    1 * timeSource.getCurrentTimeMillis() >> 60 * 1000 + 1
+    1 * sleeperMock.sleep(9999)
     0 * _
-  }
 
-  void 'one loop run with two requests'() {
-    setup:
-    def request1 = new Request.Builder()
-      .url('https://example.com/1').build()
-    def request2 = new Request.Builder()
-      .url('https://example.com/2').build()
-    def request3 = new Request.Builder()
-      .url('https://example.com/3').build()
-    def queue = new ArrayDeque<>([request1, request2])
-    Call call1 = Mock()
-    Call call2 = Mock()
-    Call call3 = Mock()
-
-    when:
-    t.start()
-    t.join()
+    when: 'second iteration (10 seconds, metrics)'
+    sleeper.go.await(10, TimeUnit.SECONDS)
+    sleeper.sleeped.await(10, TimeUnit.SECONDS)
 
     then:
-    1 * telemetryService.addConfiguration(_)
-    1 * periodicAction.doIteration(telemetryService)
-    1 * telemetryService.addStartedRequest()
+    1 * timeSource.getCurrentTimeMillis() >> 70 * 1000
 
     then:
-    1 * periodicAction.doIteration(telemetryService)
-    1 * telemetryService.prepareRequests() >> queue
-    1 * okHttpClient.newCall(request1) >> call1
-    1 * call1.execute() >> okResponse()
-    1 * okHttpClient.newCall(request2) >> call2
-    1 * call2.execute() >> okResponse()
-    queue.size() == 0
+    1 * metricCollector.prepareMetrics()
 
     then:
-    1 * telemetryService.getHeartbeatInterval() >> 10_000L
-    1 * telemetryService.getMetricsInterval() >> 10_000L
-    1 * sleeper.sleep(10_000L) >> { t.interrupt() }
-
-    then:
-    1 * telemetryService.appClosingRequest() >> request3
-    1 * okHttpClient.newCall(request3) >> call3
-    1 * call3.execute() >> okResponse()
+    1 * timeSource.getCurrentTimeMillis() >> 70 * 1000 + 2
+    1 * sleeperMock.sleep(9998)
     0 * _
-  }
 
-  void 'endpoint not found'() {
-    setup:
-    def queue = new ArrayDeque<>([REQUEST, REQUEST])
-    Call call = Mock()
-
-    when:
-    t.start()
-    t.join()
+    when: 'third iteration (20 seconds, metrics)'
+    sleeper.go.await(10, TimeUnit.SECONDS)
+    sleeper.sleeped.await(10, TimeUnit.SECONDS)
 
     then:
-    1 * telemetryService.addConfiguration(_)
-    1 * periodicAction.doIteration(telemetryService)
-    1 * telemetryService.addStartedRequest()
+    1 * timeSource.getCurrentTimeMillis() >> 80 * 1000
 
     then:
-    1 * periodicAction.doIteration(telemetryService)
-    1 * telemetryService.prepareRequests() >> queue
-    1 * okHttpClient.newCall(REQUEST) >> call
-    1 * call.execute() >> notFoundResponse()
-    queue.size() == 0
+    1 * metricCollector.prepareMetrics()
 
     then:
-    1 * telemetryService.getHeartbeatInterval() >> 10_000L
-    1 * telemetryService.getMetricsInterval() >> 10_000L
-    1 * sleeper.sleep(10_000L) >> { t.interrupt() }
-
-    then:
-    1 * telemetryService.appClosingRequest() >> REQUEST
-    1 * okHttpClient.newCall(REQUEST) >> call
-    1 * call.execute() >> okResponse()
+    1 * timeSource.getCurrentTimeMillis() >> 80 * 1000 + 3
+    1 * sleeperMock.sleep(9997)
     0 * _
-  }
 
-  void 'backoff time increases'() {
-    setup:
-    def queue = new ArrayDeque<>([REQUEST])
-    Call call = Mock()
+    when: 'fourth iteration (30 seconds, metrics)'
+    sleeper.go.await(10, TimeUnit.SECONDS)
+    sleeper.sleeped.await(10, TimeUnit.SECONDS)
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 90 * 1000
+
+    then:
+    1 * metricCollector.prepareMetrics()
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 90 * 1000 + 4
+    1 * sleeperMock.sleep(9996)
+    0 * _
+
+    when: 'fifth iteration (40 seconds, metrics)'
+    sleeper.go.await(10, TimeUnit.SECONDS)
+    sleeper.sleeped.await(10, TimeUnit.SECONDS)
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 100 * 1000
+
+    then:
+    1 * metricCollector.prepareMetrics()
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 100 * 1000 + 5
+    1 * sleeperMock.sleep(9995)
+    0 * _
+
+    when: 'sixth iteration (50 seconds, metrics)'
+    sleeper.go.await(10, TimeUnit.SECONDS)
+    sleeper.sleeped.await(10, TimeUnit.SECONDS)
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 110 * 1000
+
+    then:
+    1 * metricCollector.prepareMetrics()
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 110 * 1000 + 6
+    1 * sleeperMock.sleep(9994)
+    0 * _
+
+    when: 'seventh iteration (60 seconds, metrics, heartbeat)'
+    sleeper.go.await(10, TimeUnit.SECONDS)
+    sleeper.sleeped.await(10, TimeUnit.SECONDS)
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 120 * 1000
+
+    then:
+    1 * metricCollector.prepareMetrics()
+
+    then:
+    1 * metricCollector.drain() >> []
+    1 * periodicAction.doIteration(telemetryService)
+
+    then:
+    1 * telemetryService.sendIntervalRequests()
+    1 * timeSource.getCurrentTimeMillis() >> 120 * 1000 + 7
+    1 * sleeperMock.sleep(9993)
+    0 * _
 
     when:
-    t.start()
+    t.interrupt()
     t.join()
 
     then:
-    1 * telemetryService.addConfiguration(_)
-    1 * periodicAction.doIteration(telemetryService)
-    1 * telemetryService.addStartedRequest()
-
-    then:
-    1 * periodicAction.doIteration(telemetryService)
-    1 * telemetryService.prepareRequests() >> queue
-
-    then:
-    1 * okHttpClient.newCall(REQUEST) >> call
-    1 * call.execute() >> badResponse()
-    queue.size() == 1
-
-    then:
-    1 * sleeper.sleep(3_000)
-
-    then:
-    1 * periodicAction.doIteration(telemetryService)
-    1 * telemetryService.prepareRequests() >> queue
-    1 * okHttpClient.newCall(REQUEST) >> call
-    1 * call.execute() >> badResponse()
-    queue.size() == 1
-
-    then:
-    1 * sleeper.sleep(9_000) >> { t.interrupt() }
-
-    then:
-    1 * telemetryService.appClosingRequest() >> REQUEST
-    1 * okHttpClient.newCall(REQUEST) >> call
-    1 * call.execute() >> okResponse()
+    1 * telemetryService.sendAppClosingRequest()
     0 * _
   }
 }

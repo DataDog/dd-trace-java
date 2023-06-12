@@ -227,6 +227,10 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
     return [REDIRECT, ERROR, NOT_FOUND].contains(endpoint)
   }
 
+  boolean isRespSpanChildOfDispatchOnException() {
+    false
+  }
+
   void responseSpan(TraceAssert trace, ServerEndpoint endpoint) {
     String method
     switch (endpoint) {
@@ -246,7 +250,14 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
       operationName "servlet.response"
       resourceName "HttpServletResponse.$method"
       if (endpoint.throwsException) {
-        childOf(trace.span(0)) // Not a child of the controller because sendError called by framework
+        // Not a child of the controller because sendError called by framework
+        if (dispatch && respSpanChildOfDispatchOnException) {
+          // on jetty the response span is started around the scope of dispatch span
+          // (because we instrument on a lower level on jetty, not just around the servlet)
+          childOf(trace.span(1))
+        } else {
+          childOf(trace.span(0))
+        }
       } else {
         childOfPrevious()
       }

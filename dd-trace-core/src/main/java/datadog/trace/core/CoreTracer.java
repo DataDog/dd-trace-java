@@ -45,6 +45,7 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.profiling.Timer;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.api.time.SystemTimeSource;
@@ -178,6 +179,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final TimeSource timeSource;
   private final ProfilingContextIntegration profilingContextIntegration;
 
+  private Timer timer = Timer.NoOp.INSTANCE;
+
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
    * earlier
@@ -207,6 +210,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   private final PropagationTags.Factory propagationTagsFactory;
 
+  @Override
   public TraceConfig captureTraceConfig() {
     return dynamicConfig.captureTraceConfig();
   }
@@ -561,7 +565,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     pendingTraceBuffer =
         strictTraceWrites
             ? PendingTraceBuffer.discarding()
-            : PendingTraceBuffer.delaying(this.timeSource);
+            : PendingTraceBuffer.delaying(
+                this.timeSource, config, sharedCommunicationObjects, healthMetrics);
     pendingTraceFactory =
         new PendingTrace.Factory(
             this, pendingTraceBuffer, this.timeSource, strictTraceWrites, healthMetrics);
@@ -646,6 +651,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
    */
   public PendingTrace createTrace(DDTraceId id) {
     return pendingTraceFactory.create(id);
+  }
+
+  PendingTrace createTrace(DDTraceId id, TraceConfig traceConfig) {
+    return pendingTraceFactory.create(id, traceConfig);
   }
 
   /**
@@ -886,6 +895,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return dataStreamsMonitoring;
   }
 
+  @Override
+  public Timer getTimer() {
+    return timer;
+  }
+
   private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 1, MINUTES);
 
   /**
@@ -969,9 +983,18 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public String getTraceId() {
-    final AgentSpan activeSpan = activeSpan();
-    if (activeSpan instanceof DDSpan) {
-      DDTraceId traceId = activeSpan.getTraceId();
+    return getTraceId(activeSpan());
+  }
+
+  @Override
+  public String getSpanId() {
+    return getSpanId(activeSpan());
+  }
+
+  @Override
+  public String getTraceId(AgentSpan span) {
+    if (span != null && span.getTraceId() != null) {
+      DDTraceId traceId = span.getTraceId();
       // Return padded hexadecimal string representation if 128-bit TraceId logging is enabled and
       // TraceId is a 128-bit ID, otherwise use the default numerical string representation.
       if (this.logs128bTraceIdEnabled && traceId.toHighOrderLong() != 0) {
@@ -984,10 +1007,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public String getSpanId() {
-    final AgentSpan activeSpan = activeSpan();
-    if (activeSpan instanceof DDSpan) {
-      return DDSpanId.toString(activeSpan.getSpanId());
+  public String getSpanId(AgentSpan span) {
+    if (span != null) {
+      return DDSpanId.toString(span.getSpanId());
     }
     return "0";
   }
@@ -1075,6 +1097,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public void registerCheckpointer(EndpointCheckpointer implementation) {
     endpointCheckpointer.register(implementation);
+  }
+
+  @Override
+  public void registerTimer(Timer timer) {
+    this.timer = timer;
   }
 
   @Override
@@ -1458,9 +1485,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           propagationTags = propagationTagsFactory.empty();
         }
 
+        TraceConfig traceConfig;
+
         // Get header tags and set origin whether propagating or not.
         if (parentContext instanceof TagContext) {
           TagContext tc = (TagContext) parentContext;
+          traceConfig = tc.getTraceConfig();
           coreTags = tc.getTags();
           origin = tc.getOrigin();
           baggage = tc.getBaggage();
@@ -1468,6 +1498,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           requestContextDataIast = tc.getRequestContextDataIast();
           ciVisibilityContextData = tc.getCiVisibilityContextData();
         } else {
+          traceConfig = null;
           coreTags = null;
           origin = null;
           baggage = null;
@@ -1478,7 +1509,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
         rootSpanTags = localRootSpanTags;
 
-        parentTrace = createTrace(traceId);
+        parentTrace = createTrace(traceId, traceConfig);
 
         if (endToEndStartTime > 0) {
           parentTrace.beginEndToEnd(endToEndStartTime);

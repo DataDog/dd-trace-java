@@ -45,11 +45,12 @@ public class TracingListener extends TestNGClassListener
   }
 
   @Override
-  protected void onBeforeClass(ITestClass testClass) {
+  protected void onBeforeClass(ITestClass testClass, boolean parallelized) {
     String testSuiteName = testClass.getName();
     Class<?> testSuiteClass = testClass.getRealClass();
     List<String> groups = TestNGUtils.getGroups(testClass);
-    testEventsHandler.onTestSuiteStart(testSuiteName, null, null, testSuiteClass, groups);
+    testEventsHandler.onTestSuiteStart(
+        testSuiteName, null, null, testSuiteClass, groups, parallelized);
   }
 
   @Override

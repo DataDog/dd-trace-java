@@ -16,6 +16,7 @@ public final class Metadata {
   private final boolean measured;
   private final boolean topLevel;
   private final CharSequence origin;
+  private final int longRunningVersion;
 
   public Metadata(
       long threadId,
@@ -26,7 +27,8 @@ public final class Metadata {
       boolean measured,
       boolean topLevel,
       UTF8BytesString httpStatusCode,
-      CharSequence origin) {
+      CharSequence origin,
+      int longRunningVersion) {
     this.threadId = threadId;
     this.threadName = threadName;
     this.httpStatusCode = httpStatusCode;
@@ -36,6 +38,7 @@ public final class Metadata {
     this.measured = measured;
     this.topLevel = topLevel;
     this.origin = origin;
+    this.longRunningVersion = longRunningVersion;
   }
 
   public UTF8BytesString getHttpStatusCode() {
@@ -64,6 +67,10 @@ public final class Metadata {
 
   public boolean measured() {
     return measured;
+  }
+
+  public int longRunningVersion() {
+    return longRunningVersion;
   }
 
   public boolean topLevel() {

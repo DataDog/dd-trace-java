@@ -1,23 +1,23 @@
 package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.el.DSL.eq;
-import static com.datadog.debugger.el.DSL.getMember;
-import static com.datadog.debugger.el.DSL.index;
 import static com.datadog.debugger.el.DSL.ref;
 import static com.datadog.debugger.el.DSL.value;
 import static com.datadog.debugger.probe.SpanDecorationProbe.TargetSpan.ACTIVE;
 import static com.datadog.debugger.probe.SpanDecorationProbe.TargetSpan.ROOT;
+import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
-import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.el.expressions.BooleanExpression;
-import com.datadog.debugger.el.expressions.ValueExpression;
 import com.datadog.debugger.probe.SpanDecorationProbe;
+import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
 import datadog.trace.api.interceptor.MutableSpan;
@@ -54,7 +54,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   @Test
   public void methodActiveSpanSimpleTag() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
-    SpanDecorationProbe.Decoration decoration = createDecoration("tag1", ref("arg"), "arg");
+    SpanDecorationProbe.Decoration decoration = createDecoration("tag1", "{arg}");
     installSingleSpanDecoration(
         CLASS_NAME, ACTIVE, decoration, "process", "int (java.lang.String)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -62,19 +62,17 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     assertEquals(42, result);
     MutableSpan span = traceInterceptor.getFirstSpan();
     assertEquals("1", span.getTags().get("tag1"));
+    assertEquals(PROBE_ID.getId(), span.getTags().get("_dd.di.tag1.probe_id"));
   }
 
   @Test
   public void methodActiveSpanTagList() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
-    SpanDecorationProbe.Decoration deco1 = createDecoration("tag1", ref("arg"), "arg");
-    SpanDecorationProbe.Decoration deco2 =
-        createDecoration("tag2", getMember(ref("this"), "intField"), "this.intField");
-    SpanDecorationProbe.Decoration deco3 = createDecoration("tag3", ref("strField"), "strField");
-    SpanDecorationProbe.Decoration deco4 =
-        createDecoration("tag4", index(ref("strList"), value(1)), "strList[1]");
-    SpanDecorationProbe.Decoration deco5 =
-        createDecoration("tag5", index(ref("map"), value("foo3")), "map['foo3']");
+    SpanDecorationProbe.Decoration deco1 = createDecoration("tag1", "{arg}");
+    SpanDecorationProbe.Decoration deco2 = createDecoration("tag2", "{this.intField}");
+    SpanDecorationProbe.Decoration deco3 = createDecoration("tag3", "{strField}");
+    SpanDecorationProbe.Decoration deco4 = createDecoration("tag4", "{strList[1]}");
+    SpanDecorationProbe.Decoration deco5 = createDecoration("Tag+5", "{map['foo3']}");
     installSingleSpanDecoration(
         CLASS_NAME,
         ACTIVE,
@@ -89,17 +87,16 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     assertEquals("42", span.getTags().get("tag2"));
     assertEquals("hello", span.getTags().get("tag3"));
     assertEquals("foobar2", span.getTags().get("tag4"));
-    assertEquals("bar3", span.getTags().get("tag5"));
+    assertEquals("bar3", span.getTags().get("tag_5")); // tag name sanitized
   }
 
   @Test
   public void methodRootSpanTagList() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot21";
-    SpanDecorationProbe.Decoration deco1 = createDecoration("tag1", ref("arg"), "arg");
-    SpanDecorationProbe.Decoration deco2 =
-        createDecoration("tag2", getMember(ref("this"), "intField"), "this.intField");
-    SpanDecorationProbe.Decoration deco3 = createDecoration("tag3", ref("strField"), "strField");
-    SpanDecorationProbe.Decoration deco4 = createDecoration("tag4", ref("@return"), "@return");
+    SpanDecorationProbe.Decoration deco1 = createDecoration("tag1", "{arg}");
+    SpanDecorationProbe.Decoration deco2 = createDecoration("tag2", "{this.intField}");
+    SpanDecorationProbe.Decoration deco3 = createDecoration("tag3", "{strField}");
+    SpanDecorationProbe.Decoration deco4 = createDecoration("tag4", "{@return}");
     installSingleSpanDecoration(
         CLASS_NAME,
         ROOT,
@@ -121,7 +118,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   public void methodActiveSpanCondition() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
     SpanDecorationProbe.Decoration decoration =
-        createDecoration(eq(ref("arg"), value("5")), "arg == '5'", "tag1", ref("arg"), "arg");
+        createDecoration(eq(ref("arg"), value("5")), "arg == '5'", "tag1", "{arg}");
     installSingleSpanDecoration(
         CLASS_NAME, ACTIVE, decoration, "process", "int (java.lang.String)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -135,24 +132,55 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   }
 
   @Test
+  public void methodTagEvalError() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
+    SpanDecorationProbe.Decoration decoration = createDecoration("tag1", "{noarg}");
+    installSingleSpanDecoration(
+        CLASS_NAME, ACTIVE, decoration, "process", "int (java.lang.String)");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    assertEquals(42, result);
+    MutableSpan span = traceInterceptor.getFirstSpan();
+    assertNull(span.getTags().get("tag1"));
+    assertEquals("Cannot find symbol: noarg", span.getTags().get("_dd.di.tag1.evaluation_error"));
+  }
+
+  @Test
+  public void methodActiveSpanInvalidCondition() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
+    SpanDecorationProbe.Decoration decoration =
+        createDecoration(eq(ref("noarg"), value("5")), "noarg == '5'", "tag1", "{arg}");
+    installSingleSpanDecoration(
+        CLASS_NAME, ACTIVE, decoration, "process", "int (java.lang.String)");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "5").get();
+    assertEquals(42, result);
+    assertFalse(traceInterceptor.getFirstSpan().getTags().containsKey("tag1"));
+    assertEquals(1, mockSink.getSnapshots().size());
+    Snapshot snapshot = mockSink.getSnapshots().get(0);
+    assertEquals(1, snapshot.getEvaluationErrors().size());
+    assertEquals("Cannot find symbol: noarg", snapshot.getEvaluationErrors().get(0).getMessage());
+  }
+
+  @Test
   public void lineActiveSpanSimpleTag() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
-    SpanDecorationProbe.Decoration decoration = createDecoration("tag1", ref("arg"), "arg");
+    SpanDecorationProbe.Decoration decoration = createDecoration("tag1", "{arg}");
     installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 37);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(42, result);
     MutableSpan span = traceInterceptor.getFirstSpan();
     assertEquals("1", span.getTags().get("tag1"));
+    assertEquals(PROBE_ID.getId(), span.getTags().get("_dd.di.tag1.probe_id"));
   }
 
   @Test
   public void lineRootSpanTagList() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot21";
-    SpanDecorationProbe.Decoration deco1 = createDecoration("tag1", ref("arg"), "arg");
-    SpanDecorationProbe.Decoration deco2 =
-        createDecoration("tag2", getMember(ref("this"), "intField"), "this.intField");
-    SpanDecorationProbe.Decoration deco3 = createDecoration("tag3", ref("strField"), "strField");
+    SpanDecorationProbe.Decoration deco1 = createDecoration("tag1", "{arg}");
+    SpanDecorationProbe.Decoration deco2 = createDecoration("tag2", "{this.intField}");
+    SpanDecorationProbe.Decoration deco3 = createDecoration("tag3", "{strField}");
     installSingleSpanDecoration(
         CLASS_NAME, ROOT, Arrays.asList(deco1, deco2, deco3), "CapturedSnapshot21.java", 67);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -169,7 +197,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   public void lineActiveSpanCondition() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
     SpanDecorationProbe.Decoration decoration =
-        createDecoration(eq(ref("arg"), value("5")), "arg == '5'", "tag1", ref("arg"), "arg");
+        createDecoration(eq(ref("arg"), value("5")), "arg == '5'", "tag1", "{arg}");
     installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 37);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     for (int i = 0; i < 10; i++) {
@@ -182,9 +210,25 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   }
 
   @Test
+  public void lineActiveSpanInvalidCondition() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
+    SpanDecorationProbe.Decoration decoration =
+        createDecoration(eq(ref("noarg"), value("5")), "arg == '5'", "tag1", "{arg}");
+    installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 37);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "5").get();
+    assertEquals(42, result);
+    assertFalse(traceInterceptor.getFirstSpan().getTags().containsKey("tag1"));
+    assertEquals(1, mockSink.getSnapshots().size());
+    Snapshot snapshot = mockSink.getSnapshots().get(0);
+    assertEquals(1, snapshot.getEvaluationErrors().size());
+    assertEquals("Cannot find symbol: noarg", snapshot.getEvaluationErrors().get(0).getMessage());
+  }
+
+  @Test
   public void nullActiveSpan() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    SpanDecorationProbe.Decoration decoration = createDecoration("tag1", ref("arg"), "arg");
+    SpanDecorationProbe.Decoration decoration = createDecoration("tag1", "{arg}");
     installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "main", "int (java.lang.String)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
@@ -192,21 +236,20 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     assertEquals(0, traceInterceptor.getAllTraces().size());
   }
 
-  private SpanDecorationProbe.Decoration createDecoration(
-      String tagName, ValueExpression<?> valueExpr, String valueDsl) {
+  private SpanDecorationProbe.Decoration createDecoration(String tagName, String valueDsl) {
     List<SpanDecorationProbe.Tag> tags =
-        Arrays.asList(new SpanDecorationProbe.Tag(tagName, new ValueScript(valueExpr, valueDsl)));
+        Arrays.asList(
+            new SpanDecorationProbe.Tag(
+                tagName, new SpanDecorationProbe.TagValue(valueDsl, parseTemplate(valueDsl))));
     return new SpanDecorationProbe.Decoration(null, tags);
   }
 
   private SpanDecorationProbe.Decoration createDecoration(
-      BooleanExpression expression,
-      String dsl,
-      String tagName,
-      ValueExpression<?> valueExpr,
-      String valueDsl) {
+      BooleanExpression expression, String dsl, String tagName, String valueDsl) {
     List<SpanDecorationProbe.Tag> tags =
-        Arrays.asList(new SpanDecorationProbe.Tag(tagName, new ValueScript(valueExpr, valueDsl)));
+        Arrays.asList(
+            new SpanDecorationProbe.Tag(
+                tagName, new SpanDecorationProbe.TagValue(valueDsl, parseTemplate(valueDsl))));
     return new SpanDecorationProbe.Decoration(new ProbeCondition(DSL.when(expression), dsl), tags);
   }
 

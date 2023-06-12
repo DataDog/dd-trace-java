@@ -111,6 +111,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED = true;
   static final String DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION = "0.1.6";
+  static final int DEFAULT_CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE = 4;
 
   static final boolean DEFAULT_REMOTE_CONFIG_ENABLED = true;
   static final boolean DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED = false;
@@ -163,6 +164,8 @@ public final class ConfigDefaults {
   public static final int DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH = 512;
 
   static final boolean DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH = false;
+  static final boolean DEFAULT_TRACE_LONG_RUNNING_ENABLED = false;
+  static final long DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL = 300; // seconds -> 5 minutes
 
   static final boolean DEFAULT_JDBC_SQL_OBFUSCATION = false;
 

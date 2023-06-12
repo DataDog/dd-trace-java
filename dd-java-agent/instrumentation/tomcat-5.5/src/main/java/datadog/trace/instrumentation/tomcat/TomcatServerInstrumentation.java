@@ -20,6 +20,7 @@ import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.util.Arrays;
 import java.util.Collection;
@@ -161,6 +162,8 @@ public final class TomcatServerInstrumentation extends Instrumenter.Tracing
       Object spanObj = req.getAttribute(DD_SPAN_ATTRIBUTE);
       if (spanObj instanceof AgentSpan) {
         AgentSpan span = (AgentSpan) spanObj;
+        req.setAttribute(CorrelationIdentifier.getTraceIdKey(), AgentTracer.get().getTraceId(span));
+        req.setAttribute(CorrelationIdentifier.getSpanIdKey(), AgentTracer.get().getSpanId(span));
         Object ctxObj = req.getAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE);
         AgentSpan.Context.Extracted ctx =
             ctxObj instanceof AgentSpan.Context.Extracted

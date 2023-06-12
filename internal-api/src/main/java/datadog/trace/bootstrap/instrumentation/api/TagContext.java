@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.sampling.PrioritySampling;
 import java.util.Collections;
 import java.util.Map;
@@ -21,28 +22,34 @@ public class TagContext implements AgentSpan.Context.Extracted {
   private Object ciVisibilityContextData;
   private final HttpHeaders httpHeaders;
   private final Map<String, String> baggage;
-
   private final int samplingPriority;
+  private final TraceConfig traceConfig;
 
   public TagContext() {
     this(null, null);
   }
 
   public TagContext(final String origin, final Map<String, String> tags) {
-    this(origin, tags, null, null, PrioritySampling.UNSET);
+    this(origin, tags, null, null, PrioritySampling.UNSET, null);
   }
 
   public TagContext(
       final CharSequence origin,
       final Map<String, String> tags,
-      HttpHeaders httpHeaders,
+      final HttpHeaders httpHeaders,
       final Map<String, String> baggage,
-      int samplingPriority) {
+      final int samplingPriority,
+      final TraceConfig traceConfig) {
     this.origin = origin;
     this.tags = tags;
     this.httpHeaders = httpHeaders == null ? EMPTY_HTTP_HEADERS : httpHeaders;
     this.baggage = baggage == null ? Collections.emptyMap() : baggage;
     this.samplingPriority = samplingPriority;
+    this.traceConfig = traceConfig;
+  }
+
+  public TraceConfig getTraceConfig() {
+    return traceConfig;
   }
 
   public final CharSequence getOrigin() {

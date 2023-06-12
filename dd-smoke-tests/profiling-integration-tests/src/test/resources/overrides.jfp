@@ -1,1 +1,3 @@
 datadog.Deadlock#period=1 s
+datadog.QueueTime#enabled=true
+datadog.QueueTime#threshold=0 ms

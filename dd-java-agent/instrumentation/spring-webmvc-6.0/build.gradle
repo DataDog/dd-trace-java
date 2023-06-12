@@ -36,6 +36,7 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:spring-webmvc-5.3')
   testImplementation project(':dd-java-agent:instrumentation:tomcat-appsec-6')
   testImplementation project(':dd-java-agent:instrumentation:tomcat-5.5')
+  testImplementation project(':dd-java-agent:instrumentation:servlet:request-5')
 
   testImplementation group: 'org.spockframework', name: 'spock-spring', version: "$versions.spock"
 

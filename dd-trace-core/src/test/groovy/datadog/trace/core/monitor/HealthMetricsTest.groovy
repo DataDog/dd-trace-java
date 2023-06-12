@@ -5,7 +5,6 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.RemoteApi
 import datadog.trace.common.writer.RemoteWriter
 import datadog.trace.test.util.DDSpecification
-import datadog.trace.test.util.Flaky
 import spock.lang.Ignore
 import spock.lang.Subject
 
@@ -72,10 +71,9 @@ class HealthMetricsTest extends DDSpecification {
     // spotless:on
   }
 
-  @Flaky
   def "test onFailedPublish"() {
     setup:
-    def latch = new CountDownLatch(1)
+    def latch = new CountDownLatch(2)
     def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
     healthMetrics.start()
 
@@ -104,10 +102,9 @@ class HealthMetricsTest extends DDSpecification {
 
   }
 
-  @Flaky
   def "test onPartialPublish"() {
     setup:
-    def latch = new CountDownLatch(1)
+    def latch = new CountDownLatch(2)
     def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
     healthMetrics.start()
 
@@ -355,6 +352,23 @@ class HealthMetricsTest extends DDSpecification {
     cleanup:
     healthMetrics.close()
   }
+
+  def "test onLongRunningUpdate"() {
+    setup:
+    def latch = new CountDownLatch(3)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    healthMetrics.start()
+    when:
+    healthMetrics.onLongRunningUpdate(3,10,1)
+    latch.await(10, TimeUnit.SECONDS)
+    then:
+    1 * statsD.count("long-running.write", 10, _)
+    1 * statsD.count("long-running.dropped", 3, _)
+    1 * statsD.count("long-running.expired", 1, _)
+    cleanup:
+    healthMetrics.close()
+  }
+
   private static class Latched implements StatsDClient {
     final StatsDClient delegate
     final CountDownLatch latch

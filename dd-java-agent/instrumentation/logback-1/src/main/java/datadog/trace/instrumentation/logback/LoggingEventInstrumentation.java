@@ -81,15 +81,8 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
         return;
       }
 
-      InstrumenterConfig instrumenterConfig = InstrumenterConfig.get();
       AgentSpan.Context context =
           InstrumentationContext.get(ILoggingEvent.class, AgentSpan.Context.class).get(event);
-      boolean mdcTagsInjectionEnabled = instrumenterConfig.isLogsMDCTagsInjectionEnabled();
-
-      // Nothing to add so return early
-      if (context == null && !mdcTagsInjectionEnabled) {
-        return;
-      }
 
 
       Map<String, String> correlationValues = new HashMap<>(8);
@@ -97,7 +90,7 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
       if (context != null) {
         DDTraceId traceId = context.getTraceId();
         String traceIdValue =
-            instrumenterConfig.isLogs128bTraceIdEnabled() && traceId.toHighOrderLong() != 0
+            InstrumenterConfig.get().isLogs128bTraceIdEnabled() && traceId.toHighOrderLong() != 0
                 ? traceId.toHexString()
                 : traceId.toString();
         correlationValues.put(CorrelationIdentifier.getTraceIdKey(), traceIdValue);
@@ -113,19 +106,17 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
         }
       }
 
-      if (mdcTagsInjectionEnabled) {
-        String serviceName = Config.get().getServiceName();
-        if (null != serviceName && !serviceName.isEmpty()) {
-          correlationValues.put(Tags.DD_SERVICE, serviceName);
-        }
-        String env = Config.get().getEnv();
-        if (null != env && !env.isEmpty()) {
-          correlationValues.put(Tags.DD_ENV, env);
-        }
-        String version = Config.get().getVersion();
-        if (null != version && !version.isEmpty()) {
-          correlationValues.put(Tags.DD_VERSION, version);
-        }
+      String serviceName = Config.get().getServiceName();
+      if (null != serviceName && !serviceName.isEmpty()) {
+        correlationValues.put(Tags.DD_SERVICE, serviceName);
+      }
+      String env = Config.get().getEnv();
+      if (null != env && !env.isEmpty()) {
+        correlationValues.put(Tags.DD_ENV, env);
+      }
+      String version = Config.get().getVersion();
+      if (null != version && !version.isEmpty()) {
+        correlationValues.put(Tags.DD_VERSION, version);
       }
 
       mdc = null != mdc ? new UnionMap<>(mdc, correlationValues) : correlationValues;

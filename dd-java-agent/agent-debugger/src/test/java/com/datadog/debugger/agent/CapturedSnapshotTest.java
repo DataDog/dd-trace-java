@@ -673,7 +673,7 @@ public class CapturedSnapshotTest {
     CapturedContext.CapturedValue simpleData =
         snapshot.getCaptures().getReturn().getLocals().get("simpleData");
     Map<String, CapturedContext.CapturedValue> simpleDataFields = getFields(simpleData);
-    Assertions.assertEquals(3, simpleDataFields.size());
+    Assertions.assertEquals(4, simpleDataFields.size());
     Assertions.assertEquals("foo", simpleDataFields.get("strValue").getValue());
     Assertions.assertEquals(42, simpleDataFields.get("intValue").getValue());
     Assertions.assertEquals(DEPTH_REASON, simpleDataFields.get("listValue").getNotCapturedReason());
@@ -819,8 +819,8 @@ public class CapturedSnapshotTest {
                                     DSL.value("hello"))),
                             DSL.and(
                                 DSL.eq(DSL.ref("arg"), DSL.value("5")),
-                                DSL.gt(DSL.ref(ValueReferences.DURATION_REF), DSL.value(0L))))),
-                    "(fld == 11 && typed.fld.fld.msg == \"hello\") && (arg == '5' && @duration > 0)"))
+                                DSL.ge(DSL.ref(ValueReferences.DURATION_REF), DSL.value(0L))))),
+                    "(fld == 11 && typed.fld.fld.msg == \"hello\") && (arg == '5' && @duration >= 0)"))
             .evaluateAt(MethodLocation.EXIT)
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe);
@@ -1029,7 +1029,7 @@ public class CapturedSnapshotTest {
         createProbeBuilder(PROBE_ID2, CLASS_NAME, "doit", "int (java.lang.String)")
             .when(
                 new ProbeCondition(
-                    DSL.when(DSL.gt(DSL.ref("@duration"), DSL.value(0))), "@duration > 0"))
+                    DSL.when(DSL.ge(DSL.ref("@duration"), DSL.value(0))), "@duration >= 0"))
             .evaluateAt(MethodLocation.EXIT)
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener =

@@ -14,7 +14,7 @@ import java.util.Collections;
  * because there are many calls to {@link HttpHeader#name()} inside akka-http code that we don't
  * care about.
  */
-@IastAdvice.Source(value = SourceTypes.REQUEST_PARAMETER_NAME_STRING)
+@IastAdvice.Source(value = SourceTypes.REQUEST_HEADER_NAME)
 @CallSite(spi = IastAdvice.class)
 public class HeaderNameCallSite {
 

@@ -7,7 +7,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import io.vertx.ext.web.impl.RoutingContextImpl;
 
+/**
+ * @see RoutingContextImpl#getBodyAsJson(int)
+ * @see RoutingContextImpl#getBodyAsJsonArray(int)
+ */
 @AutoService(Instrumenter.class)
 public class RoutingContextImplInstrumentation extends Instrumenter.AppSec
     implements Instrumenter.ForSingleType {

@@ -41,7 +41,7 @@ public class CallSiteTransformer implements Instrumenter.AdviceTransformer {
       final ClassLoader classLoader,
       final JavaModule module,
       final ProtectionDomain pd) {
-    Advices discovered = advices.findAdvices(type, classLoader);
+    Advices discovered = advices.findAdvices(builder, type, classLoader);
     return discovered.isEmpty() ? builder : builder.visit(new CallSiteVisitorWrapper(discovered));
   }
 
@@ -213,7 +213,7 @@ public class CallSiteTransformer implements Instrumenter.AdviceTransformer {
       final Type[] methodParameterTypesWithThis = methodParamTypesWithThis(owner, methodDescriptor);
 
       int[] parameterIndicesWithThis = new int[parameterIndices.length + 1];
-      parameterIndices[0] = 0;
+      parameterIndicesWithThis[0] = 0;
       for (int i = 0; i < parameterIndices.length; i++) {
         parameterIndicesWithThis[i + 1] = parameterIndices[i] + 1;
       }

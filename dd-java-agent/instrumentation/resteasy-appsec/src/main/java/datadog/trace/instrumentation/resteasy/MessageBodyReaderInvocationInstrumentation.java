@@ -7,9 +7,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -24,6 +26,11 @@ public class MessageBodyReaderInvocationInstrumentation extends Instrumenter.App
 
   public MessageBodyReaderInvocationInstrumentation() {
     super("resteasy");
+  }
+
+  @Override
+  public String muzzleDirective() {
+    return "jaxrs";
   }
 
   @Override
@@ -43,10 +50,19 @@ public class MessageBodyReaderInvocationInstrumentation extends Instrumenter.App
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class AbstractReaderInterceptorAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
-        @Advice.Return final Object ret, @ActiveRequestContext RequestContext reqCtx) {
-      if (ret == null) {
+        @Advice.Return final Object ret,
+        @ActiveRequestContext RequestContext reqCtx,
+        @Advice.Thrown(readOnly = false) Throwable t) {
+      if (ret == null || t != null) {
+        return;
+      }
+
+      if (ret.getClass()
+          .getName()
+          .equals("org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInputImpl")) {
+        // already handled in MultipartFormDataReaderInstrumentation
         return;
       }
 
@@ -56,7 +72,20 @@ public class MessageBodyReaderInvocationInstrumentation extends Instrumenter.App
       if (callback == null) {
         return;
       }
-      callback.apply(reqCtx, ret);
+
+      Flow<Void> flow = callback.apply(reqCtx, ret);
+      Flow.Action action = flow.getAction();
+      if (action instanceof Flow.Action.RequestBlockingAction) {
+        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+        BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
+        if (blockResponseFunction != null) {
+          blockResponseFunction.tryCommitBlockingResponse(
+              rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+          t =
+              new BlockingException(
+                  "Blocked request (for AbstractReaderInterceptorContext/readFrom)");
+        }
+      }
     }
   }
 }

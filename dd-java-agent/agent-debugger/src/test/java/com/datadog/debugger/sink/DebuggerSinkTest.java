@@ -1,6 +1,7 @@
 package com.datadog.debugger.sink;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.matches;
@@ -92,6 +93,11 @@ public class DebuggerSinkTest {
     assertEquals(PROBE_ID.getId(), intakeRequest.getDebugger().getSnapshot().getProbe().getId());
     assertEquals(
         PROBE_LOCATION, intakeRequest.getDebugger().getSnapshot().getProbe().getLocation());
+    assertTrue(
+        intakeRequest
+            .getDebugger()
+            .getRuntimeId()
+            .matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"));
   }
 
   @Test

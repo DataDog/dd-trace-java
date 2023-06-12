@@ -19,12 +19,12 @@ public class DummyResponse implements HttpServletResponse {
 
   @Override
   public String encodeURL(String url) {
-    return null;
+    return "Encoded_" + url;
   }
 
   @Override
   public String encodeRedirectURL(String url) {
-    return null;
+    return "Encoded_" + url;
   }
 
   @Override

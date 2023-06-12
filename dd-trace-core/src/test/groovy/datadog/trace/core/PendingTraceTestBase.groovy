@@ -35,7 +35,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     writer.waitForTraces(1)
 
     then:
-    trace.finishedSpans.isEmpty()
+    trace.spans.isEmpty()
     writer == [[rootSpan]]
     writer.traceCount.get() == 1
   }
@@ -52,7 +52,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
     then:
     trace.pendingReferenceCount == 1
-    trace.finishedSpans.asList() == [child]
+    trace.spans.asList() == [child]
     writer == []
 
     when:
@@ -61,7 +61,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
     then:
     trace.pendingReferenceCount == 0
-    trace.finishedSpans.isEmpty()
+    trace.spans.isEmpty()
     writer == [[rootSpan, child]]
     writer.traceCount.get() == 1
   }
@@ -78,7 +78,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
     then:
     trace.pendingReferenceCount == 1
-    trace.finishedSpans.asList() == [rootSpan]
+    trace.spans.asList() == [rootSpan]
     writer == []
 
     when:
@@ -87,7 +87,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
     then:
     trace.pendingReferenceCount == 0
-    trace.finishedSpans.isEmpty()
+    trace.spans.isEmpty()
     writer == [[child, rootSpan]]
     writer.traceCount.get() == 1
   }
@@ -104,7 +104,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
     expect:
     trace.pendingReferenceCount == 0
-    trace.finishedSpans.isEmpty()
+    trace.spans.isEmpty()
     writer == [[rootSpan], [childSpan]]
   }
 
@@ -131,7 +131,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
     then:
     trace.pendingReferenceCount == 2
-    trace.finishedSpans.asList() == [child2]
+    trace.spans.asList() == [child2]
     writer == []
     writer.traceCount.get() == 0
 
@@ -141,7 +141,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
     then:
     trace.pendingReferenceCount == 1
-    trace.finishedSpans.asList() == []
+    trace.spans.asList() == []
     writer == [[child1, child2]]
     writer.traceCount.get() == 1
 
@@ -151,7 +151,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
     then:
     trace.pendingReferenceCount == 0
-    trace.finishedSpans.isEmpty()
+    trace.spans.isEmpty()
     writer == [[child1, child2], [rootSpan]]
     writer.traceCount.get() == 2
 
@@ -176,7 +176,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
     then:
     trace.pendingReferenceCount == 2
-    trace.finishedSpans.asList() == [child1]
+    trace.spans.asList() == [child1]
     writer == []
     writer.traceCount.get() == 0
 
@@ -186,7 +186,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
     then:
     trace.pendingReferenceCount == 1
-    trace.finishedSpans.isEmpty()
+    trace.spans.isEmpty()
     writer == [[child2, child1]]
     writer.traceCount.get() == 1
 
@@ -196,7 +196,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
     then:
     trace.pendingReferenceCount == 0
-    trace.finishedSpans.isEmpty()
+    trace.spans.isEmpty()
     writer == [[child2, child1], [rootSpan]]
     writer.traceCount.get() == 2
 

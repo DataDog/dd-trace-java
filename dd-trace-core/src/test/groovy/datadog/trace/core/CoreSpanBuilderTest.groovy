@@ -308,8 +308,8 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     expect:
     root.context().getTrace().rootSpan == root
     root.context().getTrace().size() == nbSamples
-    root.context().getTrace().finishedSpans.containsAll(spans)
-    spans[(int) (Math.random() * nbSamples)].context.trace.finishedSpans.containsAll(spans)
+    root.context().getTrace().spans.containsAll(spans)
+    spans[(int) (Math.random() * nbSamples)].context.trace.spans.containsAll(spans)
   }
 
   def "ExtractedContext should populate new span details"() {
@@ -333,9 +333,9 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     span.context().propagationTags.headerValue(PropagationTags.HeaderType.DATADOG) == extractedContext.propagationTags.headerValue(PropagationTags.HeaderType.DATADOG)
 
     where:
-    extractedContext                                                                                                                                                                                                          | _
-    new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, null, 0, [:], [:], null, PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.dm=934086a686-4,_dd.p.anytag=value")) | _
-    new ExtractedContext(DDTraceId.from(3), 4, PrioritySampling.SAMPLER_KEEP, "some-origin", 0, ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"], null, PropagationTags.factory().empty())                     | _
+    extractedContext                                                                                                                                                                                                                | _
+    new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, null, 0, [:], [:], null, PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.dm=934086a686-4,_dd.p.anytag=value"), null) | _
+    new ExtractedContext(DDTraceId.from(3), 4, PrioritySampling.SAMPLER_KEEP, "some-origin", 0, ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"], null, PropagationTags.factory().empty(), null)                     | _
   }
 
   def "TagContext should populate default span details"() {

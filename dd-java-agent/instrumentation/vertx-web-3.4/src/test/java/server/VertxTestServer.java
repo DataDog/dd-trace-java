@@ -25,6 +25,7 @@ import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
+import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
@@ -200,7 +201,7 @@ public class VertxTestServer extends AbstractVerticle {
     router = customizeAfterRoutes(router);
 
     vertx
-        .createHttpServer()
+        .createHttpServer(new HttpServerOptions().setHandle100ContinueAutomatically(true))
         .requestHandler(router::accept)
         .listen(port, event -> startFuture.complete());
   }

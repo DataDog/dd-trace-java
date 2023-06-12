@@ -109,6 +109,10 @@ public class InstrumentationGateway {
       }
     }
 
+    void reset(EventType<?> et) {
+      callbacks.set(et.getId(), null);
+    }
+
     @Override
     @SuppressWarnings("unchecked")
     public <C> C getCallback(EventType<C> eventType) {

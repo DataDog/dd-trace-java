@@ -755,6 +755,49 @@ public class MetricProbesInstrumentationTest {
   }
 
   @Test
+  public void nullExpression() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot06";
+    String NULLLEN_METRIC = "nulllen";
+    String MAPNULL_METRIC = "mapnull";
+    String NULL_METRIC = "null";
+    MetricProbe metricProbe1 =
+        createMetricBuilder(METRIC_ID1, NULLLEN_METRIC, GAUGE)
+            .where(CLASS_NAME, "f", "()")
+            .valueScript(new ValueScript(DSL.len(DSL.nullValue()), "len(null)"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricProbe metricProbe2 =
+        createMetricBuilder(METRIC_ID2, MAPNULL_METRIC, GAUGE)
+            .where(CLASS_NAME, "f", "()")
+            .valueScript(
+                new ValueScript(DSL.index(DSL.ref("strMap"), DSL.nullValue()), "strMap[null]"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricProbe metricProbe3 =
+        createMetricBuilder(METRIC_ID3, NULL_METRIC, GAUGE)
+            .where(CLASS_NAME, "f", "()")
+            .valueScript(new ValueScript(DSL.nullValue(), "null"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricForwarderListener listener =
+        installMetricProbes(metricProbe1, metricProbe2, metricProbe3);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assertions.assertEquals(42, result);
+    Assertions.assertEquals(0, listener.gauges.size());
+    Assertions.assertEquals(3, mockSink.getCurrentDiagnostics().size());
+    Assertions.assertEquals(
+        "Unsupported type for len operation: java.lang.Object",
+        mockSink.getCurrentDiagnostics().get(0).getMessage());
+    Assertions.assertEquals(
+        "Incompatible type for expression: java.lang.String with expected type: long",
+        mockSink.getCurrentDiagnostics().get(1).getMessage());
+    Assertions.assertEquals(
+        "Incompatible type for expression: java.lang.Object with expected type: long",
+        mockSink.getCurrentDiagnostics().get(2).getMessage());
+  }
+
+  @Test
   public void indexExpression() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot22";
     String ARRAYIDX_METRIC = "arrayindex";
@@ -827,6 +870,45 @@ public class MetricProbesInstrumentationTest {
     Assertions.assertEquals(
         "Incompatible type for key: Type{mainType=Ljava/lang/String;, genericTypes=[]}, expected int or long",
         mockSink.getCurrentDiagnostics().get(0).getMessage());
+  }
+
+  @Test
+  public void privateFieldValue() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot04";
+    final String STRVALUE_METRIC = "strvalue_count";
+    final String LONGVALUE_METRIC = "longvalue_count";
+    final String INTVALUE_METRIC = "intvalue_count";
+    MetricProbe metricProbe1 =
+        createMetricBuilder(METRIC_ID1, STRVALUE_METRIC, GAUGE)
+            .where(CLASS_NAME, 24)
+            .valueScript(
+                new ValueScript(
+                    DSL.len(DSL.getMember(DSL.ref("sdata"), "strValue")), "len(sdata.strValue)"))
+            .build();
+    MetricProbe metricProbe2 =
+        createMetricBuilder(METRIC_ID2, LONGVALUE_METRIC, GAUGE)
+            .where(CLASS_NAME, 24)
+            .valueScript(
+                new ValueScript(
+                    DSL.getMember(DSL.getMember(DSL.ref("cdata"), "s2"), "longValue"),
+                    "cdata.s2.longValue"))
+            .build();
+    MetricProbe metricProbe3 =
+        createMetricBuilder(METRIC_ID3, INTVALUE_METRIC, GAUGE)
+            .where(CLASS_NAME, 24)
+            .valueScript(
+                new ValueScript(
+                    DSL.getMember(DSL.getMember(DSL.ref("cdata"), "s2"), "intValue"),
+                    "cdata.s2.intValue"))
+            .build();
+    MetricForwarderListener listener =
+        installMetricProbes(metricProbe1, metricProbe2, metricProbe3);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assertions.assertEquals(143, result);
+    Assertions.assertEquals(3, listener.gauges.get(STRVALUE_METRIC));
+    Assertions.assertEquals(1042, listener.gauges.get(LONGVALUE_METRIC));
+    Assertions.assertEquals(202, listener.gauges.get(INTVALUE_METRIC));
   }
 
   private MetricForwarderListener installSingleMetric(

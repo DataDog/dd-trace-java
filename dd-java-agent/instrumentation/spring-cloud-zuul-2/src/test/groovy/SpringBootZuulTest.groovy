@@ -10,6 +10,7 @@ import org.springframework.boot.SpringApplication
 import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.web.servlet.view.RedirectView
+import spock.lang.Ignore
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
@@ -18,6 +19,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static java.util.Collections.singletonMap
 
+@Ignore("Does not assert servlet.context tag - https://github.com/DataDog/dd-trace-java/pull/5213")
 class SpringBootZuulTest extends HttpServerTest<ConfigurableApplicationContext> {
 
   class SpringBootServer implements HttpServer {
@@ -72,6 +74,12 @@ class SpringBootZuulTest extends HttpServerTest<ConfigurableApplicationContext> 
   @Override
   boolean testNotFound() {
     false // Zuul forwards to the error handler instead
+  }
+
+  //@Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")
+  @Override
+  boolean testBadUrl() {
+    false
   }
 
   int spanCount(ServerEndpoint endpoint) {

@@ -17,7 +17,8 @@ public interface TestEventsHandler {
       @Nullable String testFramework,
       @Nullable String testFrameworkVersion,
       @Nullable Class<?> testClass,
-      @Nullable Collection<String> categories);
+      @Nullable Collection<String> categories,
+      boolean parallelized);
 
   void onTestSuiteFinish(String testSuiteName, @Nullable Class<?> testClass);
 

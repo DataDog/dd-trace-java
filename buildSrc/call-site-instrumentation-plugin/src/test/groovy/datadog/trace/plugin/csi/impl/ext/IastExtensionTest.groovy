@@ -83,7 +83,7 @@ class IastExtensionTest extends BaseCsiPluginTest {
     assert Files.exists(resultFile)
     final callSiteType = parse(resultFile.toFile())
     validateMethod(callSiteType, 'afterGetHeader') { List<String> statements ->
-      assert statements[0] == 'IastTelemetryCollector.add(IastMetric.EXECUTED_SOURCE, 1, SourceTypes.REQUEST_HEADER_VALUE);'
+      assert statements[0] == 'IastMetricCollector.add(IastMetric.EXECUTED_SOURCE_REQUEST_HEADER_VALUE, 1);'
     }
 
     callSite.getAdvices().each { result ->
@@ -103,7 +103,7 @@ class IastExtensionTest extends BaseCsiPluginTest {
       validateMethod(adviceType, 'apply') { List<String> statements ->
         assert statements == [
           'if (this.telemetry) {' + System.lineSeparator() +
-          '    IastTelemetryCollector.add(IastMetric.INSTRUMENTED_SOURCE, 1, SourceTypes.REQUEST_HEADER_VALUE);' + System.lineSeparator() +
+          '    IastMetricCollector.add(IastMetric.INSTRUMENTED_SOURCE_REQUEST_HEADER_VALUE, 1);' + System.lineSeparator() +
           '}',
           'handler.dupInvoke(owner, descriptor, StackDupMode.COPY);',
           'handler.method(opcode, owner, name, descriptor, isInterface);',

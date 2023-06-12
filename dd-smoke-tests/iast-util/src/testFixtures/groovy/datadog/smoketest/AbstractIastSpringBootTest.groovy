@@ -1,0 +1,452 @@
+package datadog.smoketest
+
+import okhttp3.FormBody
+import okhttp3.MediaType
+import okhttp3.Request
+import okhttp3.RequestBody
+
+import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
+import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE
+import static datadog.trace.api.config.IastConfig.IAST_ENABLED
+import static datadog.trace.api.config.IastConfig.IAST_REDACTION_ENABLED
+
+abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
+
+  private static final MediaType JSON = MediaType.parse('application/json; charset=utf-8')
+
+  @Override
+  ProcessBuilder createProcessBuilder() {
+    String springBootShadowJar = System.getProperty('datadog.smoketest.springboot.shadowJar.path')
+
+    List<String> command = []
+    command.add(javaPath())
+    command.addAll(defaultJavaProperties)
+    command.addAll([
+      withSystemProperty(IAST_ENABLED, true),
+      withSystemProperty(IAST_DETECTION_MODE, 'FULL'),
+      withSystemProperty(IAST_DEBUG_ENABLED, true),
+      withSystemProperty(IAST_REDACTION_ENABLED, false)
+    ])
+    command.addAll((String[]) ['-jar', springBootShadowJar, "--server.port=${httpPort}"])
+    ProcessBuilder processBuilder = new ProcessBuilder(command)
+    processBuilder.directory(new File(buildDirectory))
+    // Spring will print all environment variables to the log, which may pollute it and affect log assertions.
+    processBuilder.environment().clear()
+    return processBuilder
+  }
+
+  void 'IAST subsystem starts'() {
+    given: 'an initial request has succeeded'
+    String url = "http://localhost:${httpPort}/greeting"
+    def request = new Request.Builder().url(url).get().build()
+    client.newCall(request).execute()
+
+    when: 'logs are read'
+    String startMsg = null
+    String errorMsg = null
+    checkLogPostExit {
+      if (it.contains('Not starting IAST subsystem')) {
+        errorMsg = it
+      }
+      if (it.contains('IAST is starting')) {
+        startMsg = it
+      }
+      // Check that there's no logged exception about missing classes from Datadog.
+      // We had this problem before with JDK9StackWalker.
+      if (it.contains('java.lang.ClassNotFoundException: datadog/')) {
+        errorMsg = it
+      }
+    }
+
+    then: 'there are no errors in the log and IAST has started'
+    errorMsg == null
+    startMsg != null
+    !logHasErrors
+  }
+
+  void 'default home page without errors'() {
+    setup:
+    String url = "http://localhost:${httpPort}/greeting"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    def responseBodyStr = response.body().string()
+    responseBodyStr != null
+    responseBodyStr.contains('Sup Dawg')
+    response.body().contentType().toString().contains('text/plain')
+    response.code() == 200
+
+    checkLogPostExit()
+    !logHasErrors
+  }
+
+  void 'iast.enabled tag is present'() {
+    setup:
+    String url = "http://localhost:${httpPort}/greeting"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasMetric('_dd.iast.enabled', 1)
+  }
+
+  void 'weak hash vulnerability is present'() {
+    setup:
+    String url = "http://localhost:${httpPort}/weakhash"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul ->
+      vul.type == 'WEAK_HASH' &&
+        vul.evidence.value == 'MD5'
+    }
+  }
+
+  void 'insecure cookie vulnerability is present'() {
+    setup:
+    String url = "http://localhost:${httpPort}/insecure_cookie"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isSuccessful()
+    response.header('Set-Cookie').contains('user-id')
+    hasVulnerability { vul ->
+      vul.type == 'INSECURE_COOKIE' &&
+        vul.evidence.value == 'user-id'
+    }
+  }
+
+  void 'insecure cookie  vulnerability from addheader is present'() {
+    setup:
+    String url = "http://localhost:${httpPort}/insecure_cookie_from_header"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isSuccessful()
+    response.header('Set-Cookie').contains('user-id')
+    hasVulnerability { vul ->
+      vul.type == 'INSECURE_COOKIE' &&
+        vul.evidence.value == 'user-id'
+    }
+  }
+
+
+  void 'weak hash vulnerability is present on boot'() {
+    setup:
+    String url = "http://localhost:${httpPort}/greeting"
+    def request = new Request.Builder().url(url).get().build()
+
+    when: 'ensure the controller is loaded'
+    client.newCall(request).execute()
+
+    then: 'a vulnerability pops in the logs (startup traces might not always be available)'
+    hasVulnerabilityInLogs { vul ->
+      vul.type == 'WEAK_HASH' &&
+        vul.evidence.value == 'SHA1' &&
+        vul.location.spanId > 0
+    }
+  }
+
+  void 'weak hash vulnerability is present on thread'() {
+    setup:
+    String url = "http://localhost:${httpPort}/async_weakhash"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul ->
+      vul.type == 'WEAK_HASH' &&
+        vul.evidence.value == 'MD4' &&
+        vul.location.spanId > 0
+    }
+  }
+
+  void 'getParameter taints string'() {
+    setup:
+    String url = "http://localhost:${httpPort}/getparameter?param=A"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasTainted { tainted ->
+      tainted.value == 'A' &&
+        tainted.ranges[0].source.name == 'param' &&
+        tainted.ranges[0].source.origin == 'http.request.parameter'
+    }
+  }
+
+  void 'command injection is present with runtime'() {
+    setup:
+    final url = "http://localhost:${httpPort}/cmdi/runtime?cmd=ls"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'COMMAND_INJECTION' }
+  }
+
+  void 'command injection is present with process builder'() {
+    setup:
+    final url = "http://localhost:${httpPort}/cmdi/process_builder?cmd=ls"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'COMMAND_INJECTION' }
+  }
+
+  void 'path traversal is present with file'() {
+    setup:
+    final url = "http://localhost:${httpPort}/path_traversal/file?path=test"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'PATH_TRAVERSAL' }
+  }
+
+  void 'path traversal is present with paths'() {
+    setup:
+    final url = "http://localhost:${httpPort}/path_traversal/paths?path=test"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'PATH_TRAVERSAL' }
+  }
+
+  void 'path traversal is present with path'() {
+    setup:
+    final url = "http://localhost:${httpPort}/path_traversal/path?path=test"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'PATH_TRAVERSAL' }
+  }
+
+  void 'parameter binding taints bean strings'() {
+    setup:
+    String url = "http://localhost:${httpPort}/param_binding/test?name=parameter&value=binding"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasTainted { tainted ->
+      tainted.value == 'binding' &&
+        tainted.ranges[0].source.name == 'value' &&
+        tainted.ranges[0].source.origin == 'http.request.parameter'
+    }
+  }
+
+  void 'request header taint string'() {
+    setup:
+    String url = "http://localhost:${httpPort}/request_header/test"
+    def request = new Request.Builder().url(url).header("test-header", "test").get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasTainted { tainted ->
+      tainted.value == 'test' &&
+        tainted.ranges[0].source.name == 'test-header' &&
+        tainted.ranges[0].source.origin == 'http.request.header'
+    }
+  }
+
+  void 'path param taint string'() {
+    setup:
+    String url = "http://localhost:${httpPort}/path_param?param=test"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasTainted { tainted ->
+      tainted.value == 'test' &&
+        tainted.ranges[0].source.name == 'param' &&
+        tainted.ranges[0].source.origin == 'http.request.parameter'
+    }
+  }
+
+  void 'request body taint json'() {
+    setup:
+    String url = "http://localhost:${httpPort}/request_body/test"
+    def request = new Request.Builder().url(url).post(RequestBody.create(JSON, '{"name": "nameTest", "value" : "valueTest"}')).build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasTainted { tainted ->
+      tainted.value == 'nameTest' &&
+        tainted.ranges[0].source.origin == 'http.request.body'
+    }
+  }
+
+  void 'request query string'() {
+    given:
+    final url = "http://localhost:${httpPort}/query_string?key=value"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasTainted { tainted ->
+      tainted.value == 'key=value' &&
+        tainted.ranges[0].source.origin == 'http.request.query'
+    }
+  }
+
+  void 'request cookie propagation'() {
+    given:
+    final url = "http://localhost:${httpPort}/cookie"
+    final request = new Request.Builder().url(url).header('Cookie', 'name=value').get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasTainted { tainted ->
+      tainted.value == 'name' &&
+        tainted.ranges[0].source.origin == 'http.request.cookie.name'
+    }
+    hasTainted { tainted ->
+      tainted.value == 'value' &&
+        tainted.ranges[0].source.name == 'name' &&
+        tainted.ranges[0].source.origin == 'http.request.cookie.value'
+    }
+  }
+
+  void 'tainting of path variables — simple variant'() {
+    given:
+    String url = "http://localhost:${httpPort}/simple/foobar"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasTainted {
+      it.value == 'foobar' &&
+        it.ranges[0].source.origin == 'http.request.path.parameter' &&
+        it.ranges[0].source.name == 'var1'
+    }
+  }
+
+  @SuppressWarnings('CyclomaticComplexity')
+  void 'tainting of path variables — RequestMappingInfoHandlerMapping variant'() {
+    given:
+    String url = "http://localhost:${httpPort}/matrix/value1;xxx=aaa,bbb;yyy=ccc/value2;zzz=ddd"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasTainted { tainted ->
+      final firstRange = tainted.ranges[0]
+      tainted.value == 'value1' &&
+        firstRange?.source?.origin == 'http.request.path.parameter' &&
+        firstRange?.source?.name == 'var1'
+    }
+    ['xxx', 'aaa', 'bbb', 'yyy', 'ccc'].each {
+      hasTainted { tainted ->
+        final firstRange = tainted.ranges[0]
+        tainted.value == it &&
+          firstRange?.source?.origin == 'http.request.matrix.parameter' &&
+          firstRange?.source?.name == 'var1'
+      }
+    }
+    hasTainted { tainted ->
+      final firstRange = tainted.ranges[0]
+      tainted.value == 'value2' &&
+        firstRange?.source?.origin == 'http.request.path.parameter' &&
+        firstRange?.source?.name == 'var2'
+    }
+    ['zzz', 'ddd'].each {
+      hasTainted { tainted ->
+        final firstRange = tainted.ranges[0]
+        tainted.value = it &&
+          firstRange?.source?.origin == 'http.request.matrix.parameter' &&
+          firstRange?.source?.name == 'var2'
+      }
+    }
+  }
+
+  void 'ssrf is present'() {
+    setup:
+    final url = "http://localhost:${httpPort}/ssrf"
+    final body = new FormBody.Builder().add('url', 'https://dd.datad0g.com/').build()
+    final request = new Request.Builder().url(url).post(body).build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'SSRF' }
+  }
+
+  void 'test iast metrics stored in spans'() {
+    setup:
+    final url = "http://localhost:${httpPort}/cmdi/runtime?cmd=ls"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasMetric('_dd.iast.telemetry.executed.sink.command_injection', 1)
+  }
+
+  void 'weak randomness is present in #evidence'() {
+    setup:
+    final url = "http://localhost:${httpPort}/weak_randomness?mode=${evidence}"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'WEAK_RANDOMNESS' && vul.evidence.value == evidence }
+
+    where:
+    evidence                                 | _
+    'java.util.Random'                       | _
+    'java.util.concurrent.ThreadLocalRandom' | _
+    'java.lang.Math'                         | _
+  }
+}

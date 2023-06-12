@@ -1083,7 +1083,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     AppSecModuleConfigurer.Reconfiguration reconf = Mock()
     ChangeableFlow flow = Mock()
 
-    when:
+    when: 'rule disabled in config b'
     service.currentAppSecConfig.with {
       def dirtyStatus = userConfigs.addConfig(
         new AppSecUserConfig('b', toggleById('ua0-600-12x', false), [], [], []))
@@ -1106,7 +1106,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
     0 * _
 
-    when:
+    when: 'rule enabled in config a has no effect'
     // later configurations have precedence (b > a)
     service.currentAppSecConfig.with {
       def dirtyStatus = userConfigs.addConfig(
@@ -1128,11 +1128,11 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
     0 * _
 
-    when:
+    when: 'rule enabled in config c overrides b'
     // later configurations have precedence (c > a)
     service.currentAppSecConfig.with {
       def dirtyStatus = userConfigs.addConfig(
-        new AppSecUserConfig('c', [], [], [], []))
+        new AppSecUserConfig('c', toggleById('ua0-600-12x', true), [], [], []))
       it.dirtyStatus.mergeFrom(dirtyStatus)
 
       service.listeners['waf'].onNewSubconfig(it, reconf)
@@ -1147,12 +1147,13 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getOrCreateAdditive(_, true) >> {
       pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
+    1 * flow.isBlocking()
     1 * flow.setAction({ it.blocking })
     1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
     0 * _
 
-    when:
+    when: 'removing c restores the state before c was added (rule disabled)'
     service.currentAppSecConfig.with {
       def dirtyStatus = userConfigs.removeConfig('c')
       it.dirtyStatus.mergeFrom(dirtyStatus)

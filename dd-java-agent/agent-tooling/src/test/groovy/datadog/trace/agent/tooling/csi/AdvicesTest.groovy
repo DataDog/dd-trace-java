@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.csi
 
 import datadog.trace.agent.tooling.bytebuddy.csi.Advices
-import net.bytebuddy.description.type.TypeDescription
 
 import static datadog.trace.agent.tooling.csi.CallSiteAdvice.HasFlags.COMPUTE_MAX_STACK
 
@@ -98,26 +97,21 @@ class AdvicesTest extends BaseCallSiteTest {
     final advices = Advices.fromCallSites()
 
     when:
-    final result = introspector.findAdvices(advices, Mock(TypeDescription), Mock(ClassLoader))
+    final result = introspector.findAdvices(advices, [] as byte[])
 
     then:
     result == advices
   }
 
-  def 'test constant pool introspector'(final Pointcut pointcutMock,
-    final boolean emptyAdvices,
-    final boolean adviceFound) {
+  void 'test constant pool introspector'() {
     setup:
-    final target = StringConcatExample
-    final targetType = Mock(TypeDescription) {
-      getName() >> target.name
-    }
+    final target = loadClass(StringConcatExample)
     final advice = mockInvokeAdvice(pointcutMock)
     final advices = Advices.fromCallSites(advice)
     final introspector = Advices.AdviceIntrospector.ConstantPoolInstrospector.INSTANCE
 
     when:
-    final result = introspector.findAdvices(advices, targetType, StringConcatExample.classLoader)
+    final result = introspector.findAdvices(advices, target)
     final found = result.findAdvice(pointcutMock) != null
 
     then:
@@ -152,5 +146,9 @@ class AdvicesTest extends BaseCallSiteTest {
 
     then:
     advices.computeMaxStack()
+  }
+
+  private static byte[] loadClass(final Class<?> clazz) {
+    return clazz.getResourceAsStream("${clazz.simpleName}.class").bytes
   }
 }

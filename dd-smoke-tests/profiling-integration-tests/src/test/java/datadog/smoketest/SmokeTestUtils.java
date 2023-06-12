@@ -32,7 +32,7 @@ final class SmokeTestUtils {
                 "-Ddd.env=smoketest",
                 "-Ddd.version=99",
                 "-Ddd.profiling.enabled=true",
-                "-Ddd.profiling.async.enabled=true",
+                "-Ddd.profiling.ddprof.enabled=true",
                 "-Ddd." + ProfilingConfig.PROFILING_AUXILIARY_TYPE + "=async",
                 "-Ddd."
                     + ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH
@@ -49,10 +49,10 @@ final class SmokeTestUtils {
                     + "="
                     + wallSamplerIntervalMs
                     + "ms",
-                "-Ddd." + ProfilingConfig.PROFILING_DATADOG_PROFILER_LOG_LEVEL + "=debug",
                 "-Ddd.profiling.agentless=false",
                 "-Ddd.profiling.start-delay=" + profilingStartDelaySecs,
                 "-Ddd." + ProfilingConfig.PROFILING_START_FORCE_FIRST + "=true",
+                "-Ddd.profiling.ddprof.alloc.enabled=true",
                 "-Ddd.profiling.upload.period=" + profilingUploadPeriodSecs,
                 "-Ddd.profiling.hotspots.enabled=true",
                 "-Ddd.profiling.legacy.tracing.integration=false",

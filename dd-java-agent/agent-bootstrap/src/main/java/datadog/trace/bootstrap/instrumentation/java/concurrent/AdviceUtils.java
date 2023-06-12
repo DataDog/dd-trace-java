@@ -24,6 +24,7 @@ public class AdviceUtils {
 
   public static AgentScope startTaskScope(State state, boolean migrated) {
     if (state != null) {
+      state.stopTiming();
       final AgentScope.Continuation continuation = state.getAndResetContinuation();
       if (continuation != null) {
         final AgentScope scope = continuation.activate();

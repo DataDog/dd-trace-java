@@ -110,13 +110,15 @@ public class ProbeStatus {
 
     private final int probeVersion;
 
+    private final String runtimeId;
     private final Status status;
 
     private final ProbeException exception;
 
-    public Diagnostics(ProbeId probeId, Status status, ProbeException exception) {
+    public Diagnostics(ProbeId probeId, String runtimeId, Status status, ProbeException exception) {
       this.probeId = probeId != null ? probeId.getId() : null;
       this.probeVersion = probeId != null ? probeId.getVersion() : 0;
+      this.runtimeId = runtimeId;
       this.status = status;
       this.exception = exception;
     }
@@ -133,29 +135,33 @@ public class ProbeStatus {
       return exception;
     }
 
-    @Generated
     @Override
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
       Diagnostics that = (Diagnostics) o;
-      return probeId.equals(that.probeId)
+      return probeVersion == that.probeVersion
+          && Objects.equals(probeId, that.probeId)
+          && Objects.equals(runtimeId, that.runtimeId)
           && status == that.status
           && Objects.equals(exception, that.exception);
     }
 
-    @Generated
     @Override
     public int hashCode() {
-      return Objects.hash(probeId, status, exception);
+      return Objects.hash(probeId, probeVersion, runtimeId, status, exception);
     }
 
-    @Generated
     @Override
     public String toString() {
       return "Diagnostics{"
           + "probeId='"
           + probeId
+          + '\''
+          + ", probeVersion="
+          + probeVersion
+          + ", runtimeId='"
+          + runtimeId
           + '\''
           + ", status="
           + status
@@ -234,30 +240,32 @@ public class ProbeStatus {
 
     private final String serviceName;
 
-    public Builder(Config config) {
+    private final String runtimeId;
 
+    public Builder(Config config) {
       this.serviceName = TagsHelper.sanitize(config.getServiceName());
+      this.runtimeId = config.getRuntimeId();
     }
 
     public ProbeStatus receivedMessage(ProbeId probeId) {
       return new ProbeStatus(
           this.serviceName,
           "Received probe " + probeId + ".",
-          new Diagnostics(probeId, Status.RECEIVED, null));
+          new Diagnostics(probeId, runtimeId, Status.RECEIVED, null));
     }
 
     public ProbeStatus installedMessage(ProbeId probeId) {
       return new ProbeStatus(
           this.serviceName,
           "Installed probe " + probeId + ".",
-          new Diagnostics(probeId, Status.INSTALLED, null));
+          new Diagnostics(probeId, runtimeId, Status.INSTALLED, null));
     }
 
     public ProbeStatus blockedMessage(ProbeId probeId) {
       return new ProbeStatus(
           this.serviceName,
           "Blocked probe " + probeId + ".",
-          new Diagnostics(probeId, Status.BLOCKED, null));
+          new Diagnostics(probeId, runtimeId, Status.BLOCKED, null));
     }
 
     public ProbeStatus errorMessage(ProbeId probeId, Throwable ex) {
@@ -266,6 +274,7 @@ public class ProbeStatus {
           "Error installing probe " + probeId + ".",
           new Diagnostics(
               probeId,
+              runtimeId,
               Status.ERROR,
               new ProbeException(
                   ex.getClass().getTypeName(),
@@ -281,6 +290,7 @@ public class ProbeStatus {
           "Error installing probe " + probeId + ".",
           new Diagnostics(
               probeId,
+              runtimeId,
               Status.ERROR,
               new ProbeException("NO_TYPE", message, Collections.emptyList())));
     }

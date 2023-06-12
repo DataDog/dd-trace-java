@@ -1,14 +1,13 @@
 package com.datadog.debugger.probe;
 
-import static com.datadog.debugger.util.ValueScriptHelper.serializeValue;
-
+import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.agent.Generated;
+import com.datadog.debugger.agent.LogMessageTemplateBuilder;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.ProbeCondition;
-import com.datadog.debugger.el.Value;
-import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.SpanDecorationInstrumentor;
+import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
@@ -17,6 +16,7 @@ import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.util.TagsHelper;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -29,17 +29,42 @@ import org.slf4j.LoggerFactory;
 
 public class SpanDecorationProbe extends ProbeDefinition {
   private static final Logger LOGGER = LoggerFactory.getLogger(SpanDecorationProbe.class);
+  private static final String PROBEID_DD_TAGS_FORMAT = "_dd.di.%s.probe_id";
+  private static final String EVALERROR_DD_TAGS_FORMAT = "_dd.di.%s.evaluation_error";
 
   public enum TargetSpan {
     ACTIVE,
     ROOT
   }
 
+  public static class TagValue {
+    private final String template;
+    private final List<LogProbe.Segment> segments;
+
+    public TagValue(String template, List<LogProbe.Segment> segments) {
+      this.template = template;
+      this.segments = segments;
+    }
+
+    public String getTemplate() {
+      return template;
+    }
+
+    public List<LogProbe.Segment> getSegments() {
+      return segments;
+    }
+
+    @Override
+    public String toString() {
+      return "TagValue{" + "template='" + template + '\'' + ", segments=" + segments + '}';
+    }
+  }
+
   public static class Tag {
     private final String name;
-    private final ValueScript value;
+    private final TagValue value;
 
-    public Tag(String name, ValueScript value) {
+    public Tag(String name, TagValue value) {
       this.name = name;
       this.value = value;
     }
@@ -48,7 +73,7 @@ public class SpanDecorationProbe extends ProbeDefinition {
       return name;
     }
 
-    public ValueScript getValue() {
+    public TagValue getValue() {
       return value;
     }
 
@@ -128,6 +153,7 @@ public class SpanDecorationProbe extends ProbeDefinition {
         } catch (EvaluationException ex) {
           LOGGER.debug("Evaluation error: ", ex);
           status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
+          continue;
         }
       }
       if (!(status instanceof SpanDecorationStatus)) {
@@ -135,23 +161,27 @@ public class SpanDecorationProbe extends ProbeDefinition {
       }
       SpanDecorationStatus spanStatus = (SpanDecorationStatus) status;
       for (Tag tag : decoration.tags) {
-        try {
-          Value<?> tagValue = tag.value.execute(context);
-          StringBuilder sb = new StringBuilder();
-          if (tagValue.isUndefined()) {
-            sb.append(tagValue.getValue());
-          } else if (tagValue.isNull()) {
-            sb.append("null");
-          } else {
-            serializeValue(sb, tag.value.getDsl(), tagValue.getValue(), status);
+        String tagName = sanitize(tag.name);
+        LogMessageTemplateBuilder builder = new LogMessageTemplateBuilder(tag.value.getSegments());
+        LogProbe.LogStatus logStatus = new LogProbe.LogStatus(this);
+        String tagValue = builder.evaluate(context, logStatus);
+        if (logStatus.hasLogTemplateErrors()) {
+          status.getErrors().addAll(logStatus.getErrors());
+          if (logStatus.getErrors().size() > 0) {
+            spanStatus.addTag(
+                String.format(EVALERROR_DD_TAGS_FORMAT, tagName),
+                logStatus.getErrors().get(0).getMessage());
           }
-          spanStatus.addTag(tag.name, sb.toString());
-        } catch (EvaluationException ex) {
-          LOGGER.debug("Evaluation error: ", ex);
-          status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
+        } else {
+          spanStatus.addTag(tagName, tagValue);
         }
+        spanStatus.addTag(String.format(PROBEID_DD_TAGS_FORMAT, tagName), getProbeId().getId());
       }
     }
+  }
+
+  private String sanitize(String tagName) {
+    return TagsHelper.sanitize(tagName);
   }
 
   @Override
@@ -164,8 +194,9 @@ public class SpanDecorationProbe extends ProbeDefinition {
     if (status == null) {
       return;
     }
-
-    decorateTags((SpanDecorationStatus) status);
+    SpanDecorationStatus spanStatus = (SpanDecorationStatus) status;
+    decorateTags(spanStatus);
+    handleEvaluationErrors(spanStatus);
   }
 
   @Override
@@ -174,7 +205,9 @@ public class SpanDecorationProbe extends ProbeDefinition {
     if (status == null) {
       return;
     }
-    decorateTags((SpanDecorationStatus) status);
+    SpanDecorationStatus spanStatus = (SpanDecorationStatus) status;
+    decorateTags(spanStatus);
+    handleEvaluationErrors(spanStatus);
   }
 
   private void decorateTags(SpanDecorationStatus status) {
@@ -198,6 +231,15 @@ public class SpanDecorationProbe extends ProbeDefinition {
     for (Pair<String, String> tag : tagsToDecorate) {
       agentSpan.setTag(tag.getLeft(), tag.getRight());
     }
+  }
+
+  private void handleEvaluationErrors(SpanDecorationStatus status) {
+    if (status.getErrors().isEmpty()) {
+      return;
+    }
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), this);
+    snapshot.addEvaluationErrors(status.getErrors());
+    DebuggerAgent.getSink().addSnapshot(snapshot);
   }
 
   @Override

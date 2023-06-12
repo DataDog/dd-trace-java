@@ -40,6 +40,12 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
     true
   }
 
+  //@Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")
+  @Override
+  boolean testBadUrl() {
+    false
+  }
+
   @Shared
   def totalInvocations = 200
 

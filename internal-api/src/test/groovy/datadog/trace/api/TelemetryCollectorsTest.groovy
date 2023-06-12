@@ -42,7 +42,7 @@ class TelemetryCollectorsTest extends DDSpecification {
 
   def "no metrics - drain empty list"() {
     when:
-    WafMetricCollector.get().prepareRequestMetrics()
+    WafMetricCollector.get().prepareMetrics()
 
     then:
     WafMetricCollector.get().drain().isEmpty()
@@ -59,7 +59,7 @@ class TelemetryCollectorsTest extends DDSpecification {
     WafMetricCollector.get().wafRequestTriggered()
     WafMetricCollector.get().wafRequestBlocked()
 
-    WafMetricCollector.get().prepareRequestMetrics()
+    WafMetricCollector.get().prepareMetrics()
 
     then:
     def metrics = WafMetricCollector.get().drain()
@@ -142,7 +142,7 @@ class TelemetryCollectorsTest extends DDSpecification {
     when:
     (0..limit*2).each {
       collector.wafRequest()
-      collector.prepareRequestMetrics()
+      collector.prepareMetrics()
     }
 
     then:
@@ -152,7 +152,7 @@ class TelemetryCollectorsTest extends DDSpecification {
     when:
     (0..limit*2).each {
       collector.wafRequestTriggered()
-      collector.prepareRequestMetrics()
+      collector.prepareMetrics()
     }
 
     then:
@@ -162,7 +162,7 @@ class TelemetryCollectorsTest extends DDSpecification {
     when:
     (0..limit*2).each {
       collector.wafRequestBlocked()
-      collector.prepareRequestMetrics()
+      collector.prepareMetrics()
     }
 
     then:

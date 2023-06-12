@@ -166,7 +166,10 @@ public class DDTestModuleImpl implements DDTestModule {
 
   @Override
   public DDTestSuite testSuiteStart(
-      String testSuiteName, @Nullable Class<?> testClass, @Nullable Long startTime) {
+      String testSuiteName,
+      @Nullable Class<?> testClass,
+      @Nullable Long startTime,
+      boolean parallelized) {
     return new DDTestSuiteImpl(
         context,
         moduleName,
@@ -177,7 +180,8 @@ public class DDTestModuleImpl implements DDTestModule {
         testDecorator,
         sourcePathResolver,
         codeowners,
-        methodLinesResolver);
+        methodLinesResolver,
+        parallelized);
   }
 
   public BuildEventsHandler.ModuleAndSessionId getModuleAndSessionId() {

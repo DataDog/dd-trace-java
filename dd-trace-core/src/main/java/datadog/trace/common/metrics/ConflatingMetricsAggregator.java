@@ -221,7 +221,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     if (features.supportsMetrics()) {
       for (CoreSpan<?> span : trace) {
         boolean isTopLevel = span.isTopLevel();
-        if (isTopLevel || span.isMeasured()) {
+        if (shouldComputeMetric(span)) {
           if (ignoredResources.contains(span.getResourceName().toString())) {
             // skip publishing all children
             return false;
@@ -231,6 +231,10 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       }
     }
     return forceKeep;
+  }
+
+  private boolean shouldComputeMetric(CoreSpan<?> span) {
+    return (span.isMeasured() || span.isTopLevel()) && span.getDurationNano() > 0;
   }
 
   private boolean publish(CoreSpan<?> span, boolean isTopLevel) {

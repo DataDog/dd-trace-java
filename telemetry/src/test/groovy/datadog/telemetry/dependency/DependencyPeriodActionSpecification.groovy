@@ -5,7 +5,7 @@ import datadog.telemetry.api.DependencyType
 import datadog.trace.test.util.DDSpecification
 
 class DependencyPeriodActionSpecification extends DDSpecification {
-  DependencyServiceImpl depService = Mock()
+  DependencyService depService = Mock()
   DependencyPeriodicAction periodicAction = new DependencyPeriodicAction(depService)
   TelemetryService telemetryService = Mock()
 

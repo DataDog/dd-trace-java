@@ -2,7 +2,6 @@ package datadog.remoteconfig;
 
 import datadog.trace.api.Config;
 import datadog.trace.util.AgentTaskScheduler;
-import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,8 +19,7 @@ class PollerScheduler {
   public PollerScheduler(
       Config config, ConfigurationPoller poller, AgentTaskScheduler taskScheduler) {
     // TODO add a jitter to avoid herd issue
-    this.initialPollInterval =
-        Duration.ofSeconds(config.getRemoteConfigPollIntervalSeconds()).toMillis();
+    this.initialPollInterval = (long) (config.getRemoteConfigPollIntervalSeconds() * 1000);
     this.poller = poller;
     this.taskScheduler = taskScheduler;
   }
