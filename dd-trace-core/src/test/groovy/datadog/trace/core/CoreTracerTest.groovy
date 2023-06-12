@@ -433,23 +433,26 @@ class CoreTracerTest extends DDCoreSpecification {
     when:
     updater.accept(key, '''
       {
-        "tracing_service_mapping":
-        [{
-           "from_name": "foobar",
-           "to_name": "bar"
-        }, {
-           "from_name": "snafu",
-           "to_name": "foo"
-        }]
-        ,
-        "tracing_header_tags":
-        [{
-           "header": "User-Agent",
-           "tag_name": "http.user_agent"
-        }, {
-           "header": "Referer",
-           "tag_name": "http.referer"
-        }]
+        "lib_config":
+        {
+          "tracing_service_mapping":
+          [{
+             "from_name": "foobar",
+             "to_name": "bar"
+          }, {
+             "from_name": "snafu",
+             "to_name": "foo"
+          }]
+          ,
+          "tracing_header_tags":
+          [{
+             "header": "User-Agent",
+             "tag_name": "http.user_agent"
+          }, {
+             "header": "Referer",
+             "tag_name": "http.referer"
+          }]
+        }
       }
       '''.getBytes(StandardCharsets.UTF_8), null)
 
