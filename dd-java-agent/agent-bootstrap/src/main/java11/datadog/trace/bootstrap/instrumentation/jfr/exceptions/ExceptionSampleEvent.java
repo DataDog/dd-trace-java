@@ -34,7 +34,8 @@ public class ExceptionSampleEvent extends Event implements ContextualEvent {
   @Label("Span Id")
   private long spanId;
 
-  public ExceptionSampleEvent(Throwable e, boolean sampled, boolean firstOccurrence) {
+  public ExceptionSampleEvent(
+      Throwable e, final int stackDepth, boolean sampled, boolean firstOccurrence) {
     /*
      * TODO: we should have some tests for this class.
      * Unfortunately at the moment this is not easily possible because we cannot build tests with groovy that
@@ -43,7 +44,7 @@ public class ExceptionSampleEvent extends Event implements ContextualEvent {
      */
     this.type = e.getClass().getName();
     this.message = getMessage(e);
-    this.stackDepth = getStackDepth(e);
+    this.stackDepth = stackDepth;
     this.sampled = sampled;
     this.firstOccurrence = firstOccurrence;
     captureContext();
@@ -58,15 +59,6 @@ public class ExceptionSampleEvent extends Event implements ContextualEvent {
       }
     }
     return null;
-  }
-
-  private static int getStackDepth(Throwable t) {
-    try {
-      return t.getStackTrace().length;
-    } catch (Throwable ignored) {
-      // be defensive about exceptions choking on a call to getStackTrace()
-    }
-    return 0;
   }
 
   @Override
