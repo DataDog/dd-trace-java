@@ -2,7 +2,7 @@
   {
     "name" : "java.lang.Boolean",
     "methods": [
-      {"name": "booleanValueOf", "parameterTypes": ["java.lang.String"]}
+      {"name": "valueOf", "parameterTypes": ["java.lang.String"]}
     ]
   },
   {
