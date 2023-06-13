@@ -6,6 +6,7 @@ import okhttp3.FormBody
 import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
+import spock.lang.IgnoreIf
 
 @CompileDynamic
 abstract class AbstractIastVertxSmokeTest extends AbstractIastServerSmokeTest {
@@ -147,6 +148,7 @@ abstract class AbstractIastVertxSmokeTest extends AbstractIastServerSmokeTest {
     }
   }
 
+  @IgnoreIf({ instance.ignoreCookies() })
   void 'test cookie'() {
     setup:
     final url = "http://localhost:${httpPort}/cookie"
@@ -231,5 +233,9 @@ abstract class AbstractIastVertxSmokeTest extends AbstractIastServerSmokeTest {
 
     then:
     hasVulnerability { vul -> vul.type == 'UNVALIDATED_REDIRECT' }
+  }
+
+  protected boolean ignoreCookies() {
+    return false
   }
 }
