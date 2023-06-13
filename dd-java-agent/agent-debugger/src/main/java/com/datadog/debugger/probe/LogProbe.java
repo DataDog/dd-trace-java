@@ -410,7 +410,8 @@ public class LogProbe extends ProbeDefinition {
     }
     Sink sink = DebuggerAgent.getSink();
     boolean shouldCommit = false;
-    Snapshot snapshot = new Snapshot(Thread.currentThread(), this);
+    int maxDepth = capture != null ? capture.maxReferenceDepth : -1;
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), this, maxDepth);
     if (entryStatus.shouldSend() && exitStatus.shouldSend()) {
       // only rate limit if a condition is defined
       if (probeCondition != null) {
@@ -482,7 +483,8 @@ public class LogProbe extends ProbeDefinition {
       return;
     }
     Sink sink = DebuggerAgent.getSink();
-    Snapshot snapshot = new Snapshot(Thread.currentThread(), this);
+    int maxDepth = capture != null ? capture.maxReferenceDepth : -1;
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), this, maxDepth);
     boolean shouldCommit = false;
     if (status.shouldSend()) {
       // only rate limit if a condition is defined

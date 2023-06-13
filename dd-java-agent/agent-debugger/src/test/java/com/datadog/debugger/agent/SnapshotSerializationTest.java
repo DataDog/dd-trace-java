@@ -1102,7 +1102,8 @@ public class SnapshotSerializationTest {
   private Snapshot createSnapshot() {
     return new Snapshot(
         Thread.currentThread(),
-        new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION));
+        new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION),
+        Limits.DEFAULT_REFERENCE_DEPTH);
   }
 
   private static JsonAdapter<Snapshot> createSnapshotAdapter() {
