@@ -9,6 +9,60 @@ import static datadog.trace.api.config.IastConfig.*
 @CompileDynamic
 class IastVertxSmokeTest extends AbstractIastVertxSmokeTest {
 
+
+  void 'test insecure cookie'() {
+    setup:
+    final url = "http://localhost:${httpPort}/insecurecookie"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isSuccessful()
+    response.headers().toString().contains("userA-id")
+    hasVulnerability { vul ->
+      vul.type == 'INSECURE_COOKIE' &&
+        vul.evidence.value == 'userA-id'
+    }
+  }
+
+
+  void 'test insecure cookie set using putHeader'() {
+    setup:
+    final url = "http://localhost:${httpPort}/insecurecookieheader"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isSuccessful()
+    response.headers().toString().contains("user-id")
+    hasVulnerability { vul ->
+      vul.type == 'INSECURE_COOKIE' &&
+        vul.evidence.value == 'user-id'
+    }
+  }
+
+  void 'test insecure cookie set using putHeader with Iterator'() {
+    setup:
+    final url = "http://localhost:${httpPort}/insecurecookieheader2"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isSuccessful()
+    response.headers().toString().contains("user-id")
+    response.headers().toString().contains("firstcookie")
+    hasVulnerability { vul ->
+      vul.type == 'INSECURE_COOKIE' &&
+        vul.evidence.value == 'firstcookie'
+    }
+  }
+
   void 'test insecure cookie set using putHeader'() {
     setup:
     final url = "http://localhost:${httpPort}/insecurecookieheader"
