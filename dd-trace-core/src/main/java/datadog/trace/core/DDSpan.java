@@ -111,7 +111,9 @@ public class DDSpan
    * @param context the context used for the span
    */
   private DDSpan(
-      String instrumentationName, final long timestampMicro, @Nonnull DDSpanContext context) {
+      @Nonnull String instrumentationName,
+      final long timestampMicro,
+      @Nonnull DDSpanContext context) {
     this.instrumentationName = instrumentationName;
     this.context = context;
 

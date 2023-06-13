@@ -11,6 +11,7 @@ import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.context.TraceScope
+import datadog.trace.core.metrics.SpanMetrics
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.scopemanager.ContinuableScopeManager
@@ -33,7 +34,7 @@ class PendingTraceBufferTest extends DDSpecification {
   def tracer = Mock(CoreTracer)
   def traceConfig = Mock(TraceConfig)
   def scopeManager = new ContinuableScopeManager(10, true, true)
-  def factory = new PendingTrace.Factory(tracer, bufferSpy, SystemTimeSource.INSTANCE, false, HealthMetrics.NO_OP)
+  def factory = new PendingTrace.Factory(tracer, bufferSpy, SystemTimeSource.INSTANCE, false, HealthMetrics.NO_OP, SpanMetrics.NOOP)
   List<TraceScope.Continuation> continuations = []
 
   def setup() {
@@ -468,7 +469,7 @@ class PendingTraceBufferTest extends DDSpecification {
       NoopPathwayContext.INSTANCE,
       false,
       PropagationTags.factory().empty())
-    return DDSpan.create(0, context)
+    return DDSpan.create("test", 0, context)
   }
 
   static DDSpan newSpanOf(DDSpan parent) {
@@ -493,6 +494,6 @@ class PendingTraceBufferTest extends DDSpecification {
       NoopPathwayContext.INSTANCE,
       false,
       PropagationTags.factory().empty())
-    return DDSpan.create(0, context)
+    return DDSpan.create("test", 0, context)
   }
 }
