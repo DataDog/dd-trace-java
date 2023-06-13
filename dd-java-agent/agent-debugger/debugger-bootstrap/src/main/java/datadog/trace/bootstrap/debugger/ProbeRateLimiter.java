@@ -52,6 +52,11 @@ public class ProbeRateLimiter {
     setGlobalSnapshotRate(DEFAULT_GLOBAL_LOG_RATE);
   }
 
+  public static void resetAll() {
+    PROBE_SAMPLERS.clear();
+    resetGlobalRate();
+  }
+
   private static AdaptiveSampler createSampler(double rate) {
     if (rate < 1) {
       int intRate = (int) Math.round(rate * 10);

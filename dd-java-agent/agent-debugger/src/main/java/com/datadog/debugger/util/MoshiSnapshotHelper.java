@@ -149,23 +149,6 @@ public class MoshiSnapshotHelper {
       jsonWriter.beginObject();
       jsonWriter.name(ARGUMENTS);
       jsonWriter.beginObject();
-      if (capturedContext.getFields() != null && !capturedContext.getFields().isEmpty()) {
-        jsonWriter.name(THIS);
-        jsonWriter.beginObject();
-        jsonWriter.name(TYPE);
-        jsonWriter.value(capturedContext.getThisClassName());
-        jsonWriter.name(FIELDS);
-        jsonWriter.beginObject();
-        SerializationResult result =
-            toJsonCapturedValues(
-                jsonWriter,
-                capturedContext.getFields(),
-                capturedContext.getLimits(),
-                timeoutChecker);
-        jsonWriter.endObject(); // FIELDS
-        handleSerializationResult(jsonWriter, result);
-        jsonWriter.endObject(); // THIS
-      }
       SerializationResult resultArgs =
           toJsonCapturedValues(
               jsonWriter,
@@ -194,7 +177,7 @@ public class MoshiSnapshotHelper {
       for (SerializationResult result : results) {
         switch (result) {
           case OK:
-            return;
+            break;
           case FIELD_COUNT:
             {
               if (!fieldCountReported) {

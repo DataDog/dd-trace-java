@@ -89,7 +89,7 @@ public class CapturedSnapshotTest {
     if (currentTransformer != null) {
       instr.removeTransformer(currentTransformer);
     }
-    ProbeRateLimiter.resetGlobalRate();
+    ProbeRateLimiter.resetAll();
     Assertions.assertFalse(DebuggerContext.isInProbe());
   }
 

@@ -208,6 +208,7 @@ public class SerializerWithLimits {
     tokenWriter.objectPrologue(value);
     Class<?> currentClass = value.getClass();
     int processedFieldCount = 0;
+    NotCapturedReason reason = null;
     classLoop:
     do {
       Field[] fields = currentClass.getDeclaredFields();
@@ -221,7 +222,7 @@ public class SerializerWithLimits {
           onField(field, fieldValue, limits);
           processedFieldCount++;
           if (processedFieldCount >= limits.maxFieldCount) {
-            tokenWriter.notCaptured(NotCapturedReason.FIELD_COUNT);
+            reason = NotCapturedReason.FIELD_COUNT;
             break classLoop;
           }
         } catch (Exception e) {
@@ -230,6 +231,9 @@ public class SerializerWithLimits {
       }
     } while ((currentClass = currentClass.getSuperclass()) != null);
     tokenWriter.objectEpilogue(value);
+    if (reason != null) {
+      tokenWriter.notCaptured(reason);
+    }
   }
 
   private void onField(Field field, Object value, Limits limits) throws Exception {
