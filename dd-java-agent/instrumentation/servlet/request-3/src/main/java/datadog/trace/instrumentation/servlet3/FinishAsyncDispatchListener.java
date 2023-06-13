@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javax.servlet.AsyncEvent;
 import javax.servlet.AsyncListener;
 import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletResponse;
 
@@ -46,9 +47,12 @@ public class FinishAsyncDispatchListener implements AsyncListener, Runnable {
           DECORATE.onResponse(span, (HttpServletResponse) resp);
         }
       }
-      Object error = event.getSuppliedRequest().getAttribute(RequestDispatcher.ERROR_EXCEPTION);
-      if (error instanceof Throwable) {
-        DECORATE.onError(span, (Throwable) error);
+      ServletRequest req = event.getSuppliedRequest();
+      if (null != req) {
+        Object error = req.getAttribute(RequestDispatcher.ERROR_EXCEPTION);
+        if (error instanceof Throwable) {
+          DECORATE.onError(span, (Throwable) error);
+        }
       }
       DECORATE.beforeFinish(span);
       span.finish();
