@@ -2047,6 +2047,12 @@ public class Config {
   public static boolean isDatadogProfilerSafeInCurrentEnvironment() {
     // don't want to put this logic (which will evolve) in the public ProfilingConfig, and can't
     // access Platform there
+    if (!Platform.isJ9() && Platform.isJavaVersion(8)) {
+      String arch = System.getProperty("os.arch");
+      if ("aarch64".equalsIgnoreCase(arch) || "arm64".equalsIgnoreCase(arch)) {
+        return false;
+      }
+    }
     boolean result =
         Platform.isJ9()
             || !Platform.isJavaVersion(18) // missing AGCT fixes
