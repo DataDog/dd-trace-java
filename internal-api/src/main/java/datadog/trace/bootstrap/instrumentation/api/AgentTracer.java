@@ -670,6 +670,11 @@ public class AgentTracer {
     }
 
     @Override
+    public AgentSpan setError(boolean error, byte priority) {
+      return this;
+    }
+
+    @Override
     public AgentSpan setMeasured(boolean measured) {
       return this;
     }
@@ -686,6 +691,11 @@ public class AgentTracer {
 
     @Override
     public AgentSpan addThrowable(final Throwable throwable) {
+      return this;
+    }
+
+    @Override
+    public AgentSpan addThrowable(Throwable throwable, byte errorPriority) {
       return this;
     }
 

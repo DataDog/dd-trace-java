@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
@@ -35,6 +36,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
   void setup() {
     origAppSecActive = ActiveSubsystems.APPSEC_ACTIVE
     ActiveSubsystems.APPSEC_ACTIVE = true
+    errorPriority = ErrorPriorities.HTTP_SERVER_DECORATOR
   }
 
   void cleanup() {
@@ -303,7 +305,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       1 * this.span.setHttpStatusCode(status)
     }
     if (resp) {
-      1 * this.span.setError(error)
+      1 * this.span.setError(error, ErrorPriorities.HTTP_SERVER_DECORATOR)
     }
     if (status == 404) {
       1 * this.span.setResourceName({ it as String == "404" }, ResourceNamePriorities.HTTP_404)
