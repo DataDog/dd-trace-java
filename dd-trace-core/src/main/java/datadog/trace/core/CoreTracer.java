@@ -45,6 +45,7 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.metrics.TelemetryMetrics;
 import datadog.trace.api.profiling.Timer;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
@@ -76,6 +77,8 @@ import datadog.trace.core.datastreams.DataStreamsContextCarrierAdapter;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
 import datadog.trace.core.datastreams.NoopDataStreamsMonitoring;
+import datadog.trace.core.metrics.SpanMetrics;
+import datadog.trace.core.metrics.SpanMetricsImpl;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.monitor.TracerHealthMetrics;
@@ -579,6 +582,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.writer = writer;
     }
 
+    SpanMetrics spanMetrics =
+        InstrumenterConfig.get().isTelemetryEnabled()
+            ? new SpanMetricsImpl(TelemetryMetrics.getInstance())
+            : SpanMetrics.NOOP;
     pendingTraceBuffer =
         strictTraceWrites
             ? PendingTraceBuffer.discarding()
@@ -586,7 +593,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
                 this.timeSource, config, sharedCommunicationObjects, healthMetrics);
     pendingTraceFactory =
         new PendingTrace.Factory(
-            this, pendingTraceBuffer, this.timeSource, strictTraceWrites, healthMetrics);
+            this,
+            pendingTraceBuffer,
+            this.timeSource,
+            strictTraceWrites,
+            healthMetrics,
+            spanMetrics);
     pendingTraceBuffer.start();
 
     this.writer.start();
@@ -725,29 +737,35 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public CoreSpanBuilder buildSpan(final CharSequence operationName) {
-    return new CoreSpanBuilder(operationName, this);
+  public CoreSpanBuilder buildSpan(
+      final String instrumentationName, final CharSequence operationName) {
+    return new CoreSpanBuilder(instrumentationName, operationName, this);
   }
 
   @Override
-  public AgentSpan startSpan(final CharSequence spanName) {
-    return buildSpan(spanName).start();
-  }
-
-  @Override
-  public AgentSpan startSpan(final CharSequence spanName, final long startTimeMicros) {
-    return buildSpan(spanName).withStartTimestamp(startTimeMicros).start();
-  }
-
-  @Override
-  public AgentSpan startSpan(final CharSequence spanName, final AgentSpan.Context parent) {
-    return buildSpan(spanName).ignoreActiveSpan().asChildOf(parent).start();
+  public AgentSpan startSpan(final String instrumentationName, final CharSequence spanName) {
+    return buildSpan(instrumentationName, spanName).start();
   }
 
   @Override
   public AgentSpan startSpan(
-      final CharSequence spanName, final AgentSpan.Context parent, final long startTimeMicros) {
-    return buildSpan(spanName)
+      final String instrumentationName, final CharSequence spanName, final long startTimeMicros) {
+    return buildSpan(instrumentationName, spanName).withStartTimestamp(startTimeMicros).start();
+  }
+
+  @Override
+  public AgentSpan startSpan(
+      String instrumentationName, final CharSequence spanName, final AgentSpan.Context parent) {
+    return buildSpan(instrumentationName, spanName).ignoreActiveSpan().asChildOf(parent).start();
+  }
+
+  @Override
+  public AgentSpan startSpan(
+      final String instrumentationName,
+      final CharSequence spanName,
+      final AgentSpan.Context parent,
+      final long startTimeMicros) {
+    return buildSpan(instrumentationName, spanName)
         .ignoreActiveSpan()
         .asChildOf(parent)
         .withStartTimestamp(startTimeMicros)
@@ -1279,6 +1297,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   /** Spans are built using this builder */
   public class CoreSpanBuilder implements AgentTracer.SpanBuilder {
+    private final String instrumentationName;
     private final CharSequence operationName;
     private final CoreTracer tracer;
 
@@ -1295,7 +1314,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private Object builderRequestContextDataIast;
     private Object builderCiVisibilityContextData;
 
-    CoreSpanBuilder(final CharSequence operationName, CoreTracer tracer) {
+    CoreSpanBuilder(
+        final String instrumentationName, final CharSequence operationName, CoreTracer tracer) {
+      this.instrumentationName = instrumentationName;
       this.operationName = operationName;
       this.tracer = tracer;
     }
@@ -1307,7 +1328,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     private DDSpan buildSpan() {
-      DDSpan span = DDSpan.create(timestampMicro, buildSpanContext());
+      DDSpan span = DDSpan.create(instrumentationName, timestampMicro, buildSpanContext());
       if (span.isLocalRootSpan()) {
         EndpointTracker tracker = tracer.onRootSpanStarted(span);
         span.setEndpointTracker(tracker);

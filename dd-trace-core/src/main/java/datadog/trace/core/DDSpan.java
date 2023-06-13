@@ -47,12 +47,16 @@ public class DDSpan
 
   public static final String CHECKPOINTED_TAG = "checkpointed";
 
-  static DDSpan create(final long timestampMicro, @Nonnull DDSpanContext context) {
-    final DDSpan span = new DDSpan(timestampMicro, context);
+  static DDSpan create(
+      final String instrumentationName, final long timestampMicro, @Nonnull DDSpanContext context) {
+    final DDSpan span = new DDSpan(instrumentationName, timestampMicro, context);
     log.debug("Started span: {}", span);
     context.getTrace().registerSpan(span);
     return span;
   }
+
+  /** The instrumentation that created the span. */
+  private final String instrumentationName;
 
   /** The context attached to the span */
   private final DDSpanContext context;
@@ -102,10 +106,13 @@ public class DDSpan
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
    *
+   * @param instrumentationName instrumentation that creates the span
    * @param timestampMicro if greater than zero, use this time instead of the current time
    * @param context the context used for the span
    */
-  private DDSpan(final long timestampMicro, @Nonnull DDSpanContext context) {
+  private DDSpan(
+      String instrumentationName, final long timestampMicro, @Nonnull DDSpanContext context) {
+    this.instrumentationName = instrumentationName;
     this.context = context;
 
     if (timestampMicro <= 0L) {
@@ -117,6 +124,15 @@ public class DDSpan
       externalClock = true;
       context.getTrace().touch(); // external clock: explicitly update lastReferenced
     }
+  }
+
+  /**
+   * Get the instrumentation that created the span.
+   *
+   * @return The instrumentation that created the span.
+   */
+  public String getInstrumentationName() {
+    return instrumentationName;
   }
 
   public boolean isFinished() {
