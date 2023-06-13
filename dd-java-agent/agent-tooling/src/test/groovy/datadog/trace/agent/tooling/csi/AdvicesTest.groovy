@@ -2,8 +2,6 @@ package datadog.trace.agent.tooling.csi
 
 import datadog.trace.agent.tooling.bytebuddy.csi.Advices
 
-import static datadog.trace.agent.tooling.csi.CallSiteAdvice.HasFlags.COMPUTE_MAX_STACK
-
 class AdvicesTest extends BaseCallSiteTest {
 
   def 'test empty advices'() {
@@ -21,7 +19,7 @@ class AdvicesTest extends BaseCallSiteTest {
   def 'test non empty advices'() {
     setup:
     final pointcut = stringConcatPointcut()
-    final advices = Advices.fromCallSites(mockInvokeAdvice(pointcut))
+    final advices = Advices.fromCallSites(mockCallSites(Mock(InvokeAdvice), pointcut))
 
     when:
     final empty = advices.empty
@@ -33,16 +31,16 @@ class AdvicesTest extends BaseCallSiteTest {
   def 'test advices for type'() {
     setup:
     final pointcut = stringConcatPointcut()
-    final advices = Advices.fromCallSites(mockInvokeAdvice(pointcut))
+    final advices = Advices.fromCallSites(mockCallSites(Mock(InvokeAdvice), pointcut))
 
     when:
-    final existing = advices.findAdvice(pointcut)
+    final existing = advices.findAdvice(pointcut.type, pointcut.method, pointcut.descriptor)
 
     then:
     existing != null
 
     when:
-    final notFound = advices.findAdvice('java/lang/Integer', pointcut.method(), pointcut.descriptor())
+    final notFound = advices.findAdvice('java/lang/Integer', pointcut.method, pointcut.descriptor)
 
     then:
     notFound == null
@@ -52,16 +50,16 @@ class AdvicesTest extends BaseCallSiteTest {
     setup:
     final startsWith1 = buildPointcut(String.getDeclaredMethod('startsWith', String))
     final startsWith2 = buildPointcut(String.getDeclaredMethod('startsWith', String, int.class))
-    final advices = Advices.fromCallSites(mockInvokeAdvice(startsWith1), mockInvokeAdvice(startsWith2))
+    final advices = Advices.fromCallSites(mockCallSites(Mock(InvokeAdvice), startsWith1), mockCallSites(Mock(InvokeAdvice), startsWith2))
 
     when:
-    final startsWith1Found = advices.findAdvice(startsWith1)
+    final startsWith1Found = advices.findAdvice(startsWith1.type, startsWith1.method, startsWith1.descriptor)
 
     then:
     startsWith1Found != null
 
     when:
-    final startsWith2Found = advices.findAdvice(startsWith2)
+    final startsWith2Found = advices.findAdvice(startsWith2.type, startsWith2.method, startsWith2.descriptor)
 
     then:
     startsWith2Found != null
@@ -69,8 +67,8 @@ class AdvicesTest extends BaseCallSiteTest {
 
   def 'test helper class names'() {
     setup:
-    final concatAdvice = mockInvokeAdvice(stringConcatPointcut(), 'foo.bar.Helper1', 'foo.bar.Helper2')
-    final digestAdvice = mockInvokeAdvice(messageDigestGetInstancePointcut(), 'foo.bar.Helper3')
+    final concatAdvice = mockCallSites(Mock(InvokeAdvice), stringConcatPointcut(), 'foo.bar.Helper1', 'foo.bar.Helper2')
+    final digestAdvice = mockCallSites(Mock(InvokeAdvice), messageDigestGetInstancePointcut(), 'foo.bar.Helper3')
     final advices = Advices.fromCallSites([concatAdvice, digestAdvice])
 
     when:
@@ -85,7 +83,7 @@ class AdvicesTest extends BaseCallSiteTest {
     final pointcut = stringConcatPointcut()
 
     when:
-    Advices.fromCallSites(mockInvokeAdvice(pointcut), mockInvokeAdvice(pointcut))
+    Advices.fromCallSites(mockCallSites(Mock(InvokeAdvice), pointcut), mockCallSites(Mock(InvokeAdvice), pointcut))
 
     then:
     thrown(UnsupportedOperationException)
@@ -106,13 +104,13 @@ class AdvicesTest extends BaseCallSiteTest {
   void 'test constant pool introspector'() {
     setup:
     final target = loadClass(StringConcatExample)
-    final advice = mockInvokeAdvice(pointcutMock)
+    final advice = mockCallSites(Mock(InvokeAdvice), pointcutMock)
     final advices = Advices.fromCallSites(advice)
     final introspector = Advices.AdviceIntrospector.ConstantPoolInstrospector.INSTANCE
 
     when:
     final result = introspector.findAdvices(advices, target)
-    final found = result.findAdvice(pointcutMock) != null
+    final found = result.findAdvice(pointcutMock.type, pointcutMock.method, pointcutMock.descriptor) != null
 
     then:
     result.empty == emptyAdvices
@@ -122,30 +120,6 @@ class AdvicesTest extends BaseCallSiteTest {
     pointcutMock                       | emptyAdvices | adviceFound
     stringConcatPointcut()             | false        | true
     messageDigestGetInstancePointcut() | true         | false
-  }
-
-  def 'test compute max stack flag'() {
-    when:
-    def advices = Advices.EMPTY
-
-    then:
-    !advices.computeMaxStack()
-
-    when:
-    advices = Advices.fromCallSites([mockInvokeAdvice(stringConcatPointcut(), 0)])
-
-    then:
-    !advices.computeMaxStack()
-
-    when:
-    advices = Advices.fromCallSites([
-      mockInvokeAdvice(stringConcatPointcut(), 0),
-      mockInvokeAdvice(messageDigestGetInstancePointcut(), COMPUTE_MAX_STACK),
-      mockInvokeAdvice(stringConcatFactoryPointcut(), 0)
-    ])
-
-    then:
-    advices.computeMaxStack()
   }
 
   private static byte[] loadClass(final Class<?> clazz) {

@@ -1,10 +1,10 @@
 package datadog.trace.instrumentation.servlet.request;
 
 import datadog.trace.agent.tooling.csi.CallSite;
-import datadog.trace.api.iast.IastAdvice;
-import datadog.trace.api.iast.IastAdvice.Propagation;
-import datadog.trace.api.iast.IastAdvice.Sink;
-import datadog.trace.api.iast.IastAdvice.Source;
+import datadog.trace.api.iast.IastCallSites;
+import datadog.trace.api.iast.IastCallSites.Propagation;
+import datadog.trace.api.iast.IastCallSites.Sink;
+import datadog.trace.api.iast.IastCallSites.Source;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.VulnerabilityTypes;
@@ -20,7 +20,7 @@ import java.util.List;
 import javax.servlet.ServletInputStream;
 import javax.servlet.ServletRequest;
 
-@CallSite(spi = IastAdvice.class)
+@CallSite(spi = IastCallSites.class)
 public class ServletRequestCallSite {
 
   @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
