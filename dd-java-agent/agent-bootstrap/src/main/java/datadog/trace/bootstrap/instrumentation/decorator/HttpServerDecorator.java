@@ -22,6 +22,7 @@ import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
@@ -35,6 +36,7 @@ import java.net.InetAddress;
 import java.util.BitSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -293,7 +295,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     // even if the server chooses not to respond with 5xx to an error.
     // Anyway, we def don't want it applied to blocked requests
     if (!BlockingException.class.getName().equals(span.getTag("error.type"))) {
-      span.setError(SERVER_ERROR_STATUSES.get(status));
+      span.setError(SERVER_ERROR_STATUSES.get(status), ErrorPriorities.HTTP_SERVER_DECORATOR);
     }
 
     if (SHOULD_SET_404_RESOURCE_NAME && status == 404) {
@@ -362,6 +364,16 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
 
     return context;
+  }
+
+  @Override
+  public AgentSpan onError(final AgentSpan span, final Throwable throwable) {
+    if (throwable != null) {
+      span.addThrowable(
+          throwable instanceof ExecutionException ? throwable.getCause() : throwable,
+          ErrorPriorities.HTTP_SERVER_DECORATOR);
+    }
+    return span;
   }
 
   private Flow<Void> callIGCallbackRequestHeaders(AgentSpan span, REQUEST_CARRIER carrier) {

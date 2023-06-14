@@ -3,6 +3,7 @@ package datadog.trace.core
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
@@ -43,7 +44,7 @@ class DDSpanContextTest extends DDCoreSpecification {
     when:
     context.setTag("some.tag", "asdf")
     context.setTag(name, null)
-    context.setErrorFlag(true)
+    context.setErrorFlag(true, ErrorPriorities.DEFAULT)
     span.finish()
 
     writer.waitForTraces(1)

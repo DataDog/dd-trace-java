@@ -65,6 +65,7 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.TagContext.HttpHeaders",
   "datadog.trace.bootstrap.instrumentation.api.ForwardedTagContext",
   "datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities",
+  "datadog.trace.bootstrap.instrumentation.api.ErrorPriorities",
   "datadog.trace.api.civisibility.ci.CIInfo",
   "datadog.trace.api.civisibility.ci.CIInfo.Builder",
   "datadog.trace.api.civisibility.InstrumentationBridge",

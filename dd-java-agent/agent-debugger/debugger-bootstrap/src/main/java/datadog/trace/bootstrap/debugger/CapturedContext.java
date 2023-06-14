@@ -72,6 +72,7 @@ public class CapturedContext implements ValueReferenceResolver {
     for (Status status : statusByProbeId.values()) {
       result |= status.isCapturing();
     }
+    result = result && DebuggerContext.checkAndSetInProbe();
     return result;
   }
 

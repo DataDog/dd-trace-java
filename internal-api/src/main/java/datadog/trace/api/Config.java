@@ -23,6 +23,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_PROPAGATION_MODE_MODE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_CAPTURE_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_CLASSFILE_DUMP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_ENABLED;
@@ -121,6 +122,7 @@ import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTL
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_TAGS;
 import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CAPTURE_TIMEOUT;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED;
@@ -612,6 +614,7 @@ public class Config {
   private final boolean debuggerVerifyByteCode;
   private final boolean debuggerInstrumentTheWorld;
   private final String debuggerExcludeFile;
+  private final int debuggerCaptureTimeout;
 
   private final boolean awsPropagationEnabled;
   private final boolean sqsPropagationEnabled;
@@ -1426,6 +1429,8 @@ public class Config {
         configProvider.getBoolean(
             DEBUGGER_INSTRUMENT_THE_WORLD, DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD);
     debuggerExcludeFile = configProvider.getString(DEBUGGER_EXCLUDE_FILE);
+    debuggerCaptureTimeout =
+        configProvider.getInteger(DEBUGGER_CAPTURE_TIMEOUT, DEFAULT_DEBUGGER_CAPTURE_TIMEOUT);
 
     awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
     sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
@@ -2042,6 +2047,12 @@ public class Config {
   public static boolean isDatadogProfilerSafeInCurrentEnvironment() {
     // don't want to put this logic (which will evolve) in the public ProfilingConfig, and can't
     // access Platform there
+    if (!Platform.isJ9() && Platform.isJavaVersion(8)) {
+      String arch = System.getProperty("os.arch");
+      if ("aarch64".equalsIgnoreCase(arch) || "arm64".equalsIgnoreCase(arch)) {
+        return false;
+      }
+    }
     boolean result =
         Platform.isJ9()
             || !Platform.isJavaVersion(18) // missing AGCT fixes
@@ -2312,6 +2323,10 @@ public class Config {
 
   public String getDebuggerExcludeFile() {
     return debuggerExcludeFile;
+  }
+
+  public int getDebuggerCaptureTimeout() {
+    return debuggerCaptureTimeout;
   }
 
   public String getFinalDebuggerProbeUrl() {

@@ -24,6 +24,7 @@ import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.api.normalize.HttpResourceNames;
 import datadog.trace.api.sampling.SamplingMechanism;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -186,7 +187,7 @@ public class TagInterceptor {
   }
 
   private boolean interceptError(DDSpanContext span, Object value) {
-    span.setErrorFlag(asBoolean(value));
+    span.setErrorFlag(asBoolean(value), ErrorPriorities.DEFAULT);
     return true;
   }
 

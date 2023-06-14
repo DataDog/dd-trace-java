@@ -55,6 +55,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
   private int exitContextVar = -1;
   private int timestampStartVar = -1;
   private int throwableListVar = -1;
+  private final List<FinallyBlock> finallyBlocks = new ArrayList<>();
 
   public CapturedContextInstrumentor(
       ProbeDefinition definition,
@@ -80,6 +81,15 @@ public class CapturedContextInstrumentor extends Instrumentor {
       instrumentTryCatchHandlers();
       processInstructions();
       addFinallyHandler(returnHandlerLabel);
+    }
+    installFinallyBlocks();
+  }
+
+  private void installFinallyBlocks() {
+    for (FinallyBlock finallyBlock : finallyBlocks) {
+      methodNode.tryCatchBlocks.add(
+          new TryCatchBlockNode(
+              finallyBlock.startLabel, finallyBlock.endLabel, finallyBlock.handlerLabel, null));
     }
   }
 
@@ -118,6 +128,8 @@ public class CapturedContextInstrumentor extends Instrumentor {
         // stack [boolean]
         LabelNode targetNode = new LabelNode();
         insnList.add(new JumpInsnNode(Opcodes.IFEQ, targetNode));
+        LabelNode inProbeStartLabel = new LabelNode();
+        insnList.add(inProbeStartLabel);
         // stack []
         insnList.add(collectCapturedContext(Snapshot.Kind.BEFORE, beforeLabel));
         // stack [capturedcontext]
@@ -137,6 +149,10 @@ public class CapturedContextInstrumentor extends Instrumentor {
             INT_TYPE,
             STRING_ARRAY_TYPE);
         // stack []
+        invokeStatic(insnList, DEBUGGER_CONTEXT_TYPE, "disableInProbe", VOID_TYPE);
+        LabelNode inProbeEndLabel = new LabelNode();
+        insnList.add(inProbeEndLabel);
+        createInProbeFinallyHandler(inProbeStartLabel, inProbeEndLabel);
         insnList.add(targetNode);
         methodNode.instructions.insertBefore(beforeLabel.getNext(), insnList);
       }
@@ -180,6 +196,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
         METHOD_LOCATION_TYPE,
         STRING_ARRAY_TYPE);
     // stack [ret_value]
+    invokeStatic(insnList, DEBUGGER_CONTEXT_TYPE, "disableInProbe", VOID_TYPE);
     insnList.add(new JumpInsnNode(Opcodes.GOTO, gotoNode));
     insnList.add(targetNode);
     getStatic(insnList, CAPTURED_CONTEXT_TYPE, "EMPTY_CONTEXT");
@@ -231,6 +248,14 @@ public class CapturedContextInstrumentor extends Instrumentor {
     LabelNode handlerLabel = new LabelNode();
     InsnList handler = new InsnList();
     handler.add(handlerLabel);
+    // stack [exception]
+    handler.add(new VarInsnNode(Opcodes.ALOAD, entryContextVar));
+    // stack [exception, capturedcontext]
+    LabelNode targetNode = new LabelNode();
+    invokeVirtual(handler, CAPTURED_CONTEXT_TYPE, "isCapturing", BOOLEAN_TYPE);
+    // stack [exception, boolean]
+    handler.add(new JumpInsnNode(Opcodes.IFEQ, targetNode));
+    // stack [exception]
     handler.add(collectCapturedContext(Snapshot.Kind.UNHANDLED_EXCEPTION, endLabel));
     // stack: [exception, capturedcontext]
     ldc(handler, Type.getObjectType(classNode.name));
@@ -252,13 +277,15 @@ public class CapturedContextInstrumentor extends Instrumentor {
         METHOD_LOCATION_TYPE,
         STRING_ARRAY_TYPE);
     // stack [exception]
+    invokeStatic(handler, DEBUGGER_CONTEXT_TYPE, "disableInProbe", VOID_TYPE);
+    // stack [exception]
     handler.add(commit());
+    handler.add(targetNode);
     // stack [exception]
     handler.add(new InsnNode(Opcodes.ATHROW));
     // stack: []
     methodNode.instructions.add(handler);
-    methodNode.tryCatchBlocks.add(
-        new TryCatchBlockNode(contextInitLabel, endLabel, handlerLabel, null));
+    finallyBlocks.add(new FinallyBlock(contextInitLabel, endLabel, handlerLabel));
   }
 
   private void instrumentMethodEnter() {
@@ -272,50 +299,65 @@ public class CapturedContextInstrumentor extends Instrumentor {
     insnList.add(contextInitLabel);
     if (definition.getEvaluateAt() == MethodLocation.EXIT) {
       // if evaluation is at exit, skip collecting data at enter
-    } else {
-      pushProbesIds(insnList);
-      // stack [array]
-      invokeStatic(
-          insnList,
-          DEBUGGER_CONTEXT_TYPE,
-          "isReadyToCapture",
-          Type.BOOLEAN_TYPE,
-          STRING_ARRAY_TYPE);
-      // stack [boolean]
-      LabelNode targetNode = new LabelNode();
-      LabelNode gotoNode = new LabelNode();
-      insnList.add(new JumpInsnNode(Opcodes.IFEQ, targetNode));
-      // stack []
-      insnList.add(collectCapturedContext(Snapshot.Kind.ENTER, null));
-      // stack [capturedcontext]
-      ldc(insnList, Type.getObjectType(classNode.name));
-      // stack [capturedcontext, class]
-      ldc(insnList, -1L);
-      // stack [capturedcontext, class, long]
-      getStatic(insnList, METHOD_LOCATION_TYPE, "ENTRY");
-      // stack [capturedcontext, class, long, methodlocation]
-      pushProbesIds(insnList);
-      // stack [capturedcontext, class, long, methodlocation, array]
-      invokeStatic(
-          insnList,
-          DEBUGGER_CONTEXT_TYPE,
-          "evalContext",
-          VOID_TYPE,
-          CAPTURED_CONTEXT_TYPE,
-          CLASS_TYPE,
-          LONG_TYPE,
-          METHOD_LOCATION_TYPE,
-          STRING_ARRAY_TYPE);
-      // stack []
-      insnList.add(new JumpInsnNode(Opcodes.GOTO, gotoNode));
-      insnList.add(targetNode);
-      getStatic(insnList, CAPTURED_CONTEXT_TYPE, "EMPTY_CONTEXT");
-      // stack [capturedcontext]
-      insnList.add(new VarInsnNode(Opcodes.ASTORE, entryContextVar));
-      // stack []
-      insnList.add(gotoNode);
+      methodNode.instructions.insert(methodEnterLabel, insnList);
+      return;
     }
+    pushProbesIds(insnList);
+    // stack [array]
+    invokeStatic(
+        insnList, DEBUGGER_CONTEXT_TYPE, "isReadyToCapture", Type.BOOLEAN_TYPE, STRING_ARRAY_TYPE);
+    // stack [boolean]
+    LabelNode targetNode = new LabelNode();
+    LabelNode gotoNode = new LabelNode();
+    insnList.add(new JumpInsnNode(Opcodes.IFEQ, targetNode));
+    LabelNode inProbeStartLabel = new LabelNode();
+    insnList.add(inProbeStartLabel);
+    // stack []
+    insnList.add(collectCapturedContext(Snapshot.Kind.ENTER, null));
+    // stack [capturedcontext]
+    ldc(insnList, Type.getObjectType(classNode.name));
+    // stack [capturedcontext, class]
+    ldc(insnList, -1L);
+    // stack [capturedcontext, class, long]
+    getStatic(insnList, METHOD_LOCATION_TYPE, "ENTRY");
+    // stack [capturedcontext, class, long, methodlocation]
+    pushProbesIds(insnList);
+    // stack [capturedcontext, class, long, methodlocation, array]
+    invokeStatic(
+        insnList,
+        DEBUGGER_CONTEXT_TYPE,
+        "evalContext",
+        VOID_TYPE,
+        CAPTURED_CONTEXT_TYPE,
+        CLASS_TYPE,
+        LONG_TYPE,
+        METHOD_LOCATION_TYPE,
+        STRING_ARRAY_TYPE);
+    invokeStatic(insnList, DEBUGGER_CONTEXT_TYPE, "disableInProbe", VOID_TYPE);
+    LabelNode inProbeEndLabel = new LabelNode();
+    insnList.add(inProbeEndLabel);
+    // stack []
+    insnList.add(new JumpInsnNode(Opcodes.GOTO, gotoNode));
+    insnList.add(targetNode);
+    getStatic(insnList, CAPTURED_CONTEXT_TYPE, "EMPTY_CONTEXT");
+    // stack [capturedcontext]
+    insnList.add(new VarInsnNode(Opcodes.ASTORE, entryContextVar));
+    // stack []
+    insnList.add(gotoNode);
     methodNode.instructions.insert(methodEnterLabel, insnList);
+    createInProbeFinallyHandler(inProbeStartLabel, inProbeEndLabel);
+  }
+
+  private void createInProbeFinallyHandler(LabelNode inProbeStartLabel, LabelNode inProbeEndLabel) {
+    LabelNode handlerLabel = new LabelNode();
+    InsnList handler = new InsnList();
+    handler.add(handlerLabel);
+    // stack [exception]
+    invokeStatic(handler, DEBUGGER_CONTEXT_TYPE, "disableInProbe", VOID_TYPE);
+    // stack [exception]
+    handler.add(new InsnNode(Opcodes.ATHROW));
+    methodNode.instructions.add(handler);
+    finallyBlocks.add(new FinallyBlock(inProbeStartLabel, inProbeEndLabel, handlerLabel));
   }
 
   private void pushProbesIds(InsnList insnList) {
@@ -851,5 +893,17 @@ public class CapturedContextInstrumentor extends Instrumentor {
 
   private static void newInstance(InsnList insnList, Type type) {
     insnList.add(new TypeInsnNode(Opcodes.NEW, type.getInternalName()));
+  }
+
+  private static class FinallyBlock {
+    final LabelNode startLabel;
+    final LabelNode endLabel;
+    final LabelNode handlerLabel;
+
+    public FinallyBlock(LabelNode startLabel, LabelNode endLabel, LabelNode handlerLabel) {
+      this.startLabel = startLabel;
+      this.endLabel = endLabel;
+      this.handlerLabel = handlerLabel;
+    }
   }
 }
