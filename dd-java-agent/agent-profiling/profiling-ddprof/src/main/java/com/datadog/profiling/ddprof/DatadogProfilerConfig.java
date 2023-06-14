@@ -1,11 +1,10 @@
 package com.datadog.profiling.ddprof;
 
 import static datadog.trace.api.Platform.isJ9;
-import static datadog.trace.api.Platform.isJavaVersionAtLeast;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES_SPAN_NAME_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_INTERVAL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_INTERVAL_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_ENABLED;
@@ -132,13 +131,10 @@ public class DatadogProfilerConfig {
   }
 
   public static boolean isAllocationProfilingEnabled(ConfigProvider configProvider) {
-    // switch on if the datadog allocation profiler is enabled,
-    // or if generic allocation profiling has been enabled,
-    // or on any JDK >= 11
     return getBoolean(
         configProvider,
         PROFILING_DATADOG_PROFILER_ALLOC_ENABLED,
-        getBoolean(configProvider, PROFILING_ALLOCATION_ENABLED, isJavaVersionAtLeast(11)));
+        PROFILING_DATADOG_PROFILER_ALLOC_ENABLED_DEFAULT);
   }
 
   public static boolean isAllocationProfilingEnabled() {
