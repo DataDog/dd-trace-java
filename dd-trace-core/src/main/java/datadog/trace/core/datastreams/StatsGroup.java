@@ -53,9 +53,13 @@ public class StatsGroup {
         + edgeTags
         + '\''
         + ", hash="
-        + hash
+        + Long.toUnsignedString(hash)
         + ", parentHash="
-        + parentHash
+        + Long.toUnsignedString(parentHash)
+        + ", pathwayLatency count="
+        + pathwayLatency.getCount()
+        + ", edgeLatency count="
+        + edgeLatency.getCount()
         + '}';
   }
 }

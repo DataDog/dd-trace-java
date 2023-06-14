@@ -53,4 +53,18 @@ public class StatsBucket {
   public Collection<Map.Entry<List<String>, Long>> getBacklogs() {
     return backlogs.entrySet();
   }
+
+  @Override
+  public String toString() {
+    return "StatsGroup{"
+        + ", startTimeNanos="
+        + startTimeNanos
+        + ", bucketDurationNanos="
+        + bucketDurationNanos
+        + ", hashToGroup="
+        + hashToGroup
+        + ", backlogs="
+        + backlogs
+        + '}';
+  }
 }
