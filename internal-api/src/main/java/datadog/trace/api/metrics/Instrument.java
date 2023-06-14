@@ -1,6 +1,5 @@
 package datadog.trace.api.metrics;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -10,14 +9,12 @@ public abstract class Instrument {
   protected final boolean common;
   protected final List<String> tags;
   protected AtomicBoolean updated;
-  protected List<List<Number>> values; // TODO Thread safety
 
   protected Instrument(String name, boolean common, List<String> tags) {
     this.name = name;
     this.common = common;
     this.tags = tags;
     this.updated = new AtomicBoolean(false);
-    this.values = new ArrayList<>();
   }
 
   public String getName() {
@@ -34,13 +31,13 @@ public abstract class Instrument {
     return this.tags;
   }
 
-  public List<List<Number>> getValues() {
-    return values;
-  }
+  public abstract Number getValue();
 
-  /** Clear instrument values and updated flag. */
+  /** Clear instrument value and updated flag. */
   public void reset() {
     this.updated.set(false);
-    this.values.clear();
+    resetValue();
   }
+
+  public abstract void resetValue();
 }

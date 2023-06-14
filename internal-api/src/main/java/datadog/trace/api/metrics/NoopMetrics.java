@@ -3,7 +3,6 @@ package datadog.trace.api.metrics;
 import static java.util.Collections.emptyList;
 
 import java.util.Iterator;
-import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.function.Supplier;
 
@@ -69,9 +68,8 @@ class NoopMetrics implements Metrics {
     }
 
     @Override
-    public List<List<Number>> getValues() {
-      // Do not call supplier
-      return this.values;
+    public Number getValue() {
+      return 0;
     }
   }
 
@@ -79,5 +77,11 @@ class NoopMetrics implements Metrics {
     private NoopMeter() {
       super("noop", true, emptyList());
     }
+
+    @Override
+    public void mark() {}
+
+    @Override
+    public void mark(T amount) {}
   }
 }

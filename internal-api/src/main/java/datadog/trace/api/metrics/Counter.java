@@ -1,6 +1,5 @@
 package datadog.trace.api.metrics;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -19,19 +18,21 @@ public class Counter extends Instrument {
 
   public void increment() {
     this.count.increment();
-    addCurrentValue();
+    this.updated.set(true);
   }
 
   public void increment(long amount) {
     this.count.add(amount);
-    addCurrentValue();
+    this.updated.set(true);
   }
 
-  protected void addCurrentValue() {
-    List<Number> value = new ArrayList<>(2);
-    value.add(System.currentTimeMillis());
-    value.add(this.count.sum());
-    this.values.add(value);
-    this.updated.set(true);
+  @Override
+  public Number getValue() {
+    return this.count;
+  }
+
+  @Override
+  public void resetValue() {
+    this.count.reset();
   }
 }
