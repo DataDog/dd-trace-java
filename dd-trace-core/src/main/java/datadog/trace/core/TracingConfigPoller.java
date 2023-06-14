@@ -70,14 +70,20 @@ final class TracingConfigPoller {
 
       if (null != overrides && null != overrides.libConfig) {
         applyConfigOverrides(overrides.libConfig);
+        if (log.isDebugEnabled()) {
+          log.debug(
+              "Applied APM_TRACING overrides: {}", CONFIG_OVERRIDES_ADAPTER.toJson(overrides));
+        }
       } else {
         removeConfigOverrides();
+        log.debug("No APM_TRACING overrides");
       }
     }
 
     @Override
     public void remove(ParsedConfigKey configKey, PollingRateHinter hinter) {
       removeConfigOverrides();
+      log.debug("Removed APM_TRACING overrides");
     }
 
     @Override
@@ -89,18 +95,15 @@ final class TracingConfigPoller {
     maybeOverride(builder::setServiceMapping, libConfig.serviceMapping, SERVICE_MAPPING);
     maybeOverride(builder::setHeaderTags, libConfig.headerTags, HEADER_TAGS);
     builder.apply();
-    log.debug("Applied APM_TRACING overrides");
   }
 
   void removeConfigOverrides() {
     dynamicConfig.resetTraceConfig();
-    log.debug("Removed APM_TRACING overrides");
   }
 
   private <T> void maybeOverride(Consumer<T> setter, T override, String key) {
     if (null != override) {
       setter.accept(override);
-      log.debug("Overriding dd.{} with {}", key, override);
     }
   }
 
