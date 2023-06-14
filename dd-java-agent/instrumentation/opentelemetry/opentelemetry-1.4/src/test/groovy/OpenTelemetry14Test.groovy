@@ -372,7 +372,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
     currentSpan == otelSpan
 
     when:
-    def ddSpan = TEST_TRACER.startSpan("other-name")
+    def ddSpan = TEST_TRACER.startSpan("dd-api", "other-name")
     def ddScope = TEST_TRACER.activateSpan(ddSpan, MANUAL)
     currentSpan = Span.current()
 
@@ -400,7 +400,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
     DDSpanId.toHexStringPadded(activeSpan.spanId) == otelParentSpan.getSpanContext().spanId
 
     when:
-    def ddChildSpan = TEST_TRACER.startSpan("other-name")
+    def ddChildSpan = TEST_TRACER.startSpan("dd-api", "other-name")
     def ddChildScope = TEST_TRACER.activateSpan(ddChildSpan, MANUAL)
     def current = Span.current()
 
