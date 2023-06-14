@@ -26,6 +26,11 @@ public class NoopDataStreamsMonitoring implements DataStreamsMonitoring {
   }
 
   @Override
+  public PathwayContext setCheckpoint(PathwayContext pathwayContext, LinkedHashMap<String, String> sortedTags) {
+    return AgentTracer.NoopPathwayContext.INSTANCE;
+  }
+
+  @Override
   public void mergePathwayContextIntoSpan(AgentSpan span, DataStreamsContextCarrier carrier) {}
 
   @Override

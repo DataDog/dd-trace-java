@@ -201,6 +201,10 @@ public class TagContext implements AgentSpan.Context.Extracted {
   public PathwayContext getPathwayContext() {
     return this.pathwayContext;
   }
+  @Override
+  public void setPathwayContext(PathwayContext pathwayContext) {
+    this.pathwayContext = pathwayContext;
+  }
 
   public TagContext withPathwayContext(PathwayContext pathwayContext) {
     this.pathwayContext = pathwayContext;

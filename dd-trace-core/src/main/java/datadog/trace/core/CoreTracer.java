@@ -822,11 +822,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public <C> void injectBinaryPathwayContext(
       AgentSpan span, C carrier, BinarySetter<C> setter, LinkedHashMap<String, String> sortedTags) {
-    PathwayContext pathwayContext = span.context().getPathwayContext();
-    if (pathwayContext == null) {
+    log.debug("{}", span.context());
+    PathwayContext parentPathwayContext = span.context().getPathwayContext();
+    if (parentPathwayContext == null) {
       return;
     }
-    pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring::add);
+    PathwayContext pathwayContext = dataStreamsMonitoring.setCheckpoint(parentPathwayContext, sortedTags);
+    span.context().setPathwayContext(pathwayContext);
     try {
       byte[] encodedContext = pathwayContext.encode();
 
@@ -850,11 +852,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public <C> void injectPathwayContext(
       AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags) {
-    PathwayContext pathwayContext = span.context().getPathwayContext();
-    if (pathwayContext == null) {
+    PathwayContext parentPathwayContext = span.context().getPathwayContext();
+    if (parentPathwayContext == null) {
       return;
     }
-    pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring::add);
+    PathwayContext pathwayContext = dataStreamsMonitoring.setCheckpoint(parentPathwayContext, sortedTags);
+    span.context().setPathwayContext(pathwayContext);
     try {
       String encodedContext = pathwayContext.strEncode();
       if (encodedContext != null) {
@@ -890,9 +893,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void setDataStreamCheckpoint(AgentSpan span, LinkedHashMap<String, String> sortedTags) {
-    PathwayContext pathwayContext = span.context().getPathwayContext();
-    if (pathwayContext != null) {
-      pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring::add);
+    PathwayContext parentPathwayContext = span.context().getPathwayContext();
+    if (parentPathwayContext != null) {
+      PathwayContext pathwayContext = dataStreamsMonitoring.setCheckpoint(parentPathwayContext, sortedTags);
+      span.context().setPathwayContext(pathwayContext);
       injectPathwayTags(span, pathwayContext);
     }
   }

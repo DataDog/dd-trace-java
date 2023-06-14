@@ -7,6 +7,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.core.propagation.HttpCodec;
+import java.util.LinkedHashMap;
 
 public interface DataStreamsMonitoring extends AgentDataStreamsMonitoring, AutoCloseable {
   void start();
@@ -28,6 +29,8 @@ public interface DataStreamsMonitoring extends AgentDataStreamsMonitoring, AutoC
    * @param carrier The carrier of the {@link PathwayContext} to extract and inject.
    */
   void mergePathwayContextIntoSpan(AgentSpan span, DataStreamsContextCarrier carrier);
+
+  PathwayContext setCheckpoint(PathwayContext pathwayContext, LinkedHashMap<String, String> sortedTags);
 
   void add(StatsPoint statsPoint);
 

@@ -56,9 +56,9 @@ public class StatsPoint implements InboxItem {
         + edgeTags
         + '\''
         + ", hash="
-        + hash
+        + Long.toUnsignedString(hash)
         + ", parentHash="
-        + parentHash
+        + Long.toUnsignedString(parentHash)
         + ", timestampNanos="
         + timestampNanos
         + ", pathwayLatencyNano="
