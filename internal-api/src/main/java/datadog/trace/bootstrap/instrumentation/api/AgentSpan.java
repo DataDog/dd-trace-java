@@ -144,8 +144,6 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
   /** RequestContext for the Instrumentation Gateway */
   RequestContext getRequestContext();
 
-  void mergePathwayContext(PathwayContext pathwayContext);
-
   Integer forceSamplingDecision();
 
   TraceConfig traceConfig();

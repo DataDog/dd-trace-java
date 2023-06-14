@@ -23,7 +23,6 @@ import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -534,11 +533,6 @@ public class DDSpan
   @Override
   public RequestContext getRequestContext() {
     return context.getRequestContext();
-  }
-
-  @Override
-  public void mergePathwayContext(PathwayContext pathwayContext) {
-    context.mergePathwayContext(pathwayContext);
   }
 
   @Override

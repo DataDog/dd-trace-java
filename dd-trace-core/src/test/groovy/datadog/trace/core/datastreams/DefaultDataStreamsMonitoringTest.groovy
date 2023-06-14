@@ -33,7 +33,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     when:
     def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.start()
-    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 0, 0, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 0, 0, timeSource.currentTimeNanos, 0, 0))
     dataStreams.report()
 
     then:
@@ -82,7 +82,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     when:
     def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.start()
-    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.report()
 
@@ -124,7 +124,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     when:
     def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, bucketDuration)
     dataStreams.start()
-    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(bucketDuration)
 
     then:
@@ -163,9 +163,9 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     when:
     def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.start()
-    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 3, 4, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 3, 4, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100l)
     dataStreams.report()
 
@@ -205,9 +205,9 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     when:
     def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.start()
-    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100l)
     dataStreams.close()
 
@@ -308,9 +308,9 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     when:
     def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.start()
-    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.report()
 
@@ -361,12 +361,12 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     when:
     def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.start()
-    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100l)
-    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(10), SECONDS.toNanos(10)))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(10), SECONDS.toNanos(10)))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(5), SECONDS.toNanos(5)))
-    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, timeSource.currentTimeNanos, SECONDS.toNanos(2), 0))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(5), SECONDS.toNanos(5)))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, timeSource.currentTimeNanos, SECONDS.toNanos(2), 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.report()
 
@@ -434,7 +434,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     when: "reporting points when data streams is not supported"
     def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.start()
-    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.report()
 
@@ -464,7 +464,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     timeSource.advance(FEATURE_CHECK_INTERVAL_NANOS)
     dataStreams.report()
 
-    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.report()
 
@@ -506,7 +506,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     dataStreams.start()
     supportsDataStreaming = false
     dataStreams.onEvent(EventListener.EventType.DOWNGRADED, "")
-    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.report()
 
@@ -523,7 +523,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     timeSource.advance(FEATURE_CHECK_INTERVAL_NANOS)
     dataStreams.report()
 
-    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.report()
 
