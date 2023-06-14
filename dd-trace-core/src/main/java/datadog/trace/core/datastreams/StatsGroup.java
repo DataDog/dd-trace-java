@@ -22,7 +22,6 @@ public class StatsGroup {
   }
 
   public void add(long pathwayLatencyNano, long edgeLatencyNano) {
-    log.debug("[StatsGroup.add] pathwayLatencyNano: {}, edgeLatencyNano: {}", pathwayLatency, edgeLatency);
     pathwayLatency.accept(((double) pathwayLatencyNano) / NANOSECONDS_TO_SECOND);
     edgeLatency.accept(((double) edgeLatencyNano) / NANOSECONDS_TO_SECOND);
   }
