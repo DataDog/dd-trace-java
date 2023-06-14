@@ -19,6 +19,8 @@ import javax.annotation.Nullable;
 public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
     implements UnvalidatedRedirectModule {
 
+  private static final String LOCATION_HEADER = "Location";
+
   @Override
   public void onRedirect(final @Nullable String value) {
     if (!canBeTainted(value)) {
@@ -72,8 +74,8 @@ public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
   }
 
   @Override
-  public void onHeader(String name, String value) {
-    if ("Location".equalsIgnoreCase(name)) {
+  public void onHeader(@Nonnull final String name, final String value) {
+    if (value != null && LOCATION_HEADER.equalsIgnoreCase(name)) {
       onRedirect(value);
     }
   }

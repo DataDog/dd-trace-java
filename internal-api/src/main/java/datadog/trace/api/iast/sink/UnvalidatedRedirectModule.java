@@ -4,7 +4,7 @@ import java.net.URI;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public interface UnvalidatedRedirectModule extends HttpHeaderModule {
+public interface UnvalidatedRedirectModule extends HttpResponseHeaderModule.ForHeader {
 
   void onRedirect(@Nullable String value);
 

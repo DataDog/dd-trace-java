@@ -18,7 +18,10 @@ public class ValueScriptHelper {
     SerializerWithLimits serializer =
         new SerializerWithLimits(new StringTokenWriter(sb, status.getErrors()), timeoutChecker);
     try {
-      serializer.serialize(value, value != null ? value.getClass().getTypeName() : null, LIMITS);
+      serializer.serialize(
+          value,
+          value != null ? value.getClass().getTypeName() : Object.class.getTypeName(),
+          LIMITS);
     } catch (Exception ex) {
       status.addError(new EvaluationError(expr, ex.getMessage()));
     }

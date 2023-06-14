@@ -829,6 +829,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
     PathwayContext pathwayContext = dataStreamsMonitoring.setCheckpoint(parentPathwayContext, sortedTags);
     span.context().setPathwayContext(pathwayContext);
+
     try {
       byte[] encodedContext = pathwayContext.encode();
 
@@ -858,6 +859,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
     PathwayContext pathwayContext = dataStreamsMonitoring.setCheckpoint(parentPathwayContext, sortedTags);
     span.context().setPathwayContext(pathwayContext);
+
     try {
       String encodedContext = pathwayContext.strEncode();
       if (encodedContext != null) {
