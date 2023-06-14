@@ -2,11 +2,13 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.instrumentation.spark.DatabricksParentContext
+import datadog.trace.instrumentation.spark.DatadogSparkListener
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus
 import org.apache.hadoop.yarn.conf.YarnConfiguration
 import org.apache.spark.deploy.yarn.ApplicationMaster
 import org.apache.spark.deploy.yarn.ApplicationMasterArguments
 import org.apache.spark.sql.SparkSession
+import scala.reflect.ClassTag$
 
 class SparkTest extends AgentTestRunner {
 
@@ -113,7 +115,13 @@ class SparkTest extends AgentTestRunner {
     }
     catch (Exception ignored) {}
 
-    blockUntilChildSpansFinished(3)
+    def datadogSparkListener = (DatadogSparkListener)sparkSession
+    .sparkContext()
+    .listenerBus()
+    .findListenersByClass(ClassTag$.MODULE$.apply(DatadogSparkListener.class))
+    .apply(0)
+
+    blockUntilChildSpansFinished(datadogSparkListener.applicationSpan, 3)
     sparkSession.stop()
 
     expect:
