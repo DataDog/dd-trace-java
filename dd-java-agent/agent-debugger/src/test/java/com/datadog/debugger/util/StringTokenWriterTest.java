@@ -61,7 +61,7 @@ class StringTokenWriterTest {
   @Test
   public void lotsOfFields() throws Exception {
     assertEquals(
-        "{f00=0, f01=1, f02=2, f03=3, f04=4, ...}",
+        "{f00=0, f01=1, f02=2, f03=3, f04=4}, ...",
         serializeValue(
             new LotsFields(),
             new Limits(DEFAULT_REFERENCE_DEPTH, DEFAULT_COLLECTION_SIZE, DEFAULT_LENGTH, 5)));
@@ -73,7 +73,7 @@ class StringTokenWriterTest {
         "{valueField=4, field3=3, field2=2, field1=1}",
         serializeValue(new LeafClass(), Limits.DEFAULT));
     assertEquals(
-        "{valueField=4, field3=3, ...}",
+        "{valueField=4, field3=3}, ...",
         serializeValue(
             new LeafClass(),
             new Limits(DEFAULT_REFERENCE_DEPTH, DEFAULT_COLLECTION_SIZE, DEFAULT_LENGTH, 2)));
