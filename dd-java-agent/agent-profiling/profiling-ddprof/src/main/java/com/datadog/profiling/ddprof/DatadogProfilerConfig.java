@@ -15,12 +15,15 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CSTACK;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_INTERVAL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LOG_LEVEL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LOG_LEVEL_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_MEMLEAK_CAPACITY;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_MEMLEAK_CAPACITY_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_MEMLEAK_INTERVAL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_SAFEMODE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT;
@@ -156,8 +159,9 @@ public class DatadogProfilerConfig {
   public static boolean isMemoryLeakProfilingEnabled(ConfigProvider configProvider) {
     return getBoolean(
         configProvider,
-        PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED,
-        PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED_DEFAULT);
+        PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED,
+        PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED_DEFAULT,
+        PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED);
   }
 
   public static boolean isMemoryLeakProfilingEnabled() {
@@ -169,7 +173,10 @@ public class DatadogProfilerConfig {
     long memleakIntervalDefault =
         maxheap <= 0 ? 1024 * 1024 : maxheap / Math.max(1, getMemleakCapacity());
     return getLong(
-        configProvider, PROFILING_DATADOG_PROFILER_MEMLEAK_INTERVAL, memleakIntervalDefault);
+        configProvider,
+        PROFILING_DATADOG_PROFILER_LIVEHEAP_INTERVAL,
+        memleakIntervalDefault,
+        PROFILING_DATADOG_PROFILER_MEMLEAK_INTERVAL);
   }
 
   public static long getMemleakInterval() {
@@ -179,12 +186,14 @@ public class DatadogProfilerConfig {
   public static int getMemleakCapacity(ConfigProvider configProvider) {
     return clamp(
         0,
-        // see https://github.com/DataDog/java-profiler/blob/main/src/memleakTracer.h
+        // see
+        // https://github.com/DataDog/java-profiler/blob/main/ddprof-lib/src/main/cpp/livenessTracker.h#L54
         8192,
         getInteger(
             configProvider,
-            PROFILING_DATADOG_PROFILER_MEMLEAK_CAPACITY,
-            PROFILING_DATADOG_PROFILER_MEMLEAK_CAPACITY_DEFAULT));
+            PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY,
+            PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY_DEFAULT,
+            PROFILING_DATADOG_PROFILER_MEMLEAK_CAPACITY));
   }
 
   public static int getMemleakCapacity() {
@@ -269,26 +278,29 @@ public class DatadogProfilerConfig {
   }
 
   public static boolean getBoolean(
-      ConfigProvider configProvider, String key, boolean defaultValue) {
+      ConfigProvider configProvider, String key, boolean defaultValue, String... aliases) {
     return configProvider.getBoolean(
-        key, configProvider.getBoolean(normalizeKey(key), defaultValue));
+        key, configProvider.getBoolean(normalizeKey(key), defaultValue), aliases);
   }
 
   public static boolean getBoolean(ConfigProvider configProvider, String key) {
     return configProvider.getBoolean(key, configProvider.getBoolean(normalizeKey(key), false));
   }
 
-  public static int getInteger(ConfigProvider configProvider, String key, int defaultValue) {
+  public static int getInteger(
+      ConfigProvider configProvider, String key, int defaultValue, String... aliases) {
     return configProvider.getInteger(
-        key, configProvider.getInteger(normalizeKey(key), defaultValue));
+        key, configProvider.getInteger(normalizeKey(key), defaultValue), aliases);
   }
 
   public static int getInteger(ConfigProvider configProvider, String key) {
     return configProvider.getInteger(key, configProvider.getInteger(normalizeKey(key), -1));
   }
 
-  public static long getLong(ConfigProvider configProvider, String key, long defaultValue) {
-    return configProvider.getLong(key, configProvider.getLong(normalizeKey(key), defaultValue));
+  public static long getLong(
+      ConfigProvider configProvider, String key, long defaultValue, String... aliases) {
+    return configProvider.getLong(
+        key, configProvider.getLong(normalizeKey(key), defaultValue), aliases);
   }
 
   public static long getLong(ConfigProvider configProvider, String key) {
