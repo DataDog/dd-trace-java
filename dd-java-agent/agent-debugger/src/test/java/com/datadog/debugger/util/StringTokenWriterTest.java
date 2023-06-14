@@ -171,7 +171,8 @@ class StringTokenWriterTest {
         new SerializerWithLimits(
             new StringTokenWriter(sb, new ArrayList<>()),
             new TimeoutChecker(Duration.of(1, ChronoUnit.SECONDS)));
-    serializer.serialize(value, value != null ? value.getClass().getTypeName() : null, limits);
+    serializer.serialize(
+        value, value != null ? value.getClass().getTypeName() : Object.class.getTypeName(), limits);
     return sb.toString();
   }
 }

@@ -19,7 +19,9 @@ import static com.datadog.debugger.util.MoshiSnapshotHelper.TIMEOUT_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TRUNCATED;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TYPE;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.VALUE;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.MoshiHelper;
@@ -729,6 +731,51 @@ public class SnapshotSerializationTest {
     Map<String, Object> mapFieldObj = (Map<String, Object>) locals.get("mapLocal");
     Assertions.assertEquals(
         "java.lang.UnsupportedOperationException", mapFieldObj.get(NOT_CAPTURED_REASON));
+  }
+
+  @Test
+  public void mapNullValue() throws IOException {
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
+    Snapshot snapshot = createSnapshot();
+    CapturedContext context = new CapturedContext();
+    Map<String, String> map = new HashMap<>();
+    map.put("foo", null);
+    CapturedContext.CapturedValue mapLocal =
+        CapturedContext.CapturedValue.of("mapLocal", Map.class.getTypeName(), map);
+    context.addLocals(new CapturedContext.CapturedValue[] {mapLocal});
+    snapshot.setExit(context);
+    String buffer = adapter.toJson(snapshot);
+    System.out.println(buffer);
+    Map<String, Object> locals = getLocalsFromJson(buffer);
+    List<Object> entries = getMapEntries(locals, "mapLocal");
+    assertEquals(1, entries.size());
+    List<Object> entry = (List<Object>) entries.get(0);
+    assertEquals(2, entry.size());
+    Map<String, Object> value = (Map<String, Object>) entry.get(1);
+    assertEquals(Object.class.getTypeName(), value.get(TYPE));
+    assertTrue((Boolean) value.get(IS_NULL));
+  }
+
+  @Test
+  public void listNullValue() throws IOException {
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
+    Snapshot snapshot = createSnapshot();
+    CapturedContext context = new CapturedContext();
+    List<String> list = new ArrayList<>();
+    list.add("foo");
+    list.add(null);
+    list.add("bar");
+    CapturedContext.CapturedValue listLocal =
+        CapturedContext.CapturedValue.of("listLocal", List.class.getTypeName(), list);
+    context.addLocals(new CapturedContext.CapturedValue[] {listLocal});
+    snapshot.setExit(context);
+    String buffer = adapter.toJson(snapshot);
+    System.out.println(buffer);
+    Map<String, Object> locals = getLocalsFromJson(buffer);
+    List<Object> elements = getArrayElements(locals, "listLocal");
+    Map<String, Object> nullElement = (Map<String, Object>) elements.get(1);
+    assertEquals(Object.class.getTypeName(), nullElement.get(TYPE));
+    assertTrue((Boolean) nullElement.get(IS_NULL));
   }
 
   private Map<String, Object> doLength(int maxLength) throws IOException {
