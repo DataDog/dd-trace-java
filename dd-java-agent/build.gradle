@@ -35,6 +35,10 @@ ext.generalShadowJarConfig = {
   exclude '**/META-INF/*.kotlin_module'
   exclude '**/module-info.class'
 
+  if (!project.hasProperty("targetMacOs")) {
+    exclude '**/*.dylib'
+  }
+
   // Prevents conflict with other SLF4J instances. Important for premain.
   relocate 'org.slf4j', 'datadog.slf4j'
   // rewrite dependencies calling Logger.getLogger
