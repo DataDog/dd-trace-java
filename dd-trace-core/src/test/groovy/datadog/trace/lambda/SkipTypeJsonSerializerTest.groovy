@@ -16,7 +16,18 @@ class SubClass extends AbstractSerialize {
   }
 }
 
-class SkipAbstractTypeJsonSerializerTest extends DDCoreSpecification {
+class CustomRequest<P extends ApiRequestPath, B> extends LambdaRequest {
+  public P path
+  public B body
+}
+interface ApiRequestPath {}
+class LambdaRequest {
+  public boolean testBool
+  public String emptyStr
+  public Map<String, String> emptyHeaders
+}
+
+class SkipUnhandledTypeJsonSerializerTest extends DDCoreSpecification {
 
   static class TestJsonObject {
 
@@ -47,7 +58,7 @@ class SkipAbstractTypeJsonSerializerTest extends DDCoreSpecification {
   def "test string serialization"() {
     given:
     def adapter = new Moshi.Builder()
-      .add(SkipAbstractTypeJsonSerializer.newFactory())
+      .add(SkipUnsupportedTypeJsonAdapter.newFactory())
       .build()
       .adapter(Object)
 
@@ -61,7 +72,7 @@ class SkipAbstractTypeJsonSerializerTest extends DDCoreSpecification {
   def "test simple case"() {
     given:
     def adapter = new Moshi.Builder()
-      .add(SkipAbstractTypeJsonSerializer.newFactory())
+      .add(SkipUnsupportedTypeJsonAdapter.newFactory())
       .build()
       .adapter(Object)
 
@@ -79,7 +90,7 @@ class SkipAbstractTypeJsonSerializerTest extends DDCoreSpecification {
   def "test SQS event "() {
     given:
     def adapter = new Moshi.Builder()
-      .add(SkipAbstractTypeJsonSerializer.newFactory())
+      .add(SkipUnsupportedTypeJsonAdapter.newFactory())
       .build()
       .adapter(Object)
 
@@ -100,7 +111,7 @@ class SkipAbstractTypeJsonSerializerTest extends DDCoreSpecification {
   def "test SNS Event"() {
     given:
     def adapter = new Moshi.Builder()
-      .add(SkipAbstractTypeJsonSerializer.newFactory())
+      .add(SkipUnsupportedTypeJsonAdapter.newFactory())
       .build()
       .adapter(Object)
 
@@ -121,7 +132,7 @@ class SkipAbstractTypeJsonSerializerTest extends DDCoreSpecification {
   def "test APIGatewayProxyRequest Event"() {
     given:
     def adapter = new Moshi.Builder()
-      .add(SkipAbstractTypeJsonSerializer.newFactory())
+      .add(SkipUnsupportedTypeJsonAdapter.newFactory())
       .build()
       .adapter(Object)
 
@@ -138,7 +149,7 @@ class SkipAbstractTypeJsonSerializerTest extends DDCoreSpecification {
   def "test MapStringObject Event"() {
     given:
     def adapter = new Moshi.Builder()
-      .add(SkipAbstractTypeJsonSerializer.newFactory())
+      .add(SkipUnsupportedTypeJsonAdapter.newFactory())
       .build()
       .adapter(Object)
 
@@ -154,5 +165,20 @@ class SkipAbstractTypeJsonSerializerTest extends DDCoreSpecification {
 
     then:
     result == "{\"firstKey\":{\"field1\":\"toto\",\"field2\":true,\"field3\":{},\"field4\":{\"field\":{}},\"field5\":{}},\"secondKey\":{\"nestedKey2\":[\"aaa\",\"bbb\",\"ccc\",\"dddd\"],\"nestedKey0\":\"nestedValue1\",\"nestedKey1\":true}}"
+  }
+
+  def "test custom payload"() {
+    given:
+    def adapter = new Moshi.Builder()
+      .add(SkipUnsupportedTypeJsonAdapter.newFactory())
+      .build()
+      .adapter(Object)
+
+    when:
+    def customPayload = new CustomRequest()
+    def result = adapter.toJson(customPayload)
+
+    then:
+    result == "{\"body\":{},\"path\":{},\"testBool\":false}"
   }
 }
