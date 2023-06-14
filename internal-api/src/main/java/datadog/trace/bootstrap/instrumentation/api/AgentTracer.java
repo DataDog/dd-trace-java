@@ -889,6 +889,8 @@ public class AgentTracer {
     public PathwayContext getPathwayContext() {
       return NoopPathwayContext.INSTANCE;
     }
+    @Override
+    public void setPathwayContext(PathwayContext pathwayContext) {}
 
     @Override
     public String getForwarded() {
@@ -1003,8 +1005,10 @@ public class AgentTracer {
     }
 
     @Override
-    public void setCheckpoint(
-        LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer) {}
+    public PathwayContext createNew(
+        LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer) {
+      return NoopPathwayContext.INSTANCE;
+    }
 
     @Override
     public byte[] encode() {

@@ -123,6 +123,13 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     thread.start();
   }
 
+  public PathwayContext setCheckpoint(PathwayContext pathwayContext, LinkedHashMap<String, String> sortedTags) {
+    if (pathwayContext == null) {
+      return null;
+    }
+    return pathwayContext.createNew(sortedTags, this::add);
+  }
+
   @Override
   public void add(StatsPoint statsPoint) {
     if (thread.isAlive()) {

@@ -40,15 +40,11 @@ public class DefaultPathwayContext implements PathwayContext {
   // pathwayStartNanos is nanoseconds since epoch
   // Nano ticks is necessary because time differences should use a monotonically increasing clock
   // ticks is not comparable across JVMs
-  private long pathwayStartNanos;
-  private long pathwayStartNanoTicks;
-  private long edgeStartNanoTicks;
-  private long hash;
-  private boolean started;
-  // state variables used to memoize the pathway hash with
-  // direction != current direction
-  private long closestOppositeDirectionHash;
-  private String previousDirection;
+  private final long pathwayStartNanos;
+  private final long pathwayStartNanoTicks;
+  private final long edgeStartNanoTicks;
+  private final long hash;
+  private final boolean started;
 
   private static final Set<String> hashableTagKeys =
       new HashSet<String>(
@@ -62,6 +58,11 @@ public class DefaultPathwayContext implements PathwayContext {
   public DefaultPathwayContext(TimeSource timeSource, WellKnownTags wellKnownTags) {
     this.timeSource = timeSource;
     this.wellKnownTags = wellKnownTags;
+    this.pathwayStartNanos = 0L;
+    this.pathwayStartNanoTicks = 0L;
+    this.edgeStartNanoTicks = 0L;
+    this.hash = 0L;
+    this.started = false;
   }
 
   private DefaultPathwayContext(
@@ -77,7 +78,6 @@ public class DefaultPathwayContext implements PathwayContext {
     this.pathwayStartNanoTicks = pathwayStartNanoTicks;
     this.edgeStartNanoTicks = edgeStartNanoTicks;
     this.hash = hash;
-    this.closestOppositeDirectionHash = hash;
     this.started = true;
   }
 
@@ -92,24 +92,26 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   @Override
-  public void setCheckpoint(
+  public PathwayContext createNew(
       LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer) {
     long startNanos = timeSource.getCurrentTimeNanos();
     long nanoTicks = timeSource.getNanoTicks();
-    lock.lock();
-    try {
       // So far, each tag key has only one tag value, so we're initializing the capacity to match
       // the number of tag keys for now. We should revisit this later if it's no longer the case.
       List<String> allTags = new ArrayList<>(sortedTags.size());
       PathwayHashBuilder pathwayHashBuilder = new PathwayHashBuilder(wellKnownTags);
 
+      long parentPathwayStartNanos;
+      long parentPathwayStartNanoTicks;
+      long parentEdgeStartNanoTicks;
       if (!started) {
-        pathwayStartNanos = startNanos;
-        pathwayStartNanoTicks = nanoTicks;
-        edgeStartNanoTicks = nanoTicks;
-        hash = 0;
-        started = true;
-        log.debug("Started {}", this);
+        parentPathwayStartNanos = startNanos;
+        parentPathwayStartNanoTicks = nanoTicks;
+        parentEdgeStartNanoTicks = nanoTicks;
+      } else {
+        parentPathwayStartNanos = pathwayStartNanos;
+        parentPathwayStartNanoTicks = pathwayStartNanoTicks;
+        parentEdgeStartNanoTicks = edgeStartNanoTicks;
       }
 
       for (Map.Entry<String, String> entry : sortedTags.entrySet()) {
@@ -124,23 +126,11 @@ public class DefaultPathwayContext implements PathwayContext {
       }
 
       long nodeHash = generateNodeHash(pathwayHashBuilder);
-      // loop protection - a node should not be chosen as parent
-      // for a sequential node with the same direction, as this
-      // will cause a `cardinality explosion` for hash / parentHash tag values
-      if (sortedTags.containsKey(TagsProcessor.DIRECTION_TAG)) {
-        String direction = sortedTags.get(TagsProcessor.DIRECTION_TAG);
-        if (direction.equals(previousDirection)) {
-          hash = closestOppositeDirectionHash;
-        } else {
-          previousDirection = direction;
-          closestOppositeDirectionHash = hash;
-        }
-      }
 
       long newHash = generatePathwayHash(nodeHash, hash);
 
-      long pathwayLatencyNano = nanoTicks - pathwayStartNanoTicks;
-      long edgeLatencyNano = nanoTicks - edgeStartNanoTicks;
+      long pathwayLatencyNano = nanoTicks - parentPathwayStartNanoTicks;
+      long edgeLatencyNano = nanoTicks - parentEdgeStartNanoTicks;
 
       StatsPoint point =
           new StatsPoint(
@@ -150,14 +140,19 @@ public class DefaultPathwayContext implements PathwayContext {
               timeSource.getCurrentTimeNanos(),
               pathwayLatencyNano,
               edgeLatencyNano);
-      edgeStartNanoTicks = nanoTicks;
-      hash = newHash;
+      long childEdgeStartNanoTicks = nanoTicks;
 
       pointConsumer.accept(point);
-      log.debug("Checkpoint set {}, hash source: {}", this, pathwayHashBuilder);
-    } finally {
-      lock.unlock();
-    }
+      log.debug("Checkpoint set {}, hash source: {}", point, pathwayHashBuilder);
+      PathwayContext newPathwayContext = new DefaultPathwayContext(
+          timeSource, wellKnownTags,
+          parentPathwayStartNanos,
+          parentPathwayStartNanoTicks,
+          childEdgeStartNanoTicks,
+          newHash);
+    log.debug("Created new pathway context {}", newPathwayContext);
+
+    return newPathwayContext;
   }
 
   @Override
