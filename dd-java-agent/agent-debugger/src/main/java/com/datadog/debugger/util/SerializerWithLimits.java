@@ -112,6 +112,9 @@ public class SerializerWithLimits {
   }
 
   public void serialize(Object value, String type, Limits limits) throws Exception {
+    if (type == null) {
+      throw new IllegalArgumentException("Type is required for serialization");
+    }
     tokenWriter.prologue(value, type);
     if (timeoutChecker.isTimedOut(System.currentTimeMillis())) {
       tokenWriter.notCaptured(NotCapturedReason.TIMEOUT);
@@ -208,6 +211,7 @@ public class SerializerWithLimits {
     tokenWriter.objectPrologue(value);
     Class<?> currentClass = value.getClass();
     int processedFieldCount = 0;
+    NotCapturedReason reason = null;
     classLoop:
     do {
       Field[] fields = currentClass.getDeclaredFields();
@@ -221,7 +225,7 @@ public class SerializerWithLimits {
           onField(field, fieldValue, limits);
           processedFieldCount++;
           if (processedFieldCount >= limits.maxFieldCount) {
-            tokenWriter.notCaptured(NotCapturedReason.FIELD_COUNT);
+            reason = NotCapturedReason.FIELD_COUNT;
             break classLoop;
           }
         } catch (Exception e) {
@@ -230,6 +234,9 @@ public class SerializerWithLimits {
       }
     } while ((currentClass = currentClass.getSuperclass()) != null);
     tokenWriter.objectEpilogue(value);
+    if (reason != null) {
+      tokenWriter.notCaptured(reason);
+    }
   }
 
   private void onField(Field field, Object value, Limits limits) throws Exception {
@@ -351,7 +358,8 @@ public class SerializerWithLimits {
     int i = 0;
     while (i < maxSize) {
       Object val = objArray[i];
-      serialize(val, val != null ? val.getClass().getTypeName() : "java.lang.Object", newLimits);
+      serialize(
+          val, val != null ? val.getClass().getTypeName() : Object.class.getTypeName(), newLimits);
       i++;
     }
     return maxSize == objArray.length;
@@ -366,7 +374,8 @@ public class SerializerWithLimits {
     Iterator<?> it = collection.iterator(); // /!\ alien call /!\
     while (i < maxSize && it.hasNext()) { // /!\ alien call /!\
       Object val = it.next(); // /!\ alien call /!\
-      serialize(val, val != null ? val.getClass().getTypeName() : null, newLimits);
+      serialize(
+          val, val != null ? val.getClass().getTypeName() : Object.class.getTypeName(), newLimits);
       i++;
     }
     return maxSize == colSize;
@@ -384,8 +393,14 @@ public class SerializerWithLimits {
       tokenWriter.mapEntryPrologue(entry);
       Object keyObj = entry.getKey(); // /!\ alien call /!\
       Object valObj = entry.getValue(); // /!\ alien call /!\
-      serialize(keyObj, keyObj != null ? keyObj.getClass().getTypeName() : null, newLimits);
-      serialize(valObj, valObj != null ? valObj.getClass().getTypeName() : null, newLimits);
+      serialize(
+          keyObj,
+          keyObj != null ? keyObj.getClass().getTypeName() : Object.class.getTypeName(),
+          newLimits);
+      serialize(
+          valObj,
+          valObj != null ? valObj.getClass().getTypeName() : Object.class.getTypeName(),
+          newLimits);
       tokenWriter.mapEntryEpilogue(entry);
       i++;
     }

@@ -3,12 +3,12 @@ package com.datadog.iast.sink;
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.overhead.Operations;
-import datadog.trace.api.iast.sink.InsecureCookieModule;
+import datadog.trace.api.iast.sink.NoHttpOnlyCookieModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import javax.annotation.Nonnull;
 
-public class InsecureCookieModuleImpl extends SinkModuleBase implements InsecureCookieModule {
+public class NoHttpOnlyCookieModuleImpl extends SinkModuleBase implements NoHttpOnlyCookieModule {
 
   @Override
   public void onCookie(
@@ -17,12 +17,12 @@ public class InsecureCookieModuleImpl extends SinkModuleBase implements Insecure
       final boolean isSecure,
       final boolean isHttpOnly,
       final String sameSite) {
-    if (!isSecure) {
+    if (!isHttpOnly) {
       final AgentSpan span = AgentTracer.activeSpan();
       if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
         return;
       }
-      report(span, VulnerabilityType.INSECURE_COOKIE, new Evidence(name));
+      report(span, VulnerabilityType.NO_HTTPONLY_COOKIE, new Evidence(name));
     }
   }
 }

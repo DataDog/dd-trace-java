@@ -34,6 +34,8 @@ ext.generalShadowJarConfig = {
   exclude '**/META-INF/proguard/'
   exclude '**/META-INF/*.kotlin_module'
   exclude '**/module-info.class'
+  exclude '**/liblz4-java.so'
+  exclude '**/liblz4-java.dylib'
 
   // Prevents conflict with other SLF4J instances. Important for premain.
   relocate 'org.slf4j', 'datadog.slf4j'

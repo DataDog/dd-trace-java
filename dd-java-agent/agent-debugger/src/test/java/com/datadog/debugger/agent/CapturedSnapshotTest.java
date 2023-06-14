@@ -89,7 +89,8 @@ public class CapturedSnapshotTest {
     if (currentTransformer != null) {
       instr.removeTransformer(currentTransformer);
     }
-    ProbeRateLimiter.resetGlobalRate();
+    ProbeRateLimiter.resetAll();
+    Assertions.assertFalse(DebuggerContext.isInProbe());
   }
 
   @Test
@@ -1395,6 +1396,32 @@ public class CapturedSnapshotTest {
     assertTrue(arguments.containsKey("this"));
     assertTrue(arguments.containsKey("p1")); // this the hidden ordinal arg of an enum
     assertTrue(arguments.containsKey("strValue"));
+  }
+
+  @Test
+  public void recursiveCapture() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot24";
+    final String INNER_CLASS = CLASS_NAME + "$Holder";
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(INNER_CLASS, createProbe(PROBE_ID, INNER_CLASS, "size", null));
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "").get();
+    Assertions.assertEquals(1, result);
+  }
+
+  @Test
+  public void recursiveCaptureException() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot24";
+    final String INNER_CLASS = CLASS_NAME + "$HolderWithException";
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(INNER_CLASS, createProbe(PROBE_ID, INNER_CLASS, "size", null));
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    try {
+      Reflect.on(testClass).call("main", "exception").get();
+      Assertions.fail("should not reach this code");
+    } catch (ReflectException ex) {
+      Assertions.assertEquals("not supported", ex.getCause().getCause().getMessage());
+    }
   }
 
   private DebuggerTransformerTest.TestSnapshotListener setupInstrumentTheWorldTransformer(
