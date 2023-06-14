@@ -13,6 +13,7 @@ class Vertx34InsecureCookieTest extends IastVertx34Server {
     injectSysConfig('dd.iast.enabled', 'true')
   }
 
+
   void 'test insecure Cookie'(){
     given:
     final module = Mock(InsecureCookieModule)
@@ -22,10 +23,12 @@ class Vertx34InsecureCookieTest extends IastVertx34Server {
 
     when:
     final response = client.newCall(request).execute()
+    final body = response.body().string()
 
     then:
     response.code() == 200
-    response.body().string() == 'success'
-    1 * module.onHeader('Set-Cookie', 'user-id=7')
+    body == 'success'
+
+    1 * module.onCookie('user-id', '7', _, _, _)
   }
 }

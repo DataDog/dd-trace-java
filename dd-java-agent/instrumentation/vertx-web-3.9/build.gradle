@@ -38,4 +38,5 @@ dependencies {
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty-buffer-4')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 }
