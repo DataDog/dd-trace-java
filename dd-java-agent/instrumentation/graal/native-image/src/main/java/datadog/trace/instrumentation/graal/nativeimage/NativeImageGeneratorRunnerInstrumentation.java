@@ -82,7 +82,9 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.slf4j.LoggerFactory:build_time,"
               + "com.blogspot.mydailyjava.weaklockfree.WeakConcurrentMap:build_time,"
               + "net.bytebuddy:build_time,"
-              + "com.sun.proxy:build_time";
+              + "com.sun.proxy:build_time,"
+              + "jnr.enxio.channels:run_time,"
+              + "jnr.unixsocket:run_time";
     }
   }
 
