@@ -205,6 +205,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               StatsBucket statsBucket =
                   timeToBucket.computeIfAbsent(
                       bucket, startTime -> new StatsBucket(startTime, bucketDurationNanos));
+              log.debug("[StatsGroup.add] pathwayLatencyNano: {}, edgeLatencyNano: {}", statsPoint.getPathwayLatencyNano(), statsPoint.getEdgeLatencyNano());
               statsBucket.addPoint(statsPoint);
             } else if (payload instanceof Backlog) {
               Backlog backlog = (Backlog) payload;
