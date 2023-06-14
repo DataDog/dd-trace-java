@@ -56,8 +56,8 @@ public class StatsBucket {
 
   @Override
   public String toString() {
-    return "StatsGroup{"
-        + ", startTimeNanos="
+    return "StatsBucket{"
+        + "startTimeNanos="
         + startTimeNanos
         + ", bucketDurationNanos="
         + bucketDurationNanos

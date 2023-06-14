@@ -245,6 +245,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
     if (!includedBuckets.isEmpty()) {
       log.debug("Flushing {} buckets", includedBuckets.size());
+      log.debug("Buckets to be flushed: {}", includedBuckets);
       payloadWriter.writePayload(includedBuckets);
     }
   }
