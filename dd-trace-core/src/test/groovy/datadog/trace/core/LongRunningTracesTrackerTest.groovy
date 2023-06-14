@@ -8,6 +8,7 @@ import datadog.trace.api.DDTraceId
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.time.SystemTimeSource
+import datadog.trace.core.metrics.SpanMetrics
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.test.util.DDSpecification
 
@@ -31,7 +32,7 @@ class LongRunningTracesTrackerTest extends DDSpecification {
     sharedCommunicationObjects.featuresDiscovery(_) >> features
     buffer = new PendingTraceBuffer.DelayingPendingTraceBuffer(maxTrackedTraces, SystemTimeSource.INSTANCE, config, sharedCommunicationObjects, HealthMetrics.NO_OP)
     tracker = buffer.runningTracesTracker
-    factory = new PendingTrace.Factory(tracer, buffer, SystemTimeSource.INSTANCE, false, HealthMetrics.NO_OP)
+    factory = new PendingTrace.Factory(tracer, buffer, SystemTimeSource.INSTANCE, false, HealthMetrics.NO_OP, SpanMetrics.NOOP)
   }
 
   def "null is not added"() {
