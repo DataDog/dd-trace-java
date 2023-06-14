@@ -218,6 +218,13 @@ public class GatewayBridge {
                 pathParamsSubInfo =
                     producerService.getDataSubscribers(KnownAddresses.REQUEST_PATH_PARAMS);
               }
+              if (pathParamsSubInfo == null) {
+                log.warn("Subscriptions is null for REQUEST_PATH_PARAMS event");
+                return NoopFlow.INSTANCE;
+              }
+              if (pathParamsSubInfo.isEmpty()) {
+                return NoopFlow.INSTANCE;
+              }
               DataBundle bundle =
                   new SingletonDataBundle<>(KnownAddresses.REQUEST_PATH_PARAMS, data);
               try {
@@ -245,6 +252,10 @@ public class GatewayBridge {
               if (rawRequestBodySubInfo == null) {
                 rawRequestBodySubInfo =
                     producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_RAW);
+              }
+              if (pathParamsSubInfo == null) {
+                log.warn("Subscriptions is null for REQUEST_BODY_DONE event");
+                return NoopFlow.INSTANCE;
               }
               if (rawRequestBodySubInfo.isEmpty()) {
                 return NoopFlow.INSTANCE;
@@ -286,6 +297,10 @@ public class GatewayBridge {
               if (requestBodySubInfo == null) {
                 requestBodySubInfo =
                     producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_OBJECT);
+              }
+              if (requestBodySubInfo == null) {
+                log.warn("Subscriptions is null for REQUEST_BODY_CONVERTED event");
+                return NoopFlow.INSTANCE;
               }
               if (requestBodySubInfo.isEmpty()) {
                 return NoopFlow.INSTANCE;
@@ -365,6 +380,10 @@ public class GatewayBridge {
             if (grpcServerRequestMsgSubInfo == null) {
               grpcServerRequestMsgSubInfo =
                   producerService.getDataSubscribers(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE);
+            }
+            if (grpcServerRequestMsgSubInfo == null) {
+              log.warn("Subscriptions is null for GRPC_SERVER_REQUEST_MESSAGE event");
+              return NoopFlow.INSTANCE;
             }
             if (grpcServerRequestMsgSubInfo.isEmpty()) {
               return Flow.ResultFlow.empty();
