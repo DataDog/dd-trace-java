@@ -3,9 +3,6 @@ package datadog.trace.civisibility.ci;
 import static datadog.trace.util.Strings.toJson;
 
 import datadog.trace.api.DDTags;
-import datadog.trace.api.civisibility.ci.CIInfo;
-import datadog.trace.api.civisibility.ci.CIProviderInfo;
-import datadog.trace.api.civisibility.ci.CITagsProvider;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.instrumentation.api.Tags;

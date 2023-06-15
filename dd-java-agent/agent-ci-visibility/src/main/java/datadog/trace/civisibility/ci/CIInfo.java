@@ -1,4 +1,4 @@
-package datadog.trace.api.civisibility.ci;
+package datadog.trace.civisibility.ci;
 
 import java.util.HashMap;
 import java.util.Map;

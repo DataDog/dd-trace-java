@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.testng
 
 import datadog.trace.agent.test.asserts.ListWriterAssert
-import datadog.trace.agent.test.base.CiVisibilityTest
+import datadog.trace.civisibility.CiVisibilityTest
 import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.example.TestError

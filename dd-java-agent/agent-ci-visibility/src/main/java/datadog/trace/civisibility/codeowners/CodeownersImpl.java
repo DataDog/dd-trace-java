@@ -1,6 +1,5 @@
 package datadog.trace.civisibility.codeowners;
 
-import datadog.trace.api.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.codeowners.matcher.CharacterMatcher;
 import java.io.BufferedReader;
 import java.io.IOException;

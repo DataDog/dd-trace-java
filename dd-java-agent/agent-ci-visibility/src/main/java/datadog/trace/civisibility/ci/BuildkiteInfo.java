@@ -6,8 +6,6 @@ import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.PathUtils.expandTilde;
 import static datadog.trace.util.Strings.toJson;
 
-import datadog.trace.api.civisibility.ci.CIInfo;
-import datadog.trace.api.civisibility.ci.CIProviderInfo;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
