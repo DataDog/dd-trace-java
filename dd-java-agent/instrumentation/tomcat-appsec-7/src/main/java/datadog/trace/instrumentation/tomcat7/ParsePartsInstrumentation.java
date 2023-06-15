@@ -40,6 +40,11 @@ public class ParsePartsInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
+  public String muzzleDirective() {
+    return "from7";
+  }
+
+  @Override
   public String instrumentedType() {
     return "org.apache.catalina.connector.Request";
   }

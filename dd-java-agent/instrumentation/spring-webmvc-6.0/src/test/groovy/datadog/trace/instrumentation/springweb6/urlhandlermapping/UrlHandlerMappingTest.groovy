@@ -12,7 +12,6 @@ import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.springweb6.SetupSpecHelper
 import datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator
 import datadog.trace.instrumentation.springweb6.boot.SecurityConfig
-import datadog.trace.instrumentation.tomcat.TomcatDecorator
 import okhttp3.Request
 import okhttp3.Response
 import org.springframework.boot.SpringApplication
@@ -76,7 +75,7 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
 
   @Override
   String component() {
-    TomcatDecorator.DECORATE.component()
+    'tomcat-server'
   }
 
   @Override
