@@ -17,6 +17,7 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.DDTestImpl",
   "datadog.trace.civisibility.ci.CIInfo",
   "datadog.trace.civisibility.ci.CIInfo.Builder",
+  "datadog.trace.civisibility.communication.*",
   "datadog.trace.civisibility.context.AbstractTestContext",
   "datadog.trace.civisibility.context.EmptyTestContext",
   "datadog.trace.civisibility.context.ParentProcessTestContext",
@@ -29,6 +30,7 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.events.TestModuleDescriptor",
   "datadog.trace.civisibility.events.TestSuiteDescriptor",
   "datadog.trace.civisibility.git.GitObject",
+  "datadog.trace.civisibility.git.tree.*",
   "datadog.trace.civisibility.source.MethodLinesResolver.MethodLines",
 ]
 
@@ -39,6 +41,7 @@ dependencies {
   implementation deps.asmcommons
   implementation group: 'org.jacoco', name: 'org.jacoco.core', version: '0.8.9'
 
+  implementation project(':communication')
   implementation project(':internal-api')
   implementation project(':internal-api:internal-api-9')
 

@@ -31,6 +31,14 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_DEBUG_PORT = "civisibility.debug.port";
   public static final String CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE =
       "civisibility.test.events.handler.cache.size";
+  public static final String CIVISIBILITY_GIT_UPLOAD_ENABLED = "civisibility.git.upload.enabled";
+  public static final String CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS =
+      "civisibility.git.upload.timeout.millis";
+  public static final String CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS =
+      "civisibility.git.command.timeout.millis";
+  public static final String CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS =
+      "civisibility.backend.api.timeout.millis";
+  public static final String CIVISIBILITY_GIT_REMOTE_NAME = "civisibility.git.remote.name";
 
   private CiVisibilityConfig() {}
 }
