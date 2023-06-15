@@ -80,7 +80,8 @@ public class DDTestSessionImpl implements DDTestSession {
 
   @Override
   public void end(@Nullable Long endTime) {
-    span.setTag(Tags.TEST_STATUS, context.getStatus());
+    String status = context.getStatus();
+    span.setTag(Tags.TEST_STATUS, status != null ? status : CIConstants.TEST_SKIP);
     testDecorator.beforeFinish(span);
 
     if (endTime != null) {
