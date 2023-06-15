@@ -6,6 +6,8 @@ import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
 import groovy.transform.CompileDynamic
 import io.vertx.core.AbstractVerticle
+import io.vertx.core.MultiMap
+import io.vertx.core.buffer.Buffer
 import okhttp3.FormBody
 import okhttp3.MediaType
 import okhttp3.Request
@@ -111,7 +113,9 @@ class IastSourceTest extends IastVertx34Server {
     client.newCall(request).execute()
 
     then:
-    1 * module.taint(SourceTypes.REQUEST_PARAMETER_VALUE, _)
+    1 * module.taint(SourceTypes.REQUEST_PARAMETER_VALUE, _ as MultiMap) // once for formAttributes()
+    1 * module.taint(SourceTypes.REQUEST_PARAMETER_VALUE, _ as MultiMap) // once for params()
+    1 * module.taintIfInputIsTainted(SourceTypes.REQUEST_PARAMETER_VALUE, 'formAttribute', 'form', _ as MultiMap)
   }
 
   void 'test that handleData()/onData() is instrumented'() {
@@ -126,7 +130,8 @@ class IastSourceTest extends IastVertx34Server {
     client.newCall(request).execute()
 
     then:
-    1 * module.taint(SourceTypes.REQUEST_BODY, _)
+    1 * module.taint(SourceTypes.REQUEST_BODY, _ as Buffer)
+    1 * module.taintIfInputIsTainted('{ "my_key": "my_value" }', _ as Buffer)
   }
 
 

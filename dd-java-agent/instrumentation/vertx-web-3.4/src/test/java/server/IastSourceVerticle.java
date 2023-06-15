@@ -16,6 +16,7 @@ public class IastSourceVerticle extends AbstractVerticle {
   public void start(final Future<Void> startPromise) {
     final int port = config().getInteger(CONFIG_HTTP_SERVER_PORT);
     Router router = Router.router(vertx);
+    router.route().handler(BodyHandler.create());
     router
         .route("/iast/propagation/cookies")
         .handler(
@@ -62,19 +63,10 @@ public class IastSourceVerticle extends AbstractVerticle {
             });
     router
         .route("/iast/propagation/formAttributes")
-        .handler(
-            rc -> {
-              rc.request().formAttributes();
-              rc.response().end();
-            });
+        .handler(rc -> rc.response().end(rc.request().formAttributes().get("formAttribute")));
     router
         .route("/iast/propagation/handleData")
-        .handler(BodyHandler.create())
-        .handler(
-            rc -> {
-              rc.getBodyAsJson();
-              rc.response().end();
-            });
+        .handler(rc -> rc.response().end(rc.getBodyAsString()));
 
     vertx
         .createHttpServer(new HttpServerOptions().setHandle100ContinueAutomatically(true))
