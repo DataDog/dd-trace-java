@@ -1,6 +1,5 @@
 package datadog.trace.civisibility.coverage;
 
-import java.util.function.Function;
 import org.jacoco.core.analysis.IClassCoverage;
 import org.jacoco.core.analysis.ICounter;
 import org.jacoco.core.analysis.ICoverageVisitor;
@@ -8,10 +7,10 @@ import org.jacoco.core.analysis.ILine;
 
 public class SourceAnalyzer implements ICoverageVisitor {
 
-  private Function<String, TestReportFileEntry> testReportFileEntryFactory;
+  private final TestReportFileEntry fileEntry;
 
-  public SourceAnalyzer(Function<String, TestReportFileEntry> testReportFileEntryFactory) {
-    this.testReportFileEntryFactory = testReportFileEntryFactory;
+  public SourceAnalyzer(TestReportFileEntry fileEntry) {
+    this.fileEntry = fileEntry;
   }
 
   @Override
@@ -19,11 +18,6 @@ public class SourceAnalyzer implements ICoverageVisitor {
     if (coverage.isNoMatch()) {
       return;
     }
-
-    TestReportFileEntry fileEntry =
-        testReportFileEntryFactory
-            .apply(coverage.getName())
-            .setSourceFileName(coverage.getPackageName(), coverage.getSourceFileName());
 
     int firstLine = coverage.getFirstLine();
     if (firstLine != -1) {

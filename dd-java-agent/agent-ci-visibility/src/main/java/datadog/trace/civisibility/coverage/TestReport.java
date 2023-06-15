@@ -1,8 +1,8 @@
 package datadog.trace.civisibility.coverage;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import org.jacoco.core.analysis.Analyzer;
 import org.jacoco.core.data.ExecutionData;
@@ -16,32 +16,28 @@ public class TestReport {
   private final Map<String, TestReportFileEntry> testReportFileEntries = new HashMap<>();
 
   private final Long testSessionId;
+  private final long testModuleId;
   private final long testSuiteId;
   private final long spanId;
-  private final List<ExecutionData> executionDataList;
 
-  public TestReport(
-      Long testSessionId, long testSuiteId, long spanId, List<ExecutionData> executionDataList) {
+  public TestReport(Long testSessionId, long testModuleId, long testSuiteId, long spanId) {
     this.testSessionId = testSessionId;
+    this.testModuleId = testModuleId;
     this.testSuiteId = testSuiteId;
     this.spanId = spanId;
-    this.executionDataList = executionDataList;
   }
 
-  void generate() {
+  void generate(InputStream is, String sourcePath, ExecutionData executionData) throws IOException {
     ExecutionDataStore store = new ExecutionDataStore();
-    executionDataList.forEach(store::put);
-    Analyzer analyzer = new Analyzer(store, new SourceAnalyzer(this::factory));
+    store.put(executionData);
 
-    try {
-      analyzer.analyzeAll(".", null);
-      log();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    TestReportFileEntry fileEntry = factory(sourcePath);
+
+    Analyzer analyzer = new Analyzer(store, new SourceAnalyzer(fileEntry));
+    analyzer.analyzeClass(is, null);
   }
 
-  public void log() {
+  void log() {
     for (TestReportFileEntry entry : testReportFileEntries.values()) {
       if (entry.hasSegments()) {
         log.debug(entry.toString());
@@ -49,7 +45,7 @@ public class TestReport {
     }
   }
 
-  TestReportFileEntry factory(String className) {
-    return testReportFileEntries.computeIfAbsent(className, (ignored) -> new TestReportFileEntry());
+  TestReportFileEntry factory(String sourcePath) {
+    return testReportFileEntries.computeIfAbsent(sourcePath, TestReportFileEntry::new);
   }
 }

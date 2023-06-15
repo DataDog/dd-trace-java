@@ -7,7 +7,9 @@ import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
+import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -17,6 +19,12 @@ public class ClassInstrumenterInstrumentation extends Instrumenter.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
   public ClassInstrumenterInstrumentation() {
     super("jacoco");
+  }
+
+  @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    return super.isApplicable(enabledSystems)
+        && Config.get().isCiVisibilityPerTestCodeCoverageEnabled();
   }
 
   @Override

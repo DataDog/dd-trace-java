@@ -1,10 +1,11 @@
 package datadog.trace.instrumentation.jacoco;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresField;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.declaresField;
 import static net.bytebuddy.matcher.ElementMatchers.declaresMethod;
 import static net.bytebuddy.matcher.ElementMatchers.fieldType;
+import static net.bytebuddy.matcher.ElementMatchers.hasSuperClass;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.nameEndsWith;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
@@ -13,9 +14,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Set;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.objectweb.asm.Opcodes;
@@ -28,56 +32,65 @@ public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    return super.isApplicable(enabledSystems)
+        && Config.get().isCiVisibilityPerTestCodeCoverageEnabled();
+  }
+
+  @Override
   public String[] helperClassNames() {
     return new String[] {packageName + ".ReflectiveMethodVisitor"};
   }
 
   @Override
   public ElementMatcher<TypeDescription> structureMatcher() {
-    return declaresField(
-            named("mv")
-                .and(
-                    fieldType(
-                        nameStartsWith("org.jacoco.agent.rt.internal")
-                            .and(nameEndsWith(".asm.MethodVisitor"))
-                            .and(
-                                declaresMethod(
-                                    named("visitMethodInsn")
-                                        .and(takesArguments(5))
-                                        .and(takesArgument(0, int.class))
-                                        .and(takesArgument(1, String.class))
-                                        .and(takesArgument(2, String.class))
-                                        .and(takesArgument(3, String.class))
-                                        .and(takesArgument(4, boolean.class))))
-                            .and(
-                                declaresMethod(
-                                    named("visitInsn")
-                                        .and(takesArguments(1))
-                                        .and(takesArgument(0, int.class))))
-                            .and(
-                                declaresMethod(
-                                    named("visitIntInsn")
-                                        .and(takesArguments(2))
-                                        .and(takesArgument(0, int.class))
-                                        .and(takesArgument(1, int.class))))
-                            .and(
-                                declaresMethod(
-                                    named("visitLdcInsn")
-                                        .and(takesArguments(1))
-                                        .and(takesArgument(0, Object.class)))))))
+    ElementMatcher<FieldDescription> methodVisitor = methodVisitor();
+    return declaresField(arrayStrategy())
+        .and(declaresField(methodVisitor).or(hasSuperClass(declaresField(methodVisitor))));
+  }
+
+  private ElementMatcher<FieldDescription> arrayStrategy() {
+    ElementMatcher.Junction<TypeDescription> arrayStrategyType = arrayStrategyType();
+    return named("arrayStrategy")
+        .and(fieldType(arrayStrategyType.or(implementsInterface(arrayStrategyType))));
+  }
+
+  private static ElementMatcher.Junction<TypeDescription> arrayStrategyType() {
+    return nameStartsWith("org.jacoco.agent.rt.internal")
+        .and(nameEndsWith(".core.internal.instr.IProbeArrayStrategy"));
+  }
+
+  private ElementMatcher<FieldDescription> methodVisitor() {
+    return named("mv")
         .and(
-            declaresField(
-                named("arrayStrategy")
+            fieldType(
+                nameStartsWith("org.jacoco.agent.rt.internal")
+                    .and(nameEndsWith(".asm.MethodVisitor"))
                     .and(
-                        fieldType(
-                            implementsInterface(
-                                    nameStartsWith("org.jacoco.agent.rt.internal")
-                                        .and(
-                                            nameEndsWith(
-                                                ".core.internal.instr.IProbeArrayStrategy")))
-                                .and(declaresField(named("className").and(fieldType(String.class))))
-                                .and(
-                                    declaresField(named("classId").and(fieldType(long.class))))))));
+                        declaresMethod(
+                            named("visitMethodInsn")
+                                .and(takesArguments(5))
+                                .and(takesArgument(0, int.class))
+                                .and(takesArgument(1, String.class))
+                                .and(takesArgument(2, String.class))
+                                .and(takesArgument(3, String.class))
+                                .and(takesArgument(4, boolean.class))))
+                    .and(
+                        declaresMethod(
+                            named("visitInsn")
+                                .and(takesArguments(1))
+                                .and(takesArgument(0, int.class))))
+                    .and(
+                        declaresMethod(
+                            named("visitIntInsn")
+                                .and(takesArguments(2))
+                                .and(takesArgument(0, int.class))
+                                .and(takesArgument(1, int.class))))
+                    .and(
+                        declaresMethod(
+                            named("visitLdcInsn")
+                                .and(takesArguments(1))
+                                .and(takesArgument(0, Object.class))))));
   }
 
   @Override
@@ -109,7 +122,7 @@ public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility
   public static class VisitMaxsAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static void enter(@Advice.Argument(value = 0, readOnly = false) int maxStack) {
-      maxStack = maxStack + 1;
+      maxStack = maxStack + 2;
     }
   }
 
@@ -120,7 +133,7 @@ public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility
         @Advice.FieldValue(value = "arrayStrategy") final Object arrayStrategy,
         @Advice.Argument(0) final int id)
         throws NoSuchMethodException, InvocationTargetException, IllegalAccessException,
-            NoSuchFieldException {
+            NoSuchFieldException, ClassNotFoundException {
       Field classNameField = arrayStrategy.getClass().getDeclaredField("className");
       classNameField.setAccessible(true);
       String className = (String) classNameField.get(arrayStrategy);
@@ -134,12 +147,14 @@ public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility
 
         methodVisitor.visitLdcInsn(classId);
         methodVisitor.visitLdcInsn(className);
+        methodVisitor.pushClass(className);
         methodVisitor.push(id);
+
         methodVisitor.visitMethodInsn(
             Opcodes.INVOKESTATIC,
             "datadog/trace/api/civisibility/InstrumentationBridge",
             "currentCoverageProbeStoreRecord",
-            "(JLjava/lang/String;I)V",
+            "(JLjava/lang/String;Ljava/lang/Class;I)V",
             false);
       }
     }

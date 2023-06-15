@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.jacoco;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.objectweb.asm.Opcodes;
 
 public class ReflectiveMethodVisitor {
@@ -10,9 +12,10 @@ public class ReflectiveMethodVisitor {
   private static Method visitInsnMethod;
   private static Method visitIntInsnMethod;
   private static Method visitLdcInsnMethod;
+  private static Method getTypeMethod;
 
-  @SuppressWarnings("unchecked")
-  public static ReflectiveMethodVisitor wrap(Object mv) throws NoSuchMethodException {
+  public static ReflectiveMethodVisitor wrap(Object mv)
+      throws NoSuchMethodException, ClassNotFoundException {
     if (null == methodVisitorClass) {
       methodVisitorClass = mv.getClass();
       visitMethodInsnMethod =
@@ -30,8 +33,23 @@ public class ReflectiveMethodVisitor {
       visitIntInsnMethod.setAccessible(true);
       visitLdcInsnMethod = methodVisitorClass.getMethod("visitLdcInsn", Object.class);
       visitLdcInsnMethod.setAccessible(true);
+
+      getTypeMethod = findGetTypeMethod();
     }
     return new ReflectiveMethodVisitor(mv);
+  }
+
+  private static Method findGetTypeMethod() throws ClassNotFoundException, NoSuchMethodException {
+    String methodVisitorClassName = methodVisitorClass.getName();
+    Matcher matcher = Pattern.compile(".*?\\.internal_.+?\\.").matcher(methodVisitorClassName);
+    if (!matcher.find()) {
+      throw new IllegalArgumentException("Unexpected class name format: " + methodVisitorClassName);
+    }
+
+    String basePackageName = matcher.group();
+    String typeClassName = basePackageName + "asm.Type";
+    Class typeClass = methodVisitorClass.getClassLoader().loadClass(typeClassName);
+    return typeClass.getDeclaredMethod("getType", String.class);
   }
 
   private final Object mv;
@@ -65,5 +83,10 @@ public class ReflectiveMethodVisitor {
     } else {
       visitLdcInsnMethod.invoke(mv, value);
     }
+  }
+
+  public void pushClass(String className) throws InvocationTargetException, IllegalAccessException {
+    Object clazz = getTypeMethod.invoke(null, 'L' + className + ';');
+    visitLdcInsnMethod.invoke(mv, clazz);
   }
 }

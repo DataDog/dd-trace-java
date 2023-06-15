@@ -1,13 +1,15 @@
 package datadog.trace.api.civisibility.coverage;
 
-public interface CoverageProbeStore {
-  void record(long classId, String className, int probeId);
+import datadog.trace.api.civisibility.source.SourcePathResolver;
 
-  void report(Long testSessionId, long testSuiteId, long spanId);
+public interface CoverageProbeStore {
+  void record(Class<?> clazz, long classId, String className, int probeId);
+
+  void report(Long testSessionId, long testModuleId, long testSuiteId, long spanId);
 
   interface Factory {
     void setTotalProbeCount(String className, int totalProbeCount);
 
-    CoverageProbeStore create();
+    CoverageProbeStore create(SourcePathResolver sourcePathResolver);
   }
 }

@@ -6,6 +6,8 @@ import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
 import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
+import datadog.trace.api.civisibility.source.SourcePathResolver;
+import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.nio.file.Path;
@@ -45,7 +47,7 @@ public abstract class InstrumentationBridge {
     return BUILD_EVENTS_HANDLER_FACTORY.create();
   }
 
-  public static void setCoverageProbeStoreFactory(
+  public static void registerCoverageProbeStoreFactory(
       CoverageProbeStore.Factory coverageProbeStoreFactory) {
     COVERAGE_PROBE_STORE_FACTORY = coverageProbeStoreFactory;
   }
@@ -54,19 +56,24 @@ public abstract class InstrumentationBridge {
     return COVERAGE_PROBE_STORE_FACTORY;
   }
 
-  public static CoverageProbeStore getCoverageProbeStore() {
-    return COVERAGE_PROBE_STORE_FACTORY.create();
+  public static CoverageProbeStore createCoverageProbeStore(SourcePathResolver sourcePathResolver) {
+    return COVERAGE_PROBE_STORE_FACTORY.create(sourcePathResolver);
   }
 
   /* This method is referenced by name in bytecode added in the jacoco module */
-  public static void currentCoverageProbeStoreRecord(long classId, String className, int probeId) {
+  public static void currentCoverageProbeStoreRecord(
+      long classId, String className, Class<?> clazz, int probeId) {
     AgentSpan span = activeSpan();
-    if (span != null) {
-      CoverageProbeStore probes =
-          span.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY);
-      if (probes != null) {
-        probes.record(classId, className, probeId);
-      }
+    if (span == null) {
+      return;
+    }
+    RequestContext requestContext = span.getRequestContext();
+    if (requestContext == null) {
+      return;
+    }
+    CoverageProbeStore probes = requestContext.getData(RequestContextSlot.CI_VISIBILITY);
+    if (probes != null) {
+      probes.record(clazz, classId, className, probeId);
     }
   }
 }

@@ -58,7 +58,7 @@ public class CiVisibilitySystem {
 
     CIVisibility.registerSessionFactory(CiVisibilitySystem::createTestSession);
 
-    InstrumentationBridge.setCoverageProbeStoreFactory(new TestProbes.TestProbesFactory());
+    InstrumentationBridge.registerCoverageProbeStoreFactory(new TestProbes.TestProbesFactory());
   }
 
   private static DDTestSession createTestSession(
