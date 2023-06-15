@@ -1,4 +1,4 @@
-package datadog.trace.api.civisibility.codeowners;
+package datadog.trace.civisibility.codeowners;
 
 import java.util.Collection;
 import javax.annotation.Nonnull;

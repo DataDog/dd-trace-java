@@ -1,4 +1,4 @@
-package datadog.trace.api.civisibility.source;
+package datadog.trace.civisibility.source;
 
 import java.lang.reflect.Method;
 import javax.annotation.Nonnull;

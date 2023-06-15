@@ -1,7 +1,5 @@
 package datadog.trace.civisibility.ci;
 
-import datadog.trace.api.civisibility.ci.CIInfo;
-import datadog.trace.api.civisibility.ci.CIProviderInfo;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 

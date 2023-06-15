@@ -1,6 +1,5 @@
 package datadog.trace.civisibility.ci;
 
-import datadog.trace.api.civisibility.ci.CIProviderInfo;
 import java.nio.file.Path;
 
 public class CIProviderInfoFactory {

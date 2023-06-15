@@ -2,7 +2,6 @@ package datadog.trace.civisibility.source;
 
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.api.civisibility.source.MethodLinesResolver;
 import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.util.HashMap;
