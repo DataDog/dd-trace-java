@@ -55,6 +55,11 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String muzzleDirective() {
+    return "9_full_series";
+  }
+
+  @Override
   public String instrumentedType() {
     return "org.eclipse.jetty.server.HttpChannel";
   }

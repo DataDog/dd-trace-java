@@ -49,6 +49,11 @@ class Jersey3JettyTest extends HttpServerTest<JettyServer> {
   }
 
   @Override
+  boolean testBlockingOnResponse() {
+    true
+  }
+
+  @Override
   String testPathParam() {
     '/path/?/param'
   }

@@ -10,6 +10,7 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.lang.invoke.MethodHandle;
@@ -165,6 +166,8 @@ public class JettyBlockingHelper {
       return true;
     }
 
+    request.setAttribute(HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE, Boolean.TRUE);
+
     try {
       response.reset();
       response.setStatus(BlockingActionHelper.getHttpCode(statusCode));
@@ -177,6 +180,7 @@ public class JettyBlockingHelper {
       if (bct != BlockingContentType.NONE) {
         BlockingActionHelper.TemplateType type =
             BlockingActionHelper.determineTemplateType(bct, acceptHeader);
+        response.setCharacterEncoding("utf-8");
         response.setHeader("Content-type", BlockingActionHelper.getContentType(type));
         byte[] template = BlockingActionHelper.getTemplate(type);
 

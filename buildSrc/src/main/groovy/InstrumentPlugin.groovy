@@ -27,21 +27,25 @@ class InstrumentPlugin implements Plugin<Project> {
 
     project.tasks.matching {
       it.name in ['compileJava', 'compileScala', 'compileKotlin'] ||
-        it.name =~ /compileMain_java(?:\d+)Java/
+        it.name =~ /compileMain_(?:.+)Java/
     }.all {
       AbstractCompile compileTask = it as AbstractCompile
-      Matcher versionMatcher = it.name =~ /compileMain_java(\d+)Java/
+      Matcher versionMatcher = it.name =~ /compileMain_(.+)Java/
       project.afterEvaluate {
         if (!compileTask.source.empty) {
+          String sourceSetSuffix
           String javaVersion
           if (versionMatcher.matches()) {
-            javaVersion = versionMatcher.group(1)
+            sourceSetSuffix = versionMatcher.group(1)
+            if (sourceSetSuffix ==~ /java\d+/) {
+              javaVersion = sourceSetSuffix[4..-1]
+            }
           }
 
           // insert intermediate 'raw' directory for unprocessed classes
           Directory classesDir = compileTask.destinationDirectory.get()
           Directory rawClassesDir = classesDir.dir(
-            "../raw${javaVersion ? "_java${javaVersion}" : ''}/")
+            "../raw${sourceSetSuffix ? "_$sourceSetSuffix" : ''}/")
           compileTask.destinationDirectory.set(rawClassesDir.asFile)
 
           // insert task between compile and jar, and before test*
@@ -49,7 +53,7 @@ class InstrumentPlugin implements Plugin<Project> {
           def instrumentTask = project.task(['type': InstrumentTask], instrumentTaskName) {
             description = "Instruments the classes compiled by ${compileTask.name}"
             doLast {
-              instrument(javaVersion, project, extension, rawClassesDir, classesDir)
+              instrument(javaVersion, project, extension, rawClassesDir, classesDir, it)
             }
           }
           instrumentTask.inputs.dir(compileTask.destinationDirectory)
@@ -71,6 +75,7 @@ class InstrumentPlugin implements Plugin<Project> {
 
 abstract class InstrumentExtension {
   abstract ListProperty<String> getPlugins()
+  Map<String /* taskName */, List<DirectoryProperty>> additionalClasspath = [:]
 }
 
 abstract class InstrumentTask extends DefaultTask {
@@ -91,7 +96,8 @@ abstract class InstrumentTask extends DefaultTask {
                   Project project,
                   InstrumentExtension extension,
                   Directory sourceDirectory,
-                  Directory targetDirectory)
+                  Directory targetDirectory,
+                  InstrumentTask instrumentTask)
   {
     def workQueue
     if (javaVersion) {
@@ -112,7 +118,7 @@ abstract class InstrumentTask extends DefaultTask {
       parameters.plugins.set(extension.plugins)
       parameters.instrumentingClassPath.setFrom(project.configurations.compileClasspath.findAll {
         it.name != 'previous-compilation-data.bin' && !it.name.endsWith(".gz")
-      } + sourceDirectory)
+      } + sourceDirectory + (extension.additionalClasspath[instrumentTask.name] ?: [])*.get())
       parameters.sourceDirectory.set(sourceDirectory.asFile)
       parameters.targetDirectory.set(targetDirectory.asFile)
     })
