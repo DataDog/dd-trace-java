@@ -217,6 +217,36 @@ public final class OkHttpUtils {
     return new GZipByteBufferRequestBody(buffers);
   }
 
+  public static RequestBody jsonRequestBodyOf(byte[] json) {
+    return new JsonRequestBody(json);
+  }
+
+  private static class JsonRequestBody extends RequestBody {
+
+    private static final MediaType JSON = MediaType.get("application/json");
+
+    private final byte[] json;
+
+    private JsonRequestBody(byte[] json) {
+      this.json = json;
+    }
+
+    @Override
+    public long contentLength() {
+      return json.length;
+    }
+
+    @Override
+    public MediaType contentType() {
+      return JSON;
+    }
+
+    @Override
+    public void writeTo(BufferedSink sink) throws IOException {
+      sink.write(json);
+    }
+  }
+
   private static class ByteBufferRequestBody extends RequestBody {
 
     private static final MediaType MSGPACK = MediaType.get("application/msgpack");
