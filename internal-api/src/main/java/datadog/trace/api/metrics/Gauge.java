@@ -28,7 +28,7 @@ public class Gauge<T extends Number> extends Instrument {
   }
 
   @Override
-  public void resetValue() {
+  protected void resetValue() {
     // No value to clear
   }
 }

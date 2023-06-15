@@ -32,7 +32,7 @@ public class Meter<T extends Number> extends Instrument {
   }
 
   @Override
-  public void resetValue() {
+  protected void resetValue() {
     this.count.reset();
   }
 }

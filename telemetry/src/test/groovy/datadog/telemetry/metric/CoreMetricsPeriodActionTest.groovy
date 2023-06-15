@@ -39,6 +39,7 @@ class CoreMetricsPeriodActionTest extends Specification {
     1 * telemetryService.addMetric({ Metric metric ->
       assertMetric(metric, 'span_finished', 'instr-2', 4)
     })
+    0 * _
   }
 
   void 'test span metrics with interleaved events'() {
@@ -93,6 +94,7 @@ class CoreMetricsPeriodActionTest extends Specification {
     1 * telemetryService.addMetric({ Metric metric ->
       assertMetric(metric, 'span_finished', 'instr-1', 1)
     })
+    0 * _
   }
 
   void 'test span metrics'() {
@@ -147,6 +149,7 @@ class CoreMetricsPeriodActionTest extends Specification {
     1 * telemetryService.addMetric({ Metric metric ->
       assertMetric(metric, 'span_finished', 'instr-1', 1)
     })
+    0 * _
   }
 
   void assertMetric(Metric metric, String metricName, String instrumentationName, long count) {

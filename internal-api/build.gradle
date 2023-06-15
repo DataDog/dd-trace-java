@@ -35,6 +35,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.profiling.ProfilingSnapshot.Kind",
   "datadog.trace.api.WithGlobalTracer.1",
   "datadog.trace.api.naming.**",
+  "datadog.trace.api.metrics.NoopMetrics.**",
   // an enum
   "datadog.trace.api.sampling.AdaptiveSampler",
   "datadog.trace.api.sampling.ConstantSampler",
@@ -57,6 +58,7 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentDataStreamsMonitoring",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentTrace",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext",
+  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI",
   "datadog.trace.bootstrap.instrumentation.api.NoopDataStreamsMonitoring",
   "datadog.trace.bootstrap.instrumentation.api.Backlog",
   "datadog.trace.bootstrap.instrumentation.api.StatsPoint",

@@ -32,7 +32,7 @@ public class Counter extends Instrument {
   }
 
   @Override
-  public void resetValue() {
+  protected void resetValue() {
     this.count.reset();
   }
 }

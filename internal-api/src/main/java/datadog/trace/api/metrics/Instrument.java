@@ -39,5 +39,5 @@ public abstract class Instrument {
     resetValue();
   }
 
-  public abstract void resetValue();
+  protected abstract void resetValue();
 }
