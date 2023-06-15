@@ -55,6 +55,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "META-INF/native-image/com.datadoghq/dd-java-agent/reflect-config.json";
       args[oldLength++] =
           "-H:ClassInitialization="
+              + "datadog.trace.api.Config:rerun,"
               + "datadog.trace.api.Platform:rerun,"
               + "datadog.trace.api.env.CapturedEnvironment:build_time,"
               + "datadog.trace.api.ConfigDefaults:build_time,"
@@ -62,8 +63,10 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.api.Functions:build_time,"
               + "datadog.trace.api.GlobalTracer:build_time,"
               + "datadog.trace.api.WithGlobalTracer:build_time,"
+              + "datadog.trace.api.PropagationStyle:build_time,"
               + "datadog.trace.bootstrap.config.provider.ConfigConverter:build_time,"
               + "datadog.trace.bootstrap.config.provider.ConfigProvider:build_time,"
+              + "datadog.trace.bootstrap.config.provider.ConfigProvider$Singleton:build_time,"
               + "datadog.trace.bootstrap.Agent:build_time,"
               + "datadog.trace.bootstrap.BootstrapProxy:build_time,"
               + "datadog.trace.bootstrap.CallDepthThreadLocalMap:build_time,"
