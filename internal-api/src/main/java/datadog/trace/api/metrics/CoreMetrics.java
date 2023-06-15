@@ -6,12 +6,13 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.function.Supplier;
 
-public final class TelemetryMetrics implements Metrics {
-  static final TelemetryMetrics INSTANCE = new TelemetryMetrics();
+/** The default {@link Metrics} service implementation. */
+public final class CoreMetrics implements Metrics {
+  static final CoreMetrics INSTANCE = new CoreMetrics();
 
   private final List<Instrument> instruments;
 
-  private TelemetryMetrics() {
+  private CoreMetrics() {
     this.instruments = new ArrayList<>();
   }
 
@@ -28,8 +29,8 @@ public final class TelemetryMetrics implements Metrics {
 
   @Override
   public <T extends Number> Gauge<T> createGauge(
-      String name, Supplier<T> supplier, boolean common, String... tags) {
-    Gauge<T> gauge = new Gauge<T>(name, supplier, common, Arrays.asList(tags));
+      String name, Supplier<T> valueSupplier, boolean common, String... tags) {
+    Gauge<T> gauge = new Gauge<T>(name, valueSupplier, common, Arrays.asList(tags));
     this.instruments.add(gauge);
     return gauge;
   }

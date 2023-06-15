@@ -2,7 +2,7 @@ package datadog.telemetry.metric
 
 import datadog.telemetry.TelemetryService
 import datadog.telemetry.api.Metric
-import datadog.trace.api.metrics.TelemetryMetrics
+import datadog.trace.api.metrics.CoreMetrics
 import datadog.trace.core.metrics.SpanMetrics
 import datadog.trace.core.metrics.SpanMetricsImpl
 import spock.lang.Specification
@@ -13,7 +13,7 @@ class CoreMetricsPeriodActionTest extends Specification {
     given:
     final telemetryService = Mock(TelemetryService)
     final action = new CoreMetricsPeriodicAction()
-    final SpanMetrics spanMetrics = new SpanMetricsImpl(TelemetryMetrics.getInstance())
+    final SpanMetrics spanMetrics = new SpanMetricsImpl(CoreMetrics.INSTANCE)
 
     when:
     spanMetrics.onSpanCreated("instr-1")
@@ -46,7 +46,7 @@ class CoreMetricsPeriodActionTest extends Specification {
     given:
     final telemetryService = Mock(TelemetryService)
     final action = new CoreMetricsPeriodicAction()
-    final SpanMetrics spanMetrics = new SpanMetricsImpl(TelemetryMetrics.getInstance())
+    final SpanMetrics spanMetrics = new SpanMetricsImpl(CoreMetrics.INSTANCE)
 
     when:
     spanMetrics.onSpanCreated("instr-1")
@@ -101,7 +101,7 @@ class CoreMetricsPeriodActionTest extends Specification {
     given:
     final telemetryService = Mock(TelemetryService)
     final action = new CoreMetricsPeriodicAction()
-    final SpanMetrics spanMetrics = new SpanMetricsImpl(TelemetryMetrics.getInstance())
+    final SpanMetrics spanMetrics = new SpanMetricsImpl(CoreMetrics.INSTANCE)
 
     when:
     spanMetrics.onSpanCreated("instr-1")

@@ -16,7 +16,7 @@ class NoopMetrics implements Metrics {
 
   @Override
   public <T extends Number> Gauge<T> createGauge(
-      String name, Supplier<T> supplier, boolean common, String... tags) {
+      String name, Supplier<T> valueSupplier, boolean common, String... tags) {
     return new NoopGauge<>();
   }
 

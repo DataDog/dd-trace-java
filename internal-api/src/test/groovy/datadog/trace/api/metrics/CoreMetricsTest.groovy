@@ -4,7 +4,7 @@ import datadog.trace.test.util.DDSpecification
 
 import java.util.function.Supplier
 
-class TelemetryMetricsTest extends DDSpecification {
+class CoreMetricsTest extends DDSpecification {
   def 'check api would never crash'() {
     setup:
     injectSysConfig('instrumentation.telemetry.enabled', telemetryEnabled)
@@ -36,7 +36,7 @@ class TelemetryMetricsTest extends DDSpecification {
 
   def 'check counter'() {
     setup:
-    def metrics = new TelemetryMetrics()
+    def metrics = new CoreMetrics()
 
     when:
     def counter = metrics.createCounter('counter', true)
@@ -65,11 +65,22 @@ class TelemetryMetricsTest extends DDSpecification {
     counter.increment(3)
     then:
     counter.value.longValue() == 3
+
+    when:
+    counter.increment(0)
+    then:
+    counter.value.longValue() == 3
+
+    when:
+    counter.increment(-3)
+    then:
+    thrown(IllegalArgumentException)
+    counter.value.longValue() == 3
   }
 
   def 'check gauge'() {
     setup:
-    def metrics = new TelemetryMetrics()
+    def metrics = new CoreMetrics()
     Supplier<Long> supplier = new Supplier<Long>() {
       int value = 1
       @Override
@@ -92,7 +103,7 @@ class TelemetryMetricsTest extends DDSpecification {
 
   def 'check meter'() {
     setup:
-    def metrics = new TelemetryMetrics()
+    def metrics = new CoreMetrics()
 
     when:
     def meter = metrics.createMeter('meter', true)
@@ -125,7 +136,7 @@ class TelemetryMetricsTest extends DDSpecification {
 
   def 'check instrument update tracking'() {
     setup:
-    def metrics = new TelemetryMetrics()
+    def metrics = new CoreMetrics()
     def counter = metrics.createCounter('counter', true)
 
     // Check no updated instrument by default

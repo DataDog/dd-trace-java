@@ -2,7 +2,6 @@ package datadog.telemetry.metric;
 
 import datadog.trace.api.metrics.Instrument;
 import datadog.trace.api.metrics.Metrics;
-import datadog.trace.api.metrics.TelemetryMetrics;
 import datadog.trace.api.telemetry.MetricCollector;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.ArrayList;
@@ -24,7 +23,7 @@ public class CoreMetricsPeriodicAction extends MetricPeriodicAction {
     private Collection<MetricCollector.Metric> coreMetrics;
 
     public CoreMetricCollector() {
-      this.metrics = TelemetryMetrics.getInstance();
+      this.metrics = Metrics.getInstance();
       this.coreMetrics = new ArrayList<>();
     }
 
