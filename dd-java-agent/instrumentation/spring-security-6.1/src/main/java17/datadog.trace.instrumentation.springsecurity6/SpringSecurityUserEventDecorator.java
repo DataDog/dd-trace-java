@@ -5,12 +5,12 @@ import static datadog.trace.api.UserEventTrackingMode.EXTENDED;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.UserEventTrackingMode;
-import datadog.trace.bootstrap.instrumentation.decorator.UserEventDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.AppSecUserEventDecorator;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 
-public class SpringSecurityUserEventDecorator extends UserEventDecorator {
+public class SpringSecurityUserEventDecorator extends AppSecUserEventDecorator {
 
   public static final SpringSecurityUserEventDecorator DECORATE =
       new SpringSecurityUserEventDecorator();

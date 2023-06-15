@@ -13,7 +13,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class AuthenticationProviderInstrumentation extends Instrumenter.Tracing
+public class AuthenticationProviderInstrumentation extends Instrumenter.AppSec
     implements Instrumenter.ForTypeHierarchy {
 
   public AuthenticationProviderInstrumentation() {

@@ -11,7 +11,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class AbstractUserDetailsAuthenticationProviderInstrumentation extends Instrumenter.Tracing
+public class AbstractUserDetailsAuthenticationProviderInstrumentation extends Instrumenter.AppSec
     implements Instrumenter.ForTypeHierarchy {
 
   public AbstractUserDetailsAuthenticationProviderInstrumentation() {
