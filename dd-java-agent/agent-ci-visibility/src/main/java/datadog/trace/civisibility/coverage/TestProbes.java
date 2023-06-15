@@ -1,13 +1,20 @@
 package datadog.trace.civisibility.coverage;
 
 import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
+import datadog.trace.api.civisibility.coverage.TestReport;
+import datadog.trace.api.civisibility.coverage.TestReportFileEntry;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.Utils;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import org.jacoco.core.data.ExecutionData;
+import javax.annotation.Nullable;
+import org.jacoco.core.analysis.Analyzer;
+import org.jacoco.core.data.ExecutionDataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,6 +27,7 @@ public class TestProbes implements CoverageProbeStore {
   // Unbounded data structure that only exists within a single test span
   private final Map<Class<?>, ExecutionDataAdapter> probeActivations;
   private final SourcePathResolver sourcePathResolver;
+  private volatile TestReport testReport;
 
   TestProbes(SourcePathResolver sourcePathResolver) {
     this.sourcePathResolver = sourcePathResolver;
@@ -34,10 +42,8 @@ public class TestProbes implements CoverageProbeStore {
   }
 
   @Override
-  public void report(Long testSessionId, long testModuleId, long testSuiteId, long spanId) {
-
-    TestReport testReport = new TestReport(testSessionId, testModuleId, testSuiteId, spanId);
-
+  public void report(Long testSessionId, Long testSuiteId, long spanId) {
+    Map<String, List<TestReportFileEntry.Segment>> segmentsBySourcePath = new HashMap<>();
     for (Map.Entry<Class<?>, ExecutionDataAdapter> e : probeActivations.entrySet()) {
       ExecutionDataAdapter executionDataAdapter = e.getValue();
       String className = executionDataAdapter.getClassName();
@@ -59,8 +65,14 @@ public class TestProbes implements CoverageProbeStore {
       }
 
       try (InputStream is = Utils.getClassStream(clazz)) {
-        ExecutionData executionData = executionDataAdapter.toExecutionData(totalProbeCount);
-        testReport.generate(is, sourcePath, executionData);
+        List<TestReportFileEntry.Segment> segments =
+            segmentsBySourcePath.computeIfAbsent(sourcePath, key -> new ArrayList<>());
+
+        ExecutionDataStore store = new ExecutionDataStore();
+        store.put(executionDataAdapter.toExecutionData(totalProbeCount));
+
+        Analyzer analyzer = new Analyzer(store, new SourceAnalyzer(segments));
+        analyzer.analyzeClass(is, null);
 
       } catch (Exception exception) {
         log.debug(
@@ -71,7 +83,47 @@ public class TestProbes implements CoverageProbeStore {
       }
     }
 
-    testReport.log();
+    List<TestReportFileEntry> fileEntries = new ArrayList<>(segmentsBySourcePath.size());
+    for (Map.Entry<String, List<TestReportFileEntry.Segment>> e : segmentsBySourcePath.entrySet()) {
+      String sourcePath = e.getKey();
+
+      List<TestReportFileEntry.Segment> segments = e.getValue();
+      segments.sort(Comparator.naturalOrder());
+
+      List<TestReportFileEntry.Segment> compressedSegments = getCompressedSegments(segments);
+      fileEntries.add(new TestReportFileEntry(sourcePath, compressedSegments));
+    }
+
+    testReport = new TestReport(testSessionId, testSuiteId, spanId, fileEntries);
+  }
+
+  private static List<TestReportFileEntry.Segment> getCompressedSegments(
+      List<TestReportFileEntry.Segment> segments) {
+    List<TestReportFileEntry.Segment> compressedSegments = new ArrayList<>();
+
+    int startLine = -1, endLine = -1;
+    for (TestReportFileEntry.Segment segment : segments) {
+      if (segment.getStartLine() <= endLine + 1) {
+        endLine = Math.max(endLine, segment.getEndLine());
+      } else {
+        if (startLine > 0) {
+          compressedSegments.add(new TestReportFileEntry.Segment(startLine, -1, endLine, -1, -1));
+        }
+        startLine = segment.getStartLine();
+        endLine = segment.getEndLine();
+      }
+    }
+
+    if (startLine > 0) {
+      compressedSegments.add(new TestReportFileEntry.Segment(startLine, -1, endLine, -1, -1));
+    }
+    return compressedSegments;
+  }
+
+  @Nullable
+  @Override
+  public TestReport getReport() {
+    return testReport;
   }
 
   public static class TestProbesFactory implements CoverageProbeStore.Factory {

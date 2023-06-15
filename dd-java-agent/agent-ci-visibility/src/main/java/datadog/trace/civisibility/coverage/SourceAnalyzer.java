@@ -1,5 +1,7 @@
 package datadog.trace.civisibility.coverage;
 
+import datadog.trace.api.civisibility.coverage.TestReportFileEntry;
+import java.util.List;
 import org.jacoco.core.analysis.IClassCoverage;
 import org.jacoco.core.analysis.ICounter;
 import org.jacoco.core.analysis.ICoverageVisitor;
@@ -7,10 +9,10 @@ import org.jacoco.core.analysis.ILine;
 
 public class SourceAnalyzer implements ICoverageVisitor {
 
-  private final TestReportFileEntry fileEntry;
+  private final List<TestReportFileEntry.Segment> segments;
 
-  public SourceAnalyzer(TestReportFileEntry fileEntry) {
-    this.fileEntry = fileEntry;
+  public SourceAnalyzer(List<TestReportFileEntry.Segment> segments) {
+    this.segments = segments;
   }
 
   @Override
@@ -25,10 +27,7 @@ public class SourceAnalyzer implements ICoverageVisitor {
       for (int i = firstLine; i <= lastLine; i++) {
         ILine line = coverage.getLine(i);
         if (line.getStatus() >= ICounter.FULLY_COVERED) {
-          fileEntry.incrementLine(
-              i,
-              line.getInstructionCounter().getCoveredCount(),
-              line.getBranchCounter().getCoveredCount());
+          segments.add(new TestReportFileEntry.Segment(i, -1, i, -1, -1));
         }
       }
     }

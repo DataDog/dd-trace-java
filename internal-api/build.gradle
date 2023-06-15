@@ -68,6 +68,9 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.ErrorPriorities",
   "datadog.trace.api.civisibility.ci.CIInfo",
   "datadog.trace.api.civisibility.ci.CIInfo.Builder",
+  "datadog.trace.api.civisibility.coverage.TestReport",
+  "datadog.trace.api.civisibility.coverage.TestReportFileEntry",
+  "datadog.trace.api.civisibility.coverage.TestReportFileEntry.Segment",
   "datadog.trace.api.civisibility.InstrumentationBridge",
   "datadog.trace.api.civisibility.source.MethodLinesResolver.MethodLines",
   "datadog.trace.api.civisibility.events.BuildEventsHandler.ModuleAndSessionId",
@@ -139,7 +142,7 @@ dependencies {
 
   // has to be loaded by system classloader:
   // it contains annotation that is also present in the instrumented application classes
-  api "com.datadoghq:dd-javac-plugin-client:0.1.1"
+  api "com.datadoghq:dd-javac-plugin-client:0.1.6"
 
   testImplementation project(":utils:test-utils")
   testImplementation("org.assertj:assertj-core:3.20.2")

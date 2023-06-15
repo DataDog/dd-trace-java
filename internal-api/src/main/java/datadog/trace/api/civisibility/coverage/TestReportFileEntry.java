@@ -1,23 +1,24 @@
-package datadog.trace.civisibility.coverage;
+package datadog.trace.api.civisibility.coverage;
 
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.Collection;
+import java.util.List;
 import java.util.stream.Collectors;
 
-class TestReportFileEntry {
-  private final Set<Segment> segments = new TreeSet<>();
+public class TestReportFileEntry {
   private final String sourceFileName;
+  private final List<Segment> segments;
 
-  TestReportFileEntry(String sourceFileName) {
+  public TestReportFileEntry(String sourceFileName, List<Segment> segments) {
     this.sourceFileName = sourceFileName;
+    this.segments = segments;
   }
 
-  public void incrementLine(int lineNumber, int instructionCounter, int branchCounter) {
-    segments.add(new Segment(lineNumber, -1, lineNumber, -1, instructionCounter + branchCounter));
+  public String getSourceFileName() {
+    return sourceFileName;
   }
 
-  public boolean hasSegments() {
-    return !segments.isEmpty();
+  public Collection<Segment> getSegments() {
+    return segments;
   }
 
   @Override
@@ -44,6 +45,26 @@ class TestReportFileEntry {
       this.endLine = endLine;
       this.endColumn = endColumn;
       this.numberOfExecutions = numberOfExecutions;
+    }
+
+    public int getStartLine() {
+      return startLine;
+    }
+
+    public int getStartColumn() {
+      return startColumn;
+    }
+
+    public int getEndLine() {
+      return endLine;
+    }
+
+    public int getEndColumn() {
+      return endColumn;
+    }
+
+    public int getNumberOfExecutions() {
+      return numberOfExecutions;
     }
 
     @Override

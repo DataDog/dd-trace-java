@@ -15,6 +15,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Set;
@@ -42,6 +43,7 @@ public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility
     return new String[] {packageName + ".ReflectiveMethodVisitor"};
   }
 
+  @SuppressForbidden
   @Override
   public ElementMatcher<TypeDescription> structureMatcher() {
     ElementMatcher<FieldDescription> methodVisitor = methodVisitor();
@@ -60,6 +62,7 @@ public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility
         .and(nameEndsWith(".core.internal.instr.IProbeArrayStrategy"));
   }
 
+  @SuppressForbidden
   private ElementMatcher<FieldDescription> methodVisitor() {
     return named("mv")
         .and(
@@ -137,26 +140,31 @@ public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility
       Field classNameField = arrayStrategy.getClass().getDeclaredField("className");
       classNameField.setAccessible(true);
       String className = (String) classNameField.get(arrayStrategy);
-      if (!className.startsWith("datadog/trace")) {
 
-        Field classIdField = arrayStrategy.getClass().getDeclaredField("classId");
-        classIdField.setAccessible(true);
-        Long classId = classIdField.getLong(arrayStrategy);
-
-        ReflectiveMethodVisitor methodVisitor = ReflectiveMethodVisitor.wrap(mv);
-
-        methodVisitor.visitLdcInsn(classId);
-        methodVisitor.visitLdcInsn(className);
-        methodVisitor.pushClass(className);
-        methodVisitor.push(id);
-
-        methodVisitor.visitMethodInsn(
-            Opcodes.INVOKESTATIC,
-            "datadog/trace/api/civisibility/InstrumentationBridge",
-            "currentCoverageProbeStoreRecord",
-            "(JLjava/lang/String;Ljava/lang/Class;I)V",
-            false);
+      String[] excludedClassnames = Config.get().getCiVisibilityJacocoPluginExcludedClassnames();
+      for (String excludedClassname : excludedClassnames) {
+        if (className.startsWith(excludedClassname)) {
+          return;
+        }
       }
+
+      Field classIdField = arrayStrategy.getClass().getDeclaredField("classId");
+      classIdField.setAccessible(true);
+      Long classId = classIdField.getLong(arrayStrategy);
+
+      ReflectiveMethodVisitor methodVisitor = ReflectiveMethodVisitor.wrap(mv);
+
+      methodVisitor.visitLdcInsn(classId);
+      methodVisitor.visitLdcInsn(className);
+      methodVisitor.pushClass(className);
+      methodVisitor.push(id);
+
+      methodVisitor.visitMethodInsn(
+          Opcodes.INVOKESTATIC,
+          "datadog/trace/api/civisibility/InstrumentationBridge",
+          "currentCoverageProbeStoreRecord",
+          "(JLjava/lang/String;Ljava/lang/Class;I)V",
+          false);
     }
   }
 }
