@@ -68,7 +68,8 @@ class SpringBootOpenLibertySnapshotTest extends AbstractTestAgentSmokeTest {
       'metrics.thread.id',
       'meta.servlet.path',
       'meta.http.useragent',
-      'metrics.process_id'
+      'metrics.process_id',
+      'metrics._dd.profiling.enabled'
     ]
     snapshot("datadog.smoketest.SpringBootOpenLibertySnapshotTest.nested", ignoredKeys, {
       def url = "http://localhost:${httpPort}/connect"
