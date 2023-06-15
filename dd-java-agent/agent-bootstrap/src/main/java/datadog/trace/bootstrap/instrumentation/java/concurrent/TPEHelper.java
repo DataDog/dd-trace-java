@@ -128,8 +128,8 @@ public final class TPEHelper {
   @SuppressWarnings("deprecation")
   public static void startQueuingTimer(
       ContextStore<Runnable, State> taskContextStore, ThreadPoolExecutor executor, Runnable task) {
-    if (Config.get().isProfilingQueueingTimeEnabled()
-        && InstrumentationBasedProfiling.isJFRReady()) {
+    if (InstrumentationBasedProfiling.isJFRReady()
+        && Config.get().isProfilingQueueingTimeEnabled()) {
       State state = taskContextStore.get(task);
       if (task != null && state != null) {
         QueueTiming timing =
