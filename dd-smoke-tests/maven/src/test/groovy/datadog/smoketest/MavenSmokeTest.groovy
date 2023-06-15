@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.test.util.MultipartRequestParser
 import datadog.trace.util.Strings
 import org.apache.maven.wrapper.MavenWrapperMain
 import org.msgpack.jackson.dataformat.MessagePackFactory
@@ -70,6 +71,14 @@ class MavenSmokeTest extends Specification {
         }
 
         response.status(202).send()
+      }
+
+      prefix("/api/v2/libraries/tests/services/setting") {
+        response.status(200).send('{ "data": { "type": "ci_app_tracers_test_service_settings", "id": "uuid", "attributes": { "code_coverage": true, "tests_skipping": true } } }')
+      }
+
+      prefix("/api/v2/ci/tests/skippable") {
+        response.status(200).send('{ "data": [] }')
       }
     }
   }
@@ -230,6 +239,7 @@ class MavenSmokeTest extends Specification {
 
     processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"))
     processBuilder.environment().put("DD_API_KEY", "01234567890abcdef123456789ABCDEF")
+    processBuilder.environment().put("DD_APPLICATION_KEY", "01234567890abcdef123456789ABCDEF")
 
     // ensure CI provider is detected as Jenkins regardless of where the test is run
     processBuilder.environment().put("JENKINS_URL", "dummy")
@@ -278,7 +288,7 @@ class MavenSmokeTest extends Specification {
       "${Strings.propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME)}=${TEST_SERVICE_NAME}," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED)}=true," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED)}=true," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_PER_TEST_CODE_COVERAGE_ENABLED)}=true," +
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED)}=true," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=0.8.10," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES)}=datadog.smoke.*," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${intakeServer.address.toString()}"

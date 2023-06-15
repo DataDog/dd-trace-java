@@ -4,6 +4,7 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.civisibility.decorator.TestDecoratorImpl
 import spock.lang.Specification
 
 class TestDecoratorImplTest extends Specification {

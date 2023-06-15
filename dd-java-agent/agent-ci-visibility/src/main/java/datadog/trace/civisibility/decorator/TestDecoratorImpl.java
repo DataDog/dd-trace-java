@@ -1,7 +1,6 @@
-package datadog.trace.civisibility;
+package datadog.trace.civisibility.decorator;
 
 import datadog.trace.api.DDTags;
-import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
