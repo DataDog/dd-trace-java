@@ -2,7 +2,6 @@ package com.datadog.iast.propagation;
 
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 
-import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
 import com.datadog.iast.taint.TaintedObject;
@@ -13,7 +12,6 @@ import datadog.trace.api.iast.propagation.PropagationModule;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class PropagationModuleImpl implements PropagationModule {
@@ -23,7 +21,7 @@ public class PropagationModuleImpl implements PropagationModule {
     if (toTaint == null || input == null) {
       return;
     }
-    final TaintedObjects taintedObjects = lazyTaintedObjects();
+    final TaintedObjects taintedObjects = TaintedObjects.activeTaintedObjects(true);
     final Source source = firstTaintedSource(taintedObjects, input);
     if (source != null) {
       taintObject(taintedObjects, toTaint, source);
@@ -35,7 +33,7 @@ public class PropagationModuleImpl implements PropagationModule {
     if (!canBeTainted(toTaint) || input == null) {
       return;
     }
-    final TaintedObjects taintedObjects = lazyTaintedObjects();
+    final TaintedObjects taintedObjects = TaintedObjects.activeTaintedObjects(true);
     final Source source = firstTaintedSource(taintedObjects, input);
     if (source != null) {
       taintString(taintedObjects, toTaint, source);
@@ -51,7 +49,7 @@ public class PropagationModuleImpl implements PropagationModule {
     if (!canBeTainted(toTaint) || input == null) {
       return;
     }
-    final TaintedObjects taintedObjects = lazyTaintedObjects();
+    final TaintedObjects taintedObjects = TaintedObjects.activeTaintedObjects(true);
     if (isTainted(taintedObjects, input)) {
       taintString(taintedObjects, toTaint, new Source(origin, name, toTaint));
     }
@@ -66,7 +64,7 @@ public class PropagationModuleImpl implements PropagationModule {
     if (toTaintCollection == null || toTaintCollection.isEmpty() || input == null) {
       return;
     }
-    final TaintedObjects taintedObjects = lazyTaintedObjects();
+    final TaintedObjects taintedObjects = TaintedObjects.activeTaintedObjects(true);
     if (isTainted(taintedObjects, input)) {
       for (final String toTaint : toTaintCollection) {
         if (canBeTainted(toTaint)) {
@@ -84,7 +82,7 @@ public class PropagationModuleImpl implements PropagationModule {
     if (toTaintCollection == null || toTaintCollection.isEmpty() || input == null) {
       return;
     }
-    final TaintedObjects taintedObjects = lazyTaintedObjects();
+    final TaintedObjects taintedObjects = TaintedObjects.activeTaintedObjects(true);
     if (isTainted(taintedObjects, input)) {
       for (final String toTaint : toTaintCollection) {
         if (canBeTainted(toTaint)) {
@@ -102,7 +100,7 @@ public class PropagationModuleImpl implements PropagationModule {
     if (toTaintCollection == null || toTaintCollection.isEmpty() || input == null) {
       return;
     }
-    final TaintedObjects taintedObjects = lazyTaintedObjects();
+    final TaintedObjects taintedObjects = TaintedObjects.activeTaintedObjects(true);
     if (isTainted(taintedObjects, input)) {
       for (final Map.Entry<String, String> entry : toTaintCollection) {
         final String name = entry.getKey();
@@ -124,7 +122,7 @@ public class PropagationModuleImpl implements PropagationModule {
     if (toTaint == null || inputs == null || inputs.length == 0) {
       return;
     }
-    final TaintedObjects taintedObjects = lazyTaintedObjects();
+    final TaintedObjects taintedObjects = TaintedObjects.activeTaintedObjects(true);
     for (final Object input : inputs) {
       final Source source = firstTaintedSource(taintedObjects, input);
       if (source != null) {
@@ -139,7 +137,7 @@ public class PropagationModuleImpl implements PropagationModule {
     if (toTaintArray == null || toTaintArray.length == 0) {
       return;
     }
-    final TaintedObjects taintedObjects = lazyTaintedObjects();
+    final TaintedObjects taintedObjects = TaintedObjects.activeTaintedObjects(true);
     final Source source = new Source(origin, null, null);
     for (final Object toTaint : toTaintArray) {
       taintObject(taintedObjects, toTaint, source);
@@ -155,7 +153,7 @@ public class PropagationModuleImpl implements PropagationModule {
     if (obj == null) {
       return false;
     }
-    final TaintedObjects taintedObjects = lazyTaintedObjects();
+    final TaintedObjects taintedObjects = TaintedObjects.activeTaintedObjects(true);
     return taintedObjects.get(obj) != null;
   }
 
@@ -164,7 +162,7 @@ public class PropagationModuleImpl implements PropagationModule {
     if (toTaintCollection == null || toTaintCollection.isEmpty()) {
       return;
     }
-    final TaintedObjects taintedObjects = lazyTaintedObjects();
+    final TaintedObjects taintedObjects = TaintedObjects.activeTaintedObjects(true);
     final Source source = new Source(origin, null, null);
     for (final Object toTaint : toTaintCollection) {
       taintObject(taintedObjects, toTaint, source);
@@ -185,7 +183,7 @@ public class PropagationModuleImpl implements PropagationModule {
     if (input == null) {
       return null;
     }
-    final TaintedObjects taintedObjects = lazyTaintedObjects();
+    final TaintedObjects taintedObjects = TaintedObjects.activeTaintedObjects(true);
     return firstTaintedSource(taintedObjects, input);
   }
 
@@ -215,70 +213,6 @@ public class PropagationModuleImpl implements PropagationModule {
       final TaintedObject tainted = taintedObjects.get(object);
       final Range[] ranges = tainted == null ? null : tainted.getRanges();
       return ranges != null && ranges.length > 0 ? ranges[0].getSource() : null;
-    }
-  }
-
-  static TaintedObjects lazyTaintedObjects() {
-    return new LazyTaintedObjects();
-  }
-
-  private static class LazyTaintedObjects implements TaintedObjects {
-    private boolean fetched = false;
-    private TaintedObjects taintedObjects;
-
-    @Override
-    public TaintedObject taintInputString(@Nonnull final String obj, @Nonnull final Source source) {
-      final TaintedObjects to = getTaintedObjects();
-      return to == null ? null : to.taintInputString(obj, source);
-    }
-
-    @Override
-    public TaintedObject taintInputObject(@Nonnull final Object obj, @Nonnull final Source source) {
-      final TaintedObjects to = getTaintedObjects();
-      return to == null ? null : to.taintInputObject(obj, source);
-    }
-
-    @Override
-    public TaintedObject taint(@Nonnull final Object obj, @Nonnull final Range[] ranges) {
-      final TaintedObjects to = getTaintedObjects();
-      return to == null ? null : to.taint(obj, ranges);
-    }
-
-    @Override
-    public TaintedObject get(@Nonnull final Object obj) {
-      final TaintedObjects to = getTaintedObjects();
-      return to == null ? null : to.get(obj);
-    }
-
-    @Override
-    public void release() {
-      final TaintedObjects to = getTaintedObjects();
-      if (to != null) {
-        to.release();
-      }
-    }
-
-    @Override
-    public long getEstimatedSize() {
-      final TaintedObjects to = getTaintedObjects();
-      return to == null ? 0 : to.getEstimatedSize();
-    }
-
-    @Override
-    public boolean isFlat() {
-      final TaintedObjects to = getTaintedObjects();
-      return to != null && to.isFlat();
-    }
-
-    private TaintedObjects getTaintedObjects() {
-      if (!fetched) {
-        fetched = true;
-        final IastRequestContext ctx = IastRequestContext.get();
-        if (ctx != null) {
-          taintedObjects = ctx.getTaintedObjects();
-        }
-      }
-      return taintedObjects;
     }
   }
 }

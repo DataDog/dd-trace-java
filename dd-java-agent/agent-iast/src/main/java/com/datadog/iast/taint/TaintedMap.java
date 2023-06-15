@@ -29,7 +29,9 @@ public interface TaintedMap extends Iterable<TaintedObject> {
 
   ReferenceQueue<Object> getReferenceQueue();
 
-  long getEstimatedSize();
+  int count();
+
+  int getEstimatedSize();
 
   boolean isFlat();
 }

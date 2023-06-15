@@ -20,13 +20,14 @@ class TaintedMapTest extends DDSpecification {
 
     expect:
     map.size() == 0
-    map.toList().size() == 0
+    map.count() == 0
 
     when:
     map.put(to)
 
     then:
-    map.toList().size() == 1
+    map.size() == 1
+    map.count() == 1
 
     and:
     map.get(o) != null
@@ -36,7 +37,8 @@ class TaintedMapTest extends DDSpecification {
     map.clear()
 
     then:
-    map.toList().size() == 0
+    map.size() == 0
+    map.count() == 0
   }
 
   def 'get non-existent object'() {
@@ -48,7 +50,7 @@ class TaintedMapTest extends DDSpecification {
     !map.isFlat()
     map.get(o) == null
     map.size() == 0
-    map.toList().size() == 0
+    map.count() == 0
   }
 
   def 'last put always exists'() {
@@ -87,7 +89,8 @@ class TaintedMapTest extends DDSpecification {
 
     then:
     !map.isFlat()
-    map.toList().size() == 1
+    map.size() == 1
+    map.count() == 1
   }
 
   def 'do not fail on double free'() {
@@ -110,7 +113,8 @@ class TaintedMapTest extends DDSpecification {
 
     then:
     !map.isFlat()
-    map.toList().size() == 1
+    map.size() == 1
+    map.count() == 1
   }
 
   def 'do not fail on double free with previous data'() {
@@ -129,7 +133,8 @@ class TaintedMapTest extends DDSpecification {
 
     then:
     !map.isFlat()
-    map.toList().size() == 1
+    map.size() == 1
+    map.count() == 1
   }
 
   def 'flat mode - last put wins'() {
@@ -166,7 +171,8 @@ class TaintedMapTest extends DDSpecification {
     }
 
     then:
-    map.toList().size() == capacity
+    map.size() == capacity
+    map.count() == capacity
 
     and: 'last puts are present'
     lastPuts.each { o ->
@@ -210,8 +216,9 @@ class TaintedMapTest extends DDSpecification {
 
     then:
     !map.isFlat()
+    map.size() == iters
+    map.count() == iters
     final entries = map.toList()
-    entries.size() == iters
     entries.findAll { it.get() != null }.size() == iters
 
     and: 'all objects are as expected'
@@ -258,8 +265,9 @@ class TaintedMapTest extends DDSpecification {
 
     then:
     map.isFlat()
+    map.size() == iters
+    map.count() == iters
     final entries = map.toList()
-    entries.size() == iters
     entries.findAll { it.get() != null }.size() == iters
 
     and: 'all objects are as expected'
@@ -368,7 +376,8 @@ class TaintedMapTest extends DDSpecification {
 
     then:
     map.isFlat()
-    map.toList().size() == capacity
+    map.size() == capacity
+    map.count() == capacity
     map.toList().findAll({ it.get() != null }).size() == capacity
     map.toList().collect({ it.get() }).toSet().size() == capacity
 
@@ -419,7 +428,7 @@ class TaintedMapTest extends DDSpecification {
 
     then:
     map.size() == 0
-    map.toList().size() == 0
+    map.count() == 0
     !map.isFlat()
 
     cleanup:

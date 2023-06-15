@@ -248,7 +248,7 @@ public enum IastMetric {
   }
 
   public String getSpanTag() {
-    return tagName == null ? null : String.format("%s.%s", name, processTagValue(tagValue));
+    return tagName == null ? name : String.format("%s.%s", name, processTagValue(tagValue));
   }
 
   @SuppressForbidden

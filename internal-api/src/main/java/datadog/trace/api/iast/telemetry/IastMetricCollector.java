@@ -39,8 +39,11 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
       ctx = activeRequestContext(ctx);
       if (ctx != null) {
         final Object iastCtx = ctx.getData(RequestContextSlot.IAST);
-        if (iastCtx instanceof HasTelemetryCollector) {
-          return ((HasTelemetryCollector) iastCtx).getTelemetryCollector();
+        if (iastCtx instanceof HasMetricCollector) {
+          final IastMetricCollector collector = ((HasMetricCollector) iastCtx).getMetricCollector();
+          if (collector != null) {
+            return collector;
+          }
         }
       }
     }
@@ -152,13 +155,11 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
 
   private static boolean isEnabled() {
     final Config config = Config.get();
-    if (!config.isTelemetryEnabled() || config.getIastTelemetryVerbosity() == Verbosity.OFF) {
-      return false;
-    }
-    return true;
+    return config.getIastTelemetryVerbosity() != Verbosity.OFF;
   }
 
-  public interface HasTelemetryCollector {
-    IastMetricCollector getTelemetryCollector();
+  public interface HasMetricCollector {
+
+    IastMetricCollector getMetricCollector();
   }
 }

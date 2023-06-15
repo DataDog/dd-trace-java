@@ -2150,7 +2150,7 @@ public class Config {
   }
 
   public Verbosity getIastTelemetryVerbosity() {
-    return iastTelemetryVerbosity;
+    return isTelemetryEnabled() ? iastTelemetryVerbosity : Verbosity.OFF;
   }
 
   public boolean isIastRedactionEnabled() {
