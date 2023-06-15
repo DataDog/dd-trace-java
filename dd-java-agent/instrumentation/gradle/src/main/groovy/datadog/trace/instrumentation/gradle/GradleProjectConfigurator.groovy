@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.gradle
 
 import datadog.trace.api.Config
+import datadog.trace.bootstrap.DatadogClassLoader
 import org.gradle.api.Project
 
 import java.nio.file.Files
@@ -36,11 +37,7 @@ class GradleProjectConfigurator {
   public static final GradleProjectConfigurator INSTANCE = new GradleProjectConfigurator()
 
   void configureTracer(Project project) {
-    def closure = { task ->
-      if (!GradleUtils.isTestTask(task)) {
-        return
-      }
-
+    forEveryTestTask project, { task ->
       List<String> jvmArgs = new ArrayList<>(task.jvmArgs != null ? task.jvmArgs : Collections.<String> emptyList())
 
       // propagate to child process all "dd." system properties available in current process
@@ -61,13 +58,6 @@ class GradleProjectConfigurator {
       jvmArgs.add("-javaagent:" + Config.get().ciVisibilityAgentJarFile.toPath())
 
       task.jvmArgs(jvmArgs)
-    }
-
-    if (project.tasks.respondsTo("configureEach", Closure)) {
-      project.tasks.configureEach closure
-    } else {
-      // for legacy Gradle versions
-      project.tasks.all closure
     }
   }
 
@@ -122,7 +112,7 @@ class GradleProjectConfigurator {
 
   private static final Pattern MODULE_NAME_PATTERN = Pattern.compile("\\s*module\\s*((\\w|\\.)+)\\s*\\{")
 
-  private getModuleName(Project project) {
+  private static getModuleName(Project project) {
     def dir = project.getProjectDir().toPath()
     def moduleInfo = dir.resolve(Paths.get("src", "main", "java", "module-info.java"))
 
@@ -136,5 +126,45 @@ class GradleProjectConfigurator {
       }
     }
     return null
+  }
+
+  void configureJacoco(Project project) {
+    def config = Config.get()
+    String jacocoPluginVersion = config.getCiVisibilityJacocoPluginVersion()
+    if (jacocoPluginVersion == null) {
+      return
+    }
+
+    project.apply("plugin": "jacoco")
+    project.jacoco.toolVersion = jacocoPluginVersion
+
+    forEveryTestTask project, { task ->
+      task.jacoco.excludeClassLoaders += [DatadogClassLoader.name]
+
+      Collection<String> instrumentedPackages = config.ciVisibilityJacocoPluginIncludes
+      if (instrumentedPackages != null && !instrumentedPackages.empty) {
+        task.jacoco.includes += instrumentedPackages
+      } else {
+        Collection<String> excludedPackages = config.ciVisibilityJacocoPluginExcludes
+        if (excludedPackages != null && !excludedPackages.empty) {
+          task.jacoco.excludes += excludedPackages
+        }
+      }
+    }
+  }
+
+  private static void forEveryTestTask(Project project, Closure closure) {
+    def c = { task ->
+      if (GradleUtils.isTestTask(task)) {
+        closure task
+      }
+    }
+
+    if (project.tasks.respondsTo("configureEach", Closure)) {
+      project.tasks.configureEach c
+    } else {
+      // for legacy Gradle versions
+      project.tasks.all c
+    }
   }
 }

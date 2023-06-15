@@ -53,12 +53,20 @@ public class GradleBuildListener extends BuildAdapter {
     }
 
     Project rootProject = gradle.getRootProject();
-    for (Project project : rootProject.getAllprojects()) {
-      GradleProjectConfigurator.INSTANCE.configureTracer(project);
 
-      if (config.isCiVisibilityCompilerPluginAutoConfigurationEnabled()) {
-        String compilerPluginVersion = config.getCiVisibilityCompilerPluginVersion();
-        GradleProjectConfigurator.INSTANCE.configureCompilerPlugin(project, compilerPluginVersion);
+    if (config.isCiVisibilityAutoConfigurationEnabled()) {
+      for (Project project : rootProject.getAllprojects()) {
+        GradleProjectConfigurator.INSTANCE.configureTracer(project);
+
+        if (config.isCiVisibilityCompilerPluginAutoConfigurationEnabled()) {
+          String compilerPluginVersion = config.getCiVisibilityCompilerPluginVersion();
+          GradleProjectConfigurator.INSTANCE.configureCompilerPlugin(
+              project, compilerPluginVersion);
+        }
+
+        if (config.isCiVisibilityPerTestCodeCoverageEnabled()) {
+          GradleProjectConfigurator.INSTANCE.configureJacoco(project);
+        }
       }
     }
 
