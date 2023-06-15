@@ -14,7 +14,6 @@ import datadog.trace.api.civisibility.source.SourcePathResolver
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.civisibility.TestDecoratorImpl
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl
 import datadog.trace.civisibility.events.TestEventsHandlerImpl
 import datadog.trace.core.DDSpan
