@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.java.lang;
 
 import datadog.trace.agent.tooling.csi.CallSite;
-import datadog.trace.api.iast.IastAdvice;
-import datadog.trace.api.iast.IastAdvice.Propagation;
+import datadog.trace.api.iast.IastCallSites;
+import datadog.trace.api.iast.IastCallSites.Propagation;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.propagation.StringModule;
 import datadog.trace.util.stacktrace.StackUtils;
@@ -11,7 +11,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 @Propagation
-@CallSite(spi = IastAdvice.class)
+@CallSite(spi = IastCallSites.class)
 public class StringBuilderCallSite {
 
   @CallSite.After("void java.lang.StringBuilder.<init>(java.lang.String)")

@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.iastinstrumenter.telemetry;
 
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteSupplier;
-import datadog.trace.agent.tooling.csi.CallSiteAdvice;
-import datadog.trace.api.iast.IastAdvice;
+import datadog.trace.agent.tooling.csi.CallSites;
+import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import java.util.Iterator;
 import javax.annotation.Nonnull;
@@ -18,18 +18,18 @@ public class TelemetryCallSiteSupplier implements CallSiteSupplier {
   }
 
   @Override
-  public Iterable<CallSiteAdvice> get() {
-    final Iterable<CallSiteAdvice> iterable = delegate.get();
+  public Iterable<CallSites> get() {
+    final Iterable<CallSites> iterable = delegate.get();
     return () -> new IteratorAdapter(verbosity, iterable.iterator());
   }
 
-  private static class IteratorAdapter implements Iterator<CallSiteAdvice> {
+  private static class IteratorAdapter implements Iterator<CallSites> {
 
     private final Verbosity verbosity;
-    private final Iterator<CallSiteAdvice> delegate;
+    private final Iterator<CallSites> delegate;
 
     private IteratorAdapter(
-        @Nonnull final Verbosity verbosity, @Nonnull final Iterator<CallSiteAdvice> delegate) {
+        @Nonnull final Verbosity verbosity, @Nonnull final Iterator<CallSites> delegate) {
       this.verbosity = verbosity;
       this.delegate = delegate;
     }
@@ -40,20 +40,13 @@ public class TelemetryCallSiteSupplier implements CallSiteSupplier {
     }
 
     @Override
-    public CallSiteAdvice next() {
-      CallSiteAdvice advice = delegate.next();
-      if (advice instanceof IastAdvice.HasTelemetry) {
-        final IastAdvice.HasTelemetry hasTelemetry = (IastAdvice.HasTelemetry) advice;
-        hasTelemetry.enableTelemetry(includeRuntime(hasTelemetry.kind()));
+    public CallSites next() {
+      CallSites advice = delegate.next();
+      if (advice instanceof IastCallSites.HasTelemetry) {
+        final IastCallSites.HasTelemetry hasTelemetry = (IastCallSites.HasTelemetry) advice;
+        hasTelemetry.setVerbosity(verbosity);
       }
       return advice;
-    }
-
-    private boolean includeRuntime(final IastAdvice.Kind kind) {
-      if (kind == IastAdvice.Kind.PROPAGATION) {
-        return verbosity.isDebugEnabled();
-      }
-      return true;
     }
   }
 }

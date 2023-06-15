@@ -55,7 +55,7 @@ public class CallSiteTransformer implements Instrumenter.AdviceTransformer {
 
     @Override
     public int mergeWriter(final int flags) {
-      return advices.computeMaxStack() ? flags | COMPUTE_MAXS : flags;
+      return flags | COMPUTE_MAXS;
     }
 
     @Override
@@ -154,6 +154,12 @@ public class CallSiteTransformer implements Instrumenter.AdviceTransformer {
     @Override
     public void loadConstantArray(final Object[] array) {
       CallSiteUtils.pushConstantArray(mv, array);
+    }
+
+    @Override
+    public void field(
+        final int opcode, final String owner, final String field, final String descriptor) {
+      mv.visitFieldInsn(opcode, owner, field, descriptor);
     }
 
     @Override
