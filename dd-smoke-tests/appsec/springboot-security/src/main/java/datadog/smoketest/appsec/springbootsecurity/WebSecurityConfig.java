@@ -22,13 +22,11 @@ public class WebSecurityConfig {
 
   @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-    http.authorizeHttpRequests(
+    http.authorizeRequests(
             (requests) ->
                 requests
-                    .requestMatchers("/", "/signup", "/register")
-                    .permitAll()
-                    .anyRequest()
-                    .authenticated())
+                    .antMatchers("/", "/signup", "/register").permitAll()
+                    .anyRequest().authenticated())
         .formLogin((form) -> form.loginPage("/login").permitAll())
         .logout(LogoutConfigurer::permitAll);
 

@@ -1,3 +1,12 @@
+muzzle {
+  pass {
+    group = 'org.springframework.security'
+    module = 'spring-security-core'
+    versions = "[5.5.0,)"
+    // assertInverse = true
+  }
+}
+
 ext {
   minJavaVersionForTests = JavaVersion.VERSION_17
 }
@@ -12,15 +21,11 @@ apply from: "$rootDir/gradle/java.gradle"
   }
 }
 
-tasks.named('muzzle').configure {
-  enabled = false
-}
-
 compileTestGroovy {
   javaLauncher = getJavaLauncherFor(17)
 }
 
 dependencies {
-  main_java17CompileOnly group: 'org.springframework.security', name: 'spring-security-core', version: '6.1.0'
-  compileOnly group: 'org.springframework.security', name: 'spring-security-core', version: '6.1.0'
+  main_java17CompileOnly group: 'org.springframework.security', name: 'spring-security-core', version: '5.5.0'
+  compileOnly group: 'org.springframework.security', name: 'spring-security-core', version: '5.5.0'
 }

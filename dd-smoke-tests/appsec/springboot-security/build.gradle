@@ -26,15 +26,16 @@ if (latestJdkHome != null) {
 }
 
 dependencies {
-  implementation 'org.springframework.boot:spring-boot-starter-web:3.1.0'
-  implementation 'org.springframework.boot:spring-boot-starter-security:3.1.0'
-  implementation 'org.springframework.boot:spring-boot-starter-thymeleaf:3.1.0'
-  implementation 'org.springframework.boot:spring-boot-starter-jdbc:3.1.0'
-  implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6:3.1.1.RELEASE'
+  implementation 'org.springframework.boot:spring-boot-starter-web:2.5.0'
+  implementation 'org.springframework.boot:spring-boot-autoconfigure:2.5.0'
+  implementation 'org.springframework.boot:spring-boot-starter-security:2.5.0'
+  implementation 'org.springframework.boot:spring-boot-starter-thymeleaf:2.5.0'
+  implementation 'org.springframework.boot:spring-boot-starter-jdbc:2.5.0'
+  implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity5:3.1.1.RELEASE'
   implementation 'com.h2database:h2:2.1.212'
 
-  testImplementation 'org.springframework.boot:spring-boot-starter-test:3.1.0'
-  testImplementation 'org.springframework.security:spring-security-test:6.0.2'
+  testImplementation 'org.springframework.boot:spring-boot-starter-test:2.5.0'
+  testImplementation 'org.springframework.security:spring-security-test:5.8.2'
 
   testImplementation project(':dd-smoke-tests:appsec')
 }
