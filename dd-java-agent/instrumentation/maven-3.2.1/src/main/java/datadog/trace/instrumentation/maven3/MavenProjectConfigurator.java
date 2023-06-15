@@ -1,11 +1,16 @@
 package datadog.trace.instrumentation.maven3;
 
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.DatadogClassLoader;
+import datadog.trace.util.Strings;
 import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import org.apache.maven.model.Build;
 import org.apache.maven.model.Dependency;
+import org.apache.maven.model.InputLocation;
+import org.apache.maven.model.InputSource;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.model.PluginExecution;
 import org.apache.maven.project.MavenProject;
@@ -28,14 +33,15 @@ class MavenProjectConfigurator {
 
   private static final MavenDependencyVersion ANNOTATION_PROCESSOR_PATHS_SUPPORTED_VERSION =
       MavenDependencyVersion.from("3.5");
+  private static final String JACOCO_EXCL_CLASS_LOADERS_PROPERTY = "jacoco.exclClassLoaders";
 
   void configureTracer(MavenProject project, String pluginKey) {
-    Plugin surefirePlugin = project.getPlugin(pluginKey);
-    if (surefirePlugin == null) {
+    Plugin plugin = project.getPlugin(pluginKey);
+    if (plugin == null) {
       return;
     }
 
-    Xpp3Dom pluginConfiguration = (Xpp3Dom) surefirePlugin.getConfiguration();
+    Xpp3Dom pluginConfiguration = (Xpp3Dom) plugin.getConfiguration();
     if (pluginConfiguration != null) {
       Xpp3Dom forkCount = pluginConfiguration.getChild("forkCount");
       if (forkCount != null && "0".equals(forkCount.getValue())) {
@@ -44,8 +50,17 @@ class MavenProjectConfigurator {
       }
     }
 
-    for (PluginExecution execution : surefirePlugin.getExecutions()) {
-      StringBuilder modifiedArgLine = new StringBuilder();
+    Properties projectProperties = project.getProperties();
+    String projectArgLine = projectProperties.getProperty("argLine");
+    if (projectArgLine == null) {
+      // otherwise reference to "@{argLine}" below might cause the build to fail
+      projectProperties.setProperty("argLine", "");
+    }
+
+    for (PluginExecution execution : plugin.getExecutions()) {
+      // include project-wide argLine
+      // (it might be modified by other plugins earlier in the build cycle, e.g. by Jacoco)
+      StringBuilder modifiedArgLine = new StringBuilder("@{argLine} ");
 
       // propagate to child process all "dd." system properties available in current process
       Properties systemProperties = System.getProperties();
@@ -229,5 +244,90 @@ class MavenProjectConfigurator {
     annotationProcessorPaths.addChild(annotationProcessorPath);
 
     return configuration;
+  }
+
+  void configureJacoco(MavenProject project) {
+    Properties projectProperties = project.getProperties();
+
+    String currentValue = projectProperties.getProperty(JACOCO_EXCL_CLASS_LOADERS_PROPERTY);
+    String updatedValue =
+        Strings.isNotBlank(currentValue)
+            ? currentValue + ":" + DatadogClassLoader.class.getName()
+            : DatadogClassLoader.class.getName();
+
+    projectProperties.setProperty(JACOCO_EXCL_CLASS_LOADERS_PROPERTY, updatedValue);
+
+    String jacocoPluginVersion = Config.get().getCiVisibilityJacocoPluginVersion();
+    if (jacocoPluginVersion != null) {
+      configureJacocoPlugin(project, jacocoPluginVersion);
+    }
+  }
+
+  private static void configureJacocoPlugin(MavenProject project, String jacocoPluginVersion) {
+    if (project.getPlugin("org.jacoco:jacoco-maven-plugin") != null) {
+      return; // jacoco is already configured for this project
+    }
+
+    Plugin jacocoPlugin = new Plugin();
+    jacocoPlugin.setGroupId("org.jacoco");
+    jacocoPlugin.setArtifactId("jacoco-maven-plugin");
+    jacocoPlugin.setVersion(jacocoPluginVersion);
+
+    // a little trick to avoid triggering
+    // Maven Enforcer Plugin's "Require Plugin Versions" rule:
+    // we're making it look like version was specified explicitly
+    // in the project's config files
+    InputSource versionSource = new InputSource();
+    versionSource.setLocation("injected-by-dd-java-agent");
+    versionSource.setModelId("injected-by-dd-java-agent");
+    InputLocation versionLocation = new InputLocation(0, 0, versionSource);
+    jacocoPlugin.setLocation("version", versionLocation);
+
+    PluginExecution execution = new PluginExecution();
+    execution.addGoal("prepare-agent");
+    jacocoPlugin.addExecution(execution);
+
+    List<String> instrumentedPackages = Config.get().getCiVisibilityJacocoPluginIncludes();
+    if (instrumentedPackages != null && !instrumentedPackages.isEmpty()) {
+      configureJacocoInstrumentedPackages(execution, instrumentedPackages);
+    } else {
+      List<String> excludedPackages = Config.get().getCiVisibilityJacocoPluginExcludes();
+      if (excludedPackages != null && !excludedPackages.isEmpty()) {
+        configureExcludedPackages(execution, excludedPackages);
+      }
+    }
+
+    Build build = project.getBuild();
+    build.addPlugin(jacocoPlugin);
+  }
+
+  private static void configureJacocoInstrumentedPackages(
+      PluginExecution execution, List<String> instrumentedPackages) {
+    Xpp3Dom includes = new Xpp3Dom("includes");
+    for (String instrumentedPackage : instrumentedPackages) {
+      Xpp3Dom include = new Xpp3Dom("include");
+      include.setValue(instrumentedPackage);
+      includes.addChild(include);
+    }
+
+    Xpp3Dom configuration = new Xpp3Dom("configuration");
+    configuration.addChild(includes);
+
+    execution.setConfiguration(configuration);
+  }
+
+  private static void configureExcludedPackages(
+      PluginExecution execution, List<String> excludedPackages) {
+    Xpp3Dom excludes = new Xpp3Dom("excludes");
+    for (String excludedPackage : excludedPackages) {
+      Xpp3Dom exclude = new Xpp3Dom("exclude");
+      exclude.setValue(excludedPackage);
+      excludes.addChild(exclude);
+    }
+
+    Xpp3Dom configuration = new Xpp3Dom("configuration");
+    configuration.addChild(excludes);
+
+    execution.setConfiguration(configuration);
   }
 }
