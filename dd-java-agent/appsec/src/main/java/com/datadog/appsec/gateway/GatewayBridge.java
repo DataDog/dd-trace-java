@@ -253,7 +253,7 @@ public class GatewayBridge {
                 rawRequestBodySubInfo =
                     producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_RAW);
               }
-              if (pathParamsSubInfo == null) {
+              if (rawRequestBodySubInfo == null) {
                 log.debug("Subscriptions is null for REQUEST_BODY_DONE event");
                 return NoopFlow.INSTANCE;
               }
