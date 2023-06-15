@@ -11,7 +11,7 @@ import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.ci.CIInfo;
 import datadog.trace.civisibility.ci.CIProviderInfo;
 import datadog.trace.civisibility.ci.CIProviderInfoFactory;
-import datadog.trace.civisibility.ci.CITagsProviderImpl;
+import datadog.trace.civisibility.ci.CITagsProvider;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.codeowners.CodeownersProvider;
 import datadog.trace.civisibility.coverage.TestProbes;
@@ -104,7 +104,10 @@ public class CiVisibilitySystem {
 
   private static TestDecorator createTestDecorator(
       String component, String testFramework, String testFrameworkVersion, Path path) {
-    Map<String, String> ciTags = new CITagsProviderImpl().getCiTags(path);
+    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory();
+    CIProviderInfo ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(path);
+    CIInfo ciInfo = ciProviderInfo.buildCIInfo();
+    Map<String, String> ciTags = new CITagsProvider().getCiTags(ciInfo);
     return new TestDecoratorImpl(component, testFramework, testFrameworkVersion, ciTags);
   }
 

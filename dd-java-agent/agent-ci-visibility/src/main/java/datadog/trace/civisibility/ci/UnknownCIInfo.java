@@ -7,7 +7,7 @@ import java.nio.file.Path;
 
 /**
  * This class is the strategy to use when the CI provider used to execute the tests cannot be
- * recognized. See selectCI() method in {@code CIProviderInfo} class.
+ * recognized. See {@link CIProviderInfoFactory#createCIProviderInfo(Path)}.
  *
  * <p>In this case, the tests may be being executed either a local development or an unknown CI
  * provider, so we cannot collect the usual data like pipeline, stage, job, etc.
