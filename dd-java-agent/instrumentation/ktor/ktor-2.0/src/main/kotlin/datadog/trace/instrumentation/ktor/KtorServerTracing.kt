@@ -8,7 +8,6 @@ import datadog.trace.instrumentation.ktor.KtorDecorator.DECORATE
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.application.BaseApplicationPlugin
-import io.ktor.server.application.application
 import io.ktor.server.application.call
 import io.ktor.server.application.install
 import io.ktor.server.response.ApplicationSendPipeline
@@ -33,36 +32,23 @@ class KtorServerTracing {
 
     override val key: AttributeKey<KtorServerTracing> = AttributeKey("Datadog")
 
-    // TODO try to instrument: io.ktor.util.pipeline.Pipeline.execute instead of using this type of late init
-    @Volatile
-    private var monitorInitialized = false
-
-    fun lateMonitorSubscribe(pipeline: Application) {
-      if (!monitorInitialized) {
-        monitorInitialized = true
-        pipeline.environment.monitor.subscribe(Routing.RoutingCallStarted) { call ->
-          val context = call.attributes.getOrNull(contextKey)
-          if (context != null) {
-            val span = call.attributes.getOrNull(contextKey)
-            if (span != null) {
-              HttpResourceDecorator.HTTP_RESOURCE_DECORATOR.withRoute(
-                span,
-                DECORATE.method(call.request),
-                call.route.parent.toString()
-              )
-            }
-          }
-        }
-      }
-    }
-
     override fun install(pipeline: Application, configure: Configuration.() -> Unit): KtorServerTracing {
       val plugin = KtorServerTracing()
+
+      pipeline.environment.monitor.subscribe(Routing.RoutingCallStarted) { call ->
+        val span = call.attributes.getOrNull(contextKey)
+        if (span != null) {
+          HttpResourceDecorator.HTTP_RESOURCE_DECORATOR.withRoute(
+            span,
+            DECORATE.method(call.request),
+            call.route.parent.toString()
+          )
+        }
+      }
 
       val startPhase = PipelinePhase("Datadog")
       pipeline.insertPhaseBefore(ApplicationCallPipeline.Monitoring, startPhase)
       pipeline.intercept(startPhase) {
-        lateMonitorSubscribe(application)
 
         // TODO is it possible to get call.attributes to get DD_SPAN_ATTRIBUTE to access underlying netty/jetty/tomcat span?
         println(">>> call.attributes: " + call.attributes.allKeys.toList().toString())
