@@ -19,7 +19,7 @@ public class CaseInsensitiveMap<V> implements Map<String, V> {
   }
 
   private static String lower(final Object key) {
-    return key == null ? null : key.toString().toLowerCase(Locale.ENGLISH);
+    return key == null ? null : key.toString().toLowerCase(Locale.ROOT);
   }
 
   @Override

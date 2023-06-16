@@ -380,7 +380,7 @@ class MuzzlePlugin implements Plugin<Project> {
    */
   private static filterVersion(Set<Version> list, Set<String> skipVersions) {
     list.removeIf {
-      def version = it.toString().toLowerCase()
+      def version = it.toString().toLowerCase(Locale.ROOT)
       return version.endsWith("-snapshot") ||
         version.contains("rc") ||
         version.contains(".cr") ||
@@ -550,7 +550,7 @@ class MuzzleExtension {
   private postConstruct(MuzzleDirective directive) {
     // Make skipVersions case insensitive.
     directive.skipVersions = directive.skipVersions.collect {
-      it.toLowerCase()
+      it.toLowerCase(Locale.ROOT)
     }
     // Add existing repositories
     directive.additionalRepositories.addAll(additionalRepositories)

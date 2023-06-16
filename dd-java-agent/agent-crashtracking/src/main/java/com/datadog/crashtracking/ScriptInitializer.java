@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Comparator;
+import java.util.Locale;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,7 +55,7 @@ public final class ScriptInitializer {
       log.debug("No -XX:ErrorFile value, defaulting to {}", onErrorFile);
     }
     Path scriptPath = Paths.get(onErrorVal);
-    if (scriptPath.getFileName().toString().toLowerCase().contains("dd_crash_uploader")
+    if (scriptPath.getFileName().toString().toLowerCase(Locale.ROOT).contains("dd_crash_uploader")
         && Files.notExists(scriptPath)) {
       try {
         Files.createDirectories(scriptPath.getParent());
@@ -124,7 +125,8 @@ public final class ScriptInitializer {
             agentPath =
                 files
                     .sorted(Comparator.reverseOrder())
-                    .filter(p -> p.getFileName().toString().toLowerCase().endsWith(".jar"))
+                    .filter(
+                        p -> p.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".jar"))
                     .findFirst()
                     .toString();
           }

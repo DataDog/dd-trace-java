@@ -8,6 +8,7 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.BiFunction;
 
@@ -108,11 +109,11 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       for (Map.Entry<String, String> association : mapping) {
         String key = association.getKey().trim();
         if (lowerCaseKeys) {
-          key = key.toLowerCase();
+          key = key.toLowerCase(Locale.ROOT);
         }
         String value = association.getValue().trim();
         if (lowerCaseValues) {
-          value = value.toLowerCase();
+          value = value.toLowerCase(Locale.ROOT);
         }
         cleanedMapping.put(key, value);
       }

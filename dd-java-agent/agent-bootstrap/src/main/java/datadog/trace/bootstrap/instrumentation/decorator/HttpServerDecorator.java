@@ -33,6 +33,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.http.ClientIpAddressRes
 import java.net.InetAddress;
 import java.util.BitSet;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiFunction;
@@ -545,7 +546,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
     @Override
     public boolean accept(String key, String value) {
-      String mappedKey = headerTags.get(key.toLowerCase());
+      String mappedKey = headerTags.get(key.toLowerCase(Locale.ROOT));
       if (mappedKey != null) {
         span.setTag(mappedKey, value);
       }

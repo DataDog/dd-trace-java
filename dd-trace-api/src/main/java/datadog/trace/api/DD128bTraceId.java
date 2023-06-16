@@ -1,6 +1,7 @@
 package datadog.trace.api;
 
 import datadog.trace.api.internal.util.LongStringUtils;
+import java.util.Locale;
 
 /**
  * Class encapsulating the unsigned 128-bit id used for TraceIds.
@@ -103,7 +104,7 @@ public class DD128bTraceId extends DDTraceId {
         hexStr = s.substring(start, start + 32);
       }
       if (!lowerCaseOnly) {
-        hexStr = hexStr.toLowerCase();
+        hexStr = hexStr.toLowerCase(Locale.ROOT);
       }
     }
     return new DD128bTraceId(highOrderBits, lowOrderBits, hexStr);

@@ -2796,7 +2796,7 @@ public class Config {
               + resourceGroup
               + "/providers/microsoft.web/sites/"
               + siteName;
-      resourceId = resourceId.toLowerCase();
+      resourceId = resourceId.toLowerCase(Locale.ROOT);
       aasTags.put("aas.resource.id", resourceId);
     } else {
       log.warn(
@@ -2887,7 +2887,8 @@ public class Config {
   public boolean isRuleEnabled(final String name, boolean defaultEnabled) {
     boolean enabled = configProvider.getBoolean("trace." + name + ".enabled", defaultEnabled);
     boolean lowerEnabled =
-        configProvider.getBoolean("trace." + name.toLowerCase() + ".enabled", defaultEnabled);
+        configProvider.getBoolean(
+            "trace." + name.toLowerCase(Locale.ROOT) + ".enabled", defaultEnabled);
     return defaultEnabled ? enabled && lowerEnabled : enabled || lowerEnabled;
   }
 
