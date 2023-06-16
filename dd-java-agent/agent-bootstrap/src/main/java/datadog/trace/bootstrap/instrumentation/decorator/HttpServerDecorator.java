@@ -2,7 +2,7 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.gateway.Events.EVENTS;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.appsec.api.blocking.BlockingException;
@@ -21,8 +21,8 @@ import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -34,6 +34,7 @@ import java.net.InetAddress;
 import java.util.BitSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -130,8 +131,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (null != carrier && null != getter) {
-      PathwayContext pathwayContext = propagate().extractPathwayContext(carrier, getter);
-      span.mergePathwayContext(pathwayContext);
       tracer().setDataStreamCheckpoint(span, SERVER_PATHWAY_EDGE_TAGS);
     }
     return span;
@@ -292,7 +291,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     // even if the server chooses not to respond with 5xx to an error.
     // Anyway, we def don't want it applied to blocked requests
     if (!BlockingException.class.getName().equals(span.getTag("error.type"))) {
-      span.setError(SERVER_ERROR_STATUSES.get(status));
+      span.setError(SERVER_ERROR_STATUSES.get(status), ErrorPriorities.HTTP_SERVER_DECORATOR);
     }
 
     if (SHOULD_SET_404_RESOURCE_NAME && status == 404) {
@@ -309,7 +308,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       AgentPropagation.ContextVisitor<RESPONSE> getter = responseGetter();
       if (getter != null) {
         ResponseHeaderTagClassifier tagger =
-            ResponseHeaderTagClassifier.create(span, Config.get().getResponseHeaderTags());
+            ResponseHeaderTagClassifier.create(span, traceConfig(span).getResponseHeaderTags());
         if (tagger != null) {
           getter.forEachKey(response, tagger);
         }
@@ -361,6 +360,16 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
 
     return context;
+  }
+
+  @Override
+  public AgentSpan onError(final AgentSpan span, final Throwable throwable) {
+    if (throwable != null) {
+      span.addThrowable(
+          throwable instanceof ExecutionException ? throwable.getCause() : throwable,
+          ErrorPriorities.HTTP_SERVER_DECORATOR);
+    }
+    return span;
   }
 
   private Flow<Void> callIGCallbackRequestHeaders(AgentSpan span, REQUEST_CARRIER carrier) {

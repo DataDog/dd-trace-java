@@ -42,7 +42,7 @@ public class ParamValueFactoryWithSourceInstrumentation extends Instrumenter.Ias
           ThreadLocalSourceType.set(SourceTypes.REQUEST_COOKIE_VALUE);
           break;
         case "PATH":
-          ThreadLocalSourceType.set(SourceTypes.REQUEST_PARAMETER_VALUE);
+          ThreadLocalSourceType.set(SourceTypes.REQUEST_PATH_PARAMETER);
           break;
         case "QUERY":
           ThreadLocalSourceType.set(SourceTypes.REQUEST_PARAMETER_VALUE);

@@ -24,7 +24,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
@@ -47,15 +46,10 @@ public class RabbitDecorator extends MessagingClientDecorator {
   public static final CharSequence RABBITMQ_AMQP = UTF8BytesString.create("rabbitmq-amqp");
 
   public static final boolean RABBITMQ_LEGACY_TRACING =
-      Config.get()
-          .isLegacyTracingEnabled(SpanNaming.instance().version() == 0, "rabbit", "rabbitmq");
+      Config.get().isLegacyTracingEnabled(true, "rabbit", "rabbitmq");
 
   public static final boolean TIME_IN_QUEUE_ENABLED =
-      Config.get()
-          .isTimeInQueueEnabled(
-              !RABBITMQ_LEGACY_TRACING && SpanNaming.instance().version() == 0,
-              "rabbit",
-              "rabbitmq");
+      Config.get().isTimeInQueueEnabled(!RABBITMQ_LEGACY_TRACING, "rabbit", "rabbitmq");
 
   private static final String LOCAL_SERVICE_NAME =
       RABBITMQ_LEGACY_TRACING ? "rabbitmq" : Config.get().getServiceName();
@@ -224,9 +218,6 @@ public class RabbitDecorator extends MessagingClientDecorator {
     final AgentSpan span = startSpan(OPERATION_AMQP_INBOUND, parentContext, spanStartMicros);
 
     if (null != headers) {
-      PathwayContext pathwayContext =
-          propagate().extractPathwayContext(headers, ContextVisitors.objectValuesMap());
-      span.mergePathwayContext(pathwayContext);
       LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
       sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
       sortedTags.put(TOPIC_TAG, queue);

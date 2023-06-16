@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.jackson.codehouse.core;
 
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
@@ -9,8 +8,10 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.sink.SsrfModule;
 import java.io.InputStream;
 import java.io.Reader;
+import java.net.URL;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 
@@ -24,14 +25,14 @@ public class Json1FactoryInstrumentation extends Instrumenter.Iast
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-
     transformation.applyAdvice(
         NameMatchers.<MethodDescription>named("createJsonParser")
             .and(isMethod())
             .and(
-                isPublic()
-                    .and(takesArguments(String.class).or(takesArguments(InputStream.class)))
-                    .or(takesArguments(Reader.class))),
+                takesArguments(String.class)
+                    .or(takesArguments(InputStream.class))
+                    .or(takesArguments(Reader.class))
+                    .or(takesArguments(URL.class))),
         Json1FactoryInstrumentation.class.getName() + "$InstrumenterAdvice");
   }
 
@@ -45,9 +46,17 @@ public class Json1FactoryInstrumentation extends Instrumenter.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
         @Advice.Argument(0) final Object input, @Advice.Return final Object parser) {
-      final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        module.taintIfInputIsTainted(parser, input);
+      if (input != null) {
+        final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
+        if (propagation != null) {
+          propagation.taintIfInputIsTainted(parser, input);
+        }
+        if (input instanceof URL) {
+          final SsrfModule ssrf = InstrumentationBridge.SSRF;
+          if (ssrf != null) {
+            ssrf.onURLConnection(input);
+          }
+        }
       }
     }
   }

@@ -5,7 +5,9 @@ import datadog.trace.test.agent.decoder.DecodedSpan
 import datadog.trace.test.agent.decoder.Decoder
 import datadog.trace.test.agent.decoder.DecodedMessage
 import datadog.trace.test.agent.decoder.DecodedTrace
+import datadog.trace.util.Strings
 
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import spock.lang.AutoCleanup
@@ -27,6 +29,9 @@ abstract class AbstractSmokeTest extends ProcessManager {
 
   @Shared
   private Closure decode = decodedTracesCallback()
+
+  @Shared
+  private String remoteConfigResponse
 
   @Shared
   @AutoCleanup
@@ -74,6 +79,9 @@ abstract class AbstractSmokeTest extends ProcessManager {
         println("Received v0.5 traces: " + countString)
         response.status(200).send()
       }
+      prefix("/v0.7/config") {
+        response.status(200).send(remoteConfigResponse)
+      }
     }
   }
 
@@ -110,6 +118,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
   def setup() {
     traceCount.set(0)
     decodeTraces.clear()
+    remoteConfigResponse = "{}"
   }
 
   def cleanup() {
@@ -134,6 +143,39 @@ abstract class AbstractSmokeTest extends ProcessManager {
 
   Closure decodedTracesCallback() {
     null
+  }
+
+  void setRemoteConfig(String path, String jsonData) {
+    def targets = """
+{
+  "signed" : {
+      "expires" : "2022-09-17T12:49:15Z",
+      "spec_version" : "1.0.0",
+      "targets" : {
+        "$path" : {
+          "custom": {"v": 1},
+          "hashes" : {
+            "sha256" : "${ Strings.sha256(jsonData) }"
+          },
+          "length" : ${ jsonData.length() }
+        }
+      }
+  }
+}
+"""
+    remoteConfigResponse = """
+{
+  "client_configs" : [ "$path" ],
+  "roots" : [],
+  "target_files" : [
+    {
+      "path" : "$path",
+      "raw" : "${Base64.encoder.encodeToString(jsonData.getBytes(StandardCharsets.UTF_8))}"
+    }
+  ],
+  "targets" : "${Base64.encoder.encodeToString(targets.getBytes(StandardCharsets.UTF_8))}"
+}
+""".toString()
   }
 
   int waitForTraceCount(int count) {

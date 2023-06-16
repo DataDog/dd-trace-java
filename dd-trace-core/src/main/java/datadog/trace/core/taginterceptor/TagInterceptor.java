@@ -24,12 +24,17 @@ import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.api.normalize.HttpResourceNames;
 import datadog.trace.api.sampling.SamplingMechanism;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.DDSpanContext;
+import java.net.URI;
 import java.util.Set;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class TagInterceptor {
 
@@ -118,20 +123,34 @@ public class TagInterceptor {
   private boolean interceptUrlResourceAsNameRule(DDSpanContext span, String tag, Object value) {
     if (shouldSetUrlResourceAsName) {
       if (HTTP_METHOD.equals(tag)) {
-        if (span.getTags().containsValue(HTTP_URL)) {
-          Pair<CharSequence, Byte> normalized =
-              HttpResourceNames.computeForServer(
-                  value.toString(), span.getTags().get(HTTP_URL).toString(), false);
-          span.setResourceName(normalized.getLeft(), normalized.getRight());
+        final Object url = span.unsafeGetTag(HTTP_URL);
+        if (url != null) {
+          setResourceFromUrl(span, value.toString(), url.toString());
         }
       } else if (HTTP_URL.equals(tag)) {
-        Pair<CharSequence, Byte> normalized =
-            HttpResourceNames.computeForServer(
-                (CharSequence) span.getTags().get(HTTP_METHOD), value.toString(), false);
-        span.setResourceName(normalized.getLeft(), normalized.getRight());
+        final Object method = span.unsafeGetTag(HTTP_METHOD);
+        setResourceFromUrl(span, method != null ? method.toString() : null, value.toString());
       }
     }
     return false;
+  }
+
+  private static void setResourceFromUrl(
+      @Nonnull final DDSpanContext span, @Nullable final String method, @Nonnull final String url) {
+    final URI uri = URIUtils.safeParse(url);
+    if (uri != null && uri.getPath() != null) {
+      final boolean isClient = Tags.SPAN_KIND_CLIENT.equals(span.unsafeGetTag(Tags.SPAN_KIND));
+      Pair<CharSequence, Byte> normalized =
+          isClient
+              ? HttpResourceNames.computeForClient(method, uri.getPath(), false)
+              : HttpResourceNames.computeForServer(method, uri.getPath(), false);
+      if (normalized.hasLeft()) {
+        span.setResourceName(normalized.getLeft(), normalized.getRight());
+      }
+    } else {
+      span.setResourceName(
+          HttpResourceNames.DEFAULT_RESOURCE_NAME, ResourceNamePriorities.HTTP_PATH_NORMALIZER);
+    }
   }
 
   private boolean intercept(DDSpanContext span, String tag, Object value) {
@@ -168,7 +187,7 @@ public class TagInterceptor {
   }
 
   private boolean interceptError(DDSpanContext span, Object value) {
-    span.setErrorFlag(asBoolean(value));
+    span.setErrorFlag(asBoolean(value), ErrorPriorities.DEFAULT);
     return true;
   }
 

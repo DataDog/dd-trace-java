@@ -1,9 +1,7 @@
 package datadog.trace.agent.tooling.bytebuddy.csi;
 
-import datadog.trace.agent.tooling.csi.CallSiteAdvice;
-import datadog.trace.agent.tooling.csi.CallSiteAdvice.HasHelpers;
+import datadog.trace.agent.tooling.csi.CallSites;
 import datadog.trace.agent.tooling.csi.InvokeAdvice;
-import datadog.trace.agent.tooling.csi.Pointcut;
 import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import java.util.Collections;
 import java.util.Set;
@@ -34,16 +32,35 @@ public class CallSiteBenchmarkInstrumentation extends CallSiteInstrumentation {
 
   @Override
   protected CallSiteSupplier callSites() {
-    return CallSites.INSTANCE;
+    return BenchmarkCallSites.INSTANCE;
   }
 
-  public static class CallSites implements CallSiteSupplier {
+  public static class BenchmarkCallSites implements CallSiteSupplier {
 
-    public static final CallSiteSupplier INSTANCE = new CallSites();
+    public static final CallSiteSupplier INSTANCE = new BenchmarkCallSites();
 
     @Override
-    public Iterable<CallSiteAdvice> get() {
-      return Collections.singletonList(new GetParameterCallSite());
+    public Iterable<CallSites> get() {
+      return Collections.singletonList(
+          (container -> {
+            container.addAdvice(
+                "javax/servlet/ServletRequest",
+                "getParameter",
+                "(Ljava/lang/String;)Ljava/lang/String;",
+                getParameterAdvice());
+            container.addHelpers(
+                "datadog.trace.agent.tooling.bytebuddy.csi.CallSiteBenchmarkHelper");
+          }));
+    }
+
+    public InvokeAdvice getParameterAdvice() {
+      return (handler, opcode, owner, name, descriptor, isInterface) ->
+          handler.method(
+              Opcodes.INVOKESTATIC,
+              "datadog/trace/agent/tooling/bytebuddy/csi/CallSiteBenchmarkHelper",
+              "adviceCallSite",
+              "(Ljavax/servlet/ServletRequest;Ljava/lang/String;)Ljava/lang/String;",
+              false);
     }
   }
 
@@ -54,50 +71,6 @@ public class CallSiteBenchmarkInstrumentation extends CallSiteInstrumentation {
     @Override
     protected boolean doMatch(TypeDescription target) {
       return CallSiteTrie.apply(target.getName()) != 1;
-    }
-  }
-
-  private static class GetParameterCallSite implements InvokeAdvice, HasHelpers, Pointcut {
-
-    @Override
-    public Pointcut pointcut() {
-      return this;
-    }
-
-    @Override
-    public void apply(
-        final MethodHandler handler,
-        final int opcode,
-        final String owner,
-        final String name,
-        final String descriptor,
-        final boolean isInterface) {
-      handler.method(
-          Opcodes.INVOKESTATIC,
-          "datadog/trace/agent/tooling/bytebuddy/csi/CallSiteBenchmarkHelper",
-          "adviceCallSite",
-          "(Ljavax/servlet/ServletRequest;Ljava/lang/String;)Ljava/lang/String;",
-          false);
-    }
-
-    @Override
-    public String[] helperClassNames() {
-      return new String[] {CallSiteBenchmarkHelper.class.getName()};
-    }
-
-    @Override
-    public String type() {
-      return "javax/servlet/ServletRequest";
-    }
-
-    @Override
-    public String method() {
-      return "getParameter";
-    }
-
-    @Override
-    public String descriptor() {
-      return "(Ljava/lang/String;)Ljava/lang/String;";
     }
   }
 

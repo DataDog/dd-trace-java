@@ -3,6 +3,7 @@ package com.datadog.debugger.agent;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.DEPTH_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.FIELD_COUNT_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
+import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doReturn;
@@ -57,6 +58,7 @@ import org.joor.Reflect;
 import org.joor.ReflectException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -77,12 +79,18 @@ public class CapturedSnapshotTest {
   private Instrumentation instr = ByteBuddyAgent.install();
   private ClassFileTransformer currentTransformer;
 
+  @BeforeEach
+  public void before() {
+    setFieldInConfig(Config.get(), "debuggerCaptureTimeout", 200);
+  }
+
   @AfterEach
   public void after() {
     if (currentTransformer != null) {
       instr.removeTransformer(currentTransformer);
     }
-    ProbeRateLimiter.resetGlobalRate();
+    ProbeRateLimiter.resetAll();
+    Assertions.assertFalse(DebuggerContext.isInProbe());
   }
 
   @Test
@@ -1372,6 +1380,50 @@ public class CapturedSnapshotTest {
         snapshot.getEvaluationErrors().get(1).getMessage());
   }
 
+  @Test
+  public void enumConstructorArgs() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot23";
+    final String ENUM_CLASS = CLASS_NAME + "$MyEnum";
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(ENUM_CLASS, createProbe(PROBE_ID, ENUM_CLASS, "<init>", null));
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "2").get();
+    Assertions.assertEquals(2, result);
+    assertSnapshots(listener, 3, PROBE_ID);
+    Map<String, CapturedContext.CapturedValue> arguments =
+        listener.snapshots.get(0).getCaptures().getEntry().getArguments();
+    assertEquals(3, arguments.size());
+    assertTrue(arguments.containsKey("this"));
+    assertTrue(arguments.containsKey("p1")); // this the hidden ordinal arg of an enum
+    assertTrue(arguments.containsKey("strValue"));
+  }
+
+  @Test
+  public void recursiveCapture() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot24";
+    final String INNER_CLASS = CLASS_NAME + "$Holder";
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(INNER_CLASS, createProbe(PROBE_ID, INNER_CLASS, "size", null));
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "").get();
+    Assertions.assertEquals(1, result);
+  }
+
+  @Test
+  public void recursiveCaptureException() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot24";
+    final String INNER_CLASS = CLASS_NAME + "$HolderWithException";
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(INNER_CLASS, createProbe(PROBE_ID, INNER_CLASS, "size", null));
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    try {
+      Reflect.on(testClass).call("main", "exception").get();
+      Assertions.fail("should not reach this code");
+    } catch (ReflectException ex) {
+      Assertions.assertEquals("not supported", ex.getCause().getCause().getMessage());
+    }
+  }
+
   private DebuggerTransformerTest.TestSnapshotListener setupInstrumentTheWorldTransformer(
       String excludeFileName) {
     Config config = mock(Config.class);
@@ -1433,11 +1485,12 @@ public class CapturedSnapshotTest {
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
     for (LogProbe probe : logProbes) {
       if (probe.getSampling() != null) {
-        ProbeRateLimiter.setRate(probe.getId(), probe.getSampling().getSnapshotsPerSecond());
+        ProbeRateLimiter.setRate(
+            probe.getId(), probe.getSampling().getSnapshotsPerSecond(), probe.isCaptureSnapshot());
       }
     }
     if (configuration.getSampling() != null) {
-      ProbeRateLimiter.setGlobalRate(configuration.getSampling().getSnapshotsPerSecond());
+      ProbeRateLimiter.setGlobalSnapshotRate(configuration.getSampling().getSnapshotsPerSecond());
     }
     return listener;
   }
@@ -1579,6 +1632,9 @@ public class CapturedSnapshotTest {
     CapturedContext.CapturedValue valued = null;
     try {
       valued = VALUE_ADAPTER.fromJson(capturedValue.getStrValue());
+      if (valued.getNotCapturedReason() != null) {
+        Assertions.fail("NotCapturedReason: " + valued.getNotCapturedReason());
+      }
       Object obj = valued.getValue();
       return obj != null ? String.valueOf(obj) : null;
     } catch (IOException e) {

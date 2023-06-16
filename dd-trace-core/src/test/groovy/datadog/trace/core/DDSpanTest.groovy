@@ -7,6 +7,7 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.common.sampling.RateByServiceTraceSampler
@@ -430,5 +431,33 @@ class DDSpanTest extends DDCoreSpecification {
     1.0  | 10
     0.5  | 100
     0.25 | Integer.MAX_VALUE
+  }
+
+  def "error priorities should be respected"() {
+    setup:
+    def span = tracer.buildSpan("testSpan").start() as DDSpan
+
+    expect:
+    !span.isError()
+
+    when:
+    span.setError(true)
+    then:
+    span.isError()
+
+    when:
+    span.setError(false)
+    then:
+    !span.isError()
+
+    when:
+    span.setError(true, ErrorPriorities.HTTP_SERVER_DECORATOR)
+    then:
+    !span.isError()
+
+    when:
+    span.setError(true, Byte.MAX_VALUE)
+    then:
+    span.isError()
   }
 }

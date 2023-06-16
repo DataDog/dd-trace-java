@@ -9,17 +9,19 @@ import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.time.TimeSource;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Backlog;
-import datadog.trace.bootstrap.instrumentation.api.DataStreamsMonitoring;
 import datadog.trace.bootstrap.instrumentation.api.InboxItem;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.OkHttpSink;
 import datadog.trace.common.metrics.Sink;
+import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDTraceCoreInfo;
+import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -34,17 +36,15 @@ import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DefaultDataStreamsMonitoring
-    implements DataStreamsMonitoring, AutoCloseable, EventListener {
+public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, EventListener {
   private static final Logger log = LoggerFactory.getLogger(DefaultDataStreamsMonitoring.class);
 
   static final long DEFAULT_BUCKET_DURATION_NANOS = TimeUnit.SECONDS.toNanos(10);
   static final long FEATURE_CHECK_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
 
-  private static final StatsPoint REPORT =
-      new StatsPoint(Collections.<String>emptyList(), 0, 0, 0, 0, 0);
+  private static final StatsPoint REPORT = new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0);
   private static final StatsPoint POISON_PILL =
-      new StatsPoint(Collections.<String>emptyList(), 0, 0, 0, 0, 0);
+      new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0);
 
   private final Map<Long, StatsBucket> timeToBucket = new HashMap<>();
   private final BlockingQueue<InboxItem> inbox = new MpscBlockingConsumerArrayQueue<>(1024);
@@ -123,9 +123,8 @@ public class DefaultDataStreamsMonitoring
     thread.start();
   }
 
-  // With Java 8, this becomes unnecessary
   @Override
-  public void accept(StatsPoint statsPoint) {
+  public void add(StatsPoint statsPoint) {
     if (thread.isAlive()) {
       inbox.offer(statsPoint);
     }
@@ -136,15 +135,22 @@ public class DefaultDataStreamsMonitoring
     return new DefaultPathwayContext(timeSource, wellKnownTags);
   }
 
-  public <C> PathwayContext extractBinaryPathwayContext(
-      C carrier, AgentPropagation.BinaryContextVisitor<C> getter) {
-    return DefaultPathwayContext.extractBinary(carrier, getter, timeSource, wellKnownTags);
+  @Override
+  public HttpCodec.Extractor decorate(HttpCodec.Extractor extractor) {
+    return new DataStreamContextExtractor(extractor, timeSource, wellKnownTags);
   }
 
   @Override
-  public <C> PathwayContext extractPathwayContext(
-      C carrier, AgentPropagation.ContextVisitor<C> getter) {
-    return DefaultPathwayContext.extract(carrier, getter, timeSource, wellKnownTags);
+  public void mergePathwayContextIntoSpan(AgentSpan span, DataStreamsContextCarrier carrier) {
+    if (span instanceof DDSpan) {
+      DefaultPathwayContext pathwayContext =
+          DefaultPathwayContext.extract(
+              carrier,
+              DataStreamsContextCarrierAdapter.INSTANCE,
+              this.timeSource,
+              this.wellKnownTags);
+      ((DDSpan) span).context().mergePathwayContext(pathwayContext);
+    }
   }
 
   public void trackBacklog(LinkedHashMap<String, String> sortedTags, long value) {

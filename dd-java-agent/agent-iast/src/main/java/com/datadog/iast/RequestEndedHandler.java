@@ -6,7 +6,6 @@ import static com.datadog.iast.IastTag.SKIPPED;
 import com.datadog.iast.HasDependencies.Dependencies;
 import com.datadog.iast.overhead.OverheadController;
 import com.datadog.iast.taint.TaintedObjects;
-import com.datadog.iast.telemetry.IastTelemetry;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
@@ -17,11 +16,9 @@ import javax.annotation.Nonnull;
 public class RequestEndedHandler implements BiFunction<RequestContext, IGSpanInfo, Flow<Void>> {
 
   private final OverheadController overheadController;
-  private final IastTelemetry telemetry;
 
   public RequestEndedHandler(@Nonnull final Dependencies dependencies) {
     this.overheadController = dependencies.getOverheadController();
-    this.telemetry = dependencies.getTelemetry();
   }
 
   @Override
@@ -35,7 +32,6 @@ public class RequestEndedHandler implements BiFunction<RequestContext, IGSpanInf
         if (taintedObjects != null) {
           taintedObjects.release();
         }
-        telemetry.onRequestEnded(iastRequestContext, traceSegment);
       } finally {
         overheadController.releaseRequest();
       }

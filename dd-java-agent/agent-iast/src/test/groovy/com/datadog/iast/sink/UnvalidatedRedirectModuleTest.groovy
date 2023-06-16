@@ -79,6 +79,29 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
     new URI("http://dummy.location.com") | true
   }
 
+  void 'iast module detects String redirect with class and method (#value)'(final String value, final String expected) {
+    setup:
+    final param = mapTainted(value)
+    final clazz = "class"
+    final method = "method"
+
+    when:
+    module.onRedirect(param, clazz, method)
+
+    then:
+    if (expected != null) {
+      1 * reporter.report(_, _) >> { args -> assertEvidence(args[1] as Vulnerability, expected) }
+    } else {
+      0 * reporter.report(_, _)
+    }
+
+    where:
+    value        | expected
+    null         | null
+    '/var'       | null
+    '/==>var<==' | "/==>var<=="
+  }
+
   void 'if onHeader receives a Location header call onRedirect'() {
     setup:
     final urm = Spy(UnvalidatedRedirectModuleImpl)

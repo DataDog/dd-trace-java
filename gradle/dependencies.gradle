@@ -14,7 +14,7 @@ final class CachedData {
     groovy        : groovyVer,
     junit5        : "5.9.2",
     logback       : "1.2.3",
-    bytebuddy     : "1.14.3",
+    bytebuddy     : "1.14.5",
     scala         : "2.11.12",  // Last version to support Java 7 (2.12+ require Java 8+)
     scala210      : "2.10.7",
     scala211      : "2.11.12",
@@ -33,7 +33,7 @@ final class CachedData {
     testcontainers: '1.17.3',
     jmc           : "8.1.0-SNAPSHOT",
     autoservice   : "1.0-rc7",
-    ddprof        : "0.42.0",
+    ddprof        : "0.49.0",
     asm           : "9.5"
   ]
 

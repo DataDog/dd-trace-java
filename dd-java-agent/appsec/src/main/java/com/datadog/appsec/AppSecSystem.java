@@ -10,6 +10,7 @@ import com.datadog.appsec.gateway.RateLimiter;
 import com.datadog.appsec.util.AbortStartupException;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.appsec.api.blocking.Blocking;
+import datadog.appsec.api.blocking.BlockingService;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Counter;
 import datadog.communication.monitor.Monitoring;
@@ -37,6 +38,7 @@ public class AppSecSystem {
   private static final Map<AppSecModule, String> STARTED_MODULES_INFO = new HashMap<>();
   private static AppSecConfigServiceImpl APP_SEC_CONFIG_SERVICE;
   private static ReplaceableEventProducerService REPLACEABLE_EVENT_PRODUCER; // testing
+  private static Runnable RESET_SUBSCRIPTION_SERVICE;
 
   public static void start(SubscriptionService gw, SharedCommunicationObjects sco) {
     try {
@@ -81,7 +83,9 @@ public class AppSecSystem {
             APP_SEC_CONFIG_SERVICE.getTraceSegmentPostProcessors());
 
     loadModules(eventDispatcher);
+
     gatewayBridge.init();
+    RESET_SUBSCRIPTION_SERVICE = gatewayBridge::stop;
 
     setActive(appSecEnabledConfig == ProductActivation.FULLY_ENABLED);
 
@@ -92,7 +96,11 @@ public class AppSecSystem {
     STARTED.set(true);
 
     String startedAppSecModules = Strings.join(", ", STARTED_MODULES_INFO.values());
-    log.info("AppSec is {} with {}", appSecEnabledConfig, startedAppSecModules);
+    if (appSecEnabledConfig == ProductActivation.FULLY_ENABLED) {
+      log.info("AppSec is {} with {}", appSecEnabledConfig, startedAppSecModules);
+    } else {
+      log.debug("AppSec is {} with {}", appSecEnabledConfig, startedAppSecModules);
+    }
   }
 
   private static RateLimiter getRateLimiter(Config config, Monitoring monitoring) {
@@ -119,6 +127,10 @@ public class AppSecSystem {
     if (!STARTED.getAndSet(false)) {
       return;
     }
+    REPLACEABLE_EVENT_PRODUCER = null;
+    RESET_SUBSCRIPTION_SERVICE.run();
+    RESET_SUBSCRIPTION_SERVICE = null;
+    Blocking.setBlockingService(BlockingService.NOOP);
 
     APP_SEC_CONFIG_SERVICE.close();
   }

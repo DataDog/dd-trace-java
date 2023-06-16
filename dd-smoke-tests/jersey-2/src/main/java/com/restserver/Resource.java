@@ -2,6 +2,7 @@ package com.restserver;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.sql.SQLException;
 import java.util.Map;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.CookieParam;
@@ -18,6 +19,7 @@ import javax.ws.rs.core.Cookie;
 import javax.ws.rs.core.Form;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
@@ -130,5 +132,11 @@ public class Resource {
   @GET
   public Response responseLocation(@QueryParam("param") String param) throws URISyntaxException {
     return Response.status(Response.Status.TEMPORARY_REDIRECT).location(new URI(param)).build();
+  }
+
+  @Path("/insecurecookie")
+  @GET
+  public Response getCookie() throws SQLException {
+    return Response.ok().cookie(new NewCookie("user-id", "7")).build();
   }
 }

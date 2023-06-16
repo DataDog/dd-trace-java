@@ -14,6 +14,7 @@ import com.rabbitmq.client.GetResponse
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.PortUtils
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
@@ -1008,6 +1009,11 @@ class RabbitMQLegacyTracingV1ForkedTest extends RabbitMQLegacyTracingV0ForkedTes
   @Override
   String operationForConsumer() {
     "amqp.process"
+  }
+
+  @Override
+  String service() {
+    Config.get().getServiceName()
   }
 
   @Override

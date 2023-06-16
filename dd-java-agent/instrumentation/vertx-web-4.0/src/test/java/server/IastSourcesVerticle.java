@@ -115,6 +115,19 @@ public class IastSourcesVerticle extends AbstractVerticle {
                         }
                       });
             });
+    router
+        .route("/iast/vulnerabilities/insecureCookie")
+        .handler(
+            rc -> {
+              final String cookieName = rc.request().getParam("name");
+              final String cookieValue = rc.request().getParam("value");
+              final String secure = rc.request().getParam("secure");
+              Cookie cookie = Cookie.cookie(cookieName, cookieValue);
+              if ("true".equals(secure)) {
+                cookie.setSecure(true);
+              }
+              rc.response().addCookie(cookie).end("Cookie Set");
+            });
 
     final EventBus eventBus = vertx.eventBus();
     eventBus.consumer(

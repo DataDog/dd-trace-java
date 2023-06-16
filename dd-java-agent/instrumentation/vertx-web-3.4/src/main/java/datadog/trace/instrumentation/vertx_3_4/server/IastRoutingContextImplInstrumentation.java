@@ -12,6 +12,7 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
@@ -42,6 +43,9 @@ public class IastRoutingContextImplInstrumentation extends Instrumenter.Iast
     transformation.applyAdvice(
         named("getCookie").and(takesArguments(1)).and(takesArgument(0, String.class)),
         className + "$GetCookieAdvice");
+    transformation.applyAdvice(
+        named("reroute").and(takesArguments(2)).and(takesArgument(1, String.class)),
+        className + "$RerouteAdvice");
   }
 
   public static class CookiesAdvice {
@@ -64,6 +68,16 @@ public class IastRoutingContextImplInstrumentation extends Instrumenter.Iast
         module.taint(SourceTypes.REQUEST_COOKIE_VALUE, cookie);
       } catch (final Throwable e) {
         module.onUnexpectedException("getCookie threw", e);
+      }
+    }
+  }
+
+  public static class RerouteAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onReroute(@Advice.Argument(1) final String path) {
+      final UnvalidatedRedirectModule module = InstrumentationBridge.UNVALIDATED_REDIRECT;
+      if (module != null) {
+        module.onRedirect(path);
       }
     }
   }

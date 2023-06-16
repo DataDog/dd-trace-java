@@ -34,7 +34,7 @@ import java.util.TreeMap;
 public abstract class ContextInterpreter implements AgentPropagation.KeyClassifier {
   private TraceConfig traceConfig;
 
-  protected Map<String, String> taggedHeaders;
+  protected Map<String, String> headerTags;
   protected Map<String, String> baggageMapping;
 
   protected DDTraceId traceId;
@@ -175,11 +175,11 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   }
 
   protected final boolean handleTags(String key, String value) {
-    if (taggedHeaders.isEmpty() || value == null) {
+    if (headerTags.isEmpty() || value == null) {
       return false;
     }
     final String lowerCaseKey = toLowerCase(key);
-    final String mappedKey = taggedHeaders.get(lowerCaseKey);
+    final String mappedKey = headerTags.get(lowerCaseKey);
     if (null != mappedKey) {
       if (tags.isEmpty()) {
         tags = new TreeMap<>();
@@ -221,7 +221,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     collectIpHeaders =
         this.clientIpWithoutAppSec
             || this.clientIpResolutionEnabled && ActiveSubsystems.APPSEC_ACTIVE;
-    taggedHeaders = traceConfig.getTaggedHeaders();
+    headerTags = traceConfig.getHeaderTags();
     baggageMapping = traceConfig.getBaggageMapping();
     return this;
   }
@@ -234,7 +234,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
             new ExtractedContext(
                 traceId,
                 spanId,
-                samplingPriorityOrDefault(samplingPriority),
+                samplingPriorityOrDefault(traceId, samplingPriority),
                 origin,
                 endToEndStartTime,
                 baggage,
@@ -253,7 +253,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
             tags,
             httpHeaders,
             baggage,
-            samplingPriorityOrDefault(samplingPriority),
+            samplingPriorityOrDefault(traceId, samplingPriority),
             traceConfig);
       }
     }
@@ -279,8 +279,8 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     return httpHeaders;
   }
 
-  private int samplingPriorityOrDefault(int samplingPriority) {
-    return samplingPriority == PrioritySampling.UNSET
+  private int samplingPriorityOrDefault(DDTraceId traceId, int samplingPriority) {
+    return samplingPriority == PrioritySampling.UNSET || DDTraceId.ZERO.equals(traceId)
         ? defaultSamplingPriority()
         : samplingPriority;
   }

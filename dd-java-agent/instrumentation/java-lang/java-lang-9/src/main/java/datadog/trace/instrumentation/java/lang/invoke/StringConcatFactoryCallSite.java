@@ -4,8 +4,8 @@ import static java.lang.invoke.MethodType.methodType;
 import static java.lang.invoke.StringConcatFactory.makeConcatWithConstants;
 
 import datadog.trace.agent.tooling.csi.CallSite;
-import datadog.trace.api.iast.IastAdvice;
-import datadog.trace.api.iast.IastAdvice.Propagation;
+import datadog.trace.api.iast.IastCallSites;
+import datadog.trace.api.iast.IastCallSites.Propagation;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.propagation.StringModule;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -22,7 +22,9 @@ import org.slf4j.LoggerFactory;
 
 @SuppressForbidden
 @Propagation
-@CallSite(spi = IastAdvice.class, minJavaVersion = 9)
+@CallSite(
+    spi = IastCallSites.class,
+    enabled = {"datadog.trace.api.iast.IastEnabledChecks", "isMajorJavaVersionAtLeast", "9"})
 public class StringConcatFactoryCallSite {
 
   private static final Logger LOG = LoggerFactory.getLogger(StringConcatFactoryCallSite.class);
@@ -41,7 +43,7 @@ public class StringConcatFactoryCallSite {
       @CallSite.Argument final String name,
       @CallSite.Argument final MethodType concatType,
       @CallSite.Argument final String recipe,
-      @CallSite.Argument final Object... constants)
+      @CallSite.Argument final Object[] constants)
       throws StringConcatException {
     if (INSTRUMENTATION_BRIDGE == null) {
       return makeConcatWithConstants(lookup, name, concatType, recipe, constants);

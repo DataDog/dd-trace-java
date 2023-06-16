@@ -19,7 +19,6 @@ import org.springframework.boot.context.embedded.EmbeddedWebApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.web.servlet.handler.HandlerInterceptorAdapter
 import org.springframework.web.servlet.view.RedirectView
-import spock.lang.Shared
 import test.SetupSpecHelper
 
 import javax.servlet.http.HttpServletRequest
@@ -42,41 +41,10 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     return false
   }
 
-  @Shared
-  EmbeddedWebApplicationContext context
-
   Map<String, String> extraServerTags = [:]
 
   SpringApplication application() {
-    return new SpringApplication(AppConfig, SecurityConfig, AuthServerConfig, TestController)
-  }
-
-  class SpringBootServer implements HttpServer {
-    def port = 0
-    final app = application()
-
-    @Override
-    void start() {
-      app.setDefaultProperties(["server.port": 0, "server.context-path": "/$servletContext"])
-      context = app.run() as EmbeddedWebApplicationContext
-      port = context.embeddedServletContainer.port
-      assert port > 0
-    }
-
-    @Override
-    void stop() {
-      context.close()
-    }
-
-    @Override
-    URI address() {
-      return new URI("http://localhost:$port/$servletContext/")
-    }
-
-    @Override
-    String toString() {
-      return this.class.name
-    }
+    new SpringApplication(AppConfig, SecurityConfig, AuthServerConfig, TestController)
   }
 
   def setupSpec() {
@@ -91,7 +59,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   @Override
   HttpServer server() {
-    return new SpringBootServer()
+    new SpringBootServer(application(), servletContext)
   }
 
   @Override
@@ -125,6 +93,11 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   @Override
   boolean testBodyUrlencoded() {
+    true
+  }
+
+  @Override
+  boolean testBodyMultipart() {
     true
   }
 
@@ -189,6 +162,10 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   @Override
   String testPathParam() {
     "/path/{id}/param"
+  }
+
+  private EmbeddedWebApplicationContext getContext() {
+    this.server.context
   }
 
   def "test character encoding of #testPassword"() {

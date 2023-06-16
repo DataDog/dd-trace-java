@@ -46,10 +46,10 @@ public class JakartaWSResponseInstrumentation extends Instrumenter.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
         @Advice.Argument(0) String headerName, @Advice.Argument(1) Object headerValue) {
-      if (null != headerValue && headerValue instanceof String) {
-        String value = (String) headerValue;
+      if (null != headerValue) {
+        String value = headerValue.toString();
         if (value.length() > 0) {
-          InstrumentationBridge.onHeader(headerName, value);
+          InstrumentationBridge.RESPONSE_HEADER_MODULE.onHeader(headerName, value);
         }
       }
     }

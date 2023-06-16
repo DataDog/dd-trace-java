@@ -2,12 +2,9 @@ package datadog.smoketest
 
 import okhttp3.FormBody
 import okhttp3.Request
-import spock.lang.Ignore
 
 class AbstractJerseySmokeTest extends AbstractIastServerSmokeTest {
 
-  // TODO @IAST support this source in jersey 2 and 3
-  @Ignore
   void 'path parameter'() {
     setup:
     def url = "http://localhost:${httpPort}/hello/bypathparam/pathParamValue"

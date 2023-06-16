@@ -35,9 +35,6 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
   @Override
   public void adviceTransformations(final AdviceTransformation transformation) {
     transformation.applyAdvice(
-        isPublic().and(isMethod()).and(named("headers")).and(takesNoArguments()),
-        className + "$HeadersAdvice");
-    transformation.applyAdvice(
         isPublic().and(isMethod()).and(named("params")).and(takesNoArguments()),
         className + "$ParamsAdvice");
     transformation.applyAdvice(
@@ -101,21 +98,6 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
           } catch (final Throwable e) {
             module.onUnexpectedException("formAttributes threw", e);
           }
-        }
-      }
-    }
-  }
-
-  public static class HeadersAdvice {
-
-    @Advice.OnMethodExit
-    public static void onExit(@Advice.Return final Object multiMap) {
-      final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        try {
-          module.taint(SourceTypes.REQUEST_HEADER_VALUE, multiMap);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("formAttributes threw", e);
         }
       }
     }

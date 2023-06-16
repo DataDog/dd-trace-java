@@ -1,5 +1,6 @@
 package datadog.telemetry
 
+import datadog.telemetry.api.AppClientConfigurationChange
 import datadog.telemetry.api.AppDependenciesLoaded
 import datadog.telemetry.api.AppIntegrationsChange
 import datadog.telemetry.api.AppStarted
@@ -49,7 +50,7 @@ class TelemetryServiceSpecification extends DDSpecification {
   }
 
   def okResponse = mockResponse(202)
-  def okButNotReallyResponse = mockResponse(200)
+  def continueResponse = mockResponse(100)
   def notFoundResponse = mockResponse(404)
   def serverErrorResponse = mockResponse(500)
 
@@ -169,6 +170,12 @@ class TelemetryServiceSpecification extends DDSpecification {
     1 * httpClient.newCall(_) >> okResponse
 
     then:
+    1 * requestBuilder.build(RequestType.APP_CLIENT_CONFIGURATION_CHANGE, { AppClientConfigurationChange p ->
+      p.configuration == [confKeyValue]
+    })
+    1 * httpClient.newCall(_) >> okResponse
+
+    then:
     1 * requestBuilder.build(RequestType.APP_INTEGRATIONS_CHANGE, { AppIntegrationsChange p ->
       p.integrations == [integration]
     })
@@ -239,7 +246,7 @@ class TelemetryServiceSpecification extends DDSpecification {
       p.dependencies.isEmpty()
       p.integrations.isEmpty()
     })
-    1 * httpClient.newCall(_) >> okButNotReallyResponse
+    1 * httpClient.newCall(_) >> continueResponse
     0 * _
 
     when: 'attempt with success'
@@ -292,13 +299,14 @@ class TelemetryServiceSpecification extends DDSpecification {
     0 * _
 
     where:
-    requestType                         | prevCalls
-    RequestType.APP_HEARTBEAT           | 0
-    RequestType.APP_INTEGRATIONS_CHANGE | 1
-    RequestType.APP_DEPENDENCIES_LOADED | 2
-    RequestType.GENERATE_METRICS        | 3
-    RequestType.DISTRIBUTIONS           | 4
-    RequestType.LOGS                    | 5
+    requestType                                 | prevCalls
+    RequestType.APP_HEARTBEAT                   | 0
+    RequestType.APP_CLIENT_CONFIGURATION_CHANGE | 1
+    RequestType.APP_INTEGRATIONS_CHANGE         | 2
+    RequestType.APP_DEPENDENCIES_LOADED         | 3
+    RequestType.GENERATE_METRICS                | 4
+    RequestType.DISTRIBUTIONS                   | 5
+    RequestType.LOGS                            | 6
   }
 
   void '500 at #requestType does not prevents further messages'() {
@@ -335,12 +343,13 @@ class TelemetryServiceSpecification extends DDSpecification {
     0 * _
 
     where:
-    requestType                         | prevCalls | afterCalls
-    RequestType.APP_HEARTBEAT           | 0         | 5
-    RequestType.APP_INTEGRATIONS_CHANGE | 1         | 4
-    RequestType.APP_DEPENDENCIES_LOADED | 2         | 3
-    RequestType.GENERATE_METRICS        | 3         | 2
-    RequestType.DISTRIBUTIONS           | 4         | 1
-    RequestType.LOGS                    | 5         | 0
+    requestType                                 | prevCalls | afterCalls
+    RequestType.APP_HEARTBEAT                   | 0         | 6
+    RequestType.APP_CLIENT_CONFIGURATION_CHANGE | 1         | 5
+    RequestType.APP_INTEGRATIONS_CHANGE         | 2         | 4
+    RequestType.APP_DEPENDENCIES_LOADED         | 3         | 3
+    RequestType.GENERATE_METRICS                | 4         | 2
+    RequestType.DISTRIBUTIONS                   | 5         | 1
+    RequestType.LOGS                            | 6         | 0
   }
 }

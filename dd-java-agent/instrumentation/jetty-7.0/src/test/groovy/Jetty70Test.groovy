@@ -118,7 +118,7 @@ abstract class Jetty70Test extends HttpServerTest<Server> {
 
     final TestServlet3.Sync testServlet3 = new TestServlet3.Sync() {
       @Override
-      protected HttpServerTest.ServerEndpoint determineEndpoint(HttpServletRequest req) {
+      HttpServerTest.ServerEndpoint determineEndpoint(HttpServletRequest req) {
         HttpServerTest.ServerEndpoint.forPath(req.requestURI)
       }
 

@@ -60,6 +60,7 @@ class TagsAssert {
     assertedTags.add("_sample_rate")
     assertedTags.add(DDTags.PID_TAG)
     assertedTags.add(DDTags.SCHEMA_VERSION_TAG_KEY)
+    assertedTags.add(DDTags.PROFILING_ENABLED)
 
 
     assert tags["thread.name"] != null

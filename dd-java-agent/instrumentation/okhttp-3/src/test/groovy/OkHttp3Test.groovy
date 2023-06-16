@@ -18,6 +18,11 @@ abstract class OkHttp3Test extends HttpClientTest {
   }
 
   @Override
+  boolean isTestAgentEnabled() {
+    return false
+  }
+
+  @Override
   boolean useStrictTraceWrites() {
     // TODO fix this by making sure that spans get closed properly
     return false
