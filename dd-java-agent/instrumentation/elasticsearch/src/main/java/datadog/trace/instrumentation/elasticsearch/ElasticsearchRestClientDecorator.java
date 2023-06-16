@@ -75,19 +75,19 @@ public class ElasticsearchRestClientDecorator extends DBTypeProcessingDatabaseCl
   }
 
   private String getElasticsearchRequestBody(HttpEntity entity) {
-    StringBuffer bodyStringBuffer = new StringBuffer();
+    StringBuilder bodyStringBuilder = new StringBuilder();
     try {
       BufferedReader bodyBufferedReader =
           new BufferedReader(new InputStreamReader(entity.getContent(), StandardCharsets.UTF_8));
       String bodyline;
       while ((bodyline = bodyBufferedReader.readLine()) != null) {
-        bodyStringBuffer.append(bodyline);
+        bodyStringBuilder.append(bodyline);
       }
       bodyBufferedReader.close();
     } catch (IOException e) {
       return "";
     }
-    return bodyStringBuffer.toString();
+    return bodyStringBuilder.toString();
   }
 
   public AgentSpan onRequest(
@@ -102,14 +102,14 @@ public class ElasticsearchRestClientDecorator extends DBTypeProcessingDatabaseCl
       span.setTag("elasticsearch.body", getElasticsearchRequestBody(entity));
     }
     if (parameters != null) {
-      StringBuffer queryParametersStringBuffer = new StringBuffer();
+      StringBuilder queryParametersStringBuilder = new StringBuilder();
       for (Map.Entry<String, String> parameter : parameters.entrySet()) {
-        queryParametersStringBuffer.append(parameter.getKey() + "=" + parameter.getValue() + "&");
+        queryParametersStringBuilder.append(parameter.getKey() + "=" + parameter.getValue() + "&");
       }
-      if (queryParametersStringBuffer.length() >= 1) {
-        queryParametersStringBuffer.deleteCharAt(queryParametersStringBuffer.length() - 1);
+      if (queryParametersStringBuilder.length() >= 1) {
+        queryParametersStringBuilder.deleteCharAt(queryParametersStringBuilder.length() - 1);
       }
-      span.setTag("elasticsearch.params", queryParametersStringBuffer.toString());
+      span.setTag("elasticsearch.params", queryParametersStringBuilder.toString());
     }
     return HTTP_RESOURCE_DECORATOR.withClientPath(span, method, endpoint);
   }
