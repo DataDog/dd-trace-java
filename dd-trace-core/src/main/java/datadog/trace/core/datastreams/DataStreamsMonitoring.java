@@ -4,6 +4,7 @@ import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import datadog.trace.bootstrap.instrumentation.api.InboxItem;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.core.propagation.HttpCodec;
@@ -32,7 +33,7 @@ public interface DataStreamsMonitoring extends AgentDataStreamsMonitoring, AutoC
 
   PathwayContext setCheckpoint(PathwayContext pathwayContext, LinkedHashMap<String, String> sortedTags);
 
-  void add(StatsPoint statsPoint);
+  void addInboxItem(InboxItem inboxItem);
 
   void clear();
 

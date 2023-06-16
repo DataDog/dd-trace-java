@@ -11,8 +11,11 @@ import datadog.trace.common.metrics.Sink;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
+  private static final Logger log = LoggerFactory.getLogger(MsgPackDatastreamsPayloadWriter.class);
   private static final byte[] ENV = "Env".getBytes(ISO_8859_1);
   private static final byte[] PRIMARY_TAG = "PrimaryTag".getBytes(ISO_8859_1);
   private static final byte[] LANG = "Lang".getBytes(ISO_8859_1);
@@ -29,6 +32,14 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private static final byte[] PARENT_HASH = "ParentHash".getBytes(ISO_8859_1);
   private static final byte[] BACKLOG_VALUE = "Value".getBytes(ISO_8859_1);
   private static final byte[] BACKLOG_TAGS = "Tags".getBytes(ISO_8859_1);
+  private static final byte[] THROUGHPUT = "Throughput".getBytes(ISO_8859_1);
+  private static final byte[] ENABLED = "Enabled".getBytes(ISO_8859_1);
+  private static final byte[] FAN_IN = "FanIn".getBytes(ISO_8859_1);
+  private static final byte[] FAN_OUT = "FanOut".getBytes(ISO_8859_1);
+  private static final byte[] TERMINATED = "Terminated".getBytes(ISO_8859_1);
+  private static final byte[] PRODUCED = "Produced".getBytes(ISO_8859_1);
+  private static final byte[] CONSUMED = "Consumed".getBytes(ISO_8859_1);
+  private static final byte[] GENERATED = "Generated".getBytes(ISO_8859_1);
 
   private static final int INITIAL_CAPACITY = 512 * 1024;
 
@@ -81,7 +92,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     writer.startArray(data.size());
     for (StatsBucket bucket : data) {
       boolean hasBacklogs = !bucket.getBacklogs().isEmpty();
-      writer.startMap(3 + (hasBacklogs ? 1 : 0));
+      writer.startMap(4 + (hasBacklogs ? 1 : 0));
 
       /* 1 */
       writer.writeUTF8(START);
@@ -99,6 +110,9 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
         /* 4 */
         writeBacklogs(bucket.getBacklogs(), writer);
       }
+
+      /* 5 */
+      writeThroughput(bucket.getThroughput(), writer);
     }
 
     buffer.mark();
@@ -139,6 +153,35 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
         }
       }
     }
+  }
+
+  private void writeThroughput(Throughput throughput, Writable packer) {
+    packer.writeUTF8(THROUGHPUT);
+    writer.startMap(7);
+
+    packer.writeUTF8(ENABLED);
+    packer.writeBoolean(true);
+
+    packer.writeUTF8(FAN_IN);
+    packer.writeLong(throughput.getFanIn());
+
+    packer.writeUTF8(FAN_OUT);
+    packer.writeLong(throughput.getFanOut());
+
+    packer.writeUTF8(TERMINATED);
+    packer.writeLong(throughput.getTerminated());
+
+    packer.writeUTF8(PRODUCED);
+    packer.writeLong(throughput.getProduced());
+
+    packer.writeUTF8(CONSUMED);
+    packer.writeLong(throughput.getConsumed());
+
+    packer.writeUTF8(GENERATED);
+    long generated = throughput.getGenerated();
+    packer.writeLong(generated);
+    log.error("Generated: {}", generated);
+    log.error("Throughput: {}", throughput);
   }
 
   private void writeBacklogs(Collection<Map.Entry<List<String>, Long>> backlogs, Writable packer) {

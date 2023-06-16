@@ -14,7 +14,9 @@ public interface PathwayContext {
 
   // The input tags should be sorted.
   PathwayContext createNew(
-      LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer);
+      LinkedHashMap<String, String> sortedTags, Consumer<InboxItem> inboxItemConsumer);
+
+  void terminate(Consumer<InboxItem> inboxItemConsumer);
 
   byte[] encode() throws IOException;
 

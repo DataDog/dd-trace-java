@@ -1106,6 +1106,20 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
+  public void terminatePathway() {
+    AgentSpan span = activeSpan();
+    if (span == null) {
+      log.warn("terminatePathway is called with no active span");
+      return;
+    }
+    PathwayContext pathwayContext = span.context().getPathwayContext();
+    if (pathwayContext == null) {
+      log.warn("terminatePathway is called with no active PathwayContext");
+    }
+    pathwayContext.terminate(this.dataStreamsMonitoring::addInboxItem);
+  }
+
+  @Override
   public void addScopeListener(final ScopeListener listener) {
     if (scopeManager instanceof ContinuableScopeManager) {
       ((ContinuableScopeManager) scopeManager).addScopeListener(listener);

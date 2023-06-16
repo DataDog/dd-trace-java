@@ -12,6 +12,7 @@ public class StatsBucket {
   private final long bucketDurationNanos;
   private final Map<Long, StatsGroup> hashToGroup = new HashMap<>();
   private final Map<List<String>, Long> backlogs = new HashMap<>();
+  private final Throughput throughput = new Throughput();
 
   public StatsBucket(long startTimeNanos, long bucketDurationNanos) {
     this.startTimeNanos = startTimeNanos;
@@ -38,6 +39,30 @@ public class StatsBucket {
         (k, v) -> (v == null) ? backlog.getValue() : Math.max(v, backlog.getValue()));
   }
 
+  public void incrementFanIn() {
+    throughput.incrementFanIn();
+  }
+
+  public void incrementFanout() {
+    throughput.incrementFanOut();
+  }
+
+  public void incrementTerminated() {
+    throughput.incrementTerminated();
+  }
+
+  public void incrementProduced() {
+    throughput.incrementProduced();
+  }
+
+  public void incrementConsumed() {
+    throughput.incrementConsumed();
+  }
+
+  public void incrementGenerated() {
+    throughput.incrementGenerated();
+  }
+
   public long getStartTimeNanos() {
     return startTimeNanos;
   }
@@ -54,6 +79,10 @@ public class StatsBucket {
     return backlogs.entrySet();
   }
 
+  public Throughput getThroughput() {
+    return throughput;
+  }
+
   @Override
   public String toString() {
     return "StatsBucket{"
@@ -65,6 +94,8 @@ public class StatsBucket {
         + hashToGroup
         + ", backlogs="
         + backlogs
+        + ", throughput="
+        + throughput
         + '}';
   }
 }

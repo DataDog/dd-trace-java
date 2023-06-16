@@ -3,6 +3,7 @@ package datadog.trace.core.datastreams;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.InboxItem;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.core.propagation.HttpCodec;
@@ -13,7 +14,7 @@ public class NoopDataStreamsMonitoring implements DataStreamsMonitoring {
   public void start() {}
 
   @Override
-  public void add(StatsPoint statsPoint) {}
+  public void addInboxItem(InboxItem inboxItem) {}
 
   @Override
   public PathwayContext newPathwayContext() {

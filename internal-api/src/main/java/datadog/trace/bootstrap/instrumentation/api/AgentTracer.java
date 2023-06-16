@@ -459,6 +459,9 @@ public class AgentTracer {
         String type, String target, DataStreamsContextCarrier carrier) {}
 
     @Override
+    public void terminatePathway() {}
+
+    @Override
     public Timer getTimer() {
       return Timer.NoOp.INSTANCE;
     }
@@ -1006,9 +1009,12 @@ public class AgentTracer {
 
     @Override
     public PathwayContext createNew(
-        LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer) {
+        LinkedHashMap<String, String> sortedTags, Consumer<InboxItem> inboxItemConsumer) {
       return NoopPathwayContext.INSTANCE;
     }
+
+    @Override
+    public void terminate(Consumer<InboxItem> inboxItemConsumer) {}
 
     @Override
     public byte[] encode() {

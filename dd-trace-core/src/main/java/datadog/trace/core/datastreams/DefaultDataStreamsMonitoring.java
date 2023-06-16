@@ -13,9 +13,14 @@ import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Backlog;
+import datadog.trace.bootstrap.instrumentation.api.ConsumedThroughput;
+import datadog.trace.bootstrap.instrumentation.api.FanOutThroughput;
+import datadog.trace.bootstrap.instrumentation.api.GeneratedThroughput;
 import datadog.trace.bootstrap.instrumentation.api.InboxItem;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
+import datadog.trace.bootstrap.instrumentation.api.ProducedThroughput;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
+import datadog.trace.bootstrap.instrumentation.api.TerminatedThroughput;
 import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.OkHttpSink;
 import datadog.trace.common.metrics.Sink;
@@ -127,13 +132,13 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     if (pathwayContext == null) {
       return null;
     }
-    return pathwayContext.createNew(sortedTags, this::add);
+    return pathwayContext.createNew(sortedTags, this::addInboxItem);
   }
 
   @Override
-  public void add(StatsPoint statsPoint) {
+  public void addInboxItem(InboxItem inboxItem) {
     if (thread.isAlive()) {
-      inbox.offer(statsPoint);
+      inbox.offer(inboxItem);
     }
   }
 
@@ -221,6 +226,41 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
                   timeToBucket.computeIfAbsent(
                       bucket, startTime -> new StatsBucket(startTime, bucketDurationNanos));
               statsBucket.addBacklog(backlog);
+            } else if (payload instanceof FanOutThroughput) {
+              FanOutThroughput fanOutThroughput = (FanOutThroughput) payload;
+              Long bucket = currentBucket(fanOutThroughput.getTimestampNanos());
+              StatsBucket statsBucket =
+                  timeToBucket.computeIfAbsent(
+                      bucket, startTime -> new StatsBucket(startTime, bucketDurationNanos));
+              statsBucket.incrementFanout();
+            } else if (payload instanceof TerminatedThroughput) {
+              TerminatedThroughput terminatedThroughput = (TerminatedThroughput) payload;
+              Long bucket = currentBucket(terminatedThroughput.getTimestampNanos());
+              StatsBucket statsBucket =
+                  timeToBucket.computeIfAbsent(
+                      bucket, startTime -> new StatsBucket(startTime, bucketDurationNanos));
+              statsBucket.incrementTerminated();
+            } else if (payload instanceof ProducedThroughput) {
+              ProducedThroughput producedThroughput = (ProducedThroughput) payload;
+              Long bucket = currentBucket(producedThroughput.getTimestampNanos());
+              StatsBucket statsBucket =
+                  timeToBucket.computeIfAbsent(
+                      bucket, startTime -> new StatsBucket(startTime, bucketDurationNanos));
+              statsBucket.incrementProduced();
+            } else if (payload instanceof ConsumedThroughput) {
+              ConsumedThroughput consumedThroughput = (ConsumedThroughput) payload;
+              Long bucket = currentBucket(consumedThroughput.getTimestampNanos());
+              StatsBucket statsBucket =
+                  timeToBucket.computeIfAbsent(
+                      bucket, startTime -> new StatsBucket(startTime, bucketDurationNanos));
+              statsBucket.incrementConsumed();
+            } else if (payload instanceof GeneratedThroughput) {
+              GeneratedThroughput generatedThroughput = (GeneratedThroughput) payload;
+              Long bucket = currentBucket(generatedThroughput.getTimestampNanos());
+              StatsBucket statsBucket =
+                  timeToBucket.computeIfAbsent(
+                      bucket, startTime -> new StatsBucket(startTime, bucketDurationNanos));
+              statsBucket.incrementGenerated();
             }
           }
         } catch (InterruptedException e) {
@@ -252,8 +292,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     }
 
     if (!includedBuckets.isEmpty()) {
-      log.debug("Flushing {} buckets", includedBuckets.size());
-      log.debug("Buckets to be flushed: {}", includedBuckets);
+      log.error("Flushing {} buckets", includedBuckets.size());
+      log.error("Buckets to be flushed: {}", includedBuckets);
       payloadWriter.writePayload(includedBuckets);
     }
   }

@@ -10,8 +10,14 @@ import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.ConsumedThroughput;
+import datadog.trace.bootstrap.instrumentation.api.FanOutThroughput;
+import datadog.trace.bootstrap.instrumentation.api.GeneratedThroughput;
+import datadog.trace.bootstrap.instrumentation.api.InboxItem;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
+import datadog.trace.bootstrap.instrumentation.api.ProducedThroughput;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
+import datadog.trace.bootstrap.instrumentation.api.TerminatedThroughput;
 import datadog.trace.util.FNV64Hash;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -23,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
@@ -46,6 +53,8 @@ public class DefaultPathwayContext implements PathwayContext {
   private final long hash;
   private final boolean started;
 
+  private AtomicInteger numChildren;
+
   private static final Set<String> hashableTagKeys =
       new HashSet<String>(
           Arrays.asList(
@@ -63,6 +72,7 @@ public class DefaultPathwayContext implements PathwayContext {
     this.edgeStartNanoTicks = 0L;
     this.hash = 0L;
     this.started = false;
+    this.numChildren = new AtomicInteger(0);
   }
 
   private DefaultPathwayContext(
@@ -79,6 +89,7 @@ public class DefaultPathwayContext implements PathwayContext {
     this.edgeStartNanoTicks = edgeStartNanoTicks;
     this.hash = hash;
     this.started = true;
+    this.numChildren = new AtomicInteger(0);
   }
 
   @Override
@@ -93,7 +104,7 @@ public class DefaultPathwayContext implements PathwayContext {
 
   @Override
   public PathwayContext createNew(
-      LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer) {
+      LinkedHashMap<String, String> sortedTags, Consumer<InboxItem> inboxItemConsumer) {
     long startNanos = timeSource.getCurrentTimeNanos();
     long nanoTicks = timeSource.getNanoTicks();
       // So far, each tag key has only one tag value, so we're initializing the capacity to match
@@ -142,7 +153,7 @@ public class DefaultPathwayContext implements PathwayContext {
               edgeLatencyNano);
       long childEdgeStartNanoTicks = nanoTicks;
 
-      pointConsumer.accept(point);
+      inboxItemConsumer.accept(point);
       log.debug("Checkpoint set {}, hash source: {}", point, pathwayHashBuilder);
       PathwayContext newPathwayContext = new DefaultPathwayContext(
           timeSource, wellKnownTags,
@@ -152,7 +163,43 @@ public class DefaultPathwayContext implements PathwayContext {
           newHash);
     log.debug("Created new pathway context {}", newPathwayContext);
 
+    int numTotalChildren = numChildren.incrementAndGet();
+    if (numTotalChildren > 1) {
+      // If it's equal to 1, this pathway is the only child, so no fanOut detected.
+      // Otherwise, there is fanOut.
+      FanOutThroughput fanOutThroughput = new FanOutThroughput(parentPathwayStartNanos);
+      inboxItemConsumer.accept(fanOutThroughput);
+    }
+
+    if (hash == 0L) {
+      GeneratedThroughput generatedThroughput = new GeneratedThroughput(parentPathwayStartNanos);
+      inboxItemConsumer.accept(generatedThroughput);
+    }
+
+    if (sortedTags.containsKey("direction")) {
+      String direction = sortedTags.get("direction");
+      if ("in".equals(direction)) {
+        ConsumedThroughput consumedThroughput = new ConsumedThroughput(parentPathwayStartNanos);
+        inboxItemConsumer.accept(consumedThroughput);
+      } else {
+        ProducedThroughput producedThroughput = new ProducedThroughput(parentPathwayStartNanos);
+        inboxItemConsumer.accept(producedThroughput);
+      }
+    }
+
     return newPathwayContext;
+  }
+
+  @Override
+  public void terminate(Consumer<InboxItem> inboxItemConsumer) {
+    if (!started) {
+      // Nothing to terminated since this pathway hasn't even been started yet.
+      log.error("[terminate] Cannot terminate");
+      return;
+    }
+    log.error("[terminate] terminate");
+    TerminatedThroughput terminatedThroughput = new TerminatedThroughput(pathwayStartNanos);
+    inboxItemConsumer.accept(terminatedThroughput);
   }
 
   @Override

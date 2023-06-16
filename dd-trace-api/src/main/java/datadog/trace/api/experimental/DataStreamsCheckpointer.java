@@ -34,6 +34,8 @@ public interface DataStreamsCheckpointer {
    */
   void setProduceCheckpoint(String type, String target, DataStreamsContextCarrier carrier);
 
+  void terminatePathway();
+
   final class NoOp implements DataStreamsCheckpointer {
 
     public static final DataStreamsCheckpointer INSTANCE = new NoOp();
@@ -45,5 +47,8 @@ public interface DataStreamsCheckpointer {
     @Override
     public void setProduceCheckpoint(
         String type, String target, DataStreamsContextCarrier carrier) {}
+
+    @Override
+    public void terminatePathway() {}
   }
 }
