@@ -29,6 +29,9 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.view.RedirectView;
+import org.springframework.web.servlet.view.UrlBasedViewResolver;
 
 @RestController
 public class IastWebController {
@@ -100,6 +103,24 @@ public class IastWebController {
       throws IOException, ServletException {
     request.getRequestDispatcher(param).forward(request, response);
     return "Unvalidated redirect";
+  }
+
+  @GetMapping("/unvalidated_redirect_from_redirect_view")
+  public RedirectView unvalidatedRedirectFromRedirectView(
+      @RequestParam String param, HttpServletResponse response) {
+    return new RedirectView(param);
+  }
+
+  @GetMapping("/unvalidated_redirect_from_model_and_view")
+  public ModelAndView unvalidatedRedirectFromModelAndView(
+      @RequestParam String param, HttpServletResponse response) {
+    return new ModelAndView(UrlBasedViewResolver.REDIRECT_URL_PREFIX + param);
+  }
+
+  @GetMapping("/unvalidated_redirect_forward_from_model_and_view")
+  public ModelAndView unvalidatedRedirectForwardFromModelAndView(
+      @RequestParam String param, HttpServletResponse response) {
+    return new ModelAndView(UrlBasedViewResolver.FORWARD_URL_PREFIX + param);
   }
 
   @RequestMapping("/async_weakhash")
@@ -194,7 +215,6 @@ public class IastWebController {
     return "ok User Principal name: " + userPrincipal.getName();
   }
 
-  @SuppressWarnings("CatchMayIgnoreException")
   @PostMapping("/ssrf")
   public String ssrf(@RequestParam("url") final String url) {
     try {

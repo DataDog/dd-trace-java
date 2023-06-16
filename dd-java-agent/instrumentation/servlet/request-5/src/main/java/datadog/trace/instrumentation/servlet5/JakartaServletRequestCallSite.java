@@ -1,8 +1,11 @@
 package datadog.trace.instrumentation.servlet5;
 
 import datadog.trace.agent.tooling.csi.CallSite;
-import datadog.trace.api.iast.IastAdvice;
+import datadog.trace.api.iast.IastCallSites;
+import datadog.trace.api.iast.IastCallSites.Sink;
+import datadog.trace.api.iast.IastCallSites.Source;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
 import datadog.trace.api.iast.source.WebModule;
@@ -14,19 +17,17 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 
-@CallSite(spi = IastAdvice.class)
+@CallSite(spi = IastCallSites.class)
 public class JakartaServletRequestCallSite {
 
-  @CallSite.AfterArray({
-    @CallSite.After(
-        "java.lang.String jakarta.servlet.ServletRequest.getParameter(java.lang.String)"),
-    @CallSite.After(
-        "java.lang.String jakarta.servlet.http.HttpServletRequest.getParameter(java.lang.String)"),
-    @CallSite.After(
-        "java.lang.String jakarta.servlet.http.HttpServletRequestWrapper.getParameter(java.lang.String)"),
-    @CallSite.After(
-        "java.lang.String jakarta.servlet.ServletRequestWrapper.getParameter(java.lang.String)")
-  })
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
+  @CallSite.After("java.lang.String jakarta.servlet.ServletRequest.getParameter(java.lang.String)")
+  @CallSite.After(
+      "java.lang.String jakarta.servlet.http.HttpServletRequest.getParameter(java.lang.String)")
+  @CallSite.After(
+      "java.lang.String jakarta.servlet.http.HttpServletRequestWrapper.getParameter(java.lang.String)")
+  @CallSite.After(
+      "java.lang.String jakarta.servlet.ServletRequestWrapper.getParameter(java.lang.String)")
   public static String afterGetParameter(
       @CallSite.This final ServletRequest self,
       @CallSite.Argument final String paramName,
@@ -42,15 +43,13 @@ public class JakartaServletRequestCallSite {
     return paramValue;
   }
 
-  @CallSite.AfterArray({
-    @CallSite.After("java.util.Enumeration jakarta.servlet.ServletRequest.getParameterNames()"),
-    @CallSite.After(
-        "java.util.Enumeration jakarta.servlet.http.HttpServletRequest.getParameterNames()"),
-    @CallSite.After(
-        "java.util.Enumeration jakarta.servlet.http.HttpServletRequestWrapper.getParameterNames()"),
-    @CallSite.After(
-        "java.util.Enumeration jakarta.servlet.ServletRequestWrapper.getParameterNames()")
-  })
+  @Source(SourceTypes.REQUEST_PARAMETER_NAME)
+  @CallSite.After("java.util.Enumeration jakarta.servlet.ServletRequest.getParameterNames()")
+  @CallSite.After(
+      "java.util.Enumeration jakarta.servlet.http.HttpServletRequest.getParameterNames()")
+  @CallSite.After(
+      "java.util.Enumeration jakarta.servlet.http.HttpServletRequestWrapper.getParameterNames()")
+  @CallSite.After("java.util.Enumeration jakarta.servlet.ServletRequestWrapper.getParameterNames()")
   public static Enumeration<String> afterGetParameterNames(
       @CallSite.This final ServletRequest self,
       @CallSite.Return final Enumeration<String> enumeration)
@@ -78,16 +77,15 @@ public class JakartaServletRequestCallSite {
     }
   }
 
-  @CallSite.AfterArray({
-    @CallSite.After(
-        "java.lang.String[] jakarta.servlet.ServletRequest.getParameterValues(java.lang.String)"),
-    @CallSite.After(
-        "java.lang.String[] jakarta.servlet.http.HttpServletRequest.getParameterValues(java.lang.String)"),
-    @CallSite.After(
-        "java.lang.String[] jakarta.servlet.http.HttpServletRequestWrapper.getParameterValues(java.lang.String)"),
-    @CallSite.After(
-        "java.lang.String[] jakarta.servlet.ServletRequestWrapper.getParameterValues(java.lang.String)")
-  })
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
+  @CallSite.After(
+      "java.lang.String[] jakarta.servlet.ServletRequest.getParameterValues(java.lang.String)")
+  @CallSite.After(
+      "java.lang.String[] jakarta.servlet.http.HttpServletRequest.getParameterValues(java.lang.String)")
+  @CallSite.After(
+      "java.lang.String[] jakarta.servlet.http.HttpServletRequestWrapper.getParameterValues(java.lang.String)")
+  @CallSite.After(
+      "java.lang.String[] jakarta.servlet.ServletRequestWrapper.getParameterValues(java.lang.String)")
   public static String[] afterGetParameterValues(
       @CallSite.This final ServletRequest self,
       @CallSite.Argument final String paramName,
@@ -105,13 +103,11 @@ public class JakartaServletRequestCallSite {
     return parameterValues;
   }
 
-  @CallSite.AfterArray({
-    @CallSite.After("java.util.Map jakarta.servlet.ServletRequest.getParameterMap()"),
-    @CallSite.After("java.util.Map jakarta.servlet.http.HttpServletRequest.getParameterMap()"),
-    @CallSite.After(
-        "java.util.Map jakarta.servlet.http.HttpServletRequestWrapper.getParameterMap()"),
-    @CallSite.After("java.util.Map jakarta.servlet.ServletRequestWrapper.getParameterMap()")
-  })
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
+  @CallSite.After("java.util.Map jakarta.servlet.ServletRequest.getParameterMap()")
+  @CallSite.After("java.util.Map jakarta.servlet.http.HttpServletRequest.getParameterMap()")
+  @CallSite.After("java.util.Map jakarta.servlet.http.HttpServletRequestWrapper.getParameterMap()")
+  @CallSite.After("java.util.Map jakarta.servlet.ServletRequestWrapper.getParameterMap()")
   public static java.util.Map<java.lang.String, java.lang.String[]> afterGetParameterMap(
       @CallSite.This final ServletRequest self, @CallSite.Return final Map<String, String[]> map) {
     final WebModule module = InstrumentationBridge.WEB;
@@ -125,7 +121,7 @@ public class JakartaServletRequestCallSite {
     return map;
   }
 
-  @IastAdvice.Sink(VulnerabilityTypes.UNVALIDATED_REDIRECT)
+  @Sink(VulnerabilityTypes.UNVALIDATED_REDIRECT)
   @CallSite.Before(
       "jakarta.servlet.RequestDispatcher jakarta.servlet.ServletRequest.getRequestDispatcher(java.lang.String)")
   @CallSite.Before(

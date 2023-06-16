@@ -4,23 +4,6 @@ import net.bytebuddy.jar.asm.Handle;
 
 public interface CallSiteAdvice {
 
-  Pointcut pointcut();
-
-  interface HasHelpers {
-    String[] helperClassNames();
-  }
-
-  interface HasFlags {
-    int COMPUTE_MAX_STACK = 1;
-
-    int flags();
-  }
-
-  interface HasMinJavaVersion {
-    int minJavaVersion();
-  }
-
-  /** Interface to isolate advices from ASM */
   interface MethodHandler {
 
     /** Executes an instruction without parameters */
@@ -34,6 +17,9 @@ public interface CallSiteAdvice {
 
     /** Loads an array of constants into the stack as a reference of type <code>Object[]</code> */
     void loadConstantArray(Object[] array);
+
+    /** Performs a field access invocation (static, special, virtual, interface...) */
+    void field(int opcode, String owner, String field, String descriptor);
 
     /** Performs a method invocation (static, special, virtual, interface...) */
     void method(int opcode, String owner, String name, String descriptor, boolean isInterface);

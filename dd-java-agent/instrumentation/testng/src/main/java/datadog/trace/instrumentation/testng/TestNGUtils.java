@@ -132,7 +132,8 @@ public abstract class TestNGUtils {
           XML_TEST_GET_PARALLEL != null
               ? XML_TEST_GET_PARALLEL.invoke(testClass.getXmlTest())
               : null;
-      return parallel != null && "methods".equals(parallel.toString());
+      return parallel != null
+          && ("methods".equals(parallel.toString()) || "tests".equals(parallel.toString()));
     } catch (Exception e) {
       return false;
     }

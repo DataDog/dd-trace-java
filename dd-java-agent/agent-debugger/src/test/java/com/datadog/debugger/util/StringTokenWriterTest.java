@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.debugger.Limits.DEFAULT_FIELD_COUNT;
 import static datadog.trace.bootstrap.debugger.Limits.DEFAULT_LENGTH;
 import static datadog.trace.bootstrap.debugger.Limits.DEFAULT_REFERENCE_DEPTH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
@@ -14,6 +15,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 
@@ -59,7 +61,7 @@ class StringTokenWriterTest {
   @Test
   public void lotsOfFields() throws Exception {
     assertEquals(
-        "{f00=0, f01=1, f02=2, f03=3, f04=4, ...}",
+        "{f00=0, f01=1, f02=2, f03=3, f04=4}, ...",
         serializeValue(
             new LotsFields(),
             new Limits(DEFAULT_REFERENCE_DEPTH, DEFAULT_COLLECTION_SIZE, DEFAULT_LENGTH, 5)));
@@ -71,10 +73,55 @@ class StringTokenWriterTest {
         "{valueField=4, field3=3, field2=2, field1=1}",
         serializeValue(new LeafClass(), Limits.DEFAULT));
     assertEquals(
-        "{valueField=4, field3=3, ...}",
+        "{valueField=4, field3=3}, ...",
         serializeValue(
             new LeafClass(),
             new Limits(DEFAULT_REFERENCE_DEPTH, DEFAULT_COLLECTION_SIZE, DEFAULT_LENGTH, 2)));
+  }
+
+  @Test
+  public void collections() throws Exception {
+    List<String> list = new ArrayList<>();
+    list.add("foo");
+    list.add("bar");
+    list.add(null);
+    assertEquals("[foo, bar, null]", serializeValue(list, Limits.DEFAULT));
+  }
+
+  @Test
+  public void maps() throws Exception {
+    HashMap<String, String> map = new HashMap<>();
+    map.put("foo1", "bar1");
+    map.put(null, null);
+    String serializedStr = serializeValue(map, Limits.DEFAULT);
+    assertTrue(serializedStr.contains("[foo1=bar1]"));
+    assertTrue(serializedStr.contains("[null=null]"));
+  }
+
+  @Test
+  public void arrayListSizeThrows() throws Exception {
+    class MyArrayList<T> extends ArrayList<T> {
+      @Override
+      public int size() {
+        throw new UnsupportedOperationException("size");
+      }
+    }
+    assertEquals(
+        "[](Error: java.lang.UnsupportedOperationException: size)",
+        serializeValue(new MyArrayList<>(), Limits.DEFAULT));
+  }
+
+  @Test
+  public void entrySetThrows() throws Exception {
+    class MyMap<K, V> extends HashMap<K, V> {
+      @Override
+      public Set<Entry<K, V>> entrySet() {
+        throw new UnsupportedOperationException("entrySet");
+      }
+    }
+    assertEquals(
+        "{}(Error: java.lang.UnsupportedOperationException: entrySet)",
+        serializeValue(new MyMap<String, String>(), Limits.DEFAULT));
   }
 
   static class Person {
@@ -124,7 +171,8 @@ class StringTokenWriterTest {
         new SerializerWithLimits(
             new StringTokenWriter(sb, new ArrayList<>()),
             new TimeoutChecker(Duration.of(1, ChronoUnit.SECONDS)));
-    serializer.serialize(value, value != null ? value.getClass().getTypeName() : null, limits);
+    serializer.serialize(
+        value, value != null ? value.getClass().getTypeName() : Object.class.getTypeName(), limits);
     return sb.toString();
   }
 }

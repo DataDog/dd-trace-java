@@ -1,6 +1,7 @@
 package datadog.smoketest
 
 import groovy.transform.CompileDynamic
+import okhttp3.Request
 import spock.lang.IgnoreIf
 
 import static datadog.trace.api.config.IastConfig.*
@@ -10,6 +11,39 @@ import static datadog.trace.api.config.IastConfig.*
   // TODO https://github.com/eclipse-vertx/vert.x/issues/2172
   new BigDecimal(System.getProperty("java.specification.version")).isAtLeast(17.0) })
 class IastVertxSmokeTest extends AbstractIastVertxSmokeTest {
+
+  void 'test insecure cookie set using putHeader'() {
+    setup:
+    final url = "http://localhost:${httpPort}/insecurecookieheader"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isSuccessful()
+    response.headers().toString().contains("user-id")
+    processTestLogLines { String log ->
+      log.contains("INSECURE_COOKIE") && log.contains("user-id")
+    }
+  }
+
+  void 'test insecure cookie set using putHeader with Iterator'() {
+    setup:
+    final url = "http://localhost:${httpPort}/insecurecookieheader2"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isSuccessful()
+    response.headers().toString().contains("user-id")
+    response.headers().toString().contains("firstcookie")
+    processTestLogLines { String log ->
+      log.contains("INSECURE_COOKIE") && log.contains("firstcookie")
+    }
+  }
 
   @Override
   ProcessBuilder createProcessBuilder() {

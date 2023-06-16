@@ -2,12 +2,10 @@ package datadog.trace.agent.tooling.bytebuddy.csi;
 
 import static datadog.trace.agent.tooling.bytebuddy.csi.ConstantPool.CONSTANT_INTERFACE_METHODREF_TAG;
 import static datadog.trace.agent.tooling.bytebuddy.csi.ConstantPool.CONSTANT_METHODREF_TAG;
-import static datadog.trace.agent.tooling.csi.CallSiteAdvice.HasFlags.COMPUTE_MAX_STACK;
 
 import datadog.trace.agent.tooling.bytebuddy.ClassFileLocators;
 import datadog.trace.agent.tooling.csi.CallSiteAdvice;
-import datadog.trace.agent.tooling.csi.Pointcut;
-import datadog.trace.api.Platform;
+import datadog.trace.agent.tooling.csi.CallSites;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collections;
@@ -36,7 +34,6 @@ public class Advices {
       new Advices(
           Collections.emptyMap(),
           new String[0],
-          0,
           AdviceIntrospector.NoOpAdviceInstrospector.INSTANCE) {
         @Override
         public boolean isEmpty() {
@@ -52,82 +49,35 @@ public class Advices {
 
   private final AdviceIntrospector introspector;
 
-  private final int flags;
-
   private Advices(
       final Map<String, Map<String, Map<String, CallSiteAdvice>>> advices,
       final String[] helpers,
-      final int flags,
       final AdviceIntrospector introspector) {
     this.advices = Collections.unmodifiableMap(advices);
     this.helpers = helpers;
-    this.flags = flags;
     this.introspector = introspector;
   }
 
-  public static Advices fromCallSites(@Nonnull final CallSiteAdvice... advices) {
-    return fromCallSites(Arrays.asList(advices));
+  public static Advices fromCallSites(@Nonnull final CallSites... callSites) {
+    return fromCallSites(Arrays.asList(callSites));
   }
 
-  public static Advices fromCallSites(@Nonnull final Iterable<CallSiteAdvice> advices) {
-    return fromCallSites(advices, AdviceIntrospector.ConstantPoolInstrospector.INSTANCE);
+  public static Advices fromCallSites(@Nonnull final Iterable<CallSites> callSites) {
+    return fromCallSites(callSites, AdviceIntrospector.ConstantPoolInstrospector.INSTANCE);
   }
 
   public static Advices fromCallSites(
-      @Nonnull final Iterable<CallSiteAdvice> advices,
+      @Nonnull final Iterable<CallSites> callSites,
       @Nonnull final AdviceIntrospector introspector) {
-    final Map<String, Map<String, Map<String, CallSiteAdvice>>> adviceMap = new HashMap<>();
-    final Set<String> helperSet = new HashSet<>();
-    int flags = 0;
-    for (final CallSiteAdvice advice : advices) {
-      if (applyAdvice(advice)) {
-        flags |= addAdvice(adviceMap, helperSet, advice);
+    final AdviceContainer container = new AdviceContainer();
+    for (final CallSites entry : callSites) {
+      if (isCallSitesEnabled(entry)) {
+        entry.accept(container);
       }
     }
-    return adviceMap.isEmpty()
+    return container.advices.isEmpty()
         ? EMPTY
-        : new Advices(adviceMap, helperSet.toArray(new String[0]), flags, introspector);
-  }
-
-  private static boolean applyAdvice(final CallSiteAdvice advice) {
-    if (advice instanceof CallSiteAdvice.HasMinJavaVersion) {
-      final int minJavaVersion = ((CallSiteAdvice.HasMinJavaVersion) advice).minJavaVersion();
-      return Platform.isJavaVersionAtLeast(minJavaVersion);
-    }
-    return true;
-  }
-
-  private static int addAdvice(
-      @Nonnull final Map<String, Map<String, Map<String, CallSiteAdvice>>> advices,
-      @Nonnull final Set<String> helpers,
-      @Nonnull final CallSiteAdvice advice) {
-    final Pointcut pointcut = advice.pointcut();
-    Map<String, Map<String, CallSiteAdvice>> typeAdvices = advices.get(pointcut.type());
-    if (typeAdvices == null) {
-      typeAdvices = new HashMap<>();
-      advices.put(pointcut.type(), typeAdvices);
-    }
-    Map<String, CallSiteAdvice> methodAdvices = typeAdvices.get(pointcut.method());
-    if (methodAdvices == null) {
-      methodAdvices = new HashMap<>();
-      typeAdvices.put(pointcut.method(), methodAdvices);
-    }
-    final CallSiteAdvice oldAdvice = methodAdvices.put(pointcut.descriptor(), advice);
-    if (oldAdvice != null) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "Advice %s and %s match the same pointcut, this is not yet supported",
-              oldAdvice, advice));
-    }
-    if (advice instanceof CallSiteAdvice.HasHelpers) {
-      final String[] helperClassNames = ((CallSiteAdvice.HasHelpers) advice).helperClassNames();
-      if (helperClassNames != null) {
-        Collections.addAll(helpers, helperClassNames);
-      }
-    }
-    return advice instanceof CallSiteAdvice.HasFlags
-        ? ((CallSiteAdvice.HasFlags) advice).flags()
-        : 0;
+        : new Advices(container.advices, container.helpers.toArray(new String[0]), introspector);
   }
 
   /**
@@ -149,6 +99,15 @@ public class Advices {
       return this; // do not do any filtering if we don't have access to the class file buffer
     }
     return introspector.findAdvices(this, classFile);
+  }
+
+  private static boolean isCallSitesEnabled(final CallSites callSites) {
+    if (!(callSites instanceof CallSites.HasEnabledProperty)) {
+      return true;
+    }
+    final CallSites.HasEnabledProperty hasEnabledProperty =
+        (CallSites.HasEnabledProperty) callSites;
+    return hasEnabledProperty.isEnabled();
   }
 
   /**
@@ -184,11 +143,6 @@ public class Advices {
       }
     }
     return null;
-  }
-
-  // used for testing
-  public CallSiteAdvice findAdvice(@Nonnull final Pointcut pointcut) {
-    return findAdvice(pointcut.type(), pointcut.method(), pointcut.descriptor());
   }
 
   public CallSiteAdvice findAdvice(@Nonnull final Handle handle) {
@@ -229,14 +183,6 @@ public class Advices {
     return advices.isEmpty();
   }
 
-  public boolean hasFlag(final int flag) {
-    return (this.flags & flag) > 0;
-  }
-
-  public boolean computeMaxStack() {
-    return hasFlag(COMPUTE_MAX_STACK);
-  }
-
   private static Field resolveClassFileLocatorField() {
     Field field;
     try {
@@ -250,6 +196,36 @@ public class Advices {
           e);
     }
     return null;
+  }
+
+  private static class AdviceContainer implements CallSites.Container {
+    private final Map<String, Map<String, Map<String, CallSiteAdvice>>> advices = new HashMap<>();
+
+    private final Set<String> helpers = new HashSet<>();
+
+    @Override
+    public void addHelpers(final String... helperClassNames) {
+      Collections.addAll(helpers, helperClassNames);
+    }
+
+    @Override
+    public void addAdvice(
+        final String type,
+        final String method,
+        final String descriptor,
+        final CallSiteAdvice advice) {
+      final Map<String, Map<String, CallSiteAdvice>> typeAdvices =
+          advices.computeIfAbsent(type, k -> new HashMap<>());
+      final Map<String, CallSiteAdvice> methodAdvices =
+          typeAdvices.computeIfAbsent(method, k -> new HashMap<>());
+      final CallSiteAdvice oldAdvice = methodAdvices.put(descriptor, advice);
+      if (oldAdvice != null) {
+        throw new UnsupportedOperationException(
+            String.format(
+                "Advice %s and %s match the same pointcut, this is not yet supported",
+                oldAdvice, advice));
+      }
+    }
   }
 
   /**

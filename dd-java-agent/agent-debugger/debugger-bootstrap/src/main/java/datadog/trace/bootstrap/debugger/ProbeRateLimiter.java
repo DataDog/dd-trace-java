@@ -7,30 +7,41 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /** Rate limiter for sending snapshot to backend Use a global rate limiter and one per probe */
-public final class ProbeRateLimiter {
+public class ProbeRateLimiter {
+  public static final double DEFAULT_SNAPSHOT_RATE = 1.0;
+  public static final double DEFAULT_LOG_RATE = 5000.0;
   private static final Duration ONE_SECOND_WINDOW = Duration.of(1, ChronoUnit.SECONDS);
   private static final Duration TEN_SECONDS_WINDOW = Duration.of(10, ChronoUnit.SECONDS);
-  private static final double DEFAULT_RATE = 1.0;
-  private static final double DEFAULT_GLOBAL_RATE = DEFAULT_RATE * 100;
-  private static final ConcurrentMap<String, AdaptiveSampler> PROBE_SAMPLERS =
+  private static final double DEFAULT_GLOBAL_SNAPSHOT_RATE = DEFAULT_SNAPSHOT_RATE * 100;
+  private static final double DEFAULT_GLOBAL_LOG_RATE = 5000.0;
+  private static final ConcurrentMap<String, RateLimitInfo> PROBE_SAMPLERS =
       new ConcurrentHashMap<>();
-
-  private static AdaptiveSampler GLOBAL_SAMPLER = createSampler(DEFAULT_GLOBAL_RATE);
+  private static AdaptiveSampler GLOBAL_SNAPSHOT_SAMPLER =
+      createSampler(DEFAULT_GLOBAL_SNAPSHOT_RATE);
+  private static AdaptiveSampler GLOBAL_LOG_SAMPLER = createSampler(DEFAULT_GLOBAL_LOG_RATE);
 
   public static boolean tryProbe(String probeId) {
-    // rate limiter engaged at ~1 probe per second (1 probes per 1s time window)
-    boolean result =
-        PROBE_SAMPLERS.computeIfAbsent(probeId, k -> createSampler(DEFAULT_RATE)).sample();
-    result &= GLOBAL_SAMPLER.sample();
-    return result;
+    RateLimitInfo rateLimitInfo =
+        PROBE_SAMPLERS.computeIfAbsent(
+            probeId, k -> new RateLimitInfo(createSampler(DEFAULT_SNAPSHOT_RATE), true));
+    AdaptiveSampler globalSampler =
+        rateLimitInfo.isCaptureSnapshot ? GLOBAL_SNAPSHOT_SAMPLER : GLOBAL_LOG_SAMPLER;
+    if (globalSampler.sample()) {
+      return rateLimitInfo.sampler.sample();
+    }
+    return false;
   }
 
-  public static void setRate(String probeId, double rate) {
-    PROBE_SAMPLERS.put(probeId, createSampler(rate));
+  public static void setRate(String probeId, double rate, boolean isCaptureSnapshot) {
+    PROBE_SAMPLERS.put(probeId, new RateLimitInfo(createSampler(rate), isCaptureSnapshot));
   }
 
-  public static void setGlobalRate(double rate) {
-    GLOBAL_SAMPLER = createSampler(rate);
+  public static void setGlobalSnapshotRate(double rate) {
+    GLOBAL_SNAPSHOT_SAMPLER = createSampler(rate);
+  }
+
+  public static void setGlobalLogRate(double rate) {
+    GLOBAL_LOG_SAMPLER = createSampler(rate);
   }
 
   public static void resetRate(String probeId) {
@@ -38,7 +49,12 @@ public final class ProbeRateLimiter {
   }
 
   public static void resetGlobalRate() {
-    setGlobalRate(DEFAULT_GLOBAL_RATE);
+    setGlobalSnapshotRate(DEFAULT_GLOBAL_LOG_RATE);
+  }
+
+  public static void resetAll() {
+    PROBE_SAMPLERS.clear();
+    resetGlobalRate();
   }
 
   private static AdaptiveSampler createSampler(double rate) {
@@ -47,5 +63,15 @@ public final class ProbeRateLimiter {
       return new AdaptiveSampler(TEN_SECONDS_WINDOW, intRate, 180, 16);
     }
     return new AdaptiveSampler(ONE_SECOND_WINDOW, (int) Math.round(rate), 180, 16);
+  }
+
+  private static class RateLimitInfo {
+    final AdaptiveSampler sampler;
+    final boolean isCaptureSnapshot;
+
+    public RateLimitInfo(AdaptiveSampler sampler, boolean isCaptureSnapshot) {
+      this.sampler = sampler;
+      this.isCaptureSnapshot = isCaptureSnapshot;
+    }
   }
 }

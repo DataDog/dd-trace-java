@@ -9,7 +9,7 @@ class CallSiteInstrumentationTest extends BaseCallSiteTest {
 
   def 'test instrumentation creates transformer'() {
     setup:
-    final advice = mockInvokeAdvice(stringConcatPointcut())
+    final advice = mockCallSites(Mock(InvokeAdvice), stringConcatPointcut())
     final instrumentation = buildInstrumentation([advice])
     final builder = Mock(DynamicType.Builder)
     final type = Mock(TypeDescription) {
@@ -27,7 +27,7 @@ class CallSiteInstrumentationTest extends BaseCallSiteTest {
 
   def 'test instrumentation adds no transformations'() {
     setup:
-    final advice = mockInvokeAdvice(stringConcatPointcut())
+    final advice = mockCallSites(Mock(InvokeAdvice), stringConcatPointcut())
     final instrumentation = buildInstrumentation([advice])
     final mock = Mock(Instrumenter.AdviceTransformation)
 
@@ -40,8 +40,8 @@ class CallSiteInstrumentationTest extends BaseCallSiteTest {
 
   def 'test helper class names'() {
     setup:
-    final advice1 = mockInvokeAdvice(stringConcatPointcut(), 'foo.bar.Helper1')
-    final advice2 = mockInvokeAdvice(messageDigestGetInstancePointcut(), 'foo.bar.Helper1', 'foo.bar.Helper2', 'foo.bar.Helper3')
+    final advice1 = mockCallSites(Mock(InvokeAdvice), stringConcatPointcut(), 'foo.bar.Helper1')
+    final advice2 = mockCallSites(Mock(InvokeAdvice), messageDigestGetInstancePointcut(), 'foo.bar.Helper1', 'foo.bar.Helper2', 'foo.bar.Helper3')
     final instrumentation = buildInstrumentation([advice1, advice2])
 
     when:
@@ -60,7 +60,7 @@ class CallSiteInstrumentationTest extends BaseCallSiteTest {
     }
 
     when:
-    final instrumentation = buildInstrumentation(TestCallSiteAdvice)
+    final instrumentation = buildInstrumentation(TestCallSites)
     final transformer = instrumentation.transformer()
     transformer.transform(builder, type, getClass().getClassLoader(), null, null)
 
@@ -85,12 +85,16 @@ class CallSiteInstrumentationTest extends BaseCallSiteTest {
     0 * builder.visit(_ as AsmVisitorWrapper) >> builder
   }
 
-  static class StringConcatAdvice implements TestCallSiteAdvice, InvokeAdvice {
+  static class StringCallSites implements CallSites, TestCallSites {
 
     @Override
-    Pointcut pointcut() {
-      return stringConcatPointcut()
+    void accept(final Container container) {
+      final pointcut = buildPointcut(String.getDeclaredMethod('concat', String))
+      container.addAdvice(pointcut.type, pointcut.method, pointcut.descriptor, new StringConcatAdvice())
     }
+  }
+
+  static class StringConcatAdvice implements InvokeAdvice {
 
     @Override
     void apply(

@@ -23,6 +23,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_PROPAGATION_MODE_MODE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_CAPTURE_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_CLASSFILE_DUMP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_ENABLED;
@@ -88,6 +89,7 @@ import static datadog.trace.api.DDTags.INTERNAL_HOST_NAME;
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY;
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE;
 import static datadog.trace.api.DDTags.PID_TAG;
+import static datadog.trace.api.DDTags.PROFILING_ENABLED;
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
 import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG;
 import static datadog.trace.api.DDTags.SCHEMA_VERSION_TAG_KEY;
@@ -121,6 +123,7 @@ import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTL
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_TAGS;
 import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CAPTURE_TIMEOUT;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED;
@@ -209,8 +212,6 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PASSWORD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_USERNAME;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_DELAY;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_DELAY_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST;
@@ -316,6 +317,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE_EXTRACT;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE_INJECT;
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT;
+import static datadog.trace.api.config.TracerConfig.TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
@@ -444,6 +446,7 @@ public class Config {
   private final boolean traceResolverEnabled;
   private final int spanAttributeSchemaVersion;
   private final boolean peerServiceDefaultsEnabled;
+  private final boolean removeIntegrationServiceNamesEnabled;
   private final Map<String, String> peerServiceMapping;
   private final Map<String, String> serviceMapping;
   private final Map<String, String> tags;
@@ -544,8 +547,6 @@ public class Config {
   private final boolean profilingUploadSummaryOn413Enabled;
   private final boolean profilingRecordExceptionMessage;
 
-  private final boolean profilingQueueingTimeEnabled;
-
   private final boolean crashTrackingAgentless;
   private final Map<String, String> crashTrackingTags;
 
@@ -610,6 +611,7 @@ public class Config {
   private final boolean debuggerVerifyByteCode;
   private final boolean debuggerInstrumentTheWorld;
   private final String debuggerExcludeFile;
+  private final int debuggerCaptureTimeout;
 
   private final boolean awsPropagationEnabled;
   private final boolean sqsPropagationEnabled;
@@ -894,9 +896,13 @@ public class Config {
 
     spanAttributeSchemaVersion = schemaVersionFromConfig();
 
-    // only used in v0. in v1+ defaults are always calculated regardless this feature flag
+    // following two only used in v0.
+    // in v1+ defaults are always calculated regardless this feature flag
     peerServiceDefaultsEnabled =
         configProvider.getBoolean(TRACE_PEER_SERVICE_DEFAULTS_ENABLED, false);
+    // feature flag to remove fake services in v0
+    removeIntegrationServiceNamesEnabled =
+        configProvider.getBoolean(TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED, false);
 
     peerServiceMapping = configProvider.getMergedMap(TRACE_PEER_SERVICE_MAPPING);
 
@@ -1230,10 +1236,6 @@ public class Config {
         configProvider.getBoolean(
             PROFILING_EXCEPTION_RECORD_MESSAGE, PROFILING_EXCEPTION_RECORD_MESSAGE_DEFAULT);
 
-    profilingQueueingTimeEnabled =
-        configProvider.getBoolean(
-            PROFILING_QUEUEING_TIME_ENABLED, PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
-
     profilingUploadSummaryOn413Enabled =
         configProvider.getBoolean(
             PROFILING_UPLOAD_SUMMARY_ON_413, PROFILING_UPLOAD_SUMMARY_ON_413_DEFAULT);
@@ -1420,6 +1422,8 @@ public class Config {
         configProvider.getBoolean(
             DEBUGGER_INSTRUMENT_THE_WORLD, DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD);
     debuggerExcludeFile = configProvider.getString(DEBUGGER_EXCLUDE_FILE);
+    debuggerCaptureTimeout =
+        configProvider.getInteger(DEBUGGER_CAPTURE_TIMEOUT, DEFAULT_DEBUGGER_CAPTURE_TIMEOUT);
 
     awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
     sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
@@ -1466,7 +1470,9 @@ public class Config {
 
     igniteCacheIncludeKeys = configProvider.getBoolean(IGNITE_CACHE_INCLUDE_KEYS, false);
 
-    obfuscationQueryRegexp = configProvider.getString(OBFUSCATION_QUERY_STRING_REGEXP);
+    obfuscationQueryRegexp =
+        configProvider.getString(
+            OBFUSCATION_QUERY_STRING_REGEXP, null, "obfuscation.query.string.regexp");
 
     playReportHttpStatus = configProvider.getBoolean(PLAY_REPORT_HTTP_STATUS, false);
 
@@ -1673,6 +1679,10 @@ public class Config {
 
   public boolean isPeerServiceDefaultsEnabled() {
     return peerServiceDefaultsEnabled;
+  }
+
+  public boolean isRemoveIntegrationServiceNamesEnabled() {
+    return removeIntegrationServiceNamesEnabled;
   }
 
   public Map<String, String> getPeerServiceMapping() {
@@ -2023,13 +2033,15 @@ public class Config {
     return isDatadogProfilerEnabled;
   }
 
-  public boolean isProfilingQueueingTimeEnabled() {
-    return profilingQueueingTimeEnabled;
-  }
-
   public static boolean isDatadogProfilerSafeInCurrentEnvironment() {
     // don't want to put this logic (which will evolve) in the public ProfilingConfig, and can't
     // access Platform there
+    if (!Platform.isJ9() && Platform.isJavaVersion(8)) {
+      String arch = System.getProperty("os.arch");
+      if ("aarch64".equalsIgnoreCase(arch) || "arm64".equalsIgnoreCase(arch)) {
+        return false;
+      }
+    }
     boolean result =
         Platform.isJ9()
             || !Platform.isJavaVersion(18) // missing AGCT fixes
@@ -2138,7 +2150,7 @@ public class Config {
   }
 
   public Verbosity getIastTelemetryVerbosity() {
-    return iastTelemetryVerbosity;
+    return isTelemetryEnabled() ? iastTelemetryVerbosity : Verbosity.OFF;
   }
 
   public boolean isIastRedactionEnabled() {
@@ -2300,6 +2312,10 @@ public class Config {
 
   public String getDebuggerExcludeFile() {
     return debuggerExcludeFile;
+  }
+
+  public int getDebuggerCaptureTimeout() {
+    return debuggerCaptureTimeout;
   }
 
   public String getFinalDebuggerProbeUrl() {
@@ -2483,6 +2499,7 @@ public class Config {
     result.putAll(runtimeTags);
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
+    result.put(PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
 
     if (reportHostName) {
       final String hostName = getHostName();
@@ -2823,14 +2840,16 @@ public class Config {
 
   public boolean isLegacyTracingEnabled(
       final boolean defaultEnabled, final String... integrationNames) {
-    return configProvider.isEnabled(
-        Arrays.asList(integrationNames), "", ".legacy.tracing.enabled", defaultEnabled);
+    return SpanNaming.instance().namingSchema().allowFakeServices()
+        && configProvider.isEnabled(
+            Arrays.asList(integrationNames), "", ".legacy.tracing.enabled", defaultEnabled);
   }
 
   public boolean isTimeInQueueEnabled(
       final boolean defaultEnabled, final String... integrationNames) {
-    return configProvider.isEnabled(
-        Arrays.asList(integrationNames), "", ".time-in-queue.enabled", defaultEnabled);
+    return SpanNaming.instance().namingSchema().allowFakeServices()
+        && configProvider.isEnabled(
+            Arrays.asList(integrationNames), "", ".time-in-queue.enabled", defaultEnabled);
   }
 
   public boolean isEnabled(

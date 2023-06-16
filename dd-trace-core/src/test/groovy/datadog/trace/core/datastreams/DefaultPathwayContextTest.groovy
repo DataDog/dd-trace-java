@@ -1,15 +1,22 @@
 package datadog.trace.core.datastreams
 
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint
+import datadog.trace.bootstrap.instrumentation.api.TagContext
+import datadog.trace.common.metrics.Sink
+import datadog.trace.core.propagation.ExtractedContext
+import datadog.trace.core.propagation.HttpCodec
 import datadog.trace.core.test.DDCoreSpecification
 
 import java.util.function.Consumer
 
 import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG
+import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoring.DEFAULT_BUCKET_DURATION_NANOS
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
 class DefaultPathwayContextTest extends DDCoreSpecification {
@@ -453,6 +460,41 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     pointConsumer.points[0].hash != pointConsumer.points[1].hash
   }
 
+  def "Check context extractor decorator behavior"() {
+    given:
+    def sink = Mock(Sink)
+    def features = Stub(DDAgentFeaturesDiscovery) {
+      supportsDataStreams() >> true
+    }
+    def timeSource = new ControllableTimeSource()
+    def payloadWriter = Mock(DatastreamsPayloadWriter)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+
+    def context = new DefaultPathwayContext(timeSource, wellKnownTags)
+    timeSource.advance(MILLISECONDS.toNanos(50))
+    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
+    def encoded = context.strEncode()
+    Map<String, String> carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
+    def contextVisitor = new Base64MapContextVisitor()
+    def extractor = new FakeExtractor()
+    def decorated = dataStreams.decorate(extractor)
+
+    when:
+    def extracted = decorated.extract(carrier, contextVisitor)
+
+    then:
+    extracted != null
+    extracted.pathwayContext != null
+    extracted.pathwayContext.isStarted()
+  }
+
+  class FakeExtractor implements HttpCodec.Extractor {
+    @Override
+    <C> TagContext extract(C carrier, AgentPropagation.ContextVisitor<C> getter) {
+      return new ExtractedContext(DDTraceId.ONE, 1, 0, null, null)
+    }
+  }
+
   class Base64MapContextVisitor implements AgentPropagation.ContextVisitor<Map<String, String>> {
     @Override
     void forEachKey(Map<String, String> carrier, AgentPropagation.KeyClassifier classifier) {
@@ -462,7 +504,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     }
   }
 
-  class BinaryMapContextVisitor implements AgentPropagation.BinaryContextVisitor<Map<String, byte[]>> {
+  class BinaryMapContextVisitor extends  Base64MapContextVisitor implements AgentPropagation.BinaryContextVisitor<Map<String, byte[]>> {
     @Override
     void forEachKey(Map<String, byte[]> carrier, AgentPropagation.BinaryKeyClassifier classifier) {
       for (Map.Entry<String, byte[]> entry : carrier.entrySet()) {

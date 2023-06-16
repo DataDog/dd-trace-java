@@ -10,7 +10,7 @@ import org.apache.spark.SparkContext;
 
 @AutoService(Instrumenter.class)
 public class SparkInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForKnownTypes {
 
   public SparkInstrumentation() {
     super("spark", "apache-spark");
@@ -22,8 +22,10 @@ public class SparkInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public String instrumentedType() {
-    return "org.apache.spark.SparkContext";
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "org.apache.spark.SparkContext", "org.apache.spark.deploy.yarn.ApplicationMaster"
+    };
   }
 
   @Override
@@ -39,15 +41,35 @@ public class SparkInstrumentation extends Instrumenter.Tracing
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        isMethod().and(named("setupAndStartListenerBus")).and(takesNoArguments()),
+        isMethod()
+            .and(named("setupAndStartListenerBus"))
+            .and(isDeclaredBy(named("org.apache.spark.SparkContext")))
+            .and(takesNoArguments()),
         SparkInstrumentation.class.getName() + "$InjectListener");
+
+    transformation.applyAdvice(
+        isMethod()
+            .and(named("finish"))
+            .and(isDeclaredBy(named("org.apache.spark.deploy.yarn.ApplicationMaster"))),
+        SparkInstrumentation.class.getName() + "$YarnFinishAdvice");
   }
 
   public static class InjectListener {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void enter(@Advice.This SparkContext sparkContext) {
-      DatadogSparkListener listener = new DatadogSparkListener(sparkContext);
-      sparkContext.listenerBus().addToSharedQueue(listener);
+      DatadogSparkListener.listener =
+          new DatadogSparkListener(
+              sparkContext.getConf(), sparkContext.applicationId(), sparkContext.version());
+      sparkContext.listenerBus().addToSharedQueue(DatadogSparkListener.listener);
+    }
+  }
+
+  public static class YarnFinishAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void enter(@Advice.Argument(1) int exitCode, @Advice.Argument(2) String msg) {
+      if (DatadogSparkListener.listener != null) {
+        DatadogSparkListener.listener.finishApplication(System.currentTimeMillis(), exitCode, msg);
+      }
     }
   }
 }

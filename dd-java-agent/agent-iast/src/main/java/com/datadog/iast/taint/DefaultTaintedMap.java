@@ -290,7 +290,20 @@ public final class DefaultTaintedMap implements TaintedMap {
   }
 
   @Override
-  public long getEstimatedSize() {
+  public int count() {
+    int size = 0;
+    for (int i = 0; i < table.length; i++) {
+      TaintedObject entry = table[i];
+      while (entry != null) {
+        entry = entry.next;
+        size++;
+      }
+    }
+    return size;
+  }
+
+  @Override
+  public int getEstimatedSize() {
     return estimatedSize.get();
   }
 

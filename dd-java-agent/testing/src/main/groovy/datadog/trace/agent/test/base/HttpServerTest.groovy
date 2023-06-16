@@ -12,6 +12,7 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.ProductActivation
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
@@ -134,10 +135,21 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
+    // we inject this config because it's statically assigned and we cannot inject this at test level without forking
+    // not starting with "/" made full url (http://..) matching but not the path portion (because starting with /)
+    // this settings should not affect test results
+    injectSysConfig(TracerConfig.TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING, "**/success:*")
 
     injectSysConfig(HEADER_TAGS, 'x-datadog-test-both-header:both_header_tag')
     injectSysConfig(REQUEST_HEADER_TAGS, 'x-datadog-test-request-header:request_header_tag')
     // We don't inject a matching response header tag here since it would be always on and show up in all the tests
+  }
+
+  // used in blocking tests to check if the handler was skipped
+  volatile boolean handlerRan
+
+  void setup() {
+    handlerRan = false
   }
 
   String component = component()
@@ -1453,6 +1465,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       response.header('Content-type') =~ /(?i)\Atext\/html;\s?charset=utf-8\z/
       response.body().charStream().text.contains("<title>You've been blocked</title>")
     }
+    !handlerRan
 
     when:
     TEST_WRITER.waitForTraces(1)
@@ -1496,6 +1509,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     response.code() == 418
     response.header('Content-type') =~ /(?i)\Aapplication\/json(?:;\s?charset=utf-8)?\z/
     response.body().charStream().text.contains('"title":"You\'ve been blocked"')
+    !handlerRan
 
     when:
     TEST_WRITER.waitForTraces(1)
@@ -1531,6 +1545,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     expect:
     response.code() == 301
     response.header('location') == 'https://www.google.com/'
+    !handlerRan
 
     when:
     TEST_WRITER.waitForTraces(1)
@@ -1586,6 +1601,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     response.code() == 413
     response.header('Content-type') =~ /(?i)\Aapplication\/json(?:;\s?charset=utf-8)?\z/
     response.body().charStream().text.contains('"title":"You\'ve been blocked"')
+    !handlerRan
     TEST_WRITER.waitForTraces(1)
 
     then:
@@ -1630,6 +1646,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     text.contains('"title":"You\'ve been blocked"')
     text.getBytes(UTF_8).length == BlockingActionHelper.getTemplate(JSON).length
 
+    !handlerRan
+
     TEST_WRITER.waitForTraces(1)
 
     then:
@@ -1657,7 +1675,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     'json'          | testBodyJson()             | BODY_JSON       | IG_BODY_CONVERTED_HEADER | 'application/json'                  | '{"a": "x"}'
   }
 
-  private final static String MULTIPART_CONTENT_TYPE = 'multipart/form-data; boundary=------------------------943d3207457896a3'
+  private final static String MULTIPART_CONTENT_TYPE = 'multipart/form-data; charset=utf-8; boundary=------------------------943d3207457896a3'
   private final static String MULTIPART_BODY =
   '--------------------------943d3207457896a3\r\n' +
   'Content-Disposition: form-data; name="a"\r\n' +
@@ -1708,6 +1726,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     response.header('Content-type') =~ /(?i)\Aapplication\/json(?:;\s?charset=utf-8)?\z/
     response.header('X-Header') == 'X-Header-Value'
     response.body().charStream().text.contains('"title":"You\'ve been blocked"')
+    !handlerRan
 
     when:
     TEST_WRITER.waitForTraces(1)

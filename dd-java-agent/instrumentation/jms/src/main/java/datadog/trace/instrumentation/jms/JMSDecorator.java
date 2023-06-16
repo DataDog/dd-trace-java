@@ -36,12 +36,10 @@ public final class JMSDecorator extends MessagingClientDecorator {
           SpanNaming.instance().namingSchema().messaging().outboundOperation(JMS.toString()));
   public static final CharSequence JMS_DELIVER = UTF8BytesString.create("jms.deliver");
 
-  public static final boolean JMS_LEGACY_TRACING =
-      Config.get().isLegacyTracingEnabled(SpanNaming.instance().version() == 0, "jms");
+  public static final boolean JMS_LEGACY_TRACING = Config.get().isLegacyTracingEnabled(true, "jms");
 
   public static final boolean TIME_IN_QUEUE_ENABLED =
-      Config.get()
-          .isTimeInQueueEnabled(!JMS_LEGACY_TRACING && SpanNaming.instance().version() == 0, "jms");
+      Config.get().isTimeInQueueEnabled(!JMS_LEGACY_TRACING, "jms");
   public static final String JMS_PRODUCED_KEY = "x_datadog_jms_produced";
   public static final String JMS_BATCH_ID_KEY = "x_datadog_jms_batch_id";
 

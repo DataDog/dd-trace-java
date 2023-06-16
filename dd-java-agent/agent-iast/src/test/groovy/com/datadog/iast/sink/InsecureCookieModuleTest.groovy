@@ -6,7 +6,6 @@ import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
-import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import groovy.transform.CompileDynamic
 
@@ -34,12 +33,12 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
     }
   }
 
-  void 'report insecure cookie with InsecureCookieModule.onCookieHeader'() {
+  void 'report insecure cookie with InsecureCookieModule.onCookie'() {
     given:
     Vulnerability savedVul
 
     when:
-    module.onCookieHeader(cookieValue)
+    module.onCookie('user-id', '7', false, false, null)
 
     then:
     1 * tracer.activeSpan() >> span
@@ -63,7 +62,7 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
     Vulnerability savedVul
 
     when:
-    module.onCookie(cookieName, false)
+    module.onCookie(cookieName, cookieValue, isSecure, false, null)
 
     then:
     1 * tracer.activeSpan() >> span
@@ -78,34 +77,16 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
     }
 
     where:
-    cookieName | expected
-    "user-id"  | "user-id"
+    cookieName | cookieValue | isSecure | expected
+    "user-id"  | "7"         | false    | "user-id"
   }
 
-  void 'cases where nothing is reported during InsecureCookieModule.onCookie'() {
+  void 'cases where nothing is  not reported during InsecureCookieModuleTest.onCookie'() {
+    given:
+    final cookie = HttpCookie.parse(cookieValue).first()
 
     when:
-    module.onCookie(cookieValue, isSecure)
-
-    then:
-    0 * tracer.activeSpan()
-    0 * overheadController._
-    0 * reporter._
-
-    where:
-    cookieValue | isSecure
-    "user-id"   | true
-    null        | true
-    null        | false
-    ""          | false
-    ""          | true
-  }
-
-
-  void 'cases where nothing is reported during InsecureCookieModule.onCookieHeader'() {
-
-    when:
-    module.onCookieHeader(cookieValue)
+    module.onCookie(cookie.name, cookie.value, cookie.secure, cookie.httpOnly, null)
 
     then:
     0 * tracer.activeSpan()
@@ -114,30 +95,25 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
 
     where:
     cookieValue         | _
-    null                | _
     "user-id=7; Secure" | _
-    "user-id7; Secure"  | _
     "user-id=7;Secure"  | _
-    "blah"              | _
-    ""                  | _
   }
 
-  void 'if onHeader receives a cookie header call onCookieHeader'(final String headerName, final int expected) {
-    setup:
-    final icm = Spy(InsecureCookieModuleImpl)
-    InstrumentationBridge.registerIastModule(icm)
+  void 'insecure cookie is not reported with InsecureCookieModule.onCookie'() {
+    given:
+    final cookie = new HttpCookie(cookieName, cookieValue)
+    cookie.secure = isSecure
 
     when:
-    icm.onHeader(headerName, "value")
+    module.onCookie(cookie.name, cookie.value, cookie.secure, cookie.httpOnly, null)
 
     then:
-    expected * icm.onCookieHeader("value")
-
+    0 * tracer.activeSpan() >> span
+    0 * overheadController.consumeQuota(_, _) >> true
+    0 * reporter.report(_, _ as Vulnerability)
 
     where:
-    headerName   | expected
-    "blah"       | 0
-    "Set-Cookie" | 1
-    "set-cookie" | 1
+    cookieName | cookieValue | isSecure
+    "user-id"  | "7"         | true
   }
 }

@@ -60,7 +60,7 @@ public final class SessionState {
 
   // consumer-related session state
   private final Deque<AgentSpan> capturedSpans;
-  private long oldestCaptureTime;
+  private long oldestCaptureTime = 0;
   private final Map<Thread, TimeInQueue> timeInQueueSpans;
   private volatile int timeInQueueSpanCount = 0;
 
@@ -155,12 +155,10 @@ public final class SessionState {
   private boolean implicitMessageAck() {
     long now = System.currentTimeMillis();
     if (oldestCaptureTime == 0) {
-      oldestCaptureTime = now;
-    } else if ((now - oldestCaptureTime) > UNACKNOWLEDGED_MAX_AGE) {
-      oldestCaptureTime = now;
-      return true;
+      oldestCaptureTime = now; // will be cleared when finishCapturedSpans is called
+      return false;
     }
-    return false;
+    return (now - oldestCaptureTime) > UNACKNOWLEDGED_MAX_AGE;
   }
 
   public void onAcknowledgeOrRecover() {
@@ -199,6 +197,7 @@ public final class SessionState {
       finishingFlipped = capturingFlipped;
       // update capturing to use the other end of the deque for the next group of spans
       capturingFlipped = !finishingFlipped;
+      oldestCaptureTime = 0;
     }
     for (int i = 0; i < spansToFinish; ++i) {
       AgentSpan span;

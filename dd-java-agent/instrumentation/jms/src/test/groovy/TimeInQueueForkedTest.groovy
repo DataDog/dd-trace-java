@@ -701,46 +701,12 @@ abstract class TimeInQueueForkedTestBase extends VersionedNamingTestBase {
   }
 }
 
-abstract class TimeInQueueForkedTest extends TimeInQueueForkedTestBase {
+class TimeInQueueForkedTest extends TimeInQueueForkedTestBase {
   @Override
   boolean splitByDestination() {
     return false
   }
 }
-
-class TimeInQueueV0ForkedTest extends TimeInQueueForkedTest {
-
-}
-
-class TimeInQueueV1ForkedTest extends TimeInQueueForkedTest {
-
-  @Override
-  void configurePreAgent() {
-    super.configurePreAgent()
-    injectSysConfig("dd.jms.time-in-queue.enabled", "true")
-  }
-
-  @Override
-  String operationForProducer() {
-    "jms.send"
-  }
-
-  @Override
-  String operationForConsumer() {
-    "jms.process"
-  }
-
-  @Override
-  String serviceForTimeInQueue() {
-    "jms-queue"
-  }
-
-  @Override
-  int version() {
-    1
-  }
-}
-
 
 class TimeInQueueSplitByDestinationForkedTest extends TimeInQueueForkedTestBase {
   @Override

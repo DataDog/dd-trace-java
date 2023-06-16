@@ -21,6 +21,11 @@ public final class Location {
     return new Location(spanId, stack.getClassName(), stack.getLineNumber(), stack.getMethodName());
   }
 
+  public static Location forSpanAndClassAndMethod(
+      final long spanId, final String clazz, final String method) {
+    return new Location(spanId, clazz, -1, method);
+  }
+
   public long getSpanId() {
     return spanId == null ? 0 : spanId;
   }

@@ -23,7 +23,7 @@ instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 
-default_system_tests_commit: &default_system_tests_commit f698762c8461bab8581ed5df78e8d05668536ed3
+default_system_tests_commit: &default_system_tests_commit 733e06a4e535c970fc62a33c7eca7c00b52a730c
 
 parameters:
   gradle_flags:
@@ -45,6 +45,18 @@ parameters:
     default: base
 
 commands:
+  check_for_leftover_files:
+    steps:
+      - run:
+          name: Check for leftover files
+          command: |
+            LEFTOVER_FILES=$(find . -type f -regex '.*\.orig$')
+            if [[ "$LEFTOVER_FILES" != "" ]]
+            then
+              echo -e "Found leftover files in the commit:\n$LEFTOVER_FILES"
+              exit 1
+            fi
+
   generate_cache_ids:
     steps:
       - run:
@@ -84,6 +96,8 @@ commands:
                 git checkout "pull/${CCI_PR_NUMBER}/head"
               fi
             fi
+
+      - check_for_leftover_files
 
       - generate_cache_ids
 
@@ -358,12 +372,17 @@ jobs:
     <<: *defaults
 
     parameters:
+      parallelism:
+        type: integer
+        default: 1
       gradleTarget:
         type: string
       cacheType:
         type: string
 
     resource_class: large
+
+    parallelism: << parameters.parallelism >>
 
     steps:
       - setup_code
@@ -381,6 +400,7 @@ jobs:
             << parameters.gradleTarget >>
             -PskipTests
             -PrunBuildSrcTests
+            -PtaskPartitionCount=${CIRCLE_NODE_TOTAL} -PtaskPartition=${CIRCLE_NODE_INDEX}
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
 
@@ -567,9 +587,49 @@ jobs:
           when: always
           command: .circleci/upload_ciapp.sh << parameters.stage >> << parameters.testJvm >> || true
 
+      - run:
+          name: Get APM Test Agent Trace Check Results
+          when: always
+          command: |
+            set +e  # Disable exiting from testagent response failure
+            STATUS_RESPONSE=$(curl -s -w "%{http_code}" -o /dev/null http://localhost:8126/info) || true
+            set -e
+            STATUS_RESPONSE_CODE=$(echo "STATUS_RESPONSE" | awk 'END {print $NF}')
+            if [[ $STATUS_RESPONSE_CODE -eq 200 ]]; then
+              echo "APM Test Agent is running. (HTTP 200)"
+            else
+              echo "APM Test Agent is not running and was not used for testing. No checks failed."
+              exit 0
+            fi
+            RESPONSE=$(curl -s -w "\n%{http_code}" -o response.txt http://localhost:8126/test/trace_check/failures)
+            RESPONSE_CODE=$(echo "$RESPONSE" | awk 'END {print $NF}')
+            if [[ $RESPONSE_CODE -eq 200 ]]; then
+              echo "All APM Test Agent Check Traces returned successful! (HTTP 200)"
+            elif [[ $RESPONSE_CODE -eq 404 ]]; then
+              echo "Real APM Agent running in place of TestAgent, no checks to validate!"
+            else
+              echo "APM Test Agent Check Traces failed with response code: $RESPONSE_CODE"
+              echo "Failures:"
+              cat response.txt
+              exit 1
+            fi
+
   xlarge_tests:
     <<: *tests
+
+    docker:
+      - image: << pipeline.parameters.docker_image >>:<< parameters.testJvm >>
+        environment:
+          - CI_USE_TEST_AGENT=true
+      - image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
+        environment:
+          - LOG_LEVEL=DEBUG
+          - TRACE_LANGUAGE=java
+          - DD_SUPPRESS_TRACE_PARSE_ERRORS=true
+          - DD_POOL_TRACE_CHECK_FAILURES=true
+          - DD_DISABLE_ERROR_RESPONSES=true
     resource_class: xlarge
+
 
   huge_tests:
     <<: *tests
@@ -774,7 +834,7 @@ jobs:
     machine:
       # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
       image: ubuntu-2004:current
-    resource_class: large
+    resource_class: xlarge
     steps:
       - setup_system_tests
 
@@ -782,9 +842,9 @@ jobs:
           name: Copy jar files to system test binaries folder
           command: |
             ls -la ~/dd-trace-java/workspace/dd-trace-api/build/libs
-            ls -la ~/dd-trace-java/workspace/dd-trace-ot/build/libs
+            ls -la ~/dd-trace-java/workspace/dd-java-agent/build/libs
             cp ~/dd-trace-java/workspace/dd-trace-api/build/libs/*.jar system-tests/binaries/
-            cp ~/dd-trace-java/workspace/dd-trace-ot/build/libs/*.jar system-tests/binaries/
+            cp ~/dd-trace-java/workspace/dd-java-agent/build/libs/*.jar system-tests/binaries/
 
       - run:
           name: Install requirements
@@ -799,9 +859,18 @@ jobs:
       - run:
           name: Run
           command: |
+            set -e
             cd system-tests/parametric
+            mkdir -p test-results
             export CLIENTS_ENABLED=java
-            ./run.sh
+            export PYTEST_WORKER_COUNT=8
+            ./run.sh --log-cli-level=DEBUG --durations=30 -vv --junitxml=test-results/junit.xml
+
+      - store_test_results:
+          path: system-tests/parametric/test-results
+
+      - store_artifacts:
+          path: system-tests/parametric/test-results
 
 build_test_jobs: &build_test_jobs
   - build:
@@ -853,6 +922,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: check_inst
+      parallelism: 4
       gradleTarget: ":instrumentationCheck"
       cacheType: inst
 

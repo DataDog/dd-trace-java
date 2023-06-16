@@ -116,14 +116,27 @@ public final class ProfilingConfig {
   public static final String PROFILING_DATADOG_PROFILER_SAFEMODE = "profiling.ddprof.safemode";
   public static final int PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT =
       12; // POP_METHOD|UNWIND_NATIVE
+
+  @Deprecated
   public static final String PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED =
       "profiling.ddprof.memleak.enabled";
-  public static final boolean PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED_DEFAULT = false;
+
+  @Deprecated
   public static final String PROFILING_DATADOG_PROFILER_MEMLEAK_INTERVAL =
       "profiling.ddprof.memleak.interval";
+
+  @Deprecated
   public static final String PROFILING_DATADOG_PROFILER_MEMLEAK_CAPACITY =
       "profiling.ddprof.memleak.capacity";
-  public static final int PROFILING_DATADOG_PROFILER_MEMLEAK_CAPACITY_DEFAULT = 1024;
+
+  public static final String PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED =
+      "profiling.ddprof.liveheap.enabled";
+  public static final boolean PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED_DEFAULT = false;
+  public static final String PROFILING_DATADOG_PROFILER_LIVEHEAP_INTERVAL =
+      "profiling.ddprof.liveheap.interval";
+  public static final String PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY =
+      "profiling.ddprof.liveheap.capacity";
+  public static final int PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY_DEFAULT = 1024;
   public static final String PROFILING_ENDPOINT_COLLECTION_ENABLED =
       "profiling.endpoint.collection.enabled";
   public static final boolean PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT = true;

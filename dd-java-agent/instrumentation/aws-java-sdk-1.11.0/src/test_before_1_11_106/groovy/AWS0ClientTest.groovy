@@ -106,6 +106,7 @@ class AWS0ClientTest extends AgentTestRunner {
             "$Tags.PEER_PORT" server.address.port
             "$Tags.PEER_HOSTNAME" "localhost"
             "aws.service" { it.contains(service) }
+            "aws_service" { it.contains(service.toLowerCase()) }
             "aws.endpoint" "$server.address"
             "aws.operation" "${operation}Request"
             "aws.agent" "java-aws-sdk"
@@ -122,8 +123,8 @@ class AWS0ClientTest extends AgentTestRunner {
 
     where:
     service | operation           | method | path                  | handlerCount | client                                                                      | additionalTags                    | call                                                                                                                         | body
-    "S3"    | "CreateBucket"      | "PUT"  | "/testbucket/"        | 1            | new AmazonS3Client().withEndpoint("http://localhost:$server.address.port")  | ["aws.bucket.name": "testbucket"] | { c -> c.setS3ClientOptions(S3ClientOptions.builder().setPathStyleAccess(true).build()); client.createBucket("testbucket") } | ""
-    "S3"    | "GetObject"         | "GET"  | "/someBucket/someKey" | 1            | new AmazonS3Client().withEndpoint("http://localhost:$server.address.port")  | ["aws.bucket.name": "someBucket"] | { c -> c.getObject("someBucket", "someKey") }                                                                                | ""
+    "S3"    | "CreateBucket"      | "PUT"  | "/testbucket/"        | 1            | new AmazonS3Client().withEndpoint("http://localhost:$server.address.port")  | ["aws.bucket.name": "testbucket", "bucketname": "testbucket"] | { c -> c.setS3ClientOptions(S3ClientOptions.builder().setPathStyleAccess(true).build()); client.createBucket("testbucket") } | ""
+    "S3"    | "GetObject"         | "GET"  | "/someBucket/someKey" | 1            | new AmazonS3Client().withEndpoint("http://localhost:$server.address.port")  | ["aws.bucket.name": "someBucket", "bucketname": "someBucket"] | { c -> c.getObject("someBucket", "someKey") }                                                                                | ""
     "EC2"   | "AllocateAddress"   | "POST" | "/"                   | 4            | new AmazonEC2Client().withEndpoint("http://localhost:$server.address.port") | [:]                               | { c -> c.allocateAddress() }                                                                                                 | """
             <AllocateAddressResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
                <requestId>59dbff89-35bd-4eac-99ed-be587EXAMPLE</requestId> 
@@ -168,6 +169,7 @@ class AWS0ClientTest extends AgentTestRunner {
             "$Tags.PEER_PORT" 61
             "$Tags.PEER_HOSTNAME" "localhost"
             "aws.service" { it.contains(service) }
+            "aws_service" { it.contains(service.toLowerCase()) }
             "aws.endpoint" "http://localhost:${UNUSABLE_PORT}"
             "aws.operation" "${operation}Request"
             "aws.agent" "java-aws-sdk"
@@ -183,7 +185,7 @@ class AWS0ClientTest extends AgentTestRunner {
 
     where:
     service | operation   | method | url                  | call                                                    | additionalTags                    | body | client
-    "S3" | "GetObject" | "GET" | "someBucket/someKey" | { c -> c.getObject("someBucket", "someKey") } | ["aws.bucket.name": "someBucket"] | "" | new AmazonS3Client(CREDENTIALS_PROVIDER_CHAIN, new ClientConfiguration().withRetryPolicy(PredefinedRetryPolicies.getDefaultRetryPolicyWithCustomMaxRetries(0))).withEndpoint("http://localhost:${UNUSABLE_PORT}")
+    "S3" | "GetObject" | "GET" | "someBucket/someKey" | { c -> c.getObject("someBucket", "someKey") } | ["aws.bucket.name": "someBucket", "bucketname": "someBucket"] | "" | new AmazonS3Client(CREDENTIALS_PROVIDER_CHAIN, new ClientConfiguration().withRetryPolicy(PredefinedRetryPolicies.getDefaultRetryPolicyWithCustomMaxRetries(0))).withEndpoint("http://localhost:${UNUSABLE_PORT}")
   }
 
   def "naughty request handler doesn't break the trace"() {
@@ -219,10 +221,12 @@ class AWS0ClientTest extends AgentTestRunner {
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.PEER_HOSTNAME" "s3.amazonaws.com"
             "aws.service" "Amazon S3"
+            "aws_service" "s3"
             "aws.endpoint" "https://s3.amazonaws.com"
             "aws.operation" "GetObjectRequest"
             "aws.agent" "java-aws-sdk"
             "aws.bucket.name" "someBucket"
+            "bucketname" "someBucket"
             errorTags RuntimeException, "bad handler"
             defaultTags()
           }
@@ -269,10 +273,12 @@ class AWS0ClientTest extends AgentTestRunner {
             "$Tags.PEER_PORT" server.address.port
             "$Tags.PEER_HOSTNAME" "localhost"
             "aws.service" "Amazon S3"
+            "aws_service" "s3"
             "aws.endpoint" "http://localhost:$server.address.port"
             "aws.operation" "GetObjectRequest"
             "aws.agent" "java-aws-sdk"
             "aws.bucket.name" "someBucket"
+            "bucketname" "someBucket"
             errorTags AmazonClientException, ~/Unable to execute HTTP request/
             defaultTags()
           }

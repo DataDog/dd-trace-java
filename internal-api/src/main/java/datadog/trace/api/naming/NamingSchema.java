@@ -54,6 +54,13 @@ public interface NamingSchema {
    */
   ForPeerService peerService();
 
+  /**
+   * If true, the schema allows having service names != DD_SERVICE
+   *
+   * @return
+   */
+  boolean allowFakeServices();
+
   interface ForCache {
     /**
      * Calculate the operation name for a cache span.

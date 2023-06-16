@@ -55,6 +55,7 @@ public class TelemetrySystem {
 
   public static void startTelemetry(
       Instrumentation instrumentation, SharedCommunicationObjects sco) {
+    sco.createRemaining(Config.get());
     DependencyService dependencyService = createDependencyService(instrumentation);
     TelemetryService telemetryService =
         new TelemetryService(sco.okHttpClient, new RequestBuilderSupplier(sco.agentUrl));

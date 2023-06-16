@@ -62,7 +62,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_PARTIAL_FLUSH_MIN_SPANS = 1000;
   static final boolean DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED = false;
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
-  static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = true;
+  static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = false;
 
   static final boolean DEFAULT_CLIENT_IP_ENABLED = false;
 
@@ -133,6 +133,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE = 1024; // KiB
   static final boolean DEFAULT_DEBUGGER_VERIFY_BYTECODE = false;
   static final boolean DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD = false;
+  static final int DEFAULT_DEBUGGER_CAPTURE_TIMEOUT = 100; // milliseconds
 
   static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;
   static final String DEFAULT_TRACE_ANNOTATIONS = null;

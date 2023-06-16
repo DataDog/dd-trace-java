@@ -13,6 +13,7 @@ import java.nio.file.Paths;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
+import javax.servlet.ServletException;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -27,6 +28,9 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.view.RedirectView;
+import org.springframework.web.servlet.view.UrlBasedViewResolver;
 
 @RestController
 public class IastWebController {
@@ -90,6 +94,32 @@ public class IastWebController {
       @RequestParam String param, HttpServletResponse response) throws IOException {
     response.sendRedirect(param);
     return "Unvalidated redirect";
+  }
+
+  @GetMapping("/unvalidated_redirect_from_forward")
+  public String unvalidatedRedirectFromForward(
+      @RequestParam String param, HttpServletRequest request, HttpServletResponse response)
+      throws IOException, ServletException {
+    request.getRequestDispatcher(param).forward(request, response);
+    return "Unvalidated redirect";
+  }
+
+  @GetMapping("/unvalidated_redirect_from_redirect_view")
+  public RedirectView unvalidatedRedirectFromRedirectView(
+      @RequestParam String param, HttpServletResponse response) {
+    return new RedirectView(param);
+  }
+
+  @GetMapping("/unvalidated_redirect_from_model_and_view")
+  public ModelAndView unvalidatedRedirectFromModelAndView(
+      @RequestParam String param, HttpServletResponse response) {
+    return new ModelAndView(UrlBasedViewResolver.REDIRECT_URL_PREFIX + param);
+  }
+
+  @GetMapping("/unvalidated_redirect_forward_from_model_and_view")
+  public ModelAndView unvalidatedRedirectForwardFromModelAndView(
+      @RequestParam String param, HttpServletResponse response) {
+    return new ModelAndView(UrlBasedViewResolver.FORWARD_URL_PREFIX + param);
   }
 
   @RequestMapping("/async_weakhash")
@@ -179,7 +209,6 @@ public class IastWebController {
     return "Cookie is: " + cookie.getName() + "=" + cookie.getValue();
   }
 
-  @SuppressWarnings("CatchMayIgnoreException")
   @PostMapping("/ssrf")
   public String ssrf(@RequestParam("url") final String url) {
     try {
