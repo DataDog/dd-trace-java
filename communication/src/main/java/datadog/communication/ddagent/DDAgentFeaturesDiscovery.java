@@ -291,7 +291,11 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   public boolean supportsMetrics() {
     return metricsEnabled && null != metricsEndpoint;
   }
-  public boolean supportsBaggageToTagInject(){return baggageToTagInjectionEnabled;}
+
+  public boolean supportsBaggageToTagInject() {
+    return baggageToTagInjectionEnabled;
+  }
+
   public boolean supportsDebugger() {
     return debuggerEndpoint != null;
   }
