@@ -14,6 +14,10 @@ jar {
   }
 }
 
+forbiddenApisMain {
+  failOnMissingClasses = false
+}
+
 // Use Java 17 to build application
 def jdkVersion = 17
 def latestJdkHome = System.getenv("JAVA_${jdkVersion}_HOME")
