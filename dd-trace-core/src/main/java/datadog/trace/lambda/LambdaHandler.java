@@ -56,6 +56,7 @@ public class LambdaHandler {
       new Moshi.Builder()
           // we need to bypass abstract Classes as we can't JSON serialize them
           .add(SkipUnsupportedTypeJsonAdapter.newFactory())
+          .add(ReadFromInputStreamJsonAdapter.newFactory())
           .build()
           .adapter(Object.class);
 
