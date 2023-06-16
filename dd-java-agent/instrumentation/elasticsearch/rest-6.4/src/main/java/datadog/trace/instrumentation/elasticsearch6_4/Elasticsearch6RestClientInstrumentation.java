@@ -58,7 +58,12 @@ public class Elasticsearch6RestClientInstrumentation extends Instrumenter.Tracin
 
       final AgentSpan span = startSpan(OPERATION_NAME);
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, request.getMethod(), request.getEndpoint());
+      DECORATE.onRequest(
+          span,
+          request.getMethod(),
+          request.getEndpoint(),
+          request.getEntity(),
+          request.getParameters());
 
       responseListener = new RestResponseListener(responseListener, span);
 
