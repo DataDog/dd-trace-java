@@ -67,6 +67,7 @@ public final class TraceInstrumentationConfig {
 
   public static final String JMS_PROPAGATION_DISABLED_TOPICS = "jms.propagation.disabled.topics";
   public static final String JMS_PROPAGATION_DISABLED_QUEUES = "jms.propagation.disabled.queues";
+  public static final String JMS_UNACKNOWLEDGED_MAX_AGE = "jms.unacknowledged.max.age";
 
   public static final String RABBIT_PROPAGATION_DISABLED_QUEUES =
       "rabbit.propagation.disabled.queues";

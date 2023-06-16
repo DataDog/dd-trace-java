@@ -67,6 +67,25 @@ public interface DDTestModule {
    *     will be assumed
    * @return Handle to the test suite instance
    */
+  default DDTestSuite testSuiteStart(
+      String testSuiteName, @Nullable Class<?> testClass, @Nullable Long startTime) {
+    return testSuiteStart(testSuiteName, testClass, startTime, false);
+  }
+
+  /**
+   * Marks the start of a new test suite in the module.
+   *
+   * @param testSuiteName The name of the suite
+   * @param testClass Optional class that corresponds to the test suite.
+   * @param startTime Optional start time in microseconds. If {@code null} is supplied, current time
+   *     will be assumed
+   * @param parallelized Whether test cases from this suite will be executed concurrently in
+   *     multiple threads
+   * @return Handle to the test suite instance
+   */
   DDTestSuite testSuiteStart(
-      String testSuiteName, @Nullable Class<?> testClass, @Nullable Long startTime);
+      String testSuiteName,
+      @Nullable Class<?> testClass,
+      @Nullable Long startTime,
+      boolean parallelized);
 }

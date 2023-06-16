@@ -9,12 +9,10 @@ import datadog.telemetry.metric.IastMetricPeriodicAction;
 import datadog.telemetry.metric.WafMetricPeriodicAction;
 import datadog.trace.api.Config;
 import datadog.trace.api.iast.telemetry.Verbosity;
-import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.util.AgentThreadFactory;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
 import java.util.List;
-import okhttp3.OkHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,9 +35,7 @@ public class TelemetrySystem {
   }
 
   static Thread createTelemetryRunnable(
-      TelemetryService telemetryService,
-      OkHttpClient okHttpClient,
-      DependencyService dependencyService) {
+      TelemetryService telemetryService, DependencyService dependencyService) {
     DEPENDENCY_SERVICE = dependencyService;
 
     List<TelemetryPeriodicAction> actions = new ArrayList<>();
@@ -52,8 +48,7 @@ public class TelemetrySystem {
       actions.add(new DependencyPeriodicAction(dependencyService));
     }
 
-    TelemetryRunnable telemetryRunnable =
-        new TelemetryRunnable(okHttpClient, telemetryService, actions);
+    TelemetryRunnable telemetryRunnable = new TelemetryRunnable(telemetryService, actions);
     return AgentThreadFactory.newAgentThread(
         AgentThreadFactory.AgentThread.TELEMETRY, telemetryRunnable);
   }
@@ -62,13 +57,8 @@ public class TelemetrySystem {
       Instrumentation instrumentation, SharedCommunicationObjects sco) {
     DependencyService dependencyService = createDependencyService(instrumentation);
     TelemetryService telemetryService =
-        new TelemetryService(
-            new RequestBuilderSupplier(sco.agentUrl),
-            SystemTimeSource.INSTANCE,
-            Config.get().getTelemetryHeartbeatInterval(),
-            Config.get().getTelemetryMetricsInterval());
-    TELEMETRY_THREAD =
-        createTelemetryRunnable(telemetryService, sco.okHttpClient, dependencyService);
+        new TelemetryService(sco.okHttpClient, new RequestBuilderSupplier(sco.agentUrl));
+    TELEMETRY_THREAD = createTelemetryRunnable(telemetryService, dependencyService);
     TELEMETRY_THREAD.start();
   }
 
