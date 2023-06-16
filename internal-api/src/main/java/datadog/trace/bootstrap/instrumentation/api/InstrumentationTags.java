@@ -37,6 +37,7 @@ public class InstrumentationTags {
 
   public static final String BUCKET = "bucket";
   public static final String COUCHBASE_OPERATION_ID = "couchbase.operation_id";
+  public static final String COUCHBASE_SEED_NODES = "db.couchbase.seed.nodes";
   public static final String ELASTICSEARCH_REQUEST_INDICES = "elasticsearch.request.indices";
   public static final String ELASTICSEARCH_REQUEST_SEARCH_TYPES =
       "elasticsearch.request.search.types";

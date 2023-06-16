@@ -4,6 +4,8 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import java.util.Collections;
+import java.util.Map;
 
 @AutoService(Instrumenter.class)
 public class CoreEnvironmentBuilderInstrumentation extends Instrumenter.Tracing
@@ -21,6 +23,11 @@ public class CoreEnvironmentBuilderInstrumentation extends Instrumenter.Tracing
       packageName + ".DatadogRequestSpan$1",
       packageName + ".DatadogRequestTracer",
     };
+  }
+
+  @Override
+  public Map<String, String> contextStore() {
+    return Collections.singletonMap("com.couchbase.client.core.Core", String.class.getName());
   }
 
   @Override
