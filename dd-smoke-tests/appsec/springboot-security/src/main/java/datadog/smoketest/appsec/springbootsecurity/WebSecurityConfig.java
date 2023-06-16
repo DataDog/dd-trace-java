@@ -25,8 +25,10 @@ public class WebSecurityConfig {
     http.authorizeRequests(
             (requests) ->
                 requests
-                    .antMatchers("/", "/signup", "/register").permitAll()
-                    .anyRequest().authenticated())
+                    .antMatchers("/", "/signup", "/register")
+                    .permitAll()
+                    .anyRequest()
+                    .authenticated())
         .formLogin((form) -> form.loginPage("/login").permitAll())
         .logout(LogoutConfigurer::permitAll);
 
