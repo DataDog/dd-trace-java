@@ -70,7 +70,7 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     private final TaintedMap map;
 
     public TaintedObjectsImpl() {
-      this(new DefaultTaintedMap());
+      this(new TaintedMap());
     }
 
     private TaintedObjectsImpl(final @Nonnull TaintedMap map) {

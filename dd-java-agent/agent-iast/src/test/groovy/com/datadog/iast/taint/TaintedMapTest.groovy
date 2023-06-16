@@ -14,7 +14,7 @@ class TaintedMapTest extends DDSpecification {
 
   def 'simple workflow'() {
     given:
-    def map = new DefaultTaintedMap()
+    def map = new TaintedMap()
     final o = new Object()
     final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
 
@@ -43,7 +43,7 @@ class TaintedMapTest extends DDSpecification {
 
   def 'get non-existent object'() {
     given:
-    def map = new DefaultTaintedMap()
+    def map = new TaintedMap()
     final o = new Object()
 
     expect:
@@ -57,7 +57,7 @@ class TaintedMapTest extends DDSpecification {
     given:
     int capacity = 256
     int flatModeThreshold = (int) (capacity / 2)
-    def map = new DefaultTaintedMap(capacity, flatModeThreshold, new ReferenceQueue<>())
+    def map = new TaintedMap(capacity, flatModeThreshold, new ReferenceQueue<>())
     int nTotalObjects = capacity * 10
 
     expect:
@@ -74,7 +74,7 @@ class TaintedMapTest extends DDSpecification {
     int capacity = 256
     int flatModeThreshold = (int) (capacity / 2)
     def queue = new MockReferenceQueue()
-    def map = new DefaultTaintedMap(capacity, flatModeThreshold, queue)
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
     def gen = new ObjectGen(capacity)
 
     when: 'extraneous reference in enqueued'
@@ -98,7 +98,7 @@ class TaintedMapTest extends DDSpecification {
     int capacity = 256
     int flatModeThreshold = (int) (capacity / 2)
     def queue = new MockReferenceQueue()
-    def map = new DefaultTaintedMap(capacity, flatModeThreshold, queue)
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
     def gen = new ObjectGen(capacity)
 
     when: 'reference to non-present object in enqueued'
@@ -122,7 +122,7 @@ class TaintedMapTest extends DDSpecification {
     int capacity = 256
     int flatModeThreshold = (int) (capacity / 2)
     def queue = new MockReferenceQueue()
-    def map = new DefaultTaintedMap(capacity, flatModeThreshold, queue)
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
     def gen = new ObjectGen(capacity)
     def bucket = gen.genBucket(2, ObjectGen.TRIGGERS_PURGE)
 
@@ -142,12 +142,12 @@ class TaintedMapTest extends DDSpecification {
     int capacity = 256
     int flatModeThreshold = (int) (capacity / 2)
     def queue = new MockReferenceQueue()
-    def map = new DefaultTaintedMap(capacity, flatModeThreshold, queue)
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
     def gen = new ObjectGen(capacity)
 
     when:
     // Number of purges required to switch to flat mode (in the absence of garbage collection)
-    final int purgesToFlatMode = (int) (flatModeThreshold / DefaultTaintedMap.PURGE_COUNT) + 1
+    final int purgesToFlatMode = (int) (flatModeThreshold / TaintedMap.PURGE_COUNT) + 1
     gen.genObjects(purgesToFlatMode, ObjectGen.TRIGGERS_PURGE).each { o ->
       final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
       queue.hold(o, to)
@@ -190,7 +190,7 @@ class TaintedMapTest extends DDSpecification {
     int capacity = 128
     int flatModeThreshold = 64
     def queue = new MockReferenceQueue()
-    def map = new DefaultTaintedMap(capacity, flatModeThreshold, queue)
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
 
     int iters = 16
     int nObjectsPerIter = flatModeThreshold - 1
@@ -234,7 +234,7 @@ class TaintedMapTest extends DDSpecification {
     int capacity = 128
     int flatModeThreshold = 64
     def queue = new MockReferenceQueue()
-    def map = new DefaultTaintedMap(capacity, flatModeThreshold, queue)
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
 
     int iters = 1
     def gen = new ObjectGen(capacity)
@@ -242,7 +242,7 @@ class TaintedMapTest extends DDSpecification {
 
     when:
     // Number of purges required to switch to flat mode (in the absence of garbage collection)
-    final int purgesToFlatMode = (int) (flatModeThreshold / DefaultTaintedMap.PURGE_COUNT) + 1
+    final int purgesToFlatMode = (int) (flatModeThreshold / TaintedMap.PURGE_COUNT) + 1
     gen.genObjects(purgesToFlatMode, ObjectGen.TRIGGERS_PURGE).each { o ->
       final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
       queue.hold(o, to)
@@ -283,7 +283,7 @@ class TaintedMapTest extends DDSpecification {
     int capacity = 128
     int flatModeThreshold = 64
     def queue = new MockReferenceQueue()
-    def map = new DefaultTaintedMap(capacity, flatModeThreshold, queue)
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
 
     and:
     int nThreads = 16
@@ -330,7 +330,7 @@ class TaintedMapTest extends DDSpecification {
     int capacity = 128
     int flatModeThreshold = 64
     def queue = new MockReferenceQueue()
-    def map = new DefaultTaintedMap(capacity, flatModeThreshold, queue)
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
 
     and:
     int nThreads = 16
@@ -340,7 +340,7 @@ class TaintedMapTest extends DDSpecification {
 
     when:
     // Number of purges required to switch to flat mode (in the absence of garbage collection)
-    final int purgesToFlatMode = (int) (flatModeThreshold / DefaultTaintedMap.PURGE_COUNT) + 1
+    final int purgesToFlatMode = (int) (flatModeThreshold / TaintedMap.PURGE_COUNT) + 1
     gen.genObjects(purgesToFlatMode, ObjectGen.TRIGGERS_PURGE).each { o ->
       final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
       queue.hold(o, to)
@@ -390,7 +390,7 @@ class TaintedMapTest extends DDSpecification {
     int capacity = 128
     int flatModeThreshold = 64
     def queue = new MockReferenceQueue()
-    def map = new DefaultTaintedMap(capacity, flatModeThreshold, queue)
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
 
     and:
     int nThreads = 16
