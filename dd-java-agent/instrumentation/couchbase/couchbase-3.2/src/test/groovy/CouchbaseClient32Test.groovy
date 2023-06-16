@@ -373,7 +373,7 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
     assertCouchbaseCall(trace, name, extraTags, null, internal, ex)
   }
 
-  void assertCouchbaseCall(TraceAssert trace, String name, Map<String, Serializable> extraTags, Object parentSpan, boolean internal = false, Throwable ex = null, boolean checkPeerService = false) {
+  void assertCouchbaseCall(TraceAssert trace, String name, Map<String, Serializable> extraTags, Object parentSpan, boolean internal = false, Throwable ex = null) {
     def opName = internal ? 'couchbase.internal' : operation()
     def isMeasured = !internal
     def isErrored = ex != null
@@ -406,11 +406,8 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
         if (extraTags != null) {
           addTags(extraTags)
         }
-        //fixme: check peer service from seed nodes when the info will be available
-        if (checkPeerService) {
-          peerServiceFrom('net.peer.name')
-        }
-        defaultTags(false, checkPeerService)
+        peerServiceFrom(InstrumentationTags.COUCHBASE_SEED_NODES)
+        defaultTags()
       }
     }
   }
@@ -429,7 +426,7 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
     if (extraTags != null) {
       allExtraTags.putAll(extraTags)
     }
-    assertCouchbaseCall(trace, 'dispatch_to_server', allExtraTags, parentSpan, true, null, true)
+    assertCouchbaseCall(trace, 'dispatch_to_server', allExtraTags, parentSpan, true, null)
   }
 }
 
