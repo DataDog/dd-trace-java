@@ -1675,7 +1675,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     'json'          | testBodyJson()             | BODY_JSON       | IG_BODY_CONVERTED_HEADER | 'application/json'                  | '{"a": "x"}'
   }
 
-  private final static String MULTIPART_CONTENT_TYPE = 'multipart/form-data; boundary=------------------------943d3207457896a3'
+  private final static String MULTIPART_CONTENT_TYPE = 'multipart/form-data; charset=utf-8; boundary=------------------------943d3207457896a3'
   private final static String MULTIPART_BODY =
   '--------------------------943d3207457896a3\r\n' +
   'Content-Disposition: form-data; name="a"\r\n' +

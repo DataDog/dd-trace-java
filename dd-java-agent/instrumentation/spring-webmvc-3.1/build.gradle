@@ -48,13 +48,16 @@ dependencies {
     exclude(module: 'jetty-server') // incompatable servlet api
   }
 
+  testImplementation testFixtures(project(':dd-java-agent:appsec'))
+
   // Include servlet instrumentation for verifying the tomcat requests
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet')
   testImplementation project(':dd-java-agent:instrumentation:servlet-common')
   testImplementation project(':dd-java-agent:instrumentation:servlet:request-3')
 
-  // include also tomcat appsec instrumentation for intercepting urlencoded bodies
+  // include also tomcat appsec instrumentation for intercepting urlencoded/multipart bodies
   testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-appsec-6')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-appsec-7')
 
   testImplementation group: 'javax.validation', name: 'validation-api', version: '1.1.0.Final'
   testImplementation group: 'org.hibernate', name: 'hibernate-validator', version: '5.4.2.Final'

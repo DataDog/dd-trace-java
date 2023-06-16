@@ -176,6 +176,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     return System.getenv("CI_USE_TEST_AGENT").equals("true")
   }
 
+  protected boolean isForceAppSecActive() {
+    true
+  }
+
   private static void configureLoggingLevels() {
     def logger = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)
     if (!(logger instanceof Logger)) {
@@ -296,7 +300,9 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     util.attachMock(TEST_CHECKPOINTER, this)
 
     originalAppSecRuntimeValue = ActiveSubsystems.APPSEC_ACTIVE
-    ActiveSubsystems.APPSEC_ACTIVE = true
+    if (forceAppSecActive) {
+      ActiveSubsystems.APPSEC_ACTIVE = true
+    }
   }
 
   void cleanup() {

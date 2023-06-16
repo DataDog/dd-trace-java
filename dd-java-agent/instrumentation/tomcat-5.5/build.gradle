@@ -89,6 +89,7 @@ dependencies {
 
   latestDepTestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '10+'
   latestDepTestImplementation group: 'org.apache.tomcat', name: 'jakartaee-migration', version: '1.+'
+  latestDepTestImplementation(testFixtures(project(":dd-java-agent:appsec")))
 
   latestDepTestRuntimeOnly(project(':dd-java-agent:instrumentation:tomcat-appsec-6'))
   latestDepTestRuntimeOnly(project(':dd-java-agent:instrumentation:tomcat-appsec-7'))

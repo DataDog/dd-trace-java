@@ -1,6 +1,6 @@
 package server
 
-import datadog.appsec.api.blocking.Blocking
+
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
@@ -9,149 +9,18 @@ import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator
 import datadog.trace.instrumentation.ratpack.RatpackServerDecorator
-import ratpack.error.ServerErrorHandler
-import ratpack.form.Form
-import ratpack.groovy.test.embed.GroovyEmbeddedApp
-import ratpack.handling.Context
-import ratpack.handling.HandlerDecorator
 import ratpack.test.embed.EmbeddedApp
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
 class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
 
   @Override
   HttpServer server() {
-    return new RatpackServer(GroovyEmbeddedApp.ratpack {
-      serverConfig {
-        port 0
-        address InetAddress.getByName('localhost')
-      }
-      bindings {
-        bind TestErrorHandler
-        multiBindInstance(HandlerDecorator, HandlerDecorator.prepend(new ResponseHeaderDecorator()))
-      }
-      handlers {
-        prefix(SUCCESS.relativeRawPath()) {
-          all {
-            controller(SUCCESS) {
-              context.response.status(SUCCESS.status).send(SUCCESS.body)
-            }
-          }
-        }
-        prefix(CREATED.relativeRawPath()) {
-          all {
-            controller(CREATED) {
-              request.body.then { typedData ->
-                response.status(CREATED.status)
-                  .send('text/plain', "${CREATED.body}: ${typedData.text}")
-              }
-            }
-          }
-        }
-        get('path/:id/param') {
-          controller(PATH_PARAM) {
-            context.response.status(PATH_PARAM.status).send('text/plain', context.pathTokens['id'])
-          }
-        }
-        prefix(BODY_URLENCODED.relativeRawPath()) {
-          all {
-            controller(BODY_URLENCODED) {
-              context.parse(Form).then { form ->
-                def text = form.findAll { it.key != 'ignore'}
-                .collectEntries {[it.key, it.value as List]} as String
-                response.status(BODY_URLENCODED.status).send('text/plain', text)
-              }
-            }
-          }
-        }
-        prefix(BODY_JSON.relativeRawPath()) {
-          all {
-            controller(BODY_JSON) {
-              context.parse(Map).then { map ->
-                response.status(BODY_JSON.status).send('text/plain', "{\"a\":\"${map['a']}\"}")
-              }
-            }
-          }
-        }
-        prefix(FORWARDED.relativeRawPath()) {
-          all {
-            controller(FORWARDED) {
-              context.response.status(FORWARDED.status).send(request.headers.get("x-forwarded-for"))
-            }
-          }
-        }
-        prefix(QUERY_ENCODED_BOTH.relativeRawPath()) {
-          all {
-            controller(QUERY_ENCODED_BOTH) {
-              context.response.status(QUERY_ENCODED_BOTH.status).send(QUERY_ENCODED_BOTH.bodyForQuery(request.query))
-            }
-          }
-        }
-        prefix(QUERY_ENCODED_QUERY.relativeRawPath()) {
-          all {
-            controller(QUERY_ENCODED_QUERY) {
-              context.response.status(QUERY_ENCODED_QUERY.status).send(QUERY_ENCODED_QUERY.bodyForQuery(request.query))
-            }
-          }
-        }
-        prefix(QUERY_PARAM.relativeRawPath()) {
-          all {
-            controller(QUERY_PARAM) {
-              context.response.status(QUERY_PARAM.status).send(QUERY_PARAM.bodyForQuery(request.query))
-            }
-          }
-        }
-        prefix(REDIRECT.relativeRawPath()) {
-          all {
-            controller(REDIRECT) {
-              context.redirect(REDIRECT.body)
-            }
-          }
-        }
-        prefix(ERROR.relativeRawPath()) {
-          all {
-            controller(ERROR) {
-              context.response.status(ERROR.status).send(ERROR.body)
-            }
-          }
-        }
-        prefix(USER_BLOCK.relativeRawPath()) {
-          all {
-            controller(USER_BLOCK) {
-              Blocking.forUser('user-to-block').blockIfMatch()
-              context.response.status(SUCCESS.status).send('should never be reached')
-            }
-          }
-        }
-        prefix(EXCEPTION.relativeRawPath()) {
-          all {
-            controller(EXCEPTION) {
-              throw new Exception(EXCEPTION.body)
-            }
-          }
-        }
-      }
-    })
-  }
-
-  static class TestErrorHandler implements ServerErrorHandler {
-    @Override
-    void error(Context context, Throwable throwable) throws Exception {
-      context.response.status(500).send(throwable.message)
-    }
+    return new RatpackServer(SyncRatpackApp.INSTANCE)
   }
 
   @Override
@@ -190,6 +59,11 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
 
   @Override
   boolean testBodyUrlencoded() {
+    true
+  }
+
+  @Override
+  boolean testBodyMultipart() {
     true
   }
 

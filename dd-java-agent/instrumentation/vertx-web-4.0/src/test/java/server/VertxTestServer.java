@@ -1,6 +1,7 @@
 package server;
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON;
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR;
@@ -85,28 +86,24 @@ public class VertxTestServer extends AbstractVerticle {
                     ctx,
                     BODY_URLENCODED,
                     () -> {
-                      String res = "[";
-                      MultiMap entries = ctx.request().formAttributes();
-                      for (String name : entries.names()) {
-                        if (name.equals("ignore")) {
-                          continue;
-                        }
-                        if (res.length() > 1) {
-                          res += ", ";
-                        }
-                        res += name;
-                        res += ":[";
-                        int i = 0;
-                        for (String s : entries.getAll(name)) {
-                          if (i++ > 0) {
-                            res += ", ";
-                          }
-                          res += s;
-                        }
-                        res += ']';
-                      }
-                      res += ']';
+                      String res = convertFormAttributes(ctx);
                       ctx.response().setStatusCode(BODY_URLENCODED.getStatus()).end(res);
+                    }));
+    router
+        .route(BODY_MULTIPART.getPath())
+        .handler(
+            ctx ->
+                controller(
+                    ctx,
+                    BODY_MULTIPART,
+                    () -> {
+                      ctx.request().setExpectMultipart(true);
+                      ctx.request()
+                          .endHandler(
+                              (_void) -> {
+                                String res = convertFormAttributes(ctx);
+                                ctx.response().setStatusCode(BODY_MULTIPART.getStatus()).end(res);
+                              });
                     }));
     router.route(BODY_JSON.getPath()).handler(BodyHandler.create());
     router
@@ -224,6 +221,31 @@ public class VertxTestServer extends AbstractVerticle {
                         }
                       });
             });
+  }
+
+  private static String convertFormAttributes(RoutingContext ctx) {
+    String res = "[";
+    MultiMap entries = ctx.request().formAttributes();
+    for (String name : entries.names()) {
+      if (name.equals("ignore")) {
+        continue;
+      }
+      if (res.length() > 1) {
+        res += ", ";
+      }
+      res += name;
+      res += ":[";
+      int i = 0;
+      for (String s : entries.getAll(name)) {
+        if (i++ > 0) {
+          res += ", ";
+        }
+        res += s;
+      }
+      res += ']';
+    }
+    res += ']';
+    return res;
   }
 
   protected void customizeBeforeRoutes(Router router) {}

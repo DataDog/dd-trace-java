@@ -57,7 +57,7 @@ abstract class WithHttpServer<SERVER> extends VersionedNamingTestBase {
     }
   }
 
-  def setupSpec() {
+  void setupSpec() {
     server = server()
     server.start()
     address = server.address()

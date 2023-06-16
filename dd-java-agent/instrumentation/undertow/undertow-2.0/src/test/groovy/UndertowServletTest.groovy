@@ -11,6 +11,9 @@ import io.undertow.servlet.api.DeploymentManager
 import io.undertow.servlet.api.ServletContainer
 import io.undertow.servlet.api.ServletInfo
 
+import javax.servlet.MultipartConfigElement
+
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS
@@ -40,6 +43,7 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
       final ServletContainer container = ServletContainer.Factory.newInstance()
 
       DeploymentInfo builder = new DeploymentInfo()
+        .setDefaultMultipartConfig(new MultipartConfigElement(System.getProperty('java.io.tmpdir'), 1024, 1024, 1024))
         .setClassLoader(UndertowServletTest.getClassLoader())
         .setContextPath("/$CONTEXT")
         .setDeploymentName("servletContext.war")
@@ -56,6 +60,7 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
         .addServlet(new ServletInfo("CreatedServlet", CreatedServlet).addMapping(CREATED.path))
         .addServlet(new ServletInfo("CreatedISServlet", CreatedISServlet).addMapping(CREATED_IS.path))
         .addServlet(new ServletInfo("BodyUrlEncodedServlet", BodyUrlEncodedServlet).addMapping(BODY_URLENCODED.path))
+        .addServlet(new ServletInfo("BodyMultipartServlet", BodyMultipartServlet).addMapping(BODY_MULTIPART.path))
 
       DeploymentManager manager = container.addDeployment(builder)
       manager.deploy()
@@ -123,6 +128,11 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
 
   @Override
   boolean testBodyUrlencoded() {
+    true
+  }
+
+  @Override
+  boolean testBodyMultipart() {
     true
   }
 

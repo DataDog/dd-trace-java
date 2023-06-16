@@ -50,7 +50,7 @@ class TestServlet3 {
 
   @WebServlet
   static class Sync extends AbstractHttpServlet {
-    protected ServerEndpoint determineEndpoint(HttpServletRequest req) {
+    ServerEndpoint determineEndpoint(HttpServletRequest req) {
       getEndpoint(req)
     }
 
