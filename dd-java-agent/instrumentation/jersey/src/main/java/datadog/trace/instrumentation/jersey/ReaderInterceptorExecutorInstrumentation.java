@@ -16,7 +16,7 @@ import net.bytebuddy.asm.Advice;
 public class ReaderInterceptorExecutorInstrumentation extends Instrumenter.AppSec
     implements Instrumenter.ForSingleType {
   public ReaderInterceptorExecutorInstrumentation() {
-    super("jersey ReaderInterceptorExecutor");
+    super("jersey");
   }
 
   @Override
