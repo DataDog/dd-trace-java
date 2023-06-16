@@ -21,23 +21,22 @@ public final class CoreMetrics implements Metrics {
   }
 
   @Override
-  public Counter createCounter(String name, boolean common, String... tags) {
-    Counter counter = new Counter(name, common, Arrays.asList(tags));
+  public Counter createCounter(MetricName name, String... tags) {
+    Counter counter = new Counter(name, Arrays.asList(tags));
     this.instruments.add(counter);
     return counter;
   }
 
   @Override
-  public <T extends Number> Gauge<T> createGauge(
-      String name, Supplier<T> valueSupplier, boolean common, String... tags) {
-    Gauge<T> gauge = new Gauge<T>(name, valueSupplier, common, Arrays.asList(tags));
+  public <T extends Number> Gauge<T> createGauge(MetricName name, Supplier<T> valueSupplier, String... tags) {
+    Gauge<T> gauge = new Gauge<T>(name, valueSupplier, Arrays.asList(tags));
     this.instruments.add(gauge);
     return gauge;
   }
 
   @Override
-  public <T extends Number> Meter<T> createMeter(String name, boolean common, String... tags) {
-    Meter<T> meter = new Meter<>(name, common, Arrays.asList(tags));
+  public <T extends Number> Meter<T> createMeter(MetricName name, String... tags) {
+    Meter<T> meter = new Meter<>(name, Arrays.asList(tags));
     this.instruments.add(meter);
     return meter;
   }

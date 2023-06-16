@@ -21,30 +21,26 @@ public interface Metrics {
    * Create a counter instrument.
    *
    * @param name The metric name.
-   * @param common Whether the metric is common ({@code true}) or language specific ({@code false}).
    * @param tags The metric tags.
    */
-  Counter createCounter(String name, boolean common, String... tags);
+  Counter createCounter(MetricName name, String... tags);
 
   /**
    * Create a gauge instrument.
    *
    * @param name The metric name.
    * @param valueSupplier The supplier providing instrument value.
-   * @param common Whether the metric is common ({@code true}) or language specific ({@code false}).
    * @param tags The metric tags.
    */
-  <T extends Number> Gauge<T> createGauge(
-      String name, Supplier<T> valueSupplier, boolean common, String... tags);
+  <T extends Number> Gauge<T> createGauge(MetricName name, Supplier<T> valueSupplier, String... tags);
 
   /**
    * Create a meter instrument.
    *
    * @param name The metric name.
-   * @param common Whether the metric is common ({@code true}) or language specific ({@code false}).
    * @param tags The metric tags.
    */
-  <T extends Number> Meter<T> createMeter(String name, boolean common, String... tags);
+  <T extends Number> Meter<T> createMeter(MetricName name, String... tags);
 
   /**
    * Get an iterator with updated instruments.

@@ -11,11 +11,10 @@ public class Meter<T extends Number> extends Instrument {
    * Constructor.
    *
    * @param name The metric name.
-   * @param common Whether the metric is common ({@code true}) or language specific ({@code false}).
    * @param tags The metric tags.
    */
-  protected Meter(String name, boolean common, List<String> tags) {
-    super(name, common, tags);
+  protected Meter(MetricName name, List<String> tags) {
+    super(name, tags);
     this.count = new DoubleAdder();
   }
 

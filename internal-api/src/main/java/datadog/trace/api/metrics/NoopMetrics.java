@@ -1,5 +1,6 @@
 package datadog.trace.api.metrics;
 
+import static datadog.trace.api.metrics.MetricName.named;
 import static java.util.Collections.emptyList;
 
 import java.util.Iterator;
@@ -10,18 +11,17 @@ class NoopMetrics implements Metrics {
   static final Metrics INSTANCE = new NoopMetrics();
 
   @Override
-  public Counter createCounter(String name, boolean common, String... tags) {
+  public Counter createCounter(MetricName name, String... tags) {
     return NoopCounter.INSTANCE;
   }
 
   @Override
-  public <T extends Number> Gauge<T> createGauge(
-      String name, Supplier<T> valueSupplier, boolean common, String... tags) {
+  public <T extends Number> Gauge<T> createGauge(MetricName name, Supplier<T> valueSupplier, String... tags) {
     return new NoopGauge<>();
   }
 
   @Override
-  public <T extends Number> Meter<T> createMeter(String name, boolean common, String... tags) {
+  public <T extends Number> Meter<T> createMeter(MetricName name, String... tags) {
     return new NoopMeter<>();
   }
 
@@ -48,7 +48,7 @@ class NoopMetrics implements Metrics {
     private static final NoopCounter INSTANCE = new NoopCounter();
 
     private NoopCounter() {
-      super("noop", true, emptyList());
+      super(named("noop", false, "noop"), emptyList());
     }
 
     @Override
@@ -64,7 +64,7 @@ class NoopMetrics implements Metrics {
 
   private static class NoopGauge<T extends Number> extends Gauge<T> {
     private NoopGauge() {
-      super("noop", null, true, emptyList());
+      super(named("noop", false, "noop"), null, emptyList());
     }
 
     @Override
@@ -75,7 +75,7 @@ class NoopMetrics implements Metrics {
 
   private static class NoopMeter<T extends Number> extends Meter<T> {
     private NoopMeter() {
-      super("noop", true, emptyList());
+      super(named("noop", false, "noop"), emptyList());
     }
 
     @Override

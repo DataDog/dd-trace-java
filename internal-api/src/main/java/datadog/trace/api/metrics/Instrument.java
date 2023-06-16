@@ -5,8 +5,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /** This class describes an abstract instrument capable of recording timed measures. */
 public abstract class Instrument {
-  protected final String name;
-  protected final boolean common;
+  protected final MetricName name;
   protected final List<String> tags;
   protected AtomicBoolean updated;
 
@@ -14,12 +13,10 @@ public abstract class Instrument {
    * Constructor.
    *
    * @param name The metric name.
-   * @param common Whether the metric is common ({@code true}) or language specific ({@code false}).
    * @param tags The metric tags.
    */
-  protected Instrument(String name, boolean common, List<String> tags) {
+  protected Instrument(MetricName name, List<String> tags) {
     this.name = name;
-    this.common = common;
     this.tags = tags;
     this.updated = new AtomicBoolean(false);
   }
@@ -30,7 +27,7 @@ public abstract class Instrument {
    * @return The metric name.
    */
   public String getName() {
-    return this.name;
+    return this.name.name;
   }
 
   /**
@@ -48,7 +45,7 @@ public abstract class Instrument {
    * @return Whether the metric is common ({@code true}) or language specific ({@code false}).
    */
   public boolean isCommon() {
-    return this.common;
+    return this.name.common;
   }
 
   /**

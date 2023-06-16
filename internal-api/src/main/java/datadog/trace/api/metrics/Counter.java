@@ -13,11 +13,10 @@ public class Counter extends Instrument {
    * Constructor.
    *
    * @param name The metric name.
-   * @param common Whether the metric is common ({@code true}) or language specific ({@code false}).
    * @param tags The metric tags.
    */
-  protected Counter(String name, boolean common, List<String> tags) {
-    super(name, common, tags);
+  protected Counter(MetricName name, List<String> tags) {
+    super(name, tags);
     this.count = new LongAdder();
   }
 

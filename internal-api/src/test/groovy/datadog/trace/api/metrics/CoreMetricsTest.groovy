@@ -4,6 +4,8 @@ import datadog.trace.test.util.DDSpecification
 
 import java.util.function.Supplier
 
+import static datadog.trace.api.metrics.MetricName.named
+
 class CoreMetricsTest extends DDSpecification {
   def 'check api would never crash'() {
     setup:
@@ -16,14 +18,14 @@ class CoreMetricsTest extends DDSpecification {
     metrics != null
 
     when:
-    def counter = metrics.createCounter('counter', true)
+    def counter = metrics.createCounter(named('test', true, 'counter'))
     counter.increment()
     counter.increment(2L)
 
     Supplier<Double> s = () -> 3D
-    metrics.createGauge('gauge', s, true)
+    metrics.createGauge(named('test', true, 'gauge'), s)
 
-    def meter = metrics.createMeter('meter', true)
+    def meter = metrics.createMeter(named('test', true, 'meter'))
     meter.mark()
     meter.mark(4D)
 
@@ -39,7 +41,7 @@ class CoreMetricsTest extends DDSpecification {
     def metrics = new CoreMetrics()
 
     when:
-    def counter = metrics.createCounter('counter', true)
+    def counter = metrics.createCounter(named('test', true, 'counter'))
     then:
     assert counter.name == 'counter'
     assert counter.common
@@ -90,7 +92,7 @@ class CoreMetricsTest extends DDSpecification {
     }
 
     when:
-    def gauge = metrics.createGauge('gauge', supplier, true)
+    def gauge = metrics.createGauge(named('test', true, 'gauge'), supplier)
     then:
     assert gauge.name == 'gauge'
     assert gauge.common
@@ -106,7 +108,7 @@ class CoreMetricsTest extends DDSpecification {
     def metrics = new CoreMetrics()
 
     when:
-    def meter = metrics.createMeter('meter', true)
+    def meter = metrics.createMeter(named('test', true, 'meter'))
     then:
     assert meter.name == 'meter'
     assert meter.common
@@ -137,7 +139,7 @@ class CoreMetricsTest extends DDSpecification {
   def 'check instrument update tracking'() {
     setup:
     def metrics = new CoreMetrics()
-    def counter = metrics.createCounter('counter', true)
+    def counter = metrics.createCounter(named('test', true, 'counter'))
 
     // Check no updated instrument by default
     when:

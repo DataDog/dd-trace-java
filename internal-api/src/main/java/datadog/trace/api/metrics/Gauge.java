@@ -12,11 +12,10 @@ public class Gauge<T extends Number> extends Instrument {
    *
    * @param name The metric name.
    * @param valueSupplier The supplier providing instrument value.
-   * @param common Whether the metric is common ({@code true}) or language specific ({@code false}).
    * @param tags The metric tags.
    */
-  public Gauge(String name, Supplier<T> valueSupplier, boolean common, List<String> tags) {
-    super(name, common, tags);
+  public Gauge(MetricName name, Supplier<T> valueSupplier, List<String> tags) {
+    super(name, tags);
     this.supplier = valueSupplier;
     this.updated.set(true);
   }
