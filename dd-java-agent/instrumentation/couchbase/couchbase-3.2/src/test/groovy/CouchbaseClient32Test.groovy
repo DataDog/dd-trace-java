@@ -1,3 +1,6 @@
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+
 import com.couchbase.client.core.env.TimeoutConfig
 import com.couchbase.client.core.error.CouchbaseException
 import com.couchbase.client.core.error.DocumentNotFoundException
@@ -13,6 +16,7 @@ import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import org.testcontainers.couchbase.BucketDefinition
@@ -20,9 +24,6 @@ import org.testcontainers.couchbase.CouchbaseContainer
 import spock.lang.Shared
 
 import java.time.Duration
-
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
   static final String BUCKET = 'test-bucket'
@@ -396,6 +397,7 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
         "$Tags.DB_TYPE" 'couchbase'
         'db.system' 'couchbase'
+        "$InstrumentationTags.COUCHBASE_SEED_NODES" { it =="localhost" || it == "127.0.0.1" }
         if (isErrored) {
           it.tag(DDTags.ERROR_MSG, { exMessage.length() > 0 && ((String) it).startsWith(exMessage) })
           it.tag(DDTags.ERROR_TYPE, ex.class.name)
@@ -431,7 +433,7 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
   }
 }
 
-class CouchbaseClient32V0ForkedTest extends CouchbaseClient32Test {
+class CouchbaseClient32V0Test extends CouchbaseClient32Test {
   @Override
   int version() {
     return 0
