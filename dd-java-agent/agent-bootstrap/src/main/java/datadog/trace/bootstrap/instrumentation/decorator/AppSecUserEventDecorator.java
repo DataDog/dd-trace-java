@@ -13,7 +13,7 @@ import javax.annotation.Nonnull;
 public class AppSecUserEventDecorator {
 
   public void onLoginSuccess(String userId, Map<String, String> metadata) {
-    TraceSegment segment = AgentTracer.get().getTraceSegment();
+    TraceSegment segment = getSegment();
     if (segment == null) {
       return;
     }
@@ -25,7 +25,7 @@ public class AppSecUserEventDecorator {
   }
 
   public void onLoginFailure(String userId, Map<String, String> metadata, boolean userExists) {
-    TraceSegment segment = AgentTracer.get().getTraceSegment();
+    TraceSegment segment = getSegment();
     if (segment == null) {
       return;
     }
@@ -38,7 +38,7 @@ public class AppSecUserEventDecorator {
   }
 
   public void onSignup(String userId, Map<String, String> metadata) {
-    TraceSegment segment = AgentTracer.get().getTraceSegment();
+    TraceSegment segment = getSegment();
     if (segment == null) {
       return;
     }
@@ -62,5 +62,9 @@ public class AppSecUserEventDecorator {
     if (tags != null && !tags.isEmpty()) {
       segment.setTagTop("appsec.events." + eventName, tags);
     }
+  }
+
+  protected TraceSegment getSegment() {
+    return AgentTracer.get().getTraceSegment();
   }
 }
