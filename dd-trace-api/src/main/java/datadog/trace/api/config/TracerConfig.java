@@ -75,6 +75,8 @@ public final class TracerConfig {
       "propagation.extract.log_header_names.enabled";
   public static final String PROPAGATION_STYLE_EXTRACT = "propagation.style.extract";
   public static final String PROPAGATION_STYLE_INJECT = "propagation.style.inject";
+  public static final String PROPAGATION_BAGGAGE_TO_TAG_INJECT =
+      "propagation.baggage-to-tag.inject";
 
   public static final String TRACE_PROPAGATION_STYLE = "trace.propagation.style";
   public static final String TRACE_PROPAGATION_STYLE_EXTRACT = "trace.propagation.style.extract";

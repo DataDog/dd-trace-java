@@ -8,6 +8,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_METRICS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_TIMEOUT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_BAGGAGE_TO_TAG_INJECT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED;
@@ -284,6 +285,7 @@ import static datadog.trace.api.config.TracerConfig.ID_GENERATION_STRATEGY;
 import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_MIN_SPANS;
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING;
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING_FORCE;
+import static datadog.trace.api.config.TracerConfig.PROPAGATION_BAGGAGE_TO_TAG_INJECT;
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_EXTRACT;
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_INJECT;
@@ -699,6 +701,7 @@ public class Config {
 
   private final boolean longRunningTraceEnabled;
   private final long longRunningTraceFlushInterval;
+  private final boolean baggageToTagInject;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -1543,7 +1546,8 @@ public class Config {
     }
     this.longRunningTraceEnabled = longRunningEnabled;
     this.longRunningTraceFlushInterval = longRunningTraceFlushInterval;
-
+    this.baggageToTagInject =
+        configProvider.getBoolean(PROPAGATION_BAGGAGE_TO_TAG_INJECT, DEFAULT_BAGGAGE_TO_TAG_INJECT);
     if (profilingAgentless && apiKey == null) {
       log.warn(
           "Agentless profiling activated but no api key provided. Profile uploading will likely fail");
@@ -2453,6 +2457,10 @@ public class Config {
 
   public boolean isDataStreamsEnabled() {
     return dataStreamsEnabled;
+  }
+
+  public boolean isBaggageToTagInjectEnabled() {
+    return baggageToTagInject;
   }
 
   public String getTraceAgentPath() {

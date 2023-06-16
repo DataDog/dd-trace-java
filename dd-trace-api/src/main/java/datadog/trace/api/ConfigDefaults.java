@@ -145,6 +145,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_TRACE_RATE_LIMIT = 100;
 
   public static final boolean DEFAULT_ASYNC_PROPAGATING = true;
+  public static final boolean DEFAULT_BAGGAGE_TO_TAG_INJECT = true;
 
   static final boolean DEFAULT_CWS_ENABLED = false;
   static final int DEFAULT_CWS_TLS_REFRESH = 5000;

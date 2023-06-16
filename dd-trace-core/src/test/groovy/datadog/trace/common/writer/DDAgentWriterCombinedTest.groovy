@@ -312,7 +312,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     }
     def agentUrl = HttpUrl.get(agent.address)
     def client = OkHttpUtils.buildHttpClient(agentUrl, 1000)
-    def discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    def discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true,true)
     def api = new DDAgentApi(client, agentUrl, discovery, monitoring, true)
     def writer = DDAgentWriter.builder()
       .featureDiscovery(discovery)
@@ -371,7 +371,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     }
     def agentUrl = HttpUrl.get(agent.address)
     def client = OkHttpUtils.buildHttpClient(agentUrl, 1000)
-    def discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    def discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true,true)
     def api = new DDAgentApi(client, agentUrl, discovery, monitoring, true)
     def writer = DDAgentWriter.builder()
       .featureDiscovery(discovery)

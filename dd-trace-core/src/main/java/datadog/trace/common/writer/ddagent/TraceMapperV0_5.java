@@ -7,6 +7,7 @@ import datadog.communication.serialization.Mapper;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.writer.Payload;
@@ -180,6 +181,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
     private Writable writable;
     private boolean writeSamplingPriority;
+    private final boolean injectBaggage = Config.get().isBaggageToTagInjectEnabled();
 
     MetaWriter withWritable(final Writable writable) {
       this.writable = writable;
@@ -194,7 +196,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
     @Override
     public void accept(Metadata metadata) {
       int metaSize =
-          metadata.getBaggage().size()
+          (injectBaggage ? metadata.getBaggage().size() : 0)
               + metadata.getTags().size()
               + (null == metadata.getHttpStatusCode() ? 0 : 1)
               + (null == metadata.getOrigin() ? 0 : 1)
@@ -220,9 +222,11 @@ public final class TraceMapperV0_5 implements TraceMapper {
       // we don't need to deduplicate any overlap between tags and baggage here
       // since they will be accumulated into maps in the same order downstream,
       // we just need to be sure that the size is the same as the number of elements
-      for (Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
-        writeDictionaryEncoded(writable, entry.getKey());
-        writeDictionaryEncoded(writable, entry.getValue());
+      if (injectBaggage) {
+        for (Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
+          writeDictionaryEncoded(writable, entry.getKey());
+          writeDictionaryEncoded(writable, entry.getValue());
+        }
       }
       writeDictionaryEncoded(writable, THREAD_NAME);
       writeDictionaryEncoded(writable, metadata.getThreadName());

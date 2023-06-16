@@ -44,6 +44,7 @@ class DatadogHttpCodec {
   private static class Injector implements HttpCodec.Injector {
 
     private final Map<String, String> invertedBaggageMapping;
+    private static final boolean injectBaggage = Config.get().isBaggageToTagInjectEnabled();
 
     public Injector(Map<String, String> invertedBaggageMapping) {
       assert invertedBaggageMapping != null;
@@ -67,11 +68,12 @@ class DatadogHttpCodec {
       if (e2eStart > 0) {
         setter.set(carrier, E2E_START_KEY, Long.toString(NANOSECONDS.toMillis(e2eStart)));
       }
-
-      for (final Map.Entry<String, String> entry : context.baggageItems()) {
-        String header = invertedBaggageMapping.get(entry.getKey());
-        header = header != null ? header : OT_BAGGAGE_PREFIX + entry.getKey();
-        setter.set(carrier, header, HttpCodec.encode(entry.getValue()));
+      if (injectBaggage) {
+        for (final Map.Entry<String, String> entry : context.baggageItems()) {
+          String header = invertedBaggageMapping.get(entry.getKey());
+          header = header != null ? header : OT_BAGGAGE_PREFIX + entry.getKey();
+          setter.set(carrier, header, HttpCodec.encode(entry.getValue()));
+        }
       }
 
       // inject x-datadog-tags

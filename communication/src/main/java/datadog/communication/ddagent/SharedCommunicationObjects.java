@@ -81,7 +81,8 @@ public class SharedCommunicationObjects {
               monitoring,
               agentUrl,
               config.isTraceAgentV05Enabled(),
-              config.isTracerMetricsEnabled());
+              config.isTracerMetricsEnabled(),
+              config.isBaggageToTagInjectEnabled());
       if (!"true".equalsIgnoreCase(System.getProperty("dd.test.no.early.discovery"))) {
         featuresDiscovery.discover();
       }

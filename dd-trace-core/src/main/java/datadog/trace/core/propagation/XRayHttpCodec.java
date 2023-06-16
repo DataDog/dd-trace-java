@@ -60,6 +60,7 @@ class XRayHttpCodec {
   private static class Injector implements HttpCodec.Injector {
 
     private final Map<String, String> invertedBaggageMapping;
+    private static final boolean injectBaggage = Config.get().isBaggageToTagInjectEnabled();
 
     public Injector(Map<String, String> invertedBaggageMapping) {
       this.invertedBaggageMapping = invertedBaggageMapping;

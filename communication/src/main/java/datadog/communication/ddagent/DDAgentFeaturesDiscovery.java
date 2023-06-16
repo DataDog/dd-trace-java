@@ -56,6 +56,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private final String[] metricsEndpoints = {V6_METRICS_ENDPOINT};
   private final String[] configEndpoints = {V7_CONFIG_ENDPOINT};
   private final boolean metricsEnabled;
+  private final boolean baggageToTagInjectionEnabled;
+
   private final String[] dataStreamsEndpoints = {V01_DATASTREAMS_ENDPOINT};
   private final String[] evpProxyEndpoints = {V2_EVP_PROXY_ENDPOINT};
 
@@ -77,7 +79,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       Monitoring monitoring,
       HttpUrl agentUrl,
       boolean enableV05Traces,
-      boolean metricsEnabled) {
+      boolean metricsEnabled,
+      boolean baggageToTagInjectionEnabled) {
     this.client = client;
     this.agentBaseUrl = agentUrl;
     this.metricsEnabled = metricsEnabled;
@@ -85,6 +88,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         enableV05Traces
             ? new String[] {V5_ENDPOINT, V4_ENDPOINT, V3_ENDPOINT}
             : new String[] {V4_ENDPOINT, V3_ENDPOINT};
+    this.baggageToTagInjectionEnabled = baggageToTagInjectionEnabled;
     this.discoveryTimer = monitoring.newTimer("trace.agent.discovery.time");
   }
 
@@ -287,7 +291,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   public boolean supportsMetrics() {
     return metricsEnabled && null != metricsEndpoint;
   }
-
+  public boolean supportsBaggageToTagInject(){return baggageToTagInjectionEnabled;}
   public boolean supportsDebugger() {
     return debuggerEndpoint != null;
   }

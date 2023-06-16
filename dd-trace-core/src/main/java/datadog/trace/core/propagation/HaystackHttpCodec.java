@@ -54,6 +54,7 @@ class HaystackHttpCodec {
   private static class Injector implements HttpCodec.Injector {
 
     private final Map<String, String> invertedBaggageMapping;
+    private static final boolean injectBaggage = Config.get().isBaggageToTagInjectEnabled();
 
     public Injector(Map<String, String> invertedBaggageMapping) {
       this.invertedBaggageMapping = invertedBaggageMapping;
@@ -95,11 +96,12 @@ class HaystackHttpCodec {
             carrier,
             DD_PARENT_ID_BAGGAGE_KEY,
             HttpCodec.encode(DDSpanId.toString(context.getParentId())));
-
-        for (final Map.Entry<String, String> entry : context.baggageItems()) {
-          String header = invertedBaggageMapping.get(entry.getKey());
-          header = header != null ? header : OT_BAGGAGE_PREFIX + entry.getKey();
-          setter.set(carrier, header, HttpCodec.encode(entry.getValue()));
+        if (injectBaggage) {
+          for (final Map.Entry<String, String> entry : context.baggageItems()) {
+            String header = invertedBaggageMapping.get(entry.getKey());
+            header = header != null ? header : OT_BAGGAGE_PREFIX + entry.getKey();
+            setter.set(carrier, header, HttpCodec.encode(entry.getValue()));
+          }
         }
         log.debug(
             "{} - Haystack parent context injected - {}", context.getTraceId(), injectedTraceId);
@@ -134,6 +136,7 @@ class HaystackHttpCodec {
     private static final int PARENT_ID = 2;
     private static final int BAGGAGE = 3;
     private static final int IGNORE = -1;
+    private static final boolean injectBaggage = Config.get().isBaggageToTagInjectEnabled();
 
     private HaystackContextInterpreter(Config config) {
       super(config);

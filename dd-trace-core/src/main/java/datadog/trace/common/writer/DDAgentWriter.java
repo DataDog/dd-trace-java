@@ -39,6 +39,7 @@ public class DDAgentWriter extends RemoteWriter {
     Monitoring monitoring = Monitoring.DISABLED;
     boolean traceAgentV05Enabled = Config.get().isTraceAgentV05Enabled();
     boolean metricsReportingEnabled = Config.get().isTracerMetricsEnabled();
+    boolean baggageToTagInjectEnabled = Config.get().isBaggageToTagInjectEnabled();
     boolean alwaysFlush = false;
 
     private DDAgentApi agentApi;
@@ -135,7 +136,7 @@ public class DDAgentWriter extends RemoteWriter {
       if (null == featureDiscovery) {
         featureDiscovery =
             new DDAgentFeaturesDiscovery(
-                client, monitoring, agentUrl, traceAgentV05Enabled, metricsReportingEnabled);
+                client, monitoring, agentUrl, traceAgentV05Enabled, metricsReportingEnabled,baggageToTagInjectEnabled);
       }
       if (null == agentApi) {
         agentApi =

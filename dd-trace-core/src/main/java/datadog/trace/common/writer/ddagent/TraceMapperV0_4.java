@@ -3,6 +3,7 @@ package datadog.trace.common.writer.ddagent;
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 
 import datadog.communication.serialization.Writable;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.core.CoreSpan;
@@ -33,6 +34,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
 
     private Writable writable;
     private boolean writeSamplingPriority;
+    private static final boolean injectBaggage = Config.get().isBaggageToTagInjectEnabled();
 
     MetaWriter withWritable(Writable writable) {
       this.writable = writable;
@@ -47,7 +49,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
     @Override
     public void accept(Metadata metadata) {
       int metaSize =
-          metadata.getBaggage().size()
+          (injectBaggage ? metadata.getBaggage().size() : 0)
               + metadata.getTags().size()
               + (null == metadata.getHttpStatusCode() ? 0 : 1)
               + (null == metadata.getOrigin() ? 0 : 1)
@@ -106,9 +108,11 @@ public final class TraceMapperV0_4 implements TraceMapper {
       // we don't need to deduplicate any overlap between tags and baggage here
       // since they will be accumulated into maps in the same order downstream,
       // we just need to be sure that the size is the same as the number of elements
-      for (Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
-        writable.writeString(entry.getKey(), null);
-        writable.writeString(entry.getValue(), null);
+      if (injectBaggage) {
+        for (Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
+          writable.writeString(entry.getKey(), null);
+          writable.writeString(entry.getValue(), null);
+        }
       }
       writable.writeUTF8(THREAD_NAME);
       writable.writeUTF8(metadata.getThreadName());

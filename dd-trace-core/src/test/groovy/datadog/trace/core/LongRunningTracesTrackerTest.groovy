@@ -15,7 +15,7 @@ class LongRunningTracesTrackerTest extends DDSpecification {
   Config config = Mock(Config)
   int maxTrackedTraces = 10
   def sharedCommunicationObjects = Mock(SharedCommunicationObjects)
-  DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(null, Monitoring.DISABLED, null, false, false)
+  DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(null, Monitoring.DISABLED, null, false, false, true)
   LongRunningTracesTracker tracker
   def tracer = Mock(CoreTracer)
   def traceConfig = Mock(TraceConfig)
