@@ -5,16 +5,12 @@ import datadog.telemetry.TelemetryService;
 import datadog.telemetry.api.Metric;
 import datadog.trace.api.telemetry.MetricCollector;
 import edu.umd.cs.findbugs.annotations.NonNull;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public abstract class MetricPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAction {
-
   @Override
   public final void doIteration(final TelemetryService service) {
     final Collection<MetricCollector.Metric> rawMetrics = collector().drain();
@@ -25,23 +21,28 @@ public abstract class MetricPeriodicAction implements TelemetryRunnable.Telemetr
   @NonNull
   public abstract MetricCollector<MetricCollector.Metric> collector();
 
-  private Stream<Metric> toTelemetryMetrics(final Collection<MetricCollector.Metric> metrics) {
-    final Map<MetricCollector.Metric, List<MetricCollector.Metric>> grouped =
-        metrics.stream().collect(Collectors.groupingBy(Function.identity()));
-    return grouped.values().stream().map(this::join);
+  private Collection<Metric> toTelemetryMetrics(final Collection<MetricCollector.Metric> metrics) {
+    // Use an intermediate map to quickly find telemetry metric related to a metric
+    Map<MetricCollector.Metric, Metric> telemetryMetrics = new HashMap<>();
+    // Aggregate equal metrics into a single telemetry metric with multiple points
+    for (MetricCollector.Metric metric : metrics) {
+      Metric telemetryMetric =
+          telemetryMetrics.computeIfAbsent(metric, this::convertToTelemetryMetric);
+      ArrayList<Number> point = new ArrayList<>(2);
+      point.add(metric.timestamp);
+      point.add(metric.value);
+      telemetryMetric.addPointsItem(point);
+    }
+    return telemetryMetrics.values();
   }
 
-  private Metric join(final List<MetricCollector.Metric> list) {
-    final MetricCollector.Metric raw = list.get(0);
-    final Metric result =
-        new Metric()
-            .namespace(raw.namespace)
-            .metric(raw.metricName)
-            .type(typeFromValue(raw.type))
-            .common(raw.common)
-            .tags(raw.tags);
-    list.forEach(entry -> result.addPointsItem(Arrays.asList(entry.timestamp, entry.value)));
-    return result;
+  private Metric convertToTelemetryMetric(MetricCollector.Metric raw) {
+    return new Metric()
+        .namespace(raw.namespace)
+        .metric(raw.metricName)
+        .type(typeFromValue(raw.type))
+        .common(raw.common)
+        .tags(raw.tags);
   }
 
   private static Metric.TypeEnum typeFromValue(String value) {
