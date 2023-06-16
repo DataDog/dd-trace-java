@@ -43,9 +43,10 @@ class CoreMetricsTest extends DDSpecification {
     when:
     def counter = metrics.createCounter(named('test', true, 'counter'))
     then:
-    assert counter.name == 'counter'
-    assert counter.common
-    assert counter.type == 'COUNT'
+    assert counter.name.namespace == 'test'
+    assert counter.name.common
+    assert counter.name.name == 'counter'
+    assert counter.type == MetricType.COUNTER
     assert counter.value.longValue() == 0
 
     when:
@@ -94,9 +95,10 @@ class CoreMetricsTest extends DDSpecification {
     when:
     def gauge = metrics.createGauge(named('test', true, 'gauge'), supplier)
     then:
-    assert gauge.name == 'gauge'
-    assert gauge.common
-    assert gauge.type == 'GAUGE'
+    assert gauge.name.namespace == 'test'
+    assert gauge.name.common
+    assert gauge.name.name == 'gauge'
+    assert gauge.type == MetricType.GAUGE
     assert gauge.value.longValue() == 2
     assert gauge.value.longValue() == 4
     gauge.reset()
@@ -110,9 +112,10 @@ class CoreMetricsTest extends DDSpecification {
     when:
     def meter = metrics.createMeter(named('test', true, 'meter'))
     then:
-    assert meter.name == 'meter'
-    assert meter.common
-    assert meter.type == 'RATE'
+    assert meter.name.namespace == 'test'
+    assert meter.name.common
+    assert meter.name.name == 'meter'
+    assert meter.type == MetricType.METER
     assert meter.value.longValue() == 0
 
     when:

@@ -65,19 +65,22 @@ class TelemetryCollectorsTest extends DDSpecification {
     def metrics = WafMetricCollector.get().drain()
 
     def initMetric = (WafMetricCollector.WafInitRawMetric)metrics[0]
-    initMetric.counter == 1
+    initMetric.type == 'count'
+    initMetric.value == 1
     initMetric.namespace == 'appsec'
     initMetric.metricName == 'waf.init'
     initMetric.tags.toSet() == ['waf_version:waf_ver1', 'event_rules_version:rules.1'].toSet()
 
     def updateMetric1 = (WafMetricCollector.WafUpdatesRawMetric)metrics[1]
-    updateMetric1.counter == 1
+    updateMetric1.type == 'count'
+    updateMetric1.value == 1
     updateMetric1.namespace == 'appsec'
     updateMetric1.metricName == 'waf.updates'
     updateMetric1.tags.toSet() == ['waf_version:waf_ver1', 'event_rules_version:rules.2'].toSet()
 
     def updateMetric2 = (WafMetricCollector.WafUpdatesRawMetric)metrics[2]
-    updateMetric2.counter == 2
+    updateMetric2.type == 'count'
+    updateMetric2.value == 2
     updateMetric2.namespace == 'appsec'
     updateMetric2.metricName == 'waf.updates'
     updateMetric2.tags.toSet() == ['waf_version:waf_ver1', 'event_rules_version:rules.3'].toSet()
@@ -85,7 +88,8 @@ class TelemetryCollectorsTest extends DDSpecification {
     def requestMetric = (WafMetricCollector.WafRequestsRawMetric)metrics[3]
     requestMetric.namespace == 'appsec'
     requestMetric.metricName == 'waf.requests'
-    requestMetric.counter == 3
+    requestMetric.type == 'count'
+    requestMetric.value == 3
     requestMetric.tags.toSet() == [
       'waf_version:waf_ver1',
       'event_rules_version:rules.3',
@@ -96,7 +100,7 @@ class TelemetryCollectorsTest extends DDSpecification {
     def requestTriggeredMetric = (WafMetricCollector.WafRequestsRawMetric)metrics[4]
     requestTriggeredMetric.namespace == 'appsec'
     requestTriggeredMetric.metricName == 'waf.requests'
-    requestTriggeredMetric.counter == 1
+    requestTriggeredMetric.value == 1
     requestTriggeredMetric.tags.toSet() == [
       'waf_version:waf_ver1',
       'event_rules_version:rules.3',
@@ -107,7 +111,8 @@ class TelemetryCollectorsTest extends DDSpecification {
     def requestBlockedMetric = (WafMetricCollector.WafRequestsRawMetric)metrics[5]
     requestBlockedMetric.namespace == 'appsec'
     requestBlockedMetric.metricName == 'waf.requests'
-    requestBlockedMetric.counter == 1
+    requestBlockedMetric.type == 'count'
+    requestBlockedMetric.value == 1
     requestBlockedMetric.tags.toSet() == [
       'waf_version:waf_ver1',
       'event_rules_version:rules.3',

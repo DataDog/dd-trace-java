@@ -1,5 +1,7 @@
 package datadog.trace.api.metrics;
 
+import static datadog.trace.api.metrics.MetricType.METER;
+
 import java.util.List;
 import java.util.concurrent.atomic.DoubleAdder;
 
@@ -19,8 +21,8 @@ public class Meter<T extends Number> extends Instrument {
   }
 
   @Override
-  public String getType() {
-    return "RATE";
+  public MetricType getType() {
+    return METER;
   }
 
   /** Mark an event occurrence. */

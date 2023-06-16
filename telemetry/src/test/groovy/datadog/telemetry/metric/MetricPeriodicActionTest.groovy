@@ -46,7 +46,14 @@ class MetricPeriodicActionTest extends Specification {
     metric.metric = metric.metric ?: 'metric'
     metric.common = metric.common == null ? true : metric.common
     metric.tags = metric.tags ?: []
-    return new MetricCollector.Metric(metric.namespace as String, metric.common as boolean, metric.metric as String, metric.counter as Long, metric.tags as String[])
+    return new MetricCollector.Metric(
+      metric.namespace as String,
+      metric.common as boolean,
+      metric.metric as String,
+      'count',
+      metric.counter as Long,
+      metric.tags as String[]
+      )
   }
 
   @NamedVariant

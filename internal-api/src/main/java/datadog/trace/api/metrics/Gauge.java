@@ -1,5 +1,7 @@
 package datadog.trace.api.metrics;
 
+import static datadog.trace.api.metrics.MetricType.GAUGE;
+
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -21,8 +23,8 @@ public class Gauge<T extends Number> extends Instrument {
   }
 
   @Override
-  public String getType() {
-    return "GAUGE";
+  public MetricType getType() {
+    return GAUGE;
   }
 
   @Override

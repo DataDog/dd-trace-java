@@ -37,10 +37,19 @@ public abstract class MetricPeriodicAction implements TelemetryRunnable.Telemetr
         new Metric()
             .namespace(raw.namespace)
             .metric(raw.metricName)
-            .type(Metric.TypeEnum.COUNT)
+            .type(typeFromValue(raw.type))
             .common(raw.common)
             .tags(raw.tags);
-    list.forEach(entry -> result.addPointsItem(Arrays.asList(entry.timestamp, entry.counter)));
+    list.forEach(entry -> result.addPointsItem(Arrays.asList(entry.timestamp, entry.value)));
     return result;
+  }
+
+  private static Metric.TypeEnum typeFromValue(String value) {
+    for (Metric.TypeEnum typeEnum : Metric.TypeEnum.values()) {
+      if (typeEnum.value().equals(value)) {
+        return typeEnum;
+      }
+    }
+    throw new IllegalArgumentException("Invalid metric type value: " + value);
   }
 }

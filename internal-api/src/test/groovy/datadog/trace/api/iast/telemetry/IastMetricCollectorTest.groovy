@@ -89,7 +89,7 @@ class IastMetricCollectorTest extends DDSpecification {
     then:
     IastMetricCollector.get().prepareMetrics()
     final result = IastMetricCollector.get().drain()
-    final computedTotal = result*.counter.sum() as long
+    final computedTotal = result*.value.sum() as long
     computedTotal == total
   }
 

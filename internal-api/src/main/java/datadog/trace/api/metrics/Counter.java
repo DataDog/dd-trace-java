@@ -1,5 +1,7 @@
 package datadog.trace.api.metrics;
 
+import static datadog.trace.api.metrics.MetricType.COUNTER;
+
 import java.util.List;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -21,8 +23,8 @@ public class Counter extends Instrument {
   }
 
   @Override
-  public String getType() {
-    return "COUNT";
+  public MetricType getType() {
+    return COUNTER;
   }
 
   /** Increment the counter. */

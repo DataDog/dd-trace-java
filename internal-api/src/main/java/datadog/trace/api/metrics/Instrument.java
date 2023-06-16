@@ -26,8 +26,8 @@ public abstract class Instrument {
    *
    * @return The metric name.
    */
-  public String getName() {
-    return this.name.name;
+  public MetricName getName() {
+    return this.name;
   }
 
   /**
@@ -37,16 +37,7 @@ public abstract class Instrument {
    *     href="https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/producing-telemetry.md#generate-metrics">the
    *     documentation</a>.
    */
-  public abstract String getType();
-
-  /**
-   * Gets whether the metric is common or language specific.
-   *
-   * @return Whether the metric is common ({@code true}) or language specific ({@code false}).
-   */
-  public boolean isCommon() {
-    return this.name.common;
-  }
+  public abstract MetricType getType();
 
   /**
    * Get the metric tags.

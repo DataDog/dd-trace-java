@@ -28,7 +28,8 @@ public final class CoreMetrics implements Metrics {
   }
 
   @Override
-  public <T extends Number> Gauge<T> createGauge(MetricName name, Supplier<T> valueSupplier, String... tags) {
+  public <T extends Number> Gauge<T> createGauge(
+      MetricName name, Supplier<T> valueSupplier, String... tags) {
     Gauge<T> gauge = new Gauge<T>(name, valueSupplier, Arrays.asList(tags));
     this.instruments.add(gauge);
     return gauge;

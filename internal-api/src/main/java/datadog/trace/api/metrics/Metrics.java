@@ -32,7 +32,8 @@ public interface Metrics {
    * @param valueSupplier The supplier providing instrument value.
    * @param tags The metric tags.
    */
-  <T extends Number> Gauge<T> createGauge(MetricName name, Supplier<T> valueSupplier, String... tags);
+  <T extends Number> Gauge<T> createGauge(
+      MetricName name, Supplier<T> valueSupplier, String... tags);
 
   /**
    * Create a meter instrument.

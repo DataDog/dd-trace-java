@@ -126,7 +126,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   public abstract static class WafMetric extends MetricCollector.Metric {
 
     public WafMetric(String metricName, long counter, String... tags) {
-      super(NAMESPACE, true, metricName, counter, tags);
+      super(NAMESPACE, true, metricName, "count", counter, tags);
     }
   }
 

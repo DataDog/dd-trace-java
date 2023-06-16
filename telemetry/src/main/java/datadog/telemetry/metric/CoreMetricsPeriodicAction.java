@@ -1,6 +1,7 @@
 package datadog.telemetry.metric;
 
 import datadog.trace.api.metrics.Instrument;
+import datadog.trace.api.metrics.MetricName;
 import datadog.trace.api.metrics.Metrics;
 import datadog.trace.api.telemetry.MetricCollector;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -32,13 +33,15 @@ public class CoreMetricsPeriodicAction extends MetricPeriodicAction {
       Iterator<Instrument> updatedInstruments = this.metrics.updatedInstruments();
       while (updatedInstruments.hasNext()) {
         Instrument instrument = updatedInstruments.next();
-        if ("COUNT".equals(instrument.getType())) { // Only counter supported
-          this.coreMetrics.add(
-              new CoreMetric(
-                  instrument.getName(),
-                  instrument.getValue().longValue(), // Drop precision to long for counter
-                  instrument.getTags()));
-        }
+        MetricName name = instrument.getName();
+        this.coreMetrics.add(
+            new CoreMetric(
+                name.namespace,
+                name.common,
+                name.name,
+                instrument.getType().telemetryName(),
+                instrument.getValue().longValue(),
+                instrument.getTags()));
         instrument.reset();
       }
     }
@@ -52,10 +55,9 @@ public class CoreMetricsPeriodicAction extends MetricPeriodicAction {
   }
 
   public static class CoreMetric extends MetricCollector.Metric {
-    private static final String NAMESPACE = "tracers";
-
-    public CoreMetric(String name, long value, List<String> tags) {
-      super(NAMESPACE, true, name, value, tags);
+    public CoreMetric(
+        String namespace, boolean common, String name, String type, long value, List<String> tags) {
+      super(namespace, common, name, type, value, tags);
     }
   }
 }
