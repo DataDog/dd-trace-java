@@ -19,6 +19,7 @@ import org.opensearch.client.Response;
 
 public class OpensearchRestClientDecorator extends DBTypeProcessingDatabaseClientDecorator {
 
+  private static final int MAX_OPENSEARCH_BODY_CONTENT_LENGTH = 25000;
   private static final String SERVICE_NAME =
       SpanNaming.instance()
           .namingSchema()
@@ -34,7 +35,7 @@ public class OpensearchRestClientDecorator extends DBTypeProcessingDatabaseClien
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[] {"opensearch"};
+    return new String[]{"opensearch"};
   }
 
   @Override
@@ -96,18 +97,26 @@ public class OpensearchRestClientDecorator extends DBTypeProcessingDatabaseClien
       final Map<String, String> parameters) {
     span.setTag(Tags.HTTP_METHOD, method);
     span.setTag(Tags.HTTP_URL, endpoint);
-    if (entity != null) {
-      span.setTag("opensearch.body", getOpensearchRequestBody(entity));
-    }
-    if (parameters != null) {
-      StringBuilder queryParametersStringBuilder = new StringBuilder();
-      for (Map.Entry<String, String> parameter : parameters.entrySet()) {
-        queryParametersStringBuilder.append(parameter.getKey() + "=" + parameter.getValue() + "&");
+    if (Config.get().isElasticsearchBodyAndParamsEnabled()) {  // Elasticsearch also controls Opensearch
+      if (entity != null) {
+        long contentLength = entity.getContentLength();
+        if (contentLength <= MAX_OPENSEARCH_BODY_CONTENT_LENGTH) {
+          span.setTag("opensearch.body", getOpensearchRequestBody(entity));
+        } else {
+          span.setTag("opensearch.body", "<body size " + contentLength + " exceeds limit of " +
+              MAX_OPENSEARCH_BODY_CONTENT_LENGTH + ">");
+        }
       }
-      if (queryParametersStringBuilder.length() >= 1) {
-        queryParametersStringBuilder.deleteCharAt(queryParametersStringBuilder.length() - 1);
+      if (parameters != null) {
+        StringBuilder queryParametersStringBuilder = new StringBuilder();
+        for (Map.Entry<String, String> parameter : parameters.entrySet()) {
+          queryParametersStringBuilder.append(parameter.getKey() + "=" + parameter.getValue() + "&");
+        }
+        if (queryParametersStringBuilder.length() >= 1) {
+          queryParametersStringBuilder.deleteCharAt(queryParametersStringBuilder.length() - 1);
+        }
+        span.setTag("opensearch.params", queryParametersStringBuilder.toString());
       }
-      span.setTag("opensearch.params", queryParametersStringBuilder.toString());
     }
     return HTTP_RESOURCE_DECORATOR.withClientPath(span, method, endpoint);
   }
