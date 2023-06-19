@@ -33,12 +33,13 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class IastSystem {
 
@@ -62,10 +63,8 @@ public class IastSystem {
       overheadController = OverheadController.build(config, AgentTaskScheduler.INSTANCE);
     }
     final Dependencies dependencies =
-        new Dependencies(
-            config, reporter, overheadController, telemetry, StackWalkerFactory.INSTANCE);
-    InstrumentationBridge.registerIastModule(new HttpResponseHeaderModuleImpl());
         new Dependencies(config, reporter, overheadController, StackWalkerFactory.INSTANCE);
+    InstrumentationBridge.registerIastModule(new HttpResponseHeaderModuleImpl());
     final boolean addTelemetry = config.getIastTelemetryVerbosity() != Verbosity.OFF;
     iastModules().forEach(registerModule(dependencies));
     registerRequestStartedCallback(ss, addTelemetry, dependencies);
