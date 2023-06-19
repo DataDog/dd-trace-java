@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.source;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.util.ClassNameTrie;
 import java.io.File;
@@ -7,6 +8,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Modifier;
+import java.net.URL;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitOption;
@@ -15,6 +17,8 @@ import java.nio.file.FileVisitor;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.security.CodeSource;
+import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -54,6 +58,11 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
   @Nullable
   @Override
   public String getSourcePath(@Nonnull Class<?> c) {
+    if (Config.get().isCiVisibilitySourceDataRootCheckEnabled() && !isLocatedInsideRepository(c)
+        || implementsContextAccessor(c)) {
+      return null; // fast exit to avoid expensive index building
+    }
+
     if (index == null) {
       synchronized (indexInitializationLock) {
         if (index == null) {
@@ -83,6 +92,36 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
       log.debug("Could not find source root for class {}", c.getName());
       return null;
     }
+  }
+
+  private boolean isLocatedInsideRepository(Class<?> c) {
+    ProtectionDomain protectionDomain = c.getProtectionDomain();
+    if (protectionDomain == null) {
+      return false; // no source location data
+    }
+    CodeSource codeSource = protectionDomain.getCodeSource();
+    if (codeSource == null) {
+      return false; // no source location data
+    }
+    URL location = codeSource.getLocation();
+    if (location == null) {
+      return false; // no source location data
+    }
+    String file = location.getFile();
+    if (file == null) {
+      return false; // no source location data
+    }
+    return file.startsWith(repoRoot);
+  }
+
+  private static boolean implementsContextAccessor(Class<?> c) {
+    for (Class<?> intf : c.getInterfaces()) {
+      if ("datadog.trace.bootstrap.FieldBackedContextAccessor".equals(intf.getName())) {
+        // dynamically generated accessor class for bytecode-injected field
+        return true;
+      }
+    }
+    return false;
   }
 
   private SourceType detectSourceType(Class<?> c) {
@@ -136,7 +175,7 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
 
       int sourceRootIdx = index.trie.apply(classNameWithExtension);
       if (sourceRootIdx < 0) {
-        log.warn("Could not find source root for package-private class {}", c.getName());
+        log.debug("Could not find source root for package-private class {}", c.getName());
         return null;
       }
 

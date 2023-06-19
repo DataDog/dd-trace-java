@@ -15,6 +15,7 @@ import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.ci.CIProviderInfoFactory;
 import datadog.trace.civisibility.ci.CITagsProviderImpl;
 import datadog.trace.civisibility.codeowners.CodeownersProvider;
+import datadog.trace.civisibility.coverage.TestProbes;
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl;
 import datadog.trace.civisibility.events.CachingTestEventsHandlerFactory;
 import datadog.trace.civisibility.events.TestEventsHandlerImpl;
@@ -56,6 +57,8 @@ public class CiVisibilitySystem {
     GitInfoProvider.INSTANCE.registerGitInfoBuilder(new CILocalGitInfoBuilder(GIT_FOLDER_NAME));
 
     CIVisibility.registerSessionFactory(CiVisibilitySystem::createTestSession);
+
+    InstrumentationBridge.registerCoverageProbeStoreFactory(new TestProbes.TestProbesFactory());
   }
 
   private static DDTestSession createTestSession(

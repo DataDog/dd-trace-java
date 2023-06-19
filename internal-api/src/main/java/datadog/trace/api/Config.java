@@ -13,7 +13,10 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_AUTO_CONFIGU
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_PER_TEST_CODE_COVERAGE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLIENT_IP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_SYNC_PERIOD;
@@ -115,9 +118,14 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_BUILD_INS
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_ID;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_PER_TEST_CODE_COVERAGE_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SESSION_ID;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
@@ -398,6 +406,8 @@ public class Config {
 
   private static final Logger log = LoggerFactory.getLogger(Config.class);
 
+  private static final Pattern COLON = Pattern.compile(":");
+
   private final InstrumenterConfig instrumenterConfig;
 
   private final long startTimeMillis = System.currentTimeMillis();
@@ -580,13 +590,19 @@ public class Config {
   private final String ciVisibilityAgentlessUrl;
 
   private final boolean ciVisibilitySourceDataEnabled;
+  private final boolean ciVisibilitySourceDataRootCheckEnabled;
   private final boolean ciVisibilityBuildInstrumentationEnabled;
   private final Long ciVisibilitySessionId;
   private final Long ciVisibilityModuleId;
   private final String ciVisibilityAgentJarUri;
   private final boolean ciVisibilityAutoConfigurationEnabled;
   private final boolean ciVisibilityCompilerPluginAutoConfigurationEnabled;
+  private final boolean ciVisibilityPerTestCodeCoverageEnabled;
   private final String ciVisibilityCompilerPluginVersion;
+  private final String ciVisibilityJacocoPluginVersion;
+  private final List<String> ciVisibilityJacocoPluginIncludes;
+  private final List<String> ciVisibilityJacocoPluginExcludes;
+  private final String[] ciVisibilityJacocoPluginExcludedClassnames;
   private final Integer ciVisibilityDebugPort;
   private final int ciVisibilityTestEventsHandlerCacheSize;
 
@@ -1335,6 +1351,11 @@ public class Config {
         configProvider.getBoolean(
             CIVISIBILITY_SOURCE_DATA_ENABLED, DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED);
 
+    ciVisibilitySourceDataRootCheckEnabled =
+        configProvider.getBoolean(
+            CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED,
+            DEFAULT_CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED);
+
     ciVisibilityBuildInstrumentationEnabled =
         configProvider.getBoolean(
             CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED,
@@ -1373,9 +1394,25 @@ public class Config {
         configProvider.getBoolean(
             CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED,
             DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED);
+    ciVisibilityPerTestCodeCoverageEnabled =
+        configProvider.getBoolean(
+            CIVISIBILITY_PER_TEST_CODE_COVERAGE_ENABLED,
+            DEFAULT_CIVISIBILITY_PER_TEST_CODE_COVERAGE_ENABLED);
     ciVisibilityCompilerPluginVersion =
         configProvider.getString(
             CIVISIBILITY_COMPILER_PLUGIN_VERSION, DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION);
+    ciVisibilityJacocoPluginVersion = configProvider.getString(CIVISIBILITY_JACOCO_PLUGIN_VERSION);
+    ciVisibilityJacocoPluginIncludes =
+        Arrays.asList(
+            COLON.split(configProvider.getString(CIVISIBILITY_JACOCO_PLUGIN_INCLUDES, ":")));
+    ciVisibilityJacocoPluginExcludes =
+        Arrays.asList(
+            COLON.split(
+                configProvider.getString(
+                    CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES,
+                    DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES)));
+    ciVisibilityJacocoPluginExcludedClassnames =
+        computeCiVisibilityJacocoPluginExcludedClassnames(ciVisibilityJacocoPluginExcludes);
     ciVisibilityDebugPort = configProvider.getInteger(CIVISIBILITY_DEBUG_PORT);
 
     remoteConfigEnabled =
@@ -1539,7 +1576,7 @@ public class Config {
           DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
       longRunningTraceFlushInterval = DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL;
     }
-    this.longRunningTraceEnabled = longRunningEnabled;
+    longRunningTraceEnabled = longRunningEnabled;
     this.longRunningTraceFlushInterval = longRunningTraceFlushInterval;
 
     if (profilingAgentless && apiKey == null) {
@@ -1556,6 +1593,13 @@ public class Config {
     }
 
     log.debug("New instance: {}", this);
+  }
+
+  private String[] computeCiVisibilityJacocoPluginExcludedClassnames(
+      List<String> ciVisibilityJacocoPluginExcludes) {
+    return ciVisibilityJacocoPluginExcludes.stream()
+        .map(s -> (s.endsWith("*") ? s.substring(0, s.length() - 1) : s).replace('.', '/'))
+        .toArray(String[]::new);
   }
 
   public ConfigProvider configProvider() {
@@ -2190,6 +2234,10 @@ public class Config {
     return ciVisibilitySourceDataEnabled;
   }
 
+  public boolean isCiVisibilitySourceDataRootCheckEnabled() {
+    return ciVisibilitySourceDataRootCheckEnabled;
+  }
+
   public boolean isCiVisibilityBuildInstrumentationEnabled() {
     return ciVisibilityBuildInstrumentationEnabled;
   }
@@ -2231,8 +2279,28 @@ public class Config {
     return ciVisibilityCompilerPluginAutoConfigurationEnabled;
   }
 
+  public boolean isCiVisibilityPerTestCodeCoverageEnabled() {
+    return ciVisibilityPerTestCodeCoverageEnabled;
+  }
+
   public String getCiVisibilityCompilerPluginVersion() {
     return ciVisibilityCompilerPluginVersion;
+  }
+
+  public String getCiVisibilityJacocoPluginVersion() {
+    return ciVisibilityJacocoPluginVersion;
+  }
+
+  public List<String> getCiVisibilityJacocoPluginIncludes() {
+    return ciVisibilityJacocoPluginIncludes;
+  }
+
+  public List<String> getCiVisibilityJacocoPluginExcludes() {
+    return ciVisibilityJacocoPluginExcludes;
+  }
+
+  public String[] getCiVisibilityJacocoPluginExcludedClassnames() {
+    return ciVisibilityJacocoPluginExcludedClassnames;
   }
 
   public Integer getCiVisibilityDebugPort() {

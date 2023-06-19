@@ -12,6 +12,9 @@ excludedClassesCoverage += [
   'datadog.trace.agent.test.asserts.*Assert.*',
   'datadog.trace.agent.test.base.*',
   'datadog.trace.agent.test.log.*',
+  // Util class used in TestFrameworkTest
+  'datadog.trace.agent.test.civisibility.coverage.NoopCoverageProbeStore',
+  'datadog.trace.agent.test.civisibility.coverage.NoopCoverageProbeStore.NoopCoverageProbeStoreFactory',
   // Groovy generates unreachable lines see:
   // https://issues.apache.org/jira/browse/GROOVY-9610
   'datadog.trace.agent.test.AgentTestRunner',
