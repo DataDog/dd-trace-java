@@ -68,14 +68,6 @@ public class TestReportFileEntry {
     }
 
     @Override
-    public boolean equals(Object obj) {
-      if (!(obj instanceof Segment)) {
-        return false;
-      }
-      return startLine == ((Segment) obj).startLine;
-    }
-
-    @Override
     public int compareTo(Segment segment) {
       return startLine - segment.startLine;
     }
