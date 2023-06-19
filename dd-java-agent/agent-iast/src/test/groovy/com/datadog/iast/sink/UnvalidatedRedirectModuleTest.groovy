@@ -2,6 +2,7 @@ package com.datadog.iast.sink
 
 import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.IastRequestContext
+import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
@@ -119,6 +120,51 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
     "Location" | 1
     "location" | 1
   }
+
+  void 'If all ranges from tainted element have referer header as source, is not an unvalidated redirect'() {
+    setup:
+    def value = 'test01'
+    def refererSource = new Source(SourceTypes.REQUEST_HEADER_VALUE, 'referer', 'value')
+    Range[] ranges = [new Range(0, 2, refererSource), new Range(4, 1, refererSource)]
+    ctx.getTaintedObjects().taint(value, ranges)
+
+    when:
+    module.onRedirect(value)
+
+    then:
+    0 * reporter.report(_, _)
+  }
+
+  void 'If not all ranges from tainted element have referer header as source, is an unvalidated redirect'() {
+    setup:
+    def value = 'test01'
+    Range[] ranges = [
+      new Range(0, 2, new Source(SourceTypes.REQUEST_HEADER_VALUE, 'referer', 'value')),
+      new Range(4, 1, new Source(SourceTypes.REQUEST_HEADER_VALUE, 'other', 'value'))
+    ]
+    ctx.getTaintedObjects().taint(value, ranges)
+
+    def value2 = 'test02'
+    Range[] ranges2 = [
+      new Range(0, 2, new Source(SourceTypes.REQUEST_HEADER_VALUE, 'referer', 'value')),
+      new Range(4, 1, new Source(SourceTypes.REQUEST_PARAMETER_NAME, 'referer', 'value'))
+    ]
+    ctx.getTaintedObjects().taint(value2, ranges2)
+
+
+    when:
+    module.onRedirect(value)
+
+    then:
+    1 * reporter.report(_, _)
+
+    when:
+    module.onRedirect(value2)
+
+    then:
+    1 * reporter.report(_, _)
+  }
+
 
   private String mapTainted(final String value) {
     final result = addFromTaintFormat(ctx.taintedObjects, value)
