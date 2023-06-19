@@ -2,7 +2,7 @@ package com.datadog.iast.sink
 
 import com.datadog.iast.IastModuleImplTestBase
 
-public class HttpResponseHeaderModuleTest extends IastModuleImplTestBase{
+class HttpResponseHeaderModuleTest extends IastModuleImplTestBase{
 
 
   void 'report insecure cookie with public HttpResponseHeader.onCookie'() {
