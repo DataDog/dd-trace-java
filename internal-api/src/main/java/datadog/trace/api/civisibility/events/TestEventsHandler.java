@@ -10,7 +10,7 @@ public interface TestEventsHandler {
 
   void onTestModuleStart();
 
-  void onTestModuleFinish();
+  void onTestModuleFinish(boolean itrTestsSkipped);
 
   void onTestSuiteStart(
       String testSuiteName,

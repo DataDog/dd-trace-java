@@ -31,6 +31,7 @@ import datadog.trace.civisibility.git.tree.GitClient;
 import datadog.trace.civisibility.git.tree.GitDataApi;
 import datadog.trace.civisibility.git.tree.GitDataUploader;
 import datadog.trace.civisibility.git.tree.GitDataUploaderImpl;
+import datadog.trace.civisibility.ipc.SignalServer;
 import datadog.trace.civisibility.source.BestEfforSourcePathResolver;
 import datadog.trace.civisibility.source.CompilerAidedSourcePathResolver;
 import datadog.trace.civisibility.source.MethodLinesResolver;
@@ -88,6 +89,7 @@ public class CiVisibilitySystem {
       MethodLinesResolver methodLinesResolver = new MethodLinesResolverImpl();
       Map<String, String> ciTags = new CITagsProvider().getCiTags(ciInfo);
       TestDecorator testDecorator = new TestDecoratorImpl(component, null, null, ciTags);
+      TestModuleRegistry testModuleRegistry = new TestModuleRegistry();
 
       GitDataUploader gitDataUploader = buildGitDataUploader(config, backendApi, repoRoot);
       gitDataUploader.startOrObserveGitDataUpload();
@@ -95,15 +97,20 @@ public class CiVisibilitySystem {
       ModuleExecutionSettingsFactory moduleExecutionSettingsFactory =
           buildModuleExecutionSettingsFactory(config, backendApi, gitDataUploader, repoRoot);
 
+      int signalServerPort = config.getCiVisibilitySignalServerPort();
+      SignalServer signalServer = new SignalServer(signalServerPort);
+
       return new DDTestSessionImpl(
           projectName,
           startTime,
           config,
+          testModuleRegistry,
           testDecorator,
           sourcePathResolver,
           codeowners,
           methodLinesResolver,
-          moduleExecutionSettingsFactory);
+          moduleExecutionSettingsFactory,
+          signalServer);
     };
   }
 
