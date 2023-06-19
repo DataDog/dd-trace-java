@@ -168,7 +168,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_TRACE_LONG_RUNNING_ENABLED = false;
   static final long DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL = 300; // seconds -> 5 minutes
 
-  static final boolean DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED = false;
+  static final boolean DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED = true;
 
   private ConfigDefaults() {}
 }
