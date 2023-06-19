@@ -1,8 +1,7 @@
 package server
 
-
+import com.datadog.iast.sink.InsecureCookieModuleImpl
 import datadog.trace.api.iast.InstrumentationBridge
-import datadog.trace.api.iast.sink.InsecureCookieModule
 import okhttp3.Request
 
 class Vertx39InsecureCookieTest extends IastVertx39Server {
@@ -10,7 +9,7 @@ class Vertx39InsecureCookieTest extends IastVertx39Server {
 
   void 'test insecure Cookie'(){
     given:
-    final module = Mock(InsecureCookieModule)
+    final module = Mock(InsecureCookieModuleImpl)
     InstrumentationBridge.registerIastModule(module)
     final url = "${address}/iast/vulnerabilities/insecureCookie?name=user-id&value=7"
     final request = new Request.Builder().url(url).build()
@@ -26,7 +25,7 @@ class Vertx39InsecureCookieTest extends IastVertx39Server {
 
   void 'test secure Cookie'(){
     given:
-    final module = Mock(InsecureCookieModule)
+    final module = Mock(InsecureCookieModuleImpl)
     InstrumentationBridge.registerIastModule(module)
     final url = "${address}/iast/vulnerabilities/insecureCookie?name=user-id&value=7&secure=true"
     final request = new Request.Builder().url(url).build()
