@@ -46,7 +46,6 @@ public class ServletPathRequestFilterInstrumentation extends Instrumenter.Tracin
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".BeanDefinitionRepairer",
       packageName + ".OrderedServletPathRequestFilter",
       packageName + ".OrderedServletPathRequestFilter$BeanDefinition",
     };
