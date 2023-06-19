@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import net.bytebuddy.asm.Advice;
 
@@ -35,6 +36,7 @@ public class PathParamValueFactoryInstrumentation extends Instrumenter.Iast
 
   public static class InstrumenterAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_PATH_PARAMETER_STRING)
     public static void onExit() {
       ThreadLocalSourceType.set(SourceTypes.REQUEST_PATH_PARAMETER);
     }

@@ -27,6 +27,23 @@ public abstract class SourceTypes {
   public static final byte REQUEST_MATRIX_PARAMETER = 10;
   public static final String REQUEST_MATRIX_PARAMETER_STRING = "http.request.matrix.parameter";
 
+  private static final String[] values = {
+    REQUEST_PARAMETER_NAME_STRING,
+    REQUEST_PARAMETER_VALUE_STRING,
+    REQUEST_HEADER_NAME_STRING,
+    REQUEST_HEADER_VALUE_STRING,
+    REQUEST_COOKIE_NAME_STRING,
+    REQUEST_COOKIE_VALUE_STRING,
+    REQUEST_BODY_STRING,
+    REQUEST_QUERY_STRING,
+    REQUEST_PATH_PARAMETER_STRING,
+    REQUEST_MATRIX_PARAMETER_STRING
+  };
+
+  public static String[] values() {
+    return values;
+  }
+
   public static String toString(final byte sourceType) {
     switch (sourceType) {
       case SourceTypes.REQUEST_PARAMETER_NAME:

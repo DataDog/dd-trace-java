@@ -8,6 +8,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Sink;
+import datadog.trace.api.iast.VulnerabilityTypes;
 import io.vertx.core.http.Cookie;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -41,6 +43,7 @@ public class Vertx39HttpServertResponseInstrumentation extends Instrumenter.Iast
 
   public static class InstrumenterAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Sink(VulnerabilityTypes.RESPONSE_HEADER)
     public static void onEnter(@Advice.Argument(0) final Cookie cookie) {
       InstrumentationBridge.RESPONSE_HEADER_MODULE.onHeader("Set-Cookie", cookie.encode());
     }

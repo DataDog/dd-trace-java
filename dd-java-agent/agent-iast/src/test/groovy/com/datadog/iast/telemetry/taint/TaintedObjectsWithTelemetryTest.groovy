@@ -60,7 +60,7 @@ class TaintedObjectsWithTelemetryTest extends DDSpecification {
 
     then:
     if (IastMetric.REQUEST_TAINTED.isEnabled(verbosity)) {
-      1 * mockCollector.addMetric(IastMetric.REQUEST_TAINTED, tainteds.size())
+      1 * mockCollector.addMetric(IastMetric.REQUEST_TAINTED, null, tainteds.size())
     } else {
       0 * mockCollector.addMetric
     }
@@ -80,7 +80,7 @@ class TaintedObjectsWithTelemetryTest extends DDSpecification {
 
     then:
     if (IastMetric.EXECUTED_TAINTED.isEnabled(verbosity)) {
-      3 * mockCollector.addMetric(IastMetric.EXECUTED_TAINTED, 1) // two calls with one element
+      3 * mockCollector.addMetric(IastMetric.EXECUTED_TAINTED, null, 1) // two calls with one element
     } else {
       0 * mockCollector.addMetric
     }
@@ -100,7 +100,7 @@ class TaintedObjectsWithTelemetryTest extends DDSpecification {
 
     then:
     if (IastMetric.TAINTED_FLAT_MODE.isEnabled(verbosity) && taintedObjects.isFlat()) {
-      1 * mockCollector.addMetric(IastMetric.TAINTED_FLAT_MODE, _)
+      1 * mockCollector.addMetric(IastMetric.TAINTED_FLAT_MODE, null, _)
     } else {
       0 * mockCollector.addMetric
     }

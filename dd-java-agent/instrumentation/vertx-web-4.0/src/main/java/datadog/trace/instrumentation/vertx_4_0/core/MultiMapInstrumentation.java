@@ -11,6 +11,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.Taintable.Source;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import java.util.Collection;
@@ -65,6 +66,7 @@ public abstract class MultiMapInstrumentation extends Instrumenter.Iast {
 
   public static class GetAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Propagation
     public static void afterGet(
         @Advice.This final Object self,
         @Advice.Argument(0) final CharSequence name,
@@ -82,6 +84,7 @@ public abstract class MultiMapInstrumentation extends Instrumenter.Iast {
 
   public static class GetAllAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Propagation
     public static void afterGetAll(
         @Advice.This final Object self,
         @Advice.Argument(0) final CharSequence name,
@@ -99,6 +102,7 @@ public abstract class MultiMapInstrumentation extends Instrumenter.Iast {
 
   public static class EntriesAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Propagation
     public static void afterEntries(
         @Advice.This final Object self,
         @Advice.Return final List<Map.Entry<String, String>> result) {
@@ -114,6 +118,7 @@ public abstract class MultiMapInstrumentation extends Instrumenter.Iast {
 
   public static class NamesAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Propagation
     public static void afterNames(
         @Advice.This final Object self, @Advice.Return final Set<String> result) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
