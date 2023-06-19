@@ -60,7 +60,10 @@ abstract class IastVertx34Server extends IastHttpServerTest<Vertx> {
     return new VertxServer(routerBasePath())
   }
 
-  abstract Class<AbstractVerticle> verticle()
+  protected Class<AbstractVerticle> verticle() {
+    IastSinksVerticle
+  }
+
 
   String routerBasePath() {
     return "/"
