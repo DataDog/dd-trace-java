@@ -3,4 +3,6 @@ apply from: "$rootDir/gradle/java.gradle"
 dependencies {
   compileOnly group: 'javax.servlet', name: 'servlet-api', version: '2.3'
   testImplementation group: 'javax.servlet', name: 'servlet-api', version: '2.3'
+  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+
 }

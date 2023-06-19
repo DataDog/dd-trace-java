@@ -1,7 +1,9 @@
+import com.datadog.iast.sink.HttpResponseHeaderModuleImpl
+import com.datadog.iast.sink.InsecureCookieModuleImpl
+import com.datadog.iast.sink.UnvalidatedRedirectModuleImpl
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
-import datadog.trace.api.iast.sink.InsecureCookieModule
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
 import foo.bar.DummyResponse
 
@@ -13,6 +15,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
   @Override
   protected void configurePreAgent() {
     injectSysConfig('dd.iast.enabled', 'true')
+    InstrumentationBridge.registerIastModule(new HttpResponseHeaderModuleImpl())
   }
 
   @Override
@@ -22,7 +25,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
 
   void 'insecure cookie added using addCookie'() {
     setup:
-    final module = Mock(InsecureCookieModule)
+    final module = Mock(InsecureCookieModuleImpl)
     InstrumentationBridge.registerIastModule(module)
     final response = new DummyResponse()
     final cookie = new Cookie("user-id", "7")
@@ -37,7 +40,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
 
   void 'make sure we do not instrument subclasses of HttpServletResponseWrapper'() {
     setup:
-    final module = Mock(InsecureCookieModule)
+    final module = Mock(InsecureCookieModuleImpl)
     InstrumentationBridge.registerIastModule(module)
     final request = Mock(HttpServletResponse)
     final wrapper = new HttpServletResponseWrapper(request)
@@ -53,7 +56,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
 
   void 'secure cookie added using addCookie'() {
     setup:
-    final module = Mock(InsecureCookieModule)
+    final module = Mock(InsecureCookieModuleImpl)
     InstrumentationBridge.registerIastModule(module)
     final response = new DummyResponse()
     final cookie = new Cookie("user-id", "7")
@@ -69,7 +72,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
 
   void 'null cookie added using addCookie'() {
     setup:
-    final module = Mock(InsecureCookieModule)
+    final module = Mock(InsecureCookieModuleImpl)
     InstrumentationBridge.registerIastModule(module)
     final response = new DummyResponse()
 
@@ -82,7 +85,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
 
   void 'insecure cookie added using addHeader'() {
     setup:
-    final module = Mock(InsecureCookieModule)
+    final module = Mock(InsecureCookieModuleImpl)
     InstrumentationBridge.registerIastModule(module)
     final response = new DummyResponse()
 
@@ -97,7 +100,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
 
   void 'insecure cookie added using setHeader'() {
     setup:
-    final cookieModule = Mock(InsecureCookieModule)
+    final cookieModule = Mock(InsecureCookieModuleImpl)
     InstrumentationBridge.registerIastModule(cookieModule)
     final redirectModule = Mock(UnvalidatedRedirectModule)
     InstrumentationBridge.registerIastModule(redirectModule)
@@ -114,7 +117,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
 
   void 'unvalidated redirect checked using addHeader'() {
     setup:
-    final redirectModule = Mock(UnvalidatedRedirectModule)
+    final redirectModule = Mock(UnvalidatedRedirectModuleImpl)
     InstrumentationBridge.registerIastModule(redirectModule)
     final response = new DummyResponse()
 
@@ -129,7 +132,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
 
   void 'unvalidated redirect checked setHeader'() {
     setup:
-    final redirectModule = Mock(UnvalidatedRedirectModule)
+    final redirectModule = Mock(UnvalidatedRedirectModuleImpl)
     InstrumentationBridge.registerIastModule(redirectModule)
     final response = new DummyResponse()
 
@@ -144,7 +147,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
 
   void 'redirection added using sendRedirect'() {
     setup:
-    final redirectModule = Mock(UnvalidatedRedirectModule)
+    final redirectModule = Mock(UnvalidatedRedirectModuleImpl)
     InstrumentationBridge.registerIastModule(redirectModule)
     final response = new DummyResponse()
 
@@ -158,7 +161,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
 
   void 'null location added using sendRedirect'() {
     setup:
-    final redirectModule = Mock(UnvalidatedRedirectModule)
+    final redirectModule = Mock(UnvalidatedRedirectModuleImpl)
     InstrumentationBridge.registerIastModule(redirectModule)
     final response = new DummyResponse()
 
