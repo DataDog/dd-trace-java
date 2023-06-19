@@ -7,7 +7,7 @@ public class HttpResponseHeaderModuleTest extends IastModuleImplTestBase{
 
   void 'report insecure cookie with public HttpResponseHeader.onCookie'() {
     given:
-    final httpResponseHeaderModule = new HttpResponseHeaderModuleImpl();
+    final httpResponseHeaderModule = new HttpResponseHeaderModuleImpl()
     final insecureCookieModule = Mock(InsecureCookieModuleImpl)
     httpResponseHeaderModule.addDelegate(insecureCookieModule)
 
@@ -16,12 +16,11 @@ public class HttpResponseHeaderModuleTest extends IastModuleImplTestBase{
 
     then:
     1 * insecureCookieModule.onCookie(_)
-
   }
 
   void 'report insecure cookie with HttpResponseHeader.onHeader'() {
     given:
-    final httpResponseHeaderModule = new HttpResponseHeaderModuleImpl();
+    final httpResponseHeaderModule = new HttpResponseHeaderModuleImpl()
     final insecureCookieModule = Mock(InsecureCookieModuleImpl)
     httpResponseHeaderModule.addDelegate(insecureCookieModule)
 
@@ -29,6 +28,5 @@ public class HttpResponseHeaderModuleTest extends IastModuleImplTestBase{
     httpResponseHeaderModule.onHeader("Set-Cookie", "user-id=7")
     then:
     1 * insecureCookieModule.onCookie(_)
-
   }
 }
