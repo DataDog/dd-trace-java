@@ -12,8 +12,8 @@ import java.util.Map;
 
 /** Manages dynamic configuration for a particular {@link Tracer} instance. */
 public final class DynamicConfig {
-  private State initialState;
-  private volatile State currentState;
+  private Snapshot initialSnapshot;
+  private volatile Snapshot currentSnapshot;
 
   private DynamicConfig() {}
 
@@ -23,22 +23,22 @@ public final class DynamicConfig {
 
   /** Captures a snapshot of the configuration at the start of a trace. */
   public TraceConfig captureTraceConfig() {
-    return currentState;
+    return currentSnapshot;
   }
 
   /** Start building a new configuration based on its initial state. */
   public Builder initial() {
-    return new Builder(initialState);
+    return new Builder(initialSnapshot);
   }
 
   /** Start building a new configuration based on its current state. */
   public Builder current() {
-    return new Builder(currentState);
+    return new Builder(currentSnapshot);
   }
 
   /** Reset the configuration to its initial state. */
   public void resetTraceConfig() {
-    currentState = initialState;
+    currentSnapshot = initialSnapshot;
   }
 
   public final class Builder {
@@ -47,15 +47,15 @@ public final class DynamicConfig {
     Map<String, String> headerTags;
     Map<String, String> baggageMapping;
 
-    Builder(State state) {
-      if (null == state) {
+    Builder(Snapshot snapshot) {
+      if (null == snapshot) {
         this.serviceMapping = Collections.emptyMap();
         this.headerTags = Collections.emptyMap();
         this.baggageMapping = Collections.emptyMap();
       } else {
-        this.serviceMapping = state.serviceMapping;
-        this.headerTags = state.headerTags;
-        this.baggageMapping = state.baggageMapping;
+        this.serviceMapping = snapshot.serviceMapping;
+        this.headerTags = snapshot.headerTags;
+        this.baggageMapping = snapshot.baggageMapping;
       }
     }
 
@@ -109,17 +109,17 @@ public final class DynamicConfig {
 
     /** Overwrites the current configuration with a new snapshot. */
     public DynamicConfig apply() {
-      State newState = new State(this, initialState);
-      State oldState = currentState;
-      if (null == oldState) {
-        initialState = newState; // captured when constructing the dynamic config
-        currentState = newState;
+      Snapshot newSnapshot = new Snapshot(this, initialSnapshot);
+      Snapshot oldSnapshot = currentSnapshot;
+      if (null == oldSnapshot) {
+        initialSnapshot = newSnapshot; // captured when constructing the dynamic config
+        currentSnapshot = newSnapshot;
       } else {
-        currentState = newState;
+        currentSnapshot = newSnapshot;
         Map<String, Object> update = new HashMap<>();
-        update.put(SERVICE_MAPPING, newState.serviceMapping);
-        update.put(HEADER_TAGS, newState.headerTags);
-        update.put(BAGGAGE_MAPPING, newState.baggageMapping);
+        update.put(SERVICE_MAPPING, newSnapshot.serviceMapping);
+        update.put(HEADER_TAGS, newSnapshot.headerTags);
+        update.put(BAGGAGE_MAPPING, newSnapshot.baggageMapping);
         ConfigCollector.get().putAll(update);
       }
       return DynamicConfig.this;
@@ -127,7 +127,7 @@ public final class DynamicConfig {
   }
 
   /** Immutable snapshot of the configuration. */
-  static final class State implements TraceConfig {
+  static final class Snapshot implements TraceConfig {
 
     final Map<String, String> serviceMapping;
     final Map<String, String> headerTags;
@@ -135,13 +135,14 @@ public final class DynamicConfig {
 
     private final boolean overrideResponseTags;
 
-    State(Builder builder, State initialState) {
+    Snapshot(Builder builder, Snapshot initialSnapshot) {
       this.serviceMapping = builder.serviceMapping;
       this.headerTags = builder.headerTags;
       this.baggageMapping = builder.baggageMapping;
 
       // also apply headerTags to response headers if the initial reference has been overridden
-      this.overrideResponseTags = null != initialState && headerTags != initialState.headerTags;
+      this.overrideResponseTags =
+          null != initialSnapshot && headerTags != initialSnapshot.headerTags;
     }
 
     @Override
