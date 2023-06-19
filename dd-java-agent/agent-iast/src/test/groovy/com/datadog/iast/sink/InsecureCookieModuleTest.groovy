@@ -18,11 +18,14 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
   private IastRequestContext ctx
 
   private InsecureCookieModuleImpl module
+  private NoHttpOnlyCookieModuleImpl moduleNoHttp
+
 
   private AgentSpan span
 
   def setup() {
     module = registerDependencies(new InsecureCookieModuleImpl())
+    moduleNoHttp = registerDependencies(new NoHttpOnlyCookieModuleImpl())
     objectHolder = []
     ctx = new IastRequestContext()
     final reqCtx = Mock(RequestContext) {
@@ -55,6 +58,78 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
       }
     }
 
+    where:
+    cookieValue | expected
+    "user-id=7" | "user-id"
+  }
+
+  void 'check quota is consumed correctly'() {
+    given:
+    Vulnerability savedVul1
+    Vulnerability savedVul2
+    final cookie = new CookieSecurityInfo(cookieValue)
+
+    when:
+    moduleNoHttp.onCookie(cookie)
+    module.onCookie(cookie)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    1 * span.getSpanId()
+    1 * overheadController.consumeQuota(_, _) >> true
+    1 * reporter.report(_, _ as Vulnerability) >> { savedVul1 = it[1] }
+    1 * reporter.report(_, _ as Vulnerability) >> { savedVul2 = it[1] }
+    0 * _
+    with(savedVul1) {
+      type == VulnerabilityType.NO_HTTPONLY_COOKIE
+      location != null
+      with(evidence) {
+        value == expected
+      }
+    }
+    with(savedVul2) {
+      type == VulnerabilityType.INSECURE_COOKIE
+      location != null
+      with(evidence) {
+        value == expected
+      }
+    }
+    where:
+    cookieValue | expected
+    "user-id=7" | "user-id"
+  }
+
+  void 'check quota in inverser order'() {
+    given:
+    Vulnerability savedVul1
+    Vulnerability savedVul2
+    final cookie = new CookieSecurityInfo(cookieValue)
+
+    when:
+    module.onCookie(cookie)
+    moduleNoHttp.onCookie(cookie)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    1 * span.getSpanId()
+    1 * overheadController.consumeQuota(_, _) >> true
+    1 * reporter.report(_, _ as Vulnerability) >> { savedVul1 = it[1] }
+    1 * reporter.report(_, _ as Vulnerability) >> { savedVul2 = it[1] }
+    0 * _
+    with(savedVul1) {
+      type == VulnerabilityType.INSECURE_COOKIE
+      location != null
+      with(evidence) {
+        value == expected
+      }
+    }
+    with(savedVul2) {
+      type == VulnerabilityType.NO_HTTPONLY_COOKIE
+      location != null
+      with(evidence) {
+        value == expected
+      }
+    }
     where:
     cookieValue | expected
     "user-id=7" | "user-id"

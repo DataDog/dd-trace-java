@@ -97,6 +97,43 @@ class NoSameSiteModuleTest extends IastModuleImplTestBase {
     "user-id=7;Secure" | "user-id"
   }
 
+  void 'check quota in inverse order'() {
+    given:
+    Vulnerability savedVul1
+    Vulnerability savedVul2
+    final cookie = new CookieSecurityInfo(cookieValue)
+
+    when:
+    moduleNoHttp.onCookie(cookie)
+    module.onCookie(cookie)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    1 * span.getSpanId()
+    1 * overheadController.consumeQuota(_, _) >> true
+    1 * reporter.report(_, _ as Vulnerability) >> { savedVul1 = it[1] }
+    1 * reporter.report(_, _ as Vulnerability) >> { savedVul2 = it[1] }
+    0 * _
+    with(savedVul1) {
+      type == VulnerabilityType.NO_HTTPONLY_COOKIE
+      location != null
+      with(evidence) {
+        value == expected
+      }
+    }
+    with(savedVul2) {
+      type == VulnerabilityType.NO_SAMESITE_COOKIE
+      location != null
+      with(evidence) {
+        value == expected
+      }
+    }
+    where:
+    cookieValue | expected
+    "user-id=7;Secure" | "user-id"
+  }
+
+
   void 'report insecure cookie with NoHttpOnlyCookieModule.onCookie'() {
     given:
     Vulnerability savedVul
@@ -121,6 +158,7 @@ class NoSameSiteModuleTest extends IastModuleImplTestBase {
     cookieName | cookieValue | IsSameSite | expected
     "user-id"  | "7"         | false      | "user-id"
   }
+
 
   void 'cases where nothing is reported during NoHttpModuleCookie.onCookie'() {
     given:
