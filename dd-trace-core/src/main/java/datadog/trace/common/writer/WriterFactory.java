@@ -170,8 +170,7 @@ public class WriterFactory {
       HttpUrl hostUrl = null;
       if (config.getCiVisibilityAgentlessUrl() != null) {
         hostUrl = HttpUrl.get(config.getCiVisibilityAgentlessUrl());
-        log.info(
-            "Using host URL '{}' to report CI Visibility traces in Agentless mode.", hostUrl);
+        log.info("Using host URL '{}' to report CI Visibility traces in Agentless mode.", hostUrl);
       }
       return DDIntakeApi.builder()
           .hostUrl(hostUrl)
