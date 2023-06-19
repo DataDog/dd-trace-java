@@ -1,6 +1,6 @@
 package com.datadog.iast.taint;
 
-import static com.datadog.iast.taint.DefaultTaintedMap.POSITIVE_MASK;
+import static com.datadog.iast.taint.TaintedMap.POSITIVE_MASK;
 
 import com.datadog.iast.model.Range;
 import java.lang.ref.ReferenceQueue;

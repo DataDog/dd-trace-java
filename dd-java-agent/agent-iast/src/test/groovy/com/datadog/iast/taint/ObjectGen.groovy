@@ -1,10 +1,10 @@
 package com.datadog.iast.taint
 
-import static com.datadog.iast.taint.DefaultTaintedMap.POSITIVE_MASK
-import static com.datadog.iast.taint.DefaultTaintedMap.PURGE_MASK
+import static TaintedMap.POSITIVE_MASK
+import static TaintedMap.PURGE_MASK
 
 /**
- * Generate objects to test {@link DefaultTaintedMap}.
+ * Generate objects to test {@link TaintedMap}.
  */
 class ObjectGen {
 
