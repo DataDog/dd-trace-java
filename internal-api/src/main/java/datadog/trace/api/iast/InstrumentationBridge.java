@@ -74,6 +74,8 @@ public abstract class InstrumentationBridge {
       UNVALIDATED_REDIRECT = (UnvalidatedRedirectModule) module;
     } else if (module instanceof WeakRandomnessModule) {
       WEAK_RANDOMNESS = (WeakRandomnessModule) module;
+    } else if (module instanceof HttpResponseHeaderModule) {
+      RESPONSE_HEADER_MODULE = (HttpResponseHeaderModule) module;
     } else {
       throw new UnsupportedOperationException("Module not yet supported: " + module);
     }
