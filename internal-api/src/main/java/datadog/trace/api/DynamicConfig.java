@@ -9,20 +9,32 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.BiFunction;
 
 /** Manages dynamic configuration for a particular {@link Tracer} instance. */
-public final class DynamicConfig {
-  private Snapshot initialSnapshot;
-  private volatile Snapshot currentSnapshot;
+public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
+  BiFunction<Builder, S, S> snapshotFactory;
 
-  private DynamicConfig() {}
+  S initialSnapshot;
+  volatile S currentSnapshot;
 
-  public static Builder create() {
-    return new DynamicConfig().initial();
+  private DynamicConfig(BiFunction<Builder, S, S> snapshotFactory) {
+    this.snapshotFactory = snapshotFactory;
+  }
+
+  /** Dynamic configuration that uses the default snapshot type. */
+  public static DynamicConfig<Snapshot>.Builder create() {
+    return new DynamicConfig<>(Snapshot::new).initial();
+  }
+
+  /** Dynamic configuration that wants to add its own state to the snapshot. */
+  public static <S extends DynamicConfig.Snapshot> DynamicConfig<S>.Builder create(
+      BiFunction<DynamicConfig<S>.Builder, S, S> snapshotFactory) {
+    return new DynamicConfig<S>(snapshotFactory).initial();
   }
 
   /** Captures a snapshot of the configuration at the start of a trace. */
-  public TraceConfig captureTraceConfig() {
+  public S captureTraceConfig() {
     return currentSnapshot;
   }
 
@@ -108,9 +120,9 @@ public final class DynamicConfig {
     }
 
     /** Overwrites the current configuration with a new snapshot. */
-    public DynamicConfig apply() {
-      Snapshot newSnapshot = new Snapshot(this, initialSnapshot);
-      Snapshot oldSnapshot = currentSnapshot;
+    public DynamicConfig<S> apply() {
+      S newSnapshot = snapshotFactory.apply(this, initialSnapshot);
+      S oldSnapshot = currentSnapshot;
       if (null == oldSnapshot) {
         initialSnapshot = newSnapshot; // captured when constructing the dynamic config
         currentSnapshot = newSnapshot;
@@ -127,7 +139,7 @@ public final class DynamicConfig {
   }
 
   /** Immutable snapshot of the configuration. */
-  static final class Snapshot implements TraceConfig {
+  public static class Snapshot implements TraceConfig {
 
     final Map<String, String> serviceMapping;
     final Map<String, String> headerTags;
@@ -135,7 +147,7 @@ public final class DynamicConfig {
 
     private final boolean overrideResponseTags;
 
-    Snapshot(Builder builder, Snapshot initialSnapshot) {
+    protected Snapshot(DynamicConfig<?>.Builder builder, Snapshot initialSnapshot) {
       this.serviceMapping = builder.serviceMapping;
       this.headerTags = builder.headerTags;
       this.baggageMapping = builder.baggageMapping;
