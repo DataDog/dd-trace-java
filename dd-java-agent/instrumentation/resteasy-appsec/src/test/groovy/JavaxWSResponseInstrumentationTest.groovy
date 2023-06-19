@@ -1,3 +1,4 @@
+import com.datadog.iast.sink.HttpResponseHeaderModuleImpl
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
@@ -10,6 +11,7 @@ class JavaxWSResponseInstrumentationTest extends AgentTestRunner {
   @Override
   protected void configurePreAgent() {
     injectSysConfig("dd.iast.enabled", "true")
+    InstrumentationBridge.registerIastModule(new HttpResponseHeaderModuleImpl())
   }
 
   void 'change location header triggers onHeader callback'() {

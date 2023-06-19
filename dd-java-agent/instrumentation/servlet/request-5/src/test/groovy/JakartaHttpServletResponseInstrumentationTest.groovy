@@ -1,8 +1,9 @@
+import com.datadog.iast.sink.HttpResponseHeaderModuleImpl
+import com.datadog.iast.sink.InsecureCookieModuleImpl
+import com.datadog.iast.sink.NoHttpOnlyCookieModuleImpl
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
-import datadog.trace.api.iast.sink.InsecureCookieModule
-import datadog.trace.api.iast.sink.NoHttpOnlyCookieModule
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
 import foo.bar.smoketest.DummyResponse
 import jakarta.servlet.http.Cookie
@@ -13,6 +14,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
   @Override
   protected void configurePreAgent() {
     injectSysConfig('dd.iast.enabled', 'true')
+    InstrumentationBridge.registerIastModule(new HttpResponseHeaderModuleImpl())
   }
 
   @Override
@@ -22,7 +24,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
 
   void 'insecure cookie added using addCookie'() {
     setup:
-    final module = Mock(InsecureCookieModule)
+    final module = Mock(InsecureCookieModuleImpl)
     InstrumentationBridge.registerIastModule(module)
     final response = new DummyResponse()
     final cookie = new Cookie("user-id", "7")
@@ -37,7 +39,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
 
   void 'make sure we do not instrument subclasses of HttpServletResponseWrapper'() {
     setup:
-    final module = Mock(InsecureCookieModule)
+    final module = Mock(InsecureCookieModuleImpl)
     InstrumentationBridge.registerIastModule(module)
     final request = Mock(HttpServletResponse)
     final wrapper = new HttpServletResponseWrapper(request)
@@ -53,7 +55,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
 
   void 'secure cookie added using addCookie'() {
     setup:
-    final module = Mock(InsecureCookieModule)
+    final module = Mock(InsecureCookieModuleImpl)
     InstrumentationBridge.registerIastModule(module)
     final response = new DummyResponse()
     final cookie = new Cookie("user-id", "7")
@@ -69,7 +71,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
 
   void 'null cookie added using addCookie'() {
     setup:
-    final module = Mock(InsecureCookieModule)
+    final module = Mock(InsecureCookieModuleImpl)
     InstrumentationBridge.registerIastModule(module)
     final response = new DummyResponse()
 
@@ -82,7 +84,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
 
   void 'insecure cookie added using addHeader'() {
     setup:
-    final module = Mock(InsecureCookieModule)
+    final module = Mock(InsecureCookieModuleImpl)
     InstrumentationBridge.registerIastModule(module)
     final response = new DummyResponse()
 
@@ -96,8 +98,8 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
 
   void 'null parameters added using addHeader'() {
     setup:
-    InstrumentationBridge.registerIastModule(Mock(InsecureCookieModule))
-    InstrumentationBridge.registerIastModule(Mock(NoHttpOnlyCookieModule))
+    InstrumentationBridge.registerIastModule(Mock(InsecureCookieModuleImpl))
+    InstrumentationBridge.registerIastModule(Mock(NoHttpOnlyCookieModuleImpl))
     InstrumentationBridge.registerIastModule(Mock(UnvalidatedRedirectModule))
     final response = new DummyResponse()
 
@@ -111,7 +113,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
 
   void 'insecure cookie added using setHeader'() {
     setup:
-    final module = Mock(InsecureCookieModule)
+    final module = Mock(InsecureCookieModuleImpl)
     InstrumentationBridge.registerIastModule(module)
     final response = new DummyResponse()
 
@@ -125,8 +127,8 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
 
   void 'null parameters added using setHeader'() {
     setup:
-    InstrumentationBridge.registerIastModule(Mock(InsecureCookieModule))
-    InstrumentationBridge.registerIastModule(Mock(NoHttpOnlyCookieModule))
+    InstrumentationBridge.registerIastModule(Mock(InsecureCookieModuleImpl))
+    InstrumentationBridge.registerIastModule(Mock(NoHttpOnlyCookieModuleImpl))
     InstrumentationBridge.registerIastModule(Mock(UnvalidatedRedirectModule))
     final response = new DummyResponse()
 

@@ -26,6 +26,8 @@ test.finalizedBy nettyTest, jettyAsyncTest
 dependencies {
   compileOnly group: 'org.jboss.resteasy', name: 'resteasy-jaxrs', version: '3.0.0.Final'
   compileOnly group: 'org.jboss.resteasy', name: 'resteasy-multipart-provider', version: '3.0.0.Final'
+  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+
 
   testFixturesApi group: 'org.jboss.resteasy', name: 'resteasy-jaxrs', version: '3.0.0.Final'
   testFixturesApi group: 'org.jboss.resteasy', name: 'resteasy-jackson-provider', version: '3.0.0.Final'

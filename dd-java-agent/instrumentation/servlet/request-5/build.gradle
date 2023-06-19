@@ -55,6 +55,8 @@ dependencies {
   compileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   testImplementation group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+
 
   javaxClassesToRelocate project(':dd-java-agent:instrumentation:servlet-common'), {
     transitive = false
