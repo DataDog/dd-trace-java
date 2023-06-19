@@ -1,6 +1,7 @@
 package server
 
 import com.datadog.iast.sink.InsecureCookieModuleImpl
+import com.datadog.iast.sink.UnvalidatedRedirectModuleImpl
 import datadog.trace.api.iast.InstrumentationBridge
 import groovy.transform.CompileDynamic
 import io.vertx.core.AbstractVerticle
@@ -12,7 +13,7 @@ class IastSinksTest extends IastVertx34Server {
 
   void 'test unvalidated redirect reroute1'() {
     given:
-    final module = Mock(UnvalidatedRedirectModule)
+    final module = Mock(UnvalidatedRedirectModuleImpl)
     InstrumentationBridge.registerIastModule(module)
     final url = "${address}/iast/sinks/reroute1?path=rerouted"
     final request = new Request.Builder().url(url).build()
@@ -26,7 +27,7 @@ class IastSinksTest extends IastVertx34Server {
 
   void 'test unvalidated redirect reroute2'() {
     given:
-    final module = Mock(UnvalidatedRedirectModule)
+    final module = Mock(UnvalidatedRedirectModuleImpl)
     InstrumentationBridge.registerIastModule(module)
     final url = "${address}/iast/sinks/reroute2?path=rerouted"
     final request = new Request.Builder().url(url).build()
@@ -40,7 +41,7 @@ class IastSinksTest extends IastVertx34Server {
 
   void 'test unvalidated redirect location header'() {
     given:
-    final module = Mock(UnvalidatedRedirectModule)
+    final module = Mock(UnvalidatedRedirectModuleImpl)
     InstrumentationBridge.registerIastModule(module)
     final url = "${address}/iast/sinks/putheader1?name=Location&value=path"
     final request = new Request.Builder().url(url).build()
