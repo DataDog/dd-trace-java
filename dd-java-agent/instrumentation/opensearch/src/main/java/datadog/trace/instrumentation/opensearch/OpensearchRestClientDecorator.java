@@ -73,19 +73,17 @@ public class OpensearchRestClientDecorator extends DBTypeProcessingDatabaseClien
   }
 
   private String getOpensearchRequestBody(HttpEntity entity) {
-    StringBuilder bodyStringBuilder = new StringBuilder();
-    try {
-      BufferedReader bodyBufferedReader =
-          new BufferedReader(new InputStreamReader(entity.getContent(), StandardCharsets.UTF_8));
+    try (BufferedReader bodyBufferedReader =
+        new BufferedReader(new InputStreamReader(entity.getContent(), StandardCharsets.UTF_8))) {
+      StringBuilder bodyStringBuilder = new StringBuilder();
       String bodyline;
       while ((bodyline = bodyBufferedReader.readLine()) != null) {
         bodyStringBuilder.append(bodyline);
       }
-      bodyBufferedReader.close();
+      return bodyStringBuilder.toString();
     } catch (IOException e) {
       return "";
     }
-    return bodyStringBuilder.toString();
   }
 
   public AgentSpan onRequest(
