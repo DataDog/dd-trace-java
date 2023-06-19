@@ -37,7 +37,7 @@ public class ElasticsearchRestClientDecorator extends DBTypeProcessingDatabaseCl
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[]{"elasticsearch"};
+    return new String[] {"elasticsearch"};
   }
 
   @Override
@@ -105,14 +105,20 @@ public class ElasticsearchRestClientDecorator extends DBTypeProcessingDatabaseCl
         if (contentLength <= MAX_ELASTICSEARCH_BODY_CONTENT_LENGTH) {
           span.setTag("elasticsearch.body", getElasticsearchRequestBody(entity));
         } else {
-          span.setTag("elasticsearch.body", "<body size " + contentLength + " exceeds limit of " +
-              MAX_ELASTICSEARCH_BODY_CONTENT_LENGTH + ">");
+          span.setTag(
+              "elasticsearch.body",
+              "<body size "
+                  + contentLength
+                  + " exceeds limit of "
+                  + MAX_ELASTICSEARCH_BODY_CONTENT_LENGTH
+                  + ">");
         }
       }
       if (parameters != null) {
         StringBuilder queryParametersStringBuilder = new StringBuilder();
         for (Map.Entry<String, String> parameter : parameters.entrySet()) {
-          queryParametersStringBuilder.append(parameter.getKey() + "=" + parameter.getValue() + "&");
+          queryParametersStringBuilder.append(
+              parameter.getKey() + "=" + parameter.getValue() + "&");
         }
         if (queryParametersStringBuilder.length() >= 1) {
           queryParametersStringBuilder.deleteCharAt(queryParametersStringBuilder.length() - 1);

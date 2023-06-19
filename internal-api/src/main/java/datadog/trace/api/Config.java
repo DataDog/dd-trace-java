@@ -238,6 +238,7 @@ import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_BODY_AND_PARAMS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_INBOUND_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_OUTBOUND_METHODS;
@@ -268,7 +269,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_CONTEXT_SERVICE_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME;
-import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_BODY_AND_PARAMS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST;
 import static datadog.trace.api.config.TracerConfig.AGENT_NAMED_PIPE;
 import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY;
@@ -758,8 +758,9 @@ public class Config {
     } else {
       secureRandom = configProvider.getBoolean(SECURE_RANDOM, DEFAULT_SECURE_RANDOM);
     }
-    elasticsearchBodyAndParamsEnabled = configProvider.getBoolean(ELASTICSEARCH_BODY_AND_PARAMS_ENABLED,
-        DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED);
+    elasticsearchBodyAndParamsEnabled =
+        configProvider.getBoolean(
+            ELASTICSEARCH_BODY_AND_PARAMS_ENABLED, DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED);
     String strategyName = configProvider.getString(ID_GENERATION_STRATEGY);
     trace128bitTraceIdGenerationEnabled =
         configProvider.getBoolean(
@@ -2496,7 +2497,7 @@ public class Config {
     return grpcClientErrorStatuses;
   }
 
-  public boolean isElasticsearchBodyAndParamsEnabled(){
+  public boolean isElasticsearchBodyAndParamsEnabled() {
     return elasticsearchBodyAndParamsEnabled;
   }
 
