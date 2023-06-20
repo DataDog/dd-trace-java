@@ -57,6 +57,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
   /** Reset the configuration to its initial state. */
   public void resetTraceConfig() {
     currentSnapshot = initialSnapshot;
+    reportConfigChange(initialSnapshot);
   }
 
   public final class Builder {
@@ -174,24 +175,27 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
         currentSnapshot = newSnapshot;
       } else {
         currentSnapshot = newSnapshot;
-
-        Map<String, Object> update = new HashMap<>();
-
-        update.put(TRACE_DEBUG, newSnapshot.debugEnabled);
-        update.put(RUNTIME_METRICS_ENABLED, newSnapshot.runtimeMetricsEnabled);
-        update.put(LOGS_INJECTION_ENABLED, newSnapshot.logsInjectionEnabled);
-        update.put(DATA_STREAMS_ENABLED, newSnapshot.dataStreamsEnabled);
-
-        update.put(SERVICE_MAPPING, newSnapshot.serviceMapping);
-        update.put(HEADER_TAGS, newSnapshot.headerTags);
-        update.put(BAGGAGE_MAPPING, newSnapshot.baggageMapping);
-
-        update.put(TRACE_SAMPLE_RATE, newSnapshot.traceSampleRate);
-
-        ConfigCollector.get().putAll(update);
+        reportConfigChange(newSnapshot);
       }
       return DynamicConfig.this;
     }
+  }
+
+  static void reportConfigChange(Snapshot newSnapshot) {
+    Map<String, Object> update = new HashMap<>();
+
+    update.put(TRACE_DEBUG, newSnapshot.debugEnabled);
+    update.put(RUNTIME_METRICS_ENABLED, newSnapshot.runtimeMetricsEnabled);
+    update.put(LOGS_INJECTION_ENABLED, newSnapshot.logsInjectionEnabled);
+    update.put(DATA_STREAMS_ENABLED, newSnapshot.dataStreamsEnabled);
+
+    update.put(SERVICE_MAPPING, newSnapshot.serviceMapping);
+    update.put(HEADER_TAGS, newSnapshot.headerTags);
+    update.put(BAGGAGE_MAPPING, newSnapshot.baggageMapping);
+
+    update.put(TRACE_SAMPLE_RATE, newSnapshot.traceSampleRate);
+
+    ConfigCollector.get().putAll(update);
   }
 
   /** Immutable snapshot of the configuration. */
