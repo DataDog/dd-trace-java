@@ -26,6 +26,8 @@ public final class GeneralConfig {
   @Deprecated // Use dd.tags instead
   public static final String GLOBAL_TAGS = "trace.global.tags";
 
+  public static final String TRACE_DEBUG = "trace.debug";
+
   public static final String DOGSTATSD_START_DELAY = "dogstatsd.start-delay";
   public static final String DOGSTATSD_HOST = "dogstatsd.host";
   public static final String DOGSTATSD_PORT = "dogstatsd.port";
