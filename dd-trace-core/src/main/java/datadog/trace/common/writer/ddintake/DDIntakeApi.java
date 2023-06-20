@@ -12,6 +12,7 @@ import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.RemoteApi;
 import java.io.IOException;
 import java.net.ConnectException;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -78,7 +79,8 @@ public class DDIntakeApi extends RemoteApi {
 
     public DDIntakeApi build() {
       assert apiKey != null;
-      final String trackName = (trackType != null ? trackType.name() : NOOP.name()).toLowerCase();
+      final String trackName =
+          (trackType != null ? trackType.name() : NOOP.name()).toLowerCase(Locale.ROOT);
       if (null == hostUrl) {
         hostUrl = HttpUrl.get(String.format("https://%s-intake.%s", trackName, site));
       }

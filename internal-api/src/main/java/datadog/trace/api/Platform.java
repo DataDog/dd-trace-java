@@ -4,6 +4,7 @@ import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public final class Platform {
 
@@ -25,7 +26,7 @@ public final class Platform {
     static GC current() {
       for (GarbageCollectorMXBean mxBean : ManagementFactory.getGarbageCollectorMXBeans()) {
         if (mxBean.isValid()) {
-          String name = mxBean.getName().toLowerCase();
+          String name = mxBean.getName().toLowerCase(Locale.ROOT);
           for (GC gc : GC.values()) {
             if (gc != UNKNOWN && name.startsWith(gc.identifierPrefix)) {
               return gc;
@@ -279,17 +280,17 @@ public final class Platform {
   }
 
   public static boolean isLinux() {
-    return System.getProperty("os.name").toLowerCase().contains("linux");
+    return System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("linux");
   }
 
   public static boolean isWindows() {
     // https://mkyong.com/java/how-to-detect-os-in-java-systemgetpropertyosname/
-    final String os = System.getProperty("os.name").toLowerCase();
+    final String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
     return os.contains("win");
   }
 
   public static boolean isMac() {
-    final String os = System.getProperty("os.name").toLowerCase();
+    final String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
     return os.contains("mac");
   }
 

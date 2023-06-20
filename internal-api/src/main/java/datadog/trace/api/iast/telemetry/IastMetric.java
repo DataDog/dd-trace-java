@@ -28,6 +28,7 @@ import static datadog.trace.api.iast.telemetry.Verbosity.INFORMATION;
 import static datadog.trace.api.iast.telemetry.Verbosity.MANDATORY;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.util.Locale;
 import javax.annotation.Nonnull;
 
 public enum IastMetric {
@@ -253,7 +254,7 @@ public enum IastMetric {
 
   @SuppressForbidden
   private static String processTagValue(final String tagValue) {
-    return tagValue.toLowerCase().replaceAll("\\.", "_");
+    return tagValue.toLowerCase(Locale.ROOT).replaceAll("\\.", "_");
   }
 
   public boolean isEnabled(@Nonnull final Verbosity verbosity) {

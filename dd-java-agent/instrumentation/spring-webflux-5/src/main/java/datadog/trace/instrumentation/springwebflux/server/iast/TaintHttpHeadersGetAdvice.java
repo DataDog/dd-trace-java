@@ -20,7 +20,7 @@ class TaintHttpHeadersGetAdvice {
     if (!(arg instanceof String)) {
       return;
     }
-    String lc = ((String) arg).toLowerCase(Locale.ENGLISH);
+    String lc = ((String) arg).toLowerCase(Locale.ROOT);
     for (String value : values) {
       module.onHeaderValue(lc, value);
     }

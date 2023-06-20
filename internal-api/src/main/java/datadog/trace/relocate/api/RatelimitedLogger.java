@@ -2,6 +2,7 @@ package datadog.trace.relocate.api;
 
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
@@ -55,7 +56,7 @@ public class RatelimitedLogger {
     StringBuilder noLogStringBuilder = new StringBuilder(prefix);
     noLogStringBuilder.append(delay);
     noLogStringBuilder.append(' ');
-    String unit = timeUnit.name().toLowerCase();
+    String unit = timeUnit.name().toLowerCase(Locale.ROOT);
     unit =
         delay == 1
             ? unit.substring(0, unit.length() - 1)
