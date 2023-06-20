@@ -1,0 +1,26 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'Maven Instrumentation Smoke Tests.'
+
+dependencies {
+  implementation group: 'org.apache.maven.wrapper', name: 'maven-wrapper', version: '3.2.0'
+
+  testImplementation project(':dd-smoke-tests')
+  testImplementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.14.0'
+  testImplementation group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.8.20'
+  testImplementation group: 'commons-fileupload', name: 'commons-fileupload', version: '1.5'
+}
+
+jar {
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.maven.MavenRunner')
+  }
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "shadowJar"
+  jvmArgs "-Ddatadog.smoketest.maven.jar.path=${tasks.shadowJar.archiveFile.get()}"
+}

@@ -69,45 +69,53 @@ final class TracingConfigPoller {
           CONFIG_OVERRIDES_ADAPTER.fromJson(
               Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
 
-      if (null != overrides) {
-        applyConfigOverrides(overrides);
+      if (null != overrides && null != overrides.libConfig) {
+        applyConfigOverrides(overrides.libConfig);
+        if (log.isDebugEnabled()) {
+          log.debug(
+              "Applied APM_TRACING overrides: {}", CONFIG_OVERRIDES_ADAPTER.toJson(overrides));
+        }
       } else {
         removeConfigOverrides();
+        log.debug("No APM_TRACING overrides");
       }
     }
 
     @Override
     public void remove(ParsedConfigKey configKey, PollingRateHinter hinter) {
       removeConfigOverrides();
+      log.debug("Removed APM_TRACING overrides");
     }
 
     @Override
     public void commit(PollingRateHinter hinter) {}
   }
 
-  void applyConfigOverrides(ConfigOverrides overrides) {
+  void applyConfigOverrides(LibConfig libConfig) {
     DynamicConfig.Builder builder = dynamicConfig.initial();
-    maybeOverride(builder::setServiceMapping, overrides.serviceMapping, SERVICE_MAPPING);
-    maybeOverride(builder::setHeaderTags, overrides.headerTags, HEADER_TAGS);
+    maybeOverride(builder::setServiceMapping, libConfig.serviceMapping, SERVICE_MAPPING);
+    maybeOverride(builder::setHeaderTags, libConfig.headerTags, HEADER_TAGS);
     maybeOverride(
-        builder::setLogsInjectionEnabled, overrides.logsInjectionEnabled, LOGS_INJECTION_ENABLED);
+        builder::setLogsInjectionEnabled, libConfig.logsInjectionEnabled, LOGS_INJECTION_ENABLED);
     builder.apply();
-    log.debug("Applied APM_TRACING overrides");
   }
 
   void removeConfigOverrides() {
     dynamicConfig.resetTraceConfig();
-    log.debug("Removed APM_TRACING overrides");
   }
 
   private <T> void maybeOverride(Consumer<T> setter, T override, String key) {
     if (null != override) {
       setter.accept(override);
-      log.debug("Overriding dd.{} with {}", key, override);
     }
   }
 
   static final class ConfigOverrides {
+    @Json(name = "lib_config")
+    public LibConfig libConfig;
+  }
+
+  static final class LibConfig {
     @Json(name = "tracing_service_mapping")
     public List<ServiceMappingEntry> serviceMapping;
 

@@ -62,11 +62,15 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
   @Override
   AgentSpan setError(boolean error);
 
+  AgentSpan setError(boolean error, byte priority);
+
   AgentSpan setMeasured(boolean measured);
 
   AgentSpan setErrorMessage(String errorMessage);
 
   AgentSpan addThrowable(Throwable throwable);
+
+  AgentSpan addThrowable(Throwable throwable, byte errorPriority);
 
   @Override
   AgentSpan getLocalRootSpan();
@@ -139,8 +143,6 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
   /** RequestContext for the Instrumentation Gateway */
   RequestContext getRequestContext();
-
-  void mergePathwayContext(PathwayContext pathwayContext);
 
   Integer forceSamplingDecision();
 

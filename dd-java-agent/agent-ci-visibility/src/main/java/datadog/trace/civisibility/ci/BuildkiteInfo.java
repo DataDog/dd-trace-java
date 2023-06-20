@@ -6,13 +6,12 @@ import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.PathUtils.expandTilde;
 import static datadog.trace.util.Strings.toJson;
 
-import datadog.trace.api.civisibility.ci.CIInfo;
-import datadog.trace.api.civisibility.ci.CIProviderInfo;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 class BuildkiteInfo implements CIProviderInfo {
@@ -72,7 +71,8 @@ class BuildkiteInfo implements CIProviderInfo {
     for (Map.Entry<String, String> e : System.getenv().entrySet()) {
       String envVar = e.getKey();
       if (envVar.startsWith(BUILDKITE_CI_NODE_LABEL_PREFIX)) {
-        String labelKey = envVar.substring(BUILDKITE_CI_NODE_LABEL_PREFIX.length()).toLowerCase();
+        String labelKey =
+            envVar.substring(BUILDKITE_CI_NODE_LABEL_PREFIX.length()).toLowerCase(Locale.ROOT);
         String labelValue = e.getValue();
         labels.add(labelKey + ':' + labelValue);
       }

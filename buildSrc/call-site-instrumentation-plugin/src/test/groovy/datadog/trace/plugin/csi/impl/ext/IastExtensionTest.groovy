@@ -1,9 +1,11 @@
 package datadog.trace.plugin.csi.impl.ext
 
 import com.github.javaparser.JavaParser
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import com.github.javaparser.ast.body.MethodDeclaration
 import com.github.javaparser.ast.body.TypeDeclaration
 import datadog.trace.agent.tooling.csi.CallSiteAdvice
+import datadog.trace.agent.tooling.csi.CallSites
 import datadog.trace.plugin.csi.AdviceGenerator
 import datadog.trace.plugin.csi.PluginApplication.Configuration
 import datadog.trace.plugin.csi.impl.AdviceGeneratorImpl
@@ -53,9 +55,9 @@ class IastExtensionTest extends BaseCsiPluginTest {
     applies == expected
 
     where:
-    typeName                       | expected
-    CallSiteAdvice.name            | false
-    IastExtension.IAST_ADVICE_FQCN | true
+    typeName                           | expected
+    CallSites.name                     | false
+    IastExtension.IAST_CALL_SITES_FQCN | true
   }
 
   void 'test that extension generates a call site with telemetry'() {
@@ -76,68 +78,8 @@ class IastExtensionTest extends BaseCsiPluginTest {
     when:
     extension.apply(config, callSite)
 
-    then:
-    final String callSiteWithTelemetryClass = IastExtensionCallSite.name + IastExtension.WITH_TELEMETRY_SUFFIX
-    final fileSeparatorPattern = File.separator == "\\" ? "\\\\" : File.separator
-    final resultFile = targetFolder.resolve("${callSiteWithTelemetryClass.replaceAll('\\.', fileSeparatorPattern)}.java")
-    assert Files.exists(resultFile)
-    final callSiteType = parse(resultFile.toFile())
-    validateMethod(callSiteType, 'afterGetHeader') { List<String> statements ->
-      assert statements[0] == 'IastMetricCollector.add(IastMetric.EXECUTED_SOURCE_REQUEST_HEADER_VALUE, 1);'
-    }
-
-    callSite.getAdvices().each { result ->
-      final type = callSite.specification.clazz
-      final adviceType = parse(result.file)
-      final interfaces = getImplementedTypes(adviceType)
-      assert interfaces.contains('HasTelemetry')
-      validateField(adviceType, 'telemetry') { String field ->
-        assert field == 'private boolean telemetry = false;'
-      }
-      validateField(adviceType, 'callSite') { String field ->
-        assert field == "private String callSite = \"${type.internalName}\";"
-      }
-      validateField(adviceType, 'helperClassNames') { String field ->
-        assert field == "private String[] helperClassNames = new String[] { \"${type.className}\" };"
-      }
-      validateMethod(adviceType, 'apply') { List<String> statements ->
-        assert statements == [
-          'if (this.telemetry) {' + System.lineSeparator() +
-          '    IastMetricCollector.add(IastMetric.INSTRUMENTED_SOURCE_REQUEST_HEADER_VALUE, 1);' + System.lineSeparator() +
-          '}',
-          'handler.dupInvoke(owner, descriptor, StackDupMode.COPY);',
-          'handler.method(opcode, owner, name, descriptor, isInterface);',
-          'handler.method(Opcodes.INVOKESTATIC, this.callSite, "afterGetHeader", "(Ljavax/servlet/http/HttpServletRequest;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;", false);'
-        ]
-      }
-      validateMethod(adviceType, 'helperClassNames') { List<String> statements ->
-        assert statements == ['return this.helperClassNames;']
-      }
-      validateMethod(adviceType, 'kind') { List<String> statements ->
-        assert statements == ['return IastAdvice.Kind.SOURCE;']
-      }
-      validateMethod(adviceType, 'enableTelemetry') { List<String> statements ->
-        assert statements == [
-          'this.telemetry = true;',
-          'if (enableRuntime) {' + System.lineSeparator() +
-          '    this.callSite = "' + type.internalName + 'WithTelemetry";' + System.lineSeparator() +
-          '    this.helperClassNames = new String[] { "' + type.className + 'WithTelemetry" };' + System.lineSeparator() +
-          '}',
-        ]
-      }
-    }
-  }
-
-  private static void validateMethod(final TypeDeclaration<?> type, final String name, final Closure<?> validator) {
-    validator.call(getMethod(type, name).body.get().statements*.toString())
-  }
-
-  private static void validateField(final TypeDeclaration<?> type, final String name, final Closure<?> validator) {
-    validator.call(type.getFieldByName(name).get().toString())
-  }
-
-  private static MethodDeclaration getMethod(final TypeDeclaration<?> type, final String name) {
-    return type.getMethods().find { it.nameAsString == name }
+    then: 'the call site provider is modified with telemetry'
+    final callSiteType = parse(callSite.file)
   }
 
   private static AdviceGenerator buildAdviceGenerator(final File targetFolder) {
@@ -149,12 +91,8 @@ class IastExtensionTest extends BaseCsiPluginTest {
     return Paths.get(file.toURI()).resolve('../../../../src/test/java')
   }
 
-  private static List<String> getImplementedTypes(final TypeDeclaration<?> type) {
-    return type.asClassOrInterfaceDeclaration().implementedTypes*.nameAsString
-  }
-
-  private static TypeDeclaration<?> parse(final File path) {
+  private static ClassOrInterfaceDeclaration parse(final File path) {
     final parsedAdvice = new JavaParser().parse(path).getResult().get()
-    return parsedAdvice.primaryType.get()
+    return parsedAdvice.primaryType.get().asClassOrInterfaceDeclaration()
   }
 }

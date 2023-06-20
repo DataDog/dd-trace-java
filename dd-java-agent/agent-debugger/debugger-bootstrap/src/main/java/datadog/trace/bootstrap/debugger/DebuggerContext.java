@@ -1,8 +1,9 @@
 package datadog.trace.bootstrap.debugger;
 
-import static datadog.trace.bootstrap.debugger.util.TimeoutChecker.DEFAULT_TIME_OUT;
-
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +15,7 @@ import org.slf4j.LoggerFactory;
  */
 public class DebuggerContext {
   private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerContext.class);
+  private static final ThreadLocal<Boolean> IN_PROBE = ThreadLocal.withInitial(() -> Boolean.FALSE);
 
   public enum SkipCause {
     RATE,
@@ -171,6 +173,7 @@ public class DebuggerContext {
         // if all probes are rate limited, we don't capture
         result |= ProbeRateLimiter.tryProbe(probeId);
       }
+      result = result && checkAndSetInProbe();
       return result;
     } catch (Exception ex) {
       LOGGER.debug("Error in isReadyToCapture: ", ex);
@@ -178,6 +181,22 @@ public class DebuggerContext {
     }
   }
 
+  public static void disableInProbe() {
+    IN_PROBE.set(Boolean.FALSE);
+  }
+
+  public static boolean isInProbe() {
+    return IN_PROBE.get();
+  }
+
+  public static boolean checkAndSetInProbe() {
+    if (IN_PROBE.get()) {
+      LOGGER.debug("Instrumentation is reentered, skip it.");
+      return false;
+    }
+    IN_PROBE.set(Boolean.TRUE);
+    return true;
+  }
   /**
    * resolve probe details based on probe ids and evaluate the captured context regarding summary &
    * conditions This is for method probes
@@ -207,7 +226,8 @@ public class DebuggerContext {
       // only freeze the context when we have at lest one snapshot probe, and we should send
       // snapshot
       if (needFreeze) {
-        context.freeze(new TimeoutChecker(DEFAULT_TIME_OUT));
+        Duration timeout = Duration.of(Config.get().getDebuggerCaptureTimeout(), ChronoUnit.MILLIS);
+        context.freeze(new TimeoutChecker(timeout));
       }
     } catch (Exception ex) {
       LOGGER.debug("Error in evalContext: ", ex);

@@ -222,7 +222,7 @@ class MuzzlePlugin implements Plugin<Project> {
 //    println "Range Result: " + rangeResult
 
     final Set<Artifact> allVersionArtifacts = versions.collect { version ->
-      new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, "jar", version.toString())
+      new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, muzzleDirective.classifier ?: "", "jar", version.toString())
     }.toSet()
 
     if (allVersionArtifacts.isEmpty()) {
@@ -380,7 +380,7 @@ class MuzzlePlugin implements Plugin<Project> {
    */
   private static filterVersion(Set<Version> list, Set<String> skipVersions) {
     list.removeIf {
-      def version = it.toString().toLowerCase()
+      def version = it.toString().toLowerCase(Locale.ROOT)
       return version.endsWith("-snapshot") ||
         version.contains("rc") ||
         version.contains(".cr") ||
@@ -421,6 +421,7 @@ class MuzzleDirective {
 
   String group
   String module
+  String classifier
   String versions
   Set<String> skipVersions = new HashSet<>()
   List<String> additionalDependencies = new ArrayList<>()
@@ -549,7 +550,7 @@ class MuzzleExtension {
   private postConstruct(MuzzleDirective directive) {
     // Make skipVersions case insensitive.
     directive.skipVersions = directive.skipVersions.collect {
-      it.toLowerCase()
+      it.toLowerCase(Locale.ROOT)
     }
     // Add existing repositories
     directive.additionalRepositories.addAll(additionalRepositories)

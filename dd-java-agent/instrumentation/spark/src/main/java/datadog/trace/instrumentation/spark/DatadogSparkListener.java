@@ -116,14 +116,11 @@ public class DatadogSparkListener extends SparkListener {
       applicationSpan.setTag(DDTags.ERROR_STACK, lastJobFailedStackTrace);
     }
 
-    for (SparkListenerExecutorAdded executor : liveExecutors.values()) {
-      availableExecutorTime += (time - executor.time()) * executor.executorInfo().totalCores();
-    }
-
     applicationMetrics.setSpanMetrics(applicationSpan, "spark_application_metrics");
     applicationSpan.setMetric("spark_application_metrics.max_executor_count", maxExecutorCount);
     applicationSpan.setMetric(
-        "spark_application_metrics.available_executor_time", availableExecutorTime);
+        "spark_application_metrics.available_executor_time",
+        computeCurrentAvailableExecutorTime(time));
 
     applicationSpan.finish(time * 1000);
   }
@@ -255,6 +252,11 @@ public class DatadogSparkListener extends SparkListener {
       submissionTimeMs = System.currentTimeMillis();
     }
 
+    long stageSpanKey = stageSpanKey(stageId, stageAttemptId);
+    stageMetrics.put(
+        stageSpanKey,
+        new SparkAggregatedTaskMetrics(computeCurrentAvailableExecutorTime(submissionTimeMs)));
+
     AgentSpan stageSpan =
         buildSparkSpan("spark.stage")
             .asChildOf(jobSpan.context())
@@ -298,6 +300,18 @@ public class DatadogSparkListener extends SparkListener {
 
     stageInfo.rddInfos().foreach(rdd -> span.setTag("rdd." + rdd.name(), rdd.toString()));
 
+    long completionTimeMs;
+    if (stageCompleted.stageInfo().completionTime().isDefined()) {
+      completionTimeMs = (long) stageCompleted.stageInfo().completionTime().get();
+    } else {
+      completionTimeMs = System.currentTimeMillis();
+    }
+
+    long currentAvailableExecutorTime = computeCurrentAvailableExecutorTime(completionTimeMs);
+    for (SparkAggregatedTaskMetrics metric : stageMetrics.values()) {
+      metric.allocateAvailableExecutorTime(currentAvailableExecutorTime);
+    }
+
     SparkAggregatedTaskMetrics stageMetric = stageMetrics.remove(stageSpanKey);
     if (stageMetric != null) {
       stageMetric.setSpanMetrics(span, "spark_stage_metrics");
@@ -308,29 +322,27 @@ public class DatadogSparkListener extends SparkListener {
           .accumulateStageMetrics(stageMetric);
     }
 
-    long completionTimeMs;
-    if (stageCompleted.stageInfo().completionTime().isDefined()) {
-      completionTimeMs = (long) stageCompleted.stageInfo().completionTime().get();
-    } else {
-      completionTimeMs = System.currentTimeMillis();
-    }
-
     span.finish(completionTimeMs * 1000);
   }
 
   @Override
   public void onTaskEnd(SparkListenerTaskEnd taskEnd) {
-    if (jobMetrics.size() > MAX_COLLECTION_SIZE || stageMetrics.size() > MAX_COLLECTION_SIZE) {
-      return;
-    }
-
     int stageId = taskEnd.stageId();
     int stageAttemptId = taskEnd.stageAttemptId();
     long stageSpanKey = stageSpanKey(stageId, stageAttemptId);
 
-    stageMetrics
-        .computeIfAbsent(stageSpanKey, k -> new SparkAggregatedTaskMetrics())
-        .addTaskMetrics(taskEnd);
+    SparkAggregatedTaskMetrics stageMetric = stageMetrics.get(stageSpanKey);
+    if (stageMetric != null) {
+      stageMetric.addTaskMetrics(taskEnd);
+    }
+
+    if (taskEnd.taskMetrics() != null) {
+      // Record the runtime in each active stage in order to allocate the available executor time
+      long taskRunTime = SparkAggregatedTaskMetrics.computeTaskRunTime(taskEnd.taskMetrics());
+      for (SparkAggregatedTaskMetrics aggMetrics : stageMetrics.values()) {
+        aggMetrics.recordTotalTaskRunTime(taskRunTime);
+      }
+    }
 
     // Only sending failing tasks
     if (!(taskEnd.reason() instanceof TaskFailedReason)) {
@@ -453,5 +465,16 @@ public class DatadogSparkListener extends SparkListener {
     }
 
     return errorMessage;
+  }
+
+  private long computeCurrentAvailableExecutorTime(long time) {
+    long currentAvailableExecutorTime = availableExecutorTime;
+
+    for (SparkListenerExecutorAdded executor : liveExecutors.values()) {
+      currentAvailableExecutorTime +=
+          (time - executor.time()) * executor.executorInfo().totalCores();
+    }
+
+    return currentAvailableExecutorTime;
   }
 }

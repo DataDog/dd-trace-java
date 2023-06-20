@@ -8,7 +8,9 @@ import java.io.OutputStream;
 import java.util.zip.GZIPOutputStream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FrameOutputStream;
+import net.jpountz.xxhash.XXHashFactory;
 import okhttp3.MediaType;
 import okhttp3.RequestBody;
 import okio.BufferedSink;
@@ -20,6 +22,10 @@ import okio.Source;
  * data.
  */
 final class CompressingRequestBody extends RequestBody {
+
+  private static final LZ4Factory LZ4_FACTORY = LZ4Factory.fastestJavaInstance();
+  private static final XXHashFactory XXHASH_FACTORY = XXHashFactory.fastestJavaInstance();
+
   static final class MissingInputException extends IOException {
     public MissingInputException(String message) {
       super(message);
@@ -339,6 +345,9 @@ final class CompressingRequestBody extends RequestBody {
     return new LZ4FrameOutputStream(
         os,
         LZ4FrameOutputStream.BLOCKSIZE.SIZE_64KB,
+        -1L,
+        LZ4_FACTORY.fastCompressor(),
+        XXHASH_FACTORY.hash32(),
         // copy of the default flag(s) used by LZ4FrameOutputStream
         LZ4FrameOutputStream.FLG.Bits.BLOCK_INDEPENDENCE);
   }

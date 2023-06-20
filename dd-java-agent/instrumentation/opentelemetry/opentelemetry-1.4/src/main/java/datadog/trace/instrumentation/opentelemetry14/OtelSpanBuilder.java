@@ -12,6 +12,7 @@ import io.opentelemetry.api.trace.SpanBuilder;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.context.Context;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.ParametersAreNonnullByDefault;
 
@@ -96,7 +97,7 @@ public class OtelSpanBuilder implements SpanBuilder {
         return Tags.SPAN_KIND_CONSUMER;
       default:
       case INTERNAL:
-        return spanKind.toString().toLowerCase();
+        return spanKind.toString().toLowerCase(Locale.ROOT);
     }
   }
 

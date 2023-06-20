@@ -23,7 +23,6 @@ import datadog.trace.api.profiling.Timer;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
-import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -201,7 +200,7 @@ public class AgentTracer {
 
     void notifyExtensionEnd(AgentSpan span, Object result, boolean isError);
 
-    DataStreamsMonitoring getDataStreamsMonitoring();
+    AgentDataStreamsMonitoring getDataStreamsMonitoring();
 
     Timer getTimer();
 
@@ -243,8 +242,6 @@ public class AgentTracer {
   static class NoopTracerAPI implements TracerAPI {
 
     protected NoopTracerAPI() {}
-
-    private final DataStreamsMonitoring dataStreamsMonitoring = new NoopDataStreamsMonitoring();
 
     @Override
     public AgentSpan startSpan(final CharSequence spanName) {
@@ -425,17 +422,6 @@ public class AgentTracer {
     }
 
     @Override
-    public <C> PathwayContext extractBinaryPathwayContext(
-        C carrier, BinaryContextVisitor<C> getter) {
-      return null;
-    }
-
-    @Override
-    public <C> PathwayContext extractPathwayContext(C carrier, ContextVisitor<C> getter) {
-      return null;
-    }
-
-    @Override
     public void onRootSpanFinished(AgentSpan root, EndpointTracker tracker) {}
 
     @Override
@@ -460,8 +446,8 @@ public class AgentTracer {
     }
 
     @Override
-    public DataStreamsMonitoring getDataStreamsMonitoring() {
-      return dataStreamsMonitoring;
+    public AgentDataStreamsMonitoring getDataStreamsMonitoring() {
+      return NoopAgentDataStreamsMonitoring.INSTANCE;
     }
 
     @Override
@@ -622,9 +608,6 @@ public class AgentTracer {
     }
 
     @Override
-    public void mergePathwayContext(PathwayContext pathwayContext) {}
-
-    @Override
     public Integer forceSamplingDecision() {
       return null;
     }
@@ -670,6 +653,11 @@ public class AgentTracer {
     }
 
     @Override
+    public AgentSpan setError(boolean error, byte priority) {
+      return this;
+    }
+
+    @Override
     public AgentSpan setMeasured(boolean measured) {
       return this;
     }
@@ -686,6 +674,11 @@ public class AgentTracer {
 
     @Override
     public AgentSpan addThrowable(final Throwable throwable) {
+      return this;
+    }
+
+    @Override
+    public AgentSpan addThrowable(Throwable throwable, byte errorPriority) {
       return this;
     }
 
@@ -843,17 +836,6 @@ public class AgentTracer {
     public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
       return NoopContext.INSTANCE;
     }
-
-    @Override
-    public <C> PathwayContext extractBinaryPathwayContext(
-        C carrier, BinaryContextVisitor<C> getter) {
-      return null;
-    }
-
-    @Override
-    public <C> PathwayContext extractPathwayContext(C carrier, ContextVisitor<C> getter) {
-      return null;
-    }
   }
 
   static class NoopContinuation implements AgentScope.Continuation {
@@ -999,6 +981,14 @@ public class AgentTracer {
     public void cancelContinuation(final AgentScope.Continuation continuation) {}
   }
 
+  public static class NoopAgentDataStreamsMonitoring implements AgentDataStreamsMonitoring {
+    public static final NoopAgentDataStreamsMonitoring INSTANCE =
+        new NoopAgentDataStreamsMonitoring();
+
+    @Override
+    public void trackBacklog(LinkedHashMap<String, String> sortedTags, long value) {}
+  }
+
   public static class NoopPathwayContext implements PathwayContext {
     public static final NoopPathwayContext INSTANCE = new NoopPathwayContext();
 
@@ -1017,12 +1007,12 @@ public class AgentTracer {
         LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer) {}
 
     @Override
-    public byte[] encode() throws IOException {
+    public byte[] encode() {
       return null;
     }
 
     @Override
-    public String strEncode() throws IOException {
+    public String strEncode() {
       return null;
     }
   }

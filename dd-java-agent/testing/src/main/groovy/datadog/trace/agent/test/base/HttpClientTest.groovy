@@ -440,8 +440,10 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     renameService << [false, true]
   }
 
+  @Flaky(value = 'Futures timed out after [1 second]', suites = ['PlayWSClientTest'])
   def "trace request with callback and parent"() {
     given:
+    def method = 'GET'
     assumeTrue(testCallbackWithParent())
 
     when:
@@ -476,9 +478,6 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
         edgeTags.size() == DSM_EDGE_TAGS.size()
       }
     }
-
-    where:
-    method = "GET"
   }
 
   def "trace request with callback and no parent"() {

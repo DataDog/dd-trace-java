@@ -9,37 +9,50 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.function.BiFunction;
 
 /** Manages dynamic configuration for a particular {@link Tracer} instance. */
-public final class DynamicConfig {
-  private State initialState;
-  private volatile State currentState;
+public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
+  BiFunction<Builder, S, S> snapshotFactory;
 
-  private DynamicConfig() {}
+  S initialSnapshot;
+  volatile S currentSnapshot;
 
-  public static Builder create() {
-    return new DynamicConfig().initial();
+  private DynamicConfig(BiFunction<Builder, S, S> snapshotFactory) {
+    this.snapshotFactory = snapshotFactory;
+  }
+
+  /** Dynamic configuration that uses the default snapshot type. */
+  public static DynamicConfig<Snapshot>.Builder create() {
+    return new DynamicConfig<>(Snapshot::new).initial();
+  }
+
+  /** Dynamic configuration that wants to add its own state to the snapshot. */
+  public static <S extends DynamicConfig.Snapshot> DynamicConfig<S>.Builder create(
+      BiFunction<DynamicConfig<S>.Builder, S, S> snapshotFactory) {
+    return new DynamicConfig<S>(snapshotFactory).initial();
   }
 
   /** Captures a snapshot of the configuration at the start of a trace. */
-  public TraceConfig captureTraceConfig() {
-    return currentState;
+  public S captureTraceConfig() {
+    return currentSnapshot;
   }
 
   /** Start building a new configuration based on its initial state. */
   public Builder initial() {
-    return new Builder(initialState);
+    return new Builder(initialSnapshot);
   }
 
   /** Start building a new configuration based on its current state. */
   public Builder current() {
-    return new Builder(currentState);
+    return new Builder(currentSnapshot);
   }
 
   /** Reset the configuration to its initial state. */
   public void resetTraceConfig() {
-    currentState = initialState;
+    currentSnapshot = initialSnapshot;
   }
 
   public final class Builder {
@@ -49,17 +62,17 @@ public final class DynamicConfig {
     Map<String, String> baggageMapping;
     boolean logsInjectionEnabled;
 
-    Builder(State state) {
-      if (null == state) {
+    Builder(Snapshot snapshot) {
+      if (null == snapshot) {
         this.serviceMapping = Collections.emptyMap();
         this.headerTags = Collections.emptyMap();
         this.baggageMapping = Collections.emptyMap();
         this.logsInjectionEnabled = ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
       } else {
-        this.serviceMapping = state.serviceMapping;
-        this.headerTags = state.headerTags;
-        this.baggageMapping = state.baggageMapping;
-        this.logsInjectionEnabled = state.logsInjectionEnabled;
+        this.serviceMapping = snapshot.serviceMapping;
+        this.headerTags = snapshot.headerTags;
+        this.baggageMapping = snapshot.baggageMapping;
+        this.logsInjectionEnabled = snapshot.logsInjectionEnabled;
       }
     }
 
@@ -105,11 +118,11 @@ public final class DynamicConfig {
       for (Map.Entry<String, String> association : mapping) {
         String key = association.getKey().trim();
         if (lowerCaseKeys) {
-          key = key.toLowerCase();
+          key = key.toLowerCase(Locale.ROOT);
         }
         String value = association.getValue().trim();
         if (lowerCaseValues) {
-          value = value.toLowerCase();
+          value = value.toLowerCase(Locale.ROOT);
         }
         cleanedMapping.put(key, value);
       }
@@ -117,19 +130,20 @@ public final class DynamicConfig {
     }
 
     /** Overwrites the current configuration with a new snapshot. */
-    public DynamicConfig apply() {
-      State newState = new State(this, initialState);
-      State oldState = currentState;
-      if (null == oldState) {
-        initialState = newState; // captured when constructing the dynamic config
-        currentState = newState;
+    public DynamicConfig<S> apply() {
+      S newSnapshot = snapshotFactory.apply(this, initialSnapshot);
+      S oldSnapshot = currentSnapshot;
+      if (null == oldSnapshot) {
+        initialSnapshot = newSnapshot; // captured when constructing the dynamic config
+        currentSnapshot = newSnapshot;
       } else {
-        currentState = newState;
+        currentSnapshot = newSnapshot;
         Map<String, Object> update = new HashMap<>();
-        update.put(SERVICE_MAPPING, newState.serviceMapping);
-        update.put(HEADER_TAGS, newState.headerTags);
-        update.put(BAGGAGE_MAPPING, newState.baggageMapping);
-        update.put(LOGS_INJECTION_ENABLED, newState.logsInjectionEnabled);
+        update.put(SERVICE_MAPPING, newSnapshot.serviceMapping);
+        update.put(HEADER_TAGS, newSnapshot.headerTags);
+        update.put(BAGGAGE_MAPPING, newSnapshot.baggageMapping);
+        update.put(LOGS_INJECTION_ENABLED, newSnapshot.logsInjectionEnabled);
+
         ConfigCollector.get().putAll(update);
       }
       return DynamicConfig.this;
@@ -137,7 +151,7 @@ public final class DynamicConfig {
   }
 
   /** Immutable snapshot of the configuration. */
-  static final class State implements TraceConfig {
+  public static class Snapshot implements TraceConfig {
 
     final Map<String, String> serviceMapping;
     final Map<String, String> headerTags;
@@ -146,14 +160,15 @@ public final class DynamicConfig {
 
     private final boolean overrideResponseTags;
 
-    State(Builder builder, State initialState) {
+    protected Snapshot(DynamicConfig<?>.Builder builder, Snapshot initialSnapshot) {
       this.serviceMapping = builder.serviceMapping;
       this.headerTags = builder.headerTags;
       this.baggageMapping = builder.baggageMapping;
       this.logsInjectionEnabled = builder.logsInjectionEnabled;
 
       // also apply headerTags to response headers if the initial reference has been overridden
-      this.overrideResponseTags = null != initialState && headerTags != initialState.headerTags;
+      this.overrideResponseTags =
+          null != initialSnapshot && headerTags != initialSnapshot.headerTags;
     }
 
     @Override

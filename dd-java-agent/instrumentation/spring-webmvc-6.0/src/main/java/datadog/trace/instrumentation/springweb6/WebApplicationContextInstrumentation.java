@@ -38,7 +38,6 @@ public class WebApplicationContextInstrumentation extends Instrumenter.Tracing
     return new String[] {
       packageName + ".SpringWebHttpServerDecorator",
       packageName + ".ServletRequestURIAdapter",
-      "datadog.trace.instrumentation.springweb.BeanDefinitionRepairer",
       packageName + ".HandlerMappingResourceNameFilter",
       packageName + ".HandlerMappingResourceNameFilter$BeanDefinition",
       packageName + ".PathMatchingHttpServletRequestWrapper",

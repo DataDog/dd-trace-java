@@ -17,6 +17,7 @@ import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
+import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
@@ -45,6 +46,7 @@ public class LogProbesInstrumentationTest {
     if (currentTransformer != null) {
       instr.removeTransformer(currentTransformer);
     }
+    ProbeRateLimiter.resetAll();
   }
 
   @Test
@@ -316,7 +318,7 @@ public class LogProbesInstrumentationTest {
     Assertions.assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertEquals(
-        "this is log line for this={STATIC_STR=strStatic, intValue=48, doubleValue=3.14, strValue=done, strList=..., ...}",
+        "this is log line for this={STATIC_STR=strStatic, intValue=48, doubleValue=3.14, strValue=done, strList=...}, ...",
         snapshot.getMessage());
   }
 

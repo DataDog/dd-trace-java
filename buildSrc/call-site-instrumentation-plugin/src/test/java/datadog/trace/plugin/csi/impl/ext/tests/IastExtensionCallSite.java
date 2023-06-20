@@ -1,12 +1,13 @@
 package datadog.trace.plugin.csi.impl.ext.tests;
 
 import datadog.trace.agent.tooling.csi.CallSite;
+import datadog.trace.plugin.csi.impl.ext.tests.IastCallSites.Source;
 import javax.servlet.http.HttpServletRequest;
 
-@CallSite(spi = IastAdvice.class)
+@CallSite(spi = IastCallSites.class)
 public class IastExtensionCallSite {
 
-  @IastAdvice.Source(SourceTypes.REQUEST_HEADER_VALUE)
+  @Source(SourceTypes.REQUEST_HEADER_VALUE)
   @CallSite.After(
       "java.lang.String javax.servlet.http.HttpServletRequest.getHeader(java.lang.String)")
   @CallSite.After(

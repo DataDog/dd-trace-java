@@ -20,8 +20,7 @@ import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
-import datadog.trace.bootstrap.instrumentation.api.DataStreamsMonitoring
-import datadog.trace.bootstrap.instrumentation.api.NoopDataStreamsMonitoring
+import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring
 import datadog.trace.common.metrics.EventListener
 import datadog.trace.common.metrics.Sink
 import datadog.trace.common.writer.DDAgentWriter
@@ -31,6 +30,7 @@ import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring
+import datadog.trace.core.datastreams.NoopDataStreamsMonitoring
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.Strings
 import de.thetaphi.forbiddenapis.SuppressForbidden
@@ -158,7 +158,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   @SuppressWarnings('PropertyName')
   @Shared
-  DataStreamsMonitoring TEST_DATA_STREAMS_MONITORING
+  AgentDataStreamsMonitoring TEST_DATA_STREAMS_MONITORING
 
   @Shared
   ClassFileTransformer activeTransformer
@@ -174,6 +174,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   protected boolean isTestAgentEnabled() {
     return System.getenv("CI_USE_TEST_AGENT").equals("true")
+  }
+
+  protected boolean isForceAppSecActive() {
+    true
   }
 
   private static void configureLoggingLevels() {
@@ -296,7 +300,9 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     util.attachMock(TEST_CHECKPOINTER, this)
 
     originalAppSecRuntimeValue = ActiveSubsystems.APPSEC_ACTIVE
-    ActiveSubsystems.APPSEC_ACTIVE = true
+    if (forceAppSecActive) {
+      ActiveSubsystems.APPSEC_ACTIVE = true
+    }
   }
 
   void cleanup() {

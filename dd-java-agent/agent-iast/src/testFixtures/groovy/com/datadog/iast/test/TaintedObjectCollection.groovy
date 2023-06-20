@@ -28,10 +28,7 @@ class TaintedObjectCollection {
   TaintedObjectCollection(TaintedObjects tobjs) {
     this.taintedObjects = tobjs
     if (tobjs) {
-      Spliterator<TaintedObject> spliterator = tobjs.taintedMap.spliterator()
-      List<TaintedObject> taintedList = StreamSupport.stream(
-        spliterator, false).collect(Collectors.toList())
-      this.coll = taintedList
+      this.coll = StreamSupport.stream(tobjs.spliterator(), false).collect(Collectors.toList())
     } else {
       this.coll = []
     }

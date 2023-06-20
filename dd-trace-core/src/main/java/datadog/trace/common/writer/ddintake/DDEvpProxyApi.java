@@ -11,6 +11,7 @@ import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.RemoteApi;
 import java.io.IOException;
 import java.net.ConnectException;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -69,7 +70,8 @@ public class DDEvpProxyApi extends RemoteApi {
     }
 
     public DDEvpProxyApi build() {
-      final String trackName = (trackType != null ? trackType.name() : NOOP.name()).toLowerCase();
+      final String trackName =
+          (trackType != null ? trackType.name() : NOOP.name()).toLowerCase(Locale.ROOT);
       final String subdomain = String.format("%s-intake", trackName);
 
       final HttpUrl evpProxyUrl = agentUrl.resolve(evpProxyEndpoint);

@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import java.util.Locale;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
@@ -66,7 +67,7 @@ public class ApacheHttpClientRedirectInstrumentation extends Instrumenter.Tracin
         redirect.setHeaders(original.getAllHeaders());
       } else {
         for (final Header header : original.getAllHeaders()) {
-          final String name = header.getName().toLowerCase();
+          final String name = header.getName().toLowerCase(Locale.ROOT);
           if (name.startsWith("x-datadog-") || name.startsWith("x-b3-")) {
             if (!redirect.containsHeader(header.getName())) {
               redirect.setHeader(header.getName(), header.getValue());

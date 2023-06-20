@@ -11,6 +11,9 @@ class BaseDecoratorTest extends DDSpecification {
   @Shared
   def decorator = newDecorator()
 
+  @Shared
+  def errorPriority = null as Byte
+
   def span = Mock(AgentSpan)
 
   def "test afterStart"() {
@@ -59,7 +62,11 @@ class BaseDecoratorTest extends DDSpecification {
 
     then:
     if (error) {
-      1 * span.addThrowable(error)
+      if (errorPriority != null) {
+        1 * span.addThrowable(error, errorPriority)
+      } else {
+        1 * span.addThrowable(error)
+      }
     }
     0 * _
 

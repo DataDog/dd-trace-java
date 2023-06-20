@@ -28,6 +28,8 @@ import static datadog.trace.api.iast.telemetry.Verbosity.INFORMATION;
 import static datadog.trace.api.iast.telemetry.Verbosity.MANDATORY;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.util.Locale;
+import javax.annotation.Nonnull;
 
 public enum IastMetric {
   INSTRUMENTED_PROPAGATION(MetricNames.INSTRUMENTED_PROPAGATION, true, GLOBAL, MANDATORY),
@@ -247,15 +249,15 @@ public enum IastMetric {
   }
 
   public String getSpanTag() {
-    return tagName == null ? null : String.format("%s.%s", name, processTagValue(tagValue));
+    return tagName == null ? name : String.format("%s.%s", name, processTagValue(tagValue));
   }
 
   @SuppressForbidden
   private static String processTagValue(final String tagValue) {
-    return tagValue.toLowerCase().replaceAll("\\.", "_");
+    return tagValue.toLowerCase(Locale.ROOT).replaceAll("\\.", "_");
   }
 
-  public boolean isEnabled(final Verbosity verbosity) {
+  public boolean isEnabled(@Nonnull final Verbosity verbosity) {
     return verbosity.isEnabled(this.verbosity);
   }
 

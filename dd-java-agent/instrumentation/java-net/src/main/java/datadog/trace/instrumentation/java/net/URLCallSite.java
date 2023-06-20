@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.java.net;
 
 import datadog.trace.agent.tooling.csi.CallSite;
-import datadog.trace.api.iast.IastAdvice;
-import datadog.trace.api.iast.IastAdvice.Propagation;
-import datadog.trace.api.iast.IastAdvice.Sink;
+import datadog.trace.api.iast.IastCallSites;
+import datadog.trace.api.iast.IastCallSites.Propagation;
+import datadog.trace.api.iast.IastCallSites.Sink;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -13,7 +13,7 @@ import java.net.URI;
 import java.net.URL;
 import javax.annotation.Nonnull;
 
-@CallSite(spi = IastAdvice.class)
+@CallSite(spi = IastCallSites.class)
 public class URLCallSite {
 
   @Propagation

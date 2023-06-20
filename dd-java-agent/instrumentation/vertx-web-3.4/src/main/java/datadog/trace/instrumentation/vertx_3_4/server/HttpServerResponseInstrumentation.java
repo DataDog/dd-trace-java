@@ -57,7 +57,7 @@ public class HttpServerResponseInstrumentation extends Instrumenter.Iast
     public static void onEnter(
         @Advice.Argument(0) final CharSequence name, @Advice.Argument(1) CharSequence value) {
       if (null != name) {
-        InstrumentationBridge.onHeader(name.toString(), value.toString());
+        InstrumentationBridge.RESPONSE_HEADER_MODULE.onHeader(name.toString(), value.toString());
       }
     }
   }
@@ -68,9 +68,9 @@ public class HttpServerResponseInstrumentation extends Instrumenter.Iast
         @Advice.Argument(0) final CharSequence name, @Advice.Argument(1) Iterable values) {
       if (null != values) {
         for (Object value : values) {
-          if (value instanceof CharSequence && null != value) {
+          if (value instanceof CharSequence) {
             String stValue = ((CharSequence) value).toString();
-            InstrumentationBridge.onHeader(name.toString(), stValue);
+            InstrumentationBridge.RESPONSE_HEADER_MODULE.onHeader(name.toString(), stValue);
           }
         }
       }

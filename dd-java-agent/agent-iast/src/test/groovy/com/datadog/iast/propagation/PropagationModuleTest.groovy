@@ -221,26 +221,6 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     new Object() | '==>123<=='
   }
 
-  void 'test lazy tainted objects'() {
-    given:
-    final to = PropagationModuleImpl.lazyTaintedObjects()
-    final tainted = 'I am tainted'
-
-    when:
-    to.taintInputString(tainted, new Source(SourceTypes.REQUEST_COOKIE_VALUE, null, null))
-
-    then:
-    ctx.taintedObjects.get(tainted) != null
-    to.estimatedSize == ctx.taintedObjects.estimatedSize
-    to.flat == ctx.taintedObjects.flat
-
-    when:
-    to.release()
-
-    then:
-    ctx.taintedObjects.estimatedSize == 0
-  }
-
   void 'test first tainted source'() {
     when:
     final before = module.firstTaintedSource(target)

@@ -24,7 +24,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
@@ -219,9 +218,6 @@ public class RabbitDecorator extends MessagingClientDecorator {
     final AgentSpan span = startSpan(OPERATION_AMQP_INBOUND, parentContext, spanStartMicros);
 
     if (null != headers) {
-      PathwayContext pathwayContext =
-          propagate().extractPathwayContext(headers, ContextVisitors.objectValuesMap());
-      span.mergePathwayContext(pathwayContext);
       LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
       sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
       sortedTags.put(TOPIC_TAG, queue);

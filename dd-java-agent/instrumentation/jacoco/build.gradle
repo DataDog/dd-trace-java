@@ -1,0 +1,15 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    group = 'org.jacoco'
+    module = 'org.jacoco.agent'
+    classifier = 'runtime'
+    versions = "[0.5,)"
+    assertInverse = true
+  }
+}
+
+dependencies {
+  implementation deps.asm
+}

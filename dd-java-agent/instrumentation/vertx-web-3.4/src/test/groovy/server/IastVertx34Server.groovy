@@ -13,7 +13,7 @@ import java.util.concurrent.CompletableFuture
 
 import static server.VertxTestServer.CONFIG_HTTP_SERVER_PORT
 
-class IastVertx34Server extends IastHttpServerTest<Vertx> {
+abstract class IastVertx34Server extends IastHttpServerTest<Vertx> {
 
   private class VertxServer implements HttpServer {
     private VertxInternal server
@@ -60,9 +60,7 @@ class IastVertx34Server extends IastHttpServerTest<Vertx> {
     return new VertxServer(routerBasePath())
   }
 
-  protected Class<AbstractVerticle> verticle() {
-    IastVertxTestVerticle
-  }
+  abstract Class<AbstractVerticle> verticle()
 
   String routerBasePath() {
     return "/"

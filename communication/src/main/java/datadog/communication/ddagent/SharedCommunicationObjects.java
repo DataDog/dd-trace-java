@@ -30,6 +30,9 @@ public class SharedCommunicationObjects {
     }
     if (agentUrl == null) {
       agentUrl = HttpUrl.parse(config.getAgentUrl());
+      if (agentUrl == null) {
+        throw new IllegalArgumentException("Bad agent URL: " + config.getAgentUrl());
+      }
     }
     if (okHttpClient == null) {
       String unixDomainSocket = SocketUtils.discoverApmSocket(config);

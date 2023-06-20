@@ -8,6 +8,7 @@ dependencies {
   api project(':dd-java-agent:testing')
   api project(':utils:test-utils')
   api project(':utils:test-agent-utils:decoder')
+  api group: 'commons-fileupload', name: 'commons-fileupload', version: '1.5'
 }
 
 Project parent_project = project
@@ -24,8 +25,5 @@ subprojects { Project subProj ->
     // Tests depend on this to know where to run things and what agent jar to use
     jvmArgs "-Ddatadog.smoketest.builddir=${buildDir}"
     jvmArgs "-Ddatadog.smoketest.agent.shadowJar.path=${project(':dd-java-agent').tasks.shadowJar.archiveFile.get()}"
-
-    // The jar path for the test agent (taken from https://github.com/DataDog/dd-trace-test-agent )
-    jvmArgs "-Ddatadog.smoketest.test.agent.dir=${project.getRootDir()}/dd-smoke-tests/src/main/resources/datadog.smoketest.test.agent.jar"
   }
 }

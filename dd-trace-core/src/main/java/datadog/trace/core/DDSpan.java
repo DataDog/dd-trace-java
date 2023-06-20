@@ -22,7 +22,7 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -245,7 +245,12 @@ public class DDSpan
 
   @Override
   public DDSpan setError(final boolean error) {
-    context.setErrorFlag(error);
+    return setError(error, ErrorPriorities.DEFAULT);
+  }
+
+  @Override
+  public DDSpan setError(final boolean error, final byte priority) {
+    context.setErrorFlag(error, priority);
     return this;
   }
 
@@ -313,6 +318,11 @@ public class DDSpan
 
   @Override
   public DDSpan addThrowable(final Throwable error) {
+    return addThrowable(error, ErrorPriorities.DEFAULT);
+  }
+
+  @Override
+  public DDSpan addThrowable(Throwable error, byte errorPriority) {
     if (null != error) {
       String message = error.getMessage();
       if (!"broken pipe".equalsIgnoreCase(message)
@@ -322,7 +332,7 @@ public class DDSpan
         // which might happen because the application is overloaded
         // or warming up - capturing the stack trace and keeping
         // the trace may exacerbate existing problems.
-        setError(true);
+        setError(true, errorPriority);
         final StringWriter errorString = new StringWriter();
         error.printStackTrace(new PrintWriter(errorString));
         setTag(DDTags.ERROR_STACK, errorString.toString());
@@ -331,7 +341,6 @@ public class DDSpan
       setTag(DDTags.ERROR_MSG, message);
       setTag(DDTags.ERROR_TYPE, error.getClass().getName());
     }
-
     return this;
   }
 
@@ -524,11 +533,6 @@ public class DDSpan
   @Override
   public RequestContext getRequestContext() {
     return context.getRequestContext();
-  }
-
-  @Override
-  public void mergePathwayContext(PathwayContext pathwayContext) {
-    context.mergePathwayContext(pathwayContext);
   }
 
   @Override

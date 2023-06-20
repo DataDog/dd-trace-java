@@ -62,27 +62,29 @@ public final class ClassFileLocators {
 
       // try bootstrap first
       Resolution resolution = loadClassResource(Utils.getBootstrapProxy(), resourceName);
-      ClassLoader cl = get();
-
-      // now go up the classloader hierarchy
-      if (null == resolution && null != cl) {
-        LOCATING_CLASS.begin();
-        try {
-          do {
-            if (NO_CLASSLOADER_EXCLUDES
-                || !InstrumenterConfig.get()
-                    .getExcludedClassLoaders()
-                    .contains(cl.getClass().getName())) {
-              resolution = loadClassResource(cl, resourceName);
-            }
-            cl = cl.getParent();
-          } while (null == resolution && null != cl);
-        } finally {
-          LOCATING_CLASS.end();
-        }
+      if (null != resolution) {
+        return resolution;
       }
 
-      return resolution != null ? resolution : new Resolution.Illegal(className);
+      LOCATING_CLASS.begin();
+      try {
+        // now go up the classloader hierarchy
+        for (ClassLoader cl = get(); null != cl; cl = cl.getParent()) {
+          if (NO_CLASSLOADER_EXCLUDES
+              || !InstrumenterConfig.get()
+                  .getExcludedClassLoaders()
+                  .contains(cl.getClass().getName())) {
+            resolution = loadClassResource(cl, resourceName);
+            if (null != resolution) {
+              return resolution;
+            }
+          }
+        }
+      } finally {
+        LOCATING_CLASS.end();
+      }
+
+      return new Resolution.Illegal(className);
     }
 
     @Override

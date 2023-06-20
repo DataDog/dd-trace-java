@@ -74,8 +74,13 @@ public final class AgentThreadFactory implements ThreadFactory {
    * @param runnable work to run on the new thread.
    */
   public static Thread newAgentThread(final AgentThread agentThread, final Runnable runnable) {
+    return newAgentThread(agentThread, runnable, true);
+  }
+
+  public static Thread newAgentThread(
+      final AgentThread agentThread, final Runnable runnable, boolean daemon) {
     final Thread thread = new Thread(AGENT_THREAD_GROUP, runnable, agentThread.threadName);
-    thread.setDaemon(true);
+    thread.setDaemon(daemon);
     thread.setContextClassLoader(null);
     thread.setUncaughtExceptionHandler(
         new Thread.UncaughtExceptionHandler() {

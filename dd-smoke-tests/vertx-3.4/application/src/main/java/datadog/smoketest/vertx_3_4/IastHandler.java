@@ -3,6 +3,7 @@ package datadog.smoketest.vertx_3_4;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
+import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Cookie;
 import io.vertx.ext.web.RoutingContext;
@@ -96,6 +97,28 @@ public enum IastHandler implements Handler<RoutingContext> {
       values.add("firstcookie=b");
       values.add("user-id=7");
       rc.response().putHeader("Set-cookie", values).end("Received ");
+    }
+  },
+  UNVALIDATED_REDIRECT_REROUTE1("/unvaidatedredirectreroute1") {
+    @Override
+    public void handle(final RoutingContext rc) {
+      final String path = rc.request().getParam("path");
+      rc.reroute(path);
+    }
+  },
+  UNVALIDATED_REDIRECT_REROUTE2("/unvaidatedredirectreroute2") {
+    @Override
+    public void handle(final RoutingContext rc) {
+      final String path = rc.request().getParam("path");
+      rc.reroute(HttpMethod.GET, path);
+    }
+  },
+  UNVALIDATED_REDIRECT_HEADER("/unvaidatedredirectheader") {
+    @Override
+    public void handle(final RoutingContext rc) {
+      final String name = rc.request().getParam("name");
+      final String value = rc.request().getParam("value");
+      rc.response().putHeader(name, value).end("Redirected ");
     }
   },
   EVENT_BUS("/eventBus") {

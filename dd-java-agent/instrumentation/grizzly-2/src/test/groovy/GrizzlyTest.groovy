@@ -11,6 +11,7 @@ import javax.ws.rs.NotFoundException
 import javax.ws.rs.Path
 import javax.ws.rs.QueryParam
 import javax.ws.rs.container.ContainerRequestContext
+import javax.ws.rs.container.ContainerRequestFilter
 import javax.ws.rs.container.ContainerResponseContext
 import javax.ws.rs.container.ContainerResponseFilter
 import javax.ws.rs.core.Response
@@ -37,6 +38,16 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     injectSysConfig("dd.integration.grizzly.enabled", "true")
   }
 
+  static GrizzlyTest testInstance
+
+  static void markHandlerRan(boolean value) {
+    testInstance.handlerRan = value
+  }
+
+  void setup() {
+    testInstance = this
+  }
+
   protected class GrizzlyServer implements datadog.trace.agent.test.base.HttpServer {
     final HttpServer server
     int port = 0
@@ -44,6 +55,7 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     GrizzlyServer() {
       ResourceConfig rc = new ResourceConfig()
       rc.register(SimpleExceptionMapper)
+      rc.register(HandlerRanFilter)
       rc.register(resource())
       rc.register(ResponseServerFilter)
       server = GrizzlyHttpServerFactory.createHttpServer(new URI("http://localhost:0"), rc, false)
@@ -104,6 +116,13 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
         return exception.getResponse()
       }
       Response.status(500).entity(exception.message).build()
+    }
+  }
+
+  static class HandlerRanFilter implements ContainerRequestFilter {
+    @Override
+    void filter(ContainerRequestContext requestContext) throws IOException {
+      GrizzlyTest.markHandlerRan true
     }
   }
 
@@ -170,7 +189,9 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     @Path("user-block")
     Response userBlock() {
       controller(USER_BLOCK) {
+        markHandlerRan false // clear value in filter
         Blocking.forUser('user-to-block').blockIfMatch()
+        markHandlerRan true
         Response.status(200).entity('should not be reached').build()
       }
     }

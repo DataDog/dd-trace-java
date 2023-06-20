@@ -82,6 +82,11 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void setup() {
     callInitAndCaptureCBs()
+    AppSecSystem.active = true
+  }
+
+  void cleanup() {
+    bridge.stop()
   }
 
   void 'request_start produces appsec context and publishes event'() {
@@ -140,7 +145,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('http.request.headers.accept', 'header_value')
     1 * traceSegment.setTagTop('http.response.headers.content-type', 'text/html; charset=UTF-8')
     1 * traceSegment.setTagTop('network.client.ip', '2001::1')
-    1 * traceSegment._(*_)
     1 * eventDispatcher.publishEvent(mockAppSecCtx, EventType.REQUEST_END)
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE

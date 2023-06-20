@@ -15,12 +15,8 @@ import net.bytebuddy.jar.asm.Type
 import net.bytebuddy.matcher.ElementMatcher
 import net.bytebuddy.utility.JavaModule
 import net.bytebuddy.utility.nullability.MaybeNull
-import datadog.trace.agent.tooling.csi.CallSiteAdvice.HasHelpers
-import datadog.trace.agent.tooling.csi.CallSiteAdvice.HasFlags
-
 import java.security.MessageDigest
 
-import static datadog.trace.agent.tooling.csi.CallSiteAdvice.HasFlags.COMPUTE_MAX_STACK
 
 
 import java.lang.reflect.Method
@@ -32,89 +28,49 @@ import static net.bytebuddy.matcher.ElementMatchers.named
 @CompileDynamic
 class BaseCallSiteTest extends DDSpecification {
 
-  protected InvokeAdvice mockInvokeAdvice(final Pointcut target) {
-    return Mock(InvokeAdvice) {
-      pointcut() >> target
-    }
-  }
-
-  protected InvokeDynamicAdvice mockInvokeDynamicAdvice(final Pointcut target) {
-    return Mock(InvokeDynamicAdvice) {
-      pointcut() >> target
-    }
-  }
-
-  protected InvokeAdvice mockInvokeAdvice(final Pointcut target, final int flagsValue) {
-    return Mock(InvokeAdviceWithFlags) {
-      pointcut() >> target
-      flags() >> flagsValue
-    }
-  }
-
-  protected InvokeDynamicAdvice mockInvokeDynamicAdvice(final Pointcut target, final int flagsValue) {
-    return Mock(InvokeDynamicAdviceWithFlags) {
-      pointcut() >> target
-      flags() >> flagsValue
-    }
-  }
-
-  protected InvokeAdvice mockInvokeAdvice(final Pointcut target, final String... helpers) {
-    return Mock(InvokeAdviceWithHelpers) {
-      pointcut() >> target
-      helperClassNames() >> helpers
-    }
-  }
-
-  protected InvokeDynamicAdvice mockInvokeDynamicAdvice(final Pointcut target, final String... helpers) {
-    return Mock(InvokeDynamicAdviceWithHelpers) {
-      pointcut() >> target
-      helperClassNames() >> helpers
-    }
-  }
-
-  protected InvokeAdvice mockInvokeAdvice(final Pointcut target, final int flagsValue, final String... helpers) {
-    return Mock(InvokeAdviceWithFlagsAndHelpers) {
-      pointcut() >> target
-      flags() >> flagsValue
-      helperClassNames() >> helpers
-    }
-  }
-
-  protected InvokeDynamicAdvice mockInvokeDynamicAdvice(final Pointcut target, final int flagsValue, final String... helpers) {
-    return Mock(InvokeDynamicAdviceWithFlagsAndHelpers) {
-      pointcut() >> target
-      flags() >> flagsValue
-      helperClassNames() >> helpers
-    }
-  }
-
-  protected Advices mockAdvices(final Collection<CallSiteAdvice> advices) {
-    final computedFlags = advices.inject(0) { result, advice ->
-      return advice instanceof HasFlags ? (result | (advice as HasFlags).flags()) : result
-    }
-    final adviceFinder = { final String owner, final String name, final String desc ->
-      return advices.find {
-        final pointcut = it.pointcut()
-        return pointcut.type() == owner && pointcut.method() == name && pointcut.descriptor() == desc
+  protected CallSites mockCallSites(final CallSiteAdvice advice, final Pointcut target, final String... helpers) {
+    return Mock(CallSites) {
+      accept(_ as CallSites.Container) >> {
+        final container = it[0] as CallSites.Container
+        container.addHelpers(helpers)
+        container.addAdvice(target.type, target.method, target.descriptor, advice)
       }
+    }
+  }
+
+  protected Advices mockAdvices(final Collection<CallSites> callSites) {
+    final advices = [:] as Map<String, Map<String, Map<String, CallSiteAdvice>>>
+    final helpers = [] as Set<String>
+    final container = Mock(CallSites.Container) {
+      addAdvice(_ as String, _ as String, _ as String, _ as CallSiteAdvice) >> {
+        advices.computeIfAbsent(it[0] as String, t -> [:])
+        .computeIfAbsent(it[1] as String, m -> [:])
+        .put(it[2] as String, it[3] as CallSiteAdvice)
+      }
+      addHelpers(_ as String[]) >> {
+        Collections.addAll(helpers, it[0] as String[])
+      }
+    }
+    callSites.each {
+      it.accept(container)
+    }
+    final adviceFinder = {
+      final String owner, final String name, final String desc ->
+      return advices.get(owner)?.get(name)?.get(desc)
     }
     return Mock(Advices) {
       isEmpty() >> advices.isEmpty()
       findAdvices(_ as DynamicType.Builder, _ as TypeDescription, _ as ClassLoader) >> it
-      findAdvice(_ as Pointcut) >> { params ->
-        final pointcut = (params as Object[])[0] as Pointcut
-        adviceFinder.call(pointcut.type(), pointcut.method(), pointcut.descriptor())
-      }
-      findAdvice(_ as Handle) >> { params ->
+      findAdvice(_ as Handle) >> {
+        params ->
         final handle = (params as Object[])[0] as Handle
         adviceFinder.call(handle.getOwner(), handle.getName(), handle.getDesc())
       }
-      findAdvice(_ as String, _ as String, _ as String) >> { params ->
+      findAdvice(_ as String, _ as String, _ as String) >> {
+        params ->
         final Object[] args = params as Object[]
         adviceFinder.call(args[0] as String, args[1] as String, args[2] as String)
       }
-      hasFlag(_ as int) >> { params -> (params as Object[])[0] as int & computedFlags }
-      computeMaxStack() >> { COMPUTE_MAX_STACK & computedFlags }
     }
   }
 
@@ -132,9 +88,9 @@ class BaseCallSiteTest extends DDSpecification {
 
   protected static Pointcut stringConcatFactoryPointcut() {
     return buildPointcut(
-      'java/lang/invoke/StringConcatFactory',
-      'makeConcatWithConstants',
-      '(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;')
+    'java/lang/invoke/StringConcatFactory',
+    'makeConcatWithConstants',
+    '(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;')
   }
 
   protected static Pointcut buildPointcut(final Method executable) {
@@ -142,55 +98,48 @@ class BaseCallSiteTest extends DDSpecification {
   }
 
   protected static Pointcut buildPointcut(final String type, final String method, final String descriptor) {
-    return new Pointcut() {
-        @Override
-        String type() {
-          return type
-        }
-
-        @Override
-        String method() {
-          return method
-        }
-
-        @Override
-        String descriptor() {
-          return descriptor
-        }
-      }
+    return new Pointcut(type: type, method: method, descriptor: descriptor)
   }
 
-  protected static CallSiteInstrumentation buildInstrumentation(final Iterable<CallSiteAdvice> advices,
-    final ElementMatcher<TypeDescription> callerType = any()) {
+  protected static CallSiteInstrumentation buildInstrumentation(final Iterable<CallSites> advices,
+  final ElementMatcher<TypeDescription> callerType = any()) {
     return new CallSiteInstrumentation('csi') {
-        @Override
-        ElementMatcher<TypeDescription> callerType() {
-          return callerType
-        }
-
-        @Override
-        protected CallSiteSupplier callSites() {
-          return { advices }
-        }
+      @Override
+      ElementMatcher<TypeDescription> callerType() {
+        return callerType
       }
-  }
 
-  protected static CallSiteInstrumentation buildInstrumentation(final Class<?> spiClass,
-    final ElementMatcher<TypeDescription> callerType = any()) {
-    return new CallSiteInstrumentation('csi') {
-        @Override
-        ElementMatcher<TypeDescription> callerType() {
-          return callerType
-        }
-
-        @Override
-        protected CallSiteSupplier callSites() {
-          return {
-            final targetClassLoader = CallSiteInstrumentation.classLoader
-            return (ServiceLoader<CallSiteAdvice>) ServiceLoader.load(spiClass, targetClassLoader)
+      @Override
+      protected CallSiteSupplier callSites() {
+        return new CallSiteSupplier() {
+          @Override
+          Iterable<CallSites> get() {
+            return advices
           }
         }
       }
+    }
+  }
+
+  protected static CallSiteInstrumentation buildInstrumentation(final Class<?> spiClass,
+  final ElementMatcher<TypeDescription> callerType = any()) {
+    return new CallSiteInstrumentation('csi') {
+      @Override
+      ElementMatcher<TypeDescription> callerType() {
+        return callerType
+      }
+
+      @Override
+      protected CallSiteSupplier callSites() {
+        return new CallSiteSupplier() {
+          @Override
+          Iterable<CallSites> get() {
+            final targetClassLoader = CallSiteInstrumentation.classLoader
+            return (ServiceLoader<CallSites>) ServiceLoader.load(spiClass, targetClassLoader)
+          }
+        }
+      }
+    }
   }
 
   protected static Type renameType(final Type sourceType, final String suffix) {
@@ -198,51 +147,39 @@ class BaseCallSiteTest extends DDSpecification {
   }
 
   protected static Object loadType(final Type type,
-    final byte[] data,
-    final ClassLoader loader = Thread.currentThread().contextClassLoader) {
+  final byte[] data,
+  final ClassLoader loader = Thread.currentThread().contextClassLoader) {
     final classLoader = new ByteArrayClassLoader(loader, [(type.className): data])
     final Class<?> clazz = classLoader.loadClass(type.className)
     return clazz.getConstructor().newInstance()
   }
 
   protected static byte[] transformType(final Type source,
-    final Type target,
-    final CallSiteTransformer transformer,
-    final ClassLoader loader = Thread.currentThread().contextClassLoader) {
+  final Type target,
+  final CallSiteTransformer transformer,
+  final ClassLoader loader = Thread.currentThread().contextClassLoader) {
     final classContent = loader.getResourceAsStream("${source.getInternalName()}.class").bytes
     final classFileTransformer = new AgentBuilder.Default()
-      .type(named(source.className))
-      .transform(new AgentBuilder.Transformer() {
-        @Override
-        DynamicType.Builder<?> transform(final DynamicType.Builder<?> builder,
-          final TypeDescription typeDescription,
-          final @MaybeNull ClassLoader classLoader,
-          final @MaybeNull JavaModule module,
-          final ProtectionDomain pd) {
-          return transformer
-            .transform(builder, typeDescription, classLoader, module, pd)
-            .name(target.className)
-        }
-      })
-      .makeRaw()
+    .type(named(source.className))
+    .transform(new AgentBuilder.Transformer() {
+      @Override
+      DynamicType.Builder<?> transform(final DynamicType.Builder<?> builder,
+      final TypeDescription typeDescription,
+      final @MaybeNull ClassLoader classLoader,
+      final @MaybeNull JavaModule module,
+      final ProtectionDomain pd) {
+        return transformer
+        .transform(builder, typeDescription, classLoader, module, pd)
+        .name(target.className)
+      }
+    })
+    .makeRaw()
     return classFileTransformer.transform(loader, source.className, null, null, classContent)
   }
 
-  interface InvokeAdviceWithHelpers extends InvokeAdvice, HasHelpers {
-  }
-
-  interface InvokeDynamicAdviceWithHelpers extends InvokeDynamicAdvice, HasHelpers {
-  }
-
-  interface InvokeAdviceWithFlags extends InvokeAdvice, HasFlags {
-  }
-
-  interface InvokeDynamicAdviceWithFlags extends InvokeDynamicAdvice, HasFlags {
-  }
-
-  interface InvokeAdviceWithFlagsAndHelpers extends InvokeAdvice, HasFlags, HasHelpers {
-  }
-
-  interface InvokeDynamicAdviceWithFlagsAndHelpers extends InvokeDynamicAdvice, HasFlags, HasHelpers {
+  protected static class Pointcut {
+    String type
+    String method
+    String descriptor
   }
 }

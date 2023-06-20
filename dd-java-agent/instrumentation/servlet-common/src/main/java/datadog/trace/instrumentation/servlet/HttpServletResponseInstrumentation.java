@@ -12,9 +12,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import datadog.trace.api.iast.sink.InsecureCookieModule;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
-import javax.servlet.http.Cookie;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -57,12 +55,10 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Iast
 
   public static class AddCookieAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(@Advice.Argument(0) final Cookie cookie) {
-      final InsecureCookieModule module = InstrumentationBridge.INSECURE_COOKIE;
-      if (module != null) {
-        if (null != cookie) {
-          module.onCookie(cookie.getName(), cookie.getSecure());
-        }
+    public static void onEnter(@Advice.Argument(0) final javax.servlet.http.Cookie cookie) {
+      if (null != cookie) {
+        InstrumentationBridge.RESPONSE_HEADER_MODULE.onCookie(
+            cookie.getName(), cookie.getValue(), cookie.getSecure(), false, null);
       }
     }
   }
@@ -72,7 +68,7 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Iast
     public static void onEnter(
         @Advice.Argument(0) final String name, @Advice.Argument(1) String value) {
       if (null != value && value.length() > 0) {
-        InstrumentationBridge.onHeader(name, value);
+        InstrumentationBridge.RESPONSE_HEADER_MODULE.onHeader(name, value);
       }
     }
   }

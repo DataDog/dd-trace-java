@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.java.lang;
 
 import datadog.trace.agent.tooling.csi.CallSite;
-import datadog.trace.api.iast.IastAdvice;
-import datadog.trace.api.iast.IastAdvice.Sink;
+import datadog.trace.api.iast.IastCallSites;
+import datadog.trace.api.iast.IastCallSites.Sink;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.CommandInjectionModule;
@@ -10,7 +10,7 @@ import java.io.File;
 import javax.annotation.Nullable;
 
 @Sink(VulnerabilityTypes.COMMAND_INJECTION)
-@CallSite(spi = IastAdvice.class)
+@CallSite(spi = IastCallSites.class)
 public class RuntimeCallSite {
 
   @CallSite.Before("java.lang.Process java.lang.Runtime.exec(java.lang.String)")

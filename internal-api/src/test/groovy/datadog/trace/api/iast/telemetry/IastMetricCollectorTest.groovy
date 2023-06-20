@@ -13,13 +13,16 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
+import static datadog.trace.api.iast.telemetry.IastMetricCollector.HasMetricCollector
+import static datadog.trace.api.iast.telemetry.IastMetricCollector.NoOpInstance
+
 @CompileDynamic
 class IastMetricCollectorTest extends DDSpecification {
 
   @Shared
   protected static final AgentTracer.TracerAPI ORIGINAL_TRACER = AgentTracer.get()
 
-  private IastMetricCollector.HasTelemetryCollector iastCtx
+  private HasMetricCollector iastCtx
   private RequestContext ctx
   private AgentSpan span
   private AgentTracer.TracerAPI api
@@ -27,7 +30,7 @@ class IastMetricCollectorTest extends DDSpecification {
 
   void setup() {
     executor = Executors.newFixedThreadPool(8)
-    iastCtx = Mock(IastMetricCollector.HasTelemetryCollector)
+    iastCtx = Mock(HasMetricCollector)
     ctx = Mock(RequestContext) {
       getData(RequestContextSlot.IAST) >> iastCtx
     }
@@ -64,7 +67,7 @@ class IastMetricCollectorTest extends DDSpecification {
     final total = times * value
     final latch = new CountDownLatch(1)
     final requestCollector = new IastMetricCollector()
-    iastCtx.getTelemetryCollector() >> requestCollector
+    iastCtx.getMetricCollector() >> requestCollector
 
     when:
     final futures = (1..times).collect { i ->
@@ -88,7 +91,7 @@ class IastMetricCollectorTest extends DDSpecification {
 
   void 'test no op collector does nothing'() {
     setup:
-    final collector = new IastMetricCollector.NoOpInstance()
+    final collector = new NoOpInstance()
 
     when: 'adding a metric'
     collector.addMetric(IastMetric.EXECUTED_PROPAGATION, 23)
@@ -127,7 +130,7 @@ class IastMetricCollectorTest extends DDSpecification {
     1 * api.activeSpan() >> span
     1 * span.getRequestContext() >> ctx
     1 * ctx.getData(RequestContextSlot.IAST) >> iastCtx
-    1 * iastCtx.getTelemetryCollector() >> requestCollector
+    1 * iastCtx.getMetricCollector() >> requestCollector
     1 * requestCollector.addMetric(requestMetric, value)
     0 * _
 
@@ -136,7 +139,7 @@ class IastMetricCollectorTest extends DDSpecification {
 
     then: 'if request context is provided no access to the active span is needed'
     1 * ctx.getData(RequestContextSlot.IAST) >> iastCtx
-    1 * iastCtx.getTelemetryCollector() >> requestCollector
+    1 * iastCtx.getMetricCollector() >> requestCollector
     1 * requestCollector.addMetric(requestMetric, value)
     0 * _
   }

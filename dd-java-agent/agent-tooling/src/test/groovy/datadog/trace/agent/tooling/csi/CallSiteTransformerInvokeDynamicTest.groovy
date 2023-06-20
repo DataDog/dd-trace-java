@@ -7,17 +7,14 @@ import datadog.trace.api.function.TriFunction
 import net.bytebuddy.jar.asm.Handle
 import net.bytebuddy.jar.asm.Opcodes
 import net.bytebuddy.jar.asm.Type
-import org.spockframework.runtime.ConditionNotSatisfiedError
 import spock.lang.Requires
 import datadog.trace.agent.tooling.csi.CallSiteAdvice.MethodHandler
 
 import java.util.function.Consumer
 import java.util.function.Supplier
 
-import static datadog.trace.agent.tooling.csi.CallSiteAdvice.HasFlags.COMPUTE_MAX_STACK
 import static datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode.APPEND_ARRAY
 import static datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode.PREPEND_ARRAY
-import static datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode.COPY
 
 @Requires({
   jvm.java9Compatible
@@ -29,8 +26,8 @@ class CallSiteTransformerInvokeDynamicTest extends BaseCallSiteTest {
     final source = Type.getType(StringPlusExample)
     final target = renameType(source, 'Test')
     final pointcut = stringConcatFactoryPointcut()
-    final callSite = mockInvokeDynamicAdvice(pointcut)
-    final callSiteTransformer = new CallSiteTransformer(mockAdvices([callSite]))
+    final advice = Mock(InvokeDynamicAdvice)
+    final callSiteTransformer = new CallSiteTransformer(mockAdvices([mockCallSites(advice, pointcut)]))
 
     when:
     final transformedClass = transformType(source, target, callSiteTransformer)
@@ -38,7 +35,7 @@ class CallSiteTransformerInvokeDynamicTest extends BaseCallSiteTest {
     final result = instance.apply("Hello ", "World", "!")
 
     then:
-    1 * callSite.apply(_ as MethodHandler, 'makeConcatWithConstants', '(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;', _ as Handle, _ as Object[]) >> { params ->
+    1 * advice.apply(_ as MethodHandler, 'makeConcatWithConstants', '(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;', _ as Handle, _ as Object[]) >> { params ->
       final args = params as Object[]
       final handler = args[0] as MethodHandler
       handler.instruction(Opcodes.SWAP)
@@ -70,8 +67,8 @@ class CallSiteTransformerInvokeDynamicTest extends BaseCallSiteTest {
     final source = Type.getType(StringPlusConstantsExample)
     final target = renameType(source, 'Test')
     final pointcut = stringConcatFactoryPointcut()
-    final callSite = mockInvokeDynamicAdvice(pointcut)
-    final callSiteTransformer = new CallSiteTransformer(mockAdvices([callSite]))
+    final advice = Mock(InvokeDynamicAdvice)
+    final callSiteTransformer = new CallSiteTransformer(mockAdvices([mockCallSites(advice, pointcut)]))
 
     when:
     final transformedClass = transformType(source, target, callSiteTransformer)
@@ -79,7 +76,7 @@ class CallSiteTransformerInvokeDynamicTest extends BaseCallSiteTest {
     final result = instance.apply('Hello', 'World', '!')
 
     then:
-    1 * callSite.apply(_ as MethodHandler, 'makeConcatWithConstants', '(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;', _ as Handle, _ as Object[]) >> { params ->
+    1 * advice.apply(_ as MethodHandler, 'makeConcatWithConstants', '(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;', _ as Handle, _ as Object[]) >> { params ->
       final args = params as Object[]
       final handler = args[0] as MethodHandler
       handler.instruction(Opcodes.SWAP)
@@ -107,53 +104,6 @@ class CallSiteTransformerInvokeDynamicTest extends BaseCallSiteTest {
     result == "Hello World !"
   }
 
-  def 'test modifying stack advices with compute max stack? #computeMax'(final boolean computeMax,
-    final Class<? extends Exception> expectedThrown) {
-    setup:
-    final source = Type.getType(StringPlusConstantsExample)
-    final target = renameType(source, 'Test')
-    final helperType = Type.getType(StringPlusHelper)
-    final helperMethod = Type.getType(StringPlusHelper.getDeclaredMethod("onConcat", String, String, String))
-    final pointcut = stringConcatFactoryPointcut()
-    final callSite = mockInvokeDynamicAdvice(pointcut, COMPUTE_MAX_STACK, helperType.className)
-    final advices = mockAdvices([callSite])
-    final callSiteTransformer = new CallSiteTransformer(advices)
-    final callbackArguments = new Object[3]
-    StringPlusHelper.callback = { Object[] args ->  System.arraycopy(args, 0, callbackArguments, 0, args.length) }
-
-    when:
-    // spock exception handling should be toplevel so we do a custom try/catch check
-    try {
-      final transformedClass = transformType(source, target, callSiteTransformer)
-      final instance = loadType(target, transformedClass) as TriFunction<String, String, String, String>
-      instance.apply('Hello', 'World', '!')
-      assert expectedThrown == null: 'Method should throw an exception'
-      assert callbackArguments[0] == 'Hello'
-      assert callbackArguments[1] == 'World'
-      assert callbackArguments[2] == '!'
-    } catch (ConditionNotSatisfiedError e) {
-      throw e
-    } catch (Throwable e) {
-      assert e.getClass() == expectedThrown
-    }
-
-    then:
-    1 * advices.computeMaxStack() >> computeMax
-    1 * callSite.apply(_ as MethodHandler, 'makeConcatWithConstants', '(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;', _ as Handle, _ as Object[]) >> { params ->
-      final args = params as Object[]
-      final handler = args[0] as MethodHandler
-      final String descriptor = args[2] as String
-      handler.dupParameters(descriptor, COPY)
-      handler.method(Opcodes.INVOKESTATIC, helperType.internalName, 'onConcat', helperMethod.descriptor, false)
-      handler.invokeDynamic(args[1] as String, descriptor, args[3] as Handle, args[4] as Object[])
-    }
-
-    where:
-    computeMax | expectedThrown
-    true       | null
-    false      | VerifyError
-  }
-
   def 'test unknown arity example with stack dup #mode'(final StackDupMode mode, final Class<?> helper) {
     setup:
     final source = Type.getType(UnknownArityExample)
@@ -161,9 +111,8 @@ class CallSiteTransformerInvokeDynamicTest extends BaseCallSiteTest {
     final helperType = Type.getType(helper)
     final helperMethod = Type.getType(helper.getDeclaredMethods().find { it.name == 'onConcat' })
     final pointcut = stringConcatFactoryPointcut()
-    final callSite = mockInvokeDynamicAdvice(pointcut, COMPUTE_MAX_STACK, helperType.className)
-    final advices = mockAdvices([callSite])
-    final callSiteTransformer = new CallSiteTransformer(advices)
+    final advice = Mock(InvokeDynamicAdvice)
+    final callSiteTransformer = new CallSiteTransformer(mockAdvices([mockCallSites(advice, pointcut)]))
     final callbackArguments = new Object[4]
     final callback = { Object[] args ->  System.arraycopy(args, 0, callbackArguments, 0, args.length) }
     if (helper == UnknownArityHelperBefore) {
@@ -184,8 +133,7 @@ class CallSiteTransformerInvokeDynamicTest extends BaseCallSiteTest {
     callbackArguments[1] == Integer.valueOf(matcher.group('age'))
     callbackArguments[2] == Long.valueOf(matcher.group('height'))
     callbackArguments[3] == Double.valueOf(matcher.group('weight'))
-    1 * advices.computeMaxStack() >> true
-    1 * callSite.apply(_ as MethodHandler, 'makeConcatWithConstants', '(Ljava/lang/String;IJD)Ljava/lang/String;', _ as Handle, _ as Object[]) >> { params ->
+    1 * advice.apply(_ as MethodHandler, 'makeConcatWithConstants', '(Ljava/lang/String;IJD)Ljava/lang/String;', _ as Handle, _ as Object[]) >> { params ->
       final args = params as Object[]
       final handler = args[0] as MethodHandler
       final String descriptor = args[2] as String
@@ -212,9 +160,8 @@ class CallSiteTransformerInvokeDynamicTest extends BaseCallSiteTest {
     final helperType = Type.getType(StringPlusHelperWithConstants)
     final helperMethod = Type.getType(StringPlusHelperWithConstants.getDeclaredMethods().find { it.name == 'onConcat' })
     final pointcut = stringConcatFactoryPointcut()
-    final callSite = mockInvokeDynamicAdvice(pointcut, COMPUTE_MAX_STACK, helperType.className)
-    final advices = mockAdvices([callSite])
-    final callSiteTransformer = new CallSiteTransformer(advices)
+    final advice = Mock(InvokeDynamicAdvice)
+    final callSiteTransformer = new CallSiteTransformer(mockAdvices([mockCallSites(advice, pointcut)]))
     final callbackArguments = new Object[3]
     final callbackResult = new String[1]
     final callbackConstants = new Object[3]
@@ -242,8 +189,7 @@ class CallSiteTransformerInvokeDynamicTest extends BaseCallSiteTest {
     callbackConstants[0] == '\u0001\u0002\u0001\u0002\u0001'
     callbackConstants[1] == ' \u0002 '
     callbackConstants[2] == ' \u0001 '
-    1 * advices.computeMaxStack() >> true
-    1 * callSite.apply(_ as MethodHandler, 'makeConcatWithConstants', '(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;', _ as Handle, _ as Object[]) >> { params ->
+    1 * advice.apply(_ as MethodHandler, 'makeConcatWithConstants', '(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;', _ as Handle, _ as Object[]) >> { params ->
       final args = params as Object[]
       final handler = args[0] as MethodHandler
       final String descriptor = args[2] as String
