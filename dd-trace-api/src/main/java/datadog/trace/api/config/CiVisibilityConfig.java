@@ -32,6 +32,8 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE =
       "civisibility.test.events.handler.cache.size";
   public static final String CIVISIBILITY_GIT_UPLOAD_ENABLED = "civisibility.git.upload.enabled";
+  public static final String CIVISIBILITY_GIT_UNSHALLOW_ENABLED =
+      "civisibility.git.unshallow.enabled";
   public static final String CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS =
       "civisibility.git.upload.timeout.millis";
   public static final String CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS =

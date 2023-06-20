@@ -69,6 +69,10 @@ public class GitDataUploaderImpl implements GitDataUploader {
 
   private void uploadGitData() {
     try {
+      if (config.isCiVisibilityGitUnshallowEnabled() && gitClient.isShallow()) {
+        gitClient.unshallow();
+      }
+
       String remoteUrl = gitClient.getRemoteUrl(remoteName);
       List<String> latestCommits = gitClient.getLatestCommits();
       if (latestCommits.isEmpty()) {
