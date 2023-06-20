@@ -152,7 +152,7 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
       .addTrack(trackType, api)
       .healthMetrics(healthMetrics)
       .monitoring(monitoring)
-      .flushIntervalMilliseconds(1)
+      .flushIntervalMilliseconds(1000)
       .alwaysFlush(false)
       .build()
     writer.start()

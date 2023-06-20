@@ -161,7 +161,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       .agentApi(api)
       .healthMetrics(healthMetrics)
       .monitoring(monitoring)
-      .flushIntervalMilliseconds(1)
+      .flushIntervalMilliseconds(1000)
       .build()
     writer.start()
     def span = dummyTracer.buildSpan("fakeOperation").start()
