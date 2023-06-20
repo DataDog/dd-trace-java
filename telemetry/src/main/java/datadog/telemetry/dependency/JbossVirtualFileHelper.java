@@ -93,7 +93,7 @@ public class JbossVirtualFileHelper {
             JbossVirtualFileHelper.jbossVirtualFileHelper =
                 new JbossVirtualFileHelper(connection.getClass().getClassLoader());
       } catch (Exception e) {
-        log.warn("Error preparing for inspection of jboss virtual files", e);
+        log.debug("Error preparing for inspection of jboss virtual files", e);
         return null;
       }
     }
@@ -105,7 +105,7 @@ public class JbossVirtualFileHelper {
     if (physicalFile.isFile() && physicalFile.getName().endsWith(".jar")) {
       return physicalFile.toURI();
     } else {
-      log.warn("Physical file {} is not a jar", physicalFile);
+      log.debug("Physical file {} is not a jar", physicalFile);
     }
 
     // not sure what this is about, but it's what the old code used to do
