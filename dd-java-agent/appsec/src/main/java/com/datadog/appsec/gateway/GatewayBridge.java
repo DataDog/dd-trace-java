@@ -5,6 +5,7 @@ import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_6_10;
 import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.config.TraceSegmentPostProcessor;
 import com.datadog.appsec.event.EventProducerService;
+import com.datadog.appsec.event.EventProducerService.DataSubscriberInfo;
 import com.datadog.appsec.event.EventType;
 import com.datadog.appsec.event.ExpiredSubscriberInfoException;
 import com.datadog.appsec.event.data.Address;
@@ -63,12 +64,12 @@ public class GatewayBridge {
   private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors;
 
   // subscriber cache
-  private volatile EventProducerService.DataSubscriberInfo initialReqDataSubInfo;
-  private volatile EventProducerService.DataSubscriberInfo rawRequestBodySubInfo;
-  private volatile EventProducerService.DataSubscriberInfo requestBodySubInfo;
-  private volatile EventProducerService.DataSubscriberInfo pathParamsSubInfo;
-  private volatile EventProducerService.DataSubscriberInfo respDataSubInfo;
-  private volatile EventProducerService.DataSubscriberInfo grpcServerRequestMsgSubInfo;
+  private volatile DataSubscriberInfo initialReqDataSubInfo;
+  private volatile DataSubscriberInfo rawRequestBodySubInfo;
+  private volatile DataSubscriberInfo requestBodySubInfo;
+  private volatile DataSubscriberInfo pathParamsSubInfo;
+  private volatile DataSubscriberInfo respDataSubInfo;
+  private volatile DataSubscriberInfo grpcServerRequestMsgSubInfo;
 
   public GatewayBridge(
       SubscriptionService subscriptionService,
@@ -214,7 +215,7 @@ public class GatewayBridge {
             }
 
             while (true) {
-              EventProducerService.DataSubscriberInfo subInfo = pathParamsSubInfo;
+              DataSubscriberInfo subInfo = pathParamsSubInfo;
               if (subInfo == null) {
                 subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_PATH_PARAMS);
                 pathParamsSubInfo = subInfo;
@@ -246,7 +247,7 @@ public class GatewayBridge {
             producerService.publishEvent(ctx, EventType.REQUEST_BODY_END);
 
             while (true) {
-              EventProducerService.DataSubscriberInfo subInfo = rawRequestBodySubInfo;
+              DataSubscriberInfo subInfo = rawRequestBodySubInfo;
               if (subInfo == null) {
                 subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_RAW);
                 rawRequestBodySubInfo = subInfo;
@@ -288,7 +289,7 @@ public class GatewayBridge {
             ctx.setConvertedReqBodyPublished(true);
 
             while (true) {
-              EventProducerService.DataSubscriberInfo subInfo = requestBodySubInfo;
+              DataSubscriberInfo subInfo = requestBodySubInfo;
               if (subInfo == null) {
                 subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_OBJECT);
                 requestBodySubInfo = subInfo;
@@ -368,7 +369,7 @@ public class GatewayBridge {
             return NoopFlow.INSTANCE;
           }
           while (true) {
-            EventProducerService.DataSubscriberInfo subInfo = grpcServerRequestMsgSubInfo;
+            DataSubscriberInfo subInfo = grpcServerRequestMsgSubInfo;
             if (subInfo == null) {
               subInfo =
                   producerService.getDataSubscribers(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE);
