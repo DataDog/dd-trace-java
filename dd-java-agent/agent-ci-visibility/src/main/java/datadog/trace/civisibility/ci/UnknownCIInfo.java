@@ -2,8 +2,6 @@ package datadog.trace.civisibility.ci;
 
 import static datadog.trace.civisibility.utils.CIUtils.findParentPathBackwards;
 
-import datadog.trace.api.civisibility.ci.CIInfo;
-import datadog.trace.api.civisibility.ci.CIProviderInfo;
 import datadog.trace.api.git.GitInfo;
 import java.nio.file.Path;
 
