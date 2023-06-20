@@ -214,12 +214,16 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     when:
     def count = waitForTraceCount(2)
 
-    def newConfig = """{"logs_injection_enabled":false}""".toString()
+    def newConfig = """
+        {"lib_config":
+          {"logs_injection_enabled":false}
+        }
+     """.toString()
     setRemoteConfig("datadog/2/APM_TRACING/config_overrides/config", newConfig)
 
     count = waitForTraceCount(3)
 
-    setRemoteConfig("datadog/2/APM_TRACING/config_overrides/config", "{}")
+    setRemoteConfig("datadog/2/APM_TRACING/config_overrides/config", """{"lib_config":{}}""".toString())
 
     testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
     def exitValue = testedProcess.exitValue()
