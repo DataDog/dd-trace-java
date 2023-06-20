@@ -119,7 +119,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_REMOTE_CONFIG_ENABLED = true;
   static final boolean DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED = false;
-  static final int DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE = 1024; // KiB
+  static final int DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE = 5120; // KiB
   static final int DEFAULT_REMOTE_CONFIG_POLL_INTERVAL_SECONDS = 5;
   static final String DEFAULT_REMOTE_CONFIG_TARGETS_KEY_ID =
       "5c4ece41241a1bb513f6e3e5df74ab7d5183dfffbd71bfd43127920d880569fd";
