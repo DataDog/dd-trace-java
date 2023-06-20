@@ -6,28 +6,35 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.List;
+import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService;
-import org.junit.platform.launcher.TestExecutionListener;
-import org.junit.platform.launcher.core.LauncherConfig;
+import org.junit.platform.launcher.LauncherDiscoveryRequest;
+import org.junit.platform.launcher.PostDiscoveryFilter;
 
 @AutoService(Instrumenter.class)
-public class JUnit5Instrumentation extends Instrumenter.CiVisibility
+public class JUnit5DiscoveryRequestInstrumentation extends Instrumenter.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
-  public JUnit5Instrumentation() {
-    super("junit", "junit-5");
+  public JUnit5DiscoveryRequestInstrumentation() {
+    super("junit", "junit-5", "junit-5-discovery-request");
+  }
+
+  @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    Boolean itrKillswitch = Config.get().getCiVisibilityItrEnabled();
+    return super.isApplicable(enabledSystems) && (itrKillswitch == null || itrKillswitch);
   }
 
   @Override
   public String hierarchyMarkerType() {
-    return "org.junit.platform.launcher.core.LauncherConfig";
+    return "org.junit.platform.launcher.LauncherDiscoveryRequest";
   }
 
   @Override
@@ -39,36 +46,35 @@ public class JUnit5Instrumentation extends Instrumenter.CiVisibility
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".ItrUtils",
-      packageName + ".ItrPredicate",
       packageName + ".TestFrameworkUtils",
-      packageName + ".TracingListener",
+      packageName + ".ItrPredicate",
+      packageName + ".ItrPostDiscoveryFilter",
     };
   }
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        named("getAdditionalTestExecutionListeners").and(takesNoArguments()),
-        JUnit5Instrumentation.class.getName() + "$JUnit5Advice");
+        named("getPostDiscoveryFilters").and(takesNoArguments()),
+        JUnit5DiscoveryRequestInstrumentation.class.getName() + "$JUnit5DiscoveryRequestAdvice");
   }
 
-  public static class JUnit5Advice {
+  private static class JUnit5DiscoveryRequestAdvice {
 
     @SuppressFBWarnings(
         value = "UC_USELESS_OBJECT",
-        justification = "listeners is the return value of the instrumented method")
+        justification = "filters is the return value of the instrumented method")
     @Advice.OnMethodExit
-    public static void addTracingListener(
-        @Advice.This LauncherConfig config,
-        @Advice.Return(readOnly = false) Collection<TestExecutionListener> listeners) {
+    public static void addItrPostDiscoveryFilter(
+        @Advice.This LauncherDiscoveryRequest request,
+        @Advice.Return(readOnly = false) List<PostDiscoveryFilter> filters) {
 
-      Collection<TestEngine> testEngines = TestFrameworkUtils.getTestEngines(config);
-      final TracingListener listener = new TracingListener(testEngines);
+      final PostDiscoveryFilter itrFilter = new ItrPostDiscoveryFilter();
 
-      Collection<TestExecutionListener> modifiedListeners = new ArrayList<>(listeners);
-      modifiedListeners.add(listener);
+      List<PostDiscoveryFilter> modifiedFilters = new ArrayList<>(filters);
+      modifiedFilters.add(itrFilter);
 
-      listeners = modifiedListeners;
+      filters = modifiedFilters;
     }
 
     // JUnit 5.3.0 and above
