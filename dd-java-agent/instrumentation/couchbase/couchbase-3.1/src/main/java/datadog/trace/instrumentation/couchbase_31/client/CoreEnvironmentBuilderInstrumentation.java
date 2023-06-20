@@ -22,13 +22,14 @@ public class CoreEnvironmentBuilderInstrumentation extends Instrumenter.Tracing
       packageName + ".CouchbaseClientDecorator",
       packageName + ".DatadogRequestSpan",
       packageName + ".DatadogRequestTracer",
-      packageName + ".SeedNodeHelper",
+      packageName + ".ClusterHelper",
+      packageName + ".TracingInfo",
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
-    return Collections.singletonMap("com.couchbase.client.core.Core", String.class.getName());
+    return Collections.singletonMap("com.couchbase.client.core.Core", packageName + ".TracingInfo");
   }
 
   @Override

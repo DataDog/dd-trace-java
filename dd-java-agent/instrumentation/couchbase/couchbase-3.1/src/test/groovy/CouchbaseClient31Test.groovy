@@ -34,6 +34,20 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
   @Shared
   Bucket bucket
 
+  String inferredClusterName() {
+    return null
+  }
+
+  Cluster cluster() {
+    ClusterEnvironment environment = ClusterEnvironment.builder()
+      .timeoutConfig(TimeoutConfig.kvTimeout(Duration.ofSeconds(10)))
+      .build()
+
+    cluster = Cluster.connect("couchbase://${couchbase.host}:${couchbase.bootstrapCarrierDirectPort},${couchbase.host}:${couchbase.bootstrapHttpDirectPort}=manager", ClusterOptions
+      .clusterOptions(couchbase.username, couchbase.password)
+      .environment(environment))
+  }
+
   def setupSpec() {
     def arch = System.getProperty("os.arch") == "aarch64" ? "-aarch64" : ""
     couchbase = new CouchbaseContainer("couchbase/server:7.1.0${arch}")
@@ -42,14 +56,7 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
       .withStartupAttempts(3)
     couchbase.start()
 
-    ClusterEnvironment environment = ClusterEnvironment.builder()
-      .timeoutConfig(TimeoutConfig.kvTimeout(Duration.ofSeconds(10)))
-      .build()
-
-    def connectionString = "couchbase://${couchbase.host}:${couchbase.bootstrapCarrierDirectPort},${couchbase.host}:${couchbase.bootstrapHttpDirectPort}=manager"
-    cluster = Cluster.connect(connectionString, ClusterOptions
-      .clusterOptions(couchbase.username, couchbase.password)
-      .environment(environment))
+    cluster = cluster()
     bucket = cluster.bucket(BUCKET)
     bucket.waitUntilReady(Duration.ofSeconds(30))
     (0..1000).each {
@@ -137,8 +144,8 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
       sortSpansByStart()
       trace(2) {
         assertCouchbaseCall(it, "cb.query", [
-          'db.couchbase.retries'   : { Long },
-          'db.couchbase.service'   : 'query',
+          'db.couchbase.retries': { Long },
+          'db.couchbase.service': 'query',
         ], 'select * from `test-bucket` limit 1')
         assertCouchbaseDispatchCall(it, span(0))
       }
@@ -161,8 +168,8 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
       trace(3) {
         basicSpan(it, 'query.parent')
         assertCouchbaseCall(it, "cb.query", [
-          'db.couchbase.retries'   : { Long },
-          'db.couchbase.service'   : 'query',
+          'db.couchbase.retries': { Long },
+          'db.couchbase.service': 'query',
         ], query, span(0), false)
         assertCouchbaseDispatchCall(it, span(1))
       }
@@ -190,13 +197,13 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
       trace(adhoc ? 3 : 4) {
         basicSpan(it, 'adhoc.parent')
         assertCouchbaseCall(it, "cb.query", [
-          'db.couchbase.retries'   : { Long },
-          'db.couchbase.service'   : 'query',
+          'db.couchbase.retries': { Long },
+          'db.couchbase.service': 'query',
         ], query, span(0), false)
         if (!adhoc) {
           assertCouchbaseCall(it, "prepare", [
-            'db.couchbase.retries'   : { Long },
-            'db.couchbase.service'   : 'query',
+            'db.couchbase.retries': { Long },
+            'db.couchbase.service': 'query',
           ], "PREPARE $query", span(1), true)
         }
         assertCouchbaseDispatchCall(it, span(adhoc ? 1 : 2))
@@ -235,21 +242,21 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
       trace(7) {
         basicSpan(it, 'multiple.parent')
         assertCouchbaseCall(it, "cb.query", [
-          'db.couchbase.retries'   : { Long },
-          'db.couchbase.service'   : 'query',
+          'db.couchbase.retries': { Long },
+          'db.couchbase.service': 'query',
         ], query, span(0), false)
         assertCouchbaseCall(it, "prepare", [
-          'db.couchbase.retries'   : { Long },
-          'db.couchbase.service'   : 'query',
+          'db.couchbase.retries': { Long },
+          'db.couchbase.service': 'query',
         ], "PREPARE $query", span(1), true)
         assertCouchbaseDispatchCall(it, span(2))
         assertCouchbaseCall(it, "cb.query", [
-          'db.couchbase.retries'   : { Long },
-          'db.couchbase.service'   : 'query',
+          'db.couchbase.retries': { Long },
+          'db.couchbase.service': 'query',
         ], query, span(0), false)
         assertCouchbaseCall(it, "execute", [
-          'db.couchbase.retries'   : { Long },
-          'db.couchbase.service'   : 'query',
+          'db.couchbase.retries': { Long },
+          'db.couchbase.service': 'query',
         ], query, span(4), true)
         assertCouchbaseDispatchCall(it, span(5))
       }
@@ -278,8 +285,8 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
       trace(3) {
         basicSpan(it, 'query.failure')
         assertCouchbaseCall(it, "cb.query", [
-          'db.couchbase.retries'   : { Long },
-          'db.couchbase.service'   : 'query',
+          'db.couchbase.retries': { Long },
+          'db.couchbase.service': 'query',
         ], query, span(0), false, ex)
         assertCouchbaseDispatchCall(it, span(1))
       }
@@ -326,21 +333,21 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
       trace(7) {
         basicSpan(it, 'multiple.parent')
         assertCouchbaseCall(it, "cb.query", [
-          'db.couchbase.retries'   : { Long },
-          'db.couchbase.service'   : 'query',
+          'db.couchbase.retries': { Long },
+          'db.couchbase.service': 'query',
         ], query, span(0), false, ex1)
         assertCouchbaseCall(it, "prepare", [
-          'db.couchbase.retries'   : { Long },
-          'db.couchbase.service'   : 'query',
+          'db.couchbase.retries': { Long },
+          'db.couchbase.service': 'query',
         ], "PREPARE $query", span(1), true, ex1)
         assertCouchbaseDispatchCall(it, span(2))
         assertCouchbaseCall(it, "cb.query", [
-          'db.couchbase.retries'   : { Long },
-          'db.couchbase.service'   : 'query',
+          'db.couchbase.retries': { Long },
+          'db.couchbase.service': 'query',
         ], query, span(0), false, ex2)
         assertCouchbaseCall(it, "prepare", [
-          'db.couchbase.retries'   : { Long },
-          'db.couchbase.service'   : 'query',
+          'db.couchbase.retries': { Long },
+          'db.couchbase.service': 'query',
         ], "PREPARE $query", span(4), true, ex2)
         assertCouchbaseDispatchCall(it, span(5))
       }
@@ -361,7 +368,8 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
     def isErrored = ex != null
     // Later versions of the couchbase client adds more information at the end of the exception message in some cases,
     // so let's just match on the start of the message when that happens
-    String exMessage = isErrored ? isLatestDepTest ? ex.message.split("\\{")[0] : ex.message: null
+    String exMessage = isErrored ? isLatestDepTest ? ex.message.split("\\{")[0] : ex.message : null
+    String inferredClusterName = inferredClusterName()
     if (isLatestDepTest) {
       if (latestResource != null) {
         name = latestResource
@@ -390,13 +398,18 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
           it.tag(DDTags.ERROR_TYPE, ex.class.name)
           it.tag(DDTags.ERROR_STACK, String)
         }
-        "$InstrumentationTags.COUCHBASE_SEED_NODES" { it =="localhost" || it == "127.0.0.1" }
+        "$InstrumentationTags.COUCHBASE_SEED_NODES" { it == "localhost" || it == "127.0.0.1" }
 
         if (isLatestDepTest && extraTags != null) {
-          tag('db.system','couchbase')
+          tag('db.system', 'couchbase')
           addTags(extraTags)
         }
-        peerServiceFrom(InstrumentationTags.COUCHBASE_SEED_NODES)
+        if (inferredClusterName == null) {
+          peerServiceFrom(InstrumentationTags.COUCHBASE_SEED_NODES)
+        } else {
+          peerServiceFrom(Tags.PEER_SERVICE)
+          "$Tags.PEER_SERVICE" inferredClusterName
+        }
         defaultTags()
       }
     }
@@ -451,5 +464,18 @@ class CouchbaseClient31V1ForkedTest extends CouchbaseClient31Test {
   @Override
   String operation() {
     return "couchbase.query"
+  }
+}
+
+class CouchbaseClient31V1UserPeerServiceForkedTest extends CouchbaseClient31V1ForkedTest {
+  @Override
+  Cluster cluster() {
+    return Cluster.connect("couchbase://${couchbase.host}:${couchbase.bootstrapCarrierDirectPort},${couchbase.host}:${couchbase.bootstrapHttpDirectPort}=manager?ddTracing.peerService=super-cluster&timeout.kvTimeout=10s",
+      couchbase.username, couchbase.password)
+  }
+
+  @Override
+  String inferredClusterName() {
+    return "super-cluster"
   }
 }

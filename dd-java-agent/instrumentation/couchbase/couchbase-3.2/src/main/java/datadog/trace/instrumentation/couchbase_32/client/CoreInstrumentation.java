@@ -30,13 +30,13 @@ public class CoreInstrumentation extends Instrumenter.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-    return Collections.singletonMap("com.couchbase.client.core.Core", String.class.getName());
+    return Collections.singletonMap("com.couchbase.client.core.Core", packageName + ".TracingInfo");
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SeedNodeHelper", packageName + ".ConnectionStringHelper",
+      packageName + ".ClusterHelper", packageName + ".TracingInfo",
     };
   }
 
@@ -55,8 +55,8 @@ public class CoreInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodExit
     public static void afterConstruct(
         @Advice.Argument(2) final Set<SeedNode> seedNodes, @Advice.This final Core core) {
-      InstrumentationContext.get(Core.class, String.class)
-          .put(core, SeedNodeHelper.toStringForm(seedNodes));
+      InstrumentationContext.get(Core.class, TracingInfo.class)
+          .put(core, new TracingInfo(ClusterHelper.seedNodesFromSet(seedNodes), null));
     }
 
     public static void muzzleCheck(RequestSpan requestSpan) {
@@ -68,8 +68,10 @@ public class CoreInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodExit
     public static void afterConstruct(
         @Advice.Argument(2) final ConnectionString connectionString, @Advice.This final Core core) {
-      InstrumentationContext.get(Core.class, String.class)
-          .put(core, ConnectionStringHelper.toHostPortList(connectionString));
+      InstrumentationContext.get(Core.class, TracingInfo.class)
+          .put(
+              core,
+              new TracingInfo(ClusterHelper.seedNodesFromConnectionString(connectionString), null));
     }
   }
 }

@@ -7,6 +7,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api8.java.concurrent.StatusSettable;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -14,7 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class DatadogRequestSpan implements RequestSpan, StatusSettable<Integer> {
   private final AgentSpan span;
-  private final ContextStore<Core, String> coreContext;
+  private final ContextStore<Core, TracingInfo> coreContext;
 
   // When a QueryRequest is converted into a prepare or execute request, then we need to close
   // the parent span as well, since Couchbase drops it on the floor
@@ -31,13 +32,13 @@ public class DatadogRequestSpan implements RequestSpan, StatusSettable<Integer> 
   // future, so we need to ensure that the completion of the future does not overwrite the error
   private AtomicBoolean statusSet = new AtomicBoolean(false);
 
-  private DatadogRequestSpan(AgentSpan span, final ContextStore<Core, String> coreContext) {
+  private DatadogRequestSpan(AgentSpan span, final ContextStore<Core, TracingInfo> coreContext) {
     this.span = span;
     this.coreContext = coreContext;
   }
 
   public static DatadogRequestSpan wrap(
-      AgentSpan span, final ContextStore<Core, String> coreContext) {
+      AgentSpan span, final ContextStore<Core, TracingInfo> coreContext) {
     return new DatadogRequestSpan(span, coreContext);
   }
 
@@ -129,7 +130,14 @@ public class DatadogRequestSpan implements RequestSpan, StatusSettable<Integer> 
 
   @Override
   public void requestContext(RequestContext requestContext) {
-    span.setTag(InstrumentationTags.COUCHBASE_SEED_NODES, coreContext.get(requestContext.core()));
+    final TracingInfo tracingInfo = coreContext.get(requestContext.core());
+    if (tracingInfo != null) {
+      span.setTag(InstrumentationTags.COUCHBASE_SEED_NODES, tracingInfo.getSeedNodes());
+      if (tracingInfo.getPeerService() != null) {
+        // eagerly set it
+        span.setTag(Tags.PEER_SERVICE, tracingInfo.getPeerService());
+      }
+    }
   }
 
   private boolean shouldSetStatus() {

@@ -38,7 +38,7 @@ public class CoreInstrumentation extends Instrumenter.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-    return Collections.singletonMap("com.couchbase.client.core.Core", String.class.getName());
+    return Collections.singletonMap("com.couchbase.client.core.Core", packageName + ".TracingInfo");
   }
 
   @Override
@@ -49,7 +49,7 @@ public class CoreInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SeedNodeHelper",
+      packageName + ".ClusterHelper", packageName + ".TracingInfo",
     };
   }
 
@@ -64,8 +64,8 @@ public class CoreInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodExit
     public static void afterConstruct(
         @Advice.Argument(2) final Set<SeedNode> seedNodes, @Advice.This final Core core) {
-      InstrumentationContext.get(Core.class, String.class)
-          .put(core, SeedNodeHelper.toStringForm(seedNodes));
+      InstrumentationContext.get(Core.class, TracingInfo.class)
+          .put(core, new TracingInfo(ClusterHelper.seedNodesToString(seedNodes), null));
     }
   }
 }

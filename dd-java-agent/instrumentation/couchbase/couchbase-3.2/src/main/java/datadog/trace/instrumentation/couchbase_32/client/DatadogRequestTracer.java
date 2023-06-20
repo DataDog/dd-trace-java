@@ -21,10 +21,10 @@ public class DatadogRequestTracer implements RequestTracer {
 
   private final AgentTracer.TracerAPI tracer;
 
-  private final ContextStore<Core, String> coreContext;
+  private final ContextStore<Core, TracingInfo> coreContext;
 
   public DatadogRequestTracer(
-      AgentTracer.TracerAPI tracer, final ContextStore<Core, String> coreContext) {
+      AgentTracer.TracerAPI tracer, final ContextStore<Core, TracingInfo> coreContext) {
     this.tracer = tracer;
     this.coreContext = coreContext;
   }
@@ -34,6 +34,7 @@ public class DatadogRequestTracer implements RequestTracer {
     CharSequence spanName = OPERATION_NAME;
     boolean measured = true;
     Object seedNodes = null;
+    Object peerService = null;
 
     AgentSpan parent = DatadogRequestSpan.unwrap(requestParent);
     if (null == parent) {
@@ -43,6 +44,7 @@ public class DatadogRequestTracer implements RequestTracer {
       spanName = COUCHBASE_INTERNAL;
       measured = false;
       seedNodes = parent.getTag(InstrumentationTags.COUCHBASE_SEED_NODES);
+      peerService = parent.getTag(Tags.PEER_SERVICE);
     }
 
     AgentTracer.SpanBuilder builder = tracer.buildSpan(spanName);
@@ -55,6 +57,9 @@ public class DatadogRequestTracer implements RequestTracer {
     span.setMeasured(measured);
     if (seedNodes != null) {
       span.setTag(InstrumentationTags.COUCHBASE_SEED_NODES, seedNodes);
+    }
+    if (peerService != null) {
+      span.setTag(Tags.PEER_SERVICE, peerService);
     }
     DatadogRequestSpan requestSpan = DatadogRequestSpan.wrap(span, coreContext);
     // When Couchbase converts a query to a prepare statement or execute statement,

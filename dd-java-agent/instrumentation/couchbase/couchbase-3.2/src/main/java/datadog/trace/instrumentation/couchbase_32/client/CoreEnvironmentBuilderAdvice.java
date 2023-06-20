@@ -11,6 +11,6 @@ public class CoreEnvironmentBuilderAdvice {
   public static void onExit(@Advice.This CoreEnvironment.Builder<?> builder) {
     builder.requestTracer(
         new DatadogRequestTracer(
-            AgentTracer.get(), InstrumentationContext.get(Core.class, String.class)));
+            AgentTracer.get(), InstrumentationContext.get(Core.class, TracingInfo.class)));
   }
 }
