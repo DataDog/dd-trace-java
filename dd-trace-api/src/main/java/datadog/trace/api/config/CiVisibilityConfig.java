@@ -41,6 +41,9 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_GIT_REMOTE_NAME = "civisibility.git.remote.name";
   public static final String CIVISIBILITY_ITR_ENABLED = "civisibility.itr.enabled";
   public static final String CIVISIBILITY_SKIPPABLE_TESTS = "civisibility.skippable.tests";
+  public static final String CIVISIBILITY_SIGNAL_SERVER_PORT = "civisibility.signal.server.port";
+  public static final String CIVISIBILITY_SIGNAL_SERVER_ADDRESS =
+      "civisibility.signal.server.address";
 
   private CiVisibilityConfig() {}
 }

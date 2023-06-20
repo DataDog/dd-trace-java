@@ -120,6 +120,7 @@ public final class ConfigDefaults {
   static final long DEFAULT_CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS = 30_000;
   static final long DEFAULT_CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS = 60_000;
   static final String DEFAULT_CIVISIBILITY_GIT_REMOTE_NAME = "origin";
+  static final int DEFAULT_CIVISIBILITY_SIGNAL_SERVER_PORT = -1;
 
   static final boolean DEFAULT_REMOTE_CONFIG_ENABLED = true;
   static final boolean DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED = false;
