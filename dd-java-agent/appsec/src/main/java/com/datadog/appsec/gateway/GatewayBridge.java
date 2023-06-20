@@ -214,17 +214,18 @@ public class GatewayBridge {
             }
 
             while (true) {
-              if (pathParamsSubInfo == null) {
-                pathParamsSubInfo =
-                    producerService.getDataSubscribers(KnownAddresses.REQUEST_PATH_PARAMS);
+              EventProducerService.DataSubscriberInfo subInfo = pathParamsSubInfo;
+              if (subInfo == null) {
+                subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_PATH_PARAMS);
+                pathParamsSubInfo = subInfo;
               }
-              if (pathParamsSubInfo.isEmpty()) {
+              if (subInfo == null || subInfo.isEmpty()) {
                 return NoopFlow.INSTANCE;
               }
               DataBundle bundle =
                   new SingletonDataBundle<>(KnownAddresses.REQUEST_PATH_PARAMS, data);
               try {
-                return producerService.publishDataEvent(pathParamsSubInfo, ctx, bundle, false);
+                return producerService.publishDataEvent(subInfo, ctx, bundle, false);
               } catch (ExpiredSubscriberInfoException e) {
                 pathParamsSubInfo = null;
               }
@@ -245,11 +246,12 @@ public class GatewayBridge {
             producerService.publishEvent(ctx, EventType.REQUEST_BODY_END);
 
             while (true) {
-              if (rawRequestBodySubInfo == null) {
-                rawRequestBodySubInfo =
-                    producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_RAW);
+              EventProducerService.DataSubscriberInfo subInfo = rawRequestBodySubInfo;
+              if (subInfo == null) {
+                subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_RAW);
+                rawRequestBodySubInfo = subInfo;
               }
-              if (rawRequestBodySubInfo.isEmpty()) {
+              if (subInfo == null || subInfo.isEmpty()) {
                 return NoopFlow.INSTANCE;
               }
 
@@ -260,7 +262,7 @@ public class GatewayBridge {
               DataBundle bundle =
                   new SingletonDataBundle<>(KnownAddresses.REQUEST_BODY_RAW, bodyContent);
               try {
-                return producerService.publishDataEvent(rawRequestBodySubInfo, ctx, bundle, false);
+                return producerService.publishDataEvent(subInfo, ctx, bundle, false);
               } catch (ExpiredSubscriberInfoException e) {
                 rawRequestBodySubInfo = null;
               }
@@ -286,18 +288,19 @@ public class GatewayBridge {
             ctx.setConvertedReqBodyPublished(true);
 
             while (true) {
-              if (requestBodySubInfo == null) {
-                requestBodySubInfo =
-                    producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_OBJECT);
+              EventProducerService.DataSubscriberInfo subInfo = requestBodySubInfo;
+              if (subInfo == null) {
+                subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_OBJECT);
+                requestBodySubInfo = subInfo;
               }
-              if (requestBodySubInfo.isEmpty()) {
+              if (subInfo == null || subInfo.isEmpty()) {
                 return NoopFlow.INSTANCE;
               }
               DataBundle bundle =
                   new SingletonDataBundle<>(
                       KnownAddresses.REQUEST_BODY_OBJECT, ObjectIntrospection.convert(obj));
               try {
-                return producerService.publishDataEvent(requestBodySubInfo, ctx, bundle, false);
+                return producerService.publishDataEvent(subInfo, ctx, bundle, false);
               } catch (ExpiredSubscriberInfoException e) {
                 requestBodySubInfo = null;
               }
@@ -365,12 +368,14 @@ public class GatewayBridge {
             return NoopFlow.INSTANCE;
           }
           while (true) {
-            if (grpcServerRequestMsgSubInfo == null) {
-              grpcServerRequestMsgSubInfo =
+            EventProducerService.DataSubscriberInfo subInfo = grpcServerRequestMsgSubInfo;
+            if (subInfo == null) {
+              subInfo =
                   producerService.getDataSubscribers(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE);
+              grpcServerRequestMsgSubInfo = subInfo;
             }
-            if (grpcServerRequestMsgSubInfo.isEmpty()) {
-              return Flow.ResultFlow.empty();
+            if (subInfo == null || subInfo.isEmpty()) {
+              return NoopFlow.INSTANCE;
             }
             Object convObj = ObjectIntrospection.convert(obj);
             DataBundle bundle =
