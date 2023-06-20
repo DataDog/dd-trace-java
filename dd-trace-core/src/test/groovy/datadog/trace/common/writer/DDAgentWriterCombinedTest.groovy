@@ -69,7 +69,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       .agentApi(api)
       .traceBufferSize(8)
       .monitoring(monitoring)
-      .flushFrequencySeconds(-1)
+      .flushIntervalMilliseconds(-1)
       .build()
     writer.start()
 
@@ -95,7 +95,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       .agentApi(api)
       .traceBufferSize(1024)
       .monitoring(monitoring)
-      .flushFrequencySeconds(-1)
+      .flushIntervalMilliseconds(-1)
       .build()
     writer.start()
     def trace = [dummyTracer.buildSpan("fakeOperation").start()]
@@ -126,7 +126,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       .agentApi(api)
       .traceBufferSize(bufferSize)
       .monitoring(monitoring)
-      .flushFrequencySeconds(-1)
+      .flushIntervalMilliseconds(-1)
       .build()
     writer.start()
     def trace = [dummyTracer.buildSpan("fakeOperation").start()]
@@ -161,7 +161,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       .agentApi(api)
       .healthMetrics(healthMetrics)
       .monitoring(monitoring)
-      .flushFrequencySeconds(1)
+      .flushIntervalMilliseconds(1)
       .build()
     writer.start()
     def span = dummyTracer.buildSpan("fakeOperation").start()
@@ -201,7 +201,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       .traceBufferSize(BUFFER_SIZE)
       .prioritization(ENSURE_TRACE)
       .monitoring(monitoring)
-      .flushFrequencySeconds(-1)
+      .flushIntervalMilliseconds(-1)
       .build()
     writer.start()
 

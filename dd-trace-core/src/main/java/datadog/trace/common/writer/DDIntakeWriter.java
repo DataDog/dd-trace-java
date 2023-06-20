@@ -28,7 +28,7 @@ public class DDIntakeWriter extends RemoteWriter {
     WellKnownTags wellKnownTags = Config.get().getWellKnownTags();
     int traceBufferSize = BUFFER_SIZE;
     HealthMetrics healthMetrics = HealthMetrics.NO_OP;
-    int flushFrequencySeconds = 1;
+    int flushIntervalMilliseconds = 1000;
     Monitoring monitoring = Monitoring.DISABLED;
     DroppingPolicy droppingPolicy = DroppingPolicy.DISABLED;
     Prioritization prioritization = Prioritization.FAST_LANE;
@@ -60,8 +60,8 @@ public class DDIntakeWriter extends RemoteWriter {
       return this;
     }
 
-    public DDIntakeWriterBuilder flushFrequencySeconds(int flushFrequencySeconds) {
-      this.flushFrequencySeconds = flushFrequencySeconds;
+    public DDIntakeWriterBuilder flushIntervalMilliseconds(int flushIntervalMilliseconds) {
+      this.flushIntervalMilliseconds = flushIntervalMilliseconds;
       return this;
     }
 
@@ -120,8 +120,8 @@ public class DDIntakeWriter extends RemoteWriter {
               dispatcher,
               droppingPolicy,
               prioritization,
-              flushFrequencySeconds,
-              TimeUnit.SECONDS,
+              flushIntervalMilliseconds,
+              TimeUnit.MILLISECONDS,
               singleSpanSampler);
 
       return new DDIntakeWriter(

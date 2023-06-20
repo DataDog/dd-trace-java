@@ -716,6 +716,8 @@ public class Config {
   private final long longRunningTraceFlushInterval;
   private final boolean elasticsearchBodyAndParamsEnabled;
 
+  private final float traceFlushIntervalSeconds;
+
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
     this(ConfigProvider.createDefault());
@@ -1579,6 +1581,9 @@ public class Config {
     longRunningTraceEnabled = longRunningEnabled;
     this.longRunningTraceFlushInterval = longRunningTraceFlushInterval;
 
+    this.traceFlushIntervalSeconds =
+        configProvider.getFloat(
+            TracerConfig.TRACE_FLUSH_INTERVAL, ConfigDefaults.DEFAULT_TRACE_FLUSH_INTERVAL);
     if (profilingAgentless && apiKey == null) {
       log.warn(
           "Agentless profiling activated but no api key provided. Profile uploading will likely fail");
@@ -1656,6 +1661,10 @@ public class Config {
 
   public long getLongRunningTraceFlushInterval() {
     return longRunningTraceFlushInterval;
+  }
+
+  public float getTraceFlushIntervalSeconds() {
+    return traceFlushIntervalSeconds;
   }
 
   public boolean isIntegrationSynapseLegacyOperationName() {
@@ -3589,6 +3598,8 @@ public class Config {
         + longRunningTraceFlushInterval
         + ", elasticsearchBodyAndParamsEnabled="
         + elasticsearchBodyAndParamsEnabled
+        + ", traceFlushInterval="
+        + traceFlushIntervalSeconds
         + '}';
   }
 }
