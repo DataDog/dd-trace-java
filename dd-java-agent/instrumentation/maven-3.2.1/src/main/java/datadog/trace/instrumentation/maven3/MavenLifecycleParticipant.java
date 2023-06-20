@@ -1,20 +1,59 @@
 package datadog.trace.instrumentation.maven3;
 
+import static java.util.stream.Collectors.toList;
+
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
+import datadog.trace.api.civisibility.events.BuildEventsHandler;
+import datadog.trace.util.AgentThreadFactory;
+import java.io.File;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.concurrent.CompletionService;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.apache.maven.AbstractMavenLifecycleParticipant;
 import org.apache.maven.execution.ExecutionListener;
 import org.apache.maven.execution.MavenSession;
+import org.apache.maven.lifecycle.MavenExecutionPlan;
+import org.apache.maven.lifecycle.internal.LifecycleExecutionPlanCalculator;
+import org.apache.maven.lifecycle.internal.LifecycleTask;
+import org.apache.maven.model.Plugin;
+import org.apache.maven.plugin.BuildPluginManager;
+import org.apache.maven.plugin.MavenPluginManager;
+import org.apache.maven.plugin.Mojo;
+import org.apache.maven.plugin.MojoExecution;
+import org.apache.maven.plugin.descriptor.MojoDescriptor;
+import org.apache.maven.plugin.descriptor.PluginDescriptor;
 import org.apache.maven.project.MavenProject;
+import org.codehaus.plexus.PlexusContainer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(MavenLifecycleParticipant.class);
 
   private static final String MAVEN_SUREFIRE_PLUGIN_KEY =
       "org.apache.maven.plugins:maven-surefire-plugin";
   private static final String MAVEN_FAILSAFE_PLUGIN_KEY =
       "org.apache.maven.plugins:maven-failsafe-plugin";
+
+  private final BuildEventsHandler<MavenSession> buildEventsHandler =
+      InstrumentationBridge.createBuildEventsHandler();
 
   @Override
   public void afterSessionStart(MavenSession session) {
@@ -23,7 +62,7 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
     }
 
     ExecutionListener originalExecutionListener = session.getRequest().getExecutionListener();
-    ExecutionListener spyExecutionListener = new MavenExecutionListener();
+    ExecutionListener spyExecutionListener = new MavenExecutionListener(buildEventsHandler);
 
     // We cannot add an ExecutionListener to the request, we can only replace the existing one.
     // Since we want to preserve the original listener, the solution is to use a "splitter",
@@ -47,22 +86,246 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
   @Override
   public void afterProjectsRead(MavenSession session) {
     Config config = Config.get();
-    if (!config.isCiVisibilityEnabled() || !config.isCiVisibilityAutoConfigurationEnabled()) {
+    if (!config.isCiVisibilityEnabled()) {
       return;
     }
 
-    for (MavenProject project : session.getProjects()) {
-      MavenProjectConfigurator.INSTANCE.configureTracer(project, MAVEN_SUREFIRE_PLUGIN_KEY);
-      MavenProjectConfigurator.INSTANCE.configureTracer(project, MAVEN_FAILSAFE_PLUGIN_KEY);
+    MavenProject rootProject = session.getTopLevelProject();
+    Path projectRoot = rootProject.getBasedir().toPath();
 
-      if (config.isCiVisibilityCompilerPluginAutoConfigurationEnabled()) {
-        String compilerPluginVersion = config.getCiVisibilityCompilerPluginVersion();
-        MavenProjectConfigurator.INSTANCE.configureCompilerPlugin(project, compilerPluginVersion);
+    String projectName = rootProject.getName();
+    String startCommand = MavenUtils.getCommandLine(session);
+    String mavenVersion = MavenUtils.getMavenVersion(session);
+    buildEventsHandler.onTestSessionStart(
+        session, projectName, projectRoot, startCommand, "maven", mavenVersion);
+
+    Collection<MavenUtils.TestFramework> testFrameworks =
+        MavenUtils.collectTestFrameworks(rootProject);
+    if (testFrameworks.size() == 1) {
+      // if the module uses multiple test frameworks, we do not set the tags
+      MavenUtils.TestFramework testFramework = testFrameworks.iterator().next();
+      buildEventsHandler.onTestFrameworkDetected(
+          session, testFramework.name, testFramework.version);
+    } else if (testFrameworks.size() > 1) {
+      LOGGER.info(
+          "Multiple test frameworks detected: {}. Test framework data will not be populated",
+          testFrameworks);
+    }
+
+    if (!config.isCiVisibilityAutoConfigurationEnabled()) {
+      return;
+    }
+
+    List<MavenProject> projects = session.getProjects();
+    ExecutorService projectConfigurationPool = createProjectConfigurationPool(projects.size());
+    Map<Path, Collection<TestsExecution>> testExecutions =
+        configureProjects(projectConfigurationPool, session, projects);
+    configureTestExecutions(projectConfigurationPool, session, testExecutions);
+    projectConfigurationPool.shutdown();
+  }
+
+  private static ExecutorService createProjectConfigurationPool(int projectsCount) {
+    int projectConfigurationPoolSize =
+        Math.min(projectsCount, Runtime.getRuntime().availableProcessors() * 2);
+    AgentThreadFactory threadFactory =
+        new AgentThreadFactory(AgentThreadFactory.AgentThread.CI_PROJECT_CONFIGURATOR);
+    return Executors.newFixedThreadPool(projectConfigurationPoolSize, threadFactory);
+  }
+
+  private Map<Path, Collection<TestsExecution>> configureProjects(
+      ExecutorService projectConfigurationPool, MavenSession session, List<MavenProject> projects) {
+    CompletionService<Map<Path, Collection<TestsExecution>>> testExecutionsCompletionService =
+        new ExecutorCompletionService<>(projectConfigurationPool);
+    for (MavenProject project : projects) {
+      testExecutionsCompletionService.submit(() -> configureProject(session, project));
+    }
+
+    Map<Path, Collection<TestsExecution>> testExecutions = new HashMap<>();
+    for (int i = 0; i < projects.size(); i++) {
+      try {
+        Future<Map<Path, Collection<TestsExecution>>> future =
+            testExecutionsCompletionService.take();
+        for (Map.Entry<Path, Collection<TestsExecution>> e : future.get().entrySet()) {
+          Path path = e.getKey();
+          Collection<TestsExecution> executions = e.getValue();
+          testExecutions.computeIfAbsent(path, k -> new ArrayList<>()).addAll(executions);
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        LOGGER.error("Interrupted while configuring projects", e);
+      } catch (ExecutionException e) {
+        LOGGER.error("Error while configuring projects", e);
+      }
+    }
+    return testExecutions;
+  }
+
+  private Map<Path, Collection<TestsExecution>> configureProject(
+      MavenSession session, MavenProject project) {
+    Properties projectProperties = project.getProperties();
+    String projectArgLine = projectProperties.getProperty("argLine");
+    if (projectArgLine == null) {
+      // otherwise reference to "@{argLine}" that we add when configuring tracer
+      // might cause failure
+      projectProperties.setProperty("argLine", "");
+    }
+
+    Config config = Config.get();
+    if (config.isCiVisibilityCompilerPluginAutoConfigurationEnabled()) {
+      String compilerPluginVersion = config.getCiVisibilityCompilerPluginVersion();
+      MavenProjectConfigurator.INSTANCE.configureCompilerPlugin(project, compilerPluginVersion);
+    }
+
+    MavenProjectConfigurator.INSTANCE.configureJacoco(project);
+
+    return getTestExecutionsByJvmPath(session, project);
+  }
+
+  private Map<Path, Collection<TestsExecution>> getTestExecutionsByJvmPath(
+      MavenSession session, MavenProject project) {
+    Map<Path, Collection<TestsExecution>> testExecutions = new HashMap<>();
+    try {
+      PlexusContainer container = session.getContainer();
+
+      MavenPluginManager mavenPluginManager = container.lookup(MavenPluginManager.class);
+      BuildPluginManager buildPluginManager = container.lookup(BuildPluginManager.class);
+      LifecycleExecutionPlanCalculator planCalculator =
+          container.lookup(LifecycleExecutionPlanCalculator.class);
+
+      List<Object> tasks = session.getGoals().stream().map(LifecycleTask::new).collect(toList());
+      MavenExecutionPlan executionPlan =
+          planCalculator.calculateExecutionPlan(session, project, tasks);
+
+      for (MojoExecution mojoExecution : executionPlan.getMojoExecutions()) {
+        Plugin plugin = mojoExecution.getPlugin();
+        String pluginKey = plugin.getKey();
+
+        if (MAVEN_SUREFIRE_PLUGIN_KEY.equals(pluginKey)
+            || MAVEN_FAILSAFE_PLUGIN_KEY.equals(pluginKey)) {
+
+          MojoDescriptor mojoDescriptor = mojoExecution.getMojoDescriptor();
+          PluginDescriptor pluginDescriptor = mojoDescriptor.getPluginDescriptor();
+          // ensure plugin realm is loaded in container
+          buildPluginManager.getPluginRealm(session, pluginDescriptor);
+
+          Mojo mojo = mavenPluginManager.getConfiguredMojo(Mojo.class, session, mojoExecution);
+          String forkedJvm = getEffectiveJvm(mojo);
+          Path forkedJvmPath = forkedJvm != null ? Paths.get(forkedJvm) : null;
+          if (forkedJvmPath == null) {
+            LOGGER.warn(
+                "Could not determine forked JVM path for plugin {} execution {} in project {}",
+                pluginKey,
+                mojoExecution.getExecutionId(),
+                project.getName());
+          }
+
+          testExecutions
+              .computeIfAbsent(forkedJvmPath, k -> new ArrayList<>())
+              .add(new TestsExecution(project, mojoExecution));
+        }
+      }
+      return testExecutions;
+
+    } catch (Exception e) {
+      LOGGER.error(
+          "Error while getting test executions for session {} and project {}", session, project, e);
+      return testExecutions;
+    }
+  }
+
+  private String getEffectiveJvm(Mojo mojo) {
+    Method getEffectiveJvmMethod = findGetEffectiveJvmMethod(mojo.getClass());
+    if (getEffectiveJvmMethod == null) {
+      return null;
+    }
+    getEffectiveJvmMethod.setAccessible(true);
+    try {
+      // result type differs based on Maven version
+      Object effectiveJvm = getEffectiveJvmMethod.invoke(mojo);
+
+      if (effectiveJvm instanceof String) {
+        return (String) effectiveJvm;
+      } else if (effectiveJvm instanceof File) {
+        return ((File) effectiveJvm).getAbsolutePath();
       }
 
-      if (config.getCiVisibilityCodeCoverageEnabled()) {
-        MavenProjectConfigurator.INSTANCE.configureJacoco(project);
+      Class<?> effectiveJvmClass = effectiveJvm.getClass();
+      Method getJvmExecutableMethod = effectiveJvmClass.getMethod("getJvmExecutable");
+      Object jvmExecutable = getJvmExecutableMethod.invoke(effectiveJvm);
+
+      if (jvmExecutable instanceof String) {
+        return (String) jvmExecutable;
+      } else if (jvmExecutable instanceof File) {
+        return ((File) jvmExecutable).getAbsolutePath();
+      } else {
+        return null;
       }
+
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  private Method findGetEffectiveJvmMethod(Class<?> mojoClass) {
+    do {
+      try {
+        return mojoClass.getDeclaredMethod("getEffectiveJvm");
+      } catch (NoSuchMethodException e) {
+        // continue
+      }
+      mojoClass = mojoClass.getSuperclass();
+    } while (mojoClass != null);
+    return null;
+  }
+
+  private void configureTestExecutions(
+      ExecutorService projectConfigurationPool,
+      MavenSession session,
+      Map<Path, Collection<TestsExecution>> testExecutions) {
+    CompletionService<Void> configurationCompletionService =
+        new ExecutorCompletionService<>(projectConfigurationPool);
+    for (Map.Entry<Path, Collection<TestsExecution>> e : testExecutions.entrySet()) {
+      Path jvmExecutablePath = e.getKey();
+      Collection<TestsExecution> executions = e.getValue();
+      configurationCompletionService.submit(
+          () -> configureTestExecutions(session, jvmExecutablePath, executions));
+    }
+
+    for (int i = 0; i < testExecutions.size(); i++) {
+      try {
+        Future<Void> future = configurationCompletionService.take();
+        future.get();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        LOGGER.error("Interrupted while configuring test executions", e);
+      } catch (ExecutionException e) {
+        LOGGER.error("Error while configuring test executions", e);
+      }
+    }
+  }
+
+  private Void configureTestExecutions(
+      MavenSession session, Path jvmExecutablePath, Collection<TestsExecution> testExecutions) {
+    ModuleExecutionSettings moduleExecutionSettings =
+        buildEventsHandler.getModuleExecutionSettings(session, jvmExecutablePath);
+
+    for (TestsExecution testExecution : testExecutions) {
+      Path modulePath = testExecution.project.getBasedir().toPath();
+      MavenProjectConfigurator.INSTANCE.configureTracer(
+          testExecution.execution,
+          moduleExecutionSettings.getSystemProperties(),
+          moduleExecutionSettings.getSkippableTests(modulePath));
+    }
+    return null;
+  }
+
+  public static final class TestsExecution {
+    private final MavenProject project;
+    private final MojoExecution execution;
+
+    public TestsExecution(MavenProject project, MojoExecution execution) {
+      this.project = project;
+      this.execution = execution;
     }
   }
 }

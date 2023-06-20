@@ -132,6 +132,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PL
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_ID;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SESSION_ID;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SKIPPABLE_TESTS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE;
@@ -355,6 +356,8 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 import static datadog.trace.util.Strings.toEnvVar;
 
+import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.SkippableTestsSerializer;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.iast.IastDetectionMode;
@@ -387,6 +390,7 @@ import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -626,6 +630,7 @@ public class Config {
   private final long ciVisibilityBackendApiTimeoutMillis;
   private final long ciVisibilityGitUploadTimeoutMillis;
   private final Boolean ciVisibilityItrEnabled;
+  private final Set<SkippableTest> ciVisibilitySkippableTests;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1431,8 +1436,7 @@ public class Config {
         configProvider.getBoolean(
             CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED,
             DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED);
-    ciVisibilityCodeCoverageEnabled =
-        configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_ENABLED, false);
+    ciVisibilityCodeCoverageEnabled = configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_ENABLED);
     ciVisibilityCompilerPluginVersion =
         configProvider.getString(
             CIVISIBILITY_COMPILER_PLUGIN_VERSION, DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION);
@@ -1467,6 +1471,10 @@ public class Config {
         configProvider.getString(
             CIVISIBILITY_GIT_REMOTE_NAME, DEFAULT_CIVISIBILITY_GIT_REMOTE_NAME);
     ciVisibilityItrEnabled = configProvider.getBoolean(CIVISIBILITY_ITR_ENABLED);
+    ciVisibilitySkippableTests =
+        new HashSet<>(
+            SkippableTestsSerializer.deserialize(
+                configProvider.getString(CIVISIBILITY_SKIPPABLE_TESTS)));
 
     remoteConfigEnabled =
         configProvider.getBoolean(REMOTE_CONFIG_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED);
@@ -2390,6 +2398,10 @@ public class Config {
 
   public Boolean getCiVisibilityItrEnabled() {
     return ciVisibilityItrEnabled;
+  }
+
+  public Set<SkippableTest> getCiVisibilitySkippableTests() {
+    return ciVisibilitySkippableTests;
   }
 
   public String getAppSecRulesFile() {

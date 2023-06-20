@@ -1,5 +1,7 @@
 package datadog.trace.civisibility.config;
 
+import java.util.Objects;
+
 public class JvmInfo {
 
   public static final JvmInfo CURRENT_JVM =
@@ -28,6 +30,25 @@ public class JvmInfo {
 
   public String getVendor() {
     return vendor;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    JvmInfo jvmInfo = (JvmInfo) o;
+    return Objects.equals(name, jvmInfo.name)
+        && Objects.equals(version, jvmInfo.version)
+        && Objects.equals(vendor, jvmInfo.vendor);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(name, version, vendor);
   }
 
   @Override
