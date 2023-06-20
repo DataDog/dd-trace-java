@@ -1,4 +1,4 @@
-package datadog.trace.agent.test.base
+package datadog.trace.civisibility
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
@@ -7,14 +7,13 @@ import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.civisibility.InstrumentationBridge
-import datadog.trace.api.civisibility.codeowners.Codeowners
+import datadog.trace.civisibility.codeowners.Codeowners
 import datadog.trace.api.civisibility.decorator.TestDecorator
-import datadog.trace.api.civisibility.source.MethodLinesResolver
+import datadog.trace.civisibility.source.MethodLinesResolver
 import datadog.trace.api.civisibility.source.SourcePathResolver
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.civisibility.TestDecoratorImpl
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl
 import datadog.trace.civisibility.events.TestEventsHandlerImpl
 import datadog.trace.core.DDSpan

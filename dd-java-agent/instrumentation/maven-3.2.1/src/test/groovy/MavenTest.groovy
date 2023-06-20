@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.base.CiVisibilityTest
+import datadog.trace.civisibility.CiVisibilityTest
 import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
