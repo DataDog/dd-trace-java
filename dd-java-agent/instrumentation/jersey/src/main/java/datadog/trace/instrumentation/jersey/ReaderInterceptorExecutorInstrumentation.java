@@ -13,7 +13,7 @@ import net.bytebuddy.asm.Advice;
 
 // keep in sync with jersey2 (javax packages)
 @AutoService(Instrumenter.class)
-public class ReaderInterceptorExecutorInstrumentation extends Instrumenter.AppSec
+public class ReaderInterceptorExecutorInstrumentation extends Instrumenter.Iast
     implements Instrumenter.ForSingleType {
   public ReaderInterceptorExecutorInstrumentation() {
     super("jersey");
