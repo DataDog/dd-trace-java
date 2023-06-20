@@ -291,10 +291,7 @@ class MavenSmokeTest extends Specification {
   }
 
   List<String> programArguments() {
-    return [
-      mavenUserHome.toAbsolutePath().toString(),
-      projectHome.toAbsolutePath().toString()
-    ]
+    return [projectHome.toAbsolutePath().toString()]
   }
 
   private List<Map<String, Object>> waitForEvents(expectedEventsSize = 4) {
