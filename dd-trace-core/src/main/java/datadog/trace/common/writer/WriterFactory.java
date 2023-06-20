@@ -104,7 +104,8 @@ public class WriterFactory {
               .monitoring(commObjects.monitoring)
               .singleSpanSampler(singleSpanSampler);
 
-      if (Config.get().isCiVisibilityPerTestCodeCoverageEnabled()) {
+      Boolean ciVisibilityCodeCoverageEnabled = Config.get().getCiVisibilityCodeCoverageEnabled();
+      if (ciVisibilityCodeCoverageEnabled != null && ciVisibilityCodeCoverageEnabled) {
         final RemoteApi coverageApi =
             createDDIntakeRemoteApi(config, commObjects, featuresDiscovery, TrackType.CITESTCOV);
         builder.addTrack(TrackType.CITESTCOV, coverageApi);

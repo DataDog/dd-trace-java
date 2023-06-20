@@ -23,8 +23,9 @@ public class InstrumenterInstrumentation extends Instrumenter.CiVisibility
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    Boolean ciVisibilityCodeCoverageEnabled = Config.get().getCiVisibilityCodeCoverageEnabled();
     return super.isApplicable(enabledSystems)
-        && Config.get().isCiVisibilityPerTestCodeCoverageEnabled();
+        && (ciVisibilityCodeCoverageEnabled != null && ciVisibilityCodeCoverageEnabled);
   }
 
   @Override
