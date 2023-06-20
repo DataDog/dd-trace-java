@@ -49,9 +49,15 @@ public class DefaultPathwayContext implements PathwayContext {
   // ticks is not comparable across JVMs
   private final long pathwayStartNanos;
   private final long pathwayStartNanoTicks;
+  private final long edgeStartNanos;
   private final long edgeStartNanoTicks;
   private final long hash;
   private final boolean started;
+
+  // ServicePathwayStartNanos differ from pathwayStartNanos in that
+  // it marks the time when a pathway started within this particular service
+  // either from consuming a message or from generating a new one.
+  private final long servicePathwayStartNanos;
 
   private AtomicInteger numChildren;
 
@@ -69,7 +75,9 @@ public class DefaultPathwayContext implements PathwayContext {
     this.wellKnownTags = wellKnownTags;
     this.pathwayStartNanos = 0L;
     this.pathwayStartNanoTicks = 0L;
+    this.edgeStartNanos = 0L;
     this.edgeStartNanoTicks = 0L;
+    this.servicePathwayStartNanos = 0L;
     this.hash = 0L;
     this.started = false;
     this.numChildren = new AtomicInteger(0);
@@ -80,13 +88,17 @@ public class DefaultPathwayContext implements PathwayContext {
       WellKnownTags wellKnownTags,
       long pathwayStartNanos,
       long pathwayStartNanoTicks,
+      long edgeStartNanos,
       long edgeStartNanoTicks,
+      long servicePathwayStartNanos,
       long hash) {
     this.timeSource = timeSource;
     this.wellKnownTags = wellKnownTags;
     this.pathwayStartNanos = pathwayStartNanos;
     this.pathwayStartNanoTicks = pathwayStartNanoTicks;
+    this.edgeStartNanos = edgeStartNanos;
     this.edgeStartNanoTicks = edgeStartNanoTicks;
+    this.servicePathwayStartNanos = servicePathwayStartNanos;
     this.hash = hash;
     this.started = true;
     this.numChildren = new AtomicInteger(0);
@@ -114,15 +126,21 @@ public class DefaultPathwayContext implements PathwayContext {
 
       long parentPathwayStartNanos;
       long parentPathwayStartNanoTicks;
+      long parentEdgeStartNanos;
       long parentEdgeStartNanoTicks;
+      long parentServicePathwayStartNanos;
       if (!started) {
         parentPathwayStartNanos = startNanos;
         parentPathwayStartNanoTicks = nanoTicks;
+        parentEdgeStartNanos = startNanos;
         parentEdgeStartNanoTicks = nanoTicks;
+        parentServicePathwayStartNanos = startNanos;
       } else {
         parentPathwayStartNanos = pathwayStartNanos;
         parentPathwayStartNanoTicks = pathwayStartNanoTicks;
+        parentEdgeStartNanos = edgeStartNanos;
         parentEdgeStartNanoTicks = edgeStartNanoTicks;
+        parentServicePathwayStartNanos = servicePathwayStartNanos;
       }
 
       for (Map.Entry<String, String> entry : sortedTags.entrySet()) {
@@ -151,6 +169,7 @@ public class DefaultPathwayContext implements PathwayContext {
               timeSource.getCurrentTimeNanos(),
               pathwayLatencyNano,
               edgeLatencyNano);
+      long childEdgeStartNanos = startNanos;
       long childEdgeStartNanoTicks = nanoTicks;
 
       inboxItemConsumer.accept(point);
@@ -159,7 +178,9 @@ public class DefaultPathwayContext implements PathwayContext {
           timeSource, wellKnownTags,
           parentPathwayStartNanos,
           parentPathwayStartNanoTicks,
+          childEdgeStartNanos,
           childEdgeStartNanoTicks,
+          parentServicePathwayStartNanos,
           newHash);
     log.debug("Created new pathway context {}", newPathwayContext);
 
@@ -167,23 +188,36 @@ public class DefaultPathwayContext implements PathwayContext {
     if (numTotalChildren > 1) {
       // If it's equal to 1, this pathway is the only child, so no fanOut detected.
       // Otherwise, there is fanOut.
-      FanOutThroughput fanOutThroughput = new FanOutThroughput(parentPathwayStartNanos);
+      // We can only record fanOut if parent context is started
+      FanOutThroughput fanOutThroughput = new FanOutThroughput(newHash, parentPathwayStartNanos, childEdgeStartNanos, parentEdgeStartNanos);
       inboxItemConsumer.accept(fanOutThroughput);
-    }
-
-    if (hash == 0L) {
-      GeneratedThroughput generatedThroughput = new GeneratedThroughput(parentPathwayStartNanos);
-      inboxItemConsumer.accept(generatedThroughput);
     }
 
     if (sortedTags.containsKey("direction")) {
       String direction = sortedTags.get("direction");
       if ("in".equals(direction)) {
-        ConsumedThroughput consumedThroughput = new ConsumedThroughput(parentPathwayStartNanos);
-        inboxItemConsumer.accept(consumedThroughput);
+        if (!started) {
+          // Even though this is a consume() call, no parent info (upstream service not instrumented)
+          ConsumedThroughput consumedThroughput = new ConsumedThroughput(newHash, parentPathwayStartNanos, childEdgeStartNanos, null);
+          inboxItemConsumer.accept(consumedThroughput);
+        } else {
+          ConsumedThroughput consumedThroughput = new ConsumedThroughput(newHash, parentPathwayStartNanos, childEdgeStartNanos, parentEdgeStartNanos);
+          inboxItemConsumer.accept(consumedThroughput);
+        }
       } else {
-        ProducedThroughput producedThroughput = new ProducedThroughput(parentPathwayStartNanos);
-        inboxItemConsumer.accept(producedThroughput);
+        // A produce checkpoint may or may not have parent checkpoint. If it does, the serviceStartNanos will be
+        // the parent checkpoint's serviceStartNanos, and parentStartNanos will be that parent checkpoint's start time.
+        // Otherwise, the serviceStartNanos will be the new produce checkpoint's edgeStartNanos, and there will not
+        // be a parentStartNanos.
+        if (!started) {
+          GeneratedThroughput generatedThroughput = new GeneratedThroughput(newHash, parentPathwayStartNanos, childEdgeStartNanos);
+          inboxItemConsumer.accept(generatedThroughput);
+          ProducedThroughput producedThroughput = new ProducedThroughput(newHash, parentPathwayStartNanos, childEdgeStartNanos, null);
+          inboxItemConsumer.accept(producedThroughput);
+        } else {
+          ProducedThroughput producedThroughput = new ProducedThroughput(newHash, parentPathwayStartNanos, parentServicePathwayStartNanos, parentEdgeStartNanos);
+          inboxItemConsumer.accept(producedThroughput);
+        }
       }
     }
 
@@ -198,7 +232,10 @@ public class DefaultPathwayContext implements PathwayContext {
       return;
     }
     log.error("[terminate] terminate");
-    TerminatedThroughput terminatedThroughput = new TerminatedThroughput(pathwayStartNanos);
+    // Terminated pathway must mean that we have an existing pathway that is an "incoming edge" for this to be well
+    // formed. (however we can't actually check this today because we don't actually save tags to pathways. we should
+    // modify the API so we can properly verify this.
+    TerminatedThroughput terminatedThroughput = new TerminatedThroughput(hash, pathwayStartNanos, servicePathwayStartNanos);
     inboxItemConsumer.accept(terminatedThroughput);
   }
 
@@ -379,6 +416,7 @@ public class DefaultPathwayContext implements PathwayContext {
     long pathwayStartNanoTicks = nowNanoTicks - nanosSinceStart;
 
     long edgeStartMillis = VarEncodingHelper.decodeSignedVarLong(input);
+    long edgeStartNanos = TimeUnit.MILLISECONDS.toNanos(edgeStartMillis);
     long edgeStartNanoTicks =
         pathwayStartNanoTicks + TimeUnit.MILLISECONDS.toNanos(edgeStartMillis - pathwayStartMillis);
 
@@ -387,7 +425,9 @@ public class DefaultPathwayContext implements PathwayContext {
         wellKnownTags,
         pathwayStartNanos,
         pathwayStartNanoTicks,
+        edgeStartNanos,
         edgeStartNanoTicks,
+        nowNanos,
         hash);
   }
 

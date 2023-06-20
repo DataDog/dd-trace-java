@@ -1,12 +1,9 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-public class ConsumedThroughput implements InboxItem {
-  public long getTimestampNanos() {
-    return timestampNanos;
-  }
-  private final long timestampNanos;
+import javax.annotation.Nullable;
 
-  public ConsumedThroughput(long timestampNanos) {
-    this.timestampNanos = timestampNanos;
+public class ConsumedThroughput extends ThroughputBase {
+  public ConsumedThroughput(long hash, long originTimestampNanos, long serviceStartTimestampNanos, @Nullable Long parentStartTimestampNanos) {
+    super(hash, originTimestampNanos, serviceStartTimestampNanos, parentStartTimestampNanos);
   }
 }

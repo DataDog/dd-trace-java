@@ -1,12 +1,9 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-public class FanOutThroughput implements InboxItem {
-  public long getTimestampNanos() {
-    return timestampNanos;
-  }
-  private final long timestampNanos;
+import javax.annotation.Nullable;
 
-  public FanOutThroughput(long timestampNanos) {
-    this.timestampNanos = timestampNanos;
+public class FanOutThroughput extends ThroughputBase {
+  public FanOutThroughput(long hash, long originTimestampNanos, long serviceStartTimestampNanos, @Nullable Long parentStartTimestampNanos) {
+    super(hash, originTimestampNanos, serviceStartTimestampNanos, parentStartTimestampNanos);
   }
 }

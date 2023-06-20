@@ -1,12 +1,9 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-public class ProducedThroughput implements InboxItem {
-  public long getTimestampNanos() {
-    return timestampNanos;
-  }
-  private final long timestampNanos;
+import javax.annotation.Nullable;
 
-  public ProducedThroughput(long timestampNanos) {
-    this.timestampNanos = timestampNanos;
+public class ProducedThroughput extends ThroughputBase {
+  public ProducedThroughput(long hash, long originTimestampNanos, long serviceStartTimestampNanos, @Nullable Long parentStartTimestampNanos) {
+    super(hash, originTimestampNanos, serviceStartTimestampNanos, parentStartTimestampNanos);
   }
 }

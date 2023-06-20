@@ -32,8 +32,9 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private static final byte[] PARENT_HASH = "ParentHash".getBytes(ISO_8859_1);
   private static final byte[] BACKLOG_VALUE = "Value".getBytes(ISO_8859_1);
   private static final byte[] BACKLOG_TAGS = "Tags".getBytes(ISO_8859_1);
-  private static final byte[] THROUGHPUT = "Throughput".getBytes(ISO_8859_1);
-  private static final byte[] ENABLED = "Enabled".getBytes(ISO_8859_1);
+  private static final byte[] THROUGHPUTS_BY_ORIGIN = "ThroughputsByOrigin".getBytes(ISO_8859_1);
+  private static final byte[] THROUGHPUTS_BY_EDGE_START = "ThroughputsByEdgeStart".getBytes(ISO_8859_1);
+  private static final byte[] THROUGHPUTS_BY_SERVICE_START = "ThroughputsByServiceStart".getBytes(ISO_8859_1);
   private static final byte[] FAN_IN = "FanIn".getBytes(ISO_8859_1);
   private static final byte[] FAN_OUT = "FanOut".getBytes(ISO_8859_1);
   private static final byte[] TERMINATED = "Terminated".getBytes(ISO_8859_1);
@@ -92,7 +93,10 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     writer.startArray(data.size());
     for (StatsBucket bucket : data) {
       boolean hasBacklogs = !bucket.getBacklogs().isEmpty();
-      writer.startMap(4 + (hasBacklogs ? 1 : 0));
+      boolean hasThroughputsByOrigin = !bucket.getThroughputsByOrigin().isEmpty();
+      boolean hasThroughputsByEdgeStart = !bucket.getThroughputsByEdgeStart().isEmpty();
+      boolean hasThroughputsByServiceStart = !bucket.getThroughputsByServiceStart().isEmpty();
+      writer.startMap(3 + (hasBacklogs ? 1 : 0) + (hasThroughputsByOrigin ? 1 : 0) + (hasThroughputsByEdgeStart ? 1 : 0) + (hasThroughputsByServiceStart ? 1 : 0));
 
       /* 1 */
       writer.writeUTF8(START);
@@ -111,8 +115,20 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
         writeBacklogs(bucket.getBacklogs(), writer);
       }
 
-      /* 5 */
-      writeThroughput(bucket.getThroughput(), writer);
+      if (hasThroughputsByOrigin) {
+        /* 5 */
+        writeThroughputs(THROUGHPUTS_BY_ORIGIN, bucket.getThroughputsByOrigin(), writer);
+      }
+
+      if (hasThroughputsByEdgeStart) {
+        /* 6 */
+        writeThroughputs(THROUGHPUTS_BY_EDGE_START, bucket.getThroughputsByEdgeStart(), writer);
+      }
+
+      if (hasThroughputsByServiceStart) {
+        /* 7 */
+        writeThroughputs(THROUGHPUTS_BY_SERVICE_START, bucket.getThroughputsByServiceStart(), writer);
+      }
     }
 
     buffer.mark();
@@ -155,33 +171,33 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     }
   }
 
-  private void writeThroughput(Throughput throughput, Writable packer) {
-    packer.writeUTF8(THROUGHPUT);
-    writer.startMap(7);
+  private void writeThroughputs(byte[] header, Collection<Throughput> throughputs, Writable packer) {
+    packer.writeUTF8(header);
+    packer.startArray(throughputs.size());
+    for (Throughput throughput : throughputs) {
+      writer.startMap(7);
 
-    packer.writeUTF8(ENABLED);
-    packer.writeBoolean(true);
+      packer.writeUTF8(FAN_IN);
+      packer.writeLong(throughput.getFanIn());
 
-    packer.writeUTF8(FAN_IN);
-    packer.writeLong(throughput.getFanIn());
+      packer.writeUTF8(FAN_OUT);
+      packer.writeLong(throughput.getFanOut());
 
-    packer.writeUTF8(FAN_OUT);
-    packer.writeLong(throughput.getFanOut());
+      packer.writeUTF8(TERMINATED);
+      packer.writeLong(throughput.getTerminated());
 
-    packer.writeUTF8(TERMINATED);
-    packer.writeLong(throughput.getTerminated());
+      packer.writeUTF8(PRODUCED);
+      packer.writeLong(throughput.getProduced());
 
-    packer.writeUTF8(PRODUCED);
-    packer.writeLong(throughput.getProduced());
+      packer.writeUTF8(CONSUMED);
+      packer.writeLong(throughput.getConsumed());
 
-    packer.writeUTF8(CONSUMED);
-    packer.writeLong(throughput.getConsumed());
+      packer.writeUTF8(GENERATED);
+      packer.writeLong(throughput.getGenerated());
 
-    packer.writeUTF8(GENERATED);
-    long generated = throughput.getGenerated();
-    packer.writeLong(generated);
-    log.error("Generated: {}", generated);
-    log.error("Throughput: {}", throughput);
+      packer.writeUTF8(HASH);
+      packer.writeUnsignedLong(throughput.getHash());
+    }
   }
 
   private void writeBacklogs(Collection<Map.Entry<List<String>, Long>> backlogs, Writable packer) {

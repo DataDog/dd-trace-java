@@ -1,7 +1,13 @@
 package datadog.trace.core.datastreams;
 
 import datadog.trace.bootstrap.instrumentation.api.Backlog;
+import datadog.trace.bootstrap.instrumentation.api.ConsumedThroughput;
+import datadog.trace.bootstrap.instrumentation.api.FanOutThroughput;
+import datadog.trace.bootstrap.instrumentation.api.GeneratedThroughput;
+import datadog.trace.bootstrap.instrumentation.api.ProducedThroughput;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
+import datadog.trace.bootstrap.instrumentation.api.TerminatedThroughput;
+import datadog.trace.bootstrap.instrumentation.api.ThroughputBase;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -12,7 +18,9 @@ public class StatsBucket {
   private final long bucketDurationNanos;
   private final Map<Long, StatsGroup> hashToGroup = new HashMap<>();
   private final Map<List<String>, Long> backlogs = new HashMap<>();
-  private final Throughput throughput = new Throughput();
+  private final Map<Long, Throughput> hashToThroughputsByOrigin = new HashMap<>();
+  private final Map<Long, Throughput> hashToThroughputsByEdgeStart = new HashMap<>();
+  private final Map<Long, Throughput> hashToThroughputsByServiceStart = new HashMap<>();
 
   public StatsBucket(long startTimeNanos, long bucketDurationNanos) {
     this.startTimeNanos = startTimeNanos;
@@ -39,7 +47,53 @@ public class StatsBucket {
         (k, v) -> (v == null) ? backlog.getValue() : Math.max(v, backlog.getValue()));
   }
 
-  public void incrementFanIn() {
+  private void incrementThroughput(Throughput throughput, ThroughputBase inputThroughput) {
+    /*if (inputThroughput instanceof FanInThroughput) {
+      throughput.incrementFanIn();
+    } else */if (inputThroughput instanceof FanOutThroughput) {
+      throughput.incrementFanOut();
+    } else if (inputThroughput instanceof TerminatedThroughput) {
+      throughput.incrementTerminated();
+    } else if (inputThroughput instanceof ProducedThroughput) {
+      throughput.incrementProduced();
+    } else if (inputThroughput instanceof ConsumedThroughput) {
+      throughput.incrementConsumed();
+    } else if (inputThroughput instanceof GeneratedThroughput) {
+      throughput.incrementGenerated();
+    }
+  }
+
+  public void incrementThroughputByOrigin(ThroughputBase singleThroughput) {
+    Throughput throughput = hashToThroughputsByOrigin.get(singleThroughput.getHash());
+    if (throughput == null) {
+      throughput =
+          new Throughput(singleThroughput.getHash(), TimestampType.TIMESTAMP_ORIGIN);
+      hashToThroughputsByOrigin.put(singleThroughput.getHash(), throughput);
+    }
+    incrementThroughput(throughput, singleThroughput);
+  }
+
+  public void incrementThroughputByEdgeStart(ThroughputBase singleThroughput) {
+    Throughput throughput = hashToThroughputsByEdgeStart.get(singleThroughput.getHash());
+    if (throughput == null) {
+      throughput =
+          new Throughput(singleThroughput.getHash(), TimestampType.TIMESTAMP_EDGE_START);
+      hashToThroughputsByEdgeStart.put(singleThroughput.getHash(), throughput);
+    }
+    incrementThroughput(throughput, singleThroughput);
+  }
+
+  public void incrementThroughputByServiceStart(ThroughputBase singleThroughput) {
+    Throughput throughput = hashToThroughputsByServiceStart.get(singleThroughput.getHash());
+    if (throughput == null) {
+      throughput =
+          new Throughput(singleThroughput.getHash(), TimestampType.TIMESTAMP_SERVICE_START);
+      hashToThroughputsByServiceStart.put(singleThroughput.getHash(), throughput);
+    }
+    incrementThroughput(throughput, singleThroughput);
+  }
+/*
+  public void incrementFanIn(long hash) {
     throughput.incrementFanIn();
   }
 
@@ -61,7 +115,7 @@ public class StatsBucket {
 
   public void incrementGenerated() {
     throughput.incrementGenerated();
-  }
+  }*/
 
   public long getStartTimeNanos() {
     return startTimeNanos;
@@ -79,8 +133,16 @@ public class StatsBucket {
     return backlogs.entrySet();
   }
 
-  public Throughput getThroughput() {
-    return throughput;
+  public Collection<Throughput> getThroughputsByOrigin() {
+    return hashToThroughputsByOrigin.values();
+  }
+
+  public Collection<Throughput> getThroughputsByEdgeStart() {
+    return hashToThroughputsByEdgeStart.values();
+  }
+
+  public Collection<Throughput> getThroughputsByServiceStart() {
+    return hashToThroughputsByServiceStart.values();
   }
 
   @Override
@@ -94,8 +156,12 @@ public class StatsBucket {
         + hashToGroup
         + ", backlogs="
         + backlogs
-        + ", throughput="
-        + throughput
+        + ", hashToThroughputsByOrigin="
+        + hashToThroughputsByOrigin
+        + ", hashToThroughputsByEdgeStart="
+        + hashToThroughputsByEdgeStart
+        + ", hashToThroughputsByServiceStart="
+        + hashToThroughputsByServiceStart
         + '}';
   }
 }

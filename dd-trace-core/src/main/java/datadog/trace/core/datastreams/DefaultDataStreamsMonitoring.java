@@ -21,6 +21,7 @@ import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ProducedThroughput;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.bootstrap.instrumentation.api.TerminatedThroughput;
+import datadog.trace.bootstrap.instrumentation.api.ThroughputBase;
 import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.OkHttpSink;
 import datadog.trace.common.metrics.Sink;
@@ -226,7 +227,22 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
                   timeToBucket.computeIfAbsent(
                       bucket, startTime -> new StatsBucket(startTime, bucketDurationNanos));
               statsBucket.addBacklog(backlog);
-            } else if (payload instanceof FanOutThroughput) {
+            } else if (payload instanceof ThroughputBase) {
+              ThroughputBase throughput = (ThroughputBase) payload;
+
+              Long originBucketIndex = currentBucket(throughput.getOriginTimestampNanos());
+              StatsBucket originStatsBucket =
+                  timeToBucket.computeIfAbsent(
+                      originBucketIndex, startTime -> new StatsBucket(startTime, bucketDurationNanos));
+              originStatsBucket.incrementThroughputByOrigin(throughput);
+
+              Long edgeStartBucketIndex = currentBucket(throughput.getOriginTimestampNanos());
+              StatsBucket edgeStartStatsBucket =
+                  timeToBucket.computeIfAbsent(
+                      originBucketIndex, startTime -> new StatsBucket(startTime, bucketDurationNanos));
+              originStatsBucket.incrementThroughputByOrigin(throughput);
+            }
+            /* else if (payload instanceof FanOutThroughput) {
               FanOutThroughput fanOutThroughput = (FanOutThroughput) payload;
               Long bucket = currentBucket(fanOutThroughput.getTimestampNanos());
               StatsBucket statsBucket =
@@ -261,7 +277,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
                   timeToBucket.computeIfAbsent(
                       bucket, startTime -> new StatsBucket(startTime, bucketDurationNanos));
               statsBucket.incrementGenerated();
-            }
+            }*/
           }
         } catch (InterruptedException e) {
           currentThread.interrupt();

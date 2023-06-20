@@ -1,12 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-public class GeneratedThroughput implements InboxItem {
-  public long getTimestampNanos() {
-    return timestampNanos;
-  }
-  private final long timestampNanos;
 
-  public GeneratedThroughput(long timestampNanos) {
-    this.timestampNanos = timestampNanos;
+public class GeneratedThroughput extends ThroughputBase {
+  public GeneratedThroughput(long hash, long originTimestampNanos, long serviceStartTimestampNanos) {
+    super(hash, originTimestampNanos, serviceStartTimestampNanos);
   }
 }
