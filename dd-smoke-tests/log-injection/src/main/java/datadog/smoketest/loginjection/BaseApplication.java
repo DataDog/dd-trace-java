@@ -41,7 +41,7 @@ public abstract class BaseApplication {
     doLog("AFTER FORTH SPAN");
 
     // Sleep to allow the trace to be reported
-    Thread.sleep(1000);
+    Thread.sleep(400);
   }
 
   @Trace

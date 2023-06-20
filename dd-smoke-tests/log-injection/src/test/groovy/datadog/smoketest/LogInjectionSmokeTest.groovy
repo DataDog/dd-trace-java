@@ -63,7 +63,8 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     command.add("-Ddd.instrumentation.telemetry.enabled=false")
     command.add("-Ddd.remote_config.enabled=true")
     command.add("-Ddd.remote_config.url=http://localhost:${server.address.port}/v0.7/config".toString())
-    command.add("-Ddd.remote_config.poll_interval.seconds=1")
+    command.add("-Ddd.remote_config.poll_interval.seconds=0.2")
+    command.add("-Ddd.trace.flush.interval=0.3")
     command.add("-Ddd.test.logfile=${outputLogFile.absolutePath}" as String)
     command.add("-Ddd.test.jsonlogfile=${outputJsonLogFile.absolutePath}" as String)
     if (noTags) {
