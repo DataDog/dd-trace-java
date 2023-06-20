@@ -42,6 +42,37 @@ public class GitClient {
     commandExecutor = new ShellCommandExecutor(new File(repoRoot), timeoutMillis);
   }
 
+
+  public boolean isShallow() throws IOException, TimeoutException, InterruptedException {
+    String output =
+        commandExecutor
+            .executeCommand(IOUtils::readFully, "git", "rev-parse", "--is-shallow-repository")
+            .trim();
+    return Boolean.parseBoolean(output);
+  }
+
+  public void unshallow() throws IOException, TimeoutException, InterruptedException {
+    // configure repo to avoid downloading blobs
+    // (we don’t need them for git metadata upload).
+    // If Git version does not support partial clones,
+    // this config will be ignored
+    commandExecutor.executeCommand(
+        ShellCommandExecutor.OutputParser.IGNORE,
+        "git",
+        "config",
+        "remote.origin.partialclonefilter",
+        "blob:none");
+
+    // refetch data from the server for the past month
+    commandExecutor.executeCommand(
+        ShellCommandExecutor.OutputParser.IGNORE,
+        "git",
+        "fetch",
+        String.format("--shallow-since=='%s'", latestCommitsSince),
+        "--update-shallow",
+        "--refetch");
+  }
+
   /**
    * Returns URL of the remote with the given name
    *

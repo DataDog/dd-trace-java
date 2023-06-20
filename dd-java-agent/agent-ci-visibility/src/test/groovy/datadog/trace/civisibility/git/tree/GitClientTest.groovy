@@ -17,6 +17,53 @@ class GitClientTest extends Specification {
   @TempDir
   private Path tempDir
 
+  def "test is not shallow"() {
+    given:
+    givenGitRepo()
+
+    when:
+    def gitClient = givenGitClient()
+    def shallow = gitClient.isShallow()
+
+    then:
+    !shallow
+  }
+
+  def "test is shallow"() {
+    given:
+    givenGitRepo("ci/git/shallow/git")
+
+    when:
+    def gitClient = givenGitClient()
+    def shallow = gitClient.isShallow()
+
+    then:
+    shallow
+  }
+
+  def "test unshallow"() {
+    given:
+    givenGitRepo("ci/git/shallow/git")
+
+    when:
+    def gitClient = givenGitClient()
+    def shallow = gitClient.isShallow()
+    def commits = gitClient.getLatestCommits()
+
+    then:
+    shallow
+    commits.size() == 1
+
+    when:
+    gitClient.unshallow()
+    shallow = gitClient.isShallow()
+    commits = gitClient.getLatestCommits()
+
+    then:
+    !shallow
+    commits.size() == 10
+  }
+
   def "test get remote url"() {
     given:
     givenGitRepo()
@@ -102,7 +149,11 @@ class GitClientTest extends Specification {
   }
 
   private void givenGitRepo() {
-    def gitFolder = Paths.get(getClass().getClassLoader().getResource("ci/git/with_pack/git").toURI())
+    givenGitRepo("ci/git/with_pack/git")
+  }
+
+  private void givenGitRepo(String resourceName) {
+    def gitFolder = Paths.get(getClass().getClassLoader().getResource(resourceName).toURI())
     def tempGitFolder = tempDir.resolve(".git")
     Files.createDirectories(tempGitFolder)
     IOUtils.copyFolder(gitFolder, tempGitFolder)
