@@ -77,6 +77,7 @@ public class WriterFactory {
           "Using 'EnsureTrace' prioritization type. (Do not use this type if your application is running in production mode)");
     }
 
+    int flushIntervalMilliseconds = Math.round(config.getTraceFlushIntervalSeconds() * 1000);
     DDAgentFeaturesDiscovery featuresDiscovery = commObjects.featuresDiscovery(config);
 
     // The AgentWriter doesn't support the CI Visibility protocol. If CI Visibility is
@@ -102,7 +103,8 @@ public class WriterFactory {
               .prioritization(prioritization)
               .healthMetrics(new TracerHealthMetrics(statsDClient))
               .monitoring(commObjects.monitoring)
-              .singleSpanSampler(singleSpanSampler);
+              .singleSpanSampler(singleSpanSampler)
+              .flushIntervalMilliseconds(flushIntervalMilliseconds);
 
       if (Config.get().isCiVisibilityPerTestCodeCoverageEnabled()) {
         final RemoteApi coverageApi =
@@ -148,6 +150,7 @@ public class WriterFactory {
               .monitoring(commObjects.monitoring)
               .alwaysFlush(alwaysFlush)
               .spanSamplingRules(singleSpanSampler)
+              .flushIntervalMilliseconds(flushIntervalMilliseconds)
               .build();
     }
 

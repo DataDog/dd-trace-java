@@ -35,7 +35,7 @@ public class DDAgentWriter extends RemoteWriter {
     long timeoutMillis = TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT);
     int traceBufferSize = BUFFER_SIZE;
     HealthMetrics healthMetrics = HealthMetrics.NO_OP;
-    int flushFrequencySeconds = 1;
+    int flushIntervalMilliseconds = 1000;
     Monitoring monitoring = Monitoring.DISABLED;
     boolean traceAgentV05Enabled = Config.get().isTraceAgentV05Enabled();
     boolean metricsReportingEnabled = Config.get().isTracerMetricsEnabled();
@@ -86,8 +86,8 @@ public class DDAgentWriter extends RemoteWriter {
       return this;
     }
 
-    public DDAgentWriterBuilder flushFrequencySeconds(int flushFrequencySeconds) {
-      this.flushFrequencySeconds = flushFrequencySeconds;
+    public DDAgentWriterBuilder flushIntervalMilliseconds(int flushIntervalMilliseconds) {
+      this.flushIntervalMilliseconds = flushIntervalMilliseconds;
       return this;
     }
 
@@ -152,8 +152,8 @@ public class DDAgentWriter extends RemoteWriter {
               dispatcher,
               featureDiscovery,
               null == prioritization ? FAST_LANE : prioritization,
-              flushFrequencySeconds,
-              TimeUnit.SECONDS,
+              flushIntervalMilliseconds,
+              TimeUnit.MILLISECONDS,
               singleSpanSampler);
 
       return new DDAgentWriter(traceProcessingWorker, dispatcher, healthMetrics, alwaysFlush);
