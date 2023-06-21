@@ -193,9 +193,15 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     update.put(HEADER_TAGS, newSnapshot.headerTags);
     update.put(BAGGAGE_MAPPING, newSnapshot.baggageMapping);
 
-    update.put(TRACE_SAMPLE_RATE, newSnapshot.traceSampleRate);
+    maybePut(update, TRACE_SAMPLE_RATE, newSnapshot.traceSampleRate);
 
     ConfigCollector.get().putAll(update);
+  }
+
+  private static void maybePut(Map<String, Object> update, String key, Object value) {
+    if (null != value) {
+      update.put(key, value);
+    }
   }
 
   /** Immutable snapshot of the configuration. */
