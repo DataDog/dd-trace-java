@@ -1,12 +1,14 @@
 package com.datadog.debugger.instrumentation;
 
 import static com.datadog.debugger.instrumentation.ASMHelper.decodeSignature;
+import static com.datadog.debugger.instrumentation.ASMHelper.ensureSafeClassLoad;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeInterface;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeStatic;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeVirtual;
 import static com.datadog.debugger.instrumentation.ASMHelper.isStaticField;
 import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
 import static com.datadog.debugger.instrumentation.Types.*;
+import static datadog.trace.util.Strings.getClassName;
 
 import com.datadog.debugger.el.InvalidValueException;
 import com.datadog.debugger.el.Visitor;
@@ -676,7 +678,9 @@ public class MetricInstrumentor extends Instrumentor {
           }
         } else {
           className = currentType.getClassName();
-          clazz = Class.forName(className, true, instrumentor.classLoader);
+          clazz =
+              ensureSafeClassLoad(
+                  className, getClassName(instrumentor.classNode.name), instrumentor.classLoader);
           Field declaredField = clazz.getDeclaredField(fieldName); // no parent fields!
           isAccessible = declaredField.isAccessible();
           fieldDesc = Type.getDescriptor(declaredField.getType());

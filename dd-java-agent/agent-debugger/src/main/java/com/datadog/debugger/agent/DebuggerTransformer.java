@@ -154,7 +154,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       // e.g. Main.java contains Main & TopLevel class, line numbers are in TopLevel class
       log.info(
           "type {} matched but no transformation for definitions: {}", classFilePath, definitions);
-    } catch (Exception ex) {
+    } catch (Throwable ex) {
       log.warn("Cannot transform: ", ex);
     }
     return null;

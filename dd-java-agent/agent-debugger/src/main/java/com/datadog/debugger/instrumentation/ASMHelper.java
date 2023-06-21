@@ -103,6 +103,37 @@ public class ASMHelper {
     return new Type(mainType, genericTypes);
   }
 
+  /**
+   * Makes sure that the class we want to load is not the one that we are currently transforming
+   * otherwise it will lead into a LinkageError
+   *
+   * @param className class name to load in '.' format (Java)
+   * @param currentClassTransformed in '.' format (Java)
+   * @param classLoader use for loading the class
+   * @return the loaded class
+   */
+  public static Class<?> ensureSafeClassLoad(
+      String className, String currentClassTransformed, ClassLoader classLoader) {
+    if (currentClassTransformed == null) {
+      // This is requires to make sure we are not loading class being transformed during
+      // transformation as it will generate a LinkageError with
+      // "attempted duplicate class definition"
+      throw new IllegalArgumentException(
+          "Cannot ensure loading class: "
+              + className
+              + " safely as current class being transformed is not provided (null)");
+    }
+    if (className.equals(currentClassTransformed)) {
+      throw new IllegalArgumentException(
+          "Cannot load class " + className + " as this is the class being currently transformed");
+    }
+    try {
+      return Class.forName(className, true, classLoader);
+    } catch (Throwable t) {
+      throw new RuntimeException("Cannot load class " + className, t);
+    }
+  }
+
   /** Wraps ASM's {@link org.objectweb.asm.Type} with associated generic types */
   public static class Type {
     private final org.objectweb.asm.Type mainType;
