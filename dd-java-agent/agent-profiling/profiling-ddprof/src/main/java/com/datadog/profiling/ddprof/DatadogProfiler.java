@@ -21,6 +21,8 @@ import static com.datadog.profiling.utils.ProfilingMode.ALLOCATION;
 import static com.datadog.profiling.utils.ProfilingMode.CPU;
 import static com.datadog.profiling.utils.ProfilingMode.MEMLEAK;
 import static com.datadog.profiling.utils.ProfilingMode.WALL;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT;
 
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.controller.RecordingData;
@@ -115,6 +117,8 @@ public final class DatadogProfiler {
 
   private final List<String> orderedContextAttributes;
 
+  private final long queueTimeThreshold;
+
   private DatadogProfiler() throws UnsupportedEnvironmentException {
     this(ConfigProvider.getInstance());
   }
@@ -124,6 +128,7 @@ public final class DatadogProfiler {
     this.profiler = null;
     this.contextSetter = null;
     this.orderedContextAttributes = null;
+    this.queueTimeThreshold = Long.MAX_VALUE;
   }
 
   private DatadogProfiler(ConfigProvider configProvider) throws UnsupportedEnvironmentException {
@@ -166,6 +171,10 @@ public final class DatadogProfiler {
       orderedContextAttributes.add(OPERATION);
     }
     this.contextSetter = new ContextSetter(profiler, orderedContextAttributes);
+    this.queueTimeThreshold =
+        configProvider.getLong(
+            PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS,
+            PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT);
     try {
       // sanity test - force load Datadog profiler to catch it not being available early
       profiler.execute("status");
@@ -436,5 +445,12 @@ public final class DatadogProfiler {
     if (profiler != null) {
       profiler.recordSetting(name, value, unit);
     }
+  }
+
+  public QueueTimeTracker newQueueTimeTracker(long localRootSpanId, long spanId) {
+    if (profiler != null) {
+      return new QueueTimeTracker(profiler, queueTimeThreshold, localRootSpanId, spanId);
+    }
+    return null;
   }
 }

@@ -693,6 +693,7 @@ class JFRBasedProfilingIntegrationTest {
             "-Ddd.profiling.upload.timeout=" + PROFILING_UPLOAD_TIMEOUT_SECONDS,
             "-Ddd.profiling.debug.dump_path=/tmp/dd-profiler",
             "-Ddd.profiling.experimental.queueing.time.enabled=true",
+            "-Ddd.profiling.experimental.queueing.time.threshold.millis=0",
             "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
             "-Ddd.profiling.experimental.context.attributes=foo,bar",
             "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",

@@ -871,9 +871,9 @@ public class Agent {
                             ? null
                             : "com.datadog.profiling.controller.openjdk.JFRCheckpointer";
                 String timerClassName =
-                    Platform.isOracleJDK8() || Platform.isJ9()
-                        ? null
-                        : "com.datadog.profiling.controller.openjdk.JFRTimer";
+                    Config.get().isDatadogProfilerEnabled()
+                        ? "com.datadog.profiling.controller.ddprof.DatadogProfilerTimer"
+                        : null;
                 try {
                   if (checkpointerClassName != null) {
                     tracer.registerCheckpointer(
