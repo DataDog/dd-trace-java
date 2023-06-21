@@ -497,12 +497,19 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     endpointCheckpointer = EndpointCheckpointerHolder.create();
     this.serviceName = serviceName;
+
     this.dynamicConfig =
         DynamicConfig.create()
+            .setDebugEnabled(config.isDebugEnabled())
+            .setRuntimeMetricsEnabled(config.isRuntimeMetricsEnabled())
+            .setLogsInjectionEnabled(config.isLogsInjectionEnabled())
+            .setDataStreamsEnabled(config.isDataStreamsEnabled())
             .setServiceMapping(serviceNameMappings)
             .setHeaderTags(taggedHeaders)
             .setBaggageMapping(baggageMapping)
+            .setTraceSampleRate(config.getTraceSampleRate())
             .apply();
+
     this.sampler = sampler;
     this.logs128bTraceIdEnabled = InstrumenterConfig.get().isLogs128bTraceIdEnabled();
     this.localRootSpanTags = localRootSpanTags;
