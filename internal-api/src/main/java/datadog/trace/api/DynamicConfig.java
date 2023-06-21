@@ -70,7 +70,6 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     Map<String, String> serviceMapping;
     Map<String, String> headerTags;
     Map<String, String> baggageMapping;
-    boolean logsInjectionEnabled;
 
     Double traceSampleRate;
 
@@ -217,7 +216,6 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     final Map<String, String> serviceMapping;
     final Map<String, String> headerTags;
     final Map<String, String> baggageMapping;
-    final boolean logsInjectionEnabled;
 
     final Double traceSampleRate;
 
@@ -233,7 +231,6 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       this.serviceMapping = builder.serviceMapping;
       this.headerTags = builder.headerTags;
       this.baggageMapping = builder.baggageMapping;
-      this.logsInjectionEnabled = builder.logsInjectionEnabled;
 
       this.traceSampleRate = builder.traceSampleRate;
 
