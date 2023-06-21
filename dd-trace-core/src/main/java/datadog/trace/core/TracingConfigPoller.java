@@ -1,9 +1,5 @@
 package datadog.trace.core;
 
-import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
-import static datadog.trace.api.config.TracerConfig.HEADER_TAGS;
-import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING;
-
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
@@ -92,11 +88,18 @@ final class TracingConfigPoller {
   }
 
   void applyConfigOverrides(LibConfig libConfig) {
-    DynamicConfig.Builder builder = dynamicConfig.initial();
-    maybeOverride(builder::setServiceMapping, libConfig.serviceMapping, SERVICE_MAPPING);
-    maybeOverride(builder::setHeaderTags, libConfig.headerTags, HEADER_TAGS);
-    maybeOverride(
-        builder::setLogsInjectionEnabled, libConfig.logsInjectionEnabled, LOGS_INJECTION_ENABLED);
+    DynamicConfig<?>.Builder builder = dynamicConfig.initial();
+
+    maybeOverride(builder::setDebugEnabled, libConfig.debugEnabled);
+    maybeOverride(builder::setRuntimeMetricsEnabled, libConfig.runtimeMetricsEnabled);
+    maybeOverride(builder::setLogsInjectionEnabled, libConfig.logsInjectionEnabled);
+    maybeOverride(builder::setDataStreamsEnabled, libConfig.dataStreamsEnabled);
+
+    maybeOverride(builder::setServiceMapping, libConfig.serviceMapping);
+    maybeOverride(builder::setHeaderTags, libConfig.headerTags);
+
+    maybeOverride(builder::setTraceSampleRate, libConfig.traceSampleRate);
+
     builder.apply();
   }
 
@@ -104,7 +107,7 @@ final class TracingConfigPoller {
     dynamicConfig.resetTraceConfig();
   }
 
-  private <T> void maybeOverride(Consumer<T> setter, T override, String key) {
+  private <T> void maybeOverride(Consumer<T> setter, T override) {
     if (null != override) {
       setter.accept(override);
     }
@@ -116,14 +119,26 @@ final class TracingConfigPoller {
   }
 
   static final class LibConfig {
+    @Json(name = "tracing_debug")
+    public Boolean debugEnabled;
+
+    @Json(name = "runtime_metrics_enabled")
+    public Boolean runtimeMetricsEnabled;
+
+    @Json(name = "logs_injection_enabled")
+    public Boolean logsInjectionEnabled;
+
+    @Json(name = "data_streams_enabled")
+    public Boolean dataStreamsEnabled;
+
     @Json(name = "tracing_service_mapping")
     public List<ServiceMappingEntry> serviceMapping;
 
     @Json(name = "tracing_header_tags")
     public List<HeaderTagEntry> headerTags;
 
-    @Json(name = "logs_injection_enabled")
-    public Boolean logsInjectionEnabled;
+    @Json(name = "tracing_sample_rate")
+    public Double traceSampleRate;
   }
 
   static final class ServiceMappingEntry implements Map.Entry<String, String> {

@@ -1,9 +1,13 @@
 package datadog.trace.api;
 
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TracerConfig.BAGGAGE_MAPPING;
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING;
+import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 
 import java.util.Collection;
@@ -53,14 +57,22 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
   /** Reset the configuration to its initial state. */
   public void resetTraceConfig() {
     currentSnapshot = initialSnapshot;
+    reportConfigChange(initialSnapshot);
   }
 
   public final class Builder {
+
+    boolean debugEnabled;
+    boolean runtimeMetricsEnabled;
+    boolean logsInjectionEnabled;
+    boolean dataStreamsEnabled;
 
     Map<String, String> serviceMapping;
     Map<String, String> headerTags;
     Map<String, String> baggageMapping;
     boolean logsInjectionEnabled;
+
+    Double traceSampleRate;
 
     Builder(Snapshot snapshot) {
       if (null == snapshot) {
@@ -69,11 +81,38 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
         this.baggageMapping = Collections.emptyMap();
         this.logsInjectionEnabled = ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
       } else {
+
+        this.debugEnabled = snapshot.debugEnabled;
+        this.runtimeMetricsEnabled = snapshot.runtimeMetricsEnabled;
+        this.logsInjectionEnabled = snapshot.logsInjectionEnabled;
+        this.dataStreamsEnabled = snapshot.dataStreamsEnabled;
+
         this.serviceMapping = snapshot.serviceMapping;
         this.headerTags = snapshot.headerTags;
         this.baggageMapping = snapshot.baggageMapping;
-        this.logsInjectionEnabled = snapshot.logsInjectionEnabled;
+
+        this.traceSampleRate = snapshot.traceSampleRate;
       }
+    }
+
+    public Builder setDebugEnabled(boolean debugEnabled) {
+      this.debugEnabled = debugEnabled;
+      return this;
+    }
+
+    public Builder setRuntimeMetricsEnabled(boolean runtimeMetricsEnabled) {
+      this.runtimeMetricsEnabled = runtimeMetricsEnabled;
+      return this;
+    }
+
+    public Builder setLogsInjectionEnabled(boolean logsInjectionEnabled) {
+      this.logsInjectionEnabled = logsInjectionEnabled;
+      return this;
+    }
+
+    public Builder setDataStreamsEnabled(boolean dataStreamsEnabled) {
+      this.dataStreamsEnabled = dataStreamsEnabled;
+      return this;
     }
 
     public Builder setServiceMapping(Map<String, String> serviceMapping) {
@@ -105,8 +144,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       return this;
     }
 
-    public Builder setLogsInjectionEnabled(boolean logsInjectionEnabled) {
-      this.logsInjectionEnabled = logsInjectionEnabled;
+    public Builder setTraceSampleRate(Double traceSampleRate) {
+      this.traceSampleRate = traceSampleRate;
       return this;
     }
 
@@ -138,37 +177,89 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
         currentSnapshot = newSnapshot;
       } else {
         currentSnapshot = newSnapshot;
-        Map<String, Object> update = new HashMap<>();
-        update.put(SERVICE_MAPPING, newSnapshot.serviceMapping);
-        update.put(HEADER_TAGS, newSnapshot.headerTags);
-        update.put(BAGGAGE_MAPPING, newSnapshot.baggageMapping);
-        update.put(LOGS_INJECTION_ENABLED, newSnapshot.logsInjectionEnabled);
-
-        ConfigCollector.get().putAll(update);
+        reportConfigChange(newSnapshot);
       }
       return DynamicConfig.this;
+    }
+  }
+
+  static void reportConfigChange(Snapshot newSnapshot) {
+    Map<String, Object> update = new HashMap<>();
+
+    update.put(TRACE_DEBUG, newSnapshot.debugEnabled);
+    update.put(RUNTIME_METRICS_ENABLED, newSnapshot.runtimeMetricsEnabled);
+    update.put(LOGS_INJECTION_ENABLED, newSnapshot.logsInjectionEnabled);
+    update.put(DATA_STREAMS_ENABLED, newSnapshot.dataStreamsEnabled);
+
+    update.put(SERVICE_MAPPING, newSnapshot.serviceMapping);
+    update.put(HEADER_TAGS, newSnapshot.headerTags);
+    update.put(BAGGAGE_MAPPING, newSnapshot.baggageMapping);
+
+    maybePut(update, TRACE_SAMPLE_RATE, newSnapshot.traceSampleRate);
+
+    ConfigCollector.get().putAll(update);
+  }
+
+  private static void maybePut(Map<String, Object> update, String key, Object value) {
+    if (null != value) {
+      update.put(key, value);
     }
   }
 
   /** Immutable snapshot of the configuration. */
   public static class Snapshot implements TraceConfig {
 
+    final boolean debugEnabled;
+    final boolean runtimeMetricsEnabled;
+    final boolean logsInjectionEnabled;
+    final boolean dataStreamsEnabled;
+
     final Map<String, String> serviceMapping;
     final Map<String, String> headerTags;
     final Map<String, String> baggageMapping;
     final boolean logsInjectionEnabled;
 
+    final Double traceSampleRate;
+
     private final boolean overrideResponseTags;
 
     protected Snapshot(DynamicConfig<?>.Builder builder, Snapshot initialSnapshot) {
+
+      this.debugEnabled = builder.debugEnabled;
+      this.runtimeMetricsEnabled = builder.runtimeMetricsEnabled;
+      this.logsInjectionEnabled = builder.logsInjectionEnabled;
+      this.dataStreamsEnabled = builder.dataStreamsEnabled;
+
       this.serviceMapping = builder.serviceMapping;
       this.headerTags = builder.headerTags;
       this.baggageMapping = builder.baggageMapping;
       this.logsInjectionEnabled = builder.logsInjectionEnabled;
 
+      this.traceSampleRate = builder.traceSampleRate;
+
       // also apply headerTags to response headers if the initial reference has been overridden
       this.overrideResponseTags =
           null != initialSnapshot && headerTags != initialSnapshot.headerTags;
+    }
+
+    @Override
+    public boolean isDebugEnabled() {
+      return debugEnabled;
+    }
+
+    @Override
+    public boolean isRuntimeMetricsEnabled() {
+      return runtimeMetricsEnabled;
+    }
+
+    @Override
+    public boolean isLogsInjectionEnabled() {
+      return logsInjectionEnabled;
+    }
+
+    @Override
+    public boolean isDataStreamsEnabled() {
+      return dataStreamsEnabled;
     }
 
     @Override
@@ -191,8 +282,9 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       return baggageMapping;
     }
 
-    public boolean isLogsInjectionEnabled() {
-      return logsInjectionEnabled;
+    @Override
+    public Double getTraceSampleRate() {
+      return traceSampleRate;
     }
   }
 }

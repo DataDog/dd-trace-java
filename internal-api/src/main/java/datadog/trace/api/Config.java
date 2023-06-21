@@ -501,6 +501,7 @@ public class Config {
   private final String dogStatsDNamedPipe;
   private final int dogStatsDStartDelay;
 
+  private final boolean runtimeMetricsEnabled;
   private final boolean jmxFetchEnabled;
   private final String jmxFetchConfigDir;
   private final List<String> jmxFetchConfigs;
@@ -1108,7 +1109,7 @@ public class Config {
         configProvider.getInteger(
             DOGSTATSD_START_DELAY, DEFAULT_DOGSTATSD_START_DELAY, JMX_FETCH_START_DELAY);
 
-    boolean runtimeMetricsEnabled = configProvider.getBoolean(RUNTIME_METRICS_ENABLED, true);
+    runtimeMetricsEnabled = configProvider.getBoolean(RUNTIME_METRICS_ENABLED, true);
 
     jmxFetchEnabled =
         runtimeMetricsEnabled
@@ -1885,6 +1886,10 @@ public class Config {
 
   public int getDogStatsDStartDelay() {
     return dogStatsDStartDelay;
+  }
+
+  public boolean isRuntimeMetricsEnabled() {
+    return runtimeMetricsEnabled;
   }
 
   public boolean isJmxFetchEnabled() {

@@ -237,7 +237,7 @@ public class SpanDecorationProbe extends ProbeDefinition {
     if (status.getErrors().isEmpty()) {
       return;
     }
-    Snapshot snapshot = new Snapshot(Thread.currentThread(), this);
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), this, -1);
     snapshot.addEvaluationErrors(status.getErrors());
     DebuggerAgent.getSink().addSnapshot(snapshot);
   }
