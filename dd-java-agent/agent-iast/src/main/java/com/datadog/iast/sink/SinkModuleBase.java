@@ -149,7 +149,7 @@ public abstract class SinkModuleBase implements HasDependencies {
     return stackWalker.walk(SinkModuleBase::findValidPackageForVulnerability);
   }
 
-  private static long spanId(final AgentSpan span) {
+  static long spanId(final AgentSpan span) {
     return span == null ? 0 : span.getSpanId();
   }
 

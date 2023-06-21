@@ -5,8 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.not;
-import static net.bytebuddy.matcher.ElementMatchers.returns;
-import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -58,7 +56,7 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
     public static void onEnter(@Advice.Argument(0) final jakarta.servlet.http.Cookie cookie) {
       if (cookie != null) {
         InstrumentationBridge.RESPONSE_HEADER_MODULE.onCookie(
-            cookie.getName(), cookie.getValue(), cookie.getSecure(), cookie.isHttpOnly(), null);
+            cookie.getName(), cookie.getSecure(), cookie.isHttpOnly(), false);
       }
     }
   }
