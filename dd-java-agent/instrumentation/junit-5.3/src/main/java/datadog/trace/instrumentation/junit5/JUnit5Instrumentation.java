@@ -38,7 +38,10 @@ public class JUnit5Instrumentation extends Instrumenter.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TestFrameworkUtils", packageName + ".TracingListener",
+      packageName + ".JUnit5Utils",
+      packageName + ".TestFrameworkUtils",
+      packageName + ".ItrFilter",
+      packageName + ".TracingListener",
     };
   }
 
@@ -59,7 +62,7 @@ public class JUnit5Instrumentation extends Instrumenter.CiVisibility
         @Advice.This LauncherConfig config,
         @Advice.Return(readOnly = false) Collection<TestExecutionListener> listeners) {
 
-      Collection<TestEngine> testEngines = TestFrameworkUtils.getTestEngines(config);
+      Collection<TestEngine> testEngines = JUnit5Utils.getTestEngines(config);
       final TracingListener listener = new TracingListener(testEngines);
 
       Collection<TestExecutionListener> modifiedListeners = new ArrayList<>(listeners);
