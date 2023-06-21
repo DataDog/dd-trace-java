@@ -135,22 +135,9 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
     0 * reporter.report(_, _)
   }
 
-  void 'If not all ranges from tainted element have referer header as source, is an unvalidated redirect'() {
+  void 'If not all ranges from tainted element have referer header as source, is an unvalidated redirect'(final String value, final Range[] ranges) {
     setup:
-    def value = 'test01'
-    Range[] ranges = [
-      new Range(0, 2, new Source(SourceTypes.REQUEST_HEADER_VALUE, 'referer', 'value')),
-      new Range(4, 1, new Source(SourceTypes.REQUEST_HEADER_VALUE, 'other', 'value'))
-    ]
     ctx.getTaintedObjects().taint(value, ranges)
-
-    def value2 = 'test02'
-    Range[] ranges2 = [
-      new Range(0, 2, new Source(SourceTypes.REQUEST_HEADER_VALUE, 'referer', 'value')),
-      new Range(4, 1, new Source(SourceTypes.REQUEST_PARAMETER_NAME, 'referer', 'value'))
-    ]
-    ctx.getTaintedObjects().taint(value2, ranges2)
-
 
     when:
     module.onRedirect(value)
@@ -158,11 +145,16 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
     then:
     1 * reporter.report(_, _)
 
-    when:
-    module.onRedirect(value2)
-
-    then:
-    1 * reporter.report(_, _)
+    where:
+    value    | ranges
+    'test01' | [
+      new Range(0, 2, new Source(SourceTypes.REQUEST_HEADER_VALUE, 'referer', 'value')),
+      new Range(4, 1, new Source(SourceTypes.REQUEST_HEADER_VALUE, 'other', 'value'))
+    ]
+    'test02' | [
+      new Range(0, 2, new Source(SourceTypes.REQUEST_HEADER_VALUE, 'referer', 'value')),
+      new Range(4, 1, new Source(SourceTypes.REQUEST_PARAMETER_NAME, 'referer', 'value'))
+    ]
   }
 
 
