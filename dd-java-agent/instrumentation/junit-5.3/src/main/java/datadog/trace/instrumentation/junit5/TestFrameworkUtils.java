@@ -1,20 +1,17 @@
 package datadog.trace.instrumentation.junit5;
 
-import static datadog.trace.instrumentation.junit5.ItrUtils.SPOCK_ENGINE_ID;
-
+import datadog.trace.util.Strings;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.ServiceLoader;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.junit.platform.commons.JUnitException;
 import org.junit.platform.commons.util.ClassLoaderUtils;
 import org.junit.platform.commons.util.ReflectionUtils;
 import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.TestSource;
-import org.junit.platform.engine.UniqueId;
 import org.junit.platform.engine.support.descriptor.ClassSource;
 import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.launcher.TestIdentifier;
@@ -149,7 +146,13 @@ public abstract class TestFrameworkUtils {
   }
 
   public static String getParameters(MethodSource methodSource, TestIdentifier testIdentifier) {
-    return ItrUtils.getParameters(methodSource, testIdentifier.getDisplayName());
+    if (methodSource.getMethodParameterTypes() == null
+        || methodSource.getMethodParameterTypes().isEmpty()) {
+      return null;
+    }
+    return "{\"metadata\":{\"test_name\":\""
+        + Strings.escapeToJson(testIdentifier.getDisplayName())
+        + "\"}}";
   }
 
   /*
@@ -191,26 +194,5 @@ public abstract class TestFrameworkUtils {
     }
     engines.addAll(config.getAdditionalTestEngines());
     return engines;
-  }
-
-  public static String getTestName(
-      TestIdentifier testIdentifier, MethodSource methodSource, String testEngineId) {
-    return ItrUtils.getTestName(methodSource, testIdentifier.getDisplayName(), testEngineId);
-  }
-
-  @Nullable
-  public static Method getTestMethod(MethodSource methodSource, String testEngineId) {
-    return SPOCK_ENGINE_ID.equals(testEngineId)
-        ? TestFrameworkUtils.getSpockTestMethod(methodSource)
-        : TestFrameworkUtils.getTestMethod(methodSource);
-  }
-
-  public static @Nullable String getTestEngineId(final TestIdentifier testIdentifier) {
-    UniqueId uniqueId = UniqueId.parse(testIdentifier.getUniqueId());
-    return uniqueId.getEngineId().orElse(null);
-  }
-
-  public static @Nullable String getTestFramework(String testEngineId) {
-    return testEngineId != null && testEngineId.startsWith("junit") ? "junit5" : testEngineId;
   }
 }
