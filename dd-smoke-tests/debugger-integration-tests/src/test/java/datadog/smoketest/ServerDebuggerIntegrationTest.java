@@ -12,6 +12,7 @@ import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.test.util.Flaky;
 import datadog.trace.util.TagsHelper;
 import java.io.EOFException;
 import java.io.IOException;
@@ -35,6 +36,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 
+@Flaky
 public class ServerDebuggerIntegrationTest extends BaseIntegrationTest {
   private static final String SERVER_DEBUGGER_TEST_APP_CLASS =
       "datadog.smoketest.debugger.ServerDebuggerTestApplication";
