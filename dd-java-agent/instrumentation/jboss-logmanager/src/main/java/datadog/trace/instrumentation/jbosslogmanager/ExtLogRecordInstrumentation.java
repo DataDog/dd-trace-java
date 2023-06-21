@@ -110,7 +110,7 @@ public class ExtLogRecordInstrumentation extends Instrumenter.Tracing
           }
           break;
         case "dd.trace_id":
-          {
+          if (context != null) {
             DDTraceId traceId = context.getTraceId();
             if (traceId.toHighOrderLong() != 0
                 && InstrumenterConfig.get().isLogs128bTraceIdEnabled()) {
@@ -121,7 +121,7 @@ public class ExtLogRecordInstrumentation extends Instrumenter.Tracing
           }
           break;
         case "dd.span_id":
-          {
+          if (context != null) {
             value = DDSpanId.toString(context.getSpanId());
           }
           break;

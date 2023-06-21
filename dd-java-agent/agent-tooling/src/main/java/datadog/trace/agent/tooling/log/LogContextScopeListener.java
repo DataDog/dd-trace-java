@@ -1,7 +1,9 @@
 package datadog.trace.agent.tooling.log;
 
 import datadog.trace.api.CorrelationIdentifier;
+import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.api.scopemanager.ExtendedScopeListener;
@@ -21,8 +23,13 @@ public abstract class LogContextScopeListener
   public void afterScopeActivated(
       DDTraceId traceId, long localRootSpanId, long spanId, TraceConfig traceConfig) {
     if (traceConfig != null && traceConfig.isLogsInjectionEnabled()) {
-      add(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
-      add(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
+      if (traceId.toHighOrderLong() != 0 && InstrumenterConfig.get().isLogs128bTraceIdEnabled()) {
+        add(CorrelationIdentifier.getTraceIdKey(), traceId.toHexString());
+      } else {
+        add(CorrelationIdentifier.getTraceIdKey(), traceId.toString());
+      }
+
+      add(CorrelationIdentifier.getSpanIdKey(), DDSpanId.toString(spanId));
     }
   }
 
