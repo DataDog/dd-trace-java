@@ -34,6 +34,7 @@ public class TestNGInstrumentation extends Instrumenter.CiVisibility
     return new String[] {
       packageName + ".TestNGUtils",
       packageName + ".TestNGClassListener",
+      packageName + ".ItrFilter",
       packageName + ".TracingListener"
     };
   }
