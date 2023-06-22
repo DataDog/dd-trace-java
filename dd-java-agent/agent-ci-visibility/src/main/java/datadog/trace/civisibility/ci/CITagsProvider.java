@@ -159,17 +159,9 @@ public class CITagsProvider {
       return ciTags;
     }
 
-    private CITagsBuilder putTagValue(
-        final String tagKey, final String tagValue, final String... fallbackValues) {
+    private CITagsBuilder putTagValue(final String tagKey, final String tagValue) {
       if (tagValue != null) {
         ciTags.put(tagKey, tagValue);
-      } else {
-        for (final String fallbackValue : fallbackValues) {
-          if (fallbackValue != null) {
-            ciTags.put(tagKey, fallbackValue);
-            break;
-          }
-        }
       }
       return this;
     }
