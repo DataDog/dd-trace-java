@@ -21,6 +21,7 @@ public class SignalClient implements AutoCloseable {
     this(serverAddress, DEFAULT_SOCKET_TIMEOUT_MILLIS);
   }
 
+  @SuppressForbidden
   SignalClient(String serverAddress, int socketTimeoutMillis) throws IOException {
     if (serverAddress == null) {
       throw new IOException("Cannot open connection to signal server: no address specified");
