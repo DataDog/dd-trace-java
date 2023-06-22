@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.not;
+import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
@@ -49,8 +50,13 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Iast
         namedOneOf("setHeader", "addHeader").and(takesArguments(String.class, String.class)),
         getClass().getName() + "$AddHeaderAdvice");
     transformation.applyAdvice(
-        namedOneOf("encodeRedirectURL", "encodeURL"), getClass().getName() + "$EncodeURLAdvice");
-    transformation.applyAdvice(named("sendRedirect"), getClass().getName() + "$SendRedirectAdvice");
+        namedOneOf("encodeRedirectURL", "encodeURL")
+            .and(takesArgument(0, String.class))
+            .and(returns(String.class)),
+        getClass().getName() + "$EncodeURLAdvice");
+    transformation.applyAdvice(
+        named("sendRedirect").and(takesArgument(0, String.class)),
+        getClass().getName() + "$SendRedirectAdvice");
   }
 
   public static class AddCookieAdvice {
