@@ -408,7 +408,10 @@ public class MoshiSnapshotHelper {
 
       @Override
       public void handleFieldException(Exception ex, Field field) {
-        LOG.debug("Exception when extracting field={}", field.getName(), ex);
+        LOG.debug(
+            "Exception when extracting field={} exception={}",
+            field.getName(),
+            ExceptionHelper.foldExceptionStackTrace(ex));
         String fieldName = field.getName();
         try {
           jsonWriter.name(fieldName);
