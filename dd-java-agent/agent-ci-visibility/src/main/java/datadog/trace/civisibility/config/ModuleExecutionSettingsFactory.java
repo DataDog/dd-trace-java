@@ -92,9 +92,9 @@ public class ModuleExecutionSettingsFactory {
     try {
       return configurationApi.getSettings(tracerEnvironment);
     } catch (Exception e) {
-      LOGGER.error(
-          "Could not obtain CI Visibility Settings, will default to disabled code coverage and tests skipping",
-          e);
+      LOGGER.warn(
+          "Could not obtain CI Visibility settings, will default to disabled code coverage and tests skipping");
+      LOGGER.debug("Error while obtaining CI Visibility settings", e);
       return new CiVisibilitySettings(false, false);
     }
   }
