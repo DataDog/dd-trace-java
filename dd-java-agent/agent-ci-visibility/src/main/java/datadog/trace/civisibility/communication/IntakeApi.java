@@ -51,15 +51,15 @@ public class IntakeApi implements BackendApi {
   public <T> T post(
       String uri, RequestBody requestBody, IOThrowingFunction<InputStream, T> responseParser)
       throws IOException {
-    final HttpUrl url = hostUrl.resolve(uri);
-    final Request request =
-        new Request.Builder()
-            .url(url)
-            .addHeader(DD_API_KEY_HEADER, apiKey)
-            .addHeader(DD_APPLICATION_KEY_HEADER, applicationKey)
-            .post(requestBody)
-            .build();
+    HttpUrl url = hostUrl.resolve(uri);
+    Request.Builder requestBuilder =
+        new Request.Builder().url(url).post(requestBody).addHeader(DD_API_KEY_HEADER, apiKey);
 
+    if (applicationKey != null) {
+      requestBuilder.addHeader(DD_APPLICATION_KEY_HEADER, applicationKey);
+    }
+
+    Request request = requestBuilder.build();
     HttpRetryPolicy retryPolicy = retryPolicyFactory.create();
     try (okhttp3.Response response =
         OkHttpUtils.sendWithRetries(httpClient, retryPolicy, request)) {
