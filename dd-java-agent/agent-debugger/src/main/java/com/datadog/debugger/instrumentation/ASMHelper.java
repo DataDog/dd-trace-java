@@ -107,15 +107,15 @@ public class ASMHelper {
    * Makes sure that the class we want to load is not the one that we are currently transforming
    * otherwise it will lead into a LinkageError
    *
-   * @param className class name to load in '.' format (Java)
-   * @param currentClassTransformed in '.' format (Java)
+   * @param className class name to load in '.' format (com.foo.bar.Class$InnerClass)
+   * @param currentClassTransformed in '.' format (com.foo.bar.Class$InnerClass)
    * @param classLoader use for loading the class
    * @return the loaded class
    */
   public static Class<?> ensureSafeClassLoad(
       String className, String currentClassTransformed, ClassLoader classLoader) {
     if (currentClassTransformed == null) {
-      // This is requires to make sure we are not loading class being transformed during
+      // This is required to make sure we are not loading the class being transformed during
       // transformation as it will generate a LinkageError with
       // "attempted duplicate class definition"
       throw new IllegalArgumentException(
