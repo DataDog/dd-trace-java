@@ -19,7 +19,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_REMOTE_N
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_PER_TEST_CODE_COVERAGE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE;
@@ -121,6 +120,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENT_JAR
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT;
@@ -128,11 +128,11 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_COMMA
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_REMOTE_NAME;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_ID;
-import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_PER_TEST_CODE_COVERAGE_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SESSION_ID;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED;
@@ -612,7 +612,7 @@ public class Config {
   private final String ciVisibilityAgentJarUri;
   private final boolean ciVisibilityAutoConfigurationEnabled;
   private final boolean ciVisibilityCompilerPluginAutoConfigurationEnabled;
-  private final boolean ciVisibilityPerTestCodeCoverageEnabled;
+  private final Boolean ciVisibilityCodeCoverageEnabled;
   private final String ciVisibilityCompilerPluginVersion;
   private final String ciVisibilityJacocoPluginVersion;
   private final List<String> ciVisibilityJacocoPluginIncludes;
@@ -625,6 +625,7 @@ public class Config {
   private final String ciVisibilityGitRemoteName;
   private final long ciVisibilityBackendApiTimeoutMillis;
   private final long ciVisibilityGitUploadTimeoutMillis;
+  private final Boolean ciVisibilityItrEnabled;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1431,10 +1432,8 @@ public class Config {
         configProvider.getBoolean(
             CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED,
             DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED);
-    ciVisibilityPerTestCodeCoverageEnabled =
-        configProvider.getBoolean(
-            CIVISIBILITY_PER_TEST_CODE_COVERAGE_ENABLED,
-            DEFAULT_CIVISIBILITY_PER_TEST_CODE_COVERAGE_ENABLED);
+    ciVisibilityCodeCoverageEnabled =
+        configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_ENABLED, false);
     ciVisibilityCompilerPluginVersion =
         configProvider.getString(
             CIVISIBILITY_COMPILER_PLUGIN_VERSION, DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION);
@@ -1468,6 +1467,7 @@ public class Config {
     ciVisibilityGitRemoteName =
         configProvider.getString(
             CIVISIBILITY_GIT_REMOTE_NAME, DEFAULT_CIVISIBILITY_GIT_REMOTE_NAME);
+    ciVisibilityItrEnabled = configProvider.getBoolean(CIVISIBILITY_ITR_ENABLED);
 
     remoteConfigEnabled =
         configProvider.getBoolean(REMOTE_CONFIG_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED);
@@ -2348,8 +2348,8 @@ public class Config {
     return ciVisibilityCompilerPluginAutoConfigurationEnabled;
   }
 
-  public boolean isCiVisibilityPerTestCodeCoverageEnabled() {
-    return ciVisibilityPerTestCodeCoverageEnabled;
+  public Boolean getCiVisibilityCodeCoverageEnabled() {
+    return ciVisibilityCodeCoverageEnabled;
   }
 
   public String getCiVisibilityCompilerPluginVersion() {
@@ -2394,6 +2394,10 @@ public class Config {
 
   public String getCiVisibilityGitRemoteName() {
     return ciVisibilityGitRemoteName;
+  }
+
+  public Boolean getCiVisibilityItrEnabled() {
+    return ciVisibilityItrEnabled;
   }
 
   public String getAppSecRulesFile() {

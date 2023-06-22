@@ -64,7 +64,7 @@ public class GradleBuildListener extends BuildAdapter {
               project, compilerPluginVersion);
         }
 
-        if (config.isCiVisibilityPerTestCodeCoverageEnabled()) {
+        if (config.getCiVisibilityCodeCoverageEnabled()) {
           GradleProjectConfigurator.INSTANCE.configureJacoco(project);
         }
       }
