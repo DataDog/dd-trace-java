@@ -54,13 +54,10 @@ public class GitDataUploaderImpl implements GitDataUploader {
           callback = new CompletableFuture<>();
           Runtime.getRuntime().addShutdownHook(uploadFinishedShutdownHook);
 
-          Thread gitTreeDataUploadThread =
+          Thread gitDataUploadThread =
               AgentThreadFactory.newAgentThread(
                   AgentThreadFactory.AgentThread.CI_GIT_DATA_UPLOADER, this::uploadGitData, false);
-          // we want to wait for git data upload to finish
-          // even if tests finish faster
-          gitTreeDataUploadThread.setDaemon(false);
-          gitTreeDataUploadThread.start();
+          gitDataUploadThread.start();
         }
       }
     }
