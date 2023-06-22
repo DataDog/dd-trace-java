@@ -1,6 +1,6 @@
 package datadog.trace.civisibility.ci
 
-class BitriseInfoTest extends CITagsProviderImplTest {
+class BitriseInfoTest extends CITagsProviderTest {
   @Override
   String getProviderName() {
     return BitriseInfo.BITRISE_PROVIDER_NAME

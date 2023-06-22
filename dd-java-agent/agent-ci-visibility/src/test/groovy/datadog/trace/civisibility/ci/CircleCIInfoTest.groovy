@@ -1,6 +1,6 @@
 package datadog.trace.civisibility.ci
 
-class CircleCIInfoTest extends CITagsProviderImplTest {
+class CircleCIInfoTest extends CITagsProviderTest {
 
   @Override
   String getProviderName() {

@@ -1,6 +1,6 @@
 package datadog.trace.civisibility.ci
 
-class GitLabInfoTest extends CITagsProviderImplTest {
+class GitLabInfoTest extends CITagsProviderTest {
 
   @Override
   String getProviderName() {
