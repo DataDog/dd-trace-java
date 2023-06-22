@@ -5,6 +5,8 @@ import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteTransformer
 import datadog.trace.agent.tooling.csi.CallSiteAdvice.MethodHandler
 import datadog.trace.api.function.TriFunction
 import groovy.transform.CompileDynamic
+import net.bytebuddy.description.type.TypeDescription
+import net.bytebuddy.dynamic.DynamicType
 import net.bytebuddy.jar.asm.Opcodes
 import net.bytebuddy.jar.asm.Type
 
@@ -198,6 +200,31 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
       handler.method(Opcodes.INVOKESTATIC, helperType.internalName, 'onInsertSelfAndPartialArgs', helperMethod.descriptor, false)
       handler.method(opcode, owner, name, descriptor, isInterface)
     }
+  }
+
+  @SuppressWarnings(['GroovyAccessibility', 'GroovyAssignabilityCheck'])
+  void 'test call site transformer with helpers'() {
+    setup:
+    final source = StringConcatExample
+    final helper = InstrumentationHelper
+    final customClassLoader = new ClassLoader() { }
+    final builder = Mock(DynamicType.Builder)
+    final pointcut = stringConcatPointcut()
+    final advice = Mock(InvokeAdvice)
+    final callSiteTransformer = new CallSiteTransformer(mockAdvices([mockCallSites(advice, pointcut, helper.name)]))
+
+    when:
+    def helperCLass = customClassLoader.findLoadedClass(helper.name)
+
+    then:
+    helperCLass == null
+
+    when:
+    callSiteTransformer.transform(builder, new TypeDescription.ForLoadedType(source), customClassLoader, null, null)
+    helperCLass = customClassLoader.findLoadedClass(helper.name)
+
+    then:
+    helperCLass != null
   }
 
   static class InstrumentationHelper {

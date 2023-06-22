@@ -1,6 +1,8 @@
 package foo.bar.smoketest;
 
 import jakarta.servlet.RequestDispatcher;
+import jakarta.servlet.ServletInputStream;
+import java.io.IOException;
 import java.util.Enumeration;
 
 public interface ServletRequestTestSuite<E> {
@@ -16,4 +18,6 @@ public interface ServletRequestTestSuite<E> {
   Enumeration getParameterNames();
 
   RequestDispatcher getRequestDispatcher(String path);
+
+  ServletInputStream getInputStream() throws IOException;
 }

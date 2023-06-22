@@ -7,12 +7,10 @@ import datadog.trace.api.iast.IastCallSites.Source;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.VulnerabilityTypes;
-import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
 import datadog.trace.api.iast.source.WebModule;
 import datadog.trace.util.stacktrace.StackUtils;
-import jakarta.servlet.ServletInputStream;
-import jakarta.servlet.ServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -20,14 +18,15 @@ import java.util.List;
 import java.util.Map;
 
 @CallSite(spi = IastCallSites.class)
-public class JakartaServletRequestCallSite {
+public class JakartaHttpServletRequestCallSite {
 
   @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
-  @CallSite.After("java.lang.String jakarta.servlet.ServletRequest.getParameter(java.lang.String)")
   @CallSite.After(
-      "java.lang.String jakarta.servlet.ServletRequestWrapper.getParameter(java.lang.String)")
+      "java.lang.String jakarta.servlet.http.HttpServletRequest.getParameter(java.lang.String)")
+  @CallSite.After(
+      "java.lang.String jakarta.servlet.http.HttpServletRequestWrapper.getParameter(java.lang.String)")
   public static String afterGetParameter(
-      @CallSite.This final ServletRequest self,
+      @CallSite.This final HttpServletRequest self,
       @CallSite.Argument final String paramName,
       @CallSite.Return final String paramValue) {
     final WebModule module = InstrumentationBridge.WEB;
@@ -42,10 +41,12 @@ public class JakartaServletRequestCallSite {
   }
 
   @Source(SourceTypes.REQUEST_PARAMETER_NAME)
-  @CallSite.After("java.util.Enumeration jakarta.servlet.ServletRequest.getParameterNames()")
-  @CallSite.After("java.util.Enumeration jakarta.servlet.ServletRequestWrapper.getParameterNames()")
+  @CallSite.After(
+      "java.util.Enumeration jakarta.servlet.http.HttpServletRequest.getParameterNames()")
+  @CallSite.After(
+      "java.util.Enumeration jakarta.servlet.http.HttpServletRequestWrapper.getParameterNames()")
   public static Enumeration<String> afterGetParameterNames(
-      @CallSite.This final ServletRequest self,
+      @CallSite.This final HttpServletRequest self,
       @CallSite.Return final Enumeration<String> enumeration)
       throws Throwable {
     final WebModule module = InstrumentationBridge.WEB;
@@ -73,11 +74,11 @@ public class JakartaServletRequestCallSite {
 
   @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
   @CallSite.After(
-      "java.lang.String[] jakarta.servlet.ServletRequest.getParameterValues(java.lang.String)")
+      "java.lang.String[] jakarta.servlet.http.HttpServletRequest.getParameterValues(java.lang.String)")
   @CallSite.After(
-      "java.lang.String[] jakarta.servlet.ServletRequestWrapper.getParameterValues(java.lang.String)")
+      "java.lang.String[] jakarta.servlet.http.HttpServletRequestWrapper.getParameterValues(java.lang.String)")
   public static String[] afterGetParameterValues(
-      @CallSite.This final ServletRequest self,
+      @CallSite.This final HttpServletRequest self,
       @CallSite.Argument final String paramName,
       @CallSite.Return final String[] parameterValues) {
     if (null != parameterValues) {
@@ -94,10 +95,11 @@ public class JakartaServletRequestCallSite {
   }
 
   @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
-  @CallSite.After("java.util.Map jakarta.servlet.ServletRequest.getParameterMap()")
-  @CallSite.After("java.util.Map jakarta.servlet.ServletRequestWrapper.getParameterMap()")
+  @CallSite.After("java.util.Map jakarta.servlet.http.HttpServletRequest.getParameterMap()")
+  @CallSite.After("java.util.Map jakarta.servlet.http.HttpServletRequestWrapper.getParameterMap()")
   public static java.util.Map<java.lang.String, java.lang.String[]> afterGetParameterMap(
-      @CallSite.This final ServletRequest self, @CallSite.Return final Map<String, String[]> map) {
+      @CallSite.This final HttpServletRequest self,
+      @CallSite.Return final Map<String, String[]> map) {
     final WebModule module = InstrumentationBridge.WEB;
     if (module != null) {
       try {
@@ -111,9 +113,9 @@ public class JakartaServletRequestCallSite {
 
   @Sink(VulnerabilityTypes.UNVALIDATED_REDIRECT)
   @CallSite.Before(
-      "jakarta.servlet.RequestDispatcher jakarta.servlet.ServletRequest.getRequestDispatcher(java.lang.String)")
+      "jakarta.servlet.RequestDispatcher jakarta.servlet.http.HttpServletRequest.getRequestDispatcher(java.lang.String)")
   @CallSite.Before(
-      "jakarta.servlet.RequestDispatcher jakarta.servlet.ServletRequestWrapper.getRequestDispatcher(java.lang.String)")
+      "jakarta.servlet.RequestDispatcher jakarta.servlet.http.HttpServletRequestWrapper.getRequestDispatcher(java.lang.String)")
   public static void beforeRequestDispatcher(@CallSite.Argument final String path) {
     final UnvalidatedRedirectModule module = InstrumentationBridge.UNVALIDATED_REDIRECT;
     if (module != null) {
@@ -123,24 +125,5 @@ public class JakartaServletRequestCallSite {
         module.onUnexpectedException("beforeRequestDispatcher threw", e);
       }
     }
-  }
-
-  @IastCallSites.Propagation
-  @CallSite.After(
-      "jakarta.servlet.ServletInputStream jakarta.servlet.ServletRequest.getInputStream()")
-  @CallSite.After(
-      "jakarta.servlet.ServletInputStream jakarta.servlet.ServletRequestWrapper.getInputStream()")
-  public static ServletInputStream afterGetInputStream(
-      @CallSite.This final ServletRequest self,
-      @CallSite.Return final ServletInputStream inputStream) {
-    final PropagationModule module = InstrumentationBridge.PROPAGATION;
-    if (module != null) {
-      try {
-        module.taint(SourceTypes.REQUEST_BODY, inputStream);
-      } catch (final Throwable e) {
-        module.onUnexpectedException("afterGetInputStream threw", e);
-      }
-    }
-    return inputStream;
   }
 }
