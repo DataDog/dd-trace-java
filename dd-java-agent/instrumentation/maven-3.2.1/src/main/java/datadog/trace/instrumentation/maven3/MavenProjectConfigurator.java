@@ -21,8 +21,12 @@ import org.apache.maven.model.PluginExecution;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class MavenProjectConfigurator {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(MavenProjectConfigurator.class);
 
   static final MavenProjectConfigurator INSTANCE = new MavenProjectConfigurator();
 
@@ -39,6 +43,9 @@ class MavenProjectConfigurator {
 
   private static final MavenDependencyVersion ANNOTATION_PROCESSOR_PATHS_SUPPORTED_VERSION =
       MavenDependencyVersion.from("3.5");
+
+  private static final MavenDependencyVersion LATE_SUBSTITUTION_SUPPORTED_VERSION =
+      MavenDependencyVersion.from("2.17");
   private static final String JACOCO_EXCL_CLASS_LOADERS_PROPERTY = "jacoco.exclClassLoaders";
 
   public void configureTracer(
@@ -53,9 +60,22 @@ class MavenProjectConfigurator {
       return;
     }
 
-    // include project-wide argLine
-    // (it might be modified by other plugins earlier in the build cycle, e.g. by Jacoco)
-    StringBuilder modifiedArgLine = new StringBuilder("@{argLine} ");
+    Plugin plugin = mojoExecution.getPlugin();
+    String pluginVersion = plugin.getVersion();
+    MavenDependencyVersion pluginVersionParsed =
+        pluginVersion != null
+            ? MavenDependencyVersion.from(pluginVersion)
+            : MavenDependencyVersion.UNKNOWN;
+
+    String projectWideArgLine;
+    if (pluginVersionParsed.isLaterThanOrEqualTo(LATE_SUBSTITUTION_SUPPORTED_VERSION)) {
+      // include project-wide argLine
+      // (it might be modified by other plugins earlier in the build cycle, e.g. by Jacoco)
+      projectWideArgLine = "@{argLine} ";
+    } else {
+      projectWideArgLine = "${argLine} ";
+    }
+    StringBuilder modifiedArgLine = new StringBuilder(projectWideArgLine);
 
     // propagate to child process all "dd." system properties available in current process
     for (Map.Entry<String, String> e : propagatedSystemProperties.entrySet()) {
@@ -85,7 +105,6 @@ class MavenProjectConfigurator {
     File agentJar = Config.get().getCiVisibilityAgentJarFile();
     modifiedArgLine.append("-javaagent:").append(agentJar.toPath());
 
-    Plugin plugin = mojoExecution.getPlugin();
     Map<String, PluginExecution> pluginExecutions = plugin.getExecutionsAsMap();
     PluginExecution pluginExecution = pluginExecutions.get(mojoExecution.getExecutionId());
     Xpp3Dom executionConfiguration = (Xpp3Dom) pluginExecution.getConfiguration();
