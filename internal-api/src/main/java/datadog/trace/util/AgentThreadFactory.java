@@ -42,7 +42,11 @@ public final class AgentThreadFactory implements ThreadFactory {
 
     DATA_STREAMS_MONITORING("dd-data-streams-monitor"),
 
-    DEBUGGER_HTTP_DISPATCHER("dd-debugger-upload-http-dispatcher");
+    DEBUGGER_HTTP_DISPATCHER("dd-debugger-upload-http-dispatcher"),
+
+    CI_GIT_DATA_UPLOADER("dd-ci-git-data-uploader"),
+    CI_GIT_DATA_SHUTDOWN_HOOK("dd-ci-git-data-shutdown-hook"),
+    CI_PROJECT_CONFIGURATOR("dd-ci-project-configurator");
 
     public final String threadName;
 
