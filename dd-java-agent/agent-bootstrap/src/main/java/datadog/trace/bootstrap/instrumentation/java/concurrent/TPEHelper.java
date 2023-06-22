@@ -140,7 +140,6 @@ public final class TPEHelper {
         QueueTiming timing =
             (QueueTiming) AgentTracer.get().getTimer().start(Timer.TimerType.QUEUEING);
         timing.setTask(getUnwrappedType(task));
-        timing.setQueue(executor.getQueue().getClass());
         timing.setScheduler(executor.getClass());
         state.setTiming(timing);
       }

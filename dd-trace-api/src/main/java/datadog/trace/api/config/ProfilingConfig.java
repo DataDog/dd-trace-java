@@ -168,5 +168,10 @@ public final class ProfilingConfig {
 
   public static final boolean PROFILING_QUEUEING_TIME_ENABLED_DEFAULT = false;
 
+  public static final String PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS =
+      "profiling.experimental.queueing.time.threshold.millis";
+
+  public static final long PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT = 50;
+
   private ProfilingConfig() {}
 }
