@@ -66,13 +66,6 @@ public class ModuleExecutionSettingsFactory {
             ? getSkippableTestsByModulePath(Paths.get(repositoryRoot), tracerEnvironment)
             : Collections.emptyMap();
 
-    LOGGER.info(
-        "Remote CI Visibility settings received: code coverage - {}, ITR - {}; {}, {}",
-        codeCoverageEnabled,
-        itrEnabled,
-        repositoryRoot,
-        jvmExecutablePath);
-
     return new ModuleExecutionSettings(systemProperties, skippableTestsByModulePath);
   }
 
