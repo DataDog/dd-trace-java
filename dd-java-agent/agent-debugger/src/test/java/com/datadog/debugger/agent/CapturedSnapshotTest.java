@@ -1424,6 +1424,18 @@ public class CapturedSnapshotTest {
     }
   }
 
+  @Test
+  public void beforeForLoopLineProbe() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot02";
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installSingleProbe(CLASS_NAME, null, null, "46");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "synchronizedBlock").get();
+    Assertions.assertEquals(76, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertCaptureLocals(snapshot.getCaptures().getLines().get(46), "count", "int", "31");
+  }
+
   private DebuggerTransformerTest.TestSnapshotListener setupInstrumentTheWorldTransformer(
       String excludeFileName) {
     Config config = mock(Config.class);
