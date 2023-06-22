@@ -23,7 +23,7 @@ public abstract class LogContextScopeListener
   public void afterScopeActivated(
       DDTraceId traceId, long localRootSpanId, long spanId, TraceConfig traceConfig) {
     if (traceConfig != null && traceConfig.isLogsInjectionEnabled()) {
-      if (traceId.toHighOrderLong() != 0 && InstrumenterConfig.get().isLogs128bTraceIdEnabled()) {
+      if (InstrumenterConfig.get().isLogs128bTraceIdEnabled() && traceId.toHighOrderLong() != 0) {
         add(CorrelationIdentifier.getTraceIdKey(), traceId.toHexString());
       } else {
         add(CorrelationIdentifier.getTraceIdKey(), traceId.toString());

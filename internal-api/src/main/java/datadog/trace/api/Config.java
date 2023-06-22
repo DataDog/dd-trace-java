@@ -3611,6 +3611,8 @@ public class Config {
         + elasticsearchBodyAndParamsEnabled
         + ", traceFlushInterval="
         + traceFlushIntervalSeconds
+        + ", logsInjectionEnabled="
+        + logsInjectionEnabled
         + '}';
   }
 }

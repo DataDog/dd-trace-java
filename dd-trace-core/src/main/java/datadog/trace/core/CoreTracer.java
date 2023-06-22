@@ -271,7 +271,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private ProfilingContextIntegration profilingContextIntegration =
         ProfilingContextIntegration.NoOp.INSTANCE;
     private boolean pollForTracingConfiguration;
-    private boolean logsInjectionEnabled;
 
     public CoreTracerBuilder serviceName(String serviceName) {
       this.serviceName = serviceName;
@@ -395,11 +394,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
-    public CoreTracerBuilder logsInjectionEnabled(boolean logsInjectionEnabled) {
-      this.logsInjectionEnabled = logsInjectionEnabled;
-      return this;
-    }
-
     public CoreTracerBuilder() {
       // Apply the default values from config.
       config(Config.get());
@@ -429,7 +423,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       baggageMapping(config.getBaggageMapping());
       partialFlushMinSpans(config.getPartialFlushMinSpans());
       strictTraceWrites(config.isTraceStrictWritesEnabled());
-      logsInjectionEnabled(config.isLogsInjectionEnabled());
 
       return this;
     }
@@ -459,8 +452,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           timeSource,
           dataStreamsMonitoring,
           profilingContextIntegration,
-          pollForTracingConfiguration,
-          logsInjectionEnabled);
+          pollForTracingConfiguration);
     }
   }
 
@@ -489,8 +481,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final TimeSource timeSource,
       final DataStreamsMonitoring dataStreamsMonitoring,
       final ProfilingContextIntegration profilingContextIntegration,
-      final boolean pollForTracingConfiguration,
-      final boolean logsInjectionEnabled) {
+      final boolean pollForTracingConfiguration) {
 
     assert localRootSpanTags != null;
     assert defaultSpanTags != null;
