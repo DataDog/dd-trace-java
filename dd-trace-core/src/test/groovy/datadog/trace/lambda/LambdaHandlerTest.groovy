@@ -11,7 +11,6 @@ import com.amazonaws.services.lambda.runtime.events.SNSEvent
 import com.amazonaws.services.lambda.runtime.events.S3Event
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent
 import com.amazonaws.services.lambda.runtime.events.models.s3.S3EventNotification
-import java.io.ByteArrayInputStream
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
