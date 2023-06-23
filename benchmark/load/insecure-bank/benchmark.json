@@ -47,6 +47,12 @@
         "VARIANT": "iast_INACTIVE",
         "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.iast.enabled=inactive"
       }
+    },
+    "iast_TELEMETRY_OFF": {
+      "env": {
+        "VARIANT": "iast_TELEMETRY_OFF",
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.iast.enabled=true -Ddd.iast.telemetry.verbosity=OFF"
+      }
     }
   }
 }
