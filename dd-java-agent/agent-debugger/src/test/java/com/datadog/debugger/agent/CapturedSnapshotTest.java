@@ -1387,7 +1387,7 @@ public class CapturedSnapshotTest {
     DebuggerTransformerTest.TestSnapshotListener listener =
         installProbes(ENUM_CLASS, createProbe(PROBE_ID, ENUM_CLASS, "<init>", null));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "2").get();
+    int result = Reflect.on(testClass).call("main", "").get();
     Assertions.assertEquals(2, result);
     assertSnapshots(listener, 3, PROBE_ID);
     Map<String, CapturedContext.CapturedValue> arguments =
@@ -1396,6 +1396,21 @@ public class CapturedSnapshotTest {
     assertTrue(arguments.containsKey("this"));
     assertTrue(arguments.containsKey("p1")); // this the hidden ordinal arg of an enum
     assertTrue(arguments.containsKey("strValue"));
+  }
+
+  @Test
+  public void enumValues() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot23";
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, "convert", null));
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "2").get();
+    Assertions.assertEquals(2, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertCaptureReturnValue(
+        snapshot.getCaptures().getReturn(),
+        "com.datadog.debugger.CapturedSnapshot23$MyEnum",
+        "TWO");
   }
 
   @Test
