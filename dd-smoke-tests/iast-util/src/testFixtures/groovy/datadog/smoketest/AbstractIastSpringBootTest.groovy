@@ -217,6 +217,31 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     hasVulnerability { vul -> vul.type == 'COMMAND_INJECTION' }
   }
 
+  void 'xpath injection is present when compile expression'() {
+    setup:
+    final url = "http://localhost:${httpPort}/xpathi/compile?expression=%2Fbookstore%2Fbook%2Ftitle"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'XPATH_INJECTION' }
+  }
+
+
+  void 'xpath injection is present when evaluate expression'() {
+    setup:
+    final url = "http://localhost:${httpPort}/xpathi/evaluate?expression=%2Fbookstore%2Fbook%2Ftitle"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'XPATH_INJECTION' }
+  }
+
   void 'path traversal is present with file'() {
     setup:
     final url = "http://localhost:${httpPort}/path_traversal/file?path=test"
@@ -568,4 +593,5 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     then:
     hasVulnerabilityInLogs { vul -> vul.type == 'UNVALIDATED_REDIRECT' && vul.location.method == 'getViewfromTaintedString' }
   }
+
 }
