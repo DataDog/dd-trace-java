@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory;
 
 /** Collects snapshots that needs to be sent to the backend */
 public class SnapshotSink {
-  private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerSink.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(SnapshotSink.class);
   private static final int CAPACITY = 1000;
   public static final int MAX_SNAPSHOT_SIZE = 1024 * 1024;
   private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
@@ -74,7 +74,7 @@ public class SnapshotSink {
       currentMaxDepth -= 1;
       str = SnapshotSlicer.slice(currentMaxDepth, str);
     }
-    if (currentMaxDepth < 0) {
+    if (str.length() > MAX_SNAPSHOT_SIZE) {
       ratelimitedLogger.warn(
           "Snapshot is too large even after reducing depth to 0: {}", str.length());
     }

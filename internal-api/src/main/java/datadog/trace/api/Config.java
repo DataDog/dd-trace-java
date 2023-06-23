@@ -149,7 +149,7 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CAPTURE_TIMEOUT;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED;
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCLUDE_FILE;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCLUDE_FILES;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_INSTRUMENT_THE_WORLD;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_PAYLOAD_SIZE;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_METRICS_ENABLED;
@@ -654,7 +654,7 @@ public class Config {
   private final long debuggerMaxPayloadSize;
   private final boolean debuggerVerifyByteCode;
   private final boolean debuggerInstrumentTheWorld;
-  private final String debuggerExcludeFile;
+  private final String debuggerExcludeFiles;
   private final int debuggerCaptureTimeout;
 
   private final boolean awsPropagationEnabled;
@@ -1530,7 +1530,7 @@ public class Config {
     debuggerInstrumentTheWorld =
         configProvider.getBoolean(
             DEBUGGER_INSTRUMENT_THE_WORLD, DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD);
-    debuggerExcludeFile = configProvider.getString(DEBUGGER_EXCLUDE_FILE);
+    debuggerExcludeFiles = configProvider.getString(DEBUGGER_EXCLUDE_FILES);
     debuggerCaptureTimeout =
         configProvider.getInteger(DEBUGGER_CAPTURE_TIMEOUT, DEFAULT_DEBUGGER_CAPTURE_TIMEOUT);
 
@@ -2501,8 +2501,8 @@ public class Config {
     return debuggerInstrumentTheWorld;
   }
 
-  public String getDebuggerExcludeFile() {
-    return debuggerExcludeFile;
+  public String getDebuggerExcludeFiles() {
+    return debuggerExcludeFiles;
   }
 
   public int getDebuggerCaptureTimeout() {
@@ -3628,7 +3628,7 @@ public class Config {
         + ", debuggerInstrumentTheWorld="
         + debuggerInstrumentTheWorld
         + ", debuggerExcludeFile="
-        + debuggerExcludeFile
+        + debuggerExcludeFiles
         + ", awsPropagationEnabled="
         + awsPropagationEnabled
         + ", sqsPropagationEnabled="

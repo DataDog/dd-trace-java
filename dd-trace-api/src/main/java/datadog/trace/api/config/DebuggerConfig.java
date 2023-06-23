@@ -20,7 +20,7 @@ public final class DebuggerConfig {
   public static final String DEBUGGER_VERIFY_BYTECODE = "dynamic.instrumentation.verify.bytecode";
   public static final String DEBUGGER_INSTRUMENT_THE_WORLD =
       "dynamic.instrumentation.instrument.the.world";
-  public static final String DEBUGGER_EXCLUDE_FILE = "dynamic.instrumentation.exclude.file";
+  public static final String DEBUGGER_EXCLUDE_FILES = "dynamic.instrumentation.exclude.files";
   public static final String DEBUGGER_CAPTURE_TIMEOUT = "dynamic.instrumentation.capture.timeout";
 
   private DebuggerConfig() {}
