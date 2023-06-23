@@ -15,6 +15,7 @@ import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
 import datadog.trace.api.iast.sink.WeakCipherModule;
 import datadog.trace.api.iast.sink.WeakHashModule;
 import datadog.trace.api.iast.sink.WeakRandomnessModule;
+import datadog.trace.api.iast.sink.XPathInjectionModule;
 import datadog.trace.api.iast.source.WebModule;
 
 /** Bridge between instrumentations and {@link IastModule} instances. */
@@ -37,6 +38,8 @@ public abstract class InstrumentationBridge {
   public static volatile WeakRandomnessModule WEAK_RANDOMNESS;
   public static final HttpResponseHeaderModule.Delegated RESPONSE_HEADER_MODULE =
       new HttpResponseHeaderModule.Delegated();
+
+  public static volatile XPathInjectionModule XPATH_INJECTION;
 
   private InstrumentationBridge() {}
 
@@ -71,6 +74,8 @@ public abstract class InstrumentationBridge {
       UNVALIDATED_REDIRECT = (UnvalidatedRedirectModule) module;
     } else if (module instanceof WeakRandomnessModule) {
       WEAK_RANDOMNESS = (WeakRandomnessModule) module;
+    } else if (module instanceof XPathInjectionModule) {
+      XPATH_INJECTION = (XPathInjectionModule) module;
     } else {
       throw new UnsupportedOperationException("Module not yet supported: " + module);
     }
@@ -80,7 +85,6 @@ public abstract class InstrumentationBridge {
   }
 
   /** Mainly used for testing modules */
-  @SuppressWarnings("unchecked")
   public static <E extends IastModule> E getIastModule(final Class<E> type) {
     if (type == StringModule.class) {
       return (E) STRING;
@@ -127,6 +131,9 @@ public abstract class InstrumentationBridge {
     if (type == WeakRandomnessModule.class) {
       return (E) WEAK_RANDOMNESS;
     }
+    if (type == XPathInjectionModule.class) {
+      return (E) XPATH_INJECTION;
+    }
     throw new UnsupportedOperationException("Module not yet supported: " + type);
   }
 
@@ -147,6 +154,7 @@ public abstract class InstrumentationBridge {
     SSRF = null;
     UNVALIDATED_REDIRECT = null;
     WEAK_RANDOMNESS = null;
+    XPATH_INJECTION = null;
     RESPONSE_HEADER_MODULE.clear();
   }
 }

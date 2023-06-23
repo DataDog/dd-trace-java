@@ -31,6 +31,8 @@
 1 com.sun.*
 0 com.sun.jersey.api.client.*
 0 com.sun.messaging.*
+# IAST XPath injection
+0 com.sun.org.apache.xpath.internal.jaxp.XPathImpl
 1 datadog.opentracing.*
 1 datadog.slf4j.*
 1 datadog.trace.*
