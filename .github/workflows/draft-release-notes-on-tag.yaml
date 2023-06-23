@@ -52,7 +52,7 @@ jobs:
             var draftText = "# Improvements \n\n# Changes \n\n"
             for (let pull of pullRequests) {
               if (pull.merged_at && pull.milestone && pull.milestone.number == ${{steps.milestone.outputs.result}}) {
-                if (pull.labels.some(label => label.name == "no release notes")) {
+                if (pull.labels.some(label => label.name == "tag: no release notes")) {
                   continue
                 }
 
@@ -64,7 +64,7 @@ jobs:
                 lineItem += pull.title + " #" + pull.number
 
                 // Add author if community labeled
-                if (pull.labels.some(label => label.name == "community")) {
+                if (pull.labels.some(label => label.name == "tag: community")) {
                   lineItem += " (Thanks @" + pull.user.login + " for the contribution!)"
                 }
 
