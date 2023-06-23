@@ -61,6 +61,8 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     // turn off these features as their debug output can break up our expected logging lines on IBM JVMs
     // causing random test failures (we are not testing these features here so they don't need to be on)
     command.add("-Ddd.instrumentation.telemetry.enabled=false")
+    command.removeAll { it.startsWith("-D.dd.profiling")}
+    command.add("-Ddd.profiling.enabled=false")
     command.add("-Ddd.remote_config.enabled=true")
     command.add("-Ddd.remote_config.url=http://localhost:${server.address.port}/v0.7/config".toString())
     command.add("-Ddd.remote_config.poll_interval.seconds=0.2")
