@@ -2,8 +2,8 @@ package datadog.trace.instrumentation.servlet5;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
-import datadog.trace.api.iast.IastCallSites.Propagation;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import jakarta.servlet.ServletInputStream;
@@ -12,7 +12,7 @@ import jakarta.servlet.http.HttpServletRequest;
 @CallSite(spi = IastCallSites.class)
 public class JakartaHttpServletRequestInputStreamCallSite {
 
-  @Propagation
+  @Source(SourceTypes.REQUEST_BODY_STRING)
   @CallSite.After(
       "jakarta.servlet.ServletInputStream jakarta.servlet.http.HttpServletRequest.getInputStream()")
   @CallSite.After(

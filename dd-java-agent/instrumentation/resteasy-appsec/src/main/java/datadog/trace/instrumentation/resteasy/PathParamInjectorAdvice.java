@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.resteasy;
 
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Source;
+import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.source.WebModule;
 import java.util.Collection;
 import net.bytebuddy.asm.Advice;
@@ -8,6 +10,7 @@ import org.jboss.resteasy.core.PathParamInjector;
 
 public class PathParamInjectorAdvice {
   @Advice.OnMethodExit
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
   public static void onExit(
       @Advice.This PathParamInjector self,
       @Advice.Return(readOnly = true) Object result,

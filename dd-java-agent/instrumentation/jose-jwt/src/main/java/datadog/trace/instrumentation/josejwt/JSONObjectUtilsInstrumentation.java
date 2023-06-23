@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import java.util.Map;
@@ -35,6 +36,7 @@ public class JSONObjectUtilsInstrumentation extends Instrumenter.Iast
   public static class InstrumenterAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
     public static void onEnter(@Advice.Return Map<String, Object> map) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
 

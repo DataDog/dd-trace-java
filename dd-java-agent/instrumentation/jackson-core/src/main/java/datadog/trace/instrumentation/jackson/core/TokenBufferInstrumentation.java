@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.util.TokenBuffer;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 
@@ -43,6 +44,7 @@ public class TokenBufferInstrumentation extends Instrumenter.Iast
 
   public static class AsParserAdvice {
     @Advice.OnMethodExit
+    @Propagation
     public static void onExit(
         @Advice.This TokenBuffer tokenBuffer, @Advice.Return JsonParser parser) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;

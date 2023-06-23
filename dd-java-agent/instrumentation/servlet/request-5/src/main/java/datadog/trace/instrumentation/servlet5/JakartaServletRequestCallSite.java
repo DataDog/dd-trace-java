@@ -2,9 +2,9 @@ package datadog.trace.instrumentation.servlet5;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
-import datadog.trace.api.iast.IastCallSites.Sink;
-import datadog.trace.api.iast.IastCallSites.Source;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Sink;
+import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -22,7 +22,7 @@ import java.util.Map;
 @CallSite(spi = IastCallSites.class)
 public class JakartaServletRequestCallSite {
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
   @CallSite.After("java.lang.String jakarta.servlet.ServletRequest.getParameter(java.lang.String)")
   @CallSite.After(
       "java.lang.String jakarta.servlet.ServletRequestWrapper.getParameter(java.lang.String)")
@@ -41,7 +41,7 @@ public class JakartaServletRequestCallSite {
     return paramValue;
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_NAME)
+  @Source(SourceTypes.REQUEST_PARAMETER_NAME_STRING)
   @CallSite.After("java.util.Enumeration jakarta.servlet.ServletRequest.getParameterNames()")
   @CallSite.After("java.util.Enumeration jakarta.servlet.ServletRequestWrapper.getParameterNames()")
   public static Enumeration<String> afterGetParameterNames(
@@ -71,7 +71,7 @@ public class JakartaServletRequestCallSite {
     }
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
   @CallSite.After(
       "java.lang.String[] jakarta.servlet.ServletRequest.getParameterValues(java.lang.String)")
   @CallSite.After(
@@ -93,7 +93,7 @@ public class JakartaServletRequestCallSite {
     return parameterValues;
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
   @CallSite.After("java.util.Map jakarta.servlet.ServletRequest.getParameterMap()")
   @CallSite.After("java.util.Map jakarta.servlet.ServletRequestWrapper.getParameterMap()")
   public static java.util.Map<java.lang.String, java.lang.String[]> afterGetParameterMap(
@@ -125,7 +125,7 @@ public class JakartaServletRequestCallSite {
     }
   }
 
-  @IastCallSites.Propagation
+  @Source(SourceTypes.REQUEST_BODY_STRING)
   @CallSite.After(
       "jakarta.servlet.ServletInputStream jakarta.servlet.ServletRequest.getInputStream()")
   @CallSite.After(

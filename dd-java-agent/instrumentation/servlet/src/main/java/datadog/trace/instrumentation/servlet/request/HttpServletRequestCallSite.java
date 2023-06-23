@@ -2,9 +2,9 @@ package datadog.trace.instrumentation.servlet.request;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
-import datadog.trace.api.iast.IastCallSites.Propagation;
-import datadog.trace.api.iast.IastCallSites.Source;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Sink;
+import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -22,7 +22,7 @@ import javax.servlet.http.HttpServletRequest;
 @CallSite(spi = IastCallSites.class)
 public class HttpServletRequestCallSite {
 
-  @Source(SourceTypes.REQUEST_HEADER_VALUE)
+  @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
   @CallSite.After(
       "java.lang.String javax.servlet.http.HttpServletRequest.getHeader(java.lang.String)")
   @CallSite.After(
@@ -42,7 +42,7 @@ public class HttpServletRequestCallSite {
     return headerValue;
   }
 
-  @Source(SourceTypes.REQUEST_HEADER_VALUE)
+  @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
   @CallSite.After(
       "java.util.Enumeration javax.servlet.http.HttpServletRequest.getHeaders(java.lang.String)")
   @CallSite.After(
@@ -77,7 +77,7 @@ public class HttpServletRequestCallSite {
     }
   }
 
-  @Source(SourceTypes.REQUEST_HEADER_NAME)
+  @Source(SourceTypes.REQUEST_HEADER_NAME_STRING)
   @CallSite.After("java.util.Enumeration javax.servlet.http.HttpServletRequest.getHeaderNames()")
   @CallSite.After(
       "java.util.Enumeration javax.servlet.http.HttpServletRequestWrapper.getHeaderNames()")
@@ -110,7 +110,7 @@ public class HttpServletRequestCallSite {
     }
   }
 
-  @Propagation
+  @Source(SourceTypes.REQUEST_COOKIE_VALUE_STRING)
   @CallSite.After("javax.servlet.http.Cookie[] javax.servlet.http.HttpServletRequest.getCookies()")
   @CallSite.After(
       "javax.servlet.http.Cookie[] javax.servlet.http.HttpServletRequestWrapper.getCookies()")
@@ -129,7 +129,7 @@ public class HttpServletRequestCallSite {
     return cookies;
   }
 
-  @Source(SourceTypes.REQUEST_QUERY)
+  @Source(SourceTypes.REQUEST_QUERY_STRING)
   @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequest.getQueryString()")
   @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequestWrapper.getQueryString()")
   public static String afterGetQueryString(
@@ -145,7 +145,7 @@ public class HttpServletRequestCallSite {
     return queryString;
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
   @CallSite.After(
       "java.lang.String javax.servlet.http.HttpServletRequest.getParameter(java.lang.String)")
   @CallSite.After(
@@ -165,7 +165,7 @@ public class HttpServletRequestCallSite {
     return paramValue;
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_NAME)
+  @Source(SourceTypes.REQUEST_PARAMETER_NAME_STRING)
   @CallSite.After("java.util.Enumeration javax.servlet.http.HttpServletRequest.getParameterNames()")
   @CallSite.After(
       "java.util.Enumeration javax.servlet.http.HttpServletRequestWrapper.getParameterNames()")
@@ -196,7 +196,7 @@ public class HttpServletRequestCallSite {
     }
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
   @CallSite.After(
       "java.lang.String[] javax.servlet.http.HttpServletRequest.getParameterValues(java.lang.String)")
   @CallSite.After(
@@ -218,7 +218,7 @@ public class HttpServletRequestCallSite {
     return parameterValues;
   }
 
-  @Propagation
+  @Source(SourceTypes.REQUEST_BODY_STRING)
   @CallSite.After("java.io.BufferedReader javax.servlet.http.HttpServletRequest.getReader()")
   @CallSite.After("java.io.BufferedReader javax.servlet.http.HttpServletRequestWrapper.getReader()")
   public static BufferedReader afterGetReader(
@@ -235,7 +235,7 @@ public class HttpServletRequestCallSite {
     return bufferedReader;
   }
 
-  @IastCallSites.Sink(VulnerabilityTypes.UNVALIDATED_REDIRECT)
+  @Sink(VulnerabilityTypes.UNVALIDATED_REDIRECT)
   @CallSite.Before(
       "javax.servlet.RequestDispatcher javax.servlet.http.HttpServletRequest.getRequestDispatcher(java.lang.String)")
   @CallSite.Before(

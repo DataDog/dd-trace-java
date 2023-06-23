@@ -7,6 +7,7 @@ import com.datadog.iast.taint.TaintedObjects
 import com.datadog.iast.telemetry.taint.TaintedObjectsWithTelemetry
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.VulnerabilityTypes
 import datadog.trace.api.iast.telemetry.IastMetric
 import datadog.trace.api.iast.telemetry.IastMetricCollector
 import datadog.trace.api.iast.telemetry.Verbosity
@@ -60,14 +61,15 @@ class TelemetryRequestEndedHandlerTest extends AbstractTelemetryCallbackTest {
     given:
     final handler = new TelemetryRequestEndedHandler(delegate)
     final metric = TAINTED_FLAT_MODE
+    final tagValue = null
 
     when:
-    iastCtx.metricCollector.addMetric(metric, 1)
+    iastCtx.metricCollector.addMetric(metric, tagValue, 1)
     handler.apply(reqCtx, span)
 
     then:
     1 * delegate.apply(reqCtx, span)
-    1 * traceSegment.setTagTop(String.format(TRACE_METRIC_PATTERN, metric.spanTag), 1)
+    1 * traceSegment.setTagTop(String.format(TRACE_METRIC_PATTERN, getSpanTagValue(metric, tagValue)), 1)
 
     when:
     globalCollector.prepareMetrics()
@@ -83,7 +85,7 @@ class TelemetryRequestEndedHandlerTest extends AbstractTelemetryCallbackTest {
     setup:
     final handler = new TelemetryRequestEndedHandler(delegate)
     final collector = iastCtx.metricCollector
-    metrics.each { collector.addMetric(it.metric, it.value) }
+    metrics.each { collector.addMetric(it.metric, it.tagValue, it.value) }
 
     when:
     handler.apply(reqCtx, span)
@@ -91,7 +93,7 @@ class TelemetryRequestEndedHandlerTest extends AbstractTelemetryCallbackTest {
     then: 'request scoped metrics are propagated to the span'
     1 * delegate.apply(reqCtx, span)
     metrics.findAll { it.metric.scope == Scope.REQUEST }.each {
-      1 * traceSegment.setTagTop(String.format(TRACE_METRIC_PATTERN, it.metric.spanTag), it.value)
+      1 * traceSegment.setTagTop(String.format(TRACE_METRIC_PATTERN, getSpanTagValue(it.metric, it.tagValue)), it.value)
     }
 
     when:
@@ -100,31 +102,38 @@ class TelemetryRequestEndedHandlerTest extends AbstractTelemetryCallbackTest {
 
     then: 'all metrics are propagated to the global collector'
     metrics.every {
-      drained.find { d -> d.metric == it.metric }?.counter == it.value
+      drained.find { d -> d.metric == it.metric && d.tagValue == it.tagValue }?.counter == it.value
     }
 
     where:
-    metrics                                                    | description
+    metrics                                                                       | description
     [
-      metric(REQUEST_TAINTED, 123),
-      metric(EXECUTED_SOURCE_REQUEST_PARAMETER_VALUE, 2L),
-      metric(EXECUTED_SOURCE_REQUEST_HEADER_VALUE, 4L),
-      metric(EXECUTED_SINK_SQL_INJECTION, 1L),
-      metric(EXECUTED_SINK_COMMAND_INJECTION, 2L),
-    ]                                                          | 'List of only request scoped metrics'
+      metric(REQUEST_TAINTED, null, 123),
+      metric(EXECUTED_SOURCE, SourceTypes.REQUEST_PARAMETER_VALUE_STRING, 2),
+      metric(EXECUTED_SOURCE, SourceTypes.REQUEST_HEADER_VALUE_STRING, 4),
+      metric(EXECUTED_SINK, VulnerabilityTypes.SQL_INJECTION, 1),
+      metric(EXECUTED_SINK, VulnerabilityTypes.COMMAND_INJECTION, 2),
+    ]                                                                             | 'List of only request scoped metrics'
     [
-      metric(REQUEST_TAINTED, 123),
-      metric(INSTRUMENTED_SOURCE_REQUEST_PARAMETER_VALUE, 2L),
-    ]                                                          | 'Mix between global and request scoped metrics'
+      metric(REQUEST_TAINTED, null, 123),
+      metric(INSTRUMENTED_SOURCE, SourceTypes.REQUEST_PARAMETER_VALUE_STRING, 2),
+    ]                                                                             | 'Mix between global and request scoped metrics'
   }
 
-  private static Data metric(final IastMetric metric, final long value) {
-    return new Data(metric: metric, value: value)
+  private static String getSpanTagValue(final IastMetric metric, final String tagValue) {
+    return metric.getTag() == null
+      ? metric.getName()
+      : String.format("%s.%s", metric.getName(), tagValue.toLowerCase().replaceAll("\\.", "_"))
+  }
+
+  private static Data metric(final IastMetric metric, final String tagValue, final int value) {
+    return new Data(metric: metric, tagValue: tagValue, value: value)
   }
 
   @ToString
   private static class Data {
     IastMetric metric
-    long value
+    String tagValue
+    int value
   }
 }

@@ -26,6 +26,7 @@ import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.IfStmt;
 import com.github.javaparser.ast.stmt.Statement;
+import com.github.javaparser.resolution.declarations.ResolvedFieldDeclaration;
 import com.github.javaparser.symbolsolver.JavaSymbolSolver;
 import datadog.trace.plugin.csi.AdviceGenerator.CallSiteResult;
 import datadog.trace.plugin.csi.Extension;
@@ -37,6 +38,7 @@ import datadog.trace.plugin.csi.util.CallSiteUtils;
 import datadog.trace.plugin.csi.util.MethodType;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.lang.reflect.Field;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
@@ -116,7 +118,7 @@ public class IastExtension implements Extension {
         if (metaData != null) {
           final List<LambdaExpr> adviceLambdas = filterAdviceLambdas(advices, callSiteMethod);
           for (final LambdaExpr advice : adviceLambdas) {
-            addTelemetryToAdvice(advice, metaData);
+            addTelemetryToAdvice(resolver, advice, metaData);
             hasTelemetry = true;
           }
         }
@@ -166,21 +168,24 @@ public class IastExtension implements Extension {
     return parseSourceFile(configuration, resolver, javaFile);
   }
 
-  private void addTelemetryToAdvice(final LambdaExpr adviceLambda, final AdviceMetadata metaData) {
+  private void addTelemetryToAdvice(
+      final TypeResolver resolver, final LambdaExpr adviceLambda, final AdviceMetadata metaData) {
     final BlockStmt lambdaBody = adviceLambda.getBody().asBlockStmt();
     final String metric = getMetricName(metaData);
+    final String tagValue = getMetricTagValue(resolver, metaData);
     final String instrumentedMetric = "INSTRUMENTED_" + metric;
     final IfStmt instrumentedStatement =
         new IfStmt()
             .setCondition(isEnabledCondition(instrumentedMetric))
             .setThenStmt(
-                new BlockStmt().addStatement(addTelemetryCollectorMethod(instrumentedMetric)));
+                new BlockStmt()
+                    .addStatement(addTelemetryCollectorMethod(instrumentedMetric, tagValue)));
     lambdaBody.addStatement(0, instrumentedStatement);
     final String executedMetric = "EXECUTED_" + metric;
     final IfStmt executedStatement =
         new IfStmt()
             .setCondition(isEnabledCondition(executedMetric))
-            .setThenStmt(addTelemetryCollectorByteCode(executedMetric));
+            .setThenStmt(addTelemetryCollectorByteCode(executedMetric, tagValue));
     lambdaBody.addStatement(1, executedStatement);
   }
 
@@ -191,19 +196,27 @@ public class IastExtension implements Extension {
         .addArgument(accessLocalField("verbosity"));
   }
 
-  private static MethodCallExpr addTelemetryCollectorMethod(final String metric) {
-    return new MethodCallExpr()
-        .setScope(new NameExpr(IAST_METRIC_COLLECTOR_CLASS))
-        .setName("add")
-        .addArgument(
-            new FieldAccessExpr().setScope(new NameExpr(IAST_METRIC_CLASS)).setName(metric))
-        .addArgument(intLiteral(1));
+  private static MethodCallExpr addTelemetryCollectorMethod(
+      final String metric, final String tagValue) {
+    final MethodCallExpr method =
+        new MethodCallExpr()
+            .setScope(new NameExpr(IAST_METRIC_COLLECTOR_CLASS))
+            .setName("add")
+            .addArgument(
+                new FieldAccessExpr().setScope(new NameExpr(IAST_METRIC_CLASS)).setName(metric));
+    if (tagValue != null) {
+      method.addArgument(new StringLiteralExpr(tagValue));
+    }
+    method.addArgument(intLiteral(1));
+    return method;
   }
 
-  private static BlockStmt addTelemetryCollectorByteCode(final String metric) {
+  private static BlockStmt addTelemetryCollectorByteCode(
+      final String metric, final String tagValue) {
     final BlockStmt stmt = new BlockStmt();
     // this code generates the java source code needed to provide the bytecode for the statement
-    // IastTelemetryCollector.add($"{metric}, 1);
+    // IastTelemetryCollector.add(${metric}, 1); or IastTelemetryCollector.add(${metric}, ${tag},
+    // 1);
     stmt.addStatement(
         new MethodCallExpr()
             .setScope(new NameExpr("handler"))
@@ -213,12 +226,23 @@ public class IastExtension implements Extension {
             .addArgument(new StringLiteralExpr(IAST_METRIC_INTERNAL_NAME))
             .addArgument(new StringLiteralExpr(metric))
             .addArgument(new StringLiteralExpr("L" + IAST_METRIC_INTERNAL_NAME + ";")));
+    if (tagValue != null) {
+      stmt.addStatement(
+          new MethodCallExpr()
+              .setScope(new NameExpr("handler"))
+              .setName("loadConstant")
+              .addArgument(new StringLiteralExpr(tagValue)));
+    }
     stmt.addStatement(
         new MethodCallExpr()
             .setScope(new NameExpr("handler"))
             .setName("instruction")
             .addArgument(
-                new FieldAccessExpr().setScope(new NameExpr(OPCODES_FQDN)).setName("LCONST_1")));
+                new FieldAccessExpr().setScope(new NameExpr(OPCODES_FQDN)).setName("ICONST_1")));
+    final String descriptor =
+        tagValue != null
+            ? "(L" + IAST_METRIC_INTERNAL_NAME + ";Ljava/lang/String;I)V"
+            : "(L" + IAST_METRIC_INTERNAL_NAME + ";I)V";
     stmt.addStatement(
         new MethodCallExpr()
             .setScope(new NameExpr("handler"))
@@ -227,19 +251,49 @@ public class IastExtension implements Extension {
                 new FieldAccessExpr().setScope(new NameExpr(OPCODES_FQDN)).setName("INVOKESTATIC"))
             .addArgument(new StringLiteralExpr(IAST_METRIC_COLLECTOR_INTERNAL_NAME))
             .addArgument(new StringLiteralExpr("add"))
-            .addArgument(new StringLiteralExpr("(L" + IAST_METRIC_INTERNAL_NAME + ";J)V"))
+            .addArgument(new StringLiteralExpr(descriptor))
             .addArgument(new BooleanLiteralExpr(false)));
     return stmt;
   }
 
   private static String getMetricName(final AdviceMetadata metaData) {
-    final StringBuilder metric = new StringBuilder(metaData.getKind());
-    if (metaData.getTag() != null) {
-      // Uses the name of the field to compose the name of the metric
-      final Expression tag = metaData.getTag();
-      metric.append("_").append(tag.asFieldAccessExpr().getName());
+    final AnnotationExpr kind = metaData.getKind();
+    return kind.getName().getId().toUpperCase();
+  }
+
+  private static String getMetricTagValue(
+      final TypeResolver resolver, final AdviceMetadata metadata) {
+    if (metadata.getTag() == null) {
+      return null;
     }
-    return metric.toString();
+    final Expression tag = metadata.getTag();
+    if (tag.isStringLiteralExpr()) {
+      return tag.asStringLiteralExpr().getValue();
+    } else {
+      return getFieldValue(resolver, tag.asFieldAccessExpr());
+    }
+  }
+
+  private static String getFieldValue(final TypeResolver resolver, final FieldAccessExpr tag) {
+    final FieldAccessExpr fieldAccessExpr = tag.asFieldAccessExpr();
+    final ResolvedFieldDeclaration value = fieldAccessExpr.resolve().asField();
+    try {
+      final Field field = getField(value);
+      field.setAccessible(true);
+      return (String) field.get(field.getDeclaringClass());
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private static Field getField(final ResolvedFieldDeclaration resolved) {
+    try {
+      final Field field = resolved.getClass().getDeclaredField("field");
+      field.setAccessible(true);
+      return (Field) field.get(resolved);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   /** Find all advice lambdas in the generated call site provider */
@@ -367,10 +421,10 @@ public class IastExtension implements Extension {
   }
 
   private static class AdviceMetadata {
-    private final String kind;
+    private final AnnotationExpr kind;
     private final Expression tag;
 
-    private AdviceMetadata(final String kind, final Expression tag) {
+    private AdviceMetadata(final AnnotationExpr kind, final Expression tag) {
       this.kind = kind;
       this.tag = tag;
     }
@@ -381,8 +435,7 @@ public class IastExtension implements Extension {
           .map(
               annotation -> {
                 final Expression tag = getAnnotationExpression(annotation);
-                final String typeName = annotation.getName().getId();
-                return new AdviceMetadata(typeName.toUpperCase(), tag);
+                return new AdviceMetadata(annotation, tag);
               })
           .findFirst()
           .orElse(null);
@@ -395,7 +448,7 @@ public class IastExtension implements Extension {
           || identifier.equals("Sink");
     }
 
-    public String getKind() {
+    public AnnotationExpr getKind() {
       return kind;
     }
 

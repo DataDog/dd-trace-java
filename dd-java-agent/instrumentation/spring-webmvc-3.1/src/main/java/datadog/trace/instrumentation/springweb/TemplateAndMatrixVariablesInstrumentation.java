@@ -17,6 +17,8 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Source;
+import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.source.WebModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -83,6 +85,7 @@ public class TemplateAndMatrixVariablesInstrumentation extends Instrumenter.Defa
 
     @SuppressWarnings("Duplicates")
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Source(SourceTypes.REQUEST_MATRIX_PARAMETER_STRING)
     public static void after(
         @Advice.Argument(2) final HttpServletRequest req,
         @Advice.Thrown(readOnly = false) Throwable t) {

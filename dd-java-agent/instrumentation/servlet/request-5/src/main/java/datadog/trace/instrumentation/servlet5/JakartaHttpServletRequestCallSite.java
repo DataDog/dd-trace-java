@@ -2,9 +2,9 @@ package datadog.trace.instrumentation.servlet5;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
-import datadog.trace.api.iast.IastCallSites.Sink;
-import datadog.trace.api.iast.IastCallSites.Source;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Sink;
+import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
@@ -20,7 +20,7 @@ import java.util.Map;
 @CallSite(spi = IastCallSites.class)
 public class JakartaHttpServletRequestCallSite {
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
   @CallSite.After(
       "java.lang.String jakarta.servlet.http.HttpServletRequest.getParameter(java.lang.String)")
   @CallSite.After(
@@ -40,7 +40,7 @@ public class JakartaHttpServletRequestCallSite {
     return paramValue;
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_NAME)
+  @Source(SourceTypes.REQUEST_PARAMETER_NAME_STRING)
   @CallSite.After(
       "java.util.Enumeration jakarta.servlet.http.HttpServletRequest.getParameterNames()")
   @CallSite.After(
@@ -72,7 +72,7 @@ public class JakartaHttpServletRequestCallSite {
     }
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
   @CallSite.After(
       "java.lang.String[] jakarta.servlet.http.HttpServletRequest.getParameterValues(java.lang.String)")
   @CallSite.After(
@@ -94,7 +94,7 @@ public class JakartaHttpServletRequestCallSite {
     return parameterValues;
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
   @CallSite.After("java.util.Map jakarta.servlet.http.HttpServletRequest.getParameterMap()")
   @CallSite.After("java.util.Map jakarta.servlet.http.HttpServletRequestWrapper.getParameterMap()")
   public static java.util.Map<java.lang.String, java.lang.String[]> afterGetParameterMap(

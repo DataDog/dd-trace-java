@@ -11,6 +11,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import io.vertx.ext.web.Cookie;
@@ -51,6 +52,7 @@ public class CookieImplInstrumentation extends Instrumenter.Iast
 
   public static class GetNameAdvice {
     @Advice.OnMethodExit
+    @Source(SourceTypes.REQUEST_COOKIE_NAME_STRING)
     public static void afterGetName(
         @Advice.This final Cookie self, @Advice.Return final String result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
@@ -67,6 +69,7 @@ public class CookieImplInstrumentation extends Instrumenter.Iast
   public static class GetValueAdvice {
 
     @Advice.OnMethodExit
+    @Source(SourceTypes.REQUEST_COOKIE_VALUE_STRING)
     public static void afterGetValue(
         @Advice.This final Cookie self, @Advice.Return final String result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;

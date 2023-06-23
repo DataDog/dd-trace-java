@@ -12,6 +12,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Propagation;
+import datadog.trace.api.iast.Sink;
+import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
 import net.bytebuddy.asm.Advice;
@@ -61,6 +64,7 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Iast
 
   public static class AddCookieAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Sink(VulnerabilityTypes.RESPONSE_HEADER)
     public static void onEnter(@Advice.Argument(0) final javax.servlet.http.Cookie cookie) {
       if (null != cookie) {
         InstrumentationBridge.RESPONSE_HEADER_MODULE.onCookie(
@@ -71,6 +75,7 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Iast
 
   public static class AddHeaderAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Sink(VulnerabilityTypes.RESPONSE_HEADER)
     public static void onEnter(
         @Advice.Argument(0) final String name, @Advice.Argument(1) String value) {
       if (null != value && value.length() > 0) {
@@ -81,6 +86,7 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Iast
 
   public static class SendRedirectAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Sink(VulnerabilityTypes.UNVALIDATED_REDIRECT)
     public static void onEnter(@Advice.Argument(0) final String location) {
       final UnvalidatedRedirectModule module = InstrumentationBridge.UNVALIDATED_REDIRECT;
       if (module != null) {
@@ -93,6 +99,7 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Iast
 
   public static class EncodeURLAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Propagation
     public static void onExit(@Advice.Argument(0) final String url, @Advice.Return String encoded) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
