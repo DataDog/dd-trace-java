@@ -1,15 +1,15 @@
 package com.datadog.iast.util;
 
 public class CookieSecurityDetails {
-  String cookieName;
-  boolean isSecure = false;
-  boolean isSameSiteStrict = false;
-  boolean isHttpOnly = false;
+  private String cookieName;
+  private boolean isSecure = false;
+  private boolean isSameSiteStrict = false;
+  private boolean isHttpOnly = false;
 
   public CookieSecurityDetails() {}
 
   public CookieSecurityDetails(
-      String cookieName, boolean isSecure, boolean isSameSiteStrict, boolean isHttpOnly) {
+      String cookieName, boolean isSecure, boolean isHttpOnly, boolean isSameSiteStrict) {
     this.cookieName = cookieName;
     this.isSecure = isSecure;
     this.isSameSiteStrict = isSameSiteStrict;
@@ -17,7 +17,7 @@ public class CookieSecurityDetails {
   }
 
   void addAttribute(String name, String value) {
-    if ("SECURE".equalsIgnoreCase(name) && null == value) {
+    if ("SECURE".equalsIgnoreCase(name)) {
       isSecure = true;
     }
     if ("HTTPONLY".equalsIgnoreCase(name) && "true".equalsIgnoreCase(value)) {
@@ -26,6 +26,10 @@ public class CookieSecurityDetails {
     if ("SAMESITE".equalsIgnoreCase(name) && "strict".equalsIgnoreCase(value)) {
       isSameSiteStrict = true;
     }
+  }
+
+  public void setCookieName(String cookieName) {
+    this.cookieName = cookieName;
   }
 
   public String getCookieName() {

@@ -48,7 +48,7 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
 
     then:
     1 * tracer.activeSpan() >> span
-    4 * span.getSpanId()
+    1 * span.getSpanId()
     1 * overheadController.consumeQuota(_, _) >> true
     1 * reporter.report(_, _ as Vulnerability) >> { savedVul1 = it[1] }
     1 * reporter.report(_, _ as Vulnerability) >> { savedVul2 = it[1] }
@@ -83,6 +83,7 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
 
     then:
     1 * tracer.activeSpan()
+    1 * overheadController.consumeQuota(_,_)
     0 * _
   }
 }

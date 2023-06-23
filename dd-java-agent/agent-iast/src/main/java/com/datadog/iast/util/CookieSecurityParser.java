@@ -1,6 +1,8 @@
 package com.datadog.iast.util;
 
+import datadog.trace.api.iast.InstrumentationBridge;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.StringTokenizer;
@@ -12,12 +14,24 @@ public class CookieSecurityParser {
 
     List<CookieSecurityDetails> cookies = new java.util.ArrayList<>();
 
-    List<String> cookieStrings = splitMultiCookies(cookieString);
-    for (String cookieStr : cookieStrings) {
-      CookieSecurityDetails cookie = parseInternal(cookieStr);
-      if (!cookie.isHttpOnly || !cookie.isSecure || !cookie.isSameSiteStrict) {
-        badCookies.add(cookie);
+    try {
+      int version = guessCookieVersion(cookieString);
+      List<String> cookieStrings = null;
+      if (0 != version) {
+        cookieStrings = splitMultiCookies(cookieString);
+      } else {
+        cookieStrings = Arrays.asList(cookieString);
       }
+      for (String cookieStr : cookieStrings) {
+        CookieSecurityDetails cookie = parseInternal(cookieStr);
+        if ((!cookie.isSecure() && null != InstrumentationBridge.INSECURE_COOKIE)
+            || (!cookie.isHttpOnly() && null != InstrumentationBridge.NO_HTTPONLY_COOKIE)
+            || (!cookie.isSameSiteStrict() && null != InstrumentationBridge.NO_SAMESITE_COOKIE)) {
+          badCookies.add(cookie);
+        }
+      }
+    } catch (Exception e) {
+      // Cookie is not parseable
     }
   }
 
@@ -36,7 +50,7 @@ public class CookieSecurityParser {
       String nameValuePair = tokenizer.nextToken();
       int index = nameValuePair.indexOf('=');
       if (index != -1) {
-        analyzedCookie.cookieName = nameValuePair.substring(0, index).trim();
+        analyzedCookie.setCookieName(nameValuePair.substring(0, index).trim());
       } else {
         return null;
       }
@@ -80,5 +94,23 @@ public class CookieSecurityParser {
     cookies.add(header.substring(q));
 
     return cookies;
+  }
+
+  private static int guessCookieVersion(String header) {
+    int version = 0;
+
+    header = header.toLowerCase();
+    if (header.indexOf("expires=") != -1) {
+      // only netscape cookie using 'expires'
+      version = 0;
+    } else if (header.indexOf("version=") != -1) {
+      // version is mandatory for rfc 2965/2109 cookie
+      version = 1;
+    } else if (header.indexOf("max-age") != -1) {
+      // rfc 2965/2109 use 'max-age'
+      version = 1;
+    }
+
+    return version;
   }
 }

@@ -36,7 +36,7 @@ class NoHttpCookieModuleTest extends IastModuleImplTestBase {
     }
   }
 
-  void 'report NoHttp cookie with InsecureCookieModule.onCookie'() {
+  void 'report NoHttp cookie with NoHttpOnlyCookieModule.onCookie'() {
     given:
     Vulnerability savedVul
 
