@@ -38,7 +38,17 @@ public class StatsdMetricForwarder
   }
 
   @Override
+  public void gauge(String name, double value, String[] tags) {
+    statsd.gauge(name, value, tags);
+  }
+
+  @Override
   public void histogram(String name, long value, String[] tags) {
+    statsd.histogram(name, value, tags);
+  }
+
+  @Override
+  public void histogram(String name, double value, String[] tags) {
     statsd.histogram(name, value, tags);
   }
 
