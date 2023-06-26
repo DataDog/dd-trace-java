@@ -13,6 +13,7 @@ import okhttp3.RequestBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/** API for posting HTTP requests directly to backend, without the need for DD Agent */
 public class IntakeApi implements BackendApi {
 
   private static final Logger log = LoggerFactory.getLogger(IntakeApi.class);

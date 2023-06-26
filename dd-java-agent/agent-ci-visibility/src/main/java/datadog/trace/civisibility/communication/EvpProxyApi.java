@@ -12,6 +12,7 @@ import okhttp3.RequestBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/** API that uses DD Agent as a proxy to post request to backend. */
 public class EvpProxyApi implements BackendApi {
 
   private static final Logger log = LoggerFactory.getLogger(EvpProxyApi.class);
