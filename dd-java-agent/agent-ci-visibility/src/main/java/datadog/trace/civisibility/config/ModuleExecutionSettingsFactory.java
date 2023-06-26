@@ -129,6 +129,14 @@ public class ModuleExecutionSettingsFactory {
         Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED),
         Boolean.toString(itrEnabled));
 
+    // explicitly disable build instrumentation in child processes,
+    // because some projects run "embedded" Maven/Gradle builds as part of their integration tests,
+    // and we don't want to show those as if they were regular build executions
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(
+            CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED),
+        Boolean.toString(false));
+
     return propagatedSystemProperties;
   }
 
