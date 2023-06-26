@@ -128,7 +128,7 @@ public class CiVisibilitySystem {
 
     if (repoRoot == null) {
       LOGGER.warn(
-          "Git tree data upload will be skipped since GIt repository path could not be determined");
+          "Git tree data upload will be skipped since Git repository path could not be determined");
       return () -> CompletableFuture.completedFuture(null);
     }
 
