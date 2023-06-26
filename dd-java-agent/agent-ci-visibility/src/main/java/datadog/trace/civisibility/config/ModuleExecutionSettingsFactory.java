@@ -100,15 +100,12 @@ public class ModuleExecutionSettingsFactory {
   }
 
   private boolean isItrEnabled(CiVisibilitySettings ciVisibilitySettings) {
-    Boolean itrKillswitch = config.getCiVisibilityItrEnabled();
-    return ciVisibilitySettings.isTestsSkippingEnabled()
-        && (itrKillswitch == null || itrKillswitch);
+    return ciVisibilitySettings.isTestsSkippingEnabled() && config.isCiVisibilityItrEnabled();
   }
 
   private boolean isCodeCoverageEnabled(CiVisibilitySettings ciVisibilitySettings) {
-    Boolean codeCoverageKillswitch = config.getCiVisibilityCodeCoverageEnabled();
     return ciVisibilitySettings.isCodeCoverageEnabled()
-        && (codeCoverageKillswitch == null || codeCoverageKillswitch);
+        && config.isCiVisibilityCodeCoverageEnabled();
   }
 
   private Map<String, String> getPropertiesPropagatedToChildProcess(

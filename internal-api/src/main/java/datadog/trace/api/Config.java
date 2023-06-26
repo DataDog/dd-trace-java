@@ -612,7 +612,7 @@ public class Config {
   private final String ciVisibilityAgentJarUri;
   private final boolean ciVisibilityAutoConfigurationEnabled;
   private final boolean ciVisibilityCompilerPluginAutoConfigurationEnabled;
-  private final Boolean ciVisibilityCodeCoverageEnabled;
+  private final boolean ciVisibilityCodeCoverageEnabled;
   private final String ciVisibilityCompilerPluginVersion;
   private final String ciVisibilityJacocoPluginVersion;
   private final List<String> ciVisibilityJacocoPluginIncludes;
@@ -625,7 +625,7 @@ public class Config {
   private final String ciVisibilityGitRemoteName;
   private final long ciVisibilityBackendApiTimeoutMillis;
   private final long ciVisibilityGitUploadTimeoutMillis;
-  private final Boolean ciVisibilityItrEnabled;
+  private final boolean ciVisibilityItrEnabled;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1467,7 +1467,7 @@ public class Config {
     ciVisibilityGitRemoteName =
         configProvider.getString(
             CIVISIBILITY_GIT_REMOTE_NAME, DEFAULT_CIVISIBILITY_GIT_REMOTE_NAME);
-    ciVisibilityItrEnabled = configProvider.getBoolean(CIVISIBILITY_ITR_ENABLED);
+    ciVisibilityItrEnabled = configProvider.getBoolean(CIVISIBILITY_ITR_ENABLED, true);
 
     remoteConfigEnabled =
         configProvider.getBoolean(REMOTE_CONFIG_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED);
@@ -2348,7 +2348,7 @@ public class Config {
     return ciVisibilityCompilerPluginAutoConfigurationEnabled;
   }
 
-  public Boolean getCiVisibilityCodeCoverageEnabled() {
+  public boolean isCiVisibilityCodeCoverageEnabled() {
     return ciVisibilityCodeCoverageEnabled;
   }
 
@@ -2396,7 +2396,7 @@ public class Config {
     return ciVisibilityGitRemoteName;
   }
 
-  public Boolean getCiVisibilityItrEnabled() {
+  public boolean isCiVisibilityItrEnabled() {
     return ciVisibilityItrEnabled;
   }
 
