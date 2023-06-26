@@ -78,6 +78,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
         this.serviceMapping = Collections.emptyMap();
         this.headerTags = Collections.emptyMap();
         this.baggageMapping = Collections.emptyMap();
+        this.logsInjectionEnabled = ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
       } else {
 
         this.debugEnabled = snapshot.debugEnabled;

@@ -4,7 +4,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_MEASURE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_RESET_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
@@ -30,7 +29,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_E
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_INSTALLER_ENABLED;
-import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MEASURE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_CONFIG;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_DIR;
@@ -68,7 +66,6 @@ public class InstrumenterConfig {
 
   private final boolean traceEnabled;
   private final boolean traceOtelEnabled;
-  private final boolean logsInjectionEnabled;
   private final boolean logs128bTraceIdEnabled;
   private final boolean profilingEnabled;
   private final boolean ciVisibilityEnabled;
@@ -120,8 +117,6 @@ public class InstrumenterConfig {
 
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
-    logsInjectionEnabled =
-        configProvider.getBoolean(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
     logs128bTraceIdEnabled =
         configProvider.getBoolean(
             TRACE_128_BIT_TRACEID_LOGGING_ENABLED, DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED);
@@ -213,10 +208,6 @@ public class InstrumenterConfig {
 
   public boolean isTraceOtelEnabled() {
     return traceOtelEnabled;
-  }
-
-  public boolean isLogsInjectionEnabled() {
-    return logsInjectionEnabled;
   }
 
   public boolean isLogs128bTraceIdEnabled() {
@@ -382,8 +373,6 @@ public class InstrumenterConfig {
         + traceEnabled
         + ", traceOtelEnabled="
         + traceOtelEnabled
-        + ", logsInjectionEnabled="
-        + logsInjectionEnabled
         + ", logs128bTraceIdEnabled="
         + logs128bTraceIdEnabled
         + ", profilingEnabled="

@@ -1,9 +1,16 @@
 package datadog.smoketest.loginjection;
 
+import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
+
+import datadog.trace.api.ConfigCollector;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.Trace;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 public abstract class BaseApplication {
+  public static final long TIMEOUT_IN_NANOS = TimeUnit.SECONDS.toNanos(10);
+
   public abstract void doLog(String message);
 
   public void run() throws InterruptedException {
@@ -15,8 +22,26 @@ public abstract class BaseApplication {
 
     secondTracedMethod();
 
+    if (!waitForCondition(
+        () -> Boolean.FALSE.equals(ConfigCollector.get().collect().get(LOGS_INJECTION_ENABLED)))) {
+      throw new RuntimeException("Logs injection config was never updated");
+    }
+
+    thirdTracedMethod();
+
+    if (!waitForCondition(
+        () -> Boolean.TRUE.equals(ConfigCollector.get().collect().get(LOGS_INJECTION_ENABLED)))) {
+      throw new RuntimeException("Logs injection config was never updated a second time");
+    }
+
+    forthTracedMethod();
+
+    // Logs for "AFTER SECOND SPAN" and "AFTER THIRD SPAN" don't exist to avoid the race between
+    // traces and logs. The tester waits for traces before changing config
+    doLog("AFTER FORTH SPAN");
+
     // Sleep to allow the trace to be reported
-    Thread.sleep(1000);
+    Thread.sleep(400);
   }
 
   @Trace
@@ -37,5 +62,38 @@ public abstract class BaseApplication {
             + CorrelationIdentifier.getTraceId()
             + " "
             + CorrelationIdentifier.getSpanId());
+  }
+
+  @Trace
+  public void thirdTracedMethod() {
+    doLog("INSIDE THIRD SPAN");
+    System.out.println(
+        "THIRDTRACEID "
+            + CorrelationIdentifier.getTraceId()
+            + " "
+            + CorrelationIdentifier.getSpanId());
+  }
+
+  @Trace
+  public void forthTracedMethod() {
+    doLog("INSIDE FORTH SPAN");
+    System.out.println(
+        "FORTHTRACEID "
+            + CorrelationIdentifier.getTraceId()
+            + " "
+            + CorrelationIdentifier.getSpanId());
+  }
+
+  private static boolean waitForCondition(Supplier<Boolean> condition) throws InterruptedException {
+    long startTime = System.nanoTime();
+    while (System.nanoTime() - startTime < TIMEOUT_IN_NANOS) {
+      if (condition.get()) {
+        return true;
+      }
+
+      Thread.sleep(100);
+    }
+
+    return false;
   }
 }
