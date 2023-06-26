@@ -1,12 +1,11 @@
 package datadog.trace.civisibility.ipc;
 
-import java.util.Arrays;
+import java.nio.ByteBuffer;
 import java.util.Objects;
 
 public class ModuleExecutionResult implements Signal {
 
   private static final int SERIALIZED_LENGTH = 1 + Long.BYTES + Long.BYTES + 1;
-  private static final int FLAGS_IDX = 1 + Long.BYTES + Long.BYTES;
   private static final int COVERAGE_ENABLED_FLAG = 1;
   private static final int ITR_ENABLED_FLAG = 2;
   private static final int ITR_TESTS_SKIPPED_FLAG = 4;
@@ -88,39 +87,40 @@ public class ModuleExecutionResult implements Signal {
   }
 
   @Override
-  public byte[] serialize() {
-    byte[] bytes = new byte[SERIALIZED_LENGTH];
-    bytes[0] = SignalType.MODULE_EXECUTION_RESULT.getCode();
-    ByteUtils.putLong(bytes, 1, sessionId);
-    ByteUtils.putLong(bytes, 1 + Long.BYTES, moduleId);
+  public ByteBuffer serialize() {
+    ByteBuffer buffer = ByteBuffer.allocate(SERIALIZED_LENGTH);
+    buffer.put(SignalType.MODULE_EXECUTION_RESULT.getCode());
+    buffer.putLong(sessionId);
+    buffer.putLong(moduleId);
 
+    byte flags = 0;
     if (coverageEnabled) {
-      bytes[FLAGS_IDX] |= COVERAGE_ENABLED_FLAG;
+      flags |= COVERAGE_ENABLED_FLAG;
     }
     if (itrEnabled) {
-      bytes[FLAGS_IDX] |= ITR_ENABLED_FLAG;
+      flags |= ITR_ENABLED_FLAG;
     }
     if (itrTestsSkipped) {
-      bytes[FLAGS_IDX] |= ITR_TESTS_SKIPPED_FLAG;
+      flags |= ITR_TESTS_SKIPPED_FLAG;
     }
-    return bytes;
+    buffer.put(flags);
+    buffer.flip();
+    return buffer;
   }
 
-  public static ModuleExecutionResult deserialize(byte[] bytes) {
+  public static ModuleExecutionResult deserialize(ByteBuffer buffer) {
     int expectedLength = SERIALIZED_LENGTH;
-    if (bytes.length != expectedLength) {
+    if (buffer.remaining() != expectedLength) {
       throw new IllegalArgumentException(
-          "Expected "
-              + expectedLength
-              + " bytes, got "
-              + bytes.length
-              + ", "
-              + Arrays.toString(bytes));
+          "Expected " + expectedLength + " bytes, got " + buffer.remaining() + ", " + buffer);
     }
-    long sessionId = ByteUtils.getLong(bytes, 1);
-    long moduleId = ByteUtils.getLong(bytes, 1 + Long.BYTES);
 
-    int flags = bytes[FLAGS_IDX];
+    buffer.get(); // signal type
+    long sessionId = buffer.getLong();
+    long moduleId = buffer.getLong();
+    ;
+
+    int flags = buffer.get();
     boolean coverageEnabled = (flags & COVERAGE_ENABLED_FLAG) != 0;
     boolean itrEnabled = (flags & ITR_ENABLED_FLAG) != 0;
     boolean itrTestsSkipped = (flags & ITR_TESTS_SKIPPED_FLAG) != 0;

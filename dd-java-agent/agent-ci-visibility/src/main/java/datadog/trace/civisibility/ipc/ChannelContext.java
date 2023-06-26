@@ -11,13 +11,13 @@ class ChannelContext {
   private static final byte ACK = 1;
   private static final int BYTES_USED_FOR_MESSAGE_LENGTH = 2;
   private final ByteBuffer readBuffer;
-  private final Consumer<byte[]> messageCallback;
+  private final Consumer<ByteBuffer> messageCallback;
 
   private int currentMessageIdx;
   private byte[] currentMessage;
   private int unacknowledgedMessages;
 
-  ChannelContext(int bufferCapacity, Consumer<byte[]> messageCallback) {
+  ChannelContext(int bufferCapacity, Consumer<ByteBuffer> messageCallback) {
     this.readBuffer = ByteBuffer.allocate(bufferCapacity);
     this.messageCallback = messageCallback;
   }
@@ -54,7 +54,7 @@ class ChannelContext {
         // that way when the client receives ACK from the server
         // it knows that the server has already acted on the message.
         // this helps to avoid some race conditions
-        messageCallback.accept(currentMessage);
+        messageCallback.accept(ByteBuffer.wrap(currentMessage));
         writeResponse(channel);
         currentMessageIdx = 0;
         currentMessage = null;

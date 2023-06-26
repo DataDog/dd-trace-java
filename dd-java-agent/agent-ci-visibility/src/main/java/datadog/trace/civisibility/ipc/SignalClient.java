@@ -51,15 +51,16 @@ public class SignalClient implements AutoCloseable {
   }
 
   public void send(Signal signal) throws IOException {
-    byte[] message = signal.serialize();
-    if (message.length > 0xFFFF) {
-      throw new IllegalArgumentException("Message too long: " + message.length);
+    ByteBuffer message = signal.serialize();
+    if (message.remaining() > 0xFFFF) {
+      throw new IllegalArgumentException("Message too long: " + message.remaining());
     }
 
-    byte[] length = new byte[2];
-    ByteUtils.putShort(length, 0, (short) message.length);
-    socketChannel.write(ByteBuffer.wrap(length));
-    socketChannel.write(ByteBuffer.wrap(message));
+    ByteBuffer length = ByteBuffer.allocate(2);
+    length.putShort((short) message.remaining());
+    length.flip();
+    socketChannel.write(length);
+    socketChannel.write(message);
 
     // reading is done this way to make socket channel respect timeout
     Socket socket = socketChannel.socket();

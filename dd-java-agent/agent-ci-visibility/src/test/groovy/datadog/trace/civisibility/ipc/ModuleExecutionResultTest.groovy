@@ -2,6 +2,8 @@ package datadog.trace.civisibility.ipc
 
 import spock.lang.Specification
 
+import java.nio.ByteBuffer
+
 class ModuleExecutionResultTest extends Specification {
 
   def "test serialization and deserialization: #signal"() {
@@ -27,7 +29,7 @@ class ModuleExecutionResultTest extends Specification {
     def bytes = new byte[2]
 
     when:
-    ModuleExecutionResult.deserialize(bytes)
+    ModuleExecutionResult.deserialize(ByteBuffer.wrap(bytes))
 
     then:
     thrown IllegalArgumentException

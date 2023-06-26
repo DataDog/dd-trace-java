@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.ipc;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
@@ -17,7 +18,7 @@ class SignalServerRunnable implements Runnable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SignalServerRunnable.class);
 
-  private static final Map<SignalType, Function<byte[], Signal>> DESERIALIZERS =
+  private static final Map<SignalType, Function<ByteBuffer, Signal>> DESERIALIZERS =
       new EnumMap<>(SignalType.class);
 
   static {
@@ -91,10 +92,13 @@ class SignalServerRunnable implements Runnable {
     context.write(childChannel);
   }
 
-  private void onMessage(byte[] message) {
-    SignalType signalType = SignalType.fromCode(message[0]);
+  private void onMessage(ByteBuffer message) {
+    message.mark();
+    byte code = message.get();
+    message.reset();
+    SignalType signalType = SignalType.fromCode(code);
 
-    Function<byte[], Signal> deserializer = DESERIALIZERS.get(signalType);
+    Function<ByteBuffer, Signal> deserializer = DESERIALIZERS.get(signalType);
     if (deserializer == null) {
       LOGGER.error("Deserializer not defined for signal type {}, skipping processing", signalType);
       return;

@@ -4,7 +4,6 @@ import spock.lang.Specification
 
 import java.nio.ByteBuffer
 import java.nio.channels.ByteChannel
-import java.nio.channels.ReadableByteChannel
 import java.util.concurrent.ThreadLocalRandom
 
 class ChannelContextTest extends Specification {
@@ -12,7 +11,7 @@ class ChannelContextTest extends Specification {
   def "test message is read"() {
     given:
     def messages = new LinkedList<byte[]>()
-    def context = new ChannelContext(8, messages::offer)
+    def context = new ChannelContext(8, { ByteBuffer bb -> messages.offer(bb.array()) })
 
     when:
     def channel = new InMemoryReadableByteChannel()
@@ -28,7 +27,7 @@ class ChannelContextTest extends Specification {
   def "test message equal to buffer size is read"() {
     given:
     def messages = new LinkedList<byte[]>()
-    def context = new ChannelContext(8, messages::offer)
+    def context = new ChannelContext(8, { ByteBuffer bb -> messages.offer(bb.array()) })
 
     when:
     def channel = new InMemoryReadableByteChannel()
@@ -44,7 +43,7 @@ class ChannelContextTest extends Specification {
   def "test message larger than buffer size is read"() {
     given:
     def messages = new LinkedList<byte[]>()
-    def context = new ChannelContext(8, messages::offer)
+    def context = new ChannelContext(8, { ByteBuffer bb -> messages.offer(bb.array()) })
 
     when:
     def channel = new InMemoryReadableByteChannel()
@@ -60,7 +59,7 @@ class ChannelContextTest extends Specification {
   def "test multiple messages are read"() {
     given:
     def messages = new LinkedList<byte[]>()
-    def context = new ChannelContext(8, messages::offer)
+    def context = new ChannelContext(8, { ByteBuffer bb -> messages.offer(bb.array()) })
 
     when:
     def channel = new InMemoryReadableByteChannel()
@@ -82,7 +81,7 @@ class ChannelContextTest extends Specification {
   def "test multiple messages larger than buffer size is read"() {
     given:
     def messages = new LinkedList<byte[]>()
-    def context = new ChannelContext(8, messages::offer)
+    def context = new ChannelContext(8, { ByteBuffer bb -> messages.offer(bb.array()) })
 
     when:
     def channel = new InMemoryReadableByteChannel()
@@ -100,7 +99,7 @@ class ChannelContextTest extends Specification {
   def "test multiple messages are read in two attempts"() {
     given:
     def messages = new LinkedList<byte[]>()
-    def context = new ChannelContext(8, messages::offer)
+    def context = new ChannelContext(8, { ByteBuffer bb -> messages.offer(bb.array()) })
 
     when:
     def channel = new InMemoryReadableByteChannel()
@@ -125,7 +124,7 @@ class ChannelContextTest extends Specification {
   def "test partial message length write: #length"() {
     given:
     def messages = new LinkedList<byte[]>()
-    def context = new ChannelContext(8, messages::offer)
+    def context = new ChannelContext(8, { ByteBuffer bb -> messages.offer(bb.array()) })
 
     when:
     def channel = new InMemoryReadableByteChannel()
@@ -146,13 +145,13 @@ class ChannelContextTest extends Specification {
     Arrays.equals(messages.poll(), message)
 
     where:
-    length << [ 1, 2, 4, 7, 8, 12, 13, 16, 21, 24, 100, 255, 256, 260, 300, 1000 ]
+    length << [1, 2, 4, 7, 8, 12, 13, 16, 21, 24, 100, 255, 256, 260, 300, 1000]
   }
 
   def "test partial second message length write"() {
     given:
     def messages = new LinkedList<byte[]>()
-    def context = new ChannelContext(8, messages::offer)
+    def context = new ChannelContext(8, { ByteBuffer bb -> messages.offer(bb.array()) })
 
     when:
     def channel = new InMemoryReadableByteChannel()
@@ -173,7 +172,7 @@ class ChannelContextTest extends Specification {
   def "test message with length larger than max short value"() {
     given:
     def messages = new LinkedList<byte[]>()
-    def context = new ChannelContext(1024, messages::offer)
+    def context = new ChannelContext(8, { ByteBuffer bb -> messages.offer(bb.array()) })
 
     def message = new byte[Short.MAX_VALUE + 1]
     ThreadLocalRandom.current().nextBytes(message)
@@ -198,7 +197,7 @@ class ChannelContextTest extends Specification {
     }
 
     def messages = new LinkedList<byte[]>()
-    def context = new ChannelContext(bufferCapacity, messages::offer)
+    def context = new ChannelContext(8, { ByteBuffer bb -> messages.offer(bb.array()) })
 
     when:
     def channel = new InMemoryReadableByteChannel()
@@ -217,7 +216,7 @@ class ChannelContextTest extends Specification {
     }
 
     where:
-    bufferCapacity << [ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 ]
+    bufferCapacity << [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
   }
 
   private void writeMessage(byte[] bytes, InMemoryReadableByteChannel channel) {
