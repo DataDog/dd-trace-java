@@ -1184,8 +1184,9 @@ public class Config {
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, PROFILING_AGENTLESS_DEFAULT);
     isDatadogProfilerEnabled =
-        configProvider.getBoolean(
-            PROFILING_DATADOG_PROFILER_ENABLED, isDatadogProfilerSafeInCurrentEnvironment());
+        !isDatadogProfilerEnablementOverridden()
+            && configProvider.getBoolean(
+                PROFILING_DATADOG_PROFILER_ENABLED, isDatadogProfilerSafeInCurrentEnvironment());
     profilingUrl = configProvider.getString(PROFILING_URL);
 
     if (tmpApiKey == null) {
@@ -2094,6 +2095,18 @@ public class Config {
 
   public boolean isDatadogProfilerEnabled() {
     return isDatadogProfilerEnabled;
+  }
+
+  public static boolean isDatadogProfilerEnablementOverridden() {
+    // old non-LTS versions without important backports
+    return Platform.isJavaVersion(18)
+        || Platform.isJavaVersion(16)
+        || Platform.isJavaVersion(15)
+        || Platform.isJavaVersion(14)
+        || Platform.isJavaVersion(13)
+        || Platform.isJavaVersion(12)
+        || Platform.isJavaVersion(10)
+        || Platform.isJavaVersion(9);
   }
 
   public static boolean isDatadogProfilerSafeInCurrentEnvironment() {
