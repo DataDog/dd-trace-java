@@ -42,7 +42,15 @@ public class GitClient {
     commandExecutor = new ShellCommandExecutor(new File(repoRoot), timeoutMillis);
   }
 
-
+  /**
+   * Checks whether the repo that the client is associated with is shallow
+   *
+   * @return {@code true} if current repo is shallow, {@code false} otherwise
+   * @throws IOException If an error was encountered while writing command input or reading output
+   * @throws TimeoutException If timeout was reached while waiting for Git command to finish
+   * @throws InterruptedException If current thread was interrupted while waiting for Git command to
+   *     finish
+   */
   public boolean isShallow() throws IOException, TimeoutException, InterruptedException {
     String output =
         commandExecutor
@@ -51,6 +59,15 @@ public class GitClient {
     return Boolean.parseBoolean(output);
   }
 
+  /**
+   * "Unshallows" the repo that the client is associated with by fetching missing commit data from
+   * the server.
+   *
+   * @throws IOException If an error was encountered while writing command input or reading output
+   * @throws TimeoutException If timeout was reached while waiting for Git command to finish
+   * @throws InterruptedException If current thread was interrupted while waiting for Git command to
+   *     finish
+   */
   public void unshallow() throws IOException, TimeoutException, InterruptedException {
     // configure repo to avoid downloading blobs
     // (we don’t need them for git metadata upload).
@@ -63,7 +80,7 @@ public class GitClient {
         "remote.origin.partialclonefilter",
         "blob:none");
 
-    // refetch data from the server for the past month
+    // refetch data from the server for the given period of time
     commandExecutor.executeCommand(
         ShellCommandExecutor.OutputParser.IGNORE,
         "git",
