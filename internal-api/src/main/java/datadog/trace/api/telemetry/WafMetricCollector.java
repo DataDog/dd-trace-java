@@ -1,6 +1,5 @@
-package datadog.trace.api;
+package datadog.trace.api.telemetry;
 
-import datadog.trace.api.telemetry.MetricCollector;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -126,7 +125,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   public abstract static class WafMetric extends MetricCollector.Metric {
 
     public WafMetric(String metricName, long counter, String... tags) {
-      super(NAMESPACE, true, metricName, counter, tags);
+      super(NAMESPACE, true, metricName, "count", counter, tags);
     }
   }
 

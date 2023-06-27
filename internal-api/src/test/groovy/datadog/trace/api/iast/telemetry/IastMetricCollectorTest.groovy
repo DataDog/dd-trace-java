@@ -89,7 +89,7 @@ class IastMetricCollectorTest extends DDSpecification {
     then:
     IastMetricCollector.get().prepareMetrics()
     final result = IastMetricCollector.get().drain()
-    final computedTotal = result*.counter.sum() as long
+    final computedTotal = result*.value.sum() as long
     computedTotal == total
   }
 
@@ -186,7 +186,7 @@ class IastMetricCollectorTest extends DDSpecification {
       final tagValue = "${metric.tag.name}:${it}"
       final data = grouped[tagValue].first()
       assert data.metric == metric
-      assert data.counter == value
+      assert data.value.toLong() == value
       assert data.tags == [tagValue]
     }
   }

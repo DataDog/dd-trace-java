@@ -2,7 +2,7 @@ package datadog.telemetry.metric
 
 import datadog.telemetry.TelemetryService
 import datadog.telemetry.api.Metric
-import datadog.trace.api.WafMetricCollector
+import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.test.util.DDSpecification
 
 class WafMetricPeriodicActionSpecification extends DDSpecification {
