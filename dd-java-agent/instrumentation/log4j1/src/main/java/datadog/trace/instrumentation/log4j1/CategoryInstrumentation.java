@@ -15,7 +15,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
@@ -27,11 +27,6 @@ public class CategoryInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForSingleType {
   public CategoryInstrumentation() {
     super("log4j", "log4j-1");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isLogsInjectionEnabled();
   }
 
   @Override
@@ -61,8 +56,12 @@ public class CategoryInstrumentation extends Instrumenter.Tracing
       AgentSpan span = activeSpan();
 
       if (span != null) {
-        InstrumentationContext.get(LoggingEvent.class, AgentSpan.Context.class)
-            .put(event, span.context());
+        TraceConfig traceConfig = span.traceConfig();
+
+        if (traceConfig != null && traceConfig.isLogsInjectionEnabled()) {
+          InstrumentationContext.get(LoggingEvent.class, AgentSpan.Context.class)
+              .put(event, span.context());
+        }
       }
     }
   }

@@ -2,6 +2,7 @@ package datadog.telemetry.metric
 
 import datadog.telemetry.TelemetryService
 import datadog.telemetry.api.Metric
+import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.telemetry.IastMetric
 import datadog.trace.api.iast.telemetry.IastMetricCollector
 import groovy.transform.CompileDynamic
@@ -15,7 +16,7 @@ class IastMetricPeriodicActionTest extends Specification {
     final action = new IastMetricPeriodicAction()
     final service = Mock(TelemetryService)
     final iastMetric = IastMetric.EXECUTED_TAINTED
-    final value = 23L
+    final value = 23
 
     when:
     IastMetricCollector.add(iastMetric, value)
@@ -31,16 +32,17 @@ class IastMetricPeriodicActionTest extends Specification {
     given:
     final action = new IastMetricPeriodicAction()
     final service = Mock(TelemetryService)
-    final iastMetric = IastMetric.INSTRUMENTED_SOURCE_REQUEST_PARAMETER_VALUE
-    final value = 23L
+    final iastMetric = IastMetric.INSTRUMENTED_SOURCE
+    final tag = SourceTypes.REQUEST_PARAMETER_VALUE_STRING
+    final value = 23
 
     when:
-    IastMetricCollector.add(iastMetric, value)
+    IastMetricCollector.add(iastMetric, tag, value)
     IastMetricCollector.get().prepareMetrics()
     action.doIteration(service)
 
     then:
-    1 * service.addMetric({ matches(it, iastMetric, value, ["${iastMetric.tagName}:${iastMetric.tagValue}"]) })
+    1 * service.addMetric({ matches(it, iastMetric, value, ["${iastMetric.tag.name}:${tag}"]) })
     0 * _
   }
 

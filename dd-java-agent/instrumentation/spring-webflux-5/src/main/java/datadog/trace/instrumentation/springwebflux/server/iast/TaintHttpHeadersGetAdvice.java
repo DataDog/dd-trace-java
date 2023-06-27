@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.springwebflux.server.iast;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Source;
+import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.source.WebModule;
 import java.util.List;
 import java.util.Locale;
@@ -12,6 +14,7 @@ import net.bytebuddy.asm.Advice;
 @RequiresRequestContext(RequestContextSlot.IAST)
 class TaintHttpHeadersGetAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
+  @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
   public static void after(@Advice.Argument(0) Object arg, @Advice.Return List<String> values) {
     WebModule module = InstrumentationBridge.WEB;
     if (module == null || values == null) {

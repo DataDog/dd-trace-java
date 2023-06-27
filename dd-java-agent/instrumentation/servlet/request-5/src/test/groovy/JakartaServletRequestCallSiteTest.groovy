@@ -1,5 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
 import datadog.trace.api.iast.source.WebModule
 import foo.bar.smoketest.JakartaHttpServletRequestTestSuite
@@ -7,6 +9,7 @@ import foo.bar.smoketest.JakartaHttpServletRequestWrapperTestSuite
 import foo.bar.smoketest.JakartaServletRequestTestSuite
 import foo.bar.smoketest.JakartaServletRequestWrapperTestSuite
 import groovy.transform.CompileDynamic
+import jakarta.servlet.ServletInputStream
 
 @CompileDynamic
 class JakartaServletRequestCallSiteTest extends AgentTestRunner {
@@ -93,6 +96,30 @@ class JakartaServletRequestCallSiteTest extends AgentTestRunner {
     then:
     1 * servletRequest.getRequestDispatcher(path)
     1 * iastModule.onRedirect(path)
+
+    where:
+    testSuite                                       | clazz
+    new JakartaServletRequestTestSuite()            | jakarta.servlet.ServletRequest
+    new JakartaHttpServletRequestTestSuite()        | jakarta.servlet.http.HttpServletRequest
+    new JakartaServletRequestWrapperTestSuite()     | jakarta.servlet.ServletRequestWrapper
+    new JakartaHttpServletRequestWrapperTestSuite() | jakarta.servlet.http.HttpServletRequestWrapper
+  }
+
+  void 'test getInputStream'() {
+    setup:
+    final iastModule = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(iastModule)
+    final stream = Mock(ServletInputStream)
+    final servletRequest = Mock(clazz) {
+      getInputStream() >> stream
+    }
+    testSuite.init(servletRequest)
+
+    when:
+    testSuite.getInputStream()
+
+    then:
+    1 * iastModule.taint(SourceTypes.REQUEST_BODY, stream)
 
     where:
     testSuite                                       | clazz

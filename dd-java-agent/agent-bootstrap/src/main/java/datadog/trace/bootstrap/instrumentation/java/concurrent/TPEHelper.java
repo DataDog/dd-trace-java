@@ -1,20 +1,12 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT;
-import static datadog.trace.bootstrap.TaskWrapper.getUnwrappedType;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.InstrumenterConfig;
-import datadog.trace.api.profiling.QueueTiming;
-import datadog.trace.api.profiling.Timer;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 import java.util.Set;
 import java.util.concurrent.ThreadPoolExecutor;
 
@@ -125,24 +117,5 @@ public final class TPEHelper {
       return;
     }
     AdviceUtils.cancelTask(contextStore, task);
-  }
-
-  // don't use Config because it may use ThreadPoolExecutor to initialize itself
-  private static final boolean IS_PROFILING_QUEUEING_TIME_ENABLED =
-      ConfigProvider.getInstance()
-          .getBoolean(PROFILING_QUEUEING_TIME_ENABLED, PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
-
-  public static void startQueuingTimer(
-      ContextStore<Runnable, State> taskContextStore, ThreadPoolExecutor executor, Runnable task) {
-    if (IS_PROFILING_QUEUEING_TIME_ENABLED && InstrumentationBasedProfiling.isJFRReady()) {
-      State state = taskContextStore.get(task);
-      if (task != null && state != null) {
-        QueueTiming timing =
-            (QueueTiming) AgentTracer.get().getTimer().start(Timer.TimerType.QUEUEING);
-        timing.setTask(getUnwrappedType(task));
-        timing.setScheduler(executor.getClass());
-        state.setTiming(timing);
-      }
-    }
   }
 }

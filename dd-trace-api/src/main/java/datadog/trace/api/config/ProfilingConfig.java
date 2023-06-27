@@ -137,6 +137,9 @@ public final class ProfilingConfig {
   public static final String PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY =
       "profiling.ddprof.liveheap.capacity";
   public static final int PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY_DEFAULT = 1024;
+  public static final String PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE =
+      "profiling.ddprof.liveheap.track_size.enabled";
+  public static final boolean PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE_DEFAFULT = true;
   public static final String PROFILING_ENDPOINT_COLLECTION_ENABLED =
       "profiling.endpoint.collection.enabled";
   public static final boolean PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT = true;

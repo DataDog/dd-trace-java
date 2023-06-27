@@ -843,6 +843,28 @@ public class SnapshotSerializationTest {
     Assertions.assertEquals(TIMEOUT_REASON, json.get(NOT_CAPTURED_REASON));
   }
 
+  enum MyEnum {
+    ONE,
+    TWO,
+    THREE;
+  }
+
+  @Test
+  public void enumValues() throws IOException {
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
+    Snapshot snapshot = createSnapshot();
+    CapturedContext context = new CapturedContext();
+    CapturedContext.CapturedValue enumValue =
+        CapturedContext.CapturedValue.of("enumValue", MyEnum.class.getTypeName(), MyEnum.TWO);
+    context.addLocals(new CapturedContext.CapturedValue[] {enumValue});
+    snapshot.setExit(context);
+    String buffer = adapter.toJson(snapshot);
+    System.out.println(buffer);
+    Map<String, Object> locals = getLocalsFromJson(buffer);
+    Map<String, Object> enumValueJson = (Map<String, Object>) locals.get("enumValue");
+    assertEquals("TWO", enumValueJson.get("value"));
+  }
+
   private Map<String, Object> doFieldCount(int maxFieldCount) throws IOException {
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshotForFieldCount(maxFieldCount);

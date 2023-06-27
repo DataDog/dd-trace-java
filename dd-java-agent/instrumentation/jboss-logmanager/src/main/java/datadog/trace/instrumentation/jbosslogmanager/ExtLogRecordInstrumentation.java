@@ -17,6 +17,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.HashMap;
 import java.util.Map;
@@ -31,11 +32,6 @@ public class ExtLogRecordInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public ExtLogRecordInstrumentation() {
     super("jboss-logmanager");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isLogsInjectionEnabled();
   }
 
   @Override
@@ -86,6 +82,14 @@ public class ExtLogRecordInstrumentation extends Instrumenter.Tracing
         return;
       }
 
+      AgentSpan.Context context =
+          InstrumentationContext.get(ExtLogRecord.class, AgentSpan.Context.class).get(record);
+
+      // Nothing to add so return early
+      if (context == null && !AgentTracer.traceConfig().isLogsInjectionEnabled()) {
+        return;
+      }
+
       switch (key) {
         case Tags.DD_SERVICE:
           value = Config.get().getServiceName();
@@ -106,27 +110,19 @@ public class ExtLogRecordInstrumentation extends Instrumenter.Tracing
           }
           break;
         case "dd.trace_id":
-          {
-            AgentSpan.Context context =
-                InstrumentationContext.get(ExtLogRecord.class, AgentSpan.Context.class).get(record);
-            if (context != null) {
-              DDTraceId traceId = context.getTraceId();
-              if (traceId.toHighOrderLong() != 0
-                  && InstrumenterConfig.get().isLogs128bTraceIdEnabled()) {
-                value = traceId.toHexString();
-              } else {
-                value = traceId.toString();
-              }
+          if (context != null) {
+            DDTraceId traceId = context.getTraceId();
+            if (traceId.toHighOrderLong() != 0
+                && InstrumenterConfig.get().isLogs128bTraceIdEnabled()) {
+              value = traceId.toHexString();
+            } else {
+              value = traceId.toString();
             }
           }
           break;
         case "dd.span_id":
-          {
-            AgentSpan.Context context =
-                InstrumentationContext.get(ExtLogRecord.class, AgentSpan.Context.class).get(record);
-            if (context != null) {
-              value = DDSpanId.toString(context.getSpanId());
-            }
+          if (context != null) {
+            value = DDSpanId.toString(context.getSpanId());
           }
           break;
         default:
@@ -147,6 +143,11 @@ public class ExtLogRecordInstrumentation extends Instrumenter.Tracing
 
       AgentSpan.Context context =
           InstrumentationContext.get(ExtLogRecord.class, AgentSpan.Context.class).get(record);
+
+      // Nothing to add so return early
+      if (context == null && !AgentTracer.traceConfig().isLogsInjectionEnabled()) {
+        return;
+      }
 
       Map<String, String> correlationValues = new HashMap<>(8);
 

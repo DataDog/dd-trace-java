@@ -52,12 +52,12 @@ public class LineMapTest {
   }
 
   @Test
-  void AddingDifferentLabelsOverwriteLabel() {
+  void AddingDifferentLabelsDontOverwriteLabel() {
     LineMap map = new LineMap();
     LabelNode line1 = addLine(map, 1);
     LabelNode line1b = addLine(map, 1);
 
-    Assertions.assertEquals(line1b, map.getLineLabel(0));
-    Assertions.assertEquals(line1b, map.getLineLabel(1));
+    Assertions.assertEquals(line1, map.getLineLabel(0));
+    Assertions.assertEquals(line1, map.getLineLabel(1));
   }
 }
