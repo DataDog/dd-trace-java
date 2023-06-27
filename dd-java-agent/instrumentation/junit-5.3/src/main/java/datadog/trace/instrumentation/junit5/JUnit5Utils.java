@@ -1,5 +1,9 @@
 package datadog.trace.instrumentation.junit5;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.ServiceLoader;
@@ -68,5 +72,17 @@ public abstract class JUnit5Utils {
     }
     engines.addAll(config.getAdditionalTestEngines());
     return engines;
+  }
+
+  public static boolean isTestInProgress() {
+    AgentScope activeScope = AgentTracer.activeScope();
+    if (activeScope == null) {
+      return false;
+    }
+    AgentSpan span = activeScope.span();
+    if (span == null) {
+      return false;
+    }
+    return InternalSpanTypes.TEST.toString().equals(span.getSpanType());
   }
 }
