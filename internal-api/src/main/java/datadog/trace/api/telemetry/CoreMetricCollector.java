@@ -7,12 +7,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
-/**
- * This class is in charge of draining core metrics for telemetry.
- */
+/** This class is in charge of draining core metrics for telemetry. */
 public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.CoreMetric> {
   private static final String METRIC_NAMESPACE = "tracers";
   private static final CoreMetricCollector INSTANCE = new CoreMetricCollector();
@@ -33,9 +32,19 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
     for (SpanMetrics spanMetric : this.spanMetricRegistry.getSpanMetrics()) {
       SpanMetricsImpl spanMetricsImpl = (SpanMetricsImpl) spanMetric;
       String tag = spanMetricsImpl.getInstrumentationName();
-      spanMetricsImpl.getCounters().forEach(
-          (name, value) -> this.metricsQueue.add(new CoreMetric(METRIC_NAMESPACE, true, name, "counter", value, tag))
-      );
+      for (Map.Entry<String, Long> entry : spanMetricsImpl.getAndResetCounters().entrySet()) {
+        String name = entry.getKey();
+        Long value = entry.getValue();
+        if (value == 0) {
+          // Skip not updated counters
+          continue;
+        }
+        CoreMetric metric = new CoreMetric(METRIC_NAMESPACE, true, name, "count", value, tag);
+        if (!this.metricsQueue.offer(metric)) {
+          // Stop adding metrics if the queue is full
+          break;
+        }
+      }
     }
   }
 
@@ -50,7 +59,13 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
   }
 
   public static class CoreMetric extends MetricCollector.Metric {
-    public CoreMetric(String namespace, boolean common, String metricName, String type, Number value, String tag) {
+    public CoreMetric(
+        String namespace,
+        boolean common,
+        String metricName,
+        String type,
+        Number value,
+        String tag) {
       super(namespace, common, metricName, type, value, tag);
     }
   }

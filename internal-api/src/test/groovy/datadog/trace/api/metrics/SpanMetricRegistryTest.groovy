@@ -8,13 +8,22 @@ class SpanMetricRegistryTest extends DDSpecification {
     injectSysConfig('instrumentation.telemetry.enabled', telemetryEnabled)
 
     when:
-    def spanMetricRegistry = SpanMetricRegistry.get()
+    def spanMetricRegistry = SpanMetricRegistry.getInstance()
     def spanMetrics = spanMetricRegistry.get('test-api')
     spanMetrics.onSpanCreated()
     spanMetrics.onSpanFinished()
 
     then:
     noExceptionThrown()
+
+    cleanup:
+    if (spanMetricRegistry instanceof SpanMetricsImpl) {
+      ((SpanMetricRegistryImpl) spanMetricRegistry).getSpanMetrics().forEach {
+        if (it instanceof SpanMetricsImpl) {
+          ((SpanMetricsImpl) it).getAndResetCounters()
+        }
+      }
+    }
 
     where:
     telemetryEnabled << ['true', 'false']
@@ -39,7 +48,4 @@ class SpanMetricRegistryTest extends DDSpecification {
     metricsCollection.size() == 2
     metricsCollection.toSet() == [metrics1, metrics2].toSet()
   }
-
-  // TODO Test queue saturation
-  // TODO What about counters with 0 values?
 }

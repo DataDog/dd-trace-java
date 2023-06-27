@@ -2,9 +2,7 @@ package datadog.trace.api.metrics;
 
 import datadog.trace.api.InstrumenterConfig;
 
-/**
- * This class holds the {@link SpanMetrics} instances.
- */
+/** This class holds the {@link SpanMetrics} instances. */
 @FunctionalInterface
 public interface SpanMetricRegistry {
   SpanMetricRegistry NOOP = instrumentationName -> SpanMetrics.NOOP;

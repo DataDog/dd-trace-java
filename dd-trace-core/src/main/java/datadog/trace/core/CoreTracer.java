@@ -586,11 +586,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
                 this.timeSource, config, sharedCommunicationObjects, healthMetrics);
     pendingTraceFactory =
         new PendingTrace.Factory(
-            this,
-            pendingTraceBuffer,
-            this.timeSource,
-            strictTraceWrites,
-            healthMetrics);
+            this, pendingTraceBuffer, this.timeSource, strictTraceWrites, healthMetrics);
     pendingTraceBuffer.start();
 
     this.writer.start();

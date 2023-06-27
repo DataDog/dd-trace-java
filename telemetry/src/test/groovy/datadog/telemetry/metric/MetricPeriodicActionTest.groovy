@@ -3,7 +3,6 @@ package datadog.telemetry.metric
 
 import datadog.telemetry.TelemetryService
 import datadog.telemetry.api.Metric
-import datadog.trace.api.telemetry.CoreMetricCollector
 import datadog.trace.api.telemetry.MetricCollector
 import edu.umd.cs.findbugs.annotations.NonNull
 import groovy.transform.NamedDelegate
@@ -15,7 +14,7 @@ class MetricPeriodicActionTest extends Specification {
   void 'test that common metrics are joined before being sent to telemetry'() {
     given:
     final service = Mock(TelemetryService)
-    final MetricCollector<MetricCollector.Metric> metricCollector = Mock()
+    final MetricCollector<MetricCollector.Metric> metricCollector = Mock(MetricCollector)
     final action = new DefaultMetricPeriodicAction(metricCollector)
 
     when:
@@ -102,7 +101,7 @@ class MetricPeriodicActionTest extends Specification {
 
     @Override
     @NonNull
-    CoreMetricCollector collector() {
+    MetricCollector<Metric> collector() {
       return collector
     }
   }

@@ -4,9 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * The default implementation of {@link SpanMetrics} based on atomic counters.
- */
+/** The default implementation of {@link SpanMetrics} based on atomic counters. */
 public class SpanMetricsImpl implements SpanMetrics {
   private final String instrumentationName;
   private final AtomicLong spanCreatedCounter;
@@ -32,10 +30,10 @@ public class SpanMetricsImpl implements SpanMetrics {
     return this.instrumentationName;
   }
 
-  public Map<String, Long> getCounters() {
+  public Map<String, Long> getAndResetCounters() {
     Map<String, Long> counters = new HashMap<>();
-    counters.put("span_created", this.spanCreatedCounter.get());
-    counters.put("span_finished", this.spanFinishedCounter.get());
+    counters.put("span_created", this.spanCreatedCounter.getAndSet(0));
+    counters.put("span_finished", this.spanFinishedCounter.getAndSet(0));
     return counters;
   }
 }

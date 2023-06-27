@@ -83,5 +83,28 @@ public interface MetricCollector<M extends Metric> {
     public int hashCode() {
       return Objects.hash(metricName, common, namespace, tags);
     }
+
+    @Override
+    public String toString() {
+      return "Metric{"
+          + "metricName='"
+          + metricName
+          + '\''
+          + ", common="
+          + common
+          + ", namespace='"
+          + namespace
+          + '\''
+          + ", type='"
+          + type
+          + '\''
+          + ", timestamp="
+          + timestamp
+          + ", value="
+          + value
+          + ", tags="
+          + tags
+          + '}';
+    }
   }
 }

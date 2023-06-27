@@ -1,26 +1,19 @@
 package datadog.trace.api.metrics;
 
-/**
- * The core metrics related to a span./
- */
+/** The core metrics related to a span./ */
 public interface SpanMetrics {
-  SpanMetrics NOOP = new SpanMetrics() {
-    @Override
-    public void onSpanCreated() {
-    }
+  SpanMetrics NOOP =
+      new SpanMetrics() {
+        @Override
+        public void onSpanCreated() {}
 
-    @Override
-    public void onSpanFinished() {
-    }
-  };
+        @Override
+        public void onSpanFinished() {}
+      };
 
-  /**
-   * Increment span created counter.
-   */
+  /** Increment span created counter. */
   void onSpanCreated();
 
-  /**
-   * Increment span finished counter.
-   */
+  /** Increment span finished counter. */
   void onSpanFinished();
 }

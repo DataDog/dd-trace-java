@@ -4,9 +4,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * The default {@link SpanMetricRegistry} implementation.
- */
+/** The default {@link SpanMetricRegistry} implementation. */
 public class SpanMetricRegistryImpl implements SpanMetricRegistry {
   private static final SpanMetricRegistryImpl INSTANCE = new SpanMetricRegistryImpl();
   private final Map<String, SpanMetrics> spanMetrics;

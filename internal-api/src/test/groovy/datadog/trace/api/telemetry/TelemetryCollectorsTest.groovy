@@ -1,8 +1,8 @@
-package datadog.trace.api
+package datadog.trace.api.telemetry
 
+import datadog.trace.api.ConfigCollector
+import datadog.trace.api.IntegrationsCollector
 import datadog.trace.api.metrics.SpanMetricRegistryImpl
-import datadog.trace.api.telemetry.CoreMetricCollector
-import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.test.util.DDSpecification
 
 class TelemetryCollectorsTest extends DDSpecification {
@@ -205,17 +205,37 @@ class TelemetryCollectorsTest extends DDSpecification {
     metrics.size() == 2
 
     def spanCreatedMetric = metrics[0]
-    spanCreatedMetric.type == 'counter'
+    spanCreatedMetric.type == 'count'
     spanCreatedMetric.value == 2
     spanCreatedMetric.namespace == 'tracers'
     spanCreatedMetric.metricName == 'span_created'
     spanCreatedMetric.tags == ['test-update-drain']
 
     def spanFinishedMetric = metrics[1]
-    spanFinishedMetric.type == 'counter'
+    spanFinishedMetric.type == 'count'
     spanFinishedMetric.value == 1
     spanFinishedMetric.namespace == 'tracers'
     spanFinishedMetric.metricName == 'span_finished'
     spanFinishedMetric.tags == ['test-update-drain']
+  }
+
+  def "overflowing core metrics"() {
+    setup:
+    def registry = SpanMetricRegistryImpl.getInstance()
+    def collector = CoreMetricCollector.getInstance()
+    final limit = 1024
+
+    when:
+    (0..limit*2).each {
+      def spanMetrics = registry.get('instr-' + it)
+      spanMetrics.onSpanCreated()
+      spanMetrics.onSpanCreated()
+      spanMetrics.onSpanFinished()
+    }
+
+    then:
+    noExceptionThrown()
+    collector.prepareMetrics()
+    collector.drain().size() == limit
   }
 }

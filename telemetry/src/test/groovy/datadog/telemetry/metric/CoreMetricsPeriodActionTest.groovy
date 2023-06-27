@@ -3,7 +3,7 @@ package datadog.telemetry.metric
 import datadog.telemetry.TelemetryService
 import datadog.telemetry.api.Metric
 import datadog.trace.api.metrics.SpanMetricRegistry
-import datadog.trace.api.metrics.SpanMetricRegistryImpl
+import datadog.trace.api.metrics.SpanMetrics
 import spock.lang.Specification
 
 class CoreMetricsPeriodActionTest extends Specification {
@@ -12,18 +12,20 @@ class CoreMetricsPeriodActionTest extends Specification {
     given:
     final telemetryService = Mock(TelemetryService)
     final action = new CoreMetricsPeriodicAction()
-    final SpanMetricRegistry spanMetrics = new SpanMetricRegistryImpl(CoreMetrics.INSTANCE)
+    final SpanMetricRegistry spanMetricRegistry = SpanMetricRegistry.getInstance()
+    final SpanMetrics instr1SpanMetric = spanMetricRegistry.get('instr-1')
+    final SpanMetrics instr2SpanMetric = spanMetricRegistry.get('instr-2')
 
     when:
-    spanMetrics.onSpanCreated("instr-1")
-    spanMetrics.onSpanCreated("instr-2")
-    spanMetrics.onSpanCreated("instr-1")
-    spanMetrics.onSpanCreated("instr-2")
-    spanMetrics.onSpanCreated("instr-2")
-    spanMetrics.onSpanFinished("instr-2")
-    spanMetrics.onSpanFinished("instr-2")
-    spanMetrics.onSpanFinished("instr-2")
-    spanMetrics.onSpanFinished("instr-2")
+    instr1SpanMetric.onSpanCreated()
+    instr2SpanMetric.onSpanCreated()
+    instr1SpanMetric.onSpanCreated()
+    instr2SpanMetric.onSpanCreated()
+    instr2SpanMetric.onSpanCreated()
+    instr2SpanMetric.onSpanFinished()
+    instr2SpanMetric.onSpanFinished()
+    instr2SpanMetric.onSpanFinished()
+    instr2SpanMetric.onSpanFinished()
 
     action.collector().prepareMetrics()
     action.doIteration(telemetryService)
@@ -45,19 +47,24 @@ class CoreMetricsPeriodActionTest extends Specification {
     given:
     final telemetryService = Mock(TelemetryService)
     final action = new CoreMetricsPeriodicAction()
-    final SpanMetricRegistry spanMetrics = new SpanMetricRegistryImpl(CoreMetrics.INSTANCE)
+    final SpanMetricRegistry spanMetricRegistry = SpanMetricRegistry.getInstance()
+    final SpanMetrics instr1SpanMetric = spanMetricRegistry.get('instr-1')
+    final SpanMetrics instr2SpanMetric = spanMetricRegistry.get('instr-2')
+    final SpanMetrics instr3SpanMetric = spanMetricRegistry.get('instr-3')
+    final SpanMetrics instrASpanMetric = spanMetricRegistry.get('instr-a')
+    final SpanMetrics instrBSpanMetric = spanMetricRegistry.get('instr-b')
 
     when:
-    spanMetrics.onSpanCreated("instr-1")
-    spanMetrics.onSpanCreated("instr-2")
-    spanMetrics.onSpanCreated("instr-3")
-    spanMetrics.onSpanFinished("instr-3")
-    spanMetrics.onSpanCreated("instr-a")
-    spanMetrics.onSpanCreated("instr-b")
-    spanMetrics.onSpanFinished("instr-b")
-    spanMetrics.onSpanFinished("instr-2")
-    spanMetrics.onSpanFinished("instr-a")
-    spanMetrics.onSpanFinished("instr-1")
+    instr1SpanMetric.onSpanCreated()
+    instr2SpanMetric.onSpanCreated()
+    instr3SpanMetric.onSpanCreated()
+    instr3SpanMetric.onSpanFinished()
+    instrASpanMetric.onSpanCreated()
+    instrBSpanMetric.onSpanCreated()
+    instrBSpanMetric.onSpanFinished()
+    instr2SpanMetric.onSpanFinished()
+    instrASpanMetric.onSpanFinished()
+    instr1SpanMetric.onSpanFinished()
 
     action.collector().prepareMetrics()
     action.doIteration(telemetryService)
@@ -100,19 +107,24 @@ class CoreMetricsPeriodActionTest extends Specification {
     given:
     final telemetryService = Mock(TelemetryService)
     final action = new CoreMetricsPeriodicAction()
-    final SpanMetricRegistry spanMetrics = new SpanMetricRegistryImpl(CoreMetrics.INSTANCE)
+    final SpanMetricRegistry spanMetricRegistry = SpanMetricRegistry.getInstance()
+    final SpanMetrics instr1SpanMetric = spanMetricRegistry.get('instr-1')
+    final SpanMetrics instr2SpanMetric = spanMetricRegistry.get('instr-2')
+    final SpanMetrics instr3SpanMetric = spanMetricRegistry.get('instr-3')
+    final SpanMetrics instrASpanMetric = spanMetricRegistry.get('instr-a')
+    final SpanMetrics instrBSpanMetric = spanMetricRegistry.get('instr-b')
 
     when:
-    spanMetrics.onSpanCreated("instr-1")
-    spanMetrics.onSpanCreated("instr-2")
-    spanMetrics.onSpanCreated("instr-3")
-    spanMetrics.onSpanFinished("instr-3")
-    spanMetrics.onSpanCreated("instr-a")
-    spanMetrics.onSpanCreated("instr-b")
-    spanMetrics.onSpanFinished("instr-b")
-    spanMetrics.onSpanFinished("instr-2")
-    spanMetrics.onSpanFinished("instr-a")
-    spanMetrics.onSpanFinished("instr-1")
+    instr1SpanMetric.onSpanCreated()
+    instr2SpanMetric.onSpanCreated()
+    instr3SpanMetric.onSpanCreated()
+    instr3SpanMetric.onSpanFinished()
+    instrASpanMetric.onSpanCreated()
+    instrBSpanMetric.onSpanCreated()
+    instrBSpanMetric.onSpanFinished()
+    instr2SpanMetric.onSpanFinished()
+    instrASpanMetric.onSpanFinished()
+    instr1SpanMetric.onSpanFinished()
 
     action.collector().prepareMetrics()
     action.doIteration(telemetryService)

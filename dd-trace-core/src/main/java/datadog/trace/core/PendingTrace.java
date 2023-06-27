@@ -77,8 +77,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
           timeSource,
           traceConfig,
           strictTraceWrites,
-          healthMetrics
-      );
+          healthMetrics);
     }
   }
 
