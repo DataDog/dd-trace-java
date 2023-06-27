@@ -1,6 +1,7 @@
 package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.probe.MetricProbe.MetricKind.COUNT;
+import static com.datadog.debugger.probe.MetricProbe.MetricKind.DISTRIBUTION;
 import static com.datadog.debugger.probe.MetricProbe.MetricKind.GAUGE;
 import static com.datadog.debugger.probe.MetricProbe.MetricKind.HISTOGRAM;
 import static org.mockito.Mockito.mock;
@@ -261,7 +262,7 @@ public class MetricProbesInstrumentationTest {
   @Test
   public void methodArgumentRefValueHistogramMetric() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot03";
-    String METRIC_NAME = "argument_gauge";
+    String METRIC_NAME = "argument_histogram";
     MetricForwarderListener listener =
         installSingleMetric(
             METRIC_NAME,
@@ -302,7 +303,7 @@ public class MetricProbesInstrumentationTest {
   public void methodArgumentRefValueHistogramMetricWithTags()
       throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot03";
-    String METRIC_NAME = "argument_gauge";
+    String METRIC_NAME = "argument_histogram";
     MetricForwarderListener listener =
         installSingleMetric(
             METRIC_NAME,
@@ -318,6 +319,47 @@ public class MetricProbesInstrumentationTest {
     Assertions.assertTrue(listener.histograms.containsKey(METRIC_NAME));
     Assertions.assertEquals(31, listener.histograms.get(METRIC_NAME).longValue());
     Assertions.assertArrayEquals(new String[] {"tag1:foo1", METRIC_PROBEID_TAG}, listener.lastTags);
+  }
+
+  @Test
+  public void methodArgumentRefValueDistributionMetric() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot03";
+    String METRIC_NAME = "argument_distribution";
+    MetricForwarderListener listener =
+        installSingleMetric(
+            METRIC_NAME,
+            DISTRIBUTION,
+            CLASS_NAME,
+            "f1",
+            "int (int)",
+            new ValueScript(DSL.ref("value"), "value"));
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    Assertions.assertEquals(48, result);
+    Assertions.assertTrue(listener.distributions.containsKey(METRIC_NAME));
+    Assertions.assertEquals(31, listener.distributions.get(METRIC_NAME).longValue());
+    Assertions.assertArrayEquals(new String[] {METRIC_PROBEID_TAG}, listener.lastTags);
+  }
+
+  @Test
+  public void methodFieldRefValueDistributionDoubleMetric() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot06";
+    String METRIC_NAME = "field_double_distribution";
+    MetricForwarderListener listener =
+        installSingleMetric(
+            METRIC_NAME,
+            DISTRIBUTION,
+            CLASS_NAME,
+            "f",
+            "()",
+            new ValueScript(DSL.ref("doubleValue"), "doubleValue"));
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assertions.assertEquals(42, result);
+    Assertions.assertTrue(listener.doubleDistributions.containsKey(METRIC_NAME));
+    Assertions.assertEquals(
+        3.14, listener.doubleDistributions.get(METRIC_NAME).doubleValue(), 0.001);
+    Assertions.assertArrayEquals(new String[] {METRIC_PROBEID_TAG}, listener.lastTags);
   }
 
   @Test
@@ -1151,6 +1193,8 @@ public class MetricProbesInstrumentationTest {
     Map<String, Double> doubleGauges = new HashMap<>();
     Map<String, Long> histograms = new HashMap<>();
     Map<String, Double> doubleHistograms = new HashMap<>();
+    Map<String, Long> distributions = new HashMap<>();
+    Map<String, Double> doubleDistributions = new HashMap<>();
     String[] lastTags = null;
     boolean throwing;
 
@@ -1196,6 +1240,24 @@ public class MetricProbesInstrumentationTest {
         throw new IllegalArgumentException("oops");
       }
       doubleHistograms.put(name, value);
+      lastTags = tags;
+    }
+
+    @Override
+    public void distribution(String name, long value, String[] tags) {
+      if (throwing) {
+        throw new IllegalArgumentException("oops");
+      }
+      distributions.put(name, value);
+      lastTags = tags;
+    }
+
+    @Override
+    public void distribution(String name, double value, String[] tags) {
+      if (throwing) {
+        throw new IllegalArgumentException("oops");
+      }
+      doubleDistributions.put(name, value);
       lastTags = tags;
     }
 

@@ -53,6 +53,16 @@ public class StatsdMetricForwarder
   }
 
   @Override
+  public void distribution(String name, long value, String[] tags) {
+    statsd.distribution(name, value, tags);
+  }
+
+  @Override
+  public void distribution(String name, double value, String[] tags) {
+    statsd.distribution(name, value, tags);
+  }
+
+  @Override
   public void handle(Exception exception) {
     LOGGER.warn("Error when sending metrics: ", exception);
   }

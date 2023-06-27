@@ -9,8 +9,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
 import org.objectweb.asm.signature.SignatureReader;
 import org.objectweb.asm.signature.SignatureVisitor;
+import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
@@ -88,6 +90,12 @@ public class ASMHelper {
 
   public static void ldc(InsnList insnList, Object val) {
     insnList.add(val == null ? new InsnNode(Opcodes.ACONST_NULL) : new LdcInsnNode(val));
+  }
+
+  public static void getStatic(InsnList insnList, org.objectweb.asm.Type owner, String fieldName) {
+    insnList.add(
+        new FieldInsnNode(
+            Opcodes.GETSTATIC, owner.getInternalName(), fieldName, owner.getDescriptor()));
   }
 
   public static Type decodeSignature(String signature) {
