@@ -12,22 +12,29 @@ class MetricCollectorTest extends Specification {
     sameMetric == expected
 
     where:
-    first                                    | second                                   | expected
-    metric(counter: 2)                       | metric(counter: 6)                       | true
-    metric(counter: 2)                       | metric(common: false, counter: 6)        | false
-    metric(counter: 2)                       | metric(namespace: 'other', counter: 6)   | false
-    metric(counter: 2)                       | metric(metric: 'other', counter: 6)      | false
-    metric(counter: 2)                       | metric(tags: ['a:b'], counter: 6)        | false
-    metric(tags: ['a:b'], counter: 2)        | metric(tags: ['a:b'], counter: 6)        | true
-    metric(tags: ['a:b'], counter: 2)        | metric(tags: ['c:d'], counter: 6)        | false
-    metric(tags: ['a:b', 'c:d'], counter: 2) | metric(tags: ['a:b', 'c:d'], counter: 6) | true
+    first                                   | second                                  | expected
+    counter(value: 2)                       | counter(value: 6)                       | true
+    counter(value: 2)                       | counter(common: false, value: 6)        | false
+    counter(value: 2)                       | counter(namespace: 'other', value: 6)   | false
+    counter(value: 2)                       | counter(metric: 'other', value: 6)      | false
+    counter(value: 2)                       | counter(tags: ['a:b'], value: 6)        | false
+    counter(tags: ['a:b'], value: 2)        | counter(tags: ['a:b'], value: 6)        | true
+    counter(tags: ['a:b'], value: 2)        | counter(tags: ['c:d'], value: 6)        | false
+    counter(tags: ['a:b', 'c:d'], value: 2) | counter(tags: ['a:b', 'c:d'], value: 6) | true
   }
 
-  private static MetricCollector.Metric metric(final Map metric) {
+  private static MetricCollector.Metric counter(final Map metric) {
     metric.namespace = metric.namespace ?: 'namespace'
     metric.metric = metric.metric ?: 'metric'
     metric.common = metric.common == null ? true : metric.common
     metric.tags = metric.tags ?: []
-    return new MetricCollector.Metric(metric.namespace as String, metric.common as boolean, metric.metric as String, metric.counter as Long, metric.tags as String[])
+    return new MetricCollector.Metric(
+      metric.namespace as String,
+      metric.common as boolean,
+      metric.metric as String,
+      'count',
+      metric.value as Number,
+      metric.tags as String[]
+      )
   }
 }

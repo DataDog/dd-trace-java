@@ -53,7 +53,7 @@ public class TelemetryRequestEndedHandler
       final IastMetric metric = data.getMetric();
       if (metric.getScope() == REQUEST) {
         final String tagValue = data.getSpanTag();
-        trace.setTagTop(String.format(TRACE_METRIC_PATTERN, tagValue), data.counter);
+        trace.setTagTop(String.format(TRACE_METRIC_PATTERN, tagValue), data.value);
       }
     }
   }

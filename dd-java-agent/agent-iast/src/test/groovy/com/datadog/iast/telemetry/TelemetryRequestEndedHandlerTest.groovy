@@ -78,7 +78,8 @@ class TelemetryRequestEndedHandlerTest extends AbstractTelemetryCallbackTest {
     then:
     drained.size() == 1
     drained[0].metric == TAINTED_FLAT_MODE
-    drained[0].counter == 1
+    drained[0].type == 'count'
+    drained[0].value.longValue() == 1
   }
 
   void 'test telemetry: #description'() {
@@ -102,7 +103,7 @@ class TelemetryRequestEndedHandlerTest extends AbstractTelemetryCallbackTest {
 
     then: 'all metrics are propagated to the global collector'
     metrics.every {
-      drained.find { d -> d.metric == it.metric && d.tagValue == it.tagValue }?.counter == it.value
+      drained.find { d -> d.metric == it.metric && d.tagValue == it.tagValue }?.value.longValue() == it.value
     }
 
     where:
