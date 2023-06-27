@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.jersey3;
+package datadog.trace.instrumentation.jersey;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;

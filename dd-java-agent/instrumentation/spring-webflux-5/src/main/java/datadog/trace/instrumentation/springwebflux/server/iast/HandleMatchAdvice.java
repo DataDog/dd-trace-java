@@ -5,6 +5,8 @@ import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Source;
+import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.source.WebModule;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -16,6 +18,7 @@ public class HandleMatchAdvice {
 
   @SuppressWarnings("Duplicates")
   @Advice.OnMethodExit(suppress = Throwable.class)
+  @Source(SourceTypes.REQUEST_PATH_PARAMETER_STRING)
   public static void after(
       @Advice.Argument(2) ServerWebExchange xchg, @ActiveRequestContext RequestContext reqCtx) {
 

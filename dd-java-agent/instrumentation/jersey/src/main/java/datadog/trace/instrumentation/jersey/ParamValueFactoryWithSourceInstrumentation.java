@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.SourceTypes;
 import net.bytebuddy.asm.Advice;
 
@@ -36,6 +37,7 @@ public class ParamValueFactoryWithSourceInstrumentation extends Instrumenter.Ias
 
   public static class InstrumenterAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Propagation
     public static void onExit(@Advice.FieldValue("parameterSource") Object parameterSource) {
       switch (parameterSource.toString()) {
         case "COOKIE":

@@ -1,11 +1,14 @@
 package datadog.trace.instrumentation.vertx_3_4.server;
 
+import datadog.trace.api.iast.Source;
+import datadog.trace.api.iast.SourceTypes;
 import io.vertx.ext.web.RoutingContext;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 class RouteMatchesAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+  @Source(SourceTypes.REQUEST_PATH_PARAMETER_STRING)
   static void after(
       @Advice.Return int ret,
       @Advice.Argument(0) final RoutingContext ctx,
@@ -24,6 +27,7 @@ class RouteMatchesAdvice {
 
   static class BooleanReturnVariant {
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Source(SourceTypes.REQUEST_PATH_PARAMETER_STRING)
     static void after(
         @Advice.Return boolean ret,
         @Advice.Argument(0) final RoutingContext ctx,

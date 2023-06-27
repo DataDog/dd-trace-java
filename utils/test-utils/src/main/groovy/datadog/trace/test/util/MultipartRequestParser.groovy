@@ -1,4 +1,4 @@
-package datadog.smoketest
+package datadog.trace.test.util
 
 import org.apache.commons.fileupload.FileItem
 import org.apache.commons.fileupload.FileItemFactory

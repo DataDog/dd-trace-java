@@ -116,6 +116,11 @@ public final class ConfigDefaults {
   static final int DEFAULT_CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE = 4;
   static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES =
       "datadog.trace.*:org.apache.commons.*";
+  static final boolean DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED = true;
+  static final long DEFAULT_CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS = 30_000;
+  static final long DEFAULT_CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS = 30_000;
+  static final long DEFAULT_CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS = 60_000;
+  static final String DEFAULT_CIVISIBILITY_GIT_REMOTE_NAME = "origin";
   static final String DEFAULT_CIVISIBILITY_SIGNAL_SERVER_HOST = "127.0.0.1";
   static final int DEFAULT_CIVISIBILITY_SIGNAL_SERVER_PORT = 0;
 

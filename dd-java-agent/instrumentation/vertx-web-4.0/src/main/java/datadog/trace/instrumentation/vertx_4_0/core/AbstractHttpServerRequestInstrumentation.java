@@ -12,6 +12,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import java.util.Set;
@@ -68,6 +69,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
     public static void onExit(
         @Advice.Local("beforeParams") final Object beforeParams,
         @Advice.Return final Object multiMap) {
@@ -91,6 +93,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
     public static void onExit(
         @Advice.Local("beforeAttributes") final Object beforeAttributes,
         @Advice.Return final Object multiMap) {
@@ -107,6 +110,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
   public static class HeadersAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
     public static void onExit(@Advice.Return final Object multiMap) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
@@ -118,6 +122,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
   public static class DataAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_BODY_STRING)
     public static void onExit(@Advice.Argument(0) final Object data) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
@@ -129,6 +134,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
   public static class CookiesAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_COOKIE_VALUE_STRING)
     public static void onExit(@Advice.Return final Set<Object> cookies) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
@@ -140,6 +146,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
   public static class GetCookieAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_COOKIE_VALUE_STRING)
     public static void onExit(@Advice.Return final Object cookie) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {

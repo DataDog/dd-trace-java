@@ -91,7 +91,7 @@ class DatadogProfilerTest {
       assertTrue(cmd.matches(".*?memory=[0-9]+b?:.*?a.*"), cmd);
     }
     if (profiler.enabledModes().contains(ProfilingMode.MEMLEAK)) {
-      assertTrue(cmd.matches(".*?memory=[0-9]+b?:.*?l.*"), cmd);
+      assertTrue(cmd.matches(".*?memory=[0-9]+b?:.*?[lL].*"), cmd);
     }
   }
 

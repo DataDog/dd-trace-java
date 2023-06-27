@@ -14,6 +14,8 @@ import akka.http.scaladsl.server.directives.FormFieldDirectives;
 import akka.http.scaladsl.server.util.Tupler$;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.iast.Source;
+import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.instrumentation.akkahttp.iast.helpers.TaintSingleParameterFunction;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
@@ -99,6 +101,7 @@ public class FormFieldDirectivesInstrumentation extends Instrumenter.Iast
 
   static class TaintSingleFormFieldDirectiveOldScalaAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
     static void after(
         @Advice.Return(readOnly = false, typing = Assigner.Typing.DYNAMIC) Directive retval,
         @Advice.Argument(1) FormFieldDirectives.FieldMagnet fmag) {
@@ -113,6 +116,7 @@ public class FormFieldDirectivesInstrumentation extends Instrumenter.Iast
 
   static class TaintSingleFormFieldDirectiveNewScalaAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
     static void after(
         @Advice.Return(readOnly = false, typing = Assigner.Typing.DYNAMIC) Directive retval,
         @Advice.Argument(0) FormFieldDirectives.FieldMagnet fmag) {

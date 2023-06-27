@@ -14,7 +14,7 @@ class MetricPeriodicActionTest extends Specification {
   void 'test that common metrics are joined before being sent to telemetry'() {
     given:
     final service = Mock(TelemetryService)
-    final MetricCollector<MetricCollector.Metric> metricCollector = Mock()
+    final MetricCollector<MetricCollector.Metric> metricCollector = Mock(MetricCollector)
     final action = new DefaultMetricPeriodicAction(metricCollector)
 
     when:
@@ -46,7 +46,14 @@ class MetricPeriodicActionTest extends Specification {
     metric.metric = metric.metric ?: 'metric'
     metric.common = metric.common == null ? true : metric.common
     metric.tags = metric.tags ?: []
-    return new MetricCollector.Metric(metric.namespace as String, metric.common as boolean, metric.metric as String, metric.counter as Long, metric.tags as String[])
+    return new MetricCollector.Metric(
+      metric.namespace as String,
+      metric.common as boolean,
+      metric.metric as String,
+      'count',
+      metric.counter as Long,
+      metric.tags as String[]
+      )
   }
 
   @NamedVariant

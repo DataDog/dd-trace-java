@@ -55,6 +55,18 @@ final class DDAgentStatsDClient implements StatsDClient {
   }
 
   @Override
+  public void distribution(String metricName, long value, String... tags) {
+    connection.statsd.recordDistributionValue(
+        nameMapping.apply(metricName), value, tagMapping.apply(tags));
+  }
+
+  @Override
+  public void distribution(String metricName, double value, String... tags) {
+    connection.statsd.recordDistributionValue(
+        nameMapping.apply(metricName), value, tagMapping.apply(tags));
+  }
+
+  @Override
   public void serviceCheck(
       final String serviceCheckName,
       final String status,

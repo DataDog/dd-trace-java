@@ -50,10 +50,10 @@ public class TelemetryRequestEndedHandler
   private static void addMetricsToTrace(
       final TraceSegment trace, final Collection<IastMetricData> metrics) {
     for (final IastMetricData data : metrics) {
-      final IastMetric metric = data.metric;
+      final IastMetric metric = data.getMetric();
       if (metric.getScope() == REQUEST) {
-        final String tagValue = metric.getSpanTag();
-        trace.setTagTop(String.format(TRACE_METRIC_PATTERN, tagValue), data.counter);
+        final String tagValue = data.getSpanTag();
+        trace.setTagTop(String.format(TRACE_METRIC_PATTERN, tagValue), data.value);
       }
     }
   }

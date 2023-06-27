@@ -433,6 +433,24 @@ class HealthMetricsTest extends DDSpecification {
     }
 
     @Override
+    void distribution(String metricName, long value, String... tags) {
+      try {
+        delegate.distribution(metricName, value, tags)
+      } finally {
+        latch.countDown()
+      }
+    }
+
+    @Override
+    void distribution(String metricName, double value, String... tags) {
+      try {
+        delegate.distribution(metricName, value, tags)
+      } finally {
+        latch.countDown()
+      }
+    }
+
+    @Override
     void serviceCheck(String serviceCheckName, String status, String message, String... tags) {
       try {
         delegate.serviceCheck(serviceCheckName, status, message, tags)

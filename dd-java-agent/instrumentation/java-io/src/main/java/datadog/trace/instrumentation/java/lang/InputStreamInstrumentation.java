@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import java.io.InputStream;
 import net.bytebuddy.asm.Advice;
@@ -49,6 +50,7 @@ public class InputStreamInstrumentation extends Instrumenter.Iast
   public static class InputStreamAdvice {
 
     @Advice.OnMethodExit
+    @Propagation
     public static void onExit(
         @Advice.This final InputStream self, @Advice.Argument(0) final InputStream param) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;

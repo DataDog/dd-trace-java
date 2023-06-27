@@ -17,6 +17,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.HashMap;
 import java.util.Map;
@@ -30,11 +31,6 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public LoggingEventInstrumentation() {
     super("logback");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isLogsInjectionEnabled();
   }
 
   @Override
@@ -82,6 +78,11 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
 
       AgentSpan.Context context =
           InstrumentationContext.get(ILoggingEvent.class, AgentSpan.Context.class).get(event);
+
+      // Nothing to add so return early
+      if (context == null && !AgentTracer.traceConfig().isLogsInjectionEnabled()) {
+        return;
+      }
 
       Map<String, String> correlationValues = new HashMap<>(8);
 

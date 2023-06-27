@@ -12,6 +12,9 @@ import akka.http.scaladsl.model.Uri;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Propagation;
+import datadog.trace.api.iast.Source;
+import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.source.WebModule;
 import java.util.Collections;
@@ -61,6 +64,7 @@ public class UriInstrumentation extends Instrumenter.Iast implements Instrumente
 
   static class TaintQueryStringAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Propagation
     static void after(@Advice.This Uri uri, @Advice.Return scala.Option<String> ret) {
       PropagationModule mod = InstrumentationBridge.PROPAGATION;
       if (mod == null || ret.isEmpty()) {
@@ -74,6 +78,7 @@ public class UriInstrumentation extends Instrumenter.Iast implements Instrumente
     // bind uri to a variable of type Object so that this advice can also
     // be used from FromDataInstrumentaton
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
     static void after(@Advice.This /*Uri*/ Object uri, @Advice.Return Uri.Query ret) {
       WebModule web = InstrumentationBridge.WEB;
       PropagationModule prop = InstrumentationBridge.PROPAGATION;
