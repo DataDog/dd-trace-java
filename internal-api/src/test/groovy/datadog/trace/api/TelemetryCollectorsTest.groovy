@@ -1,5 +1,8 @@
 package datadog.trace.api
 
+import datadog.trace.api.metrics.SpanMetricRegistryImpl
+import datadog.trace.api.telemetry.CoreMetricCollector
+import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.test.util.DDSpecification
 
 class TelemetryCollectorsTest extends DDSpecification {
@@ -184,5 +187,35 @@ class TelemetryCollectorsTest extends DDSpecification {
 
     then:
     ConfigCollector.get().collect().get('DD_API_KEY') == '<hidden>'
+  }
+
+  def "update-drain span core metrics"() {
+    setup:
+    def spanMetrics = SpanMetricRegistryImpl.getInstance().get('test-update-drain')
+    spanMetrics.onSpanCreated()
+    spanMetrics.onSpanCreated()
+    spanMetrics.onSpanFinished()
+    def collector = CoreMetricCollector.getInstance()
+
+    when:
+    collector.prepareMetrics()
+    def metrics = collector.drain()
+
+    then:
+    metrics.size() == 2
+
+    def spanCreatedMetric = metrics[0]
+    spanCreatedMetric.type == 'counter'
+    spanCreatedMetric.value == 2
+    spanCreatedMetric.namespace == 'tracers'
+    spanCreatedMetric.metricName == 'span_created'
+    spanCreatedMetric.tags == ['test-update-drain']
+
+    def spanFinishedMetric = metrics[1]
+    spanFinishedMetric.type == 'counter'
+    spanFinishedMetric.value == 1
+    spanFinishedMetric.namespace == 'tracers'
+    spanFinishedMetric.metricName == 'span_finished'
+    spanFinishedMetric.tags == ['test-update-drain']
   }
 }

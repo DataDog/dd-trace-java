@@ -6,7 +6,6 @@ import datadog.trace.api.TraceConfig;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
-import datadog.trace.core.metrics.SpanMetrics;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,21 +50,18 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     private final TimeSource timeSource;
     private final boolean strictTraceWrites;
     private final HealthMetrics healthMetrics;
-    private final SpanMetrics spanMetrics;
 
     Factory(
         CoreTracer tracer,
         PendingTraceBuffer pendingTraceBuffer,
         TimeSource timeSource,
         boolean strictTraceWrites,
-        HealthMetrics healthMetrics,
-        SpanMetrics spanMetrics) {
+        HealthMetrics healthMetrics) {
       this.tracer = tracer;
       this.pendingTraceBuffer = pendingTraceBuffer;
       this.timeSource = timeSource;
       this.strictTraceWrites = strictTraceWrites;
       this.healthMetrics = healthMetrics;
-      this.spanMetrics = spanMetrics;
     }
 
     /** Used by tests and benchmarks. */
@@ -81,8 +77,8 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
           timeSource,
           traceConfig,
           strictTraceWrites,
-          healthMetrics,
-          spanMetrics);
+          healthMetrics
+      );
     }
   }
 
@@ -94,7 +90,6 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   private final TimeSource timeSource;
   private final boolean strictTraceWrites;
   private final HealthMetrics healthMetrics;
-  private final SpanMetrics spanMetrics;
   private final TraceConfig traceConfig;
 
   /**
@@ -154,8 +149,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
       @Nonnull TimeSource timeSource,
       TraceConfig traceConfig,
       boolean strictTraceWrites,
-      HealthMetrics healthMetrics,
-      SpanMetrics spanMetrics) {
+      HealthMetrics healthMetrics) {
     this.tracer = tracer;
     this.traceId = traceId;
     this.pendingTraceBuffer = pendingTraceBuffer;
@@ -163,7 +157,6 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     this.traceConfig = traceConfig != null ? traceConfig : tracer.captureTraceConfig();
     this.strictTraceWrites = strictTraceWrites;
     this.healthMetrics = healthMetrics;
-    this.spanMetrics = spanMetrics;
     this.spans = new ConcurrentLinkedDeque<>();
   }
 
@@ -213,7 +206,6 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     ROOT_SPAN.compareAndSet(this, null, span);
     PENDING_REFERENCE_COUNT.incrementAndGet(this);
     healthMetrics.onCreateSpan();
-    spanMetrics.onSpanCreated(span.getInstrumentationName());
     if (pendingTraceBuffer.longRunningSpansEnabled()) {
       spans.addFirst(span);
       trackRunningTrace(span);
@@ -259,7 +251,6 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     // progress before the count has been incremented. It's being taken care of in the internal
     // write method.
     healthMetrics.onFinishSpan();
-    spanMetrics.onSpanFinished(span.getInstrumentationName());
     COMPLETED_SPAN_COUNT.incrementAndGet(this);
     return decrementRefAndMaybeWrite(span == getRootSpan());
   }

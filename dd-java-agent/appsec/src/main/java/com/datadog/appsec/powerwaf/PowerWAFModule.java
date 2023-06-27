@@ -27,7 +27,7 @@ import com.squareup.moshi.Types;
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
-import datadog.trace.api.WafMetricCollector;
+import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.api.gateway.Flow;
 import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.Powerwaf;

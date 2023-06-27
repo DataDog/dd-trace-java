@@ -1,6 +1,5 @@
-package datadog.trace.api;
+package datadog.trace.api.telemetry;
 
-import datadog.trace.api.telemetry.MetricCollector;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;

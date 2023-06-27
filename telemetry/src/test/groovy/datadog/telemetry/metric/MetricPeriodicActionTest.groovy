@@ -3,6 +3,7 @@ package datadog.telemetry.metric
 
 import datadog.telemetry.TelemetryService
 import datadog.telemetry.api.Metric
+import datadog.trace.api.telemetry.CoreMetricCollector
 import datadog.trace.api.telemetry.MetricCollector
 import edu.umd.cs.findbugs.annotations.NonNull
 import groovy.transform.NamedDelegate
@@ -101,7 +102,7 @@ class MetricPeriodicActionTest extends Specification {
 
     @Override
     @NonNull
-    MetricCollector<Metric> collector() {
+    CoreMetricCollector collector() {
       return collector
     }
   }

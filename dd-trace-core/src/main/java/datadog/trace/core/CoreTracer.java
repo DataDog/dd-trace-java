@@ -77,8 +77,6 @@ import datadog.trace.core.datastreams.DataStreamsContextCarrierAdapter;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
 import datadog.trace.core.datastreams.NoopDataStreamsMonitoring;
-import datadog.trace.core.metrics.SpanMetrics;
-import datadog.trace.core.metrics.SpanMetricsImpl;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.monitor.TracerHealthMetrics;
@@ -582,10 +580,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.writer = writer;
     }
 
-    SpanMetrics spanMetrics =
-        InstrumenterConfig.get().isTelemetryEnabled()
-            ? new SpanMetricsImpl(Metrics.getInstance())
-            : SpanMetrics.NOOP;
     pendingTraceBuffer =
         strictTraceWrites
             ? PendingTraceBuffer.discarding()
@@ -597,8 +591,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             pendingTraceBuffer,
             this.timeSource,
             strictTraceWrites,
-            healthMetrics,
-            spanMetrics);
+            healthMetrics);
     pendingTraceBuffer.start();
 
     this.writer.start();

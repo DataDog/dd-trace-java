@@ -17,6 +17,8 @@ import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.metrics.SpanMetricRegistry;
+import datadog.trace.api.metrics.SpanMetrics;
 import datadog.trace.api.profiling.TransientProfilingContextHolder;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -55,8 +57,8 @@ public class DDSpan
     return span;
   }
 
-  /** The instrumentation that created the span. */
-  private final String instrumentationName;
+  /** The metrics for this span instance. */
+  private final SpanMetrics metrics;
 
   /** The context attached to the span */
   private final DDSpanContext context;
@@ -114,8 +116,9 @@ public class DDSpan
       @Nonnull String instrumentationName,
       final long timestampMicro,
       @Nonnull DDSpanContext context) {
-    this.instrumentationName = instrumentationName;
     this.context = context;
+    this.metrics = SpanMetricRegistry.getInstance().get(instrumentationName);
+    this.metrics.onSpanCreated();
 
     if (timestampMicro <= 0L) {
       // note: getting internal time from the trace implicitly 'touches' it
@@ -128,15 +131,6 @@ public class DDSpan
     }
   }
 
-  /**
-   * Get the instrumentation that created the span.
-   *
-   * @return The instrumentation that created the span.
-   */
-  public String getInstrumentationName() {
-    return instrumentationName;
-  }
-
   public boolean isFinished() {
     return durationNano != 0;
   }
@@ -145,6 +139,7 @@ public class DDSpan
     // ensure a min duration of 1
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano))) {
       setLongRunningVersion(-this.longRunningVersion);
+      this.metrics.onSpanFinished();
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
       log.debug("Finished span ({}): {}", publishState, this);
     } else {

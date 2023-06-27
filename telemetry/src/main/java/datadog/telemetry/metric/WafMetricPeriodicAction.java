@@ -1,6 +1,6 @@
 package datadog.telemetry.metric;
 
-import datadog.trace.api.WafMetricCollector;
+import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.api.telemetry.MetricCollector;
 import edu.umd.cs.findbugs.annotations.NonNull;
 

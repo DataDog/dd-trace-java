@@ -186,7 +186,7 @@ class IastMetricCollectorTest extends DDSpecification {
       final tagValue = "${metric.tag.name}:${it}"
       final data = grouped[tagValue].first()
       assert data.metric == metric
-      assert data.counter == value
+      assert data.value.toLong() == value
       assert data.tags == [tagValue]
     }
   }

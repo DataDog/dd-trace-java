@@ -5,7 +5,6 @@ import datadog.trace.api.TraceConfig
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.time.TimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
-import datadog.trace.core.metrics.SpanMetrics
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.propagation.PropagationTags
 import spock.lang.Timeout
@@ -75,10 +74,9 @@ class PendingTraceTest extends PendingTraceTestBase {
     def traceConfig = Mock(TraceConfig)
     def buffer = Mock(PendingTraceBuffer)
     def healthMetrics = Mock(HealthMetrics)
-    def spanMetrics = Mock(SpanMetrics)
     tracer.captureTraceConfig() >> traceConfig
     traceConfig.getServiceMapping() >> [:]
-    PendingTrace trace = new PendingTrace(tracer, DDTraceId.from(0), buffer, Mock(TimeSource), null, false, healthMetrics, spanMetrics)
+    PendingTrace trace = new PendingTrace(tracer, DDTraceId.from(0), buffer, Mock(TimeSource), null, false, healthMetrics)
     when:
     rootSpan = createSimpleSpan(trace)
     trace.registerSpan(rootSpan)
@@ -97,10 +95,9 @@ class PendingTraceTest extends PendingTraceTestBase {
     def traceConfig = Mock(TraceConfig)
     def buffer = Mock(PendingTraceBuffer)
     def healthMetrics = Mock(HealthMetrics)
-    def spanMetrics = Mock(SpanMetrics)
     tracer.captureTraceConfig() >> traceConfig
     traceConfig.getServiceMapping() >> [:]
-    PendingTrace trace = new PendingTrace(tracer, DDTraceId.from(0), buffer, Mock(TimeSource), null, false, healthMetrics, spanMetrics)
+    PendingTrace trace = new PendingTrace(tracer, DDTraceId.from(0), buffer, Mock(TimeSource), null, false, healthMetrics)
     buffer.longRunningSpansEnabled() >> true
 
     def span1 = createSimpleSpanWithID(trace,39)
@@ -133,10 +130,9 @@ class PendingTraceTest extends PendingTraceTestBase {
     def traceConfig = Mock(TraceConfig)
     def buffer = Mock(PendingTraceBuffer)
     def healthMetrics = Mock(HealthMetrics)
-    def spanMetrics = Mock(SpanMetrics)
     tracer.captureTraceConfig() >> traceConfig
     traceConfig.getServiceMapping() >> [:]
-    PendingTrace trace = new PendingTrace(tracer, DDTraceId.from(0), buffer, Mock(TimeSource), null, false, healthMetrics, spanMetrics)
+    PendingTrace trace = new PendingTrace(tracer, DDTraceId.from(0), buffer, Mock(TimeSource), null, false, healthMetrics)
     buffer.longRunningSpansEnabled() >> true
 
     def span1 = createSimpleSpanWithID(trace,39)
