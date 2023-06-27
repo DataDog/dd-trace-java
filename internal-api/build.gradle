@@ -35,7 +35,6 @@ excludedClassesCoverage += [
   "datadog.trace.api.profiling.ProfilingSnapshot.Kind",
   "datadog.trace.api.WithGlobalTracer.1",
   "datadog.trace.api.naming.**",
-  "datadog.trace.api.metrics.NoopMetrics.**",
   // an enum
   "datadog.trace.api.sampling.AdaptiveSampler",
   "datadog.trace.api.sampling.ConstantSampler",
