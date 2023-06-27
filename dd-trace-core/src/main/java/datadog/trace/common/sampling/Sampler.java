@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.SamplerConstants.DROP;
 import static datadog.trace.bootstrap.instrumentation.api.SamplerConstants.KEEP;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -27,7 +28,7 @@ public interface Sampler {
   final class Builder {
     private static final Logger log = LoggerFactory.getLogger(Builder.class);
 
-    public static Sampler forConfig(final Config config) {
+    public static Sampler forConfig(final Config config, final TraceConfig traceConfig) {
       Sampler sampler;
       if (config != null) {
         final Map<String, String> serviceRules = config.getTraceSamplingServiceRules();
@@ -49,17 +50,19 @@ public interface Sampler {
               TracerConfig.TRACE_SAMPLING_RULES,
               TracerConfig.TRACE_SAMPLING_RULES);
         }
+        Double traceSampleRate =
+            null != traceConfig ? traceConfig.getTraceSampleRate() : config.getTraceSampleRate();
         if (serviceRulesDefined
             || operationRulesDefined
             || jsonTraceSamplingRulesDefined
-            || config.getTraceSampleRate() != null) {
+            || traceSampleRate != null) {
           try {
             sampler =
                 RuleBasedTraceSampler.build(
                     serviceRules,
                     operationRules,
                     traceSamplingRules,
-                    config.getTraceSampleRate(),
+                    traceSampleRate,
                     config.getTraceRateLimit());
           } catch (final IllegalArgumentException e) {
             log.error("Invalid sampler configuration. Using AllSampler", e);
@@ -87,7 +90,7 @@ public interface Sampler {
     }
 
     public static Sampler forConfig(final Properties config) {
-      return forConfig(Config.get(config));
+      return forConfig(Config.get(config), null);
     }
 
     private Builder() {}

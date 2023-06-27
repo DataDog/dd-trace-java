@@ -23,7 +23,20 @@ public class CapturedSnapshot23 {
   }
 
   private int doit(String arg) {
-    return Integer.parseInt(MyEnum.TWO.getStrValue());
+    if ("".equals(arg)) {
+      return Integer.parseInt(MyEnum.TWO.getStrValue());
+    }
+    return Integer.parseInt(convert(arg).getStrValue());
+  }
+
+  private MyEnum convert(String value) {
+    switch (value) {
+      case "1": return MyEnum.ONE;
+      case "2": return MyEnum.TWO;
+      case "3": return MyEnum.THREE;
+      default:
+        throw new IllegalArgumentException("Unknown value: " + value);
+    }
   }
 
   public static int main(String arg) {

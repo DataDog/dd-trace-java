@@ -1,7 +1,6 @@
 package datadog.trace.core
 
 import datadog.trace.api.DDTraceId
-import datadog.trace.api.TraceConfig
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.time.TimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -71,7 +70,7 @@ class PendingTraceTest extends PendingTraceTestBase {
   def "verify healthmetrics called"() {
     setup:
     def tracer = Mock(CoreTracer)
-    def traceConfig = Mock(TraceConfig)
+    def traceConfig = Mock(CoreTracer.ConfigSnapshot)
     def buffer = Mock(PendingTraceBuffer)
     def healthMetrics = Mock(HealthMetrics)
     tracer.captureTraceConfig() >> traceConfig
@@ -92,7 +91,7 @@ class PendingTraceTest extends PendingTraceTestBase {
   def "write when writeRunningSpans is disabled: only completed spans are written"() {
     setup:
     def tracer = Mock(CoreTracer)
-    def traceConfig = Mock(TraceConfig)
+    def traceConfig = Mock(CoreTracer.ConfigSnapshot)
     def buffer = Mock(PendingTraceBuffer)
     def healthMetrics = Mock(HealthMetrics)
     tracer.captureTraceConfig() >> traceConfig
@@ -127,7 +126,7 @@ class PendingTraceTest extends PendingTraceTestBase {
   def "write when writeRunningSpans is enabled: complete and running spans are written"() {
     setup:
     def tracer = Mock(CoreTracer)
-    def traceConfig = Mock(TraceConfig)
+    def traceConfig = Mock(CoreTracer.ConfigSnapshot)
     def buffer = Mock(PendingTraceBuffer)
     def healthMetrics = Mock(HealthMetrics)
     tracer.captureTraceConfig() >> traceConfig

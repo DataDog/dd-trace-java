@@ -448,7 +448,7 @@ public class MoshiSnapshotTestHelper {
         case "java.lang.String":
           return strValue;
       }
-      return null;
+      return strValue;
     }
   }
 

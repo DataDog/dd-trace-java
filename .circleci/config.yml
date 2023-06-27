@@ -7,11 +7,11 @@ defaults: &defaults
 
 test_matrix: &test_matrix
   parameters:
-    testJvm: [ "ibm8", "semeru8", "zulu8", "oracle8", "11", "zulu11", "17" ]
+    testJvm: [ "ibm8", "semeru8", "zulu8", "oracle8", "11", "zulu11", "17", "ubuntu17" ]
 
 profiling_test_matrix: &profiling_test_matrix
   parameters:
-    testJvm: [ "8", "zulu8", "oracle8", "11", "zulu11", "17" ]
+    testJvm: [ "8", "zulu8", "oracle8", "11", "zulu11", "17", "ubuntu17" ]
 
 system_test_matrix: &system_test_matrix
   parameters:

@@ -45,7 +45,7 @@ class CoreTracerTest extends DDCoreSpecification {
 
     then:
     tracer.serviceName != ""
-    tracer.sampler instanceof RateByServiceTraceSampler
+    tracer.initialSampler instanceof RateByServiceTraceSampler
     tracer.writer instanceof DDAgentWriter
     tracer.statsDClient != null && tracer.statsDClient != StatsDClient.NO_OP
 
@@ -132,7 +132,7 @@ class CoreTracerTest extends DDCoreSpecification {
     def tracer = tracerBuilder().build()
 
     then:
-    tracer.sampler instanceof AllSampler
+    tracer.initialSampler instanceof AllSampler
 
     cleanup:
     tracer.close()
@@ -429,6 +429,7 @@ class CoreTracerTest extends DDCoreSpecification {
     and:
     tracer.captureTraceConfig().serviceMapping == [:]
     tracer.captureTraceConfig().headerTags == [:]
+    tracer.captureTraceConfig().traceSampleRate == null
 
     when:
     updater.accept(key, '''
@@ -452,6 +453,8 @@ class CoreTracerTest extends DDCoreSpecification {
              "header": "Referer",
              "tag_name": "http.referer"
           }]
+          ,
+          "tracing_sampling_rate": 0.5
         }
       }
       '''.getBytes(StandardCharsets.UTF_8), null)
@@ -459,6 +462,7 @@ class CoreTracerTest extends DDCoreSpecification {
     then:
     tracer.captureTraceConfig().serviceMapping == ['foobar':'bar', 'snafu':'foo']
     tracer.captureTraceConfig().headerTags == ['user-agent':'http.user_agent', 'referer':'http.referer']
+    tracer.captureTraceConfig().traceSampleRate == 0.5
 
     when:
     updater.remove(key, null)
@@ -466,6 +470,7 @@ class CoreTracerTest extends DDCoreSpecification {
     then:
     tracer.captureTraceConfig().serviceMapping == [:]
     tracer.captureTraceConfig().headerTags == [:]
+    tracer.captureTraceConfig().traceSampleRate == null
 
     cleanup:
     tracer.close()

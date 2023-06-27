@@ -62,6 +62,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PERF_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_ENABLED;
@@ -279,6 +280,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATIO
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_UNACKNOWLEDGED_MAX_AGE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MESSAGE_BROKER_SPLIT_BY_DESTINATION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.OBFUSCATION_QUERY_STRING_REGEXP;
 import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HTTP_STATUS;
@@ -508,6 +510,7 @@ public class Config {
   private final Set<TracePropagationStyle> tracePropagationStylesToExtract;
   private final Set<TracePropagationStyle> tracePropagationStylesToInject;
   private final int clockSyncPeriod;
+  private final boolean logsInjectionEnabled;
 
   private final String dogStatsDNamedPipe;
   private final int dogStatsDStartDelay;
@@ -1132,6 +1135,9 @@ public class Config {
 
     clockSyncPeriod = configProvider.getInteger(CLOCK_SYNC_PERIOD, DEFAULT_CLOCK_SYNC_PERIOD);
 
+    logsInjectionEnabled =
+        configProvider.getBoolean(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
+
     dogStatsDNamedPipe = configProvider.getString(DOGSTATSD_NAMED_PIPE);
 
     dogStatsDStartDelay =
@@ -1219,8 +1225,9 @@ public class Config {
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, PROFILING_AGENTLESS_DEFAULT);
     isDatadogProfilerEnabled =
-        configProvider.getBoolean(
-            PROFILING_DATADOG_PROFILER_ENABLED, isDatadogProfilerSafeInCurrentEnvironment());
+        !isDatadogProfilerEnablementOverridden()
+            && configProvider.getBoolean(
+                PROFILING_DATADOG_PROFILER_ENABLED, isDatadogProfilerSafeInCurrentEnvironment());
     profilingUrl = configProvider.getString(PROFILING_URL);
 
     if (tmpApiKey == null) {
@@ -2018,7 +2025,7 @@ public class Config {
   }
 
   public boolean isLogsInjectionEnabled() {
-    return instrumenterConfig.isLogsInjectionEnabled();
+    return logsInjectionEnabled;
   }
 
   public boolean isReportHostName() {
@@ -2149,6 +2156,18 @@ public class Config {
 
   public boolean isDatadogProfilerEnabled() {
     return isDatadogProfilerEnabled;
+  }
+
+  public static boolean isDatadogProfilerEnablementOverridden() {
+    // old non-LTS versions without important backports
+    return Platform.isJavaVersion(18)
+        || Platform.isJavaVersion(16)
+        || Platform.isJavaVersion(15)
+        || Platform.isJavaVersion(14)
+        || Platform.isJavaVersion(13)
+        || Platform.isJavaVersion(12)
+        || Platform.isJavaVersion(10)
+        || Platform.isJavaVersion(9);
   }
 
   public static boolean isDatadogProfilerSafeInCurrentEnvironment() {
@@ -3684,6 +3703,8 @@ public class Config {
         + elasticsearchBodyAndParamsEnabled
         + ", traceFlushInterval="
         + traceFlushIntervalSeconds
+        + ", logsInjectionEnabled="
+        + logsInjectionEnabled
         + '}';
   }
 }

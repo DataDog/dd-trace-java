@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;
 
+/** Client for fetching data and performing operations on a local Git repository. */
 public class GitClient {
 
   private static final String DD_TEMP_DIRECTORY_PREFIX = "dd-ci-vis-";
@@ -23,6 +24,16 @@ public class GitClient {
   private final int latestCommitsLimit;
   private final ShellCommandExecutor commandExecutor;
 
+  /**
+   * Creates a new git client
+   *
+   * @param repoRoot Absolute path to Git repository root
+   * @param latestCommitsSince How far into the past the client should be looking when fetching Git
+   *     data, e.g. {@code "1 month ago"} or {@code "2 years ago"}
+   * @param latestCommitsLimit Maximum client of commits that the client should be considering when
+   *     fetching commit data
+   * @param timeoutMillis Timeout in milliseconds that is applied to executed Git commands
+   */
   public GitClient(
       String repoRoot, String latestCommitsSince, int latestCommitsLimit, long timeoutMillis) {
     this.repoRoot = repoRoot;
@@ -31,6 +42,16 @@ public class GitClient {
     commandExecutor = new ShellCommandExecutor(new File(repoRoot), timeoutMillis);
   }
 
+  /**
+   * Returns URL of the remote with the given name
+   *
+   * @param remoteName Name of the remote
+   * @return URL of the given remote
+   * @throws IOException If an error was encountered while writing command input or reading output
+   * @throws TimeoutException If timeout was reached while waiting for Git command to finish
+   * @throws InterruptedException If current thread was interrupted while waiting for Git command to
+   *     finish
+   */
   public String getRemoteUrl(String remoteName)
       throws IOException, TimeoutException, InterruptedException {
     return commandExecutor
@@ -39,6 +60,16 @@ public class GitClient {
         .trim();
   }
 
+  /**
+   * Returns SHAs of the latest commits in the current branch. Maximum number of commits and how far
+   * into the past to look are configured when the client is created.
+   *
+   * @return SHAs of latest commits
+   * @throws IOException If an error was encountered while writing command input or reading output
+   * @throws TimeoutException If timeout was reached while waiting for Git command to finish
+   * @throws InterruptedException If current thread was interrupted while waiting for Git command to
+   *     finish
+   */
   public List<String> getLatestCommits()
       throws IOException, TimeoutException, InterruptedException {
     return commandExecutor.executeCommand(
@@ -51,6 +82,18 @@ public class GitClient {
         String.format("--since='%s'", latestCommitsSince));
   }
 
+  /**
+   * Returns SHAs of all Git objects in the current branch. Lookup is started from HEAD commit.
+   * Maximum number of commits and how far into the past to look are configured when the client is
+   * created.
+   *
+   * @param commitsToSkip List of commits to skip
+   * @return SHAs of relevant Git objects
+   * @throws IOException If an error was encountered while writing command input or reading output
+   * @throws TimeoutException If timeout was reached while waiting for Git command to finish
+   * @throws InterruptedException If current thread was interrupted while waiting for Git command to
+   *     finish
+   */
   public List<String> getObjects(List<String> commitsToSkip)
       throws IOException, TimeoutException, InterruptedException {
     return getObjects("HEAD", commitsToSkip);
@@ -75,6 +118,17 @@ public class GitClient {
     return commandExecutor.executeCommand(IOUtils::readLines, command);
   }
 
+  /**
+   * Creates Git .pack files that include provided objects. The files are created in a temporary
+   * folder.
+   *
+   * @param objectHashes SHAs of objects that should be included in the pack files
+   * @return Path to temporary folder where created pack files are located
+   * @throws IOException If an error was encountered while writing command input or reading output
+   * @throws TimeoutException If timeout was reached while waiting for Git command to finish
+   * @throws InterruptedException If current thread was interrupted while waiting for Git command to
+   *     finish
+   */
   public Path createPackFiles(List<String> objectHashes)
       throws IOException, TimeoutException, InterruptedException {
     byte[] input = Strings.join("\n", objectHashes).getBytes(Charset.defaultCharset());

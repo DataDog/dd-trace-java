@@ -17,6 +17,7 @@ import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/** API for making Git-data-related requests to backend */
 public class GitDataApi {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GitDataApi.class);
@@ -40,6 +41,14 @@ public class GitDataApi {
     pushedShaAdapter = moshi.adapter(PushedSha.class);
   }
 
+  /**
+   * Searches the list of commits that exist in Git DB on the server side
+   *
+   * @param gitRemoteUrl Git remote URL
+   * @param commitHashes List of commit SHAs that should be checked
+   * @return SHAs of commits that already exist on the server
+   * @throws IOException if remote request fails
+   */
   public List<String> searchCommits(String gitRemoteUrl, List<String> commitHashes)
       throws IOException {
     List<Commit> commits = commitHashes.stream().map(Commit::new).collect(Collectors.toList());
@@ -57,6 +66,14 @@ public class GitDataApi {
     return response.data.stream().map(Commit::getId).collect(Collectors.toList());
   }
 
+  /**
+   * Uploads a Git pack file to Git DB on the server side
+   *
+   * @param gitRemoteUrl Git remote URL
+   * @param currentCommitHash SHA of commit with which the pack file is associated
+   * @param packFile Path to the fila that is being uploaded
+   * @throws IOException if remote request fails
+   */
   public void uploadPackFile(String gitRemoteUrl, String currentCommitHash, Path packFile)
       throws IOException {
     PushedSha pushedSha = new PushedSha(new Commit(currentCommitHash), new Meta(gitRemoteUrl));

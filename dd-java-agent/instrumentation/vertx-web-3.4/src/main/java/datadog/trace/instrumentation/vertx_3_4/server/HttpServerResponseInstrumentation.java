@@ -10,6 +10,8 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Sink;
+import datadog.trace.api.iast.VulnerabilityTypes;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -54,6 +56,7 @@ public class HttpServerResponseInstrumentation extends Instrumenter.Iast
 
   public static class PutHeaderAdvice1 {
     @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Sink(VulnerabilityTypes.RESPONSE_HEADER)
     public static void onEnter(
         @Advice.Argument(0) final CharSequence name, @Advice.Argument(1) CharSequence value) {
       if (null != name) {
@@ -64,6 +67,7 @@ public class HttpServerResponseInstrumentation extends Instrumenter.Iast
 
   public static class PutHeaderAdvice2 {
     @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Sink(VulnerabilityTypes.RESPONSE_HEADER)
     public static void onEnter(
         @Advice.Argument(0) final CharSequence name, @Advice.Argument(1) Iterable values) {
       if (null != values) {

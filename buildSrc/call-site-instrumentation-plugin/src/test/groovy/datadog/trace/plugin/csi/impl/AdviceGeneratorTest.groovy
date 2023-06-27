@@ -1,32 +1,20 @@
 package datadog.trace.plugin.csi.impl
 
-import com.github.javaparser.JavaParser
-import com.github.javaparser.ParserConfiguration
-import com.github.javaparser.ast.CompilationUnit
-import com.github.javaparser.ast.Node
-import com.github.javaparser.ast.body.MethodDeclaration
-import com.github.javaparser.ast.body.TypeDeclaration
-import com.github.javaparser.ast.expr.ConditionalExpr
-import com.github.javaparser.ast.expr.MethodCallExpr
-import com.github.javaparser.symbolsolver.JavaSymbolSolver
+
 import datadog.trace.agent.tooling.csi.CallSite
 import datadog.trace.agent.tooling.csi.CallSites
 import datadog.trace.plugin.csi.AdviceGenerator
+import datadog.trace.plugin.csi.impl.assertion.AssertBuilder
+import datadog.trace.plugin.csi.impl.assertion.CallSiteAssert
 import groovy.transform.CompileDynamic
-import org.objectweb.asm.Type
 import spock.lang.Requires
 import spock.lang.TempDir
 
 import javax.servlet.ServletRequest
 import java.lang.invoke.MethodHandles
 import java.lang.invoke.MethodType
-import java.lang.reflect.Executable
-import java.lang.reflect.Method
-import java.security.MessageDigest
 
 import static CallSiteFactory.pointcutParser
-import static datadog.trace.plugin.csi.impl.CallSiteFactory.typeResolver
-import static datadog.trace.plugin.csi.util.CallSiteUtils.classNameToType
 
 @CompileDynamic
 final class AdviceGeneratorTest extends BaseCsiPluginTest {
@@ -464,127 +452,9 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
     return new AdviceGeneratorImpl(targetFolder, pointcutParser())
   }
 
-  private static CompilationUnit parseJavaFile(final File file)
-    throws FileNotFoundException {
-    final JavaSymbolSolver solver = new JavaSymbolSolver(typeResolver());
-    final JavaParser parser = new JavaParser(new ParserConfiguration().setSymbolResolver(solver));
-    return parser.parse(file).getResult().get();
-  }
-
-  private static Map<String, MethodDeclaration> groupMethods(final TypeDeclaration<?> classNode) {
-    return classNode.methods.groupBy { it.name.asString() }
-      .collectEntries { key, value -> [key, value.get(0)] }
-  }
-
-  private static List<Class<?>> getImplementedTypes(final TypeDeclaration<?> type) {
-    return type.asClassOrInterfaceDeclaration().implementedTypes.collect {
-      final resolved = it.asClassOrInterfaceType().resolve()
-      return resolved.typeDeclaration.get().clazz
-    }
-  }
-
-  private static Executable resolveMethod(final MethodCallExpr methodCallExpr) {
-    final resolved = methodCallExpr.resolve()
-    return resolved.@method as Method
-  }
-
-  private static List<MethodCallExpr> getMethodCalls(final MethodDeclaration method) {
-    return method.body.get().statements.findAll {
-      it.isExpressionStmt() && it.asExpressionStmt().expression.isMethodCallExpr()
-    }.collect {
-      it.asExpressionStmt().expression.asMethodCallExpr()
-    }
-  }
-
   private static void assertCallSites(final File generated, @DelegatesTo(CallSiteAssert) final Closure closure) {
-    final asserter = buildAsserter(generated)
+    final asserter = new AssertBuilder(generated).build()
     closure.delegate = asserter
     closure(asserter)
-  }
-
-  private static CallSiteAssert buildAsserter(final File file) {
-    final javaFile = parseJavaFile(file)
-    assert javaFile.parsed == Node.Parsedness.PARSED
-    final adviceClass = javaFile.primaryType.get()
-    final interfaces = getImplementedTypes(adviceClass)
-    final methods = groupMethods(adviceClass)
-    Executable enabled = null
-    List<String> enabledArgs = null
-    if (interfaces.contains(CallSites.HasEnabledProperty)) {
-      final isEnabled = methods['isEnabled']
-      final returnStatement = isEnabled.body.get().statements.first.get().asReturnStmt()
-      final enabledMethodCall = returnStatement.expression.get().asMethodCallExpr()
-      enabled = resolveMethod(enabledMethodCall)
-      enabledArgs = enabledMethodCall.getArguments().collect { it.asStringLiteralExpr().asString() }
-    }
-    final accept = methods['accept']
-    final methodCalls = getMethodCalls(accept)
-    final addHelpers = methodCalls.find { it.name.toString() == 'addHelpers' }
-    assert addHelpers.scope.get().toString() == 'container'
-    assert addHelpers.name.toString() == 'addHelpers'
-    final helpers = addHelpers.getArguments().collect { typeResolver().resolveType(classNameToType(it.asStringLiteralExpr().asString())) }
-    final addAdvices = methodCalls.findAll { it.name.toString() == 'addAdvice' }
-    final advices = addAdvices.collect {
-      def (owner, method, descriptor) =  it.arguments.subList(0, 3)*.asStringLiteralExpr()*.asString()
-      final handlerLambda = it.arguments[3].asLambdaExpr()
-      final advice = handlerLambda.body.asBlockStmt().statements*.toString()
-      return new AdviceAssert([
-        owner     : owner,
-        method    : method,
-        descriptor: descriptor,
-        statements: advice
-      ])
-    }
-    return new CallSiteAssert([
-      interfaces : interfaces,
-      helpers    : helpers,
-      advices    : advices,
-      enabled    : enabled,
-      enabledArgs: enabledArgs
-    ])
-  }
-
-  static class CallSiteAssert {
-    private Collection<Class<?>> interfaces
-    private Collection<Class<?>> helpers
-    private Collection<AdviceAssert> advices
-    private Method enabled
-    private Collection<String> enabledArgs
-
-    void interfaces(Class<?>... values) {
-      assert values.toList() == interfaces
-    }
-
-    void helpers(Class<?>... values) {
-      assert values.toList() == helpers
-    }
-
-    void advices(int index, @DelegatesTo(AdviceAssert) Closure closure) {
-      final asserter = advices[index]
-      closure.delegate = asserter
-      closure(asserter)
-    }
-
-    void enabled(Method method, String... args) {
-      assert method == enabled
-      assert args.toList() == enabledArgs
-    }
-  }
-
-  static class AdviceAssert {
-    private String owner
-    private String method
-    private String descriptor
-    private Collection<String> statements
-
-    void pointcut(String owner, String method, String descriptor) {
-      assert owner == this.owner
-      assert method == this.method
-      assert descriptor == this.descriptor
-    }
-
-    void statements(String... values) {
-      assert values.toList() == statements
-    }
   }
 }

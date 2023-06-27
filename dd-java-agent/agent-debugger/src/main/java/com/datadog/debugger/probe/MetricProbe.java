@@ -7,8 +7,11 @@ import com.datadog.debugger.instrumentation.MetricInstrumentor;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
@@ -16,9 +19,59 @@ import org.objectweb.asm.tree.MethodNode;
 public class MetricProbe extends ProbeDefinition {
 
   public enum MetricKind {
-    COUNT,
-    GAUGE,
-    HISTOGRAM
+    COUNT("count") {
+      @Override
+      public boolean isCompatible(Type type) {
+        return type == Type.INT_TYPE || type == Type.LONG_TYPE;
+      }
+
+      @Override
+      public Collection<Type> getSupportedTypes() {
+        return Collections.singleton(Type.LONG_TYPE);
+      }
+    },
+    GAUGE("gauge") {
+      @Override
+      public boolean isCompatible(Type type) {
+        return type == Type.INT_TYPE
+            || type == Type.LONG_TYPE
+            || type == Type.FLOAT_TYPE
+            || type == Type.DOUBLE_TYPE;
+      }
+
+      @Override
+      public Collection<Type> getSupportedTypes() {
+        return Arrays.asList(Type.LONG_TYPE, Type.DOUBLE_TYPE);
+      }
+    },
+    HISTOGRAM("histogram") {
+      @Override
+      public boolean isCompatible(Type type) {
+        return type == Type.INT_TYPE
+            || type == Type.LONG_TYPE
+            || type == Type.FLOAT_TYPE
+            || type == Type.DOUBLE_TYPE;
+      }
+
+      @Override
+      public Collection<Type> getSupportedTypes() {
+        return Arrays.asList(Type.LONG_TYPE, Type.DOUBLE_TYPE);
+      }
+    };
+
+    MetricKind(String metricMethodName) {
+      this.metricMethodName = metricMethodName;
+    }
+
+    private final String metricMethodName;
+
+    public String getMetricMethodName() {
+      return metricMethodName;
+    }
+
+    public abstract boolean isCompatible(Type type);
+
+    public abstract Collection<Type> getSupportedTypes();
   }
 
   private final MetricKind kind;

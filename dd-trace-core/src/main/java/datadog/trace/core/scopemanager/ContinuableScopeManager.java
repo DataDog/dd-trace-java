@@ -255,7 +255,8 @@ public final class ContinuableScopeManager implements AgentScopeManager {
       listener.afterScopeActivated(
           activeSpan.getTraceId(),
           activeSpan.getLocalRootSpan().getSpanId(),
-          activeSpan.context().getSpanId());
+          activeSpan.context().getSpanId(),
+          activeSpan.traceConfig());
     }
   }
 
