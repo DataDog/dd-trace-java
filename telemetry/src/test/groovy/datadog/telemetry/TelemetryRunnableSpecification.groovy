@@ -52,6 +52,7 @@ class TelemetryRunnableSpecification extends DDSpecification {
 
     then:
     1 * timeSource.getCurrentTimeMillis() >> 60 * 1000
+    1 * timeSource.getCurrentTimeMillis() >> 60 * 1000 + 1
     _ * telemetryService.addConfiguration(_)
 
     then:
