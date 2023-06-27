@@ -1,7 +1,5 @@
 package datadog.trace.civisibility.ipc;
 
-import static datadog.trace.civisibility.ipc.SignalServer.HOST_PORT_SEPARATOR;
-
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,32 +15,20 @@ public class SignalClient implements AutoCloseable {
   private final SocketChannel socketChannel;
 
   @SuppressForbidden
-  public SignalClient(String serverAddress) throws IOException {
+  public SignalClient(InetSocketAddress serverAddress) throws IOException {
     this(serverAddress, DEFAULT_SOCKET_TIMEOUT_MILLIS);
   }
 
   @SuppressForbidden
-  SignalClient(String serverAddress, int socketTimeoutMillis) throws IOException {
+  SignalClient(InetSocketAddress serverAddress, int socketTimeoutMillis) throws IOException {
     if (serverAddress == null) {
       throw new IOException("Cannot open connection to signal server: no address specified");
     }
 
-    String[] tokens = serverAddress.split(HOST_PORT_SEPARATOR);
-    if (tokens.length != 2) {
-      throw new IOException(
-          "Cannot open connection to signal server: unexpected address string format: "
-              + serverAddress);
-    }
-
-    String host = tokens[0];
-    int port = Integer.parseInt(tokens[1]);
-    InetSocketAddress socketAddress = new InetSocketAddress(host, port);
-
     socketChannel = SocketChannel.open();
-
     Socket socket = socketChannel.socket();
     socket.setSoTimeout(socketTimeoutMillis);
-    socket.connect(socketAddress, socketTimeoutMillis);
+    socket.connect(serverAddress, socketTimeoutMillis);
   }
 
   @Override

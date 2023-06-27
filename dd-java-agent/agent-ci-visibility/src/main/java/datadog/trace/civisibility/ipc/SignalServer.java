@@ -25,22 +25,22 @@ public class SignalServer {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SignalServer.class);
   private static final int DEFAULT_BUFFER_CAPACITY = 1024;
-  private static final String LOCALHOST = "localhost";
-  static final String HOST_PORT_SEPARATOR = ",";
 
   private Selector selector;
   private ServerSocketChannel serverSocketChannel;
   private Thread signalServerThread;
 
   private final int port;
+  private final String address;
   private final Map<SignalType, Consumer<Signal>> signalHandlers = new EnumMap<>(SignalType.class);
 
   public SignalServer() {
-    this(-1);
+    this("127.0.0.1", 0);
   }
 
-  public SignalServer(int port) {
+  public SignalServer(String address, int port) {
     this.port = port;
+    this.address = address;
   }
 
   public synchronized void start() {
@@ -49,7 +49,7 @@ public class SignalServer {
         serverSocketChannel = ServerSocketChannel.open();
         serverSocketChannel.configureBlocking(false);
 
-        serverSocketChannel.bind(port != -1 ? new InetSocketAddress(port) : null);
+        serverSocketChannel.bind(new InetSocketAddress(address, port));
 
         selector = Selector.open();
         serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
@@ -68,7 +68,7 @@ public class SignalServer {
     }
   }
 
-  public synchronized String getAddress() {
+  public synchronized InetSocketAddress getAddress() {
     if (serverSocketChannel == null) {
       throw new IllegalStateException("Server not started");
     }
@@ -82,8 +82,7 @@ public class SignalServer {
     }
 
     if (localAddress instanceof InetSocketAddress) {
-      InetSocketAddress inetAddress = (InetSocketAddress) localAddress;
-      return LOCALHOST + HOST_PORT_SEPARATOR + inetAddress.getPort();
+      return (InetSocketAddress) localAddress;
 
     } else {
       LOGGER.error(

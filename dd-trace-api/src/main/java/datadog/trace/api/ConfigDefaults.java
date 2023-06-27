@@ -116,7 +116,8 @@ public final class ConfigDefaults {
   static final int DEFAULT_CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE = 4;
   static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES =
       "datadog.trace.*:org.apache.commons.*";
-  static final int DEFAULT_CIVISIBILITY_SIGNAL_SERVER_PORT = -1;
+  static final String DEFAULT_CIVISIBILITY_SIGNAL_SERVER_HOST = "127.0.0.1";
+  static final int DEFAULT_CIVISIBILITY_SIGNAL_SERVER_PORT = 0;
 
   static final boolean DEFAULT_REMOTE_CONFIG_ENABLED = true;
   static final boolean DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED = false;

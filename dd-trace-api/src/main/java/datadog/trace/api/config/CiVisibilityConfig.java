@@ -31,9 +31,8 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_DEBUG_PORT = "civisibility.debug.port";
   public static final String CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE =
       "civisibility.test.events.handler.cache.size";
+  public static final String CIVISIBILITY_SIGNAL_SERVER_HOST = "civisibility.signal.server.host";
   public static final String CIVISIBILITY_SIGNAL_SERVER_PORT = "civisibility.signal.server.port";
-  public static final String CIVISIBILITY_SIGNAL_SERVER_ADDRESS =
-      "civisibility.signal.server.address";
 
   private CiVisibilityConfig() {}
 }
