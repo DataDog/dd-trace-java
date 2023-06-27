@@ -2,7 +2,6 @@ package datadog.telemetry.metric
 
 import datadog.telemetry.TelemetryService
 import datadog.telemetry.api.Metric
-import datadog.trace.api.metrics.CoreMetrics
 import datadog.trace.api.metrics.SpanMetricRegistry
 import datadog.trace.api.metrics.SpanMetricRegistryImpl
 import spock.lang.Specification
