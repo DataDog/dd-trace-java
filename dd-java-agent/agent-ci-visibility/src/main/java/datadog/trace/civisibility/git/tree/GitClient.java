@@ -10,6 +10,7 @@ import java.nio.file.FileStore;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;
@@ -40,6 +41,60 @@ public class GitClient {
     this.latestCommitsSince = latestCommitsSince;
     this.latestCommitsLimit = latestCommitsLimit;
     commandExecutor = new ShellCommandExecutor(new File(repoRoot), timeoutMillis);
+  }
+
+  /**
+   * Checks whether the repo that the client is associated with is shallow
+   *
+   * @return {@code true} if current repo is shallow, {@code false} otherwise
+   * @throws IOException If an error was encountered while writing command input or reading output
+   * @throws TimeoutException If timeout was reached while waiting for Git command to finish
+   * @throws InterruptedException If current thread was interrupted while waiting for Git command to
+   *     finish
+   */
+  public boolean isShallow() throws IOException, TimeoutException, InterruptedException {
+    String output =
+        commandExecutor
+            .executeCommand(IOUtils::readFully, "git", "rev-parse", "--is-shallow-repository")
+            .trim();
+    return Boolean.parseBoolean(output);
+  }
+
+  /**
+   * "Unshallows" the repo that the client is associated with by fetching missing commit data from
+   * the server.
+   *
+   * @throws IOException If an error was encountered while writing command input or reading output
+   * @throws TimeoutException If timeout was reached while waiting for Git command to finish
+   * @throws InterruptedException If current thread was interrupted while waiting for Git command to
+   *     finish
+   */
+  public void unshallow() throws IOException, TimeoutException, InterruptedException {
+    String headSha =
+        commandExecutor.executeCommand(IOUtils::readFully, "git", "rev-parse", "HEAD").trim();
+    String remote =
+        commandExecutor
+            .executeCommand(
+                IOUtils::readFully,
+                "git",
+                "config",
+                "--default",
+                "origin",
+                "--get",
+                "clone.defaultRemoteName")
+            .trim();
+
+    // refetch data from the server for the given period of time
+    commandExecutor.executeCommand(
+        ShellCommandExecutor.OutputParser.IGNORE,
+        "git",
+        "fetch",
+        String.format("--shallow-since=='%s'", latestCommitsSince),
+        "--update-shallow",
+        "--filter=blob:none",
+        "--recurse-submodules=no",
+        remote,
+        headSha);
   }
 
   /**
@@ -94,25 +149,23 @@ public class GitClient {
    * @throws InterruptedException If current thread was interrupted while waiting for Git command to
    *     finish
    */
-  public List<String> getObjects(List<String> commitsToSkip)
+  public List<String> getObjects(
+      Collection<String> commitsToSkip, Collection<String> commitsToInclude)
       throws IOException, TimeoutException, InterruptedException {
-    return getObjects("HEAD", commitsToSkip);
-  }
-
-  List<String> getObjects(String commit, List<String> commitsToSkip)
-      throws IOException, TimeoutException, InterruptedException {
-    String[] command = new String[7 + commitsToSkip.size()];
+    String[] command = new String[6 + commitsToSkip.size() + commitsToInclude.size()];
     command[0] = "git";
     command[1] = "rev-list";
     command[2] = "--objects";
     command[3] = "--no-object-names";
     command[4] = "--filter=blob:none";
     command[5] = String.format("--since='%s'", latestCommitsSince);
-    command[6] = commit;
 
-    int count = 7;
+    int count = 6;
     for (String commitToSkip : commitsToSkip) {
       command[count++] = "^" + commitToSkip;
+    }
+    for (String commitToInclude : commitsToInclude) {
+      command[count++] = commitToInclude;
     }
 
     return commandExecutor.executeCommand(IOUtils::readLines, command);
