@@ -137,7 +137,7 @@ final class TracingConfigPoller {
     @Json(name = "tracing_header_tags")
     public List<HeaderTagEntry> headerTags;
 
-    @Json(name = "tracing_sample_rate")
+    @Json(name = "tracing_sampling_rate")
     public Double traceSampleRate;
   }
 

@@ -539,7 +539,10 @@ public class DDSpan
   public Integer forceSamplingDecision() {
     PendingTrace trace = this.context.getTrace();
     DDSpan rootSpan = trace.getRootSpan();
-    trace.getTracer().setSamplingPriorityIfNecessary(rootSpan);
+    trace.setSamplingPriorityIfNecessary();
+    if (rootSpan == null) {
+      return null;
+    }
     return rootSpan.getSamplingPriority();
   }
 

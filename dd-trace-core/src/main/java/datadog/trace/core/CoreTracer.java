@@ -31,7 +31,6 @@ import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.StatsDClient;
-import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
@@ -65,7 +64,6 @@ import datadog.trace.civisibility.interceptor.CiVisibilityApmProtocolInterceptor
 import datadog.trace.civisibility.interceptor.CiVisibilityTraceInterceptor;
 import datadog.trace.common.GitMetadataTraceInterceptor;
 import datadog.trace.common.metrics.MetricsAggregator;
-import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.DDAgentWriter;
@@ -100,6 +98,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
@@ -151,14 +150,16 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   /** Writer is an charge of reporting traces and spans to the desired endpoint */
   final Writer writer;
   /** Sampler defines the sampling policy in order to reduce the number of traces for instance */
-  final Sampler sampler;
+  final Sampler initialSampler;
   /** Scope manager is in charge of managing the scopes from which spans are created */
   final AgentScopeManager scopeManager;
 
   final MetricsAggregator metricsAggregator;
 
+  /** Initial static configuration associated with the tracer. */
+  final Config initialConfig;
   /** Maintains dynamic configuration associated with the tracer */
-  private final DynamicConfig dynamicConfig;
+  private final DynamicConfig<ConfigSnapshot> dynamicConfig;
   /** A set of tags that are added only to the application's root span */
   private final Map<String, ?> localRootSpanTags;
   /** A set of tags that are added to every span */
@@ -214,7 +215,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final PropagationTags.Factory propagationTagsFactory;
 
   @Override
-  public TraceConfig captureTraceConfig() {
+  public ConfigSnapshot captureTraceConfig() {
     return dynamicConfig.captureTraceConfig();
   }
 
@@ -407,7 +408,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.config = config;
       serviceName(config.getServiceName());
       // Explicitly skip setting writer to avoid allocating resources prematurely.
-      sampler(Sampler.Builder.forConfig(config));
+      sampler(Sampler.Builder.forConfig(config, null));
       singleSpanSampler(SingleSpanSampler.Builder.forConfig(config));
       instrumentationGateway(new InstrumentationGateway());
       injector(
@@ -498,8 +499,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     endpointCheckpointer = EndpointCheckpointerHolder.create();
     this.serviceName = serviceName;
 
+    this.initialConfig = config;
+    this.initialSampler = sampler;
+
     this.dynamicConfig =
-        DynamicConfig.create()
+        DynamicConfig.create(ConfigSnapshot::new)
             .setDebugEnabled(config.isDebugEnabled())
             .setRuntimeMetricsEnabled(config.isRuntimeMetricsEnabled())
             .setLogsInjectionEnabled(config.isLogsInjectionEnabled())
@@ -510,7 +514,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             .setTraceSampleRate(config.getTraceSampleRate())
             .apply();
 
-    this.sampler = sampler;
     this.logs128bTraceIdEnabled = InstrumenterConfig.get().isLogs128bTraceIdEnabled();
     this.localRootSpanTags = localRootSpanTags;
     this.defaultSpanTags = defaultSpanTags;
@@ -680,7 +683,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return pendingTraceFactory.create(id);
   }
 
-  PendingTrace createTrace(DDTraceId id, TraceConfig traceConfig) {
+  PendingTrace createTrace(DDTraceId id, ConfigSnapshot traceConfig) {
     return pendingTraceFactory.create(id, traceConfig);
   }
 
@@ -880,8 +883,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     final DDSpanContext ddSpanContext = (DDSpanContext) context;
-    final DDSpan rootSpan = ddSpanContext.getTrace().getRootSpan();
-    setSamplingPriorityIfNecessary(rootSpan);
+    ddSpanContext.getTrace().setSamplingPriorityIfNecessary();
 
     if (null == style) {
       injector.inject(ddSpanContext, carrier, setter);
@@ -939,12 +941,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
     boolean forceKeep = metricsAggregator.publish(writtenTrace);
 
-    DDSpan rootSpan = writtenTrace.get(0).getLocalRootSpan();
-    setSamplingPriorityIfNecessary(rootSpan);
+    PendingTrace pendingTrace = writtenTrace.get(0).context().getTrace();
+    pendingTrace.setSamplingPriorityIfNecessary();
 
+    DDSpan rootSpan = pendingTrace.getRootSpan();
     DDSpan spanToSample = rootSpan == null ? writtenTrace.get(0) : rootSpan;
     spanToSample.forceKeep(forceKeep);
-    boolean published = forceKeep || sampler.sample(spanToSample);
+    boolean published = forceKeep || pendingTrace.sample(spanToSample);
     if (published) {
       writer.write(writtenTrace);
     } else {
@@ -990,19 +993,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       }
     }
     return trace;
-  }
-
-  void setSamplingPriorityIfNecessary(final DDSpan rootSpan) {
-    // There's a race where multiple threads can see PrioritySampling.UNSET here
-    // This check skips potential complex sampling priority logic when we know its redundant
-    // Locks inside DDSpanContext ensure the correct behavior in the race case
-
-    if (sampler instanceof PrioritySampler
-        && rootSpan != null
-        && rootSpan.context().getSamplingPriority() == PrioritySampling.UNSET) {
-
-      ((PrioritySampler) sampler).setSamplingPriority(rootSpan);
-    }
   }
 
   @Override
@@ -1502,12 +1492,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           propagationTags = propagationTagsFactory.empty();
         }
 
-        TraceConfig traceConfig;
+        ConfigSnapshot traceConfig;
 
         // Get header tags and set origin whether propagating or not.
         if (parentContext instanceof TagContext) {
           TagContext tc = (TagContext) parentContext;
-          traceConfig = tc.getTraceConfig();
+          traceConfig = (ConfigSnapshot) tc.getTraceConfig();
           coreTags = tc.getTags();
           origin = tc.getOrigin();
           baggage = tc.getBaggage();
@@ -1613,6 +1603,23 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final CoreTracer tracer = reference.get();
       if (tracer != null) {
         tracer.close();
+      }
+    }
+  }
+
+  protected class ConfigSnapshot extends DynamicConfig.Snapshot {
+    final Sampler sampler;
+
+    protected ConfigSnapshot(
+        DynamicConfig<ConfigSnapshot>.Builder builder, ConfigSnapshot oldSnapshot) {
+      super(builder, oldSnapshot);
+
+      if (null == oldSnapshot) {
+        sampler = CoreTracer.this.initialSampler;
+      } else if (Objects.equals(getTraceSampleRate(), oldSnapshot.getTraceSampleRate())) {
+        sampler = oldSnapshot.sampler;
+      } else {
+        sampler = Sampler.Builder.forConfig(CoreTracer.this.initialConfig, this);
       }
     }
   }
