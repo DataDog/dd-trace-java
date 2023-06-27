@@ -10,6 +10,7 @@ import java.nio.file.FileStore;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;
@@ -69,16 +70,19 @@ public class GitClient {
    *     finish
    */
   public void unshallow() throws IOException, TimeoutException, InterruptedException {
-    // configure repo to avoid downloading blobs
-    // (we don’t need them for git metadata upload).
-    // If Git version does not support partial clones,
-    // this config will be ignored
-    commandExecutor.executeCommand(
-        ShellCommandExecutor.OutputParser.IGNORE,
-        "git",
-        "config",
-        "remote.origin.partialclonefilter",
-        "blob:none");
+    String headSha =
+        commandExecutor.executeCommand(IOUtils::readFully, "git", "rev-parse", "HEAD").trim();
+    String remote =
+        commandExecutor
+            .executeCommand(
+                IOUtils::readFully,
+                "git",
+                "config",
+                "--default",
+                "origin",
+                "--get",
+                "clone.defaultRemoteName")
+            .trim();
 
     // refetch data from the server for the given period of time
     commandExecutor.executeCommand(
@@ -87,7 +91,10 @@ public class GitClient {
         "fetch",
         String.format("--shallow-since=='%s'", latestCommitsSince),
         "--update-shallow",
-        "--refetch");
+        "--filter=blob:none",
+        "--recurse-submodules=no",
+        remote,
+        headSha);
   }
 
   /**
@@ -142,25 +149,23 @@ public class GitClient {
    * @throws InterruptedException If current thread was interrupted while waiting for Git command to
    *     finish
    */
-  public List<String> getObjects(List<String> commitsToSkip)
+  public List<String> getObjects(
+      Collection<String> commitsToSkip, Collection<String> commitsToInclude)
       throws IOException, TimeoutException, InterruptedException {
-    return getObjects("HEAD", commitsToSkip);
-  }
-
-  List<String> getObjects(String commit, List<String> commitsToSkip)
-      throws IOException, TimeoutException, InterruptedException {
-    String[] command = new String[7 + commitsToSkip.size()];
+    String[] command = new String[6 + commitsToSkip.size() + commitsToInclude.size()];
     command[0] = "git";
     command[1] = "rev-list";
     command[2] = "--objects";
     command[3] = "--no-object-names";
     command[4] = "--filter=blob:none";
     command[5] = String.format("--since='%s'", latestCommitsSince);
-    command[6] = commit;
 
-    int count = 7;
+    int count = 6;
     for (String commitToSkip : commitsToSkip) {
       command[count++] = "^" + commitToSkip;
+    }
+    for (String commitToInclude : commitsToInclude) {
+      command[count++] = commitToInclude;
     }
 
     return commandExecutor.executeCommand(IOUtils::readLines, command);

@@ -105,7 +105,7 @@ class GitClientTest extends Specification {
 
     when:
     def gitClient = givenGitClient()
-    def objects = gitClient.getObjects("HEAD", ["98cd7c8e9cf71e02dc28bd9b13928bee0f85b74c"])
+    def objects = gitClient.getObjects(["98cd7c8e9cf71e02dc28bd9b13928bee0f85b74c"], ["5b6f3a6dab5972d73a56dff737bd08d995255c08"])
 
     then:
     objects == [
