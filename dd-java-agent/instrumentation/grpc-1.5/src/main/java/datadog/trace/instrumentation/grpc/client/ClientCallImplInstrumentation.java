@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.CLIENT_PATHWAY_EDGE_TAGS;
 import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.DECORATE;
-import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.OPERATION_NAME;
 import static datadog.trace.instrumentation.grpc.client.GrpcInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -16,9 +15,9 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.grpc.ClientCall;
 import io.grpc.Metadata;
+import io.grpc.MethodDescriptor;
 import io.grpc.Status;
 import io.grpc.StatusException;
 import java.util.Collections;
@@ -49,6 +48,14 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
     transformation.applyAdvice(named("start").and(isMethod()), getClass().getName() + "$Start");
     transformation.applyAdvice(named("cancel").and(isMethod()), getClass().getName() + "$Cancel");
     transformation.applyAdvice(
+        named("request")
+            .and(isMethod())
+            .and(takesArguments(int.class))
+            .or(isMethod().and(named("halfClose").and(takesArguments(0)))),
+        getClass().getName() + "$ActivateSpan");
+    transformation.applyAdvice(
+        named("sendMessage").and(isMethod()), getClass().getName() + "$SendMessage");
+    transformation.applyAdvice(
         named("closeObserver").and(takesArguments(3)), getClass().getName() + "$CloseObserver");
   }
 
@@ -63,10 +70,11 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
 
   public static final class Capture {
     @Advice.OnMethodExit
-    public static void capture(@Advice.This io.grpc.ClientCall<?, ?> call) {
-      AgentSpan span = AgentTracer.activeSpan();
-      // embed the span in the call only if a grpc.client span is active
-      if (null != span && OPERATION_NAME.equals(span.getOperationName())) {
+    public static void capture(
+        @Advice.This io.grpc.ClientCall<?, ?> call,
+        @Advice.Argument(0) MethodDescriptor<?, ?> method) {
+      AgentSpan span = DECORATE.startCall(method);
+      if (null != span) {
         InstrumentationContext.get(ClientCall.class, AgentSpan.class).put(call, span);
       }
     }
@@ -101,6 +109,43 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
         DECORATE.beforeFinish(span);
         span.finish();
         throw error;
+      }
+    }
+  }
+
+  public static final class ActivateSpan {
+    @Advice.OnMethodEnter
+    public static AgentScope before(@Advice.This ClientCall<?, ?> call) {
+      AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
+      if (null != span) {
+        return activateSpan(span);
+      }
+      return null;
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    public static void after(@Advice.Enter AgentScope scope) {
+      if (null != scope) {
+        scope.close();
+      }
+    }
+  }
+
+  public static final class SendMessage {
+    @Advice.OnMethodEnter
+    public static AgentScope before(@Advice.This ClientCall<?, ?> call) {
+      // could create a message span here for the request
+      AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
+      if (span != null) {
+        return activateSpan(span);
+      }
+      return null;
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    public static void after(@Advice.Enter AgentScope scope) {
+      if (null != scope) {
+        scope.close();
       }
     }
   }
