@@ -11,6 +11,8 @@ import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
 import datadog.trace.api.DynamicConfig;
+import datadog.trace.logging.GlobalLogLevelSwitcher;
+import datadog.trace.logging.LogLevel;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.List;
@@ -91,6 +93,14 @@ final class TracingConfigPoller {
     DynamicConfig<?>.Builder builder = dynamicConfig.initial();
 
     maybeOverride(builder::setDebugEnabled, libConfig.debugEnabled);
+    if (libConfig.debugEnabled != null) {
+      if (Boolean.TRUE.equals(libConfig.debugEnabled)) {
+        GlobalLogLevelSwitcher.get().switchLevel(LogLevel.DEBUG);
+      } else {
+        GlobalLogLevelSwitcher.get().switchLevel(LogLevel.INFO);
+      }
+    }
+
     maybeOverride(builder::setRuntimeMetricsEnabled, libConfig.runtimeMetricsEnabled);
     maybeOverride(builder::setLogsInjectionEnabled, libConfig.logsInjectionEnabled);
     maybeOverride(builder::setDataStreamsEnabled, libConfig.dataStreamsEnabled);
@@ -105,6 +115,7 @@ final class TracingConfigPoller {
 
   void removeConfigOverrides() {
     dynamicConfig.resetTraceConfig();
+    GlobalLogLevelSwitcher.get().restore();
   }
 
   private <T> void maybeOverride(Consumer<T> setter, T override) {
