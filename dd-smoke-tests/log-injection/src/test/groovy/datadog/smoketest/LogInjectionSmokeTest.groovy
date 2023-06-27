@@ -221,7 +221,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
 
     def newConfig = """
         {"lib_config":
-          {"logs_injection_enabled":false}
+          {"log_injection_enabled":false}
         }
      """.toString()
     setRemoteConfig("datadog/2/APM_TRACING/config_overrides/config", newConfig)

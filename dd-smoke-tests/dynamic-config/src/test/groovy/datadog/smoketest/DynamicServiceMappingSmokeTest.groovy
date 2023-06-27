@@ -29,7 +29,7 @@ class DynamicServiceMappingSmokeTest extends AbstractSmokeTest {
         {
           "lib_config": {
             "tracing_service_mapping": [{
-              "from_name": "${ServiceMappingApplication.ORIGINAL_SERVICE_NAME}",
+              "from_key": "${ServiceMappingApplication.ORIGINAL_SERVICE_NAME}",
               "to_name": "${ServiceMappingApplication.MAPPED_SERVICE_NAME}"
             }]
           }
