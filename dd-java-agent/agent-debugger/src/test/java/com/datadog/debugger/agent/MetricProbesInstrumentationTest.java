@@ -1087,7 +1087,7 @@ public class MetricProbesInstrumentationTest {
     Assertions.assertEquals(1001, listener.counters.get(METRIC_NAME_SHORT));
     result = Reflect.on(testClass).call("main", "char").get();
     Assertions.assertEquals(42, result);
-    Assertions.assertEquals(31, listener.counters.get(METRIC_NAME_CHAR));
+    Assertions.assertEquals(97, listener.counters.get(METRIC_NAME_CHAR));
   }
 
   private MetricForwarderListener installSingleMetric(
