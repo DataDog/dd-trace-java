@@ -8,7 +8,7 @@ import java.util.NoSuchElementException;
 import java.util.StringTokenizer;
 
 public class CookieSecurityParser {
-  ArrayList<CookieSecurityDetails> badCookies = new ArrayList<>();
+  ArrayList<CookieSecurityDetails> cookies = new ArrayList<>();
 
   public CookieSecurityParser(String cookieString) {
 
@@ -27,7 +27,7 @@ public class CookieSecurityParser {
         if ((!cookie.isSecure() && null != InstrumentationBridge.INSECURE_COOKIE)
             || (!cookie.isHttpOnly() && null != InstrumentationBridge.NO_HTTPONLY_COOKIE)
             || (!cookie.isSameSiteStrict() && null != InstrumentationBridge.NO_SAMESITE_COOKIE)) {
-          badCookies.add(cookie);
+          cookies.add(cookie);
         }
       }
     } catch (Exception e) {
@@ -35,8 +35,8 @@ public class CookieSecurityParser {
     }
   }
 
-  public ArrayList<CookieSecurityDetails> getBadCookies() {
-    return badCookies;
+  public ArrayList<CookieSecurityDetails> getCookies() {
+    return cookies;
   }
 
   private CookieSecurityDetails parseInternal(String header) {

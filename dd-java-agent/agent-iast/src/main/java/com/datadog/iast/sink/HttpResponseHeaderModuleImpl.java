@@ -23,36 +23,52 @@ public class HttpResponseHeaderModuleImpl extends SinkModuleBase
   public void onHeader(@Nonnull final String name, final String value) {
     if (SET_COOKIE_HEADER.equalsIgnoreCase(name)) {
       CookieSecurityParser cookieSecurityInfo = new CookieSecurityParser(value);
-      onCookies(cookieSecurityInfo.getBadCookies());
+      onCookies(cookieSecurityInfo.getCookies());
     }
     if (null != InstrumentationBridge.UNVALIDATED_REDIRECT) {
       InstrumentationBridge.UNVALIDATED_REDIRECT.onHeader(name, value);
     }
   }
 
-  private void onCookies(List<CookieSecurityDetails> vulnerableCookies) {
-    if (vulnerableCookies.size() > 0) {
+  private void onCookies(List<CookieSecurityDetails> cookies) {
+    if (vulnerabilityFound(cookies)) {
       final AgentSpan span = AgentTracer.activeSpan();
       if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
         return;
       }
-      for (CookieSecurityDetails cookie : vulnerableCookies) {
-        Location location = Location.forSpanAndStack(spanId(span), getCurrentStackTrace());
-        Evidence evidence = new Evidence(cookie.getCookieName());
-        if (!cookie.isSecure() && null != InstrumentationBridge.INSECURE_COOKIE) {
-          reporter.report(
-              span, new Vulnerability(VulnerabilityType.INSECURE_COOKIE, location, evidence));
-        }
-        if (!cookie.isHttpOnly() && null != InstrumentationBridge.NO_HTTPONLY_COOKIE) {
-          reporter.report(
-              span, new Vulnerability(VulnerabilityType.NO_HTTPONLY_COOKIE, location, evidence));
-        }
-        if (!cookie.isSameSiteStrict() && null != InstrumentationBridge.NO_SAMESITE_COOKIE) {
-          reporter.report(
-              span, new Vulnerability(VulnerabilityType.NO_SAMESITE_COOKIE, location, evidence));
+      Location location = Location.forSpanAndStack(spanId(span), getCurrentStackTrace());
+      for (CookieSecurityDetails cookie : cookies) {
+        if ((!cookie.isSecure() && null != InstrumentationBridge.INSECURE_COOKIE)
+            || (!cookie.isHttpOnly() && null != InstrumentationBridge.NO_HTTPONLY_COOKIE)
+            || (!cookie.isSameSiteStrict() && null != InstrumentationBridge.NO_SAMESITE_COOKIE)) {
+          Evidence evidence = new Evidence(cookie.getCookieName());
+
+          if (!cookie.isSecure() && null != InstrumentationBridge.INSECURE_COOKIE) {
+            reporter.report(
+                span, new Vulnerability(VulnerabilityType.INSECURE_COOKIE, location, evidence));
+          }
+          if (!cookie.isHttpOnly() && null != InstrumentationBridge.NO_HTTPONLY_COOKIE) {
+            reporter.report(
+                span, new Vulnerability(VulnerabilityType.NO_HTTPONLY_COOKIE, location, evidence));
+          }
+          if (!cookie.isSameSiteStrict() && null != InstrumentationBridge.NO_SAMESITE_COOKIE) {
+            reporter.report(
+                span, new Vulnerability(VulnerabilityType.NO_SAMESITE_COOKIE, location, evidence));
+          }
         }
       }
     }
+  }
+
+  boolean vulnerabilityFound(List<CookieSecurityDetails> cookies) {
+    for (CookieSecurityDetails cookie : cookies) {
+      if ((!cookie.isSecure() && null != InstrumentationBridge.INSECURE_COOKIE)
+          || (!cookie.isHttpOnly() && null != InstrumentationBridge.NO_HTTPONLY_COOKIE)
+          || (!cookie.isSameSiteStrict() && null != InstrumentationBridge.NO_SAMESITE_COOKIE)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @Override
@@ -61,12 +77,9 @@ public class HttpResponseHeaderModuleImpl extends SinkModuleBase
       final boolean isSecure,
       final boolean isHttpOnly,
       final boolean isSameSiteStrict) {
-    if ((!isSecure && null != InstrumentationBridge.INSECURE_COOKIE)
-        || (!isHttpOnly && null != InstrumentationBridge.NO_HTTPONLY_COOKIE)
-        || (!isSameSiteStrict && null != InstrumentationBridge.NO_SAMESITE_COOKIE)) {
-      CookieSecurityDetails details =
-          new CookieSecurityDetails(name, isSecure, isHttpOnly, isSameSiteStrict);
-      onCookies(Arrays.asList(details));
-    }
+
+    CookieSecurityDetails details =
+        new CookieSecurityDetails(name, isSecure, isHttpOnly, isSameSiteStrict);
+    onCookies(Arrays.asList(details));
   }
 }

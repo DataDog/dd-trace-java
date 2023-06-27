@@ -19,7 +19,7 @@ class CookieSecurityParserTest extends Specification {
 
   void 'parsing single cookie header'() {
     when:
-    final badCookies = new CookieSecurityParser(header).getBadCookies()
+    final badCookies = new CookieSecurityParser(header).getCookies()
     final badCookie = badCookies.get(0)
 
     then:
@@ -44,7 +44,7 @@ class CookieSecurityParserTest extends Specification {
 
   void 'ignore good cookies'() {
     when:
-    final badCookies = new CookieSecurityParser(header).getBadCookies()
+    final badCookies = new CookieSecurityParser(header).getCookies()
 
     then:
     badCookies.size() == 0
@@ -59,7 +59,7 @@ class CookieSecurityParserTest extends Specification {
     given:
     String headerValue = "A=1;Secure;HttpOnly=true;SameSite=Strict;version='1',B=2;Secure;SameSite=Strict,C=3"
     when:
-    final badCookies = new CookieSecurityParser(headerValue).getBadCookies()
+    final badCookies = new CookieSecurityParser(headerValue).getCookies()
 
     then:
     badCookies.size() == 2
