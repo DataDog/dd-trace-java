@@ -207,7 +207,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     // there's a race with stdout where lines get combined
     // this fixes that
     def lineStart = line.indexOf("TRACEID")
-    def startOfNextLine = line.indexOf("[")
+    def startOfNextLine = line.indexOf("[", lineStart)
     def lineEnd = startOfNextLine == -1 ? line.length() : startOfNextLine
 
     def unmangled = line.substring(lineStart, lineEnd)
