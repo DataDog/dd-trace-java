@@ -438,10 +438,10 @@ class CoreTracerTest extends DDCoreSpecification {
         {
           "tracing_service_mapping":
           [{
-             "from_name": "foobar",
+             "from_key": "foobar",
              "to_name": "bar"
           }, {
-             "from_name": "snafu",
+             "from_key": "snafu",
              "to_name": "foo"
           }]
           ,

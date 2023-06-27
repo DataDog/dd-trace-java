@@ -125,7 +125,7 @@ final class TracingConfigPoller {
     @Json(name = "runtime_metrics_enabled")
     public Boolean runtimeMetricsEnabled;
 
-    @Json(name = "logs_injection_enabled")
+    @Json(name = "log_injection_enabled")
     public Boolean logsInjectionEnabled;
 
     @Json(name = "data_streams_enabled")
@@ -142,15 +142,15 @@ final class TracingConfigPoller {
   }
 
   static final class ServiceMappingEntry implements Map.Entry<String, String> {
-    @Json(name = "from_name")
-    public String fromName;
+    @Json(name = "from_key")
+    public String fromKey;
 
     @Json(name = "to_name")
     public String toName;
 
     @Override
     public String getKey() {
-      return fromName;
+      return fromKey;
     }
 
     @Override
