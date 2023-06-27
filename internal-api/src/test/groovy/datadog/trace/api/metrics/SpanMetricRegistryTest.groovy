@@ -17,7 +17,7 @@ class SpanMetricRegistryTest extends DDSpecification {
     noExceptionThrown()
 
     cleanup:
-    if (spanMetricRegistry instanceof SpanMetricsImpl) {
+    if (spanMetricRegistry instanceof SpanMetricRegistryImpl) {
       ((SpanMetricRegistryImpl) spanMetricRegistry).getSpanMetrics().forEach {
         if (it instanceof SpanMetricsImpl) {
           ((SpanMetricsImpl) it).getAndResetCounters()
