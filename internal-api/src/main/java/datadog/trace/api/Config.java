@@ -16,9 +16,12 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_COMPILER_PLU
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_REMOTE_NAME;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_UNSHALLOW_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SIGNAL_SERVER_HOST;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SIGNAL_SERVER_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE;
@@ -127,6 +130,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_REMOTE_NAME;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UNSHALLOW_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED;
@@ -135,6 +139,8 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PL
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_ID;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SESSION_ID;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE;
@@ -624,10 +630,13 @@ public class Config {
   private final Integer ciVisibilityDebugPort;
   private final int ciVisibilityTestEventsHandlerCacheSize;
   private final boolean ciVisibilityGitUploadEnabled;
+  private final boolean ciVisibilityGitUnshallowEnabled;
   private final long ciVisibilityGitCommandTimeoutMillis;
   private final String ciVisibilityGitRemoteName;
   private final long ciVisibilityBackendApiTimeoutMillis;
   private final long ciVisibilityGitUploadTimeoutMillis;
+  private final String ciVisibilitySignalServerHost;
+  private final int ciVisibilitySignalServerPort;
   private final boolean ciVisibilityItrEnabled;
 
   private final boolean remoteConfigEnabled;
@@ -1460,6 +1469,9 @@ public class Config {
     ciVisibilityGitUploadEnabled =
         configProvider.getBoolean(
             CIVISIBILITY_GIT_UPLOAD_ENABLED, DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED);
+    ciVisibilityGitUnshallowEnabled =
+        configProvider.getBoolean(
+            CIVISIBILITY_GIT_UNSHALLOW_ENABLED, DEFAULT_CIVISIBILITY_GIT_UNSHALLOW_ENABLED);
     ciVisibilityGitCommandTimeoutMillis =
         configProvider.getLong(
             CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS,
@@ -1474,6 +1486,12 @@ public class Config {
     ciVisibilityGitRemoteName =
         configProvider.getString(
             CIVISIBILITY_GIT_REMOTE_NAME, DEFAULT_CIVISIBILITY_GIT_REMOTE_NAME);
+    ciVisibilitySignalServerHost =
+        configProvider.getString(
+            CIVISIBILITY_SIGNAL_SERVER_HOST, DEFAULT_CIVISIBILITY_SIGNAL_SERVER_HOST);
+    ciVisibilitySignalServerPort =
+        configProvider.getInteger(
+            CIVISIBILITY_SIGNAL_SERVER_PORT, DEFAULT_CIVISIBILITY_SIGNAL_SERVER_PORT);
     ciVisibilityItrEnabled = configProvider.getBoolean(CIVISIBILITY_ITR_ENABLED, true);
 
     remoteConfigEnabled =
@@ -2399,6 +2417,10 @@ public class Config {
     return ciVisibilityGitUploadEnabled;
   }
 
+  public boolean isCiVisibilityGitUnshallowEnabled() {
+    return ciVisibilityGitUnshallowEnabled;
+  }
+
   public long getCiVisibilityGitCommandTimeoutMillis() {
     return ciVisibilityGitCommandTimeoutMillis;
   }
@@ -2413,6 +2435,14 @@ public class Config {
 
   public String getCiVisibilityGitRemoteName() {
     return ciVisibilityGitRemoteName;
+  }
+
+  public int getCiVisibilitySignalServerPort() {
+    return ciVisibilitySignalServerPort;
+  }
+
+  public String getCiVisibilitySignalServerHost() {
+    return ciVisibilitySignalServerHost;
   }
 
   public boolean isCiVisibilityItrEnabled() {

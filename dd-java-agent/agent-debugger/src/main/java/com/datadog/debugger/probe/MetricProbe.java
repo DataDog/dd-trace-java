@@ -19,10 +19,10 @@ import org.objectweb.asm.tree.MethodNode;
 public class MetricProbe extends ProbeDefinition {
 
   public enum MetricKind {
-    COUNT("count") {
+    COUNT {
       @Override
       public boolean isCompatible(Type type) {
-        return type == Type.INT_TYPE || type == Type.LONG_TYPE;
+        return isLongOnlyCompatible(type);
       }
 
       @Override
@@ -30,13 +30,10 @@ public class MetricProbe extends ProbeDefinition {
         return Collections.singleton(Type.LONG_TYPE);
       }
     },
-    GAUGE("gauge") {
+    GAUGE {
       @Override
       public boolean isCompatible(Type type) {
-        return type == Type.INT_TYPE
-            || type == Type.LONG_TYPE
-            || type == Type.FLOAT_TYPE
-            || type == Type.DOUBLE_TYPE;
+        return isLongAndDoubleCompatible(type);
       }
 
       @Override
@@ -44,13 +41,21 @@ public class MetricProbe extends ProbeDefinition {
         return Arrays.asList(Type.LONG_TYPE, Type.DOUBLE_TYPE);
       }
     },
-    HISTOGRAM("histogram") {
+    HISTOGRAM {
       @Override
       public boolean isCompatible(Type type) {
-        return type == Type.INT_TYPE
-            || type == Type.LONG_TYPE
-            || type == Type.FLOAT_TYPE
-            || type == Type.DOUBLE_TYPE;
+        return isLongAndDoubleCompatible(type);
+      }
+
+      @Override
+      public Collection<Type> getSupportedTypes() {
+        return Arrays.asList(Type.LONG_TYPE, Type.DOUBLE_TYPE);
+      }
+    },
+    DISTRIBUTION {
+      @Override
+      public boolean isCompatible(Type type) {
+        return isLongAndDoubleCompatible(type);
       }
 
       @Override
@@ -59,19 +64,37 @@ public class MetricProbe extends ProbeDefinition {
       }
     };
 
-    MetricKind(String metricMethodName) {
-      this.metricMethodName = metricMethodName;
-    }
-
-    private final String metricMethodName;
-
-    public String getMetricMethodName() {
-      return metricMethodName;
-    }
-
     public abstract boolean isCompatible(Type type);
 
     public abstract Collection<Type> getSupportedTypes();
+
+    protected boolean isLongOnlyCompatible(Type type) {
+      switch (type.getSort()) {
+        case Type.BYTE:
+        case Type.SHORT:
+        case Type.CHAR:
+        case Type.INT:
+        case Type.LONG:
+        case Type.BOOLEAN:
+          return true;
+      }
+      return false;
+    }
+
+    protected boolean isLongAndDoubleCompatible(Type type) {
+      switch (type.getSort()) {
+        case Type.BYTE:
+        case Type.SHORT:
+        case Type.CHAR:
+        case Type.INT:
+        case Type.LONG:
+        case Type.FLOAT:
+        case Type.DOUBLE:
+        case Type.BOOLEAN:
+          return true;
+      }
+      return false;
+    }
   }
 
   private final MetricKind kind;

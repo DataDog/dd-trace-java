@@ -8,6 +8,7 @@ import datadog.trace.civisibility.utils.IOUtils;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 import okhttp3.MediaType;
@@ -49,7 +50,7 @@ public class GitDataApi {
    * @return SHAs of commits that already exist on the server
    * @throws IOException if remote request fails
    */
-  public List<String> searchCommits(String gitRemoteUrl, List<String> commitHashes)
+  public Collection<String> searchCommits(String gitRemoteUrl, List<String> commitHashes)
       throws IOException {
     List<Commit> commits = commitHashes.stream().map(Commit::new).collect(Collectors.toList());
     SearchCommitsRequest searchCommitsRequest =
@@ -63,7 +64,7 @@ public class GitDataApi {
             requestBody,
             is -> searchCommitsResponseAdapter.fromJson(Okio.buffer(Okio.source(is))));
 
-    return response.data.stream().map(Commit::getId).collect(Collectors.toList());
+    return response.data.stream().map(Commit::getId).collect(Collectors.toSet());
   }
 
   /**

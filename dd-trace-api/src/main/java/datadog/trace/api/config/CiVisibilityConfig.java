@@ -32,6 +32,8 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE =
       "civisibility.test.events.handler.cache.size";
   public static final String CIVISIBILITY_GIT_UPLOAD_ENABLED = "civisibility.git.upload.enabled";
+  public static final String CIVISIBILITY_GIT_UNSHALLOW_ENABLED =
+      "civisibility.git.unshallow.enabled";
   public static final String CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS =
       "civisibility.git.upload.timeout.millis";
   public static final String CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS =
@@ -39,6 +41,8 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS =
       "civisibility.backend.api.timeout.millis";
   public static final String CIVISIBILITY_GIT_REMOTE_NAME = "civisibility.git.remote.name";
+  public static final String CIVISIBILITY_SIGNAL_SERVER_HOST = "civisibility.signal.server.host";
+  public static final String CIVISIBILITY_SIGNAL_SERVER_PORT = "civisibility.signal.server.port";
   public static final String CIVISIBILITY_ITR_ENABLED = "civisibility.itr.enabled";
   public static final String CIVISIBILITY_SKIPPABLE_TESTS = "civisibility.skippable.tests";
 

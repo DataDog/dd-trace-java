@@ -92,7 +92,7 @@ class GitDataApiTest extends Specification {
 
     when:
     def gitDataApi = new GitDataApi(evpProxy)
-    def commits = gitDataApi.searchCommits("gitRemoteUrl", ["sha1", "sha2"])
+    def commits = new ArrayList<>(gitDataApi.searchCommits("gitRemoteUrl", ["sha1", "sha2"]))
 
     then:
     commits == ["sha2"]

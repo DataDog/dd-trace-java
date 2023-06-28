@@ -1,3 +1,5 @@
 package datadog.trace.api.iast.sink;
 
-public interface NoHttpOnlyCookieModule extends HttpResponseHeaderModule.ForCookie {}
+import datadog.trace.api.iast.IastModule;
+
+public interface NoHttpOnlyCookieModule extends IastModule {}

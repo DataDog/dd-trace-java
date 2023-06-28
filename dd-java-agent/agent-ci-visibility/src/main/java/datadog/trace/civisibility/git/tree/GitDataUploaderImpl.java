@@ -5,6 +5,8 @@ import datadog.trace.civisibility.utils.FileUtils;
 import datadog.trace.util.AgentThreadFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
@@ -66,6 +68,10 @@ public class GitDataUploaderImpl implements GitDataUploader {
 
   private void uploadGitData() {
     try {
+      if (config.isCiVisibilityGitUnshallowEnabled() && gitClient.isShallow()) {
+        gitClient.unshallow();
+      }
+
       String remoteUrl = gitClient.getRemoteUrl(remoteName);
       List<String> latestCommits = gitClient.getLatestCommits();
       if (latestCommits.isEmpty()) {
@@ -74,8 +80,16 @@ public class GitDataUploaderImpl implements GitDataUploader {
         return;
       }
 
-      List<String> commitsToSkip = gitDataApi.searchCommits(remoteUrl, latestCommits);
-      List<String> objectHashes = gitClient.getObjects(commitsToSkip);
+      Collection<String> commitsToSkip = gitDataApi.searchCommits(remoteUrl, latestCommits);
+      Collection<String> commitsToInclude =
+          new ArrayList<>(latestCommits.size() - commitsToSkip.size());
+      for (String commit : latestCommits) {
+        if (!commitsToSkip.contains(commit)) {
+          commitsToInclude.add(commit);
+        }
+      }
+
+      List<String> objectHashes = gitClient.getObjects(commitsToSkip, commitsToInclude);
       if (objectHashes.isEmpty()) {
         LOGGER.debug("No git objects to upload");
         callback.complete(null);
