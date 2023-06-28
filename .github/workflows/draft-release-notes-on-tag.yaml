@@ -155,7 +155,7 @@ jobs:
             }
 
             // Create release with the draft changelog
-            await github.repos.createRelease({
+            await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
               tag_name: '${{ github.event.ref }}',
