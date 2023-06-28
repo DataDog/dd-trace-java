@@ -73,6 +73,10 @@ public class ModuleExecutionSettingsFactory {
     GitInfo gitInfo = GitInfoProvider.INSTANCE.getGitInfo(repositoryRoot);
     JvmInfo jvmInfo = jvmInfoFactory.getJvmInfo(jvmExecutablePath);
 
+    /*
+     * IMPORTANT: JVM and OS properties should match tags
+     * set in datadog.trace.api.civisibility.decorator.TestDecorator
+     */
     return TracerEnvironment.builder()
         .service(config.getServiceName())
         .env(config.getEnv())
