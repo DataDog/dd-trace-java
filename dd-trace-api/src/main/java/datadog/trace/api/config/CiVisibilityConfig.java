@@ -41,6 +41,8 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS =
       "civisibility.backend.api.timeout.millis";
   public static final String CIVISIBILITY_GIT_REMOTE_NAME = "civisibility.git.remote.name";
+  public static final String CIVISIBILITY_SIGNAL_SERVER_HOST = "civisibility.signal.server.host";
+  public static final String CIVISIBILITY_SIGNAL_SERVER_PORT = "civisibility.signal.server.port";
 
   private CiVisibilityConfig() {}
 }
