@@ -1,5 +1,6 @@
 package com.datadog.debugger.instrumentation;
 
+import static com.datadog.debugger.instrumentation.ASMHelper.getStatic;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeStatic;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeVirtual;
 import static com.datadog.debugger.instrumentation.ASMHelper.isStaticField;
@@ -883,12 +884,6 @@ public class CapturedContextInstrumentor extends Instrumentor {
             Type.getMethodDescriptor(Type.VOID_TYPE, argTypes),
             false));
     // stack: []
-  }
-
-  private static void getStatic(InsnList insnList, Type owner, String fieldName) {
-    insnList.add(
-        new FieldInsnNode(
-            Opcodes.GETSTATIC, owner.getInternalName(), fieldName, owner.getDescriptor()));
   }
 
   private static void newInstance(InsnList insnList, Type type) {

@@ -19,7 +19,7 @@ import org.objectweb.asm.tree.MethodNode;
 public class MetricProbe extends ProbeDefinition {
 
   public enum MetricKind {
-    COUNT("count") {
+    COUNT {
       @Override
       public boolean isCompatible(Type type) {
         return type == Type.INT_TYPE || type == Type.LONG_TYPE;
@@ -30,7 +30,7 @@ public class MetricProbe extends ProbeDefinition {
         return Collections.singleton(Type.LONG_TYPE);
       }
     },
-    GAUGE("gauge") {
+    GAUGE {
       @Override
       public boolean isCompatible(Type type) {
         return type == Type.INT_TYPE
@@ -44,7 +44,21 @@ public class MetricProbe extends ProbeDefinition {
         return Arrays.asList(Type.LONG_TYPE, Type.DOUBLE_TYPE);
       }
     },
-    HISTOGRAM("histogram") {
+    HISTOGRAM {
+      @Override
+      public boolean isCompatible(Type type) {
+        return type == Type.INT_TYPE
+            || type == Type.LONG_TYPE
+            || type == Type.FLOAT_TYPE
+            || type == Type.DOUBLE_TYPE;
+      }
+
+      @Override
+      public Collection<Type> getSupportedTypes() {
+        return Arrays.asList(Type.LONG_TYPE, Type.DOUBLE_TYPE);
+      }
+    },
+    DISTRIBUTION {
       @Override
       public boolean isCompatible(Type type) {
         return type == Type.INT_TYPE
@@ -58,16 +72,6 @@ public class MetricProbe extends ProbeDefinition {
         return Arrays.asList(Type.LONG_TYPE, Type.DOUBLE_TYPE);
       }
     };
-
-    MetricKind(String metricMethodName) {
-      this.metricMethodName = metricMethodName;
-    }
-
-    private final String metricMethodName;
-
-    public String getMetricMethodName() {
-      return metricMethodName;
-    }
 
     public abstract boolean isCompatible(Type type);
 
