@@ -22,7 +22,7 @@ public class MetricProbe extends ProbeDefinition {
     COUNT {
       @Override
       public boolean isCompatible(Type type) {
-        return type == Type.INT_TYPE || type == Type.LONG_TYPE;
+        return isLongOnlyCompatible(type);
       }
 
       @Override
@@ -33,10 +33,7 @@ public class MetricProbe extends ProbeDefinition {
     GAUGE {
       @Override
       public boolean isCompatible(Type type) {
-        return type == Type.INT_TYPE
-            || type == Type.LONG_TYPE
-            || type == Type.FLOAT_TYPE
-            || type == Type.DOUBLE_TYPE;
+        return isLongAndDoubleCompatible(type);
       }
 
       @Override
@@ -47,10 +44,7 @@ public class MetricProbe extends ProbeDefinition {
     HISTOGRAM {
       @Override
       public boolean isCompatible(Type type) {
-        return type == Type.INT_TYPE
-            || type == Type.LONG_TYPE
-            || type == Type.FLOAT_TYPE
-            || type == Type.DOUBLE_TYPE;
+        return isLongAndDoubleCompatible(type);
       }
 
       @Override
@@ -61,10 +55,7 @@ public class MetricProbe extends ProbeDefinition {
     DISTRIBUTION {
       @Override
       public boolean isCompatible(Type type) {
-        return type == Type.INT_TYPE
-            || type == Type.LONG_TYPE
-            || type == Type.FLOAT_TYPE
-            || type == Type.DOUBLE_TYPE;
+        return isLongAndDoubleCompatible(type);
       }
 
       @Override
@@ -76,6 +67,34 @@ public class MetricProbe extends ProbeDefinition {
     public abstract boolean isCompatible(Type type);
 
     public abstract Collection<Type> getSupportedTypes();
+
+    protected boolean isLongOnlyCompatible(Type type) {
+      switch (type.getSort()) {
+        case Type.BYTE:
+        case Type.SHORT:
+        case Type.CHAR:
+        case Type.INT:
+        case Type.LONG:
+        case Type.BOOLEAN:
+          return true;
+      }
+      return false;
+    }
+
+    protected boolean isLongAndDoubleCompatible(Type type) {
+      switch (type.getSort()) {
+        case Type.BYTE:
+        case Type.SHORT:
+        case Type.CHAR:
+        case Type.INT:
+        case Type.LONG:
+        case Type.FLOAT:
+        case Type.DOUBLE:
+        case Type.BOOLEAN:
+          return true;
+      }
+      return false;
+    }
   }
 
   private final MetricKind kind;

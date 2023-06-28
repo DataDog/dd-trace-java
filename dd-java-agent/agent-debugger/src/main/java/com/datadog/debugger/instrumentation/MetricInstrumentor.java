@@ -253,15 +253,20 @@ public class MetricInstrumentor extends Instrumentor {
   }
 
   private Type convertIfRequired(Type currentType, InsnList insnList) {
-    if (currentType == Type.INT_TYPE) {
-      insnList.add(new InsnNode(Opcodes.I2L));
-      return Type.LONG_TYPE;
+    switch (currentType.getSort()) {
+      case Type.BYTE:
+      case Type.SHORT:
+      case Type.CHAR:
+      case Type.INT:
+      case Type.BOOLEAN:
+        insnList.add(new InsnNode(Opcodes.I2L));
+        return Type.LONG_TYPE;
+      case Type.FLOAT:
+        insnList.add(new InsnNode(Opcodes.F2D));
+        return Type.DOUBLE_TYPE;
+      default:
+        return currentType;
     }
-    if (currentType == Type.FLOAT_TYPE) {
-      insnList.add(new InsnNode(Opcodes.F2D));
-      return Type.DOUBLE_TYPE;
-    }
-    return currentType;
   }
 
   private InsnList callMetric(MetricProbe metricProbe) {
