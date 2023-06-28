@@ -295,6 +295,12 @@ public class IastWebController {
     return "Trust Boundary violation with cookie page";
   }
 
+  @GetMapping(value = "/hstsmissing", produces = "text/html")
+  public String hstsHeaderMissing(HttpServletResponse response) {
+    response.setStatus(HttpStatus.OK.value());
+    return "ok";
+  }
+
   private void withProcess(final Operation<Process> op) {
     Process process = null;
     try {
