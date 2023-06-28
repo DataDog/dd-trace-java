@@ -1,6 +1,5 @@
 package com.datadog.iast.util;
 
-import datadog.trace.api.iast.InstrumentationBridge;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -11,9 +10,6 @@ public class CookieSecurityParser {
   ArrayList<CookieSecurityDetails> cookies = new ArrayList<>();
 
   public CookieSecurityParser(String cookieString) {
-
-    List<CookieSecurityDetails> cookies = new java.util.ArrayList<>();
-
     try {
       int version = guessCookieVersion(cookieString);
       List<String> cookieStrings = null;
@@ -24,11 +20,7 @@ public class CookieSecurityParser {
       }
       for (String cookieStr : cookieStrings) {
         CookieSecurityDetails cookie = parseInternal(cookieStr);
-        if ((!cookie.isSecure() && null != InstrumentationBridge.INSECURE_COOKIE)
-            || (!cookie.isHttpOnly() && null != InstrumentationBridge.NO_HTTPONLY_COOKIE)
-            || (!cookie.isSameSiteStrict() && null != InstrumentationBridge.NO_SAMESITE_COOKIE)) {
-          cookies.add(cookie);
-        }
+        cookies.add(cookie);
       }
     } catch (Exception e) {
       // Cookie is not parseable

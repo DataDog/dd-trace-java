@@ -42,19 +42,6 @@ class CookieSecurityParserTest extends Specification {
   }
 
 
-  void 'ignore good cookies'() {
-    when:
-    final badCookies = new CookieSecurityParser(header).getCookies()
-
-    then:
-    badCookies.size() == 0
-
-    where:
-    header                                               | _
-    "user-id=7;Secure;HttpOnly=true;SameSite=Strict"     | _
-  }
-
-
   void 'parsing multi cookie header'() {
     given:
     String headerValue = "A=1;Secure;HttpOnly=true;SameSite=Strict;version='1',B=2;Secure;SameSite=Strict,C=3"
@@ -62,16 +49,22 @@ class CookieSecurityParserTest extends Specification {
     final badCookies = new CookieSecurityParser(headerValue).getCookies()
 
     then:
-    badCookies.size() == 2
+    badCookies.size() == 3
 
-    badCookies.get(0).getCookieName() == 'B'
+    badCookies.get(0).getCookieName() == 'A'
     badCookies.get(0).isSecure()
-    ! badCookies.get(0).isHttpOnly()
+    badCookies.get(0).isHttpOnly()
     badCookies.get(0).isSameSiteStrict()
 
-    badCookies.get(1).getCookieName() == 'C'
-    ! badCookies.get(1).isSecure()
+
+    badCookies.get(1).getCookieName() == 'B'
+    badCookies.get(1).isSecure()
     ! badCookies.get(1).isHttpOnly()
-    ! badCookies.get(1).isSameSiteStrict()
+    badCookies.get(1).isSameSiteStrict()
+
+    badCookies.get(2).getCookieName() == 'C'
+    ! badCookies.get(2).isSecure()
+    ! badCookies.get(2).isHttpOnly()
+    ! badCookies.get(2).isSameSiteStrict()
   }
 }
