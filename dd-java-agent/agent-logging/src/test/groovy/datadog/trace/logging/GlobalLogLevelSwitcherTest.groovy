@@ -88,7 +88,7 @@ class GlobalLogLevelSwitcherTest extends LogValidatingSpecification {
 
     @Override
     Logger getLogger(String name) {
-      return new DDLogger(helperFactory, name)
+      return new DDLogger(helperFactory.loggerHelperForName(name), name)
     }
   }
 }
