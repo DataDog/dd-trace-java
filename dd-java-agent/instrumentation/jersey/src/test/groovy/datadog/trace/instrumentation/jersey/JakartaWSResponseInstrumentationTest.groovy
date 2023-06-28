@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.jersey
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
-import datadog.trace.api.iast.sink.InsecureCookieModule
+import datadog.trace.api.iast.sink.HttpResponseHeaderModule
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
 import jakarta.ws.rs.core.NewCookie
 import jakarta.ws.rs.core.Response
@@ -22,10 +22,8 @@ class JakartaWSResponseInstrumentationTest extends AgentTestRunner {
 
   void 'change location header triggers onHeader callback'() {
     setup:
-    final redirectionModule = Mock(UnvalidatedRedirectModule)
+    final redirectionModule = Mock(HttpResponseHeaderModule)
     InstrumentationBridge.registerIastModule(redirectionModule)
-    final insecureCookieModule = Mock(InsecureCookieModule)
-    InstrumentationBridge.registerIastModule(insecureCookieModule)
 
     when:
     Response.status(Response.Status.TEMPORARY_REDIRECT).header("Location", "https://dummy.location.com/test")
@@ -50,28 +48,28 @@ class JakartaWSResponseInstrumentationTest extends AgentTestRunner {
 
   def 'insecure cookie added using Response.cookie'(){
     setup:
-    final module = Mock(InsecureCookieModule)
+    final module = Mock(HttpResponseHeaderModule)
     InstrumentationBridge.registerIastModule(module)
 
     when:
     Response.ok().cookie(new NewCookie("user-id", "7"))
 
     then:
-    1 * module.onCookie('user-id', '7', _, _, _)
+    1 * module.onHeader('Set-Cookie', 'user-id=7;Version=1')
     0 * _
   }
 
   def 'insecure cookies added using Response.cookie'(){
     setup:
-    final module = Mock(InsecureCookieModule)
+    final module = Mock(HttpResponseHeaderModule)
     InstrumentationBridge.registerIastModule(module)
 
     when:
     Response.ok().cookie(new NewCookie("user-id", "7"), new NewCookie("ttt", "1"))
 
     then:
-    1 * module.onCookie('user-id', '7', _, _, _)
-    1 * module.onCookie('ttt', '1', _, _, _)
+    1 * module.onHeader('Set-Cookie', 'user-id=7;Version=1')
+    1 * module.onHeader('Set-Cookie', 'ttt=1;Version=1')
     0 * _
   }
 }

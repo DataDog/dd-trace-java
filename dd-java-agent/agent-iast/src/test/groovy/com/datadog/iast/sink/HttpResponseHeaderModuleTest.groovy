@@ -8,10 +8,8 @@ import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import groovy.transform.CompileDynamic
 
-@CompileDynamic
-class InsecureCookieModuleTest extends IastModuleImplTestBase {
+class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
 
   private List<Object> objectHolder
 
@@ -25,6 +23,8 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
     InstrumentationBridge.clearIastModules()
     module = registerDependencies(new HttpResponseHeaderModuleImpl())
     InstrumentationBridge.registerIastModule(new InsecureCookieModuleImpl())
+    InstrumentationBridge.registerIastModule(new NoHttpOnlyCookieModuleImpl())
+    InstrumentationBridge.registerIastModule(new NoSameSiteCookieModuleImpl())
     objectHolder = []
     ctx = new IastRequestContext()
     final reqCtx = Mock(RequestContext) {
@@ -36,42 +36,40 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
     }
   }
 
-  void 'report insecure cookie with InsecureCookieModule.onCookie'() {
+
+  void 'check quota is consumed correctly'() {
     given:
-    Vulnerability savedVul
-
-    when:
-    module.onCookie('user-id', false, false, false)
-
-    then:
-    1 * tracer.activeSpan() >> span
-    1 * overheadController.consumeQuota(_, _) >> true
-    1 * reporter.report(_, _ as Vulnerability) >> { savedVul = it[1] }
-    with(savedVul) {
-      type == VulnerabilityType.INSECURE_COOKIE
-      location != null
-      with(evidence) {
-        value == "user-id"
-      }
-    }
-  }
-
-
-
-
-  void 'report insecure cookie with InsecureCookieModule.onCookie'() {
-    given:
-    Vulnerability savedVul
+    Vulnerability savedVul1
+    Vulnerability savedVul2
+    Vulnerability savedVul3
 
     when:
     module.onCookie("user-id", false, false, false)
 
     then:
     1 * tracer.activeSpan() >> span
+    1 * span.getSpanId()
     1 * overheadController.consumeQuota(_, _) >> true
-    1 * reporter.report(_, _ as Vulnerability) >> { savedVul = it[1] }
-    with(savedVul) {
+    1 * reporter.report(_, _ as Vulnerability) >> { savedVul1 = it[1] }
+    1 * reporter.report(_, _ as Vulnerability) >> { savedVul2 = it[1] }
+    1 * reporter.report(_, _ as Vulnerability) >> { savedVul3 = it[1] }
+    0 * _
+    with(savedVul1) {
       type == VulnerabilityType.INSECURE_COOKIE
+      location != null
+      with(evidence) {
+        value == "user-id"
+      }
+    }
+    with(savedVul2) {
+      type == VulnerabilityType.NO_HTTPONLY_COOKIE
+      location != null
+      with(evidence) {
+        value == "user-id"
+      }
+    }
+    with(savedVul3) {
+      type == VulnerabilityType.NO_SAMESITE_COOKIE
       location != null
       with(evidence) {
         value == "user-id"
@@ -79,23 +77,13 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
     }
   }
 
-  void 'cases where nothing is reported during InsecureCookieModuleTest.onCookie'() {
+  void 'exercise onHeader'() {
     when:
-    module.onCookie("user-id", true, true, true)
+    module.onHeader("Set-Cookie", "user-id=7")
 
     then:
-    0 * tracer.activeSpan()
-    0 * overheadController._
-    0 * reporter._
-  }
-
-  void 'insecure cookie is not reported with InsecureCookieModule.onCookie'() {
-    when:
-    module.onCookie("user-id", true, false, false)
-
-    then:
-    0 * tracer.activeSpan() >> span
-    0 * overheadController.consumeQuota(_, _) >> true
-    0 * reporter.report(_, _ as Vulnerability)
+    1 * tracer.activeSpan()
+    1 * overheadController.consumeQuota(_,_)
+    0 * _
   }
 }
