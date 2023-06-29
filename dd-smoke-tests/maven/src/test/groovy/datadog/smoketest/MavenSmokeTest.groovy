@@ -367,7 +367,8 @@ class MavenSmokeTest extends Specification {
           it["test.status"] == "pass"
 
           if (buildEvent) {
-            it["test.command"] == "mvn test"
+            // Maven 4 sets "-B" flag ("batch", non-interactive mode)
+            it["test.command"] == "mvn test" || it["test.command"] == "mvn -B test"
             it["component"] == "maven"
           } else {
             // testcase/suite event
