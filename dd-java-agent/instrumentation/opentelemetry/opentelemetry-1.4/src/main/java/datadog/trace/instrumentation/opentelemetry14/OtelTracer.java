@@ -7,6 +7,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 class OtelTracer implements Tracer {
+  private static final String INSTRUMENTATION_NAME = "opentelemetry";
   private final AgentTracer.TracerAPI tracer;
   private final String instrumentationScopeName;
 
@@ -17,7 +18,8 @@ class OtelTracer implements Tracer {
 
   @Override
   public SpanBuilder spanBuilder(String spanName) {
-    AgentTracer.SpanBuilder delegate = this.tracer.buildSpan(spanName).withResourceName(spanName);
+    AgentTracer.SpanBuilder delegate =
+        this.tracer.buildSpan(INSTRUMENTATION_NAME, spanName).withResourceName(spanName);
     return new OtelSpanBuilder(delegate);
   }
 }
