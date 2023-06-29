@@ -458,6 +458,7 @@ class CoreTracerTest extends DDCoreSpecification {
         }
       }
       '''.getBytes(StandardCharsets.UTF_8), null)
+    updater.commit()
 
     then:
     tracer.captureTraceConfig().serviceMapping == ['foobar':'bar', 'snafu':'foo']
@@ -466,6 +467,7 @@ class CoreTracerTest extends DDCoreSpecification {
 
     when:
     updater.remove(key, null)
+    updater.commit()
 
     then:
     tracer.captureTraceConfig().serviceMapping == [:]
