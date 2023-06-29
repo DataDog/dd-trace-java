@@ -26,6 +26,7 @@ public class ContactPointsUtil {
                     }
                     return inetSocketAddress.getHostString();
                   })
+              .distinct() // avoid duplicates
               .collect(Collectors.joining(","));
 
   public static String fromEndPointSet(@Nullable final Set<EndPoint> contactPoints) {
