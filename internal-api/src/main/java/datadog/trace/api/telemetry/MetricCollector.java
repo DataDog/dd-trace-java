@@ -13,6 +13,9 @@ public interface MetricCollector<M extends Metric> {
 
   int RAW_QUEUE_SIZE = 1024;
 
+  // TODO All implementations are based on queueing metrics and never care when the queue is full.
+  // TODO This leads to always resetting counters even if the related metrics could not be enqueued.
+  // TODO So we may loose metric information during this call.
   void prepareMetrics();
 
   Collection<M> drain();
