@@ -206,8 +206,11 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     }
     // there's a race with stdout where lines get combined
     // this fixes that
-    def startOfMangle = line.indexOf("[")
-    def unmangled = startOfMangle != -1 ? line.substring(0, startOfMangle) : line
+    def lineStart = line.indexOf("TRACEID")
+    def startOfNextLine = line.indexOf("[", lineStart)
+    def lineEnd = startOfNextLine == -1 ? line.length() : startOfNextLine
+
+    def unmangled = line.substring(lineStart, lineEnd)
 
     return unmangled.split(" ")[1..2]
   }
@@ -218,7 +221,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
 
     def newConfig = """
         {"lib_config":
-          {"logs_injection_enabled":false}
+          {"log_injection_enabled":false}
         }
      """.toString()
     setRemoteConfig("datadog/2/APM_TRACING/config_overrides/config", newConfig)
@@ -239,10 +242,10 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     println "json log lines: " + jsonLogLines
 
     def stdOutLines = new File(logFilePath).readLines()
-    def (String firstTraceId, String firstSpanId) = parseTraceFromStdOut(stdOutLines.find { it.startsWith("FIRSTTRACEID")})
-    def (String secondTraceId, String secondSpanId) = parseTraceFromStdOut(stdOutLines.find { it.startsWith("SECONDTRACEID")})
-    def (String thirdTraceId, String thirdSpanId) = parseTraceFromStdOut(stdOutLines.find { it.startsWith("THIRDTRACEID")})
-    def (String forthTraceId, String forthSpanId) = parseTraceFromStdOut(stdOutLines.find { it.startsWith("FORTHTRACEID")})
+    def (String firstTraceId, String firstSpanId) = parseTraceFromStdOut(stdOutLines.find { it.contains("FIRSTTRACEID")})
+    def (String secondTraceId, String secondSpanId) = parseTraceFromStdOut(stdOutLines.find { it.contains("SECONDTRACEID")})
+    def (String thirdTraceId, String thirdSpanId) = parseTraceFromStdOut(stdOutLines.find { it.contains("THIRDTRACEID")})
+    def (String forthTraceId, String forthSpanId) = parseTraceFromStdOut(stdOutLines.find { it.contains("FORTHTRACEID")})
 
     then:
     exitValue == 0

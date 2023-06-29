@@ -1,5 +1,8 @@
-package datadog.trace.api
+package datadog.trace.api.telemetry
 
+import datadog.trace.api.ConfigCollector
+import datadog.trace.api.IntegrationsCollector
+import datadog.trace.api.metrics.SpanMetricRegistryImpl
 import datadog.trace.test.util.DDSpecification
 
 class TelemetryCollectorsTest extends DDSpecification {
@@ -65,19 +68,22 @@ class TelemetryCollectorsTest extends DDSpecification {
     def metrics = WafMetricCollector.get().drain()
 
     def initMetric = (WafMetricCollector.WafInitRawMetric)metrics[0]
-    initMetric.counter == 1
+    initMetric.type == 'count'
+    initMetric.value == 1
     initMetric.namespace == 'appsec'
     initMetric.metricName == 'waf.init'
     initMetric.tags.toSet() == ['waf_version:waf_ver1', 'event_rules_version:rules.1'].toSet()
 
     def updateMetric1 = (WafMetricCollector.WafUpdatesRawMetric)metrics[1]
-    updateMetric1.counter == 1
+    updateMetric1.type == 'count'
+    updateMetric1.value == 1
     updateMetric1.namespace == 'appsec'
     updateMetric1.metricName == 'waf.updates'
     updateMetric1.tags.toSet() == ['waf_version:waf_ver1', 'event_rules_version:rules.2'].toSet()
 
     def updateMetric2 = (WafMetricCollector.WafUpdatesRawMetric)metrics[2]
-    updateMetric2.counter == 2
+    updateMetric2.type == 'count'
+    updateMetric2.value == 2
     updateMetric2.namespace == 'appsec'
     updateMetric2.metricName == 'waf.updates'
     updateMetric2.tags.toSet() == ['waf_version:waf_ver1', 'event_rules_version:rules.3'].toSet()
@@ -85,7 +91,8 @@ class TelemetryCollectorsTest extends DDSpecification {
     def requestMetric = (WafMetricCollector.WafRequestsRawMetric)metrics[3]
     requestMetric.namespace == 'appsec'
     requestMetric.metricName == 'waf.requests'
-    requestMetric.counter == 3
+    requestMetric.type == 'count'
+    requestMetric.value == 3
     requestMetric.tags.toSet() == [
       'waf_version:waf_ver1',
       'event_rules_version:rules.3',
@@ -96,7 +103,7 @@ class TelemetryCollectorsTest extends DDSpecification {
     def requestTriggeredMetric = (WafMetricCollector.WafRequestsRawMetric)metrics[4]
     requestTriggeredMetric.namespace == 'appsec'
     requestTriggeredMetric.metricName == 'waf.requests'
-    requestTriggeredMetric.counter == 1
+    requestTriggeredMetric.value == 1
     requestTriggeredMetric.tags.toSet() == [
       'waf_version:waf_ver1',
       'event_rules_version:rules.3',
@@ -107,7 +114,8 @@ class TelemetryCollectorsTest extends DDSpecification {
     def requestBlockedMetric = (WafMetricCollector.WafRequestsRawMetric)metrics[5]
     requestBlockedMetric.namespace == 'appsec'
     requestBlockedMetric.metricName == 'waf.requests'
-    requestBlockedMetric.counter == 1
+    requestBlockedMetric.type == 'count'
+    requestBlockedMetric.value == 1
     requestBlockedMetric.tags.toSet() == [
       'waf_version:waf_ver1',
       'event_rules_version:rules.3',
@@ -179,5 +187,55 @@ class TelemetryCollectorsTest extends DDSpecification {
 
     then:
     ConfigCollector.get().collect().get('DD_API_KEY') == '<hidden>'
+  }
+
+  def "update-drain span core metrics"() {
+    setup:
+    def spanMetrics = SpanMetricRegistryImpl.getInstance().get('test-update-drain')
+    spanMetrics.onSpanCreated()
+    spanMetrics.onSpanCreated()
+    spanMetrics.onSpanFinished()
+    def collector = CoreMetricCollector.getInstance()
+
+    when:
+    collector.prepareMetrics()
+    def metrics = collector.drain()
+
+    then:
+    metrics.size() == 2
+
+    def spanCreatedMetric = metrics[0]
+    spanCreatedMetric.type == 'count'
+    spanCreatedMetric.value == 2
+    spanCreatedMetric.namespace == 'tracers'
+    spanCreatedMetric.metricName == 'span_created'
+    spanCreatedMetric.tags == ['test-update-drain']
+
+    def spanFinishedMetric = metrics[1]
+    spanFinishedMetric.type == 'count'
+    spanFinishedMetric.value == 1
+    spanFinishedMetric.namespace == 'tracers'
+    spanFinishedMetric.metricName == 'span_finished'
+    spanFinishedMetric.tags == ['test-update-drain']
+  }
+
+  def "overflowing core metrics"() {
+    setup:
+    def registry = SpanMetricRegistryImpl.getInstance()
+    def collector = CoreMetricCollector.getInstance()
+    final limit = 1024
+
+    when:
+    (0..limit*2).each {
+      def spanMetrics = registry.get('instr-' + it)
+      spanMetrics.onSpanCreated()
+      spanMetrics.onSpanCreated()
+      spanMetrics.onSpanFinished()
+    }
+
+    then:
+    noExceptionThrown()
+    collector.prepareMetrics()
+    collector.drain().size() == limit
   }
 }

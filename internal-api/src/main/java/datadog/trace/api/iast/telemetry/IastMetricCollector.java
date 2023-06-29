@@ -114,7 +114,7 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
     for (final IastMetricData data : metrics) {
       final IastMetric metric = data.metric;
       final String tagValue = data.tagValue;
-      final long value = data.counter;
+      final long value = data.value.longValue();
       counters.getAndAdd(metric.getIndex(tagValue), value);
     }
   }
@@ -158,7 +158,13 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
     private final String tagValue;
 
     public IastMetricData(final IastMetric metric, final String tagValue, final long value) {
-      super(NAMESPACE, metric.isCommon(), metric.getName(), value, computeTag(metric, tagValue));
+      super(
+          NAMESPACE,
+          metric.isCommon(),
+          metric.getName(),
+          "count",
+          value,
+          computeTag(metric, tagValue));
       this.metric = metric;
       this.tagValue = tagValue;
     }

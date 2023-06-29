@@ -27,20 +27,20 @@ public class CapturedSnapshot25 {
     return arg;
   }
 
-  private boolean booleanFunction(int arg) {
-    return true;
+  private boolean booleanFunction(boolean arg) {
+    return arg;
   }
 
-  private byte byteFunction(int arg) {
-    return (byte)arg;
+  private byte byteFunction(byte arg) {
+    return arg;
   }
 
-  private short shortFunction(int arg) {
-    return (short)arg;
+  private short shortFunction(short arg) {
+    return arg;
   }
 
-  private char charFunction(int arg) {
-    return (char)arg;
+  private char charFunction(char arg) {
+    return arg;
   }
 
   public static int main(String arg) {
@@ -59,16 +59,16 @@ public class CapturedSnapshot25 {
         cs25.doubleField = cs25.doubleFunction(Math.E);
         break;
       case "boolean":
-        cs25.booleanField = cs25.booleanFunction(1);
+        cs25.booleanField = cs25.booleanFunction(true);
         break;
       case "byte":
-        cs25.byteField = cs25.byteFunction(0x42);
+        cs25.byteField = cs25.byteFunction((byte)0x42);
         break;
       case "short":
-        cs25.shortField = cs25.shortFunction(1001);
+        cs25.shortField = cs25.shortFunction((short)1001);
         break;
       case "char":
-        cs25.charField = cs25.charFunction(31);
+        cs25.charField = cs25.charFunction('a');
         break;
     }
     return 42;

@@ -67,6 +67,7 @@ public final class Types {
   public static final Type DEBUGGER_SPAN_TYPE = Type.getType(DebuggerSpan.class);
   public static final Type REFLECTIVE_FIELD_VALUE_RESOLVER_TYPE =
       Type.getType(ReflectiveFieldValueResolver.class);
+  public static final Type METRICKIND_TYPE = Type.getType(DebuggerContext.MetricKind.class);
 
   // special initialization methods
   public static final String CONSTRUCTOR = "<init>";

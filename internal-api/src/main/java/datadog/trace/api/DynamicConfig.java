@@ -71,6 +71,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     Map<String, String> headerTags;
     Map<String, String> baggageMapping;
 
+    boolean overrideResponseTags;
+
     Double traceSampleRate;
 
     Builder(Snapshot snapshot) {
@@ -89,6 +91,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
         this.serviceMapping = snapshot.serviceMapping;
         this.headerTags = snapshot.headerTags;
         this.baggageMapping = snapshot.baggageMapping;
+
+        this.overrideResponseTags = snapshot.overrideResponseTags;
 
         this.traceSampleRate = snapshot.traceSampleRate;
       }
@@ -119,7 +123,15 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     }
 
     public Builder setHeaderTags(Map<String, String> headerTags) {
-      return setHeaderTags(headerTags.entrySet());
+      if (Config.get().getRequestHeaderTags().equals(headerTags)
+          && !Config.get().getResponseHeaderTags().equals(headerTags)) {
+        // using static config; don't override separate static config for response header tags
+        this.headerTags = cleanMapping(headerTags.entrySet(), true, true);
+        this.overrideResponseTags = false;
+        return this;
+      } else {
+        return setHeaderTags(headerTags.entrySet());
+      }
     }
 
     public Builder setBaggageMapping(Map<String, String> baggageMapping) {
@@ -134,6 +146,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     public Builder setHeaderTags(Collection<? extends Map.Entry<String, String>> headerTags) {
       this.headerTags = cleanMapping(headerTags, true, true);
+      this.overrideResponseTags = true;
       return this;
     }
 
@@ -169,8 +182,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     /** Overwrites the current configuration with a new snapshot. */
     public DynamicConfig<S> apply() {
-      S newSnapshot = snapshotFactory.apply(this, initialSnapshot);
       S oldSnapshot = currentSnapshot;
+      S newSnapshot = snapshotFactory.apply(this, oldSnapshot);
       if (null == oldSnapshot) {
         initialSnapshot = newSnapshot; // captured when constructing the dynamic config
         currentSnapshot = newSnapshot;
@@ -217,11 +230,11 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     final Map<String, String> headerTags;
     final Map<String, String> baggageMapping;
 
+    final boolean overrideResponseTags;
+
     final Double traceSampleRate;
 
-    private final boolean overrideResponseTags;
-
-    protected Snapshot(DynamicConfig<?>.Builder builder, Snapshot initialSnapshot) {
+    protected Snapshot(DynamicConfig<?>.Builder builder, Snapshot oldSnapshot) {
 
       this.debugEnabled = builder.debugEnabled;
       this.runtimeMetricsEnabled = builder.runtimeMetricsEnabled;
@@ -232,11 +245,9 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       this.headerTags = builder.headerTags;
       this.baggageMapping = builder.baggageMapping;
 
-      this.traceSampleRate = builder.traceSampleRate;
+      this.overrideResponseTags = builder.overrideResponseTags;
 
-      // also apply headerTags to response headers if the initial reference has been overridden
-      this.overrideResponseTags =
-          null != initialSnapshot && headerTags != initialSnapshot.headerTags;
+      this.traceSampleRate = builder.traceSampleRate;
     }
 
     @Override

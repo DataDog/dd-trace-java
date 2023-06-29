@@ -49,6 +49,8 @@ final class TracingConfigPoller {
     private final JsonAdapter<ConfigOverrides> CONFIG_OVERRIDES_ADAPTER =
         MOSHI.adapter(ConfigOverrides.class);
 
+    private boolean receivedOverrides = false;
+
     public Runnable register(Config config, SharedCommunicationObjects sco) {
       ConfigurationPoller poller = sco.configurationPoller(config);
       if (null != poller) {
@@ -68,25 +70,29 @@ final class TracingConfigPoller {
               Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
 
       if (null != overrides && null != overrides.libConfig) {
+        receivedOverrides = true;
         applyConfigOverrides(overrides.libConfig);
         if (log.isDebugEnabled()) {
           log.debug(
               "Applied APM_TRACING overrides: {}", CONFIG_OVERRIDES_ADAPTER.toJson(overrides));
         }
       } else {
-        removeConfigOverrides();
         log.debug("No APM_TRACING overrides");
       }
     }
 
     @Override
-    public void remove(ParsedConfigKey configKey, PollingRateHinter hinter) {
-      removeConfigOverrides();
-      log.debug("Removed APM_TRACING overrides");
-    }
+    public void remove(ParsedConfigKey configKey, PollingRateHinter hinter) {}
 
     @Override
-    public void commit(PollingRateHinter hinter) {}
+    public void commit(PollingRateHinter hinter) {
+      if (!receivedOverrides) {
+        removeConfigOverrides();
+        log.debug("Removed APM_TRACING overrides");
+      } else {
+        receivedOverrides = false;
+      }
+    }
   }
 
   void applyConfigOverrides(LibConfig libConfig) {
@@ -136,7 +142,7 @@ final class TracingConfigPoller {
     @Json(name = "runtime_metrics_enabled")
     public Boolean runtimeMetricsEnabled;
 
-    @Json(name = "logs_injection_enabled")
+    @Json(name = "log_injection_enabled")
     public Boolean logsInjectionEnabled;
 
     @Json(name = "data_streams_enabled")
@@ -148,20 +154,20 @@ final class TracingConfigPoller {
     @Json(name = "tracing_header_tags")
     public List<HeaderTagEntry> headerTags;
 
-    @Json(name = "tracing_sample_rate")
+    @Json(name = "tracing_sampling_rate")
     public Double traceSampleRate;
   }
 
   static final class ServiceMappingEntry implements Map.Entry<String, String> {
-    @Json(name = "from_name")
-    public String fromName;
+    @Json(name = "from_key")
+    public String fromKey;
 
     @Json(name = "to_name")
     public String toName;
 
     @Override
     public String getKey() {
-      return fromName;
+      return fromKey;
     }
 
     @Override
