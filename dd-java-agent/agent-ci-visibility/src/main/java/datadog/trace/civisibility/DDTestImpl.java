@@ -49,7 +49,7 @@ public class DDTestImpl implements DDTest {
 
     AgentTracer.SpanBuilder spanBuilder =
         AgentTracer.get()
-            .buildSpan("ci-visibility", testDecorator.component() + ".test")
+            .buildSpan(testDecorator.component() + ".test")
             .ignoreActiveSpan()
             .asChildOf(null)
             .withRequestContextData(
