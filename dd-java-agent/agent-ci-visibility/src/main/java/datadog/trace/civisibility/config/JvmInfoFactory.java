@@ -20,11 +20,12 @@ public class JvmInfoFactory {
   // provide some confidence
   public JvmInfo getJvmInfo(Path jvmExecutablePath) {
     String currentJvm =
-        ProcessUtils.getCurrentExecutablePath(); // might be home dir or full executable path
+        ProcessUtils.getCurrentJvmPath(); // might be home dir or full executable path
     // if we cannot determine forked JVM,
     // we assume it is the same as current one,
     // which is the most common case
-    if (jvmExecutablePath == null || jvmExecutablePath.startsWith(currentJvm)) {
+    if (jvmExecutablePath == null
+        || currentJvm != null && jvmExecutablePath.startsWith(currentJvm)) {
       return JvmInfo.CURRENT_JVM;
     } else {
       Path jvmExecutableFolder = jvmExecutablePath.getParent();
