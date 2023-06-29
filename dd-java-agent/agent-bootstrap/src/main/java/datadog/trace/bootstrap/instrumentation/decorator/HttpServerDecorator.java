@@ -124,8 +124,18 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return tracer().propagate().extract(carrier, getter);
   }
 
+  /** Deprecated. Use {@link #startSpan(String, Object, AgentSpan.Context.Extracted)} instead. */
+  @Deprecated
   public AgentSpan startSpan(REQUEST_CARRIER carrier, AgentSpan.Context.Extracted context) {
-    AgentSpan span = tracer().startSpan(spanName(), callIGCallbackStart(context)).setMeasured(true);
+    return startSpan("http-server", carrier, context);
+  }
+
+  public AgentSpan startSpan(
+      String instrumentationName, REQUEST_CARRIER carrier, AgentSpan.Context.Extracted context) {
+    AgentSpan span =
+        tracer()
+            .startSpan(instrumentationName, spanName(), callIGCallbackStart(context))
+            .setMeasured(true);
     Flow<Void> flow = callIGCallbackRequestHeaders(span, carrier);
     if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
       span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());

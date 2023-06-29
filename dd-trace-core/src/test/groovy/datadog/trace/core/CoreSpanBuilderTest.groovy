@@ -396,7 +396,7 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
 
   def "can overwrite RequestContext data with builder from empty"() {
     when:
-    def span1 = tracer.startSpan("span1")
+    def span1 = tracer.startSpan("test", "span1")
 
     then:
     span1.getRequestContext().getData(RequestContextSlot.APPSEC) == null

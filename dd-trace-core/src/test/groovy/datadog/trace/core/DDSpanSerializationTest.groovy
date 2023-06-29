@@ -27,7 +27,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
     def traceId = DDTraceId.from(value)
     def spanId = DDSpanId.from(value)
     def context = createContext(spanType, tracer, traceId, spanId)
-    def span = DDSpan.create(0, context)
+    def span = DDSpan.create("test", 0, context)
     CaptureBuffer capture = new CaptureBuffer()
     def packer = new MsgPackWriter(new FlushingBuffer(1024, capture))
     packer.format(Collections.singletonList(span), new TraceMapperV0_4())
@@ -88,7 +88,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
     def traceId = DDTraceId.from(value)
     def spanId = DDSpanId.from(value)
     def context = createContext(spanType, tracer, traceId, spanId)
-    def span = DDSpan.create(0, context)
+    def span = DDSpan.create("test", 0, context)
     CaptureBuffer capture = new CaptureBuffer()
     def packer = new MsgPackWriter(new FlushingBuffer(1024, capture))
     def traceMapper = new TraceMapperV0_5()
@@ -172,7 +172,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       false,
       null)
     context.setAllTags(tags)
-    def span = DDSpan.create(0, context)
+    def span = DDSpan.create("test", 0, context)
     CaptureBuffer capture = new CaptureBuffer()
     def packer = new MsgPackWriter(new FlushingBuffer(1024, capture))
     packer.format(Collections.singletonList(span), new TraceMapperV0_4())
@@ -243,7 +243,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       false,
       null)
     context.setAllTags(tags)
-    def span = DDSpan.create(0, context)
+    def span = DDSpan.create("test", 0, context)
     CaptureBuffer capture = new CaptureBuffer()
     def packer = new MsgPackWriter(new FlushingBuffer(1024, capture))
     def mapper = new TraceMapperV0_5()
@@ -317,7 +317,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       'sub1': 'v1',
       'sub2': 'v2'
     ])
-    def span = DDSpan.create(0, context)
+    def span = DDSpan.create("test", 0, context)
 
     CaptureBuffer capture = new CaptureBuffer()
     def packer = new MsgPackWriter(new FlushingBuffer(1024, capture))
@@ -387,7 +387,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       'sub1': 'v1',
       'sub2': 'v2'
     ])
-    def span = DDSpan.create(0, context)
+    def span = DDSpan.create("test", 0, context)
 
     CaptureBuffer capture = new CaptureBuffer()
     def packer = new MsgPackWriter(new FlushingBuffer(1024, capture))
