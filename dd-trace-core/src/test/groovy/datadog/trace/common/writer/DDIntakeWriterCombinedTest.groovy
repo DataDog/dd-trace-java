@@ -745,7 +745,7 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
 
   def createMinimalTrace() {
     def context = createMinimalContext()
-    def minimalSpan = new DDSpan(0, context)
+    def minimalSpan = new DDSpan("test", 0, context)
     context.getTrace().getRootSpan() >> minimalSpan
     def minimalTrace = [minimalSpan]
 

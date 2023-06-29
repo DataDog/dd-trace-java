@@ -124,7 +124,7 @@ public class TraceMapperBenchmark {
             false,
             propagationTags);
     DDSpanHelper.setAllTags(rootContext, tags);
-    DDSpan root = DDSpanHelper.create(System.currentTimeMillis() * 1000, rootContext);
+    DDSpan root = DDSpanHelper.create("benchmark", System.currentTimeMillis() * 1000, rootContext);
     root.setResourceName(UTF8BytesString.create("benchmark"));
     trace = Lists.newArrayList(root);
   }
