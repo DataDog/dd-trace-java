@@ -2,6 +2,7 @@ package datadog.smoketest.maven;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import org.apache.maven.wrapper.BootstrapMainStarter;
 import org.apache.maven.wrapper.DefaultDownloader;
 import org.apache.maven.wrapper.HashAlgorithmVerifier;
@@ -19,15 +20,18 @@ public class MavenRunner {
   private static final String MAVEN_USER_HOME_ENV_KEY = "MAVEN_USER_HOME";
 
   public static void main(String[] args) throws Exception {
-    if (args.length == 0) {
-      throw new IllegalArgumentException("1 argument is required: project home. Got no arguments");
+    if (args.length < 2) {
+      throw new IllegalArgumentException(
+          "2 arguments are required: project home, command to execute. "
+              + "Got: "
+              + Arrays.toString(args));
     }
 
     Path projectHome = Paths.get(args[0]);
 
     WrapperExecutor wrapperExecutor = WrapperExecutor.forProjectDirectory(projectHome);
     wrapperExecutor.execute(
-        new String[] {"test"},
+        new String[] {args[1]},
         new Installer(
             new DefaultDownloader("mvnw", "3.2.0"),
             new HashAlgorithmVerifier(),

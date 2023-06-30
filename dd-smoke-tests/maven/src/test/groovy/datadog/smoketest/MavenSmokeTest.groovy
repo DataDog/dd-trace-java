@@ -35,9 +35,7 @@ class MavenSmokeTest extends Specification {
 
   private static final int PROCESS_TIMEOUT_SECS = 60
 
-  @Shared
-  @TempDir
-  Path mavenUserHome
+  private static final int DEPENDENCIES_DOWNLOAD_RETRIES = 5
 
   @TempDir
   Path projectHome
@@ -75,10 +73,16 @@ class MavenSmokeTest extends Specification {
     }
   }
 
+  def setup() {
+    receivedTraces.clear()
+    receivedCoverages.clear()
+  }
+
   def "test successful maven run, v#mavenVersion"() {
     given:
     givenWrapperPropertiesFile(mavenVersion)
     givenMavenProjectFiles("test_sucessful_maven_run")
+    givenMavenDependenciesAreLoaded()
 
     when:
     def exitCode = whenRunningMavenBuild()
@@ -186,7 +190,7 @@ class MavenSmokeTest extends Specification {
     ]
 
     where:
-    mavenVersion << ["3.2.1", "3.2.5", "3.3.9", "3.5.4", "3.6.3", "3.8.8", "3.9.2", "4.0.0-alpha-5"]
+    mavenVersion << ["3.2.1", "3.2.5", "3.3.9", "3.5.4", "3.6.3", "3.8.8", "3.9.3", "4.0.0-alpha-7"]
   }
 
   private void givenWrapperPropertiesFile(String mavenVersion) {
@@ -226,18 +230,34 @@ class MavenSmokeTest extends Specification {
       })
   }
 
+  /**
+   * Sometimes Maven has problems downloading project dependencies because of intermittent network issues.
+   * Here, in order to reduce flakiness, we ensure that all of the dependencies are loaded (retrying if necessary),
+   * before proceeding with running the build
+   */
+  private void givenMavenDependenciesAreLoaded() {
+    def processBuilder = createProcessBuilder("dependency:go-offline", false)
+    for (int attempt = 0; attempt < DEPENDENCIES_DOWNLOAD_RETRIES; attempt++) {
+      def exitCode = runProcess(processBuilder.start())
+      if (exitCode == 0) {
+        return
+      }
+    }
+    throw new AssertionError((Object) "Tried to download dependencies $DEPENDENCIES_DOWNLOAD_RETRIES times and failed")
+  }
+
   private int whenRunningMavenBuild() {
-    def processBuilder = createProcessBuilder()
+    def processBuilder = createProcessBuilder("test")
 
-    processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"))
     processBuilder.environment().put("DD_API_KEY", "01234567890abcdef123456789ABCDEF")
-
     // ensure CI provider is detected as Jenkins regardless of where the test is run
     processBuilder.environment().put("JENKINS_URL", "dummy")
     processBuilder.environment().put("WORKSPACE", projectHome.toAbsolutePath().toString())
 
-    Process p = processBuilder.start()
+    return runProcess(processBuilder.start())
+  }
 
+  private runProcess(Process p) {
     StreamConsumer errorGobbler = new StreamConsumer(p.getErrorStream(), "ERROR")
     StreamConsumer outputGobbler = new StreamConsumer(p.getInputStream(), "OUTPUT")
     outputGobbler.start()
@@ -251,18 +271,21 @@ class MavenSmokeTest extends Specification {
     return p.exitValue()
   }
 
-  ProcessBuilder createProcessBuilder() {
+  ProcessBuilder createProcessBuilder(String mvnCommand, boolean runWithAgent = true) {
     String mavenRunnerShadowJar = System.getProperty("datadog.smoketest.maven.jar.path")
     assert new File(mavenRunnerShadowJar).isFile()
 
     List<String> command = new ArrayList<>()
     command.add(javaPath())
-    command.addAll(jvmArguments())
+    command.addAll(jvmArguments(runWithAgent))
     command.addAll((String[]) ["-jar", mavenRunnerShadowJar])
     command.addAll(programArguments())
+    command.add(mvnCommand)
 
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(projectHome.toFile())
+
+    processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"))
 
     return processBuilder
   }
@@ -272,23 +295,26 @@ class MavenSmokeTest extends Specification {
     return System.getProperty("java.home") + separator + "bin" + separator + "java"
   }
 
-  List<String> jvmArguments() {
-    def agentShadowJar = System.getProperty("datadog.smoketest.agent.shadowJar.path")
-    def agentArgument = "-javaagent:${agentShadowJar}=" +
-      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.ENV)}=${TEST_ENVIRONMENT_NAME}," +
-      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME)}=${TEST_SERVICE_NAME}," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED)}=true," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED)}=true," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED)}=true," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=0.8.10," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES)}=datadog.smoke.*," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${intakeServer.address.toString()}"
-    return [
+  List<String> jvmArguments(boolean runWithAgent) {
+    def arguments = [
       "-D${MavenWrapperMain.MVNW_VERBOSE}=true".toString(),
       "-Duser.dir=${projectHome.toAbsolutePath()}".toString(),
       "-Dmaven.multiModuleProjectDirectory=${projectHome.toAbsolutePath()}".toString(),
-      agentArgument.toString()
     ]
+    if (runWithAgent) {
+      def agentShadowJar = System.getProperty("datadog.smoketest.agent.shadowJar.path")
+      def agentArgument = "-javaagent:${agentShadowJar}=" +
+        "${Strings.propertyNameToSystemPropertyName(GeneralConfig.ENV)}=${TEST_ENVIRONMENT_NAME}," +
+        "${Strings.propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME)}=${TEST_SERVICE_NAME}," +
+        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED)}=true," +
+        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED)}=true," +
+        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED)}=true," +
+        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=0.8.10," +
+        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES)}=datadog.smoke.*," +
+        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${intakeServer.address.toString()}"
+      arguments += agentArgument.toString()
+    }
+    return arguments
   }
 
   List<String> programArguments() {
@@ -341,7 +367,8 @@ class MavenSmokeTest extends Specification {
           it["test.status"] == "pass"
 
           if (buildEvent) {
-            it["test.command"] == "mvn test"
+            // Maven 4 sets "-B" flag ("batch", non-interactive mode)
+            it["test.command"] == "mvn test" || it["test.command"] == "mvn -B test"
             it["component"] == "maven"
           } else {
             // testcase/suite event
