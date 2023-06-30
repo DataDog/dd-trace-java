@@ -18,13 +18,7 @@ public class TelemetryRunnable implements Runnable {
   private final TelemetryService telemetryService;
   private final List<TelemetryPeriodicAction> actions;
   private final List<MetricPeriodicAction> actionsAtMetricsInterval;
-  private final ThreadSleeper sleeper;
-
-  private final TimeSource timeSource;
-  private final long metricsIntervalMs;
-  private final long heartbeatIntervalMs;
-  private long nextMetricsIntervalMs;
-  private long nextHeartbeatIntervalMs;
+  private final Scheduler scheduler;
 
   public TelemetryRunnable(
       final TelemetryService telemetryService, final List<TelemetryPeriodicAction> actions) {
@@ -39,12 +33,12 @@ public class TelemetryRunnable implements Runnable {
     this.telemetryService = telemetryService;
     this.actions = actions;
     this.actionsAtMetricsInterval = findMetricPeriodicActions(actions);
-    this.sleeper = sleeper;
-    this.timeSource = timeSource;
-    this.metricsIntervalMs = (long) (Config.get().getTelemetryMetricsInterval() * 1000);
-    this.heartbeatIntervalMs = (long) (Config.get().getTelemetryHeartbeatInterval() * 1000);
-    this.nextMetricsIntervalMs = 0;
-    this.nextHeartbeatIntervalMs = 0;
+    this.scheduler =
+        new Scheduler(
+            timeSource,
+            sleeper,
+            (long) (Config.get().getTelemetryHeartbeatInterval() * 1000),
+            (long) (Config.get().getTelemetryMetricsInterval() * 1000));
   }
 
   private List<MetricPeriodicAction> findMetricPeriodicActions(
@@ -60,15 +54,12 @@ public class TelemetryRunnable implements Runnable {
     // Ensure that Config has been initialized, so ConfigCollector can collect all settings first.
     Config.get();
 
-    final long currentTime = timeSource.getCurrentTimeMillis();
-    // First interval will be triggered immediately.
-    nextMetricsIntervalMs = currentTime;
-    nextHeartbeatIntervalMs = currentTime;
+    scheduler.init();
 
     while (!Thread.interrupted()) {
       try {
         mainLoopIteration();
-        waitForNextIteration();
+        scheduler.sleepUntilNextIteration();
       } catch (InterruptedException e) {
         log.debug("Interrupted; finishing telemetry thread");
         Thread.currentThread().interrupt();
@@ -80,23 +71,19 @@ public class TelemetryRunnable implements Runnable {
   }
 
   private void mainLoopIteration() throws InterruptedException {
-    final long currentTime = timeSource.getCurrentTimeMillis();
-
     Map<String, Object> collectedConfig = ConfigCollector.get().collect();
     if (!collectedConfig.isEmpty()) {
       telemetryService.addConfiguration(collectedConfig);
     }
 
     // Collect request metrics every N seconds (default 10s)
-    if (currentTime >= nextMetricsIntervalMs) {
-      nextMetricsIntervalMs += metricsIntervalMs;
+    if (scheduler.shouldRunMetrics()) {
       for (MetricPeriodicAction action : actionsAtMetricsInterval) {
         action.collector().prepareMetrics();
       }
     }
 
-    if (currentTime >= nextHeartbeatIntervalMs) {
-      nextHeartbeatIntervalMs += heartbeatIntervalMs;
+    if (scheduler.shouldRunHeartbeat()) {
       for (final TelemetryPeriodicAction action : this.actions) {
         action.doIteration(this.telemetryService);
       }
@@ -104,27 +91,11 @@ public class TelemetryRunnable implements Runnable {
     }
   }
 
-  private void waitForNextIteration() {
-    final long currentTime = timeSource.getCurrentTimeMillis();
-    long nextIntervalMs = Math.min(nextMetricsIntervalMs, nextHeartbeatIntervalMs);
-    if (currentTime >= nextIntervalMs) {
-      // We are probably under high load or, more likely (?) slow network and the time to send
-      // telemetry has overrun the interval.
-      nextMetricsIntervalMs = currentTime;
-      nextHeartbeatIntervalMs = currentTime;
-      log.debug(
-          "Time to run telemetry actions exceeded the interval, triggering the next iteration immediately");
-      return;
-    }
-    final long waitMs = nextIntervalMs - currentTime;
-    sleeper.sleep(waitMs);
-  }
-
   interface ThreadSleeper {
     void sleep(long timeoutMs);
   }
 
-  private static class ThreadSleeperImpl implements ThreadSleeper {
+  static class ThreadSleeperImpl implements ThreadSleeper {
     @Override
     public void sleep(long timeoutMs) {
       try {
@@ -137,5 +108,80 @@ public class TelemetryRunnable implements Runnable {
 
   public interface TelemetryPeriodicAction {
     void doIteration(TelemetryService service);
+  }
+
+  static class Scheduler {
+    private final TimeSource timeSource;
+    private final ThreadSleeper sleeper;
+    private final long heartbeatIntervalMs;
+    private final long metricsIntervalMs;
+    private long nextHeartbeatIntervalMs;
+    private long nextMetricsIntervalMs;
+    private long currentTime;
+
+    public Scheduler(
+        final TimeSource timeSource,
+        final ThreadSleeper sleeper,
+        final long heartbeatIntervalMs,
+        final long metricsIntervalMs) {
+      this.timeSource = timeSource;
+      this.sleeper = sleeper;
+      this.heartbeatIntervalMs = heartbeatIntervalMs;
+      this.metricsIntervalMs = metricsIntervalMs;
+      nextHeartbeatIntervalMs = 0;
+      nextMetricsIntervalMs = 0;
+      currentTime = 0;
+    }
+
+    public void init() {
+      final long currentTime = timeSource.getCurrentTimeMillis();
+      this.currentTime = currentTime;
+      nextMetricsIntervalMs = currentTime;
+      nextHeartbeatIntervalMs = currentTime;
+    }
+
+    public boolean shouldRunMetrics() {
+      if (currentTime >= nextMetricsIntervalMs) {
+        nextMetricsIntervalMs += metricsIntervalMs;
+        return true;
+      }
+      return false;
+    }
+
+    public boolean shouldRunHeartbeat() {
+      if (currentTime >= nextHeartbeatIntervalMs) {
+        nextHeartbeatIntervalMs += heartbeatIntervalMs;
+        return true;
+      }
+      return false;
+    }
+
+    public void sleepUntilNextIteration() {
+      currentTime = timeSource.getCurrentTimeMillis();
+
+      if (currentTime >= nextHeartbeatIntervalMs) {
+        // We are probably under high load or, more likely (?) slow network and the time to send
+        // telemetry has overrun the interval. In this case, we reset metrics and heartbeat interval
+        // to trigger them immediately.
+        nextMetricsIntervalMs = currentTime;
+        nextHeartbeatIntervalMs = currentTime;
+        log.debug(
+            "Time to run telemetry actions exceeded the interval, triggering the next iteration immediately");
+        return;
+      }
+
+      while (currentTime >= nextMetricsIntervalMs) {
+        // If metric collection exceeded the interval, something went really wrong. Either there's a
+        // very short interval (not default), or metric collection is taking abnormally long. We
+        // skip
+        // intervals in this case.
+        nextMetricsIntervalMs += metricsIntervalMs;
+      }
+
+      long nextIntervalMs = Math.min(nextMetricsIntervalMs, nextHeartbeatIntervalMs);
+      final long waitMs = nextIntervalMs - currentTime;
+      sleeper.sleep(waitMs);
+      currentTime = timeSource.getCurrentTimeMillis();
+    }
   }
 }

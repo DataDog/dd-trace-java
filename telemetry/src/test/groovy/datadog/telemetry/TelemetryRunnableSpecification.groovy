@@ -52,7 +52,6 @@ class TelemetryRunnableSpecification extends DDSpecification {
 
     then:
     1 * timeSource.getCurrentTimeMillis() >> 60 * 1000
-    1 * timeSource.getCurrentTimeMillis() >> 60 * 1000 + 1
     _ * telemetryService.addConfiguration(_)
 
     then:
@@ -170,5 +169,163 @@ class TelemetryRunnableSpecification extends DDSpecification {
     then:
     1 * telemetryService.sendAppClosingRequest()
     0 * _
+  }
+
+  void 'scheduler skips metrics intervals'() {
+    setup:
+    TimeSource timeSource = Mock()
+    TickSleeper sleeper = Mock()
+    TelemetryRunnable.Scheduler scheduler = new TelemetryRunnable.Scheduler(timeSource, sleeper, 60 * 1000, 10 * 1000)
+
+    when: 'first iteration'
+    scheduler.init()
+
+    then: 'run everything'
+    timeSource.getCurrentTimeMillis() >> 0
+    scheduler.shouldRunMetrics()
+    scheduler.shouldRunHeartbeat()
+    0 * _
+
+    when:
+    scheduler.sleepUntilNextIteration()
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 1
+    1 * sleeper.sleep(10 * 1000 - 1)
+    1 * timeSource.getCurrentTimeMillis() >> 10 * 1000
+    0 * _
+
+    when: 'one metrics interval is exceeded'
+    assert scheduler.shouldRunMetrics()
+    assert !scheduler.shouldRunHeartbeat()
+    scheduler.sleepUntilNextIteration()
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 20 * 1000 + 1
+    1 * sleeper.sleep(9999)
+    1 * timeSource.getCurrentTimeMillis() >> 30 * 1000
+    0 * _
+
+    when: 'two metrics interval are exceeded'
+    assert scheduler.shouldRunMetrics()
+    assert !scheduler.shouldRunHeartbeat()
+    scheduler.sleepUntilNextIteration()
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 50 * 1000 + 2
+    1 * sleeper.sleep(9998)
+    1 * timeSource.getCurrentTimeMillis() >> 60 * 1000
+    0 * _
+    scheduler.shouldRunMetrics()
+    scheduler.shouldRunHeartbeat()
+  }
+
+  void 'scheduler skips heartbeat intervals'() {
+    setup:
+    TimeSource timeSource = Mock()
+    TickSleeper sleeper = Mock()
+    TelemetryRunnable.Scheduler scheduler = new TelemetryRunnable.Scheduler(timeSource, sleeper, 60 * 1000, 10 * 1000)
+
+    when: 'first iteration'
+    scheduler.init()
+
+    then: 'run everything'
+    timeSource.getCurrentTimeMillis() >> 0
+    scheduler.shouldRunMetrics()
+    scheduler.shouldRunHeartbeat()
+    0 * _
+
+    when:
+    scheduler.sleepUntilNextIteration()
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 1
+    1 * sleeper.sleep(10 * 1000 - 1)
+    1 * timeSource.getCurrentTimeMillis() >> 10 * 1000
+    0 * _
+
+    when: 'heartbeat interval is exceeded'
+    assert scheduler.shouldRunMetrics()
+    assert !scheduler.shouldRunHeartbeat()
+    scheduler.sleepUntilNextIteration()
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 70 * 1000
+    0 * _
+    scheduler.shouldRunMetrics()
+    scheduler.shouldRunHeartbeat()
+
+    when: 'metrics interval has been adjusted'
+    scheduler.sleepUntilNextIteration()
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 70 * 1000 + 1
+    1 * sleeper.sleep(10 * 1000 - 1)
+    1 * timeSource.getCurrentTimeMillis() >> 80 * 1000
+    0 * _
+    scheduler.shouldRunMetrics()
+    !scheduler.shouldRunHeartbeat()
+  }
+
+  void 'scheduler with heartbeat #heartbeatSecs and metrics #metricsSecs'() {
+    setup:
+    TimeSourceAndSleeper timing = new TimeSourceAndSleeper()
+    TelemetryRunnable.Scheduler scheduler = new TelemetryRunnable.Scheduler(timing, timing, heartbeatSecs * 1000, metricsSecs * 1000)
+    def metricsRun = []
+    def heartbeatsRun = []
+
+    when:
+    scheduler.init()
+
+    and:
+    iters.times {
+      metricsRun.add(scheduler.shouldRunMetrics())
+      heartbeatsRun.add(scheduler.shouldRunHeartbeat())
+      scheduler.sleepUntilNextIteration()
+    }
+
+    then:
+    metricsRun.size() == iters
+    heartbeatsRun.size() == iters
+    metricsRun.count { it } == expectedMetrics
+    heartbeatsRun.count { it } == expectedHeartbeats
+
+    where:
+    heartbeatSecs | metricsSecs | expectedHeartbeats | expectedMetrics | iters
+    1             | 1           | 10                 | 10              | 10
+    60            | 10          | 2                  | 12              | 12
+    10            | 60          | 12                 | 2               | 12
+    5             | 3           | 3                  | 4               | 6
+    3             | 5           | 4                  | 3               | 6
+  }
+
+  class TimeSourceAndSleeper implements TimeSource, TelemetryRunnable.ThreadSleeper {
+
+    private long currentTime = 0
+
+    @Override
+    void sleep(long timeoutMs) {
+      currentTime += timeoutMs
+    }
+
+    @Override
+    long getCurrentTimeMillis() {
+      return currentTime
+    }
+
+    @Override
+    long getNanoTicks() {
+      throw new RuntimeException("NOT IMPLEMENTED")
+    }
+
+    @Override
+    long getCurrentTimeMicros() {
+      throw new RuntimeException("NOT IMPLEMENTED")
+    }
+
+    @Override
+    long getCurrentTimeNanos() {
+      throw new RuntimeException("NOT IMPLEMENTED")
+    }
   }
 }
