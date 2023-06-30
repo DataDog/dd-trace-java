@@ -24,11 +24,13 @@ public class AdviceUtils {
 
   public static AgentScope startTaskScope(State state, boolean migrated) {
     if (state != null) {
-      state.stopTiming();
       final AgentScope.Continuation continuation = state.getAndResetContinuation();
       if (continuation != null) {
         final AgentScope scope = continuation.activate();
         scope.setAsyncPropagation(true);
+        // important - stop timing after the scope has been activated so the time in the queue can
+        // be attributed to the correct context without duplicating the propagated information
+        state.stopTiming();
         return scope;
       }
     }

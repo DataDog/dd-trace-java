@@ -8,23 +8,16 @@ public class QueueTimeTracker implements QueueTiming {
   private final JavaProfiler profiler;
   private final Thread origin;
   private final long threshold;
-  private final long startMillis;
   private final long startTicks;
-  private final long localRootSpanId;
-  private final long spanId;
   private Class<?> task;
   private Class<?> scheduler;
 
-  public QueueTimeTracker(
-      JavaProfiler profiler, long threshold, long localRootSpanId, long spanId) {
+  public QueueTimeTracker(JavaProfiler profiler, long threshold) {
     this.profiler = profiler;
     this.origin = Thread.currentThread();
     this.threshold = threshold;
-    this.startMillis = System.currentTimeMillis();
     // TODO get this from JFR if available instead of making a JNI call
     this.startTicks = profiler.getCurrentTicks();
-    this.localRootSpanId = localRootSpanId;
-    this.spanId = spanId;
   }
 
   @Override
@@ -39,11 +32,8 @@ public class QueueTimeTracker implements QueueTiming {
 
   @Override
   public void close() {
-    long endMillis = System.currentTimeMillis();
-    if (endMillis - startMillis >= threshold) {
-      assert task != null && scheduler != null;
-      profiler.recordQueueTime(
-          localRootSpanId, spanId, startTicks, profiler.getCurrentTicks(), task, scheduler, origin);
-    }
+    assert task != null && scheduler != null;
+    profiler.recordQueueTime(
+        threshold, startTicks, profiler.getCurrentTicks(), task, scheduler, origin);
   }
 }

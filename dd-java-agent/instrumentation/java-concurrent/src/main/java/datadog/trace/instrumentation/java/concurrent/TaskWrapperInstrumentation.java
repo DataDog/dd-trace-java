@@ -18,7 +18,11 @@ public class TaskWrapperInstrumentation extends Instrumenter.Profiling
             "java.util.concurrent.FutureTask",
             "callable",
             "java.util.concurrent.Executors$RunnableAdapter",
-            "task"));
+            "task",
+            "java.util.concurrent.CompletableFuture$AsyncSupply",
+            "fn",
+            "java.util.concurrent.CompletableFuture$AsyncRun",
+            "fn"));
   }
 
   @Override
