@@ -896,7 +896,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public void setDataStreamCheckpoint(AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp) {
+  public void setDataStreamCheckpoint(
+      AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
     if (pathwayContext != null) {
       pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring::add, defaultTimestamp);

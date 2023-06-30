@@ -100,7 +100,9 @@ public class DefaultPathwayContext implements PathwayContext {
 
   @Override
   public void setCheckpoint(
-      LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer, long defaultTimestamp) {
+      LinkedHashMap<String, String> sortedTags,
+      Consumer<StatsPoint> pointConsumer,
+      long defaultTimestamp) {
     long startNanos = timeSource.getCurrentTimeNanos();
     long nanoTicks = timeSource.getNanoTicks();
     lock.lock();
@@ -117,7 +119,9 @@ public class DefaultPathwayContext implements PathwayContext {
           edgeStartNanoTicks = nanoTicks;
         } else {
           pathwayStartNanos = MILLISECONDS.toNanos(defaultTimestamp);
-          pathwayStartNanoTicks = startNanos - MILLISECONDS.toNanos(timeSource.getCurrentTimeMillis() - defaultTimestamp);
+          pathwayStartNanoTicks =
+              nanoTicks
+                  - MILLISECONDS.toNanos(timeSource.getCurrentTimeMillis() - defaultTimestamp);
           edgeStartNanoTicks = pathwayStartNanoTicks;
         }
 
