@@ -1,12 +1,9 @@
 package datadog.trace.instrumentation.maven3;
 
-import datadog.trace.api.civisibility.InstrumentationBridge;
-import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.Strings;
-import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -27,38 +24,10 @@ public class MavenExecutionListener extends AbstractExecutionListener {
   private static final String FORK_COUNT_CONFIG = "forkCount";
   private static final String SYSTEM_PROPERTY_VARIABLES_CONFIG = "systemPropertyVariables";
 
-  private final BuildEventsHandler<MavenSession> buildEventsHandler =
-      InstrumentationBridge.createBuildEventsHandler();
+  private final BuildEventsHandler<MavenSession> buildEventsHandler;
 
-  @Override
-  public void sessionStarted(ExecutionEvent event) {
-    MavenSession session = event.getSession();
-
-    MavenProject currentProject = session.getCurrentProject();
-    Path projectRoot = currentProject.getBasedir().toPath();
-
-    TestDecorator mavenDecorator =
-        InstrumentationBridge.createTestDecorator("maven", null, null, projectRoot);
-
-    String projectName = currentProject.getName();
-    String startCommand = MavenUtils.getCommandLine(session);
-    String mavenVersion = MavenUtils.getMavenVersion(session);
-
-    buildEventsHandler.onTestSessionStart(
-        session, mavenDecorator, projectName, startCommand, "maven", mavenVersion);
-
-    Collection<MavenUtils.TestFramework> testFrameworks =
-        MavenUtils.collectTestFrameworks(event.getProject());
-    if (testFrameworks.size() == 1) {
-      // if the module uses multiple test frameworks, we do not set the tags
-      MavenUtils.TestFramework testFramework = testFrameworks.iterator().next();
-      buildEventsHandler.onTestFrameworkDetected(
-          session, testFramework.name, testFramework.version);
-    } else if (testFrameworks.size() > 1) {
-      log.info(
-          "Multiple test frameworks detected: {}. Test framework data will not be populated",
-          testFrameworks);
-    }
+  public MavenExecutionListener(BuildEventsHandler<MavenSession> buildEventsHandler) {
+    this.buildEventsHandler = buildEventsHandler;
   }
 
   @Override

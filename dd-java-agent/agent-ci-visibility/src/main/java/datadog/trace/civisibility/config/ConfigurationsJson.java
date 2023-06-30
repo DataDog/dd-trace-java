@@ -55,7 +55,7 @@ public final class ConfigurationsJson {
 
   public static final class ConfigurationsJsonAdapter {
     @FromJson
-    public Configurations eventFromJson(ConfigurationsJson configurationsJson) {
+    public Configurations fromJson(ConfigurationsJson configurationsJson) {
       return new Configurations(
           configurationsJson.osPlatform,
           configurationsJson.osArchitecture,
@@ -68,7 +68,7 @@ public final class ConfigurationsJson {
     }
 
     @ToJson
-    public ConfigurationsJson eventToJson(Configurations configurations) {
+    public ConfigurationsJson toJson(Configurations configurations) {
       return new ConfigurationsJson(
           configurations.getOsPlatform(),
           configurations.getOsArchitecture(),

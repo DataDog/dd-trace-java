@@ -28,29 +28,33 @@ public class JvmInfoFactory {
         || currentJvm != null && jvmExecutablePath.startsWith(currentJvm)) {
       return JvmInfo.CURRENT_JVM;
     } else {
-      Path jvmExecutableFolder = jvmExecutablePath.getParent();
-      ShellCommandExecutor commandExecutor =
-          new ShellCommandExecutor(jvmExecutableFolder.toFile(), JVM_VERSION_LAUNCH_TIMEOUT);
-      try {
-        return commandExecutor.executeCommandReadingError(
-            new JvmVersionOutputParser(), "java", "-XshowSettings:properties", "-version");
+      return doGetJvmInfo(jvmExecutablePath);
+    }
+  }
 
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        LOGGER.warn(
-            "Interrupted while waiting for JVM runtime info for {}, assuming {}",
-            jvmExecutablePath,
-            JvmInfo.CURRENT_JVM);
-        return JvmInfo.CURRENT_JVM;
+  static JvmInfo doGetJvmInfo(Path jvmExecutablePath) {
+    Path jvmExecutableFolder = jvmExecutablePath.getParent();
+    ShellCommandExecutor commandExecutor =
+        new ShellCommandExecutor(jvmExecutableFolder.toFile(), JVM_VERSION_LAUNCH_TIMEOUT);
+    try {
+      return commandExecutor.executeCommandReadingError(
+          new JvmVersionOutputParser(), "./java", "-XshowSettings:properties", "-version");
 
-      } catch (Exception e) {
-        LOGGER.warn(
-            "Could not determine JVM runtime info for {}, assuming {}",
-            jvmExecutablePath,
-            JvmInfo.CURRENT_JVM,
-            e);
-        return JvmInfo.CURRENT_JVM;
-      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      LOGGER.warn(
+          "Interrupted while waiting for JVM runtime info for {}, assuming {}",
+          jvmExecutablePath,
+          JvmInfo.CURRENT_JVM);
+      return JvmInfo.CURRENT_JVM;
+
+    } catch (Exception e) {
+      LOGGER.warn(
+          "Could not determine JVM runtime info for {}, assuming {}",
+          jvmExecutablePath,
+          JvmInfo.CURRENT_JVM,
+          e);
+      return JvmInfo.CURRENT_JVM;
     }
   }
 
