@@ -107,12 +107,13 @@ public class TelemetryRunnable implements Runnable {
     final long currentTime = timeSource.getCurrentTimeMillis();
     long nextIntervalMs = Math.min(nextMetricsIntervalMs, nextHeartbeatIntervalMs);
     if (currentTime >= nextIntervalMs) {
-      // We are probably under high load, and the time to send telemetry has overrun the interval.
-      // Accept the drift and skip one heartbeat.
-      nextMetricsIntervalMs = currentTime + metricsIntervalMs;
-      nextHeartbeatIntervalMs = currentTime + heartbeatIntervalMs;
-      nextIntervalMs = Math.min(nextMetricsIntervalMs, nextHeartbeatIntervalMs);
-      log.debug("Time to run telemetry actions exceeded the interval");
+      // We are probably under high load or, more likely (?) slow network and the time to send
+      // telemetry has overrun the interval.
+      nextMetricsIntervalMs = currentTime;
+      nextHeartbeatIntervalMs = currentTime;
+      log.debug(
+          "Time to run telemetry actions exceeded the interval, triggering the next iteration immediately");
+      return;
     }
     final long waitMs = nextIntervalMs - currentTime;
     sleeper.sleep(waitMs);
