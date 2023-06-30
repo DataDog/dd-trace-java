@@ -150,6 +150,7 @@ public class HttpCodec {
     @Override
     public <C> void inject(
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
+      log.debug("Inject context {}", context);
       for (final Injector injector : injectors) {
         injector.inject(context, carrier, setter);
       }
@@ -172,10 +173,12 @@ public class HttpCodec {
         context = extractor.extract(carrier, getter);
         // Use incomplete TagContext only as last resort
         if (context instanceof ExtractedContext) {
+          log.debug("Extract complete context {}", context);
           return context;
         }
       }
 
+      log.debug("Extract incomplete context {}", context);
       return context;
     }
   }

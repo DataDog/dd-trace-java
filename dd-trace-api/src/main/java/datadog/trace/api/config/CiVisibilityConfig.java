@@ -18,8 +18,8 @@ public final class CiVisibilityConfig {
       "civisibility.auto.configuration.enabled";
   public static final String CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED =
       "civisibility.compiler.plugin.auto.configuration.enabled";
-  public static final String CIVISIBILITY_PER_TEST_CODE_COVERAGE_ENABLED =
-      "civisibility.per.test.code.coverage.enabled";
+  public static final String CIVISIBILITY_CODE_COVERAGE_ENABLED =
+      "civisibility.code.coverage.enabled";
   public static final String CIVISIBILITY_COMPILER_PLUGIN_VERSION =
       "civisibility.compiler.plugin.version";
   public static final String CIVISIBILITY_JACOCO_PLUGIN_VERSION =
@@ -43,6 +43,8 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_GIT_REMOTE_NAME = "civisibility.git.remote.name";
   public static final String CIVISIBILITY_SIGNAL_SERVER_HOST = "civisibility.signal.server.host";
   public static final String CIVISIBILITY_SIGNAL_SERVER_PORT = "civisibility.signal.server.port";
+  public static final String CIVISIBILITY_ITR_ENABLED = "civisibility.itr.enabled";
+  public static final String CIVISIBILITY_SKIPPABLE_TESTS = "civisibility.skippable.tests";
 
   private CiVisibilityConfig() {}
 }
