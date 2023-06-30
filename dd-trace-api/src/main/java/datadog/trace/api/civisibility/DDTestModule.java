@@ -55,8 +55,10 @@ public interface DDTestModule {
    *
    * @param endTime Optional finish time in microseconds. If {@code null} is supplied, current time
    *     will be assumed
+   * @param testsSkipped Flag indicating whether module contained tests that were skipped by
+   *     Intelligent Test Runner
    */
-  void end(@Nullable Long endTime);
+  void end(@Nullable Long endTime, boolean testsSkipped);
 
   /**
    * Marks the start of a new test suite in the module.

@@ -41,7 +41,7 @@ public class TracingListener extends TestNGClassListener
 
   @Override
   public void onExecutionFinish() {
-    testEventsHandler.onTestModuleFinish();
+    testEventsHandler.onTestModuleFinish(false);
   }
 
   @Override

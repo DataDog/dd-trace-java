@@ -55,7 +55,7 @@ public class TracingListener implements TestExecutionListener {
 
   @Override
   public void testPlanExecutionFinished(final TestPlan testPlan) {
-    testEventsHandler.onTestModuleFinish();
+    testEventsHandler.onTestModuleFinish(false);
   }
 
   @Override

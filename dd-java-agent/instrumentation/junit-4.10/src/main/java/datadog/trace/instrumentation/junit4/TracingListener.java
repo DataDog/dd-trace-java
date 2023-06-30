@@ -33,7 +33,7 @@ public class TracingListener extends RunListener {
 
   @Override
   public void testRunFinished(Result result) {
-    testEventsHandler.onTestModuleFinish();
+    testEventsHandler.onTestModuleFinish(false);
   }
 
   public void testSuiteStarted(final TestClass junitTestClass) {

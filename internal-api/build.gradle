@@ -71,7 +71,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.civisibility.coverage.TestReportFileEntry",
   "datadog.trace.api.civisibility.coverage.TestReportFileEntry.Segment",
   "datadog.trace.api.civisibility.InstrumentationBridge",
-  "datadog.trace.api.civisibility.events.BuildEventsHandler.ModuleAndSessionId",
+  "datadog.trace.api.civisibility.events.BuildEventsHandler.ModuleInfo",
   // POJO
   "datadog.trace.api.git.GitInfo",
   // POJO
