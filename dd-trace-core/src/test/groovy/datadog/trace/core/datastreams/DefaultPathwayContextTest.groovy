@@ -159,6 +159,26 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     }
   }
 
+  def "Set checkpoint with timestamp"() {
+    given:
+    def timeSource = new ControllableTimeSource()
+    def context = new DefaultPathwayContext(timeSource, wellKnownTags)
+    def timeFromQueue = timeSource.getCurrentTimeMillis() - 200
+    when:
+    context.setCheckpoint(["type": "internal"], pointConsumer, timeFromQueue)
+    then:
+    context.isStarted()
+    pointConsumer.points.size() == 1
+    with(pointConsumer.points[0]) {
+      edgeTags == ["type:internal"]
+      edgeTags.size() == 1
+      parentHash == 0
+      hash != 0
+      pathwayLatencyNano == MILLISECONDS.toNanos(200)
+      edgeLatencyNano == MILLISECONDS.toNanos(200)
+    }
+  }
+
   def "Encoding and decoding (base64) with contexts and checkpoints"() {
     // Timesource needs to be advanced in milliseconds because encoding truncates to millis
     given:
