@@ -106,7 +106,7 @@ public class WriterFactory {
               .singleSpanSampler(singleSpanSampler)
               .flushIntervalMilliseconds(flushIntervalMilliseconds);
 
-      if (Config.get().isCiVisibilityPerTestCodeCoverageEnabled()) {
+      if (Config.get().isCiVisibilityCodeCoverageEnabled()) {
         final RemoteApi coverageApi =
             createDDIntakeRemoteApi(config, commObjects, featuresDiscovery, TrackType.CITESTCOV);
         builder.addTrack(TrackType.CITESTCOV, coverageApi);
