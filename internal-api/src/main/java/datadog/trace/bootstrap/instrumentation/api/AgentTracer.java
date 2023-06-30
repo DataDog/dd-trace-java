@@ -194,7 +194,8 @@ public class AgentTracer {
 
     CallbackProvider getUniversalCallbackProvider();
 
-    void setDataStreamCheckpoint(AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp);
+    void setDataStreamCheckpoint(
+        AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp);
 
     AgentSpan.Context notifyExtensionStart(Object event);
 
@@ -430,7 +431,8 @@ public class AgentTracer {
     }
 
     @Override
-    public void setDataStreamCheckpoint(AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp) {}
+    public void setDataStreamCheckpoint(
+        AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp) {}
 
     @Override
     public AgentSpan.Context notifyExtensionStart(Object event) {
@@ -1004,7 +1006,9 @@ public class AgentTracer {
 
     @Override
     public void setCheckpoint(
-        LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer, long defaultTimestamp) {}
+        LinkedHashMap<String, String> sortedTags,
+        Consumer<StatsPoint> pointConsumer,
+        long defaultTimestamp) {}
 
     @Override
     public void setCheckpoint(
