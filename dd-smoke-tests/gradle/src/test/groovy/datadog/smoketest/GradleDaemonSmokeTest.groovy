@@ -207,7 +207,7 @@ class GradleDaemonSmokeTest extends Specification {
     ]
 
     where:
-    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1"]
+    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.2"]
   }
 
   // this is a separate test case since older Gradle versions need to declare dependencies differently
@@ -322,8 +322,8 @@ class GradleDaemonSmokeTest extends Specification {
     ]
 
     where:
-    // Gradle TestKit supports versions 2.6 and later
-    gradleVersion << ["2.6", "3.0"]
+    // Gradle TestKit supports versions 3.0 and later
+    gradleVersion << ["3.0"]
   }
 
   def "Successful multi-module build emits multiple module spans: Gradle v#gradleVersion"() {
@@ -482,7 +482,7 @@ class GradleDaemonSmokeTest extends Specification {
 
     where:
     //
-    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1"]
+    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.2"]
   }
 
   def "Failed build emits session and module spans: Gradle v#gradleVersion"() {
@@ -587,7 +587,7 @@ class GradleDaemonSmokeTest extends Specification {
     }
 
     where:
-    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1"]
+    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.2"]
   }
 
   def "Build without tests emits session and module spans: Gradle v#gradleVersion"() {
@@ -639,7 +639,7 @@ class GradleDaemonSmokeTest extends Specification {
     }
 
     where:
-    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1"]
+    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.2"]
   }
 
   def "Corrupted build emits session span: Gradle v#gradleVersion"() {
@@ -676,7 +676,7 @@ class GradleDaemonSmokeTest extends Specification {
     }
 
     where:
-    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1"]
+    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.2"]
   }
 
   private void givenGradleProperties() {
