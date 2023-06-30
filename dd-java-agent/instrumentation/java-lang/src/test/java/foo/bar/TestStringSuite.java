@@ -135,4 +135,18 @@ public class TestStringSuite {
     LOGGER.debug("After string getBytes {}", result);
     return result;
   }
+
+  public static String format(final String pattern, final Object... args) {
+    LOGGER.debug("Before format {} {}", pattern, args);
+    final String result = String.format(pattern, args);
+    LOGGER.debug("After format {}", result);
+    return result;
+  }
+
+  public static String format(final Locale locale, final String pattern, final Object... args) {
+    LOGGER.debug("Before format {} {} {}", locale, pattern, args);
+    final String result = String.format(locale, pattern, args);
+    LOGGER.debug("After format {}", result);
+    return result;
+  }
 }
