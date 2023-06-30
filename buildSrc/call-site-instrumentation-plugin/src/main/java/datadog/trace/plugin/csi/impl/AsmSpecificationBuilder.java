@@ -97,8 +97,9 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
 
     @Override
     public AnnotationVisitor visitAnnotation(final String descriptor, final boolean visible) {
-      isCallSite = CALL_SITE.equals(descriptor);
-      if (isCallSite) {
+      boolean annotatedWithCallSite = CALL_SITE.equals(descriptor);
+      if (annotatedWithCallSite) {
+        isCallSite = true;
         helpers.add(clazz);
         return new AnnotationVisitor(ASM_API_VERSION) {
           @Override

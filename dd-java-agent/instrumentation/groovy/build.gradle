@@ -1,0 +1,87 @@
+muzzle {
+  pass {
+    group = 'org.codehaus.groovy'
+    module = 'groovy'
+    versions = '[1,4.0)'
+  }
+  pass {
+    group = 'org.apache.groovy'
+    module = 'groovy'
+    versions = '[4,5.0)'
+  }
+}
+
+apply from: "$rootDir/gradle/java_no_deps.gradle"
+apply plugin: 'call-site-instrumentation'
+apply plugin: 'groovy'
+
+test {
+  useJUnitPlatform()
+}
+
+dependencies {
+  compileOnly 'org.codehaus.groovy:groovy:3.0.2'
+  testImplementation(group: 'de.thetaphi', name: 'forbiddenapis', version: '3.4')
+  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:java-lang') // string call sites
+  testRuntimeOnly project(':dd-java-agent:instrumentation:java-security') // weak hash call sites
+  testRuntimeOnly project(':dd-java-agent:instrumentation:groovy:groovy-2') // groovy v2 call sites
+  testImplementation deps.mockito
+  testImplementation 'org.hamcrest:hamcrest:2.1'
+}
+
+configurations.all {
+  exclude group: 'org.spockframework', module: 'spock-core'
+  exclude group: 'org.spockframework', module: 'spock-junit4'
+  exclude group: 'org.codehaus.groovy', module: 'groovy-all'
+}
+
+final groovyVersions = [
+  'org.codehaus.groovy:groovy:1.5.1',
+  'org.codehaus.groovy:groovy:2.0.1',
+  'org.codehaus.groovy:groovy:2.0.1:indy',
+  'org.codehaus.groovy:groovy:3.0.2',
+  'org.codehaus.groovy:groovy:3.0.2:indy',
+  'org.apache.groovy:groovy:4.0.1',
+  'org.apache.groovy:groovy:4.0.13'
+] as List<String>
+
+groovyVersions.each { groovyLibrary ->
+  def (org, artifact, groovyVersion) = groovyLibrary.split(':')
+  final indy = groovyLibrary.endsWith('indy')
+  final name = "groovy_${groovyVersion.replaceAll('\\.', '_')}${indy ? '_Indy' : ''}"
+  addTestSuiteForDir("test_$name", 'suite', false)
+  dependencies { handler ->
+    handler.add("test_${name}Implementation", groovyLibrary)
+  }
+  tasks.named("compileTest_${name}Groovy", GroovyCompile).configure {
+    groovyOptions.optimizationOptions.indy = indy
+  }
+}
+
+testing {
+  suites {
+    configureEach {
+      sources {
+        groovy {
+          srcDirs += ['src/test/java']
+        }
+      }
+      targets {
+        all {
+          testTask.configure {
+            classpath = classpath.plus(sourceSets.main.output.classesDirs)
+          }
+        }
+      }
+    }
+  }
+}
+
+['compileTestJava', 'compileTestGroovy'].each {
+  tasks.named(it).configure {
+    // using a test suite for each groovy version
+    it.enabled = false
+  }
+}

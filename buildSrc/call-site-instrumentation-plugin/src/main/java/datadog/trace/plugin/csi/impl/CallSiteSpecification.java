@@ -487,6 +487,10 @@ public class CallSiteSpecification implements Validatable {
       return pointcut.isConstructor();
     }
 
+    public Map<Integer, ParameterSpecification> getParameters() {
+      return parameters;
+    }
+
     public Stream<ArgumentSpecification> getArguments() {
       return parameters.values().stream()
           .filter(it -> it instanceof ArgumentSpecification)
@@ -634,7 +638,8 @@ public class CallSiteSpecification implements Validatable {
     }
   }
 
-  public static final class ArgumentSpecification extends ParameterSpecification {
+  public static final class ArgumentSpecification extends ParameterSpecification
+      implements Comparable<ArgumentSpecification> {
 
     private int index;
 
@@ -649,6 +654,11 @@ public class CallSiteSpecification implements Validatable {
     @Override
     public String toString() {
       return "@Argument(" + index + ")";
+    }
+
+    @Override
+    public int compareTo(final ArgumentSpecification o) {
+      return index - o.getIndex();
     }
   }
 

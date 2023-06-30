@@ -7,6 +7,7 @@ import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.file.Directory
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.FileTree
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.SourceSet
@@ -65,34 +66,39 @@ class CallSiteInstrumentationPlugin implements Plugin<Project> {
   private static void createTasks(final Project target) {
     final compileTask = (AbstractCompile) target.tasks.findByName('compileJava')
     final extension = target.extensions.getByType(CallSiteInstrumentationExtension)
-    final input = compileTask.destinationDirectory
+    final srcDir = compileTask.source
+    final buildDir = compileTask.destinationDirectory
     final output = target.layout.buildDirectory.dir(extension.targetFolder)
     final targetFolder = output.get().asFile
-    createGenerateCallSiteTask(target, compileTask, input, output)
+    final generateCallSiteTask = createGenerateCallSiteTask(target, compileTask, srcDir, buildDir, output)
     target.tasks.matching { Task task -> task.name.startsWith('compileTest') }.all {
       final compileTestTask = (AbstractCompile) it
       compileTestTask.classpath = compileTestTask.classpath + target.files(targetFolder)
+      compileTestTask.dependsOn(generateCallSiteTask)
     }
     target.tasks.matching { Task task -> task instanceof Test }.all {
       final testTask = (Test) it
       testTask.classpath = testTask.classpath + target.files(targetFolder)
+      testTask.dependsOn(generateCallSiteTask)
     }
   }
 
   private static File newBuildFolder(final Project target, final String name) {
     final folder = new File(target.buildDir, name)
+    if (!folder.exists() && !folder.mkdirs()) {
+      throw new GradleException("Cannot create folder $folder")
+    }
+    return folder
+  }
+
+  private static void cleanFolder(final File folder) {
     if (folder.exists()) {
       folder.traverse(type: FILES) {
         if (!it.delete()) {
           throw new GradleException("Cannot delete stale file $it")
         }
       }
-    } else {
-      if (!folder.mkdirs()) {
-        throw new GradleException("Cannot create folder $folder")
-      }
     }
-    return folder
   }
 
   private static File newTempFile(final File folder, final String name) {
@@ -106,9 +112,10 @@ class CallSiteInstrumentationPlugin implements Plugin<Project> {
     return file
   }
 
-  private static void createGenerateCallSiteTask(final Project target,
+  private static Task createGenerateCallSiteTask(final Project target,
                                                  final AbstractCompile compileTask,
-                                                 final DirectoryProperty input,
+                                                 final FileTree srcDir,
+                                                 final DirectoryProperty buildDir,
                                                  final Provider<Directory> output) {
     final extension = target.extensions.getByType(CallSiteInstrumentationExtension)
     final taskName = compileTask.name.replace('compile', 'generateCallSite')
@@ -122,7 +129,7 @@ class CallSiteInstrumentationPlugin implements Plugin<Project> {
     }
     callSiteGeneratorTask.setStandardOutput(stdout)
     callSiteGeneratorTask.setErrorOutput(stderr)
-    callSiteGeneratorTask.inputs.dir(input)
+    callSiteGeneratorTask.inputs.files(srcDir)
     callSiteGeneratorTask.outputs.dir(output)
     callSiteGeneratorTask.mainClass.set('datadog.trace.plugin.csi.PluginApplication')
 
@@ -137,7 +144,7 @@ class CallSiteInstrumentationPlugin implements Plugin<Project> {
       final argumentFile = newTempFile(execTask.getTemporaryDir(), "call-site-arguments")
       argumentFile.withWriter {
         it.writeLine(target.getProjectDir().toPath().resolve(extension.srcFolder).toString())
-        it.writeLine(input.get().asFile.toString())
+        it.writeLine(buildDir.get().asFile.toString())
         it.writeLine(output.get().asFile.toString())
         it.writeLine(extension.suffix)
         it.writeLine(extension.reporters.join(','))
@@ -153,6 +160,11 @@ class CallSiteInstrumentationPlugin implements Plugin<Project> {
       }
     }
 
+    // clean generated call sites when classes are compiled
+    compileTask.doLast {
+      cleanFolder(output.get().asFile)
+    }
+
     // insert task after compile
     callSiteGeneratorTask.dependsOn(compileTask)
     final sourceSets = getSourceSets(target)
@@ -162,6 +174,8 @@ class CallSiteInstrumentationPlugin implements Plugin<Project> {
     // compile generated sources
     final csiSourceSet = sourceSets.getByName('csi')
     target.tasks.named(csiSourceSet.compileJavaTaskName).configure { callSiteGeneratorTask.finalizedBy(it) }
+
+    return callSiteGeneratorTask;
   }
 
   private static List<File> getProgramClasspath(final Project project) {

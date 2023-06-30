@@ -56,6 +56,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_DEBUG_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_GROOVY_INDY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_NAME_PATTERN;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_VALUE_PATTERN;
@@ -207,6 +208,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE;
+import static datadog.trace.api.config.IastConfig.IAST_GROOVY_INDY_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_REDACTION_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_REDACTION_NAME_PATTERN;
 import static datadog.trace.api.config.IastConfig.IAST_REDACTION_VALUE_PATTERN;
@@ -625,6 +627,7 @@ public class Config {
   private final boolean iastRedactionEnabled;
   private final String iastRedactionNamePattern;
   private final String iastRedactionValuePattern;
+  private final boolean iastGroovyIndyEnabled;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -1430,6 +1433,8 @@ public class Config {
     iastRedactionValuePattern =
         configProvider.getString(
             IAST_REDACTION_VALUE_PATTERN, DEFAULT_IAST_REDACTION_VALUE_PATTERN);
+    iastGroovyIndyEnabled =
+        configProvider.getBoolean(IAST_GROOVY_INDY_ENABLED, DEFAULT_IAST_GROOVY_INDY_ENABLED);
 
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
@@ -2382,6 +2387,10 @@ public class Config {
 
   public String getIastRedactionValuePattern() {
     return iastRedactionValuePattern;
+  }
+
+  public boolean isIastGroovyIndyEnabled() {
+    return iastGroovyIndyEnabled;
   }
 
   public boolean isCiVisibilityEnabled() {

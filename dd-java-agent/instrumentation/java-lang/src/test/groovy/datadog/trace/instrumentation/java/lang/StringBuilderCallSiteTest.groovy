@@ -55,9 +55,9 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     then:
     target.toString() == expected
     if (param.class == String) {
-      1 * iastModule.onStringBuilderAppend(target, (String) param)
+      1 * iastModule.onStringAppend(target, (String) param)
     } else {
-      1 * iastModule.onStringBuilderAppend(target, param.toString())
+      1 * iastModule.onStringAppend(target, param.toString())
     }
     _ * TEST_CHECKPOINTER._
     0 * _
@@ -100,7 +100,7 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
 
     then:
     result == 'Hello World!'
-    1 * iastModule.onStringBuilderToString(target, _ as String)
+    1 * iastModule.onStringToString(target, _ as String)
     0 * _
 
     where:
@@ -119,9 +119,9 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
 
     then:
     result == 'Hello World!'
-    1 * iastModule.onStringBuilderAppend(_ as StringBuilder, 'Hello ')
-    1 * iastModule.onStringBuilderAppend(_ as StringBuilder, 'World!')
-    1 * iastModule.onStringBuilderToString(_ as StringBuilder, 'Hello World!')
+    1 * iastModule.onStringAppend(_ as StringBuilder, 'Hello ')
+    1 * iastModule.onStringAppend(_ as StringBuilder, 'World!')
+    1 * iastModule.onStringToString(_ as StringBuilder, 'Hello World!')
     _ * TEST_CHECKPOINTER._
     0 * _
   }
@@ -139,21 +139,21 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     then:
     result == expected
 
-    1 * iastModule.onStringBuilderAppend(_ as StringBuilder, '')
-    1 * iastModule.onStringBuilderAppend(_ as StringBuilder, args[0])
-    1 * iastModule.onStringBuilderToString(_ as StringBuilder, args[0])
+    1 * iastModule.onStringAppend(_ as StringBuilder, '')
+    1 * iastModule.onStringAppend(_ as StringBuilder, args[0])
+    1 * iastModule.onStringToString(_ as StringBuilder, args[0])
 
-    1 * iastModule.onStringBuilderAppend(_ as StringBuilder, args[0])
-    1 * iastModule.onStringBuilderAppend(_ as StringBuilder, args[1].toString())
-    1 * iastModule.onStringBuilderToString(_ as StringBuilder, args[0..1].join())
+    1 * iastModule.onStringAppend(_ as StringBuilder, args[0])
+    1 * iastModule.onStringAppend(_ as StringBuilder, args[1].toString())
+    1 * iastModule.onStringToString(_ as StringBuilder, args[0..1].join())
 
-    1 * iastModule.onStringBuilderAppend(_ as StringBuilder, args[0..1].join())
-    1 * iastModule.onStringBuilderAppend(_ as StringBuilder, args[2])
-    1 * iastModule.onStringBuilderToString(_ as StringBuilder, args[0..2].join())
+    1 * iastModule.onStringAppend(_ as StringBuilder, args[0..1].join())
+    1 * iastModule.onStringAppend(_ as StringBuilder, args[2])
+    1 * iastModule.onStringToString(_ as StringBuilder, args[0..2].join())
 
-    1 * iastModule.onStringBuilderAppend(_ as StringBuilder, args[0..2].join())
-    1 * iastModule.onStringBuilderAppend(_ as StringBuilder, args[3].toString())
-    1 * iastModule.onStringBuilderToString(_ as StringBuilder, args[0..3].join())
+    1 * iastModule.onStringAppend(_ as StringBuilder, args[0..2].join())
+    1 * iastModule.onStringAppend(_ as StringBuilder, args[3].toString())
+    1 * iastModule.onStringToString(_ as StringBuilder, args[0..3].join())
 
     0 * _
   }
@@ -167,7 +167,7 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     new TestStringBuilderSuite().plus('Hello', new BrokenToString())
 
     then:
-    1 * iastModule.onStringBuilderAppend(_, 'Hello')
+    1 * iastModule.onStringAppend(_, 'Hello')
     _ * TEST_CHECKPOINTER._
     0 * _
     final ex = thrown(NuclearException)

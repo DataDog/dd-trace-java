@@ -1,6 +1,6 @@
 import org.gradle.api.plugins.jvm.JvmTestSuite
 
-ext.addTestSuiteExtendingForDir = (String testSuiteName, String parentSuiteName, String dirName) -> {
+ext.addTestSuiteExtendingForDir = (String testSuiteName, String parentSuiteName, String dirName, boolean addProjectDependency = true) -> {
   testing {
     suites {
       create(testSuiteName, JvmTestSuite, {
@@ -27,8 +27,10 @@ ext.addTestSuiteExtendingForDir = (String testSuiteName, String parentSuiteName,
             }
           }
         }
-        dependencies {
-          implementation project(project.path)
+        if (addProjectDependency) {
+          dependencies {
+            implementation project(project.path)
+          }
         }
       })
     }
@@ -67,10 +69,10 @@ ext.addTestSuiteExtendingForDir = (String testSuiteName, String parentSuiteName,
   }
 }
 
-ext.addTestSuiteForDir = (String testSuiteName, String dirName) -> {
-  ext.addTestSuiteExtendingForDir(testSuiteName, 'test', dirName)
+ext.addTestSuiteForDir = (String testSuiteName, String dirName, boolean addProjectDependency = true) -> {
+  ext.addTestSuiteExtendingForDir(testSuiteName, 'test', dirName, addProjectDependency)
 }
 
-ext.addTestSuite = (String testSuiteName) -> {
-  ext.addTestSuiteForDir(testSuiteName, testSuiteName)
+ext.addTestSuite = (String testSuiteName, boolean addProjectDependency = true) -> {
+  ext.addTestSuiteForDir(testSuiteName, testSuiteName, addProjectDependency)
 }

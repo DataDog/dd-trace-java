@@ -13,7 +13,7 @@ import datadog.trace.api.iast.propagation.StringModule;
 public class StringCallSite {
   @CallSite.After("java.lang.String java.lang.String.repeat(int)")
   public static String afterRepeat(
-      @CallSite.This final String self,
+      @CallSite.This final CharSequence self,
       @CallSite.Argument final int count,
       @CallSite.Return final String result) {
     final StringModule module = InstrumentationBridge.STRING;

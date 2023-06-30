@@ -152,6 +152,7 @@ public abstract class CallSiteUtils {
       case PREPEND_ARRAY:
       case PREPEND_ARRAY_CTOR:
       case APPEND_ARRAY:
+      case AS_ARRAY:
         dupN(mv, parameters, mode);
         break;
     }
@@ -292,6 +293,9 @@ public abstract class CallSiteUtils {
         loadArray(mv, arraySize, parameters);
         loadArray(mv, arraySize, parameters);
         mv.visitInsn(POP);
+        break;
+      case AS_ARRAY:
+        // do nothing as the array is already in the stack
         break;
     }
   }

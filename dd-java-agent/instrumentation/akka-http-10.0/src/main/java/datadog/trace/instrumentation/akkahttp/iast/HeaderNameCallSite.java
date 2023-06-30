@@ -7,6 +7,7 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.Taintable;
+import datadog.trace.api.iast.csi.SkipDynamicHelpers;
 import datadog.trace.api.iast.source.WebModule;
 import java.util.Collections;
 
@@ -17,6 +18,7 @@ import java.util.Collections;
  */
 @Source(value = SourceTypes.REQUEST_HEADER_NAME_STRING)
 @CallSite(spi = IastCallSites.class)
+@SkipDynamicHelpers
 public class HeaderNameCallSite {
 
   @CallSite.After("java.lang.String akka.http.javadsl.model.HttpHeader.name()")
