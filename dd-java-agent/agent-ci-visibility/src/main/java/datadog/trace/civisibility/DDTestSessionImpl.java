@@ -18,6 +18,7 @@ import datadog.trace.civisibility.context.SpanTestContext;
 import datadog.trace.civisibility.context.TestContext;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.ipc.ModuleExecutionResult;
+import datadog.trace.civisibility.ipc.SignalResponse;
 import datadog.trace.civisibility.ipc.SignalServer;
 import datadog.trace.civisibility.ipc.SignalType;
 import datadog.trace.civisibility.source.MethodLinesResolver;
@@ -78,7 +79,7 @@ public class DDTestSessionImpl implements DDTestSession {
     signalServer.start();
   }
 
-  private void onModuleExecutionResultReceived(ModuleExecutionResult result) {
+  private SignalResponse onModuleExecutionResultReceived(ModuleExecutionResult result) {
     // We need to set coverage enabled to true on session span
     // if at least one of the children module has it enabled.
     // The same is true for the other flags below
@@ -91,7 +92,7 @@ public class DDTestSessionImpl implements DDTestSession {
     if (result.isItrTestsSkipped()) {
       setTag(DDTags.CI_ITR_TESTS_SKIPPED, true);
     }
-    testModuleRegistry.onModuleExecutionResultReceived(result);
+    return testModuleRegistry.onModuleExecutionResultReceived(result);
   }
 
   @Override

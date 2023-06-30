@@ -4,22 +4,22 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ByteChannel;
 import java.nio.channels.WritableByteChannel;
-import java.util.Arrays;
-import java.util.function.Consumer;
+import java.util.ArrayDeque;
+import java.util.Queue;
+import java.util.function.Function;
 
 class ChannelContext {
-  private static final byte ACK = 1;
-  private static final int BYTES_USED_FOR_MESSAGE_LENGTH = 2;
   private final ByteBuffer readBuffer;
-  private final Consumer<ByteBuffer> messageCallback;
+  private final Function<ByteBuffer, ByteBuffer[]> messageProcessor;
+  private final Queue<ByteBuffer> pendingResponses;
 
   private int currentMessageIdx;
   private byte[] currentMessage;
-  private int unacknowledgedMessages;
 
-  ChannelContext(int bufferCapacity, Consumer<ByteBuffer> messageCallback) {
+  ChannelContext(int bufferCapacity, Function<ByteBuffer, ByteBuffer[]> messageProcessor) {
     this.readBuffer = ByteBuffer.allocate(bufferCapacity);
-    this.messageCallback = messageCallback;
+    this.messageProcessor = messageProcessor;
+    this.pendingResponses = new ArrayDeque<>();
   }
 
   void read(ByteChannel channel) throws IOException {
@@ -36,10 +36,10 @@ class ChannelContext {
   private void processBuffer(ByteChannel channel) throws IOException {
     while (readBuffer.remaining() > 0) {
       if (currentMessage == null) {
-        if (readBuffer.remaining() < BYTES_USED_FOR_MESSAGE_LENGTH) {
+        if (readBuffer.remaining() < Integer.BYTES) {
           break;
         } else {
-          int length = readBuffer.getShort() & 0xFFFF;
+          int length = readBuffer.getInt();
           currentMessage = new byte[length];
         }
       }
@@ -54,8 +54,8 @@ class ChannelContext {
         // that way when the client receives ACK from the server
         // it knows that the server has already acted on the message.
         // this helps to avoid some race conditions
-        messageCallback.accept(ByteBuffer.wrap(currentMessage));
-        writeResponse(channel);
+        ByteBuffer[] response = messageProcessor.apply(ByteBuffer.wrap(currentMessage));
+        writeResponse(channel, response);
         currentMessageIdx = 0;
         currentMessage = null;
       }
@@ -68,24 +68,40 @@ class ChannelContext {
     }
   }
 
-  private void writeResponse(ByteChannel channel) throws IOException {
-    ByteBuffer response = ByteBuffer.wrap(new byte[] {ACK});
-    if (channel.write(response) != 1) {
-      unacknowledgedMessages++;
+  private void writeResponse(ByteChannel channel, ByteBuffer[] response) throws IOException {
+    int idx = 0;
+    for (; idx < response.length; idx++) {
+      int remaining = response[idx].remaining();
+      if (channel.write(response[idx]) != remaining) {
+        // could not write all the chunk's bytes,
+        // assuming output buffer is full
+        break;
+      }
+    }
+
+    for (; idx < response.length; idx++) {
+      pendingResponses.add(response[idx]);
     }
   }
 
   public void write(WritableByteChannel channel) throws IOException {
-    if (unacknowledgedMessages == 0) {
+    if (pendingResponses.isEmpty()) {
       return;
     }
 
-    byte[] acks = new byte[unacknowledgedMessages];
-    Arrays.fill(acks, ACK);
-    ByteBuffer response = ByteBuffer.wrap(acks);
-    int written = channel.write(response);
-    if (written >= 0) {
-      unacknowledgedMessages -= written;
+    while (!pendingResponses.isEmpty()) {
+      ByteBuffer response = pendingResponses.peek();
+      int remaining = response.remaining();
+      if (channel.write(response) != remaining) {
+        // could not write all the chunk's bytes,
+        // assuming output buffer is full
+        return;
+      }
+      pendingResponses.poll();
     }
+  }
+
+  boolean hasPendingResponses() {
+    return !pendingResponses.isEmpty();
   }
 }
