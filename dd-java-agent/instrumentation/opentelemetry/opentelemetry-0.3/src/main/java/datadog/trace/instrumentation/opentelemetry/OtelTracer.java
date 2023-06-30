@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class OtelTracer implements Tracer {
+  private static final String INSTRUMENTATION_NAME = "otel";
   private final String tracerName;
   private final AgentTracer.TracerAPI tracer;
   private final TypeConverter converter;
@@ -52,7 +53,7 @@ public class OtelTracer implements Tracer {
     private boolean parentSet = false;
 
     public SpanBuilder(final String spanName) {
-      delegate = tracer.buildSpan(tracerName).withResourceName(spanName);
+      delegate = tracer.buildSpan(INSTRUMENTATION_NAME, tracerName).withResourceName(spanName);
     }
 
     @Override

@@ -421,14 +421,14 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       getRequestContext() >> reqCtxt
     }
     def mTracer = Mock(TracerAPI) {
-      startSpan(_, _) >> mSpan
+      startSpan(_, _, _) >> mSpan
       getCallbackProvider(RequestContextSlot.APPSEC) >> cbpAppSec
       getCallbackProvider(RequestContextSlot.IAST) >> CallbackProvider.CallbackProviderNoop.INSTANCE
     }
     def decorator = newDecorator(mTracer)
 
     when:
-    decorator.startSpan(headers, null)
+    decorator.startSpan("test", headers, null)
 
     then:
     1 * mSpan.setMeasured(true) >> mSpan

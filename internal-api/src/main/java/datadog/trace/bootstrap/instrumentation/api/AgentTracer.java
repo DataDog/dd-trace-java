@@ -31,24 +31,60 @@ import java.util.function.Consumer;
 public class AgentTracer {
 
   // Implicit parent
+  /** Deprecated. Use {@link #startSpan(String, CharSequence)} instead. */
+  @Deprecated
   public static AgentSpan startSpan(final CharSequence spanName) {
-    return get().startSpan(spanName);
+    return startSpan("default", spanName);
+  }
+
+  /** @see TracerAPI#startSpan(String, CharSequence) */
+  public static AgentSpan startSpan(final String instrumentationName, final CharSequence spanName) {
+    return get().startSpan(instrumentationName, spanName);
   }
 
   // Implicit parent
+  /** Deprecated. Use {@link #startSpan(String, CharSequence, long)} instead. */
+  @Deprecated
   public static AgentSpan startSpan(final CharSequence spanName, final long startTimeMicros) {
-    return get().startSpan(spanName, startTimeMicros);
+    return startSpan("default", spanName, startTimeMicros);
+  }
+
+  /** @see TracerAPI#startSpan(String, CharSequence, long) */
+  public static AgentSpan startSpan(
+      final String instrumentationName, final CharSequence spanName, final long startTimeMicros) {
+    return get().startSpan(instrumentationName, spanName, startTimeMicros);
   }
 
   // Explicit parent
+  /** Deprecated. Use {@link #startSpan(String, CharSequence, AgentSpan.Context)} instead. */
+  @Deprecated
   public static AgentSpan startSpan(final CharSequence spanName, final AgentSpan.Context parent) {
-    return get().startSpan(spanName, parent);
+    return startSpan("default", spanName, parent);
+  }
+
+  /** @see TracerAPI#startSpan(String, CharSequence, AgentSpan.Context) */
+  public static AgentSpan startSpan(
+      final String instrumentationName,
+      final CharSequence spanName,
+      final AgentSpan.Context parent) {
+    return get().startSpan(instrumentationName, spanName, parent);
   }
 
   // Explicit parent
+  /** Deprecated. Use {@link #startSpan(String, CharSequence, AgentSpan.Context, long)} instead. */
+  @Deprecated
   public static AgentSpan startSpan(
       final CharSequence spanName, final AgentSpan.Context parent, final long startTimeMicros) {
-    return get().startSpan(spanName, parent, startTimeMicros);
+    return startSpan("default", spanName, parent, startTimeMicros);
+  }
+
+  /** @see TracerAPI#startSpan(String, CharSequence, AgentSpan.Context, long) */
+  public static AgentSpan startSpan(
+      final String instrumentationName,
+      final CharSequence spanName,
+      final AgentSpan.Context parent,
+      final long startTimeMicros) {
+    return get().startSpan(instrumentationName, spanName, parent, startTimeMicros);
   }
 
   public static AgentScope activateSpan(final AgentSpan span) {
@@ -142,13 +178,51 @@ public class AgentTracer {
           EndpointCheckpointer,
           DataStreamsCheckpointer,
           ScopeStateAware {
-    AgentSpan startSpan(CharSequence spanName);
 
-    AgentSpan startSpan(CharSequence spanName, long startTimeMicros);
+    /**
+     * Create and start a new span.
+     *
+     * @param instrumentationName The instrumentation creating the span.
+     * @param spanName The span operation name.
+     * @return The new started span.
+     */
+    AgentSpan startSpan(String instrumentationName, CharSequence spanName);
 
-    AgentSpan startSpan(CharSequence spanName, AgentSpan.Context parent);
+    /**
+     * Create and start a new span with a given start time.
+     *
+     * @param instrumentationName The instrumentation creating the span.
+     * @param spanName The span operation name.
+     * @param startTimeMicros The span start time, in microseconds.
+     * @return The new started span.
+     */
+    AgentSpan startSpan(String instrumentationName, CharSequence spanName, long startTimeMicros);
 
-    AgentSpan startSpan(CharSequence spanName, AgentSpan.Context parent, long startTimeMicros);
+    /**
+     * Create and start a new span with an explicit parent.
+     *
+     * @param instrumentationName The instrumentation creating the span.
+     * @param spanName The span operation name.
+     * @param parent The parent span context.
+     * @return The new started span.
+     */
+    AgentSpan startSpan(
+        String instrumentationName, CharSequence spanName, AgentSpan.Context parent);
+
+    /**
+     * Create and start a new span with an explicit parent and a given start time.
+     *
+     * @param instrumentationName The instrumentation creating the span.
+     * @param spanName The span operation name.
+     * @param parent The parent span context.
+     * @param startTimeMicros The span start time, in microseconds.
+     * @return The new started span.
+     */
+    AgentSpan startSpan(
+        String instrumentationName,
+        CharSequence spanName,
+        AgentSpan.Context parent,
+        long startTimeMicros);
 
     AgentScope activateSpan(AgentSpan span, ScopeSource source);
 
@@ -168,7 +242,13 @@ public class AgentTracer {
 
     AgentSpan noopSpan();
 
-    SpanBuilder buildSpan(CharSequence spanName);
+    /** Deprecated. Use {@link #buildSpan(String, CharSequence)} instead. */
+    @Deprecated
+    default SpanBuilder buildSpan(CharSequence spanName) {
+      return buildSpan("default", spanName);
+    }
+
+    SpanBuilder buildSpan(String instrumentationName, CharSequence spanName);
 
     void close();
 
@@ -244,23 +324,28 @@ public class AgentTracer {
     protected NoopTracerAPI() {}
 
     @Override
-    public AgentSpan startSpan(final CharSequence spanName) {
-      return NoopAgentSpan.INSTANCE;
-    }
-
-    @Override
-    public AgentSpan startSpan(final CharSequence spanName, final long startTimeMicros) {
-      return NoopAgentSpan.INSTANCE;
-    }
-
-    @Override
-    public AgentSpan startSpan(final CharSequence spanName, final Context parent) {
+    public AgentSpan startSpan(final String instrumentationName, final CharSequence spanName) {
       return NoopAgentSpan.INSTANCE;
     }
 
     @Override
     public AgentSpan startSpan(
-        final CharSequence spanName, final Context parent, final long startTimeMicros) {
+        final String instrumentationName, final CharSequence spanName, final long startTimeMicros) {
+      return NoopAgentSpan.INSTANCE;
+    }
+
+    @Override
+    public AgentSpan startSpan(
+        final String instrumentationName, final CharSequence spanName, final Context parent) {
+      return NoopAgentSpan.INSTANCE;
+    }
+
+    @Override
+    public AgentSpan startSpan(
+        final String instrumentationName,
+        final CharSequence spanName,
+        final Context parent,
+        final long startTimeMicros) {
       return NoopAgentSpan.INSTANCE;
     }
 
@@ -309,7 +394,7 @@ public class AgentTracer {
     }
 
     @Override
-    public SpanBuilder buildSpan(final CharSequence spanName) {
+    public SpanBuilder buildSpan(final String instrumentationName, final CharSequence spanName) {
       return null;
     }
 
