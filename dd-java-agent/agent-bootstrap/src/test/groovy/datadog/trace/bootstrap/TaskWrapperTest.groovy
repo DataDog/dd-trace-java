@@ -29,7 +29,11 @@ class TaskWrapperTest extends DDSpecification {
     l3.wrapped = l2
     def l4 = new RecursiveWrapper()
     l4.wrapped = l3
-    def deepRecursiveWrapper = l4
+    def l5 = new RecursiveWrapper()
+    l5.wrapped = l4
+    def l6 = new RecursiveWrapper()
+    l6.wrapped = l5
+    def deepRecursiveWrapper = l6
     then: "terminate at max depth"
     TaskWrapper.getUnwrappedType(deepRecursiveWrapper) == DirectWrapper
 
