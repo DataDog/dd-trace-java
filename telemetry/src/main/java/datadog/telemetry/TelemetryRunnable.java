@@ -61,6 +61,7 @@ public class TelemetryRunnable implements Runnable {
     Config.get();
 
     final long currentTime = timeSource.getCurrentTimeMillis();
+    // First interval will be triggered immediately.
     nextMetricsIntervalMs = currentTime;
     nextHeartbeatIntervalMs = currentTime;
 
