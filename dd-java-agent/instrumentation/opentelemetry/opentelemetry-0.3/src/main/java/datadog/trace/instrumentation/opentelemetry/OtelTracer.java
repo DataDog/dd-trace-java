@@ -15,7 +15,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class OtelTracer implements Tracer {
-  private static final String INSTRUMENTATION_NAME = "opentelemetry";
+  private static final String INSTRUMENTATION_NAME = "otel";
   private final String tracerName;
   private final AgentTracer.TracerAPI tracer;
   private final TypeConverter converter;

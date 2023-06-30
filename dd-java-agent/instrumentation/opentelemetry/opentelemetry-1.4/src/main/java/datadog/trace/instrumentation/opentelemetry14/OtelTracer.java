@@ -7,7 +7,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 class OtelTracer implements Tracer {
-  private static final String INSTRUMENTATION_NAME = "opentelemetry";
+  private static final String INSTRUMENTATION_NAME = "otel";
   private final AgentTracer.TracerAPI tracer;
   private final String instrumentationScopeName;
 
