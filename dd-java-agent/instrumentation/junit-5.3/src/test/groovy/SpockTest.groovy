@@ -1,4 +1,7 @@
 import datadog.trace.agent.test.asserts.ListWriterAssert
+import datadog.trace.api.civisibility.config.SkippableTest
+import datadog.trace.api.civisibility.config.SkippableTestsSerializer
+import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.civisibility.CiVisibilityTest
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.CIConstants
@@ -56,6 +59,59 @@ class SpockTest extends CiVisibilityTest {
 
     where:
     testTags_0 = [(Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"test add 1 and 2"}}']
+    testTags_1 = [(Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"test add 4 and 4"}}']
+  }
+
+  def "test ITR test skipping"() {
+    setup:
+    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_SKIPPABLE_TESTS, SkippableTestsSerializer.serialize([new SkippableTest("org.example.TestSucceedSpock", "test success", null, null),]))
+    runTestClasses(TestSucceedSpock)
+
+    expect:
+    ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long testSuiteId
+      trace(2, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_SKIP)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSucceedSpock", CIConstants.TEST_SKIP)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedSpock", "test success", CIConstants.TEST_SKIP, testTags)
+      }
+    })
+
+    where:
+    testTags = [(Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner"]
+  }
+
+  def "test ITR skipping for parameterized tests"() {
+    setup:
+    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_SKIPPABLE_TESTS, SkippableTestsSerializer.serialize([
+      new SkippableTest("org.example.TestParameterizedSpock", "test add 1 and 2", testTags_0[Tags.TEST_PARAMETERS], null),
+    ]))
+    runTestClasses(TestParameterizedSpock)
+
+    expect:
+    ListWriterAssert.assertTraces(TEST_WRITER, 3, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long testSuiteId
+      trace(2, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestParameterizedSpock", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterizedSpock", "test add 1 and 2", CIConstants.TEST_SKIP, testTags_0)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterizedSpock", "test add 4 and 4", CIConstants.TEST_PASS, testTags_1)
+      }
+    })
+
+    where:
+    testTags_0 = [
+      (Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"test add 1 and 2"}}',
+      (Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner"
+    ]
     testTags_1 = [(Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"test add 4 and 4"}}']
   }
 
