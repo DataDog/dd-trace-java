@@ -98,10 +98,16 @@ _Actions:_
 * Build and publish to GHCR a Docker image with the Java tracer agent,
 * Build lib-injection and run its system tests with the build Java agent.
 
-### lib-inject-manual-release
+### lib-injection-manual-release
 
 _Trigger:_ When manually triggered
 
 _Action:_ Build and publish to GHCR a Docker image with the given Java tracer version.
 
-## Disabled
+### lib-injection-prune
+
+_Trigger:_ Every week or manually
+
+_Action:_ Clean up old lib-injection Dockerimages from GHCR.
+
+_Recovery:_ Manually trigger the action again.
