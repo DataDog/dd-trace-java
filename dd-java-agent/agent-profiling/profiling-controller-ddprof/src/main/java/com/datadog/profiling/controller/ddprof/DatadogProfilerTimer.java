@@ -4,8 +4,6 @@ import com.datadog.profiling.ddprof.DatadogProfiler;
 import com.datadog.profiling.ddprof.QueueTimeTracker;
 import datadog.trace.api.profiling.Timer;
 import datadog.trace.api.profiling.Timing;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 
 public class DatadogProfilerTimer implements Timer {
 
@@ -21,16 +19,8 @@ public class DatadogProfilerTimer implements Timer {
 
   @Override
   public Timing start(TimerType type) {
-    long localRootSpanId = 0;
-    long spanId = 0;
-    AgentSpan activeSpan = AgentTracer.activeSpan();
-    if (activeSpan != null) {
-      spanId = activeSpan.getSpanId();
-      AgentSpan rootSpan = activeSpan.getLocalRootSpan();
-      localRootSpanId = rootSpan == null ? spanId : rootSpan.getSpanId();
-    }
     if (type == TimerType.QUEUEING) {
-      QueueTimeTracker tracker = profiler.newQueueTimeTracker(localRootSpanId, spanId);
+      QueueTimeTracker tracker = profiler.newQueueTimeTracker();
       if (tracker != null) {
         return tracker;
       }
