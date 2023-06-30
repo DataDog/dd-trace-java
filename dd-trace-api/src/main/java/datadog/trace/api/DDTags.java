@@ -41,6 +41,7 @@ public class DDTags {
   public static final String ORIGIN_KEY = "_dd.origin";
   public static final String LIBRARY_VERSION_TAG_KEY = "library_version";
   public static final String CI_ENV_VARS = "_dd.ci.env_vars";
+  public static final String CI_ITR_TESTS_SKIPPED = "_dd.ci.itr.tests_skipped";
   public static final String MEASURED = "_dd.measured";
   public static final String PID_TAG = "process_id";
   public static final String SCHEMA_VERSION_TAG_KEY = "_dd.trace_span_attribute_schema";

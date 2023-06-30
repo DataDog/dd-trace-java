@@ -69,10 +69,12 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
             moduleName,
             null,
             config,
+            null,
             testDecorator,
             sourcePathResolver,
             codeowners,
-            methodLinesResolver);
+            methodLinesResolver,
+            null);
   }
 
   @Override
@@ -85,16 +87,18 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
               moduleName,
               null,
               config,
+              null,
               testDecorator,
               sourcePathResolver,
               codeowners,
-              methodLinesResolver);
+              methodLinesResolver,
+              null);
     }
   }
 
   @Override
-  public void onTestModuleFinish() {
-    testModule.end(null);
+  public void onTestModuleFinish(boolean itrTestsSkipped) {
+    testModule.end(null, itrTestsSkipped);
     testModule = null;
   }
 

@@ -82,7 +82,7 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       Map<String, Object> additionalTags =
           Collections.singletonMap(Tags.TEST_EXECUTION, executionId);
 
-      BuildEventsHandler.ModuleAndSessionId moduleAndSessionId =
+      BuildEventsHandler.ModuleInfo moduleInfo =
           buildEventsHandler.onTestModuleStart(session, moduleName, startCommand, additionalTags);
 
       Collection<MavenUtils.TestFramework> testFrameworks =
@@ -107,12 +107,24 @@ public class MavenExecutionListener extends AbstractExecutionListener {
                 configuration,
                 Strings.propertyNameToSystemPropertyName(
                     CiVisibilityConfig.CIVISIBILITY_SESSION_ID),
-                moduleAndSessionId.sessionId);
+                moduleInfo.sessionId);
         configuration =
             setForkedVmSystemProperty(
                 configuration,
                 Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_ID),
-                moduleAndSessionId.moduleId);
+                moduleInfo.moduleId);
+        configuration =
+            setForkedVmSystemProperty(
+                configuration,
+                Strings.propertyNameToSystemPropertyName(
+                    CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST),
+                moduleInfo.signalServerHost);
+        configuration =
+            setForkedVmSystemProperty(
+                configuration,
+                Strings.propertyNameToSystemPropertyName(
+                    CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT),
+                moduleInfo.signalServerPort);
 
         mojoExecution.setConfiguration(configuration);
       } else {
@@ -120,10 +132,10 @@ public class MavenExecutionListener extends AbstractExecutionListener {
         // that it shouldn't create its own module event
         System.setProperty(
             Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_SESSION_ID),
-            String.valueOf(moduleAndSessionId.sessionId));
+            String.valueOf(moduleInfo.sessionId));
         System.setProperty(
             Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_ID),
-            String.valueOf(moduleAndSessionId.moduleId));
+            String.valueOf(moduleInfo.moduleId));
       }
     }
   }

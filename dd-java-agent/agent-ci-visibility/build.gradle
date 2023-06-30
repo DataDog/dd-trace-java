@@ -15,6 +15,7 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.DDTestSessionImpl",
   "datadog.trace.civisibility.DDTestSuiteImpl",
   "datadog.trace.civisibility.DDTestImpl",
+  "datadog.trace.civisibility.TestModuleRegistry",
   "datadog.trace.civisibility.ci.CIInfo",
   "datadog.trace.civisibility.ci.CIInfo.Builder",
   "datadog.trace.civisibility.communication.*",

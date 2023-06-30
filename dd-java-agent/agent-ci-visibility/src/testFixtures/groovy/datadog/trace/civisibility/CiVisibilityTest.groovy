@@ -18,6 +18,7 @@ import datadog.trace.civisibility.decorator.TestDecorator
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl
 import datadog.trace.civisibility.events.TestEventsHandlerImpl
+import datadog.trace.civisibility.ipc.SignalServer
 import datadog.trace.civisibility.source.MethodLinesResolver
 import datadog.trace.core.DDSpan
 import datadog.trace.util.Strings
@@ -74,15 +75,20 @@ abstract class CiVisibilityTest extends AgentTestRunner {
     CIVisibility.registerSessionFactory (String projectName, Path projectRoot, String component, Long startTime) -> {
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
       TestDecorator testDecorator = new TestDecoratorImpl(component, null, null, ciTags)
+      TestModuleRegistry testModuleRegistry = new TestModuleRegistry()
+      SignalServer signalServer = new SignalServer()
       return new DDTestSessionImpl(
       projectName,
       startTime,
       Config.get(),
+      testModuleRegistry,
       testDecorator,
       sourcePathResolver,
       codeowners,
       methodLinesResolver,
-      moduleExecutionSettingsFactory)
+      moduleExecutionSettingsFactory,
+      signalServer
+      )
     }
   }
 
