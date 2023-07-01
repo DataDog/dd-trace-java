@@ -66,9 +66,6 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
 
     injectSysConfig("dd.trace.executors", "CustomThreadPoolExecutor")
     injectSysConfig("trace.thread-pool-executors.exclude", "ExecutorInstrumentationTest\$ToBeIgnoredExecutor")
-    // FIXME settings not being applied, which means the task unwrapping is not being tested
-    injectSysConfig("dd.profiling.enabled", "true")
-    injectSysConfig("dd.profiling.experimental.queueing.time.enabled", "true")
   }
 
   @Unroll
