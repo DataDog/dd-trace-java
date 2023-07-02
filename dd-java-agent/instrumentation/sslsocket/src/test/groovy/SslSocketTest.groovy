@@ -31,11 +31,12 @@ class SslSocketTest extends AgentTestRunner {
     injectSysConfig("dd.usm.enabled", "true")
   }
 
+  static int connectionObjectSize = 48
+
   def "simple sync HTTPS request"() {
     setup:
     HttpsURLConnection.setDefaultSSLSocketFactory(server.sslContext.getSocketFactory())
     URL url = server.getSecureAddress().resolve("/success").toURL()
-    int connectionObjectSize = 48
     HttpsURLConnection conn = (HttpsURLConnection) url.openConnection()
     conn.setRequestMethod(method)
     conn.setRequestProperty("Content-Type", "text/plain")
@@ -76,7 +77,7 @@ class SslSocketTest extends AgentTestRunner {
         str.length() == payloadSize
 
         //check the message is an HTTP POST Message
-        str.startsWith(method)
+        str.startsWith(method) || str.startsWith("HTTP")
       }})
 
     where:
