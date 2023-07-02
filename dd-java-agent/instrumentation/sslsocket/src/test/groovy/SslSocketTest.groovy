@@ -2,11 +2,14 @@ package test
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.usm.Extractor
+import datadog.trace.bootstrap.instrumentation.usm.MessageEncoder
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 
 import javax.net.ssl.HttpsURLConnection
 import java.lang.reflect.Field
+import java.nio.ByteBuffer
+import java.nio.charset.Charset
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
@@ -28,24 +31,16 @@ class SslSocketTest extends AgentTestRunner {
     injectSysConfig("dd.usm.enabled", "true")
   }
 
-  def "simple HTTPS request"() {
+  def "simple sync HTTPS request"() {
     setup:
     HttpsURLConnection.setDefaultSSLSocketFactory(server.sslContext.getSocketFactory())
     URL url = server.getSecureAddress().resolve("/success").toURL()
-
+    int CONNECTION_STRUCT_SIZE = 48
     HttpsURLConnection conn = (HttpsURLConnection) url.openConnection()
     conn.setRequestMethod(method)
     conn.setRequestProperty("Content-Type", "text/plain")
     conn.setDoOutput(true)
     conn.connect()
-
-    //    // Mock message factory
-    //    Class msgItfcCls = Class.forName("datadog.trace.bootstrap.instrumentation.usm.UsmMessageFactory")
-    //    Class msgSupplierCls = msgItfcCls.getClasses()[0]
-    //    Field msgSupplierField = msgSupplierCls.getDeclaredField("SUPPLIER")
-    //    msgSupplierField.setAccessible(true)
-    //    UsmMessageFactory factoryMock = Mock(UsmMessageFactory)
-    //    msgSupplierField.set(null, factoryMock)
 
     // Mock extractor
     Class extractorItfcCls = Class.forName("datadog.trace.bootstrap.instrumentation.usm.Extractor")
@@ -61,22 +56,32 @@ class SslSocketTest extends AgentTestRunner {
     then:
     status == 200
 
-    // 50 * factoryMock.getRequestMessage(_, { byte[] buffer ->
-    //   String str = new String(buffer)
-    //   boolean match = str.length() > 0 && str.startsWith("POST")
-    //   println("Intermediate string: $str")
-    //   println("Matching: $match\n")
-    //   return match
-    // }, _, _)
-    2 * factoryMock.getRequestMessage(_, {
-      verifyAll(it, byte[]) {
-        def str = new String(it)
-        str.length() > 0
+    2 * extractorMock.send({
+      verifyAll(it, ByteBuffer) {
+        it.position(0)
+        //validate message type
+        it.get() == (byte)MessageEncoder.MessageType.SYNCHRONOUS_PAYLOAD.ordinal()
+
+        //skip connection struct
+        it.position(1 + CONNECTION_STRUCT_SIZE)
+
+        //read payload size
+        def payloadSize = it.getInt()
+        Charset charset = Charset.defaultCharset()
+
+        //read the payload as string
+        String str = charset.decode(it).toString()
+
+        //validate the payload size is equivalent to what was encoded
+        str.length() == payloadSize
+
+        //check the message is an HTTP POST Message
         str.startsWith("POST") || str.startsWith("HTTP")
-      }}, _, _)
-    (1.._) * extractorMock.send(null) // `getRequestMessage` mock returns `null` so we expect to get it in send
+      }})
 
     where:
     method = "POST"
   }
+
 }
+
