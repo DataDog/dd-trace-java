@@ -3,15 +3,33 @@ import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import io.undertow.Handlers
 import io.undertow.Undertow
 import io.undertow.UndertowOptions
-import io.undertow.server.handlers.PathHandler
 import io.undertow.servlet.api.DeploymentInfo
 import io.undertow.servlet.api.DeploymentManager
 import io.undertow.servlet.api.ServletContainer
 import io.undertow.servlet.api.ServletInfo
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.*
+import javax.servlet.MultipartConfigElement
+
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_HERE
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 
 abstract class UndertowServletTest extends HttpServerTest<Undertow> {
   private static final CONTEXT = "ctx"
@@ -21,10 +39,11 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
     Undertow undertowServer
 
     UndertowServer() {
-      final PathHandler root = new PathHandler()
+      def root = Handlers.path()
       final ServletContainer container = ServletContainer.Factory.newInstance()
 
       DeploymentInfo builder = new DeploymentInfo()
+        .setDefaultMultipartConfig(new MultipartConfigElement(System.getProperty('java.io.tmpdir'), 1024, 1024, 1024))
         .setClassLoader(UndertowServletTest.getClassLoader())
         .setContextPath("/$CONTEXT")
         .setDeploymentName("servletContext.war")
@@ -38,6 +57,10 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
         .addServlet(new ServletInfo("ExceptionServlet", ExceptionServlet).addMapping(EXCEPTION.getPath()))
         .addServlet(new ServletInfo("UserBlockServlet", UserBlockServlet).addMapping(USER_BLOCK.path))
         .addServlet(new ServletInfo("NotHereServlet", NotHereServlet).addMapping(NOT_HERE.path))
+        .addServlet(new ServletInfo("CreatedServlet", CreatedServlet).addMapping(CREATED.path))
+        .addServlet(new ServletInfo("CreatedISServlet", CreatedISServlet).addMapping(CREATED_IS.path))
+        .addServlet(new ServletInfo("BodyUrlEncodedServlet", BodyUrlEncodedServlet).addMapping(BODY_URLENCODED.path))
+        .addServlet(new ServletInfo("BodyMultipartServlet", BodyMultipartServlet).addMapping(BODY_MULTIPART.path))
 
       DeploymentManager manager = container.addDeployment(builder)
       manager.deploy()
@@ -46,7 +69,7 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
       undertowServer = Undertow.builder()
         .addHttpListener(port, "localhost")
         .setServerOption(UndertowOptions.DECODE_URL, true)
-        .setHandler(root)
+        .setHandler(Handlers.httpContinueRead(root))
         .build()
     }
 
@@ -90,6 +113,26 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
 
   @Override
   boolean testBlocking() {
+    true
+  }
+
+  @Override
+  boolean testRequestBody() {
+    true
+  }
+
+  @Override
+  boolean testRequestBodyISVariant() {
+    true
+  }
+
+  @Override
+  boolean testBodyUrlencoded() {
+    true
+  }
+
+  @Override
+  boolean testBodyMultipart() {
     true
   }
 

@@ -39,7 +39,7 @@ jobs:
 
     - name: lib-injection-tags
       id: lib-injection-tags
-      uses: DataDog/system-tests/lib-injection/docker-tags@3dc6d51b9b2fda8721697c3590a327f6aefe54c0 # main
+      uses: DataDog/system-tests/lib-injection/docker-tags@89d754340046eafcc72dc5c5fd6ea651ca7b920e # main
       with:
         init-image-name: 'dd-lib-java-init'
         main-branch-name: 'master'
@@ -82,7 +82,7 @@ jobs:
     steps:     
       - name: lib-injection test runner
         id: lib-injection-test-runner
-        uses: DataDog/system-tests/lib-injection/runner@cd16b189820c94d37a1a3ed6ffceedf5ad2441cf # main
+        uses: DataDog/system-tests/lib-injection/runner@89d754340046eafcc72dc5c5fd6ea651ca7b920e # main
         with:
           docker-registry: ghcr.io
           docker-registry-username: ${{ github.repository_owner }}

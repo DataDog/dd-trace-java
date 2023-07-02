@@ -20,8 +20,8 @@ class TlsTest extends DDSpecification {
     span.getSpanId() >> 22L
 
     when:
-    listener.afterScopeActivated(DDTraceId.from(11L), DDSpanId.ZERO, 12L)
-    listener.afterScopeActivated(DDTraceId.from(21L), DDSpanId.ZERO, 22L)
+    listener.afterScopeActivated(DDTraceId.from(11L), DDSpanId.ZERO, 12L, null)
+    listener.afterScopeActivated(DDTraceId.from(21L), DDSpanId.ZERO, 22L, null)
     then:
     tls.getTraceId() == DDTraceId.from(21L)
     tls.getSpanId() == 22L

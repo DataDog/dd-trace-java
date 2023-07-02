@@ -1,6 +1,10 @@
 package datadog.trace.core
 
-
+import datadog.communication.ddagent.SharedCommunicationObjects
+import datadog.remoteconfig.ConfigurationPoller
+import datadog.remoteconfig.Product
+import datadog.remoteconfig.state.ParsedConfigKey
+import datadog.remoteconfig.state.ProductListener
 import datadog.trace.api.Config
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
@@ -17,6 +21,8 @@ import datadog.trace.core.propagation.DatadogHttpCodec
 import datadog.trace.core.propagation.HttpCodec
 import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Timeout
+
+import java.nio.charset.StandardCharsets
 
 import static datadog.trace.api.config.GeneralConfig.ENV
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED
@@ -39,7 +45,7 @@ class CoreTracerTest extends DDCoreSpecification {
 
     then:
     tracer.serviceName != ""
-    tracer.sampler instanceof RateByServiceTraceSampler
+    tracer.initialSampler instanceof RateByServiceTraceSampler
     tracer.writer instanceof DDAgentWriter
     tracer.statsDClient != null && tracer.statsDClient != StatsDClient.NO_OP
 
@@ -126,7 +132,7 @@ class CoreTracerTest extends DDCoreSpecification {
     def tracer = tracerBuilder().build()
 
     then:
-    tracer.sampler instanceof AllSampler
+    tracer.initialSampler instanceof AllSampler
 
     cleanup:
     tracer.close()
@@ -169,7 +175,7 @@ class CoreTracerTest extends DDCoreSpecification {
     when:
     def tracer = tracerBuilder().build()
     // Datadog extractor gets placed first
-    def taggedHeaders = tracer.extractor.extractors[0].traceConfigSupplier.get().taggedHeaders
+    def taggedHeaders = tracer.extractor.extractors[0].traceConfigSupplier.get().headerTags
 
     then:
     tracer.defaultSpanTags == map
@@ -399,6 +405,76 @@ class CoreTracerTest extends DDCoreSpecification {
     cleanup:
     child.finish()
     root.finish()
+    tracer.close()
+  }
+
+  def "verify configuration polling"() {
+    setup:
+    def key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config")
+    def sco = Mock(SharedCommunicationObjects)
+    def poller = Mock(ConfigurationPoller)
+    sco.configurationPoller(_ as Config) >> poller
+    def updater
+
+    when:
+    def tracer = CoreTracer.builder()
+      .sharedCommunicationObjects(sco)
+      .pollForTracingConfiguration()
+      .build()
+
+    then:
+    1 * poller.addListener(Product.APM_TRACING, _ as ProductListener) >> {
+      updater = it[1] // capture config updater for further testing
+    }
+    and:
+    tracer.captureTraceConfig().serviceMapping == [:]
+    tracer.captureTraceConfig().headerTags == [:]
+    tracer.captureTraceConfig().traceSampleRate == null
+
+    when:
+    updater.accept(key, '''
+      {
+        "lib_config":
+        {
+          "tracing_service_mapping":
+          [{
+             "from_key": "foobar",
+             "to_name": "bar"
+          }, {
+             "from_key": "snafu",
+             "to_name": "foo"
+          }]
+          ,
+          "tracing_header_tags":
+          [{
+             "header": "User-Agent",
+             "tag_name": "http.user_agent"
+          }, {
+             "header": "Referer",
+             "tag_name": "http.referer"
+          }]
+          ,
+          "tracing_sampling_rate": 0.5
+        }
+      }
+      '''.getBytes(StandardCharsets.UTF_8), null)
+    updater.commit()
+
+    then:
+    tracer.captureTraceConfig().serviceMapping == ['foobar':'bar', 'snafu':'foo']
+    tracer.captureTraceConfig().headerTags == ['user-agent':'http.user_agent', 'referer':'http.referer']
+    tracer.captureTraceConfig().traceSampleRate == 0.5
+
+    when:
+    updater.remove(key, null)
+    updater.commit()
+
+    then:
+    tracer.captureTraceConfig().serviceMapping == [:]
+    tracer.captureTraceConfig().headerTags == [:]
+    tracer.captureTraceConfig().traceSampleRate == null
+
+    cleanup:
     tracer.close()
   }
 }

@@ -2,6 +2,7 @@ package com.datadog.iast.sink
 
 import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.IastRequestContext
+import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
@@ -79,6 +80,29 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
     new URI("http://dummy.location.com") | true
   }
 
+  void 'iast module detects String redirect with class and method (#value)'(final String value, final String expected) {
+    setup:
+    final param = mapTainted(value)
+    final clazz = "class"
+    final method = "method"
+
+    when:
+    module.onRedirect(param, clazz, method)
+
+    then:
+    if (expected != null) {
+      1 * reporter.report(_, _) >> { args -> assertEvidence(args[1] as Vulnerability, expected) }
+    } else {
+      0 * reporter.report(_, _)
+    }
+
+    where:
+    value        | expected
+    null         | null
+    '/var'       | null
+    '/==>var<==' | "/==>var<=="
+  }
+
   void 'if onHeader receives a Location header call onRedirect'() {
     setup:
     final urm = Spy(UnvalidatedRedirectModuleImpl)
@@ -96,6 +120,43 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
     "Location" | 1
     "location" | 1
   }
+
+  void 'If all ranges from tainted element have referer header as source, is not an unvalidated redirect'() {
+    setup:
+    def value = 'test01'
+    def refererSource = new Source(SourceTypes.REQUEST_HEADER_VALUE, 'referer', 'value')
+    Range[] ranges = [new Range(0, 2, refererSource), new Range(4, 1, refererSource)]
+    ctx.getTaintedObjects().taint(value, ranges)
+
+    when:
+    module.onRedirect(value)
+
+    then:
+    0 * reporter.report(_, _)
+  }
+
+  void 'If not all ranges from tainted element have referer header as source, is an unvalidated redirect'(final String value, final Range[] ranges) {
+    setup:
+    ctx.getTaintedObjects().taint(value, ranges)
+
+    when:
+    module.onRedirect(value)
+
+    then:
+    1 * reporter.report(_, _)
+
+    where:
+    value    | ranges
+    'test01' | [
+      new Range(0, 2, new Source(SourceTypes.REQUEST_HEADER_VALUE, 'referer', 'value')),
+      new Range(4, 1, new Source(SourceTypes.REQUEST_HEADER_VALUE, 'other', 'value'))
+    ]
+    'test02' | [
+      new Range(0, 2, new Source(SourceTypes.REQUEST_HEADER_VALUE, 'referer', 'value')),
+      new Range(4, 1, new Source(SourceTypes.REQUEST_PARAMETER_NAME, 'referer', 'value'))
+    ]
+  }
+
 
   private String mapTainted(final String value) {
     final result = addFromTaintFormat(ctx.taintedObjects, value)

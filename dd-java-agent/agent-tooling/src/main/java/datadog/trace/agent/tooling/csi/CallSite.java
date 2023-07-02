@@ -6,19 +6,15 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-/**
- * TODO when project is migrated to JDK8 review the possibility to use <code>
- * java.lang.annotation.Repeatable</code> annotations
- */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.CLASS)
 public @interface CallSite {
 
-  /** Interface to be used for SPI injection, by default {@link CallSiteAdvice} */
-  Class<?> spi() default CallSiteAdvice.class;
+  /** Interface to be used for SPI injection */
+  Class<?> spi();
 
-  /** Minimum JRE version that this call site supports */
-  int minJavaVersion() default -1;
+  /** Enable or disable the call site: (fully qualified name, method name and arguments) */
+  String[] enabled() default {};
 
   /** Helper classes for the advice */
   Class<?>[] helpers() default {};

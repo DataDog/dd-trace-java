@@ -14,8 +14,10 @@ import static net.bytebuddy.implementation.bytecode.assign.Assigner.Typing.DYNAM
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
+import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -85,6 +87,10 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
         @Advice.Argument(0) final Object event,
         @Origin("#m") final String methodName) {
 
+      if (CallDepthThreadLocalMap.incrementCallDepth(RequestHandler.class) > 0) {
+        return null;
+      }
+
       AgentSpan.Context lambdaContext = AgentTracer.get().notifyExtensionStart(event);
       final AgentSpan span;
       if (null == lambdaContext) {
@@ -106,6 +112,8 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
       if (scope == null) {
         return;
       }
+
+      CallDepthThreadLocalMap.reset(RequestHandler.class);
 
       try {
         final AgentSpan span = scope.span();

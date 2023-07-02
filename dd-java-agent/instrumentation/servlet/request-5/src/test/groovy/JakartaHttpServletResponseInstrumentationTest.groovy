@@ -1,7 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
-import datadog.trace.api.iast.sink.InsecureCookieModule
+import datadog.trace.api.iast.sink.HttpResponseHeaderModule
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
 import foo.bar.smoketest.DummyResponse
 import jakarta.servlet.http.Cookie
@@ -14,9 +14,14 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     injectSysConfig('dd.iast.enabled', 'true')
   }
 
+  @Override
+  void cleanup() {
+    InstrumentationBridge.clearIastModules()
+  }
+
   void 'insecure cookie added using addCookie'() {
     setup:
-    final module = Mock(InsecureCookieModule)
+    final module = Mock(HttpResponseHeaderModule)
     InstrumentationBridge.registerIastModule(module)
     final response = new DummyResponse()
     final cookie = new Cookie("user-id", "7")
@@ -25,13 +30,13 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.addCookie(cookie)
 
     then:
-    1 * module.onCookie("user-id", false)
+    1 * module.onCookie('user-id', false, false, false)
     0 * _
   }
 
   void 'make sure we do not instrument subclasses of HttpServletResponseWrapper'() {
     setup:
-    final module = Mock(InsecureCookieModule)
+    final module = Mock(HttpResponseHeaderModule)
     InstrumentationBridge.registerIastModule(module)
     final request = Mock(HttpServletResponse)
     final wrapper = new HttpServletResponseWrapper(request)
@@ -47,7 +52,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
 
   void 'secure cookie added using addCookie'() {
     setup:
-    final module = Mock(InsecureCookieModule)
+    final module = Mock(HttpResponseHeaderModule)
     InstrumentationBridge.registerIastModule(module)
     final response = new DummyResponse()
     final cookie = new Cookie("user-id", "7")
@@ -57,13 +62,13 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.addCookie(cookie)
 
     then:
-    1 * module.onCookie('user-id', true)
+    1 * module.onCookie('user-id', true, false, false)
     0 * _
   }
 
   void 'null cookie added using addCookie'() {
     setup:
-    final module = Mock(InsecureCookieModule)
+    final module = Mock(HttpResponseHeaderModule)
     InstrumentationBridge.registerIastModule(module)
     final response = new DummyResponse()
 
@@ -76,7 +81,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
 
   void 'insecure cookie added using addHeader'() {
     setup:
-    final module = Mock(InsecureCookieModule)
+    final module = Mock(HttpResponseHeaderModule)
     InstrumentationBridge.registerIastModule(module)
     final response = new DummyResponse()
 
@@ -85,12 +90,12 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
 
     then:
     1 * module.onHeader('Set-Cookie', 'user-id=7')
+    0 * _
   }
 
   void 'null parameters added using addHeader'() {
     setup:
-    final module = Mock(InsecureCookieModule)
-    InstrumentationBridge.registerIastModule(module)
+    InstrumentationBridge.registerIastModule(Mock(HttpResponseHeaderModule))
     final response = new DummyResponse()
 
     when:
@@ -98,12 +103,12 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
 
     then:
     noExceptionThrown()
-    0 * module.onHeader(null, null)
+    0 * _
   }
 
   void 'insecure cookie added using setHeader'() {
     setup:
-    final module = Mock(InsecureCookieModule)
+    final module = Mock(HttpResponseHeaderModule)
     InstrumentationBridge.registerIastModule(module)
     final response = new DummyResponse()
 
@@ -112,12 +117,12 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
 
     then:
     1 * module.onHeader('Set-Cookie', 'user-id=7')
+    0 * _
   }
 
   void 'null parameters added using setHeader'() {
     setup:
-    final module = Mock(InsecureCookieModule)
-    InstrumentationBridge.registerIastModule(module)
+    InstrumentationBridge.registerIastModule(Mock(HttpResponseHeaderModule))
     final response = new DummyResponse()
 
     when:
@@ -125,12 +130,12 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
 
     then:
     noExceptionThrown()
-    0 * module.onHeader(null, null)
+    0 * _
   }
 
   void 'unvalidated redirect checked using addHeader'() {
     setup:
-    final redirectModule = Mock(UnvalidatedRedirectModule)
+    final redirectModule = Mock(HttpResponseHeaderModule)
     InstrumentationBridge.registerIastModule(redirectModule)
     final response = new DummyResponse()
 
@@ -139,12 +144,13 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
 
     then:
     1 * redirectModule.onHeader('Location', 'http://dummy.url.com')
+    0 * _
   }
 
 
   void 'unvalidated redirect checked setHeader'() {
     setup:
-    final redirectModule = Mock(UnvalidatedRedirectModule)
+    final redirectModule = Mock(HttpResponseHeaderModule)
     InstrumentationBridge.registerIastModule(redirectModule)
     final response = new DummyResponse()
 
@@ -153,6 +159,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
 
     then:
     1 * redirectModule.onHeader('Location', 'http://dummy.url.com')
+    0 * _
   }
 
 

@@ -3,7 +3,7 @@ package datadog.trace.test.util
 class StringUtils {
 
   static String padHexLower(String hex, int size) {
-    hex = hex.toLowerCase()
+    hex = hex.toLowerCase(Locale.ROOT)
     int left = size - hex.length()
     if (size > 0) {
       return "${'0' * left}${hex}"

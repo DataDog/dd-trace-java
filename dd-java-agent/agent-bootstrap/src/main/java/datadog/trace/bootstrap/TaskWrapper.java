@@ -4,7 +4,7 @@ public interface TaskWrapper {
   static Class<?> getUnwrappedType(Object task) {
     int depth = 0;
     Object inspected = task;
-    while (depth < 3 && inspected instanceof TaskWrapper) {
+    while (depth < 5 && inspected instanceof TaskWrapper) {
       inspected = ((TaskWrapper) inspected).$$DD$$__unwrap();
       depth++;
     }

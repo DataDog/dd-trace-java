@@ -43,7 +43,6 @@ public class ServletPathRequestFilterInstrumentation extends Instrumenter.Tracin
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.springweb.BeanDefinitionRepairer",
       packageName + ".OrderedServletPathRequestFilter",
       packageName + ".OrderedServletPathRequestFilter$BeanDefinition",
     };

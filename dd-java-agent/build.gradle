@@ -34,6 +34,8 @@ ext.generalShadowJarConfig = {
   exclude '**/META-INF/proguard/'
   exclude '**/META-INF/*.kotlin_module'
   exclude '**/module-info.class'
+  exclude '**/liblz4-java.so'
+  exclude '**/liblz4-java.dylib'
 
   // Prevents conflict with other SLF4J instances. Important for premain.
   relocate 'org.slf4j', 'datadog.slf4j'
@@ -239,7 +241,7 @@ tasks.register('checkAgentJarSize').configure {
   doLast {
     // Arbitrary limit to prevent unintentional increases to the agent jar size
     // Raise or lower as required
-    def megs = (project.rootProject.hasProperty("agentIncludeCwsTls") && agentIncludeCwsTls) ? 27 : 26
+    def megs = (project.rootProject.hasProperty("agentIncludeCwsTls") && agentIncludeCwsTls) ? 28 : 27
     assert shadowJar.archiveFile.get().getAsFile().length() <= megs * 1024 * 1024
   }
 

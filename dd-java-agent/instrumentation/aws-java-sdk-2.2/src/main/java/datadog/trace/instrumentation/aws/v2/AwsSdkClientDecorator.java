@@ -1,15 +1,19 @@
 package datadog.trace.instrumentation.aws.v2;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
+import javax.annotation.Nonnull;
 import software.amazon.awssdk.awscore.AwsResponse;
 import software.amazon.awssdk.core.SdkRequest;
 import software.amazon.awssdk.core.SdkResponse;
@@ -32,8 +36,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   public static final boolean AWS_LEGACY_TRACING =
       Config.get().isLegacyTracingEnabled(false, "aws-sdk");
 
-  public static final boolean SQS_LEGACY_TRACING =
-      Config.get().isLegacyTracingEnabled(SpanNaming.instance().version() == 0, "sqs");
+  public static final boolean SQS_LEGACY_TRACING = Config.get().isLegacyTracingEnabled(true, "sqs");
 
   private static final String SQS_SERVICE_NAME =
       AWS_LEGACY_TRACING || SQS_LEGACY_TRACING ? "sqs" : Config.get().getServiceName();
@@ -64,12 +67,17 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     request.getValueForField("Bucket", String.class).ifPresent(name -> setBucketName(span, name));
     request
         .getValueForField("StorageClass", String.class)
-        .ifPresent(storageClass -> span.setTag("aws.storage.class", storageClass));
+        .ifPresent(
+            storageClass -> span.setTag(InstrumentationTags.AWS_STORAGE_CLASS, storageClass));
 
     // SQS
     request
         .getValueForField("QueueUrl", String.class)
-        .ifPresent(url -> span.setTag("aws.queue.url", url));
+        .ifPresent(
+            url -> {
+              span.setTag(InstrumentationTags.AWS_QUEUE_URL, url);
+              setPeerService(span, InstrumentationTags.AWS_QUEUE_URL, url);
+            });
     request.getValueForField("QueueName", String.class).ifPresent(name -> setQueueName(span, name));
 
     // SNS
@@ -88,29 +96,42 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     return span;
   }
 
+  private static void setPeerService(
+      @Nonnull final AgentSpan span, @Nonnull final String precursor, @Nonnull final String value) {
+    if (SpanNaming.instance().namingSchema().peerService().supports()) {
+      span.setTag(Tags.PEER_SERVICE, value);
+      span.setTag(DDTags.PEER_SERVICE_SOURCE, precursor);
+    }
+  }
+
   private static void setBucketName(AgentSpan span, String name) {
-    span.setTag("aws.bucket.name", name);
-    span.setTag("bucketname", name);
+    span.setTag(InstrumentationTags.AWS_BUCKET_NAME, name);
+    span.setTag(InstrumentationTags.BUCKET_NAME, name);
+    setPeerService(span, InstrumentationTags.AWS_BUCKET_NAME, name);
   }
 
   private static void setQueueName(AgentSpan span, String name) {
-    span.setTag("aws.queue.name", name);
-    span.setTag("queuename", name);
+    span.setTag(InstrumentationTags.AWS_QUEUE_NAME, name);
+    span.setTag(InstrumentationTags.QUEUE_NAME, name);
+    setPeerService(span, InstrumentationTags.AWS_QUEUE_NAME, name);
   }
 
   private static void setTopicName(AgentSpan span, String name) {
-    span.setTag("aws.topic.name", name);
-    span.setTag("topicname", name);
+    span.setTag(InstrumentationTags.AWS_TOPIC_NAME, name);
+    span.setTag(InstrumentationTags.TOPIC_NAME, name);
+    setPeerService(span, InstrumentationTags.AWS_TOPIC_NAME, name);
   }
 
   private static void setStreamName(AgentSpan span, String name) {
-    span.setTag("aws.stream.name", name);
-    span.setTag("streamname", name);
+    span.setTag(InstrumentationTags.AWS_STREAM_NAME, name);
+    span.setTag(InstrumentationTags.STREAM_NAME, name);
+    setPeerService(span, InstrumentationTags.AWS_STREAM_NAME, name);
   }
 
   private static void setTableName(AgentSpan span, String name) {
-    span.setTag("aws.table.name", name);
-    span.setTag("tablename", name);
+    span.setTag(InstrumentationTags.AWS_TABLE_NAME, name);
+    span.setTag(InstrumentationTags.TABLE_NAME, name);
+    setPeerService(span, InstrumentationTags.AWS_TABLE_NAME, name);
   }
 
   public AgentSpan onAttributes(final AgentSpan span, final ExecutionAttributes attributes) {
@@ -136,10 +157,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         span.setServiceName(GENERIC_SERVICE_NAME);
         break;
     }
-    span.setTag("aws.agent", COMPONENT_NAME);
-    span.setTag("aws.service", awsServiceName);
-    span.setTag("aws_service", awsServiceName);
-    span.setTag("aws.operation", awsOperationName);
+    span.setTag(InstrumentationTags.AWS_AGENT, COMPONENT_NAME);
+    span.setTag(InstrumentationTags.AWS_SERVICE, awsServiceName);
+    span.setTag(InstrumentationTags.TOP_LEVEL_AWS_SERVICE, awsServiceName);
+    span.setTag(InstrumentationTags.AWS_OPERATION, awsOperationName);
 
     return span;
   }
@@ -147,7 +168,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   // Not overriding the super.  Should call both with each type of response.
   public AgentSpan onResponse(final AgentSpan span, final SdkResponse response) {
     if (response instanceof AwsResponse) {
-      span.setTag("aws.requestId", ((AwsResponse) response).responseMetadata().requestId());
+      span.setTag(
+          InstrumentationTags.AWS_REQUEST_ID,
+          ((AwsResponse) response).responseMetadata().requestId());
     }
     return span;
   }

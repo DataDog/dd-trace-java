@@ -1,12 +1,15 @@
 package com.datadog.debugger.instrumentation;
 
 import static com.datadog.debugger.instrumentation.ASMHelper.decodeSignature;
+import static com.datadog.debugger.instrumentation.ASMHelper.ensureSafeClassLoad;
+import static com.datadog.debugger.instrumentation.ASMHelper.getStatic;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeInterface;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeStatic;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeVirtual;
 import static com.datadog.debugger.instrumentation.ASMHelper.isStaticField;
 import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
 import static com.datadog.debugger.instrumentation.Types.*;
+import static datadog.trace.util.Strings.getClassName;
 
 import com.datadog.debugger.el.InvalidValueException;
 import com.datadog.debugger.el.Visitor;
@@ -46,6 +49,7 @@ import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
@@ -178,82 +182,91 @@ public class MetricInstrumentor extends Instrumentor {
     if (metricProbe.getValue() == null) {
       InsnList insnList = new InsnList();
       // consider the metric as an increment counter one
+      getStatic(insnList, METRICKIND_TYPE, metricProbe.getKind().name());
+      // stack [MetricKind]
       insnList.add(new LdcInsnNode(metricProbe.getMetricName()));
-      ldc(insnList, 1L); // stack [long]
-      pushTags(
-          insnList,
-          addProbeIdWithTags(metricProbe.getId(), metricProbe.getTags())); // stack [long, array]
+      // stack [MetricKind, string]
+      ldc(insnList, 1L);
+      // stack [MetricKind, string, long]
+      pushTags(insnList, addProbeIdWithTags(metricProbe.getId(), metricProbe.getTags()));
+      // stack [MetricKind, string, long, array]
       invokeStatic(
           insnList,
           DEBUGGER_CONTEXT_TYPE,
-          "count",
+          "metric",
           Type.VOID_TYPE,
+          METRICKIND_TYPE,
           STRING_TYPE,
           Type.LONG_TYPE,
           Types.asArray(STRING_TYPE, 1));
+      // stack []
       return insnList;
     }
-    return internalCallMetric("count", metricProbe);
+    return internalCallMetric(metricProbe);
   }
 
-  private InsnList internalCallMetric(String metricMethodName, MetricProbe metricProbe) {
+  private InsnList internalCallMetric(MetricProbe metricProbe) {
     InsnList insnList = new InsnList();
-    insnList.add(new LdcInsnNode(metricProbe.getMetricName()));
-    // stack [string]
     InsnList nullBranch = new InsnList();
     VisitorResult result;
     Type resultType;
     try {
       result = metricProbe.getValue().getExpr().accept(new MetricValueVisitor(this, nullBranch));
-      resultType = result.type.getMainType();
-      // stack [string, int|long]
-      convertIfRequired(resultType, Type.LONG_TYPE, result.insnList);
-      // stack [string, long]
-      insnList.add(result.insnList);
     } catch (InvalidValueException | UnsupportedOperationException ex) {
       reportError(ex.getMessage());
       return EMPTY_INSN_LIST;
     }
-    if (!isCompatible(resultType, Type.LONG_TYPE)) {
+    resultType = result.type.getMainType();
+    MetricProbe.MetricKind kind = metricProbe.getKind();
+    if (!kind.isCompatible(resultType)) {
+      String expectedTypes =
+          kind.getSupportedTypes().stream()
+              .map(Type::getClassName)
+              .collect(Collectors.joining(","));
       reportError(
           String.format(
-              "Incompatible type for expression: %s with expected type: %s",
-              resultType.getClassName(), Type.LONG_TYPE.getClassName()));
+              "Incompatible type for expression: %s with expected types: [%s]",
+              resultType.getClassName(), expectedTypes));
       return EMPTY_INSN_LIST;
     }
+    resultType = convertIfRequired(resultType, result.insnList);
+    getStatic(insnList, METRICKIND_TYPE, metricProbe.getKind().name());
+    // stack [MetricKind]
+    insnList.add(new LdcInsnNode(metricProbe.getMetricName()));
+    // stack [MetricKind, string]
+    insnList.add(result.insnList);
+    // stack [MetricKind, string, long|double]
     pushTags(insnList, addProbeIdWithTags(metricProbe.getId(), metricProbe.getTags()));
-    // stack [string, long, array]
+    // stack [MetricKind, string, long|double, array]
     invokeStatic(
         insnList,
         DEBUGGER_CONTEXT_TYPE,
-        metricMethodName,
+        "metric",
         Type.VOID_TYPE,
+        METRICKIND_TYPE,
         STRING_TYPE,
-        Type.LONG_TYPE,
+        resultType,
         Types.asArray(STRING_TYPE, 1));
     // stack []
     insnList.add(nullBranch);
     return insnList;
   }
 
-  private void convertIfRequired(Type currentType, Type expectedType, InsnList insnList) {
-    if (expectedType == Type.LONG_TYPE && currentType == Type.INT_TYPE) {
-      insnList.add(new InsnNode(Opcodes.I2L));
+  private Type convertIfRequired(Type currentType, InsnList insnList) {
+    switch (currentType.getSort()) {
+      case Type.BYTE:
+      case Type.SHORT:
+      case Type.CHAR:
+      case Type.INT:
+      case Type.BOOLEAN:
+        insnList.add(new InsnNode(Opcodes.I2L));
+        return Type.LONG_TYPE;
+      case Type.FLOAT:
+        insnList.add(new InsnNode(Opcodes.F2D));
+        return Type.DOUBLE_TYPE;
+      default:
+        return currentType;
     }
-  }
-
-  private InsnList callGauge(MetricProbe metricProbe) {
-    if (metricProbe.getValue() == null) {
-      return EMPTY_INSN_LIST;
-    }
-    return internalCallMetric("gauge", metricProbe);
-  }
-
-  private InsnList callHistogram(MetricProbe metricProbe) {
-    if (metricProbe.getValue() == null) {
-      return EMPTY_INSN_LIST;
-    }
-    return internalCallMetric("histogram", metricProbe);
   }
 
   private InsnList callMetric(MetricProbe metricProbe) {
@@ -261,9 +274,12 @@ public class MetricInstrumentor extends Instrumentor {
       case COUNT:
         return callCount(metricProbe);
       case GAUGE:
-        return callGauge(metricProbe);
       case HISTOGRAM:
-        return callHistogram(metricProbe);
+      case DISTRIBUTION:
+        if (metricProbe.getValue() == null) {
+          return EMPTY_INSN_LIST;
+        }
+        return internalCallMetric(metricProbe);
       default:
         reportError(String.format("Unknown metric kind: %s", metricProbe.getKind()));
     }
@@ -299,13 +315,6 @@ public class MetricInstrumentor extends Instrumentor {
         methodNode.instructions.insert(afterLabel, insnList);
       }
     }
-  }
-
-  private boolean isCompatible(Type argType, Type expectedType) {
-    if (expectedType == Type.LONG_TYPE) {
-      return argType == expectedType || argType == Type.INT_TYPE;
-    }
-    return argType == expectedType;
   }
 
   private static class VisitorResult {
@@ -676,7 +685,9 @@ public class MetricInstrumentor extends Instrumentor {
           }
         } else {
           className = currentType.getClassName();
-          clazz = Class.forName(className, true, instrumentor.classLoader);
+          clazz =
+              ensureSafeClassLoad(
+                  className, getClassName(instrumentor.classNode.name), instrumentor.classLoader);
           Field declaredField = clazz.getDeclaredField(fieldName); // no parent fields!
           isAccessible = declaredField.isAccessible();
           fieldDesc = Type.getDescriptor(declaredField.getType());
@@ -703,8 +714,9 @@ public class MetricInstrumentor extends Instrumentor {
         LabelNode gotoNode = new LabelNode();
         nullBranch.add(new JumpInsnNode(Opcodes.GOTO, gotoNode));
         nullBranch.add(nullNode);
-        nullBranch.add(new InsnNode(Opcodes.POP));
-        nullBranch.add(new InsnNode(Opcodes.POP));
+        nullBranch.add(new InsnNode(Opcodes.POP)); // target_object
+        nullBranch.add(new InsnNode(Opcodes.POP)); // metric name
+        nullBranch.add(new InsnNode(Opcodes.POP)); // metric kind
         nullBranch.add(gotoNode);
       } catch (Exception e) {
         String message = "Cannot resolve field " + fieldName;

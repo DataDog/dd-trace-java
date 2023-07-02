@@ -24,7 +24,7 @@ class HttpExtractorTest extends DDSpecification {
       getTracePropagationStylesToExtract() >> styles
     }
     DynamicConfig dynamicConfig = DynamicConfig.create()
-      .setTaggedHeaders(["SOME_HEADER": "some-tag"])
+      .setHeaderTags(["SOME_HEADER": "some-tag"])
       .setBaggageMapping([:])
       .apply()
     HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, { dynamicConfig.captureTraceConfig() })

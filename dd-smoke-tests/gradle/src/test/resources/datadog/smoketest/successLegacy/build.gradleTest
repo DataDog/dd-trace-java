@@ -8,3 +8,8 @@ repositories {
 dependencies {
   compile 'junit:junit:4.10'
 }
+
+test {
+  environment "JENKINS_URL", "dummy" // ensure CI provider is detected as Jenkins regardless of where the test is run
+  environment "WORKSPACE", "$project.projectDir"
+}

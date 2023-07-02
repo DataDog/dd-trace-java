@@ -1,6 +1,12 @@
 package datadog.trace.instrumentation.ratpack;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+
+import datadog.appsec.api.blocking.BlockingException;
+import datadog.trace.api.gateway.BlockResponseFunction;
+import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.http.StoredByteBody;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.netty.buffer.ByteBuf;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -43,17 +49,46 @@ public class RequestBodyCollectionPublisher implements TransformablePublisher<By
 
           @Override
           public void onError(Throwable t) {
-            storedByteBody.maybeNotify(); // TODO: blocking if possible
-            if (done.compareAndSet(false, true)) {
+            Flow<Void> flow = storedByteBody.maybeNotify();
+            Flow.Action action = flow.getAction();
+            if (action instanceof Flow.Action.RequestBlockingAction) {
+              block((Flow.Action.RequestBlockingAction) action, t);
+            } else if (done.compareAndSet(false, true)) {
               outSubscriber.onError(t);
             }
           }
 
           @Override
           public void onComplete() {
-            storedByteBody.maybeNotify(); // TODO: blocking if possible
-            if (done.compareAndSet(false, true)) {
+            Flow<Void> flow = storedByteBody.maybeNotify();
+            Flow.Action action = flow.getAction();
+            if (action instanceof Flow.Action.RequestBlockingAction) {
+              block(
+                  (Flow.Action.RequestBlockingAction) action,
+                  new BlockingException("Blocked request (for RequestBody/readStream)"));
+            } else if (done.compareAndSet(false, true)) {
               outSubscriber.onComplete();
+            }
+          }
+
+          private void block(Flow.Action.RequestBlockingAction rba, Throwable t) {
+            AgentSpan agentSpan = activeSpan();
+            if (agentSpan == null) {
+              return;
+            }
+            BlockResponseFunction blockResponseFunction =
+                agentSpan.getRequestContext().getBlockResponseFunction();
+            if (blockResponseFunction == null) {
+              return;
+            }
+            blockResponseFunction.tryCommitBlockingResponse(
+                rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+
+            // we can't directly interrupt user code here by throwing an exception
+            // user code must listen for errors and implement its own logic to prevent
+            // the request processing from continue (although we always commit the error response)
+            if (done.compareAndSet(false, true)) {
+              outSubscriber.onError(t);
             }
           }
         });

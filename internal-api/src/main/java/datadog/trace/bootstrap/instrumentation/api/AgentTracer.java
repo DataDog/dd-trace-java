@@ -23,7 +23,6 @@ import datadog.trace.api.profiling.Timer;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
-import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -32,24 +31,60 @@ import java.util.function.Consumer;
 public class AgentTracer {
 
   // Implicit parent
+  /** Deprecated. Use {@link #startSpan(String, CharSequence)} instead. */
+  @Deprecated
   public static AgentSpan startSpan(final CharSequence spanName) {
-    return get().startSpan(spanName);
+    return startSpan("default", spanName);
+  }
+
+  /** @see TracerAPI#startSpan(String, CharSequence) */
+  public static AgentSpan startSpan(final String instrumentationName, final CharSequence spanName) {
+    return get().startSpan(instrumentationName, spanName);
   }
 
   // Implicit parent
+  /** Deprecated. Use {@link #startSpan(String, CharSequence, long)} instead. */
+  @Deprecated
   public static AgentSpan startSpan(final CharSequence spanName, final long startTimeMicros) {
-    return get().startSpan(spanName, startTimeMicros);
+    return startSpan("default", spanName, startTimeMicros);
+  }
+
+  /** @see TracerAPI#startSpan(String, CharSequence, long) */
+  public static AgentSpan startSpan(
+      final String instrumentationName, final CharSequence spanName, final long startTimeMicros) {
+    return get().startSpan(instrumentationName, spanName, startTimeMicros);
   }
 
   // Explicit parent
+  /** Deprecated. Use {@link #startSpan(String, CharSequence, AgentSpan.Context)} instead. */
+  @Deprecated
   public static AgentSpan startSpan(final CharSequence spanName, final AgentSpan.Context parent) {
-    return get().startSpan(spanName, parent);
+    return startSpan("default", spanName, parent);
+  }
+
+  /** @see TracerAPI#startSpan(String, CharSequence, AgentSpan.Context) */
+  public static AgentSpan startSpan(
+      final String instrumentationName,
+      final CharSequence spanName,
+      final AgentSpan.Context parent) {
+    return get().startSpan(instrumentationName, spanName, parent);
   }
 
   // Explicit parent
+  /** Deprecated. Use {@link #startSpan(String, CharSequence, AgentSpan.Context, long)} instead. */
+  @Deprecated
   public static AgentSpan startSpan(
       final CharSequence spanName, final AgentSpan.Context parent, final long startTimeMicros) {
-    return get().startSpan(spanName, parent, startTimeMicros);
+    return startSpan("default", spanName, parent, startTimeMicros);
+  }
+
+  /** @see TracerAPI#startSpan(String, CharSequence, AgentSpan.Context, long) */
+  public static AgentSpan startSpan(
+      final String instrumentationName,
+      final CharSequence spanName,
+      final AgentSpan.Context parent,
+      final long startTimeMicros) {
+    return get().startSpan(instrumentationName, spanName, parent, startTimeMicros);
   }
 
   public static AgentScope activateSpan(final AgentSpan span) {
@@ -143,13 +178,51 @@ public class AgentTracer {
           EndpointCheckpointer,
           DataStreamsCheckpointer,
           ScopeStateAware {
-    AgentSpan startSpan(CharSequence spanName);
 
-    AgentSpan startSpan(CharSequence spanName, long startTimeMicros);
+    /**
+     * Create and start a new span.
+     *
+     * @param instrumentationName The instrumentation creating the span.
+     * @param spanName The span operation name.
+     * @return The new started span.
+     */
+    AgentSpan startSpan(String instrumentationName, CharSequence spanName);
 
-    AgentSpan startSpan(CharSequence spanName, AgentSpan.Context parent);
+    /**
+     * Create and start a new span with a given start time.
+     *
+     * @param instrumentationName The instrumentation creating the span.
+     * @param spanName The span operation name.
+     * @param startTimeMicros The span start time, in microseconds.
+     * @return The new started span.
+     */
+    AgentSpan startSpan(String instrumentationName, CharSequence spanName, long startTimeMicros);
 
-    AgentSpan startSpan(CharSequence spanName, AgentSpan.Context parent, long startTimeMicros);
+    /**
+     * Create and start a new span with an explicit parent.
+     *
+     * @param instrumentationName The instrumentation creating the span.
+     * @param spanName The span operation name.
+     * @param parent The parent span context.
+     * @return The new started span.
+     */
+    AgentSpan startSpan(
+        String instrumentationName, CharSequence spanName, AgentSpan.Context parent);
+
+    /**
+     * Create and start a new span with an explicit parent and a given start time.
+     *
+     * @param instrumentationName The instrumentation creating the span.
+     * @param spanName The span operation name.
+     * @param parent The parent span context.
+     * @param startTimeMicros The span start time, in microseconds.
+     * @return The new started span.
+     */
+    AgentSpan startSpan(
+        String instrumentationName,
+        CharSequence spanName,
+        AgentSpan.Context parent,
+        long startTimeMicros);
 
     AgentScope activateSpan(AgentSpan span, ScopeSource source);
 
@@ -169,7 +242,13 @@ public class AgentTracer {
 
     AgentSpan noopSpan();
 
-    SpanBuilder buildSpan(CharSequence spanName);
+    /** Deprecated. Use {@link #buildSpan(String, CharSequence)} instead. */
+    @Deprecated
+    default SpanBuilder buildSpan(CharSequence spanName) {
+      return buildSpan("default", spanName);
+    }
+
+    SpanBuilder buildSpan(String instrumentationName, CharSequence spanName);
 
     void close();
 
@@ -201,7 +280,7 @@ public class AgentTracer {
 
     void notifyExtensionEnd(AgentSpan span, Object result, boolean isError);
 
-    DataStreamsMonitoring getDataStreamsMonitoring();
+    AgentDataStreamsMonitoring getDataStreamsMonitoring();
 
     Timer getTimer();
 
@@ -244,26 +323,29 @@ public class AgentTracer {
 
     protected NoopTracerAPI() {}
 
-    private final DataStreamsMonitoring dataStreamsMonitoring = new NoopDataStreamsMonitoring();
-
     @Override
-    public AgentSpan startSpan(final CharSequence spanName) {
-      return NoopAgentSpan.INSTANCE;
-    }
-
-    @Override
-    public AgentSpan startSpan(final CharSequence spanName, final long startTimeMicros) {
-      return NoopAgentSpan.INSTANCE;
-    }
-
-    @Override
-    public AgentSpan startSpan(final CharSequence spanName, final Context parent) {
+    public AgentSpan startSpan(final String instrumentationName, final CharSequence spanName) {
       return NoopAgentSpan.INSTANCE;
     }
 
     @Override
     public AgentSpan startSpan(
-        final CharSequence spanName, final Context parent, final long startTimeMicros) {
+        final String instrumentationName, final CharSequence spanName, final long startTimeMicros) {
+      return NoopAgentSpan.INSTANCE;
+    }
+
+    @Override
+    public AgentSpan startSpan(
+        final String instrumentationName, final CharSequence spanName, final Context parent) {
+      return NoopAgentSpan.INSTANCE;
+    }
+
+    @Override
+    public AgentSpan startSpan(
+        final String instrumentationName,
+        final CharSequence spanName,
+        final Context parent,
+        final long startTimeMicros) {
       return NoopAgentSpan.INSTANCE;
     }
 
@@ -312,7 +394,7 @@ public class AgentTracer {
     }
 
     @Override
-    public SpanBuilder buildSpan(final CharSequence spanName) {
+    public SpanBuilder buildSpan(final String instrumentationName, final CharSequence spanName) {
       return null;
     }
 
@@ -425,17 +507,6 @@ public class AgentTracer {
     }
 
     @Override
-    public <C> PathwayContext extractBinaryPathwayContext(
-        C carrier, BinaryContextVisitor<C> getter) {
-      return null;
-    }
-
-    @Override
-    public <C> PathwayContext extractPathwayContext(C carrier, ContextVisitor<C> getter) {
-      return null;
-    }
-
-    @Override
     public void onRootSpanFinished(AgentSpan root, EndpointTracker tracker) {}
 
     @Override
@@ -460,8 +531,8 @@ public class AgentTracer {
     }
 
     @Override
-    public DataStreamsMonitoring getDataStreamsMonitoring() {
-      return dataStreamsMonitoring;
+    public AgentDataStreamsMonitoring getDataStreamsMonitoring() {
+      return NoopAgentDataStreamsMonitoring.INSTANCE;
     }
 
     @Override
@@ -622,9 +693,6 @@ public class AgentTracer {
     }
 
     @Override
-    public void mergePathwayContext(PathwayContext pathwayContext) {}
-
-    @Override
     public Integer forceSamplingDecision() {
       return null;
     }
@@ -670,6 +738,11 @@ public class AgentTracer {
     }
 
     @Override
+    public AgentSpan setError(boolean error, byte priority) {
+      return this;
+    }
+
+    @Override
     public AgentSpan setMeasured(boolean measured) {
       return this;
     }
@@ -686,6 +759,11 @@ public class AgentTracer {
 
     @Override
     public AgentSpan addThrowable(final Throwable throwable) {
+      return this;
+    }
+
+    @Override
+    public AgentSpan addThrowable(Throwable throwable, byte errorPriority) {
       return this;
     }
 
@@ -843,17 +921,6 @@ public class AgentTracer {
     public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
       return NoopContext.INSTANCE;
     }
-
-    @Override
-    public <C> PathwayContext extractBinaryPathwayContext(
-        C carrier, BinaryContextVisitor<C> getter) {
-      return null;
-    }
-
-    @Override
-    public <C> PathwayContext extractPathwayContext(C carrier, ContextVisitor<C> getter) {
-      return null;
-    }
   }
 
   static class NoopContinuation implements AgentScope.Continuation {
@@ -999,6 +1066,14 @@ public class AgentTracer {
     public void cancelContinuation(final AgentScope.Continuation continuation) {}
   }
 
+  public static class NoopAgentDataStreamsMonitoring implements AgentDataStreamsMonitoring {
+    public static final NoopAgentDataStreamsMonitoring INSTANCE =
+        new NoopAgentDataStreamsMonitoring();
+
+    @Override
+    public void trackBacklog(LinkedHashMap<String, String> sortedTags, long value) {}
+  }
+
   public static class NoopPathwayContext implements PathwayContext {
     public static final NoopPathwayContext INSTANCE = new NoopPathwayContext();
 
@@ -1017,12 +1092,12 @@ public class AgentTracer {
         LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer) {}
 
     @Override
-    public byte[] encode() throws IOException {
+    public byte[] encode() {
       return null;
     }
 
     @Override
-    public String strEncode() throws IOException {
+    public String strEncode() {
       return null;
     }
   }

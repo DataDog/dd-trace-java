@@ -2,6 +2,7 @@ package datadog.trace.core.propagation;
 
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import java.util.Map;
 
@@ -57,5 +58,32 @@ public class ExtractedContext extends TagContext {
 
   public PropagationTags getPropagationTags() {
     return propagationTags;
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder builder = new StringBuilder("ExtractedContext{");
+    if (traceId != null) {
+      builder.append("traceId=").append(traceId).append(", ");
+    }
+    if (spanId != 0) {
+      builder.append("endToEndStartTime=").append(spanId).append(", ");
+    }
+    if (endToEndStartTime != 0) {
+      builder.append("spanId=").append(spanId).append(", ");
+    }
+    if (getOrigin() != null) {
+      builder.append("origin=").append(getOrigin()).append(", ");
+    }
+    if (getTags() != null) {
+      builder.append("tags=").append(getTags()).append(", ");
+    }
+    if (getBaggage() != null) {
+      builder.append("baggage=").append(getBaggage()).append(", ");
+    }
+    if (getSamplingPriority() != PrioritySampling.UNSET) {
+      builder.append("samplingPriority=").append(getSamplingPriority()).append(", ");
+    }
+    return builder.append('}').toString();
   }
 }

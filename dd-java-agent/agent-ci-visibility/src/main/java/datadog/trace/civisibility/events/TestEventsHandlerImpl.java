@@ -7,15 +7,15 @@ import datadog.trace.api.DisableTestTrace;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestModule;
 import datadog.trace.api.civisibility.DDTestSuite;
-import datadog.trace.api.civisibility.codeowners.Codeowners;
 import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
-import datadog.trace.api.civisibility.source.MethodLinesResolver;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.DDTestImpl;
 import datadog.trace.civisibility.DDTestModuleImpl;
+import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.context.EmptyTestContext;
+import datadog.trace.civisibility.source.MethodLinesResolver;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
@@ -104,7 +104,8 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       final @Nullable String testFramework,
       final @Nullable String testFrameworkVersion,
       final @Nullable Class<?> testClass,
-      final @Nullable Collection<String> categories) {
+      final @Nullable Collection<String> categories,
+      boolean parallelized) {
     if (skipTrace(testClass)) {
       return;
     }
@@ -114,7 +115,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       return;
     }
 
-    DDTestSuite testSuite = testModule.testSuiteStart(testSuiteName, testClass, null);
+    DDTestSuite testSuite = testModule.testSuiteStart(testSuiteName, testClass, null, parallelized);
 
     if (testFramework != null) {
       testSuite.setTag(Tags.TEST_FRAMEWORK, testFramework);

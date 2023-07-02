@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
@@ -35,6 +36,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
   void setup() {
     origAppSecActive = ActiveSubsystems.APPSEC_ACTIVE
     ActiveSubsystems.APPSEC_ACTIVE = true
+    errorPriority = ErrorPriorities.HTTP_SERVER_DECORATOR
   }
 
   void cleanup() {
@@ -303,7 +305,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       1 * this.span.setHttpStatusCode(status)
     }
     if (resp) {
-      1 * this.span.setError(error)
+      1 * this.span.setError(error, ErrorPriorities.HTTP_SERVER_DECORATOR)
     }
     if (status == 404) {
       1 * this.span.setResourceName({ it as String == "404" }, ResourceNamePriorities.HTTP_404)
@@ -311,6 +313,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     if (resp) {
       1 * this.span.getRequestContext()
     }
+    _ * span.getTag('error.type')
     0 * _
 
     where:
@@ -418,14 +421,14 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       getRequestContext() >> reqCtxt
     }
     def mTracer = Mock(TracerAPI) {
-      startSpan(_, _) >> mSpan
+      startSpan(_, _, _) >> mSpan
       getCallbackProvider(RequestContextSlot.APPSEC) >> cbpAppSec
       getCallbackProvider(RequestContextSlot.IAST) >> CallbackProvider.CallbackProviderNoop.INSTANCE
     }
     def decorator = newDecorator(mTracer)
 
     when:
-    decorator.startSpan(headers, null)
+    decorator.startSpan("test", headers, null)
 
     then:
     1 * mSpan.setMeasured(true) >> mSpan

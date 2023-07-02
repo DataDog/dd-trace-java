@@ -9,8 +9,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
 import org.objectweb.asm.signature.SignatureReader;
 import org.objectweb.asm.signature.SignatureVisitor;
+import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
@@ -90,6 +92,12 @@ public class ASMHelper {
     insnList.add(val == null ? new InsnNode(Opcodes.ACONST_NULL) : new LdcInsnNode(val));
   }
 
+  public static void getStatic(InsnList insnList, org.objectweb.asm.Type owner, String fieldName) {
+    insnList.add(
+        new FieldInsnNode(
+            Opcodes.GETSTATIC, owner.getInternalName(), fieldName, owner.getDescriptor()));
+  }
+
   public static Type decodeSignature(String signature) {
     SignatureReader sigReader = new SignatureReader(signature);
     FieldSignatureVisitor fieldSignatureVisitor = new FieldSignatureVisitor();
@@ -101,6 +109,37 @@ public class ASMHelper {
             .map(Type::new)
             .collect(Collectors.toList());
     return new Type(mainType, genericTypes);
+  }
+
+  /**
+   * Makes sure that the class we want to load is not the one that we are currently transforming
+   * otherwise it will lead into a LinkageError
+   *
+   * @param className class name to load in '.' format (com.foo.bar.Class$InnerClass)
+   * @param currentClassTransformed in '.' format (com.foo.bar.Class$InnerClass)
+   * @param classLoader use for loading the class
+   * @return the loaded class
+   */
+  public static Class<?> ensureSafeClassLoad(
+      String className, String currentClassTransformed, ClassLoader classLoader) {
+    if (currentClassTransformed == null) {
+      // This is required to make sure we are not loading the class being transformed during
+      // transformation as it will generate a LinkageError with
+      // "attempted duplicate class definition"
+      throw new IllegalArgumentException(
+          "Cannot ensure loading class: "
+              + className
+              + " safely as current class being transformed is not provided (null)");
+    }
+    if (className.equals(currentClassTransformed)) {
+      throw new IllegalArgumentException(
+          "Cannot load class " + className + " as this is the class being currently transformed");
+    }
+    try {
+      return Class.forName(className, true, classLoader);
+    } catch (Throwable t) {
+      throw new RuntimeException("Cannot load class " + className, t);
+    }
   }
 
   /** Wraps ASM's {@link org.objectweb.asm.Type} with associated generic types */

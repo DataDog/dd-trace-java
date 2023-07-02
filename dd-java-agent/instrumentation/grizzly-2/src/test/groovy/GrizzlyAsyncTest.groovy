@@ -100,7 +100,9 @@ class GrizzlyAsyncTest extends GrizzlyTest {
     Response userBlock(@Suspended AsyncResponse ar) {
       executor.execute {
         controller(USER_BLOCK) {
+          markHandlerRan false
           Blocking.forUser('user-to-block').blockIfMatch()
+          markHandlerRan true
           ar.resume(Response.status(200).entity('should not be reached').build())
         }
       }
@@ -119,9 +121,5 @@ class GrizzlyAsyncTest extends GrizzlyTest {
         }
       }
     }
-  }
-
-  @Override
-  def setup() {
   }
 }

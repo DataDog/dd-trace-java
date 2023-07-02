@@ -14,6 +14,8 @@ import akka.http.scaladsl.model.HttpRequest;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Propagation;
+import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.Taintable;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -57,6 +59,7 @@ public class HttpRequestInstrumentation extends Instrumenter.Iast
   @SuppressFBWarnings("BC_IMPOSSIBLE_INSTANCEOF")
   static class RequestHeadersAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
     static void onExit(
         @Advice.This HttpRequest thiz, @Advice.Return(readOnly = false) Seq<HttpHeader> headers) {
       PropagationModule propagation = InstrumentationBridge.PROPAGATION;
@@ -91,6 +94,7 @@ public class HttpRequestInstrumentation extends Instrumenter.Iast
 
   static class EntityAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Propagation
     static void onExit(
         @Advice.This HttpRequest thiz,
         @Advice.Return(readOnly = false, typing = DYNAMIC) Object entity) {

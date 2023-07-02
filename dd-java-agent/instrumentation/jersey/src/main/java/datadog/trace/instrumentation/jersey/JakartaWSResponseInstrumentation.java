@@ -8,6 +8,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Sink;
+import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
 import java.net.URI;
 import net.bytebuddy.asm.Advice;
@@ -44,12 +46,13 @@ public class JakartaWSResponseInstrumentation extends Instrumenter.Iast
 
   public static class HeaderAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Sink(VulnerabilityTypes.RESPONSE_HEADER)
     public static void onExit(
         @Advice.Argument(0) String headerName, @Advice.Argument(1) Object headerValue) {
-      if (null != headerValue && headerValue instanceof String) {
-        String value = (String) headerValue;
+      if (null != headerValue) {
+        String value = headerValue.toString();
         if (value.length() > 0) {
-          InstrumentationBridge.onHeader(headerName, value);
+          InstrumentationBridge.RESPONSE_HEADER_MODULE.onHeader(headerName, value);
         }
       }
     }
@@ -57,6 +60,7 @@ public class JakartaWSResponseInstrumentation extends Instrumenter.Iast
 
   public static class RedirectionAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Sink(VulnerabilityTypes.UNVALIDATED_REDIRECT)
     public static void onEnter(@Advice.Argument(0) final URI location) {
       final UnvalidatedRedirectModule module = InstrumentationBridge.UNVALIDATED_REDIRECT;
       if (module != null) {

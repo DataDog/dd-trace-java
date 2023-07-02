@@ -72,6 +72,7 @@ public class CapturedContext implements ValueReferenceResolver {
     for (Status status : statusByProbeId.values()) {
       result |= status.isCapturing();
     }
+    result = result && DebuggerContext.checkAndSetInProbe();
     return result;
   }
 
@@ -290,7 +291,8 @@ public class CapturedContext implements ValueReferenceResolver {
         statusByProbeId.computeIfAbsent(probeId, key -> probeImplementation.createStatus());
     if (methodLocation == MethodLocation.EXIT) {
       duration = System.nanoTime() - startTimestamp;
-      addExtension(ValueReferences.DURATION_EXTENSION_NAME, duration);
+      addExtension(
+          ValueReferences.DURATION_EXTENSION_NAME, duration / 1000 / 1000); // convert to ms
     }
     this.thisClassName = thisClassName;
     boolean shouldEvaluate = resolveEvaluateAt(probeImplementation, methodLocation);

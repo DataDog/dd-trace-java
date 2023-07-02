@@ -107,15 +107,26 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CIVISIBILITY_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED = true;
+  static final boolean DEFAULT_CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED = true;
   static final String DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION = "0.1.6";
   static final int DEFAULT_CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE = 4;
+  static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES =
+      "datadog.trace.*:org.apache.commons.*";
+  static final boolean DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED = true;
+  static final boolean DEFAULT_CIVISIBILITY_GIT_UNSHALLOW_ENABLED = true;
+  static final long DEFAULT_CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS = 30_000;
+  static final long DEFAULT_CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS = 30_000;
+  static final long DEFAULT_CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS = 60_000;
+  static final String DEFAULT_CIVISIBILITY_GIT_REMOTE_NAME = "origin";
+  static final String DEFAULT_CIVISIBILITY_SIGNAL_SERVER_HOST = "127.0.0.1";
+  static final int DEFAULT_CIVISIBILITY_SIGNAL_SERVER_PORT = 0;
 
   static final boolean DEFAULT_REMOTE_CONFIG_ENABLED = true;
   static final boolean DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED = false;
-  static final int DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE = 1024; // KiB
+  static final int DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE = 5120; // KiB
   static final int DEFAULT_REMOTE_CONFIG_POLL_INTERVAL_SECONDS = 5;
   static final String DEFAULT_REMOTE_CONFIG_TARGETS_KEY_ID =
       "5c4ece41241a1bb513f6e3e5df74ab7d5183dfffbd71bfd43127920d880569fd";
@@ -133,6 +144,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE = 1024; // KiB
   static final boolean DEFAULT_DEBUGGER_VERIFY_BYTECODE = false;
   static final boolean DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD = false;
+  static final int DEFAULT_DEBUGGER_CAPTURE_TIMEOUT = 100; // milliseconds
 
   static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;
   static final String DEFAULT_TRACE_ANNOTATIONS = null;
@@ -166,6 +178,10 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH = false;
   static final boolean DEFAULT_TRACE_LONG_RUNNING_ENABLED = false;
   static final long DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL = 300; // seconds -> 5 minutes
+
+  static final float DEFAULT_TRACE_FLUSH_INTERVAL = 1;
+
+  static final boolean DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED = true;
 
   private ConfigDefaults() {}
 }

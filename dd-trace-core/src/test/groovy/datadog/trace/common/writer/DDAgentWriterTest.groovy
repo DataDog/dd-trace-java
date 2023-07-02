@@ -1,16 +1,17 @@
 package datadog.trace.common.writer
 
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.common.writer.ddagent.DDAgentApi
-import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.trace.common.writer.ddagent.DDAgentMapperDiscovery
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.MonitoringImpl
 import datadog.trace.core.propagation.PropagationTags
@@ -19,18 +20,22 @@ import spock.lang.Subject
 
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.*
+import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.DROPPED_BUFFER_OVERFLOW
+import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.DROPPED_BY_POLICY
+import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.ENQUEUED_FOR_SERIALIZATION
+import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.ENQUEUED_FOR_SINGLE_SPAN_SAMPLING
 
 class DDAgentWriterTest extends DDCoreSpecification {
 
-  def discovery = Mock(DDAgentFeaturesDiscovery)
-  def api = Mock(DDAgentApi)
   def monitor = Mock(HealthMetrics)
   def worker = Mock(TraceProcessingWorker)
+  def discovery = Mock(DDAgentFeaturesDiscovery)
+  def api = Mock(DDAgentApi)
   def monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
+  def dispatcher = new PayloadDispatcherImpl(new DDAgentMapperDiscovery(discovery), api, monitor, monitoring)
 
   @Subject
-  def writer = new DDAgentWriter(discovery, api, monitor, monitoring, worker)
+  def writer = new DDAgentWriter(worker, dispatcher, monitor, false)
 
   // Only used to create spans
   def dummyTracer = tracerBuilder().writer(new ListWriter()).build()
@@ -168,12 +173,10 @@ class DDAgentWriterTest extends DDCoreSpecification {
 
   def "dropped trace is counted"() {
     setup:
-    def discovery = Mock(DDAgentFeaturesDiscovery)
-    def api = Mock(DDAgentApi)
     def worker = Mock(TraceProcessingWorker)
     def monitor = Stub(HealthMetrics)
-    def dispatcher = Mock(PayloadDispatcher)
-    def writer = new DDAgentWriter(discovery, api, monitor, dispatcher, worker)
+    def dispatcher = Mock(PayloadDispatcherImpl)
+    def writer = new DDAgentWriter(worker, dispatcher, monitor, false)
     def p0 = newSpan()
     p0.setSamplingPriority(PrioritySampling.SAMPLER_DROP)
     def trace = [p0, newSpan()]
@@ -214,6 +217,6 @@ class DDAgentWriterTest extends DDCoreSpecification {
       NoopPathwayContext.INSTANCE,
       false,
       PropagationTags.factory().empty())
-    return new DDSpan(0, context)
+    return new DDSpan("test", 0, context)
   }
 }

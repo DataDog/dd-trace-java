@@ -27,8 +27,8 @@ import com.squareup.moshi.Types;
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
-import datadog.trace.api.WafMetricCollector;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.telemetry.WafMetricCollector;
 import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.Powerwaf;
 import io.sqreen.powerwaf.PowerwafConfig;
@@ -246,8 +246,8 @@ public class PowerWAFModule implements AppSecModule {
       Collection<Address<?>> addresses = getUsedAddresses(newPwafCtx);
 
       // Update current rules' version if need
-      if (initReport != null && initReport.fileVersion != null) {
-        currentRulesVersion = initReport.fileVersion;
+      if (initReport != null && initReport.rulesetVersion != null) {
+        currentRulesVersion = initReport.rulesetVersion;
       }
 
       if (prevContextAndAddresses == null) {
@@ -259,16 +259,16 @@ public class PowerWAFModule implements AppSecModule {
       log.info(
           "Created {} WAF context with rules ({} OK, {} BAD), version {}",
           prevContextAndAddresses == null ? "new" : "updated",
-          initReport.numRulesOK,
-          initReport.numRulesError,
-          initReport.fileVersion);
+          initReport.getNumRulesOK(),
+          initReport.getNumRulesError(),
+          initReport.rulesetVersion);
 
       Map<String, ActionInfo> actionInfoMap =
           calculateEffectiveActions(prevContextAndAddresses, ruleConfig);
 
       newContextAndAddresses = new CtxAndAddresses(addresses, newPwafCtx, actionInfoMap);
       if (initReport != null) {
-        this.statsReporter.rulesVersion = initReport.fileVersion;
+        this.statsReporter.rulesVersion = initReport.rulesetVersion;
       }
     } catch (InvalidRuleSetException irse) {
       initReport = irse.ruleSetInfo;

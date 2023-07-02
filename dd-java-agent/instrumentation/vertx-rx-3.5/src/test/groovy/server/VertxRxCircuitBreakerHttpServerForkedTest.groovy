@@ -4,6 +4,7 @@ import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServerTest
 import io.vertx.circuitbreaker.CircuitBreakerOptions
 import io.vertx.core.Future
+import io.vertx.core.http.HttpServerOptions
 import io.vertx.reactivex.circuitbreaker.CircuitBreaker
 import io.vertx.reactivex.core.AbstractVerticle
 import io.vertx.reactivex.core.MultiMap
@@ -11,6 +12,7 @@ import io.vertx.reactivex.ext.web.Router
 import io.vertx.reactivex.ext.web.RoutingContext
 import io.vertx.reactivex.ext.web.handler.BodyHandler
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -39,6 +41,11 @@ class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTes
 
   @Override
   boolean testBodyJson() {
+    false
+  }
+
+  @Override
+  boolean testRequestBody() {
     false
   }
 
@@ -84,6 +91,25 @@ class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTes
               .findAll {it != 'ignore '}
               .collectEntries {[it, attributes.getAll(it)] }
             ctx.response().setStatusCode(endpoint.status).end(m as String)
+          }
+        })
+      }
+      router.route(BODY_MULTIPART.path).handler { ctx ->
+        breaker.executeCommand({ future ->
+          future.complete(BODY_MULTIPART)
+        }, {
+          if (it.failed()) {
+            throw it.cause()
+          }
+          HttpServerTest.ServerEndpoint endpoint = it.result()
+          controller(ctx, endpoint) {
+            ctx.request().expectMultipart = true
+            ctx.request().endHandler {
+              MultiMap attributes = ctx.request().formAttributes()
+              Map m = attributes.names()
+                .collectEntries {[it, attributes.getAll(it)] }
+              ctx.response().setStatusCode(endpoint.status).end(m as String)
+            }
           }
         })
       }
@@ -207,7 +233,7 @@ class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTes
         })
       }
 
-      super.@vertx.createHttpServer()
+      super.@vertx.createHttpServer(new HttpServerOptions().setHandle100ContinueAutomatically(true))
         .requestHandler { router.accept(it) }
         .listen(port) { startFuture.complete() }
     }

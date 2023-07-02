@@ -7,11 +7,11 @@ defaults: &defaults
 
 test_matrix: &test_matrix
   parameters:
-    testJvm: [ "ibm8", "semeru8", "zulu8", "oracle8", "11", "zulu11", "17" ]
+    testJvm: [ "ibm8", "semeru8", "zulu8", "oracle8", "11", "zulu11", "17", "ubuntu17" ]
 
 profiling_test_matrix: &profiling_test_matrix
   parameters:
-    testJvm: [ "8", "zulu8", "oracle8", "11", "zulu11", "17" ]
+    testJvm: [ "8", "zulu8", "oracle8", "11", "zulu11", "17", "ubuntu17" ]
 
 system_test_matrix: &system_test_matrix
   parameters:
@@ -22,6 +22,8 @@ core_modules: &core_modules "dd-java-agent|dd-trace-core|communication|internal-
 instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation|dd-java-agent/agent-tooling|dd-java-agent/agent-installer|dd-java-agent/agent-builder|dd-java-agent/agent-bootstrap|dd-java-agent/appsec|dd-java-agent/testing|dd-trace-core|dd-trace-api|internal-api"
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
+
+default_system_tests_commit: &default_system_tests_commit ce9a727fa56ca09b573aaa779f19355943a6cdfd
 
 parameters:
   gradle_flags:
@@ -43,6 +45,18 @@ parameters:
     default: base
 
 commands:
+  check_for_leftover_files:
+    steps:
+      - run:
+          name: Check for leftover files
+          command: |
+            LEFTOVER_FILES=$(find . -type f -regex '.*\.orig$')
+            if [[ "$LEFTOVER_FILES" != "" ]]
+            then
+              echo -e "Found leftover files in the commit:\n$LEFTOVER_FILES"
+              exit 1
+            fi
+
   generate_cache_ids:
     steps:
       - run:
@@ -82,6 +96,8 @@ commands:
                 git checkout "pull/${CCI_PR_NUMBER}/head"
               fi
             fi
+
+      - check_for_leftover_files
 
       - generate_cache_ids
 
@@ -225,6 +241,10 @@ commands:
             - ~/dd-trace-java/workspace
 
   setup_system_tests:
+    parameters:
+      systemTestsCommit:
+        type: string
+        default: *default_system_tests_commit
     steps:
       - generate_cache_ids
 
@@ -251,8 +271,13 @@ commands:
             docker-compose --version
 
       - run:
-          name: Clone System Tests repo
-          command: git clone https://github.com/DataDog/system-tests.git
+          name: Clone system-tests
+          command: |
+            git init system-tests
+            cd system-tests
+            git remote add origin https://github.com/DataDog/system-tests.git
+            git fetch origin << parameters.systemTestsCommit >>
+            git reset --hard FETCH_HEAD
 
 jobs:
   build:
@@ -347,12 +372,17 @@ jobs:
     <<: *defaults
 
     parameters:
+      parallelism:
+        type: integer
+        default: 1
       gradleTarget:
         type: string
       cacheType:
         type: string
 
     resource_class: large
+
+    parallelism: << parameters.parallelism >>
 
     steps:
       - setup_code
@@ -370,6 +400,7 @@ jobs:
             << parameters.gradleTarget >>
             -PskipTests
             -PrunBuildSrcTests
+            -PtaskPartitionCount=${CIRCLE_NODE_TOTAL} -PtaskPartition=${CIRCLE_NODE_INDEX}
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
 
@@ -556,9 +587,49 @@ jobs:
           when: always
           command: .circleci/upload_ciapp.sh << parameters.stage >> << parameters.testJvm >> || true
 
+      - run:
+          name: Get APM Test Agent Trace Check Results
+          when: always
+          command: |
+            set +e  # Disable exiting from testagent response failure
+            STATUS_RESPONSE=$(curl -s -w "%{http_code}" -o /dev/null http://localhost:8126/info) || true
+            set -e
+            STATUS_RESPONSE_CODE=$(echo "STATUS_RESPONSE" | awk 'END {print $NF}')
+            if [[ $STATUS_RESPONSE_CODE -eq 200 ]]; then
+              echo "APM Test Agent is running. (HTTP 200)"
+            else
+              echo "APM Test Agent is not running and was not used for testing. No checks failed."
+              exit 0
+            fi
+            RESPONSE=$(curl -s -w "\n%{http_code}" -o response.txt http://localhost:8126/test/trace_check/failures)
+            RESPONSE_CODE=$(echo "$RESPONSE" | awk 'END {print $NF}')
+            if [[ $RESPONSE_CODE -eq 200 ]]; then
+              echo "All APM Test Agent Check Traces returned successful! (HTTP 200)"
+            elif [[ $RESPONSE_CODE -eq 404 ]]; then
+              echo "Real APM Agent running in place of TestAgent, no checks to validate!"
+            else
+              echo "APM Test Agent Check Traces failed with response code: $RESPONSE_CODE"
+              echo "Failures:"
+              cat response.txt
+              exit 1
+            fi
+
   xlarge_tests:
     <<: *tests
+
+    docker:
+      - image: << pipeline.parameters.docker_image >>:<< parameters.testJvm >>
+        environment:
+          - CI_USE_TEST_AGENT=true
+      - image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
+        environment:
+          - LOG_LEVEL=DEBUG
+          - TRACE_LANGUAGE=java
+          - DD_SUPPRESS_TRACE_PARSE_ERRORS=true
+          - DD_POOL_TRACE_CHECK_FAILURES=true
+          - DD_DISABLE_ERROR_RESPONSES=true
     resource_class: xlarge
+
 
   huge_tests:
     <<: *tests
@@ -763,7 +834,7 @@ jobs:
     machine:
       # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
       image: ubuntu-2004:current
-    resource_class: large
+    resource_class: xlarge
     steps:
       - setup_system_tests
 
@@ -771,14 +842,14 @@ jobs:
           name: Copy jar files to system test binaries folder
           command: |
             ls -la ~/dd-trace-java/workspace/dd-trace-api/build/libs
-            ls -la ~/dd-trace-java/workspace/dd-trace-ot/build/libs
+            ls -la ~/dd-trace-java/workspace/dd-java-agent/build/libs
             cp ~/dd-trace-java/workspace/dd-trace-api/build/libs/*.jar system-tests/binaries/
-            cp ~/dd-trace-java/workspace/dd-trace-ot/build/libs/*.jar system-tests/binaries/
+            cp ~/dd-trace-java/workspace/dd-java-agent/build/libs/*.jar system-tests/binaries/
 
       - run:
           name: Install requirements
           command: |
-            cd system-tests/parametric
+            cd system-tests
             pyenv local system
             python3.9 --version
             python3.9 -m pip install wheel
@@ -788,9 +859,19 @@ jobs:
       - run:
           name: Run
           command: |
-            cd system-tests/parametric
-            export CLIENTS_ENABLED=java
-            ./run.sh
+            set -e
+            cd system-tests
+            export TEST_LIBRARY=java
+            export PYTEST_WORKER_COUNT=8
+            ./build.sh -i runner
+            ./run.sh PARAMETRIC --log-cli-level=DEBUG --durations=30 -vv
+
+      - store_test_results:
+          path: system-tests/logs_parametric
+
+      - store_artifacts:
+          path: system-tests/logs_parametric
+
 
 build_test_jobs: &build_test_jobs
   - build:
@@ -808,7 +889,7 @@ build_test_jobs: &build_test_jobs
       cacheType: inst
   - build:
       name: build_latestdep
-      gradleTarget: latestDepTest
+      gradleTarget: :instrumentationLatestDepTest
       cacheType: latestdep
   - build:
       name: build_smoke
@@ -842,6 +923,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: check_inst
+      parallelism: 4
       gradleTarget: ":instrumentationCheck"
       cacheType: inst
 
@@ -927,7 +1009,7 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
         - build_latestdep
       name: test_8_inst_latest
-      gradleTarget: "latestDepTest"
+      gradleTarget: ":instrumentationLatestDepTest"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
@@ -1199,7 +1281,7 @@ workflows:
           cacheType: inst
       - build_clean_cache:
           name: build_cache_latestdep
-          gradleTarget: latestDepTest
+          gradleTarget: :instrumentationLatestDepTest
           cacheType: latestdep
       - build_clean_cache:
           name: build_cache_smoke

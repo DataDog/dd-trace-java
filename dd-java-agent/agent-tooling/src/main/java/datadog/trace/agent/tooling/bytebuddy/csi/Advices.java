@@ -2,12 +2,11 @@ package datadog.trace.agent.tooling.bytebuddy.csi;
 
 import static datadog.trace.agent.tooling.bytebuddy.csi.ConstantPool.CONSTANT_INTERFACE_METHODREF_TAG;
 import static datadog.trace.agent.tooling.bytebuddy.csi.ConstantPool.CONSTANT_METHODREF_TAG;
-import static datadog.trace.agent.tooling.csi.CallSiteAdvice.HasFlags.COMPUTE_MAX_STACK;
 
 import datadog.trace.agent.tooling.bytebuddy.ClassFileLocators;
 import datadog.trace.agent.tooling.csi.CallSiteAdvice;
-import datadog.trace.agent.tooling.csi.Pointcut;
-import datadog.trace.api.Platform;
+import datadog.trace.agent.tooling.csi.CallSites;
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -17,6 +16,8 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
+import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.dynamic.scaffold.inline.AbstractInliningDynamicTypeBuilder;
 import net.bytebuddy.jar.asm.Handle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,9 +32,8 @@ public class Advices {
 
   public static final Advices EMPTY =
       new Advices(
-          Collections.<String, Map<String, Map<String, CallSiteAdvice>>>emptyMap(),
+          Collections.emptyMap(),
           new String[0],
-          0,
           AdviceIntrospector.NoOpAdviceInstrospector.INSTANCE) {
         @Override
         public boolean isEmpty() {
@@ -41,104 +41,108 @@ public class Advices {
         }
       };
 
+  private static final Field BUILDER_CLASS_LOCATOR_FIELD = resolveClassFileLocatorField();
+
   private final Map<String, Map<String, Map<String, CallSiteAdvice>>> advices;
 
   private final String[] helpers;
 
   private final AdviceIntrospector introspector;
 
-  private final int flags;
-
   private Advices(
       final Map<String, Map<String, Map<String, CallSiteAdvice>>> advices,
       final String[] helpers,
-      final int flags,
       final AdviceIntrospector introspector) {
     this.advices = Collections.unmodifiableMap(advices);
     this.helpers = helpers;
-    this.flags = flags;
     this.introspector = introspector;
   }
 
-  public static Advices fromCallSites(@Nonnull final CallSiteAdvice... advices) {
-    return fromCallSites(Arrays.asList(advices));
+  public static Advices fromCallSites(@Nonnull final CallSites... callSites) {
+    return fromCallSites(Arrays.asList(callSites));
   }
 
-  public static Advices fromCallSites(@Nonnull final Iterable<CallSiteAdvice> advices) {
-    return fromCallSites(advices, AdviceIntrospector.ConstantPoolInstrospector.INSTANCE);
+  public static Advices fromCallSites(@Nonnull final Iterable<CallSites> callSites) {
+    return fromCallSites(callSites, AdviceIntrospector.ConstantPoolInstrospector.INSTANCE);
   }
 
   public static Advices fromCallSites(
-      @Nonnull final Iterable<CallSiteAdvice> advices,
+      @Nonnull final Iterable<CallSites> callSites,
       @Nonnull final AdviceIntrospector introspector) {
-    final Map<String, Map<String, Map<String, CallSiteAdvice>>> adviceMap = new HashMap<>();
-    final Set<String> helperSet = new HashSet<>();
-    int flags = 0;
-    for (final CallSiteAdvice advice : advices) {
-      if (applyAdvice(advice)) {
-        flags |= addAdvice(adviceMap, helperSet, advice);
+    final AdviceContainer container = new AdviceContainer();
+    for (final CallSites entry : callSites) {
+      if (isCallSitesEnabled(entry)) {
+        entry.accept(container);
       }
     }
-    return adviceMap.isEmpty()
+    return container.advices.isEmpty()
         ? EMPTY
-        : new Advices(adviceMap, helperSet.toArray(new String[0]), flags, introspector);
-  }
-
-  private static boolean applyAdvice(final CallSiteAdvice advice) {
-    if (advice instanceof CallSiteAdvice.HasMinJavaVersion) {
-      final int minJavaVersion = ((CallSiteAdvice.HasMinJavaVersion) advice).minJavaVersion();
-      return Platform.isJavaVersionAtLeast(minJavaVersion);
-    }
-    return true;
-  }
-
-  private static int addAdvice(
-      @Nonnull final Map<String, Map<String, Map<String, CallSiteAdvice>>> advices,
-      @Nonnull final Set<String> helpers,
-      @Nonnull final CallSiteAdvice advice) {
-    final Pointcut pointcut = advice.pointcut();
-    Map<String, Map<String, CallSiteAdvice>> typeAdvices = advices.get(pointcut.type());
-    if (typeAdvices == null) {
-      typeAdvices = new HashMap<>();
-      advices.put(pointcut.type(), typeAdvices);
-    }
-    Map<String, CallSiteAdvice> methodAdvices = typeAdvices.get(pointcut.method());
-    if (methodAdvices == null) {
-      methodAdvices = new HashMap<>();
-      typeAdvices.put(pointcut.method(), methodAdvices);
-    }
-    final CallSiteAdvice oldAdvice = methodAdvices.put(pointcut.descriptor(), advice);
-    if (oldAdvice != null) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "Advice %s and %s match the same pointcut, this is not yet supported",
-              oldAdvice, advice));
-    }
-    if (advice instanceof CallSiteAdvice.HasHelpers) {
-      final String[] helperClassNames = ((CallSiteAdvice.HasHelpers) advice).helperClassNames();
-      if (helperClassNames != null) {
-        Collections.addAll(helpers, helperClassNames);
-      }
-    }
-    return advice instanceof CallSiteAdvice.HasFlags
-        ? ((CallSiteAdvice.HasFlags) advice).flags()
-        : 0;
+        : new Advices(container.advices, container.helpers.toArray(new String[0]), introspector);
   }
 
   /**
    * The method will try to discover the {@link CallSiteAdvice} that should be applied to a specific
    * type by using the assigned {@link AdviceIntrospector}
    */
-  public Advices findAdvices(@Nonnull final TypeDescription type, final ClassLoader loader) {
+  public Advices findAdvices(
+      @Nonnull final DynamicType.Builder<?> builder,
+      @Nonnull final TypeDescription type,
+      final ClassLoader loader) {
     if (advices.isEmpty()) {
       return this;
     }
-    return introspector.findAdvices(this, type, loader);
+    byte[] classFile = resolveFromBuilder(type, builder);
+    if (classFile == null) {
+      classFile = resolveFromLoader(type, loader);
+    }
+    if (classFile == null) {
+      return this; // do not do any filtering if we don't have access to the class file buffer
+    }
+    return introspector.findAdvices(this, classFile);
   }
 
-  // used for testing
-  public CallSiteAdvice findAdvice(@Nonnull final Pointcut pointcut) {
-    return findAdvice(pointcut.type(), pointcut.method(), pointcut.descriptor());
+  private static boolean isCallSitesEnabled(final CallSites callSites) {
+    if (!(callSites instanceof CallSites.HasEnabledProperty)) {
+      return true;
+    }
+    final CallSites.HasEnabledProperty hasEnabledProperty =
+        (CallSites.HasEnabledProperty) callSites;
+    return hasEnabledProperty.isEnabled();
+  }
+
+  /**
+   * Try to fetch the class file buffer from the actual builder via introspection to improve
+   * performance
+   */
+  private byte[] resolveFromBuilder(
+      @Nonnull final TypeDescription type, @Nonnull final DynamicType.Builder<?> builder) {
+    if (builder instanceof AbstractInliningDynamicTypeBuilder
+        && BUILDER_CLASS_LOCATOR_FIELD != null) {
+      try {
+        final ClassFileLocator locator =
+            (ClassFileLocator) BUILDER_CLASS_LOCATOR_FIELD.get(builder);
+        final ClassFileLocator.Resolution resolution = locator.locate(type.getName());
+        return resolution.isResolved() ? resolution.resolve() : null;
+      } catch (Throwable e) {
+        if (LOG.isWarnEnabled()) {
+          LOG.warn("Failed to fetch type {} from builder", type.getName(), e);
+        }
+      }
+    }
+    return null;
+  }
+
+  /** Use the default class loader strategy to resolve the class file buffer */
+  private byte[] resolveFromLoader(@Nonnull final TypeDescription type, final ClassLoader loader) {
+    try (final ClassFileLocator locator = ClassFileLocators.classFileLocator(loader)) {
+      final ClassFileLocator.Resolution resolution = locator.locate(type.getName());
+      return resolution.isResolved() ? resolution.resolve() : null;
+    } catch (Throwable e) {
+      if (LOG.isWarnEnabled()) {
+        LOG.warn("Failed to fetch type {} from class loader", type.getName(), e);
+      }
+    }
+    return null;
   }
 
   public CallSiteAdvice findAdvice(@Nonnull final Handle handle) {
@@ -179,12 +183,49 @@ public class Advices {
     return advices.isEmpty();
   }
 
-  public boolean hasFlag(final int flag) {
-    return (this.flags & flag) > 0;
+  private static Field resolveClassFileLocatorField() {
+    Field field;
+    try {
+      field = AbstractInliningDynamicTypeBuilder.class.getDeclaredField("classFileLocator");
+      field.setAccessible(true);
+      return field;
+    } catch (Throwable e) {
+      LOG.error(
+          "Failed to resolve field \"classFileLocator\" in {}",
+          AbstractInliningDynamicTypeBuilder.class,
+          e);
+    }
+    return null;
   }
 
-  public boolean computeMaxStack() {
-    return hasFlag(COMPUTE_MAX_STACK);
+  private static class AdviceContainer implements CallSites.Container {
+    private final Map<String, Map<String, Map<String, CallSiteAdvice>>> advices = new HashMap<>();
+
+    private final Set<String> helpers = new HashSet<>();
+
+    @Override
+    public void addHelpers(final String... helperClassNames) {
+      Collections.addAll(helpers, helperClassNames);
+    }
+
+    @Override
+    public void addAdvice(
+        final String type,
+        final String method,
+        final String descriptor,
+        final CallSiteAdvice advice) {
+      final Map<String, Map<String, CallSiteAdvice>> typeAdvices =
+          advices.computeIfAbsent(type, k -> new HashMap<>());
+      final Map<String, CallSiteAdvice> methodAdvices =
+          typeAdvices.computeIfAbsent(method, k -> new HashMap<>());
+      final CallSiteAdvice oldAdvice = methodAdvices.put(descriptor, advice);
+      if (oldAdvice != null) {
+        throw new UnsupportedOperationException(
+            String.format(
+                "Advice %s and %s match the same pointcut, this is not yet supported",
+                oldAdvice, advice));
+      }
+    }
   }
 
   /**
@@ -194,10 +235,7 @@ public class Advices {
   public interface AdviceIntrospector {
 
     @Nonnull
-    Advices findAdvices(
-        @Nonnull final Advices advices,
-        @Nonnull final TypeDescription type,
-        final ClassLoader classLoader);
+    Advices findAdvices(@Nonnull final Advices advices, @Nonnull final byte[] classFile);
 
     class NoOpAdviceInstrospector implements AdviceIntrospector {
 
@@ -205,9 +243,7 @@ public class Advices {
 
       @Override
       public @Nonnull Advices findAdvices(
-          final @Nonnull Advices advices,
-          final @Nonnull TypeDescription type,
-          final ClassLoader classLoader) {
+          final @Nonnull Advices advices, final @Nonnull byte[] classFile) {
         return advices;
       }
     }
@@ -232,30 +268,17 @@ public class Advices {
 
       @Override
       public @Nonnull Advices findAdvices(
-          final @Nonnull Advices advices,
-          final @Nonnull TypeDescription type,
-          final ClassLoader classLoader) {
-        try (final ClassFileLocator classFile = ClassFileLocators.classFileLocator(classLoader)) {
-          final ClassFileLocator.Resolution resolution = classFile.locate(type.getName());
-          if (!resolution.isResolved()) {
-            return advices; // cannot resolve class file so don't apply any filtering
+          final @Nonnull Advices advices, final @Nonnull byte[] classFile) {
+        final ConstantPool cp = new ConstantPool(classFile);
+        for (int index = 1; index < cp.getCount(); index++) {
+          final int referenceType = cp.getType(index);
+          final ConstantPoolHandler handler = CP_HANDLERS.get(referenceType);
+          // short circuit when any advice is found
+          if (handler != null && handler.findAdvice(advices, cp, index) != null) {
+            return advices;
           }
-          final ConstantPool cp = new ConstantPool(resolution.resolve());
-          for (int index = 1; index < cp.getCount(); index++) {
-            final int referenceType = cp.getType(index);
-            final ConstantPoolHandler handler = CP_HANDLERS.get(referenceType);
-            // short circuit when any advice is found
-            if (handler != null && handler.findAdvice(advices, cp, index) != null) {
-              return advices;
-            }
-          }
-          return EMPTY;
-        } catch (final Throwable e) {
-          if (LOG.isErrorEnabled()) {
-            LOG.error(String.format("Failed to introspect %s constant pool", type), e);
-          }
-          return advices; // in case of error we should continue without filtering
         }
+        return EMPTY;
       }
 
       /** Handler for a particular type of constant pool type (MethodRef, InvokeDynamic, ...) */

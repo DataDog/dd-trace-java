@@ -8,6 +8,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 
@@ -45,6 +46,7 @@ public class IastHttpMethodBaseInstrumentation extends Instrumenter.Iast
 
   public static class CtorAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Propagation
     public static void afterCtor(
         @Advice.This final Object self, @Advice.Argument(0) final Object argument) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;

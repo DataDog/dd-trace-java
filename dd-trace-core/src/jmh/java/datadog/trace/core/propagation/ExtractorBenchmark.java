@@ -87,7 +87,7 @@ public class ExtractorBenchmark {
     System.setProperty("dd.propagation.style.extract", propagations.toString());
     DynamicConfig dynamicConfig =
         DynamicConfig.create()
-            .setTaggedHeaders(Collections.emptyMap())
+            .setHeaderTags(Collections.emptyMap())
             .setBaggageMapping(Collections.emptyMap())
             .apply();
     extractor = HttpCodec.createExtractor(Config.get(), dynamicConfig::captureTraceConfig);

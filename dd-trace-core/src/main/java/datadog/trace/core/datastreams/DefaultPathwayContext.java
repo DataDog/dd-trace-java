@@ -274,11 +274,15 @@ public class DefaultPathwayContext implements PathwayContext {
     }
   }
 
-  public static <C> DefaultPathwayContext extract(
+  static <C> DefaultPathwayContext extract(
       C carrier,
       AgentPropagation.ContextVisitor<C> getter,
       TimeSource timeSource,
       WellKnownTags wellKnownTags) {
+    if (getter instanceof AgentPropagation.BinaryContextVisitor) {
+      return extractBinary(
+          carrier, (AgentPropagation.BinaryContextVisitor) getter, timeSource, wellKnownTags);
+    }
     PathwayContextExtractor pathwayContextExtractor =
         new PathwayContextExtractor(timeSource, wellKnownTags);
     getter.forEachKey(carrier, pathwayContextExtractor);
@@ -290,7 +294,7 @@ public class DefaultPathwayContext implements PathwayContext {
     return pathwayContextExtractor.extractedContext;
   }
 
-  public static <C> DefaultPathwayContext extractBinary(
+  static <C> DefaultPathwayContext extractBinary(
       C carrier,
       AgentPropagation.BinaryContextVisitor<C> getter,
       TimeSource timeSource,
@@ -306,18 +310,18 @@ public class DefaultPathwayContext implements PathwayContext {
     return pathwayContextExtractor.extractedContext;
   }
 
-  public static DefaultPathwayContext strDecode(
+  private static DefaultPathwayContext strDecode(
       TimeSource timeSource, WellKnownTags wellKnownTags, String data) throws IOException {
     byte[] base64Bytes = data.getBytes(UTF_8);
     return base64Decode(timeSource, wellKnownTags, base64Bytes);
   }
 
-  public static DefaultPathwayContext base64Decode(
+  private static DefaultPathwayContext base64Decode(
       TimeSource timeSource, WellKnownTags wellKnownTags, byte[] data) throws IOException {
     return decode(timeSource, wellKnownTags, Base64.getDecoder().decode(data));
   }
 
-  public static DefaultPathwayContext decode(
+  private static DefaultPathwayContext decode(
       TimeSource timeSource, WellKnownTags wellKnownTags, byte[] data) throws IOException {
     ByteArrayInput input = ByteArrayInput.wrap(data);
 

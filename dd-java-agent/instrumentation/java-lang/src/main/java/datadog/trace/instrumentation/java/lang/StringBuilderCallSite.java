@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.java.lang;
 
 import datadog.trace.agent.tooling.csi.CallSite;
-import datadog.trace.api.iast.IastAdvice;
-import datadog.trace.api.iast.IastAdvice.Propagation;
+import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.StringModule;
 import datadog.trace.util.stacktrace.StackUtils;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -11,7 +11,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 @Propagation
-@CallSite(spi = IastAdvice.class)
+@CallSite(spi = IastCallSites.class)
 public class StringBuilderCallSite {
 
   @CallSite.After("void java.lang.StringBuilder.<init>(java.lang.String)")
@@ -79,7 +79,9 @@ public class StringBuilderCallSite {
       }
       return result;
     } catch (final Throwable e) {
-      throw StackUtils.removeLast(e);
+      final String clazz = StringBuilderCallSite.class.getName();
+      throw StackUtils.filterUntil(
+          e, s -> s.getClassName().equals(clazz) && s.getMethodName().equals("aroundAppend"));
     }
   }
 

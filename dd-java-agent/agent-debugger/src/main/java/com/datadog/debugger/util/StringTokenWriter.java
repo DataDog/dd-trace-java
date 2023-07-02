@@ -109,7 +109,7 @@ public class StringTokenWriter implements SerializerWithLimits.TokenWriter {
   }
 
   @Override
-  public void mapEpilogue(Map<?, ?> map, boolean isComplete) {
+  public void mapEpilogue(boolean isComplete, int size) {
     sb.append(isComplete ? "}" : ", ...}");
     inCollection = false;
   }
@@ -158,5 +158,10 @@ public class StringTokenWriter implements SerializerWithLimits.TokenWriter {
       default:
         throw new RuntimeException("Unsupported NotCapturedReason: " + reason);
     }
+  }
+
+  @Override
+  public void notCaptured(String reason) throws Exception {
+    sb.append("(Error: ").append(reason).append(")");
   }
 }

@@ -13,6 +13,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
@@ -24,8 +25,9 @@ public class ProfilingTestApplication {
   private static final ThreadMXBean THREAD_MX_BEAN = ManagementFactory.getThreadMXBean();
 
   private static final ExecutorService EXECUTOR_SERVICE = Executors.newSingleThreadExecutor();
+  private static final ExecutorService FJP = new ForkJoinPool(4);
 
-  public static void main(final String[] args) throws InterruptedException, ExecutionException {
+  public static void main(final String[] args) throws Exception {
     ProfilingContextSetter foo = Profiling.get().createContextSetter("foo");
     long duration = -1;
     if (args.length > 0) {
@@ -33,6 +35,7 @@ public class ProfilingTestApplication {
     }
     setupDeadlock();
     submitWorkToTPE();
+    submitWorkToFJP();
     final long startTime = System.currentTimeMillis();
     int counter = 0;
     while (true) {
@@ -76,18 +79,48 @@ public class ProfilingTestApplication {
     System.out.println("accumulated: " + accumulator);
   }
 
-  private static void submitWorkToTPE() throws ExecutionException, InterruptedException {
+  @Trace
+  private static void submitWorkToTPE() throws Exception {
+    submitWorkToExecutor(EXECUTOR_SERVICE);
+  }
+
+  @Trace
+  private static void submitWorkToFJP() throws Exception {
+    submitWorkToExecutor(FJP);
+  }
+
+  private static void submitWorkToExecutor(ExecutorService executorService)
+      throws ExecutionException, InterruptedException {
     AtomicInteger it = new AtomicInteger();
     for (int i = 0; i < 100; i++) {
-      EXECUTOR_SERVICE.submit(it::getAndIncrement).get();
+      executorService
+          .submit(
+              () -> {
+                try {
+                  Thread.sleep(10);
+                  it.incrementAndGet();
+                } catch (InterruptedException e) {
+                }
+              })
+          .get();
     }
     List<Callable<Integer>> runnables =
         IntStream.range(0, 100)
-            .mapToObj(i -> (Callable<Integer>) it::getAndIncrement)
+            .mapToObj(
+                i ->
+                    (Callable<Integer>)
+                        () -> {
+                          try {
+                            Thread.sleep(10);
+                          } catch (InterruptedException e) {
+                          }
+                          return it.getAndIncrement();
+                        })
             .collect(Collectors.toList());
-    for (Future f : EXECUTOR_SERVICE.invokeAll(runnables)) {
+    for (Future f : executorService.invokeAll(runnables)) {
       f.get();
     }
+    System.out.println(executorService.getClass() + " incremented: " + it.get());
   }
 
   private static void setupDeadlock() {

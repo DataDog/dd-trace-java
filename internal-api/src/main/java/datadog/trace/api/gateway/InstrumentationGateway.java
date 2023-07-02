@@ -103,10 +103,14 @@ public class InstrumentationGateway {
     private final AtomicReferenceArray<Object> callbacks = new AtomicReferenceArray<>(MAX_EVENTS);
 
     // for tests
-    void reset() {
+    public void reset() {
       for (int i = 0; i < callbacks.length(); i++) {
         callbacks.set(i, null);
       }
+    }
+
+    void reset(EventType<?> et) {
+      callbacks.set(et.getId(), null);
     }
 
     @Override

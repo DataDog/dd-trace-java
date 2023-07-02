@@ -19,6 +19,11 @@ class IastOkHttp3InstrumentationTest extends AgentTestRunner {
     injectSysConfig('dd.iast.enabled', 'true')
   }
 
+  @Override
+  protected boolean isTestAgentEnabled() {
+    return false
+  }
+
   @AutoCleanup
   @Shared
   def server = httpServer {

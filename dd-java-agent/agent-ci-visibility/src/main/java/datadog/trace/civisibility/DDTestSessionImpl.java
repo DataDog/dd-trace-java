@@ -6,15 +6,15 @@ import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTestModule;
 import datadog.trace.api.civisibility.DDTestSession;
-import datadog.trace.api.civisibility.codeowners.Codeowners;
 import datadog.trace.api.civisibility.decorator.TestDecorator;
-import datadog.trace.api.civisibility.source.MethodLinesResolver;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.context.SpanTestContext;
 import datadog.trace.civisibility.context.TestContext;
+import datadog.trace.civisibility.source.MethodLinesResolver;
 import javax.annotation.Nullable;
 
 public class DDTestSessionImpl implements DDTestSession {
@@ -80,7 +80,8 @@ public class DDTestSessionImpl implements DDTestSession {
 
   @Override
   public void end(@Nullable Long endTime) {
-    span.setTag(Tags.TEST_STATUS, context.getStatus());
+    String status = context.getStatus();
+    span.setTag(Tags.TEST_STATUS, status != null ? status : CIConstants.TEST_SKIP);
     testDecorator.beforeFinish(span);
 
     if (endTime != null) {

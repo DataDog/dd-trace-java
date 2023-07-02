@@ -20,6 +20,7 @@ public class TagContext implements AgentSpan.Context.Extracted {
   private Object requestContextDataAppSec;
   private Object requestContextDataIast;
   private Object ciVisibilityContextData;
+  private PathwayContext pathwayContext;
   private final HttpHeaders httpHeaders;
   private final Map<String, String> baggage;
   private final int samplingPriority;
@@ -198,7 +199,30 @@ public class TagContext implements AgentSpan.Context.Extracted {
 
   @Override
   public PathwayContext getPathwayContext() {
-    return null;
+    return this.pathwayContext;
+  }
+
+  public TagContext withPathwayContext(PathwayContext pathwayContext) {
+    this.pathwayContext = pathwayContext;
+    return this;
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder builder = new StringBuilder("TagContext{");
+    if (origin != null) {
+      builder.append("origin=").append(origin).append(", ");
+    }
+    if (tags != null) {
+      builder.append("tags=").append(tags).append(", ");
+    }
+    if (baggage != null) {
+      builder.append("baggage=").append(baggage).append(", ");
+    }
+    if (samplingPriority != PrioritySampling.UNSET) {
+      builder.append("samplingPriority=").append(samplingPriority).append(", ");
+    }
+    return builder.append('}').toString();
   }
 
   public static class HttpHeaders {

@@ -93,6 +93,9 @@ public interface KnownAddresses {
 
   Address<Object> GRPC_SERVER_REQUEST_MESSAGE = new Address<>("grpc.server.request.message");
 
+  // XXX: Not really used yet, but it's a known address and we should not treat it as unknown.
+  Address<Object> GRPC_SERVER_REQUEST_METADATA = new Address<>("grpc.server.request.metadata");
+
   Address<String> USER_ID = new Address<>("usr.id");
 
   static Address<?> forName(String name) {
@@ -137,6 +140,8 @@ public interface KnownAddresses {
         return HEADERS_NO_COOKIES;
       case "grpc.server.request.message":
         return GRPC_SERVER_REQUEST_MESSAGE;
+      case "grpc.server.request.metadata":
+        return GRPC_SERVER_REQUEST_METADATA;
       case "usr.id":
         return USER_ID;
       default:

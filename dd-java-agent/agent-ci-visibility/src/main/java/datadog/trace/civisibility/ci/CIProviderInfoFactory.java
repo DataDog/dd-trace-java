@@ -1,6 +1,5 @@
 package datadog.trace.civisibility.ci;
 
-import datadog.trace.api.civisibility.ci.CIProviderInfo;
 import java.nio.file.Path;
 
 public class CIProviderInfoFactory {
@@ -41,6 +40,10 @@ public class CIProviderInfoFactory {
       return new BitriseInfo();
     } else if (System.getenv(BuddyInfo.BUDDY) != null) {
       return new BuddyInfo();
+    } else if (System.getenv(CodefreshInfo.CODEFRESH) != null) {
+      return new CodefreshInfo();
+    } else if (System.getenv(TeamcityInfo.TEAMCITY) != null) {
+      return new TeamcityInfo();
     } else {
       return new UnknownCIInfo(targetFolder, currentPath);
     }

@@ -10,5 +10,7 @@ public interface TestAbstractStringBuilderSuite<E> {
 
   void append(final E target, final CharSequence param);
 
+  void append(final E target, final Object param);
+
   String toString(final E target);
 }

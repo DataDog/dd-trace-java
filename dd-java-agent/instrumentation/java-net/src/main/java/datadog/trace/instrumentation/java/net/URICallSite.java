@@ -1,15 +1,16 @@
 package datadog.trace.instrumentation.java.net;
 
 import datadog.trace.agent.tooling.csi.CallSite;
-import datadog.trace.api.iast.IastAdvice;
+import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import java.net.URI;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-@IastAdvice.Propagation
-@CallSite(spi = IastAdvice.class)
+@Propagation
+@CallSite(spi = IastCallSites.class)
 public class URICallSite {
 
   @CallSite.After("java.net.URI java.net.URI.create(java.lang.String)")

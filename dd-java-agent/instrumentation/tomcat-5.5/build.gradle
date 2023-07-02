@@ -77,17 +77,22 @@ dependencies {
   testImplementation group: 'tomcat', name: 'naming-factory', version: tomcatVersion
   testImplementation group: 'commons-modeler', name: 'commons-modeler', version: '2.0.1'
   testImplementation group: 'javax.servlet', name: 'servlet-api', version: '2.4'
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-3'))
 
-  testImplementation(project(':dd-java-agent:instrumentation:tomcat-appsec-5.5'))
-  testImplementation project(':dd-java-agent:instrumentation:servlet')
-  testImplementation project(':dd-java-agent:instrumentation:servlet:request-2')
-  testImplementation project(':dd-java-agent:instrumentation:servlet:request-3')
-  testImplementation project(':dd-java-agent:instrumentation:servlet:request-5')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-appsec-5.5')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-appsec-6')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-2')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-3')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-5'))
 
   latestDepTestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '10+'
   latestDepTestImplementation group: 'org.apache.tomcat', name: 'jakartaee-migration', version: '1.+'
+  latestDepTestImplementation(testFixtures(project(":dd-java-agent:appsec")))
 
-  latestDepTestImplementation(project(':dd-java-agent:instrumentation:tomcat-appsec-6'))
+  latestDepTestRuntimeOnly(project(':dd-java-agent:instrumentation:tomcat-appsec-6'))
+  latestDepTestRuntimeOnly(project(':dd-java-agent:instrumentation:tomcat-appsec-7'))
 }
 
 // Exclude all the dependencies from test for latestDepTest since the names are completely different.

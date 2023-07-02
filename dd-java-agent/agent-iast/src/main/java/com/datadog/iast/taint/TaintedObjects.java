@@ -1,13 +1,16 @@
 package com.datadog.iast.taint;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_CONCURRENT_REQUESTS;
+import static java.util.Collections.emptyIterator;
 
+import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.IastSystem;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
 import com.datadog.iast.model.json.TaintedObjectEncoding;
 import datadog.trace.api.Config;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -15,7 +18,7 @@ import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public interface TaintedObjects {
+public interface TaintedObjects extends Iterable<TaintedObject> {
 
   TaintedObject taintInputString(@Nonnull String obj, @Nonnull Source source);
 
@@ -27,7 +30,9 @@ public interface TaintedObjects {
 
   void release();
 
-  long getEstimatedSize();
+  int count();
+
+  int getEstimatedSize();
 
   boolean isFlat();
 
@@ -37,6 +42,22 @@ public interface TaintedObjects {
       taintedObjects = new TaintedObjectsImpl();
     }
     return IastSystem.DEBUG ? new TaintedObjectsDebugAdapter(taintedObjects) : taintedObjects;
+  }
+
+  static TaintedObjects activeTaintedObjects(boolean lazy) {
+    if (lazy) {
+      return new LazyTaintedObjects();
+    } else {
+      final IastRequestContext ctx = IastRequestContext.get();
+      if (ctx != null) {
+        return ctx.getTaintedObjects();
+      }
+      return null;
+    }
+  }
+
+  static TaintedObjects activeTaintedObjects() {
+    return activeTaintedObjects(false);
   }
 
   class TaintedObjectsImpl implements TaintedObjects {
@@ -49,7 +70,7 @@ public interface TaintedObjects {
     private final TaintedMap map;
 
     public TaintedObjectsImpl() {
-      this(new DefaultTaintedMap());
+      this(new TaintedMap());
     }
 
     private TaintedObjectsImpl(final @Nonnull TaintedMap map) {
@@ -90,13 +111,23 @@ public interface TaintedObjects {
     }
 
     @Override
-    public long getEstimatedSize() {
+    public int count() {
+      return map.count();
+    }
+
+    @Override
+    public int getEstimatedSize() {
       return map.getEstimatedSize();
     }
 
     @Override
     public boolean isFlat() {
       return map.isFlat();
+    }
+
+    @Override
+    public Iterator<TaintedObject> iterator() {
+      return map.iterator();
     }
   }
 
@@ -155,13 +186,23 @@ public interface TaintedObjects {
     }
 
     @Override
-    public long getEstimatedSize() {
+    public int count() {
+      return delegated.count();
+    }
+
+    @Override
+    public int getEstimatedSize() {
       return delegated.getEstimatedSize();
     }
 
     @Override
     public boolean isFlat() {
       return delegated.isFlat();
+    }
+
+    @Override
+    public Iterator<TaintedObject> iterator() {
+      return delegated.iterator();
     }
 
     private void logTainted(final TaintedObject tainted) {
@@ -172,6 +213,75 @@ public interface TaintedObjects {
           LOGGER.error("Failed to debug new tainted object", e);
         }
       }
+    }
+  }
+
+  class LazyTaintedObjects implements TaintedObjects {
+    private boolean fetched = false;
+    private TaintedObjects taintedObjects;
+
+    @Override
+    public TaintedObject taintInputString(@Nonnull final String obj, @Nonnull final Source source) {
+      final TaintedObjects to = getTaintedObjects();
+      return to == null ? null : to.taintInputString(obj, source);
+    }
+
+    @Override
+    public TaintedObject taintInputObject(@Nonnull final Object obj, @Nonnull final Source source) {
+      final TaintedObjects to = getTaintedObjects();
+      return to == null ? null : to.taintInputObject(obj, source);
+    }
+
+    @Override
+    public TaintedObject taint(@Nonnull final Object obj, @Nonnull final Range[] ranges) {
+      final TaintedObjects to = getTaintedObjects();
+      return to == null ? null : to.taint(obj, ranges);
+    }
+
+    @Override
+    public TaintedObject get(@Nonnull final Object obj) {
+      final TaintedObjects to = getTaintedObjects();
+      return to == null ? null : to.get(obj);
+    }
+
+    @Override
+    public void release() {
+      final TaintedObjects to = getTaintedObjects();
+      if (to != null) {
+        to.release();
+      }
+    }
+
+    @Override
+    public Iterator<TaintedObject> iterator() {
+      final TaintedObjects to = getTaintedObjects();
+      return to != null ? to.iterator() : emptyIterator();
+    }
+
+    @Override
+    public int getEstimatedSize() {
+      final TaintedObjects to = getTaintedObjects();
+      return to != null ? to.getEstimatedSize() : 0;
+    }
+
+    @Override
+    public boolean isFlat() {
+      final TaintedObjects to = getTaintedObjects();
+      return to != null && to.isFlat();
+    }
+
+    @Override
+    public int count() {
+      final TaintedObjects to = getTaintedObjects();
+      return to != null ? to.count() : 0;
+    }
+
+    private TaintedObjects getTaintedObjects() {
+      if (!fetched) {
+        fetched = true;
+        taintedObjects = activeTaintedObjects();
+      }
+      return taintedObjects;
     }
   }
 }

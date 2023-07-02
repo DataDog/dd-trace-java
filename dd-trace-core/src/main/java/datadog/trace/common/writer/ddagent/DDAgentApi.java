@@ -155,4 +155,8 @@ public class DDAgentApi extends RemoteApi {
   protected Logger getLogger() {
     return log;
   }
+
+  public void setHeader(String k, String v) {
+    this.headers.put(k, v);
+  }
 }

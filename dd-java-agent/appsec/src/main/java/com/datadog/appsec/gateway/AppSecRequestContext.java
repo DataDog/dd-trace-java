@@ -201,7 +201,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
 
     List<String> strings =
-        requestHeaders.computeIfAbsent(name.toLowerCase(), h -> new ArrayList<>(1));
+        requestHeaders.computeIfAbsent(name.toLowerCase(Locale.ROOT), h -> new ArrayList<>(1));
     strings.add(value);
   }
 
@@ -227,7 +227,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
 
     List<String> strings =
-        responseHeaders.computeIfAbsent(name.toLowerCase(), h -> new ArrayList<>(1));
+        responseHeaders.computeIfAbsent(name.toLowerCase(Locale.ROOT), h -> new ArrayList<>(1));
     strings.add(value);
   }
 

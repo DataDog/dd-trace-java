@@ -23,7 +23,7 @@ class ProcessImplStartAdvice {
 
     Map<String, String> tags = ProcessImplInstrumentationHelpers.createTags(command);
     TagContext tagContext = new TagContext("appsec", tags);
-    AgentSpan span = tracer.startSpan("command_execution", tagContext);
+    AgentSpan span = tracer.startSpan("appsec", "command_execution", tagContext);
     span.setSpanType("system");
     span.setResourceName(ProcessImplInstrumentationHelpers.determineResource(command));
     return span;

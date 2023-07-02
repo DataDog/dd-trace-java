@@ -324,6 +324,8 @@
 0 org.springframework.web.servlet.*
 # Included for IAST
 0 org.springframework.web.util.WebUtils
+# Included for IAST Spring mvc unvalidated redirect vulnerability
+0 org.springframework.web.method.support.InvocableHandlerMethod
 2 org.xml.*
 2 org.yaml.snakeyaml.*
 # saves ~0.5s skipping instrumentation of almost ~470 classes

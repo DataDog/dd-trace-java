@@ -1,7 +1,5 @@
 package com.datadog.debugger.probe;
 
-import static datadog.trace.bootstrap.debugger.util.TimeoutChecker.DEFAULT_TIME_OUT;
-
 import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.agent.LogMessageTemplateBuilder;
@@ -16,6 +14,7 @@ import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
@@ -26,6 +25,8 @@ import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.io.IOException;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -409,7 +410,8 @@ public class LogProbe extends ProbeDefinition {
     }
     Sink sink = DebuggerAgent.getSink();
     boolean shouldCommit = false;
-    Snapshot snapshot = new Snapshot(Thread.currentThread(), this);
+    int maxDepth = capture != null ? capture.maxReferenceDepth : -1;
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), this, maxDepth);
     if (entryStatus.shouldSend() && exitStatus.shouldSend()) {
       // only rate limit if a condition is defined
       if (probeCondition != null) {
@@ -481,7 +483,8 @@ public class LogProbe extends ProbeDefinition {
       return;
     }
     Sink sink = DebuggerAgent.getSink();
-    Snapshot snapshot = new Snapshot(Thread.currentThread(), this);
+    int maxDepth = capture != null ? capture.maxReferenceDepth : -1;
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), this, maxDepth);
     boolean shouldCommit = false;
     if (status.shouldSend()) {
       // only rate limit if a condition is defined
@@ -503,7 +506,8 @@ public class LogProbe extends ProbeDefinition {
     }
     if (shouldCommit) {
       // freeze context just before commit because line probes have only one context
-      lineContext.freeze(new TimeoutChecker(DEFAULT_TIME_OUT));
+      Duration timeout = Duration.of(Config.get().getDebuggerCaptureTimeout(), ChronoUnit.MILLIS);
+      lineContext.freeze(new TimeoutChecker(timeout));
       commitSnapshot(snapshot, sink);
       return;
     }

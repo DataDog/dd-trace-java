@@ -2,11 +2,15 @@ package datadog.trace.instrumentation.springweb6;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 
+import datadog.appsec.api.blocking.BlockingException;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Source;
+import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.source.WebModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -24,8 +28,15 @@ public class HandleMatchAdvice {
       "org.springframework.web.servlet.HandlerMapping.matrixVariables";
 
   @SuppressWarnings("Duplicates")
-  @Advice.OnMethodExit(suppress = Throwable.class)
-  public static void after(@Advice.Argument(2) final HttpServletRequest req) {
+  @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+  @Source(SourceTypes.REQUEST_PATH_PARAMETER_STRING)
+  public static void after(
+      @Advice.Argument(2) final HttpServletRequest req,
+      @Advice.Thrown(readOnly = false) Throwable t) {
+    if (t != null) {
+      return;
+    }
+
     // hacky, but APM instrumentation causes the instrumented method to be called twice
     if (req.getClass()
         .getName()
@@ -80,7 +91,19 @@ public class HandleMatchAdvice {
           BiFunction<RequestContext, Map<String, ?>, Flow<Void>> callback =
               cbp.getCallback(EVENTS.requestPathParams());
           if (callback != null) {
-            callback.apply(reqCtx, map);
+            Flow<Void> flow = callback.apply(reqCtx, map);
+            Flow.Action action = flow.getAction();
+            if (action instanceof Flow.Action.RequestBlockingAction) {
+              Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+              BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+              if (brf != null) {
+                brf.tryCommitBlockingResponse(
+                    rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+              }
+              t =
+                  new BlockingException(
+                      "Blocked request (for RequestMappingInfoHandlerMapping/handleMatch)");
+            }
           }
         }
       }

@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.springweb6.boot
 
+import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServerTest
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -69,6 +70,14 @@ class TestController {
   String matrix_param(@MatrixVariable(pathVar = 'var') MultiValueMap<String, String> v, HttpServletRequest request) {
     HttpServerTest.controller(MATRIX_PARAM) {
       v as String
+    }
+  }
+
+  @RequestMapping("/user-block")
+  String userBlock() {
+    HttpServerTest.controller(USER_BLOCK) {
+      Blocking.forUser('user-to-block').blockIfMatch()
+      'should not be reached'
     }
   }
 

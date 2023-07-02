@@ -17,12 +17,14 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
 
   private IastRequestContext ctx
 
-  private InsecureCookieModuleImpl module
+  private HttpResponseHeaderModuleImpl module
 
   private AgentSpan span
 
   def setup() {
-    module = registerDependencies(new InsecureCookieModuleImpl())
+    InstrumentationBridge.clearIastModules()
+    module = registerDependencies(new HttpResponseHeaderModuleImpl())
+    InstrumentationBridge.registerIastModule(new InsecureCookieModuleImpl())
     objectHolder = []
     ctx = new IastRequestContext()
     final reqCtx = Mock(RequestContext) {
@@ -34,12 +36,12 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
     }
   }
 
-  void 'report insecure cookie with InsecureCookieModule.onCookieHeader'() {
+  void 'report insecure cookie with InsecureCookieModule.onCookie'() {
     given:
     Vulnerability savedVul
 
     when:
-    module.onCookieHeader(cookieValue)
+    module.onCookie('user-id', false, false, false)
 
     then:
     1 * tracer.activeSpan() >> span
@@ -49,21 +51,20 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
       type == VulnerabilityType.INSECURE_COOKIE
       location != null
       with(evidence) {
-        value == expected
+        value == "user-id"
       }
     }
-
-    where:
-    cookieValue | expected
-    "user-id=7" | "user-id"
   }
+
+
+
 
   void 'report insecure cookie with InsecureCookieModule.onCookie'() {
     given:
     Vulnerability savedVul
 
     when:
-    module.onCookie(cookieName, false)
+    module.onCookie("user-id", false, false, false)
 
     then:
     1 * tracer.activeSpan() >> span
@@ -73,71 +74,28 @@ class InsecureCookieModuleTest extends IastModuleImplTestBase {
       type == VulnerabilityType.INSECURE_COOKIE
       location != null
       with(evidence) {
-        value == expected
+        value == "user-id"
       }
     }
-
-    where:
-    cookieName | expected
-    "user-id"  | "user-id"
   }
 
-  void 'cases where nothing is reported during InsecureCookieModule.onCookie'() {
-
+  void 'cases where nothing is reported during InsecureCookieModuleTest.onCookie'() {
     when:
-    module.onCookie(cookieValue, isSecure)
+    module.onCookie("user-id", true, true, true)
 
     then:
     0 * tracer.activeSpan()
     0 * overheadController._
     0 * reporter._
-
-    where:
-    cookieValue | isSecure
-    "user-id"   | true
-    null        | true
-    null        | false
-    ""          | false
-    ""          | true
   }
 
-
-  void 'cases where nothing is reported during InsecureCookieModule.onCookieHeader'() {
-
+  void 'insecure cookie is not reported with InsecureCookieModule.onCookie'() {
     when:
-    module.onCookieHeader(cookieValue)
+    module.onCookie("user-id", true, false, false)
 
     then:
-    0 * tracer.activeSpan()
-    0 * overheadController._
-    0 * reporter._
-
-    where:
-    cookieValue         | _
-    null                | _
-    "user-id=7; Secure" | _
-    "user-id7; Secure"  | _
-    "user-id=7;Secure"  | _
-    "blah"              | _
-    ""                  | _
-  }
-
-  void 'if onHeader receives a cookie header call onCookieHeader'(final String headerName, final int expected) {
-    setup:
-    final icm = Spy(InsecureCookieModuleImpl)
-    InstrumentationBridge.registerIastModule(icm)
-
-    when:
-    icm.onHeader(headerName, "value")
-
-    then:
-    expected * icm.onCookieHeader("value")
-
-
-    where:
-    headerName   | expected
-    "blah"       | 0
-    "Set-Cookie" | 1
-    "set-cookie" | 1
+    0 * tracer.activeSpan() >> span
+    0 * overheadController.consumeQuota(_, _) >> true
+    0 * reporter.report(_, _ as Vulnerability)
   }
 }

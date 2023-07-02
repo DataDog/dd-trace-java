@@ -1,16 +1,15 @@
 package datadog.trace.core.datastreams
 
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer
-import datadog.trace.bootstrap.instrumentation.api.NoopDataStreamsMonitoring
+import datadog.trace.core.propagation.HttpCodec
 import datadog.trace.core.test.DDCoreSpecification
 
 class NoopDataStreamsMonitoringTest extends DDCoreSpecification {
-  def "extractPathway calls returns NoopPathwayContext"() {
+  def "Ensure decorator do not modify extractor"() {
     when:
     def checkpointer = new NoopDataStreamsMonitoring()
+    def extractor = Mock(HttpCodec.Extractor)
 
     then:
-    checkpointer.extractPathwayContext(null, null) == AgentTracer.NoopPathwayContext.INSTANCE
-    checkpointer.extractBinaryPathwayContext(null, null) == AgentTracer.NoopPathwayContext.INSTANCE
+    checkpointer.decorate(extractor) == extractor
   }
 }

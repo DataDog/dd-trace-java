@@ -860,25 +860,35 @@ public class Agent {
             new WithGlobalTracer.Callback() {
               @Override
               public void withTracer(TracerAPI tracer) {
+                // TODO simplify this by reworking module boundaries
                 log.debug("Initializing profiler tracer integrations");
+                String checkpointerClassName =
+                    Config.get().isDatadogProfilerEnabled()
+                        ? "com.datadog.profiling.controller.ddprof.DatadogProfilerCheckpointer"
+                        : Platform.isOracleJDK8() || Platform.isJ9()
+                            ? null
+                            : "com.datadog.profiling.controller.openjdk.JFRCheckpointer";
+                String timerClassName =
+                    Config.get().isDatadogProfilerEnabled()
+                        ? "com.datadog.profiling.controller.ddprof.DatadogProfilerTimer"
+                        : null;
                 try {
-                  if (Platform.isOracleJDK8() || Platform.isJ9()) {
-                    return;
+                  if (checkpointerClassName != null) {
+                    tracer.registerCheckpointer(
+                        (EndpointCheckpointer)
+                            AGENT_CLASSLOADER
+                                .loadClass(checkpointerClassName)
+                                .getDeclaredConstructor()
+                                .newInstance());
                   }
-                  EndpointCheckpointer endpointCheckpointer =
-                      (EndpointCheckpointer)
-                          AGENT_CLASSLOADER
-                              .loadClass("com.datadog.profiling.controller.openjdk.JFRCheckpointer")
-                              .getDeclaredConstructor()
-                              .newInstance();
-                  tracer.registerCheckpointer(endpointCheckpointer);
-                  Timer timer =
-                      (Timer)
-                          AGENT_CLASSLOADER
-                              .loadClass("com.datadog.profiling.controller.openjdk.JFRTimer")
-                              .getDeclaredConstructor()
-                              .newInstance();
-                  tracer.registerTimer(timer);
+                  if (timerClassName != null) {
+                    tracer.registerTimer(
+                        (Timer)
+                            AGENT_CLASSLOADER
+                                .loadClass(timerClassName)
+                                .getDeclaredConstructor()
+                                .newInstance());
+                  }
                 } catch (Throwable e) {
                   if (e instanceof InvocationTargetException) {
                     e = e.getCause();

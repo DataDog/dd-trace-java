@@ -178,6 +178,11 @@ public class MoshiSnapshotTestHelper {
               capturedContext.addFields(fromJsonCapturedValues(jsonReader));
               break;
             }
+          case NOT_CAPTURED_REASON:
+            {
+              jsonReader.nextString();
+              break;
+            }
           default:
             throw new IllegalArgumentException("Unknown field name for 'this' object: " + name);
         }
@@ -443,7 +448,7 @@ public class MoshiSnapshotTestHelper {
         case "java.lang.String":
           return strValue;
       }
-      return null;
+      return strValue;
     }
   }
 

@@ -24,7 +24,7 @@ class B3HttpExtractorTest extends DDSpecification {
 
   void setup() {
     dynamicConfig = DynamicConfig.create()
-      .setTaggedHeaders(["SOME_HEADER": "some-tag"])
+      .setHeaderTags(["SOME_HEADER": "some-tag"])
       .setBaggageMapping([:])
       .apply()
     extractor = B3HttpCodec.newExtractor(Config.get(), { dynamicConfig.captureTraceConfig() })

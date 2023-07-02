@@ -20,16 +20,11 @@ public abstract class CallSiteInstrumentation extends Instrumenter.Default
   }
 
   @Override
-  public String[] helperClassNames() {
-    return advices().getHelpers();
-  }
-
-  @Override
   public void adviceTransformations(final AdviceTransformation transformation) {}
 
   @Override
   public AdviceTransformer transformer() {
-    return new CallSiteTransformer(advices());
+    return new CallSiteTransformer(name(), advices());
   }
 
   protected abstract CallSiteSupplier callSites();

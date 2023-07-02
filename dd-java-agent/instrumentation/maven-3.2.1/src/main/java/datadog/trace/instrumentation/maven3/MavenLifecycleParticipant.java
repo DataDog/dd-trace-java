@@ -59,6 +59,10 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
         String compilerPluginVersion = config.getCiVisibilityCompilerPluginVersion();
         MavenProjectConfigurator.INSTANCE.configureCompilerPlugin(project, compilerPluginVersion);
       }
+
+      if (config.isCiVisibilityCodeCoverageEnabled()) {
+        MavenProjectConfigurator.INSTANCE.configureJacoco(project);
+      }
     }
   }
 }

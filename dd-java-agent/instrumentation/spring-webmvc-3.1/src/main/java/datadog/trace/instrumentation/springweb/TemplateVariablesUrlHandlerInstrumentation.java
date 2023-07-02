@@ -9,12 +9,16 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Source;
+import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.source.WebModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -69,8 +73,14 @@ public class TemplateVariablesUrlHandlerInstrumentation extends Instrumenter.Def
         "org.springframework.web.servlet.HandlerMapping.uriTemplateVariables";
 
     @SuppressWarnings("Duplicates")
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void after(@Advice.Argument(0) final HttpServletRequest req) {
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Source(SourceTypes.REQUEST_PATH_PARAMETER_STRING)
+    public static void after(
+        @Advice.Argument(0) final HttpServletRequest req,
+        @Advice.Thrown(readOnly = false) Throwable t) {
+      if (t != null) {
+        return;
+      }
       AgentSpan agentSpan = AgentTracer.activeSpan();
       if (agentSpan == null) {
         return;
@@ -98,7 +108,19 @@ public class TemplateVariablesUrlHandlerInstrumentation extends Instrumenter.Def
           BiFunction<RequestContext, Map<String, ?>, Flow<Void>> callback =
               cbp.getCallback(EVENTS.requestPathParams());
           if (callback != null) {
-            callback.apply(reqCtx, map);
+            Flow<Void> flow = callback.apply(reqCtx, map);
+            Flow.Action action = flow.getAction();
+            if (action instanceof Flow.Action.RequestBlockingAction) {
+              Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+              BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+              if (brf != null) {
+                brf.tryCommitBlockingResponse(
+                    rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+              }
+              t =
+                  new BlockingException(
+                      "Blocked request (for UriTemplateVariablesHandlerInterceptor/preHandle)");
+            }
           }
         }
       }

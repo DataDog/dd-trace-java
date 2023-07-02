@@ -1,7 +1,7 @@
-import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import datadog.trace.instrumentation.servlet3.TestServlet3
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.AbstractHandler
@@ -11,17 +11,8 @@ import javax.servlet.ServletException
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
 
 abstract class Jetty70Test extends HttpServerTest<Server> {
 
@@ -107,57 +98,45 @@ abstract class Jetty70Test extends HttpServerTest<Server> {
     true
   }
 
-  static void handleRequest(Request request, HttpServletResponse response) {
-    ServerEndpoint endpoint = ServerEndpoint.forPath(request.requestURI)
-    controller(endpoint) {
-      response.contentType = "text/plain"
-      response.addHeader(HttpServerTest.IG_RESPONSE_HEADER, HttpServerTest.IG_RESPONSE_HEADER_VALUE)
-      switch (endpoint) {
-        case SUCCESS:
-          response.status = endpoint.status
-          response.writer.print(endpoint.body)
-          break
-        case FORWARDED:
-          response.status = endpoint.status
-          response.writer.print(request.getHeader("x-forwarded-for"))
-          break
-        case BODY_URLENCODED:
-          response.status = endpoint.status
-          response.writer.print(
-            request.parameterMap.findAll {
-              it.key != 'ignore'}
-            .collectEntries {[it.key, it.value as List]} as String)
-          break
-        case QUERY_ENCODED_BOTH:
-        case QUERY_ENCODED_QUERY:
-        case QUERY_PARAM:
-          response.status = endpoint.status
-          response.writer.print(endpoint.bodyForQuery(request.queryString))
-          break
-        case REDIRECT:
-          response.sendRedirect(endpoint.body)
-          break
-        case ERROR:
-        // sendError in this version doesn't send the right body, so we do so manually.
-        // response.sendError(endpoint.status, endpoint.body)
-          response.status = endpoint.status
-          response.writer.print(endpoint.body)
-          break
-        case EXCEPTION:
-          throw new Exception(endpoint.body)
-        case USER_BLOCK:
-          Blocking.forUser('user-to-block').blockIfMatch()
-          break
-        default:
-          response.status = NOT_FOUND.status
-          response.writer.print(NOT_FOUND.body)
-          break
-      }
-    }
+  @Override
+  boolean testRequestBody() {
+    true
+  }
+
+  @Override
+  boolean testRequestBodyISVariant() {
+    true
+  }
+
+  @Override
+  boolean testUserBlocking() {
+    true
   }
 
   static class TestHandler extends AbstractHandler {
-    static final TestHandler INSTANCE = new TestHandler()
+    private static final TestHandler INSTANCE = new TestHandler()
+
+    final TestServlet3.Sync testServlet3 = new TestServlet3.Sync() {
+      @Override
+      HttpServerTest.ServerEndpoint determineEndpoint(HttpServletRequest req) {
+        HttpServerTest.ServerEndpoint.forPath(req.requestURI)
+      }
+
+      @Override
+      void service(HttpServletRequest req, HttpServletResponse resp) {
+        HttpServerTest.ServerEndpoint endpoint = determineEndpoint(req)
+        if (endpoint == UNKNOWN || endpoint == NOT_FOUND) {
+          resp.status = NOT_FOUND.status
+          resp.writer.print(NOT_FOUND.body)
+        } else {
+          super.service(req, resp)
+        }
+      }
+    }
+
+    static void handleRequest(Request request, HttpServletResponse response) {
+      INSTANCE.testServlet3.service(request, response)
+    }
 
     @Override
     void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {

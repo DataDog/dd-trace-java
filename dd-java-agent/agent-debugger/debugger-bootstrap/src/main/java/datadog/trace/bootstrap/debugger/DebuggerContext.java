@@ -1,8 +1,9 @@
 package datadog.trace.bootstrap.debugger;
 
-import static datadog.trace.bootstrap.debugger.util.TimeoutChecker.DEFAULT_TIME_OUT;
-
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +15,7 @@ import org.slf4j.LoggerFactory;
  */
 public class DebuggerContext {
   private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerContext.class);
+  private static final ThreadLocal<Boolean> IN_PROBE = ThreadLocal.withInitial(() -> Boolean.FALSE);
 
   public enum SkipCause {
     RATE,
@@ -28,12 +30,27 @@ public class DebuggerContext {
     boolean isDenied(String fullyQualifiedClassName);
   }
 
+  public enum MetricKind {
+    COUNT,
+    GAUGE,
+    HISTOGRAM,
+    DISTRIBUTION;
+  }
+
   public interface MetricForwarder {
     void count(String name, long delta, String[] tags);
 
     void gauge(String name, long value, String[] tags);
 
+    void gauge(String name, double value, String[] tags);
+
     void histogram(String name, long value, String[] tags);
+
+    void histogram(String name, double value, String[] tags);
+
+    void distribution(String name, long value, String[] tags);
+
+    void distribution(String name, double value, String[] tags);
   }
 
   public interface Tracer {
@@ -92,42 +109,55 @@ public class DebuggerContext {
     return filter.isDenied(fullyQualifiedClassName);
   }
 
-  /** Increments the specified counter metric No-op if no implementation is available */
-  public static void count(String name, long delta, String[] tags) {
+  /** Increments or updates the specified metric No-op if no implementation is available */
+  public static void metric(MetricKind kind, String name, long value, String[] tags) {
     try {
       MetricForwarder forwarder = metricForwarder;
       if (forwarder == null) {
         return;
       }
-      forwarder.count(name, delta, tags);
+      switch (kind) {
+        case COUNT:
+          forwarder.count(name, value, tags);
+          break;
+        case GAUGE:
+          forwarder.gauge(name, value, tags);
+          break;
+        case HISTOGRAM:
+          forwarder.histogram(name, value, tags);
+          break;
+        case DISTRIBUTION:
+          forwarder.distribution(name, value, tags);
+        default:
+          throw new IllegalArgumentException("Unsupported metric kind: " + kind);
+      }
     } catch (Exception ex) {
-      LOGGER.debug("Error in count method: ", ex);
+      LOGGER.debug("Error in metric method: ", ex);
     }
   }
 
-  /** Updates the specified gauge metric No-op if no implementation is available */
-  public static void gauge(String name, long value, String[] tags) {
+  /** Updates the specified metric No-op if no implementation is available */
+  public static void metric(MetricKind kind, String name, double value, String[] tags) {
     try {
       MetricForwarder forwarder = metricForwarder;
       if (forwarder == null) {
         return;
       }
-      forwarder.gauge(name, value, tags);
-    } catch (Exception ex) {
-      LOGGER.debug("Error in gauge: ", ex);
-    }
-  }
-
-  /** Updates the specified histogram metric No-op if no implementation is available */
-  public static void histogram(String name, long value, String[] tags) {
-    try {
-      MetricForwarder forwarder = metricForwarder;
-      if (forwarder == null) {
-        return;
+      switch (kind) {
+        case GAUGE:
+          forwarder.gauge(name, value, tags);
+          break;
+        case HISTOGRAM:
+          forwarder.histogram(name, value, tags);
+          break;
+        case DISTRIBUTION:
+          forwarder.distribution(name, value, tags);
+          break;
+        default:
+          throw new IllegalArgumentException("Unsupported metric kind: " + kind);
       }
-      forwarder.histogram(name, value, tags);
     } catch (Exception ex) {
-      LOGGER.debug("Error in histogram: ", ex);
+      LOGGER.debug("Error in metric method: ", ex);
     }
   }
 
@@ -171,6 +201,7 @@ public class DebuggerContext {
         // if all probes are rate limited, we don't capture
         result |= ProbeRateLimiter.tryProbe(probeId);
       }
+      result = result && checkAndSetInProbe();
       return result;
     } catch (Exception ex) {
       LOGGER.debug("Error in isReadyToCapture: ", ex);
@@ -178,6 +209,22 @@ public class DebuggerContext {
     }
   }
 
+  public static void disableInProbe() {
+    IN_PROBE.set(Boolean.FALSE);
+  }
+
+  public static boolean isInProbe() {
+    return IN_PROBE.get();
+  }
+
+  public static boolean checkAndSetInProbe() {
+    if (IN_PROBE.get()) {
+      LOGGER.debug("Instrumentation is reentered, skip it.");
+      return false;
+    }
+    IN_PROBE.set(Boolean.TRUE);
+    return true;
+  }
   /**
    * resolve probe details based on probe ids and evaluate the captured context regarding summary &
    * conditions This is for method probes
@@ -207,7 +254,8 @@ public class DebuggerContext {
       // only freeze the context when we have at lest one snapshot probe, and we should send
       // snapshot
       if (needFreeze) {
-        context.freeze(new TimeoutChecker(DEFAULT_TIME_OUT));
+        Duration timeout = Duration.of(Config.get().getDebuggerCaptureTimeout(), ChronoUnit.MILLIS);
+        context.freeze(new TimeoutChecker(timeout));
       }
     } catch (Exception ex) {
       LOGGER.debug("Error in evalContext: ", ex);

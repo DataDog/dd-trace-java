@@ -14,6 +14,7 @@ import ratpack.handling.HandlerDecorator
 import java.nio.charset.StandardCharsets
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
@@ -84,7 +85,7 @@ class RatpackAsyncHttpServerTest extends RatpackHttpServerTest {
 
                     @Override
                     void onError(Throwable t) {
-                      outerDelegate.ctx.error(t)
+                      outerDelegate.error(t)
                     }
 
                     @Override
@@ -117,22 +118,23 @@ class RatpackAsyncHttpServerTest extends RatpackHttpServerTest {
             }
           }
         }
-        prefix(BODY_URLENCODED.relativeRawPath()) {
-          all {
-            Promise.sync {
-              BODY_URLENCODED
-            } then { endpoint ->
-              controller(BODY_URLENCODED) {
-                context.parse(Form).then { form ->
-                  def text = form.findAll { it.key != 'ignore' }
-                  .collectEntries { [it.key, it.value as List] } as String
-                  response.status(BODY_URLENCODED.status).send('text/plain', text)
+        [BODY_URLENCODED, BODY_MULTIPART].each { endpoint ->
+          prefix(endpoint.relativeRawPath()) {
+            all {
+              Promise.sync {
+                endpoint
+              } then { ep ->
+                controller(endpoint) {
+                  context.parse(Form).then { form ->
+                    def text = form.findAll { it.key != 'ignore' }
+                    .collectEntries { [it.key, it.value as List] } as String
+                    response.status(endpoint.status).send('text/plain', text)
+                  }
                 }
               }
             }
           }
         }
-
         prefix(BODY_JSON.relativeRawPath()) {
           all {
             Promise.sync {

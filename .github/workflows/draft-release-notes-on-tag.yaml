@@ -1,94 +1,166 @@
 name: Draft release notes on tag
 on:
-  create
+  create:
+  workflow_dispatch:
 
 jobs:
   draft_release_notes:
-    if: github.event.ref_type == 'tag' && github.event.master_branch == 'master'
+    name: Draft release notes
+    if: (github.event.ref_type == 'tag' && github.event.master_branch == 'master') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Get milestone title
         id: milestoneTitle
-        uses: actions/github-script@47f7cf65b5ced0830a325f705cad64f2f58dddf7 # 3.1.0
+        uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # 6.4.1
         with:
           result-encoding: string
           script: |
-            // Our tags are of the form vX.X.X and milestones don't have the "v"
-            return '${{github.event.ref}}'.startsWith('v') ? '${{github.event.ref}}'.substring(1) : '${{github.event.ref}}';
-      - name: Get milestone for tag
-        id: milestone
-        uses: actions/github-script@47f7cf65b5ced0830a325f705cad64f2f58dddf7 # 3.1.0
-        with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          script: |
-            const milestones = await github.paginate(github.issues.listMilestones, {
+            // Get the milestone title ("X.Y.Z") from tag name ("vX.Y.Z")
+            const milestoneTitle = '${{github.event.ref}}'.startsWith('v') ?
+                '${{github.event.ref}}'.substring(1) :
+                '${{github.event.ref}}'
+
+            // Look for the milestone
+            const milestone = (await github.paginate('GET /repos/{owner}/{repo}/milestones', {
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'all'
-            })
-
-            const milestone = milestones.find(milestone => milestone.title == '${{steps.milestoneTitle.outputs.result}}')
-
-            if (milestone) {
-              return milestone.number
-            } else {
-              return null
+            })).find(m => m.title == milestoneTitle)
+            if (!milestone) {
+              core.setFailed('Failed to find milestone: ${milestoneTitle}')
+              return
             }
-      - name: Generate release notes text
-        if: fromJSON(steps.milestone.outputs.result)
-        id: generate
-        uses: actions/github-script@47f7cf65b5ced0830a325f705cad64f2f58dddf7 # 3.1.0
-        with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          result-encoding: string
-          script: |
-            const pullRequests = await github.paginate(github.pulls.list, {
+
+            // Get pull requests of the milestone
+            const pullRequests = (await github.paginate('/repos/{owner}/{repo}/issues', {
               owner: context.repo.owner,
               repo: context.repo.repo,
-              state: 'closed',
-              base: 'master'
-            })
+              milestone: milestone.number,
+              state: 'closed'
+            }))
+            .filter(i => i.pull_request && i.pull_request.merged_at)                     // Skip closed but not merged
+            .filter(p => !p.labels.find(label => label.name == 'tag: no release notes')) // Skip excluded
 
-            var draftText = "# Improvements \n\n# Changes \n\n"
-            for (let pull of pullRequests) {
-              if (pull.merged_at && pull.milestone && pull.milestone.number == ${{steps.milestone.outputs.result}}) {
-                if (pull.labels.some(label => label.name == "no release notes")) {
+            // Group PR by components and instrumentations
+            var prByComponents = new Map()
+            var prByInstrumentations = new Map()
+            var otherPRs = new Array()
+            for (let pullRequest of pullRequests) {
+              var captured = false
+              for (let label of pullRequest.labels) {
+                const index = label.name.indexOf(':')
+                if (index == -1) {
+                  core.notice('Unsupported label: ${label.name}')
                   continue
                 }
-
-                var lineItem = "* "
-                for (let label of pull.labels) {
-                  lineItem += "[" + label.name.charAt(0).toUpperCase() + label.name.slice(1) + "] "
+                const labelKey = label.name.substring(0, index)
+                const labelValue = label.name.slice(index + 1)
+                var map = null
+                if (labelKey == 'comp') {
+                  map = prByComponents
+                } else if (labelKey == 'inst') {
+                  map = prByInstrumentations
                 }
-
-                lineItem += pull.title + " #" + pull.number
-
-                // Add author if community labeled
-                if (pull.labels.some(label => label.name == "community")) {
-                  lineItem += " (Thanks @" + pull.user.login + " for the contribution!)"
+                if (map) {
+                  var prs = map.get(label.description)
+                  if (!prs) {
+                    prs = new Array()
+                    map.set(label.description, prs)
+                  }
+                  prs.push(pullRequest)
+                  captured = true
                 }
-
-                draftText += lineItem + "\n"
+              }
+              if (!captured) {
+                otherPRs.push(pullRequest)
               }
             }
-            draftText += "\n# Fixes \n"
 
-            // Escape backticks
-            draftText = draftText.replace(/`/g,"\\`")
+            // Sort components and instrumenations
+            prByComponents = new Map([...prByComponents].sort());
+            const lastInstrumentation = 'All other instrumentations'
+            prByInstrumentations = new Map([...prByInstrumentations].sort(
+              (a, b) => {
+                if (a[0] == lastInstrumentation) {
+                  return 1
+                } else if (b[0] == lastInstrumentation) {
+                  return -1
+                }
+                return String(a[0]).localeCompare(b[0])
+              }
+            ));
 
-            return draftText
-      - name: Create release notes
-        if: fromJSON(steps.milestone.outputs.result)
-        # can't use actions/create-release because it doesn't like the text coming from JS
-        uses: actions/github-script@47f7cf65b5ced0830a325f705cad64f2f58dddf7 # 3.1.0
-        with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          script: |
-            await github.repos.createRelease({
+            // Generate changelog
+            const decorators = {
+              'tag: breaking change': ':warning:',
+              'tag: experimental': ':test_tube:',
+              'tag: diagnostics': ':mag:',
+              'tag: performance': ':zap:',
+              'tag: security': ':closed_lock_with_key:',
+              'type: bug': ':bug:',
+              'type: documentation': ':book:',
+              'type: enhancement': ':sparkles:',
+              'type: feature request': ':bulb:',
+              'type: refactoring': ':broom:'
+            }
+            function decorate(pullRequest) {
+              var line = ''
+              var decorated = false;
+              for (let label of pullRequest.labels) {
+                if (decorators[label.name]) {
+                  line += decorators[label.name]
+                  decorated = true
+                }
+              }
+              if (decorated) {
+                line += ' '
+              }
+              return line
+            }
+            function format(pullRequest) {
+              var line = `${decorate(pullRequest)}${pullRequest.title} (#${pullRequest.number}`
+              // Add author if community labeled
+              if (pullRequest.labels.some(label => label.name == "tag: community")) {
+                line += ` - thanks @${pull.user.login} for the contribution!`
+              }
+              line += ')'
+              return line;
+            }
+
+            var changelog = '';
+            if (prByComponents.size > 0) {
+              changelog += '# Components\n\n';
+              for (let pair of prByComponents) {
+                changelog += '## '+pair[0]+'\n\n'
+                for (let pullRequest of pair[1]) {
+                  changelog += '* ' + format(pullRequest) + '\n'
+                }
+                changelog += '\n'
+              }
+            }
+            if (prByInstrumentations.size > 0) {
+              changelog += '# Instrumentations\n\n'
+              for (let pair of prByInstrumentations) {
+                changelog += '## '+pair[0]+'\n\n'
+                for (let pullRequest of pair[1]) {
+                  changelog += '* ' + format(pullRequest) + '\n'
+                }
+                changelog += '\n'
+              }
+            }
+            if (otherPRs.length > 0) {
+              changelog += '# Other changes\n\n'
+              for (let pullRequest of otherPRs) {
+                changelog += '* ' + format(pullRequest) + '\n'
+              }
+            }
+
+            // Create release with the draft changelog
+            await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
               tag_name: '${{ github.event.ref }}',
-              name: '${{ steps.milestoneTitle.outputs.result }}',
+              name: milestoneTitle,
               draft: true,
-              body: `${{ steps.generate.outputs.result }}`
+              body: changelog
             })

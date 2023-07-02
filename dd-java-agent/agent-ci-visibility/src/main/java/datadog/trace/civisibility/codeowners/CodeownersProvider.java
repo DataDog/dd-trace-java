@@ -1,6 +1,5 @@
 package datadog.trace.civisibility.codeowners;
 
-import datadog.trace.api.civisibility.codeowners.Codeowners;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.FileSystem;

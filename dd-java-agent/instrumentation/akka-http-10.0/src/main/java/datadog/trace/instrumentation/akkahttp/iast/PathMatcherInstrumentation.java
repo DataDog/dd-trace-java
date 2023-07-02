@@ -12,6 +12,8 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Source;
+import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.source.WebModule;
 import net.bytebuddy.asm.Advice;
@@ -46,6 +48,7 @@ public class PathMatcherInstrumentation extends Instrumenter.Iast
   @RequiresRequestContext(RequestContextSlot.IAST)
   static class PathMatcherAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_PATH_PARAMETER_STRING)
     static void onExit(
         @Advice.Argument(1) Object extractions, @ActiveRequestContext RequestContext reqCtx) {
       if (!(extractions instanceof scala.Tuple1)) {

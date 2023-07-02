@@ -1,5 +1,12 @@
 package server
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
@@ -8,69 +15,12 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator
 import datadog.trace.instrumentation.vertx_4_0.server.VertxDecorator
 import io.vertx.core.AbstractVerticle
-import io.vertx.core.DeploymentOptions
 import io.vertx.core.Vertx
-import io.vertx.core.impl.VertxInternal
-import io.vertx.core.json.JsonObject
-
-import java.util.concurrent.CompletableFuture
-
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static server.VertxTestServer.CONFIG_HTTP_SERVER_PORT
 
 class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
-
-  private class VertxServer implements HttpServer {
-    private VertxInternal server
-    private String routerBasePath
-    private port
-
-    VertxServer(String routerBasePath) {
-      this.routerBasePath = routerBasePath
-    }
-
-    @Override
-    void start() {
-      server = Vertx.vertx()
-
-      final CompletableFuture<Void> future = new CompletableFuture<>()
-      server.eventBus().localConsumer("PORT_DATA")
-        .handler({ message ->
-          port = message.body()
-          message.reply(null)
-          future.complete(null)
-        })
-
-      server.deployVerticle(verticle().name,
-        new DeploymentOptions()
-        .setConfig(new JsonObject().put(CONFIG_HTTP_SERVER_PORT, 0))
-        .setInstances(1)) { res ->
-          if (!res.succeeded()) {
-            throw new RuntimeException("Cannot deploy server Verticle", res.cause())
-          }
-        }
-      future.get()
-    }
-
-    @Override
-    void stop() {
-      server.close()
-    }
-
-    @Override
-    URI address() {
-      return new URI("http://localhost:$port$routerBasePath")
-    }
-  }
-
   @Override
   HttpServer server() {
-    return new VertxServer(routerBasePath())
+    return new VertxServer(verticle(), routerBasePath())
   }
 
   protected Class<AbstractVerticle> verticle() {
@@ -108,7 +58,17 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
   }
 
   @Override
+  boolean testRequestBody() {
+    true
+  }
+
+  @Override
   boolean testBodyUrlencoded() {
+    true
+  }
+
+  @Override
+  boolean testBodyMultipart() {
     true
   }
 
@@ -119,6 +79,11 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
 
   @Override
   boolean testBlocking() {
+    true
+  }
+
+  @Override
+  boolean isRequestBodyNoStreaming() {
     true
   }
 

@@ -1,10 +1,17 @@
 package datadog.trace.api.naming.v0;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.naming.NamingSchema;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class CloudNamingV0 implements NamingSchema.ForCloud {
+  private final boolean allowsFakeServices;
+
+  public CloudNamingV0(boolean allowsFakeServices) {
+    this.allowsFakeServices = allowsFakeServices;
+  }
+
   @Nonnull
   @Override
   public String operationForRequest(
@@ -19,6 +26,10 @@ public class CloudNamingV0 implements NamingSchema.ForCloud {
   @Override
   public String serviceForRequest(
       @Nonnull final String provider, @Nullable final String cloudService) {
+    if (!allowsFakeServices) {
+      return Config.get().getServiceName();
+    }
+
     // we only manage aws. Future switch for other cloud providers will be needed in the future
     if (cloudService == null) {
       return "java-aws-sdk";

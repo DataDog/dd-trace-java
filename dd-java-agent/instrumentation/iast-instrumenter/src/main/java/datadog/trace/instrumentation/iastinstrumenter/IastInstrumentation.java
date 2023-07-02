@@ -4,9 +4,9 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteInstrumentation;
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteSupplier;
-import datadog.trace.agent.tooling.csi.CallSiteAdvice;
+import datadog.trace.agent.tooling.csi.CallSites;
 import datadog.trace.api.Config;
-import datadog.trace.api.iast.IastAdvice;
+import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.instrumentation.iastinstrumenter.telemetry.TelemetryCallSiteSupplier;
 import java.util.ServiceLoader;
@@ -51,10 +51,10 @@ public class IastInstrumentation extends CallSiteInstrumentation {
     public static final CallSiteSupplier INSTANCE;
 
     static {
-      CallSiteSupplier supplier = new IastCallSiteSupplier(IastAdvice.class);
+      CallSiteSupplier supplier = new IastCallSiteSupplier(IastCallSites.class);
       final Config config = Config.get();
       final Verbosity verbosity = config.getIastTelemetryVerbosity();
-      if (config.isTelemetryEnabled() && verbosity != Verbosity.OFF) {
+      if (verbosity != Verbosity.OFF) {
         supplier = new TelemetryCallSiteSupplier(verbosity, supplier);
       }
       INSTANCE = supplier;
@@ -68,9 +68,9 @@ public class IastInstrumentation extends CallSiteInstrumentation {
 
     @SuppressWarnings("unchecked")
     @Override
-    public Iterable<CallSiteAdvice> get() {
+    public Iterable<CallSites> get() {
       final ClassLoader targetClassLoader = CallSiteInstrumentation.class.getClassLoader();
-      return (ServiceLoader<CallSiteAdvice>) ServiceLoader.load(spiInterface, targetClassLoader);
+      return (ServiceLoader<CallSites>) ServiceLoader.load(spiInterface, targetClassLoader);
     }
   }
 }

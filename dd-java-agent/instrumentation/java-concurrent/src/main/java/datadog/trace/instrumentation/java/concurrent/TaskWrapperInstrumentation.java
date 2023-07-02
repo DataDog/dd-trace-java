@@ -18,7 +18,17 @@ public class TaskWrapperInstrumentation extends Instrumenter.Profiling
             "java.util.concurrent.FutureTask",
             "callable",
             "java.util.concurrent.Executors$RunnableAdapter",
-            "task"));
+            "task",
+            "java.util.concurrent.CompletableFuture$AsyncSupply",
+            "fn",
+            "java.util.concurrent.CompletableFuture$AsyncRun",
+            "fn",
+            "java.util.concurrent.ForkJoinTask$AdaptedRunnable",
+            "runnable",
+            "java.util.concurrent.ForkJoinTask$AdaptedCallable",
+            "callable",
+            "java.util.concurrent.ForkJoinTask$AdaptedRunnableAction",
+            "runnable"));
   }
 
   @Override
@@ -27,7 +37,13 @@ public class TaskWrapperInstrumentation extends Instrumenter.Profiling
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "java.util.concurrent.FutureTask", "java.util.concurrent.Executors$RunnableAdapter"
+      "java.util.concurrent.FutureTask",
+      "java.util.concurrent.Executors$RunnableAdapter",
+      "java.util.concurrent.CompletableFuture$AsyncSupply",
+      "java.util.concurrent.CompletableFuture$AsyncRun",
+      "java.util.concurrent.ForkJoinTask$AdaptedRunnable",
+      "java.util.concurrent.ForkJoinTask$AdaptedCallable",
+      "java.util.concurrent.ForkJoinTask$AdaptedRunnableAction"
     };
   }
 }

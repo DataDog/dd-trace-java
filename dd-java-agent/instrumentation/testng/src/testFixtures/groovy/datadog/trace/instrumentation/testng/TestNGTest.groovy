@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.testng
 
 import datadog.trace.agent.test.asserts.ListWriterAssert
-import datadog.trace.agent.test.base.CiVisibilityTest
+import datadog.trace.civisibility.CiVisibilityTest
 import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.example.TestError
@@ -18,8 +18,10 @@ import org.example.TestSkippedNested
 import org.example.TestSucceed
 import org.example.TestSucceedAndSkipped
 import org.example.TestSucceedGroups
+import org.example.TestSucceedMultiple
 import org.example.TestSucceedNested
 import org.testng.TestNG
+import org.testng.xml.SuiteXmlParser
 
 abstract class TestNGTest extends CiVisibilityTest {
 
@@ -495,6 +497,166 @@ abstract class TestNGTest extends CiVisibilityTest {
 
     where:
     testTags = testCaseTagsIfSuiteSetUpFailedOrSkipped("Ignore reason in class")
+  }
+
+  def "test successful test cases executed in parallel"() {
+    setup:
+    def testNG = new TestNG()
+    testNG.setTestClasses(TestSucceedMultiple)
+    testNG.setOutputDirectory(testOutputDir)
+    testNG.setParallel("methods")
+    testNG.run()
+
+    expect:
+    ListWriterAssert.assertTraces(TEST_WRITER, 3, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long testSuiteId
+      trace(2, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSucceedMultiple", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedMultiple", "test_succeed", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedMultiple", "test_succeed_another", CIConstants.TEST_PASS)
+      }
+    })
+  }
+
+  def "test parameterized tests executed in parallel"() {
+    setup:
+    def testNG = new TestNG()
+    testNG.setTestClasses(TestParameterized)
+    testNG.setOutputDirectory(testOutputDir)
+    testNG.setParallel("methods")
+    testNG.run()
+
+    expect:
+    ListWriterAssert.assertTraces(TEST_WRITER, 3, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long testSuiteId
+      trace(2, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestParameterized", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterized", "parameterized_test_succeed", CIConstants.TEST_PASS, testTags_0)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterized", "parameterized_test_succeed", CIConstants.TEST_PASS, testTags_1)
+      }
+    })
+
+    where:
+    testTags_0 = [(Tags.TEST_PARAMETERS): '{"arguments":{"0":"hello","1":"true"}}']
+    testTags_1 = [(Tags.TEST_PARAMETERS): '{"arguments":{"0":"\\\"goodbye\\\"","1":"false"}}']
+  }
+
+  def "test successful test cases executed in parallel with TESTS parallel mode"() {
+    setup:
+    def suiteXml = """
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd" >
+<suite name="API Test Suite" parallel="tests" configfailurepolicy="continue">
+    <test name="Test A">
+        <classes>
+            <class name="org.example.TestSucceedMultiple">
+                <methods>
+                    <include name="test_succeed"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+
+    <test name="Test B">
+        <classes>
+            <class name="org.example.TestSucceedMultiple">
+                <methods>
+                    <include name="test_succeed_another"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+</suite>
+    """
+
+    def parser = new SuiteXmlParser()
+    def xmlSuite = parser.parse("testng.xml", new ByteArrayInputStream(suiteXml.bytes), true)
+
+    def testNG = new TestNG()
+    testNG.setOutputDirectory(testOutputDir)
+    testNG.setParallel("tests")
+    testNG.setXmlSuites(Collections.singletonList(xmlSuite))
+    testNG.run()
+
+    expect:
+    ListWriterAssert.assertTraces(TEST_WRITER, 3, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long testSuiteId
+      trace(2, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSucceedMultiple", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedMultiple", "test_succeed", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedMultiple", "test_succeed_another", CIConstants.TEST_PASS)
+      }
+    })
+  }
+
+  def "test successful test cases executed in parallel with TESTS parallel mode and not all test methods included"() {
+    setup:
+    def suiteXml = """
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd" >
+<suite name="API Test Suite" parallel="tests" configfailurepolicy="continue">
+    <test name="Test A">
+        <classes>
+            <class name="org.example.TestSucceedThreeCases">
+                <methods>
+                    <include name="test_succeed_a"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+
+    <test name="Test B">
+        <classes>
+            <class name="org.example.TestSucceedThreeCases">
+                <methods>
+                    <include name="test_succeed_b"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+</suite>
+    """
+
+    def parser = new SuiteXmlParser()
+    def xmlSuite = parser.parse("testng.xml", new ByteArrayInputStream(suiteXml.bytes), true)
+
+    def testNG = new TestNG()
+    testNG.setOutputDirectory(testOutputDir)
+    testNG.setParallel("tests")
+    testNG.setXmlSuites(Collections.singletonList(xmlSuite))
+    testNG.run()
+
+    expect:
+    ListWriterAssert.assertTraces(TEST_WRITER, 3, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long testSuiteId
+      trace(2, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSucceedThreeCases", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedThreeCases", "test_succeed_a", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedThreeCases", "test_succeed_b", CIConstants.TEST_PASS)
+      }
+    })
   }
 
   @Override

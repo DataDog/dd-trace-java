@@ -2,6 +2,7 @@ package server
 
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.Future
+import io.vertx.core.http.HttpServerOptions
 import io.vertx.ext.web.Router
 import spock.lang.Ignore
 
@@ -71,7 +72,7 @@ class VertxRxHttpServerForkedTest extends VertxHttpServerForkedTest {
         }
       }
 
-      super.@vertx.createHttpServer()
+      super.@vertx.createHttpServer(new HttpServerOptions().setHandle100ContinueAutomatically(true))
         .requestHandler { router.accept(it) }
         .listen(port) { startFuture.complete() }
     }

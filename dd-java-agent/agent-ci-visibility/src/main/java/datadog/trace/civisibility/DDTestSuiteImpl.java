@@ -7,17 +7,17 @@ import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestSuite;
-import datadog.trace.api.civisibility.codeowners.Codeowners;
 import datadog.trace.api.civisibility.decorator.TestDecorator;
-import datadog.trace.api.civisibility.source.MethodLinesResolver;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.context.SpanTestContext;
 import datadog.trace.civisibility.context.TestContext;
+import datadog.trace.civisibility.source.MethodLinesResolver;
 import java.lang.reflect.Method;
 import javax.annotation.Nullable;
 
@@ -34,6 +34,7 @@ public class DDTestSuiteImpl implements DDTestSuite {
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
   private final MethodLinesResolver methodLinesResolver;
+  private final boolean parallelized;
 
   public DDTestSuiteImpl(
       TestContext moduleContext,
@@ -45,7 +46,8 @@ public class DDTestSuiteImpl implements DDTestSuite {
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
-      MethodLinesResolver methodLinesResolver) {
+      MethodLinesResolver methodLinesResolver,
+      boolean parallelized) {
     this.moduleName = moduleName;
     this.moduleContext = moduleContext;
     this.testSuiteName = testSuiteName;
@@ -54,6 +56,7 @@ public class DDTestSuiteImpl implements DDTestSuite {
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
+    this.parallelized = parallelized;
 
     AgentSpan moduleSpan = this.moduleContext.getSpan();
     AgentSpan.Context moduleSpanContext = moduleSpan != null ? moduleSpan.context() : null;
@@ -89,8 +92,10 @@ public class DDTestSuiteImpl implements DDTestSuite {
 
     testDecorator.afterStart(span);
 
-    final AgentScope scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
+    if (!parallelized) {
+      final AgentScope scope = activateSpan(span);
+      scope.setAsyncPropagation(true);
+    }
   }
 
   @Override
@@ -115,34 +120,39 @@ public class DDTestSuiteImpl implements DDTestSuite {
 
   @Override
   public void end(@Nullable Long endTime) {
-    final AgentScope scope = AgentTracer.activeScope();
-    if (scope == null) {
-      throw new IllegalStateException(
-          "No active scope present, it is possible that end() was called multiple times");
-    }
+    if (!parallelized) {
+      final AgentScope scope = AgentTracer.activeScope();
+      if (scope == null) {
+        throw new IllegalStateException(
+            "No active scope present, it is possible that end() was called multiple times");
+      }
 
-    AgentSpan scopeSpan = scope.span();
-    if (scopeSpan != span) {
-      throw new IllegalStateException(
-          "Active scope does not correspond to the finished suite, "
-              + "it is possible that end() was called multiple times "
-              + "or an operation that was started by the suite is still in progress; "
-              + "active scope span is: "
-              + scopeSpan);
-    }
+      AgentSpan scopeSpan = scope.span();
+      if (scopeSpan != span) {
+        throw new IllegalStateException(
+            "Active scope does not correspond to the finished suite, "
+                + "it is possible that end() was called multiple times "
+                + "or an operation that was started by the suite is still in progress; "
+                + "active scope span is: "
+                + scopeSpan);
+      }
 
-    scope.close();
+      scope.close();
+    }
 
     testDecorator.beforeFinish(span);
 
     String status = context.getStatus();
-    span.setTag(Tags.TEST_STATUS, status);
-    moduleContext.reportChildStatus(status);
+    if (status != null) {
+      // do not report test suite if no execution took place
+      span.setTag(Tags.TEST_STATUS, status);
+      moduleContext.reportChildStatus(status);
 
-    if (endTime != null) {
-      span.finish(endTime);
-    } else {
-      span.finish();
+      if (endTime != null) {
+        span.finish(endTime);
+      } else {
+        span.finish();
+      }
     }
   }
 
