@@ -35,7 +35,7 @@ class SslSocketTest extends AgentTestRunner {
     setup:
     HttpsURLConnection.setDefaultSSLSocketFactory(server.sslContext.getSocketFactory())
     URL url = server.getSecureAddress().resolve("/success").toURL()
-    int CONNECTION_STRUCT_SIZE = 48
+    int connectionObjectSize = 48
     HttpsURLConnection conn = (HttpsURLConnection) url.openConnection()
     conn.setRequestMethod(method)
     conn.setRequestProperty("Content-Type", "text/plain")
@@ -63,7 +63,7 @@ class SslSocketTest extends AgentTestRunner {
         it.get() == (byte)MessageEncoder.MessageType.SYNCHRONOUS_PAYLOAD.ordinal()
 
         //skip connection struct
-        it.position(1 + CONNECTION_STRUCT_SIZE)
+        it.position(1 + connectionObjectSize)
 
         //read payload size
         def payloadSize = it.getInt()
@@ -76,7 +76,7 @@ class SslSocketTest extends AgentTestRunner {
         str.length() == payloadSize
 
         //check the message is an HTTP POST Message
-        str.startsWith("POST") || str.startsWith("HTTP")
+        str.startsWith(method)
       }})
 
     where:
