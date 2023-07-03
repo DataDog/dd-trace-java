@@ -274,7 +274,18 @@ public class AgentTracer {
 
     CallbackProvider getUniversalCallbackProvider();
 
-    void setDataStreamCheckpoint(AgentSpan span, LinkedHashMap<String, String> sortedTags);
+    /**
+     * Sets data streams checkpoint, used for both produce and consume operations.
+     *
+     * @param span active span
+     * @param sortedTags alphabetically sorted tags for the checkpoint (direction, queue type etc)
+     * @param defaultTimestamp unix timestamp to use as a start of the pathway if this is the first
+     *     checkpoint in the chain. Zero should be passed if we can't extract the timestamp from the
+     *     message / payload itself (for instance: produce operations; http produce / consume etc).
+     *     Value will be ignored for checkpoints happening not at the start of the pipeline.
+     */
+    void setDataStreamCheckpoint(
+        AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp);
 
     AgentSpan.Context notifyExtensionStart(Object event);
 
@@ -515,7 +526,8 @@ public class AgentTracer {
     }
 
     @Override
-    public void setDataStreamCheckpoint(AgentSpan span, LinkedHashMap<String, String> sortedTags) {}
+    public void setDataStreamCheckpoint(
+        AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp) {}
 
     @Override
     public AgentSpan.Context notifyExtensionStart(Object event) {
@@ -1086,6 +1098,12 @@ public class AgentTracer {
     public long getHash() {
       return 0L;
     }
+
+    @Override
+    public void setCheckpoint(
+        LinkedHashMap<String, String> sortedTags,
+        Consumer<StatsPoint> pointConsumer,
+        long defaultTimestamp) {}
 
     @Override
     public void setCheckpoint(
