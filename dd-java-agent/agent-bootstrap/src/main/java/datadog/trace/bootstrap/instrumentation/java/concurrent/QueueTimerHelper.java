@@ -20,4 +20,19 @@ public class QueueTimerHelper {
       state.setTiming(timing);
     }
   }
+
+  public static <T> Class<?> unwrap(T task) {
+    return getUnwrappedType(task);
+  }
+
+  public static <T> void startQueuingTimer(
+      State state, Class<?> schedulerClass, Class<?> unwrappedTaskClass, T task) {
+    if (task != null) {
+      QueueTiming timing =
+          (QueueTiming) AgentTracer.get().getTimer().start(Timer.TimerType.QUEUEING);
+      timing.setTask(unwrappedTaskClass);
+      timing.setScheduler(schedulerClass);
+      state.setTiming(timing);
+    }
+  }
 }

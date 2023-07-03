@@ -27,7 +27,17 @@ public class TaskUnwrappingInstrumentation extends Instrumenter.Profiling
     "java.util.concurrent.ForkJoinTask$AdaptedRunnableAction",
     "runnable",
     "java.util.concurrent.ForkJoinTask$RunnableExecuteAction",
-    "runnable"
+    "runnable",
+    // netty
+    "io.netty.util.concurrent.PromiseTask$RunnableAdapter",
+    "task",
+    "io.netty.util.concurrent.PromiseTask",
+    "task",
+    // netty shaded into gRPC
+    "io.grpc.netty.shaded.io.netty.util.concurrent.PromiseTask$RunnableAdapter",
+    "task",
+    "io.grpc.netty.shaded.io.netty.util.concurrent.PromiseTask",
+    "task"
   };
 
   @Override
