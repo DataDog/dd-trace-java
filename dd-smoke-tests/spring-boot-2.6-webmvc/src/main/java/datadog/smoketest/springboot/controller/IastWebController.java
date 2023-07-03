@@ -18,6 +18,15 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.websocket.server.PathParam;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpressionException;
+import javax.xml.xpath.XPathFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.MatrixVariable;
@@ -31,17 +40,21 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.view.RedirectView;
 import org.springframework.web.servlet.view.UrlBasedViewResolver;
+import org.w3c.dom.Document;
+import org.xml.sax.SAXException;
 
 @RestController
 public class IastWebController {
 
+  private final Resource xml;
   private final Hasher hasher;
   private final Random random;
 
-  public IastWebController() {
+  public IastWebController(@Value("classpath:xpathi.xml") final Resource resource) {
     hasher = new Hasher();
     hasher.sha1();
     random = new Random();
+    xml = resource;
   }
 
   @RequestMapping("/greeting")
@@ -231,6 +244,24 @@ public class IastWebController {
       result = random.nextDouble();
     }
     return "Random : " + result;
+  }
+
+  @GetMapping("/xpathi/compile")
+  public String xpathInjectionCompile(final HttpServletRequest request)
+      throws XPathExpressionException {
+    XPathFactory.newInstance().newXPath().compile(request.getParameter("expression"));
+    return "XPath Injection page";
+  }
+
+  @GetMapping("/xpathi/evaluate")
+  public String xpathInjectionEvaluate(final HttpServletRequest request)
+      throws XPathExpressionException, ParserConfigurationException, IOException, SAXException {
+    DocumentBuilder b = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+    Document doc = b.parse(xml.getInputStream());
+    String expression = request.getParameter("expression");
+    XPath xPath = XPathFactory.newInstance().newXPath();
+    xPath.evaluate(expression, doc.getDocumentElement(), XPathConstants.NODESET);
+    return "XPath Injection page";
   }
 
   private void withProcess(final Operation<Process> op) {
