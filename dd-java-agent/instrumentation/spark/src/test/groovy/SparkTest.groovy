@@ -181,6 +181,7 @@ class SparkTest extends AgentTestRunner {
 
     try {
       // Generating a fake spark submit to trigger the runMain() method
+      // it will fail since TestClass and test-jar.jar don't exist
       def sparkSubmit = new SparkSubmit()
       sparkSubmit.doSubmit(["--class", "TestClass", "test-jar.jar"] as String[])
     }
@@ -194,6 +195,8 @@ class SparkTest extends AgentTestRunner {
           resourceName "spark.application"
           spanType "spark"
           errored true
+          assert span.tags["error.type"] == "org.apache.spark.SparkUserAppException"
+          assert span.tags["error.message"] == "User application exited with 101"
           parent()
         }
       }
