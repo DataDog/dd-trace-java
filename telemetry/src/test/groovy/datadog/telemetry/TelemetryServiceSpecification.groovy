@@ -74,10 +74,6 @@ class TelemetryServiceSpecification extends DDSpecification {
       p.integrations.isEmpty()
     })
     1 * httpClient.newCall(_) >> okResponse
-
-    then: 'and app-heartbeat'
-    1 * requestBuilder.build(RequestType.APP_HEARTBEAT, null)
-    1 * httpClient.newCall(_) >> okResponse
     0 * _
 
     when: 'second iteration'
@@ -109,6 +105,10 @@ class TelemetryServiceSpecification extends DDSpecification {
       p.integrations == [integration]
     })
     1 * httpClient.newCall(_) >> okResponse
+    0 * _
+
+    when:
+    telemetryService.sendIntervalRequests()
 
     then:
     1 * requestBuilder.build(RequestType.APP_HEARTBEAT, null)
@@ -147,10 +147,6 @@ class TelemetryServiceSpecification extends DDSpecification {
       p.dependencies == []
       p.integrations == []
     })
-    1 * httpClient.newCall(_) >> okResponse
-
-    then:
-    1 * requestBuilder.build(RequestType.APP_HEARTBEAT, null)
     1 * httpClient.newCall(_) >> okResponse
     0 * _
 
@@ -260,10 +256,6 @@ class TelemetryServiceSpecification extends DDSpecification {
       p.integrations.isEmpty()
     })
     1 * httpClient.newCall(_) >> okResponse
-
-    then:
-    1 * requestBuilder.build(RequestType.APP_HEARTBEAT, null)
-    1 * httpClient.newCall(_) >> okResponse
     0 * _
   }
 
@@ -272,8 +264,8 @@ class TelemetryServiceSpecification extends DDSpecification {
     telemetryService.sendIntervalRequests()
 
     then:
-    2 * requestBuilder.build(_, _)
-    2 * httpClient.newCall(_) >> okResponse
+    1 * requestBuilder.build(_, _)
+    1 * httpClient.newCall(_) >> okResponse
     0 * _
 
     when: 'add data'
@@ -314,8 +306,8 @@ class TelemetryServiceSpecification extends DDSpecification {
     telemetryService.sendIntervalRequests()
 
     then:
-    2 * requestBuilder.build(_, _)
-    2 * httpClient.newCall(_) >> okResponse
+    1 * requestBuilder.build(_, _)
+    1 * httpClient.newCall(_) >> okResponse
     0 * _
 
     when: 'add data'
