@@ -1,11 +1,15 @@
 package datadog.trace.instrumentation.tomcat7;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
+import datadog.trace.bootstrap.instrumentation.decorator.StacktraceLeakDecorator;
 
 import java.io.IOException;
 import java.io.Writer;
+
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
 public class ErrorReportValueAdvice {
 
@@ -24,6 +28,11 @@ public class ErrorReportValueAdvice {
         //    and that error has not been reported.
         if (statusCode < 400 || response.getContentWritten() > 0 || !response.isError()) {
             return true;    // skip original method
+        }
+
+        final AgentSpan span = activeSpan();
+        if (span != null && throwable != null) {
+            StacktraceLeakDecorator.DECORATE.onStacktraceLeak(span, throwable, false);
         }
 
         StringBuilder sb = new StringBuilder();
