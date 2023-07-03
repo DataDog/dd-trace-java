@@ -26,6 +26,7 @@ import scala.Tuple2;
  */
 public class DatadogSparkListener extends SparkListener {
   public static volatile DatadogSparkListener listener = null;
+  public static volatile boolean finishTraceOnApplicationEnd = true;
 
   private final int MAX_COLLECTION_SIZE = 1000;
 
@@ -92,16 +93,21 @@ public class DatadogSparkListener extends SparkListener {
 
   @Override
   public void onApplicationEnd(SparkListenerApplicationEnd applicationEnd) {
-    finishApplication(applicationEnd.time(), 0, null);
+    if (finishTraceOnApplicationEnd) {
+      finishApplication(applicationEnd.time(), null, 0, null);
+    }
   }
 
-  public synchronized void finishApplication(long time, int exitCode, String msg) {
+  public synchronized void finishApplication(
+      long time, Throwable throwable, int exitCode, String msg) {
     if (applicationEnded) {
       return;
     }
     applicationEnded = true;
 
-    if (exitCode != 0) {
+    if (throwable != null) {
+      applicationSpan.addThrowable(throwable);
+    } else if (exitCode != 0) {
       applicationSpan.setError(true);
       applicationSpan.setTag(
           DDTags.ERROR_TYPE, "Spark Application Failed with exit code " + exitCode);
