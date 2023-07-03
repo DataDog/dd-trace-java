@@ -76,7 +76,15 @@ class MavenSmokeTest extends Specification {
       }
 
       prefix("/api/v2/ci/tests/skippable") {
-        response.status(200).send('{ "data": [] }')
+        response.status(200).send('{ "data": [{' +
+          '  "id": "d230520a0561ee2f",' +
+          '  "type": "test",' +
+          '  "attributes": {' +
+          '    "configurations": {},' +
+          '    "name": "test_to_skip_with_itr",' +
+          '    "suite": "datadog.smoke.TestSucceed"' +
+          '  }' +
+          '}] }')
       }
     }
   }
@@ -98,8 +106,8 @@ class MavenSmokeTest extends Specification {
     then:
     exitCode == 0
 
-    def events = waitForEvents(4)
-    assert events.size() == 4
+    def events = waitForEvents(5)
+    assert events.size() == 5
 
     def sessionEndEvent = events.find { it.type == "test_session_end" }
     verifyCommonTags(sessionEndEvent)
@@ -114,6 +122,7 @@ class MavenSmokeTest extends Specification {
           it["span.kind"] == "test_session_end"
           it["language"] == "jvm" // only applied to root spans
           it["test.toolchain"] == "maven:${mavenVersion}" // only applied to session events
+          it["test.status"] == "pass"
         }
       }
     }
@@ -130,6 +139,7 @@ class MavenSmokeTest extends Specification {
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
           it["test.module"] == "Maven Smoke Tests Project test" // project name + execution goal
+          it["test.status"] == "pass"
         }
       }
     }
@@ -152,11 +162,12 @@ class MavenSmokeTest extends Specification {
           it["test.suite"] == "datadog.smoke.TestSucceed"
           it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
           it["ci.provider.name"] == "jenkins"
+          it["test.status"] == "pass"
         }
       }
     }
 
-    def testEvent = events.find { it.type == "test" }
+    def testEvent = events.find { it.type == "test" && it.content.resource == "datadog.smoke.TestSucceed.test_succeed" }
     verifyCommonTags(testEvent, false)
     verifyAll(testEvent) {
       verifyAll(content) {
@@ -177,6 +188,34 @@ class MavenSmokeTest extends Specification {
           it["test.name"] == "test_succeed"
           it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
           it["ci.provider.name"] == "jenkins"
+          it["test.status"] == "pass"
+        }
+      }
+    }
+
+    def skippedTestEvent = events.find { it.type == "test" && it.content.resource == "datadog.smoke.TestSucceed.test_to_skip_with_itr" }
+    verifyCommonTags(skippedTestEvent, false)
+    verifyAll(skippedTestEvent) {
+      verifyAll(content) {
+        name == "junit.test"
+        resource == "datadog.smoke.TestSucceed.test_to_skip_with_itr"
+        test_session_id == sessionEndEvent.content.test_session_id
+        test_module_id == moduleEndEvent.content.test_module_id
+        test_suite_id == suiteEndEvent.content.test_suite_id
+        trace_id > 0
+        span_id > 0
+        parent_id == 0
+        verifyAll(metrics) {
+          process_id > 0
+        }
+        verifyAll(meta) {
+          it["span.kind"] == "test"
+          it["test.suite"] == "datadog.smoke.TestSucceed"
+          it["test.name"] == "test_to_skip_with_itr"
+          it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
+          it["ci.provider.name"] == "jenkins"
+          it["test.status"] == "skip"
+          it["test.skip_reason"] == "Skipped by Datadog Intelligent Test Runner"
         }
       }
     }
@@ -319,6 +358,7 @@ class MavenSmokeTest extends Specification {
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED)}=true," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED)}=true," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED)}=true," +
+        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED)}=false," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=0.8.10," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES)}=datadog.smoke.*," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${intakeServer.address.toString()}"
@@ -374,7 +414,6 @@ class MavenSmokeTest extends Specification {
         error == 0
         verifyAll(meta) {
           it["test.type"] == "test"
-          it["test.status"] == "pass"
 
           if (buildEvent) {
             // Maven 4 sets "-B" flag ("batch", non-interactive mode)

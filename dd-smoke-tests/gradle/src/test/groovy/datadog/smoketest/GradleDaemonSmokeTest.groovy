@@ -97,7 +97,15 @@ class GradleDaemonSmokeTest extends Specification {
       }
 
       prefix("/api/v2/ci/tests/skippable") {
-        response.status(200).send('{ "data": [] }')
+        response.status(200).send('{ "data": [{' +
+          '  "id": "d230520a0561ee2f",' +
+          '  "type": "test",' +
+          '  "attributes": {' +
+          '    "configurations": {},' +
+          '    "name": "test_to_skip_with_itr",' +
+          '    "suite": "datadog.smoke.TestSucceed"' +
+          '  }' +
+          '}] }')
       }
     }
   }
@@ -128,8 +136,8 @@ class GradleDaemonSmokeTest extends Specification {
     then:
     assertBuildSuccessful(buildResult)
 
-    def events = waitForEvents(4)
-    assert events.size() == 4
+    def events = waitForEvents(5)
+    assert events.size() == 5
 
     def sessionEndEvent = events.find { it.type == "test_session_end" }
     assert sessionEndEvent != null
@@ -180,12 +188,11 @@ class GradleDaemonSmokeTest extends Specification {
           it["span.kind"] == "test_suite_end"
           it["test.suite"] == "datadog.smoke.TestSucceed"
           it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
-          it["ci.provider.name"] == "jenkins"
         }
       }
     }
 
-    def testEvent = events.find { it.type == "test" }
+    def testEvent = events.find { it.type == "test" && it.content.resource == "datadog.smoke.TestSucceed.test_succeed" }
     assert testEvent != null
     verifyCommonTags(testEvent, "pass", true, false)
     verifyAll(testEvent) {
@@ -205,7 +212,31 @@ class GradleDaemonSmokeTest extends Specification {
           it["test.suite"] == "datadog.smoke.TestSucceed"
           it["test.name"] == "test_succeed"
           it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
-          it["ci.provider.name"] == "jenkins"
+        }
+      }
+    }
+
+    def skippedTestEvent = events.find { it.type == "test" && it.content.resource == "datadog.smoke.TestSucceed.test_to_skip_with_itr" }
+    assert skippedTestEvent != null
+    verifyCommonTags(skippedTestEvent, "skip", true, false)
+    verifyAll(skippedTestEvent) {
+      verifyAll(content) {
+        name == "junit.test"
+        resource == "datadog.smoke.TestSucceed.test_to_skip_with_itr"
+        test_module_id > 0
+        test_suite_id > 0
+        trace_id > 0
+        span_id > 0
+        parent_id == 0
+        verifyAll(metrics) {
+          process_id > 0
+        }
+        verifyAll(meta) {
+          it["span.kind"] == "test"
+          it["test.suite"] == "datadog.smoke.TestSucceed"
+          it["test.name"] == "test_to_skip_with_itr"
+          it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
+          it["test.skip_reason"] == "Skipped by Datadog Intelligent Test Runner"
         }
       }
     }
@@ -244,8 +275,8 @@ class GradleDaemonSmokeTest extends Specification {
     then:
     assertBuildSuccessful(buildResult)
 
-    def events = waitForEvents(4)
-    assert events.size() == 4
+    def events = waitForEvents(5)
+    assert events.size() == 5
 
     def sessionEndEvent = events.find { it.type == "test_session_end" }
     assert sessionEndEvent != null
@@ -296,12 +327,11 @@ class GradleDaemonSmokeTest extends Specification {
           it["span.kind"] == "test_suite_end"
           it["test.suite"] == "datadog.smoke.TestSucceed"
           it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
-          it["ci.provider.name"] == "jenkins"
         }
       }
     }
 
-    def testEvent = events.find { it.type == "test" }
+    def testEvent = events.find { it.type == "test" && it.content.resource == "datadog.smoke.TestSucceed.test_succeed" }
     assert testEvent != null
     verifyCommonTags(testEvent, "pass", true, false)
     verifyAll(testEvent) {
@@ -321,7 +351,31 @@ class GradleDaemonSmokeTest extends Specification {
           it["test.suite"] == "datadog.smoke.TestSucceed"
           it["test.name"] == "test_succeed"
           it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
-          it["ci.provider.name"] == "jenkins"
+        }
+      }
+    }
+
+    def skippedTestEvent = events.find { it.type == "test" && it.content.resource == "datadog.smoke.TestSucceed.test_to_skip_with_itr" }
+    assert skippedTestEvent != null
+    verifyCommonTags(skippedTestEvent, "skip", true, false)
+    verifyAll(skippedTestEvent) {
+      verifyAll(content) {
+        name == "junit.test"
+        resource == "datadog.smoke.TestSucceed.test_to_skip_with_itr"
+        test_module_id > 0
+        test_suite_id > 0
+        trace_id > 0
+        span_id > 0
+        parent_id == 0
+        verifyAll(metrics) {
+          process_id > 0
+        }
+        verifyAll(meta) {
+          it["span.kind"] == "test"
+          it["test.suite"] == "datadog.smoke.TestSucceed"
+          it["test.name"] == "test_to_skip_with_itr"
+          it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
+          it["test.skip_reason"] == "Skipped by Datadog Intelligent Test Runner"
         }
       }
     }
@@ -410,7 +464,7 @@ class GradleDaemonSmokeTest extends Specification {
       }
     }
 
-    def suiteAEndEvent = events.find { it.type == "test_suite_end" && it.content.meta["ci.workspace_path"]?.contains("submodule-a") }
+    def suiteAEndEvent = events.find { it.type == "test_suite_end" && it.content.test_module_id == moduleAEndEvent.content.test_module_id }
     assert suiteAEndEvent != null
     verifyCommonTags(suiteAEndEvent, "pass", true, false)
     verifyAll(suiteAEndEvent) {
@@ -425,13 +479,12 @@ class GradleDaemonSmokeTest extends Specification {
         verifyAll(meta) {
           it["span.kind"] == "test_suite_end"
           it["test.suite"] == "datadog.smoke.TestSucceed"
-          it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
-          it["ci.provider.name"] == "jenkins"
+          it["test.source.file"] == "submodule-a/src/test/java/datadog/smoke/TestSucceed.java"
         }
       }
     }
 
-    def testAEvent = events.find { it.type == "test" && it?.content?.meta["ci.workspace_path"]?.contains("submodule-a") }
+    def testAEvent = events.find { it.type == "test" && it.content.test_module_id == moduleAEndEvent.content.test_module_id }
     assert testAEvent != null
     verifyCommonTags(testAEvent, "pass", true, false)
     verifyAll(testAEvent) {
@@ -450,13 +503,12 @@ class GradleDaemonSmokeTest extends Specification {
           it["span.kind"] == "test"
           it["test.suite"] == "datadog.smoke.TestSucceed"
           it["test.name"] == "test_succeed"
-          it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
-          it["ci.provider.name"] == "jenkins"
+          it["test.source.file"] == "submodule-a/src/test/java/datadog/smoke/TestSucceed.java"
         }
       }
     }
 
-    def suiteBEndEvent = events.find { it.type == "test_suite_end" && it.content.meta["ci.workspace_path"]?.contains("submodule-b") }
+    def suiteBEndEvent = events.find { it.type == "test_suite_end" && it.content.test_module_id == moduleBEndEvent.content.test_module_id }
     assert suiteBEndEvent != null
     verifyCommonTags(suiteBEndEvent, "pass", true, false)
     verifyAll(suiteBEndEvent) {
@@ -471,13 +523,12 @@ class GradleDaemonSmokeTest extends Specification {
         verifyAll(meta) {
           it["span.kind"] == "test_suite_end"
           it["test.suite"] == "datadog.smoke.TestSucceed"
-          it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
-          it["ci.provider.name"] == "jenkins"
+          it["test.source.file"] == "submodule-b/src/test/java/datadog/smoke/TestSucceed.java"
         }
       }
     }
 
-    def testBEvent = events.find { it.type == "test" && it?.content?.meta["ci.workspace_path"]?.contains("submodule-b") }
+    def testBEvent = events.find { it.type == "test" && it.content.test_module_id == moduleBEndEvent.content.test_module_id }
     assert testBEvent != null
     verifyCommonTags(testBEvent, "pass", true, false)
     verifyAll(testBEvent) {
@@ -496,8 +547,7 @@ class GradleDaemonSmokeTest extends Specification {
           it["span.kind"] == "test"
           it["test.suite"] == "datadog.smoke.TestSucceed"
           it["test.name"] == "test_succeed"
-          it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
-          it["ci.provider.name"] == "jenkins"
+          it["test.source.file"] == "submodule-b/src/test/java/datadog/smoke/TestSucceed.java"
         }
       }
     }
@@ -579,7 +629,6 @@ class GradleDaemonSmokeTest extends Specification {
           it["span.kind"] == "test_suite_end"
           it["test.suite"] == "datadog.smoke.TestFailed"
           it["test.source.file"] == "src/test/java/datadog/smoke/TestFailed.java"
-          it["ci.provider.name"] == "jenkins"
         }
       }
     }
@@ -604,7 +653,6 @@ class GradleDaemonSmokeTest extends Specification {
           it["test.suite"] == "datadog.smoke.TestFailed"
           it["test.name"] == "test_failed"
           it["test.source.file"] == "src/test/java/datadog/smoke/TestFailed.java"
-          it["ci.provider.name"] == "jenkins"
         }
       }
     }
@@ -723,6 +771,8 @@ class GradleDaemonSmokeTest extends Specification {
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED)}=true," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED)}=true," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED)}=true," +
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED)}=false," +
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED)}=false," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=0.8.10," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES)}=datadog.smoke.*," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${intakeServer.address.toString()}"
@@ -745,6 +795,9 @@ class GradleDaemonSmokeTest extends Specification {
           return FileVisitResult.CONTINUE
         }
       })
+
+    // creating empty .git directory so that the tracer could detect projectFolder as repo root
+    Files.createDirectory(projectFolder.resolve(".git"))
   }
 
   private BuildResult runGradleTests(String gradleVersion, boolean successExpected = true) {

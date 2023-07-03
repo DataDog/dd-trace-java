@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.ci
 
+import datadog.trace.api.Config
 import datadog.trace.api.git.GitInfoProvider
 import datadog.trace.api.git.UserSuppliedGitInfoBuilder
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -42,7 +43,7 @@ class UnknownCIInfoTest extends CITagsProviderTest {
     ]
 
     when:
-    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(GIT_FOLDER_FOR_TESTS)
+    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), GIT_FOLDER_FOR_TESTS)
     def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(workspaceForTests)
     def ciInfo = ciProviderInfo.buildCIInfo()
     def ciTagsProvider = ciTagsProvider()
@@ -58,7 +59,7 @@ class UnknownCIInfoTest extends CITagsProviderTest {
     gitInfoProvider.registerGitInfoBuilder(new UserSuppliedGitInfoBuilder())
     gitInfoProvider.registerGitInfoBuilder(new CIProviderGitInfoBuilder())
     gitInfoProvider.registerGitInfoBuilder(new CILocalGitInfoBuilder("this-target-folder-does-not-exist"))
-    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory("this-target-folder-does-not-exist")
+    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), "this-target-folder-does-not-exist")
 
     def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(workspaceForTests)
     def ciInfo = ciProviderInfo.buildCIInfo()
