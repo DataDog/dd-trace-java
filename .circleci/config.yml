@@ -187,13 +187,13 @@ commands:
       - restore_cache:
           keys:
             # Dependent steps will find this cache
-            - dd-trace-java-dep<< parameters.cacheType >>-v3-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+            - dd-trace-java-dep<< parameters.cacheType >>-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
             # New branch commits will find this cache
-            - dd-trace-java-dep<< parameters.cacheType >>-v3-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
+            - dd-trace-java-dep<< parameters.cacheType >>-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
             # New branches fall back on main build caches
-            - dd-trace-java-dep<< parameters.cacheType >>-v3-master-{{ checksum "_circle_ci_cache_base_id" }}-
+            - dd-trace-java-dep<< parameters.cacheType >>-v4-master-{{ checksum "_circle_ci_cache_base_id" }}-
             # Fallback to the previous cache during transition
-            - dd-trace-java-dep<< parameters.cacheType >>-v2-master-{{ checksum "_circle_ci_cache_base_id" }}-
+            - dd-trace-java-dep<< parameters.cacheType >>-v3-master-{{ checksum "_circle_ci_cache_base_id" }}-
 
   save_dependency_cache:
     parameters:
@@ -201,7 +201,7 @@ commands:
         type: string
     steps:
       - save_cache:
-          key: dd-trace-java-dep<< parameters.cacheType >>-v3-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+          key: dd-trace-java-dep<< parameters.cacheType >>-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
           paths:
             # Cached dependencies and wrappers for gradle
             - ~/.gradle/caches
@@ -223,7 +223,7 @@ commands:
       - restore_cache:
           keys:
             # Dependent steps will find this cache
-            - dd-trace-java-build<< parameters.cacheType >>-v3-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+            - dd-trace-java-build<< parameters.cacheType >>-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
 
   save_build_cache:
     parameters:
@@ -231,11 +231,11 @@ commands:
         type: string
     steps:
       - save_cache:
-          key: dd-trace-java-build<< parameters.cacheType >>-v3-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+          key: dd-trace-java-build<< parameters.cacheType >>-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
           paths:
             # Gradle version specific cache for incremental builds. Needs to match version in
             # gradle/wrapper/gradle-wrapper.properties
-            - ~/.gradle/caches/8.1
+            - ~/.gradle/caches/8.2
             # Workspace
             - ~/dd-trace-java/.gradle
             - ~/dd-trace-java/workspace
