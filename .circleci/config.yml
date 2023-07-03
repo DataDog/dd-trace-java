@@ -804,6 +804,14 @@ jobs:
             DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh APM_TRACING_E2E_SINGLE_SPAN
 
       - run:
+          name: Run APM Integrations tests
+          # Stop the job after 5m to avoid excessive overhead. Will need adjustment as more tests are added.
+          no_output_timeout: 5m
+          command: |
+            cd system-tests
+            DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh INTEGRATIONS
+
+      - run:
           name: Upload data to CI Visibility
           command: |
             cd system-tests
