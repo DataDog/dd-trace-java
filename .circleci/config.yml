@@ -833,7 +833,7 @@ jobs:
 
       - run:
           name: Collect artifacts
-          command: tar -cvzf logs_java_<< parameters.weblog-variant >>_dev.tar.gz -C system-tests logs logs_apm_tracing_e2e logs_apm_tracing_e2e_single_span
+          command: tar -cvzf logs_java_<< parameters.weblog-variant >>_dev.tar.gz -C system-tests logs logs_apm_tracing_e2e logs_apm_tracing_e2e_single_span logs_integrations
 
       - store_artifacts:
           path: logs_java_<< parameters.weblog-variant >>_dev.tar.gz
