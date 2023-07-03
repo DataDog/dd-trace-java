@@ -98,8 +98,10 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
   @Override
   public void onTestModuleFinish(boolean itrTestsSkipped) {
-    testModule.end(null, itrTestsSkipped);
-    testModule = null;
+    if (testModule != null) {
+      testModule.end(null, itrTestsSkipped);
+      testModule = null;
+    }
   }
 
   @Override
