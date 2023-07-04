@@ -54,11 +54,6 @@ public class WebModuleImpl implements WebModule {
   }
 
   @Override
-  public void onCookieValue(@Nullable final String cookieName, @Nullable final String cookieValue) {
-    onNamed(cookieName, cookieValue, SourceTypes.REQUEST_COOKIE_VALUE);
-  }
-
-  @Override
   public void onQueryString(@Nullable final String queryString) {
     if (!canBeTainted(queryString)) {
       return;

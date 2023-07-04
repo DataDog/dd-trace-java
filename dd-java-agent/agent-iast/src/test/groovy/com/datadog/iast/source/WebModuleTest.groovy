@@ -41,8 +41,6 @@ class WebModuleTest extends IastModuleImplTestBase {
     'onHeaderValues'    | ['', []]
     'onCookieNames'     | [null]
     'onCookieNames'     | [[]]
-    'onCookieValue'     | [null, null]
-    'onCookieValue'     | ['', '']
   }
 
   void 'test #method: without span'() {
@@ -62,7 +60,6 @@ class WebModuleTest extends IastModuleImplTestBase {
     'onHeaderNames'     | [['header']]
     'onHeaderValues'    | ['name', ['value']]
     'onCookieNames'     | [['name']]
-    'onCookieValue'     | ['name', 'value']
     'onNamed'           | ['name', ['v1'], (byte)0]
     'onNamed'           | ['name', ['v1'] as String[], (byte)0]
     'onNamed'           | [[name: 'v1'], (byte)0]

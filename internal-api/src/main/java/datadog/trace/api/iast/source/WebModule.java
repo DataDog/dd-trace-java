@@ -28,8 +28,6 @@ public interface WebModule extends IastModule {
 
   void onCookieNames(@Nullable Iterable<String> cookieNames);
 
-  void onCookieValue(@Nullable String cookieName, @Nullable String cookieValue);
-
   void onRequestPathParameter(
       @Nullable String paramName, @Nullable String value, @Nonnull Object iastRequestContext);
 
