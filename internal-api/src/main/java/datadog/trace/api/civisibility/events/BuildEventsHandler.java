@@ -1,13 +1,13 @@
 package datadog.trace.api.civisibility.events;
 
-import datadog.trace.api.civisibility.decorator.TestDecorator;
+import java.nio.file.Path;
 import java.util.Map;
 
 public interface BuildEventsHandler<T> {
   void onTestSessionStart(
       T sessionKey,
-      TestDecorator sessionDecorator,
       String projectName,
+      Path projectRoot,
       String startCommand,
       String buildSystemName,
       String buildSystemVersion);

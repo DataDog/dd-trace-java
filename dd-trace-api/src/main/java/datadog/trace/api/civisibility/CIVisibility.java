@@ -1,13 +1,15 @@
 package datadog.trace.api.civisibility;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import javax.annotation.Nullable;
 
 public class CIVisibility {
 
   private static volatile SessionFactory SESSION_FACTORY =
-      (projectName, component, startTime) -> {
+      (projectName, projectRoot, component, startTime) -> {
         throw new UnsupportedOperationException(
-            "session factory not registered, " + "please ensure CI Visibility feature is enabled");
+            "session factory not registered, please ensure CI Visibility feature is enabled");
       };
 
   /**
@@ -32,10 +34,17 @@ public class CIVisibility {
    */
   public static DDTestSession startSession(
       String projectName, String component, @Nullable Long startTime) {
-    return SESSION_FACTORY.startSession(projectName, component, startTime);
+    Path projectRoot = Paths.get("").toAbsolutePath();
+    return SESSION_FACTORY.startSession(projectName, projectRoot, component, startTime);
+  }
+
+  public static DDTestSession startSession(
+      String projectName, Path projectRoot, String component, @Nullable Long startTime) {
+    return SESSION_FACTORY.startSession(projectName, projectRoot, component, startTime);
   }
 
   public interface SessionFactory {
-    DDTestSession startSession(String projectName, String component, Long startTime);
+    DDTestSession startSession(
+        String projectName, Path projectRoot, String component, Long startTime);
   }
 }

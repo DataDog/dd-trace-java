@@ -1,4 +1,4 @@
-package datadog.trace.civisibility
+package datadog.trace.civisibility.decorator
 
 import datadog.trace.api.DDTags
 import datadog.trace.api.sampling.PrioritySampling

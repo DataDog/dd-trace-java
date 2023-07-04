@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.maven3;
 
 import datadog.trace.api.civisibility.InstrumentationBridge;
-import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -37,15 +36,12 @@ public class MavenExecutionListener extends AbstractExecutionListener {
     MavenProject currentProject = session.getCurrentProject();
     Path projectRoot = currentProject.getBasedir().toPath();
 
-    TestDecorator mavenDecorator =
-        InstrumentationBridge.createTestDecorator("maven", null, null, projectRoot);
-
     String projectName = currentProject.getName();
     String startCommand = MavenUtils.getCommandLine(session);
     String mavenVersion = MavenUtils.getMavenVersion(session);
 
     buildEventsHandler.onTestSessionStart(
-        session, mavenDecorator, projectName, startCommand, "maven", mavenVersion);
+        session, projectName, projectRoot, startCommand, "maven", mavenVersion);
 
     Collection<MavenUtils.TestFramework> testFrameworks =
         MavenUtils.collectTestFrameworks(event.getProject());
