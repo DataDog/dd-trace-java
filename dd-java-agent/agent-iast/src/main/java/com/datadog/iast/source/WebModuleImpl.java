@@ -21,12 +21,6 @@ public class WebModuleImpl implements WebModule {
   }
 
   @Override
-  public void onPathParameterValue(
-      @Nullable final String paramName, @Nullable final String paramValue) {
-    onNamed(paramName, paramValue, SourceTypes.REQUEST_PATH_PARAMETER);
-  }
-
-  @Override
   public void onParameterValues(
       @Nullable final String paramName, @Nullable final String[] paramValues) {
     onNamed(paramName, paramValues, SourceTypes.REQUEST_PARAMETER_VALUE);
