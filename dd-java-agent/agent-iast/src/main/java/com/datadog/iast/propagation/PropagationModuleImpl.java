@@ -2,6 +2,7 @@ package com.datadog.iast.propagation;
 
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 
+import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
 import com.datadog.iast.taint.TaintedObject;
@@ -130,6 +131,19 @@ public class PropagationModuleImpl implements PropagationModule {
         return;
       }
     }
+  }
+
+  @Override
+  public void taint(final byte source, @Nullable final String name, @Nullable final String value) {
+    if (!canBeTainted(value)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    taintedObjects.taintInputString(value, new Source(source, name, value));
   }
 
   @Override

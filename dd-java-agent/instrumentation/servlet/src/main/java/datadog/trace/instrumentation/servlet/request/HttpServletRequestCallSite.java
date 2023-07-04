@@ -152,17 +152,17 @@ public class HttpServletRequestCallSite {
       "java.lang.String javax.servlet.http.HttpServletRequestWrapper.getParameter(java.lang.String)")
   public static String afterGetParameter(
       @CallSite.This final HttpServletRequest self,
-      @CallSite.Argument final String paramName,
-      @CallSite.Return final String paramValue) {
-    final WebModule module = InstrumentationBridge.WEB;
+      @CallSite.Argument final String name,
+      @CallSite.Return final String value) {
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.onParameterValue(paramName, paramValue);
+        module.taint(SourceTypes.REQUEST_PARAMETER_VALUE, name, value);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetParameter threw", e);
       }
     }
-    return paramValue;
+    return value;
   }
 
   @Source(SourceTypes.REQUEST_PARAMETER_NAME_STRING)

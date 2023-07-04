@@ -30,8 +30,6 @@ class WebModuleTest extends IastModuleImplTestBase {
     method              | args
     'onParameterNames'  | [null]
     'onParameterNames'  | [[]]
-    'onParameterValue'  | [null, null]
-    'onParameterValue'  | ['', '']
     'onParameterValues' | [null, null]
     'onParameterValues' | ['', []]
     'onParameterValues' | [null, null as String[]]
@@ -60,7 +58,6 @@ class WebModuleTest extends IastModuleImplTestBase {
     where:
     method              | args
     'onParameterNames'  | [['param']]
-    'onParameterValue'  | ['name', 'value']
     'onParameterValues' | ['name', ['value']]
     'onParameterValues' | ['name', ['value'] as String[]]
     'onParameterValues' | [[name: ['value'] as String[]]]
@@ -146,12 +143,6 @@ class WebModuleTest extends IastModuleImplTestBase {
 
     where:
     method                   | name    | value
-    'onParameterValue'       | null    | null
-    'onParameterValue'       | null    | ""
-    'onParameterValue'       | ""      | null
-    'onParameterValue'       | ""      | ""
-    'onParameterValue'       | "param" | null
-    'onParameterValue'       | "param" | ""
     'onHeaderValue'          | null    | null
     'onHeaderValue'          | null    | ""
     'onHeaderValue'          | ""      | null
@@ -186,9 +177,6 @@ class WebModuleTest extends IastModuleImplTestBase {
 
     where:
     method                   | name    | value
-    'onParameterValue'       | null    | "value"
-    'onParameterValue'       | ""      | "value"
-    'onParameterValue'       | "param" | "value"
     'onHeaderValue'          | null    | "value"
     'onHeaderValue'          | ""      | "value"
     'onHeaderValue'          | "param" | "value"
@@ -222,9 +210,6 @@ class WebModuleTest extends IastModuleImplTestBase {
 
     where:
     method                   | name    | value   | source
-    'onParameterValue'       | null    | "value" | SourceTypes.REQUEST_PARAMETER_VALUE
-    'onParameterValue'       | ""      | "value" | SourceTypes.REQUEST_PARAMETER_VALUE
-    'onParameterValue'       | "param" | "value" | SourceTypes.REQUEST_PARAMETER_VALUE
     'onHeaderValue'          | null    | "value" | SourceTypes.REQUEST_HEADER_VALUE
     'onHeaderValue'          | ""      | "value" | SourceTypes.REQUEST_HEADER_VALUE
     'onHeaderValue'          | "param" | "value" | SourceTypes.REQUEST_HEADER_VALUE

@@ -70,6 +70,9 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     'taintIfAnyInputIsTainted' | [null, null]
     'taintIfAnyInputIsTainted' | [null, [].toArray()]
     'taintIfAnyInputIsTainted' | ['test', [].toArray()]
+    'taint'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', null as String]
+    'taint'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, null as String, null as String]
+    'taint'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', '']
     'taint'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, null as Object[]]
     'taint'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, [] as Object[]]
     'taint'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, null as Collection]
@@ -93,11 +96,12 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, ['value'].toSet(), new Object()]
     'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, [key: 'value'].entrySet().toList(), new Object()]
     'taintIfAnyInputIsTainted' | ['value', ['test', 'test2'].toArray()]
+    'taint'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value']
     'taint'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, [new Object()] as Object[]]
     'taint'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, [new Object()]]
   }
 
-  void 'test #method'() {
+  void 'test propagation for #method'() {
     given:
     final toTaint = toTaintClosure.call(args)
     final targetMethod = module.&"$method"
@@ -143,6 +147,38 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     'taintIfAnyInputIsTainted' | ['Hello', ['I am an string'].toArray()]                                                         | { it[0] }          | { it[1][0] }
     'taintIfAnyInputIsTainted' | ['Hello', [new Object()].toArray()]                                                             | { it[0] }          | { it[1][0] }
     'taintIfAnyInputIsTainted' | ['Hello', [new MockTaintable()].toArray()]                                                      | { it[0] }          | { it[1][0] }
+  }
+
+  void 'test value source for #method'() {
+    given:
+    final span = Mock(AgentSpan)
+    tracer.activeSpan() >> span
+    final reqCtx = Mock(RequestContext)
+    span.getRequestContext() >> reqCtx
+    final ctx = new IastRequestContext()
+    reqCtx.getData(RequestContextSlot.IAST) >> ctx
+
+    when:
+    module."$method"(source, name, value)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    1 * span.getRequestContext() >> reqCtx
+    1 * reqCtx.getData(RequestContextSlot.IAST) >> ctx
+    0 * _
+    ctx.getTaintedObjects().get(name) == null
+    def to = ctx.getTaintedObjects().get(value)
+    to != null
+    to.get() == value
+    to.ranges.size() == 1
+    to.ranges[0].start == 0
+    to.ranges[0].length == value.length()
+    to.ranges[0].source == new Source(source, name, value)
+
+    where:
+    method  | name   | value   | source
+    'taint' | null   | 'value' | SourceTypes.REQUEST_PARAMETER_VALUE
+    'taint' | 'name' | 'value' | SourceTypes.REQUEST_PARAMETER_VALUE
   }
 
   void 'test taint'() {
