@@ -61,6 +61,36 @@ public interface Ranged {
     }
   }
 
+  /** Computes the intersection of the ranges or {@code null} if they do not intersect */
+  default Ranged intersection(final Ranged range) {
+    if (this.getStart() == range.getStart() && this.getLength() == range.getLength()) {
+      return this;
+    }
+    final Ranged lead, trail;
+    if (getStart() < range.getStart()) {
+      lead = this;
+      trail = range;
+    } else {
+      lead = range;
+      trail = this;
+    }
+    final int start = Math.max(lead.getStart(), trail.getStart());
+    final int end =
+        Math.min(lead.getStart() + lead.getLength(), trail.getStart() + trail.getLength());
+    if (start >= end) {
+      return null;
+    } else {
+      return build(start, end - start);
+    }
+  }
+
+  default boolean isBefore(final Ranged range) {
+    if (range == null) {
+      return true;
+    }
+    return getStart() <= range.getStart();
+  }
+
   static Ranged build(int start, int end) {
     return new RangedImpl(start, end);
   }

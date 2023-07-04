@@ -11,6 +11,8 @@ public interface RangedDeque<E extends Ranged> {
 
   E poll();
 
+  E peek();
+
   void addFirst(@Nonnull E item);
 
   boolean isEmpty();
@@ -36,6 +38,11 @@ public interface RangedDeque<E extends Ranged> {
       final E result = next;
       next = fetchNext();
       return result;
+    }
+
+    @Override
+    public final E peek() {
+      return next;
     }
 
     @Override
