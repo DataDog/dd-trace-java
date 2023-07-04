@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -127,6 +128,125 @@ public class URIUtils {
     } catch (final IllegalArgumentException exception) {
       LOGGER.debug("Unable to parse request uri {}", unparsed, exception);
       return null;
+    }
+  }
+
+  /**
+   * Builds a lazily evaluated valid URL based on the scheme, host, port and path.
+   *
+   * <p>Will remove the port if it is <= 0 or if its the default http/https port.
+   *
+   * @param scheme The scheme
+   * @param host The host
+   * @param port The port
+   * @param path The path
+   * @return The {@code LazyUrl}
+   */
+  public static LazyUrl lazyValidURL(String scheme, String host, int port, String path) {
+    return new ValidUrl(scheme, host, port, path);
+  }
+
+  /**
+   * Builds an invalid URL from a raw string representation.
+   *
+   * @param raw The raw {@code String} representation of the invalid URL
+   * @return The {@code LazyUrl}
+   */
+  public static LazyUrl lazyInvalidUrl(String raw) {
+    return new InvalidUrl(raw);
+  }
+
+  /**
+   * A lazily evaluated URL that can also return its path. If the URL is invalid the path will be
+   * {@code null}.
+   */
+  public abstract static class LazyUrl implements CharSequence, Supplier<String> {
+    protected String lazy;
+
+    protected LazyUrl(String lazy) {
+      this.lazy = lazy;
+    }
+
+    /**
+     * The path component of this URL.
+     *
+     * @return The path if valid or {@code null} if invalid
+     */
+    public abstract String path();
+
+    @Override
+    public String toString() {
+      String str = lazy;
+      if (str == null) {
+        str = lazy = get();
+      }
+      return str;
+    }
+
+    @Override
+    public int length() {
+      return toString().length();
+    }
+
+    @Override
+    public char charAt(int index) {
+      return toString().charAt(index);
+    }
+
+    @Override
+    public CharSequence subSequence(int start, int end) {
+      return toString().subSequence(start, end);
+    }
+
+    @Override
+    public int hashCode() {
+      return toString().hashCode();
+    }
+  }
+
+  private static class ValidUrl extends LazyUrl {
+    private final String scheme;
+    private final String host;
+    private final int port;
+    private final String path;
+
+    private ValidUrl(String scheme, String host, int port, String path) {
+      super(null);
+      this.scheme = scheme;
+      this.host = host;
+      this.port = port;
+      if (null == path || path.isEmpty()) {
+        this.path = "";
+      } else {
+        this.path = path;
+      }
+    }
+
+    @Override
+    public String path() {
+      return path;
+    }
+
+    @Override
+    public String get() {
+      String res = lazy;
+      return res != null ? res : buildURL(scheme, host, port, path);
+    }
+  }
+
+  private static class InvalidUrl extends LazyUrl {
+    public InvalidUrl(String raw) {
+      super(String.valueOf(raw));
+    }
+
+    @Override
+    public String path() {
+      return null;
+    }
+
+    @Override
+    public String get() {
+      return lazy;
     }
   }
 }

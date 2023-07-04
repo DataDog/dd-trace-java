@@ -55,7 +55,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       1 * this.span.setTag(Tags.HTTP_METHOD, "test-method")
       1 * this.span.setTag(DDTags.HTTP_QUERY, _)
       1 * this.span.setTag(DDTags.HTTP_FRAGMENT, _)
-      1 * this.span.setTag(Tags.HTTP_URL, url)
+      1 * this.span.setTag(Tags.HTTP_URL, {it.toString() == url})
       1 * this.span.setTag(Tags.HTTP_HOSTNAME, req.url.host)
       2 * this.span.getRequestContext()
       1 * this.span.setResourceName({ it as String == req.method.toUpperCase() + " " + req.path }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
@@ -84,7 +84,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
     then:
     if (expectedUrl) {
-      1 * this.span.setTag(Tags.HTTP_URL, expectedUrl)
+      1 * this.span.setTag(Tags.HTTP_URL, {it.toString() == expectedUrl})
       2 * this.span.getRequestContext()
     }
     if (expectedUrl && tagQueryString) {
@@ -133,7 +133,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     decorator.onRequest(this.span, null, req, null)
 
     then:
-    1 * this.span.setTag(Tags.HTTP_URL, expectedUrl)
+    1 * this.span.setTag(Tags.HTTP_URL, {it.toString() == expectedUrl})
     1 * this.span.setTag(Tags.HTTP_HOSTNAME, req.url.host)
     1 * this.span.setTag(DDTags.HTTP_QUERY, expectedQuery)
     1 * this.span.setTag(DDTags.HTTP_FRAGMENT, null)
