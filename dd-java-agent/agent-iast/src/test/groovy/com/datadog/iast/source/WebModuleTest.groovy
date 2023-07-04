@@ -37,8 +37,6 @@ class WebModuleTest extends IastModuleImplTestBase {
     'onParameterValues' | [[:]]
     'onHeaderNames'     | [null]
     'onHeaderNames'     | [[]]
-    'onHeaderValue'     | [null, null]
-    'onHeaderValue'     | ['', '']
     'onHeaderValues'    | [null, null]
     'onHeaderValues'    | ['', []]
     'onCookieNames'     | [null]
@@ -62,7 +60,6 @@ class WebModuleTest extends IastModuleImplTestBase {
     'onParameterValues' | ['name', ['value'] as String[]]
     'onParameterValues' | [[name: ['value'] as String[]]]
     'onHeaderNames'     | [['header']]
-    'onHeaderValue'     | ['name', 'value']
     'onHeaderValues'    | ['name', ['value']]
     'onCookieNames'     | [['name']]
     'onCookieValue'     | ['name', 'value']
@@ -134,23 +131,6 @@ class WebModuleTest extends IastModuleImplTestBase {
     'onCookieNames'    | 'param' | SourceTypes.REQUEST_COOKIE_NAME
   }
 
-  void 'test #method: null or empty'(final String method, final String name, final String value) {
-    when:
-    module."$method"(name, value)
-
-    then:
-    0 * _
-
-    where:
-    method                   | name    | value
-    'onHeaderValue'          | null    | null
-    'onHeaderValue'          | null    | ""
-    'onHeaderValue'          | ""      | null
-    'onHeaderValue'          | ""      | ""
-    'onHeaderValue'          | "param" | null
-    'onHeaderValue'          | "param" | ""
-  }
-
   void 'onRequestPath and Matrix Parameter null or empty'() {
     when:
     module.onRequestPathParameter(name, value, ctx)
@@ -165,54 +145,6 @@ class WebModuleTest extends IastModuleImplTestBase {
     'param' | null    | Mock(IastRequestContext)
     'param' | ''      | Mock(IastRequestContext)
     'param' | 'value' | null
-  }
-
-  void 'test #method: without span'(final String method, final String name, final String value) {
-    when:
-    module."$method"(name, value)
-
-    then:
-    1 * tracer.activeSpan() >> null
-    0 * _
-
-    where:
-    method                   | name    | value
-    'onHeaderValue'          | null    | "value"
-    'onHeaderValue'          | ""      | "value"
-    'onHeaderValue'          | "param" | "value"
-  }
-
-  void 'test #method'(final String method, final String name, final String value, final byte source) {
-    given:
-    final span = Mock(AgentSpan)
-    tracer.activeSpan() >> span
-    final reqCtx = Mock(RequestContext)
-    span.getRequestContext() >> reqCtx
-    final ctx = new IastRequestContext()
-    reqCtx.getData(RequestContextSlot.IAST) >> ctx
-
-    when:
-    module."$method"(name, value)
-
-    then:
-    1 * tracer.activeSpan() >> span
-    1 * span.getRequestContext() >> reqCtx
-    1 * reqCtx.getData(RequestContextSlot.IAST) >> ctx
-    0 * _
-    ctx.getTaintedObjects().get(name) == null
-    def to = ctx.getTaintedObjects().get(value)
-    to != null
-    to.get() == value
-    to.ranges.size() == 1
-    to.ranges[0].start == 0
-    to.ranges[0].length == value.length()
-    to.ranges[0].source == new Source(source, name, value)
-
-    where:
-    method                   | name    | value   | source
-    'onHeaderValue'          | null    | "value" | SourceTypes.REQUEST_HEADER_VALUE
-    'onHeaderValue'          | ""      | "value" | SourceTypes.REQUEST_HEADER_VALUE
-    'onHeaderValue'          | "param" | "value" | SourceTypes.REQUEST_HEADER_VALUE
   }
 
   void '#method — normal operation'() {

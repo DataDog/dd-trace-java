@@ -44,12 +44,13 @@ public class InboundMessageContextInstrumentation extends Instrumenter.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
     public static void onExit(@Advice.Return Map<String, List<String>> headers) {
-      final WebModule module = InstrumentationBridge.WEB;
-      if (module != null) {
-        module.onHeaderNames(headers.keySet());
+      final PropagationModule prop = InstrumentationBridge.PROPAGATION;
+      final WebModule web = InstrumentationBridge.WEB;
+      if (prop != null && web != null) {
+        web.onHeaderNames(headers.keySet());
         for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
           for (String value : entry.getValue()) {
-            module.onHeaderValue(entry.getKey(), value);
+            prop.taint(SourceTypes.REQUEST_HEADER_VALUE, entry.getKey(), value);
           }
         }
       }

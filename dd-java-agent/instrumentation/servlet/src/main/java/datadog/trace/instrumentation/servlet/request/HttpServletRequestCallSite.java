@@ -29,17 +29,17 @@ public class HttpServletRequestCallSite {
       "java.lang.String javax.servlet.http.HttpServletRequestWrapper.getHeader(java.lang.String)")
   public static String afterGetHeader(
       @CallSite.This final HttpServletRequest self,
-      @CallSite.Argument final String headerName,
-      @CallSite.Return final String headerValue) {
-    final WebModule module = InstrumentationBridge.WEB;
+      @CallSite.Argument final String name,
+      @CallSite.Return final String value) {
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.onHeaderValue(headerName, headerValue);
+        module.taint(SourceTypes.REQUEST_HEADER_VALUE, name, value);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetHeader threw", e);
       }
     }
-    return headerValue;
+    return value;
   }
 
   @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)

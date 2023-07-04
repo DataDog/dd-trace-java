@@ -25,7 +25,7 @@ class TaintHttpHeadersToSingleValueMapAdvice {
 
     module.onHeaderNames(values.keySet());
     for (Map.Entry<String, String> e : values.entrySet()) {
-      module.onHeaderValue(e.getKey(), e.getValue());
+      propModule.taint(SourceTypes.REQUEST_HEADER_VALUE, e.getKey(), e.getValue());
     }
   }
 }

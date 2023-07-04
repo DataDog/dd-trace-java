@@ -43,11 +43,6 @@ public class WebModuleImpl implements WebModule {
   }
 
   @Override
-  public void onHeaderValue(@Nullable final String headerName, @Nullable final String headerValue) {
-    onNamed(headerName, headerValue, SourceTypes.REQUEST_HEADER_VALUE);
-  }
-
-  @Override
   public void onHeaderValues(
       @Nullable final String headerName, @Nullable final Collection<String> headerValues) {
     onNamed(headerName, headerValues, SourceTypes.REQUEST_HEADER_VALUE);

@@ -22,8 +22,6 @@ public interface WebModule extends IastModule {
 
   void onHeaderNames(@Nullable Collection<String> headerNames);
 
-  void onHeaderValue(@Nullable String headerName, @Nullable String headerValue);
-
   void onHeaderValues(@Nullable String headerName, @Nullable Collection<String> headerValue);
 
   void onQueryString(@Nullable String queryString);
