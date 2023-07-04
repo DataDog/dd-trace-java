@@ -204,7 +204,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       try {
         final URIDataAdapter url = url(request);
         if (url != null) {
-
           boolean supportsRaw = url.supportsRaw();
           boolean encoded = supportsRaw && config.isHttpServerRawResource();
           boolean valid = url.isValid();
