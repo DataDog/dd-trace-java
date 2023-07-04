@@ -24,8 +24,6 @@ public interface WebModule extends IastModule {
 
   void onHeaderValues(@Nullable String headerName, @Nullable Collection<String> headerValue);
 
-  void onQueryString(@Nullable String queryString);
-
   void onCookieNames(@Nullable Iterable<String> cookieNames);
 
   void onRequestPathParameter(

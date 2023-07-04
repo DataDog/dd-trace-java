@@ -159,7 +159,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
 
   void 'test get query string'() {
     setup:
-    final iastModule = Mock(WebModule)
+    final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final testSuite = new TestHttpServletRequestCallSiteSuite(Mock(clazz) {
       getQueryString() >> 'paramName=paramValue'
@@ -170,7 +170,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
 
     then:
 
-    1 * iastModule.onQueryString('paramName=paramValue')
+    1 * iastModule.taint(SourceTypes.REQUEST_QUERY, null, 'paramName=paramValue')
 
     where:
     clazz                     | _

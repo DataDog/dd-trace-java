@@ -53,20 +53,6 @@ public class WebModuleImpl implements WebModule {
     onNamed(cookieNames, SourceTypes.REQUEST_COOKIE_NAME);
   }
 
-  @Override
-  public void onQueryString(@Nullable final String queryString) {
-    if (!canBeTainted(queryString)) {
-      return;
-    }
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    taintedObjects.taintInputString(
-        queryString, new Source(SourceTypes.REQUEST_QUERY, null, queryString));
-  }
-
   private static void onNamed(
       @Nullable final String name, @Nullable final String value, final byte source) {
     if (!canBeTainted(value)) {

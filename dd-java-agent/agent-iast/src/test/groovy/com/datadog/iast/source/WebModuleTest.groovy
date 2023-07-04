@@ -170,53 +170,6 @@ class WebModuleTest extends IastModuleImplTestBase {
     'onRequestMatrixParameter' | "param" | "value" | SourceTypes.REQUEST_MATRIX_PARAMETER
   }
 
-  void 'test onQueryString without span'() {
-    when:
-    module.onQueryString('query string')
-
-    then:
-    1 * tracer.activeSpan() >> null
-    0 * _
-  }
-
-  void 'test onQueryString with null or empty query string'() {
-    when:
-    module.onQueryString(value)
-
-    then:
-    0 * _
-
-    where:
-    value | _
-    null  | _
-    ''    | _
-  }
-
-  void 'test onQueryString'() {
-    given:
-    final span = Mock(AgentSpan)
-    tracer.activeSpan() >> span
-    final reqCtx = Mock(RequestContext)
-    span.getRequestContext() >> reqCtx
-    final ctx = new IastRequestContext()
-    reqCtx.getData(RequestContextSlot.IAST) >> ctx
-    final value = 'key=value'
-
-    when:
-    module.onQueryString(value)
-
-    then:
-    1 * tracer.activeSpan() >> span
-    1 * span.getRequestContext() >> reqCtx
-    1 * reqCtx.getData(RequestContextSlot.IAST) >> ctx
-    0 * _
-
-    final tainted = ctx.getTaintedObjects().get(value)
-    tainted != null
-    tainted.ranges.length == 1
-    tainted.ranges.first().source.origin == SourceTypes.REQUEST_QUERY
-  }
-
   void 'test onInjectedParameter'(){
     given:
     final span = Mock(AgentSpan)
