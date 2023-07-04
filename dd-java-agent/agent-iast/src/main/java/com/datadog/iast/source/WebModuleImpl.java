@@ -152,30 +152,6 @@ public class WebModuleImpl implements WebModule {
   }
 
   @Override
-  public void onRequestPathParameter(
-      @Nullable String paramName, @Nullable String value, @Nonnull Object ctx_) {
-    if (ctx_ == null || !canBeTainted(value)) {
-      return;
-    }
-    final IastRequestContext ctx = (IastRequestContext) ctx_;
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    taintedObjects.taintInputString(
-        value, new Source(SourceTypes.REQUEST_PATH_PARAMETER, paramName, value));
-  }
-
-  @Override
-  public void onRequestMatrixParameter(
-      @Nonnull String paramName, @Nullable String value, @Nonnull Object ctx_) {
-    if (ctx_ == null || paramName == null || !canBeTainted(value)) {
-      return;
-    }
-    final IastRequestContext ctx = (IastRequestContext) ctx_;
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    taintedObjects.taintInputString(
-        value, new Source(SourceTypes.REQUEST_MATRIX_PARAMETER, paramName, value));
-  }
-
-  @Override
   public void onInjectedParameter(
       @Nullable String name, @Nullable String value, @Nonnull byte sourceType) {
     onNamed(name, value, sourceType);

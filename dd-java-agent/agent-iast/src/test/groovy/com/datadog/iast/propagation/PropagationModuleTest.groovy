@@ -181,6 +181,31 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     'taint' | 'name' | 'value' | SourceTypes.REQUEST_PARAMETER_VALUE
   }
 
+  void 'taint with context for #method'() {
+    setup:
+    def ctx = new IastRequestContext()
+
+    when:
+    module."$method"(ctx as Object, source, name, value)
+
+    then:
+    ctx.getTaintedObjects().get(name) == null
+    def to = ctx.getTaintedObjects().get(value)
+    to != null
+    to.get() == value
+    to.ranges.size() == 1
+    to.ranges[0].start == 0
+    to.ranges[0].length == value.length()
+    to.ranges[0].source == new Source(source, name, value)
+    0 * _
+
+    where:
+    method  | name    | value   | source
+    'taint' | null    | "value" | SourceTypes.REQUEST_PATH_PARAMETER
+    'taint' | ""      | "value" | SourceTypes.REQUEST_PATH_PARAMETER
+    'taint' | "param" | "value" | SourceTypes.REQUEST_PATH_PARAMETER
+  }
+
   void 'test taint'() {
     given:
     final method = module.&taint

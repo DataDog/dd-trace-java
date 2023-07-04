@@ -19,7 +19,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
-import datadog.trace.api.iast.source.WebModule;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Map;
@@ -128,7 +128,7 @@ public class TemplateVariablesUrlHandlerInstrumentation extends Instrumenter.Def
       { // iast
         Object iastRequestContext = reqCtx.getData(RequestContextSlot.IAST);
         if (iastRequestContext != null) {
-          WebModule module = InstrumentationBridge.WEB;
+          PropagationModule module = InstrumentationBridge.PROPAGATION;
           if (module != null) {
             for (Map.Entry<String, String> e : map.entrySet()) {
               String parameterName = e.getKey();
@@ -136,7 +136,8 @@ public class TemplateVariablesUrlHandlerInstrumentation extends Instrumenter.Def
               if (parameterName == null || value == null) {
                 continue; // should not happen
               }
-              module.onRequestPathParameter(parameterName, value, iastRequestContext);
+              module.taint(
+                  iastRequestContext, SourceTypes.REQUEST_PATH_PARAMETER, parameterName, value);
             }
           }
         }

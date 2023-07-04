@@ -128,48 +128,6 @@ class WebModuleTest extends IastModuleImplTestBase {
     'onCookieNames'    | 'param' | SourceTypes.REQUEST_COOKIE_NAME
   }
 
-  void 'onRequestPath and Matrix Parameter null or empty'() {
-    when:
-    module.onRequestPathParameter(name, value, ctx)
-    module.onRequestMatrixParameter(name, value, ctx)
-
-    then:
-    0 * _
-    where:
-    name    | value   | ctx
-    null    | null    | Mock(IastRequestContext)
-    null    | ''      | Mock(IastRequestContext)
-    'param' | null    | Mock(IastRequestContext)
-    'param' | ''      | Mock(IastRequestContext)
-    'param' | 'value' | null
-  }
-
-  void '#method — normal operation'() {
-    setup:
-    def ctx = new IastRequestContext()
-
-    when:
-    module."$method"(name, value, ctx)
-
-    then:
-    ctx.getTaintedObjects().get(name) == null
-    def to = ctx.getTaintedObjects().get(value)
-    to != null
-    to.get() == value
-    to.ranges.size() == 1
-    to.ranges[0].start == 0
-    to.ranges[0].length == value.length()
-    to.ranges[0].source == new Source(source, name, value)
-    0 * _
-
-    where:
-    method                     | name    | value   | source
-    'onRequestPathParameter'   | ""      | "value" | SourceTypes.REQUEST_PATH_PARAMETER
-    'onRequestPathParameter'   | "param" | "value" | SourceTypes.REQUEST_PATH_PARAMETER
-    'onRequestMatrixParameter' | ""      | "value" | SourceTypes.REQUEST_MATRIX_PARAMETER
-    'onRequestMatrixParameter' | "param" | "value" | SourceTypes.REQUEST_MATRIX_PARAMETER
-  }
-
   void 'test onInjectedParameter'(){
     given:
     final span = Mock(AgentSpan)

@@ -3,7 +3,6 @@ package datadog.trace.api.iast.source;
 import datadog.trace.api.iast.IastModule;
 import java.util.Collection;
 import java.util.Map;
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public interface WebModule extends IastModule {
@@ -25,12 +24,6 @@ public interface WebModule extends IastModule {
   void onHeaderValues(@Nullable String headerName, @Nullable Collection<String> headerValue);
 
   void onCookieNames(@Nullable Iterable<String> cookieNames);
-
-  void onRequestPathParameter(
-      @Nullable String paramName, @Nullable String value, @Nonnull Object iastRequestContext);
-
-  void onRequestMatrixParameter(
-      @Nonnull String paramName, @Nullable String value, @Nonnull Object iastRequestContext);
 
   void onInjectedParameter(String parameterName, String result, byte b);
 }
