@@ -10,7 +10,6 @@ import datadog.trace.api.iast.source.WebModule;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class WebModuleImpl implements WebModule {
@@ -149,11 +148,5 @@ public class WebModuleImpl implements WebModule {
         }
       }
     }
-  }
-
-  @Override
-  public void onInjectedParameter(
-      @Nullable String name, @Nullable String value, @Nonnull byte sourceType) {
-    onNamed(name, value, sourceType);
   }
 }
