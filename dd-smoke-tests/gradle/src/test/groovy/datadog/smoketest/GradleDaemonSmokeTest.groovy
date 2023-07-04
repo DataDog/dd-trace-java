@@ -10,14 +10,22 @@ import org.gradle.internal.impldep.org.apache.commons.io.FileUtils
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
+import org.gradle.util.DistributionLocator
+import org.gradle.util.GradleVersion
+import org.gradle.wrapper.Download
+import org.gradle.wrapper.GradleUserHomeLookup
+import org.gradle.wrapper.Install
+import org.gradle.wrapper.PathAssembler
+import org.gradle.wrapper.WrapperConfiguration
 import org.junit.jupiter.api.Assumptions
 import org.msgpack.jackson.dataformat.MessagePackFactory
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.TempDir
 import spock.lang.Unroll
-import spock.util.concurrent.PollingConditions
 import spock.util.environment.Jvm
 
 import java.nio.file.FileVisitResult
@@ -35,12 +43,17 @@ import static org.hamcrest.Matchers.not
 @Unroll
 class GradleDaemonSmokeTest extends Specification {
 
+  protected static final Logger LOG = LoggerFactory.getLogger(GradleDaemonSmokeTest)
+
   private static final String TEST_SERVICE_NAME = "test-gradle-service"
   private static final String TEST_ENVIRONMENT_NAME = "integration-test"
 
   // test resources use this instead of ".gradle" to avoid unwanted evaluation
   private static final String GRADLE_TEST_RESOURCE_EXTENSION = ".gradleTest"
   private static final String GRADLE_REGULAR_EXTENSION = ".gradle"
+
+  private static final long EVENTS_RECEIPT_TIMEOUT = 30_000
+  public static final int GRADLE_DISTRIBUTION_NETWORK_TIMEOUT = 30_000 // Gradle's default timeout is 10s
 
   // TODO: Gradle daemons started by the TestKit have an idle period of 3 minutes
   //  so by the time tests finish, at least some of the daemons are still alive.
@@ -85,22 +98,21 @@ class GradleDaemonSmokeTest extends Specification {
     }
   }
 
-  def setupSpec() {
-    givenGradleProperties()
-  }
-
   def setup() {
     receivedTraces.clear()
+    receivedCoverages.clear()
   }
 
   def cleanup() {
     receivedTraces.clear()
+    receivedCoverages.clear()
   }
 
   def "Successful build emits session and module spans: Gradle v#gradleVersion"() {
     given:
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenGradleProjectFiles("datadog/smoketest/success/")
+    ensureDependenciesDownloaded(gradleVersion)
 
     when:
     BuildResult buildResult = runGradleTests(gradleVersion)
@@ -108,7 +120,7 @@ class GradleDaemonSmokeTest extends Specification {
     then:
     assertBuildSuccessful(buildResult)
 
-    def events = waitForEvents(2)
+    def events = waitForEvents(4)
     assert events.size() == 4
 
     def sessionEndEvent = events.find { it.type == "test_session_end" }
@@ -216,6 +228,7 @@ class GradleDaemonSmokeTest extends Specification {
     given:
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenGradleProjectFiles("datadog/smoketest/successLegacy/")
+    ensureDependenciesDownloaded(gradleVersion)
 
     when:
     BuildResult buildResult = runGradleTests(gradleVersion)
@@ -223,7 +236,7 @@ class GradleDaemonSmokeTest extends Specification {
     then:
     assertBuildSuccessful(buildResult)
 
-    def events = waitForEvents(2)
+    def events = waitForEvents(4)
     assert events.size() == 4
 
     def sessionEndEvent = events.find { it.type == "test_session_end" }
@@ -330,6 +343,7 @@ class GradleDaemonSmokeTest extends Specification {
     given:
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenGradleProjectFiles("datadog/smoketest/successMultiModule/")
+    ensureDependenciesDownloaded(gradleVersion)
 
     when:
     BuildResult buildResult = runGradleTests(gradleVersion)
@@ -337,7 +351,7 @@ class GradleDaemonSmokeTest extends Specification {
     then:
     assertBuildSuccessful(buildResult)
 
-    def events = waitForEvents(3)
+    def events = waitForEvents(7)
     assert events.size() == 7
 
     def sessionEndEvent = events.find { it.type == "test_session_end" }
@@ -489,6 +503,7 @@ class GradleDaemonSmokeTest extends Specification {
     given:
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenGradleProjectFiles("datadog/smoketest/failure/")
+    ensureDependenciesDownloaded(gradleVersion)
 
     when:
     BuildResult buildResult = runGradleTests(gradleVersion, false)
@@ -504,7 +519,7 @@ class GradleDaemonSmokeTest extends Specification {
       }
     }
 
-    def events = waitForEvents(2)
+    def events = waitForEvents(4)
     assert events.size() == 4
 
     def sessionEndEvent = events.find { it.type == "test_session_end" }
@@ -594,6 +609,7 @@ class GradleDaemonSmokeTest extends Specification {
     given:
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenGradleProjectFiles("datadog/smoketest/skip/")
+    ensureDependenciesDownloaded(gradleVersion)
 
     when:
     BuildResult buildResult = runGradleTests(gradleVersion)
@@ -601,7 +617,7 @@ class GradleDaemonSmokeTest extends Specification {
     then:
     assertBuildSuccessful(buildResult)
 
-    def events = waitForEvents()
+    def events = waitForEvents(2)
     assert events.size() == 2
 
     def sessionEndEvent = events.find { it.type == "test_session_end" }
@@ -654,7 +670,7 @@ class GradleDaemonSmokeTest extends Specification {
     assert buildResult.tasks != null
     assert buildResult.tasks.size() == 0
 
-    def events = waitForEvents()
+    def events = waitForEvents(1)
     assert events.size() == 1
 
     def sessionEndEvent = events.find { it.type == "test_session_end" }
@@ -683,7 +699,7 @@ class GradleDaemonSmokeTest extends Specification {
     String agentShadowJar = System.getProperty("datadog.smoketest.agent.shadowJar.path")
     assert new File(agentShadowJar).isFile()
 
-    def ddApiKeyPath = testKitFolder.resolve(".dd.api.key")
+    def ddApiKeyPath = projectFolder.resolve(".dd.api.key")
     Files.write(ddApiKeyPath, "dummy".getBytes())
 
     def gradleProperties =
@@ -699,7 +715,7 @@ class GradleDaemonSmokeTest extends Specification {
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES)}=datadog.smoke.*," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${intakeServer.address.toString()}"
 
-    Files.write(testKitFolder.resolve("gradle.properties"), gradleProperties.getBytes())
+    Files.write(projectFolder.resolve("gradle.properties"), gradleProperties.getBytes())
   }
 
   private void givenGradleProjectFiles(String projectFilesSources) {
@@ -720,6 +736,8 @@ class GradleDaemonSmokeTest extends Specification {
   }
 
   private BuildResult runGradleTests(String gradleVersion, boolean successExpected = true) {
+    givenGradleProperties()
+
     def arguments = ["test", "--stacktrace"]
     if (gradleVersion > "5.6") {
       // fail on warnings is available starting from Gradle 5.6
@@ -728,13 +746,46 @@ class GradleDaemonSmokeTest extends Specification {
       // warning mode available starting from Gradle 4.5
       arguments += ["--warning-mode", "all"]
     }
+    BuildResult buildResult = runGradle(gradleVersion, arguments, successExpected)
+    buildResult
+  }
+
+  /**
+   * Sometimes Gradle Test Kit fails because it cannot download the required Gradle distribution
+   * due to intermittent network issues.
+   * This method performs the download manually (if needed) with increased timeout (30s vs default 10s).
+   * Retry logic (3 retries) is already present in org.gradle.wrapper.Install
+   */
+  private ensureDependenciesDownloaded(String gradleVersion) {
+    try {
+      def logger = new org.gradle.wrapper.Logger(false)
+      def download = new Download(logger, "Gradle Tooling API", GradleVersion.current().getVersion(), GRADLE_DISTRIBUTION_NETWORK_TIMEOUT)
+
+      def userHomeDir = GradleUserHomeLookup.gradleUserHome()
+      def projectDir = projectFolder.toFile()
+      def install = new Install(logger, download, new PathAssembler(userHomeDir, projectDir))
+
+      def configuration = new WrapperConfiguration()
+      def distribution = new DistributionLocator().getDistributionFor(GradleVersion.version(gradleVersion))
+      configuration.setDistribution(distribution)
+      configuration.setNetworkTimeout(GRADLE_DISTRIBUTION_NETWORK_TIMEOUT)
+
+      // this will download distribution (if not downloaded yet to userHomeDir) and verify its SHA
+      install.createDist(configuration)
+
+    } catch (Exception e) {
+      LOG.error("Failed to install Gradle distribution, will proceed to run test kit hoping for the best", e)
+    }
+  }
+
+  private runGradle(String gradleVersion, List<String> arguments, boolean successExpected) {
     GradleRunner gradleRunner = GradleRunner.create()
       .withTestKitDir(testKitFolder.toFile())
       .withProjectDir(projectFolder.toFile())
       .withGradleVersion(gradleVersion)
       .withArguments(arguments)
     def buildResult = successExpected ? gradleRunner.build() : gradleRunner.buildAndFail()
-    println buildResult.output
+    LOG.info(buildResult.output)
     buildResult
   }
 
@@ -746,30 +797,40 @@ class GradleDaemonSmokeTest extends Specification {
     }
   }
 
-  private List<Map<String, Object>> waitForEvents(traceSize = 1) {
-    def traceReceiveConditions = new PollingConditions(timeout: 15, initialDelay: 1, delay: 0.5, factor: 1)
-    traceReceiveConditions.eventually {
-      assert receivedTraces.size() == traceSize
-    }
-
+  private List<Map<String, Object>> waitForEvents(eventsCount) {
     List<Map<String, Object>> events = new ArrayList<>()
-    while (!receivedTraces.isEmpty()) {
+    def startTime = System.currentTimeMillis()
+    while (events.size() < eventsCount) {
       def trace = receivedTraces.poll()
-      events.addAll((List<Map<String, Object>>) trace["events"])
+      if (trace != null) {
+        events.addAll((List<Map<String, Object>>) trace["events"])
+        continue
+      }
+      def duration = System.currentTimeMillis() - startTime
+      if (duration > EVENTS_RECEIPT_TIMEOUT) {
+        throw new AssertionError((Object) "Waited for $eventsCount events, received: $events")
+      } else {
+        Thread.sleep(500)
+      }
     }
     return events
   }
 
-  private List<Map<String, Object>> waitForCoverages(traceSize = 1) {
-    def traceReceiveConditions = new PollingConditions(timeout: 15, initialDelay: 1, delay: 0.5, factor: 1)
-    traceReceiveConditions.eventually {
-      assert receivedCoverages.size() == traceSize
-    }
-
+  private List<Map<String, Object>> waitForCoverages(coveragesSize) {
     List<Map<String, Object>> coverages = new ArrayList<>()
-    while (!receivedCoverages.isEmpty()) {
-      def trace = receivedCoverages.poll()
-      coverages.addAll((List<Map<String, Object>>) trace["coverages"])
+    def startTime = System.currentTimeMillis()
+    while (coverages.size() < coveragesSize) {
+      def coverage = receivedCoverages.poll()
+      if (coverage != null) {
+        coverages.addAll((List<Map<String, Object>>) coverage["coverages"])
+        continue
+      }
+      def duration = System.currentTimeMillis() - startTime
+      if (duration > EVENTS_RECEIPT_TIMEOUT) {
+        throw new AssertionError((Object) "Waited for $coveragesSize coverages, received: $coverages")
+      } else {
+        Thread.sleep(500)
+      }
     }
     return coverages
   }
