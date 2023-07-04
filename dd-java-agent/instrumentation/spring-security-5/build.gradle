@@ -28,4 +28,8 @@ compileTestGroovy {
 dependencies {
   main_java17CompileOnly group: 'org.springframework.security', name: 'spring-security-core', version: '5.5.0'
   compileOnly group: 'org.springframework.security', name: 'spring-security-core', version: '5.5.0'
+
+  testImplementation group: 'org.springframework', name: 'spring-webmvc', version: '6.0.0'
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '3.0.0'
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.0.0'
 }
