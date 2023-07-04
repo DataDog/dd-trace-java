@@ -40,7 +40,8 @@ public class MavenInstrumentation extends Instrumenter.CiVisibility
       packageName + ".MavenExecutionListener",
       packageName + ".MavenDependencyVersion",
       packageName + ".MavenProjectConfigurator",
-      packageName + ".MavenLifecycleParticipant"
+      packageName + ".MavenLifecycleParticipant$TestsExecution",
+      packageName + ".MavenLifecycleParticipant",
     };
   }
 
