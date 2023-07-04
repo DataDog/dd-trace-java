@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.springsecurity6;
+package datadog.trace.instrumentation.springsecurity5;
 
 import net.bytebuddy.asm.Advice;
 import org.springframework.security.core.AuthenticationException;

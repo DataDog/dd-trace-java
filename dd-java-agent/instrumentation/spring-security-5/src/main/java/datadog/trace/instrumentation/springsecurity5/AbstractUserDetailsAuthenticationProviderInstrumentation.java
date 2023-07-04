@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.springsecurity6;
+package datadog.trace.instrumentation.springsecurity5;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;

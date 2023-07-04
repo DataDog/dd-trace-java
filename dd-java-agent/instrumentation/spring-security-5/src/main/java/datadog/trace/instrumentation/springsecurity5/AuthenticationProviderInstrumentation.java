@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.springsecurity6;
+package datadog.trace.instrumentation.springsecurity5;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -33,7 +33,7 @@ public class AuthenticationProviderInstrumentation extends Instrumenter.AppSec
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.springsecurity6.SpringSecurityUserEventDecorator"
+      "datadog.trace.instrumentation.springsecurity5.SpringSecurityUserEventDecorator"
     };
   }
 

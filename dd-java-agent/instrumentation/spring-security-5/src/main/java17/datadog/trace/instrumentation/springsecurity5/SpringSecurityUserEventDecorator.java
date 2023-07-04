@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.springsecurity6;
+package datadog.trace.instrumentation.springsecurity5;
 
 import static datadog.trace.api.UserEventTrackingMode.DISABLED;
 import static datadog.trace.api.UserEventTrackingMode.EXTENDED;
