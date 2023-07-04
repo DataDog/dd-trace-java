@@ -10,6 +10,13 @@ import org.gradle.internal.impldep.org.apache.commons.io.FileUtils
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
+import org.gradle.util.DistributionLocator
+import org.gradle.util.GradleVersion
+import org.gradle.wrapper.Download
+import org.gradle.wrapper.GradleUserHomeLookup
+import org.gradle.wrapper.Install
+import org.gradle.wrapper.PathAssembler
+import org.gradle.wrapper.WrapperConfiguration
 import org.junit.jupiter.api.Assumptions
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import org.slf4j.Logger
@@ -19,7 +26,6 @@ import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.TempDir
 import spock.lang.Unroll
-import spock.util.concurrent.PollingConditions
 import spock.util.environment.Jvm
 
 import java.nio.file.FileVisitResult
@@ -46,7 +52,8 @@ class GradleDaemonSmokeTest extends Specification {
   private static final String GRADLE_TEST_RESOURCE_EXTENSION = ".gradleTest"
   private static final String GRADLE_REGULAR_EXTENSION = ".gradle"
 
-  private static final int DEPENDENCIES_DOWNLOAD_RETRIES = 5
+  private static final long EVENTS_RECEIPT_TIMEOUT = 30_000
+  public static final int GRADLE_DISTRIBUTION_NETWORK_TIMEOUT = 30_000 // Gradle's default timeout is 10s
 
   // TODO: Gradle daemons started by the TestKit have an idle period of 3 minutes
   //  so by the time tests finish, at least some of the daemons are still alive.
@@ -746,26 +753,29 @@ class GradleDaemonSmokeTest extends Specification {
   /**
    * Sometimes Gradle Test Kit fails because it cannot download the required Gradle distribution
    * due to intermittent network issues.
-   * This method ensure Gradle is downloaded, retrying if needed
+   * This method performs the download manually (if needed) with increased timeout (30s vs default 10s).
+   * Retry logic (3 retries) is already present in org.gradle.wrapper.Install
    */
   private ensureDependenciesDownloaded(String gradleVersion) {
-    def arguments = ["help"]
-    if (gradleVersion > "6.2") {
-      // dependency verification was introduced in Gradle 6.2
-      arguments += ["--write-verification-metadata", "sha256"]
+    try {
+      def logger = new org.gradle.wrapper.Logger(false)
+      def download = new Download(logger, "Gradle Tooling API", GradleVersion.current().getVersion(), GRADLE_DISTRIBUTION_NETWORK_TIMEOUT)
+
+      def userHomeDir = GradleUserHomeLookup.gradleUserHome()
+      def projectDir = projectFolder.toFile()
+      def install = new Install(logger, download, new PathAssembler(userHomeDir, projectDir))
+
+      def configuration = new WrapperConfiguration()
+      def distribution = new DistributionLocator().getDistributionFor(GradleVersion.version(gradleVersion))
+      configuration.setDistribution(distribution)
+      configuration.setNetworkTimeout(GRADLE_DISTRIBUTION_NETWORK_TIMEOUT)
+
+      // this will download distribution (if not downloaded yet to userHomeDir) and verify its SHA
+      install.createDist(configuration)
+
+    } catch (Exception e) {
+      LOG.error("Failed to install Gradle distribution, will proceed to run test kit hoping for the best", e)
     }
-    for (i in 0..<DEPENDENCIES_DOWNLOAD_RETRIES) {
-      try {
-        def buildResult = runGradle(gradleVersion, arguments, true)
-        if (buildResult.task(":help").outcome == TaskOutcome.SUCCESS) {
-          return
-        }
-      } catch (Exception e) {
-        LOG.error("Failed to run a warm-up build", e)
-      }
-    }
-    throw new AssertionError((Object) ("Warm-up Gradle runs failed, " +
-    "it is likely that Gradle distribution or project dependencies could not be downloaded"))
   }
 
   private runGradle(String gradleVersion, List<String> arguments, boolean successExpected) {
@@ -788,39 +798,39 @@ class GradleDaemonSmokeTest extends Specification {
   }
 
   private List<Map<String, Object>> waitForEvents(eventsCount) {
-    def traceReceiveConditions = new PollingConditions(timeout: 15, initialDelay: 1, delay: 0.5, factor: 1)
-    traceReceiveConditions.eventually {
-      int count = 0
-      for (Map<String, Object> trace : receivedTraces) {
-        def events = (List<Map<String, Object>>) trace["events"]
-        count += events?.size()
-      }
-      assert count == eventsCount
-    }
-
     List<Map<String, Object>> events = new ArrayList<>()
-    while (!receivedTraces.isEmpty()) {
+    def startTime = System.currentTimeMillis()
+    while (events.size() < eventsCount) {
       def trace = receivedTraces.poll()
-      events.addAll((List<Map<String, Object>>) trace["events"])
+      if (trace != null) {
+        events.addAll((List<Map<String, Object>>) trace["events"])
+        continue
+      }
+      def duration = System.currentTimeMillis() - startTime
+      if (duration > EVENTS_RECEIPT_TIMEOUT) {
+        throw new AssertionError((Object) "Waited for $eventsCount events, received: $events")
+      } else {
+        Thread.sleep(500)
+      }
     }
     return events
   }
 
   private List<Map<String, Object>> waitForCoverages(coveragesSize) {
-    def traceReceiveConditions = new PollingConditions(timeout: 15, initialDelay: 1, delay: 0.5, factor: 1)
-    traceReceiveConditions.eventually {
-      int count = 0
-      for (Map<String, Object> coverage : receivedCoverages) {
-        def coverages = (List<Map<String, Object>>) coverage["coverages"]
-        count += coverages?.size()
-      }
-      assert count == coveragesSize
-    }
-
     List<Map<String, Object>> coverages = new ArrayList<>()
-    while (!receivedCoverages.isEmpty()) {
-      def trace = receivedCoverages.poll()
-      coverages.addAll((List<Map<String, Object>>) trace["coverages"])
+    def startTime = System.currentTimeMillis()
+    while (coverages.size() < coveragesSize) {
+      def coverage = receivedCoverages.poll()
+      if (coverage != null) {
+        coverages.addAll((List<Map<String, Object>>) coverage["coverages"])
+        continue
+      }
+      def duration = System.currentTimeMillis() - startTime
+      if (duration > EVENTS_RECEIPT_TIMEOUT) {
+        throw new AssertionError((Object) "Waited for $coveragesSize coverages, received: $coverages")
+      } else {
+        Thread.sleep(500)
+      }
     }
     return coverages
   }
