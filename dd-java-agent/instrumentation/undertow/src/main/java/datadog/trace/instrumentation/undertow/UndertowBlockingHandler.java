@@ -13,15 +13,18 @@ import io.undertow.util.HeaderMap;
 import io.undertow.util.HeaderValues;
 import io.undertow.util.Headers;
 import io.undertow.util.HttpString;
+import java.io.InterruptedIOException;
 import java.nio.ByteBuffer;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xnio.channels.StreamSinkChannel;
 
 public class UndertowBlockingHandler implements HttpHandler {
   public static final UndertowBlockingHandler INSTANCE = new UndertowBlockingHandler();
-
   private static final Logger log = LoggerFactory.getLogger(UndertowBlockingHandler.class);
+  private static final ByteBuffer EMPTY_BB = ByteBuffer.allocate(0);
 
   public static final AttachmentKey<Flow.Action.RequestBlockingAction> REQUEST_BLOCKING_DATA =
       AttachmentKey.create(Flow.Action.RequestBlockingAction.class);
@@ -41,35 +44,69 @@ public class UndertowBlockingHandler implements HttpHandler {
       return;
     }
 
+    xchg.putAttachment(IgnoreSendAttribute.IGNORE_SEND_KEY, IgnoreSendAttribute.INSTANCE);
+
     try {
       xchg.setStatusCode(BlockingActionHelper.getHttpCode(rba.getStatusCode()));
       HeaderMap headers = xchg.getResponseHeaders();
+      headers.clear();
       HeaderValues acceptHeaderValues = xchg.getRequestHeaders().get(Headers.ACCEPT);
 
       for (Map.Entry<String, String> h : rba.getExtraHeaders().entrySet()) {
-        headers.remove(h.getKey());
         headers.add(HttpString.tryFromString(h.getKey()), h.getValue());
       }
 
+      final ByteBuffer buffer;
       if (rba.getBlockingContentType() != BlockingContentType.NONE) {
         String acceptHeader = acceptHeaderValues != null ? acceptHeaderValues.peekLast() : null;
         BlockingActionHelper.TemplateType type =
             BlockingActionHelper.determineTemplateType(rba.getBlockingContentType(), acceptHeader);
         byte[] template = BlockingActionHelper.getTemplate(type);
 
-        headers.remove(Headers.CONTENT_LENGTH);
-        headers.remove(Headers.CONTENT_TYPE);
         headers.add(Headers.CONTENT_LENGTH, Integer.toString(template.length));
         headers.add(Headers.CONTENT_TYPE, BlockingActionHelper.getContentType(type));
-        xchg.getResponseSender().send(ByteBuffer.wrap(template));
+        buffer = ByteBuffer.wrap(template);
       } else {
-        xchg.getResponseSender().send("");
+        buffer = EMPTY_BB;
+      }
+
+      // blocking response to avoid having the intercepted caller and its callers interfere
+      // even if this is an IO thread...
+      // The async alternative at this level would be to set a write listener and call
+      // resumeWrites()
+      StreamSinkChannel responseChannel = xchg.getResponseChannel();
+      long deadline = System.nanoTime() + 500 * 1000 * 1000; // 500 ms
+      boolean finished = false;
+      while (true) {
+        if (buffer.hasRemaining()) {
+          responseChannel.writeFinal(buffer);
+        }
+        if (buffer.hasRemaining() || !responseChannel.flush()) {
+          long remaining = System.nanoTime() - deadline;
+          if (remaining > 0) {
+            try {
+              responseChannel.awaitWritable(remaining, TimeUnit.NANOSECONDS);
+            } catch (InterruptedIOException iioe) {
+              log.warn("Interrupted while waiting for write of blocking response");
+              break;
+            }
+          } else {
+            log.warn("Exceeded time for writing blocking response");
+            break;
+          }
+        } else {
+          finished = true;
+          break;
+        }
+      }
+      if (!finished) {
+        log.warn("Did not manage to fully write blocking response");
       }
 
       markAsEffectivelyBlocked(xchg);
-    } catch (RuntimeException rte) {
+      xchg.endExchange();
+    } catch (Throwable rte) {
       log.warn("Error sending blocking response", rte);
-      throw rte;
     }
   }
 

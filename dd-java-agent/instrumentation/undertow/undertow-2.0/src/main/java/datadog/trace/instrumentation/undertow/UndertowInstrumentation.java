@@ -39,6 +39,7 @@ public final class UndertowInstrumentation extends Instrumenter.Tracing
       packageName + ".HttpServerExchangeURIDataAdapter",
       packageName + ".UndertowDecorator",
       packageName + ".UndertowBlockingHandler",
+      packageName + ".IgnoreSendAttribute",
       packageName + ".UndertowBlockResponseFunction",
       packageName + ".UndertowExtractAdapter",
       packageName + ".UndertowExtractAdapter$Request",

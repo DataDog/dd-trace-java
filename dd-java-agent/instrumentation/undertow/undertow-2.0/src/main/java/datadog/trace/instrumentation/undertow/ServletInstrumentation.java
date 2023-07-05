@@ -45,6 +45,7 @@ public final class ServletInstrumentation extends Instrumenter.Tracing
       packageName + ".HttpServerExchangeURIDataAdapter",
       packageName + ".UndertowDecorator",
       packageName + ".UndertowBlockingHandler",
+      packageName + ".IgnoreSendAttribute",
       packageName + ".UndertowBlockResponseFunction",
       packageName + ".UndertowExtractAdapter",
       packageName + ".UndertowExtractAdapter$Request",
