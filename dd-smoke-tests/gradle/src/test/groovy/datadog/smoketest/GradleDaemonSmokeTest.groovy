@@ -18,10 +18,7 @@ import org.gradle.wrapper.Install
 import org.gradle.wrapper.PathAssembler
 import org.gradle.wrapper.WrapperConfiguration
 import org.junit.jupiter.api.Assumptions
-import org.junit.platform.commons.util.StringUtils
 import org.msgpack.jackson.dataformat.MessagePackFactory
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
@@ -43,8 +40,6 @@ import static org.hamcrest.Matchers.not
 
 @Unroll
 class GradleDaemonSmokeTest extends Specification {
-
-  protected static final Logger LOG = LoggerFactory.getLogger(GradleDaemonSmokeTest)
 
   private static final String TEST_SERVICE_NAME = "test-gradle-service"
   private static final String TEST_ENVIRONMENT_NAME = "integration-test"
@@ -771,7 +766,7 @@ class GradleDaemonSmokeTest extends Specification {
    */
   private ensureDependenciesDownloaded(String gradleVersion) {
     try {
-      LOG.warn("{}: {} - Starting dependencies download", new Date(), specificationContext.currentIteration.displayName)
+      println "${new Date()}: $specificationContext.currentIteration.displayName - Starting dependencies download"
 
       def logger = new org.gradle.wrapper.Logger(false)
       def download = new Download(logger, "Gradle Tooling API", GradleVersion.current().getVersion(), GRADLE_DISTRIBUTION_NETWORK_TIMEOUT)
@@ -788,10 +783,11 @@ class GradleDaemonSmokeTest extends Specification {
       // this will download distribution (if not downloaded yet to userHomeDir) and verify its SHA
       install.createDist(configuration)
 
-      LOG.warn("{}: {} - Finished dependencies download", new Date(), specificationContext.currentIteration.displayName)
+      println "${new Date()}: $specificationContext.currentIteration.displayName - Finished dependencies download"
 
     } catch (Exception e) {
-      LOG.error("Failed to install Gradle distribution, will proceed to run test kit hoping for the best", e)
+      println "${new Date()}: $specificationContext.currentIteration.displayName " +
+        "- Failed to install Gradle distribution, will proceed to run test kit hoping for the best: $e"
     }
   }
 
@@ -801,12 +797,11 @@ class GradleDaemonSmokeTest extends Specification {
       .withProjectDir(projectFolder.toFile())
       .withGradleVersion(gradleVersion)
       .withArguments(arguments)
-      .forwardStdOutput(new LogWriter("[GRADLE OUT]"))
-      .forwardStdError(new LogWriter("[GRADLE ERR]"))
+      .forwardOutput()
 
-    LOG.warn("{}: {} - Starting Gradle run", new Date(), specificationContext.currentIteration.displayName)
+    println "${new Date()}: $specificationContext.currentIteration.displayName - Starting Gradle run"
     def buildResult = successExpected ? gradleRunner.build() : gradleRunner.buildAndFail()
-    LOG.warn("{}: {} - Finished Gradle run", new Date(), specificationContext.currentIteration.displayName)
+    println "${new Date()}: $specificationContext.currentIteration.displayName - Finished Gradle run"
     buildResult
   }
 
@@ -819,7 +814,7 @@ class GradleDaemonSmokeTest extends Specification {
   }
 
   private List<Map<String, Object>> waitForEvents(eventsCount) {
-    LOG.warn("{}: {} - Waiting for traces", new Date(), specificationContext.currentIteration.displayName)
+    println "${new Date()}: $specificationContext.currentIteration.displayName - Waiting for traces"
 
     List<Map<String, Object>> events = new ArrayList<>()
     def startTime = System.currentTimeMillis()
@@ -837,12 +832,12 @@ class GradleDaemonSmokeTest extends Specification {
       }
     }
 
-    LOG.warn("{}: {} - Received traces", new Date(), specificationContext.currentIteration.displayName)
+    println "${new Date()}: $specificationContext.currentIteration.displayName - Received traces"
     return events
   }
 
   private List<Map<String, Object>> waitForCoverages(coveragesSize) {
-    LOG.warn("{}: {} - Waiting for coverages", new Date(), specificationContext.currentIteration.displayName)
+    println "${new Date()}: $specificationContext.currentIteration.displayName - Waiting for coverages"
 
     List<Map<String, Object>> coverages = new ArrayList<>()
     def startTime = System.currentTimeMillis()
@@ -860,7 +855,7 @@ class GradleDaemonSmokeTest extends Specification {
       }
     }
 
-    LOG.warn("{}: {} - Received coverages", new Date(), specificationContext.currentIteration.displayName)
+    println "${new Date()}: $specificationContext.currentIteration.displayName - Received coverages"
     return coverages
   }
 
@@ -946,28 +941,6 @@ class GradleDaemonSmokeTest extends Specification {
       return gradleVersion >= "2.0"
     }
     return false
-  }
-
-  private static final class LogWriter extends Writer {
-    private final String prefix
-
-    LogWriter(String prefix) {
-      this.prefix = prefix
-    }
-
-    @Override
-    void write(char[] cbuf, int off, int len) throws IOException {
-      String s = new String(cbuf, off, len)
-      if (!StringUtils.isBlank(s)) {
-        LOG.warn("{}: {}", prefix, s)
-      }
-    }
-
-    @Override
-    void flush() throws IOException {}
-
-    @Override
-    void close() throws IOException {}
   }
 
 }
