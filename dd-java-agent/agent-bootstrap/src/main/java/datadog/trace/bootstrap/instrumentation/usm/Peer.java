@@ -30,7 +30,7 @@ public final class Peer implements Encodable {
 
   @Override
   public void encode(ByteBuffer buffer) {
-    log.debug("encoding peer domain: " + domain + " peer port: " + port);
+    log.debug("encoding peer domain: {} peer port: {}", domain, port);
 
     buffer.putShort((short) port);
 

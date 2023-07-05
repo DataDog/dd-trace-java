@@ -61,7 +61,7 @@ class SslSocketTest extends AgentTestRunner {
       verifyAll(it, ByteBuffer) {
         it.position(0)
         //validate message type
-        it.get() == (byte)MessageEncoder.MessageType.SYNCHRONOUS_PAYLOAD.ordinal()
+        it.get() == MessageEncoder.SYNCHRONOUS_PAYLOAD
 
         //skip connection struct
         it.position(1 + connectionObjectSize)

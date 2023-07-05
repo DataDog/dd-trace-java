@@ -65,7 +65,7 @@ public final class SslSocketInstrumentation extends Instrumenter.Usm
               socket.getPort(),
               isIPv6);
       Buffer message =
-          MessageEncoder.encode(MessageEncoder.MessageType.CLOSE_CONNECTION, connection);
+          MessageEncoder.encode(MessageEncoder.CLOSE_CONNECTION, connection);
       Extractor.Supplier.send(message);
     }
   }

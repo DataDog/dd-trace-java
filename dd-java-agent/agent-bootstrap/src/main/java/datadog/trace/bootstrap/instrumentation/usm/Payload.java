@@ -31,7 +31,7 @@ public final class Payload implements Encodable {
 
   @Override
   public void encode(ByteBuffer buffer) {
-    log.debug("encoding payload of size " + (length - offset));
+    log.debug("encoding payload of size {}", (length - offset));
     // check the buffer is not larger than max allowed,
     if (length - offset <= MAX_HTTPS_BUFFER_SIZE) {
       buffer.putInt(length);

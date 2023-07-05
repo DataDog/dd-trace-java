@@ -45,9 +45,9 @@ public final class Connection implements Encodable {
   */
   public void encode(ByteBuffer buffer) {
     log.debug("encoding connection:");
-    log.debug("\tsrc host: " + srcIp.toString() + " src port: " + srcPort);
+    log.debug("\tsrc host: {} src port: {}", srcIp, srcPort);
     if (dstIp != null) {
-      log.debug("\tdst host: " + dstIp + " dst port: " + dstPort);
+      log.debug("\tdst host: {} dst port: {}", dstIp, dstPort);
     }
     byte[] srcIPBuffer = srcIp.getAddress();
     // if IPv4 (4 bytes long), encode it into low part of the reserved space

@@ -22,21 +22,19 @@ public class UsmExtractorImpl implements Extractor {
 
   public void send(Buffer buffer) {
     if (!buffer.isDirect()) {
-      log.error("message buffer is not direct ");
+      log.error("message buffer is not direct");
       return;
     }
 
-    log.debug(
-        "sending ioctl: "
-            + String.format("%08x", USM_IOCTL_ID.intValue())
-            + " with buffer of size: "
-            + buffer.position());
+    log.debug("sending ioctl: {} with buffer of size: {}",
+            String.format("%08x", USM_IOCTL_ID.intValue()),
+            buffer.position());
     NativeLong res =
         CLibrary.Instance.ioctl(
             new NativeLong(0),
             USM_IOCTL_ID,
             Pointer.nativeValue(Native.getDirectBufferPointer(buffer)));
-    log.debug("ioctl result: " + String.format("%08x", res.intValue()));
+    log.debug("ioctl result: {}", String.format("%08x", res.intValue()));
   }
 
   public static void registerAsSupplier() {

@@ -11,30 +11,28 @@ import org.slf4j.LoggerFactory;
 public class MessageEncoder {
   private static final Logger log = LoggerFactory.getLogger(MessageEncoder.class);
 
-  public enum MessageType {
-    // message created from hooks on read / write functions of AppInputStream
-    // and AppOutputStream respectively and contains the actual payload and the connection
-    // information
-    // (used by SSLSocket instrumentation)
-    SYNCHRONOUS_PAYLOAD,
+  // Java enums and especially enum switches are really bloated, using directly byte types
 
-    // message created when an underlying socket is closed
-    // (used by SocketChannel and SSLSocket instrumentations)
-    CLOSE_CONNECTION,
+  // message created from hooks on read / write functions of AppInputStream
+  // and AppOutputStream respectively and contains the actual payload and the connection
+  // information
+  // (used by SSLSocket instrumentation)
+  public static final byte SYNCHRONOUS_PAYLOAD = 0;
+  // message created when an underlying socket is closed
+  // (used by SocketChannel and SSLSocket instrumentations)
+  public static final byte CLOSE_CONNECTION = 1;
+  // message created by the transport layer of async frameworks (e.g: SocketChannel)
+  // to allow correlation between the tuple of peer domain and peer port against the actual
+  // connection
+  // (used by SocketChannel instrumentation)
+  public static final byte CONNECTION_BY_PEER = 2;
 
-    // message created by the transport layer of async frameworks (e.g: SocketChannel)
-    // to allow correlation between the tuple of peer domain and peer port against the actual
-    // connection
-    // (used by SocketChannel instrumentation)
-    CONNECTION_BY_PEER,
+  // message created by the SSL encryption layer of async frameworks (SSLEngine)
+  // and contains the peer domain and port information and the actual payload
+  // (used by SSLEngine instrumentation)
+  public static final byte ASYNC_PAYLOAD = 3;
 
-    // message created by the SSL encryption layer of async frameworks (SSLEngine)
-    // and contains the peer domain and port information and the actual payload
-    // (used by SSLEngine instrumentation)
-    ASYNC_PAYLOAD,
-  }
-
-  public static Buffer encode(MessageType type, Encodable... entities) {
+  public static Buffer encode(byte type, Encodable... entities) {
     int size = 1; // for the message type
 
     // calculate the full size of the buffer we need to allocate to encode the full message with all
@@ -50,11 +48,10 @@ public class MessageEncoder {
     buffer.order(ByteOrder.LITTLE_ENDIAN);
     // zero the buffer content
     buffer.clear();
-
-    log.debug("encoding " + type + " message of size  " + size);
+    log.debug("encoding {} message of size {}", type, size);
 
     // encode message type
-    buffer.put((byte) type.ordinal());
+    buffer.put(type);
 
     // encode each entity using a visitor pattern to avoid extra buffer allocations
     for (Encodable entity : entities) {

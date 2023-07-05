@@ -72,7 +72,7 @@ public final class SocketChannelImplInstrumentation extends Instrumenter.Usm
 
       Peer peer = new Peer(remoteSocketAddr.getHostString(), remoteSocketAddr.getPort());
       Buffer message =
-          MessageEncoder.encode(MessageEncoder.MessageType.CONNECTION_BY_PEER, connection, peer);
+          MessageEncoder.encode(MessageEncoder.CONNECTION_BY_PEER, connection, peer);
       Extractor.Supplier.send(message);
     }
   }
@@ -101,7 +101,7 @@ public final class SocketChannelImplInstrumentation extends Instrumenter.Usm
               remoteSocketAddr.getPort(),
               isIPv6);
       Buffer message =
-          MessageEncoder.encode(MessageEncoder.MessageType.CLOSE_CONNECTION, connection);
+          MessageEncoder.encode(MessageEncoder.CLOSE_CONNECTION, connection);
       Extractor.Supplier.send(message);
     }
   }
