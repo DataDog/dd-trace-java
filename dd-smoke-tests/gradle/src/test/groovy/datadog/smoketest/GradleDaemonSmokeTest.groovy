@@ -18,6 +18,7 @@ import org.gradle.wrapper.Install
 import org.gradle.wrapper.PathAssembler
 import org.gradle.wrapper.WrapperConfiguration
 import org.junit.jupiter.api.Assumptions
+import org.junit.platform.commons.util.StringUtils
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
