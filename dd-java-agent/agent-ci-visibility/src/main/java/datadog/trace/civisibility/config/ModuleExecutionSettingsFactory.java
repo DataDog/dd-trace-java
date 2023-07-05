@@ -75,7 +75,7 @@ public class ModuleExecutionSettingsFactory {
 
     /*
      * IMPORTANT: JVM and OS properties should match tags
-     * set in datadog.trace.api.civisibility.decorator.TestDecorator
+     * set in datadog.trace.civisibility.decorator.TestDecorator
      */
     return TracerEnvironment.builder()
         .service(config.getServiceName())

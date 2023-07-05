@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.gradle;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
-import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.util.Strings;
@@ -35,14 +34,12 @@ public class GradleBuildListener extends BuildAdapter {
     }
     Gradle gradle = settings.getGradle();
     Path projectRoot = settings.getRootDir().toPath();
-    TestDecorator gradleDecorator =
-        InstrumentationBridge.createTestDecorator("gradle", null, null, projectRoot);
     ProjectDescriptor rootProject = settings.getRootProject();
     String projectName = rootProject.getName();
     String startCommand = GradleUtils.recreateStartCommand(settings.getStartParameter());
     String gradleVersion = gradle.getGradleVersion();
     buildEventsHandler.onTestSessionStart(
-        gradle, gradleDecorator, projectName, startCommand, "gradle", gradleVersion);
+        gradle, projectName, projectRoot, startCommand, "gradle", gradleVersion);
   }
 
   @Override

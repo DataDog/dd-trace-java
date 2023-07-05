@@ -6,7 +6,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTestModule;
 import datadog.trace.api.civisibility.DDTestSession;
-import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -14,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.context.SpanTestContext;
 import datadog.trace.civisibility.context.TestContext;
+import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import javax.annotation.Nullable;
 

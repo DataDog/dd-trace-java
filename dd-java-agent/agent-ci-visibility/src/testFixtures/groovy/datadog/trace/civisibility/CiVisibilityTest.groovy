@@ -6,9 +6,11 @@ import datadog.trace.agent.test.civisibility.coverage.NoopCoverageProbeStore
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.api.civisibility.CIVisibility
 import datadog.trace.api.civisibility.InstrumentationBridge
 import datadog.trace.civisibility.codeowners.Codeowners
-import datadog.trace.api.civisibility.decorator.TestDecorator
+import datadog.trace.civisibility.decorator.TestDecorator
+import datadog.trace.civisibility.decorator.TestDecoratorImpl
 import datadog.trace.civisibility.source.MethodLinesResolver
 import datadog.trace.api.civisibility.source.SourcePathResolver
 import datadog.trace.api.config.CiVisibilityConfig
@@ -53,19 +55,31 @@ abstract class CiVisibilityTest extends AgentTestRunner {
     def methodLinesResolver = Stub(MethodLinesResolver)
     methodLinesResolver.getLines(_) >> new MethodLinesResolver.MethodLines(DUMMY_TEST_METHOD_START, DUMMY_TEST_METHOD_END)
 
-    InstrumentationBridge.registerTestDecoratorFactory { component, testFramework, testFrameworkVersion, path ->
-      Map<String, String> ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
-      new TestDecoratorImpl(component, testFramework, testFrameworkVersion, ciTags)
-    }
-
-    InstrumentationBridge.registerTestEventsHandlerFactory { component, testFramework, testFrameworkVersion, path ->
-      def testDecorator = InstrumentationBridge.createTestDecorator(component, testFramework, testFrameworkVersion, path)
+    InstrumentationBridge.registerTestEventsHandlerFactory {
+      component, testFramework, testFrameworkVersion, path ->
+      def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
+      def testDecorator = new TestDecoratorImpl(component, testFramework, testFrameworkVersion, ciTags)
       new TestEventsHandlerImpl(dummyModule, Config.get(), testDecorator, sourcePathResolver, codeowners, methodLinesResolver)
     }
 
-    InstrumentationBridge.registerBuildEventsHandlerFactory { decorator -> new BuildEventsHandlerImpl<>() }
+    InstrumentationBridge.registerBuildEventsHandlerFactory {
+      decorator -> new BuildEventsHandlerImpl<>()
+    }
 
     InstrumentationBridge.registerCoverageProbeStoreFactory(new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory())
+
+    CIVisibility.registerSessionFactory (String projectName, Path projectRoot, String component, Long startTime) -> {
+      def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
+      TestDecorator testDecorator = new TestDecoratorImpl(component, null, null, ciTags)
+      return new DDTestSessionImpl(
+      projectName,
+      startTime,
+      Config.get(),
+      testDecorator,
+      sourcePathResolver,
+      codeowners,
+      methodLinesResolver)
+    }
   }
 
   @Override
@@ -85,13 +99,13 @@ abstract class CiVisibilityTest extends AgentTestRunner {
   }
 
   Long testSessionSpan(final TraceAssert trace,
-    final int index,
-    final String sessionName,
-    final String testCommand,
-    final String testToolchain,
-    final String testStatus,
-    final Map<String, String> testTags = null,
-    final Throwable exception = null) {
+  final int index,
+  final String sessionName,
+  final String testCommand,
+  final String testToolchain,
+  final String testStatus,
+  final Map<String, String> testTags = null,
+  final Throwable exception = null) {
     def testFramework = expectedTestFramework()
     def testFrameworkVersion = expectedTestFrameworkVersion()
 
@@ -144,12 +158,12 @@ abstract class CiVisibilityTest extends AgentTestRunner {
   }
 
   Long testModuleSpan(final TraceAssert trace,
-    final int index,
-    final String testStatus,
-    final Map<String, String> testTags = null,
-    final Throwable exception = null,
-    final Long testSessionId = null,
-    final String resource = null) {
+  final int index,
+  final String testStatus,
+  final Map<String, String> testTags = null,
+  final Throwable exception = null,
+  final Long testSessionId = null,
+  final String resource = null) {
     def testFramework = expectedTestFramework()
     def testFrameworkVersion = expectedTestFrameworkVersion()
 
@@ -209,14 +223,14 @@ abstract class CiVisibilityTest extends AgentTestRunner {
   }
 
   Long testSuiteSpan(final TraceAssert trace,
-    final int index,
-    final Long testModuleId,
-    final String testSuite,
-    final String testStatus,
-    final Map<String, String> testTags = null,
-    final Throwable exception = null,
-    final boolean emptyDuration = false,
-    final Collection<String> categories = null) {
+  final int index,
+  final Long testModuleId,
+  final String testSuite,
+  final String testStatus,
+  final Map<String, String> testTags = null,
+  final Throwable exception = null,
+  final boolean emptyDuration = false,
+  final Collection<String> categories = null) {
     def testFramework = expectedTestFramework()
     def testFrameworkVersion = expectedTestFrameworkVersion()
 
@@ -279,16 +293,16 @@ abstract class CiVisibilityTest extends AgentTestRunner {
   }
 
   void testSpan(final TraceAssert trace,
-    final int index,
-    final Long testModuleId,
-    final Long testSuiteId,
-    final String testSuite,
-    final String testName,
-    final String testStatus,
-    final Map<String, String> testTags = null,
-    final Throwable exception = null,
-    final boolean emptyDuration = false,
-    final Collection<String> categories = null) {
+  final int index,
+  final Long testModuleId,
+  final Long testSuiteId,
+  final String testSuite,
+  final String testName,
+  final String testStatus,
+  final Map<String, String> testTags = null,
+  final Throwable exception = null,
+  final boolean emptyDuration = false,
+  final Collection<String> categories = null) {
     def testFramework = expectedTestFramework()
     def testFrameworkVersion = expectedTestFrameworkVersion()
 
