@@ -1,13 +1,10 @@
 package datadog.trace.common.writer;
 
-import datadog.trace.api.DDTags;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.MetadataConsumer;
 import datadog.trace.core.tagprocessor.PeerServiceCalculator;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -46,18 +43,9 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
       return;
     }
     for (DDSpan span : trace) {
-      // todo: this can be better with span.processTagsAndBaggage(NoopMetadataConsumer.INSTANCE);
-      // we cannot use the full postProcessor chain since it trigger also query obsfuscator and will
-      // make fail a lot of tests
-      // only kicks in peer.service computation (avoid scrambling queries and url)
-      final Map<String, ?> enriched =
-          peerServiceCalculator.processTags(new HashMap<>(span.getTags()));
-      final Object peerServiceSource = enriched.get(DDTags.PEER_SERVICE_SOURCE);
-      // we needed to copy the original tag map since it's unmodifiable
-      if (peerServiceSource != null) {
-        span.setTag(Tags.PEER_SERVICE, enriched.get(Tags.PEER_SERVICE));
-        span.setTag(DDTags.PEER_SERVICE_SOURCE, peerServiceSource);
-      }
+      // This is needed to properly do all delayed processing to make this writer even
+      // remotely realistic so the test actually test something
+      span.processTagsAndBaggage(MetadataConsumer.NO_OP);
     }
     traceCount.incrementAndGet();
     synchronized (latches) {

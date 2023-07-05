@@ -182,7 +182,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   String expectedUrl(ServerEndpoint endpoint, URI address) {
     URI url = endpoint.resolve(address)
     def path = Config.get().isHttpServerRawResource() && supportsRaw() ? url.rawPath : url.path
-    return URIUtils.buildURL(url.scheme, url.host, url.port, path)
+    def uri = URIUtils.buildURL(url.scheme, url.host, url.port, path)
+    def qt = expectedQueryTag(endpoint)
+    if (qt && !qt.isEmpty()) {
+      uri = "$uri?$qt"
+    }
+    return uri
   }
 
   Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
