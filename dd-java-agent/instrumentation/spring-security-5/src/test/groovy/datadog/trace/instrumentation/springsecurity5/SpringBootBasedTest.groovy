@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.springsecurity5
 
 import datadog.trace.agent.test.base.HttpServer
-import datadog.trace.agent.test.base.WithHttpServer
+import datadog.trace.agent.test.base.HttpServerWithAppSec
 import datadog.trace.core.DDSpan
 import okhttp3.HttpUrl
 import okhttp3.Request
@@ -17,14 +17,18 @@ import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.UNKNOWN
 import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.NOT_FOUND
 
 
-class SpringBootBasedTest extends WithHttpServer<ConfigurableApplicationContext> {
+class SpringBootBasedTest extends HttpServerWithAppSec<ConfigurableApplicationContext> {
 
     @Shared
     def context
 
+    SpringApplication application() {
+        return new SpringApplication(AppConfig, TestController)
+    }
+
     class SpringBootServer implements HttpServer {
         def port = 0
-        final app = new SpringApplication(AppConfig, TestController)
+        final app = application()
 
         @Override
         void start() {
@@ -55,11 +59,6 @@ class SpringBootBasedTest extends WithHttpServer<ConfigurableApplicationContext>
         return new SpringBootServer()
     }
 
-    @Override
-    protected void configurePreAgent() {
-        super.configurePreAgent()
-        injectSysConfig('dd.appsec.enabled', 'true')
-    }
 
     @Override
     int version() {
@@ -92,6 +91,7 @@ class SpringBootBasedTest extends WithHttpServer<ConfigurableApplicationContext>
                 .build()
         return new Request.Builder()
                 .url(url)
+                .addHeader('user-agent', 'Arachni/v1')
                 .method(method, body)
     }
 

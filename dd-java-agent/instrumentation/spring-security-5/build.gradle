@@ -21,6 +21,13 @@ apply from: "$rootDir/gradle/java.gradle"
   }
 }
 
+repositories {
+  ivy {
+    artifactPattern 'https://sqreen-ci-java.s3.amazonaws.com/jars/[organisation]/[artifact]-[revision](-[classifier]).[ext]'
+    ivyPattern 'https://sqreen-ci-java.s3.amazonaws.com/jars/[organisation]/[module]-[revision].xml'
+  }
+}
+
 compileTestGroovy {
   javaLauncher = getJavaLauncherFor(17)
 }
@@ -32,4 +39,7 @@ dependencies {
   testImplementation group: 'org.springframework', name: 'spring-webmvc', version: '6.0.0'
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '3.0.0'
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.0.0'
+
+  testImplementation project(':dd-java-agent:instrumentation:tomcat-appsec-6')
+  testImplementation project(':dd-java-agent:instrumentation:tomcat-5.5')
 }
