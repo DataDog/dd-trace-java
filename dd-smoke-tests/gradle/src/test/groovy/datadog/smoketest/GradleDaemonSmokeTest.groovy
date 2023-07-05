@@ -102,6 +102,10 @@ class GradleDaemonSmokeTest extends Specification {
     }
   }
 
+  def setupSpec() {
+    givenGradleProperties()
+  }
+
   def setup() {
     receivedTraces.clear()
     receivedCoverages.clear()
@@ -703,7 +707,7 @@ class GradleDaemonSmokeTest extends Specification {
     String agentShadowJar = System.getProperty("datadog.smoketest.agent.shadowJar.path")
     assert new File(agentShadowJar).isFile()
 
-    def ddApiKeyPath = projectFolder.resolve(".dd.api.key")
+    def ddApiKeyPath = testKitFolder.resolve(".dd.api.key")
     Files.write(ddApiKeyPath, "dummy".getBytes())
 
     def ddApplicationKeyPath = testKitFolder.resolve(".dd.application.key")
@@ -723,7 +727,7 @@ class GradleDaemonSmokeTest extends Specification {
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES)}=datadog.smoke.*," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${intakeServer.address.toString()}"
 
-    Files.write(projectFolder.resolve("gradle.properties"), gradleProperties.getBytes())
+    Files.write(testKitFolder.resolve("gradle.properties"), gradleProperties.getBytes())
   }
 
   private void givenGradleProjectFiles(String projectFilesSources) {
@@ -744,9 +748,7 @@ class GradleDaemonSmokeTest extends Specification {
   }
 
   private BuildResult runGradleTests(String gradleVersion, boolean successExpected = true) {
-    givenGradleProperties()
-
-    def arguments = ["test", "--stacktrace", "--debug"]
+    def arguments = ["test", "--stacktrace"]
     if (gradleVersion > "5.6") {
       // fail on warnings is available starting from Gradle 5.6
       arguments += ["--warning-mode", "fail"]
