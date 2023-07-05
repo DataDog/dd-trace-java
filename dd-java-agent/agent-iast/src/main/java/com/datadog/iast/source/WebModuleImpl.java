@@ -52,19 +52,6 @@ public class WebModuleImpl implements WebModule {
     onNamed(cookieNames, SourceTypes.REQUEST_COOKIE_NAME);
   }
 
-  private static void onNamed(
-      @Nullable final String name, @Nullable final String value, final byte source) {
-    if (!canBeTainted(value)) {
-      return;
-    }
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    taintedObjects.taintInputString(value, new Source(source, name, value));
-  }
-
   private static void onNamed(@Nullable final Iterable<String> names, final byte source) {
     if (names == null) {
       return;
