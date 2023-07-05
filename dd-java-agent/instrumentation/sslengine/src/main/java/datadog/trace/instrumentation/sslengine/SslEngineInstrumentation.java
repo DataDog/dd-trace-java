@@ -86,30 +86,30 @@ public final class SslEngineInstrumentation extends Instrumenter.Usm
 
   public static final class UnwrapAdvice {
 
-      @Advice.OnMethodExit(suppress = Throwable.class)
-      public static void unwrap(
-          @Advice.This final SSLEngine thiz,
-          @Advice.Argument(1) final ByteBuffer dst,
-          @Advice.Return SSLEngineResult result) {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void unwrap(
+        @Advice.This final SSLEngine thiz,
+        @Advice.Argument(1) final ByteBuffer dst,
+        @Advice.Return SSLEngineResult result) {
 
-        // before accomplishing the handshake, the session doesn't have a session id, as it is
-        // generated during the handshake kickstart.
-        if (thiz.getSession().getId().length != 0) {
-          return;
-        }
-        if (result.bytesProduced() > 0 && dst.limit() >= result.bytesProduced()) {
-          byte[] b = new byte[result.bytesProduced()];
-          int oldPos = dst.position();
-          dst.position(dst.arrayOffset());
-          dst.get(b, 0, result.bytesProduced());
-          dst.position(oldPos);
+      // before accomplishing the handshake, the session doesn't have a session id, as it is
+      // generated during the handshake kickstart.
+      if (thiz.getSession().getId().length != 0) {
+        return;
+      }
+      if (result.bytesProduced() > 0 && dst.limit() >= result.bytesProduced()) {
+        byte[] b = new byte[result.bytesProduced()];
+        int oldPos = dst.position();
+        dst.position(dst.arrayOffset());
+        dst.get(b, 0, result.bytesProduced());
+        dst.position(oldPos);
 
-          Peer peer = new Peer(thiz.getPeerHost(), thiz.getPeerPort());
-          Payload payload = new Payload(b, 0, b.length);
-          Buffer message =
-              MessageEncoder.encode(MessageEncoder.MessageType.ASYNC_PAYLOAD, peer, payload);
-          Extractor.Supplier.send(message);
-        }
+        Peer peer = new Peer(thiz.getPeerHost(), thiz.getPeerPort());
+        Payload payload = new Payload(b, 0, b.length);
+        Buffer message =
+            MessageEncoder.encode(MessageEncoder.MessageType.ASYNC_PAYLOAD, peer, payload);
+        Extractor.Supplier.send(message);
       }
     }
+  }
 }
