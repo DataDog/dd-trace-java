@@ -110,18 +110,27 @@ class GradleDaemonSmokeTest extends Specification {
 
   def "Successful build emits session and module spans: Gradle v#gradleVersion"() {
     given:
+
+    LOG.warn("{} Starting test: {}", new Date(), specificationContext.currentIteration.displayName)
+
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenGradleProjectFiles("datadog/smoketest/success/")
     ensureDependenciesDownloaded(gradleVersion)
 
+    LOG.warn("{} Dependencies downloaded: {}", new Date(), specificationContext.currentIteration.displayName)
+
     when:
     BuildResult buildResult = runGradleTests(gradleVersion)
+
+    LOG.warn("{} Build executed: {}", new Date(), specificationContext.currentIteration.displayName)
 
     then:
     assertBuildSuccessful(buildResult)
 
     def events = waitForEvents(4)
     assert events.size() == 4
+
+    LOG.warn("{} Traces received: {}", new Date(), specificationContext.currentIteration.displayName)
 
     def sessionEndEvent = events.find { it.type == "test_session_end" }
     assert sessionEndEvent != null
@@ -205,6 +214,8 @@ class GradleDaemonSmokeTest extends Specification {
     def coverages = waitForCoverages(1)
     assert coverages.size() == 1
 
+    LOG.warn("{} Coverages received: {}", new Date(), specificationContext.currentIteration.displayName)
+
     def coverage = coverages.first()
     coverage == [
       test_session_id: testEvent.content.test_session_id,
@@ -217,6 +228,8 @@ class GradleDaemonSmokeTest extends Specification {
         ]
       ]
     ]
+
+    LOG.warn("{} Finished test: {}", new Date(), specificationContext.currentIteration.displayName)
 
     where:
     gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.2"]
