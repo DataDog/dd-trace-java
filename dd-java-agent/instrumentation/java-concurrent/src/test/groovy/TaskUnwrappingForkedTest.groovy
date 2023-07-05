@@ -10,6 +10,7 @@ class TaskUnwrappingForkedTest extends AgentTestRunner {
   @Override
   protected void configurePreAgent() {
     injectSysConfig("dd.profiling.enabled", "true")
+    injectSysConfig("dd.profiling.experimental.queueing.time.enabled", "true")
     super.configurePreAgent()
   }
 
