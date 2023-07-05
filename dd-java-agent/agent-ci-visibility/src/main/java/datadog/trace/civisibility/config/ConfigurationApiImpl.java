@@ -27,7 +27,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
   private final JsonAdapter<EnvelopeDto<TracerEnvironment>> requestAdapter;
   private final JsonAdapter<EnvelopeDto<CiVisibilitySettings>> settingsResponseAdapter;
-  private final JsonAdapter<MultiEnvelopeDto<SkippableTest>> skippablTestsResponseAdapter;
+  private final JsonAdapter<MultiEnvelopeDto<SkippableTest>> skippableTestsResponseAdapter;
 
   public ConfigurationApiImpl(BackendApi backendApi) {
     this(backendApi, () -> UUID.randomUUID().toString());
@@ -53,7 +53,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     ParameterizedType skippableTestsResponseType =
         Types.newParameterizedTypeWithOwner(
             ConfigurationApiImpl.class, MultiEnvelopeDto.class, SkippableTest.class);
-    skippablTestsResponseAdapter = moshi.adapter(skippableTestsResponseType);
+    skippableTestsResponseAdapter = moshi.adapter(skippableTestsResponseType);
   }
 
   @Override
@@ -82,7 +82,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
         backendApi.post(
             SKIPPABLE_TESTS_URI,
             requestBody,
-            is -> skippablTestsResponseAdapter.fromJson(Okio.buffer(Okio.source(is))).data);
+            is -> skippableTestsResponseAdapter.fromJson(Okio.buffer(Okio.source(is))).data);
     return response.stream().map(DataDto::getAttributes).collect(Collectors.toList());
   }
 

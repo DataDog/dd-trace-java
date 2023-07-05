@@ -3,6 +3,7 @@ package datadog.trace.civisibility.events;
 import datadog.trace.api.civisibility.CIVisibility;
 import datadog.trace.api.civisibility.DDTestModule;
 import datadog.trace.api.civisibility.DDTestSession;
+import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.DDTestModuleImpl;
@@ -22,7 +23,7 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
   public void onTestSessionStart(
       final T sessionKey,
       final String projectName,
-      Path projectRoot,
+      final Path projectRoot,
       final String startCommand,
       final String buildSystemName,
       final String buildSystemVersion) {
@@ -135,5 +136,11 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
               + moduleName);
     }
     testModule.end(null);
+  }
+
+  @Override
+  public ModuleExecutionSettings getModuleExecutionSettings(T sessionKey, Path jvmExecutablePath) {
+    DDTestSession testSession = getTestSession(sessionKey);
+    return testSession.getModuleExecutionSettings(jvmExecutablePath);
   }
 }

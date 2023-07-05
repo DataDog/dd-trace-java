@@ -8,16 +8,17 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.civisibility.CIVisibility
 import datadog.trace.api.civisibility.InstrumentationBridge
-import datadog.trace.civisibility.codeowners.Codeowners
-import datadog.trace.civisibility.decorator.TestDecorator
-import datadog.trace.civisibility.decorator.TestDecoratorImpl
-import datadog.trace.civisibility.source.MethodLinesResolver
 import datadog.trace.api.civisibility.source.SourcePathResolver
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.civisibility.codeowners.Codeowners
+import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory
+import datadog.trace.civisibility.decorator.TestDecorator
+import datadog.trace.civisibility.decorator.TestDecoratorImpl
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl
 import datadog.trace.civisibility.events.TestEventsHandlerImpl
+import datadog.trace.civisibility.source.MethodLinesResolver
 import datadog.trace.core.DDSpan
 import datadog.trace.util.Strings
 import spock.lang.Unroll
@@ -55,6 +56,8 @@ abstract class CiVisibilityTest extends AgentTestRunner {
     def methodLinesResolver = Stub(MethodLinesResolver)
     methodLinesResolver.getLines(_) >> new MethodLinesResolver.MethodLines(DUMMY_TEST_METHOD_START, DUMMY_TEST_METHOD_END)
 
+    def moduleExecutionSettingsFactory = Stub(ModuleExecutionSettingsFactory)
+
     InstrumentationBridge.registerTestEventsHandlerFactory {
       component, testFramework, testFrameworkVersion, path ->
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
@@ -78,7 +81,8 @@ abstract class CiVisibilityTest extends AgentTestRunner {
       testDecorator,
       sourcePathResolver,
       codeowners,
-      methodLinesResolver)
+      methodLinesResolver,
+      moduleExecutionSettingsFactory)
     }
   }
 

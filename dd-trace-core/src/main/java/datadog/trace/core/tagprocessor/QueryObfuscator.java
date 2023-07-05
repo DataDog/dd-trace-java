@@ -57,13 +57,13 @@ public class QueryObfuscator implements TagsPostProcessor {
   @Override
   public Map<String, Object> processTags(Map<String, Object> unsafeTags) {
     Object query = unsafeTags.get(DDTags.HTTP_QUERY);
-    if (query instanceof String) {
-      query = obfuscate((String) query);
+    if (query instanceof CharSequence) {
+      query = obfuscate(query.toString());
 
       unsafeTags.put(DDTags.HTTP_QUERY, query);
 
       Object url = unsafeTags.get(Tags.HTTP_URL);
-      if (url instanceof String) {
+      if (url instanceof CharSequence) {
         unsafeTags.put(Tags.HTTP_URL, url + "?" + query);
       }
     }

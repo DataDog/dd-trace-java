@@ -1,5 +1,7 @@
 package datadog.trace.api.civisibility.config;
 
+import java.util.Objects;
+
 public final class Configurations {
   private final String osPlatform;
   private final String osArchitecture;
@@ -59,5 +61,37 @@ public final class Configurations {
 
   public String getTestBundle() {
     return testBundle;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    Configurations that = (Configurations) o;
+    return Objects.equals(osPlatform, that.osPlatform)
+        && Objects.equals(osArchitecture, that.osArchitecture)
+        && Objects.equals(osVersion, that.osVersion)
+        && Objects.equals(runtimeName, that.runtimeName)
+        && Objects.equals(runtimeVersion, that.runtimeVersion)
+        && Objects.equals(runtimeVendor, that.runtimeVendor)
+        && Objects.equals(runtimeArchitecture, that.runtimeArchitecture)
+        && Objects.equals(testBundle, that.testBundle);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(
+        osPlatform,
+        osArchitecture,
+        osVersion,
+        runtimeName,
+        runtimeVersion,
+        runtimeVendor,
+        runtimeArchitecture,
+        testBundle);
   }
 }

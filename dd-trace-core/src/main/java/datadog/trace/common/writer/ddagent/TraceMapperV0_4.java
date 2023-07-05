@@ -29,7 +29,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
     this(5 << 20);
   }
 
-  private static final class MetaWriter extends MetadataConsumer {
+  private static final class MetaWriter implements MetadataConsumer {
 
     private Writable writable;
     private boolean writeSamplingPriority;
