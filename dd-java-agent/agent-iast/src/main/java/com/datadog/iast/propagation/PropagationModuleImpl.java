@@ -199,7 +199,8 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
-  public void taint(final byte origin, @Nullable final Collection<Object> toTaintCollection) {
+  public void taintObjects(
+      final byte origin, @Nullable final Collection<Object> toTaintCollection) {
     if (toTaintCollection == null || toTaintCollection.isEmpty()) {
       return;
     }

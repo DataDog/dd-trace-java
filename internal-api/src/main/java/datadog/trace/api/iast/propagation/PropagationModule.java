@@ -46,7 +46,7 @@ public interface PropagationModule extends IastModule {
    */
   void taintObjects(byte origin, @Nullable Object[] toTaint);
 
-  void taint(byte origin, @Nullable Collection<Object> toTaint);
+  void taintObjects(byte origin, @Nullable Collection<Object> toTaint);
 
   void taint(byte origin, @Nullable String name, @Nullable String value, @Nullable Taintable t);
 

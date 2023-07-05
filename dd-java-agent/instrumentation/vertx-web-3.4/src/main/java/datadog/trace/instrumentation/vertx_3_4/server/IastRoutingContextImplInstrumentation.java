@@ -57,7 +57,7 @@ public class IastRoutingContextImplInstrumentation extends Instrumenter.Iast
     public static void onCookies(@Advice.Return final Set<Object> cookies) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       try {
-        module.taint(SourceTypes.REQUEST_COOKIE_VALUE, cookies);
+        module.taintObjects(SourceTypes.REQUEST_COOKIE_VALUE, cookies);
       } catch (final Throwable e) {
         module.onUnexpectedException("cookies threw", e);
       }

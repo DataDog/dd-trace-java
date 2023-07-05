@@ -75,7 +75,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     'taint'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', '']
     'taintObjects'             | [SourceTypes.REQUEST_PARAMETER_VALUE, null as Object[]]
     'taintObjects'             | [SourceTypes.REQUEST_PARAMETER_VALUE, [] as Object[]]
-    'taint'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, null as Collection]
+    'taintObjects'             | [SourceTypes.REQUEST_PARAMETER_VALUE, null as Collection]
   }
 
   void '#method without span'() {
@@ -99,6 +99,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     'taint'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value']
     'taintObjects'             | [SourceTypes.REQUEST_PARAMETER_VALUE, [new Object()] as Object[]]
     'taintObjects'             | [SourceTypes.REQUEST_PARAMETER_VALUE, [new Object()]]
+    'taintObjects'             | [SourceTypes.REQUEST_PARAMETER_VALUE, [new Object()] as Collection<Object>]
   }
 
   void 'test propagation for #method'() {
