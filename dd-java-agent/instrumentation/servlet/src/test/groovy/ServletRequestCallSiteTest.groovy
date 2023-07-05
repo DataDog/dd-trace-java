@@ -34,7 +34,7 @@ class ServletRequestCallSiteTest extends AgentTestRunner {
 
     then:
     result == is
-    1 * iastModule.taintObjects(SourceTypes.REQUEST_BODY, is)
+    1 * iastModule.taintObject(SourceTypes.REQUEST_BODY, is)
 
     where:
     testSuite                                     | clazz
@@ -60,7 +60,7 @@ class ServletRequestCallSiteTest extends AgentTestRunner {
 
     then:
     result == reader
-    1 * iastModule.taintObjects(SourceTypes.REQUEST_BODY, reader)
+    1 * iastModule.taintObject(SourceTypes.REQUEST_BODY, reader)
 
     where:
     testSuite                                     | clazz

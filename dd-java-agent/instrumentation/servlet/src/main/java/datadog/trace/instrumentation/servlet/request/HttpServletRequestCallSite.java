@@ -120,7 +120,7 @@ public class HttpServletRequestCallSite {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.taintObjects(SourceTypes.REQUEST_COOKIE_VALUE, (Object[]) cookies);
+          module.taintObjects(SourceTypes.REQUEST_COOKIE_VALUE, cookies);
         } catch (final Throwable e) {
           module.onUnexpectedException("afterGetCookies threw", e);
         }
@@ -227,7 +227,7 @@ public class HttpServletRequestCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintObjects(SourceTypes.REQUEST_BODY, bufferedReader);
+        module.taintObject(SourceTypes.REQUEST_BODY, bufferedReader);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetReader threw", e);
       }

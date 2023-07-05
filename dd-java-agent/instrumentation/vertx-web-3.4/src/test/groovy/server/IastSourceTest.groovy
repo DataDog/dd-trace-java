@@ -113,8 +113,8 @@ class IastSourceTest extends IastVertx34Server {
     client.newCall(request).execute()
 
     then:
-    1 * module.taintObjects(SourceTypes.REQUEST_PARAMETER_VALUE, _ as MultiMap) // once for formAttributes()
-    1 * module.taintObjects(SourceTypes.REQUEST_PARAMETER_VALUE, _ as MultiMap) // once for params()
+    1 * module.taintObject(SourceTypes.REQUEST_PARAMETER_VALUE, _ as MultiMap) // once for formAttributes()
+    1 * module.taintObject(SourceTypes.REQUEST_PARAMETER_VALUE, _ as MultiMap) // once for params()
     1 * module.taintIfInputIsTainted(SourceTypes.REQUEST_PARAMETER_VALUE, 'formAttribute', 'form', _ as MultiMap)
   }
 
@@ -130,7 +130,7 @@ class IastSourceTest extends IastVertx34Server {
     client.newCall(request).execute()
 
     then:
-    1 * module.taintObjects(SourceTypes.REQUEST_BODY, _ as Buffer)
+    1 * module.taintObject(SourceTypes.REQUEST_BODY, _ as Buffer)
     1 * module.taintIfInputIsTainted('{ "my_key": "my_value" }', _ as Buffer)
   }
 

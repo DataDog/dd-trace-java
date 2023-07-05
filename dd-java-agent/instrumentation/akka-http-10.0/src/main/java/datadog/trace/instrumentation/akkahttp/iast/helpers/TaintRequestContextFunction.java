@@ -20,7 +20,7 @@ public class TaintRequestContextFunction
     if (mod == null || !(reqCtx instanceof Taintable)) {
       return v1;
     }
-    mod.taintObjects(SourceTypes.REQUEST_BODY, reqCtx);
+    mod.taintObject(SourceTypes.REQUEST_BODY, reqCtx);
 
     return v1;
   }

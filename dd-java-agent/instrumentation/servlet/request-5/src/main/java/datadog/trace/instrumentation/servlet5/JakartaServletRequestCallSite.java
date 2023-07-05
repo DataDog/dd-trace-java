@@ -136,7 +136,7 @@ public class JakartaServletRequestCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintObjects(SourceTypes.REQUEST_BODY, inputStream);
+        module.taintObject(SourceTypes.REQUEST_BODY, inputStream);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetInputStream threw", e);
       }

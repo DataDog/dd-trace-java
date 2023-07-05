@@ -21,7 +21,7 @@ class TaintGetBodyAdvice {
     }
 
     // taint both the flux and the individual DataBuffers
-    propagation.taintObjects(SourceTypes.REQUEST_BODY, flux);
+    propagation.taintObject(SourceTypes.REQUEST_BODY, flux);
     flux = flux.map(new TaintFluxElementsFunction<>(propagation));
   }
 }
