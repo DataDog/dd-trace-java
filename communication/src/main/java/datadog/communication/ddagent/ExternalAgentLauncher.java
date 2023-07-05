@@ -18,7 +18,7 @@ public class ExternalAgentLauncher implements Closeable {
         ProcessBuilder traceProcessBuilder = new ProcessBuilder(config.getTraceAgentPath());
         traceProcessBuilder.command().addAll(config.getTraceAgentArgs());
 
-        traceProcessSupervisor = new ProcessSupervisor("Trace Agent", traceProcessBuilder);
+        traceProcessSupervisor = new ProcessSupervisor("datadog-trace-agent", traceProcessBuilder);
       } else {
         log.warn("Trace agent path not set. Will not start trace agent process");
       }
@@ -27,7 +27,7 @@ public class ExternalAgentLauncher implements Closeable {
         ProcessBuilder dogStatsDProcessBuilder = new ProcessBuilder(config.getDogStatsDPath());
         dogStatsDProcessBuilder.command().addAll(config.getDogStatsDArgs());
 
-        dogStatsDProcessSupervisor = new ProcessSupervisor("DogStatsD", dogStatsDProcessBuilder);
+        dogStatsDProcessSupervisor = new ProcessSupervisor("dogstatsd", dogStatsDProcessBuilder);
       } else {
         log.warn("DogStatsD path not set. Will not start DogStatsD process");
       }
