@@ -904,10 +904,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public void setDataStreamCheckpoint(AgentSpan span, LinkedHashMap<String, String> sortedTags) {
+  public void setDataStreamCheckpoint(
+      AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
     if (pathwayContext != null) {
-      pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring::add);
+      pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring::add, defaultTimestamp);
       injectPathwayTags(span, pathwayContext);
     }
   }
@@ -1080,7 +1081,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     sortedTags.put(TOPIC_TAG, source);
     sortedTags.put(TYPE_TAG, type);
 
-    setDataStreamCheckpoint(span, sortedTags);
+    setDataStreamCheckpoint(span, sortedTags, 0);
   }
 
   @Override

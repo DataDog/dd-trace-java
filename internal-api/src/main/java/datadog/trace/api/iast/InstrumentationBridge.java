@@ -16,6 +16,7 @@ import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
 import datadog.trace.api.iast.sink.WeakCipherModule;
 import datadog.trace.api.iast.sink.WeakHashModule;
 import datadog.trace.api.iast.sink.WeakRandomnessModule;
+import datadog.trace.api.iast.sink.XPathInjectionModule;
 import datadog.trace.api.iast.source.WebModule;
 
 /** Bridge between instrumentations and {@link IastModule} instances. */
@@ -38,6 +39,8 @@ public abstract class InstrumentationBridge {
   public static volatile UnvalidatedRedirectModule UNVALIDATED_REDIRECT;
   public static volatile WeakRandomnessModule WEAK_RANDOMNESS;
   public static volatile HttpResponseHeaderModule RESPONSE_HEADER_MODULE;
+
+  public static volatile XPathInjectionModule XPATH_INJECTION;
 
   private InstrumentationBridge() {}
 
@@ -76,6 +79,8 @@ public abstract class InstrumentationBridge {
       WEAK_RANDOMNESS = (WeakRandomnessModule) module;
     } else if (module instanceof HttpResponseHeaderModule) {
       RESPONSE_HEADER_MODULE = (HttpResponseHeaderModule) module;
+    } else if (module instanceof XPathInjectionModule) {
+      XPATH_INJECTION = (XPathInjectionModule) module;
     } else {
       throw new UnsupportedOperationException("Module not yet supported: " + module);
     }
@@ -132,6 +137,9 @@ public abstract class InstrumentationBridge {
     if (type == WeakRandomnessModule.class) {
       return (E) WEAK_RANDOMNESS;
     }
+    if (type == XPathInjectionModule.class) {
+      return (E) XPATH_INJECTION;
+    }
     if (type == HttpResponseHeaderModule.class) {
       return (E) RESPONSE_HEADER_MODULE;
     }
@@ -157,5 +165,6 @@ public abstract class InstrumentationBridge {
     UNVALIDATED_REDIRECT = null;
     WEAK_RANDOMNESS = null;
     RESPONSE_HEADER_MODULE = null;
+    XPATH_INJECTION = null;
   }
 }

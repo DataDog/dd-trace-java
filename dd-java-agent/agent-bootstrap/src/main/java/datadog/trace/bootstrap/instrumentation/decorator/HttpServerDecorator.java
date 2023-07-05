@@ -142,7 +142,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (null != carrier && null != getter) {
-      tracer().setDataStreamCheckpoint(span, SERVER_PATHWAY_EDGE_TAGS);
+      tracer().setDataStreamCheckpoint(span, SERVER_PATHWAY_EDGE_TAGS, 0);
     }
     return span;
   }

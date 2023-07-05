@@ -6,6 +6,7 @@ import datadog.trace.instrumentation.spark.DatadogSparkListener
 import datadog.trace.test.util.Flaky
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus
 import org.apache.hadoop.yarn.conf.YarnConfiguration
+import org.apache.spark.deploy.SparkSubmit
 import org.apache.spark.deploy.yarn.ApplicationMaster
 import org.apache.spark.deploy.yarn.ApplicationMasterArguments
 import org.apache.spark.sql.SparkSession
@@ -170,6 +171,39 @@ class SparkTest extends AgentTestRunner {
         }
       }
     }
+  }
+
+  def "capture SparkSubmit.runMain() errors"() {
+    setup:
+    def sparkSession = SparkSession.builder()
+      .config("spark.master", "local[2]")
+      .getOrCreate()
+
+    try {
+      // Generating a fake spark submit to trigger the runMain() method
+      // it will fail since TestClass and test-jar.jar don't exist
+      def sparkSubmit = new SparkSubmit()
+      sparkSubmit.doSubmit(["--class", "TestClass", "test-jar.jar"] as String[])
+    }
+    catch (Exception ignored) {}
+
+    expect:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "spark.application"
+          resourceName "spark.application"
+          spanType "spark"
+          errored true
+          assert span.tags["error.type"] == "org.apache.spark.SparkUserAppException"
+          assert span.tags["error.message"] == "User application exited with 101"
+          parent()
+        }
+      }
+    }
+
+    cleanup:
+    sparkSession.stop()
   }
 
   def "generate databricks spans"() {

@@ -83,6 +83,16 @@ class GradleProjectConfigurator {
       def ddJavacPlugin = project.configurations.detachedConfiguration(project.dependencies.create("com.datadoghq:dd-javac-plugin:$compilerPluginVersion"))
       def ddJavacPluginClient = project.configurations.detachedConfiguration(project.dependencies.create("com.datadoghq:dd-javac-plugin-client:$compilerPluginVersion"))
 
+      // if instrumented project does dependency verification,
+      // we need to exclude the two detached configurations that we're adding
+      // as corresponding entries are not in the project's verification-metadata.xml
+      if (ddJavacPlugin.resolutionStrategy.respondsTo("disableDependencyVerification")) {
+        ddJavacPlugin.resolutionStrategy.disableDependencyVerification()
+      }
+      if (ddJavacPluginClient.resolutionStrategy.respondsTo("disableDependencyVerification")) {
+        ddJavacPluginClient.resolutionStrategy.disableDependencyVerification()
+      }
+
       task.classpath = (task.classpath ?: project.files([])) + ddJavacPluginClient.asFileTree
 
       if (task.options.hasProperty('annotationProcessorPath')) {
@@ -137,6 +147,16 @@ class GradleProjectConfigurator {
 
     project.apply("plugin": "jacoco")
     project.jacoco.toolVersion = jacocoPluginVersion
+
+    // if instrumented project does dependency verification,
+    // we need to exclude configurations added by Jacoco
+    // as corresponding entries are not in the project's verification-metadata.xml
+    def jacocoConfigurations = project.configurations.findAll { it.name.startsWith("jacoco") }
+    for (def jacocoConfiguration : jacocoConfigurations) {
+      if (jacocoConfiguration.resolutionStrategy.respondsTo("disableDependencyVerification")) {
+        jacocoConfiguration.resolutionStrategy.disableDependencyVerification()
+      }
+    }
 
     forEveryTestTask project, { task ->
       task.jacoco.excludeClassLoaders += [DatadogClassLoader.name]

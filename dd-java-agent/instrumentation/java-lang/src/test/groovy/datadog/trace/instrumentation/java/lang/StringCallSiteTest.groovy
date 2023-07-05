@@ -222,4 +222,41 @@ class StringCallSiteTest extends AgentTestRunner {
     'UTF-8'                         | ['Hello'.getBytes(charset), charset]
     Charset.defaultCharset().name() | ['Hello'.getBytes(charset), Charset.forName(charset)]
   }
+
+  void 'test string format'() {
+    given:
+    final module = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    TestStringSuite.format(pattern, args == null ? null : args as Object[])
+
+    then:
+    1 * module.onStringFormat(pattern, args, _ as String)
+
+    where:
+    pattern | args
+    ''      | []
+    ''      | null
+    '%s'    | ['Hello']
+  }
+
+  void 'test string format with locale'() {
+    given:
+    final module = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    TestStringSuite.format(Locale.getDefault(), pattern, args == null ? null : args as Object[])
+
+    then:
+    1 * module.onStringFormat(_, pattern, args, _ as String)
+
+    where:
+    locale              | pattern | args
+    null                | ''      | []
+    null                | ''      | null
+    null                | '%s'    | ['Hello']
+    Locale.getDefault() | '%s'    | ['Hello']
+  }
 }

@@ -66,6 +66,14 @@ class TaintUtils {
     new String(s.replace(OPEN_MARK, "").replace(CLOSE_MARK, ""))
   }
 
+  static <E> E taint(final TaintedObjects tos, final E value) {
+    if (value instanceof String) {
+      return addFromTaintFormat(tos, value as String)
+    }
+    tos.taintInputObject(value, new Source(SourceTypes.NONE, null, null))
+    return value
+  }
+
   static String addFromTaintFormat(final TaintedObjects tos, final String s) {
     final ranges = fromTaintFormat(s)
     if (ranges == null || ranges.length == 0) {

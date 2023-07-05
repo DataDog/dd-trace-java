@@ -28,7 +28,8 @@ if (matcher.size() == 1 && Integer.parseInt(matcher[0][1]) >= 17) {
       'GRADLE_OPTS': "-Dorg.gradle.jvmargs='-Xmx512M'",
       'JAVA_HOME': testJvmHome,
       'GRAALVM_HOME': testJvmHome,
-      'DD_TRACE_METHODS' : 'datadog.smoketest.springboot.controller.WebController[sayHello]'
+      'DD_TRACE_METHODS' : 'datadog.smoketest.springboot.controller.WebController[sayHello]',
+      'NATIVE_IMAGE_DEPRECATED_BUILDER_SANITATION' : 'true'
     ]
     commandLine(
       "$rootDir/${gradlewCommand}",
