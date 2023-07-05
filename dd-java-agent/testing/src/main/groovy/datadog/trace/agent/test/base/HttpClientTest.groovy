@@ -8,6 +8,7 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.test.util.Flaky
@@ -748,6 +749,11 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
   // parent span must be cast otherwise it breaks debugging classloading (junit loads it early)
   void clientSpan(TraceAssert trace, Object parentSpan, String method = "GET", boolean renameService = false, boolean tagQueryString = false, URI uri = server.address.resolve("/success"), Integer status = 200, boolean error = false, Throwable exception = null, boolean ignorePeer = false) {
+    def expectedQuery = tagQueryString ? uri.query : null
+    def expectedUrl = URIUtils.buildURL(uri.scheme, uri.host, uri.port, uri.path)
+    if (expectedQuery != null && !expectedQuery.empty) {
+      expectedUrl = "$expectedUrl?$expectedQuery"
+    }
     trace.span {
       if (parentSpan == null) {
         parent()
@@ -768,13 +774,13 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
         "$Tags.PEER_HOSTNAME" { it == uri.host || ignorePeer }
         "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" || ignorePeer } // Optional
         "$Tags.PEER_PORT" { it == null || it == uri.port || it == proxy.port || it == 443 || ignorePeer }
-        "$Tags.HTTP_URL" "${uri.resolve(uri.path)}" // remove fragment
+        "$Tags.HTTP_URL" expectedUrl
         "$Tags.HTTP_METHOD" method
         if (status) {
           "$Tags.HTTP_STATUS" status
         }
         if (tagQueryString) {
-          "$DDTags.HTTP_QUERY" uri.query
+          "$DDTags.HTTP_QUERY" expectedQuery
           "$DDTags.HTTP_FRAGMENT" { it == null || it == uri.fragment } // Optional
         }
         if ({ isDataStreamsEnabled() }) {
