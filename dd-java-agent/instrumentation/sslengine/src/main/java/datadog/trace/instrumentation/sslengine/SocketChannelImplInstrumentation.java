@@ -19,14 +19,10 @@ import java.nio.Buffer;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @AutoService(Instrumenter.class)
 public final class SocketChannelImplInstrumentation extends Instrumenter.Usm
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
-
-  private static final Logger log = LoggerFactory.getLogger(SocketChannelImplInstrumentation.class);
 
   public SocketChannelImplInstrumentation() {
     super("nio-socketchannel", "socketchannel");
@@ -63,7 +59,6 @@ public final class SocketChannelImplInstrumentation extends Instrumenter.Usm
         throws IOException {
 
       if (localSocketAddr == null || remoteSocketAddr == null) {
-        log.warn("missing connection information for connected socket");
         return;
       }
       boolean isIPv6 = localSocketAddr.getAddress() instanceof Inet6Address;

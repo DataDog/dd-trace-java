@@ -16,14 +16,10 @@ import java.nio.ByteBuffer;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
 import net.bytebuddy.asm.Advice;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @AutoService(Instrumenter.class)
 public final class SslEngineInstrumentation extends Instrumenter.Usm
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
-
-  private static final Logger log = LoggerFactory.getLogger(SslEngineInstrumentation.class);
 
   public SslEngineInstrumentation() {
     super("sslengine");
@@ -66,8 +62,9 @@ public final class SslEngineInstrumentation extends Instrumenter.Usm
       // id, as it is
       // generated during the handshake kickstart.
       if (srcs.length != 0 || thiz.getSession().getId().length == 0) {
-        log.debug("Got a handshake message in wrap hook, skipping");
-      } else if (result.bytesConsumed() > 0) {
+        return;
+      }
+      if (result.bytesConsumed() > 0) {
         byte[] b = new byte[result.bytesConsumed()];
         int consumed = 0;
         for (int i = 0; i < srcs.length && consumed < b.length; i++) {
@@ -89,17 +86,17 @@ public final class SslEngineInstrumentation extends Instrumenter.Usm
 
   public static final class UnwrapAdvice {
 
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void unwrap(
-        @Advice.This final SSLEngine thiz,
-        @Advice.Argument(1) final ByteBuffer dst,
-        @Advice.Return SSLEngineResult result) {
+      @Advice.OnMethodExit(suppress = Throwable.class)
+      public static void unwrap(
+          @Advice.This final SSLEngine thiz,
+          @Advice.Argument(1) final ByteBuffer dst,
+          @Advice.Return SSLEngineResult result) {
 
-      // before accomplishing the handshake, the session doesn't have a session id, as it is
-      // generated during the handshake kickstart.
-      if (thiz.getSession().getId().length == 0) {
-        log.debug("Got a handshake message in unwrap hook, skipping");
-      } else {
+        // before accomplishing the handshake, the session doesn't have a session id, as it is
+        // generated during the handshake kickstart.
+        if (thiz.getSession().getId().length != 0) {
+          return;
+        }
         if (result.bytesProduced() > 0 && dst.limit() >= result.bytesProduced()) {
           byte[] b = new byte[result.bytesProduced()];
           int oldPos = dst.position();
@@ -112,14 +109,7 @@ public final class SslEngineInstrumentation extends Instrumenter.Usm
           Buffer message =
               MessageEncoder.encode(MessageEncoder.MessageType.ASYNC_PAYLOAD, peer, payload);
           Extractor.Supplier.send(message);
-        } else {
-          log.error(
-              "Got invalid dst buffer in unwrap, produced: "
-                  + result.bytesProduced()
-                  + " dst limit: "
-                  + dst.limit());
         }
       }
     }
-  }
 }
