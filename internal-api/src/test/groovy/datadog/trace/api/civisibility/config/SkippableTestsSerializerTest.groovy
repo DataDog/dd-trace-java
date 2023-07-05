@@ -25,58 +25,58 @@ class SkippableTestsSerializerTest extends Specification {
       [["suite", "name", "parameters"]],
       [["suite", "name", "parameters${SkippableTestsSerializer.ESCAPE_CHARACTER}"]],
       [["suite", "name", "{\"metadata\":{\"test_name\":\"test display name with #a #b #c\"}}"]],
-      [["suite", "name${SkippableTestsSerializer.FIELD_DELIMETER}second part of the name", null]],
-      [["suite", "name${SkippableTestsSerializer.RECORD_DELIMETER}second part of the name", null]],
+      [["suite", "name${SkippableTestsSerializer.FIELD_DELIMITER}second part of the name", null]],
+      [["suite", "name${SkippableTestsSerializer.RECORD_DELIMITER}second part of the name", null]],
       [["suite", "name${SkippableTestsSerializer.ESCAPE_CHARACTER}second part of the name", null]],
       [
         [
           "suite",
-          "name${SkippableTestsSerializer.ESCAPE_CHARACTER}${SkippableTestsSerializer.FIELD_DELIMETER}second part of the name",
+          "name${SkippableTestsSerializer.ESCAPE_CHARACTER}${SkippableTestsSerializer.FIELD_DELIMITER}second part of the name",
           null
         ]
       ],
       [
         [
           "suite",
-          "name${SkippableTestsSerializer.ESCAPE_CHARACTER}${SkippableTestsSerializer.RECORD_DELIMETER}second part of the name",
+          "name${SkippableTestsSerializer.ESCAPE_CHARACTER}${SkippableTestsSerializer.RECORD_DELIMITER}second part of the name",
           null
         ]
       ],
-      [["suite", "name${SkippableTestsSerializer.FIELD_DELIMETER}second part of the name", "parameters"]],
-      [["suite", "name${SkippableTestsSerializer.RECORD_DELIMETER}second part of the name", "parameters"]],
+      [["suite", "name${SkippableTestsSerializer.FIELD_DELIMITER}second part of the name", "parameters"]],
+      [["suite", "name${SkippableTestsSerializer.RECORD_DELIMITER}second part of the name", "parameters"]],
       [["suite", "name${SkippableTestsSerializer.ESCAPE_CHARACTER}second part of the name", "parameters"]],
       [
         [
           "suite",
-          "name${SkippableTestsSerializer.ESCAPE_CHARACTER}${SkippableTestsSerializer.FIELD_DELIMETER}second part of the name",
+          "name${SkippableTestsSerializer.ESCAPE_CHARACTER}${SkippableTestsSerializer.FIELD_DELIMITER}second part of the name",
           "parameters"
         ]
       ],
       [
         [
           "suite",
-          "name${SkippableTestsSerializer.ESCAPE_CHARACTER}${SkippableTestsSerializer.RECORD_DELIMETER}second part of the name",
+          "name${SkippableTestsSerializer.ESCAPE_CHARACTER}${SkippableTestsSerializer.RECORD_DELIMITER}second part of the name",
           "parameters"
         ]
       ],
       [
         [
           "suite",
-          "name${SkippableTestsSerializer.ESCAPE_CHARACTER}${SkippableTestsSerializer.ESCAPE_CHARACTER}${SkippableTestsSerializer.RECORD_DELIMETER}second part of the name",
+          "name${SkippableTestsSerializer.ESCAPE_CHARACTER}${SkippableTestsSerializer.ESCAPE_CHARACTER}${SkippableTestsSerializer.RECORD_DELIMITER}second part of the name",
           "parameters"
         ]
       ],
       [
         [
           "suite${SkippableTestsSerializer.ESCAPE_CHARACTER}",
-          "name${SkippableTestsSerializer.FIELD_DELIMETER}",
+          "name${SkippableTestsSerializer.FIELD_DELIMITER}",
           "parameters"
         ]
       ],
       [
         [
           "suite${SkippableTestsSerializer.ESCAPE_CHARACTER}${SkippableTestsSerializer.ESCAPE_CHARACTER}",
-          "name${SkippableTestsSerializer.FIELD_DELIMETER}",
+          "name${SkippableTestsSerializer.FIELD_DELIMITER}",
           "parameters"
         ]
       ],
@@ -93,15 +93,15 @@ class SkippableTestsSerializerTest extends Specification {
         ],
         ["a", "b", "c"]
       ],
-      [["suite", "name", "parameters${SkippableTestsSerializer.FIELD_DELIMETER}"], ["a", "b", "c"]],
-      [["suite", "name", "parameters${SkippableTestsSerializer.RECORD_DELIMETER}"], ["a", "b", "c"]],
+      [["suite", "name", "parameters${SkippableTestsSerializer.FIELD_DELIMITER}"], ["a", "b", "c"]],
+      [["suite", "name", "parameters${SkippableTestsSerializer.RECORD_DELIMITER}"], ["a", "b", "c"]],
       [["suite", "name", null], ["${SkippableTestsSerializer.ESCAPE_CHARACTER}a", "b", "c"]],
-      [["suite", "name", null], ["${SkippableTestsSerializer.FIELD_DELIMETER}a", "b", "c"]],
-      [["suite", "name", null], ["${SkippableTestsSerializer.RECORD_DELIMETER}a", "b", "c"]],
+      [["suite", "name", null], ["${SkippableTestsSerializer.FIELD_DELIMITER}a", "b", "c"]],
+      [["suite", "name", null], ["${SkippableTestsSerializer.RECORD_DELIMITER}a", "b", "c"]],
       [
         ["suite", "name", null],
         [
-          "${SkippableTestsSerializer.ESCAPE_CHARACTER}${SkippableTestsSerializer.RECORD_DELIMETER}a",
+          "${SkippableTestsSerializer.ESCAPE_CHARACTER}${SkippableTestsSerializer.RECORD_DELIMITER}a",
           "b",
           "c"
         ]

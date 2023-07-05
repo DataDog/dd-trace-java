@@ -21,8 +21,8 @@ public abstract class SkippableTestsSerializer {
 
   private static final Charset CHARSET = StandardCharsets.UTF_8;
 
-  static final char FIELD_DELIMETER = ':';
-  static final char RECORD_DELIMETER = ',';
+  static final char FIELD_DELIMITER = ':';
+  static final char RECORD_DELIMITER = ',';
   static final char ESCAPE_CHARACTER = '\\';
 
   public static String serialize(Collection<SkippableTest> skippableTests) {
@@ -32,7 +32,7 @@ public abstract class SkippableTestsSerializer {
     String uncompressed =
         skippableTests.stream()
             .map(SkippableTestsSerializer::serialize)
-            .collect(Collectors.joining(String.valueOf(RECORD_DELIMETER)));
+            .collect(Collectors.joining(String.valueOf(RECORD_DELIMITER)));
     byte[] compressed = gzip(uncompressed.getBytes(StandardCharsets.UTF_8));
     return Base64.getEncoder().encodeToString(compressed);
   }
@@ -46,10 +46,10 @@ public abstract class SkippableTestsSerializer {
         suite.length() + name.length() + (parameters != null ? parameters.length() : 0);
     StringBuilder sb = new StringBuilder(expectedLength);
     appendEscaped(suite, sb);
-    sb.append(FIELD_DELIMETER);
+    sb.append(FIELD_DELIMITER);
     appendEscaped(name, sb);
     if (parameters != null && !parameters.isEmpty()) {
-      sb.append(FIELD_DELIMETER);
+      sb.append(FIELD_DELIMITER);
       appendEscaped(parameters, sb);
     }
     return sb.toString();
@@ -63,8 +63,8 @@ public abstract class SkippableTestsSerializer {
     for (int i = 0; i < l; ) {
       int codepoint = s.codePointAt(i);
       switch (codepoint) {
-        case FIELD_DELIMETER:
-        case RECORD_DELIMETER:
+        case FIELD_DELIMITER:
+        case RECORD_DELIMITER:
         case ESCAPE_CHARACTER:
           sb.append(ESCAPE_CHARACTER).appendCodePoint(codepoint);
           break;
@@ -105,19 +105,19 @@ public abstract class SkippableTestsSerializer {
         case ESCAPE_CHARACTER:
           int nextCodepoint = s.codePointAt(i);
           if (nextCodepoint == ESCAPE_CHARACTER
-              || nextCodepoint == FIELD_DELIMETER
-              || nextCodepoint == RECORD_DELIMETER) {
+              || nextCodepoint == FIELD_DELIMITER
+              || nextCodepoint == RECORD_DELIMITER) {
             sb.appendCodePoint(nextCodepoint);
             i += Character.charCount(nextCodepoint);
           } else {
             sb.appendCodePoint(codepoint);
           }
           break;
-        case FIELD_DELIMETER:
+        case FIELD_DELIMITER:
           tokens[tokenIdx++] = sb.toString();
           sb.setLength(0);
           break;
-        case RECORD_DELIMETER:
+        case RECORD_DELIMITER:
           tokens[tokenIdx] = sb.toString();
           tests.add(new SkippableTest(tokens[0], tokens[1], tokens[2], null));
           sb.setLength(0);
