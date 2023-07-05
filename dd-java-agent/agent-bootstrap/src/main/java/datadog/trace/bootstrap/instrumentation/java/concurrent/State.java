@@ -78,6 +78,10 @@ public final class State {
     TIMING.lazySet(this, timing);
   }
 
+  public boolean isTimed() {
+    return TIMING.get(this) != null;
+  }
+
   public void stopTiming() {
     Timing timing = TIMING.getAndSet(this, null);
     if (timing != null) {

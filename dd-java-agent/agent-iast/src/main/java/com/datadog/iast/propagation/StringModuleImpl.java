@@ -1,24 +1,40 @@
 package com.datadog.iast.propagation;
 
+import static com.datadog.iast.taint.Ranges.EMPTY;
 import static com.datadog.iast.taint.Ranges.mergeRanges;
+import static com.datadog.iast.taint.Ranges.rangesProviderFor;
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 import static com.datadog.iast.taint.Tainteds.getTainted;
 
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
+import com.datadog.iast.model.Source;
 import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
+import com.datadog.iast.util.Ranged;
 import datadog.trace.api.iast.propagation.StringModule;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Deque;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class StringModuleImpl implements StringModule {
+
+  /** {@link java.util.Formatter#formatSpecifier} */
+  private static final Pattern FORMAT_PATTERN =
+      Pattern.compile("%(?<index>\\d+\\$)?([-#+ 0,(\\<]*)?(\\d+)?(\\.\\d+)?([tT])?([a-zA-Z%])");
+
+  private static final Ranged END = Ranged.build(Integer.MAX_VALUE, 0);
 
   private static final int NULL_STR_LENGTH = "null".length();
 
@@ -361,7 +377,7 @@ public class StringModuleImpl implements StringModule {
   }
 
   private static Range[] getRanges(final TaintedObject taintedObject) {
-    return taintedObject == null ? Ranges.EMPTY : taintedObject.getRanges();
+    return taintedObject == null ? EMPTY : taintedObject.getRanges();
   }
 
   @Override
@@ -417,5 +433,155 @@ public class StringModuleImpl implements StringModule {
       return;
     }
     taintedObjects.taint(result, selfRanges);
+  }
+
+  @Override
+  public void onStringFormat(
+      @Nonnull final String format, @Nonnull final Object[] params, @Nonnull final String result) {
+    onStringFormat(null, format, params, result);
+  }
+
+  @Override
+  public void onStringFormat(
+      @Nullable final Locale locale,
+      @Nonnull final String format,
+      @Nonnull final Object[] parameters,
+      @Nonnull final String result) {
+    if (!canBeTainted(result)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects to = ctx.getTaintedObjects();
+    final Ranges.RangesProvider<Object> paramRangesProvider = rangesProviderFor(to, parameters);
+    int rangeCount = paramRangesProvider.rangeCount();
+    final Deque<Range> formatRanges = new LinkedList<>();
+    final TaintedObject formatTainted = to.get(format);
+    if (formatTainted != null) {
+      rangeCount += formatTainted.getRanges().length;
+      formatRanges.addAll(Arrays.asList(formatTainted.getRanges()));
+    }
+    if (rangeCount == 0) {
+      return;
+    }
+    // params can appear zero or multiple times in the pattern so the final number of ranges is
+    // unknown beforehand
+    final List<Range> finalRanges = new LinkedList<>();
+    final Matcher matcher = FORMAT_PATTERN.matcher(format);
+    int offset = 0, paramIndex = 0;
+    while (matcher.find()) {
+      final String placeholder = matcher.group();
+      final Object parameter;
+      final String formattedValue;
+      final String index = matcher.group("index");
+      if (index != null) {
+        // indexes are 1-based
+        final int parsedIndex = Integer.parseInt(index.substring(0, index.length() - 1)) - 1;
+        // remove the index before the formatting without increment the current state
+        parameter = parameters[parsedIndex];
+        formattedValue = String.format(locale, placeholder.replace(index, ""), parameter);
+      } else {
+        parameter = parameters[paramIndex++];
+        formattedValue = String.format(locale, placeholder, parameter);
+      }
+      final Ranged placeholderPos = Ranged.build(matcher.start(), placeholder.length());
+      final Range placeholderRange =
+          addFormatTaintedRanges(placeholderPos, offset, formatRanges, finalRanges);
+      final Range[] paramRanges = paramRangesProvider.ranges(parameter);
+      final int shift = placeholderPos.getStart() + offset;
+      addParameterTaintedRanges(
+          placeholderRange, parameter, formattedValue, shift, paramRanges, finalRanges);
+      offset += (formattedValue.length() - placeholder.length());
+    }
+    addFormatTaintedRanges(
+        END, offset, formatRanges, finalRanges); // add remaining ranges from the format
+    if (!finalRanges.isEmpty()) {
+      to.taint(result, finalRanges.toArray(new Range[0]));
+    }
+  }
+
+  /**
+   * Adds the tainted ranges belonging to the current parameter added via placeholder taking care of
+   * an optional tainted placeholder.
+   *
+   * @param placeholderRange tainted range of the placeholder or {@code null} if not tainted
+   * @param param value of the parameter
+   * @param formatted parameter as a string
+   * @param offset offset from the beginning of the format string
+   * @param ranges tainted ranges of the parameter
+   * @param finalRanges result with all ranges
+   */
+  private void addParameterTaintedRanges(
+      final Range placeholderRange,
+      final Object param,
+      final String formatted,
+      final int offset,
+      final Range[] ranges,
+      /* out */ final List<Range> finalRanges) {
+    if (ranges != null && ranges.length > 0) {
+      // only shift ranges if they are character sequences of the same length, otherwise taint the
+      // whole thing
+      if (charSequencesOfSameLength(param, formatted)) {
+        for (final Range range : ranges) {
+          finalRanges.add(range.shift(offset));
+        }
+      } else {
+        final Source source = ranges[0].getSource();
+        finalRanges.add(new Range(offset, formatted.length(), source));
+      }
+    } else if (placeholderRange != null) {
+      final Source source = placeholderRange.getSource();
+      finalRanges.add(new Range(offset, formatted.length(), source));
+    }
+  }
+
+  /**
+   * Adds all the ranges contained in the format string before the current placeholder.
+   *
+   * @param placeholderPos location of the current placeholder
+   * @param offset offset from the beginning of the format string
+   * @param ranges queue of format string ranges
+   * @param finalRanges result with all ranges
+   * @return tainted range of the placeholder or {@code null} if not tainted
+   */
+  private Range addFormatTaintedRanges(
+      final Ranged placeholderPos,
+      final int offset,
+      final Deque<Range> ranges,
+      /* out */ final List<Range> finalRanges) {
+    Range formatRange;
+    int end = placeholderPos.getStart() + placeholderPos.getLength();
+    Range placeholderRange = null;
+    while ((formatRange = ranges.peek()) != null && formatRange.getStart() < end) {
+      ranges.poll();
+
+      // check if the placeholder was tainted
+      if (placeholderRange == null) {
+        placeholderRange = placeholderPos.intersects(formatRange) ? formatRange : null;
+      }
+
+      // 1. remove the placeholder range from the format one
+      // 2. append ranges located before tha placeholder
+      // 3. enqueue the remaining ones
+      for (final Ranged disjoint : formatRange.remove(placeholderPos)) {
+        final Range newFormatRange =
+            new Range(disjoint.getStart(), disjoint.getLength(), formatRange.getSource());
+        if (newFormatRange.getStart() < placeholderPos.getStart()) {
+          finalRanges.add(newFormatRange.shift(offset));
+        } else {
+          ranges.addFirst(newFormatRange);
+        }
+      }
+    }
+    return placeholderRange;
+  }
+
+  private boolean charSequencesOfSameLength(final Object param, final CharSequence param2) {
+    if (!(param instanceof CharSequence) || param2 == null) {
+      return false;
+    }
+    return ((CharSequence) param).length() == param2.length();
   }
 }
