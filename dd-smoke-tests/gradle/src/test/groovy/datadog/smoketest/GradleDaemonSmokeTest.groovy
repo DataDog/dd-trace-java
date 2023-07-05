@@ -19,8 +19,6 @@ import org.gradle.wrapper.PathAssembler
 import org.gradle.wrapper.WrapperConfiguration
 import org.junit.jupiter.api.Assumptions
 import org.msgpack.jackson.dataformat.MessagePackFactory
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
@@ -42,8 +40,6 @@ import static org.hamcrest.Matchers.not
 
 @Unroll
 class GradleDaemonSmokeTest extends Specification {
-
-  protected static final Logger LOG = LoggerFactory.getLogger(GradleDaemonSmokeTest)
 
   private static final String TEST_SERVICE_NAME = "test-gradle-service"
   private static final String TEST_ENVIRONMENT_NAME = "integration-test"
@@ -95,7 +91,19 @@ class GradleDaemonSmokeTest extends Specification {
 
         response.status(202).send()
       }
+
+      prefix("/api/v2/libraries/tests/services/setting") {
+        response.status(200).send('{ "data": { "type": "ci_app_tracers_test_service_settings", "id": "uuid", "attributes": { "code_coverage": true, "tests_skipping": true } } }')
+      }
+
+      prefix("/api/v2/ci/tests/skippable") {
+        response.status(200).send('{ "data": [] }')
+      }
     }
+  }
+
+  def setupSpec() {
+    givenGradleProperties()
   }
 
   def setup() {
@@ -699,8 +707,11 @@ class GradleDaemonSmokeTest extends Specification {
     String agentShadowJar = System.getProperty("datadog.smoketest.agent.shadowJar.path")
     assert new File(agentShadowJar).isFile()
 
-    def ddApiKeyPath = projectFolder.resolve(".dd.api.key")
+    def ddApiKeyPath = testKitFolder.resolve(".dd.api.key")
     Files.write(ddApiKeyPath, "dummy".getBytes())
+
+    def ddApplicationKeyPath = testKitFolder.resolve(".dd.application.key")
+    Files.write(ddApplicationKeyPath, "dummy".getBytes())
 
     def gradleProperties =
       "org.gradle.jvmargs=" +
@@ -708,6 +719,7 @@ class GradleDaemonSmokeTest extends Specification {
       "${Strings.propertyNameToSystemPropertyName(GeneralConfig.ENV)}=${TEST_ENVIRONMENT_NAME}," +
       "${Strings.propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME)}=${TEST_SERVICE_NAME}," +
       "${Strings.propertyNameToSystemPropertyName(GeneralConfig.API_KEY_FILE)}=${ddApiKeyPath.toAbsolutePath().toString()}," +
+      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.APPLICATION_KEY_FILE)}=${ddApplicationKeyPath.toAbsolutePath().toString()}," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED)}=true," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED)}=true," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED)}=true," +
@@ -715,7 +727,7 @@ class GradleDaemonSmokeTest extends Specification {
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES)}=datadog.smoke.*," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${intakeServer.address.toString()}"
 
-    Files.write(projectFolder.resolve("gradle.properties"), gradleProperties.getBytes())
+    Files.write(testKitFolder.resolve("gradle.properties"), gradleProperties.getBytes())
   }
 
   private void givenGradleProjectFiles(String projectFilesSources) {
@@ -736,8 +748,6 @@ class GradleDaemonSmokeTest extends Specification {
   }
 
   private BuildResult runGradleTests(String gradleVersion, boolean successExpected = true) {
-    givenGradleProperties()
-
     def arguments = ["test", "--stacktrace"]
     if (gradleVersion > "5.6") {
       // fail on warnings is available starting from Gradle 5.6
@@ -758,6 +768,8 @@ class GradleDaemonSmokeTest extends Specification {
    */
   private ensureDependenciesDownloaded(String gradleVersion) {
     try {
+      println "${new Date()}: $specificationContext.currentIteration.displayName - Starting dependencies download"
+
       def logger = new org.gradle.wrapper.Logger(false)
       def download = new Download(logger, "Gradle Tooling API", GradleVersion.current().getVersion(), GRADLE_DISTRIBUTION_NETWORK_TIMEOUT)
 
@@ -773,8 +785,11 @@ class GradleDaemonSmokeTest extends Specification {
       // this will download distribution (if not downloaded yet to userHomeDir) and verify its SHA
       install.createDist(configuration)
 
+      println "${new Date()}: $specificationContext.currentIteration.displayName - Finished dependencies download"
+
     } catch (Exception e) {
-      LOG.error("Failed to install Gradle distribution, will proceed to run test kit hoping for the best", e)
+      println "${new Date()}: $specificationContext.currentIteration.displayName " +
+        "- Failed to install Gradle distribution, will proceed to run test kit hoping for the best: $e"
     }
   }
 
@@ -784,8 +799,11 @@ class GradleDaemonSmokeTest extends Specification {
       .withProjectDir(projectFolder.toFile())
       .withGradleVersion(gradleVersion)
       .withArguments(arguments)
+      .forwardOutput()
+
+    println "${new Date()}: $specificationContext.currentIteration.displayName - Starting Gradle run"
     def buildResult = successExpected ? gradleRunner.build() : gradleRunner.buildAndFail()
-    LOG.info(buildResult.output)
+    println "${new Date()}: $specificationContext.currentIteration.displayName - Finished Gradle run"
     buildResult
   }
 
@@ -798,6 +816,8 @@ class GradleDaemonSmokeTest extends Specification {
   }
 
   private List<Map<String, Object>> waitForEvents(eventsCount) {
+    println "${new Date()}: $specificationContext.currentIteration.displayName - Waiting for traces"
+
     List<Map<String, Object>> events = new ArrayList<>()
     def startTime = System.currentTimeMillis()
     while (events.size() < eventsCount) {
@@ -813,10 +833,14 @@ class GradleDaemonSmokeTest extends Specification {
         Thread.sleep(500)
       }
     }
+
+    println "${new Date()}: $specificationContext.currentIteration.displayName - Received traces"
     return events
   }
 
   private List<Map<String, Object>> waitForCoverages(coveragesSize) {
+    println "${new Date()}: $specificationContext.currentIteration.displayName - Waiting for coverages"
+
     List<Map<String, Object>> coverages = new ArrayList<>()
     def startTime = System.currentTimeMillis()
     while (coverages.size() < coveragesSize) {
@@ -832,6 +856,8 @@ class GradleDaemonSmokeTest extends Specification {
         Thread.sleep(500)
       }
     }
+
+    println "${new Date()}: $specificationContext.currentIteration.displayName - Received coverages"
     return coverages
   }
 
