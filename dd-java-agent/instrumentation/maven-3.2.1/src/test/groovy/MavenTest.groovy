@@ -13,12 +13,16 @@ import java.nio.file.Paths
 
 class MavenTest extends CiVisibilityTest {
 
+  private static final int DEPENDENCIES_DOWNLOAD_RETRIES = 3
+
   @TempDir
   Path projectFolder
 
   @Override
   void setup() {
     givenMavenProjectFiles(specificationContext.currentIteration.name)
+    givenMavenDependenciesAreLoaded()
+    TEST_WRITER.clear() // loading dependencies will generate a test-session span
   }
 
   @Override
@@ -253,6 +257,23 @@ class MavenTest extends CiVisibilityTest {
     def projectResourcesUri = this.getClass().getClassLoader().getResource(projectFilesSources).toURI()
     def projectResourcesPath = Paths.get(projectResourcesUri)
     FileUtils.copyDirectoryStructure(projectResourcesPath.toFile(), projectFolder.toFile())
+  }
+
+  /**
+   * Sometimes Maven has problems downloading project dependencies because of intermittent network issues.
+   * Here, in order to reduce flakiness, we ensure that all of the dependencies are loaded (retrying if necessary),
+   * before proceeding with running the build
+   */
+  void givenMavenDependenciesAreLoaded() {
+    String[] args = ["dependency:go-offline"]
+    String workingDirectory = projectFolder.toString()
+    for (int attempt = 0; attempt < DEPENDENCIES_DOWNLOAD_RETRIES; attempt++) {
+      def exitCode = new MavenCli().doMain(args, workingDirectory, null, null)
+      if (exitCode == 0) {
+        return
+      }
+    }
+    throw new AssertionError((Object) "Tried to download dependencies $DEPENDENCIES_DOWNLOAD_RETRIES times and failed")
   }
 
   @Override
