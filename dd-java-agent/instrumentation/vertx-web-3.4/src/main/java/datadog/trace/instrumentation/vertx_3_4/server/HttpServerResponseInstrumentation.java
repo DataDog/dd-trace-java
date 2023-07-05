@@ -12,6 +12,7 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
+import datadog.trace.api.iast.sink.HttpResponseHeaderModule;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -60,7 +61,10 @@ public class HttpServerResponseInstrumentation extends Instrumenter.Iast
     public static void onEnter(
         @Advice.Argument(0) final CharSequence name, @Advice.Argument(1) CharSequence value) {
       if (null != name) {
-        InstrumentationBridge.RESPONSE_HEADER_MODULE.onHeader(name.toString(), value.toString());
+        HttpResponseHeaderModule mod = InstrumentationBridge.RESPONSE_HEADER_MODULE;
+        if (mod != null) {
+          mod.onHeader(name.toString(), value.toString());
+        }
       }
     }
   }
@@ -71,10 +75,13 @@ public class HttpServerResponseInstrumentation extends Instrumenter.Iast
     public static void onEnter(
         @Advice.Argument(0) final CharSequence name, @Advice.Argument(1) Iterable values) {
       if (null != values) {
-        for (Object value : values) {
-          if (value instanceof CharSequence) {
-            String stValue = ((CharSequence) value).toString();
-            InstrumentationBridge.RESPONSE_HEADER_MODULE.onHeader(name.toString(), stValue);
+        HttpResponseHeaderModule mod = InstrumentationBridge.RESPONSE_HEADER_MODULE;
+        if (mod != null) {
+          for (Object value : values) {
+            if (value instanceof CharSequence) {
+              String stValue = ((CharSequence) value).toString();
+              mod.onHeader(name.toString(), stValue);
+            }
           }
         }
       }

@@ -14,6 +14,7 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.sink.HttpResponseHeaderModule;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -57,8 +58,10 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
     @Sink(VulnerabilityTypes.RESPONSE_HEADER)
     public static void onEnter(@Advice.Argument(0) final jakarta.servlet.http.Cookie cookie) {
       if (cookie != null) {
-        InstrumentationBridge.RESPONSE_HEADER_MODULE.onCookie(
-            cookie.getName(), cookie.getSecure(), cookie.isHttpOnly(), false);
+        HttpResponseHeaderModule mod = InstrumentationBridge.RESPONSE_HEADER_MODULE;
+        if (mod != null) {
+          mod.onCookie(cookie.getName(), cookie.getSecure(), cookie.isHttpOnly(), false);
+        }
       }
     }
   }
@@ -69,7 +72,10 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
     public static void onEnter(
         @Advice.Argument(0) final String name, @Advice.Argument(1) String value) {
       if (null != value && value.length() > 0) {
-        InstrumentationBridge.RESPONSE_HEADER_MODULE.onHeader(name, value);
+        HttpResponseHeaderModule mod = InstrumentationBridge.RESPONSE_HEADER_MODULE;
+        if (mod != null) {
+          mod.onHeader(name, value);
+        }
       }
     }
   }

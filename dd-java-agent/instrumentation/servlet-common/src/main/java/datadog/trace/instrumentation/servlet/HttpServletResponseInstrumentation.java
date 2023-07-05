@@ -16,6 +16,7 @@ import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.sink.HttpResponseHeaderModule;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -67,8 +68,10 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Iast
     @Sink(VulnerabilityTypes.RESPONSE_HEADER)
     public static void onEnter(@Advice.Argument(0) final javax.servlet.http.Cookie cookie) {
       if (null != cookie) {
-        InstrumentationBridge.RESPONSE_HEADER_MODULE.onCookie(
-            cookie.getName(), cookie.getSecure(), false, false);
+        HttpResponseHeaderModule mod = InstrumentationBridge.RESPONSE_HEADER_MODULE;
+        if (mod != null) {
+          mod.onCookie(cookie.getName(), cookie.getSecure(), false, false);
+        }
       }
     }
   }
@@ -79,7 +82,10 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Iast
     public static void onEnter(
         @Advice.Argument(0) final String name, @Advice.Argument(1) String value) {
       if (null != value && value.length() > 0) {
-        InstrumentationBridge.RESPONSE_HEADER_MODULE.onHeader(name, value);
+        HttpResponseHeaderModule mod = InstrumentationBridge.RESPONSE_HEADER_MODULE;
+        if (mod != null) {
+          mod.onHeader(name, value);
+        }
       }
     }
   }

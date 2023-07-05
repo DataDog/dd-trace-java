@@ -10,6 +10,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
+import datadog.trace.api.iast.sink.HttpResponseHeaderModule;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
 import java.net.URI;
 import net.bytebuddy.asm.Advice;
@@ -52,7 +53,10 @@ public class JavaxWSResponseInstrumentation extends Instrumenter.Iast
       if (null != headerValue) {
         String value = headerValue.toString();
         if (value.length() > 0) {
-          InstrumentationBridge.RESPONSE_HEADER_MODULE.onHeader(headerName, value);
+          HttpResponseHeaderModule mod = InstrumentationBridge.RESPONSE_HEADER_MODULE;
+          if (mod != null) {
+            mod.onHeader(headerName, value);
+          }
         }
       }
     }
