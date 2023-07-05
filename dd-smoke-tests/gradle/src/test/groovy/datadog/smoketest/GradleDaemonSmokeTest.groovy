@@ -17,7 +17,9 @@ import org.gradle.wrapper.GradleUserHomeLookup
 import org.gradle.wrapper.Install
 import org.gradle.wrapper.PathAssembler
 import org.gradle.wrapper.WrapperConfiguration
+import org.jetbrains.annotations.NotNull
 import org.junit.jupiter.api.Assumptions
+import org.junit.platform.commons.util.StringUtils
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -110,18 +112,15 @@ class GradleDaemonSmokeTest extends Specification {
 
   def "Successful build emits session and module spans: Gradle v#gradleVersion"() {
     given:
-
     LOG.warn("{} Starting test: {}", new Date(), specificationContext.currentIteration.displayName)
 
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenGradleProjectFiles("datadog/smoketest/success/")
     ensureDependenciesDownloaded(gradleVersion)
-
     LOG.warn("{} Dependencies downloaded: {}", new Date(), specificationContext.currentIteration.displayName)
 
     when:
     BuildResult buildResult = runGradleTests(gradleVersion)
-
     LOG.warn("{} Build executed: {}", new Date(), specificationContext.currentIteration.displayName)
 
     then:
@@ -129,7 +128,6 @@ class GradleDaemonSmokeTest extends Specification {
 
     def events = waitForEvents(4)
     assert events.size() == 4
-
     LOG.warn("{} Traces received: {}", new Date(), specificationContext.currentIteration.displayName)
 
     def sessionEndEvent = events.find { it.type == "test_session_end" }
@@ -213,7 +211,6 @@ class GradleDaemonSmokeTest extends Specification {
 
     def coverages = waitForCoverages(1)
     assert coverages.size() == 1
-
     LOG.warn("{} Coverages received: {}", new Date(), specificationContext.currentIteration.displayName)
 
     def coverage = coverages.first()
@@ -751,7 +748,7 @@ class GradleDaemonSmokeTest extends Specification {
   private BuildResult runGradleTests(String gradleVersion, boolean successExpected = true) {
     givenGradleProperties()
 
-    def arguments = ["test", "--stacktrace"]
+    def arguments = ["test", "--stacktrace", "--debug"]
     if (gradleVersion > "5.6") {
       // fail on warnings is available starting from Gradle 5.6
       arguments += ["--warning-mode", "fail"]
@@ -797,8 +794,11 @@ class GradleDaemonSmokeTest extends Specification {
       .withProjectDir(projectFolder.toFile())
       .withGradleVersion(gradleVersion)
       .withArguments(arguments)
+      .forwardStdOutput(new LogWriter("[GRADLE OUT]"))
+      .forwardStdError(new LogWriter("[GRADLE ERR]"))
+
+    LOG.warn("{} About to start build: {}", new Date(), specificationContext.currentIteration.displayName)
     def buildResult = successExpected ? gradleRunner.build() : gradleRunner.buildAndFail()
-    LOG.info(buildResult.output)
     buildResult
   }
 
@@ -930,6 +930,28 @@ class GradleDaemonSmokeTest extends Specification {
       return gradleVersion >= "2.0"
     }
     return false
+  }
+
+  private static final class LogWriter extends Writer {
+    private final String prefix
+
+    LogWriter(String prefix) {
+      this.prefix = prefix
+    }
+
+    @Override
+    void write(@NotNull char[] cbuf, int off, int len) throws IOException {
+      String s = new String(cbuf, off, len)
+      if (!StringUtils.isBlank(s)) {
+        LOG.warn("{}: {}", prefix, s)
+      }
+    }
+
+    @Override
+    void flush() throws IOException {}
+
+    @Override
+    void close() throws IOException {}
   }
 
 }
