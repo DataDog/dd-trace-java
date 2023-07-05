@@ -3,8 +3,8 @@ package datadog.trace.civisibility;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.ipc.ModuleExecutionResult;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,7 +15,7 @@ public class TestModuleRegistry {
   private final Map<Long, DDTestModuleImpl> testModuleById;
 
   public TestModuleRegistry() {
-    this.testModuleById = new HashMap<>();
+    this.testModuleById = new ConcurrentHashMap<>();
   }
 
   public void addModule(DDTestModuleImpl module) {
