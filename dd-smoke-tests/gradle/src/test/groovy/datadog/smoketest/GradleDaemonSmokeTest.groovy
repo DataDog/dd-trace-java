@@ -95,6 +95,14 @@ class GradleDaemonSmokeTest extends Specification {
 
         response.status(202).send()
       }
+
+      prefix("/api/v2/libraries/tests/services/setting") {
+        response.status(200).send('{ "data": { "type": "ci_app_tracers_test_service_settings", "id": "uuid", "attributes": { "code_coverage": true, "tests_skipping": true } } }')
+      }
+
+      prefix("/api/v2/ci/tests/skippable") {
+        response.status(200).send('{ "data": [] }')
+      }
     }
   }
 
@@ -702,12 +710,16 @@ class GradleDaemonSmokeTest extends Specification {
     def ddApiKeyPath = projectFolder.resolve(".dd.api.key")
     Files.write(ddApiKeyPath, "dummy".getBytes())
 
+    def ddApplicationKeyPath = testKitFolder.resolve(".dd.application.key")
+    Files.write(ddApplicationKeyPath, "dummy".getBytes())
+
     def gradleProperties =
       "org.gradle.jvmargs=" +
       "-javaagent:${agentShadowJar}=" +
       "${Strings.propertyNameToSystemPropertyName(GeneralConfig.ENV)}=${TEST_ENVIRONMENT_NAME}," +
       "${Strings.propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME)}=${TEST_SERVICE_NAME}," +
       "${Strings.propertyNameToSystemPropertyName(GeneralConfig.API_KEY_FILE)}=${ddApiKeyPath.toAbsolutePath().toString()}," +
+      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.APPLICATION_KEY_FILE)}=${ddApplicationKeyPath.toAbsolutePath().toString()}," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED)}=true," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED)}=true," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED)}=true," +
