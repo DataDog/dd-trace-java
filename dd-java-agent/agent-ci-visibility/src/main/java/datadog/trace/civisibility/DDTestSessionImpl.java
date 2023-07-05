@@ -6,15 +6,18 @@ import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTestModule;
 import datadog.trace.api.civisibility.DDTestSession;
+import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
+import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory;
 import datadog.trace.civisibility.context.SpanTestContext;
 import datadog.trace.civisibility.context.TestContext;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
+import java.nio.file.Path;
 import javax.annotation.Nullable;
 
 public class DDTestSessionImpl implements DDTestSession {
@@ -26,6 +29,7 @@ public class DDTestSessionImpl implements DDTestSession {
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
   private final MethodLinesResolver methodLinesResolver;
+  private final ModuleExecutionSettingsFactory moduleExecutionSettingsFactory;
 
   public DDTestSessionImpl(
       String projectName,
@@ -34,12 +38,14 @@ public class DDTestSessionImpl implements DDTestSession {
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
-      MethodLinesResolver methodLinesResolver) {
+      MethodLinesResolver methodLinesResolver,
+      ModuleExecutionSettingsFactory moduleExecutionSettingsFactory) {
     this.config = config;
     this.testDecorator = testDecorator;
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
+    this.moduleExecutionSettingsFactory = moduleExecutionSettingsFactory;
 
     if (startTime != null) {
       span = startSpan(testDecorator.component() + ".test_session", startTime);
@@ -102,5 +108,10 @@ public class DDTestSessionImpl implements DDTestSession {
         sourcePathResolver,
         codeowners,
         methodLinesResolver);
+  }
+
+  @Override
+  public ModuleExecutionSettings getModuleExecutionSettings(@Nullable Path jvmExecutablePath) {
+    return moduleExecutionSettingsFactory.create(jvmExecutablePath);
   }
 }

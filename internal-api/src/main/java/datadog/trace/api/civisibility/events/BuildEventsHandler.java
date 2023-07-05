@@ -1,5 +1,6 @@
 package datadog.trace.api.civisibility.events;
 
+import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import java.nio.file.Path;
 import java.util.Map;
 
@@ -29,6 +30,8 @@ public interface BuildEventsHandler<T> {
   void onTestModuleFail(T sessionKey, String moduleName, Throwable throwable);
 
   void onTestModuleFinish(T sessionKey, String moduleName);
+
+  ModuleExecutionSettings getModuleExecutionSettings(T sessionKey, Path jvmExecutablePath);
 
   interface Factory {
     <U> BuildEventsHandler<U> create();
