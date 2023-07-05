@@ -770,6 +770,8 @@ class GradleDaemonSmokeTest extends Specification {
    */
   private ensureDependenciesDownloaded(String gradleVersion) {
     try {
+      LOG.warn("{}: {} - Starting dependencies download", new Date(), specificationContext.currentIteration.displayName)
+
       def logger = new org.gradle.wrapper.Logger(false)
       def download = new Download(logger, "Gradle Tooling API", GradleVersion.current().getVersion(), GRADLE_DISTRIBUTION_NETWORK_TIMEOUT)
 
@@ -785,6 +787,8 @@ class GradleDaemonSmokeTest extends Specification {
       // this will download distribution (if not downloaded yet to userHomeDir) and verify its SHA
       install.createDist(configuration)
 
+      LOG.warn("{}: {} - Finished dependencies download", new Date(), specificationContext.currentIteration.displayName)
+
     } catch (Exception e) {
       LOG.error("Failed to install Gradle distribution, will proceed to run test kit hoping for the best", e)
     }
@@ -796,8 +800,12 @@ class GradleDaemonSmokeTest extends Specification {
       .withProjectDir(projectFolder.toFile())
       .withGradleVersion(gradleVersion)
       .withArguments(arguments)
+      .forwardStdOutput(new LogWriter("[GRADLE OUT]"))
+      .forwardStdError(new LogWriter("[GRADLE ERR]"))
+
+    LOG.warn("{}: {} - Starting Gradle run", new Date(), specificationContext.currentIteration.displayName)
     def buildResult = successExpected ? gradleRunner.build() : gradleRunner.buildAndFail()
-    LOG.info(buildResult.output)
+    LOG.warn("{}: {} - Finished Gradle run", new Date(), specificationContext.currentIteration.displayName)
     buildResult
   }
 
@@ -810,6 +818,8 @@ class GradleDaemonSmokeTest extends Specification {
   }
 
   private List<Map<String, Object>> waitForEvents(eventsCount) {
+    LOG.warn("{}: {} - Waiting for traces", new Date(), specificationContext.currentIteration.displayName)
+
     List<Map<String, Object>> events = new ArrayList<>()
     def startTime = System.currentTimeMillis()
     while (events.size() < eventsCount) {
@@ -825,10 +835,14 @@ class GradleDaemonSmokeTest extends Specification {
         Thread.sleep(500)
       }
     }
+
+    LOG.warn("{}: {} - Received traces", new Date(), specificationContext.currentIteration.displayName)
     return events
   }
 
   private List<Map<String, Object>> waitForCoverages(coveragesSize) {
+    LOG.warn("{}: {} - Waiting for coverages", new Date(), specificationContext.currentIteration.displayName)
+
     List<Map<String, Object>> coverages = new ArrayList<>()
     def startTime = System.currentTimeMillis()
     while (coverages.size() < coveragesSize) {
@@ -844,6 +858,8 @@ class GradleDaemonSmokeTest extends Specification {
         Thread.sleep(500)
       }
     }
+
+    LOG.warn("{}: {} - Received coverages", new Date(), specificationContext.currentIteration.displayName)
     return coverages
   }
 
@@ -929,6 +945,28 @@ class GradleDaemonSmokeTest extends Specification {
       return gradleVersion >= "2.0"
     }
     return false
+  }
+
+  private static final class LogWriter extends Writer {
+    private final String prefix
+
+    LogWriter(String prefix) {
+      this.prefix = prefix
+    }
+
+    @Override
+    void write(char[] cbuf, int off, int len) throws IOException {
+      String s = new String(cbuf, off, len)
+      if (!StringUtils.isBlank(s)) {
+        LOG.warn("{}: {}", prefix, s)
+      }
+    }
+
+    @Override
+    void flush() throws IOException {}
+
+    @Override
+    void close() throws IOException {}
   }
 
 }
