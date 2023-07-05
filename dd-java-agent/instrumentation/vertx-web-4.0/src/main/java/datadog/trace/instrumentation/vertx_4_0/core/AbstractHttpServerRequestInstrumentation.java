@@ -77,7 +77,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
       if (beforeParams != multiMap) {
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
-          module.taint(SourceTypes.REQUEST_PARAMETER_VALUE, multiMap);
+          module.taintObjects(SourceTypes.REQUEST_PARAMETER_VALUE, multiMap);
         }
       }
     }
@@ -101,7 +101,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
       if (beforeAttributes != multiMap) {
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
-          module.taint(SourceTypes.REQUEST_PARAMETER_VALUE, multiMap);
+          module.taintObjects(SourceTypes.REQUEST_PARAMETER_VALUE, multiMap);
         }
       }
     }
@@ -114,7 +114,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
     public static void onExit(@Advice.Return final Object multiMap) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taint(SourceTypes.REQUEST_HEADER_VALUE, multiMap);
+        module.taintObjects(SourceTypes.REQUEST_HEADER_VALUE, multiMap);
       }
     }
   }
@@ -126,7 +126,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
     public static void onExit(@Advice.Argument(0) final Object data) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taint(SourceTypes.REQUEST_BODY, data);
+        module.taintObjects(SourceTypes.REQUEST_BODY, data);
       }
     }
   }
@@ -150,7 +150,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
     public static void onExit(@Advice.Return final Object cookie) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taint(SourceTypes.REQUEST_COOKIE_VALUE, cookie);
+        module.taintObjects(SourceTypes.REQUEST_COOKIE_VALUE, cookie);
       }
     }
   }

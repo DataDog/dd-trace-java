@@ -70,7 +70,7 @@ public class IastRoutingContextImplInstrumentation extends Instrumenter.Iast
     public static void onGetCookie(@Advice.Return final Object cookie) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       try {
-        module.taint(SourceTypes.REQUEST_COOKIE_VALUE, cookie);
+        module.taintObjects(SourceTypes.REQUEST_COOKIE_VALUE, cookie);
       } catch (final Throwable e) {
         module.onUnexpectedException("getCookie threw", e);
       }

@@ -40,7 +40,9 @@ public class JWTParserInstrumentation extends Instrumenter.Iast
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
 
       if (module != null) {
-        module.taint(SourceTypes.REQUEST_HEADER_VALUE, json);
+        // TODO: We could represent this source more accurately, perhaps tracking the original
+        // source, or using a special name.
+        module.taint(SourceTypes.REQUEST_HEADER_VALUE, null, json);
       }
     }
   }

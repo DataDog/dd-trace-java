@@ -206,9 +206,9 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     'taint' | "param" | "value" | SourceTypes.REQUEST_PATH_PARAMETER
   }
 
-  void 'test taint'() {
+  void 'test taintObjects'() {
     given:
-    final method = module.&taint
+    final method = module.&taintObjects
 
     when:
     method.call(args.toArray())
@@ -290,7 +290,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     before == null
 
     when:
-    module.taint(origin, target)
+    module.taintObjects(origin, target)
     final after = module.firstTaintedSource(target)
 
     then:

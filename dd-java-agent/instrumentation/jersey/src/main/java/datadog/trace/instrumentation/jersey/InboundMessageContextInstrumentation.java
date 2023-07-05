@@ -64,7 +64,7 @@ public class InboundMessageContextInstrumentation extends Instrumenter.Iast
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         for (Object cookie : cookies.values()) {
-          module.taint(SourceTypes.REQUEST_COOKIE_VALUE, cookie);
+          module.taintObjects(SourceTypes.REQUEST_COOKIE_VALUE, cookie);
         }
       }
     }

@@ -18,7 +18,7 @@ class JWTParserInstrumentationTest  extends AgentTestRunner {
     new com.auth0.jwt.impl.JWTParser().parsePayload(payload)
 
     then:
-    1 * propagationModule.taint(_, _)
+    1 * propagationModule.taintObjects(_, _)
     0 * _
   }
 
@@ -32,7 +32,7 @@ class JWTParserInstrumentationTest  extends AgentTestRunner {
     com.nimbusds.jose.util.JSONObjectUtils.parse(json)
 
     then:
-    5 * propagationModule.taint(_, _)
+    5 * propagationModule.taintObjects(_, _)
     0 * _
   }
 }

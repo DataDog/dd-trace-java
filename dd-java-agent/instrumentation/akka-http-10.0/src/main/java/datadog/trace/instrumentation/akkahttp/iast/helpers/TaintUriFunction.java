@@ -19,7 +19,7 @@ public class TaintUriFunction implements JFunction1<Tuple1<Uri>, Tuple1<Uri>> {
     if (mod == null || !(uri instanceof Taintable)) {
       return v1;
     }
-    mod.taint(SourceTypes.REQUEST_QUERY, uri);
+    mod.taintObjects(SourceTypes.REQUEST_QUERY, uri);
 
     return v1;
   }

@@ -161,7 +161,7 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
-  public void taint(final byte origin, @Nullable final Object... toTaintArray) {
+  public void taintObjects(final byte origin, @Nullable final Object... toTaintArray) {
     if (toTaintArray == null || toTaintArray.length == 0) {
       return;
     }

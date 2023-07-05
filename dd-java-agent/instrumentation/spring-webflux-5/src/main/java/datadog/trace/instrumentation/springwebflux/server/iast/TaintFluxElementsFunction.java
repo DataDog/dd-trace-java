@@ -13,7 +13,7 @@ public class TaintFluxElementsFunction<T> implements Function<T, T> {
 
   @Override
   public T apply(T t) {
-    propagation.taint(SourceTypes.REQUEST_BODY, t);
+    propagation.taintObjects(SourceTypes.REQUEST_BODY, t);
     return t;
   }
 }

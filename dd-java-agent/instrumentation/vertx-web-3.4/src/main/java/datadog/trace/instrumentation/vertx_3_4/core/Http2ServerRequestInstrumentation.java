@@ -55,7 +55,7 @@ public class Http2ServerRequestInstrumentation extends AbstractHttpServerRequest
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
           try {
-            module.taint(SourceTypes.REQUEST_HEADER_VALUE, multiMap);
+            module.taintObjects(SourceTypes.REQUEST_HEADER_VALUE, multiMap);
           } catch (final Throwable e) {
             module.onUnexpectedException("headers threw", e);
           }

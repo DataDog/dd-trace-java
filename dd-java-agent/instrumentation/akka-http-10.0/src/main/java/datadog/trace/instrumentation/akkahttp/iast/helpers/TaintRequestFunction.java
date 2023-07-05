@@ -21,7 +21,7 @@ public class TaintRequestFunction implements JFunction1<Tuple1<HttpRequest>, Tup
     if (mod == null || !((Object) httpRequest instanceof Taintable)) {
       return v1;
     }
-    mod.taint(SourceTypes.REQUEST_BODY, httpRequest);
+    mod.taintObjects(SourceTypes.REQUEST_BODY, httpRequest);
 
     return v1;
   }

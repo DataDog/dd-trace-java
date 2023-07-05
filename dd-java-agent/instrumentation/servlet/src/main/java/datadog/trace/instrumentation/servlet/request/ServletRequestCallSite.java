@@ -103,7 +103,7 @@ public class ServletRequestCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taint(SourceTypes.REQUEST_BODY, inputStream);
+        module.taintObjects(SourceTypes.REQUEST_BODY, inputStream);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetInputStream threw", e);
       }
@@ -120,7 +120,7 @@ public class ServletRequestCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taint(SourceTypes.REQUEST_BODY, bufferedReader);
+        module.taintObjects(SourceTypes.REQUEST_BODY, bufferedReader);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetReader threw", e);
       }
