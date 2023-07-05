@@ -3,12 +3,22 @@ package datadog.trace.instrumentation.java.concurrent;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.profiling.UnwrappingVisitor;
+import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 
 @AutoService(Instrumenter.class)
 public class TaskUnwrappingInstrumentation extends Instrumenter.Profiling
     implements Instrumenter.ForKnownTypes {
   public TaskUnwrappingInstrumentation() {
     super("java_concurrent", "task-unwrapping");
+  }
+
+  @Override
+  protected boolean defaultEnabled() {
+    return ConfigProvider.getInstance()
+        .getBoolean(
+            ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED,
+            ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
   }
 
   private static final String[] TYPES_WITH_FIELDS = {

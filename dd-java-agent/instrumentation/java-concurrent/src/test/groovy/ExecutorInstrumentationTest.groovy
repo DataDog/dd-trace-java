@@ -501,3 +501,10 @@ class ExecutorInstrumentationLegacyForkedTest extends ExecutorInstrumentationTes
     System.setProperty("dd.trace.thread-pool-executors.legacy.tracing.enabled", "true")
   }
 }
+
+class ExecutorInstrumentationQueueTimeForkedTest extends ExecutorInstrumentationTest {
+  def setupSpec() {
+    System.setProperty("dd.profiling.enabled", "true")
+    System.setProperty("dd.profiling.experimental.queueing.time.enabled", "true")
+  }
+}

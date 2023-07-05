@@ -8,8 +8,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.QueueTimerHelper;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import io.netty.util.concurrent.EventExecutor;
@@ -24,6 +26,14 @@ public class SingleThreadEventExecutorInstrumentation extends Instrumenter.Profi
     implements Instrumenter.ForKnownTypes {
   public SingleThreadEventExecutorInstrumentation() {
     super("netty-concurrent", "netty-event-executor");
+  }
+
+  @Override
+  protected boolean defaultEnabled() {
+    return ConfigProvider.getInstance()
+        .getBoolean(
+            ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED,
+            ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
   }
 
   @Override
