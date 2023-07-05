@@ -77,8 +77,7 @@ public final class SslEngineInstrumentation extends Instrumenter.Usm
 
         Peer peer = new Peer(thiz.getPeerHost(), thiz.getPeerPort());
         Payload payload = new Payload(b, 0, b.length);
-        Buffer message =
-            MessageEncoder.encode(MessageEncoder.ASYNC_PAYLOAD, peer, payload);
+        Buffer message = MessageEncoder.encode(MessageEncoder.ASYNC_PAYLOAD, peer, payload);
         Extractor.Supplier.send(message);
       }
     }
@@ -106,8 +105,7 @@ public final class SslEngineInstrumentation extends Instrumenter.Usm
 
         Peer peer = new Peer(thiz.getPeerHost(), thiz.getPeerPort());
         Payload payload = new Payload(b, 0, b.length);
-        Buffer message =
-            MessageEncoder.encode(MessageEncoder.ASYNC_PAYLOAD, peer, payload);
+        Buffer message = MessageEncoder.encode(MessageEncoder.ASYNC_PAYLOAD, peer, payload);
         Extractor.Supplier.send(message);
       }
     }

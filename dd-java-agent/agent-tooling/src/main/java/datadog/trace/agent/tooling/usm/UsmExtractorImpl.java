@@ -26,9 +26,10 @@ public class UsmExtractorImpl implements Extractor {
       return;
     }
 
-    log.debug("sending ioctl: {} with buffer of size: {}",
-            String.format("%08x", USM_IOCTL_ID.intValue()),
-            buffer.position());
+    log.debug(
+        "sending ioctl: {} with buffer of size: {}",
+        String.format("%08x", USM_IOCTL_ID.intValue()),
+        buffer.position());
     NativeLong res =
         CLibrary.Instance.ioctl(
             new NativeLong(0),
