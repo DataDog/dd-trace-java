@@ -6,7 +6,7 @@ import datadog.trace.api.civisibility.DDTestSession;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.civisibility.DDTestModuleImpl;
+import datadog.trace.civisibility.DDTestModuleParent;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -85,7 +85,7 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
         new TestModuleDescriptor<>(sessionKey, moduleName);
     inProgressTestModules.put(testModuleDescriptor, testModule);
 
-    return ((DDTestModuleImpl) testModule).getModuleInfo();
+    return ((DDTestModuleParent) testModule).getModuleInfo();
   }
 
   @Override

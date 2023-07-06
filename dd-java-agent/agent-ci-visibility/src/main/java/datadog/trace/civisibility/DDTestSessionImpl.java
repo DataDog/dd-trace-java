@@ -17,11 +17,16 @@ import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory;
 import datadog.trace.civisibility.context.SpanTestContext;
 import datadog.trace.civisibility.context.TestContext;
 import datadog.trace.civisibility.decorator.TestDecorator;
+import datadog.trace.civisibility.ipc.ErrorResponse;
 import datadog.trace.civisibility.ipc.ModuleExecutionResult;
+import datadog.trace.civisibility.ipc.RepoIndexRequest;
+import datadog.trace.civisibility.ipc.RepoIndexResponse;
 import datadog.trace.civisibility.ipc.SignalResponse;
 import datadog.trace.civisibility.ipc.SignalServer;
 import datadog.trace.civisibility.ipc.SignalType;
 import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.index.RepoIndex;
+import datadog.trace.civisibility.source.index.RepoIndexBuilder;
 import java.nio.file.Path;
 import javax.annotation.Nullable;
 
@@ -37,6 +42,7 @@ public class DDTestSessionImpl implements DDTestSession {
   private final MethodLinesResolver methodLinesResolver;
   private final ModuleExecutionSettingsFactory moduleExecutionSettingsFactory;
   private final SignalServer signalServer;
+  private final RepoIndexBuilder repoIndexBuilder;
 
   public DDTestSessionImpl(
       String projectName,
@@ -48,7 +54,8 @@ public class DDTestSessionImpl implements DDTestSession {
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
       ModuleExecutionSettingsFactory moduleExecutionSettingsFactory,
-      SignalServer signalServer) {
+      SignalServer signalServer,
+      RepoIndexBuilder repoIndexBuilder) {
     this.config = config;
     this.testModuleRegistry = testModuleRegistry;
     this.testDecorator = testDecorator;
@@ -57,6 +64,7 @@ public class DDTestSessionImpl implements DDTestSession {
     this.methodLinesResolver = methodLinesResolver;
     this.moduleExecutionSettingsFactory = moduleExecutionSettingsFactory;
     this.signalServer = signalServer;
+    this.repoIndexBuilder = repoIndexBuilder;
 
     if (startTime != null) {
       span = startSpan(testDecorator.component() + ".test_session", startTime);
@@ -76,6 +84,8 @@ public class DDTestSessionImpl implements DDTestSession {
 
     signalServer.registerSignalHandler(
         SignalType.MODULE_EXECUTION_RESULT, this::onModuleExecutionResultReceived);
+    signalServer.registerSignalHandler(
+        SignalType.REPO_INDEX_REQUEST, this::onRepoIndexRequestReceived);
     signalServer.start();
   }
 
@@ -93,6 +103,15 @@ public class DDTestSessionImpl implements DDTestSession {
       setTag(DDTags.CI_ITR_TESTS_SKIPPED, true);
     }
     return testModuleRegistry.onModuleExecutionResultReceived(result);
+  }
+
+  private SignalResponse onRepoIndexRequestReceived(RepoIndexRequest request) {
+    try {
+      RepoIndex index = repoIndexBuilder.getIndex();
+      return new RepoIndexResponse(index);
+    } catch (Exception e) {
+      return new ErrorResponse("Error while building repo index: " + e.getMessage());
+    }
   }
 
   @Override
@@ -132,8 +151,8 @@ public class DDTestSessionImpl implements DDTestSession {
 
   @Override
   public DDTestModule testModuleStart(String moduleName, @Nullable Long startTime) {
-    DDTestModuleImpl module =
-        new DDTestModuleImpl(
+    DDTestModuleParent module =
+        new DDTestModuleParent(
             context,
             moduleName,
             startTime,

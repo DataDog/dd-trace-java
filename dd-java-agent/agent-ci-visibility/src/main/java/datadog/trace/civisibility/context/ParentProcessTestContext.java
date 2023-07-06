@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.context;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class ParentProcessTestContext extends AbstractTestContext implements TestContext {
@@ -18,6 +19,7 @@ public class ParentProcessTestContext extends AbstractTestContext implements Tes
     return moduleId;
   }
 
+  @Nonnull
   @Override
   public Long getParentId() {
     return sessionId;
