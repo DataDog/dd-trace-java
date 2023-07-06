@@ -40,20 +40,24 @@ public abstract class TestNGUtils {
   }
 
   public static String getParameters(final ITestResult result) {
-    if (result.getParameters() == null || result.getParameters().length == 0) {
+    return getParameters(result.getParameters());
+  }
+
+  public static String getParameters(Object[] parameters) {
+    if (parameters == null || parameters.length == 0) {
       return null;
     }
 
     // We build manually the JSON for test.parameters tag.
     // Example: {"arguments":{"0":"param1","1":"param2"}}
     final StringBuilder sb = new StringBuilder("{\"arguments\":{");
-    for (int i = 0; i < result.getParameters().length; i++) {
+    for (int i = 0; i < parameters.length; i++) {
       sb.append("\"")
           .append(i)
           .append("\":\"")
-          .append(Strings.escapeToJson(String.valueOf(result.getParameters()[i])))
+          .append(Strings.escapeToJson(String.valueOf(parameters[i])))
           .append("\"");
-      if (i != result.getParameters().length - 1) {
+      if (i != parameters.length - 1) {
         sb.append(",");
       }
     }
