@@ -63,7 +63,7 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
   }
 
   @Override
-  public ModuleAndSessionId onTestModuleStart(
+  public ModuleInfo onTestModuleStart(
       final T sessionKey,
       final String moduleName,
       String startCommand,
@@ -85,7 +85,7 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
         new TestModuleDescriptor<>(sessionKey, moduleName);
     inProgressTestModules.put(testModuleDescriptor, testModule);
 
-    return ((DDTestModuleImpl) testModule).getModuleAndSessionId();
+    return ((DDTestModuleImpl) testModule).getModuleInfo();
   }
 
   @Override
@@ -135,7 +135,7 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
               + " and module name "
               + moduleName);
     }
-    testModule.end(null);
+    testModule.end(null, false);
   }
 
   @Override

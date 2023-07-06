@@ -17,8 +17,11 @@ import datadog.trace.civisibility.context.ParentProcessTestContext;
 import datadog.trace.civisibility.context.SpanTestContext;
 import datadog.trace.civisibility.context.TestContext;
 import datadog.trace.civisibility.decorator.TestDecorator;
+import datadog.trace.civisibility.ipc.ModuleExecutionResult;
+import datadog.trace.civisibility.ipc.SignalClient;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.util.Strings;
+import java.net.InetSocketAddress;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,26 +36,49 @@ public class DDTestModuleImpl implements DDTestModule {
   @Nullable private final TestContext sessionContext;
   private final Config config;
   private final TestDecorator testDecorator;
+  @Nullable private final TestModuleRegistry testModuleRegistry;
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
   private final MethodLinesResolver methodLinesResolver;
+  @Nullable private final InetSocketAddress signalServerAddress;
 
   public DDTestModuleImpl(
       @Nullable TestContext sessionContext,
       String moduleName,
       @Nullable Long startTime,
       Config config,
+      @Nullable TestModuleRegistry testModuleRegistry,
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
-      MethodLinesResolver methodLinesResolver) {
+      MethodLinesResolver methodLinesResolver,
+      @Nullable InetSocketAddress signalServerAddress) {
     this.sessionContext = sessionContext;
     this.moduleName = moduleName;
     this.config = config;
+    this.testModuleRegistry = testModuleRegistry;
     this.testDecorator = testDecorator;
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
+
+    if (signalServerAddress != null) {
+      this.signalServerAddress = signalServerAddress;
+    } else {
+      String host =
+          System.getProperty(
+              Strings.propertyNameToSystemPropertyName(
+                  CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST));
+      String port =
+          System.getProperty(
+              Strings.propertyNameToSystemPropertyName(
+                  CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT));
+      if (host != null && port != null) {
+        this.signalServerAddress = new InetSocketAddress(host, Integer.parseInt(port));
+      } else {
+        this.signalServerAddress = null;
+      }
+    }
 
     // fallbacks to System.getProperty below are needed for cases when
     // system variables are set after config was initialized
@@ -146,11 +172,18 @@ public class DDTestModuleImpl implements DDTestModule {
   }
 
   @Override
-  public void end(@Nullable Long endTime) {
+  public void end(@Nullable Long endTime, boolean testsSkipped) {
+    if (testModuleRegistry != null) {
+      testModuleRegistry.removeModule(this);
+    }
+
     if (span == null) {
-      log.debug("Ignoring module end call: there is no local span for test module");
+      // we have no span locally,
+      // send execution result to parent process that has the span
+      sendModuleExecutionResult(testsSkipped);
       return;
     }
+
     if (sessionContext != null) {
       sessionContext.reportChildStatus(context.getStatus());
     }
@@ -161,6 +194,21 @@ public class DDTestModuleImpl implements DDTestModule {
       span.finish(endTime);
     } else {
       span.finish();
+    }
+  }
+
+  private void sendModuleExecutionResult(boolean testsSkipped) {
+    long moduleId = context.getId();
+    long sessionId = sessionContext != null ? sessionContext.getId() : context.getParentId();
+    boolean coverageEnabled = config.isCiVisibilityCodeCoverageEnabled();
+    boolean itrEnabled = config.isCiVisibilityItrEnabled();
+    ModuleExecutionResult moduleExecutionResult =
+        new ModuleExecutionResult(sessionId, moduleId, coverageEnabled, itrEnabled, testsSkipped);
+
+    try (SignalClient signalClient = new SignalClient(signalServerAddress)) {
+      signalClient.send(moduleExecutionResult);
+    } catch (Exception e) {
+      log.error("Error while reporting module execution result", e);
     }
   }
 
@@ -184,8 +232,17 @@ public class DDTestModuleImpl implements DDTestModule {
         parallelized);
   }
 
-  public BuildEventsHandler.ModuleAndSessionId getModuleAndSessionId() {
-    return new BuildEventsHandler.ModuleAndSessionId(
-        context.getId(), sessionContext != null ? sessionContext.getId() : context.getParentId());
+  public BuildEventsHandler.ModuleInfo getModuleInfo() {
+    Long moduleId = context.getId();
+    Long sessionId = sessionContext != null ? sessionContext.getId() : context.getParentId();
+    String signalServerHost =
+        signalServerAddress != null ? signalServerAddress.getHostName() : null;
+    int signalServerPort = signalServerAddress != null ? signalServerAddress.getPort() : 0;
+    return new BuildEventsHandler.ModuleInfo(
+        moduleId, sessionId, signalServerHost, signalServerPort);
+  }
+
+  long getId() {
+    return context.getId();
   }
 }

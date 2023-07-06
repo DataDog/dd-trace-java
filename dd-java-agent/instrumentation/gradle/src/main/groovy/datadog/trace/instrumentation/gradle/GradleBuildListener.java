@@ -155,7 +155,7 @@ public class GradleBuildListener extends BuildAdapter {
       Gradle gradle = project.getGradle();
       String taskPath = task.getPath();
       String startCommand = GradleUtils.recreateStartCommand(gradle.getStartParameter());
-      BuildEventsHandler.ModuleAndSessionId moduleAndSessionId =
+      BuildEventsHandler.ModuleInfo moduleInfo =
           buildEventsHandler.onTestModuleStart(gradle, taskPath, startCommand, null);
 
       Collection<GradleUtils.TestFramework> testFrameworks =
@@ -169,8 +169,10 @@ public class GradleBuildListener extends BuildAdapter {
 
       JavaForkOptions taskForkOptions = (JavaForkOptions) task;
       taskForkOptions.jvmArgs(
-          arg(CiVisibilityConfig.CIVISIBILITY_SESSION_ID, moduleAndSessionId.sessionId),
-          arg(CiVisibilityConfig.CIVISIBILITY_MODULE_ID, moduleAndSessionId.moduleId));
+          arg(CiVisibilityConfig.CIVISIBILITY_SESSION_ID, moduleInfo.sessionId),
+          arg(CiVisibilityConfig.CIVISIBILITY_MODULE_ID, moduleInfo.moduleId),
+          arg(CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST, moduleInfo.signalServerHost),
+          arg(CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT, moduleInfo.signalServerPort));
     }
 
     private String arg(String propertyName, Object value) {
