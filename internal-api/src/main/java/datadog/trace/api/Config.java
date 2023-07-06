@@ -138,6 +138,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PL
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_ID;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_REPO_INDEX_SHARING_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SESSION_ID;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT;
@@ -643,6 +644,7 @@ public class Config {
   private final int ciVisibilitySignalServerPort;
   private final boolean ciVisibilityItrEnabled;
   private final Set<SkippableTest> ciVisibilitySkippableTests;
+  private final boolean ciVisibilityRepoIndexSharingEnabled;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1504,6 +1506,8 @@ public class Config {
                 SkippableTestsSerializer.deserialize(
                     configProvider.getString(CIVISIBILITY_SKIPPABLE_TESTS)))
             : Collections.emptySet();
+    ciVisibilityRepoIndexSharingEnabled =
+        configProvider.getBoolean(CIVISIBILITY_REPO_INDEX_SHARING_ENABLED, true);
 
     remoteConfigEnabled =
         configProvider.getBoolean(REMOTE_CONFIG_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED);
@@ -2462,6 +2466,10 @@ public class Config {
 
   public Set<SkippableTest> getCiVisibilitySkippableTests() {
     return ciVisibilitySkippableTests;
+  }
+
+  public boolean isCiVisibilityRepoIndexSharingEnabled() {
+    return ciVisibilityRepoIndexSharingEnabled;
   }
 
   public String getAppSecRulesFile() {

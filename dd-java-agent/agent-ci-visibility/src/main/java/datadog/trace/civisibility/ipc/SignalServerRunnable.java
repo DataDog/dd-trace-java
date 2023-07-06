@@ -22,6 +22,7 @@ class SignalServerRunnable implements Runnable {
 
   static {
     DESERIALIZERS.put(SignalType.MODULE_EXECUTION_RESULT, ModuleExecutionResult::deserialize);
+    DESERIALIZERS.put(SignalType.REPO_INDEX_REQUEST, b -> RepoIndexRequest.INSTANCE);
   }
 
   private final Selector selector;

@@ -1,4 +1,4 @@
-package datadog.trace.civisibility.source
+package datadog.trace.civisibility.source.index
 
 import com.google.common.jimfs.Configuration
 import com.google.common.jimfs.Jimfs

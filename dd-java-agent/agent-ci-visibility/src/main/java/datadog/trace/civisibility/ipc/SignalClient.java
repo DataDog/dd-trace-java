@@ -24,6 +24,7 @@ public class SignalClient implements AutoCloseable {
   static {
     DESERIALIZERS.put(SignalType.ERROR, ErrorResponse::deserialize);
     DESERIALIZERS.put(SignalType.ACK, b -> AckResponse.INSTANCE);
+    DESERIALIZERS.put(SignalType.REPO_INDEX_RESPONSE, RepoIndexResponse::deserialize);
   }
 
   private final SocketChannel socketChannel;

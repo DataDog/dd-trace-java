@@ -1,4 +1,4 @@
-package datadog.trace.civisibility.source;
+package datadog.trace.civisibility.source.index;
 
 import java.io.IOException;
 import java.nio.file.Path;
