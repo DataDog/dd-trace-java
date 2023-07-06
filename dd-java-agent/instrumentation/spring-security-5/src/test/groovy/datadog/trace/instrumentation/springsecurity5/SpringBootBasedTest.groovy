@@ -135,7 +135,6 @@ class SpringBootBasedTest extends HttpServerWithAppSec<ConfigurableApplicationCo
     span.getTag("appsec.events.users.signup.track") == true
     span.getTag("_dd.appsec.events.users.signup.auto.mode") == 'EXTENDED'
     span.getTag("usr.id") == 'admin'
-    //span.getTag("manual.keep") == true
   }
 
 
@@ -161,7 +160,6 @@ class SpringBootBasedTest extends HttpServerWithAppSec<ConfigurableApplicationCo
     span.getTag("_dd.appsec.events.users.login.failure.auto.mode") == 'EXTENDED'
     span.getTag("appsec.events.users.login.failure.usr.exists") == false
     span.getTag("appsec.events.users.login.failure.usr.id") == 'not_existing_user'
-    //span.getTag("manual.keep") == true
   }
 
 
@@ -186,7 +184,6 @@ class SpringBootBasedTest extends HttpServerWithAppSec<ConfigurableApplicationCo
     span.getTag("_dd.appsec.events.users.login.failure.auto.mode") == 'EXTENDED'
     span.getTag("appsec.events.users.login.failure.usr.exists") == true
     span.getTag("appsec.events.users.login.failure.usr.id") == 'admin'
-    //span.getTag("manual.keep") == true
   }
 
 
@@ -211,6 +208,5 @@ class SpringBootBasedTest extends HttpServerWithAppSec<ConfigurableApplicationCo
     span.getTag("appsec.events.users.login.success.track") == true
     span.getTag("_dd.appsec.events.users.login.success.auto.mode") == 'EXTENDED'
     span.getTag("usr.id") == 'admin'
-    //span.getTag("manual.keep") == true
   }
 }
