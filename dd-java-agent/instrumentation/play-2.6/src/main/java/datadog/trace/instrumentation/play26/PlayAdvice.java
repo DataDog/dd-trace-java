@@ -35,11 +35,10 @@ public class PlayAdvice {
       // Do not extract the context.
       span = startSpan(PLAY_REQUEST);
     }
-    span.setMeasured(true);
-    DECORATE.afterStart(span);
-
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
+    span.setMeasured(true);
+    DECORATE.afterStart(span);
 
     req = req.addAttr(HasPlayRequestSpan.KEY, HasPlayRequestSpan.INSTANCE);
 

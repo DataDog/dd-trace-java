@@ -50,11 +50,10 @@ public class Servlet2Advice {
 
     final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(httpServletRequest);
     final AgentSpan span = DECORATE.startSpan(httpServletRequest, extractedContext);
-    DECORATE.afterStart(span);
-    DECORATE.onRequest(span, httpServletRequest, httpServletRequest, extractedContext);
-
     scope = activateSpan(span);
     scope.setAsyncPropagation(true);
+    DECORATE.afterStart(span);
+    DECORATE.onRequest(span, httpServletRequest, httpServletRequest, extractedContext);
 
     httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);
     httpServletRequest.setAttribute(

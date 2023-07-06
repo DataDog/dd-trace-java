@@ -75,13 +75,14 @@ public final class SynapseServerInstrumentation extends Instrumenter.Tracing
         span = startSpan(DECORATE.spanName());
         span.setMeasured(true);
       }
+      AgentScope scope = activateSpan(span);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, connection, request, extractedContext);
 
       // capture span to be finished by one of the various server response advices
       connection.getContext().setAttribute(SYNAPSE_SPAN_KEY, span);
 
-      return activateSpan(span);
+      return scope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
