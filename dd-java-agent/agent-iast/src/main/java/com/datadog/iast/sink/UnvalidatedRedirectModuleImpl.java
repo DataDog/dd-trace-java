@@ -9,6 +9,7 @@ import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.overhead.Operations;
+import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.TaintedObject;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
@@ -71,6 +72,9 @@ public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
       return;
     }
     if (isRefererHeader(taintedObject.getRanges())) {
+      return;
+    }
+    if (Ranges.areMarked(taintedObject.getRanges(), VulnerabilityType.UNVALIDATED_REDIRECT)) {
       return;
     }
     if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {

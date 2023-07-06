@@ -87,7 +87,7 @@ class TaintedObjectEncodingTest extends DDSpecification {
   private TaintedObject taintedObject(final String value, final byte sourceType, final String sourceName, final String sourceValue) {
     return new TaintedObject(
       value,
-      [new Range(0, value.length(), new Source(sourceType, sourceName, sourceValue))] as Range[],
+      [new Range(0, value.length(), new Source(sourceType, sourceName, sourceValue), Range.NOT_MARKED)] as Range[],
       Mock(ReferenceQueue))
   }
 }

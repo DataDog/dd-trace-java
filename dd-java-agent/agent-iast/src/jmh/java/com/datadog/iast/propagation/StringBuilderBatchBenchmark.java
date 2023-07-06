@@ -33,7 +33,9 @@ public class StringBuilderBatchBenchmark
       double current = i / (double) stringCount;
       final String value;
       if (current < limit) {
-        value = tainted(context, UUID.randomUUID().toString(), new Range(3, 6, source()));
+        value =
+            tainted(
+                context, UUID.randomUUID().toString(), new Range(3, 6, source(), Range.NOT_MARKED));
       } else {
         value = notTainted(UUID.randomUUID().toString());
       }

@@ -330,7 +330,8 @@ public class StringModuleImpl implements StringModule {
             new Range(
                 currentRange.getStart(),
                 result.length() - currentRange.getStart(),
-                currentRange.getSource());
+                currentRange.getSource(),
+                currentRange.getMarks());
       }
     }
     Range[] newRanges = new Range[rangesSelf.length - skippedRanges];

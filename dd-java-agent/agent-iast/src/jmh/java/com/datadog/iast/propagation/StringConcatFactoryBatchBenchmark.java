@@ -54,7 +54,7 @@ public class StringConcatFactoryBatchBenchmark
       double current = i / (double) stringCount;
       final String value;
       if (current < limit) {
-        value = tainted(context, "Yep, tainted", new Range(3, 5, source()));
+        value = tainted(context, "Yep, tainted", new Range(3, 5, source(), Range.NOT_MARKED));
       } else {
         value = notTainted("Nop, tainted");
       }

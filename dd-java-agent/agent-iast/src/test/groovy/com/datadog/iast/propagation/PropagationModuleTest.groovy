@@ -186,7 +186,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
 
     if (shouldBeTainted) {
       def ranges = new Range[1]
-      ranges[0] = new Range(0, Integer.MAX_VALUE, new Source((byte) 1, "test", "test"))
+      ranges[0] = new Range(0, Integer.MAX_VALUE, new Source((byte) 1, "test", "test"), Range.NOT_MARKED)
       taintedObjects.taint(secondParam, ranges)
     }
 

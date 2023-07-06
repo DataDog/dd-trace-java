@@ -15,7 +15,7 @@ public class FastCodecModule extends BaseCodecModule {
       @Nonnull final String result,
       @Nonnull final Range[] ranges) {
     final Range range = highestPriorityRange(ranges);
-    return new Range[] {new Range(0, result.length(), range.getSource())};
+    return new Range[] {new Range(0, result.length(), range.getSource(), range.getMarks())};
   }
 
   @Override
@@ -25,7 +25,7 @@ public class FastCodecModule extends BaseCodecModule {
       @Nonnull final String result,
       @Nonnull final Range[] ranges) {
     final Range range = highestPriorityRange(ranges);
-    return new Range[] {new Range(0, result.length(), range.getSource())};
+    return new Range[] {new Range(0, result.length(), range.getSource(), range.getMarks())};
   }
 
   @Override
@@ -35,20 +35,20 @@ public class FastCodecModule extends BaseCodecModule {
       @Nonnull final byte[] result,
       @Nonnull final Range[] ranges) {
     final Range range = highestPriorityRange(ranges);
-    return new Range[] {new Range(0, result.length, range.getSource())};
+    return new Range[] {new Range(0, result.length, range.getSource(), range.getMarks())};
   }
 
   @Override
   protected Range[] decodeBase64Ranges(
       @Nonnull final byte[] value, @Nonnull final byte[] result, @Nonnull final Range[] ranges) {
     final Range range = highestPriorityRange(ranges);
-    return new Range[] {new Range(0, result.length, range.getSource())};
+    return new Range[] {new Range(0, result.length, range.getSource(), range.getMarks())};
   }
 
   @Override
   protected Range[] encodeBase64Ranges(
       @Nonnull final byte[] value, @Nonnull final byte[] result, @Nonnull final Range[] ranges) {
     final Range range = highestPriorityRange(ranges);
-    return new Range[] {new Range(0, result.length, range.getSource())};
+    return new Range[] {new Range(0, result.length, range.getSource(), range.getMarks())};
   }
 }

@@ -2,6 +2,7 @@ package com.datadog.iast.taint;
 
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
+import com.datadog.iast.model.VulnerabilityType;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,12 +38,13 @@ public final class Ranges {
 
   private Ranges() {}
 
-  public static Range[] forString(final @Nonnull String obj, final @Nonnull Source source) {
-    return new Range[] {new Range(0, obj.length(), source)};
+  public static Range[] forString(
+      final @Nonnull String obj, final @Nonnull Source source, final int mark) {
+    return new Range[] {new Range(0, obj.length(), source, mark)};
   }
 
-  public static Range[] forObject(final @Nonnull Source source) {
-    return new Range[] {new Range(0, Integer.MAX_VALUE, source)};
+  public static Range[] forObject(final @Nonnull Source source, final int mark) {
+    return new Range[] {new Range(0, Integer.MAX_VALUE, source, mark)};
   }
 
   public static void copyShift(
@@ -69,7 +71,6 @@ public final class Ranges {
     return ranges;
   }
 
-  @SuppressWarnings("unchecked")
   public static <E> RangesProvider<E> rangesProviderFor(
       @Nonnull final TaintedObjects to, @Nullable final E[] items) {
     if (items == null || items.length == 0) {
@@ -78,7 +79,6 @@ public final class Ranges {
     return new ArrayProvider<>(items, to);
   }
 
-  @SuppressWarnings("unchecked")
   public static <E> RangesProvider<E> rangesProviderFor(
       @Nonnull final TaintedObjects to, @Nullable final E item) {
     if (item == null) {
@@ -87,7 +87,6 @@ public final class Ranges {
     return new SingleProvider<>(item, to);
   }
 
-  @SuppressWarnings("unchecked")
   public static <E> RangesProvider<E> rangesProviderFor(
       @Nonnull final TaintedObjects to, @Nullable final List<E> items) {
     if (items == null || items.isEmpty()) {
@@ -127,7 +126,8 @@ public final class Ranges {
           newLength = length - newStart;
         }
         if (newLength > 0) {
-          newRanges[newRangeIndex] = new Range(newStart, newLength, range.getSource());
+          newRanges[newRangeIndex] =
+              new Range(newStart, newLength, range.getSource(), range.getMarks());
         }
       }
     }
@@ -157,7 +157,22 @@ public final class Ranges {
   }
 
   public static Range highestPriorityRange(@Nonnull final Range[] ranges) {
-    // TODO without marks and only request sources all ranges are of equals priority
+    /*
+     * This approach is better but not completely correct ideally the highest priority should use the following patterns:
+     * 1) Range coming from the request with no mark related with the vulnerability
+     * 2) Range coming from other origins with no mark related with the vulnerability
+     * 3) Range coming from the request with a mark related with the vulnerability
+     * 4) Range coming from other origins with a mark related with the vulnerability
+     *
+     * To improve performance we decide to simplify the algorithm:
+     * 1) First range with no mark
+     * 2) Fist Range
+     */
+    for (Range range : ranges) {
+      if (range.getMarks() == Range.NOT_MARKED) {
+        return range;
+      }
+    }
     return ranges[0];
   }
 
@@ -230,7 +245,7 @@ public final class Ranges {
 
     private SingleProvider(@Nonnull final E value, @Nonnull final TaintedObjects to) {
       this.value = value;
-      this.tainted = to.get(value);
+      tainted = to.get(value);
     }
 
     @Override
@@ -290,7 +305,7 @@ public final class Ranges {
 
   public static Range createIfDifferent(Range range, int start, int length) {
     if (start != range.getStart() || length != range.getLength()) {
-      return new Range(start, length, range.getSource());
+      return new Range(start, length, range.getSource(), range.getMarks());
     } else {
       return range;
     }
@@ -318,5 +333,18 @@ public final class Ranges {
     }
 
     return skippedRanges;
+  }
+
+  public static boolean areMarked(
+      @Nonnull final Range[] ranges, @Nonnull final VulnerabilityType type) {
+    if (ranges.length == 0) {
+      return false;
+    }
+    for (Range range : ranges) {
+      if ((range.getMarks() & type.mark()) < 1) {
+        return false;
+      }
+    }
+    return true;
   }
 }

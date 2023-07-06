@@ -65,7 +65,7 @@ class EvidenceEncodingTest extends DDSpecification {
   }
 
   private static Range range(final int start, final int length, final Source source) {
-    return new Range(start, length, source)
+    return new Range(start, length, source, Range.NOT_MARKED)
   }
 
   private static Source source(final int index) {
