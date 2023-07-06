@@ -10,21 +10,21 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 
 abstract class HttpServerWithAppSec<SERVER> extends WithHttpServer<SERVER> {
 
-    @Override
-    protected void configurePreAgent() {
-        super.configurePreAgent()
-        injectSysConfig('dd.appsec.enabled', 'true')
-        injectSysConfig('dd.remote_config.enabled', 'false')
-    }
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig('dd.appsec.enabled', 'true')
+    injectSysConfig('dd.remote_config.enabled', 'false')
+  }
 
-    def setupSpec() {
-        SubscriptionService ss = AgentTracer.TracerAPI.get().getSubscriptionService(RequestContextSlot.APPSEC)
-        def sco = new SharedCommunicationObjects()
-        def config = Config.get()
-        sco.createRemaining(config)
-        assert sco.configurationPoller(config) == null
-        assert sco.monitoring instanceof Monitoring.DisabledMonitoring
+  def setupSpec() {
+    SubscriptionService ss = AgentTracer.TracerAPI.get().getSubscriptionService(RequestContextSlot.APPSEC)
+    def sco = new SharedCommunicationObjects()
+    def config = Config.get()
+    sco.createRemaining(config)
+    assert sco.configurationPoller(config) == null
+    assert sco.monitoring instanceof Monitoring.DisabledMonitoring
 
-        AppSecSystem.start(ss, sco)
-    }
+    AppSecSystem.start(ss, sco)
+  }
 }

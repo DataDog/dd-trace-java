@@ -16,30 +16,30 @@ import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.SUCCESS
 @Controller
 class UserController {
 
-    private final UserDetailsManager userDetailsManager
+  private final UserDetailsManager userDetailsManager
 
-    UserController(UserDetailsManager userDetailsManager) {
-        this.userDetailsManager = userDetailsManager
-    }
+  UserController(UserDetailsManager userDetailsManager) {
+    this.userDetailsManager = userDetailsManager
+  }
 
-    @RequestMapping("/success")
-    @ResponseBody
-    String success() {
-        SpringBootBasedTest.controller(SUCCESS) {
-            SUCCESS.body
-        }
+  @RequestMapping("/success")
+  @ResponseBody
+  String success() {
+    SpringBootBasedTest.controller(SUCCESS) {
+      SUCCESS.body
     }
+  }
 
-    @PostMapping("/register")
-    @ResponseBody
-    void register(
-            @RequestParam("username") String username,
-            @RequestParam("password") String password,
-            Model model) {
-        SpringBootBasedTest.controller(REGISTER) {
-            userDetailsManager.createUser(
-                    User.withUsername(username).password("{noop}" + password).roles("USER").build())
-            model.addAttribute("username", username)
-        }
+  @PostMapping("/register")
+  @ResponseBody
+  void register(
+    @RequestParam("username") String username,
+    @RequestParam("password") String password,
+    Model model) {
+    SpringBootBasedTest.controller(REGISTER) {
+      userDetailsManager.createUser(
+        User.withUsername(username).password("{noop}" + password).roles("USER").build())
+      model.addAttribute("username", username)
     }
+  }
 }

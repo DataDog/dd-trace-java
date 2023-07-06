@@ -15,29 +15,29 @@ import javax.sql.DataSource
 @EnableWebSecurity
 class SecurityConfig {
 
-    @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http.authorizeHttpRequests(
-                (requests) -> requests
-                        .requestMatchers("/", "/success", "/register", "/login").permitAll()
-                        .anyRequest().authenticated())
-                .csrf().disable()
-                .formLogin((form) -> form.loginPage("/login").permitAll())
-        return http.build()
-    }
+  @Bean
+  SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    http.authorizeHttpRequests(
+    (requests) -> requests
+    .requestMatchers("/", "/success", "/register", "/login").permitAll()
+    .anyRequest().authenticated())
+    .csrf().disable()
+    .formLogin((form) -> form.loginPage("/login").permitAll())
+    return http.build()
+  }
 
-    @Bean
-    DataSource getDataSource() {
-        DataSourceBuilder dataSourceBuilder = DataSourceBuilder.create()
-        dataSourceBuilder.driverClassName("org.h2.Driver")
-        dataSourceBuilder.url("jdbc:h2:mem:authDB;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;INIT=RUNSCRIPT FROM 'classpath:schema.sql';")
-        dataSourceBuilder.username("SA")
-        dataSourceBuilder.password("")
-        return dataSourceBuilder.build()
-    }
+  @Bean
+  DataSource getDataSource() {
+    DataSourceBuilder dataSourceBuilder = DataSourceBuilder.create()
+    dataSourceBuilder.driverClassName("org.h2.Driver")
+    dataSourceBuilder.url("jdbc:h2:mem:authDB;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;INIT=RUNSCRIPT FROM 'classpath:schema.sql';")
+    dataSourceBuilder.username("SA")
+    dataSourceBuilder.password("")
+    return dataSourceBuilder.build()
+  }
 
-    @Bean
-    UserDetailsManager userDetailsService() {
-        return new JdbcUserDetailsManager(dataSource)
-    }
+  @Bean
+  UserDetailsManager userDetailsService() {
+    return new JdbcUserDetailsManager(dataSource)
+  }
 }
