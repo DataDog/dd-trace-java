@@ -204,16 +204,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       try {
         final URIDataAdapter url = url(request);
         if (url != null) {
-
           boolean supportsRaw = url.supportsRaw();
           boolean encoded = supportsRaw && config.isHttpServerRawResource();
           boolean valid = url.isValid();
           String path = encoded ? url.rawPath() : url.path();
           if (valid) {
             span.setTag(
-                Tags.HTTP_URL, URIUtils.buildURL(url.scheme(), url.host(), url.port(), path));
+                Tags.HTTP_URL, URIUtils.lazyValidURL(url.scheme(), url.host(), url.port(), path));
           } else if (supportsRaw) {
-            span.setTag(Tags.HTTP_URL, url.raw());
+            span.setTag(Tags.HTTP_URL, URIUtils.lazyInvalidUrl(url.raw()));
           }
           if (context != null && context.getXForwardedHost() != null) {
             span.setTag(Tags.HTTP_HOSTNAME, context.getXForwardedHost());

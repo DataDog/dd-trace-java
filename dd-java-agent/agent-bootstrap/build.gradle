@@ -1,6 +1,7 @@
 // The shadowJar of this project will be injected into the JVM's bootstrap classloader
 plugins {
   id "com.github.johnrengelman.shadow"
+  id 'me.champeau.jmh'
 }
 
 ext {
@@ -56,4 +57,9 @@ idea {
   module {
     jdkName = '11'
   }
+}
+
+jmh {
+  jmhVersion = '1.32'
+  duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
 }
