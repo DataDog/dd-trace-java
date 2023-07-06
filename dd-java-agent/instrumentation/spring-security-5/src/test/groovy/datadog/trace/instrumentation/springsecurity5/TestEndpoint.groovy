@@ -26,7 +26,8 @@ enum TestEndpoint {
     PATH_PARAM("path/123/param", 200, "123"),
     MATRIX_PARAM("matrix/a=x,y;a=z", 200, '[a:[x, y, z]]'),
     AUTH_REQUIRED("authRequired", 200, null),
-    LOGIN("login", 302, null),
+    LOGIN("login", 302, ""),
+    REGISTER("register", 200, ""),
     UNKNOWN("", 451, null), // This needs to have a valid status code
 
     private final String path

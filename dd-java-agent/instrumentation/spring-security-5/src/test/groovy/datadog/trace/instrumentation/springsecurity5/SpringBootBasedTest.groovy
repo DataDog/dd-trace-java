@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.springsecurity5
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerWithAppSec
 import datadog.trace.core.DDSpan
+import okhttp3.FormBody
 import okhttp3.HttpUrl
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -10,20 +11,24 @@ import org.springframework.boot.SpringApplication
 import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
 import spock.lang.Shared
+import spock.lang.Stepwise
 
+import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.LOGIN
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.SUCCESS
+import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.REGISTER
 import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.UNKNOWN
 import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.NOT_FOUND
 
 
+// Use Stepwise to ensure tests are running sequentially
+@Stepwise
 class SpringBootBasedTest extends HttpServerWithAppSec<ConfigurableApplicationContext> {
 
     @Shared
     def context
 
     SpringApplication application() {
-        return new SpringApplication(AppConfig, TestController)
+        return new SpringApplication(AppConfig, UserController, SecurityConfig)
     }
 
     class SpringBootServer implements HttpServer {
@@ -75,6 +80,12 @@ class SpringBootBasedTest extends HttpServerWithAppSec<ConfigurableApplicationCo
         return null
     }
 
+    @Override
+    protected void configurePreAgent() {
+        super.configurePreAgent()
+        injectSysConfig('dd.appsec.automated.user.events.tracking', 'extended')
+    }
+
     def setupSpec() {
         server = server()
         server.start()
@@ -91,7 +102,7 @@ class SpringBootBasedTest extends HttpServerWithAppSec<ConfigurableApplicationCo
                 .build()
         return new Request.Builder()
                 .url(url)
-                .addHeader('user-agent', 'Arachni/v1')
+                //.addHeader('user-agent', 'Arachni/v1')
                 .method(method, body)
     }
 
@@ -102,9 +113,15 @@ class SpringBootBasedTest extends HttpServerWithAppSec<ConfigurableApplicationCo
         return runUnderTrace("controller", closure)
     }
 
-    def "test success with request"() {
+
+    def "test signup event"() {
         setup:
-        def request = request(SUCCESS, 'GET', null).build()
+        RequestBody formBody = new FormBody.Builder()
+                .add("username", "admin")
+                .add("password", "admin")
+                .build()
+
+        def request = request(REGISTER, "POST", formBody).build()
 
         when:
         def response = client.newCall(request).execute()
@@ -112,8 +129,88 @@ class SpringBootBasedTest extends HttpServerWithAppSec<ConfigurableApplicationCo
         DDSpan span = TEST_WRITER.flatten().first()
 
         then:
-        response.code() == SUCCESS.status
-        response.body().string() == SUCCESS.body
+        response.code() == REGISTER.status
+        response.body().string() == REGISTER.body
         !span.getTags().isEmpty()
+        span.getTag("appsec.events.users.signup.track") == true
+        span.getTag("_dd.appsec.events.users.signup.auto.mode") == 'EXTENDED'
+        span.getTag("usr.id") == 'admin'
+        //span.getTag("manual.keep") == true
+    }
+
+
+    def "test failed login with non existing user"() {
+        setup:
+        RequestBody formBody = new FormBody.Builder()
+                .add("username", "not_existing_user")
+                .add("password", "some_password")
+                .build()
+
+        def request = request(LOGIN, "POST", formBody).build()
+
+        when:
+        def response = client.newCall(request).execute()
+        TEST_WRITER.waitForTraces(1)
+        DDSpan span = TEST_WRITER.flatten().first()
+
+        then:
+        response.code() == LOGIN.status
+        response.body().string() == LOGIN.body
+        !span.getTags().isEmpty()
+        span.getTag("appsec.events.users.login.failure.track") == true
+        span.getTag("_dd.appsec.events.users.login.failure.auto.mode") == 'EXTENDED'
+        span.getTag("appsec.events.users.login.failure.usr.exists") == false
+        span.getTag("appsec.events.users.login.failure.usr.id") == 'not_existing_user'
+        //span.getTag("manual.keep") == true
+    }
+
+
+    def "test failed login with existing user but wrong password"() {
+        setup:
+        RequestBody formBody = new FormBody.Builder()
+                .add("username", "admin")
+                .add("password", "wrong_password").build()
+
+        def request = request(LOGIN, "POST", formBody).build()
+
+        when:
+        def response = client.newCall(request).execute()
+        TEST_WRITER.waitForTraces(1)
+        DDSpan span = TEST_WRITER.flatten().first()
+
+        then:
+        response.code() == LOGIN.status
+        response.body().string() == LOGIN.body
+        !span.getTags().isEmpty()
+        span.getTag("appsec.events.users.login.failure.track") == true
+        span.getTag("_dd.appsec.events.users.login.failure.auto.mode") == 'EXTENDED'
+        span.getTag("appsec.events.users.login.failure.usr.exists") == true
+        span.getTag("appsec.events.users.login.failure.usr.id") == 'admin'
+        //span.getTag("manual.keep") == true
+    }
+
+
+    def "test success login"() {
+        setup:
+        RequestBody formBody = new FormBody.Builder()
+                .add("username", "admin")
+                .add("password", "admin")
+                .build()
+
+        def request = request(LOGIN, "POST", formBody).build()
+
+        when:
+        def response = client.newCall(request).execute()
+        TEST_WRITER.waitForTraces(1)
+        DDSpan span = TEST_WRITER.flatten().first()
+
+        then:
+        response.code() == LOGIN.status
+        response.body().string() == LOGIN.body
+        !span.getTags().isEmpty()
+        span.getTag("appsec.events.users.login.success.track") == true
+        span.getTag("_dd.appsec.events.users.login.success.auto.mode") == 'EXTENDED'
+        span.getTag("usr.id") == 'admin'
+        //span.getTag("manual.keep") == true
     }
 }
