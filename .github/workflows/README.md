@@ -4,7 +4,7 @@ This lists and describes the repository GitHub actions.
 
 ## Release Management
 
-### add-assets-to-release
+### add-assets-to-release [🔗](add-assets-to-release.yaml)
 
 _Trigger:_ When a release is published
 
@@ -14,7 +14,7 @@ _Actions:_
 
 _Recovery:_ Download artifacts and upload them manually to the release.
 
-### add-milestone-to-pull-requests
+### add-milestone-to-pull-requests [🔗](add-milestone-to-pull-requests.yaml)
 
 _Trigger:_ When a PR to `master` is closed
 
@@ -22,7 +22,7 @@ _Action:_ Get the last (by name) opened milestone and affect it to the closed pu
 
 _Recovery:_ Attach the milestone by hand to the PR.
 
-### create-next-milestone
+### create-next-milestone [🔗](create-next-milestone.yaml)
 
 _Trigger:_ When closing a milestone
 
@@ -30,7 +30,7 @@ _Action:_ Create a new milestone by incrementing minor version.
 
 _Comment:_ Already done when closing a tag. To delete?
 
-### draft-release-notes-on-tag
+### draft-release-notes-on-tag [🔗](draft-release-notes-on-tag.yaml)
 
 _Trigger:_ When creating a tag, or manually (providing a tag)
 
@@ -42,7 +42,7 @@ _Actions:_
 
 _Recovery:_ Manually trigger the action again on the relevant tag.
 
-## increment-milestone-on-tag
+## increment-milestones-on-tag [🔗](increment-milestones-on-tag.yaml)
 
 _Trigger:_ When creating a tag
 
@@ -55,7 +55,7 @@ _Recovery:_ Manually close the related milestone and create a new one.
 _Notes:_ This actions will handle _minor_ releases only.
 As there is no milestone for _patch_ releases, it won't close and create _patch_ releated milestone.
 
-## update-download-releases
+## update-download-releases [🔗](update-download-releases.yaml)
 
 _Trigger:_ When a release is published
 
@@ -65,7 +65,7 @@ _Recovery:_ Download artifacts and upload them manually to the related _download
 
 _Notes:_ _Download releases_ are special GitHub releases with fixed URL and tags, but rolling artifacts to provided stable download links (ex [latest](https://github.com/DataDog/dd-trace-java/releases/tag/download-latest) and [latest-v1](https://github.com/DataDog/dd-trace-java/releases/tag/download-latest-v1)).
 
-## update-issues-on-release
+## update-issues-on-release [🔗](update-issues-on-release.yaml)
 
 _Trigger:_ When a release is published
 
@@ -78,19 +78,19 @@ _Recovery:_ Check at the milestone for the related issues and update them manual
 
 ## Code Quality
 
-### codeql-analysis
+### codeql-analysis [🔗](codeql-analysis.yml)
 
 _Trigger:_ When pushing commits to `master` or any pull request to `master`
 
 _Action:_ Run GitHub CodeQL action and upload result to GitHub security tab.
 
-### gradle-wrapper-validation
+### gradle-wrapper-validation [🔗](gradle-wrapper-validation.yaml.disabled)
 
 **DISABLED** - GitHub provides a way to disable actions rather than changing their extensions.
 
 _Comment:_ To delete?
 
-### lib-injection
+### lib-injection [🔗](lib-injection.yaml)
 
 _Trigger:_ When pushing commits to `master`, release branches or any PR targetting `master`, and when creating tags
 
@@ -98,10 +98,16 @@ _Actions:_
 * Build and publish to GHCR a Docker image with the Java tracer agent,
 * Build lib-injection and run its system tests with the build Java agent.
 
-### lib-inject-manual-release
+### lib-injection-manual-release [🔗](lib-injection-manual-release.yaml)
 
 _Trigger:_ When manually triggered
 
 _Action:_ Build and publish to GHCR a Docker image with the given Java tracer version.
 
-## Disabled
+### lib-injection-prune-registry [🔗](lib-injection-prune-registry.yaml)
+
+_Trigger:_ Every week or manually
+
+_Action:_ Clean up old lib-injection Docker images from GHCR.
+
+_Recovery:_ Manually trigger the action again.
