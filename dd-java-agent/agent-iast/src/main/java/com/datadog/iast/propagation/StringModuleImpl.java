@@ -15,6 +15,9 @@ import com.datadog.iast.taint.TaintedObjects;
 import com.datadog.iast.util.Ranged;
 import datadog.trace.api.iast.propagation.StringModule;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
@@ -25,8 +28,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 public class StringModuleImpl implements StringModule {
 
@@ -530,11 +531,11 @@ public class StringModuleImpl implements StringModule {
         }
       } else {
         final Source source = ranges[0].getSource();
-        finalRanges.add(new Range(offset, formatted.length(), source));
+        finalRanges.add(new Range(offset, formatted.length(), source, ranges[0].getMarks()));
       }
     } else if (placeholderRange != null) {
       final Source source = placeholderRange.getSource();
-      finalRanges.add(new Range(offset, formatted.length(), source));
+      finalRanges.add(new Range(offset, formatted.length(), source, placeholderRange.getMarks()));
     }
   }
 
@@ -568,7 +569,7 @@ public class StringModuleImpl implements StringModule {
       // 3. enqueue the remaining ones
       for (final Ranged disjoint : formatRange.remove(placeholderPos)) {
         final Range newFormatRange =
-            new Range(disjoint.getStart(), disjoint.getLength(), formatRange.getSource());
+            new Range(disjoint.getStart(), disjoint.getLength(), formatRange.getSource(), formatRange.getMarks());
         if (newFormatRange.getStart() < placeholderPos.getStart()) {
           finalRanges.add(newFormatRange.shift(offset));
         } else {
