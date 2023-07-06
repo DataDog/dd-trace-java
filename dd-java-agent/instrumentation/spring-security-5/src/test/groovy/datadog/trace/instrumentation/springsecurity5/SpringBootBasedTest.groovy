@@ -83,7 +83,7 @@ class SpringBootBasedTest extends HttpServerWithAppSec<ConfigurableApplicationCo
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
-    injectSysConfig('dd.appsec.automated.user.events.tracking', 'extended')
+    injectSysConfig('dd.appsec.automated-user-events-tracking', 'extended')
   }
 
   def setupSpec() {
