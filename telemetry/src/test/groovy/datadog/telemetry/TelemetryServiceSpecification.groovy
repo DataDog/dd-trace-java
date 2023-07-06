@@ -329,7 +329,51 @@ class TelemetryServiceSpecification extends DDSpecification {
     1 * requestBuilder.build(requestType, _)
     1 * httpClient.newCall(_) >> serverErrorResponse
 
-    then: 'no further requests after the first 404'
+    then: 'requests continue after first 500'
+    afterCalls * requestBuilder.build(_, _)
+    afterCalls * httpClient.newCall(_) >> okResponse
+    0 * _
+
+    where:
+    requestType                                 | prevCalls | afterCalls
+    RequestType.APP_HEARTBEAT                   | 0         | 6
+    RequestType.APP_CLIENT_CONFIGURATION_CHANGE | 1         | 5
+    RequestType.APP_INTEGRATIONS_CHANGE         | 2         | 4
+    RequestType.APP_DEPENDENCIES_LOADED         | 3         | 3
+    RequestType.GENERATE_METRICS                | 4         | 2
+    RequestType.DISTRIBUTIONS                   | 5         | 1
+    RequestType.LOGS                            | 6         | 0
+  }
+
+  void 'Exception at #requestType does not prevents further messages'() {
+    when: 'initial iteration'
+    telemetryService.sendIntervalRequests()
+
+    then:
+    1 * requestBuilder.build(_, _)
+    1 * httpClient.newCall(_) >> okResponse
+    0 * _
+
+    when: 'add data'
+    telemetryService.addConfiguration(configuration)
+    telemetryService.addIntegration(integration)
+    telemetryService.addDependency(dependency)
+    telemetryService.addMetric(metric)
+    telemetryService.addDistributionSeries(distribution)
+    telemetryService.addLogMessage(logMessage)
+
+    and:
+    telemetryService.sendIntervalRequests()
+
+    then:
+    prevCalls * requestBuilder.build(_, _)
+    prevCalls * httpClient.newCall(_) >> okResponse
+
+    then:
+    1 * requestBuilder.build(requestType, _)
+    1 * httpClient.newCall(_) >> { throw new IOException("exception") }
+
+    then: 'requests continue after first exception'
     afterCalls * requestBuilder.build(_, _)
     afterCalls * httpClient.newCall(_) >> okResponse
     0 * _
