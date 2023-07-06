@@ -1,6 +1,10 @@
 package datadog.trace.instrumentation.spark;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentHistogram;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.nio.ByteBuffer;
+import java.util.Base64;
 import org.apache.spark.TaskFailedReason;
 import org.apache.spark.executor.TaskMetrics;
 import org.apache.spark.scheduler.SparkListenerTaskEnd;
@@ -42,6 +46,17 @@ class SparkAggregatedTaskMetrics {
   private long previousAvailableExecutorTime = 0L;
   private long taskRunTimeSinceLastStage = 0L;
   private long totalTaskRunTimeSinceLastStage = 0L;
+  private long skewTime = 0;
+
+  private final AgentHistogram taskRunTimeHistogram = AgentTracer.get().newHistogram(1 / 32.0, 512);
+  private final AgentHistogram inputBytesHistogram = AgentTracer.get().newHistogram(1 / 32.0, 512);
+  private final AgentHistogram outputBytesHistogram = AgentTracer.get().newHistogram(1 / 32.0, 512);
+  private final AgentHistogram shuffleReadBytesHistogram =
+      AgentTracer.get().newHistogram(1 / 32.0, 512);
+  private final AgentHistogram shuffleWriteBytesHistogram =
+      AgentTracer.get().newHistogram(1 / 32.0, 512);
+  private final AgentHistogram diskBytesSpilledHistogram =
+      AgentTracer.get().newHistogram(1 / 32.0, 512);
 
   public SparkAggregatedTaskMetrics() {}
 
@@ -94,7 +109,15 @@ class SparkAggregatedTaskMetrics {
         taskWithOutputCount += 1;
       }
 
-      taskRunTimeSinceLastStage += computeTaskRunTime(taskMetrics);
+      long taskRunTime = computeTaskRunTime(taskMetrics);
+      taskRunTimeSinceLastStage += taskRunTime;
+
+      taskRunTimeHistogram.accept(taskRunTime);
+      inputBytesHistogram.accept(taskMetrics.inputMetrics().bytesRead());
+      outputBytesHistogram.accept(taskMetrics.outputMetrics().bytesWritten());
+      shuffleReadBytesHistogram.accept(taskMetrics.shuffleReadMetrics().totalBytesRead());
+      shuffleWriteBytesHistogram.accept(taskMetrics.shuffleWriteMetrics().bytesWritten());
+      diskBytesSpilledHistogram.accept(taskMetrics.diskBytesSpilled());
     }
   }
 
@@ -151,6 +174,16 @@ class SparkAggregatedTaskMetrics {
     taskWithOutputCount += stageMetrics.taskWithOutputCount;
 
     attributedAvailableExecutorTime += stageMetrics.attributedAvailableExecutorTime;
+    skewTime += stageMetrics.skewTime;
+  }
+
+  public void computeSkew() {
+    if (taskRunTimeHistogram.getCount() > 0) {
+      double p50 = taskRunTimeHistogram.getValueAtQuantile(0.5);
+      double max = taskRunTimeHistogram.getMaxValue();
+
+      skewTime = (long) (max - p50);
+    }
   }
 
   public void setSpanMetrics(AgentSpan span, String prefix) {
@@ -187,11 +220,42 @@ class SparkAggregatedTaskMetrics {
     span.setMetric(prefix + ".task_with_output_count", taskWithOutputCount);
 
     span.setMetric(prefix + ".available_executor_time", attributedAvailableExecutorTime);
+    span.setMetric(prefix + ".skew_time", skewTime);
+
+    if (taskRunTimeHistogram.getCount() > 0) {
+      String base64hist = histogramToBase64(taskRunTimeHistogram);
+      span.setTag("_dd.spark.task_run_time", base64hist);
+      span.setMetric(prefix + ".histogram_serialized_length", base64hist.length());
+      span.setMetric(prefix + ".max_task_run_time", taskRunTimeHistogram.getMaxValue());
+    }
+    if (inputBytesHistogram.getCount() > 0) {
+      span.setTag("_dd.spark.input_bytes", histogramToBase64(inputBytesHistogram));
+    }
+    if (outputBytesHistogram.getCount() > 0) {
+      span.setTag("_dd.spark.output_bytes", histogramToBase64(outputBytesHistogram));
+    }
+    if (shuffleReadBytesHistogram.getCount() > 0) {
+      span.setTag("_dd.spark.shuffle_read_bytes", histogramToBase64(shuffleReadBytesHistogram));
+    }
+    if (shuffleWriteBytesHistogram.getCount() > 0) {
+      span.setTag("_dd.spark.shuffle_write_bytes", histogramToBase64(shuffleWriteBytesHistogram));
+    }
+    if (diskBytesSpilledHistogram.getCount() > 0) {
+      span.setTag("_dd.spark.disk_bytes_spilled", histogramToBase64(diskBytesSpilledHistogram));
+    }
   }
 
   public static long computeTaskRunTime(TaskMetrics metrics) {
     return metrics.executorDeserializeTime()
         + metrics.executorRunTime()
         + metrics.resultSerializationTime();
+  }
+
+  private static String histogramToBase64(AgentHistogram hist) {
+    ByteBuffer bb = hist.serialize();
+    byte[] bytes = new byte[bb.remaining()];
+    bb.get(bytes);
+
+    return Base64.getEncoder().encodeToString(bytes);
   }
 }

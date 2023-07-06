@@ -49,6 +49,7 @@ import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring;
+import datadog.trace.bootstrap.instrumentation.api.AgentHistogram;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
@@ -73,6 +74,7 @@ import datadog.trace.core.datastreams.DataStreamsContextCarrierAdapter;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
 import datadog.trace.core.datastreams.NoopDataStreamsMonitoring;
+import datadog.trace.core.histogram.Histograms;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.monitor.TracerHealthMetrics;
@@ -216,6 +218,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public ConfigSnapshot captureTraceConfig() {
     return dynamicConfig.captureTraceConfig();
+  }
+
+  @Override
+  public AgentHistogram newHistogram(double relativeAccuracy, int maxNumBins) {
+    return Histograms.newHistogram(relativeAccuracy, maxNumBins);
   }
 
   PropagationTags.Factory getPropagationTagsFactory() {

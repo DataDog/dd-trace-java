@@ -22,6 +22,7 @@ import datadog.trace.api.profiling.Timer;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -301,6 +302,8 @@ public class AgentTracer {
     TraceConfig captureTraceConfig();
 
     ProfilingContextIntegration getProfilingContext();
+
+    AgentHistogram newHistogram(double relativeAccuracy, int maxNumBins);
   }
 
   public interface SpanBuilder {
@@ -564,6 +567,11 @@ public class AgentTracer {
     @Override
     public TraceConfig captureTraceConfig() {
       return null;
+    }
+
+    @Override
+    public AgentHistogram newHistogram(double relativeAccuracy, int maxNumBins) {
+      return NoopAgentHistogram.INSTANCE;
     }
   }
 
@@ -1112,6 +1120,46 @@ public class AgentTracer {
 
     @Override
     public String strEncode() {
+      return null;
+    }
+  }
+
+  public static class NoopAgentHistogram implements AgentHistogram {
+    public static final NoopAgentHistogram INSTANCE = new NoopAgentHistogram();
+
+    @Override
+    public double getCount() {
+      return 0;
+    }
+
+    @Override
+    public boolean isEmpty() {
+      return true;
+    }
+
+    @Override
+    public void accept(double value) {}
+
+    @Override
+    public double getValueAtQuantile(double quantile) {
+      return 0;
+    }
+
+    @Override
+    public double getMinValue() {
+      return 0;
+    }
+
+    @Override
+    public double getMaxValue() {
+      return 0;
+    }
+
+    @Override
+    public void clear() {}
+
+    @Override
+    public ByteBuffer serialize() {
       return null;
     }
   }

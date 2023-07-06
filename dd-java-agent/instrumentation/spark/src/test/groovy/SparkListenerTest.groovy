@@ -1,3 +1,6 @@
+import com.datadoghq.sketch.ddsketch.DDSketchProtoBinding
+import com.datadoghq.sketch.ddsketch.proto.DDSketch
+import com.datadoghq.sketch.ddsketch.store.CollapsingLowestDenseStore
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.instrumentation.spark.DatadogSparkListener
 import org.apache.spark.SparkConf
@@ -291,5 +294,79 @@ class SparkListenerTest extends AgentTestRunner {
         }
       }
     }
+  }
+
+  def "compute task metrics histograms"() {
+    setup:
+    def listener = getTestDatadogSparkListener()
+
+    listener.onApplicationStart(applicationStartEvent(1000L))
+    listener.onJobStart(jobStartEvent(1, 1900L, [1, 2]))
+
+    listener.onStageSubmitted(stageSubmittedEvent(1, 1900L))
+    for(int i = 1; i <= 300; i++) {
+      listener.onTaskEnd(taskEndEvent(1,1900L, i))
+    }
+    listener.onStageCompleted(stageCompletedEvent(1, 2200L))
+
+    listener.onStageSubmitted(stageSubmittedEvent(2, 2200L))
+    for(int i = 1; i <= 15000; i++) {
+      listener.onTaskEnd(taskEndEvent(2, 2200L, i))
+    }
+
+    listener.onStageCompleted(stageCompletedEvent(2, 17200L))
+    listener.onJobEnd(jobEndEvent(1, 17200L))
+    listener.onApplicationEnd(new SparkListenerApplicationEnd(3100L))
+
+    expect:
+    def relativeAccuracy = 1/32D
+    assertTraces(1) {
+      trace(4) {
+        span {
+          operationName "spark.application"
+          validateRelativeError(span.tags["spark_application_metrics.skew_time"] as double, 7650, relativeAccuracy)
+          spanType "spark"
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          validateRelativeError(span.tags["spark_job_metrics.skew_time"] as double, 7650, relativeAccuracy)
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.stage"
+          assert span.tags["stage_id"] == 2
+          validateRelativeError(span.tags["spark_stage_metrics.skew_time"] as double, 7500, relativeAccuracy)
+          validateSerializedHistogram(span.tags["_dd.spark.task_run_time"] as String, 7500, 11250, 15000, relativeAccuracy)
+          spanType "spark"
+          childOf(span(1))
+        }
+        span {
+          operationName "spark.stage"
+          assert span.tags["stage_id"] == 1
+          validateRelativeError(span.tags["spark_stage_metrics.skew_time"] as double, 150, relativeAccuracy)
+          validateSerializedHistogram(span.tags["_dd.spark.task_run_time"] as String, 150, 225, 300, relativeAccuracy)
+          spanType "spark"
+          childOf(span(1))
+        }
+      }
+    }
+  }
+
+  private validateRelativeError(double value, double expected, double relativeAccuracy) {
+    double relativeError = Math.abs(value - expected) / expected
+    assert relativeError < relativeAccuracy
+  }
+
+  private validateSerializedHistogram(String base64Hist, double expectedP50, double expectedP75, double expectedMax, double relativeAccuracy) {
+    byte[] bytes = Base64.getDecoder().decode(base64Hist)
+
+    def sketch = DDSketchProtoBinding.fromProto({
+      new CollapsingLowestDenseStore(512)
+    }, DDSketch.parseFrom(bytes))
+
+    validateRelativeError(sketch.getValueAtQuantile(0.5), expectedP50, relativeAccuracy)
+    validateRelativeError(sketch.getValueAtQuantile(0.75), expectedP75, relativeAccuracy)
+    validateRelativeError(sketch.getMaxValue(), expectedMax, relativeAccuracy)
   }
 }

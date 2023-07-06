@@ -4,9 +4,9 @@ import static datadog.trace.core.monitor.Utils.mergeTags;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-import com.datadoghq.sketch.ddsketch.DDSketch;
 import datadog.communication.monitor.Recording;
 import datadog.trace.api.StatsDClient;
+import datadog.trace.core.histogram.Histogram;
 import datadog.trace.core.histogram.Histograms;
 
 /**
@@ -23,7 +23,7 @@ public class Timer extends Recording {
 
   private final String name;
   private final StatsDClient statsd;
-  private final DDSketch histogram;
+  private final Histogram histogram;
   private final long flushAfterNanos;
 
   private final String[] p50Tags;

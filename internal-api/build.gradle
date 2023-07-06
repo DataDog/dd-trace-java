@@ -58,6 +58,7 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentDataStreamsMonitoring",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentTrace",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext",
+  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentHistogram",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI",
   "datadog.trace.bootstrap.instrumentation.api.NoopDataStreamsMonitoring",
   "datadog.trace.bootstrap.instrumentation.api.Backlog",
