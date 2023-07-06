@@ -47,6 +47,8 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_SKIPPABLE_TESTS = "civisibility.skippable.tests";
   public static final String CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED =
       "civisibility.ciprovider.integration.enabled";
+  public static final String CIVISIBILITY_REPO_INDEX_SHARING_ENABLED =
+      "civisibility.repo.index.sharing.enabled";
 
   private CiVisibilityConfig() {}
 }

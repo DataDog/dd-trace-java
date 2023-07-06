@@ -31,16 +31,24 @@ import datadog.trace.civisibility.git.tree.GitClient;
 import datadog.trace.civisibility.git.tree.GitDataApi;
 import datadog.trace.civisibility.git.tree.GitDataUploader;
 import datadog.trace.civisibility.git.tree.GitDataUploaderImpl;
+import datadog.trace.civisibility.ipc.SignalClient;
 import datadog.trace.civisibility.ipc.SignalServer;
 import datadog.trace.civisibility.source.BestEfforSourcePathResolver;
 import datadog.trace.civisibility.source.CompilerAidedSourcePathResolver;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.MethodLinesResolverImpl;
-import datadog.trace.civisibility.source.RepoIndexSourcePathResolver;
+import datadog.trace.civisibility.source.index.RepoIndexBuilder;
+import datadog.trace.civisibility.source.index.RepoIndexFetcher;
+import datadog.trace.civisibility.source.index.RepoIndexProvider;
+import datadog.trace.civisibility.source.index.RepoIndexSourcePathResolver;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,7 +92,8 @@ public class CiVisibilitySystem {
       CIInfo ciInfo = ciProviderInfo.buildCIInfo();
       String repoRoot = ciInfo.getCiWorkspace();
 
-      SourcePathResolver sourcePathResolver = getSourcePathResolver(repoRoot);
+      RepoIndexBuilder indexBuilder = new RepoIndexBuilder(repoRoot, FileSystems.getDefault());
+      SourcePathResolver sourcePathResolver = getSourcePathResolver(repoRoot, indexBuilder);
       Codeowners codeowners = getCodeowners(repoRoot);
       MethodLinesResolver methodLinesResolver = new MethodLinesResolverImpl();
       Map<String, String> ciTags = new CITagsProvider().getCiTags(ciInfo);
@@ -111,7 +120,8 @@ public class CiVisibilitySystem {
           codeowners,
           methodLinesResolver,
           moduleExecutionSettingsFactory,
-          signalServer);
+          signalServer,
+          indexBuilder);
     };
   }
 
@@ -168,7 +178,8 @@ public class CiVisibilitySystem {
     String moduleName =
         (repoRoot != null) ? Paths.get(repoRoot).relativize(path).toString() : path.toString();
 
-    SourcePathResolver sourcePathResolver = getSourcePathResolver(repoRoot);
+    RepoIndexProvider indexProvider = getRepoIndexProvider(Config.get(), repoRoot);
+    SourcePathResolver sourcePathResolver = getSourcePathResolver(repoRoot, indexProvider);
     Codeowners codeowners = getCodeowners(repoRoot);
     MethodLinesResolver methodLinesResolver = new MethodLinesResolverImpl();
     Map<String, String> ciTags = new CITagsProvider().getCiTags(ciInfo);
@@ -179,10 +190,33 @@ public class CiVisibilitySystem {
         moduleName, config, testDecorator, sourcePathResolver, codeowners, methodLinesResolver);
   }
 
-  private static SourcePathResolver getSourcePathResolver(String repoRoot) {
+  private static RepoIndexProvider getRepoIndexProvider(Config config, String repoRoot) {
+    String host = config.getCiVisibilitySignalServerHost();
+    int port = config.getCiVisibilitySignalServerPort();
+    if (host != null && port > 0 && config.isCiVisibilityRepoIndexSharingEnabled()) {
+      InetSocketAddress serverAddress = new InetSocketAddress(host, port);
+      Supplier<SignalClient> signalClientFactory =
+          () -> {
+            try {
+              return new SignalClient(serverAddress);
+            } catch (IOException e) {
+              throw new RuntimeException(
+                  "Could not instantiate signal client. " + "Host: " + host + ", port: " + port, e);
+            }
+          };
+      return new RepoIndexFetcher(signalClientFactory);
+    } else {
+      return new RepoIndexBuilder(repoRoot, FileSystems.getDefault());
+    }
+  }
+
+  private static SourcePathResolver getSourcePathResolver(
+      String repoRoot, RepoIndexProvider indexProvider) {
     if (repoRoot != null) {
+      RepoIndexSourcePathResolver indexSourcePathResolver =
+          new RepoIndexSourcePathResolver(repoRoot, indexProvider);
       return new BestEfforSourcePathResolver(
-          new CompilerAidedSourcePathResolver(repoRoot), new RepoIndexSourcePathResolver(repoRoot));
+          new CompilerAidedSourcePathResolver(repoRoot), indexSourcePathResolver);
     } else {
       return clazz -> null;
     }

@@ -139,6 +139,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PL
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_ID;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_REPO_INDEX_SHARING_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SESSION_ID;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT;
@@ -645,6 +646,7 @@ public class Config {
   private final boolean ciVisibilityItrEnabled;
   private final Set<SkippableTest> ciVisibilitySkippableTests;
   private final boolean ciVisibilityCiProviderIntegrationEnabled;
+  private final boolean ciVisibilityRepoIndexSharingEnabled;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1508,6 +1510,8 @@ public class Config {
             : Collections.emptySet();
     ciVisibilityCiProviderIntegrationEnabled =
         configProvider.getBoolean(CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED, true);
+    ciVisibilityRepoIndexSharingEnabled =
+        configProvider.getBoolean(CIVISIBILITY_REPO_INDEX_SHARING_ENABLED, true);
 
     remoteConfigEnabled =
         configProvider.getBoolean(REMOTE_CONFIG_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED);
@@ -2470,6 +2474,10 @@ public class Config {
 
   public boolean isCiVisibilityCiProviderIntegrationEnabled() {
     return ciVisibilityCiProviderIntegrationEnabled;
+  }
+
+  public boolean isCiVisibilityRepoIndexSharingEnabled() {
+    return ciVisibilityRepoIndexSharingEnabled;
   }
 
   public String getAppSecRulesFile() {

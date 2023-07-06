@@ -1,10 +1,9 @@
-package datadog.trace.civisibility.source;
+package datadog.trace.civisibility.source.index;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
@@ -13,10 +12,6 @@ class SourceRootResolverImpl implements SourceRootResolver {
 
   private static final String PACKAGE_KEYWORD = "package";
   private final FileSystem fileSystem;
-
-  public SourceRootResolverImpl() {
-    this(FileSystems.getDefault());
-  }
 
   SourceRootResolverImpl(FileSystem fileSystem) {
     this.fileSystem = fileSystem;
