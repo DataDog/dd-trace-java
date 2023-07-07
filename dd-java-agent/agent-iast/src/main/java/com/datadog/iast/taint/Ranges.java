@@ -1,5 +1,7 @@
 package com.datadog.iast.taint;
 
+import static com.datadog.iast.model.Range.NOT_MARKED;
+
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
 import java.util.HashMap;
@@ -168,7 +170,7 @@ public final class Ranges {
      * 2) Fist Range
      */
     for (Range range : ranges) {
-      if (range.getMarks() == Range.NOT_MARKED) {
+      if (range.getMarks() == NOT_MARKED) {
         return range;
       }
     }
@@ -339,7 +341,7 @@ public final class Ranges {
       return false;
     }
     for (Range range : ranges) {
-      if ((range.getMarks() & mark) == 0) {
+      if ((range.getMarks() & mark) == NOT_MARKED) {
         return false;
       }
     }
