@@ -19,11 +19,11 @@ class JWTParserInstrumentationTest  extends AgentTestRunner {
     new com.auth0.jwt.impl.JWTParser().parsePayload(payload)
 
     then:
-    1 * propagationModule.taint(SourceTypes.REQUEST_HEADER_VALUE, null, json)
+    1 * propagationModule.taint(SourceTypes.REQUEST_HEADER_VALUE, null, payload)
     0 * _
   }
 
-  void 'jose JSONObjectUtils instrumentation'(){
+  void 'jose JSONObjectUtils instrumentation'() {
     setup:
     def json = "{\"iss\":\"http://foobar.com\",\"sub\":\"foo\",\"aud\":\"foobar\",\"name\":\"Mr Foo Bar\",\"scope\":\"read\",\"iat\":1516239022,\"exp\":2500000000}"
     final propagationModule = Mock(PropagationModule)
@@ -33,7 +33,11 @@ class JWTParserInstrumentationTest  extends AgentTestRunner {
     com.nimbusds.jose.util.JSONObjectUtils.parse(json)
 
     then:
-    5 * propagationModule.taint(SourceTypes.REQUEST_HEADER_VALUE, null, json)
+    1 * propagationModule.taint(SourceTypes.REQUEST_HEADER_VALUE, null, "http://foobar.com")
+    1 * propagationModule.taint(SourceTypes.REQUEST_HEADER_VALUE, null, "foo")
+    1 * propagationModule.taint(SourceTypes.REQUEST_HEADER_VALUE, null, "foobar")
+    1 * propagationModule.taint(SourceTypes.REQUEST_HEADER_VALUE, null, "Mr Foo Bar")
+    1 * propagationModule.taint(SourceTypes.REQUEST_HEADER_VALUE, null, "read")
     0 * _
   }
 }
