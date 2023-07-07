@@ -69,6 +69,8 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
     "net.sourceforge.jtds.jdbc.JtdsConnection", // 1.3
     // aws-mysql-jdbc
     "software.aws.rds.jdbc.mysql.shading.com.mysql.cj.jdbc.ConnectionImpl",
+      // 达梦 DB
+      "dm.jdbc.driver.DmdbConnection"
   };
 
   @Override

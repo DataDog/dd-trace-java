@@ -56,7 +56,6 @@ public class LogbackLoggerInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodEnter
     public static void onEnter(@Advice.Argument(0) ILoggingEvent event) {
       AgentSpan span = activeSpan();
-
       if (span != null) {
         TraceConfig traceConfig = span.traceConfig();
 
