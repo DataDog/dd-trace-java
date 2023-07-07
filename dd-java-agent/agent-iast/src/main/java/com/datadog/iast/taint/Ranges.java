@@ -335,13 +335,13 @@ public final class Ranges {
     return skippedRanges;
   }
 
-  public static boolean areMarked(
+  public static boolean areAllMarked(
       @Nonnull final Range[] ranges, @Nonnull final VulnerabilityType type) {
     if (ranges.length == 0) {
       return false;
     }
     for (Range range : ranges) {
-      if ((range.getMarks() & type.mark()) < 1) {
+      if ((range.getMarks() & type.mark()) == 0) {
         return false;
       }
     }
