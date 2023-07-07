@@ -76,19 +76,23 @@ class MuzzlePlugin implements Plugin<Project> {
     project.dependencies.add('muzzleBootstrap', bootstrapProject)
     project.dependencies.add('muzzleTooling', toolingProject)
 
+    project.evaluationDependsOn ':dd-java-agent:agent-bootstrap'
+    project.evaluationDependsOn ':dd-java-agent:agent-tooling'
+
     // compileMuzzle compiles all projects required to run muzzle validation.
     // Not adding group and description to keep this task from showing in `gradle tasks`.
     def compileMuzzle = project.task('compileMuzzle')
-    toolingProject.afterEvaluate {
-      compileMuzzle.dependsOn(toolingProject.tasks.named("compileJava"))
-    }
+    compileMuzzle.dependsOn(toolingProject.tasks.named("compileJava"))
     project.afterEvaluate {
       project.tasks.matching { it.name in ['instrumentJava', 'instrumentScala', 'instrumentKotlin'] }.all {
         compileMuzzle.dependsOn(it)
       }
     }
+    compileMuzzle.dependsOn bootstrapProject.tasks.compileJava
+    compileMuzzle.dependsOn bootstrapProject.tasks.compileMain_java11Java
+    compileMuzzle.dependsOn toolingProject.tasks.compileJava
 
-    def muzzle = project.task(['type': MuzzleTask], 'muzzle') {
+    project.task(['type': MuzzleTask], 'muzzle') {
       description = "Run instrumentation muzzle on compile time dependencies"
       doLast {
         if (!project.muzzle.directives.any { it.assertPass }) {
@@ -96,22 +100,16 @@ class MuzzlePlugin implements Plugin<Project> {
           assertMuzzle(muzzleBootstrap, muzzleTooling, project)
         }
       }
+      dependsOn compileMuzzle
     }
-    def printReferences = project.task(['type': MuzzleTask],'printReferences') {
+
+    project.task(['type': MuzzleTask],'printReferences') {
       description = "Print references created by instrumentation muzzle"
       doLast {
         printMuzzle(project)
       }
+      dependsOn compileMuzzle
     }
-    bootstrapProject.afterEvaluate {
-      compileMuzzle.dependsOn it.tasks.compileJava
-      compileMuzzle.dependsOn it.tasks.compileMain_java11Java
-    }
-    toolingProject.afterEvaluate {
-      compileMuzzle.dependsOn it.tasks.compileJava
-    }
-    muzzle.dependsOn(compileMuzzle)
-    printReferences.dependsOn(compileMuzzle)
 
     def hasRelevantTask = project.gradle.startParameter.taskNames.any { taskName ->
       // removing leading ':' if present
@@ -343,8 +341,9 @@ class MuzzlePlugin implements Plugin<Project> {
         assertMuzzle(muzzleBootstrap, muzzleTooling, instrumentationProject, muzzleDirective)
       }
     }
+
     runAfter.finalizedBy(muzzleTask)
-    return muzzleTask
+    muzzleTask
   }
 
   /**
@@ -648,7 +647,7 @@ abstract class MuzzleAction implements WorkAction<MuzzleWorkParameters> {
     boolean assertPass = parameters.assertPass.get()
     String muzzleDirective = parameters.muzzleDirective.getOrNull()
     Method assertionMethod = instCL.loadClass('datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin')
-      .getMethod('assertInstrumentationMuzzled', ClassLoader.class, ClassLoader.class, boolean.class, String.class)
+      .getMethod('assertInstrumentationMuzzled', ClassLoader, ClassLoader, boolean, String)
     assertionMethod.invoke(null, instCL, testCL, assertPass, muzzleDirective)
   }
 
