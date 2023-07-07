@@ -32,6 +32,8 @@ class MavenSmokeTest extends Specification {
 
   private static final String TEST_SERVICE_NAME = "test-maven-service"
   private static final String TEST_ENVIRONMENT_NAME = "integration-test"
+  private static final String JAVAC_PLUGIN_VERSION = "0.1.6"
+  private static final String JACOCO_PLUGIN_VERSION = "0.8.10"
 
   private static final int PROCESS_TIMEOUT_SECS = 60
 
@@ -283,18 +285,27 @@ class MavenSmokeTest extends Specification {
    * before proceeding with running the build
    */
   private void givenMavenDependenciesAreLoaded() {
-    def processBuilder = createProcessBuilder("dependency:go-offline", false)
+    retryUntilSuccessfulOrNoAttemptsLeft(["dependency:go-offline"])
+    // dependencies below are download separately
+    // because they are not declared in the project,
+    // but are added at runtime by the tracer
+    retryUntilSuccessfulOrNoAttemptsLeft(["dependency:get", "-Dartifact=com.datadoghq:dd-javac-plugin:$JAVAC_PLUGIN_VERSION".toString()])
+    retryUntilSuccessfulOrNoAttemptsLeft(["dependency:get", "-Dartifact=org.jacoco:jacoco-maven-plugin:$JACOCO_PLUGIN_VERSION".toString()])
+  }
+
+  private void retryUntilSuccessfulOrNoAttemptsLeft(List<String> mvnCommand) {
+    def processBuilder = createProcessBuilder(mvnCommand, false)
     for (int attempt = 0; attempt < DEPENDENCIES_DOWNLOAD_RETRIES; attempt++) {
       def exitCode = runProcess(processBuilder.start())
       if (exitCode == 0) {
         return
       }
     }
-    throw new AssertionError((Object) "Tried to download dependencies $DEPENDENCIES_DOWNLOAD_RETRIES times and failed")
+    throw new AssertionError((Object) "Tried $DEPENDENCIES_DOWNLOAD_RETRIES times to execute $mvnCommand and failed")
   }
 
   private int whenRunningMavenBuild() {
-    def processBuilder = createProcessBuilder("test")
+    def processBuilder = createProcessBuilder(["test"])
 
     processBuilder.environment().put("DD_API_KEY", "01234567890abcdef123456789ABCDEF")
     processBuilder.environment().put("DD_APPLICATION_KEY", "01234567890abcdef123456789ABCDEF")
@@ -320,7 +331,7 @@ class MavenSmokeTest extends Specification {
     return p.exitValue()
   }
 
-  ProcessBuilder createProcessBuilder(String mvnCommand, boolean runWithAgent = true) {
+  ProcessBuilder createProcessBuilder(List<String> mvnCommand, boolean runWithAgent = true) {
     String mavenRunnerShadowJar = System.getProperty("datadog.smoketest.maven.jar.path")
     assert new File(mavenRunnerShadowJar).isFile()
 
@@ -329,7 +340,7 @@ class MavenSmokeTest extends Specification {
     command.addAll(jvmArguments(runWithAgent))
     command.addAll((String[]) ["-jar", mavenRunnerShadowJar])
     command.addAll(programArguments())
-    command.add(mvnCommand)
+    command.addAll(mvnCommand)
 
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(projectHome.toFile())
@@ -359,7 +370,8 @@ class MavenSmokeTest extends Specification {
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED)}=true," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED)}=true," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED)}=false," +
-        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=0.8.10," +
+        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION)}=${JAVAC_PLUGIN_VERSION}," +
+        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=${JACOCO_PLUGIN_VERSION}," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES)}=datadog.smoke.*," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${intakeServer.address.toString()}"
       arguments += agentArgument.toString()
