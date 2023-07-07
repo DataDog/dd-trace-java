@@ -67,12 +67,11 @@ public class Servlet3Advice {
 
     final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(httpServletRequest);
     final AgentSpan span = DECORATE.startSpan(httpServletRequest, extractedContext);
+    scope = activateSpan(span);
+    scope.setAsyncPropagation(true);
 
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, httpServletRequest, httpServletRequest, extractedContext);
-
-    scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
 
     httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);
     httpServletRequest.setAttribute(

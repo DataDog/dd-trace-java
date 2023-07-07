@@ -54,11 +54,12 @@ public final class RestletInstrumentation extends Instrumenter.Tracing
     public static AgentScope beginRequest(@Advice.Argument(0) final HttpExchange exchange) {
       AgentSpan.Context.Extracted context = DECORATE.extract(exchange);
       AgentSpan span = DECORATE.startSpan(exchange, context);
+      AgentScope scope = activateSpan(span);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, exchange, exchange, context);
       DECORATE.onPeerConnection(span, exchange.getRemoteAddress());
 
-      return activateSpan(span);
+      return scope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

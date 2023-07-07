@@ -31,10 +31,10 @@ public class PlayAdvice {
       span = startSpan(PLAY_REQUEST);
       span.setMeasured(true);
     }
-    DECORATE.afterStart(span);
 
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
+    DECORATE.afterStart(span);
     return scope;
   }
 
