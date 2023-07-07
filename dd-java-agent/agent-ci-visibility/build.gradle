@@ -43,6 +43,7 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.events.TestSuiteDescriptor",
   "datadog.trace.civisibility.git.GitObject",
   "datadog.trace.civisibility.git.tree.*",
+  "datadog.trace.civisibility.ipc.ModuleExecutionResult",
   "datadog.trace.civisibility.ipc.SignalServer",
   "datadog.trace.civisibility.ipc.SignalType",
   "datadog.trace.civisibility.ipc.SignalClient",
