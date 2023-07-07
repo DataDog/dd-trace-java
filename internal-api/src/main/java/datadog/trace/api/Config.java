@@ -593,7 +593,7 @@ public class Config {
   private final int profilingExceptionHistogramMaxCollectionSize;
   private final boolean profilingExcludeAgentThreads;
   private final boolean profilingUploadSummaryOn413Enabled;
-  private final boolean logsInjectionEnabled;
+
   private final boolean logsMDCTagsInjectionEnabled;
   private final boolean profilingRecordExceptionMessage;
 
@@ -1217,8 +1217,6 @@ public class Config {
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
     tracerMetricsMaxPending = configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 2048);
 
-    logsInjectionEnabled =
-        configProvider.getBoolean(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
 
     logPattern = configProvider.getString(LOGS_PATTERN, DEFAULT_LOG_PATTERN);
     logPatternReplace = configProvider.getBoolean(LOGS_PATTERN_REPLACE, DEFAULT_LOG_PATTERN_REPLACE);
