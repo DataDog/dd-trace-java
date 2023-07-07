@@ -336,16 +336,31 @@ public final class Ranges {
     return skippedRanges;
   }
 
-  public static boolean areAllMarked(@Nonnull final Range[] ranges, @Nonnull final int mark) {
-    if (ranges.length == 0) {
-      return false;
+  public static Range[] getNotMarkedRanges(final Range[] ranges, final int mark) {
+    if (ranges == null) {
+      return null;
     }
+    int markedRangesNumber = 0;
     for (Range range : ranges) {
-      if ((range.getMarks() & mark) == NOT_MARKED) {
-        return false;
+      if (range.isMarked(mark)) {
+        markedRangesNumber++;
       }
     }
-    return true;
+    if (markedRangesNumber == 0) {
+      return ranges;
+    }
+    if (markedRangesNumber == ranges.length) {
+      return null;
+    }
+    Range[] notMarkedRanges = new Range[ranges.length - markedRangesNumber];
+    int notMarkedRangesIndex = 0;
+    for (Range range : ranges) {
+      if (!range.isMarked(mark)) {
+        notMarkedRanges[notMarkedRangesIndex] = range;
+        notMarkedRangesIndex++;
+      }
+    }
+    return notMarkedRanges;
   }
 
   public static Range copyWithPosition(final Range range, final int offset, final int length) {

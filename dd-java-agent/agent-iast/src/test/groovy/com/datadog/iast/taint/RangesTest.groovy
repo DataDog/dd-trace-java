@@ -8,7 +8,6 @@ import datadog.trace.api.iast.SourceTypes
 import datadog.trace.test.util.DDSpecification
 
 import static com.datadog.iast.model.Range.NOT_MARKED
-import static com.datadog.iast.taint.Ranges.areAllMarked
 import static com.datadog.iast.taint.Ranges.rangesProviderFor
 
 class RangesTest extends DDSpecification {
@@ -180,85 +179,6 @@ class RangesTest extends DDSpecification {
     result[0].marks == VulnerabilityMarks.SQL_INJECTION_MARK
   }
 
-  void 'areAllMarked'(final int mark) {
-    given:
-    final range1 = new Range(0, 1, null, mark)
-    final range2 = new Range(2, 1, null, mark)
-    final range3 = new Range(4, 1, null, mark)
-    final range4 = new Range(6, 1, null, NOT_MARKED)
-    final Range[] noRangesMarked = [range4]
-    final Range[] allRangesMarked = [range1, range2, range3]
-    final Range[] notAllRangesMarked = [range3, range4]
-
-    when:
-    def check = areAllMarked(noRangesMarked, mark)
-
-    then:
-    check == false
-
-    when:
-    check = areAllMarked(notAllRangesMarked, mark)
-
-    then:
-    check == false
-
-    when:
-    check = areAllMarked(allRangesMarked, mark)
-
-    then:
-    check == true
-
-    where:
-    mark                                          | _
-    VulnerabilityType.XPATH_INJECTION.mark()      | _
-    VulnerabilityType.UNVALIDATED_REDIRECT.mark() | _
-    VulnerabilityType.LDAP_INJECTION.mark()       | _
-    VulnerabilityType.COMMAND_INJECTION.mark()    | _
-    VulnerabilityType.PATH_TRAVERSAL.mark()       | _
-    VulnerabilityType.SQL_INJECTION.mark()        | _
-    VulnerabilityType.SSRF.mark()                 | _
-    NEGATIVE_MARK                                 | _
-  }
-
-  void 'areAllMarked false if range array has no elements'() {
-    given:
-    final Range[] array = []
-
-    when:
-    final check = Ranges.areAllMarked(array, NEGATIVE_MARK)
-
-    then:
-    check == false
-  }
-
-  void 'areAllMarked for multiple vulnerability types'() {
-    given:
-    final range1 = new Range(0, 1, null, VulnerabilityMarks.SQL_INJECTION_MARK | NEGATIVE_MARK)
-    final range2 = new Range(2, 1, null, VulnerabilityMarks.SQL_INJECTION_MARK | NEGATIVE_MARK)
-    final range3 = new Range(4, 1, null, VulnerabilityMarks.SQL_INJECTION_MARK)
-
-    final Range[] ranges = [range1, range2, range3]
-
-    when:
-    def check = Ranges.areAllMarked(ranges, VulnerabilityMarks.SQL_INJECTION_MARK)
-
-    then:
-    check == true
-
-    when:
-    check = Ranges.areAllMarked(ranges, NEGATIVE_MARK)
-
-    then:
-    check == false
-
-
-    when:
-    check = Ranges.areAllMarked(ranges, VulnerabilityMarks.SSRF_MARK)
-
-    then:
-    check == false
-  }
-
   void 'highestPriorityRange'() {
     given:
     final range1 = new Range(0, 1, null, NOT_MARKED)
@@ -302,6 +222,62 @@ class RangesTest extends DDSpecification {
     result.length == 4
     result.source == source
     result.marks == VulnerabilityMarks.SQL_INJECTION_MARK
+  }
+
+  void 'getNotMarkedRanges'(final int mark) {
+    given:
+
+    final range1 = new Range(0, 1, null, NOT_MARKED)
+    final range2 = new Range(0, 1, null, mark)
+    final range3 = new Range(0, 1, null, NOT_MARKED)
+    final range4 = new Range(0, 1, null, mark)
+    final Range[] allNotMarked = [range1, range3]
+    final Range[] notAllMarked = [range1, range2, range3, range4]
+    final Range[] allMarked = [range2, range4]
+    final Range[] empty = new Range[0]
+
+    when:
+    Range[] result = Ranges.getNotMarkedRanges(null, NOT_MARKED)
+
+    then:
+    result == null
+
+    when:
+    result = Ranges.getNotMarkedRanges(empty, NOT_MARKED)
+
+    then:
+    result == empty
+
+    when:
+    result = Ranges.getNotMarkedRanges(allMarked, mark)
+
+    then:
+    result == null
+
+    when:
+    result = Ranges.getNotMarkedRanges(allNotMarked, NOT_MARKED)
+
+    then:
+    result == allNotMarked
+
+    when:
+    result = Ranges.getNotMarkedRanges(notAllMarked, mark)
+
+    then:
+    result.length == 2
+    result[0] == range1
+    result[1] == range3
+
+    where:
+    mark                                          | _
+    VulnerabilityType.XPATH_INJECTION.mark()      | _
+    VulnerabilityType.UNVALIDATED_REDIRECT.mark() | _
+    VulnerabilityType.LDAP_INJECTION.mark()       | _
+    VulnerabilityType.COMMAND_INJECTION.mark()    | _
+    VulnerabilityType.PATH_TRAVERSAL.mark()       | _
+    VulnerabilityType.SQL_INJECTION.mark()        | _
+    VulnerabilityType.SSRF.mark()                 | _
+    NEGATIVE_MARK                                 | _
   }
 
 

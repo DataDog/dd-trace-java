@@ -77,4 +77,8 @@ public final class Range implements Ranged {
     }
     return new Range(start + offset, length, source, marks);
   }
+
+  public boolean isMarked(final int mark) {
+    return (marks & mark) != NOT_MARKED;
+  }
 }

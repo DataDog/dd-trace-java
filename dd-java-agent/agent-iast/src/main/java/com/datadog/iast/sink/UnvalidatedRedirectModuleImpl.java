@@ -74,14 +74,16 @@ public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
     if (isRefererHeader(taintedObject.getRanges())) {
       return;
     }
-    if (Ranges.areAllMarked(
-        taintedObject.getRanges(), VulnerabilityType.UNVALIDATED_REDIRECT.mark())) {
+    Range[] notMarkedRanges =
+        Ranges.getNotMarkedRanges(
+            taintedObject.getRanges(), VulnerabilityType.UNVALIDATED_REDIRECT.mark());
+    if (notMarkedRanges == null || notMarkedRanges.length == 0) {
       return;
     }
     if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
       return;
     }
-    final Evidence evidence = new Evidence(value.toString(), taintedObject.getRanges());
+    final Evidence evidence = new Evidence(value.toString(), notMarkedRanges);
     if (clazz != null && method != null) {
       reporter.report(
           span,
