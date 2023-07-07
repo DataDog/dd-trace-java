@@ -29,17 +29,17 @@ public class HttpServletRequestCallSite {
       "java.lang.String javax.servlet.http.HttpServletRequestWrapper.getHeader(java.lang.String)")
   public static String afterGetHeader(
       @CallSite.This final HttpServletRequest self,
-      @CallSite.Argument final String headerName,
-      @CallSite.Return final String headerValue) {
-    final WebModule module = InstrumentationBridge.WEB;
+      @CallSite.Argument final String name,
+      @CallSite.Return final String value) {
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.onHeaderValue(headerName, headerValue);
+        module.taint(SourceTypes.REQUEST_HEADER_VALUE, name, value);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetHeader threw", e);
       }
     }
-    return headerValue;
+    return value;
   }
 
   @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
@@ -134,10 +134,10 @@ public class HttpServletRequestCallSite {
   @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequestWrapper.getQueryString()")
   public static String afterGetQueryString(
       @CallSite.This final HttpServletRequest self, @CallSite.Return final String queryString) {
-    final WebModule module = InstrumentationBridge.WEB;
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.onQueryString(queryString);
+        module.taint(SourceTypes.REQUEST_QUERY, null, queryString);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetQueryString threw", e);
       }
@@ -152,17 +152,17 @@ public class HttpServletRequestCallSite {
       "java.lang.String javax.servlet.http.HttpServletRequestWrapper.getParameter(java.lang.String)")
   public static String afterGetParameter(
       @CallSite.This final HttpServletRequest self,
-      @CallSite.Argument final String paramName,
-      @CallSite.Return final String paramValue) {
-    final WebModule module = InstrumentationBridge.WEB;
+      @CallSite.Argument final String name,
+      @CallSite.Return final String value) {
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.onParameterValue(paramName, paramValue);
+        module.taint(SourceTypes.REQUEST_PARAMETER_VALUE, name, value);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetParameter threw", e);
       }
     }
-    return paramValue;
+    return value;
   }
 
   @Source(SourceTypes.REQUEST_PARAMETER_NAME_STRING)

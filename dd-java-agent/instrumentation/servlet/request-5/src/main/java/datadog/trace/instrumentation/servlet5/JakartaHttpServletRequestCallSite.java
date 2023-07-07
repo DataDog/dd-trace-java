@@ -7,6 +7,7 @@ import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.VulnerabilityTypes;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
 import datadog.trace.api.iast.source.WebModule;
 import datadog.trace.util.stacktrace.StackUtils;
@@ -27,17 +28,17 @@ public class JakartaHttpServletRequestCallSite {
       "java.lang.String jakarta.servlet.http.HttpServletRequestWrapper.getParameter(java.lang.String)")
   public static String afterGetParameter(
       @CallSite.This final HttpServletRequest self,
-      @CallSite.Argument final String paramName,
-      @CallSite.Return final String paramValue) {
-    final WebModule module = InstrumentationBridge.WEB;
+      @CallSite.Argument final String name,
+      @CallSite.Return final String value) {
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.onParameterValue(paramName, paramValue);
+        module.taint(SourceTypes.REQUEST_PARAMETER_VALUE, name, value);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetParameter threw", e);
       }
     }
-    return paramValue;
+    return value;
   }
 
   @Source(SourceTypes.REQUEST_PARAMETER_NAME_STRING)

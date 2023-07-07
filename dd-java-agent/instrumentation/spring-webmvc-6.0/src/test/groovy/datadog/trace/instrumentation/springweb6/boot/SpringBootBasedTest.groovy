@@ -6,7 +6,8 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.ConfigDefaults
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.iast.InstrumentationBridge
-import datadog.trace.api.iast.source.WebModule
+import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.springweb6.SetupSpecHelper
@@ -257,7 +258,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   void 'tainting on template var'() {
     setup:
-    WebModule mod = Mock()
+    PropagationModule mod = Mock()
     InstrumentationBridge.registerIastModule(mod)
     Request request = this.request(PATH_PARAM, 'GET', null).build()
 
@@ -269,7 +270,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
     then:
     // spring-security filter causes uri matching to happen twice
-    2 * mod.onRequestPathParameter('id', '123', _)
+    2 * mod.taint(_, SourceTypes.REQUEST_PATH_PARAMETER, 'id', '123')
     0 * mod._
 
     cleanup:
@@ -296,7 +297,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   void 'tainting on matrix var'() {
     setup:
-    WebModule mod = Mock()
+    PropagationModule mod = Mock()
     InstrumentationBridge.registerIastModule(mod)
     Request request = this.request(MATRIX_PARAM, 'GET', null).build()
 
@@ -308,11 +309,11 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
     then:
     // spring-security filter (AuthorizationFilter.java:95) causes uri matching to happen twice
-    2 * mod.onRequestPathParameter('var', 'a=x,y', _) // this version of spring removes ;a=z
-    2 * mod.onRequestMatrixParameter('var', 'a', _)
-    2 * mod.onRequestMatrixParameter('var', 'x', _)
-    2 * mod.onRequestMatrixParameter('var', 'y', _)
-    2 * mod.onRequestMatrixParameter('var', 'z', _)
+    2 * mod.taint(_, SourceTypes.REQUEST_PATH_PARAMETER, 'var', 'a=x,y') // this version of spring removes ;a=z
+    2 * mod.taint(_, SourceTypes.REQUEST_MATRIX_PARAMETER, 'var', 'a')
+    2 * mod.taint(_, SourceTypes.REQUEST_MATRIX_PARAMETER, 'var', 'x')
+    2 * mod.taint(_, SourceTypes.REQUEST_MATRIX_PARAMETER, 'var', 'y')
+    2 * mod.taint(_, SourceTypes.REQUEST_MATRIX_PARAMETER, 'var', 'z')
     0 * mod._
 
     cleanup:

@@ -15,7 +15,6 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import datadog.trace.api.iast.source.WebModule;
 import net.bytebuddy.asm.Advice;
 
 /**
@@ -55,9 +54,8 @@ public class PathMatcherInstrumentation extends Instrumenter.Iast
         return;
       }
 
-      WebModule module = InstrumentationBridge.WEB;
-      PropagationModule propagation = InstrumentationBridge.PROPAGATION;
-      if (module == null || propagation == null) {
+      PropagationModule module = InstrumentationBridge.PROPAGATION;
+      if (module == null) {
         return;
       }
 
@@ -65,13 +63,16 @@ public class PathMatcherInstrumentation extends Instrumenter.Iast
       Object value = tuple._1();
 
       // in the test, 4 instances of PathMatcher$Match are created, all with the same value
-      if (propagation.isTainted(value)) {
+      if (module.isTainted(value)) {
         return;
       }
 
       if (value instanceof String) {
-        module.onRequestPathParameter(
-            null, (String) value, reqCtx.getData(RequestContextSlot.IAST));
+        module.taint(
+            reqCtx.getData(RequestContextSlot.IAST),
+            SourceTypes.REQUEST_PATH_PARAMETER,
+            null,
+            (String) value);
       }
     }
   }

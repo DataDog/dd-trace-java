@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.akkahttp.iast.helpers;
 
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.SourceTypes;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.source.WebModule;
 import java.util.Collections;
 import java.util.IdentityHashMap;
@@ -20,8 +22,9 @@ public class TaintSeqFunction
   public Tuple1<Seq<Tuple2<String, String>>> apply(Tuple1<Seq<Tuple2<String, String>>> v1) {
     Seq<Tuple2<String, String>> seq = v1._1;
 
-    WebModule mod = InstrumentationBridge.WEB;
-    if (mod == null || seq == null) {
+    WebModule web = InstrumentationBridge.WEB;
+    PropagationModule prop = InstrumentationBridge.PROPAGATION;
+    if (web == null || prop == null || seq == null) {
       return v1;
     }
 
@@ -32,9 +35,9 @@ public class TaintSeqFunction
       String name = t._1();
       String value = t._2();
       if (seenKeys.add(name)) {
-        mod.onParameterNames(Collections.singleton(name));
+        web.onParameterNames(Collections.singleton(name));
       }
-      mod.onParameterValue(name, value);
+      prop.taint(SourceTypes.REQUEST_PARAMETER_VALUE, name, value);
     }
 
     return v1;

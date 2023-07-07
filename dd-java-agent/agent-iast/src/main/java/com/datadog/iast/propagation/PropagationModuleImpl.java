@@ -2,6 +2,7 @@ package com.datadog.iast.propagation;
 
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 
+import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
 import com.datadog.iast.taint.TaintedObject;
@@ -133,6 +134,33 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
+  public void taint(final byte source, @Nullable final String name, @Nullable final String value) {
+    if (!canBeTainted(value)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    taintedObjects.taintInputString(value, new Source(source, name, value));
+  }
+
+  @Override
+  public void taint(
+      @Nullable final Object ctx_,
+      final byte source,
+      @Nullable final String name,
+      @Nullable final String value) {
+    if (ctx_ == null || !canBeTainted(value)) {
+      return;
+    }
+    final IastRequestContext ctx = (IastRequestContext) ctx_;
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    taintedObjects.taintInputString(value, new Source(source, name, value));
+  }
+
+  @Override
   public void taint(final byte origin, @Nullable final Object... toTaintArray) {
     if (toTaintArray == null || toTaintArray.length == 0) {
       return;
@@ -171,7 +199,7 @@ public class PropagationModuleImpl implements PropagationModule {
 
   @Override
   public void taint(
-      @Nullable Taintable t, byte origin, @Nullable String name, @Nullable String value) {
+      byte origin, @Nullable String name, @Nullable String value, @Nullable Taintable t) {
     if (t == null) {
       return;
     }

@@ -6,7 +6,8 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.ConfigDefaults
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.iast.InstrumentationBridge
-import datadog.trace.api.iast.source.WebModule
+import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.springweb6.SetupSpecHelper
@@ -191,7 +192,7 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
 
   void 'tainting on template var'() {
     setup:
-    WebModule mod = Mock()
+    PropagationModule mod = Mock()
     InstrumentationBridge.registerIastModule(mod)
     Request request = this.request(PATH_PARAM, 'GET', null).build()
 
@@ -202,7 +203,7 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
     TEST_WRITER.waitForTraces(1)
 
     then:
-    1 * mod.onRequestPathParameter('id', '123', _)
+    1 * mod.taint(_, SourceTypes.REQUEST_PATH_PARAMETER, 'id', '123')
     0 * mod._
 
     cleanup:
