@@ -13,6 +13,8 @@ import static com.datadog.iast.taint.Ranges.rangesProviderFor
 
 class RangesTest extends DDSpecification {
 
+  private static final int NEGATIVE_MARK = 1 << 31
+
   void 'forString'() {
     given:
     final source = new Source(SourceTypes.NONE, null, null)
@@ -178,81 +180,80 @@ class RangesTest extends DDSpecification {
     result[0].marks == VulnerabilityMarks.SQL_INJECTION_MARK
   }
 
-  void 'allAreMarked'(final VulnerabilityType type) {
+  void 'areAllMarked'(final int mark) {
     given:
-    final range1 = new Range(0, 1, null, type.mark())
-    final range2 = new Range(2, 1, null, type.mark())
-    final range3 = new Range(4, 1, null, type.mark())
+    final range1 = new Range(0, 1, null, mark)
+    final range2 = new Range(2, 1, null, mark)
+    final range3 = new Range(4, 1, null, mark)
     final range4 = new Range(6, 1, null, NOT_MARKED)
     final Range[] noRangesMarked = [range4]
     final Range[] allRangesMarked = [range1, range2, range3]
     final Range[] notAllRangesMarked = [range3, range4]
 
     when:
-    def check = areAllMarked(noRangesMarked, type)
+    def check = areAllMarked(noRangesMarked, mark)
 
     then:
     check == false
 
     when:
-    check = areAllMarked(notAllRangesMarked, type)
+    check = areAllMarked(notAllRangesMarked, mark)
 
     then:
     check == false
 
     when:
-    check = areAllMarked(allRangesMarked, type)
+    check = areAllMarked(allRangesMarked, mark)
 
     then:
     check == true
 
     where:
-    type                                   | _
-    VulnerabilityType.XPATH_INJECTION      | _
-    VulnerabilityType.UNVALIDATED_REDIRECT | _
-    VulnerabilityType.LDAP_INJECTION       | _
-    VulnerabilityType.COMMAND_INJECTION    | _
-    VulnerabilityType.PATH_TRAVERSAL       | _
-    VulnerabilityType.SQL_INJECTION        | _
-    VulnerabilityType.SSRF                 | _
-    1 << 31                                | _
+    mark                                          | _
+    VulnerabilityType.XPATH_INJECTION.mark()      | _
+    VulnerabilityType.UNVALIDATED_REDIRECT.mark() | _
+    VulnerabilityType.LDAP_INJECTION.mark()       | _
+    VulnerabilityType.COMMAND_INJECTION.mark()    | _
+    VulnerabilityType.PATH_TRAVERSAL.mark()       | _
+    VulnerabilityType.SQL_INJECTION.mark()        | _
+    VulnerabilityType.SSRF.mark()                 | _
+    NEGATIVE_MARK                                 | _
   }
 
-  void 'areMarked false if range array has no elements'() {
+  void 'areAllMarked false if range array has no elements'() {
     given:
     final Range[] array = []
 
     when:
-    final check = Ranges.areAllMarked(array, Mock(VulnerabilityType))
+    final check = Ranges.areAllMarked(array, NEGATIVE_MARK)
 
     then:
     check == false
   }
 
-  void 'areMarked for multiple vulnerability types'() {
+  void 'areAllMarked for multiple vulnerability types'() {
     given:
-    final int negativeMark = 1 << 31
-    final range1 = new Range(0, 1, null, VulnerabilityMarks.SQL_INJECTION_MARK | negativeMark)
-    final range2 = new Range(2, 1, null, VulnerabilityMarks.SQL_INJECTION_MARK | negativeMark)
+    final range1 = new Range(0, 1, null, VulnerabilityMarks.SQL_INJECTION_MARK | NEGATIVE_MARK)
+    final range2 = new Range(2, 1, null, VulnerabilityMarks.SQL_INJECTION_MARK | NEGATIVE_MARK)
     final range3 = new Range(4, 1, null, VulnerabilityMarks.SQL_INJECTION_MARK)
 
     final Range[] ranges = [range1, range2, range3]
 
     when:
-    def check = Ranges.areAllMarked(ranges, VulnerabilityType.SQL_INJECTION)
+    def check = Ranges.areAllMarked(ranges, VulnerabilityMarks.SQL_INJECTION_MARK)
 
     then:
     check == true
 
     when:
-    check = Ranges.areAllMarked(ranges, negativeMark)
+    check = Ranges.areAllMarked(ranges, NEGATIVE_MARK)
 
     then:
     check == false
 
 
     when:
-    check = Ranges.areAllMarked(ranges, VulnerabilityType.SSRF)
+    check = Ranges.areAllMarked(ranges, VulnerabilityMarks.SSRF_MARK)
 
     then:
     check == false
@@ -260,11 +261,10 @@ class RangesTest extends DDSpecification {
 
   void 'highestPriorityRange'() {
     given:
-    final int negativeMark = 1 << 31
     final range1 = new Range(0, 1, null, NOT_MARKED)
     final range2 = new Range(0, 1, null, VulnerabilityMarks.SQL_INJECTION_MARK)
     final range3 = new Range(0, 1, null, NOT_MARKED)
-    final range4 = new Range(0, 1, null, negativeMark)
+    final range4 = new Range(0, 1, null, NEGATIVE_MARK)
     final Range[] allNotMarked = [range1, range3]
     final Range[] notAllMarked = [range1, range2, range3, range4]
     final Range[] allMarked = [range2, range4]
@@ -286,6 +286,22 @@ class RangesTest extends DDSpecification {
 
     then:
     result == range2
+  }
+
+  void 'copyWithPosition'() {
+    given:
+    final source = new Source(SourceTypes.NONE, null, null)
+    final range = new Range(0, 1, source, VulnerabilityMarks.SQL_INJECTION_MARK)
+
+    when:
+    final result = Ranges.copyWithPosition(range, 2, 4)
+
+    then:
+    result != null
+    result.start == 2
+    result.length == 4
+    result.source == source
+    result.marks == VulnerabilityMarks.SQL_INJECTION_MARK
   }
 
 

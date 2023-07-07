@@ -74,7 +74,8 @@ public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
     if (isRefererHeader(taintedObject.getRanges())) {
       return;
     }
-    if (Ranges.areAllMarked(taintedObject.getRanges(), VulnerabilityType.UNVALIDATED_REDIRECT)) {
+    if (Ranges.areAllMarked(
+        taintedObject.getRanges(), VulnerabilityType.UNVALIDATED_REDIRECT.mark())) {
       return;
     }
     if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {

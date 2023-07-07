@@ -327,11 +327,8 @@ public class StringModuleImpl implements StringModule {
         skippedRanges++;
       } else if (currentRange.getStart() + currentRange.getLength() >= result.length()) {
         adjustedRange =
-            new Range(
-                currentRange.getStart(),
-                result.length() - currentRange.getStart(),
-                currentRange.getSource(),
-                currentRange.getMarks());
+            Ranges.copyWithPosition(
+                currentRange, currentRange.getStart(), result.length() - currentRange.getStart());
       }
     }
     Range[] newRanges = new Range[rangesSelf.length - skippedRanges];
@@ -529,12 +526,11 @@ public class StringModuleImpl implements StringModule {
           finalRanges.add(range.shift(offset));
         }
       } else {
-        final Source source = ranges[0].getSource();
-        finalRanges.add(new Range(offset, formatted.length(), source, ranges[0].getMarks()));
+        finalRanges.add(Ranges.copyWithPosition(ranges[0], offset, formatted.length()));
       }
     } else if (placeholderRange != null) {
       final Source source = placeholderRange.getSource();
-      finalRanges.add(new Range(offset, formatted.length(), source, placeholderRange.getMarks()));
+      finalRanges.add(Ranges.copyWithPosition(placeholderRange, offset, formatted.length()));
     }
   }
 
@@ -568,11 +564,7 @@ public class StringModuleImpl implements StringModule {
       // 3. enqueue the remaining ones
       for (final Ranged disjoint : formatRange.remove(placeholderPos)) {
         final Range newFormatRange =
-            new Range(
-                disjoint.getStart(),
-                disjoint.getLength(),
-                formatRange.getSource(),
-                formatRange.getMarks());
+            Ranges.copyWithPosition(formatRange, disjoint.getStart(), disjoint.getLength());
         if (newFormatRange.getStart() < placeholderPos.getStart()) {
           finalRanges.add(newFormatRange.shift(offset));
         } else {

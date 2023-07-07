@@ -2,7 +2,6 @@ package com.datadog.iast.taint;
 
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
-import com.datadog.iast.model.VulnerabilityType;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -335,16 +334,19 @@ public final class Ranges {
     return skippedRanges;
   }
 
-  public static boolean areAllMarked(
-      @Nonnull final Range[] ranges, @Nonnull final VulnerabilityType type) {
+  public static boolean areAllMarked(@Nonnull final Range[] ranges, @Nonnull final int mark) {
     if (ranges.length == 0) {
       return false;
     }
     for (Range range : ranges) {
-      if ((range.getMarks() & type.mark()) == 0) {
+      if ((range.getMarks() & mark) == 0) {
         return false;
       }
     }
     return true;
+  }
+
+  public static Range copyWithPosition(final Range range, final int offset, final int length) {
+    return new Range(offset, length, range.getSource(), range.getMarks());
   }
 }
