@@ -135,6 +135,8 @@ class SpringBootBasedTest extends HttpServerWithAppSec<ConfigurableApplicationCo
     span.getTag("appsec.events.users.signup.track") == true
     span.getTag("_dd.appsec.events.users.signup.auto.mode") == 'EXTENDED'
     span.getTag("usr.id") == 'admin'
+    span.getTag("appsec.events.users.signup")['enabled'] == 'true'
+    span.getTag("appsec.events.users.signup")['authorities'] == 'ROLE_USER'
   }
 
 
@@ -208,5 +210,10 @@ class SpringBootBasedTest extends HttpServerWithAppSec<ConfigurableApplicationCo
     span.getTag("appsec.events.users.login.success.track") == true
     span.getTag("_dd.appsec.events.users.login.success.auto.mode") == 'EXTENDED'
     span.getTag("usr.id") == 'admin'
+    span.getTag("appsec.events.users.login.success")['credentialsNonExpired'] == 'true'
+    span.getTag("appsec.events.users.login.success")['accountNonExpired'] == 'true'
+    span.getTag("appsec.events.users.login.success")['enabled'] == 'true'
+    span.getTag("appsec.events.users.login.success")['authorities'] == 'ROLE_USER'
+    span.getTag("appsec.events.users.login.success")['accountNonLocked'] == 'true'
   }
 }
