@@ -29,7 +29,7 @@ public final class DispatcherServletInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForSingleType {
 
   public DispatcherServletInstrumentation() {
-    super("spring-web");
+    super("spring-web", "spring-web-dispatcher");
   }
 
   @Override

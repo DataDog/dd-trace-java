@@ -22,7 +22,7 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 public class WebApplicationContextInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public WebApplicationContextInstrumentation() {
-    super("spring-web");
+    super("spring-web", "spring-web-context");
   }
 
   @Override

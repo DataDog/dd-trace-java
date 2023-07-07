@@ -35,7 +35,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class TemplateAndMatrixVariablesInstrumentation extends Instrumenter.Default
     implements Instrumenter.ForSingleType {
   public TemplateAndMatrixVariablesInstrumentation() {
-    super("spring-web");
+    super("spring-web", "spring-web-template");
   }
 
   @Override

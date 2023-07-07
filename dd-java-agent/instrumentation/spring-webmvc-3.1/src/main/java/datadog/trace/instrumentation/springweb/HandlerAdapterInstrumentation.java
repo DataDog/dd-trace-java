@@ -27,7 +27,7 @@ public final class HandlerAdapterInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public HandlerAdapterInstrumentation() {
-    super("spring-web");
+    super("spring-web", "spring-web-handler");
   }
 
   @Override

@@ -31,7 +31,7 @@ public class HttpMessageConverterInstrumentation extends Instrumenter.AppSec
     implements Instrumenter.ForTypeHierarchy {
 
   public HttpMessageConverterInstrumentation() {
-    super("spring-web");
+    super("spring-web", "spring-web-converter");
   }
 
   @Override
