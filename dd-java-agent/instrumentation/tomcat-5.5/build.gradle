@@ -64,6 +64,8 @@ dependencies {
   // https://tomcat.apache.org/whichversion.html
   compileOnly group: 'javax.servlet', name: 'servlet-api', version: '2.4'
 
+  implementation project(':dd-java-agent:instrumentation:tomcat-5.5-common')
+
   testImplementation(project(':dd-java-agent:testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }

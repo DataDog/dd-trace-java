@@ -12,7 +12,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.springweb6.SetupSpecHelper
 import datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator
-import datadog.trace.instrumentation.tomcat.TomcatDecorator
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import okhttp3.FormBody
@@ -97,7 +96,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   @Override
   String component() {
-    return TomcatDecorator.DECORATE.component()
+    'tomcat-server'
   }
 
   String getServletContext() {

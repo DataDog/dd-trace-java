@@ -165,7 +165,7 @@ abstract class TomcatServletTest extends AbstractServletTest<Embedded, Context> 
   }
 
   @Override
-  boolean testUserBlocking() {
+  boolean testBlockingOnResponse() {
     true
   }
 

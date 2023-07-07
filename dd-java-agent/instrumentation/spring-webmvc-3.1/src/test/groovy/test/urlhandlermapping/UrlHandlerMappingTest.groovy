@@ -9,7 +9,6 @@ import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
 import okhttp3.Request
 import okhttp3.Response
@@ -74,7 +73,7 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
 
   @Override
   String component() {
-    Servlet3Decorator.DECORATE.component()
+    'tomcat-server'
   }
 
   @Override
@@ -143,7 +142,12 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
 
   @Override
   Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
-    ['servlet.path': endpoint.path]
+    ['servlet.path': endpoint.path, 'servlet.context': '/']
+  }
+
+  @Override
+  String expectedServiceName() {
+    'root-servlet'
   }
 
   @Override

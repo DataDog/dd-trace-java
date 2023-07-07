@@ -4,12 +4,12 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
 import okhttp3.FormBody
 import okhttp3.Request
@@ -65,7 +65,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   @Override
   String component() {
-    return Servlet3Decorator.DECORATE.component()
+    'tomcat-server'
   }
 
   String getServletContext() {
@@ -155,9 +155,12 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   int spanCount(ServerEndpoint endpoint) {
     if (endpoint == REDIRECT) {
       // Spring is generates a RenderView and ResponseSpan for REDIRECT
-      return super.spanCount(endpoint) + 1
+      super.spanCount(endpoint) + 1
+    } else if (endpoint == NOT_FOUND) {
+      super.spanCount(endpoint) + 2
+    } else {
+      super.spanCount(endpoint)
     }
-    return super.spanCount(endpoint)
   }
 
   @Override
@@ -396,6 +399,39 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
           errorTags(Exception, EXCEPTION.body)
         }
         defaultTags()
+      }
+    }
+  }
+
+
+  protected void trailingSpans(TraceAssert traceAssert, ServerEndpoint serverEndpoint) {
+    if (serverEndpoint == NOT_FOUND) {
+      traceAssert.with {
+        span {
+          spanType 'web'
+          serviceName expectedServiceName()
+          operationName 'servlet.forward'
+          resourceName 'GET /error'
+          tags {
+            "$Tags.COMPONENT" 'java-web-servlet-dispatcher'
+            "$Tags.HTTP_ROUTE" '/error'
+            'servlet.context' "/$servletContext"
+            'servlet.path' '/not-found'
+            "$DDTags.PATHWAY_HASH" String
+            defaultTags()
+          }
+        }
+        span {
+          spanType 'web'
+          serviceName expectedServiceName()
+          operationName 'spring.handler'
+          resourceName 'BasicErrorController.error'
+          tags {
+            "$Tags.COMPONENT" 'spring-web-controller'
+            "$Tags.SPAN_KIND" 'server'
+            defaultTags()
+          }
+        }
       }
     }
   }

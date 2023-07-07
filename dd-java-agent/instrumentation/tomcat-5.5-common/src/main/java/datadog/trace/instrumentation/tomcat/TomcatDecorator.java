@@ -109,6 +109,11 @@ public class TomcatDecorator
   }
 
   @Override
+  protected boolean isAppSecOnResponseSeparate() {
+    return true;
+  }
+
+  @Override
   public AgentSpan onResponse(AgentSpan span, Response response) {
     Request req = response.getRequest();
     if (Config.get().isServletPrincipalEnabled() && req.getUserPrincipal() != null) {
