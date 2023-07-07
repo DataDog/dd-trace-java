@@ -57,6 +57,7 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentDataStreamsMonitoring",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentTrace",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext",
+  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI",
   "datadog.trace.bootstrap.instrumentation.api.NoopDataStreamsMonitoring",
   "datadog.trace.bootstrap.instrumentation.api.Backlog",
   "datadog.trace.bootstrap.instrumentation.api.StatsPoint",
@@ -71,7 +72,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.civisibility.coverage.TestReportFileEntry",
   "datadog.trace.api.civisibility.coverage.TestReportFileEntry.Segment",
   "datadog.trace.api.civisibility.InstrumentationBridge",
-  "datadog.trace.api.civisibility.events.BuildEventsHandler.ModuleAndSessionId",
+  "datadog.trace.api.civisibility.events.BuildEventsHandler.ModuleInfo",
   // POJO
   "datadog.trace.api.git.GitInfo",
   // POJO
@@ -95,6 +96,7 @@ excludedClassesCoverage += [
   "datadog.trace.util.CollectionUtils",
   "datadog.trace.util.PidHelper",
   "datadog.trace.util.PidHelper.Fallback",
+  "datadog.trace.util.ProcessUtils",
   "datadog.trace.api.IntegrationsCollector.Holder",
   "datadog.trace.api.MetricCollector.Holder",
   "datadog.trace.api.ConfigCollector",

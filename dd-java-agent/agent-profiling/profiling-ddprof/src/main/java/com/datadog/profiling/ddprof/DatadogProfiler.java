@@ -448,9 +448,9 @@ public final class DatadogProfiler {
     }
   }
 
-  public QueueTimeTracker newQueueTimeTracker(long localRootSpanId, long spanId) {
+  public QueueTimeTracker newQueueTimeTracker() {
     if (profiler != null) {
-      return new QueueTimeTracker(profiler, queueTimeThreshold, localRootSpanId, spanId);
+      return new QueueTimeTracker(profiler, queueTimeThreshold);
     }
     return null;
   }

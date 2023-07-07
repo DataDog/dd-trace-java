@@ -285,4 +285,38 @@ public class StringCallSite {
     }
     return result;
   }
+
+  @CallSite.After("java.lang.String java.lang.String.format(java.lang.String, java.lang.Object[])")
+  public static String afterFormat(
+      @CallSite.Argument(0) @Nullable final String pattern,
+      @CallSite.Argument(1) @Nonnull final Object[] args,
+      @CallSite.Return @Nonnull final String result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    try {
+      if (module != null && pattern != null) {
+        module.onStringFormat(pattern, args, result);
+      }
+    } catch (final Throwable e) {
+      module.onUnexpectedException("afterFormat threw", e);
+    }
+    return result;
+  }
+
+  @CallSite.After(
+      "java.lang.String java.lang.String.format(java.util.Locale, java.lang.String, java.lang.Object[])")
+  public static String afterFormat(
+      @CallSite.Argument(0) @Nullable final Locale locale,
+      @CallSite.Argument(1) @Nullable final String pattern,
+      @CallSite.Argument(2) @Nonnull final Object[] args,
+      @CallSite.Return @Nonnull final String result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    try {
+      if (module != null && pattern != null) {
+        module.onStringFormat(locale, pattern, args, result);
+      }
+    } catch (final Throwable e) {
+      module.onUnexpectedException("afterFormat threw", e);
+    }
+    return result;
+  }
 }

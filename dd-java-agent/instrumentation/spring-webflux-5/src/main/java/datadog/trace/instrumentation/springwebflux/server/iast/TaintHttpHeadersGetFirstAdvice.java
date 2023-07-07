@@ -5,7 +5,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
-import datadog.trace.api.iast.source.WebModule;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 
 /** @see org.springframework.http.HttpHeaders#getFirst(String) */
@@ -14,10 +14,10 @@ class TaintHttpHeadersGetFirstAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
   public static void after(@Advice.Argument(0) String arg, @Advice.Return String value) {
-    WebModule module = InstrumentationBridge.WEB;
+    PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module == null || arg == null || value == null) {
       return;
     }
-    module.onHeaderValue(arg, value);
+    module.taint(SourceTypes.REQUEST_HEADER_VALUE, arg, value);
   }
 }

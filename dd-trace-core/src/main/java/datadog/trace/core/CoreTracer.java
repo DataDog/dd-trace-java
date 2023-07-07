@@ -728,29 +728,35 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public CoreSpanBuilder buildSpan(final CharSequence operationName) {
-    return new CoreSpanBuilder(operationName, this);
+  public CoreSpanBuilder buildSpan(
+      final String instrumentationName, final CharSequence operationName) {
+    return new CoreSpanBuilder(instrumentationName, operationName, this);
   }
 
   @Override
-  public AgentSpan startSpan(final CharSequence spanName) {
-    return buildSpan(spanName).start();
-  }
-
-  @Override
-  public AgentSpan startSpan(final CharSequence spanName, final long startTimeMicros) {
-    return buildSpan(spanName).withStartTimestamp(startTimeMicros).start();
-  }
-
-  @Override
-  public AgentSpan startSpan(final CharSequence spanName, final AgentSpan.Context parent) {
-    return buildSpan(spanName).ignoreActiveSpan().asChildOf(parent).start();
+  public AgentSpan startSpan(final String instrumentationName, final CharSequence spanName) {
+    return buildSpan(instrumentationName, spanName).start();
   }
 
   @Override
   public AgentSpan startSpan(
-      final CharSequence spanName, final AgentSpan.Context parent, final long startTimeMicros) {
-    return buildSpan(spanName)
+      final String instrumentationName, final CharSequence spanName, final long startTimeMicros) {
+    return buildSpan(instrumentationName, spanName).withStartTimestamp(startTimeMicros).start();
+  }
+
+  @Override
+  public AgentSpan startSpan(
+      String instrumentationName, final CharSequence spanName, final AgentSpan.Context parent) {
+    return buildSpan(instrumentationName, spanName).ignoreActiveSpan().asChildOf(parent).start();
+  }
+
+  @Override
+  public AgentSpan startSpan(
+      final String instrumentationName,
+      final CharSequence spanName,
+      final AgentSpan.Context parent,
+      final long startTimeMicros) {
+    return buildSpan(instrumentationName, spanName)
         .ignoreActiveSpan()
         .asChildOf(parent)
         .withStartTimestamp(startTimeMicros)
@@ -898,10 +904,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public void setDataStreamCheckpoint(AgentSpan span, LinkedHashMap<String, String> sortedTags) {
+  public void setDataStreamCheckpoint(
+      AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
     if (pathwayContext != null) {
-      pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring::add);
+      pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring::add, defaultTimestamp);
       injectPathwayTags(span, pathwayContext);
     }
   }
@@ -1074,7 +1081,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     sortedTags.put(TOPIC_TAG, source);
     sortedTags.put(TYPE_TAG, type);
 
-    setDataStreamCheckpoint(span, sortedTags);
+    setDataStreamCheckpoint(span, sortedTags, 0);
   }
 
   @Override
@@ -1269,6 +1276,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   /** Spans are built using this builder */
   public class CoreSpanBuilder implements AgentTracer.SpanBuilder {
+    private final String instrumentationName;
     private final CharSequence operationName;
     private final CoreTracer tracer;
 
@@ -1285,7 +1293,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private Object builderRequestContextDataIast;
     private Object builderCiVisibilityContextData;
 
-    CoreSpanBuilder(final CharSequence operationName, CoreTracer tracer) {
+    CoreSpanBuilder(
+        final String instrumentationName, final CharSequence operationName, CoreTracer tracer) {
+      this.instrumentationName = instrumentationName;
       this.operationName = operationName;
       this.tracer = tracer;
     }
@@ -1297,7 +1307,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     private DDSpan buildSpan() {
-      DDSpan span = DDSpan.create(timestampMicro, buildSpanContext());
+      DDSpan span = DDSpan.create(instrumentationName, timestampMicro, buildSpanContext());
       if (span.isLocalRootSpan()) {
         EndpointTracker tracker = tracer.onRootSpanStarted(span);
         span.setEndpointTracker(tracker);

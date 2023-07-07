@@ -11,9 +11,13 @@ class URIUtilsTest extends DDSpecification {
     setup:
     def uri = new URI(input)
     def url = URIUtils.buildURL(uri.scheme, uri.host, uri.port, uri.path)
+    def lazyUrl = URIUtils.lazyValidURL(uri.scheme, uri.host, uri.port, uri.path)
 
     expect:
     url == expected
+    lazyUrl.path() == uri.path
+    lazyUrl.get() == expected
+    lazyUrl.toString() == expected
 
     where:
     input                         | expected
@@ -30,9 +34,13 @@ class URIUtilsTest extends DDSpecification {
   def "should build urls from corner cases \"#scheme\" \"#host\" #port \"#path\""() {
     setup:
     def url = URIUtils.buildURL(scheme, host, port, path)
+    def lazyUrl = URIUtils.lazyValidURL(scheme, host, port, path)
 
     expect:
     url == expected
+    lazyUrl.path() == (path != null ? path : '')
+    lazyUrl.toString() == expected
+    lazyUrl.get() == expected
 
     where:
     scheme | host | port | path          | expected
@@ -92,5 +100,20 @@ class URIUtilsTest extends DDSpecification {
     "%C3%BEungur%20hn%C3%ADfur"                      | "þungur hnífur"
     "v%C3%A4ldigt+tr%C3%A5kig%20str%C3%A4ng+med+%2B" | "väldigt tråkig sträng med +"
     "very+boring+string+with+only+plus"              | "very boring string with only plus"
+  }
+
+  def "test LazyUrl for code coverage"() {
+    when:
+    def raw = 'weird'
+    def invalid = URIUtils.lazyInvalidUrl(raw)
+
+    then:
+    invalid.path() == null
+    invalid.toString() == raw
+    invalid.get() == raw
+    invalid.length() == raw.length()
+    invalid.hashCode() == raw.hashCode()
+    invalid.subSequence(1,3) == 'ei'
+    invalid.charAt(3) == 'r' as char
   }
 }

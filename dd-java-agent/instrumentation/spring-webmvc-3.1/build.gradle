@@ -58,7 +58,8 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:servlet-common')
   testImplementation project(':dd-java-agent:instrumentation:servlet:request-3')
 
-  // include also tomcat appsec instrumentation for intercepting urlencoded/multipart bodies
+  // include also tomcat instrumentation
+  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-5.5')
   testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-appsec-6')
   testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-appsec-7')
 

@@ -1,11 +1,11 @@
-package datadog.trace.civisibility;
+package datadog.trace.civisibility.decorator;
 
 import datadog.trace.api.DDTags;
-import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.civisibility.config.JvmInfo;
 import java.util.Map;
 
 public class TestDecoratorImpl implements TestDecorator {
@@ -33,15 +33,15 @@ public class TestDecoratorImpl implements TestDecorator {
   }
 
   protected String runtimeName() {
-    return System.getProperty("java.runtime.name");
+    return JvmInfo.CURRENT_JVM.getName();
   }
 
   protected String runtimeVendor() {
-    return System.getProperty("java.vendor");
+    return JvmInfo.CURRENT_JVM.getVendor();
   }
 
   protected String runtimeVersion() {
-    return System.getProperty("java.version");
+    return JvmInfo.CURRENT_JVM.getVersion();
   }
 
   protected String osArch() {
@@ -67,6 +67,14 @@ public class TestDecoratorImpl implements TestDecorator {
 
   @Override
   public AgentSpan afterStart(final AgentSpan span) {
+    /*
+     * IMPORTANT: JVM and OS tags should match properties
+     * set in datadog.trace.civisibility.config.ModuleExecutionSettingsFactory
+     *
+     * Moreover, logic that populates these tags cannot be changed,
+     * as they are used to establish correspondence between
+     * executions of the same test case
+     */
     span.setTag(Tags.TEST_FRAMEWORK, testFramework);
     span.setTag(Tags.TEST_FRAMEWORK_VERSION, testFrameworkVersion);
     span.setTag(Tags.TEST_TYPE, testType());

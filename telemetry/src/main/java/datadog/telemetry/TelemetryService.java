@@ -142,6 +142,9 @@ public class TelemetryService {
       }
       sentAppStarted = true;
       state.commit();
+      state.rollback();
+      // When app-started is sent, we do not send more messages until the next interval.
+      return;
     }
 
     if (sendRequest(RequestType.APP_HEARTBEAT, null) == SendResult.NOT_FOUND) {

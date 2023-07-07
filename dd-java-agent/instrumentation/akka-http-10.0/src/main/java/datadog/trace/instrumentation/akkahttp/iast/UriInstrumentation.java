@@ -94,7 +94,7 @@ public class UriInstrumentation extends Instrumenter.Iast implements Instrumente
       while (iterator.hasNext()) {
         Tuple2<String, String> pair = iterator.next();
         web.onParameterNames(Collections.singleton(pair._1()));
-        web.onParameterValue(pair._1(), pair._2());
+        prop.taint(SourceTypes.REQUEST_PARAMETER_VALUE, pair._1(), pair._2());
       }
     }
   }

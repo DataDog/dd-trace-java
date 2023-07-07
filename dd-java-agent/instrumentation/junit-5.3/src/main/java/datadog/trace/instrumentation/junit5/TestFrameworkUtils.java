@@ -3,24 +3,16 @@ package datadog.trace.instrumentation.junit5;
 import datadog.trace.util.Strings;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
-import java.util.Collection;
-import java.util.LinkedHashSet;
-import java.util.ServiceLoader;
-import java.util.Set;
+import javax.annotation.Nullable;
 import org.junit.platform.commons.JUnitException;
-import org.junit.platform.commons.util.ClassLoaderUtils;
 import org.junit.platform.commons.util.ReflectionUtils;
-import org.junit.platform.engine.TestEngine;
-import org.junit.platform.engine.TestSource;
-import org.junit.platform.engine.support.descriptor.ClassSource;
 import org.junit.platform.engine.support.descriptor.MethodSource;
-import org.junit.platform.launcher.TestIdentifier;
-import org.junit.platform.launcher.core.LauncherConfig;
 
 public abstract class TestFrameworkUtils {
+  private static final String SPOCK_ENGINE_ID = "spock";
 
-  private static final Method GET_JAVA_CLASS;
-  private static final Method GET_JAVA_METHOD;
+  static final Method GET_JAVA_CLASS;
+  static final Method GET_JAVA_METHOD;
 
   static {
     GET_JAVA_CLASS = accessGetJavaClass();
@@ -47,21 +39,6 @@ public abstract class TestFrameworkUtils {
       method.setAccessible(true);
       return method;
     } catch (Exception e) {
-      return null;
-    }
-  }
-
-  public static Class<?> getJavaClass(TestIdentifier testIdentifier) {
-    TestSource testSource = testIdentifier.getSource().orElse(null);
-    if (testSource instanceof ClassSource) {
-      ClassSource classSource = (ClassSource) testSource;
-      return classSource.getJavaClass();
-
-    } else if (testSource instanceof MethodSource) {
-      MethodSource methodSource = (MethodSource) testSource;
-      return getTestClass(methodSource);
-
-    } else {
       return null;
     }
   }
@@ -111,7 +88,7 @@ public abstract class TestFrameworkUtils {
       return null;
     }
 
-    Class<?> testClass = TestFrameworkUtils.getTestClass(methodSource);
+    Class<?> testClass = getTestClass(methodSource);
     if (testClass == null) {
       return null;
     }
@@ -145,54 +122,23 @@ public abstract class TestFrameworkUtils {
     return null;
   }
 
-  public static String getParameters(MethodSource methodSource, TestIdentifier testIdentifier) {
+  public static String getParameters(MethodSource methodSource, String displayName) {
     if (methodSource.getMethodParameterTypes() == null
         || methodSource.getMethodParameterTypes().isEmpty()) {
       return null;
     }
-    return "{\"metadata\":{\"test_name\":\""
-        + Strings.escapeToJson(testIdentifier.getDisplayName())
-        + "\"}}";
+    return "{\"metadata\":{\"test_name\":\"" + Strings.escapeToJson(displayName) + "\"}}";
   }
 
-  /*
-   * JUnit5 considers parameterized or factory test cases as containers.
-   * We need to differentiate this type of containers from "regular" ones, that are test classes
-   */
-  public static boolean isTestCase(TestIdentifier testIdentifier) {
-    return testIdentifier.isContainer() && getMethodSourceOrNull(testIdentifier) != null;
+  public static String getTestName(
+      String displayName, MethodSource methodSource, String testEngineId) {
+    return SPOCK_ENGINE_ID.equals(testEngineId) ? displayName : methodSource.getMethodName();
   }
 
-  public static boolean isRootContainer(TestIdentifier testIdentifier) {
-    return !testIdentifier.getParentId().isPresent();
-  }
-
-  private static MethodSource getMethodSourceOrNull(TestIdentifier testIdentifier) {
-    return (MethodSource)
-        testIdentifier.getSource().filter(s -> s instanceof MethodSource).orElse(null);
-  }
-
-  public static boolean isAssumptionFailure(Throwable throwable) {
-    switch (throwable.getClass().getName()) {
-      case "org.junit.AssumptionViolatedException":
-      case "org.junit.internal.AssumptionViolatedException":
-      case "org.opentest4j.TestAbortedException":
-      case "org.opentest4j.TestSkippedException":
-        // If the test assumption fails, one of the following exceptions will be thrown.
-        // The consensus is to treat "assumptions failure" as skipped tests.
-        return true;
-      default:
-        return false;
-    }
-  }
-
-  public static Collection<TestEngine> getTestEngines(LauncherConfig config) {
-    Set<TestEngine> engines = new LinkedHashSet<>();
-    if (config.isTestEngineAutoRegistrationEnabled()) {
-      ClassLoader defaultClassLoader = ClassLoaderUtils.getDefaultClassLoader();
-      ServiceLoader.load(TestEngine.class, defaultClassLoader).forEach(engines::add);
-    }
-    engines.addAll(config.getAdditionalTestEngines());
-    return engines;
+  @Nullable
+  public static Method getTestMethod(MethodSource methodSource, String testEngineId) {
+    return SPOCK_ENGINE_ID.equals(testEngineId)
+        ? getSpockTestMethod(methodSource)
+        : getTestMethod(methodSource);
   }
 }

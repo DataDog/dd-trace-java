@@ -182,7 +182,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   String expectedUrl(ServerEndpoint endpoint, URI address) {
     URI url = endpoint.resolve(address)
     def path = Config.get().isHttpServerRawResource() && supportsRaw() ? url.rawPath : url.path
-    return URIUtils.buildURL(url.scheme, url.host, url.port, path)
+    def uri = URIUtils.buildURL(url.scheme, url.host, url.port, path)
+    def qt = expectedQueryTag(endpoint)
+    if (qt && !qt.isEmpty()) {
+      uri = "$uri?$qt"
+    }
+    return uri
   }
 
   Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
@@ -333,6 +338,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   boolean testUserBlocking() {
     testBlocking()
+  }
+
+  boolean testBlockingOnResponse() {
+    false
   }
 
   /** Tomcat 5.5 can't seem to handle the encoded URIs */
@@ -1014,6 +1023,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         if (hasResponseSpan(ERROR)) {
           responseSpan(it, ERROR)
         }
+        trailingSpans(it, ERROR)
       }
     }
 
@@ -1056,6 +1066,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         if (hasResponseSpan(EXCEPTION)) {
           responseSpan(it, EXCEPTION)
         }
+        trailingSpans(it, EXCEPTION)
       }
     }
 
@@ -1097,6 +1108,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         if (hasResponseSpan(NOT_FOUND)) {
           responseSpan(it, NOT_FOUND)
         }
+        trailingSpans(it, NOT_FOUND)
       }
     }
 
@@ -1750,6 +1762,32 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     Blocking.blockingService = origBlockingService
   }
 
+  def 'test blocking on response'() {
+    setup:
+    assumeTrue(testBlockingOnResponse())
+
+    def request = request(SUCCESS, 'GET', null)
+      .header(IG_BLOCK_RESPONSE_HEADER, 'true')
+      .build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
+    response.code() == 413
+    response.header('Content-type') =~ /(?i)\Aapplication\/json(?:;\s?charset=utf-8)?\z/
+    response.body().charStream().text.contains('"title":"You\'ve been blocked"')
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.flatten().find { DDSpan it ->
+      it.tags['http.status_code'] == 413
+    } != null
+  }
+
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
     def exception = endpoint == CUSTOM_EXCEPTION ? expectedCustomExceptionType() : expectedExceptionType()
     def errorMessage = endpoint?.body
@@ -1859,9 +1897,13 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
+  protected void trailingSpans(TraceAssert traceAssert, ServerEndpoint serverEndpoint) {
+  }
+
   static final String IG_EXTRA_SPAN_NAME_HEADER = "x-ig-write-tags"
   static final String IG_TEST_HEADER = "x-ig-test-header"
   static final String IG_BLOCK_HEADER = "x-block"
+  static final String IG_BLOCK_RESPONSE_HEADER = "x-block-response"
   static final String IG_PARAMETERS_BLOCK_HEADER = "x-block-parameters"
   static final String IG_BODY_END_BLOCK_HEADER = "x-block-body-end"
   static final String IG_BODY_CONVERTED_HEADER = "x-block-body-converted"
@@ -1883,6 +1925,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       String responseEncoding
       String blockingContentType
       boolean parametersBlock
+      boolean responseBlock
       boolean bodyEndBlock
       boolean bodyConvertedBlock
     }
@@ -1922,6 +1965,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
       if (IG_BLOCK_HEADER.equalsIgnoreCase(key)) {
         context.blockingContentType = value
+      }
+      if (IG_BLOCK_RESPONSE_HEADER.equalsIgnoreCase(key)) {
+        context.responseBlock = true
       }
       if (IG_PARAMETERS_BLOCK_HEADER.equalsIgnoreCase(key)) {
         context.parametersBlock = true
@@ -2046,7 +2092,13 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       if (null != context.responseEncoding) {
         context.tags.put(IG_RESPONSE_HEADER_TAG, context.responseEncoding)
       }
-      Flow.ResultFlow.empty()
+      if (context.responseBlock) {
+        new RbaFlow(
+          new Flow.Action.RequestBlockingAction(413, BlockingContentType.JSON)
+          )
+      } else {
+        Flow.ResultFlow.empty()
+      }
     } as Function<RequestContext, Flow<Void>>)
 
     final BiFunction<RequestContext, Map<String, ?>, Flow<Void>> requestParamsCb =

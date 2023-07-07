@@ -49,8 +49,9 @@ public class DDSpan
 
   public static final String CHECKPOINTED_TAG = "checkpointed";
 
-  static DDSpan create(final long timestampMicro, @Nonnull DDSpanContext context) {
-    final DDSpan span = new DDSpan(timestampMicro, context);
+  static DDSpan create(
+      final String instrumentationName, final long timestampMicro, @Nonnull DDSpanContext context) {
+    final DDSpan span = new DDSpan(instrumentationName, timestampMicro, context);
     log.debug("Started span: {}", span);
     context.getTrace().registerSpan(span);
     return span;
@@ -107,12 +108,16 @@ public class DDSpan
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
    *
+   * @param instrumentationName instrumentation that creates the span
    * @param timestampMicro if greater than zero, use this time instead of the current time
    * @param context the context used for the span
    */
-  private DDSpan(final long timestampMicro, @Nonnull DDSpanContext context) {
+  private DDSpan(
+      @Nonnull String instrumentationName,
+      final long timestampMicro,
+      @Nonnull DDSpanContext context) {
     this.context = context;
-    this.metrics = SpanMetricRegistry.getInstance().get("default");
+    this.metrics = SpanMetricRegistry.getInstance().get(instrumentationName);
     this.metrics.onSpanCreated();
 
     if (timestampMicro <= 0L) {

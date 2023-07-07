@@ -38,7 +38,10 @@ public class JUnit5Instrumentation extends Instrumenter.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TestFrameworkUtils", packageName + ".TracingListener",
+      packageName + ".JUnit5Utils",
+      packageName + ".TestFrameworkUtils",
+      packageName + ".ItrFilter",
+      packageName + ".TracingListener",
     };
   }
 
@@ -59,7 +62,17 @@ public class JUnit5Instrumentation extends Instrumenter.CiVisibility
         @Advice.This LauncherConfig config,
         @Advice.Return(readOnly = false) Collection<TestExecutionListener> listeners) {
 
-      Collection<TestEngine> testEngines = TestFrameworkUtils.getTestEngines(config);
+      if (JUnit5Utils.isTestInProgress()) {
+        // a test case that is in progress starts a new JUnit instance.
+        // It might be done in order to achieve classloader isolation
+        // (for example, spring-boot uses this technique).
+        // We are already tracking the active test case,
+        // and do not want to report the "embedded" JUnit execution
+        // as a separate module
+        return;
+      }
+
+      Collection<TestEngine> testEngines = JUnit5Utils.getTestEngines(config);
       final TracingListener listener = new TracingListener(testEngines);
 
       Collection<TestExecutionListener> modifiedListeners = new ArrayList<>(listeners);

@@ -232,7 +232,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
     return "citestcycle/v1";
   }
 
-  private static final class MetaWriter extends MetadataConsumer {
+  private static final class MetaWriter implements MetadataConsumer {
 
     private Writable writable;
 

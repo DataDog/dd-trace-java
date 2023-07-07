@@ -12,6 +12,7 @@ import java.lang.reflect.Method;
 
 public class TraceDecorator extends BaseDecorator {
   public static TraceDecorator DECORATE = new TraceDecorator();
+  private static final String INSTRUMENTATION_NAME = "trace-annotation";
 
   private static final boolean useLegacyOperationName =
       InstrumenterConfig.get().isLegacyInstrumentationEnabled(true, "trace.annotations");
@@ -73,7 +74,7 @@ public class TraceDecorator extends BaseDecorator {
       resourceName = DECORATE.spanNameForMethod(method);
     }
 
-    AgentSpan span = startSpan(operationName);
+    AgentSpan span = startSpan(INSTRUMENTATION_NAME, operationName);
     DECORATE.afterStart(span);
     span.setResourceName(resourceName);
 

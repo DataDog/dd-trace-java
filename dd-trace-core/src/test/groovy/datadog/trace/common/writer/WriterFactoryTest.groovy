@@ -23,6 +23,7 @@ class WriterFactoryTest extends DDSpecification {
     config.getEnumValue(PRIORITIZATION_TYPE, _, _) >> Prioritization.FAST_LANE
     config.tracerMetricsEnabled >> true
     config.isCiVisibilityEnabled() >> true
+    config.isCiVisibilityCodeCoverageEnabled() >> false
 
     def agentFeaturesDiscovery = Mock(DDAgentFeaturesDiscovery)
     agentFeaturesDiscovery.getEvpProxyEndpoint() >> DDAgentFeaturesDiscovery.V2_EVP_PROXY_ENDPOINT

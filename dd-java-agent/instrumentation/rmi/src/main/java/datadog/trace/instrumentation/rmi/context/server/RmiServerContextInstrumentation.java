@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.instrumentation.rmi.ContextDispatcher;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -21,6 +22,12 @@ public class RmiServerContextInstrumentation extends Instrumenter.Tracing
 
   public RmiServerContextInstrumentation() {
     super("rmi", "rmi-context-propagator", "rmi-server-context-propagator");
+  }
+
+  @Override
+  protected boolean defaultEnabled() {
+    return super.defaultEnabled()
+        && !Platform.isNativeImageBuilder(); // not applicable in native-image
   }
 
   @Override

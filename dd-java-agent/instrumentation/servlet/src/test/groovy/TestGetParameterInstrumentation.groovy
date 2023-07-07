@@ -5,6 +5,8 @@ import datadog.smoketest.controller.JavaxServletRequestWrapperTestSuite
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.source.WebModule
 import groovy.transform.CompileDynamic
 
@@ -17,9 +19,15 @@ class TestGetParameterInstrumentation extends AgentTestRunner {
     injectSysConfig("dd.iast.enabled", "true")
   }
 
+  void cleanup() {
+    InstrumentationBridge.clearIastModules()
+  }
+
   void 'test getParameter'() {
-    final iastModule = Mock(WebModule)
-    InstrumentationBridge.registerIastModule(iastModule)
+    final webMod = Mock(WebModule)
+    final propMod = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(webMod)
+    InstrumentationBridge.registerIastModule(propMod)
     final map = [param1: ['value1', 'value2'] as String[]]
     final servletRequest = Mock(clazz) {
       getParameter(_ as String) >> { map.get(it[0]).first() }
@@ -32,19 +40,19 @@ class TestGetParameterInstrumentation extends AgentTestRunner {
     testSuite.getParameter('param1')
 
     then:
-    1 * iastModule.onParameterValue('param1', 'value1')
+    1 * propMod.taint(SourceTypes.REQUEST_PARAMETER_VALUE, 'param1', 'value1')
 
     when:
     testSuite.getParameterValues('param1')
 
     then:
-    1 * iastModule.onParameterValues('param1', ['value1', 'value2'])
+    1 * webMod.onParameterValues('param1', ['value1', 'value2'])
 
     when:
     testSuite.getParameterNames()
 
     then:
-    1 * iastModule.onParameterNames(['param1'])
+    1 * webMod.onParameterNames(['param1'])
 
     where:
     testSuite                                     | clazz

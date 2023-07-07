@@ -4,6 +4,8 @@ muzzle {
     module = "guava"
     versions = "[10.0,]"
     skipVersions += '13.0-final' // not on maven central
+    skipVersions += '32.1.0-android' // bad gradle dependency module
+    skipVersions += '32.1.0-jre' // bad gradle dependency module
     assertInverse = true
   }
 }
