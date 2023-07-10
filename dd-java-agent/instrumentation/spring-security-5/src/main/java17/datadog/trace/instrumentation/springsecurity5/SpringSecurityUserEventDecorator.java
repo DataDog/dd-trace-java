@@ -6,14 +6,13 @@ import static datadog.trace.api.UserEventTrackingMode.EXTENDED;
 import datadog.trace.api.Config;
 import datadog.trace.api.UserEventTrackingMode;
 import datadog.trace.bootstrap.instrumentation.decorator.AppSecUserEventDecorator;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 public class SpringSecurityUserEventDecorator extends AppSecUserEventDecorator {
 
@@ -30,7 +29,9 @@ public class SpringSecurityUserEventDecorator extends AppSecUserEventDecorator {
 
       metadata = new HashMap<>();
       metadata.put("enabled", String.valueOf(user.isEnabled()));
-      metadata.put("authorities", user.getAuthorities().stream().map(Object::toString).collect(Collectors.joining(",")));
+      metadata.put(
+          "authorities",
+          user.getAuthorities().stream().map(Object::toString).collect(Collectors.joining(",")));
     }
 
     if (mode != DISABLED) {
@@ -53,10 +54,14 @@ public class SpringSecurityUserEventDecorator extends AppSecUserEventDecorator {
 
         Object principal = result.getPrincipal();
         if (principal instanceof User) {
-          User user = (User)principal;
+          User user = (User) principal;
           metadata = new HashMap<>();
           metadata.put("enabled", String.valueOf(user.isEnabled()));
-          metadata.put("authorities", user.getAuthorities().stream().map(Object::toString).collect(Collectors.joining(",")));
+          metadata.put(
+              "authorities",
+              user.getAuthorities().stream()
+                  .map(Object::toString)
+                  .collect(Collectors.joining(",")));
           metadata.put("accountNonExpired", String.valueOf(user.isAccountNonExpired()));
           metadata.put("accountNonLocked", String.valueOf(user.isAccountNonLocked()));
           metadata.put("credentialsNonExpired", String.valueOf(user.isCredentialsNonExpired()));
