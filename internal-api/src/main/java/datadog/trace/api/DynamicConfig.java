@@ -24,9 +24,6 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
   static final Function<Map.Entry<String, String>, String> KEY = DynamicConfig::key;
   static final Function<Map.Entry<String, String>, String> VALUE = DynamicConfig::value;
   static final Function<Map.Entry<String, String>, String> LOWER_KEY = DynamicConfig::lowerKey;
-  static final Function<Map.Entry<String, String>, String> REQUEST_TAG = DynamicConfig::requestTag;
-  static final Function<Map.Entry<String, String>, String> RESPONSE_TAG =
-      DynamicConfig::responseTag;
 
   BiFunction<Builder, S, S> snapshotFactory;
 
@@ -154,7 +151,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     }
 
     public Builder setHeaderTags(Collection<? extends Map.Entry<String, String>> headerTags) {
-      this.headerTags = cleanMapping(headerTags, LOWER_KEY, REQUEST_TAG);
+      this.headerTags = cleanMapping(headerTags, LOWER_KEY, VALUE);
       this.overrideResponseTags = true;
       return this;
     }
@@ -210,22 +207,6 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
   static String lowerKey(Map.Entry<String, String> association) {
     return key(association).toLowerCase(Locale.ROOT);
-  }
-
-  static String requestTag(Map.Entry<String, String> association) {
-    String requestTag = value(association);
-    if (requestTag.isEmpty()) {
-      requestTag = "http.request.headers." + lowerKey(association);
-    }
-    return requestTag;
-  }
-
-  static String responseTag(Map.Entry<String, String> association) {
-    String responseTag = value(association);
-    if (responseTag.isEmpty()) {
-      responseTag = "http.response.headers." + lowerKey(association);
-    }
-    return responseTag;
   }
 
   static void reportConfigChange(Snapshot newSnapshot) {
