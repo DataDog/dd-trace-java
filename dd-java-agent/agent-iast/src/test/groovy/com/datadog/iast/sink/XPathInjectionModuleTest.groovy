@@ -3,12 +3,14 @@ package com.datadog.iast.sink
 import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.IastRequestContext
 import com.datadog.iast.model.Vulnerability
+import com.datadog.iast.model.VulnerabilityMarks
 import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.sink.XPathInjectionModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
+import static com.datadog.iast.model.Range.NOT_MARKED
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.taintFormat
 
@@ -35,9 +37,9 @@ class XPathInjectionModuleTest extends IastModuleImplTestBase {
     overheadController.consumeQuota(_, _) >> true
   }
 
-  void 'module detects String expression'(final String expression, final String expected) {
+  void 'module detects String expression'(final String expression, final int mark, final String expected) {
     setup:
-    final param = mapTainted(expression)
+    final param = mapTainted(expression, mark)
 
     when:
     module.onExpression(param)
@@ -50,15 +52,17 @@ class XPathInjectionModuleTest extends IastModuleImplTestBase {
     }
 
     where:
-    expression   | expected
-    null         | null
-    '/var'       | null
-    '/==>var<==' | "/==>var<=="
+    expression   | mark                                    | expected
+    null         | NOT_MARKED                              | null
+    '/var'       | NOT_MARKED                              | null
+    '/==>var<==' | NOT_MARKED                              | "/==>var<=="
+    '/==>var<==' | VulnerabilityMarks.XPATH_INJECTION_MARK | null
+    '/==>var<==' | VulnerabilityMarks.SQL_INJECTION_MARK   | "/==>var<=="
   }
 
 
-  private String mapTainted(final String value) {
-    final result = addFromTaintFormat(ctx.taintedObjects, value)
+  private String mapTainted(final String value, final int mark) {
+    final result = addFromTaintFormat(ctx.taintedObjects, value, mark)
     objectHolder.add(result)
     return result
   }

@@ -12,7 +12,8 @@ public class StringConcatBenchmark extends AbstractBenchmark<StringConcatBenchma
   protected StringConcatBenchmark.Context initializeContext() {
     final IastRequestContext context = new IastRequestContext();
     final String notTainted = notTainted("I am not a tainted string");
-    final String tainted = tainted(context, "I am a tainted string", new Range(3, 5, source()));
+    final String tainted =
+        tainted(context, "I am a tainted string", new Range(3, 5, source(), Range.NOT_MARKED));
     return new StringConcatBenchmark.Context(context, notTainted, tainted);
   }
 

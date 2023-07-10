@@ -8,14 +8,19 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 public final class Range implements Ranged {
+
+  public static final int NOT_MARKED = 0;
+
   private final @Nonnegative int start;
   private final @Nonnegative int length;
   private final @Nonnull @SourceIndex Source source;
+  private final int marks;
 
-  public Range(final int start, final int length, final Source source) {
+  public Range(final int start, final int length, final Source source, final int marks) {
     this.start = start;
     this.length = length;
     this.source = source;
+    this.marks = marks;
   }
 
   @Override
@@ -32,10 +37,18 @@ public final class Range implements Ranged {
     return source;
   }
 
+  public int getMarks() {
+    return marks;
+  }
+
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     Range range = (Range) o;
     return start == range.start && length == range.length && Objects.equals(source, range.source);
   }
@@ -62,6 +75,10 @@ public final class Range implements Ranged {
     if (offset == 0) {
       return this;
     }
-    return new Range(start + offset, length, source);
+    return new Range(start + offset, length, source, marks);
+  }
+
+  public boolean isMarked(final int mark) {
+    return (marks & mark) != NOT_MARKED;
   }
 }

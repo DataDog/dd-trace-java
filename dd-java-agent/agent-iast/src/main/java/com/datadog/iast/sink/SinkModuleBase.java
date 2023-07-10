@@ -44,10 +44,14 @@ public abstract class SinkModuleBase implements HasDependencies {
     if (taintedObject == null) {
       return null;
     }
+    Range[] ranges = Ranges.getNotMarkedRanges(taintedObject.getRanges(), type.mark());
+    if (ranges == null || ranges.length == 0) {
+      return null;
+    }
     if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
       return null;
     }
-    final Evidence result = new Evidence(value.toString(), taintedObject.getRanges());
+    final Evidence result = new Evidence(value.toString(), ranges);
     report(span, type, result);
     return result;
   }
@@ -91,7 +95,12 @@ public abstract class SinkModuleBase implements HasDependencies {
       evidence = builder.toString();
     }
 
-    final Evidence result = new Evidence(evidence, targetRanges);
+    Range[] notMarkedRanges = Ranges.getNotMarkedRanges(targetRanges, type.mark());
+    if (notMarkedRanges == null || notMarkedRanges.length == 0) {
+      return null;
+    }
+
+    final Evidence result = new Evidence(evidence, notMarkedRanges);
     report(span, type, result);
     return result;
   }
@@ -129,8 +138,11 @@ public abstract class SinkModuleBase implements HasDependencies {
         }
       }
     }
-
-    final Evidence result = new Evidence(evidence.toString(), targetRanges);
+    Range[] notMarkedRanges = Ranges.getNotMarkedRanges(targetRanges, type.mark());
+    if (notMarkedRanges == null || notMarkedRanges.length == 0) {
+      return null;
+    }
+    final Evidence result = new Evidence(evidence.toString(), notMarkedRanges);
     report(span, type, result);
     return result;
   }

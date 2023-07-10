@@ -1,5 +1,6 @@
 package com.datadog.iast.taint;
 
+import static com.datadog.iast.model.Range.NOT_MARKED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_CONCURRENT_REQUESTS;
 import static java.util.Collections.emptyIterator;
 
@@ -20,9 +21,9 @@ import org.slf4j.LoggerFactory;
 
 public interface TaintedObjects extends Iterable<TaintedObject> {
 
-  TaintedObject taintInputString(@Nonnull String obj, @Nonnull Source source);
+  TaintedObject taintInputString(@Nonnull String obj, @Nonnull Source source, int mark);
 
-  TaintedObject taintInputObject(@Nonnull Object obj, @Nonnull Source source);
+  TaintedObject taintInputObject(@Nonnull Object obj, @Nonnull Source source, int mark);
 
   TaintedObject taint(@Nonnull Object obj, @Nonnull Range[] ranges);
 
@@ -35,6 +36,14 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
   int getEstimatedSize();
 
   boolean isFlat();
+
+  default TaintedObject taintInputString(@Nonnull String obj, @Nonnull Source source) {
+    return taintInputString(obj, source, NOT_MARKED);
+  }
+
+  default TaintedObject taintInputObject(@Nonnull Object obj, @Nonnull Source source) {
+    return taintInputObject(obj, source, NOT_MARKED);
+  }
 
   static TaintedObjects acquire() {
     TaintedObjectsImpl taintedObjects = TaintedObjectsImpl.pool.poll();
@@ -78,17 +87,19 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     }
 
     @Override
-    public TaintedObject taintInputString(final @Nonnull String obj, final @Nonnull Source source) {
+    public TaintedObject taintInputString(
+        final @Nonnull String obj, final @Nonnull Source source, final int mark) {
       final TaintedObject tainted =
-          new TaintedObject(obj, Ranges.forString(obj, source), map.getReferenceQueue());
+          new TaintedObject(obj, Ranges.forString(obj, source, mark), map.getReferenceQueue());
       map.put(tainted);
       return tainted;
     }
 
     @Override
-    public TaintedObject taintInputObject(@Nonnull Object obj, @Nonnull Source source) {
+    public TaintedObject taintInputObject(
+        @Nonnull Object obj, @Nonnull Source source, final int mark) {
       final TaintedObject tainted =
-          new TaintedObject(obj, Ranges.forObject(source), map.getReferenceQueue());
+          new TaintedObject(obj, Ranges.forObject(source, mark), map.getReferenceQueue());
       map.put(tainted);
       return tainted;
     }
@@ -105,6 +116,7 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
       return map.get(obj);
     }
 
+    @Override
     public void release() {
       map.clear();
       pool.offer(this);
@@ -144,15 +156,17 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     }
 
     @Override
-    public TaintedObject taintInputString(final @Nonnull String obj, final @Nonnull Source source) {
-      final TaintedObject tainted = delegated.taintInputString(obj, source);
+    public TaintedObject taintInputString(
+        final @Nonnull String obj, final @Nonnull Source source, final int mark) {
+      final TaintedObject tainted = delegated.taintInputString(obj, source, mark);
       logTainted(tainted);
       return tainted;
     }
 
     @Override
-    public TaintedObject taintInputObject(@Nonnull Object obj, @Nonnull Source source) {
-      final TaintedObject tainted = delegated.taintInputObject(obj, source);
+    public TaintedObject taintInputObject(
+        @Nonnull Object obj, @Nonnull Source source, final int mark) {
+      final TaintedObject tainted = delegated.taintInputObject(obj, source, mark);
       logTainted(tainted);
       return tainted;
     }
@@ -221,15 +235,17 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     private TaintedObjects taintedObjects;
 
     @Override
-    public TaintedObject taintInputString(@Nonnull final String obj, @Nonnull final Source source) {
+    public TaintedObject taintInputString(
+        @Nonnull final String obj, @Nonnull final Source source, final int mark) {
       final TaintedObjects to = getTaintedObjects();
-      return to == null ? null : to.taintInputString(obj, source);
+      return to == null ? null : to.taintInputString(obj, source, mark);
     }
 
     @Override
-    public TaintedObject taintInputObject(@Nonnull final Object obj, @Nonnull final Source source) {
+    public TaintedObject taintInputObject(
+        @Nonnull final Object obj, @Nonnull final Source source, final int mark) {
       final TaintedObjects to = getTaintedObjects();
-      return to == null ? null : to.taintInputObject(obj, source);
+      return to == null ? null : to.taintInputObject(obj, source, mark);
     }
 
     @Override

@@ -3,6 +3,7 @@ package com.datadog.iast.propagation;
 import static com.datadog.iast.taint.Ranges.highestPriorityRange;
 
 import com.datadog.iast.model.Range;
+import com.datadog.iast.taint.Ranges;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -15,7 +16,7 @@ public class FastCodecModule extends BaseCodecModule {
       @Nonnull final String result,
       @Nonnull final Range[] ranges) {
     final Range range = highestPriorityRange(ranges);
-    return new Range[] {new Range(0, result.length(), range.getSource())};
+    return new Range[] {Ranges.copyWithPosition(range, 0, result.length())};
   }
 
   @Override
@@ -25,7 +26,7 @@ public class FastCodecModule extends BaseCodecModule {
       @Nonnull final String result,
       @Nonnull final Range[] ranges) {
     final Range range = highestPriorityRange(ranges);
-    return new Range[] {new Range(0, result.length(), range.getSource())};
+    return new Range[] {Ranges.copyWithPosition(range, 0, result.length())};
   }
 
   @Override
@@ -35,20 +36,20 @@ public class FastCodecModule extends BaseCodecModule {
       @Nonnull final byte[] result,
       @Nonnull final Range[] ranges) {
     final Range range = highestPriorityRange(ranges);
-    return new Range[] {new Range(0, result.length, range.getSource())};
+    return new Range[] {Ranges.copyWithPosition(range, 0, result.length)};
   }
 
   @Override
   protected Range[] decodeBase64Ranges(
       @Nonnull final byte[] value, @Nonnull final byte[] result, @Nonnull final Range[] ranges) {
     final Range range = highestPriorityRange(ranges);
-    return new Range[] {new Range(0, result.length, range.getSource())};
+    return new Range[] {Ranges.copyWithPosition(range, 0, result.length)};
   }
 
   @Override
   protected Range[] encodeBase64Ranges(
       @Nonnull final byte[] value, @Nonnull final byte[] result, @Nonnull final Range[] ranges) {
     final Range range = highestPriorityRange(ranges);
-    return new Range[] {new Range(0, result.length, range.getSource())};
+    return new Range[] {Ranges.copyWithPosition(range, 0, result.length)};
   }
 }
