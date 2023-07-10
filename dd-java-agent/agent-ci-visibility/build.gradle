@@ -47,6 +47,7 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.ipc.SignalType",
   "datadog.trace.civisibility.ipc.SignalClient",
   "datadog.trace.civisibility.source.MethodLinesResolver.MethodLines",
+  "datadog.trace.civisibility.source.RepoIndexSourcePathResolver",
   "datadog.trace.civisibility.utils.ShellCommandExecutor",
   "datadog.trace.civisibility.utils.ShellCommandExecutor.OutputParser",
 ]
