@@ -212,6 +212,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
   static String requestTag(Map.Entry<String, String> association) {
     String requestTag = value(association);
     if (requestTag.isEmpty()) {
+      // normalization is only applied when generating default tag names; see ConfigConverter
       requestTag = "http.request.headers." + Strings.normalizedHeaderTag(association.getKey());
     }
     return requestTag;
@@ -220,6 +221,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
   static String responseTag(Map.Entry<String, String> association) {
     String responseTag = value(association);
     if (responseTag.isEmpty()) {
+      // normalization is only applied when generating default tag names; see ConfigConverter
       responseTag = "http.response.headers." + Strings.normalizedHeaderTag(association.getKey());
     }
     return responseTag;
