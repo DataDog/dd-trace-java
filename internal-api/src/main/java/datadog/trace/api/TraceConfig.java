@@ -15,7 +15,7 @@ public interface TraceConfig {
 
   Map<String, String> getServiceMapping();
 
-  Map<String, String> getHeaderTags();
+  Map<String, String> getRequestHeaderTags();
 
   Map<String, String> getResponseHeaderTags();
 

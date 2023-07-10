@@ -221,7 +221,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     collectIpHeaders =
         this.clientIpWithoutAppSec
             || this.clientIpResolutionEnabled && ActiveSubsystems.APPSEC_ACTIVE;
-    headerTags = traceConfig.getHeaderTags();
+    headerTags = traceConfig.getRequestHeaderTags();
     baggageMapping = traceConfig.getBaggageMapping();
     return this;
   }

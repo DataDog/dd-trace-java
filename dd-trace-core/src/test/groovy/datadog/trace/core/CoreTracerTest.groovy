@@ -175,7 +175,7 @@ class CoreTracerTest extends DDCoreSpecification {
     when:
     def tracer = tracerBuilder().build()
     // Datadog extractor gets placed first
-    def taggedHeaders = tracer.extractor.extractors[0].traceConfigSupplier.get().headerTags
+    def taggedHeaders = tracer.extractor.extractors[0].traceConfigSupplier.get().getRequestHeaderTags
 
     then:
     tracer.defaultSpanTags == map
@@ -428,7 +428,7 @@ class CoreTracerTest extends DDCoreSpecification {
     }
     and:
     tracer.captureTraceConfig().serviceMapping == [:]
-    tracer.captureTraceConfig().headerTags == [:]
+    tracer.captureTraceConfig().requestHeaderTags == [:]
     tracer.captureTraceConfig().traceSampleRate == null
 
     when:
@@ -462,7 +462,7 @@ class CoreTracerTest extends DDCoreSpecification {
 
     then:
     tracer.captureTraceConfig().serviceMapping == ['foobar':'bar', 'snafu':'foo']
-    tracer.captureTraceConfig().headerTags == ['user-agent':'http.user_agent', 'referer':'http.referer']
+    tracer.captureTraceConfig().requestHeaderTags == ['user-agent':'http.user_agent', 'referer':'http.referer']
     tracer.captureTraceConfig().traceSampleRate == 0.5
 
     when:
@@ -471,7 +471,7 @@ class CoreTracerTest extends DDCoreSpecification {
 
     then:
     tracer.captureTraceConfig().serviceMapping == [:]
-    tracer.captureTraceConfig().headerTags == [:]
+    tracer.captureTraceConfig().requestHeaderTags == [:]
     tracer.captureTraceConfig().traceSampleRate == null
 
     cleanup:

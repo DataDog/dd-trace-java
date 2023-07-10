@@ -276,7 +276,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     }
 
     @Override
-    public Map<String, String> getHeaderTags() {
+    public Map<String, String> getRequestHeaderTags() {
       return headerTags;
     }
 
