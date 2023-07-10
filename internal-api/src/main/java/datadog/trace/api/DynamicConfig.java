@@ -152,7 +152,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     }
 
     public Builder setHeaderTags(Collection<? extends Map.Entry<String, String>> headerTags) {
-      this.headerTags = cleanMapping(headerTags, LOWER_KEY, REQUEST_TAG);
+      this.headerTags = cleanMapping(headerTags, LOWER_KEY, VALUE);
       this.overrideResponseTags = true;
       return this;
     }
