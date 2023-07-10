@@ -99,7 +99,7 @@ class MavenSmokeTest extends Specification {
   def "test successful maven run, v#mavenVersion"() {
     given:
     givenWrapperPropertiesFile(mavenVersion)
-    givenMavenProjectFiles("test_sucessful_maven_run")
+    givenMavenProjectFiles("test_successful_maven_run")
     givenMavenDependenciesAreLoaded()
 
     when:
@@ -125,6 +125,9 @@ class MavenSmokeTest extends Specification {
           it["language"] == "jvm" // only applied to root spans
           it["test.toolchain"] == "maven:${mavenVersion}" // only applied to session events
           it["test.status"] == "pass"
+          it["test.code_coverage.enabled"] == "true"
+          it["test.itr.tests_skipping.enabled"] == "true"
+          it["_dd.ci.itr.tests_skipped"] == "true"
         }
       }
     }

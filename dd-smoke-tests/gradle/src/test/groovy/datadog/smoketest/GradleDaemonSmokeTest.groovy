@@ -124,10 +124,10 @@ class GradleDaemonSmokeTest extends Specification {
     receivedCoverages.clear()
   }
 
-  def "Successful build emits session and module spans: Gradle v#gradleVersion"() {
+  def "Successful build emits session and module spans: Gradle v#gradleVersion #gradleProject"() {
     given:
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
-    givenGradleProjectFiles("datadog/smoketest/success/")
+    givenGradleProjectFiles("datadog/smoketest/$gradleProject/")
     ensureDependenciesDownloaded(gradleVersion)
 
     when:
@@ -153,6 +153,9 @@ class GradleDaemonSmokeTest extends Specification {
           it["span.kind"] == "test_session_end"
           it["language"] == "jvm" // only applied to root spans
           it["test.toolchain"] == "gradle:${gradleVersion}" // only applied to session events
+          it["test.code_coverage.enabled"] == "true"
+          it["test.itr.tests_skipping.enabled"] == "true"
+          it["_dd.ci.itr.tests_skipped"] == "true"
         }
       }
     }
@@ -174,7 +177,7 @@ class GradleDaemonSmokeTest extends Specification {
 
     def suiteEndEvent = events.find { it.type == "test_suite_end" }
     assert suiteEndEvent != null
-    verifyCommonTags(suiteEndEvent, "pass", true, false)
+    verifyCommonTags(suiteEndEvent, "pass", false)
     verifyAll(suiteEndEvent) {
       verifyAll(content) {
         name == "junit.test_suite"
@@ -194,7 +197,7 @@ class GradleDaemonSmokeTest extends Specification {
 
     def testEvent = events.find { it.type == "test" && it.content.resource == "datadog.smoke.TestSucceed.test_succeed" }
     assert testEvent != null
-    verifyCommonTags(testEvent, "pass", true, false)
+    verifyCommonTags(testEvent, "pass", false)
     verifyAll(testEvent) {
       verifyAll(content) {
         name == "junit.test"
@@ -218,7 +221,7 @@ class GradleDaemonSmokeTest extends Specification {
 
     def skippedTestEvent = events.find { it.type == "test" && it.content.resource == "datadog.smoke.TestSucceed.test_to_skip_with_itr" }
     assert skippedTestEvent != null
-    verifyCommonTags(skippedTestEvent, "skip", true, false)
+    verifyCommonTags(skippedTestEvent, "skip", false)
     verifyAll(skippedTestEvent) {
       verifyAll(content) {
         name == "junit.test"
@@ -258,7 +261,16 @@ class GradleDaemonSmokeTest extends Specification {
     ]
 
     where:
-    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.2"]
+    gradleVersion | gradleProject
+    "4.0" | "success"
+    "5.0" | "success"
+    "6.0" | "success"
+    "7.0" | "success"
+    "7.6.1" | "success"
+    "8.0.2" | "success"
+    "8.1.1" | "success"
+    "8.2" | "success"
+    "8.2" | "successJunit5"
   }
 
   // this is a separate test case since older Gradle versions need to declare dependencies differently
@@ -313,7 +325,7 @@ class GradleDaemonSmokeTest extends Specification {
 
     def suiteEndEvent = events.find { it.type == "test_suite_end" }
     assert suiteEndEvent != null
-    verifyCommonTags(suiteEndEvent, "pass", true, false)
+    verifyCommonTags(suiteEndEvent, "pass", false)
     verifyAll(suiteEndEvent) {
       verifyAll(content) {
         name == "junit.test_suite"
@@ -333,7 +345,7 @@ class GradleDaemonSmokeTest extends Specification {
 
     def testEvent = events.find { it.type == "test" && it.content.resource == "datadog.smoke.TestSucceed.test_succeed" }
     assert testEvent != null
-    verifyCommonTags(testEvent, "pass", true, false)
+    verifyCommonTags(testEvent, "pass", false)
     verifyAll(testEvent) {
       verifyAll(content) {
         name == "junit.test"
@@ -357,7 +369,7 @@ class GradleDaemonSmokeTest extends Specification {
 
     def skippedTestEvent = events.find { it.type == "test" && it.content.resource == "datadog.smoke.TestSucceed.test_to_skip_with_itr" }
     assert skippedTestEvent != null
-    verifyCommonTags(skippedTestEvent, "skip", true, false)
+    verifyCommonTags(skippedTestEvent, "skip", false)
     verifyAll(skippedTestEvent) {
       verifyAll(content) {
         name == "junit.test"
@@ -466,7 +478,7 @@ class GradleDaemonSmokeTest extends Specification {
 
     def suiteAEndEvent = events.find { it.type == "test_suite_end" && it.content.test_module_id == moduleAEndEvent.content.test_module_id }
     assert suiteAEndEvent != null
-    verifyCommonTags(suiteAEndEvent, "pass", true, false)
+    verifyCommonTags(suiteAEndEvent, "pass", false)
     verifyAll(suiteAEndEvent) {
       verifyAll(content) {
         name == "junit.test_suite"
@@ -486,7 +498,7 @@ class GradleDaemonSmokeTest extends Specification {
 
     def testAEvent = events.find { it.type == "test" && it.content.test_module_id == moduleAEndEvent.content.test_module_id }
     assert testAEvent != null
-    verifyCommonTags(testAEvent, "pass", true, false)
+    verifyCommonTags(testAEvent, "pass", false)
     verifyAll(testAEvent) {
       verifyAll(content) {
         name == "junit.test"
@@ -510,7 +522,7 @@ class GradleDaemonSmokeTest extends Specification {
 
     def suiteBEndEvent = events.find { it.type == "test_suite_end" && it.content.test_module_id == moduleBEndEvent.content.test_module_id }
     assert suiteBEndEvent != null
-    verifyCommonTags(suiteBEndEvent, "pass", true, false)
+    verifyCommonTags(suiteBEndEvent, "pass", false)
     verifyAll(suiteBEndEvent) {
       verifyAll(content) {
         name == "junit.test_suite"
@@ -530,7 +542,7 @@ class GradleDaemonSmokeTest extends Specification {
 
     def testBEvent = events.find { it.type == "test" && it.content.test_module_id == moduleBEndEvent.content.test_module_id }
     assert testBEvent != null
-    verifyCommonTags(testBEvent, "pass", true, false)
+    verifyCommonTags(testBEvent, "pass", false)
     verifyAll(testBEvent) {
       verifyAll(content) {
         name == "junit.test"
@@ -615,7 +627,7 @@ class GradleDaemonSmokeTest extends Specification {
 
     def suiteEndEvent = events.find { it.type == "test_suite_end" }
     assert suiteEndEvent != null
-    verifyCommonTags(suiteEndEvent, "fail", true, false)
+    verifyCommonTags(suiteEndEvent, "fail", false)
     verifyAll(suiteEndEvent) {
       verifyAll(content) {
         name == "junit.test_suite"
@@ -635,7 +647,7 @@ class GradleDaemonSmokeTest extends Specification {
 
     def testEvent = events.find { it.type == "test" }
     assert testEvent != null
-    verifyCommonTags(testEvent, "fail", true, false)
+    verifyCommonTags(testEvent, "fail", false)
     verifyAll(testEvent) {
       verifyAll(content) {
         name == "junit.test"
@@ -731,7 +743,7 @@ class GradleDaemonSmokeTest extends Specification {
 
     def sessionEndEvent = events.find { it.type == "test_session_end" }
     assert sessionEndEvent != null
-    verifyCommonTags(sessionEndEvent, "fail", false)
+    verifyCommonTags(sessionEndEvent, "fail")
     verifyAll(sessionEndEvent) {
       verifyAll(content) {
         name == "gradle.test_session"
@@ -914,7 +926,7 @@ class GradleDaemonSmokeTest extends Specification {
     return coverages
   }
 
-  protected verifyCommonTags(Map<String, Object> event, String status = "pass", boolean parsingSuccessful = true, boolean buildEvent = true) {
+  protected verifyCommonTags(Map<String, Object> event, String status = "pass", boolean buildEvent = true) {
     verifyAll(event) {
       version > 0
       verifyAll(content) {
@@ -933,12 +945,6 @@ class GradleDaemonSmokeTest extends Specification {
           } else {
             // testcase/suite event
             it["component"] == "junit"
-          }
-
-          // if project files could not be parsed, we cannot know which test framework is used
-          if (parsingSuccessful) {
-            it["test.framework"] == "junit4"
-            it["test.framework_version"] == "4.10"
           }
 
           it["env"] == TEST_ENVIRONMENT_NAME
