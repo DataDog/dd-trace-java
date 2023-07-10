@@ -1,15 +1,15 @@
 package datadog.trace.instrumentation.java.util.concurrent;
 
 import datadog.trace.agent.tooling.csi.CallSite;
-import datadog.trace.api.iast.IastAdvice;
-import datadog.trace.api.iast.IastAdvice.Sink;
+import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.WeakRandomnessModule;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Sink(VulnerabilityTypes.WEAK_RANDOMNESS)
-@CallSite(spi = IastAdvice.class)
+@CallSite(spi = IastCallSites.class)
 public class ThreadLocalRandomCallSite {
 
   @CallSite.Before("boolean java.util.concurrent.ThreadLocalRandom.nextBoolean()")

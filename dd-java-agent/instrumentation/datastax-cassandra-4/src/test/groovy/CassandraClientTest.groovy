@@ -7,6 +7,7 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import org.testcontainers.containers.CassandraContainer
@@ -229,18 +230,19 @@ abstract class CassandraClientTest extends VersionedNamingTestBase {
         "$Tags.PEER_PORT" port
         "$Tags.DB_TYPE" "cassandra"
         "$Tags.DB_INSTANCE" keyspace
+        "$InstrumentationTags.CASSANDRA_CONTACT_POINTS"  "127.0.0.1:${port}"
 
         if (throwable != null) {
           errorTags(throwable)
         }
-        peerServiceFrom(Tags.PEER_HOSTNAME)
+        peerServiceFrom(InstrumentationTags.CASSANDRA_CONTACT_POINTS)
         defaultTags()
       }
     }
   }
 }
 
-class CassandraClientV0ForkedTest extends CassandraClientTest {
+class CassandraClientV0Test extends CassandraClientTest {
 
   @Override
   int version() {

@@ -7,15 +7,15 @@ import datadog.trace.api.DisableTestTrace;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestModule;
 import datadog.trace.api.civisibility.DDTestSuite;
-import datadog.trace.api.civisibility.codeowners.Codeowners;
-import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
-import datadog.trace.api.civisibility.source.MethodLinesResolver;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.DDTestImpl;
 import datadog.trace.civisibility.DDTestModuleImpl;
+import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.context.EmptyTestContext;
+import datadog.trace.civisibility.decorator.TestDecorator;
+import datadog.trace.civisibility.source.MethodLinesResolver;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
@@ -69,10 +69,12 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
             moduleName,
             null,
             config,
+            null,
             testDecorator,
             sourcePathResolver,
             codeowners,
-            methodLinesResolver);
+            methodLinesResolver,
+            null);
   }
 
   @Override
@@ -85,17 +87,21 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
               moduleName,
               null,
               config,
+              null,
               testDecorator,
               sourcePathResolver,
               codeowners,
-              methodLinesResolver);
+              methodLinesResolver,
+              null);
     }
   }
 
   @Override
-  public void onTestModuleFinish() {
-    testModule.end(null);
-    testModule = null;
+  public void onTestModuleFinish(boolean itrTestsSkipped) {
+    if (testModule != null) {
+      testModule.end(null, itrTestsSkipped);
+      testModule = null;
+    }
   }
 
   @Override

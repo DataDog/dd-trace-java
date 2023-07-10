@@ -125,25 +125,31 @@ public class TagInterceptor {
       if (HTTP_METHOD.equals(tag)) {
         final Object url = span.unsafeGetTag(HTTP_URL);
         if (url != null) {
-          setResourceFromUrl(span, value.toString(), url.toString());
+          setResourceFromUrl(span, value.toString(), url);
         }
       } else if (HTTP_URL.equals(tag)) {
         final Object method = span.unsafeGetTag(HTTP_METHOD);
-        setResourceFromUrl(span, method != null ? method.toString() : null, value.toString());
+        setResourceFromUrl(span, method != null ? method.toString() : null, value);
       }
     }
     return false;
   }
 
   private static void setResourceFromUrl(
-      @Nonnull final DDSpanContext span, @Nullable final String method, @Nonnull final String url) {
-    final URI uri = URIUtils.safeParse(url);
-    if (uri != null && uri.getPath() != null) {
+      @Nonnull final DDSpanContext span, @Nullable final String method, @Nonnull final Object url) {
+    final String path;
+    if (url instanceof URIUtils.LazyUrl) {
+      path = ((URIUtils.LazyUrl) url).path();
+    } else {
+      URI uri = URIUtils.safeParse(url.toString());
+      path = uri == null ? null : uri.getPath();
+    }
+    if (path != null) {
       final boolean isClient = Tags.SPAN_KIND_CLIENT.equals(span.unsafeGetTag(Tags.SPAN_KIND));
       Pair<CharSequence, Byte> normalized =
           isClient
-              ? HttpResourceNames.computeForClient(method, uri.getPath(), false)
-              : HttpResourceNames.computeForServer(method, uri.getPath(), false);
+              ? HttpResourceNames.computeForClient(method, path, false)
+              : HttpResourceNames.computeForServer(method, path, false);
       if (normalized.hasLeft()) {
         span.setResourceName(normalized.getLeft(), normalized.getRight());
       }

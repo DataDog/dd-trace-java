@@ -4,6 +4,8 @@ package datadog.trace.api.gateway;
 public interface SubscriptionService {
   <C> Subscription registerCallback(EventType<C> eventType, C callback);
 
+  void reset();
+
   class SubscriptionServiceNoop implements SubscriptionService {
     public static final SubscriptionService INSTANCE = new SubscriptionServiceNoop();
 
@@ -13,5 +15,8 @@ public interface SubscriptionService {
     public <C> Subscription registerCallback(EventType<C> eventType, C callback) {
       return Subscription.SubscriptionNoop.INSTANCE;
     }
+
+    @Override
+    public void reset() {}
   }
 }

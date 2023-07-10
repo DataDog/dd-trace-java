@@ -1,6 +1,6 @@
 package datadog.trace.civisibility.ci
 
-class AzurePipelinesInfoTest extends CITagsProviderImplTest {
+class AzurePipelinesInfoTest extends CITagsProviderTest {
 
   @Override
   String getProviderName() {

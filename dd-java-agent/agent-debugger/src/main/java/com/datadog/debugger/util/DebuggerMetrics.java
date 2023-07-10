@@ -67,6 +67,16 @@ public class DebuggerMetrics implements StatsDClient {
   }
 
   @Override
+  public void distribution(String metricName, long value, String... tags) {
+    statsd.distribution(metricName, value, tags);
+  }
+
+  @Override
+  public void distribution(String metricName, double value, String... tags) {
+    statsd.distribution(metricName, value, tags);
+  }
+
+  @Override
   public void serviceCheck(String serviceCheckName, String status, String message, String... tags) {
     statsd.serviceCheck(serviceCheckName, status, message, tags);
   }

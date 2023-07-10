@@ -7,13 +7,14 @@ import org.eclipse.jetty.continuation.ContinuationSupport
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.handler.AbstractHandler
 
+import javax.servlet.MultipartConfigElement
 import javax.servlet.ServletException
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
-import static Jetty9Test.TestHandler.handleRequest
+import static TestHandler.handleRequest
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
@@ -27,11 +28,14 @@ abstract class JettyContinuationHandlerTest extends Jetty9Test {
   }
 
   static class ContinuationTestHandler extends AbstractHandler {
+    private static final MultipartConfigElement MULTIPART_CONFIG_ELEMENT = new MultipartConfigElement(System.getProperty('java.io.tmpdir'))
     static final ContinuationTestHandler INSTANCE = new ContinuationTestHandler()
     final ExecutorService executorService = Executors.newSingleThreadExecutor()
 
     @Override
     void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+      request.setAttribute('org.eclipse.jetty.multipartConfig', MULTIPART_CONFIG_ELEMENT)
+      request.setAttribute('org.eclipse.multipartConfig', MULTIPART_CONFIG_ELEMENT)
       final Continuation continuation = ContinuationSupport.getContinuation(request)
       // some versions of jetty (like 9.4.15.v20190215) get into a loop:
       // after an exception from handleRequest, the error will be handled here again;

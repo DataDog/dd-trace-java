@@ -3,6 +3,9 @@ package datadog.trace.instrumentation.springwebflux.server.iast;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Source;
+import datadog.trace.api.iast.SourceTypes;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.source.WebModule;
 import java.util.List;
 import java.util.Map;
@@ -14,18 +17,20 @@ class TaintQueryParamsAdvice {
 
   @SuppressWarnings("Duplicates")
   @Advice.OnMethodExit(suppress = Throwable.class)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
   public static void after(@Advice.Return MultiValueMap<String, String> queryParams) {
-    WebModule module = InstrumentationBridge.WEB;
-    if (module == null) {
+    final WebModule web = InstrumentationBridge.WEB;
+    final PropagationModule prop = InstrumentationBridge.PROPAGATION;
+    if (web == null || prop == null) {
       return;
     }
 
-    module.onParameterNames(queryParams.keySet());
+    web.onParameterNames(queryParams.keySet());
 
     for (Map.Entry<String, List<String>> e : queryParams.entrySet()) {
-      String parameterName = e.getKey();
-      for (String parameterValue : e.getValue()) {
-        module.onParameterValue(parameterName, parameterValue);
+      String name = e.getKey();
+      for (String value : e.getValue()) {
+        prop.taint(SourceTypes.REQUEST_PARAMETER_VALUE, name, value);
       }
     }
   }

@@ -5,7 +5,6 @@ import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.naming.SpanNaming
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.common.sampling.RateByServiceTraceSampler
 import datadog.trace.common.writer.ddagent.TraceMapper
 import datadog.trace.core.DDSpan
@@ -60,6 +59,7 @@ class TagsAssert {
     assertedTags.add("_sample_rate")
     assertedTags.add(DDTags.PID_TAG)
     assertedTags.add(DDTags.SCHEMA_VERSION_TAG_KEY)
+    assertedTags.add(DDTags.PROFILING_ENABLED)
 
 
     assert tags["thread.name"] != null
@@ -126,7 +126,7 @@ class TagsAssert {
       assert ((Class) expected).isInstance(value): "Tag \"$name\": instance check $expected failed for \"${value.toString()}\" of class \"${value.class}\""
     } else if (expected instanceof Closure) {
       assert ((Closure) expected).call(value): "Tag \"$name\": closure call ${expected.toString()} failed with \"$value\""
-    } else if (expected instanceof UTF8BytesString) {
+    } else if (expected instanceof CharSequence) {
       assert value == expected.toString(): "Tag \"$name\": \"$value\" != \"${expected.toString()}\""
     } else {
       assert value == expected: "Tag \"$name\": \"$value\" != \"$expected\""
@@ -135,7 +135,7 @@ class TagsAssert {
 
   def tag(String name) {
     def t = tags[name]
-    return (t instanceof UTF8BytesString) ? t.toString() : t
+    return (t instanceof CharSequence) ? t.toString() : t
   }
 
   def methodMissing(String name, args) {

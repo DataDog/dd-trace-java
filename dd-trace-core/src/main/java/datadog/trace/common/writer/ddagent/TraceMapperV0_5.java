@@ -177,7 +177,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
     }
   }
 
-  private final class MetaWriter extends MetadataConsumer {
+  private final class MetaWriter implements MetadataConsumer {
 
     private Writable writable;
     private boolean writeSamplingPriority;

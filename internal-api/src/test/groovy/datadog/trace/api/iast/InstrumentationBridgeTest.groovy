@@ -2,7 +2,16 @@ package datadog.trace.api.iast
 
 import datadog.trace.api.iast.propagation.CodecModule
 import datadog.trace.api.iast.propagation.StringModule
-import datadog.trace.api.iast.sink.*
+import datadog.trace.api.iast.sink.CommandInjectionModule
+import datadog.trace.api.iast.sink.LdapInjectionModule
+import datadog.trace.api.iast.sink.PathTraversalModule
+import datadog.trace.api.iast.sink.SqlInjectionModule
+import datadog.trace.api.iast.sink.SsrfModule
+import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
+import datadog.trace.api.iast.sink.WeakCipherModule
+import datadog.trace.api.iast.sink.WeakHashModule
+import datadog.trace.api.iast.sink.WeakRandomnessModule
+import datadog.trace.api.iast.sink.XPathInjectionModule
 import datadog.trace.api.iast.source.WebModule
 import datadog.trace.test.util.DDSpecification
 
@@ -20,7 +29,8 @@ class InstrumentationBridgeTest extends DDSpecification {
     LdapInjectionModule,
     SsrfModule,
     UnvalidatedRedirectModule,
-    WeakRandomnessModule
+    WeakRandomnessModule,
+    XPathInjectionModule
   ]
 
   def cleanup() {
@@ -54,49 +64,5 @@ class InstrumentationBridgeTest extends DDSpecification {
 
     then:
     thrown(UnsupportedOperationException)
-  }
-
-  void 'registered HttpHeaderModules are called on header callback'() {
-    setup:
-    final insecureCookieModule = Mock(InsecureCookieModule)
-    InstrumentationBridge.registerIastModule(insecureCookieModule)
-    final unvalidatedRedirectModule = Mock(UnvalidatedRedirectModule)
-    InstrumentationBridge.registerIastModule(unvalidatedRedirectModule)
-
-    when:
-    InstrumentationBridge.RESPONSE_HEADER_MODULE.onHeader("name", "value")
-
-    then:
-    1 * unvalidatedRedirectModule.onHeader("name", "value")
-    0 * _
-  }
-
-  void 'Cookie modules  are called on header callback'() {
-    setup:
-    final insecureCookieModule = Mock(InsecureCookieModule)
-    InstrumentationBridge.registerIastModule(insecureCookieModule)
-    final noHttpOnlyCookieModule = Mock(NoHttpOnlyCookieModule)
-    InstrumentationBridge.registerIastModule(noHttpOnlyCookieModule)
-    final unvalidatedRedirectModule = Mock(UnvalidatedRedirectModule)
-    InstrumentationBridge.registerIastModule(unvalidatedRedirectModule)
-
-    when:
-    InstrumentationBridge.RESPONSE_HEADER_MODULE.onHeader("Set-Cookie", "UserId=1")
-
-    then:
-    1 * insecureCookieModule.onCookie("UserId", "1", false, false, null)
-    1 * noHttpOnlyCookieModule.onCookie("UserId", "1", false, false, null)
-    1 * unvalidatedRedirectModule.onHeader("Set-Cookie", "UserId=1")
-  }
-
-  void 'unregistered HttpHeaderModules are not called on header callback'() {
-    setup:
-    final unvalidatedRedirectModule = Mock(UnvalidatedRedirectModule)
-
-    when:
-    InstrumentationBridge.RESPONSE_HEADER_MODULE.onHeader("name", "value")
-
-    then:
-    0 * unvalidatedRedirectModule.onHeader("name", "value")
   }
 }

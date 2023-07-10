@@ -1,12 +1,17 @@
 package datadog.trace.instrumentation.servlet5;
 
 import datadog.trace.agent.tooling.csi.CallSite;
-import datadog.trace.api.iast.IastAdvice;
+import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Sink;
+import datadog.trace.api.iast.Source;
+import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.VulnerabilityTypes;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
 import datadog.trace.api.iast.source.WebModule;
 import datadog.trace.util.stacktrace.StackUtils;
+import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.ServletRequest;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -14,43 +19,31 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 
-@CallSite(spi = IastAdvice.class)
+@CallSite(spi = IastCallSites.class)
 public class JakartaServletRequestCallSite {
 
-  @CallSite.AfterArray({
-    @CallSite.After(
-        "java.lang.String jakarta.servlet.ServletRequest.getParameter(java.lang.String)"),
-    @CallSite.After(
-        "java.lang.String jakarta.servlet.http.HttpServletRequest.getParameter(java.lang.String)"),
-    @CallSite.After(
-        "java.lang.String jakarta.servlet.http.HttpServletRequestWrapper.getParameter(java.lang.String)"),
-    @CallSite.After(
-        "java.lang.String jakarta.servlet.ServletRequestWrapper.getParameter(java.lang.String)")
-  })
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+  @CallSite.After("java.lang.String jakarta.servlet.ServletRequest.getParameter(java.lang.String)")
+  @CallSite.After(
+      "java.lang.String jakarta.servlet.ServletRequestWrapper.getParameter(java.lang.String)")
   public static String afterGetParameter(
       @CallSite.This final ServletRequest self,
-      @CallSite.Argument final String paramName,
-      @CallSite.Return final String paramValue) {
-    final WebModule module = InstrumentationBridge.WEB;
+      @CallSite.Argument final String name,
+      @CallSite.Return final String value) {
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.onParameterValue(paramName, paramValue);
+        module.taint(SourceTypes.REQUEST_PARAMETER_VALUE, name, value);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetParameter threw", e);
       }
     }
-    return paramValue;
+    return value;
   }
 
-  @CallSite.AfterArray({
-    @CallSite.After("java.util.Enumeration jakarta.servlet.ServletRequest.getParameterNames()"),
-    @CallSite.After(
-        "java.util.Enumeration jakarta.servlet.http.HttpServletRequest.getParameterNames()"),
-    @CallSite.After(
-        "java.util.Enumeration jakarta.servlet.http.HttpServletRequestWrapper.getParameterNames()"),
-    @CallSite.After(
-        "java.util.Enumeration jakarta.servlet.ServletRequestWrapper.getParameterNames()")
-  })
+  @Source(SourceTypes.REQUEST_PARAMETER_NAME_STRING)
+  @CallSite.After("java.util.Enumeration jakarta.servlet.ServletRequest.getParameterNames()")
+  @CallSite.After("java.util.Enumeration jakarta.servlet.ServletRequestWrapper.getParameterNames()")
   public static Enumeration<String> afterGetParameterNames(
       @CallSite.This final ServletRequest self,
       @CallSite.Return final Enumeration<String> enumeration)
@@ -78,16 +71,11 @@ public class JakartaServletRequestCallSite {
     }
   }
 
-  @CallSite.AfterArray({
-    @CallSite.After(
-        "java.lang.String[] jakarta.servlet.ServletRequest.getParameterValues(java.lang.String)"),
-    @CallSite.After(
-        "java.lang.String[] jakarta.servlet.http.HttpServletRequest.getParameterValues(java.lang.String)"),
-    @CallSite.After(
-        "java.lang.String[] jakarta.servlet.http.HttpServletRequestWrapper.getParameterValues(java.lang.String)"),
-    @CallSite.After(
-        "java.lang.String[] jakarta.servlet.ServletRequestWrapper.getParameterValues(java.lang.String)")
-  })
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+  @CallSite.After(
+      "java.lang.String[] jakarta.servlet.ServletRequest.getParameterValues(java.lang.String)")
+  @CallSite.After(
+      "java.lang.String[] jakarta.servlet.ServletRequestWrapper.getParameterValues(java.lang.String)")
   public static String[] afterGetParameterValues(
       @CallSite.This final ServletRequest self,
       @CallSite.Argument final String paramName,
@@ -105,13 +93,9 @@ public class JakartaServletRequestCallSite {
     return parameterValues;
   }
 
-  @CallSite.AfterArray({
-    @CallSite.After("java.util.Map jakarta.servlet.ServletRequest.getParameterMap()"),
-    @CallSite.After("java.util.Map jakarta.servlet.http.HttpServletRequest.getParameterMap()"),
-    @CallSite.After(
-        "java.util.Map jakarta.servlet.http.HttpServletRequestWrapper.getParameterMap()"),
-    @CallSite.After("java.util.Map jakarta.servlet.ServletRequestWrapper.getParameterMap()")
-  })
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+  @CallSite.After("java.util.Map jakarta.servlet.ServletRequest.getParameterMap()")
+  @CallSite.After("java.util.Map jakarta.servlet.ServletRequestWrapper.getParameterMap()")
   public static java.util.Map<java.lang.String, java.lang.String[]> afterGetParameterMap(
       @CallSite.This final ServletRequest self, @CallSite.Return final Map<String, String[]> map) {
     final WebModule module = InstrumentationBridge.WEB;
@@ -125,13 +109,9 @@ public class JakartaServletRequestCallSite {
     return map;
   }
 
-  @IastAdvice.Sink(VulnerabilityTypes.UNVALIDATED_REDIRECT)
+  @Sink(VulnerabilityTypes.UNVALIDATED_REDIRECT)
   @CallSite.Before(
       "jakarta.servlet.RequestDispatcher jakarta.servlet.ServletRequest.getRequestDispatcher(java.lang.String)")
-  @CallSite.Before(
-      "jakarta.servlet.RequestDispatcher jakarta.servlet.http.HttpServletRequest.getRequestDispatcher(java.lang.String)")
-  @CallSite.Before(
-      "jakarta.servlet.RequestDispatcher jakarta.servlet.http.HttpServletRequestWrapper.getRequestDispatcher(java.lang.String)")
   @CallSite.Before(
       "jakarta.servlet.RequestDispatcher jakarta.servlet.ServletRequestWrapper.getRequestDispatcher(java.lang.String)")
   public static void beforeRequestDispatcher(@CallSite.Argument final String path) {
@@ -143,5 +123,24 @@ public class JakartaServletRequestCallSite {
         module.onUnexpectedException("beforeRequestDispatcher threw", e);
       }
     }
+  }
+
+  @Source(SourceTypes.REQUEST_BODY_STRING)
+  @CallSite.After(
+      "jakarta.servlet.ServletInputStream jakarta.servlet.ServletRequest.getInputStream()")
+  @CallSite.After(
+      "jakarta.servlet.ServletInputStream jakarta.servlet.ServletRequestWrapper.getInputStream()")
+  public static ServletInputStream afterGetInputStream(
+      @CallSite.This final ServletRequest self,
+      @CallSite.Return final ServletInputStream inputStream) {
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
+    if (module != null) {
+      try {
+        module.taint(SourceTypes.REQUEST_BODY, inputStream);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterGetInputStream threw", e);
+      }
+    }
+    return inputStream;
   }
 }

@@ -7,7 +7,6 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -124,87 +123,110 @@ public class SerializerWithLimits {
     if (value == null) {
       tokenWriter.nullValue();
     } else if (isPrimitive(type) || WellKnownClasses.isToStringSafe(type)) {
-      if (value instanceof String) {
-        String strValue = (String) value;
-        int originalLength = strValue.length();
-        boolean isComplete = true;
-        if (originalLength > limits.maxLength) {
-          strValue = strValue.substring(0, limits.maxLength);
-          isComplete = false;
-        }
-        tokenWriter.string(strValue, isComplete, originalLength);
-      } else {
-        tokenWriter.primitiveValue(value);
-      }
+      serializePrimitive(value, limits);
     } else if (value.getClass().isArray() && (limits.maxReferenceDepth > 0)) {
-      int arraySize = Array.getLength(value);
-      boolean isComplete = true;
-      tokenWriter.arrayPrologue(value);
-      if (value.getClass().getComponentType().isPrimitive()) {
-        Class<?> componentType = value.getClass().getComponentType();
-        if (componentType == long.class) {
-          isComplete = serializeLongArray((long[]) value, limits.maxCollectionSize);
-        }
-        if (componentType == int.class) {
-          isComplete = serializeIntArray((int[]) value, limits.maxCollectionSize);
-        }
-        if (componentType == short.class) {
-          isComplete = serializeShortArray((short[]) value, limits.maxCollectionSize);
-        }
-        if (componentType == char.class) {
-          isComplete = serializeCharArray((char[]) value, limits.maxCollectionSize);
-        }
-        if (componentType == byte.class) {
-          isComplete = serializeByteArray((byte[]) value, limits.maxCollectionSize);
-        }
-        if (componentType == boolean.class) {
-          isComplete = serializeBooleanArray((boolean[]) value, limits.maxCollectionSize);
-        }
-        if (componentType == float.class) {
-          isComplete = serializeFloatArray((float[]) value, limits.maxCollectionSize);
-        }
-        if (componentType == double.class) {
-          isComplete = serializeDoubleArray((double[]) value, limits.maxCollectionSize);
-        }
-      } else {
-        isComplete = serializeObjectArray((Object[]) value, limits);
-      }
-      tokenWriter.arrayEpilogue(value, isComplete, arraySize);
+      serializeArray(value, limits);
     } else if (value instanceof Collection && (limits.maxReferenceDepth > 0)) {
-      tokenWriter.collectionPrologue(value);
-      Collection<?> col;
-      boolean isComplete = true;
-      int size = 0;
-      try {
-        col = (Collection<?>) value;
-        size = col.size(); // /!\ alien call /!\
-        isComplete = serializeCollection(col, limits); // /!\ contains alien calls /!\
-        tokenWriter.collectionEpilogue(value, isComplete, size);
-      } catch (Exception ex) {
-        tokenWriter.collectionEpilogue(value, isComplete, size);
-        tokenWriter.notCaptured(ex.toString());
-      }
+      serializeCollection(value, limits);
     } else if (value instanceof Map && (limits.maxReferenceDepth > 0)) {
-      tokenWriter.mapPrologue(value);
-      Map<?, ?> map = Collections.emptyMap();
-      boolean isComplete = true;
-      int size = 0;
-      try {
-        map = (Map<?, ?>) value;
-        size = map.size(); // /!\ alien call /!\
-        Set<? extends Map.Entry<?, ?>> entries = map.entrySet(); // /!\ alien call /!\
-        isComplete = serializeMap(entries, limits); // /!\ contains alien calls /!\
-        tokenWriter.mapEpilogue(isComplete, size);
-      } catch (Exception ex) {
-        tokenWriter.mapEpilogue(isComplete, size);
-        tokenWriter.notCaptured(ex.toString());
-      }
+      serializeMap(value, limits);
+    } else if (value instanceof Enum) {
+      serializeEnum(value, limits);
     } else if (limits.maxReferenceDepth > 0) {
       serializeObjectValue(value, limits);
     } else {
       tokenWriter.notCaptured(NotCapturedReason.MAX_DEPTH);
     }
     tokenWriter.epilogue(value);
+  }
+
+  private void serializeEnum(Object value, Limits limits) throws Exception {
+    Enum<?> enumValue = (Enum<?>) value;
+    serializePrimitive(enumValue.name(), limits);
+  }
+
+  private void serializeMap(Object value, Limits limits) throws Exception {
+    tokenWriter.mapPrologue(value);
+    Map<?, ?> map;
+    boolean isComplete = true;
+    int size = 0;
+    try {
+      map = (Map<?, ?>) value;
+      size = map.size(); // /!\ alien call /!\
+      Set<? extends Map.Entry<?, ?>> entries = map.entrySet(); // /!\ alien call /!\
+      isComplete = serializeMapEntries(entries, limits); // /!\ contains alien calls /!\
+      tokenWriter.mapEpilogue(isComplete, size);
+    } catch (Exception ex) {
+      tokenWriter.mapEpilogue(isComplete, size);
+      tokenWriter.notCaptured(ex.toString());
+    }
+  }
+
+  private void serializeCollection(Object value, Limits limits) throws Exception {
+    tokenWriter.collectionPrologue(value);
+    Collection<?> col;
+    boolean isComplete = true;
+    int size = 0;
+    try {
+      col = (Collection<?>) value;
+      size = col.size(); // /!\ alien call /!\
+      isComplete = serializeCollection(col, limits); // /!\ contains alien calls /!\
+      tokenWriter.collectionEpilogue(value, isComplete, size);
+    } catch (Exception ex) {
+      tokenWriter.collectionEpilogue(value, isComplete, size);
+      tokenWriter.notCaptured(ex.toString());
+    }
+  }
+
+  private void serializeArray(Object value, Limits limits) throws Exception {
+    int arraySize = Array.getLength(value);
+    boolean isComplete = true;
+    tokenWriter.arrayPrologue(value);
+    if (value.getClass().getComponentType().isPrimitive()) {
+      Class<?> componentType = value.getClass().getComponentType();
+      if (componentType == long.class) {
+        isComplete = serializeLongArray((long[]) value, limits.maxCollectionSize);
+      }
+      if (componentType == int.class) {
+        isComplete = serializeIntArray((int[]) value, limits.maxCollectionSize);
+      }
+      if (componentType == short.class) {
+        isComplete = serializeShortArray((short[]) value, limits.maxCollectionSize);
+      }
+      if (componentType == char.class) {
+        isComplete = serializeCharArray((char[]) value, limits.maxCollectionSize);
+      }
+      if (componentType == byte.class) {
+        isComplete = serializeByteArray((byte[]) value, limits.maxCollectionSize);
+      }
+      if (componentType == boolean.class) {
+        isComplete = serializeBooleanArray((boolean[]) value, limits.maxCollectionSize);
+      }
+      if (componentType == float.class) {
+        isComplete = serializeFloatArray((float[]) value, limits.maxCollectionSize);
+      }
+      if (componentType == double.class) {
+        isComplete = serializeDoubleArray((double[]) value, limits.maxCollectionSize);
+      }
+    } else {
+      isComplete = serializeObjectArray((Object[]) value, limits);
+    }
+    tokenWriter.arrayEpilogue(value, isComplete, arraySize);
+  }
+
+  private void serializePrimitive(Object value, Limits limits) throws Exception {
+    if (value instanceof String) {
+      String strValue = (String) value;
+      int originalLength = strValue.length();
+      boolean isComplete = true;
+      if (originalLength > limits.maxLength) {
+        strValue = strValue.substring(0, limits.maxLength);
+        isComplete = false;
+      }
+      tokenWriter.string(strValue, isComplete, originalLength);
+    } else {
+      tokenWriter.primitiveValue(value);
+    }
   }
 
   private void serializeObjectValue(Object value, Limits limits) throws Exception {
@@ -381,7 +403,7 @@ public class SerializerWithLimits {
     return maxSize == colSize;
   }
 
-  private boolean serializeMap(Set<? extends Map.Entry<?, ?>> entries, Limits limits)
+  private boolean serializeMapEntries(Set<? extends Map.Entry<?, ?>> entries, Limits limits)
       throws Exception {
     int mapSize = entries.size(); // /!\ alien call /!\
     int maxSize = Math.min(mapSize, limits.maxCollectionSize);

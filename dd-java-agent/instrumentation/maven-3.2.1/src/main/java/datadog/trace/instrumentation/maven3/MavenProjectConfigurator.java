@@ -1,17 +1,33 @@
 package datadog.trace.instrumentation.maven3;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.SkippableTestsSerializer;
+import datadog.trace.api.config.CiVisibilityConfig;
+import datadog.trace.bootstrap.DatadogClassLoader;
+import datadog.trace.util.Strings;
 import java.io.File;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import javax.annotation.Nullable;
+import org.apache.maven.artifact.versioning.ComparableVersion;
+import org.apache.maven.model.Build;
 import org.apache.maven.model.Dependency;
+import org.apache.maven.model.InputLocation;
+import org.apache.maven.model.InputSource;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.model.PluginExecution;
+import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class MavenProjectConfigurator {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(MavenProjectConfigurator.class);
 
   static final MavenProjectConfigurator INSTANCE = new MavenProjectConfigurator();
 
@@ -26,63 +42,81 @@ class MavenProjectConfigurator {
   private static final String JAVAC_COMPILER_ID = "javac";
   private static final String DATADOG_COMPILER_PLUGIN_ID = "DatadogCompilerPlugin";
 
-  private static final MavenDependencyVersion ANNOTATION_PROCESSOR_PATHS_SUPPORTED_VERSION =
-      MavenDependencyVersion.from("3.5");
+  private static final ComparableVersion ANNOTATION_PROCESSOR_PATHS_SUPPORTED_VERSION =
+      new ComparableVersion("3.5");
 
-  void configureTracer(MavenProject project, String pluginKey) {
-    Plugin surefirePlugin = project.getPlugin(pluginKey);
-    if (surefirePlugin == null) {
+  private static final ComparableVersion LATE_SUBSTITUTION_SUPPORTED_VERSION =
+      new ComparableVersion("2.17");
+  private static final String JACOCO_EXCL_CLASS_LOADERS_PROPERTY = "jacoco.exclClassLoaders";
+
+  public void configureTracer(
+      MojoExecution mojoExecution,
+      Map<String, String> propagatedSystemProperties,
+      @Nullable Collection<SkippableTest> skippableTests) {
+    Xpp3Dom configuration = mojoExecution.getConfiguration();
+
+    Xpp3Dom forkCount = configuration.getChild("forkCount");
+    if (forkCount != null && "0".equals(forkCount.getValue())) {
+      // tests will be executed inside this JVM, no need for additional configuration
       return;
     }
 
-    Xpp3Dom pluginConfiguration = (Xpp3Dom) surefirePlugin.getConfiguration();
-    if (pluginConfiguration != null) {
-      Xpp3Dom forkCount = pluginConfiguration.getChild("forkCount");
-      if (forkCount != null && "0".equals(forkCount.getValue())) {
-        // tests will be executed inside this JVM, no need for additional configuration
-        return;
-      }
+    Plugin plugin = mojoExecution.getPlugin();
+    String pluginVersion = plugin.getVersion();
+    ComparableVersion pluginVersionParsed =
+        new ComparableVersion(pluginVersion != null ? pluginVersion : "");
+
+    String projectWideArgLine;
+    if (pluginVersionParsed.compareTo(LATE_SUBSTITUTION_SUPPORTED_VERSION) >= 0) {
+      // include project-wide argLine
+      // (it might be modified by other plugins earlier in the build cycle, e.g. by Jacoco)
+      projectWideArgLine = "@{argLine} ";
+    } else {
+      projectWideArgLine = "${argLine} ";
+    }
+    StringBuilder modifiedArgLine = new StringBuilder(projectWideArgLine);
+
+    // propagate to child process all "dd." system properties available in current process
+    for (Map.Entry<String, String> e : propagatedSystemProperties.entrySet()) {
+      modifiedArgLine.append("-D").append(e.getKey()).append('=').append(e.getValue()).append(" ");
     }
 
-    for (PluginExecution execution : surefirePlugin.getExecutions()) {
-      StringBuilder modifiedArgLine = new StringBuilder();
-
-      // propagate to child process all "dd." system properties available in current process
-      Properties systemProperties = System.getProperties();
-      for (Map.Entry<Object, Object> e : systemProperties.entrySet()) {
-        String propertyName = (String) e.getKey();
-        if (propertyName.startsWith(Config.PREFIX)) {
-          modifiedArgLine
-              .append("-D")
-              .append(propertyName)
-              .append('=')
-              .append(e.getValue())
-              .append(" ");
-        }
-      }
-
-      Integer ciVisibilityDebugPort = Config.get().getCiVisibilityDebugPort();
-      if (ciVisibilityDebugPort != null) {
-        modifiedArgLine
-            .append("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=")
-            .append(ciVisibilityDebugPort)
-            .append(" ");
-      }
-
-      File agentJar = Config.get().getCiVisibilityAgentJarFile();
-      modifiedArgLine.append("-javaagent:").append(agentJar.toPath());
-
-      Xpp3Dom configuration = (Xpp3Dom) execution.getConfiguration();
-      String argLine = MavenUtils.getConfigurationValue(configuration, "argLine");
-      if (argLine != null) {
-        modifiedArgLine.append(" ").append(argLine);
-      }
-
-      configuration =
-          MavenUtils.setConfigurationValue(modifiedArgLine.toString(), configuration, "argLine");
-
-      execution.setConfiguration(configuration);
+    if (skippableTests != null && !skippableTests.isEmpty()) {
+      String skippableTestsString = SkippableTestsSerializer.serialize(skippableTests);
+      modifiedArgLine
+          .append("-D")
+          .append(
+              Strings.propertyNameToSystemPropertyName(
+                  CiVisibilityConfig.CIVISIBILITY_SKIPPABLE_TESTS))
+          .append('=')
+          .append(skippableTestsString)
+          .append(" ");
     }
+
+    Integer ciVisibilityDebugPort = Config.get().getCiVisibilityDebugPort();
+    if (ciVisibilityDebugPort != null) {
+      modifiedArgLine
+          .append("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=")
+          .append(ciVisibilityDebugPort)
+          .append(" ");
+    }
+
+    File agentJar = Config.get().getCiVisibilityAgentJarFile();
+    modifiedArgLine.append("-javaagent:").append(agentJar.toPath());
+
+    Map<String, PluginExecution> pluginExecutions = plugin.getExecutionsAsMap();
+    PluginExecution pluginExecution = pluginExecutions.get(mojoExecution.getExecutionId());
+    Xpp3Dom executionConfiguration = (Xpp3Dom) pluginExecution.getConfiguration();
+
+    String argLine = MavenUtils.getConfigurationValue(executionConfiguration, "argLine");
+    if (argLine != null) {
+      modifiedArgLine.append(" ").append(argLine);
+    }
+
+    Xpp3Dom updatedExecutionConfiguration =
+        MavenUtils.setConfigurationValue(
+            modifiedArgLine.toString(), executionConfiguration, "argLine");
+    pluginExecution.setConfiguration(updatedExecutionConfiguration);
   }
 
   void configureCompilerPlugin(MavenProject project, String compilerPluginVersion) {
@@ -114,12 +148,11 @@ class MavenProjectConfigurator {
       List<Dependency> projectDependencies = project.getDependencies();
       addOrUpdate(projectDependencies, javacPluginClientDependency);
 
-      MavenDependencyVersion mavenPluginVersion =
-          compilerPlugin.getVersion() != null
-              ? MavenDependencyVersion.from(compilerPlugin.getVersion())
-              : MavenDependencyVersion.UNKNOWN;
+      ComparableVersion mavenPluginVersion =
+          new ComparableVersion(
+              compilerPlugin.getVersion() != null ? compilerPlugin.getVersion() : "");
 
-      if (mavenPluginVersion.isLaterThanOrEqualTo(ANNOTATION_PROCESSOR_PATHS_SUPPORTED_VERSION)) {
+      if (mavenPluginVersion.compareTo(ANNOTATION_PROCESSOR_PATHS_SUPPORTED_VERSION) >= 0) {
         String lombokVersion = getLombokVersion(projectDependencies);
         if (lombokVersion != null) {
           configuration =
@@ -154,15 +187,15 @@ class MavenProjectConfigurator {
   }
 
   private static void addOrUpdate(List<Dependency> projectDependencies, Dependency dependency) {
-    MavenDependencyVersion dependencyVersion = MavenDependencyVersion.from(dependency.getVersion());
+    ComparableVersion dependencyVersion = new ComparableVersion(dependency.getVersion());
 
     for (Dependency projectDependency : projectDependencies) {
       if (projectDependency.getGroupId().equals(dependency.getGroupId())
           && projectDependency.getArtifactId().equals(dependency.getArtifactId())) {
 
-        MavenDependencyVersion projectDependencyVersion =
-            MavenDependencyVersion.from(projectDependency.getVersion());
-        if (dependencyVersion.isLaterThanOrEqualTo(projectDependencyVersion)) {
+        ComparableVersion projectDependencyVersion =
+            new ComparableVersion(projectDependency.getVersion());
+        if (dependencyVersion.compareTo(projectDependencyVersion) > 0) {
           projectDependency.setVersion(dependency.getVersion());
         }
 
@@ -229,5 +262,90 @@ class MavenProjectConfigurator {
     annotationProcessorPaths.addChild(annotationProcessorPath);
 
     return configuration;
+  }
+
+  void configureJacoco(MavenProject project) {
+    Properties projectProperties = project.getProperties();
+
+    String currentValue = projectProperties.getProperty(JACOCO_EXCL_CLASS_LOADERS_PROPERTY);
+    String updatedValue =
+        Strings.isNotBlank(currentValue)
+            ? currentValue + ":" + DatadogClassLoader.class.getName()
+            : DatadogClassLoader.class.getName();
+
+    projectProperties.setProperty(JACOCO_EXCL_CLASS_LOADERS_PROPERTY, updatedValue);
+
+    String jacocoPluginVersion = Config.get().getCiVisibilityJacocoPluginVersion();
+    if (jacocoPluginVersion != null) {
+      configureJacocoPlugin(project, jacocoPluginVersion);
+    }
+  }
+
+  private static void configureJacocoPlugin(MavenProject project, String jacocoPluginVersion) {
+    if (project.getPlugin("org.jacoco:jacoco-maven-plugin") != null) {
+      return; // jacoco is already configured for this project
+    }
+
+    Plugin jacocoPlugin = new Plugin();
+    jacocoPlugin.setGroupId("org.jacoco");
+    jacocoPlugin.setArtifactId("jacoco-maven-plugin");
+    jacocoPlugin.setVersion(jacocoPluginVersion);
+
+    // a little trick to avoid triggering
+    // Maven Enforcer Plugin's "Require Plugin Versions" rule:
+    // we're making it look like version was specified explicitly
+    // in the project's config files
+    InputSource versionSource = new InputSource();
+    versionSource.setLocation("injected-by-dd-java-agent");
+    versionSource.setModelId("injected-by-dd-java-agent");
+    InputLocation versionLocation = new InputLocation(0, 0, versionSource);
+    jacocoPlugin.setLocation("version", versionLocation);
+
+    PluginExecution execution = new PluginExecution();
+    execution.addGoal("prepare-agent");
+    jacocoPlugin.addExecution(execution);
+
+    List<String> instrumentedPackages = Config.get().getCiVisibilityJacocoPluginIncludes();
+    if (instrumentedPackages != null && !instrumentedPackages.isEmpty()) {
+      configureJacocoInstrumentedPackages(execution, instrumentedPackages);
+    } else {
+      List<String> excludedPackages = Config.get().getCiVisibilityJacocoPluginExcludes();
+      if (excludedPackages != null && !excludedPackages.isEmpty()) {
+        configureExcludedPackages(execution, excludedPackages);
+      }
+    }
+
+    Build build = project.getBuild();
+    build.addPlugin(jacocoPlugin);
+  }
+
+  private static void configureJacocoInstrumentedPackages(
+      PluginExecution execution, List<String> instrumentedPackages) {
+    Xpp3Dom includes = new Xpp3Dom("includes");
+    for (String instrumentedPackage : instrumentedPackages) {
+      Xpp3Dom include = new Xpp3Dom("include");
+      include.setValue(instrumentedPackage);
+      includes.addChild(include);
+    }
+
+    Xpp3Dom configuration = new Xpp3Dom("configuration");
+    configuration.addChild(includes);
+
+    execution.setConfiguration(configuration);
+  }
+
+  private static void configureExcludedPackages(
+      PluginExecution execution, List<String> excludedPackages) {
+    Xpp3Dom excludes = new Xpp3Dom("excludes");
+    for (String excludedPackage : excludedPackages) {
+      Xpp3Dom exclude = new Xpp3Dom("exclude");
+      exclude.setValue(excludedPackage);
+      excludes.addChild(exclude);
+    }
+
+    Xpp3Dom configuration = new Xpp3Dom("configuration");
+    configuration.addChild(excludes);
+
+    execution.setConfiguration(configuration);
   }
 }

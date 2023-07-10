@@ -7,6 +7,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Sink;
+import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.SqlInjectionModule;
 import net.bytebuddy.asm.Advice;
 import org.hibernate.Query;
@@ -36,6 +38,7 @@ public class IastQueryInstrumentation extends Instrumenter.Iast
   public static class QueryMethodAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Sink(VulnerabilityTypes.SQL_INJECTION)
     public static void beforeMethod(@Advice.This final Query query) {
       final SqlInjectionModule module = InstrumentationBridge.SQL_INJECTION;
       if (module != null) {

@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
  * traces and spans to Datadog using the OpenTracing API.
  */
 public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTracer {
-
+  private static final String INSTRUMENTATION_NAME = "opentracing";
   private static final Logger log = LoggerFactory.getLogger(DDTracer.class);
 
   static {
@@ -552,7 +552,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
     private final AgentTracer.SpanBuilder delegate;
 
     public DDSpanBuilder(final String operationName) {
-      delegate = tracer.buildSpan(operationName);
+      delegate = tracer.buildSpan(INSTRUMENTATION_NAME, operationName);
     }
 
     @Override

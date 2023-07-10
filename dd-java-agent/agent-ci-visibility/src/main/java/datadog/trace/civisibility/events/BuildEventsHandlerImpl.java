@@ -1,13 +1,13 @@
 package datadog.trace.civisibility.events;
 
-import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.CIVisibility;
 import datadog.trace.api.civisibility.DDTestModule;
 import datadog.trace.api.civisibility.DDTestSession;
-import datadog.trace.api.civisibility.decorator.TestDecorator;
+import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.DDTestModuleImpl;
-import datadog.trace.civisibility.DDTestSessionImpl;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -22,13 +22,13 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
   @Override
   public void onTestSessionStart(
       final T sessionKey,
-      final TestDecorator sessionDecorator,
       final String projectName,
+      final Path projectRoot,
       final String startCommand,
       final String buildSystemName,
       final String buildSystemVersion) {
     DDTestSession testSession =
-        new DDTestSessionImpl(projectName, null, Config.get(), sessionDecorator, null, null, null);
+        CIVisibility.startSession(projectName, projectRoot, buildSystemName, null);
     testSession.setTag(Tags.TEST_COMMAND, startCommand);
     testSession.setTag(Tags.TEST_TOOLCHAIN, buildSystemName + ":" + buildSystemVersion);
     inProgressTestSessions.put(sessionKey, testSession);
@@ -63,7 +63,7 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
   }
 
   @Override
-  public ModuleAndSessionId onTestModuleStart(
+  public ModuleInfo onTestModuleStart(
       final T sessionKey,
       final String moduleName,
       String startCommand,
@@ -85,7 +85,7 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
         new TestModuleDescriptor<>(sessionKey, moduleName);
     inProgressTestModules.put(testModuleDescriptor, testModule);
 
-    return ((DDTestModuleImpl) testModule).getModuleAndSessionId();
+    return ((DDTestModuleImpl) testModule).getModuleInfo();
   }
 
   @Override
@@ -135,6 +135,12 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
               + " and module name "
               + moduleName);
     }
-    testModule.end(null);
+    testModule.end(null, false);
+  }
+
+  @Override
+  public ModuleExecutionSettings getModuleExecutionSettings(T sessionKey, Path jvmExecutablePath) {
+    DDTestSession testSession = getTestSession(sessionKey);
+    return testSession.getModuleExecutionSettings(jvmExecutablePath);
   }
 }

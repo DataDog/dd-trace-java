@@ -77,6 +77,7 @@ public class WriterFactory {
           "Using 'EnsureTrace' prioritization type. (Do not use this type if your application is running in production mode)");
     }
 
+    int flushIntervalMilliseconds = Math.round(config.getTraceFlushIntervalSeconds() * 1000);
     DDAgentFeaturesDiscovery featuresDiscovery = commObjects.featuresDiscovery(config);
 
     // The AgentWriter doesn't support the CI Visibility protocol. If CI Visibility is
@@ -93,38 +94,25 @@ public class WriterFactory {
     RemoteWriter remoteWriter;
     if (DD_INTAKE_WRITER_TYPE.equals(configuredType)) {
       final TrackType trackType = DDIntakeTrackTypeResolver.resolve(config);
-      final RemoteApi remoteApi;
-      if (featuresDiscovery.supportsEvpProxy() && !config.isCiVisibilityAgentlessEnabled()) {
-        remoteApi =
-            DDEvpProxyApi.builder()
-                .agentUrl(commObjects.agentUrl)
-                .evpProxyEndpoint(featuresDiscovery.getEvpProxyEndpoint())
-                .trackType(trackType)
-                .build();
-      } else {
-        HttpUrl hostUrl = null;
-        if (config.getCiVisibilityAgentlessUrl() != null) {
-          hostUrl = HttpUrl.get(config.getCiVisibilityAgentlessUrl());
-          log.info(
-              "Using host URL '" + hostUrl + "' to report CI Visibility traces in Agentless mode.");
-        }
+      final RemoteApi remoteApi =
+          createDDIntakeRemoteApi(config, commObjects, featuresDiscovery, trackType);
 
-        remoteApi =
-            DDIntakeApi.builder()
-                .hostUrl(hostUrl)
-                .apiKey(config.getApiKey())
-                .trackType(trackType)
-                .build();
-      }
-
-      remoteWriter =
+      DDIntakeWriter.DDIntakeWriterBuilder builder =
           DDIntakeWriter.builder()
               .addTrack(trackType, remoteApi)
               .prioritization(prioritization)
               .healthMetrics(new TracerHealthMetrics(statsDClient))
               .monitoring(commObjects.monitoring)
               .singleSpanSampler(singleSpanSampler)
-              .build();
+              .flushIntervalMilliseconds(flushIntervalMilliseconds);
+
+      if (config.isCiVisibilityCodeCoverageEnabled()) {
+        final RemoteApi coverageApi =
+            createDDIntakeRemoteApi(config, commObjects, featuresDiscovery, TrackType.CITESTCOV);
+        builder.addTrack(TrackType.CITESTCOV, coverageApi);
+      }
+
+      remoteWriter = builder.build();
 
     } else { // configuredType == DDAgentWriter
       boolean alwaysFlush = false;
@@ -162,10 +150,37 @@ public class WriterFactory {
               .monitoring(commObjects.monitoring)
               .alwaysFlush(alwaysFlush)
               .spanSamplingRules(singleSpanSampler)
+              .flushIntervalMilliseconds(flushIntervalMilliseconds)
               .build();
     }
 
     return remoteWriter;
+  }
+
+  private static RemoteApi createDDIntakeRemoteApi(
+      Config config,
+      SharedCommunicationObjects commObjects,
+      DDAgentFeaturesDiscovery featuresDiscovery,
+      TrackType trackType) {
+    if (featuresDiscovery.supportsEvpProxy() && !config.isCiVisibilityAgentlessEnabled()) {
+      return DDEvpProxyApi.builder()
+          .agentUrl(commObjects.agentUrl)
+          .evpProxyEndpoint(featuresDiscovery.getEvpProxyEndpoint())
+          .trackType(trackType)
+          .build();
+
+    } else {
+      HttpUrl hostUrl = null;
+      if (config.getCiVisibilityAgentlessUrl() != null) {
+        hostUrl = HttpUrl.get(config.getCiVisibilityAgentlessUrl());
+        log.info("Using host URL '{}' to report CI Visibility traces in Agentless mode.", hostUrl);
+      }
+      return DDIntakeApi.builder()
+          .hostUrl(hostUrl)
+          .apiKey(config.getApiKey())
+          .trackType(trackType)
+          .build();
+    }
   }
 
   private WriterFactory() {}

@@ -28,11 +28,6 @@ public class SpringBeanProcessorInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".BeanDefinitionRepairer"};
-  }
-
-  @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         isMethod()
@@ -50,7 +45,8 @@ public class SpringBeanProcessorInstrumentation extends Instrumenter.Tracing
   public static class SkipBeanClassAdvice {
     @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class, suppress = Throwable.class)
     public static Class<?> onEnter(@Advice.Argument(3) final BeanDefinition beanDefinition) {
-      if (BeanDefinitionRepairer.isDatadogBean(beanDefinition)) {
+      String className = beanDefinition.getBeanClassName();
+      if (null != className && className.startsWith("datadog.trace.instrumentation.")) {
         return Object.class; // skip the original method and return this value instead
       } else {
         return null; // continue on to call the original method and return its value

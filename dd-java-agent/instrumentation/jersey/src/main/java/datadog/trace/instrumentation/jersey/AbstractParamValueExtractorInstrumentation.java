@@ -7,7 +7,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.source.WebModule;
+import datadog.trace.api.iast.Propagation;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
@@ -37,13 +38,13 @@ public class AbstractParamValueExtractorInstrumentation extends Instrumenter.Ias
 
   public static class InstrumenterAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Propagation
     public static void onExit(
-        @Advice.Return(readOnly = true) Object result,
-        @Advice.FieldValue("parameterName") String parameterName) {
+        @Advice.Return Object result, @Advice.FieldValue("parameterName") String parameterName) {
       if (result instanceof String) {
-        final WebModule module = InstrumentationBridge.WEB;
+        final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
-          module.onInjectedParameter(parameterName, (String) result, ThreadLocalSourceType.get());
+          module.taint(ThreadLocalSourceType.get(), parameterName, (String) result);
         }
       }
     }

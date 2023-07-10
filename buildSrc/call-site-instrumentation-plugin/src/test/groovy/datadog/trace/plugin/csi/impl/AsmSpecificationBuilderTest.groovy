@@ -1,10 +1,12 @@
 package datadog.trace.plugin.csi.impl
 
 import datadog.trace.agent.tooling.csi.CallSite
+import datadog.trace.agent.tooling.csi.CallSites
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.AdviceSpecification
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.AfterSpecification
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.AroundSpecification
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.BeforeSpecification
+import datadog.trace.plugin.csi.util.Types
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.transform.CompileDynamic
 import org.objectweb.asm.Type
@@ -50,7 +52,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     result.spi == Type.getType(WithSpiClass.Spi)
   }
 
-  @CallSite(helpers = [SampleHelper1.class, SampleHelper2.class])
+  @CallSite(spi = CallSites, helpers = [SampleHelper1.class, SampleHelper2.class])
   static class HelpersAdvice {
     static class SampleHelper1 {}
     static class SampleHelper2 {}
@@ -72,7 +74,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     ])
   }
 
-  @CallSite
+  @CallSite(spi = CallSites)
   static class BeforeAdvice {
     @CallSite.Before('java.lang.String java.lang.String.replaceAll(java.lang.String, java.lang.String)')
     static void before(@CallSite.This final String self, @CallSite.Argument final String regexp, @CallSite.Argument final String replacement) {
@@ -101,7 +103,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     arguments == [0, 1]
   }
 
-  @CallSite
+  @CallSite(spi = CallSites)
   static class AroundAdvice {
     @CallSite.Around('java.lang.String java.lang.String.replaceAll(java.lang.String, java.lang.String)')
     static String around(@CallSite.This final String self, @CallSite.Argument final String regexp, @CallSite.Argument final String replacement) {
@@ -131,7 +133,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     arguments == [0, 1]
   }
 
-  @CallSite
+  @CallSite(spi = CallSites)
   static class AfterAdvice {
     @CallSite.After('java.lang.String java.lang.String.replaceAll(java.lang.String, java.lang.String)')
     static String after(@CallSite.This final String self, @CallSite.Argument final String regexp, @CallSite.Argument final String replacement, @CallSite.Return final String result) {
@@ -193,7 +195,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     arguments == []
   }
 
-  @CallSite
+  @CallSite(spi = CallSites)
   static class InvokeDynamicBeforeAdvice {
     @CallSite.After(
       value = 'java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])',
@@ -228,7 +230,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     arguments == []
   }
 
-  @CallSite
+  @CallSite(spi = CallSites)
   static class InvokeDynamicAroundAdvice {
     @CallSite.Around(
       value = 'java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])',
@@ -265,7 +267,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     arguments == [0, 1, 2, 3, 4]
   }
 
-  @CallSite
+  @CallSite(spi = CallSites)
   static class TestInvokeDynamicConstants {
     @CallSite.After(
       value = 'java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])',
@@ -299,7 +301,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     arguments == []
   }
 
-  @CallSite
+  @CallSite(spi = CallSites)
   static class TestBeforeArray {
 
     @CallSite.BeforeArray([
@@ -337,7 +339,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  @CallSite
+  @CallSite(spi = CallSites)
   static class TestAroundArray {
 
     @CallSite.AroundArray([
@@ -377,7 +379,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  @CallSite
+  @CallSite(spi = CallSites)
   static class TestAfterArray {
 
     @CallSite.AfterArray([
@@ -417,7 +419,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  @CallSite
+  @CallSite(spi = CallSites)
   static class TestInheritedMethod {
     @CallSite.After('java.lang.String javax.servlet.http.HttpServletRequest.getParameter(java.lang.String)')
     static String after(@CallSite.This final ServletRequest request, @CallSite.Argument final String parameter, @CallSite.Return final String value) {
@@ -447,28 +449,38 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     arguments == [0]
   }
 
-  @CallSite(minJavaVersion = 9)
-  static class TestMinJavaVersion {
+  static class IsEnabled {
+    static boolean isEnabled(final String defaultValue) {
+      return true
+    }
+  }
+
+  @CallSite(spi = CallSites, enabled = ['datadog.trace.plugin.csi.impl.AsmSpecificationBuilderTest$IsEnabled', 'isEnabled', 'true'])
+  static class TestEnablement {
     @CallSite.After('java.lang.String javax.servlet.http.HttpServletRequest.getParameter(java.lang.String)')
     static String after(@CallSite.This final ServletRequest request, @CallSite.Argument final String parameter, @CallSite.Return final String value) {
       return value
     }
   }
 
-  void 'test specification builder for min java version'() {
+  void 'test specification builder with enabled property'() {
     setup:
-    final advice = fetchClass(TestMinJavaVersion)
+    final advice = fetchClass(TestEnablement)
     final specificationBuilder = new AsmSpecificationBuilder()
 
     when:
     final result = specificationBuilder.build(advice).orElseThrow(RuntimeException::new)
 
     then:
-    result.clazz.className == TestMinJavaVersion.name
-    result.minJavaVersion == 9
+    result.clazz.className == TestEnablement.name
+    result.enabled != null
+    result.enabled.method.owner == Type.getType(IsEnabled)
+    result.enabled.method.methodName == 'isEnabled'
+    result.enabled.method.methodType == Type.getMethodType(Types.BOOLEAN, Types.STRING)
+    result.enabled.arguments == ['true']
   }
 
-  @CallSite
+  @CallSite(spi = CallSites)
   static class TestWithOtherAnnotations {
     @CallSite.Around("java.lang.StringBuilder java.lang.StringBuilder.append(java.lang.Object)")
     @CallSite.Around("java.lang.StringBuffer java.lang.StringBuffer.append(java.lang.Object)")

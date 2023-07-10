@@ -1,8 +1,11 @@
 import datadog.trace.agent.test.asserts.ListWriterAssert
-import datadog.trace.agent.test.base.CiVisibilityTest
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.CIConstants
+import datadog.trace.api.civisibility.config.SkippableTest
+import datadog.trace.api.civisibility.config.SkippableTestsSerializer
+import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.civisibility.CiVisibilityTest
 import junit.runner.Version
 import org.example.TestAssumption
 import org.example.TestAssumptionAndSucceed
@@ -418,6 +421,67 @@ class JUnit4Test extends CiVisibilityTest {
 
     where:
     testTags_0 = [(Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"parameterized_test_succeed[0]"}}']
+    testTags_1 = [(Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"parameterized_test_succeed[1]"}}']
+  }
+
+  def "test ITR skipping"() {
+    setup:
+    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_SKIPPABLE_TESTS, SkippableTestsSerializer.serialize([
+      new SkippableTest("org.example.TestFailedAndSucceed", "test_another_succeed", null, null),
+      new SkippableTest("org.example.TestFailedAndSucceed", "test_failed", null, null),
+    ]))
+    runner.run(TestFailedAndSucceed)
+
+    expect:
+    ListWriterAssert.assertTraces(TEST_WRITER, 4, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long testSuiteId
+      trace(2, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestFailedAndSucceed", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_another_succeed", CIConstants.TEST_SKIP, testTags)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_failed", CIConstants.TEST_SKIP, testTags)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_succeed", CIConstants.TEST_PASS)
+      }
+    })
+
+    where:
+    testTags = [(Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner"]
+  }
+
+  def "test ITR skipping for parameterized"() {
+    setup:
+    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_SKIPPABLE_TESTS, SkippableTestsSerializer.serialize([
+      new SkippableTest("org.example.TestParameterized", "parameterized_test_succeed", testTags_0[Tags.TEST_PARAMETERS], null),
+    ]))
+    runner.run(TestParameterized)
+
+    ListWriterAssert.assertTraces(TEST_WRITER, 3, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long testSuiteId
+      trace(2, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestParameterized", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterized", "parameterized_test_succeed", CIConstants.TEST_SKIP, testTags_0)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterized", "parameterized_test_succeed", CIConstants.TEST_PASS, testTags_1)
+      }
+    })
+
+    where:
+    testTags_0 = [
+      (Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"parameterized_test_succeed[0]"}}',
+      (Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner"
+    ]
     testTags_1 = [(Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"parameterized_test_succeed[1]"}}']
   }
 

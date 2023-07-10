@@ -5,7 +5,6 @@ import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.communication.monitor.Monitoring
 import datadog.trace.api.Config
 import datadog.trace.api.DDTraceId
-import datadog.trace.api.TraceConfig
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.core.monitor.HealthMetrics
@@ -18,7 +17,7 @@ class LongRunningTracesTrackerTest extends DDSpecification {
   DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(null, Monitoring.DISABLED, null, false, false, true)
   LongRunningTracesTracker tracker
   def tracer = Mock(CoreTracer)
-  def traceConfig = Mock(TraceConfig)
+  def traceConfig = Mock(CoreTracer.ConfigSnapshot)
   PendingTraceBuffer.DelayingPendingTraceBuffer buffer
   PendingTrace.Factory factory = null
 

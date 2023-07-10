@@ -20,6 +20,7 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.QueueTimerHelper;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.TPEHelper;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper;
@@ -152,7 +153,7 @@ public final class ThreadPoolExecutorInstrumentation extends Instrumenter.Tracin
           ContextStore<Runnable, State> contextStore =
               InstrumentationContext.get(Runnable.class, State.class);
           TPEHelper.capture(contextStore, task);
-          TPEHelper.startQueuingTimer(contextStore, tpe, task);
+          QueueTimerHelper.startQueuingTimer(contextStore, tpe.getClass(), task);
         }
       }
     }

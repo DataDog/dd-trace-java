@@ -127,6 +127,40 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     }
   }
 
+  void 'no HttpOnly cookie vulnerability is present'() {
+    setup:
+    String url = "http://localhost:${httpPort}/insecure_cookie"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isSuccessful()
+    response.header('Set-Cookie').contains('user-id')
+    hasVulnerability { vul ->
+      vul.type == 'NO_HTTPONLY_COOKIE' &&
+        vul.evidence.value == 'user-id'
+    }
+  }
+
+  void 'no SameSite cookie vulnerability is present'() {
+    setup:
+    String url = "http://localhost:${httpPort}/insecure_cookie"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isSuccessful()
+    response.header('Set-Cookie').contains('user-id')
+    hasVulnerability { vul ->
+      vul.type == 'NO_SAMESITE_COOKIE' &&
+        vul.evidence.value == 'user-id'
+    }
+  }
+
   void 'insecure cookie  vulnerability from addheader is present'() {
     setup:
     String url = "http://localhost:${httpPort}/insecure_cookie_from_header"
@@ -215,6 +249,31 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
     then:
     hasVulnerability { vul -> vul.type == 'COMMAND_INJECTION' }
+  }
+
+  void 'xpath injection is present when compile expression'() {
+    setup:
+    final url = "http://localhost:${httpPort}/xpathi/compile?expression=%2Fbookstore%2Fbook%2Ftitle"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'XPATH_INJECTION' }
+  }
+
+
+  void 'xpath injection is present when evaluate expression'() {
+    setup:
+    final url = "http://localhost:${httpPort}/xpathi/evaluate?expression=%2Fbookstore%2Fbook%2Ftitle"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'XPATH_INJECTION' }
   }
 
   void 'path traversal is present with file'() {
@@ -568,4 +627,5 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     then:
     hasVulnerabilityInLogs { vul -> vul.type == 'UNVALIDATED_REDIRECT' && vul.location.method == 'getViewfromTaintedString' }
   }
+
 }

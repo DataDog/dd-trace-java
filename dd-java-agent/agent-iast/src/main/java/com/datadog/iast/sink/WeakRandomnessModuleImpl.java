@@ -5,6 +5,7 @@ import com.datadog.iast.model.VulnerabilityType;
 import datadog.trace.api.iast.sink.WeakRandomnessModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.util.Locale;
 import javax.annotation.Nonnull;
 
 public class WeakRandomnessModuleImpl extends SinkModuleBase implements WeakRandomnessModule {
@@ -23,6 +24,6 @@ public class WeakRandomnessModuleImpl extends SinkModuleBase implements WeakRand
    * the name
    */
   private boolean isSecuredInstance(@Nonnull final Class<?> instance) {
-    return instance.getSimpleName().toLowerCase().contains("secure");
+    return instance.getSimpleName().toLowerCase(Locale.ROOT).contains("secure");
   }
 }

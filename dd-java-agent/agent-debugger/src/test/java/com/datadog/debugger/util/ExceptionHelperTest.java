@@ -1,6 +1,7 @@
 package com.datadog.debugger.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
@@ -64,6 +65,17 @@ public class ExceptionHelperTest {
         "Error {} {}",
         "param1",
         "param2");
+  }
+
+  @Test
+  public void foldExceptionStackTrace() {
+    String strStackTrace = ExceptionHelper.foldExceptionStackTrace(new Exception());
+    assertTrue(
+        strStackTrace.startsWith(
+            "java.lang.Exception at com.datadog.debugger.util.ExceptionHelperTest.foldExceptionStackTrace(ExceptionHelperTest.java:72) at "));
+    assertFalse(strStackTrace.contains("\n"));
+    assertFalse(strStackTrace.contains("\t"));
+    assertFalse(strStackTrace.contains("\r"));
   }
 
   private Object logDebug(InvocationOnMock invocation) {

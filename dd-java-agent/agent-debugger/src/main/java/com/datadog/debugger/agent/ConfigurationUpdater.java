@@ -205,7 +205,7 @@ public class ConfigurationUpdater
   private void retransformClasses(List<Class<?>> classesToBeTransformed) {
     for (Class<?> clazz : classesToBeTransformed) {
       try {
-        LOGGER.info("Re-transforming {}", clazz.getCanonicalName());
+        LOGGER.info("Re-transforming class: {}", clazz.getTypeName());
         instrumentation.retransformClasses(clazz);
       } catch (Exception ex) {
         ExceptionHelper.logException(LOGGER, ex, "Re-transform error:");

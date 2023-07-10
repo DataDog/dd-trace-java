@@ -18,6 +18,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -54,7 +55,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     if (awsServiceName != null) {
       Matcher matcher = AWS_SERVICE_NAME_PATTERN.matcher(awsServiceName);
       if (matcher.find()) {
-        return matcher.group(1).toLowerCase();
+        return matcher.group(1).toLowerCase(Locale.ROOT);
       }
     }
     return awsServiceName;

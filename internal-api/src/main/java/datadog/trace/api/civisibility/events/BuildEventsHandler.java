@@ -1,13 +1,14 @@
 package datadog.trace.api.civisibility.events;
 
-import datadog.trace.api.civisibility.decorator.TestDecorator;
+import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
+import java.nio.file.Path;
 import java.util.Map;
 
 public interface BuildEventsHandler<T> {
   void onTestSessionStart(
       T sessionKey,
-      TestDecorator sessionDecorator,
       String projectName,
+      Path projectRoot,
       String startCommand,
       String buildSystemName,
       String buildSystemVersion);
@@ -18,7 +19,7 @@ public interface BuildEventsHandler<T> {
 
   void onTestSessionFinish(T sessionKey);
 
-  ModuleAndSessionId onTestModuleStart(
+  ModuleInfo onTestModuleStart(
       T sessionKey, String moduleName, String startCommand, Map<String, Object> additionalTags);
 
   void onModuleTestFrameworkDetected(
@@ -30,17 +31,24 @@ public interface BuildEventsHandler<T> {
 
   void onTestModuleFinish(T sessionKey, String moduleName);
 
+  ModuleExecutionSettings getModuleExecutionSettings(T sessionKey, Path jvmExecutablePath);
+
   interface Factory {
     <U> BuildEventsHandler<U> create();
   }
 
-  final class ModuleAndSessionId {
+  final class ModuleInfo {
     public final long moduleId;
     public final long sessionId;
+    public final String signalServerHost;
+    public final int signalServerPort;
 
-    public ModuleAndSessionId(long moduleId, long sessionId) {
+    public ModuleInfo(
+        long moduleId, long sessionId, String signalServerHost, int signalServerPort) {
       this.moduleId = moduleId;
       this.sessionId = sessionId;
+      this.signalServerHost = signalServerHost;
+      this.signalServerPort = signalServerPort;
     }
   }
 }

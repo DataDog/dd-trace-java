@@ -6,18 +6,12 @@ buildscript {
 plugins {
   id "com.github.johnrengelman.shadow"
   id "me.champeau.jmh"
+  id 'java-test-fixtures'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
 apply plugin: 'jsonschema2pojo'
-
-repositories {
-  ivy {
-    artifactPattern 'https://sqreen-ci-java.s3.amazonaws.com/jars/[organisation]/[artifact]-[revision](-[classifier]).[ext]'
-    ivyPattern 'https://sqreen-ci-java.s3.amazonaws.com/jars/[organisation]/[module]-[revision].xml'
-  }
-}
 
 dependencies {
   api deps.slf4j
@@ -34,6 +28,12 @@ dependencies {
   testImplementation project(':utils:test-utils')
   testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.2'
   testImplementation group: 'com.flipkart.zjsonpatch', name: 'zjsonpatch', version: '0.4.11'
+
+  testFixturesApi project(':dd-java-agent:testing')
+}
+
+configurations.testFixturesApi {
+  exclude group: 'org.eclipse.jetty', module: 'jetty-server'
 }
 
 shadowJar {

@@ -10,6 +10,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 
@@ -46,6 +47,7 @@ public class ByteBufInputStreamInstrumentation extends Instrumenter.Iast
   public static class ConstructorAdvice {
 
     @Advice.OnMethodExit
+    @Propagation
     public static void onExit(
         @Advice.This final Object self, @Advice.Argument(0) final Object buffer) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;

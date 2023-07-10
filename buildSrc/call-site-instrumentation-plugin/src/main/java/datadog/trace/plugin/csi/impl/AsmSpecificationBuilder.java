@@ -9,7 +9,6 @@ import static datadog.trace.plugin.csi.util.CallSiteConstants.AROUND_ARRAY_ANNOT
 import static datadog.trace.plugin.csi.util.CallSiteConstants.ASM_API_VERSION;
 import static datadog.trace.plugin.csi.util.CallSiteConstants.BEFORE_ANNOTATION;
 import static datadog.trace.plugin.csi.util.CallSiteConstants.BEFORE_ARRAY_ANNOTATION;
-import static datadog.trace.plugin.csi.util.CallSiteConstants.CALL_SITE_ADVICE_CLASS;
 import static datadog.trace.plugin.csi.util.CallSiteConstants.CALL_SITE_ANNOTATION;
 import static datadog.trace.plugin.csi.util.CallSiteConstants.INVOKE_DYNAMIC_CONSTANTS_ANNOTATION;
 import static datadog.trace.plugin.csi.util.CallSiteConstants.RETURN_ANNOTATION;
@@ -77,8 +76,8 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
     private boolean isCallSite;
     private final List<AdviceSpecification> advices = new ArrayList<>();
     private final Set<Type> helpers = new HashSet<>();
-    private Type spi = classNameToType(CALL_SITE_ADVICE_CLASS); // default annotation value
-    private int minJavaVersion = -1;
+    private Type spi;
+    private List<String> enabled = new ArrayList<>();
     private CallSiteSpecification result;
 
     public SpecificationVisitor() {
@@ -106,8 +105,6 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
           public void visit(final String key, final Object value) {
             if ("spi".equals(key)) {
               spi = (Type) value;
-            } else if ("minJavaVersion".equals(key)) {
-              minJavaVersion = (int) value;
             }
           }
 
@@ -118,6 +115,13 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
                 @Override
                 public void visit(final String name, final Object value) {
                   helpers.add((Type) value);
+                }
+              };
+            } else if ("enabled".equals(name)) {
+              return new AnnotationVisitor(ASM_API_VERSION) {
+                @Override
+                public void visit(final String name, final Object value) {
+                  enabled.add((String) value);
                 }
               };
             }
@@ -144,7 +148,7 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
     @Override
     public void visitEnd() {
       if (isCallSite) {
-        result = new CallSiteSpecification(clazz, advices, spi, minJavaVersion, helpers);
+        result = new CallSiteSpecification(clazz, advices, spi, enabled, helpers);
       }
     }
 

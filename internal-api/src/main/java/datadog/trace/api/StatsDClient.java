@@ -17,6 +17,10 @@ public interface StatsDClient extends Closeable {
 
   void histogram(String metricName, double value, String... tags);
 
+  void distribution(String metricName, long value, String... tags);
+
+  void distribution(String metricName, double value, String... tags);
+
   void serviceCheck(String serviceCheckName, String status, String message, String... tags);
 
   void error(Exception error);

@@ -1,5 +1,6 @@
 package com.datadog.profiling.uploader;
 
+import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,7 +21,7 @@ enum CompressionType {
       type = "";
     }
 
-    switch (type.toLowerCase()) {
+    switch (type.toLowerCase(Locale.ROOT)) {
       case "off":
         return OFF;
       case "on":

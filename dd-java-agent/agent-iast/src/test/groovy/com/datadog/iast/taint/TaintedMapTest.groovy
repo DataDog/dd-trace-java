@@ -14,19 +14,20 @@ class TaintedMapTest extends DDSpecification {
 
   def 'simple workflow'() {
     given:
-    def map = new DefaultTaintedMap()
+    def map = new TaintedMap()
     final o = new Object()
     final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
 
     expect:
     map.size() == 0
-    map.toList().size() == 0
+    map.count() == 0
 
     when:
     map.put(to)
 
     then:
-    map.toList().size() == 1
+    map.size() == 1
+    map.count() == 1
 
     and:
     map.get(o) != null
@@ -36,26 +37,27 @@ class TaintedMapTest extends DDSpecification {
     map.clear()
 
     then:
-    map.toList().size() == 0
+    map.size() == 0
+    map.count() == 0
   }
 
   def 'get non-existent object'() {
     given:
-    def map = new DefaultTaintedMap()
+    def map = new TaintedMap()
     final o = new Object()
 
     expect:
     !map.isFlat()
     map.get(o) == null
     map.size() == 0
-    map.toList().size() == 0
+    map.count() == 0
   }
 
   def 'last put always exists'() {
     given:
     int capacity = 256
     int flatModeThreshold = (int) (capacity / 2)
-    def map = new DefaultTaintedMap(capacity, flatModeThreshold, new ReferenceQueue<>())
+    def map = new TaintedMap(capacity, flatModeThreshold, new ReferenceQueue<>())
     int nTotalObjects = capacity * 10
 
     expect:
@@ -72,7 +74,7 @@ class TaintedMapTest extends DDSpecification {
     int capacity = 256
     int flatModeThreshold = (int) (capacity / 2)
     def queue = new MockReferenceQueue()
-    def map = new DefaultTaintedMap(capacity, flatModeThreshold, queue)
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
     def gen = new ObjectGen(capacity)
 
     when: 'extraneous reference in enqueued'
@@ -87,7 +89,8 @@ class TaintedMapTest extends DDSpecification {
 
     then:
     !map.isFlat()
-    map.toList().size() == 1
+    map.size() == 1
+    map.count() == 1
   }
 
   def 'do not fail on double free'() {
@@ -95,7 +98,7 @@ class TaintedMapTest extends DDSpecification {
     int capacity = 256
     int flatModeThreshold = (int) (capacity / 2)
     def queue = new MockReferenceQueue()
-    def map = new DefaultTaintedMap(capacity, flatModeThreshold, queue)
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
     def gen = new ObjectGen(capacity)
 
     when: 'reference to non-present object in enqueued'
@@ -110,7 +113,8 @@ class TaintedMapTest extends DDSpecification {
 
     then:
     !map.isFlat()
-    map.toList().size() == 1
+    map.size() == 1
+    map.count() == 1
   }
 
   def 'do not fail on double free with previous data'() {
@@ -118,7 +122,7 @@ class TaintedMapTest extends DDSpecification {
     int capacity = 256
     int flatModeThreshold = (int) (capacity / 2)
     def queue = new MockReferenceQueue()
-    def map = new DefaultTaintedMap(capacity, flatModeThreshold, queue)
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
     def gen = new ObjectGen(capacity)
     def bucket = gen.genBucket(2, ObjectGen.TRIGGERS_PURGE)
 
@@ -129,7 +133,8 @@ class TaintedMapTest extends DDSpecification {
 
     then:
     !map.isFlat()
-    map.toList().size() == 1
+    map.size() == 1
+    map.count() == 1
   }
 
   def 'flat mode - last put wins'() {
@@ -137,12 +142,12 @@ class TaintedMapTest extends DDSpecification {
     int capacity = 256
     int flatModeThreshold = (int) (capacity / 2)
     def queue = new MockReferenceQueue()
-    def map = new DefaultTaintedMap(capacity, flatModeThreshold, queue)
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
     def gen = new ObjectGen(capacity)
 
     when:
     // Number of purges required to switch to flat mode (in the absence of garbage collection)
-    final int purgesToFlatMode = (int) (flatModeThreshold / DefaultTaintedMap.PURGE_COUNT) + 1
+    final int purgesToFlatMode = (int) (flatModeThreshold / TaintedMap.PURGE_COUNT) + 1
     gen.genObjects(purgesToFlatMode, ObjectGen.TRIGGERS_PURGE).each { o ->
       final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
       queue.hold(o, to)
@@ -166,7 +171,8 @@ class TaintedMapTest extends DDSpecification {
     }
 
     then:
-    map.toList().size() == capacity
+    map.size() == capacity
+    map.count() == capacity
 
     and: 'last puts are present'
     lastPuts.each { o ->
@@ -184,7 +190,7 @@ class TaintedMapTest extends DDSpecification {
     int capacity = 128
     int flatModeThreshold = 64
     def queue = new MockReferenceQueue()
-    def map = new DefaultTaintedMap(capacity, flatModeThreshold, queue)
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
 
     int iters = 16
     int nObjectsPerIter = flatModeThreshold - 1
@@ -210,8 +216,9 @@ class TaintedMapTest extends DDSpecification {
 
     then:
     !map.isFlat()
+    map.size() == iters
+    map.count() == iters
     final entries = map.toList()
-    entries.size() == iters
     entries.findAll { it.get() != null }.size() == iters
 
     and: 'all objects are as expected'
@@ -227,7 +234,7 @@ class TaintedMapTest extends DDSpecification {
     int capacity = 128
     int flatModeThreshold = 64
     def queue = new MockReferenceQueue()
-    def map = new DefaultTaintedMap(capacity, flatModeThreshold, queue)
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
 
     int iters = 1
     def gen = new ObjectGen(capacity)
@@ -235,7 +242,7 @@ class TaintedMapTest extends DDSpecification {
 
     when:
     // Number of purges required to switch to flat mode (in the absence of garbage collection)
-    final int purgesToFlatMode = (int) (flatModeThreshold / DefaultTaintedMap.PURGE_COUNT) + 1
+    final int purgesToFlatMode = (int) (flatModeThreshold / TaintedMap.PURGE_COUNT) + 1
     gen.genObjects(purgesToFlatMode, ObjectGen.TRIGGERS_PURGE).each { o ->
       final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
       queue.hold(o, to)
@@ -258,8 +265,9 @@ class TaintedMapTest extends DDSpecification {
 
     then:
     map.isFlat()
+    map.size() == iters
+    map.count() == iters
     final entries = map.toList()
-    entries.size() == iters
     entries.findAll { it.get() != null }.size() == iters
 
     and: 'all objects are as expected'
@@ -275,7 +283,7 @@ class TaintedMapTest extends DDSpecification {
     int capacity = 128
     int flatModeThreshold = 64
     def queue = new MockReferenceQueue()
-    def map = new DefaultTaintedMap(capacity, flatModeThreshold, queue)
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
 
     and:
     int nThreads = 16
@@ -322,7 +330,7 @@ class TaintedMapTest extends DDSpecification {
     int capacity = 128
     int flatModeThreshold = 64
     def queue = new MockReferenceQueue()
-    def map = new DefaultTaintedMap(capacity, flatModeThreshold, queue)
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
 
     and:
     int nThreads = 16
@@ -332,7 +340,7 @@ class TaintedMapTest extends DDSpecification {
 
     when:
     // Number of purges required to switch to flat mode (in the absence of garbage collection)
-    final int purgesToFlatMode = (int) (flatModeThreshold / DefaultTaintedMap.PURGE_COUNT) + 1
+    final int purgesToFlatMode = (int) (flatModeThreshold / TaintedMap.PURGE_COUNT) + 1
     gen.genObjects(purgesToFlatMode, ObjectGen.TRIGGERS_PURGE).each { o ->
       final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
       queue.hold(o, to)
@@ -368,7 +376,8 @@ class TaintedMapTest extends DDSpecification {
 
     then:
     map.isFlat()
-    map.toList().size() == capacity
+    map.size() == capacity
+    map.count() == capacity
     map.toList().findAll({ it.get() != null }).size() == capacity
     map.toList().collect({ it.get() }).toSet().size() == capacity
 
@@ -381,7 +390,7 @@ class TaintedMapTest extends DDSpecification {
     int capacity = 128
     int flatModeThreshold = 64
     def queue = new MockReferenceQueue()
-    def map = new DefaultTaintedMap(capacity, flatModeThreshold, queue)
+    def map = new TaintedMap(capacity, flatModeThreshold, queue)
 
     and:
     int nThreads = 16
@@ -419,7 +428,7 @@ class TaintedMapTest extends DDSpecification {
 
     then:
     map.size() == 0
-    map.toList().size() == 0
+    map.count() == 0
     !map.isFlat()
 
     cleanup:

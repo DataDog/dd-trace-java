@@ -1,7 +1,9 @@
 package foo.bar.smoketest;
 
 import jakarta.servlet.RequestDispatcher;
+import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.ServletRequest;
+import java.io.IOException;
 import java.util.Enumeration;
 
 public class JakartaServletRequestTestSuite implements ServletRequestTestSuite<ServletRequest> {
@@ -35,5 +37,10 @@ public class JakartaServletRequestTestSuite implements ServletRequestTestSuite<S
   @Override
   public RequestDispatcher getRequestDispatcher(String path) {
     return request.getRequestDispatcher(path);
+  }
+
+  @Override
+  public ServletInputStream getInputStream() throws IOException {
+    return request.getInputStream();
   }
 }

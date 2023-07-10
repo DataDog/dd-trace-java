@@ -25,10 +25,15 @@ dependencies {
   testImplementation group: 'org.glassfish.grizzly', name: 'grizzly-http-server', version: '2.3.20'
   testImplementation group: 'org.glassfish.jersey.containers', name: 'jersey-container-grizzly2-http', version: '2.18'
   testImplementation group: 'org.glassfish.jersey.media', name: 'jersey-media-multipart', version: '2.18'
+  testImplementation testFixtures(project(':dd-java-agent:appsec'))
   testRuntimeOnly project(':dd-java-agent:instrumentation:jersey-2-appsec')
 
   latestDepTestImplementation group: 'org.glassfish.grizzly', name: 'grizzly-http-server', version: '2.3.20+'
   latestDepTestImplementation group: 'org.glassfish.jersey.containers', name: 'jersey-container-grizzly2-http', version: '2.+'
   latestDepTestImplementation group: 'org.glassfish.jersey.media', name: 'jersey-media-multipart', version: '2.+'
   latestDepTestImplementation group: 'org.glassfish.jersey.inject', name: 'jersey-hk2', version: '2.+'
+}
+
+tasks.withType(Test) {
+  jvmArgs += ['-Ddd.integration.grizzly-filterchain.enabled=true']
 }

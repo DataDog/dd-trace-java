@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.springwebflux.server.iast;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Source;
+import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.source.WebModule;
 import java.util.Map;
@@ -13,6 +15,7 @@ import org.springframework.http.HttpHeaders;
 @RequiresRequestContext(RequestContextSlot.IAST)
 class TaintHttpHeadersToSingleValueMapAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
+  @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
   public static void after(@Advice.Return Map<String, String> values) {
     PropagationModule propModule = InstrumentationBridge.PROPAGATION;
     WebModule module = InstrumentationBridge.WEB;
@@ -22,7 +25,7 @@ class TaintHttpHeadersToSingleValueMapAdvice {
 
     module.onHeaderNames(values.keySet());
     for (Map.Entry<String, String> e : values.entrySet()) {
-      module.onHeaderValue(e.getKey(), e.getValue());
+      propModule.taint(SourceTypes.REQUEST_HEADER_VALUE, e.getKey(), e.getValue());
     }
   }
 }

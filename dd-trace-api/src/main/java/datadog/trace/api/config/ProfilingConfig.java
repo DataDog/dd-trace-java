@@ -48,7 +48,7 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT =
       "profiling.direct.allocation.sample.limit";
-  public static final int PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT_DEFAULT = 10_000;
+  public static final int PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT_DEFAULT = 2_000;
   public static final String PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS =
       "profiling.exception.histogram.top-items";
   public static final int PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS_DEFAULT = 50;
@@ -137,6 +137,9 @@ public final class ProfilingConfig {
   public static final String PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY =
       "profiling.ddprof.liveheap.capacity";
   public static final int PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY_DEFAULT = 1024;
+  public static final String PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE =
+      "profiling.ddprof.liveheap.track_size.enabled";
+  public static final boolean PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE_DEFAFULT = true;
   public static final String PROFILING_ENDPOINT_COLLECTION_ENABLED =
       "profiling.endpoint.collection.enabled";
   public static final boolean PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT = true;
@@ -167,6 +170,11 @@ public final class ProfilingConfig {
       "profiling.experimental.queueing.time.enabled";
 
   public static final boolean PROFILING_QUEUEING_TIME_ENABLED_DEFAULT = false;
+
+  public static final String PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS =
+      "profiling.experimental.queueing.time.threshold.millis";
+
+  public static final long PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT = 50;
 
   private ProfilingConfig() {}
 }

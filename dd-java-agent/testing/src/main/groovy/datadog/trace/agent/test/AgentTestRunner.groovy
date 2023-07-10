@@ -10,6 +10,7 @@ import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.checkpoints.TestEndpointCheckpointer
 import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery
 import datadog.trace.agent.test.datastreams.RecordingDatastreamsPayloadWriter
+import datadog.trace.agent.test.timer.TestTimer
 import datadog.trace.agent.tooling.AgentInstaller
 import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.agent.tooling.TracerInstaller
@@ -160,6 +161,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @Shared
   AgentDataStreamsMonitoring TEST_DATA_STREAMS_MONITORING
 
+  @SuppressWarnings('PropertyName')
+  @Shared
+  TestTimer TEST_TIMER = Spy(new TestTimer())
+
   @Shared
   ClassFileTransformer activeTransformer
 
@@ -174,6 +179,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   protected boolean isTestAgentEnabled() {
     return System.getenv("CI_USE_TEST_AGENT").equals("true")
+  }
+
+  protected boolean isForceAppSecActive() {
+    true
   }
 
   private static void configureLoggingLevels() {
@@ -240,6 +249,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       .dataStreamsMonitoring(TEST_DATA_STREAMS_MONITORING)
       .profilingContextIntegration(TEST_PROFILING_CONTEXT_INTEGRATION)
       .build())
+    TEST_TRACER.registerTimer(TEST_TIMER)
     TEST_TRACER.registerCheckpointer(TEST_CHECKPOINTER)
     TracerInstaller.forceInstallGlobalTracer(TEST_TRACER)
 
@@ -296,7 +306,9 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     util.attachMock(TEST_CHECKPOINTER, this)
 
     originalAppSecRuntimeValue = ActiveSubsystems.APPSEC_ACTIVE
-    ActiveSubsystems.APPSEC_ACTIVE = true
+    if (forceAppSecActive) {
+      ActiveSubsystems.APPSEC_ACTIVE = true
+    }
   }
 
   void cleanup() {

@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import java.util.Locale;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
@@ -47,7 +48,7 @@ public class ZuulProxyRequestHelperInstrumentation extends Instrumenter.Tracing
         @Advice.Argument(0) final String header, @Advice.Return(readOnly = false) boolean include) {
       if (!include) return;
 
-      String lowercaseHeader = header.toLowerCase();
+      String lowercaseHeader = header.toLowerCase(Locale.ROOT);
       if (lowercaseHeader.startsWith(HAYSTACK_PACKAGE_PREFIX)
           || lowercaseHeader.startsWith(DD_PACKAGE_PREFIX)
           || EXCLUDED_HEADERS.contains(lowercaseHeader)) {

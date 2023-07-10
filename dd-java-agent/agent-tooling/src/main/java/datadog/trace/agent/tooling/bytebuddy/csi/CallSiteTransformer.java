@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling.bytebuddy.csi;
 
 import static net.bytebuddy.jar.asm.ClassWriter.COMPUTE_MAXS;
 
+import datadog.trace.agent.tooling.HelperInjector;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.csi.CallSiteAdvice;
 import datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode;
@@ -26,12 +27,26 @@ import net.bytebuddy.utility.JavaModule;
 
 public class CallSiteTransformer implements Instrumenter.AdviceTransformer {
 
+  private static final Instrumenter.AdviceTransformer NO_OP =
+      (builder, typeDescription, classLoader, module, pd) -> builder;
+
   public static final int ASM_API = Opcodes.ASM8;
 
   private final Advices advices;
 
+  private final Instrumenter.AdviceTransformer helperInjector;
+
   public CallSiteTransformer(@Nonnull final Advices advices) {
+    this("call-site-transformer", advices);
+  }
+
+  public CallSiteTransformer(@Nonnull final String name, @Nonnull final Advices advices) {
     this.advices = advices;
+    final String[] helpers = advices.getHelpers();
+    this.helperInjector =
+        helpers == null || helpers.length == 0
+            ? NO_OP
+            : new HelperInjector(name, advices.getHelpers());
   }
 
   @Override
@@ -42,7 +57,12 @@ public class CallSiteTransformer implements Instrumenter.AdviceTransformer {
       final JavaModule module,
       final ProtectionDomain pd) {
     Advices discovered = advices.findAdvices(builder, type, classLoader);
-    return discovered.isEmpty() ? builder : builder.visit(new CallSiteVisitorWrapper(discovered));
+    if (discovered.isEmpty()) {
+      return builder;
+    }
+    final DynamicType.Builder<?> withHelpers =
+        helperInjector.transform(builder, type, classLoader, module, pd);
+    return withHelpers.visit(new CallSiteVisitorWrapper(discovered));
   }
 
   private static class CallSiteVisitorWrapper extends AsmVisitorWrapper.AbstractBase {
@@ -55,7 +75,7 @@ public class CallSiteTransformer implements Instrumenter.AdviceTransformer {
 
     @Override
     public int mergeWriter(final int flags) {
-      return advices.computeMaxStack() ? flags | COMPUTE_MAXS : flags;
+      return flags | COMPUTE_MAXS;
     }
 
     @Override
@@ -154,6 +174,12 @@ public class CallSiteTransformer implements Instrumenter.AdviceTransformer {
     @Override
     public void loadConstantArray(final Object[] array) {
       CallSiteUtils.pushConstantArray(mv, array);
+    }
+
+    @Override
+    public void field(
+        final int opcode, final String owner, final String field, final String descriptor) {
+      mv.visitFieldInsn(opcode, owner, field, descriptor);
     }
 
     @Override

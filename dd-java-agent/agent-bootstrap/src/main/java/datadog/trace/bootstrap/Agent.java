@@ -746,15 +746,16 @@ public class Agent {
     }
   }
 
-  private static void maybeStartCiVisibility(Class<?> scoClass, Object o) {
+  private static void maybeStartCiVisibility(Class<?> scoClass, Object sco) {
     if (ciVisibilityEnabled) {
       StaticEventLogger.begin("CI Visibility");
 
       try {
         final Class<?> ciVisibilitySysClass =
             AGENT_CLASSLOADER.loadClass("datadog.trace.civisibility.CiVisibilitySystem");
-        final Method ciVisibilityInstallerMethod = ciVisibilitySysClass.getMethod("start");
-        ciVisibilityInstallerMethod.invoke(null);
+        final Method ciVisibilityInstallerMethod =
+            ciVisibilitySysClass.getMethod("start", scoClass);
+        ciVisibilityInstallerMethod.invoke(null, sco);
       } catch (final Throwable e) {
         log.warn("Not starting CI Visibility subsystem", e);
       }
@@ -871,9 +872,9 @@ public class Agent {
                             ? null
                             : "com.datadog.profiling.controller.openjdk.JFRCheckpointer";
                 String timerClassName =
-                    Platform.isOracleJDK8() || Platform.isJ9()
-                        ? null
-                        : "com.datadog.profiling.controller.openjdk.JFRTimer";
+                    Config.get().isDatadogProfilerEnabled()
+                        ? "com.datadog.profiling.controller.ddprof.DatadogProfilerTimer"
+                        : null;
                 try {
                   if (checkpointerClassName != null) {
                     tracer.registerCheckpointer(

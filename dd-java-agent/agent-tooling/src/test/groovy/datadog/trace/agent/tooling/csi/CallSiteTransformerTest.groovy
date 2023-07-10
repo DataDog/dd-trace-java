@@ -5,14 +5,14 @@ import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteTransformer
 import datadog.trace.agent.tooling.csi.CallSiteAdvice.MethodHandler
 import datadog.trace.api.function.TriFunction
 import groovy.transform.CompileDynamic
+import net.bytebuddy.description.type.TypeDescription
+import net.bytebuddy.dynamic.DynamicType
 import net.bytebuddy.jar.asm.Opcodes
 import net.bytebuddy.jar.asm.Type
-import org.spockframework.runtime.ConditionNotSatisfiedError
 
 import java.util.function.BiFunction
 import java.util.function.Consumer
 
-import static datadog.trace.agent.tooling.csi.CallSiteAdvice.HasFlags.COMPUTE_MAX_STACK
 import static datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode.COPY
 
 @CompileDynamic
@@ -23,8 +23,8 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
     final source = Type.getType(StringConcatExample)
     final target = renameType(source, 'Test')
     final pointcut = stringConcatPointcut()
-    final callSite = mockInvokeAdvice(pointcut)
-    final callSiteTransformer = new CallSiteTransformer(mockAdvices([callSite]))
+    final advice = Mock(InvokeAdvice)
+    final callSiteTransformer = new CallSiteTransformer(mockAdvices([mockCallSites(advice, pointcut)]))
 
     when:
     final transformedClass = transformType(source, target, callSiteTransformer)
@@ -32,7 +32,7 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
     final result = instance.apply('Hello ', 'World!')
 
     then:
-    1 * callSite.apply(_ as MethodHandler, Opcodes.INVOKEVIRTUAL, pointcut.type(), pointcut.method(), pointcut.descriptor(), false) >> { params ->
+    1 * advice.apply(_ as MethodHandler, Opcodes.INVOKEVIRTUAL, pointcut.type, pointcut.method, pointcut.descriptor, false) >> { params ->
       final args = params as Object[]
       final handler = args[0] as MethodHandler
       handler.instruction(Opcodes.SWAP)
@@ -59,51 +59,6 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
     result == 'Hello World!'
   }
 
-  void 'test modifying stack advices with compute max stack? #computeMax'(final boolean computeMax,
-    final Class<? extends Exception> expectedThrown) {
-    setup:
-    final source = Type.getType(StringConcatExample)
-    final target = renameType(source, 'Test')
-    final helperType = Type.getType(InstrumentationHelper)
-    final helperMethod = Type.getType(InstrumentationHelper.getDeclaredMethod('onConcat', String, String))
-    final pointcut = stringConcatPointcut()
-    final callSite = mockInvokeAdvice(pointcut, COMPUTE_MAX_STACK, helperType.className)
-    final advices = mockAdvices([callSite])
-    final callSiteTransformer = new CallSiteTransformer(advices)
-    final callbackArguments = new Object[2]
-    InstrumentationHelper.callback = { args ->  System.arraycopy(args, 0, callbackArguments, 0, 2) }
-
-    when:
-    // spock exception handling should be toplevel so we do a custom try/catch check
-    try {
-      final transformedClass = transformType(source, target, callSiteTransformer)
-      final instance = loadType(target, transformedClass) as BiFunction<String, String, String>
-      instance.apply('Hello ', 'World!')
-      assert expectedThrown == null: 'Method should throw an exception'
-      assert callbackArguments[0] == 'Hello '
-      assert callbackArguments[1] == 'World!'
-    } catch (ConditionNotSatisfiedError e) {
-      throw e
-    } catch (Throwable e) {
-      assert e.getClass() == expectedThrown
-    }
-
-    then:
-    1 * advices.computeMaxStack() >> computeMax
-    1 * callSite.apply(_ as MethodHandler, Opcodes.INVOKEVIRTUAL, pointcut.type(), pointcut.method(), pointcut.descriptor(), false) >> { params ->
-      final args = params as Object[]
-      final handler = args[0] as MethodHandler
-      handler.dupInvoke(pointcut.type(), pointcut.descriptor(), COPY)
-      handler.method(Opcodes.INVOKESTATIC, helperType.internalName, 'onConcat', helperMethod.descriptor, false)
-      handler.method(args[1] as int, args[2] as String, args[3] as String, args[4] as String, args[5] as Boolean)
-    }
-
-    where:
-    computeMax | expectedThrown
-    true       | null
-    false      | VerifyError
-  }
-
   void 'test modifying stack advices with category II items in the stack'() {
     setup:
     final source = Type.getType(StringConcatCategory2Example)
@@ -111,8 +66,8 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
     final helperType = Type.getType(InstrumentationHelper)
     final helperMethod = Type.getType(InstrumentationHelper.getDeclaredMethod('onConcat', String, String))
     final pointcut = stringConcatPointcut()
-    final callSite = mockInvokeAdvice(pointcut, COMPUTE_MAX_STACK, helperType.className)
-    final advices = mockAdvices([callSite])
+    final advice = Mock(InvokeAdvice)
+    final advices = mockAdvices([mockCallSites(advice, pointcut, helperType.className)])
     final callSiteTransformer = new CallSiteTransformer(advices)
     final callbackArguments = new Object[2]
     InstrumentationHelper.callback = { args ->  System.arraycopy(args, 0, callbackArguments, 0, 2) }
@@ -125,10 +80,10 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
     then:
     callbackArguments[0] == 'Hello '
     callbackArguments[1] == 'World!'
-    1 * callSite.apply(_ as MethodHandler, Opcodes.INVOKEVIRTUAL, pointcut.type(), pointcut.method(), pointcut.descriptor(), false) >> { params ->
+    1 * advice.apply(_ as MethodHandler, Opcodes.INVOKEVIRTUAL, pointcut.type, pointcut.method, pointcut.descriptor, false) >> { params ->
       final args = params as Object[]
       final handler = args[0] as MethodHandler
-      handler.dupInvoke(pointcut.type(), pointcut.descriptor(), COPY)
+      handler.dupInvoke(pointcut.type, pointcut.descriptor, COPY)
       handler.method(Opcodes.INVOKESTATIC, helperType.internalName, 'onConcat', helperMethod.descriptor, false)
       handler.method(args[1] as int, args[2] as String, args[3] as String, args[4] as String, args[5] as Boolean)
     }
@@ -141,8 +96,8 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
     final helperType = Type.getType(InstrumentationHelper)
     final helperMethod = Type.getType(InstrumentationHelper.getDeclaredMethod('onInsert', StringBuilder, int, char[], int, int))
     final pointcut = stringBuilderInsertPointcut()
-    final callSite = mockInvokeAdvice(pointcut, COMPUTE_MAX_STACK, helperType.className)
-    final advices = mockAdvices([callSite])
+    final advice = Mock(InvokeAdvice)
+    final advices = mockAdvices([mockCallSites(advice, pointcut, helperType.className)])
     final callSiteTransformer = new CallSiteTransformer(advices)
     final callbackArguments = new Object[4]
     InstrumentationHelper.callback = { args -> System.arraycopy(args, 0, callbackArguments, 0, callbackArguments.length) }
@@ -158,10 +113,10 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
     callbackArguments[1] == 'Hello World!'.toCharArray()
     callbackArguments[2] == 6
     callbackArguments[3] == 5
-    1 * callSite.apply(_ as MethodHandler, Opcodes.INVOKEVIRTUAL, pointcut.type(), pointcut.method(), pointcut.descriptor(), false) >> { params ->
+    1 * advice.apply(_ as MethodHandler, Opcodes.INVOKEVIRTUAL, pointcut.type, pointcut.method, pointcut.descriptor, false) >> { params ->
       final args = params as Object[]
       final handler = args[0] as MethodHandler
-      handler.dupInvoke(pointcut.type(), pointcut.descriptor(), COPY)
+      handler.dupInvoke(pointcut.type, pointcut.descriptor, COPY)
       handler.method(Opcodes.INVOKESTATIC, helperType.internalName, 'onInsert', helperMethod.descriptor, false)
       handler.method(args[1] as int, args[2] as String, args[3] as String, args[4] as String, args[5] as Boolean)
     }
@@ -176,8 +131,8 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
     Type helperType = Type.getType(InstrumentationHelper)
     Type helperMethod = Type.getType(InstrumentationHelper.getDeclaredMethod('onInsertPartialArgs', int, char[], int))
     Pointcut pointcut = stringBuilderInsertPointcut()
-    InvokeAdvice callSite = mockInvokeAdvice(pointcut, COMPUTE_MAX_STACK, helperType.className)
-    Advices advices = mockAdvices([callSite])
+    InvokeAdvice advice = Mock(InvokeAdvice)
+    Advices advices = mockAdvices([mockCallSites(advice, pointcut, helperType.className)])
     CallSiteTransformer callSiteTransformer = new CallSiteTransformer(advices)
     def callbackArg
     InstrumentationHelper.callback = { arg -> callbackArg = arg }
@@ -192,7 +147,7 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
     callbackArg[1] == 'Hello World!'.toCharArray()
     callbackArg[2] == 6
     callbackArg.size() == 3
-    1 * callSite.apply(_ as MethodHandler, Opcodes.INVOKEVIRTUAL, pointcut.type(), pointcut.method(), pointcut.descriptor(), false) >> { params ->
+    1 * advice.apply(_ as MethodHandler, Opcodes.INVOKEVIRTUAL, pointcut.type, pointcut.method, pointcut.descriptor, false) >> { params ->
       MethodHandler handler = params[0]
       int opcode = params[1]
       String owner = params[2]
@@ -216,8 +171,8 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
     Type helperType = Type.getType(InstrumentationHelper)
     Type helperMethod = Type.getType(InstrumentationHelper.getDeclaredMethod('onInsertSelfAndPartialArgs', StringBuilder, int, char[]))
     Pointcut pointcut = stringBuilderInsertPointcut()
-    InvokeAdvice callSite = mockInvokeAdvice(pointcut, COMPUTE_MAX_STACK, helperType.className)
-    Advices advices = mockAdvices([callSite])
+    InvokeAdvice advice = Mock(InvokeAdvice)
+    Advices advices = mockAdvices([mockCallSites(advice, pointcut, helperType.className)])
     CallSiteTransformer callSiteTransformer = new CallSiteTransformer(advices)
     def callbackArg
     InstrumentationHelper.callback = { arg -> callbackArg = arg }
@@ -232,7 +187,7 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
     callbackArg[0] instanceof StringBuilder
     callbackArg[1] == 0
     callbackArg[2] == 'Hello World!'.toCharArray()
-    1 * callSite.apply(_ as MethodHandler, Opcodes.INVOKEVIRTUAL, pointcut.type(), pointcut.method(), pointcut.descriptor(), false) >> { params ->
+    1 * advice.apply(_ as MethodHandler, Opcodes.INVOKEVIRTUAL, pointcut.type, pointcut.method, pointcut.descriptor, false) >> { params ->
       MethodHandler handler = params[0]
       int opcode = params[1]
       String owner = params[2]
@@ -245,6 +200,31 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
       handler.method(Opcodes.INVOKESTATIC, helperType.internalName, 'onInsertSelfAndPartialArgs', helperMethod.descriptor, false)
       handler.method(opcode, owner, name, descriptor, isInterface)
     }
+  }
+
+  @SuppressWarnings(['GroovyAccessibility', 'GroovyAssignabilityCheck'])
+  void 'test call site transformer with helpers'() {
+    setup:
+    final source = StringConcatExample
+    final helper = InstrumentationHelper
+    final customClassLoader = new ClassLoader() { }
+    final builder = Mock(DynamicType.Builder)
+    final pointcut = stringConcatPointcut()
+    final advice = Mock(InvokeAdvice)
+    final callSiteTransformer = new CallSiteTransformer(mockAdvices([mockCallSites(advice, pointcut, helper.name)]))
+
+    when:
+    def helperCLass = customClassLoader.findLoadedClass(helper.name)
+
+    then:
+    helperCLass == null
+
+    when:
+    callSiteTransformer.transform(builder, new TypeDescription.ForLoadedType(source), customClassLoader, null, null)
+    helperCLass = customClassLoader.findLoadedClass(helper.name)
+
+    then:
+    helperCLass != null
   }
 
   static class InstrumentationHelper {

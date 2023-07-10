@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.testng;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.testng.IMethodInstance;
@@ -28,8 +27,19 @@ import org.testng.internal.ConstructorOrMethod;
  */
 public abstract class TestNGClassListener {
 
+  private final ConcurrentMap<Class<?>, Collection<ConstructorOrMethod>> registeredMethods =
+      new ConcurrentHashMap<>();
   private final ConcurrentMap<Class<?>, Collection<ConstructorOrMethod>> methodsAwaitingExecution =
       new ConcurrentHashMap<>();
+
+  public void registerTestMethods(Collection<ITestNGMethod> testMethods) {
+    for (ITestNGMethod testMethod : testMethods) {
+      ITestClass testClass = testMethod.getTestClass();
+      Class<?> realClass = testClass.getRealClass();
+      ConstructorOrMethod constructorOrMethod = testMethod.getConstructorOrMethod();
+      registeredMethods.computeIfAbsent(realClass, k -> new ArrayList<>()).add(constructorOrMethod);
+    }
+  }
 
   public void invokeBeforeClass(ITestClass testClass, boolean parallelized) {
     methodsAwaitingExecution.computeIfAbsent(
@@ -38,16 +48,7 @@ public abstract class TestNGClassListener {
           // firing event with the lock held to ensure that the other threads wait until test suite
           // state is initialized
           onBeforeClass(testClass, parallelized);
-
-          // populate methods with the lock held to ensure that the other threads cannot see
-          // partially populated collection
-          ITestNGMethod[] testMethods = testClass.getTestMethods();
-          List<ConstructorOrMethod> methods = new ArrayList<>(testMethods.length);
-          for (ITestNGMethod testMethod : testMethods) {
-            ConstructorOrMethod constructorOrMethod = testMethod.getConstructorOrMethod();
-            methods.add(constructorOrMethod);
-          }
-          return methods;
+          return registeredMethods.remove(k);
         });
   }
 

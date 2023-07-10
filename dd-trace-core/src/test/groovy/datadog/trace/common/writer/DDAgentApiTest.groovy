@@ -8,11 +8,7 @@ import datadog.communication.monitor.Monitoring
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
-import datadog.trace.api.DDSpanId
-import datadog.trace.api.DDTraceId
 import datadog.trace.api.StatsDClient
-import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.common.sampling.RateByServiceTraceSampler
 import datadog.trace.common.writer.ddagent.DDAgentApi
@@ -421,35 +417,5 @@ class DDAgentApiTest extends DDCoreSpecification {
     OkHttpClient client = OkHttpUtils.buildHttpClient(agentUrl, 1000)
     DDAgentFeaturesDiscovery discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true,true)
     return [discovery, new DDAgentApi(client, agentUrl, discovery, monitoring, false)]
-  }
-
-  DDSpan buildSpan(long timestamp, String tag, String value, PropagationTags propagationTags) {
-    def tracer = tracerBuilder().writer(new ListWriter()).build()
-    def context = new DDSpanContext(
-      DDTraceId.ONE,
-      1,
-      DDSpanId.ZERO,
-      null,
-      "fakeService",
-      "fakeOperation",
-      "fakeResource",
-      PrioritySampling.UNSET,
-      null,
-      [:],
-      false,
-      "fakeType",
-      0,
-      tracer.pendingTraceFactory.create(DDTraceId.ONE),
-      null,
-      null,
-      NoopPathwayContext.INSTANCE,
-      false,
-      propagationTags)
-
-    def span = DDSpan.create(timestamp, context)
-    span.setTag(tag, value)
-
-    tracer.close()
-    return span
   }
 }

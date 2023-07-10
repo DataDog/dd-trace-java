@@ -17,6 +17,8 @@ import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.metrics.SpanMetricRegistry;
+import datadog.trace.api.metrics.SpanMetrics;
 import datadog.trace.api.profiling.TransientProfilingContextHolder;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -47,12 +49,16 @@ public class DDSpan
 
   public static final String CHECKPOINTED_TAG = "checkpointed";
 
-  static DDSpan create(final long timestampMicro, @Nonnull DDSpanContext context) {
-    final DDSpan span = new DDSpan(timestampMicro, context);
+  static DDSpan create(
+      final String instrumentationName, final long timestampMicro, @Nonnull DDSpanContext context) {
+    final DDSpan span = new DDSpan(instrumentationName, timestampMicro, context);
     log.debug("Started span: {}", span);
     context.getTrace().registerSpan(span);
     return span;
   }
+
+  /** The metrics for this span instance. */
+  private final SpanMetrics metrics;
 
   /** The context attached to the span */
   private final DDSpanContext context;
@@ -102,11 +108,17 @@ public class DDSpan
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
    *
+   * @param instrumentationName instrumentation that creates the span
    * @param timestampMicro if greater than zero, use this time instead of the current time
    * @param context the context used for the span
    */
-  private DDSpan(final long timestampMicro, @Nonnull DDSpanContext context) {
+  private DDSpan(
+      @Nonnull String instrumentationName,
+      final long timestampMicro,
+      @Nonnull DDSpanContext context) {
     this.context = context;
+    this.metrics = SpanMetricRegistry.getInstance().get(instrumentationName);
+    this.metrics.onSpanCreated();
 
     if (timestampMicro <= 0L) {
       // note: getting internal time from the trace implicitly 'touches' it
@@ -127,6 +139,7 @@ public class DDSpan
     // ensure a min duration of 1
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano))) {
       setLongRunningVersion(-this.longRunningVersion);
+      this.metrics.onSpanFinished();
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
       log.debug("Finished span ({}): {}", publishState, this);
     } else {
@@ -539,7 +552,10 @@ public class DDSpan
   public Integer forceSamplingDecision() {
     PendingTrace trace = this.context.getTrace();
     DDSpan rootSpan = trace.getRootSpan();
-    trace.getTracer().setSamplingPriorityIfNecessary(rootSpan);
+    trace.setSamplingPriorityIfNecessary();
+    if (rootSpan == null) {
+      return null;
+    }
     return rootSpan.getSamplingPriority();
   }
 

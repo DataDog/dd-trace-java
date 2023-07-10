@@ -4,11 +4,19 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.test.util.MultipartRequestParser
 import datadog.trace.util.Strings
 import org.gradle.internal.impldep.org.apache.commons.io.FileUtils
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
+import org.gradle.util.DistributionLocator
+import org.gradle.util.GradleVersion
+import org.gradle.wrapper.Download
+import org.gradle.wrapper.GradleUserHomeLookup
+import org.gradle.wrapper.Install
+import org.gradle.wrapper.PathAssembler
+import org.gradle.wrapper.WrapperConfiguration
 import org.junit.jupiter.api.Assumptions
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import spock.lang.AutoCleanup
@@ -16,7 +24,6 @@ import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.TempDir
 import spock.lang.Unroll
-import spock.util.concurrent.PollingConditions
 import spock.util.environment.Jvm
 
 import java.nio.file.FileVisitResult
@@ -41,6 +48,9 @@ class GradleDaemonSmokeTest extends Specification {
   private static final String GRADLE_TEST_RESOURCE_EXTENSION = ".gradleTest"
   private static final String GRADLE_REGULAR_EXTENSION = ".gradle"
 
+  private static final long EVENTS_RECEIPT_TIMEOUT = 30_000
+  public static final int GRADLE_DISTRIBUTION_NETWORK_TIMEOUT = 30_000 // Gradle's default timeout is 10s
+
   // TODO: Gradle daemons started by the TestKit have an idle period of 3 minutes
   //  so by the time tests finish, at least some of the daemons are still alive.
   //  Because of that the temporary TestKit folder cannot be fully deleted
@@ -58,6 +68,9 @@ class GradleDaemonSmokeTest extends Specification {
   Queue<Map<String, Object>> receivedTraces = new ConcurrentLinkedQueue<>()
 
   @Shared
+  Queue<Map<String, Object>> receivedCoverages = new ConcurrentLinkedQueue<>()
+
+  @Shared
   @AutoCleanup
   protected TestHttpServer intakeServer = httpServer {
     handlers {
@@ -66,6 +79,25 @@ class GradleDaemonSmokeTest extends Specification {
         receivedTraces.add(decodedEvent)
 
         response.status(200).send()
+      }
+
+      prefix("/api/v2/citestcov") {
+        def parsed = MultipartRequestParser.parseRequest(request.body, request.headers.get("Content-Type"))
+        def coverages = parsed.get("coverage1")
+        for (def coverage : coverages) {
+          def decodedCoverage = objectMapper.readValue(coverage.get(), Map)
+          receivedCoverages.add(decodedCoverage)
+        }
+
+        response.status(202).send()
+      }
+
+      prefix("/api/v2/libraries/tests/services/setting") {
+        response.status(200).send('{ "data": { "type": "ci_app_tracers_test_service_settings", "id": "uuid", "attributes": { "code_coverage": true, "tests_skipping": true } } }')
+      }
+
+      prefix("/api/v2/ci/tests/skippable") {
+        response.status(200).send('{ "data": [] }')
       }
     }
   }
@@ -76,16 +108,19 @@ class GradleDaemonSmokeTest extends Specification {
 
   def setup() {
     receivedTraces.clear()
+    receivedCoverages.clear()
   }
 
   def cleanup() {
     receivedTraces.clear()
+    receivedCoverages.clear()
   }
 
   def "Successful build emits session and module spans: Gradle v#gradleVersion"() {
     given:
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenGradleProjectFiles("datadog/smoketest/success/")
+    ensureDependenciesDownloaded(gradleVersion)
 
     when:
     BuildResult buildResult = runGradleTests(gradleVersion)
@@ -93,7 +128,7 @@ class GradleDaemonSmokeTest extends Specification {
     then:
     assertBuildSuccessful(buildResult)
 
-    def events = waitForEvents(2)
+    def events = waitForEvents(4)
     assert events.size() == 4
 
     def sessionEndEvent = events.find { it.type == "test_session_end" }
@@ -143,8 +178,9 @@ class GradleDaemonSmokeTest extends Specification {
         }
         verifyAll(meta) {
           it["span.kind"] == "test_suite_end"
-          it["test.module"] != null
           it["test.suite"] == "datadog.smoke.TestSucceed"
+          it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
+          it["ci.provider.name"] == "jenkins"
         }
       }
     }
@@ -166,15 +202,32 @@ class GradleDaemonSmokeTest extends Specification {
         }
         verifyAll(meta) {
           it["span.kind"] == "test"
-          it["test.module"] != null
           it["test.suite"] == "datadog.smoke.TestSucceed"
           it["test.name"] == "test_succeed"
+          it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
+          it["ci.provider.name"] == "jenkins"
         }
       }
     }
 
+    def coverages = waitForCoverages(1)
+    assert coverages.size() == 1
+
+    def coverage = coverages.first()
+    coverage == [
+      test_session_id: testEvent.content.test_session_id,
+      test_suite_id  : testEvent.content.test_suite_id,
+      span_id        : testEvent.content.span_id,
+      files          : [
+        [
+          filename: "src/test/java/datadog/smoke/TestSucceed.java",
+          segments: [[11, -1, 12, -1, -1]]
+        ]
+      ]
+    ]
+
     where:
-    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.5", "7.6.1", "8.0.2"]
+    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.2"]
   }
 
   // this is a separate test case since older Gradle versions need to declare dependencies differently
@@ -183,6 +236,7 @@ class GradleDaemonSmokeTest extends Specification {
     given:
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenGradleProjectFiles("datadog/smoketest/successLegacy/")
+    ensureDependenciesDownloaded(gradleVersion)
 
     when:
     BuildResult buildResult = runGradleTests(gradleVersion)
@@ -190,7 +244,7 @@ class GradleDaemonSmokeTest extends Specification {
     then:
     assertBuildSuccessful(buildResult)
 
-    def events = waitForEvents(2)
+    def events = waitForEvents(4)
     assert events.size() == 4
 
     def sessionEndEvent = events.find { it.type == "test_session_end" }
@@ -240,8 +294,9 @@ class GradleDaemonSmokeTest extends Specification {
         }
         verifyAll(meta) {
           it["span.kind"] == "test_suite_end"
-          it["test.module"] != null
           it["test.suite"] == "datadog.smoke.TestSucceed"
+          it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
+          it["ci.provider.name"] == "jenkins"
         }
       }
     }
@@ -263,22 +318,40 @@ class GradleDaemonSmokeTest extends Specification {
         }
         verifyAll(meta) {
           it["span.kind"] == "test"
-          it["test.module"] != null
           it["test.suite"] == "datadog.smoke.TestSucceed"
           it["test.name"] == "test_succeed"
+          it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
+          it["ci.provider.name"] == "jenkins"
         }
       }
     }
 
+    def coverages = waitForCoverages(1)
+    assert coverages.size() == 1
+
+    def coverage = coverages.first()
+    coverage == [
+      test_session_id: testEvent.content.test_session_id,
+      test_suite_id  : testEvent.content.test_suite_id,
+      span_id        : testEvent.content.span_id,
+      files          : [
+        [
+          filename: "src/test/java/datadog/smoke/TestSucceed.java",
+          segments: [[11, -1, 12, -1, -1]]
+        ]
+      ]
+    ]
+
     where:
-    // Gradle TestKit supports versions 2.6 and later
-    gradleVersion << ["2.6", "3.0"]
+    // Gradle TestKit supports versions 3.0 and later
+    gradleVersion << ["3.0"]
   }
 
   def "Successful multi-module build emits multiple module spans: Gradle v#gradleVersion"() {
     given:
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenGradleProjectFiles("datadog/smoketest/successMultiModule/")
+    ensureDependenciesDownloaded(gradleVersion)
 
     when:
     BuildResult buildResult = runGradleTests(gradleVersion)
@@ -286,7 +359,7 @@ class GradleDaemonSmokeTest extends Specification {
     then:
     assertBuildSuccessful(buildResult)
 
-    def events = waitForEvents(3)
+    def events = waitForEvents(7)
     assert events.size() == 7
 
     def sessionEndEvent = events.find { it.type == "test_session_end" }
@@ -337,7 +410,7 @@ class GradleDaemonSmokeTest extends Specification {
       }
     }
 
-    def suiteAEndEvent = events.find { it.type == "test_suite_end" && it.content.meta["test.module"]?.contains("submodule-a") }
+    def suiteAEndEvent = events.find { it.type == "test_suite_end" && it.content.meta["ci.workspace_path"]?.contains("submodule-a") }
     assert suiteAEndEvent != null
     verifyCommonTags(suiteAEndEvent, "pass", true, false)
     verifyAll(suiteAEndEvent) {
@@ -351,13 +424,14 @@ class GradleDaemonSmokeTest extends Specification {
         }
         verifyAll(meta) {
           it["span.kind"] == "test_suite_end"
-          it["test.module"] != null
           it["test.suite"] == "datadog.smoke.TestSucceed"
+          it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
+          it["ci.provider.name"] == "jenkins"
         }
       }
     }
 
-    def testAEvent = events.find { it.type == "test" && it?.content?.meta["test.module"]?.contains("submodule-a") }
+    def testAEvent = events.find { it.type == "test" && it?.content?.meta["ci.workspace_path"]?.contains("submodule-a") }
     assert testAEvent != null
     verifyCommonTags(testAEvent, "pass", true, false)
     verifyAll(testAEvent) {
@@ -374,14 +448,15 @@ class GradleDaemonSmokeTest extends Specification {
         }
         verifyAll(meta) {
           it["span.kind"] == "test"
-          it["test.module"] != null
           it["test.suite"] == "datadog.smoke.TestSucceed"
           it["test.name"] == "test_succeed"
+          it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
+          it["ci.provider.name"] == "jenkins"
         }
       }
     }
 
-    def suiteBEndEvent = events.find { it.type == "test_suite_end" && it.content.meta["test.module"]?.contains("submodule-b") }
+    def suiteBEndEvent = events.find { it.type == "test_suite_end" && it.content.meta["ci.workspace_path"]?.contains("submodule-b") }
     assert suiteBEndEvent != null
     verifyCommonTags(suiteBEndEvent, "pass", true, false)
     verifyAll(suiteBEndEvent) {
@@ -395,13 +470,14 @@ class GradleDaemonSmokeTest extends Specification {
         }
         verifyAll(meta) {
           it["span.kind"] == "test_suite_end"
-          it["test.module"] != null
           it["test.suite"] == "datadog.smoke.TestSucceed"
+          it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
+          it["ci.provider.name"] == "jenkins"
         }
       }
     }
 
-    def testBEvent = events.find { it.type == "test" && it?.content?.meta["test.module"]?.contains("submodule-b") }
+    def testBEvent = events.find { it.type == "test" && it?.content?.meta["ci.workspace_path"]?.contains("submodule-b") }
     assert testBEvent != null
     verifyCommonTags(testBEvent, "pass", true, false)
     verifyAll(testBEvent) {
@@ -418,22 +494,24 @@ class GradleDaemonSmokeTest extends Specification {
         }
         verifyAll(meta) {
           it["span.kind"] == "test"
-          it["test.module"] != null
           it["test.suite"] == "datadog.smoke.TestSucceed"
           it["test.name"] == "test_succeed"
+          it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
+          it["ci.provider.name"] == "jenkins"
         }
       }
     }
 
     where:
     //
-    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.5", "7.6.1", "8.0.2"]
+    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.2"]
   }
 
   def "Failed build emits session and module spans: Gradle v#gradleVersion"() {
     given:
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenGradleProjectFiles("datadog/smoketest/failure/")
+    ensureDependenciesDownloaded(gradleVersion)
 
     when:
     BuildResult buildResult = runGradleTests(gradleVersion, false)
@@ -449,7 +527,7 @@ class GradleDaemonSmokeTest extends Specification {
       }
     }
 
-    def events = waitForEvents(2)
+    def events = waitForEvents(4)
     assert events.size() == 4
 
     def sessionEndEvent = events.find { it.type == "test_session_end" }
@@ -499,8 +577,9 @@ class GradleDaemonSmokeTest extends Specification {
         }
         verifyAll(meta) {
           it["span.kind"] == "test_suite_end"
-          it["test.module"] != null
           it["test.suite"] == "datadog.smoke.TestFailed"
+          it["test.source.file"] == "src/test/java/datadog/smoke/TestFailed.java"
+          it["ci.provider.name"] == "jenkins"
         }
       }
     }
@@ -522,21 +601,23 @@ class GradleDaemonSmokeTest extends Specification {
         }
         verifyAll(meta) {
           it["span.kind"] == "test"
-          it["test.module"] != null
           it["test.suite"] == "datadog.smoke.TestFailed"
           it["test.name"] == "test_failed"
+          it["test.source.file"] == "src/test/java/datadog/smoke/TestFailed.java"
+          it["ci.provider.name"] == "jenkins"
         }
       }
     }
 
     where:
-    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.5", "7.6.1", "8.0.2"]
+    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.2"]
   }
 
   def "Build without tests emits session and module spans: Gradle v#gradleVersion"() {
     given:
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenGradleProjectFiles("datadog/smoketest/skip/")
+    ensureDependenciesDownloaded(gradleVersion)
 
     when:
     BuildResult buildResult = runGradleTests(gradleVersion)
@@ -544,7 +625,7 @@ class GradleDaemonSmokeTest extends Specification {
     then:
     assertBuildSuccessful(buildResult)
 
-    def events = waitForEvents()
+    def events = waitForEvents(2)
     assert events.size() == 2
 
     def sessionEndEvent = events.find { it.type == "test_session_end" }
@@ -582,7 +663,7 @@ class GradleDaemonSmokeTest extends Specification {
     }
 
     where:
-    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.5", "7.6.1", "8.0.2"]
+    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.2"]
   }
 
   def "Corrupted build emits session span: Gradle v#gradleVersion"() {
@@ -597,7 +678,7 @@ class GradleDaemonSmokeTest extends Specification {
     assert buildResult.tasks != null
     assert buildResult.tasks.size() == 0
 
-    def events = waitForEvents()
+    def events = waitForEvents(1)
     assert events.size() == 1
 
     def sessionEndEvent = events.find { it.type == "test_session_end" }
@@ -619,7 +700,7 @@ class GradleDaemonSmokeTest extends Specification {
     }
 
     where:
-    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.5", "7.6.1", "8.0.2"]
+    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.2"]
   }
 
   private void givenGradleProperties() {
@@ -629,14 +710,21 @@ class GradleDaemonSmokeTest extends Specification {
     def ddApiKeyPath = testKitFolder.resolve(".dd.api.key")
     Files.write(ddApiKeyPath, "dummy".getBytes())
 
+    def ddApplicationKeyPath = testKitFolder.resolve(".dd.application.key")
+    Files.write(ddApplicationKeyPath, "dummy".getBytes())
+
     def gradleProperties =
       "org.gradle.jvmargs=" +
       "-javaagent:${agentShadowJar}=" +
       "${Strings.propertyNameToSystemPropertyName(GeneralConfig.ENV)}=${TEST_ENVIRONMENT_NAME}," +
       "${Strings.propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME)}=${TEST_SERVICE_NAME}," +
       "${Strings.propertyNameToSystemPropertyName(GeneralConfig.API_KEY_FILE)}=${ddApiKeyPath.toAbsolutePath().toString()}," +
+      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.APPLICATION_KEY_FILE)}=${ddApplicationKeyPath.toAbsolutePath().toString()}," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED)}=true," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED)}=true," +
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED)}=true," +
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=0.8.10," +
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES)}=datadog.smoke.*," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${intakeServer.address.toString()}"
 
     Files.write(testKitFolder.resolve("gradle.properties"), gradleProperties.getBytes())
@@ -668,13 +756,54 @@ class GradleDaemonSmokeTest extends Specification {
       // warning mode available starting from Gradle 4.5
       arguments += ["--warning-mode", "all"]
     }
+    BuildResult buildResult = runGradle(gradleVersion, arguments, successExpected)
+    buildResult
+  }
+
+  /**
+   * Sometimes Gradle Test Kit fails because it cannot download the required Gradle distribution
+   * due to intermittent network issues.
+   * This method performs the download manually (if needed) with increased timeout (30s vs default 10s).
+   * Retry logic (3 retries) is already present in org.gradle.wrapper.Install
+   */
+  private ensureDependenciesDownloaded(String gradleVersion) {
+    try {
+      println "${new Date()}: $specificationContext.currentIteration.displayName - Starting dependencies download"
+
+      def logger = new org.gradle.wrapper.Logger(false)
+      def download = new Download(logger, "Gradle Tooling API", GradleVersion.current().getVersion(), GRADLE_DISTRIBUTION_NETWORK_TIMEOUT)
+
+      def userHomeDir = GradleUserHomeLookup.gradleUserHome()
+      def projectDir = projectFolder.toFile()
+      def install = new Install(logger, download, new PathAssembler(userHomeDir, projectDir))
+
+      def configuration = new WrapperConfiguration()
+      def distribution = new DistributionLocator().getDistributionFor(GradleVersion.version(gradleVersion))
+      configuration.setDistribution(distribution)
+      configuration.setNetworkTimeout(GRADLE_DISTRIBUTION_NETWORK_TIMEOUT)
+
+      // this will download distribution (if not downloaded yet to userHomeDir) and verify its SHA
+      install.createDist(configuration)
+
+      println "${new Date()}: $specificationContext.currentIteration.displayName - Finished dependencies download"
+
+    } catch (Exception e) {
+      println "${new Date()}: $specificationContext.currentIteration.displayName " +
+        "- Failed to install Gradle distribution, will proceed to run test kit hoping for the best: $e"
+    }
+  }
+
+  private runGradle(String gradleVersion, List<String> arguments, boolean successExpected) {
     GradleRunner gradleRunner = GradleRunner.create()
       .withTestKitDir(testKitFolder.toFile())
       .withProjectDir(projectFolder.toFile())
       .withGradleVersion(gradleVersion)
       .withArguments(arguments)
+      .forwardOutput()
+
+    println "${new Date()}: $specificationContext.currentIteration.displayName - Starting Gradle run"
     def buildResult = successExpected ? gradleRunner.build() : gradleRunner.buildAndFail()
-    println buildResult.output
+    println "${new Date()}: $specificationContext.currentIteration.displayName - Finished Gradle run"
     buildResult
   }
 
@@ -686,18 +815,50 @@ class GradleDaemonSmokeTest extends Specification {
     }
   }
 
-  private List<Map<String, Object>> waitForEvents(traceSize = 1) {
-    def traceReceiveConditions = new PollingConditions(timeout: 5, initialDelay: 1, delay: 0.5, factor: 1)
-    traceReceiveConditions.eventually {
-      assert receivedTraces.size() == traceSize
-    }
+  private List<Map<String, Object>> waitForEvents(eventsCount) {
+    println "${new Date()}: $specificationContext.currentIteration.displayName - Waiting for traces"
 
     List<Map<String, Object>> events = new ArrayList<>()
-    while (!receivedTraces.isEmpty()) {
+    def startTime = System.currentTimeMillis()
+    while (events.size() < eventsCount) {
       def trace = receivedTraces.poll()
-      events.addAll((List<Map<String, Object>>) trace["events"])
+      if (trace != null) {
+        events.addAll((List<Map<String, Object>>) trace["events"])
+        continue
+      }
+      def duration = System.currentTimeMillis() - startTime
+      if (duration > EVENTS_RECEIPT_TIMEOUT) {
+        throw new AssertionError((Object) "Waited for $eventsCount events, received: $events")
+      } else {
+        Thread.sleep(500)
+      }
     }
+
+    println "${new Date()}: $specificationContext.currentIteration.displayName - Received traces"
     return events
+  }
+
+  private List<Map<String, Object>> waitForCoverages(coveragesSize) {
+    println "${new Date()}: $specificationContext.currentIteration.displayName - Waiting for coverages"
+
+    List<Map<String, Object>> coverages = new ArrayList<>()
+    def startTime = System.currentTimeMillis()
+    while (coverages.size() < coveragesSize) {
+      def coverage = receivedCoverages.poll()
+      if (coverage != null) {
+        coverages.addAll((List<Map<String, Object>>) coverage["coverages"])
+        continue
+      }
+      def duration = System.currentTimeMillis() - startTime
+      if (duration > EVENTS_RECEIPT_TIMEOUT) {
+        throw new AssertionError((Object) "Waited for $coveragesSize coverages, received: $coverages")
+      } else {
+        Thread.sleep(500)
+      }
+    }
+
+    println "${new Date()}: $specificationContext.currentIteration.displayName - Received coverages"
+    return coverages
   }
 
   protected verifyCommonTags(Map<String, Object> event, String status = "pass", boolean parsingSuccessful = true, boolean buildEvent = true) {
@@ -754,7 +915,9 @@ class GradleDaemonSmokeTest extends Specification {
 
   private static boolean isSupported(String gradleVersion) {
     // https://docs.gradle.org/current/userguide/compatibility.html
-    if (Jvm.current.java19Compatible) {
+    if (Jvm.current.java20Compatible) {
+      return gradleVersion >= "8.1"
+    } else if (Jvm.current.java19) {
       return gradleVersion >= "7.6"
     } else if (Jvm.current.java18) {
       return gradleVersion >= "7.5"

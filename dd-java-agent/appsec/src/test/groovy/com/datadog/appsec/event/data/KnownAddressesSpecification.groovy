@@ -29,13 +29,14 @@ class KnownAddressesSpecification extends Specification {
       'server.request.query',
       'server.request.headers.no_cookies',
       'grpc.server.request.message',
+      'grpc.server.request.metadata',
       'usr.id',
     ]
   }
 
   void 'number of known addresses is expected number'() {
     expect:
-    Address.instanceCount() == 21
+    Address.instanceCount() == 22
     KnownAddresses.USER_ID.serial == Address.instanceCount() - 1
   }
 }

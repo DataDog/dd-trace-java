@@ -33,7 +33,9 @@ public class TestNGInstrumentation extends Instrumenter.CiVisibility
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".TestNGUtils",
+      packageName + ".TestNGSuiteListener",
       packageName + ".TestNGClassListener",
+      packageName + ".ItrFilter",
       packageName + ".TracingListener"
     };
   }
@@ -54,6 +56,9 @@ public class TestNGInstrumentation extends Instrumenter.CiVisibility
               : pkg.getSpecificationVersion();
       final TracingListener tracingListener = new TracingListener(version);
       testNG.addListener((ITestNGListener) tracingListener);
+
+      TestNGSuiteListener suiteListener = new TestNGSuiteListener(tracingListener);
+      testNG.addListener((ITestNGListener) suiteListener);
     }
 
     // TestNG 6.4 and above

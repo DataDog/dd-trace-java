@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.junit4;
 
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
+import datadog.trace.util.AgentThreadFactory;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -17,6 +18,8 @@ import org.junit.runners.model.TestClass;
 
 public class TracingListener extends RunListener {
 
+  private static final String GRADLE_TEST_WORKER_ID_SYSTEM_PROP = "org.gradle.test.worker";
+
   private final TestEventsHandler testEventsHandler;
 
   public TracingListener() {
@@ -24,6 +27,25 @@ public class TracingListener extends RunListener {
     Path currentPath = Paths.get("").toAbsolutePath();
     testEventsHandler =
         InstrumentationBridge.createTestEventsHandler("junit", "junit4", version, currentPath);
+
+    boolean isRunByGradle = System.getProperty(GRADLE_TEST_WORKER_ID_SYSTEM_PROP) != null;
+    if (isRunByGradle) {
+      applyTestRunFinishedPatch();
+    }
+  }
+
+  /**
+   * Gradle uses its own custom JUnit 4 runner. The runner does not invoke
+   * org.junit.runner.notification.RunListener#testRunFinished, so we apply a "patch" to invoke it
+   * before the JVM is shutdown
+   */
+  private void applyTestRunFinishedPatch() {
+    Thread shutdownHook =
+        AgentThreadFactory.newAgentThread(
+            AgentThreadFactory.AgentThread.CI_GRADLE_JUNIT_SHUTDOWN_HOOK,
+            () -> testRunFinished(null),
+            false);
+    Runtime.getRuntime().addShutdownHook(shutdownHook);
   }
 
   @Override
@@ -33,7 +55,7 @@ public class TracingListener extends RunListener {
 
   @Override
   public void testRunFinished(Result result) {
-    testEventsHandler.onTestModuleFinish();
+    testEventsHandler.onTestModuleFinish(ItrFilter.INSTANCE.testsSkipped());
   }
 
   public void testSuiteStarted(final TestClass junitTestClass) {

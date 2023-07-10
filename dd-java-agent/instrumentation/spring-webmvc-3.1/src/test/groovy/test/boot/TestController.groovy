@@ -111,6 +111,14 @@ class TestController {
     }
   }
 
+  @PostMapping(value = "/body-multipart", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  @ResponseBody
+  String body_multipart(@RequestParam MultiValueMap<String, String> body) {
+    HttpServerTest.controller(BODY_URLENCODED) {
+      body.findAll { it.key != 'ignore' } as String
+    }
+  }
+
   @PostMapping(value = "/body-json",
   consumes = MediaType.APPLICATION_JSON_VALUE,
   produces = MediaType.APPLICATION_JSON_VALUE)

@@ -129,33 +129,44 @@ abstract class AbstractIastServerSmokeTest extends AbstractServerSmokeTest {
   protected TaintedObject parseTaintedLog(final String log) {
     final index = log.indexOf('tainted=')
     if (index >= 0) {
-      return jsonSlurper.parse(new StringReader(log.substring(index + 8))) as TaintedObject
+      try {
+        final tainted = jsonSlurper.parse(new StringReader(log.substring(index + 8)))
+        if (tainted instanceof Map) {
+          return tainted as TaintedObject
+        }
+      } catch (Exception e) {
+      }
     }
     return null
   }
 
   protected List<Vulnerability> parseVulnerabilitiesLog(final String log) {
     final startIndex = log.indexOf(TAG_NAME)
-    if (startIndex < 0) {
-      return null
-    }
-    final chars = log.toCharArray()
-    final builder = new StringBuilder()
-    def level = 0
-    for (int i = log.indexOf('{', startIndex); i < chars.length; i++) {
-      final current = chars[i]
-      if (current == '{' as char) {
-        level++
-      } else if (current == '}' as char) {
-        level--
+    if (startIndex > 0) {
+      try {
+        final chars = log.toCharArray()
+        final builder = new StringBuilder()
+        def level = 0
+        for (int i = log.indexOf('{', startIndex); i < chars.length; i++) {
+          final current = chars[i]
+          if (current == '{' as char) {
+            level++
+          } else if (current == '}' as char) {
+            level--
+          }
+          builder.append(chars[i])
+          if (level == 0) {
+            break
+          }
+        }
+        final parsed = jsonSlurper.parseText(builder.toString())
+        if (parsed instanceof Map) {
+          return parsed.vulnerabilities as List<Vulnerability>
+        }
+      } catch (Exception e) {
       }
-      builder.append(chars[i])
-      if (level == 0) {
-        break
-      }
     }
-    final batch = jsonSlurper.parseText(builder.toString()) as Map
-    return batch.vulnerabilities as List<Vulnerability>
+    return null
   }
 
   protected PollingConditions pollingConditions() {

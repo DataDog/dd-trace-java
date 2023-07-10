@@ -314,5 +314,10 @@ public abstract class MavenUtils {
     public int hashCode() {
       return Objects.hash(name, version);
     }
+
+    @Override
+    public String toString() {
+      return name + ":" + version;
+    }
   }
 }

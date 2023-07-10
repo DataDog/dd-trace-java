@@ -41,6 +41,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -464,7 +465,7 @@ public final class ProfileUploader {
       writer.value(V4_ATTACHMENT_FILENAME);
       writer.endArray();
       writer.name(V4_PROFILE_TAGS_PARAM);
-      writer.value(tags + ",snapshot:" + recordingData.getKind().name().toLowerCase());
+      writer.value(tags + ",snapshot:" + recordingData.getKind().name().toLowerCase(Locale.ROOT));
       writer.name(V4_PROFILE_START_PARAM);
       writer.value(recordingData.getStart().toString());
       writer.name(V4_PROFILE_END_PARAM);

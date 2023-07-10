@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.source.WebModule;
@@ -41,13 +42,15 @@ public class InboundMessageContextInstrumentation extends Instrumenter.Iast
 
   public static class InstrumenterAdviceGetHeaders {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
     public static void onExit(@Advice.Return Map<String, List<String>> headers) {
-      final WebModule module = InstrumentationBridge.WEB;
-      if (module != null) {
-        module.onHeaderNames(headers.keySet());
+      final PropagationModule prop = InstrumentationBridge.PROPAGATION;
+      final WebModule web = InstrumentationBridge.WEB;
+      if (prop != null && web != null) {
+        web.onHeaderNames(headers.keySet());
         for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
           for (String value : entry.getValue()) {
-            module.onHeaderValue(entry.getKey(), value);
+            prop.taint(SourceTypes.REQUEST_HEADER_VALUE, entry.getKey(), value);
           }
         }
       }
@@ -56,6 +59,7 @@ public class InboundMessageContextInstrumentation extends Instrumenter.Iast
 
   public static class InstrumenterAdviceGetRequestCookies {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_COOKIE_VALUE_STRING)
     public static void onExit(@Advice.Return Map<String, Object> cookies) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {

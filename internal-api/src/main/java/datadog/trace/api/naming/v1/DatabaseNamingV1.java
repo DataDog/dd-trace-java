@@ -18,11 +18,19 @@ public class DatabaseNamingV1 implements NamingSchema.ForDatabase {
   @Nonnull
   @Override
   public String operation(@Nonnull String databaseType) {
-    if ("elasticsearch.rest".equals(databaseType)) {
-      return "elasticsearch.query";
+    final String prefix;
+    switch (databaseType) {
+      case "elasticsearch.rest":
+        prefix = "elasticsearch";
+        break;
+      case "opensearch.rest":
+        prefix = "opensearch";
+        break;
+      default:
+        prefix = databaseType;
     }
     // already normalized when calling dbType on the decorator. It saves one operation
-    return databaseType + ".query";
+    return prefix + ".query";
   }
 
   @Nonnull

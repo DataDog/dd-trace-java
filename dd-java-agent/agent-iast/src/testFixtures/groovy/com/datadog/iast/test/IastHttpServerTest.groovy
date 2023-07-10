@@ -34,16 +34,14 @@ abstract class IastHttpServerTest<SERVER> extends WithHttpServer<SERVER> impleme
 
   def setupSpec() {
     TaintableVisitor.DEBUG = true
-    iastSystemSetup(requestEndAction)
-
   }
 
-  void cleanupSpec() {
-    iastSystemCleanup()
+  void setup() {
+    iastSystemSetup(requestEndAction)
   }
 
   void cleanup() {
-    TAINTED_OBJECTS.clear()
+    iastSystemCleanup()
   }
 
   protected TaintedObjectCollection getFinReqTaintedObjects() {

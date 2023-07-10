@@ -7,11 +7,11 @@ defaults: &defaults
 
 test_matrix: &test_matrix
   parameters:
-    testJvm: [ "ibm8", "semeru8", "zulu8", "oracle8", "11", "zulu11", "17" ]
+    testJvm: [ "ibm8", "semeru8", "zulu8", "oracle8", "11", "zulu11", "17", "ubuntu17" ]
 
 profiling_test_matrix: &profiling_test_matrix
   parameters:
-    testJvm: [ "8", "zulu8", "oracle8", "11", "zulu11", "17" ]
+    testJvm: [ "8", "zulu8", "oracle8", "11", "zulu11", "17", "ubuntu17" ]
 
 system_test_matrix: &system_test_matrix
   parameters:
@@ -23,7 +23,7 @@ instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 
-default_system_tests_commit: &default_system_tests_commit 6a8304779165bfc221303794f9941bd2a8615647
+default_system_tests_commit: &default_system_tests_commit 6873c9577ddc15693a98f9683075a1b9d4e587f0
 
 parameters:
   gradle_flags:
@@ -187,13 +187,13 @@ commands:
       - restore_cache:
           keys:
             # Dependent steps will find this cache
-            - dd-trace-java-dep<< parameters.cacheType >>-v3-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+            - dd-trace-java-dep<< parameters.cacheType >>-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
             # New branch commits will find this cache
-            - dd-trace-java-dep<< parameters.cacheType >>-v3-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
+            - dd-trace-java-dep<< parameters.cacheType >>-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
             # New branches fall back on main build caches
-            - dd-trace-java-dep<< parameters.cacheType >>-v3-master-{{ checksum "_circle_ci_cache_base_id" }}-
+            - dd-trace-java-dep<< parameters.cacheType >>-v4-master-{{ checksum "_circle_ci_cache_base_id" }}-
             # Fallback to the previous cache during transition
-            - dd-trace-java-dep<< parameters.cacheType >>-v2-master-{{ checksum "_circle_ci_cache_base_id" }}-
+            - dd-trace-java-dep<< parameters.cacheType >>-v3-master-{{ checksum "_circle_ci_cache_base_id" }}-
 
   save_dependency_cache:
     parameters:
@@ -201,7 +201,7 @@ commands:
         type: string
     steps:
       - save_cache:
-          key: dd-trace-java-dep<< parameters.cacheType >>-v3-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+          key: dd-trace-java-dep<< parameters.cacheType >>-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
           paths:
             # Cached dependencies and wrappers for gradle
             - ~/.gradle/caches
@@ -223,7 +223,7 @@ commands:
       - restore_cache:
           keys:
             # Dependent steps will find this cache
-            - dd-trace-java-build<< parameters.cacheType >>-v3-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+            - dd-trace-java-build<< parameters.cacheType >>-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
 
   save_build_cache:
     parameters:
@@ -231,11 +231,11 @@ commands:
         type: string
     steps:
       - save_cache:
-          key: dd-trace-java-build<< parameters.cacheType >>-v3-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+          key: dd-trace-java-build<< parameters.cacheType >>-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
           paths:
             # Gradle version specific cache for incremental builds. Needs to match version in
             # gradle/wrapper/gradle-wrapper.properties
-            - ~/.gradle/caches/8.1
+            - ~/.gradle/caches/8.2
             # Workspace
             - ~/dd-trace-java/.gradle
             - ~/dd-trace-java/workspace
@@ -860,17 +860,18 @@ jobs:
           name: Run
           command: |
             set -e
-            cd system-tests/parametric
-            mkdir -p test-results
-            export CLIENTS_ENABLED=java
+            cd system-tests
+            export TEST_LIBRARY=java
             export PYTEST_WORKER_COUNT=8
-            ./run.sh --log-cli-level=DEBUG --durations=30 -vv --junitxml=test-results/junit.xml
+            ./build.sh -i runner
+            ./run.sh PARAMETRIC --log-cli-level=DEBUG --durations=30 -vv
 
       - store_test_results:
-          path: system-tests/parametric/test-results
+          path: system-tests/logs_parametric
 
       - store_artifacts:
-          path: system-tests/parametric/test-results
+          path: system-tests/logs_parametric
+
 
 build_test_jobs: &build_test_jobs
   - build:

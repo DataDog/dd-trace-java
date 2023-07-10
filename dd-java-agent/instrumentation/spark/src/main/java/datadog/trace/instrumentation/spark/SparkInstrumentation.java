@@ -24,7 +24,9 @@ public class SparkInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "org.apache.spark.SparkContext", "org.apache.spark.deploy.yarn.ApplicationMaster"
+      "org.apache.spark.SparkContext",
+      "org.apache.spark.deploy.SparkSubmit",
+      "org.apache.spark.deploy.yarn.ApplicationMaster"
     };
   }
 
@@ -47,6 +49,14 @@ public class SparkInstrumentation extends Instrumenter.Tracing
             .and(takesNoArguments()),
         SparkInstrumentation.class.getName() + "$InjectListener");
 
+    // SparkSubmit class used for non YARN/Mesos environment
+    transformation.applyAdvice(
+        isMethod()
+            .and(nameEndsWith("runMain"))
+            .and(isDeclaredBy(named("org.apache.spark.deploy.SparkSubmit"))),
+        SparkInstrumentation.class.getName() + "$RunMainAdvice");
+
+    // ApplicationMaster class is used when running in a YARN cluster
     transformation.applyAdvice(
         isMethod()
             .and(named("finish"))
@@ -64,11 +74,27 @@ public class SparkInstrumentation extends Instrumenter.Tracing
     }
   }
 
+  public static class RunMainAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void enter() {
+      DatadogSparkListener.finishTraceOnApplicationEnd = false;
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void exit(@Advice.Thrown Throwable throwable) {
+      if (DatadogSparkListener.listener != null) {
+        DatadogSparkListener.listener.finishApplication(
+            System.currentTimeMillis(), throwable, 0, null);
+      }
+    }
+  }
+
   public static class YarnFinishAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void enter(@Advice.Argument(1) int exitCode, @Advice.Argument(2) String msg) {
       if (DatadogSparkListener.listener != null) {
-        DatadogSparkListener.listener.finishApplication(System.currentTimeMillis(), exitCode, msg);
+        DatadogSparkListener.listener.finishApplication(
+            System.currentTimeMillis(), null, exitCode, msg);
       }
     }
   }

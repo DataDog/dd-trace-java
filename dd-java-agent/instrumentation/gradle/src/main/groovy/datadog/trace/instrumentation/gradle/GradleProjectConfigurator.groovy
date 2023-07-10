@@ -1,9 +1,19 @@
 package datadog.trace.instrumentation.gradle
 
 import datadog.trace.api.Config
+import datadog.trace.api.civisibility.config.SkippableTest
+import datadog.trace.api.civisibility.config.SkippableTestsSerializer
+import datadog.trace.api.config.CiVisibilityConfig
+import datadog.trace.bootstrap.DatadogClassLoader
+import datadog.trace.util.Strings
 import org.gradle.api.Project
+import org.gradle.api.Task
+import org.gradle.internal.jvm.Jvm
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.regex.Pattern
 
@@ -28,6 +38,8 @@ import java.util.regex.Pattern
  */
 class GradleProjectConfigurator {
 
+  private static final Logger log = LoggerFactory.getLogger(GradleProjectConfigurator.class)
+
   /**
    * Each Groovy Closure in here is a separate class.
    * When adding or removing a closure, be sure to update {@link datadog.trace.instrumentation.gradle.GradleBuildListenerInstrumentation#helperClassNames()}
@@ -35,40 +47,29 @@ class GradleProjectConfigurator {
 
   public static final GradleProjectConfigurator INSTANCE = new GradleProjectConfigurator()
 
-  void configureTracer(Project project) {
-    def closure = { task ->
-      if (!GradleUtils.isTestTask(task)) {
-        return
-      }
+  void configureTracer(Task task, Map<String, String> propagatedSystemProperties, Collection<SkippableTest> skippableTests) {
+    List<String> jvmArgs = new ArrayList<>(task.jvmArgs != null ? task.jvmArgs : Collections.<String> emptyList())
 
-      List<String> jvmArgs = new ArrayList<>(task.jvmArgs != null ? task.jvmArgs : Collections.<String> emptyList())
-
-      // propagate to child process all "dd." system properties available in current process
-      def systemProperties = System.getProperties()
-      for (def e : systemProperties.entrySet()) {
-        if (e.key.startsWith(Config.PREFIX)) {
-          jvmArgs.add("-D" + e.key + '=' + e.value)
-        }
-      }
-
-      def ciVisibilityDebugPort = Config.get().ciVisibilityDebugPort
-      if (ciVisibilityDebugPort != null) {
-        jvmArgs.add(
-          "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address="
-          + ciVisibilityDebugPort)
-      }
-
-      jvmArgs.add("-javaagent:" + Config.get().ciVisibilityAgentJarFile.toPath())
-
-      task.jvmArgs(jvmArgs)
+    // propagate to child process all "dd." system properties available in current process
+    for (def e : propagatedSystemProperties.entrySet()) {
+      jvmArgs.add("-D" + e.key + '=' + e.value)
     }
 
-    if (project.tasks.respondsTo("configureEach", Closure)) {
-      project.tasks.configureEach closure
-    } else {
-      // for legacy Gradle versions
-      project.tasks.all closure
+    if (skippableTests != null && !skippableTests.isEmpty()) {
+      String skippableTestsString = SkippableTestsSerializer.serialize(skippableTests)
+      jvmArgs.add("-D" + Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_SKIPPABLE_TESTS) + '=' + skippableTestsString)
     }
+
+    def ciVisibilityDebugPort = Config.get().ciVisibilityDebugPort
+    if (ciVisibilityDebugPort != null) {
+      jvmArgs.add(
+        "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address="
+        + ciVisibilityDebugPort)
+    }
+
+    jvmArgs.add("-javaagent:" + Config.get().ciVisibilityAgentJarFile.toPath())
+
+    task.jvmArgs(jvmArgs)
   }
 
   void configureCompilerPlugin(Project project, String compilerPluginVersion) {
@@ -92,6 +93,16 @@ class GradleProjectConfigurator {
 
       def ddJavacPlugin = project.configurations.detachedConfiguration(project.dependencies.create("com.datadoghq:dd-javac-plugin:$compilerPluginVersion"))
       def ddJavacPluginClient = project.configurations.detachedConfiguration(project.dependencies.create("com.datadoghq:dd-javac-plugin-client:$compilerPluginVersion"))
+
+      // if instrumented project does dependency verification,
+      // we need to exclude the two detached configurations that we're adding
+      // as corresponding entries are not in the project's verification-metadata.xml
+      if (ddJavacPlugin.resolutionStrategy.respondsTo("disableDependencyVerification")) {
+        ddJavacPlugin.resolutionStrategy.disableDependencyVerification()
+      }
+      if (ddJavacPluginClient.resolutionStrategy.respondsTo("disableDependencyVerification")) {
+        ddJavacPluginClient.resolutionStrategy.disableDependencyVerification()
+      }
 
       task.classpath = (task.classpath ?: project.files([])) + ddJavacPluginClient.asFileTree
 
@@ -122,7 +133,7 @@ class GradleProjectConfigurator {
 
   private static final Pattern MODULE_NAME_PATTERN = Pattern.compile("\\s*module\\s*((\\w|\\.)+)\\s*\\{")
 
-  private getModuleName(Project project) {
+  private static getModuleName(Project project) {
     def dir = project.getProjectDir().toPath()
     def moduleInfo = dir.resolve(Paths.get("src", "main", "java", "module-info.java"))
 
@@ -136,5 +147,87 @@ class GradleProjectConfigurator {
       }
     }
     return null
+  }
+
+  void configureJacoco(Project project) {
+    def config = Config.get()
+    String jacocoPluginVersion = config.getCiVisibilityJacocoPluginVersion()
+    if (jacocoPluginVersion == null) {
+      return
+    }
+
+    project.apply("plugin": "jacoco")
+    project.jacoco.toolVersion = jacocoPluginVersion
+
+    // if instrumented project does dependency verification,
+    // we need to exclude configurations added by Jacoco
+    // as corresponding entries are not in the project's verification-metadata.xml
+    def jacocoConfigurations = project.configurations.findAll { it.name.startsWith("jacoco") }
+    for (def jacocoConfiguration : jacocoConfigurations) {
+      if (jacocoConfiguration.resolutionStrategy.respondsTo("disableDependencyVerification")) {
+        jacocoConfiguration.resolutionStrategy.disableDependencyVerification()
+      }
+    }
+
+    forEveryTestTask project, { task ->
+      task.jacoco.excludeClassLoaders += [DatadogClassLoader.name]
+
+      Collection<String> instrumentedPackages = config.ciVisibilityJacocoPluginIncludes
+      if (instrumentedPackages != null && !instrumentedPackages.empty) {
+        task.jacoco.includes += instrumentedPackages
+      } else {
+        Collection<String> excludedPackages = config.ciVisibilityJacocoPluginExcludes
+        if (excludedPackages != null && !excludedPackages.empty) {
+          task.jacoco.excludes += excludedPackages
+        }
+      }
+    }
+  }
+
+  private static void forEveryTestTask(Project project, Closure closure) {
+    def c = { task ->
+      if (GradleUtils.isTestTask(task)) {
+        closure task
+      }
+    }
+
+    if (project.tasks.respondsTo("configureEach", Closure)) {
+      project.tasks.configureEach c
+    } else {
+      // for legacy Gradle versions
+      project.tasks.all c
+    }
+  }
+
+  Map<Path, Collection<Task>> configureProject(Project project) {
+    def config = Config.get()
+    if (config.ciVisibilityCompilerPluginAutoConfigurationEnabled) {
+      String compilerPluginVersion = config.getCiVisibilityCompilerPluginVersion()
+      configureCompilerPlugin(project, compilerPluginVersion)
+    }
+
+    configureJacoco(project)
+
+    Map<Path, Collection<Task>> testExecutions = new HashMap<>()
+    for (Task task : project.tasks) {
+      if (GradleUtils.isTestTask(task)) {
+        def executable = Paths.get(getEffectiveExecutable(task))
+        testExecutions.computeIfAbsent(executable, k -> new ArrayList<>()).add(task)
+      }
+    }
+    return testExecutions
+  }
+
+  private static String getEffectiveExecutable(Task task) {
+    if (task.hasProperty('javaLauncher') && task.javaLauncher.isPresent()) {
+      try {
+        return task.javaLauncher.get().getExecutablePath().toString()
+      } catch (Exception e) {
+        log.error("Could not get Java launcher for test task", e)
+      }
+    }
+    return task.hasProperty('executable') && task.executable != null
+      ? task.executable
+      : Jvm.current().getJavaExecutable().getAbsolutePath()
   }
 }

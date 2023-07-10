@@ -217,24 +217,26 @@ public class RabbitDecorator extends MessagingClientDecorator {
     }
     final AgentSpan span = startSpan(OPERATION_AMQP_INBOUND, parentContext, spanStartMicros);
 
+    if (null != body) {
+      span.setTag("message.size", body.length);
+    }
+    // TODO - do we still need both?
+    long produceMillis = 0;
+    if (null != properties && null != properties.getTimestamp()) {
+      // this will be set if the sender sets the timestamp,
+      // or if a plugin is installed on the rabbitmq broker
+      produceMillis = properties.getTimestamp().getTime();
+      span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, spanStartMillis - produceMillis));
+    }
+
     if (null != headers) {
       LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
       sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
       sortedTags.put(TOPIC_TAG, queue);
       sortedTags.put(TYPE_TAG, "rabbitmq");
-      AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
+      AgentTracer.get().setDataStreamCheckpoint(span, sortedTags, produceMillis);
     }
 
-    if (null != body) {
-      span.setTag("message.size", body.length);
-    }
-    // TODO - do we still need both?
-    if (null != properties && null != properties.getTimestamp()) {
-      // this will be set if the sender sets the timestamp,
-      // or if a plugin is installed on the rabbitmq broker
-      long produceMillis = properties.getTimestamp().getTime();
-      span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, spanStartMillis - produceMillis));
-    }
     CONSUMER_DECORATE.afterStart(span);
     AgentScope scope = activateSpan(span);
     if (null != queueSpan) {

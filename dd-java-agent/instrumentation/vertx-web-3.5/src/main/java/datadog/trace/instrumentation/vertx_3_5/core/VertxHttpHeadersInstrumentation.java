@@ -11,6 +11,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import java.util.Collection;
@@ -71,6 +72,7 @@ public class VertxHttpHeadersInstrumentation extends Instrumenter.Iast
 
   public static class GetAdvice {
     @Advice.OnMethodExit
+    @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
     public static void afterGet(
         @Advice.This final Object self,
         @Advice.Argument(0) final CharSequence name,
@@ -92,6 +94,7 @@ public class VertxHttpHeadersInstrumentation extends Instrumenter.Iast
 
   public static class GetAllAdvice {
     @Advice.OnMethodExit
+    @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
     public static void afterGetAll(
         @Advice.This final Object self,
         @Advice.Argument(0) final CharSequence name,
@@ -113,6 +116,7 @@ public class VertxHttpHeadersInstrumentation extends Instrumenter.Iast
 
   public static class EntriesAdvice {
     @Advice.OnMethodExit
+    @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
     public static void afterEntries(
         @Advice.This final Object self,
         @Advice.Return final List<Map.Entry<String, String>> result) {
@@ -129,6 +133,7 @@ public class VertxHttpHeadersInstrumentation extends Instrumenter.Iast
 
   public static class NamesAdvice {
     @Advice.OnMethodExit
+    @Source(SourceTypes.REQUEST_HEADER_NAME_STRING)
     public static void afterNames(
         @Advice.This final Object self, @Advice.Return final Set<String> result) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;

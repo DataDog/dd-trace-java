@@ -119,5 +119,7 @@ public final class TracerConfig {
 
   public static final String TRACE_PEER_SERVICE_MAPPING = "trace.peer.service.mapping";
 
+  public static final String TRACE_FLUSH_INTERVAL = "trace.flush.interval";
+
   private TracerConfig() {}
 }

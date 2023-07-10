@@ -89,11 +89,11 @@ public final class LibertyServerInstrumentation extends Instrumenter.Tracing
       final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(request);
       request.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, extractedContext);
       final AgentSpan span = DECORATE.startSpan(request, extractedContext);
+      scope = activateSpan(span);
+      scope.setAsyncPropagation(true);
 
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request, request, extractedContext);
-      scope = activateSpan(span);
-      scope.setAsyncPropagation(true);
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);
       request.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
       request.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());

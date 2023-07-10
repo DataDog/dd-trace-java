@@ -6,8 +6,6 @@ import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.PathUtils.expandTilde;
 
-import datadog.trace.api.civisibility.ci.CIInfo;
-import datadog.trace.api.civisibility.ci.CIProviderInfo;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.util.Strings;
@@ -15,6 +13,7 @@ import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @SuppressForbidden
@@ -120,7 +119,7 @@ class JenkinsInfo implements CIProviderInfo {
     final Map<String, String> configurations = new HashMap<>();
     final String[] jobNameParts = jobNameNoBranch.split("/");
     if (jobNameParts.length > 1 && jobNameParts[1].contains("=")) {
-      final String configsStr = jobNameParts[1].toLowerCase().trim();
+      final String configsStr = jobNameParts[1].toLowerCase(Locale.ROOT).trim();
       final String[] configsKeyValue = configsStr.split(",");
       for (final String configKeyValue : configsKeyValue) {
         final String[] keyValue = configKeyValue.trim().split("=");

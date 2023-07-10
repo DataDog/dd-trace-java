@@ -4,13 +4,15 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.context.embedded.EmbeddedWebApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
 import test.boot.SecurityConfig
+
+import javax.servlet.ServletException
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -63,7 +65,7 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
 
   @Override
   String component() {
-    return Servlet3Decorator.DECORATE.component()
+    'tomcat-server'
   }
 
   @Override
@@ -113,6 +115,11 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
   }
 
   @Override
+  String expectedServiceName() {
+    'root-servlet'
+  }
+
+  @Override
   Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
     if (endpoint == PATH_PARAM) {
       return testPathParam()
@@ -122,7 +129,7 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
 
   @Override
   Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
-    ["servlet.path": endpoint.path]
+    ["servlet.path": endpoint.path, 'servlet.context': '/']
   }
 
   @Override
@@ -175,6 +182,59 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
           errorTags(Exception, EXCEPTION.body)
         }
         defaultTags()
+      }
+    }
+  }
+
+
+  Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
+    if (endpoint == EXCEPTION) {
+      ["error.message"  : 'Filter execution threw an exception',
+        "error.type" : ServletException.name,
+        "error.stack": String]
+    } else {
+      super.expectedExtraErrorInformation(endpoint)
+    }
+  }
+
+  @Override
+  int spanCount(ServerEndpoint endpoint) {
+    if (endpoint in [ERROR, EXCEPTION]) {
+      super.spanCount(endpoint) + 2
+    } else {
+      super.spanCount(endpoint)
+    }
+  }
+
+  protected void trailingSpans(TraceAssert traceAssert, ServerEndpoint serverEndpoint) {
+    if (serverEndpoint == ERROR || serverEndpoint == EXCEPTION) {
+      traceAssert.with {
+        span {
+          spanType 'web'
+          serviceName expectedServiceName()
+          operationName 'servlet.forward'
+          resourceName 'GET /error'
+          tags {
+            "$Tags.COMPONENT" 'java-web-servlet-dispatcher'
+            "$Tags.HTTP_ROUTE" '/error'
+            'servlet.context' '/'
+            'servlet.path' serverEndpoint.path
+            "$DDTags.PATHWAY_HASH" String
+            defaultTags()
+          }
+        }
+        span {
+          spanType 'web'
+          childOfPrevious()
+          serviceName expectedServiceName()
+          operationName 'spring.handler'
+          resourceName 'BasicErrorController.error'
+          tags {
+            "$Tags.COMPONENT" 'spring-web-controller'
+            "$Tags.SPAN_KIND" 'server'
+            defaultTags()
+          }
+        }
       }
     }
   }

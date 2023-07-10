@@ -26,12 +26,14 @@ ext {
   minimumInstructionCoverage = 0.8
   excludedClassesCoverage = [
     'datadog.communication.ddagent.ExternalAgentLauncher',
+    'datadog.communication.ddagent.ExternalAgentLauncher.NamedPipeHealthCheck',
     'datadog.communication.ddagent.SharedCommunicationObjects.FixedConfigUrlSupplier',
     'datadog.communication.ddagent.SharedCommunicationObjects.RetryConfigUrlSupplier',
     'datadog.communication.http.OkHttpUtils',
     'datadog.communication.http.OkHttpUtils.1',
     'datadog.communication.http.OkHttpUtils.ByteBufferRequestBody',
     'datadog.communication.http.OkHttpUtils.GZipByteBufferRequestBody',
+    'datadog.communication.http.OkHttpUtils.JsonRequestBody',
     'datadog.communication.monitor.DDAgentStatsDConnection',
     'datadog.communication.monitor.DDAgentStatsDConnection.*',
     'datadog.communication.monitor.LoggingStatsDClient',

@@ -27,7 +27,7 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     then:
     if (req) {
       1 * span.setTag(Tags.HTTP_METHOD, req.method)
-      1 * span.setTag(Tags.HTTP_URL, "$req.url")
+      1 * span.setTag(Tags.HTTP_URL, {it.toString() == "$req.url"})
       1 * span.setTag(Tags.PEER_HOSTNAME, req.url.host)
       1 * span.setTag(Tags.PEER_PORT, req.url.port)
       1 * span.setResourceName({ it as String == req.method.toUpperCase() + " " + req.path }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
@@ -55,7 +55,7 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
 
     then:
     if (expectedUrl) {
-      1 * span.setTag(Tags.HTTP_URL, expectedUrl)
+      1 * span.setTag(Tags.HTTP_URL, {it.toString() == expectedUrl})
     }
     if (expectedUrl && tagQueryString) {
       1 * span.setTag(DDTags.HTTP_QUERY, expectedQuery)

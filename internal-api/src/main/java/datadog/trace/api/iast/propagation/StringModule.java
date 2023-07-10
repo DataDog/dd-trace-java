@@ -1,6 +1,7 @@
 package datadog.trace.api.iast.propagation;
 
 import datadog.trace.api.iast.IastModule;
+import java.util.Locale;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -36,4 +37,12 @@ public interface StringModule extends IastModule {
   void onStringRepeat(@Nonnull String self, int count, @Nonnull String result);
 
   void onStringConstructor(@Nonnull String self, @Nonnull String result);
+
+  void onStringFormat(@Nonnull String pattern, @Nonnull Object[] params, @Nonnull String result);
+
+  void onStringFormat(
+      @Nullable Locale locale,
+      @Nonnull String pattern,
+      @Nonnull Object[] params,
+      @Nonnull String result);
 }

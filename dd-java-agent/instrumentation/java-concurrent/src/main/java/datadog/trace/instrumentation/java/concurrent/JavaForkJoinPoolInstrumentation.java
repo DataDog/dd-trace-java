@@ -10,9 +10,12 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.QueueTimerHelper;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
 import net.bytebuddy.asm.Advice;
 
@@ -42,10 +45,15 @@ public class JavaForkJoinPoolInstrumentation extends Instrumenter.Tracing
   }
 
   public static final class ExternalPush {
+    @SuppressWarnings("rawtypes")
     @Advice.OnMethodEnter
-    public static <T> void externalPush(@Advice.Argument(0) ForkJoinTask<T> task) {
+    public static <T> void externalPush(
+        @Advice.This ForkJoinPool pool, @Advice.Argument(0) ForkJoinTask<T> task) {
       if (!exclude(FORK_JOIN_TASK, task)) {
-        capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task, true);
+        ContextStore<ForkJoinTask, State> contextStore =
+            InstrumentationContext.get(ForkJoinTask.class, State.class);
+        capture(contextStore, task, true);
+        QueueTimerHelper.startQueuingTimer(contextStore, pool.getClass(), task);
       }
     }
 

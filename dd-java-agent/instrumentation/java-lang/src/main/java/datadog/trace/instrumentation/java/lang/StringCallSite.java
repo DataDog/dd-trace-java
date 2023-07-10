@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.java.lang;
 
 import datadog.trace.agent.tooling.csi.CallSite;
-import datadog.trace.api.iast.IastAdvice;
-import datadog.trace.api.iast.IastAdvice.Propagation;
+import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.CodecModule;
 import datadog.trace.api.iast.propagation.StringModule;
 import datadog.trace.util.stacktrace.StackUtils;
@@ -15,7 +15,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 @Propagation
-@CallSite(spi = IastAdvice.class)
+@CallSite(spi = IastCallSites.class)
 public class StringCallSite {
 
   @CallSite.After("java.lang.String java.lang.String.concat(java.lang.String)")
@@ -282,6 +282,40 @@ public class StringCallSite {
       }
     } catch (final Throwable e) {
       module.onUnexpectedException("afterGetBytes threw", e);
+    }
+    return result;
+  }
+
+  @CallSite.After("java.lang.String java.lang.String.format(java.lang.String, java.lang.Object[])")
+  public static String afterFormat(
+      @CallSite.Argument(0) @Nullable final String pattern,
+      @CallSite.Argument(1) @Nonnull final Object[] args,
+      @CallSite.Return @Nonnull final String result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    try {
+      if (module != null && pattern != null) {
+        module.onStringFormat(pattern, args, result);
+      }
+    } catch (final Throwable e) {
+      module.onUnexpectedException("afterFormat threw", e);
+    }
+    return result;
+  }
+
+  @CallSite.After(
+      "java.lang.String java.lang.String.format(java.util.Locale, java.lang.String, java.lang.Object[])")
+  public static String afterFormat(
+      @CallSite.Argument(0) @Nullable final Locale locale,
+      @CallSite.Argument(1) @Nullable final String pattern,
+      @CallSite.Argument(2) @Nonnull final Object[] args,
+      @CallSite.Return @Nonnull final String result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    try {
+      if (module != null && pattern != null) {
+        module.onStringFormat(locale, pattern, args, result);
+      }
+    } catch (final Throwable e) {
+      module.onUnexpectedException("afterFormat threw", e);
     }
     return result;
   }

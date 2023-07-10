@@ -686,9 +686,12 @@ public class DDSpanContext
       case Tags.HTTP_STATUS:
         return 0 == httpStatusCode ? null : (int) httpStatusCode;
       default:
+        Object value;
         synchronized (unsafeTags) {
-          return unsafeGetTag(key);
+          value = unsafeGetTag(key);
         }
+        // maintain previously observable type of http url :|
+        return value == null ? null : Tags.HTTP_URL.equals(key) ? value.toString() : value;
     }
   }
 
@@ -707,12 +710,18 @@ public class DDSpanContext
     synchronized (unsafeTags) {
       Map<String, Object> tags = new HashMap<>(unsafeTags);
       tags.put(DDTags.THREAD_ID, threadId);
+      // maintain previously observable type of the thread name :|
       tags.put(DDTags.THREAD_NAME, threadName.toString());
       if (samplingPriority != PrioritySampling.UNSET) {
         tags.put(SAMPLE_RATE_KEY, samplingPriority);
       }
       if (httpStatusCode != 0) {
         tags.put(Tags.HTTP_STATUS, (int) httpStatusCode);
+      }
+      // maintain previously observable type of http url :|
+      Object value = tags.get(Tags.HTTP_URL);
+      if (value != null) {
+        tags.put(Tags.HTTP_URL, value.toString());
       }
       return Collections.unmodifiableMap(tags);
     }

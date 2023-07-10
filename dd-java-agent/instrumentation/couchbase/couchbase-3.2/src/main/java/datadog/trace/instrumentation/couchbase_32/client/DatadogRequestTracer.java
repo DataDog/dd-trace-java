@@ -3,10 +3,13 @@ package datadog.trace.instrumentation.couchbase_32.client;
 import static datadog.trace.instrumentation.couchbase_32.client.CouchbaseClientDecorator.COUCHBASE_CLIENT;
 import static datadog.trace.instrumentation.couchbase_32.client.CouchbaseClientDecorator.OPERATION_NAME;
 
+import com.couchbase.client.core.Core;
 import com.couchbase.client.core.cnc.RequestSpan;
 import com.couchbase.client.core.cnc.RequestTracer;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.time.Duration;
@@ -18,14 +21,19 @@ public class DatadogRequestTracer implements RequestTracer {
 
   private final AgentTracer.TracerAPI tracer;
 
-  public DatadogRequestTracer(AgentTracer.TracerAPI tracer) {
+  private final ContextStore<Core, String> coreContext;
+
+  public DatadogRequestTracer(
+      AgentTracer.TracerAPI tracer, final ContextStore<Core, String> coreContext) {
     this.tracer = tracer;
+    this.coreContext = coreContext;
   }
 
   @Override
   public RequestSpan requestSpan(String requestName, RequestSpan requestParent) {
     CharSequence spanName = OPERATION_NAME;
     boolean measured = true;
+    Object seedNodes = null;
 
     AgentSpan parent = DatadogRequestSpan.unwrap(requestParent);
     if (null == parent) {
@@ -34,6 +42,7 @@ public class DatadogRequestTracer implements RequestTracer {
     if (null != parent && COUCHBASE_CLIENT.equals(parent.getTag(Tags.COMPONENT))) {
       spanName = COUCHBASE_INTERNAL;
       measured = false;
+      seedNodes = parent.getTag(InstrumentationTags.COUCHBASE_SEED_NODES);
     }
 
     AgentTracer.SpanBuilder builder = tracer.buildSpan(spanName);
@@ -44,7 +53,10 @@ public class DatadogRequestTracer implements RequestTracer {
     CouchbaseClientDecorator.DECORATE.afterStart(span);
     span.setResourceName(requestName);
     span.setMeasured(measured);
-    DatadogRequestSpan requestSpan = DatadogRequestSpan.wrap(span);
+    if (seedNodes != null) {
+      span.setTag(InstrumentationTags.COUCHBASE_SEED_NODES, seedNodes);
+    }
+    DatadogRequestSpan requestSpan = DatadogRequestSpan.wrap(span, coreContext);
     // When Couchbase converts a query to a prepare statement or execute statement,
     // it will not finish the original span
     switch (requestName) {

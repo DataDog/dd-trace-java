@@ -20,12 +20,15 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
     ret.put("java-kafka", new String[] {InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS});
     // database
     ret.put("hazelcast-sdk", new String[] {"hazelcast.instance", Tags.PEER_HOSTNAME});
-    // todo: add couchbase seed nodes when the precursor will be available
-    ret.put("couchbase-client", new String[] {"net.peer.name", Tags.PEER_HOSTNAME});
+    ret.put(
+        "couchbase-client",
+        new String[] {
+          InstrumentationTags.COUCHBASE_SEED_NODES, "net.peer.name", Tags.PEER_HOSTNAME
+        });
 
-    // fixme: cassandra instance is the keyspace and it's not adapted for the peer.service. Replace
-    // with seed nodes when available
-    ret.put("java-cassandra", new String[] {Tags.PEER_HOSTNAME});
+    ret.put(
+        "java-cassandra",
+        new String[] {InstrumentationTags.CASSANDRA_CONTACT_POINTS, Tags.PEER_HOSTNAME});
     // rpc
     final String[] rpcPrecursors = {Tags.RPC_SERVICE, Tags.PEER_HOSTNAME};
     ret.put("grpc-client", rpcPrecursors);

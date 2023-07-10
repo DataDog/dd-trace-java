@@ -1,21 +1,19 @@
-package datadog.trace.instrumentation.jersey3;
+package datadog.trace.instrumentation.jersey;
 
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.source.WebModule;
+import datadog.trace.api.iast.Source;
+import datadog.trace.api.iast.SourceTypes;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 
 public class AbstractStringReaderAdvice {
-  @Advice.OnMethodExit
+  @Advice.OnMethodExit(suppress = Throwable.class)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
   public static void onExit(@Advice.Return(readOnly = true) Object result) {
     if (result instanceof String) {
-      final WebModule module = InstrumentationBridge.WEB;
-
+      final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        try {
-          module.onParameterValue(null, (String) result);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("AbstractStringReaderAdvice.exit threw", e);
-        }
+        module.taint(SourceTypes.REQUEST_PARAMETER_VALUE, null, (String) result);
       }
     }
   }

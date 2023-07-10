@@ -9,9 +9,12 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFil
 import static datadog.trace.instrumentation.jetty9.JettyDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.not;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
@@ -20,11 +23,13 @@ import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
@@ -42,6 +47,8 @@ import org.eclipse.jetty.server.Request;
 @AutoService(Instrumenter.class)
 public final class JettyServerInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForSingleType, ExcludeFilterProvider {
+
+  private boolean appSecNotFullyDisabled;
 
   public JettyServerInstrumentation() {
     super("jetty");
@@ -66,6 +73,12 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    this.appSecNotFullyDisabled = enabledSystems.contains(TargetSystem.APPSEC);
+    return super.isApplicable(enabledSystems);
+  }
+
+  @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         takesNoArguments()
@@ -81,6 +94,12 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
         // name changed to recycle in 9.3.0
         namedOneOf("reset", "recycle").and(takesNoArguments()),
         JettyServerInstrumentation.class.getName() + "$ResetAdvice");
+
+    if (appSecNotFullyDisabled) {
+      transformation.applyAdvice(
+          named("handleException").and(takesArguments(1)).and(takesArgument(0, Throwable.class)),
+          JettyServerInstrumentation.class.getName() + "$HandleExceptionAdvice");
+    }
   }
 
   @Override
@@ -143,11 +162,11 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
 
       final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(req);
       span = DECORATE.startSpan(req, extractedContext);
+      final AgentScope scope = activateSpan(span);
+      scope.setAsyncPropagation(true);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, req, req, extractedContext);
 
-      final AgentScope scope = activateSpan(span);
-      scope.setAsyncPropagation(true);
       req.setAttribute(DD_SPAN_ATTRIBUTE, span);
       req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
       req.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
@@ -179,6 +198,21 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
 
     private void muzzleCheck(HttpChannel<?> connection) {
       connection.run();
+    }
+  }
+
+  static class HandleExceptionAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    static void enter(@Advice.Argument(0) Throwable t) {
+      if (!(t instanceof BlockingException)) {
+        return;
+      }
+
+      AgentSpan agentSpan = AgentTracer.activeSpan();
+      if (agentSpan == null) {
+        return;
+      }
+      JettyDecorator.DECORATE.onError(agentSpan, t);
     }
   }
 }

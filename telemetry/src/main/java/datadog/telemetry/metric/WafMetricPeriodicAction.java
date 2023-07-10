@@ -1,7 +1,7 @@
 package datadog.telemetry.metric;
 
-import datadog.trace.api.WafMetricCollector;
 import datadog.trace.api.telemetry.MetricCollector;
+import datadog.trace.api.telemetry.WafMetricCollector;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class WafMetricPeriodicAction extends MetricPeriodicAction {

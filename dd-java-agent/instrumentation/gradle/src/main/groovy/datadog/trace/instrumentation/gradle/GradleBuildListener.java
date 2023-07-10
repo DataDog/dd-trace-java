@@ -2,12 +2,16 @@ package datadog.trace.instrumentation.gradle;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
-import datadog.trace.api.civisibility.decorator.TestDecorator;
+import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.util.Strings;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 import org.gradle.BuildAdapter;
 import org.gradle.BuildResult;
 import org.gradle.api.Project;
@@ -35,14 +39,12 @@ public class GradleBuildListener extends BuildAdapter {
     }
     Gradle gradle = settings.getGradle();
     Path projectRoot = settings.getRootDir().toPath();
-    TestDecorator gradleDecorator =
-        InstrumentationBridge.createTestDecorator("gradle", null, null, projectRoot);
     ProjectDescriptor rootProject = settings.getRootProject();
     String projectName = rootProject.getName();
     String startCommand = GradleUtils.recreateStartCommand(settings.getStartParameter());
     String gradleVersion = gradle.getGradleVersion();
     buildEventsHandler.onTestSessionStart(
-        gradle, gradleDecorator, projectName, startCommand, "gradle", gradleVersion);
+        gradle, projectName, projectRoot, startCommand, "gradle", gradleVersion);
   }
 
   @Override
@@ -53,13 +55,11 @@ public class GradleBuildListener extends BuildAdapter {
     }
 
     Project rootProject = gradle.getRootProject();
-    for (Project project : rootProject.getAllprojects()) {
-      GradleProjectConfigurator.INSTANCE.configureTracer(project);
 
-      if (config.isCiVisibilityCompilerPluginAutoConfigurationEnabled()) {
-        String compilerPluginVersion = config.getCiVisibilityCompilerPluginVersion();
-        GradleProjectConfigurator.INSTANCE.configureCompilerPlugin(project, compilerPluginVersion);
-      }
+    if (config.isCiVisibilityAutoConfigurationEnabled()) {
+      Set<Project> projects = rootProject.getAllprojects();
+      Map<Path, Collection<Task>> testExecutions = configureProjects(projects);
+      configureTestExecutions(gradle, testExecutions);
     }
 
     Collection<GradleUtils.TestFramework> testFrameworks =
@@ -75,6 +75,51 @@ public class GradleBuildListener extends BuildAdapter {
     }
 
     gradle.addListener(new TestTaskExecutionListener(buildEventsHandler));
+  }
+
+  private Map<Path, Collection<Task>> configureProjects(Set<Project> projects) {
+    Map<Path, Collection<Task>> testExecutions = new HashMap<>();
+    for (Project project : projects) {
+      try {
+        Map<Path, Collection<Task>> projectExecutions =
+            GradleProjectConfigurator.INSTANCE.configureProject(project);
+        for (Map.Entry<Path, Collection<Task>> e : projectExecutions.entrySet()) {
+          Path path = e.getKey();
+          Collection<Task> executions = e.getValue();
+          testExecutions.computeIfAbsent(path, k -> new ArrayList<>()).addAll(executions);
+        }
+      } catch (Exception e) {
+        log.error("Error while configuring projects", e);
+      }
+    }
+    return testExecutions;
+  }
+
+  private void configureTestExecutions(Gradle gradle, Map<Path, Collection<Task>> testExecutions) {
+    for (Map.Entry<Path, Collection<Task>> e : testExecutions.entrySet()) {
+      try {
+        Path jvmExecutablePath = e.getKey();
+        Collection<Task> executions = e.getValue();
+        configureTestExecutions(gradle, jvmExecutablePath, executions);
+
+      } catch (Exception ex) {
+        log.error("Error while configuring test executions", ex);
+      }
+    }
+  }
+
+  private void configureTestExecutions(
+      Gradle gradle, Path jvmExecutablePath, Collection<Task> testExecutions) {
+    ModuleExecutionSettings moduleExecutionSettings =
+        buildEventsHandler.getModuleExecutionSettings(gradle, jvmExecutablePath);
+
+    for (Task testExecution : testExecutions) {
+      Path modulePath = testExecution.getProject().getProjectDir().toPath();
+      GradleProjectConfigurator.INSTANCE.configureTracer(
+          testExecution,
+          moduleExecutionSettings.getSystemProperties(),
+          moduleExecutionSettings.getSkippableTests(modulePath));
+    }
   }
 
   @Override
@@ -110,7 +155,7 @@ public class GradleBuildListener extends BuildAdapter {
       Gradle gradle = project.getGradle();
       String taskPath = task.getPath();
       String startCommand = GradleUtils.recreateStartCommand(gradle.getStartParameter());
-      BuildEventsHandler.ModuleAndSessionId moduleAndSessionId =
+      BuildEventsHandler.ModuleInfo moduleInfo =
           buildEventsHandler.onTestModuleStart(gradle, taskPath, startCommand, null);
 
       Collection<GradleUtils.TestFramework> testFrameworks =
@@ -124,8 +169,10 @@ public class GradleBuildListener extends BuildAdapter {
 
       JavaForkOptions taskForkOptions = (JavaForkOptions) task;
       taskForkOptions.jvmArgs(
-          arg(CiVisibilityConfig.CIVISIBILITY_SESSION_ID, moduleAndSessionId.sessionId),
-          arg(CiVisibilityConfig.CIVISIBILITY_MODULE_ID, moduleAndSessionId.moduleId));
+          arg(CiVisibilityConfig.CIVISIBILITY_SESSION_ID, moduleInfo.sessionId),
+          arg(CiVisibilityConfig.CIVISIBILITY_MODULE_ID, moduleInfo.moduleId),
+          arg(CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST, moduleInfo.signalServerHost),
+          arg(CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT, moduleInfo.signalServerPort));
     }
 
     private String arg(String propertyName, Object value) {
