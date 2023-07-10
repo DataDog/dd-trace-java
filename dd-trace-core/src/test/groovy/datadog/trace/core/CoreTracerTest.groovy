@@ -175,7 +175,7 @@ class CoreTracerTest extends DDCoreSpecification {
     when:
     def tracer = tracerBuilder().build()
     // Datadog extractor gets placed first
-    def taggedHeaders = tracer.extractor.extractors[0].traceConfigSupplier.get().headerTags
+    def taggedHeaders = tracer.extractor.extractors[0].traceConfigSupplier.get().requestHeaderTags
 
     then:
     tracer.defaultSpanTags == map
@@ -428,7 +428,8 @@ class CoreTracerTest extends DDCoreSpecification {
     }
     and:
     tracer.captureTraceConfig().serviceMapping == [:]
-    tracer.captureTraceConfig().headerTags == [:]
+    tracer.captureTraceConfig().requestHeaderTags == [:]
+    tracer.captureTraceConfig().responseHeaderTags == [:]
     tracer.captureTraceConfig().traceSampleRate == null
 
     when:
@@ -447,11 +448,20 @@ class CoreTracerTest extends DDCoreSpecification {
           ,
           "tracing_header_tags":
           [{
-             "header": "User-Agent",
-             "tag_name": "http.user_agent"
+             "header": "Cookie",
+             "tag_name": ""
           }, {
              "header": "Referer",
              "tag_name": "http.referer"
+          }, {
+             "header": "  Some.Header  ",
+             "tag_name": ""
+          }, {
+             "header": "C!!!ont_____ent----tYp!/!e",
+             "tag_name": ""
+          }, {
+             "header": "this.header",
+             "tag_name": "whatever.the.user.wants.this.header"
           }]
           ,
           "tracing_sampling_rate": 0.5
@@ -462,7 +472,20 @@ class CoreTracerTest extends DDCoreSpecification {
 
     then:
     tracer.captureTraceConfig().serviceMapping == ['foobar':'bar', 'snafu':'foo']
-    tracer.captureTraceConfig().headerTags == ['user-agent':'http.user_agent', 'referer':'http.referer']
+    tracer.captureTraceConfig().requestHeaderTags == [
+      'cookie':'http.request.headers.cookie',
+      'referer':'http.referer',
+      'some.header':'http.request.headers.some_header',
+      'c!!!ont_____ent----typ!/!e':'http.request.headers.c___ont_____ent----typ_/_e',
+      'this.header':'whatever.the.user.wants.this.header'
+    ]
+    tracer.captureTraceConfig().responseHeaderTags == [
+      'cookie':'http.response.headers.cookie',
+      'referer':'http.referer',
+      'some.header':'http.response.headers.some_header',
+      'c!!!ont_____ent----typ!/!e':'http.response.headers.c___ont_____ent----typ_/_e',
+      'this.header':'whatever.the.user.wants.this.header'
+    ]
     tracer.captureTraceConfig().traceSampleRate == 0.5
 
     when:
@@ -471,7 +494,8 @@ class CoreTracerTest extends DDCoreSpecification {
 
     then:
     tracer.captureTraceConfig().serviceMapping == [:]
-    tracer.captureTraceConfig().headerTags == [:]
+    tracer.captureTraceConfig().requestHeaderTags == [:]
+    tracer.captureTraceConfig().responseHeaderTags == [:]
     tracer.captureTraceConfig().traceSampleRate == null
 
     cleanup:

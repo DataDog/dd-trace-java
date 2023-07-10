@@ -5,20 +5,31 @@ import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TracerConfig.BAGGAGE_MAPPING;
-import static datadog.trace.api.config.TracerConfig.HEADER_TAGS;
+import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS;
+import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 
+import datadog.trace.util.Strings;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 
 /** Manages dynamic configuration for a particular {@link Tracer} instance. */
 public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
+
+  static final Function<Map.Entry<String, String>, String> KEY = DynamicConfig::key;
+  static final Function<Map.Entry<String, String>, String> VALUE = DynamicConfig::value;
+  static final Function<Map.Entry<String, String>, String> LOWER_KEY = DynamicConfig::lowerKey;
+  static final Function<Map.Entry<String, String>, String> REQUEST_TAG = DynamicConfig::requestTag;
+  static final Function<Map.Entry<String, String>, String> RESPONSE_TAG =
+      DynamicConfig::responseTag;
+
   BiFunction<Builder, S, S> snapshotFactory;
 
   S initialSnapshot;
@@ -68,17 +79,17 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     boolean dataStreamsEnabled;
 
     Map<String, String> serviceMapping;
-    Map<String, String> headerTags;
+    Map<String, String> requestHeaderTags;
+    Map<String, String> responseHeaderTags;
     Map<String, String> baggageMapping;
-
-    boolean overrideResponseTags;
 
     Double traceSampleRate;
 
     Builder(Snapshot snapshot) {
       if (null == snapshot) {
         this.serviceMapping = Collections.emptyMap();
-        this.headerTags = Collections.emptyMap();
+        this.requestHeaderTags = Collections.emptyMap();
+        this.responseHeaderTags = Collections.emptyMap();
         this.baggageMapping = Collections.emptyMap();
         this.logsInjectionEnabled = ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
       } else {
@@ -89,10 +100,9 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
         this.dataStreamsEnabled = snapshot.dataStreamsEnabled;
 
         this.serviceMapping = snapshot.serviceMapping;
-        this.headerTags = snapshot.headerTags;
+        this.requestHeaderTags = snapshot.requestHeaderTags;
+        this.responseHeaderTags = snapshot.responseHeaderTags;
         this.baggageMapping = snapshot.baggageMapping;
-
-        this.overrideResponseTags = snapshot.overrideResponseTags;
 
         this.traceSampleRate = snapshot.traceSampleRate;
       }
@@ -126,8 +136,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       if (Config.get().getRequestHeaderTags().equals(headerTags)
           && !Config.get().getResponseHeaderTags().equals(headerTags)) {
         // using static config; don't override separate static config for response header tags
-        this.headerTags = cleanMapping(headerTags.entrySet(), true, true);
-        this.overrideResponseTags = false;
+        this.requestHeaderTags = Config.get().getRequestHeaderTags();
+        this.responseHeaderTags = Config.get().getResponseHeaderTags();
         return this;
       } else {
         return setHeaderTags(headerTags.entrySet());
@@ -140,19 +150,19 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     public Builder setServiceMapping(
         Collection<? extends Map.Entry<String, String>> serviceMapping) {
-      this.serviceMapping = cleanMapping(serviceMapping, false, false);
+      this.serviceMapping = cleanMapping(serviceMapping, KEY, VALUE);
       return this;
     }
 
     public Builder setHeaderTags(Collection<? extends Map.Entry<String, String>> headerTags) {
-      this.headerTags = cleanMapping(headerTags, true, true);
-      this.overrideResponseTags = true;
+      this.requestHeaderTags = cleanMapping(headerTags, LOWER_KEY, REQUEST_TAG);
+      this.responseHeaderTags = cleanMapping(headerTags, LOWER_KEY, RESPONSE_TAG);
       return this;
     }
 
     public Builder setBaggageMapping(
         Collection<? extends Map.Entry<String, String>> baggageMapping) {
-      this.baggageMapping = cleanMapping(baggageMapping, true, false);
+      this.baggageMapping = cleanMapping(baggageMapping, LOWER_KEY, VALUE);
       return this;
     }
 
@@ -163,19 +173,11 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     private Map<String, String> cleanMapping(
         Collection<? extends Map.Entry<String, String>> mapping,
-        boolean lowerCaseKeys,
-        boolean lowerCaseValues) {
+        Function<Map.Entry<String, String>, String> keyMapper,
+        Function<Map.Entry<String, String>, String> valueMapper) {
       final Map<String, String> cleanedMapping = new HashMap<>(mapping.size() * 4 / 3);
       for (Map.Entry<String, String> association : mapping) {
-        String key = association.getKey().trim();
-        if (lowerCaseKeys) {
-          key = key.toLowerCase(Locale.ROOT);
-        }
-        String value = association.getValue().trim();
-        if (lowerCaseValues) {
-          value = value.toLowerCase(Locale.ROOT);
-        }
-        cleanedMapping.put(key, value);
+        cleanedMapping.put(keyMapper.apply(association), valueMapper.apply(association));
       }
       return tryMakeImmutableMap(cleanedMapping);
     }
@@ -195,6 +197,36 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     }
   }
 
+  static String key(Map.Entry<String, String> association) {
+    return Strings.trim(association.getKey());
+  }
+
+  static String value(Map.Entry<String, String> association) {
+    return Strings.trim(association.getValue());
+  }
+
+  static String lowerKey(Map.Entry<String, String> association) {
+    return key(association).toLowerCase(Locale.ROOT);
+  }
+
+  static String requestTag(Map.Entry<String, String> association) {
+    String requestTag = value(association);
+    if (requestTag.isEmpty()) {
+      // normalization is only applied when generating default tag names; see ConfigConverter
+      requestTag = "http.request.headers." + Strings.normalizedHeaderTag(association.getKey());
+    }
+    return requestTag;
+  }
+
+  static String responseTag(Map.Entry<String, String> association) {
+    String responseTag = value(association);
+    if (responseTag.isEmpty()) {
+      // normalization is only applied when generating default tag names; see ConfigConverter
+      responseTag = "http.response.headers." + Strings.normalizedHeaderTag(association.getKey());
+    }
+    return responseTag;
+  }
+
   static void reportConfigChange(Snapshot newSnapshot) {
     Map<String, Object> update = new HashMap<>();
 
@@ -204,7 +236,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     update.put(DATA_STREAMS_ENABLED, newSnapshot.dataStreamsEnabled);
 
     update.put(SERVICE_MAPPING, newSnapshot.serviceMapping);
-    update.put(HEADER_TAGS, newSnapshot.headerTags);
+    update.put(REQUEST_HEADER_TAGS, newSnapshot.requestHeaderTags);
+    update.put(RESPONSE_HEADER_TAGS, newSnapshot.responseHeaderTags);
     update.put(BAGGAGE_MAPPING, newSnapshot.baggageMapping);
 
     maybePut(update, TRACE_SAMPLE_RATE, newSnapshot.traceSampleRate);
@@ -227,10 +260,9 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     final boolean dataStreamsEnabled;
 
     final Map<String, String> serviceMapping;
-    final Map<String, String> headerTags;
+    final Map<String, String> requestHeaderTags;
+    final Map<String, String> responseHeaderTags;
     final Map<String, String> baggageMapping;
-
-    final boolean overrideResponseTags;
 
     final Double traceSampleRate;
 
@@ -242,10 +274,9 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       this.dataStreamsEnabled = builder.dataStreamsEnabled;
 
       this.serviceMapping = builder.serviceMapping;
-      this.headerTags = builder.headerTags;
+      this.requestHeaderTags = builder.requestHeaderTags;
+      this.responseHeaderTags = builder.responseHeaderTags;
       this.baggageMapping = builder.baggageMapping;
-
-      this.overrideResponseTags = builder.overrideResponseTags;
 
       this.traceSampleRate = builder.traceSampleRate;
     }
@@ -276,13 +307,13 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     }
 
     @Override
-    public Map<String, String> getHeaderTags() {
-      return headerTags;
+    public Map<String, String> getRequestHeaderTags() {
+      return requestHeaderTags;
     }
 
     @Override
     public Map<String, String> getResponseHeaderTags() {
-      return overrideResponseTags ? headerTags : Config.get().getResponseHeaderTags();
+      return responseHeaderTags;
     }
 
     @Override
