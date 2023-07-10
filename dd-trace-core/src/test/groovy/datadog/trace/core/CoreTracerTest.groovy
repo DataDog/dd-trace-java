@@ -175,7 +175,7 @@ class CoreTracerTest extends DDCoreSpecification {
     when:
     def tracer = tracerBuilder().build()
     // Datadog extractor gets placed first
-    def taggedHeaders = tracer.extractor.extractors[0].traceConfigSupplier.get().requestHeaderTags
+    def taggedHeaders = tracer.extractor.extractors[0].traceConfigSupplier.get().headerTags
 
     then:
     tracer.defaultSpanTags == map
@@ -428,8 +428,7 @@ class CoreTracerTest extends DDCoreSpecification {
     }
     and:
     tracer.captureTraceConfig().serviceMapping == [:]
-    tracer.captureTraceConfig().requestHeaderTags == [:]
-    tracer.captureTraceConfig().responseHeaderTags == [:]
+    tracer.captureTraceConfig().headerTags == [:]
     tracer.captureTraceConfig().traceSampleRate == null
 
     when:
@@ -448,8 +447,8 @@ class CoreTracerTest extends DDCoreSpecification {
           ,
           "tracing_header_tags":
           [{
-             "header": "Cookie",
-             "tag_name": ""
+             "header": "User-Agent",
+             "tag_name": "http.user_agent"
           }, {
              "header": "Referer",
              "tag_name": "http.referer"
@@ -463,8 +462,7 @@ class CoreTracerTest extends DDCoreSpecification {
 
     then:
     tracer.captureTraceConfig().serviceMapping == ['foobar':'bar', 'snafu':'foo']
-    tracer.captureTraceConfig().requestHeaderTags == ['cookie':'http.request.headers.cookie', 'referer':'http.referer']
-    tracer.captureTraceConfig().responseHeaderTags == ['cookie':'http.response.headers.cookie', 'referer':'http.referer']
+    tracer.captureTraceConfig().headerTags == ['user-agent':'http.user_agent', 'referer':'http.referer']
     tracer.captureTraceConfig().traceSampleRate == 0.5
 
     when:
@@ -473,8 +471,7 @@ class CoreTracerTest extends DDCoreSpecification {
 
     then:
     tracer.captureTraceConfig().serviceMapping == [:]
-    tracer.captureTraceConfig().requestHeaderTags == [:]
-    tracer.captureTraceConfig().responseHeaderTags == [:]
+    tracer.captureTraceConfig().headerTags == [:]
     tracer.captureTraceConfig().traceSampleRate == null
 
     cleanup:
