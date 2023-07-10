@@ -21,6 +21,7 @@ import java.security.CodeSource;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -235,17 +236,15 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
 
     private final SourceRootResolver sourceRootResolver;
     private final ClassNameTrie.Builder trieBuilder;
-    private final List<String> sourceRoots;
+    private final LinkedHashSet<String> sourceRoots;
     private final RepoIndexingStats indexingStats;
     private final Path repoRoot;
-
-    private Path currentSourceRoot;
 
     private RepoIndexingFileVisitor(SourceRootResolver sourceRootResolver, Path repoRoot) {
       this.sourceRootResolver = sourceRootResolver;
       this.repoRoot = repoRoot;
       trieBuilder = new ClassNameTrie.Builder();
-      sourceRoots = new ArrayList<>();
+      sourceRoots = new LinkedHashSet<>();
       indexingStats = new RepoIndexingStats();
     }
 
@@ -264,10 +263,8 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
         if (sourceType != null) {
           indexingStats.sourceFilesVisited++;
 
-          if (currentSourceRoot == null) {
-            currentSourceRoot = sourceRootResolver.getSourceRoot(file);
-            sourceRoots.add(repoRoot.relativize(currentSourceRoot).toString());
-          }
+          Path currentSourceRoot = sourceRootResolver.getSourceRoot(file);
+          sourceRoots.add(repoRoot.relativize(currentSourceRoot).toString());
 
           Path relativePath = currentSourceRoot.relativize(file);
           String classNameWithExtension = relativePath.toString().replace(File.separatorChar, '.');
@@ -294,14 +291,11 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
       if (exc != null) {
         log.error("Failed to visit directory: {}", dir, exc);
       }
-      if (dir.equals(currentSourceRoot)) {
-        currentSourceRoot = null;
-      }
       return FileVisitResult.CONTINUE;
     }
 
     public RepoIndex getIndex() {
-      return new RepoIndex(trieBuilder.buildTrie(), sourceRoots);
+      return new RepoIndex(trieBuilder.buildTrie(), new ArrayList<>(sourceRoots));
     }
   }
 
