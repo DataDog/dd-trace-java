@@ -16,12 +16,14 @@ import org.testng.ITestResult;
 public class TracingListener extends TestNGClassListener
     implements ITestListener, IExecutionListener, IConfigurationListener {
 
+  private static final String TESTNG_FRAMEWORK = "testng";
   private final TestEventsHandler testEventsHandler;
+  private final String version;
 
   public TracingListener(final String version) {
+    this.version = version;
     Path currentPath = Paths.get("").toAbsolutePath();
-    testEventsHandler =
-        InstrumentationBridge.createTestEventsHandler("testng", "testng", version, currentPath);
+    testEventsHandler = InstrumentationBridge.createTestEventsHandler("testng", currentPath);
   }
 
   @Override
@@ -36,7 +38,7 @@ public class TracingListener extends TestNGClassListener
 
   @Override
   public void onExecutionStart() {
-    testEventsHandler.onTestModuleStart();
+    testEventsHandler.onTestModuleStart(TESTNG_FRAMEWORK, version);
   }
 
   @Override
@@ -50,7 +52,7 @@ public class TracingListener extends TestNGClassListener
     Class<?> testSuiteClass = testClass.getRealClass();
     List<String> groups = TestNGUtils.getGroups(testClass);
     testEventsHandler.onTestSuiteStart(
-        testSuiteName, null, null, testSuiteClass, groups, parallelized);
+        testSuiteName, TESTNG_FRAMEWORK, "version", testSuiteClass, groups, parallelized);
   }
 
   @Override
@@ -90,7 +92,14 @@ public class TracingListener extends TestNGClassListener
     Method testMethod = TestNGUtils.getTestMethod(result);
 
     testEventsHandler.onTestStart(
-        testSuiteName, testName, null, null, testParameters, groups, testClass, testMethod);
+        testSuiteName,
+        testName,
+        TESTNG_FRAMEWORK,
+        version,
+        testParameters,
+        groups,
+        testClass,
+        testMethod);
   }
 
   @Override

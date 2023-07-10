@@ -18,15 +18,16 @@ import org.junit.runners.model.TestClass;
 
 public class TracingListener extends RunListener {
 
+  private static final String JUNIT4_FRAMEWORK = "junit4";
   private static final String GRADLE_TEST_WORKER_ID_SYSTEM_PROP = "org.gradle.test.worker";
 
   private final TestEventsHandler testEventsHandler;
+  private final String version;
 
   public TracingListener() {
-    String version = Version.id();
+    version = Version.id();
     Path currentPath = Paths.get("").toAbsolutePath();
-    testEventsHandler =
-        InstrumentationBridge.createTestEventsHandler("junit", "junit4", version, currentPath);
+    testEventsHandler = InstrumentationBridge.createTestEventsHandler("junit", currentPath);
 
     boolean isRunByGradle = System.getProperty(GRADLE_TEST_WORKER_ID_SYSTEM_PROP) != null;
     if (isRunByGradle) {
@@ -50,7 +51,7 @@ public class TracingListener extends RunListener {
 
   @Override
   public void testRunStarted(Description description) {
-    testEventsHandler.onTestModuleStart();
+    testEventsHandler.onTestModuleStart(JUNIT4_FRAMEWORK, version);
   }
 
   @Override
@@ -70,7 +71,8 @@ public class TracingListener extends RunListener {
     String testSuiteName = junitTestClass.getName();
     Class<?> testClass = junitTestClass.getJavaClass();
     List<String> categories = JUnit4Utils.getCategories(testClass, null);
-    testEventsHandler.onTestSuiteStart(testSuiteName, null, null, testClass, categories, false);
+    testEventsHandler.onTestSuiteStart(
+        testSuiteName, JUNIT4_FRAMEWORK, version, testClass, categories, false);
   }
 
   public void testSuiteFinished(final TestClass junitTestClass) {
@@ -98,7 +100,14 @@ public class TracingListener extends RunListener {
     List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);
 
     testEventsHandler.onTestStart(
-        testSuiteName, testName, null, null, testParameters, categories, testClass, testMethod);
+        testSuiteName,
+        testName,
+        JUNIT4_FRAMEWORK,
+        version,
+        testParameters,
+        categories,
+        testClass,
+        testMethod);
   }
 
   @Override
@@ -176,7 +185,8 @@ public class TracingListener extends RunListener {
 
       List<String> categories = JUnit4Utils.getCategories(testClass, null);
 
-      testEventsHandler.onTestSuiteStart(testSuiteName, null, null, testClass, categories, false);
+      testEventsHandler.onTestSuiteStart(
+          testSuiteName, JUNIT4_FRAMEWORK, version, testClass, categories, false);
       testEventsHandler.onTestSuiteSkip(testSuiteName, testClass, reason);
 
       List<Method> testMethods = JUnit4Utils.getTestMethods(testClass);
@@ -199,8 +209,8 @@ public class TracingListener extends RunListener {
     testEventsHandler.onTestIgnore(
         testSuiteName,
         testName,
-        null,
-        null,
+        JUNIT4_FRAMEWORK,
+        version,
         testParameters,
         categories,
         testClass,

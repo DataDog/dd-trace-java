@@ -97,7 +97,7 @@ public class CiVisibilitySystem {
       Codeowners codeowners = getCodeowners(repoRoot);
       MethodLinesResolver methodLinesResolver = new MethodLinesResolverImpl();
       Map<String, String> ciTags = new CITagsProvider().getCiTags(ciInfo);
-      TestDecorator testDecorator = new TestDecoratorImpl(component, null, null, ciTags);
+      TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags);
       TestModuleRegistry testModuleRegistry = new TestModuleRegistry();
 
       GitDataUploader gitDataUploader = buildGitDataUploader(config, backendApi, repoRoot);
@@ -168,8 +168,7 @@ public class CiVisibilitySystem {
         config, configurationApi, new JvmInfoFactory(), gitDataUploader, repositoryRoot);
   }
 
-  private static TestEventsHandler createTestEventsHandler(
-      String component, String testFramework, String testFrameworkVersion, Path path) {
+  private static TestEventsHandler createTestEventsHandler(String component, Path path) {
     CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory();
     CIProviderInfo ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(path);
     CIInfo ciInfo = ciProviderInfo.buildCIInfo();
@@ -182,8 +181,7 @@ public class CiVisibilitySystem {
     Codeowners codeowners = getCodeowners(repoRoot);
     MethodLinesResolver methodLinesResolver = new MethodLinesResolverImpl();
     Map<String, String> ciTags = new CITagsProvider().getCiTags(ciInfo);
-    TestDecorator testDecorator =
-        new TestDecoratorImpl(component, testFramework, testFrameworkVersion, ciTags);
+    TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags);
 
     return new TestEventsHandlerImpl(
         moduleName,

@@ -35,21 +35,19 @@ public class TracingListener implements TestExecutionListener {
       versionByTestEngineId.put(testEngineId, testEngine.getVersion().orElse(null));
     }
 
-    String testEngineId =
-        versionByTestEngineId.size() == 1 ? versionByTestEngineId.keySet().iterator().next() : null;
-    String testFramework = getTestFramework(testEngineId);
-    String testFrameworkVersion = versionByTestEngineId.get(testEngineId);
-
     Path currentPath = Paths.get("").toAbsolutePath();
-    testEventsHandler =
-        InstrumentationBridge.createTestEventsHandler(
-            "junit", testFramework, testFrameworkVersion, currentPath);
+    testEventsHandler = InstrumentationBridge.createTestEventsHandler("junit", currentPath);
   }
 
   @Override
   public void testPlanExecutionStarted(final TestPlan testPlan) {
     this.testPlan = testPlan;
-    testEventsHandler.onTestModuleStart();
+
+    String testEngineId =
+        versionByTestEngineId.size() == 1 ? versionByTestEngineId.keySet().iterator().next() : null;
+    String testFramework = getTestFramework(testEngineId);
+    String testFrameworkVersion = versionByTestEngineId.get(testEngineId);
+    testEventsHandler.onTestModuleStart(testFramework, testFrameworkVersion);
   }
 
   @Override

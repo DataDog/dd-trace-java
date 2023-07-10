@@ -8,7 +8,7 @@ import javax.annotation.Nullable;
 
 public interface TestEventsHandler {
 
-  void onTestModuleStart();
+  void onTestModuleStart(@Nullable String testFramework, @Nullable String testFrameworkVersion);
 
   void onTestModuleFinish(boolean itrTestsSkipped);
 
@@ -65,7 +65,6 @@ public interface TestEventsHandler {
       @Nullable String reason);
 
   interface Factory {
-    TestEventsHandler create(
-        String component, String testFramework, String testFrameworkVersion, Path path);
+    TestEventsHandler create(String component, Path path);
   }
 }

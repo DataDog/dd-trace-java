@@ -62,9 +62,9 @@ abstract class CiVisibilityTest extends AgentTestRunner {
     def moduleExecutionSettingsFactory = Stub(ModuleExecutionSettingsFactory)
 
     InstrumentationBridge.registerTestEventsHandlerFactory {
-      component, testFramework, testFrameworkVersion, path ->
+      component, path ->
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
-      def testDecorator = new TestDecoratorImpl(component, testFramework, testFrameworkVersion, ciTags)
+      def testDecorator = new TestDecoratorImpl(component, ciTags)
       new TestEventsHandlerImpl(dummyModule, Config.get(), testDecorator, sourcePathResolver, codeowners, methodLinesResolver)
     }
 

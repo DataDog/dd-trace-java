@@ -67,18 +67,20 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
     // some framework/build system combinations fire "onTestModuleStart" event, some cannot do it,
     // hence creating a module here
-    testModule = createTestModule();
+    testModule = createTestModule(null, null);
   }
 
   @Override
-  public void onTestModuleStart() {
+  public void onTestModuleStart(
+      final @Nullable String testFramework, final @Nullable String testFrameworkVersion) {
     // needed to support JVMs that run tests for multiple modules, e.g. Maven in non-forking mode
     if (testModule == null) {
-      testModule = createTestModule();
+      testModule = createTestModule(testFramework, testFrameworkVersion);
     }
   }
 
-  private DDTestModule createTestModule() {
+  private DDTestModule createTestModule(
+      final @Nullable String testFramework, final @Nullable String testFrameworkVersion) {
     // fallbacks to System.getProperty below are needed for cases when
     // system variables are set after config was initialized
 
@@ -131,16 +133,24 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       signalServerAddress = new InetSocketAddress(host, Integer.parseInt(port));
     }
 
-    return new DDTestModuleChild(
-        parentProcessSessionId,
-        parentProcessModuleId,
-        moduleName,
-        config,
-        testDecorator,
-        sourcePathResolver,
-        codeowners,
-        methodLinesResolver,
-        signalServerAddress);
+    DDTestModuleChild testModule =
+        new DDTestModuleChild(
+            parentProcessSessionId,
+            parentProcessModuleId,
+            moduleName,
+            config,
+            testDecorator,
+            sourcePathResolver,
+            codeowners,
+            methodLinesResolver,
+            signalServerAddress);
+    if (testFramework != null) {
+      testModule.setTag(Tags.TEST_FRAMEWORK, testFramework);
+    }
+    if (testFrameworkVersion != null) {
+      testModule.setTag(Tags.TEST_FRAMEWORK_VERSION, testFrameworkVersion);
+    }
+    return testModule;
   }
 
   @Override
