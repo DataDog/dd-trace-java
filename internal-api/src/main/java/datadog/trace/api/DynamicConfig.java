@@ -16,9 +16,16 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 
 /** Manages dynamic configuration for a particular {@link Tracer} instance. */
 public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
+
+  static final Function<Map.Entry<String, String>, String> KEY = DynamicConfig::key;
+  static final Function<Map.Entry<String, String>, String> VALUE = DynamicConfig::value;
+  static final Function<Map.Entry<String, String>, String> LOWER_KEY = DynamicConfig::lowerKey;
+  static final Function<Map.Entry<String, String>, String> LOWER_VALUE = DynamicConfig::lowerValue;
+
   BiFunction<Builder, S, S> snapshotFactory;
 
   S initialSnapshot;
@@ -126,7 +133,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       if (Config.get().getRequestHeaderTags().equals(headerTags)
           && !Config.get().getResponseHeaderTags().equals(headerTags)) {
         // using static config; don't override separate static config for response header tags
-        this.headerTags = cleanMapping(headerTags.entrySet(), true, true);
+        this.headerTags = cleanMapping(headerTags.entrySet(), LOWER_KEY, LOWER_VALUE);
         this.overrideResponseTags = false;
         return this;
       } else {
@@ -140,19 +147,19 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     public Builder setServiceMapping(
         Collection<? extends Map.Entry<String, String>> serviceMapping) {
-      this.serviceMapping = cleanMapping(serviceMapping, false, false);
+      this.serviceMapping = cleanMapping(serviceMapping, KEY, VALUE);
       return this;
     }
 
     public Builder setHeaderTags(Collection<? extends Map.Entry<String, String>> headerTags) {
-      this.headerTags = cleanMapping(headerTags, true, true);
+      this.headerTags = cleanMapping(headerTags, LOWER_KEY, LOWER_VALUE);
       this.overrideResponseTags = true;
       return this;
     }
 
     public Builder setBaggageMapping(
         Collection<? extends Map.Entry<String, String>> baggageMapping) {
-      this.baggageMapping = cleanMapping(baggageMapping, true, false);
+      this.baggageMapping = cleanMapping(baggageMapping, LOWER_KEY, VALUE);
       return this;
     }
 
@@ -163,19 +170,11 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     private Map<String, String> cleanMapping(
         Collection<? extends Map.Entry<String, String>> mapping,
-        boolean lowerCaseKeys,
-        boolean lowerCaseValues) {
+        Function<Map.Entry<String, String>, String> keyMapper,
+        Function<Map.Entry<String, String>, String> valueMapper) {
       final Map<String, String> cleanedMapping = new HashMap<>(mapping.size() * 4 / 3);
       for (Map.Entry<String, String> association : mapping) {
-        String key = association.getKey().trim();
-        if (lowerCaseKeys) {
-          key = key.toLowerCase(Locale.ROOT);
-        }
-        String value = association.getValue().trim();
-        if (lowerCaseValues) {
-          value = value.toLowerCase(Locale.ROOT);
-        }
-        cleanedMapping.put(key, value);
+        cleanedMapping.put(keyMapper.apply(association), valueMapper.apply(association));
       }
       return tryMakeImmutableMap(cleanedMapping);
     }
@@ -193,6 +192,26 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       }
       return DynamicConfig.this;
     }
+  }
+
+  static String clean(String s) {
+    return null == s ? "" : s.trim();
+  }
+
+  static String key(Map.Entry<String, String> association) {
+    return clean(association.getKey());
+  }
+
+  static String value(Map.Entry<String, String> association) {
+    return clean(association.getValue());
+  }
+
+  static String lowerKey(Map.Entry<String, String> association) {
+    return key(association).toLowerCase(Locale.ROOT);
+  }
+
+  static String lowerValue(Map.Entry<String, String> association) {
+    return value(association).toLowerCase(Locale.ROOT);
   }
 
   static void reportConfigChange(Snapshot newSnapshot) {
