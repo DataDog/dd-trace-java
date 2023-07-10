@@ -5,6 +5,7 @@ import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TracerConfig.BAGGAGE_MAPPING;
+import static datadog.trace.api.config.TracerConfig.HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING;
@@ -78,17 +79,17 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     boolean dataStreamsEnabled;
 
     Map<String, String> serviceMapping;
-    Map<String, String> requestHeaderTags;
-    Map<String, String> responseHeaderTags;
+    Map<String, String> headerTags;
     Map<String, String> baggageMapping;
+
+    boolean overrideResponseTags;
 
     Double traceSampleRate;
 
     Builder(Snapshot snapshot) {
       if (null == snapshot) {
         this.serviceMapping = Collections.emptyMap();
-        this.requestHeaderTags = Collections.emptyMap();
-        this.responseHeaderTags = Collections.emptyMap();
+        this.headerTags = Collections.emptyMap();
         this.baggageMapping = Collections.emptyMap();
         this.logsInjectionEnabled = ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
       } else {
@@ -99,9 +100,10 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
         this.dataStreamsEnabled = snapshot.dataStreamsEnabled;
 
         this.serviceMapping = snapshot.serviceMapping;
-        this.requestHeaderTags = snapshot.requestHeaderTags;
-        this.responseHeaderTags = snapshot.responseHeaderTags;
+        this.headerTags = snapshot.headerTags;
         this.baggageMapping = snapshot.baggageMapping;
+
+        this.overrideResponseTags = snapshot.overrideResponseTags;
 
         this.traceSampleRate = snapshot.traceSampleRate;
       }
@@ -135,8 +137,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       if (Config.get().getRequestHeaderTags().equals(headerTags)
           && !Config.get().getResponseHeaderTags().equals(headerTags)) {
         // using static config; don't override separate static config for response header tags
-        this.requestHeaderTags = Config.get().getRequestHeaderTags();
-        this.responseHeaderTags = Config.get().getResponseHeaderTags();
+        this.headerTags = Config.get().getRequestHeaderTags();
+        this.overrideResponseTags = false;
         return this;
       } else {
         return setHeaderTags(headerTags.entrySet());
@@ -154,8 +156,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     }
 
     public Builder setHeaderTags(Collection<? extends Map.Entry<String, String>> headerTags) {
-      this.requestHeaderTags = cleanMapping(headerTags, LOWER_KEY, REQUEST_TAG);
-      this.responseHeaderTags = cleanMapping(headerTags, LOWER_KEY, RESPONSE_TAG);
+      this.headerTags = cleanMapping(headerTags, LOWER_KEY, REQUEST_TAG);
+      this.overrideResponseTags = true;
       return this;
     }
 
@@ -237,8 +239,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     update.put(DATA_STREAMS_ENABLED, newSnapshot.dataStreamsEnabled);
 
     update.put(SERVICE_MAPPING, newSnapshot.serviceMapping);
-    update.put(REQUEST_HEADER_TAGS, newSnapshot.requestHeaderTags);
-    update.put(RESPONSE_HEADER_TAGS, newSnapshot.responseHeaderTags);
+    update.put(HEADER_TAGS, newSnapshot.headerTags);
     update.put(BAGGAGE_MAPPING, newSnapshot.baggageMapping);
 
     maybePut(update, TRACE_SAMPLE_RATE, newSnapshot.traceSampleRate);
@@ -261,9 +262,10 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     final boolean dataStreamsEnabled;
 
     final Map<String, String> serviceMapping;
-    final Map<String, String> requestHeaderTags;
-    final Map<String, String> responseHeaderTags;
+    final Map<String, String> headerTags;
     final Map<String, String> baggageMapping;
+
+    final boolean overrideResponseTags;
 
     final Double traceSampleRate;
 
@@ -275,9 +277,10 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       this.dataStreamsEnabled = builder.dataStreamsEnabled;
 
       this.serviceMapping = builder.serviceMapping;
-      this.requestHeaderTags = builder.requestHeaderTags;
-      this.responseHeaderTags = builder.responseHeaderTags;
+      this.headerTags = builder.headerTags;
       this.baggageMapping = builder.baggageMapping;
+
+      this.overrideResponseTags = builder.overrideResponseTags;
 
       this.traceSampleRate = builder.traceSampleRate;
     }
@@ -309,12 +312,12 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     @Override
     public Map<String, String> getHeaderTags() {
-      return requestHeaderTags;
+      return headerTags;
     }
 
     @Override
     public Map<String, String> getResponseHeaderTags() {
-      return responseHeaderTags;
+      return overrideResponseTags ? headerTags : Config.get().getResponseHeaderTags();
     }
 
     @Override
