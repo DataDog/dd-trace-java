@@ -804,14 +804,6 @@ jobs:
             DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh APM_TRACING_E2E_SINGLE_SPAN
 
       - run:
-          name: Run APM Integrations tests
-          # Stop the job after 5m to avoid excessive overhead. Will need adjustment as more tests are added.
-          no_output_timeout: 5m
-          command: |
-            cd system-tests
-            DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh INTEGRATIONS
-
-      - run:
           name: Upload data to CI Visibility
           command: |
             cd system-tests
@@ -833,10 +825,45 @@ jobs:
 
       - run:
           name: Collect artifacts
-          command: tar -cvzf logs_java_<< parameters.weblog-variant >>_dev.tar.gz -C system-tests logs logs_apm_tracing_e2e logs_apm_tracing_e2e_single_span logs_integrations
+          command: tar -cvzf logs_java_<< parameters.weblog-variant >>_dev.tar.gz -C system-tests logs logs_apm_tracing_e2e logs_apm_tracing_e2e_single_span
 
       - store_artifacts:
           path: logs_java_<< parameters.weblog-variant >>_dev.tar.gz
+
+  integrations-system-tests:
+    machine:
+      # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
+      image: ubuntu-2004:current
+    resource_class: large
+    steps:
+      - setup_system_tests
+
+      - run:
+          name: Copy jar file to system test binaries folder
+          command: |
+            ls -la ~/dd-trace-java/workspace/dd-java-agent/build/libs
+            cp ~/dd-trace-java/workspace/dd-java-agent/build/libs/*.jar system-tests/binaries/
+
+      - run:
+          name: Build
+          # Build the default framework, which is springboot
+          command: |
+            cd system-tests
+            ./build.sh java
+
+      - run:
+          name: Run APM Integrations tests
+          # Stop the job after 5m to avoid excessive overhead. Will need adjustment as more tests are added.
+          no_output_timeout: 5m
+          command: |
+            cd system-tests
+            DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh INTEGRATIONS
+
+      - store_test_results:
+          path: system-tests/logs_integrations
+
+      - store_artifacts:
+          path: system-tests/logs_integrations
 
   parametric-tests:
     machine:
