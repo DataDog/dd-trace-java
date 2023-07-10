@@ -453,6 +453,12 @@ class CoreTracerTest extends DDCoreSpecification {
           }, {
              "header": "Referer",
              "tag_name": "http.referer"
+          }, {
+             "header": "  Some.Header  ",
+             "tag_name": ""
+          }, {
+             "header": "C!!!ont_____ent----tYp!/!e",
+             "tag_name": ""
           }]
           ,
           "tracing_sampling_rate": 0.5
@@ -463,8 +469,18 @@ class CoreTracerTest extends DDCoreSpecification {
 
     then:
     tracer.captureTraceConfig().serviceMapping == ['foobar':'bar', 'snafu':'foo']
-    tracer.captureTraceConfig().requestHeaderTags == ['cookie':'http.request.headers.cookie', 'referer':'http.referer']
-    tracer.captureTraceConfig().responseHeaderTags == ['cookie':'http.response.headers.cookie', 'referer':'http.referer']
+    tracer.captureTraceConfig().requestHeaderTags == [
+      'cookie':'http.request.headers.cookie',
+      'referer':'http.referer',
+      'some.header':'http.request.headers.some_header',
+      'c!!!ont_____ent----typ!/!e':'http.request.headers.c___ont_____ent----typ_/_e'
+    ]
+    tracer.captureTraceConfig().responseHeaderTags == [
+      'cookie':'http.response.headers.cookie',
+      'referer':'http.referer',
+      'some.header':'http.response.headers.some_header',
+      'c!!!ont_____ent----typ!/!e':'http.response.headers.c___ont_____ent----typ_/_e'
+    ]
     tracer.captureTraceConfig().traceSampleRate == 0.5
 
     when:

@@ -205,6 +205,36 @@ public final class Strings {
   }
 
   @Nonnull
+  public static String normalizedHeaderTag(String str) {
+    if (str.isEmpty()) {
+      return "";
+    }
+    StringBuilder builder = new StringBuilder(str.length());
+    int firstNonWhiteSpace = -1;
+    int lastNonWhitespace = -1;
+    for (int i = 0; i < str.length(); i++) {
+      char c = str.charAt(i);
+      if (Character.isWhitespace(c)) {
+        builder.append('_');
+      } else {
+        firstNonWhiteSpace = firstNonWhiteSpace == -1 ? i : firstNonWhiteSpace;
+        lastNonWhitespace = i;
+        if (Character.isLetterOrDigit(c) || c == '_' || c == '-' || c == '/') {
+          builder.append(Character.toLowerCase(c));
+        } else {
+          builder.append('_');
+        }
+      }
+    }
+    if (firstNonWhiteSpace == -1) {
+      return "";
+    } else {
+      str = builder.substring(firstNonWhiteSpace, lastNonWhitespace + 1);
+      return str;
+    }
+  }
+
+  @Nonnull
   public static String trim(final String string) {
     return null == string ? "" : string.trim();
   }

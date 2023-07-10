@@ -11,6 +11,7 @@ import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 
+import datadog.trace.util.Strings;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -196,16 +197,12 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     }
   }
 
-  static String clean(String s) {
-    return null == s ? "" : s.trim();
-  }
-
   static String key(Map.Entry<String, String> association) {
-    return clean(association.getKey());
+    return Strings.trim(association.getKey());
   }
 
   static String value(Map.Entry<String, String> association) {
-    return clean(association.getValue());
+    return Strings.trim(association.getValue());
   }
 
   static String lowerKey(Map.Entry<String, String> association) {
@@ -215,7 +212,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
   static String requestTag(Map.Entry<String, String> association) {
     String requestTag = value(association);
     if (requestTag.isEmpty()) {
-      requestTag = "http.request.headers." + lowerKey(association);
+      requestTag = "http.request.headers." + Strings.normalizedHeaderTag(association.getKey());
     }
     return requestTag;
   }
@@ -223,7 +220,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
   static String responseTag(Map.Entry<String, String> association) {
     String responseTag = value(association);
     if (responseTag.isEmpty()) {
-      responseTag = "http.response.headers." + lowerKey(association);
+      responseTag = "http.response.headers." + Strings.normalizedHeaderTag(association.getKey());
     }
     return responseTag;
   }
