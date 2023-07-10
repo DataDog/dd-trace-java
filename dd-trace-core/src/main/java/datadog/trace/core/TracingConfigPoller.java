@@ -27,6 +27,8 @@ final class TracingConfigPoller {
 
   private final DynamicConfig dynamicConfig;
 
+  private boolean startupLogsEnabled;
+
   private Runnable stopPolling;
 
   public TracingConfigPoller(DynamicConfig dynamicConfig) {
@@ -34,6 +36,8 @@ final class TracingConfigPoller {
   }
 
   public void start(Config config, SharedCommunicationObjects sco) {
+    this.startupLogsEnabled = config.isStartupLogsEnabled();
+
     stopPolling = new Updater().register(config, sco);
   }
 
@@ -103,7 +107,14 @@ final class TracingConfigPoller {
       if (Boolean.TRUE.equals(libConfig.debugEnabled)) {
         GlobalLogLevelSwitcher.get().switchLevel(LogLevel.DEBUG);
       } else {
-        GlobalLogLevelSwitcher.get().switchLevel(LogLevel.INFO);
+        // Disable debugEnabled when it was set to true at startup
+        // The default log level when debugEnabled=false depends on the STARTUP_LOGS_ENABLED flag
+        // See datadog.trace.bootstrap.Agent.configureLogger()
+        if (startupLogsEnabled) {
+          GlobalLogLevelSwitcher.get().switchLevel(LogLevel.INFO);
+        } else {
+          GlobalLogLevelSwitcher.get().switchLevel(LogLevel.WARN);
+        }
       }
     }
 

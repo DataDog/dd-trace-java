@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap;
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
 import static datadog.trace.api.Platform.getRuntimeVendor;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.Platform.isOracleJDK8;
@@ -80,14 +81,14 @@ public class Agent {
 
   private static final int DEFAULT_JMX_START_DELAY = 15; // seconds
 
-  private static final String STARTUP_LOGS_ENABLED = "trace.startup.logs";
-
   private static final Logger log;
 
   private enum AgentFeature {
     TRACING(propertyNameToSystemPropertyName(TraceInstrumentationConfig.TRACE_ENABLED), true),
     JMXFETCH(propertyNameToSystemPropertyName(JmxFetchConfig.JMX_FETCH_ENABLED), true),
-    STARTUP_LOGS(propertyNameToSystemPropertyName(STARTUP_LOGS_ENABLED), true),
+    STARTUP_LOGS(
+        propertyNameToSystemPropertyName(GeneralConfig.STARTUP_LOGS_ENABLED),
+        DEFAULT_STARTUP_LOGS_ENABLED),
     PROFILING(propertyNameToSystemPropertyName(ProfilingConfig.PROFILING_ENABLED), false),
     APPSEC(propertyNameToSystemPropertyName(AppSecConfig.APPSEC_ENABLED), false),
     IAST(propertyNameToSystemPropertyName(IastConfig.IAST_ENABLED), false),

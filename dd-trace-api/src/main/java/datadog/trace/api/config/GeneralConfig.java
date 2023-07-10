@@ -30,6 +30,8 @@ public final class GeneralConfig {
 
   public static final String TRACE_DEBUG = "trace.debug";
 
+  public static final String STARTUP_LOGS_ENABLED = "trace.startup.logs";
+
   public static final String DOGSTATSD_START_DELAY = "dogstatsd.start-delay";
   public static final String DOGSTATSD_HOST = "dogstatsd.host";
   public static final String DOGSTATSD_PORT = "dogstatsd.port";

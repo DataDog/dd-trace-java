@@ -83,6 +83,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SECURE_RANDOM;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_METRICS_INTERVAL;
@@ -187,6 +188,7 @@ import static datadog.trace.api.config.GeneralConfig.RUNTIME_ID_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.SITE;
+import static datadog.trace.api.config.GeneralConfig.STARTUP_LOGS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL;
@@ -709,6 +711,7 @@ public class Config {
   private final boolean traceAgentV05Enabled;
 
   private final boolean debugEnabled;
+  private final boolean startupLogsEnabled;
   private final String configFileStatus;
 
   private final IdGenerationStrategy idGenerationStrategy;
@@ -1617,6 +1620,9 @@ public class Config {
     servletAsyncTimeoutError = configProvider.getBoolean(SERVLET_ASYNC_TIMEOUT_ERROR, true);
 
     debugEnabled = configProvider.getBoolean(TRACE_DEBUG, false);
+
+    startupLogsEnabled =
+        configProvider.getBoolean(STARTUP_LOGS_ENABLED, DEFAULT_STARTUP_LOGS_ENABLED);
 
     cwsEnabled = configProvider.getBoolean(CWS_ENABLED, DEFAULT_CWS_ENABLED);
     cwsTlsRefresh = configProvider.getInteger(CWS_TLS_REFRESH, DEFAULT_CWS_TLS_REFRESH);
@@ -2658,6 +2664,10 @@ public class Config {
     return debugEnabled;
   }
 
+  public boolean isStartupLogsEnabled() {
+    return startupLogsEnabled;
+  }
+
   public boolean isCwsEnabled() {
     return cwsEnabled;
   }
@@ -3692,6 +3702,8 @@ public class Config {
         + traceAgentV05Enabled
         + ", debugEnabled="
         + debugEnabled
+        + ", startLogsEnabled="
+        + startupLogsEnabled
         + ", configFile='"
         + configFileStatus
         + '\''
