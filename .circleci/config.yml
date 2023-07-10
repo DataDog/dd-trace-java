@@ -1225,6 +1225,10 @@ build_test_jobs: &build_test_jobs
       matrix:
           <<: *system_test_matrix
 
+  - integrations-system-tests:
+      requires:
+        - ok_to_test
+
   - parametric-tests:
       requires:
         - ok_to_test
