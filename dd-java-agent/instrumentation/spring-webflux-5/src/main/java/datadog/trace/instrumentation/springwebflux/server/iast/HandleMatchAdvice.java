@@ -7,7 +7,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
-import datadog.trace.api.iast.source.WebModule;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.springframework.web.reactive.HandlerMapping;
@@ -30,7 +30,7 @@ public class HandleMatchAdvice {
 
     Object iastRequestContext = reqCtx.getData(RequestContextSlot.IAST);
 
-    WebModule module = InstrumentationBridge.WEB;
+    PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       if (templateVars instanceof Map) {
         for (Map.Entry<String, String> e : ((Map<String, String>) templateVars).entrySet()) {
@@ -39,7 +39,8 @@ public class HandleMatchAdvice {
           if (parameterName == null || value == null) {
             continue; // should not happen
           }
-          module.onRequestPathParameter(parameterName, value, iastRequestContext);
+          module.taint(
+              iastRequestContext, SourceTypes.REQUEST_PATH_PARAMETER, parameterName, value);
         }
       }
 
@@ -55,12 +56,17 @@ public class HandleMatchAdvice {
           for (Map.Entry<String, Iterable<String>> ie : value.entrySet()) {
             String innerKey = ie.getKey();
             if (innerKey != null) {
-              module.onRequestMatrixParameter(parameterName, innerKey, iastRequestContext);
+              module.taint(
+                  iastRequestContext,
+                  SourceTypes.REQUEST_MATRIX_PARAMETER,
+                  parameterName,
+                  innerKey);
             }
             Iterable<String> innerValues = ie.getValue();
             if (innerValues != null) {
               for (String iv : innerValues) {
-                module.onRequestMatrixParameter(parameterName, iv, iastRequestContext);
+                module.taint(
+                    iastRequestContext, SourceTypes.REQUEST_MATRIX_PARAMETER, parameterName, iv);
               }
             }
           }

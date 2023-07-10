@@ -10,7 +10,6 @@ import datadog.trace.api.iast.source.WebModule;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class WebModuleImpl implements WebModule {
@@ -18,18 +17,6 @@ public class WebModuleImpl implements WebModule {
   @Override
   public void onParameterNames(@Nullable final Collection<String> paramNames) {
     onNamed(paramNames, SourceTypes.REQUEST_PARAMETER_NAME);
-  }
-
-  @Override
-  public void onParameterValue(
-      @Nullable final String paramName, @Nullable final String paramValue) {
-    onNamed(paramName, paramValue, SourceTypes.REQUEST_PARAMETER_VALUE);
-  }
-
-  @Override
-  public void onPathParameterValue(
-      @Nullable final String paramName, @Nullable final String paramValue) {
-    onNamed(paramName, paramValue, SourceTypes.REQUEST_PATH_PARAMETER);
   }
 
   @Override
@@ -55,11 +42,6 @@ public class WebModuleImpl implements WebModule {
   }
 
   @Override
-  public void onHeaderValue(@Nullable final String headerName, @Nullable final String headerValue) {
-    onNamed(headerName, headerValue, SourceTypes.REQUEST_HEADER_VALUE);
-  }
-
-  @Override
   public void onHeaderValues(
       @Nullable final String headerName, @Nullable final Collection<String> headerValues) {
     onNamed(headerName, headerValues, SourceTypes.REQUEST_HEADER_VALUE);
@@ -68,38 +50,6 @@ public class WebModuleImpl implements WebModule {
   @Override
   public void onCookieNames(@Nullable Iterable<String> cookieNames) {
     onNamed(cookieNames, SourceTypes.REQUEST_COOKIE_NAME);
-  }
-
-  @Override
-  public void onCookieValue(@Nullable final String cookieName, @Nullable final String cookieValue) {
-    onNamed(cookieName, cookieValue, SourceTypes.REQUEST_COOKIE_VALUE);
-  }
-
-  @Override
-  public void onQueryString(@Nullable final String queryString) {
-    if (!canBeTainted(queryString)) {
-      return;
-    }
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    taintedObjects.taintInputString(
-        queryString, new Source(SourceTypes.REQUEST_QUERY, null, queryString));
-  }
-
-  private static void onNamed(
-      @Nullable final String name, @Nullable final String value, final byte source) {
-    if (!canBeTainted(value)) {
-      return;
-    }
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    taintedObjects.taintInputString(value, new Source(source, name, value));
   }
 
   private static void onNamed(@Nullable final Iterable<String> names, final byte source) {
@@ -185,35 +135,5 @@ public class WebModuleImpl implements WebModule {
         }
       }
     }
-  }
-
-  @Override
-  public void onRequestPathParameter(
-      @Nullable String paramName, @Nullable String value, @Nonnull Object ctx_) {
-    if (ctx_ == null || !canBeTainted(value)) {
-      return;
-    }
-    final IastRequestContext ctx = (IastRequestContext) ctx_;
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    taintedObjects.taintInputString(
-        value, new Source(SourceTypes.REQUEST_PATH_PARAMETER, paramName, value));
-  }
-
-  @Override
-  public void onRequestMatrixParameter(
-      @Nonnull String paramName, @Nullable String value, @Nonnull Object ctx_) {
-    if (ctx_ == null || paramName == null || !canBeTainted(value)) {
-      return;
-    }
-    final IastRequestContext ctx = (IastRequestContext) ctx_;
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    taintedObjects.taintInputString(
-        value, new Source(SourceTypes.REQUEST_MATRIX_PARAMETER, paramName, value));
-  }
-
-  @Override
-  public void onInjectedParameter(
-      @Nullable String name, @Nullable String value, @Nonnull byte sourceType) {
-    onNamed(name, value, sourceType);
   }
 }

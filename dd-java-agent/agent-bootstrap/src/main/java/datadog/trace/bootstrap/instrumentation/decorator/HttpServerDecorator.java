@@ -310,6 +310,21 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return span;
   }
 
+  /**
+   * Whether AppSec should NOT be called during onResponse() for analysis of the status code and
+   * headers.
+   *
+   * <p>{@link #onResponse(AgentSpan, Object)} is usually called too late for AppSec to be able to
+   * alter the response, so for those modules where we support blocking on response this is <code>
+   * true</code> and AppSec has its own (earlier) hook point for processing the response (just
+   * before commit).
+   *
+   * @return whether AppSec analysis of the response is run separately from onResponse
+   */
+  protected boolean isAppSecOnResponseSeparate() {
+    return false;
+  }
+
   public AgentSpan onResponse(final AgentSpan span, final RESPONSE response) {
     if (response != null) {
       final int status = status(response);
@@ -324,7 +339,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         }
       }
 
-      callIGCallbackResponseAndHeaders(span, response, status);
+      if (!isAppSecOnResponseSeparate()) {
+        callIGCallbackResponseAndHeaders(span, response, status);
+      }
     }
     return span;
   }
@@ -401,20 +418,29 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return Flow.ResultFlow.empty();
   }
 
-  private void callIGCallbackResponseAndHeaders(AgentSpan span, RESPONSE carrier, int status) {
+  private Flow<Void> callIGCallbackResponseAndHeaders(
+      AgentSpan span, RESPONSE carrier, int status) {
+    return callIGCallbackResponseAndHeaders(span, carrier, status, responseGetter());
+  }
+
+  public <RESP> Flow<Void> callIGCallbackResponseAndHeaders(
+      AgentSpan span,
+      RESP carrier,
+      int status,
+      AgentPropagation.ContextVisitor<RESP> contextVisitor) {
     CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
     RequestContext requestContext = span.getRequestContext();
     if (cbp == null || requestContext == null) {
-      return;
+      return Flow.ResultFlow.empty();
     }
+
     BiFunction<RequestContext, Integer, Flow<Void>> addrCallback =
         cbp.getCallback(EVENTS.responseStarted());
     if (null != addrCallback) {
       addrCallback.apply(requestContext, status);
     }
-    AgentPropagation.ContextVisitor<RESPONSE> getter = responseGetter();
-    if (getter == null) {
-      return;
+    if (contextVisitor == null) {
+      return Flow.ResultFlow.empty();
     }
     IGKeyClassifier igKeyClassifier =
         IGKeyClassifier.create(
@@ -422,9 +448,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
             cbp.getCallback(EVENTS.responseHeader()),
             cbp.getCallback(EVENTS.responseHeaderDone()));
     if (null != igKeyClassifier) {
-      getter.forEachKey(carrier, igKeyClassifier);
-      igKeyClassifier.done();
+      contextVisitor.forEachKey(carrier, igKeyClassifier);
+      return igKeyClassifier.done();
     }
+    return Flow.ResultFlow.empty();
   }
 
   private Flow<Void> callIGCallbackURI(
@@ -498,9 +525,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   /** This passes the headers through to the InstrumentationGateway */
-  private static final class IGKeyClassifier implements AgentPropagation.KeyClassifier {
+  protected static final class IGKeyClassifier implements AgentPropagation.KeyClassifier {
 
-    private static IGKeyClassifier create(
+    public static IGKeyClassifier create(
         RequestContext requestContext,
         TriConsumer<RequestContext, String, String> headerCallback,
         Function<RequestContext, Flow<Void>> doneCallback) {

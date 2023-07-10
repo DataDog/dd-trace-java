@@ -27,6 +27,8 @@ public class ProcessSupervisor implements Closeable {
     Health run(Health previousHealth) throws InterruptedException;
   }
 
+  public static final HealthCheck ALWAYS_READY = health -> READY_TO_START;
+
   private static final Logger log = LoggerFactory.getLogger(ProcessSupervisor.class);
 
   private static final long HEALTHY_DELAY_MILLIS = 10_000;
@@ -50,7 +52,7 @@ public class ProcessSupervisor implements Closeable {
    * @param processBuilder Builder to create the process
    */
   public ProcessSupervisor(String imageName, ProcessBuilder processBuilder) {
-    this(imageName, processBuilder, health -> READY_TO_START);
+    this(imageName, processBuilder, ALWAYS_READY);
   }
 
   public ProcessSupervisor(

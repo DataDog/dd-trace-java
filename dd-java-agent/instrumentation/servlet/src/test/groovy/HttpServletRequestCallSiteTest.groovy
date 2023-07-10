@@ -19,9 +19,13 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
     injectSysConfig('dd.iast.enabled', 'true')
   }
 
+  def cleanup() {
+    InstrumentationBridge.clearIastModules()
+  }
+
   def 'test getHeader'(final Class<? extends HttpServletRequest> clazz) {
     setup:
-    final iastModule = Mock(WebModule)
+    final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final testSuite = new TestHttpServletRequestCallSiteSuite(Mock(clazz) {
       getHeader('header') >> 'value'
@@ -32,7 +36,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
 
     then:
     result == 'value'
-    1 * iastModule.onHeaderValue('header', 'value')
+    1 * iastModule.taint(SourceTypes.REQUEST_HEADER_VALUE, 'header', 'value')
 
     where:
     clazz                     | _
@@ -97,7 +101,6 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
 
     then:
     result == cookies
-
     1 * iastModule.taint(SourceTypes.REQUEST_COOKIE_VALUE, cookies)
 
     where:
@@ -156,7 +159,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
 
   void 'test get query string'() {
     setup:
-    final iastModule = Mock(WebModule)
+    final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final testSuite = new TestHttpServletRequestCallSiteSuite(Mock(clazz) {
       getQueryString() >> 'paramName=paramValue'
@@ -167,7 +170,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
 
     then:
 
-    1 * iastModule.onQueryString('paramName=paramValue')
+    1 * iastModule.taint(SourceTypes.REQUEST_QUERY, null, 'paramName=paramValue')
 
     where:
     clazz                     | _

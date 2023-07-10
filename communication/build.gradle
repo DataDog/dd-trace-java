@@ -26,6 +26,7 @@ ext {
   minimumInstructionCoverage = 0.8
   excludedClassesCoverage = [
     'datadog.communication.ddagent.ExternalAgentLauncher',
+    'datadog.communication.ddagent.ExternalAgentLauncher.NamedPipeHealthCheck',
     'datadog.communication.ddagent.SharedCommunicationObjects.FixedConfigUrlSupplier',
     'datadog.communication.ddagent.SharedCommunicationObjects.RetryConfigUrlSupplier',
     'datadog.communication.http.OkHttpUtils',

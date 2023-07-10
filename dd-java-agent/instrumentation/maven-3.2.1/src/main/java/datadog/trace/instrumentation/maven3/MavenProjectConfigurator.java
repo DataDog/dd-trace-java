@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import javax.annotation.Nullable;
+import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.maven.model.Build;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.InputLocation;
@@ -41,11 +42,11 @@ class MavenProjectConfigurator {
   private static final String JAVAC_COMPILER_ID = "javac";
   private static final String DATADOG_COMPILER_PLUGIN_ID = "DatadogCompilerPlugin";
 
-  private static final MavenDependencyVersion ANNOTATION_PROCESSOR_PATHS_SUPPORTED_VERSION =
-      MavenDependencyVersion.from("3.5");
+  private static final ComparableVersion ANNOTATION_PROCESSOR_PATHS_SUPPORTED_VERSION =
+      new ComparableVersion("3.5");
 
-  private static final MavenDependencyVersion LATE_SUBSTITUTION_SUPPORTED_VERSION =
-      MavenDependencyVersion.from("2.17");
+  private static final ComparableVersion LATE_SUBSTITUTION_SUPPORTED_VERSION =
+      new ComparableVersion("2.17");
   private static final String JACOCO_EXCL_CLASS_LOADERS_PROPERTY = "jacoco.exclClassLoaders";
 
   public void configureTracer(
@@ -62,13 +63,11 @@ class MavenProjectConfigurator {
 
     Plugin plugin = mojoExecution.getPlugin();
     String pluginVersion = plugin.getVersion();
-    MavenDependencyVersion pluginVersionParsed =
-        pluginVersion != null
-            ? MavenDependencyVersion.from(pluginVersion)
-            : MavenDependencyVersion.UNKNOWN;
+    ComparableVersion pluginVersionParsed =
+        new ComparableVersion(pluginVersion != null ? pluginVersion : "");
 
     String projectWideArgLine;
-    if (pluginVersionParsed.isLaterThanOrEqualTo(LATE_SUBSTITUTION_SUPPORTED_VERSION)) {
+    if (pluginVersionParsed.compareTo(LATE_SUBSTITUTION_SUPPORTED_VERSION) >= 0) {
       // include project-wide argLine
       // (it might be modified by other plugins earlier in the build cycle, e.g. by Jacoco)
       projectWideArgLine = "@{argLine} ";
@@ -149,12 +148,11 @@ class MavenProjectConfigurator {
       List<Dependency> projectDependencies = project.getDependencies();
       addOrUpdate(projectDependencies, javacPluginClientDependency);
 
-      MavenDependencyVersion mavenPluginVersion =
-          compilerPlugin.getVersion() != null
-              ? MavenDependencyVersion.from(compilerPlugin.getVersion())
-              : MavenDependencyVersion.UNKNOWN;
+      ComparableVersion mavenPluginVersion =
+          new ComparableVersion(
+              compilerPlugin.getVersion() != null ? compilerPlugin.getVersion() : "");
 
-      if (mavenPluginVersion.isLaterThanOrEqualTo(ANNOTATION_PROCESSOR_PATHS_SUPPORTED_VERSION)) {
+      if (mavenPluginVersion.compareTo(ANNOTATION_PROCESSOR_PATHS_SUPPORTED_VERSION) >= 0) {
         String lombokVersion = getLombokVersion(projectDependencies);
         if (lombokVersion != null) {
           configuration =
@@ -189,15 +187,15 @@ class MavenProjectConfigurator {
   }
 
   private static void addOrUpdate(List<Dependency> projectDependencies, Dependency dependency) {
-    MavenDependencyVersion dependencyVersion = MavenDependencyVersion.from(dependency.getVersion());
+    ComparableVersion dependencyVersion = new ComparableVersion(dependency.getVersion());
 
     for (Dependency projectDependency : projectDependencies) {
       if (projectDependency.getGroupId().equals(dependency.getGroupId())
           && projectDependency.getArtifactId().equals(dependency.getArtifactId())) {
 
-        MavenDependencyVersion projectDependencyVersion =
-            MavenDependencyVersion.from(projectDependency.getVersion());
-        if (dependencyVersion.isLaterThanOrEqualTo(projectDependencyVersion)) {
+        ComparableVersion projectDependencyVersion =
+            new ComparableVersion(projectDependency.getVersion());
+        if (dependencyVersion.compareTo(projectDependencyVersion) > 0) {
           projectDependency.setVersion(dependency.getVersion());
         }
 

@@ -34,6 +34,11 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
+  public String muzzleDirective() {
+    return "until6035_7022";
+  }
+
+  @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Avoid matching Tomcat 5.0.x which is not supported by this instrumentation.
     return hasClassNamed("org.apache.tomcat.util.buf.StringCache");
