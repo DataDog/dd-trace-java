@@ -218,13 +218,15 @@ abstract class DDSpecification extends Specification {
   /**
    * Reset the global configuration. Please note that Runtime ID is preserved to the pre-existing value.
    */
-  synchronized static void rebuildConfig() {
-    checkConfigTransformation()
+  void rebuildConfig() {
+    synchronized (DDSpecification) {
+      checkConfigTransformation()
 
-    def newInstConfig = instConfigConstructor.newInstance()
-    instConfigInstanceField.set(null, newInstConfig)
-    def newConfig = configConstructor.newInstance()
-    configInstanceField.set(null, newConfig)
+      def newInstConfig = instConfigConstructor.newInstance()
+      instConfigInstanceField.set(null, newInstConfig)
+      def newConfig = configConstructor.newInstance()
+      configInstanceField.set(null, newConfig)
+    }
   }
 
   private static void checkConfigTransformation() {
