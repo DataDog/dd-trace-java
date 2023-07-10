@@ -662,6 +662,21 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.profilingContextIntegration = profilingContextIntegration;
   }
 
+  /** Used by AgentTestRunner to inject configuration into the test tracer. */
+  public void rebuildTraceConfig(Config config) {
+    dynamicConfig
+        .initial()
+        .setDebugEnabled(config.isDebugEnabled())
+        .setRuntimeMetricsEnabled(config.isRuntimeMetricsEnabled())
+        .setLogsInjectionEnabled(config.isLogsInjectionEnabled())
+        .setDataStreamsEnabled(config.isDataStreamsEnabled())
+        .setServiceMapping(config.getServiceMapping())
+        .setHeaderTags(config.getRequestHeaderTags())
+        .setBaggageMapping(config.getBaggageMapping())
+        .setTraceSampleRate(config.getTraceSampleRate())
+        .apply();
+  }
+
   @Override
   protected void finalize() {
     try {
