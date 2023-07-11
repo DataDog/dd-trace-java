@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.springsecurity5
 
+import com.datadog.appsec.AppSecHttpServerTest
 import datadog.trace.agent.test.base.HttpServer
-import datadog.trace.agent.test.base.HttpServerWithAppSec
 import datadog.trace.core.DDSpan
 import okhttp3.FormBody
 import okhttp3.HttpUrl
@@ -22,7 +22,7 @@ import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.NOT_FOU
 
 // Use Stepwise to ensure tests are running sequentially
 @Stepwise
-class SpringBootBasedTest extends HttpServerWithAppSec<ConfigurableApplicationContext> {
+class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationContext> {
 
   @Shared
   def context

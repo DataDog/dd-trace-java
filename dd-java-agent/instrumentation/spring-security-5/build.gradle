@@ -41,6 +41,7 @@ dependencies {
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '3.0.0'
   testImplementation 'org.springframework.boot:spring-boot-starter-jdbc:3.0.0'
 
+  testImplementation testFixtures(project(':dd-java-agent:appsec'))
   testImplementation project(':dd-java-agent:instrumentation:tomcat-appsec-6')
   testImplementation project(':dd-java-agent:instrumentation:tomcat-5.5')
   testImplementation 'com.h2database:h2:2.1.212'

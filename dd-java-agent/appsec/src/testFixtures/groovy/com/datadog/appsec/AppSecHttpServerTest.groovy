@@ -1,14 +1,14 @@
-package datadog.trace.agent.test.base
+package com.datadog.appsec
 
-import com.datadog.appsec.AppSecSystem
 import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.communication.monitor.Monitoring
+import datadog.trace.agent.test.base.WithHttpServer
 import datadog.trace.api.Config
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.gateway.SubscriptionService
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 
-abstract class HttpServerWithAppSec<SERVER> extends WithHttpServer<SERVER> {
+abstract class AppSecHttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   @Override
   protected void configurePreAgent() {
