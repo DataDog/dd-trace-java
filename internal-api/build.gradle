@@ -121,7 +121,10 @@ excludedClassesCoverage += [
   // stubs
   'datadog.trace.api.profiling.Timing.NoOp',
   'datadog.trace.api.profiling.Timer.NoOp',
-  'datadog.trace.api.profiling.Timer.TimerType'
+  'datadog.trace.api.profiling.Timer.TimerType',
+  // tested in agent-logging
+  'datadog.trace.logging.LogLevel',
+  'datadog.trace.logging.GlobalLogLevelSwitcher'
 ]
 
 excludedClassesBranchCoverage = [
