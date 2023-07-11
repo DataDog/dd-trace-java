@@ -3,7 +3,7 @@ muzzle {
   pass {
     group = "com.graphql-java"
     module = 'graphql-java'
-    versions = '[14.0,2018)' // exclude dates as version numbers
+    versions = '[14.0,21)'
     // earlier versions are missing some classes and will require separate instrumentation
   }
   fail {
@@ -23,5 +23,5 @@ dependencies {
 
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
 
-  latestDepTestImplementation group: 'com.graphql-java', name: 'graphql-java', version: '[19+,2018)'
+  latestDepTestImplementation group: 'com.graphql-java', name: 'graphql-java', version: '[19+,21)'
 }
