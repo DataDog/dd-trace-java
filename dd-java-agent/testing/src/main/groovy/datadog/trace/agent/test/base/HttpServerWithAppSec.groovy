@@ -27,4 +27,8 @@ abstract class HttpServerWithAppSec<SERVER> extends WithHttpServer<SERVER> {
 
     AppSecSystem.start(ss, sco)
   }
+
+  void cleanupSec() {
+    AppSecSystem.stop()
+  }
 }
