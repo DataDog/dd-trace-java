@@ -3,6 +3,7 @@ package datadog.trace.common.writer.ddagent;
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 
 import datadog.communication.serialization.Writable;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.core.CoreSpan;
@@ -33,6 +34,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
 
     private Writable writable;
     private boolean writeSamplingPriority;
+    private static final boolean injectBaggage = Config.get().isInjectBaggageAsTagsEnabled();
 
     MetaWriter withWritable(Writable writable) {
       this.writable = writable;

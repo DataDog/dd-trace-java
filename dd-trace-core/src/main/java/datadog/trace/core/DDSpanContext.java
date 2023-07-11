@@ -146,6 +146,8 @@ public class DDSpanContext
 
   private volatile int encodedOperationName;
 
+  private final boolean injectBaggageAsTags;
+
   public DDSpanContext(
       final DDTraceId traceId,
       final long spanId,
@@ -275,7 +277,7 @@ public class DDSpanContext
 
     this.requestContextDataAppSec = requestContextDataAppSec;
     this.requestContextDataIast = requestContextDataIast;
-    this.ciVisibilityContextData = CiVisibilityContextData;
+    ciVisibilityContextData = CiVisibilityContextData;
 
     assert pathwayContext != null;
     this.pathwayContext = pathwayContext;
@@ -283,14 +285,15 @@ public class DDSpanContext
     // The +1 is the magic number from the tags below that we set at the end,
     // and "* 4 / 3" is to make sure that we don't resize immediately
     final int capacity = Math.max((tagsSize <= 0 ? 3 : (tagsSize + 1)) * 4 / 3, 8);
-    this.unsafeTags = new HashMap<>(capacity);
+    unsafeTags = new HashMap<>(capacity);
+    injectBaggageAsTags = Config.get().isInjectBaggageAsTagsEnabled();
 
     // must set this before setting the service and resource names below
     this.profilingContextIntegration = profilingContextIntegration;
     // as fast as we can try to make this operation, we still might need to activate/deactivate
     // contexts at alarming rates in unpredictable async applications, so we'll try
     // to get away with doing this just once per span
-    this.encodedOperationName = profilingContextIntegration.encode(operationName);
+    encodedOperationName = profilingContextIntegration.encode(operationName);
 
     setServiceName(serviceName);
     this.operationName = operationName;
@@ -300,8 +303,8 @@ public class DDSpanContext
 
     // Additional Metadata
     final Thread current = Thread.currentThread();
-    this.threadId = current.getId();
-    this.threadName = THREAD_NAMES.computeIfAbsent(current.getName(), Functions.UTF8_ENCODE);
+    threadId = current.getId();
+    threadName = THREAD_NAMES.computeIfAbsent(current.getName(), Functions.UTF8_ENCODE);
 
     this.disableSamplingMechanismValidation = disableSamplingMechanismValidation;
     this.propagationTags =
@@ -348,7 +351,7 @@ public class DDSpanContext
 
   public void setServiceName(final String serviceName) {
     this.serviceName = trace.mapServiceName(serviceName);
-    this.topLevel = isTopLevel(parentServiceName, this.serviceName);
+    topLevel = isTopLevel(parentServiceName, this.serviceName);
   }
 
   // TODO this logic is inconsistent with hasResourceName
@@ -368,8 +371,8 @@ public class DDSpanContext
     if (null == resourceName) {
       return;
     }
-    if (priority >= this.resourceNamePriority) {
-      this.resourceNamePriority = priority;
+    if (priority >= resourceNamePriority) {
+      resourceNamePriority = priority;
       this.resourceName = resourceName;
     }
   }
@@ -384,7 +387,7 @@ public class DDSpanContext
 
   public void setOperationName(final CharSequence operationName) {
     this.operationName = operationName;
-    this.encodedOperationName = profilingContextIntegration.encode(operationName);
+    encodedOperationName = profilingContextIntegration.encode(operationName);
   }
 
   public boolean getErrorFlag() {
@@ -392,9 +395,9 @@ public class DDSpanContext
   }
 
   public void setErrorFlag(final boolean errorFlag, final byte priority) {
-    if (priority >= this.errorFlagPriority) {
+    if (priority >= errorFlagPriority) {
       this.errorFlag = errorFlag;
-      this.errorFlagPriority = priority;
+      errorFlagPriority = priority;
     }
   }
 
@@ -617,7 +620,7 @@ public class DDSpanContext
   }
 
   public void setHttpStatusCode(short statusCode) {
-    this.httpStatusCode = statusCode;
+    httpStatusCode = statusCode;
   }
 
   public short getHttpStatusCode() {
@@ -729,8 +732,11 @@ public class DDSpanContext
 
   public void processTagsAndBaggage(final MetadataConsumer consumer, int longRunningVersion) {
     synchronized (unsafeTags) {
-      Map<String, String> baggageItemsWithPropagationTags = new HashMap<>(baggageItems);
-      propagationTags.fillTagMap(baggageItemsWithPropagationTags);
+      Map<String, String> baggageItemsWithPropagationTags = EMPTY_BAGGAGE;
+      if (injectBaggageAsTags) {
+        baggageItemsWithPropagationTags = new HashMap<>(baggageItems);
+        propagationTags.fillTagMap(baggageItemsWithPropagationTags);
+      }
       consumer.accept(
           new Metadata(
               threadId,
@@ -780,11 +786,11 @@ public class DDSpanContext
   @Override
   public Object getData(RequestContextSlot slot) {
     if (slot == RequestContextSlot.APPSEC) {
-      return this.requestContextDataAppSec;
+      return requestContextDataAppSec;
     } else if (slot == RequestContextSlot.CI_VISIBILITY) {
-      return this.ciVisibilityContextData;
+      return ciVisibilityContextData;
     } else if (slot == RequestContextSlot.IAST) {
-      return this.requestContextDataIast;
+      return requestContextDataIast;
     }
     return null;
   }
@@ -792,16 +798,16 @@ public class DDSpanContext
   @Override
   public void close() throws IOException {
     Exception exc = null;
-    if (this.requestContextDataAppSec instanceof Closeable) {
+    if (requestContextDataAppSec instanceof Closeable) {
       try {
-        ((Closeable) this.requestContextDataAppSec).close();
+        ((Closeable) requestContextDataAppSec).close();
       } catch (IOException | RuntimeException e) {
         exc = e;
       }
     }
-    if (this.requestContextDataIast instanceof Closeable) {
+    if (requestContextDataIast instanceof Closeable) {
       try {
-        ((Closeable) this.requestContextDataIast).close();
+        ((Closeable) requestContextDataIast).close();
       } catch (IOException | RuntimeException e) {
         exc = e;
       }
@@ -845,7 +851,7 @@ public class DDSpanContext
     if (sanitize) {
       key = TagsHelper.sanitize(key);
     }
-    this.setTag(key, value);
+    setTag(key, value);
   }
 
   @Override
@@ -857,6 +863,6 @@ public class DDSpanContext
   public void setDataCurrent(String key, Object value) {
     // TODO is this decided?
     String tagKey = "_dd." + key + ".json";
-    this.setTag(tagKey, value);
+    setTag(tagKey, value);
   }
 }
