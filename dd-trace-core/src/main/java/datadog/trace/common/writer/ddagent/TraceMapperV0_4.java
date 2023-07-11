@@ -9,14 +9,13 @@ import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
 import datadog.trace.core.PendingTrace;
-import okhttp3.RequestBody;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import okhttp3.RequestBody;
 
 public final class TraceMapperV0_4 implements TraceMapper {
 
@@ -161,7 +160,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
      * <p>Result: "root.key1" -> "val1" "root.key2.sub1" -> "val2" "root.key2.sub2" -> "val3"
      * "plain" -> "123"
      *
-     * @param key      key name used as base
+     * @param key key name used as base
      * @param mapValue map of tags that can contain sub-maps as values
      */
     private void writeFlatMap(String key, Map<String, Object> mapValue) {
@@ -235,8 +234,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
   }
 
   @Override
-  public void reset() {
-  }
+  public void reset() {}
 
   @Override
   public String endpoint() {
