@@ -117,7 +117,6 @@ public class DebuggerTransformer implements ClassFileTransformer {
                   if (line.endsWith("*")) {
                     excludeTrie.insert(line.substring(0, line.length() - 1));
                   } else {
-                    log.debug("add exclude class: {}", line);
                     excludeClasses.add(line);
                   }
                 });
@@ -256,7 +255,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     return null;
   }
 
-  private void writeToInstrumentationLog(String classFilePath) {
+  private synchronized void writeToInstrumentationLog(String classFilePath) {
     try (FileWriter writer = new FileWriter("/tmp/debugger/instrumentation.log", true)) {
       writer.write(classFilePath);
       writer.write("\n");
