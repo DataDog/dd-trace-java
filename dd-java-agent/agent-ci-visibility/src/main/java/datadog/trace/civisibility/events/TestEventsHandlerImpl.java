@@ -194,6 +194,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   public void onTestStart(
       final String testSuiteName,
       final String testName,
+      final @Nullable Object testQualifier,
       final @Nullable String testFramework,
       final @Nullable String testFrameworkVersion,
       final @Nullable String testParameters,
@@ -240,7 +241,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
     }
 
     TestDescriptor descriptor =
-        new TestDescriptor(testSuiteName, testClass, testName, testParameters);
+        new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
     inProgressTests.put(descriptor, test);
   }
 
@@ -249,10 +250,11 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       String testSuiteName,
       Class<?> testClass,
       String testName,
+      @Nullable Object testQualifier,
       @Nullable String testParameters,
       @Nullable String reason) {
     TestDescriptor descriptor =
-        new TestDescriptor(testSuiteName, testClass, testName, testParameters);
+        new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
     DDTest test = inProgressTests.get(descriptor);
     if (test == null) {
       log.debug(
@@ -270,10 +272,11 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       String testSuiteName,
       Class<?> testClass,
       String testName,
+      @Nullable Object testQualifier,
       @Nullable String testParameters,
       @Nullable Throwable throwable) {
     TestDescriptor descriptor =
-        new TestDescriptor(testSuiteName, testClass, testName, testParameters);
+        new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
     DDTest test = inProgressTests.get(descriptor);
     if (test == null) {
       log.debug(
@@ -291,9 +294,10 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       final String testSuiteName,
       final Class<?> testClass,
       final String testName,
+      final @Nullable Object testQualifier,
       final @Nullable String testParameters) {
     TestDescriptor descriptor =
-        new TestDescriptor(testSuiteName, testClass, testName, testParameters);
+        new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
     DDTest test = inProgressTests.remove(descriptor);
     if (test == null) {
       log.debug(
@@ -310,6 +314,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   public void onTestIgnore(
       final String testSuiteName,
       final String testName,
+      final @Nullable Object testQualifier,
       final @Nullable String testFramework,
       final @Nullable String testFrameworkVersion,
       final @Nullable String testParameters,
@@ -320,14 +325,15 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
     onTestStart(
         testSuiteName,
         testName,
+        testQualifier,
         testFramework,
         testFrameworkVersion,
         testParameters,
         categories,
         testClass,
         testMethod);
-    onTestSkip(testSuiteName, testClass, testName, testParameters, reason);
-    onTestFinish(testSuiteName, testClass, testName, testParameters);
+    onTestSkip(testSuiteName, testClass, testName, testQualifier, testParameters, reason);
+    onTestFinish(testSuiteName, testClass, testName, testQualifier, testParameters);
   }
 
   private static boolean skipTrace(final Class<?> testClass) {
