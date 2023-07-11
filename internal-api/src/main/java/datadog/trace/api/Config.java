@@ -124,6 +124,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENT_JAR
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION;
@@ -643,6 +644,7 @@ public class Config {
   private final int ciVisibilitySignalServerPort;
   private final boolean ciVisibilityItrEnabled;
   private final Set<SkippableTest> ciVisibilitySkippableTests;
+  private final boolean ciVisibilityCiProviderIntegrationEnabled;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1504,6 +1506,8 @@ public class Config {
                 SkippableTestsSerializer.deserialize(
                     configProvider.getString(CIVISIBILITY_SKIPPABLE_TESTS)))
             : Collections.emptySet();
+    ciVisibilityCiProviderIntegrationEnabled =
+        configProvider.getBoolean(CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED, true);
 
     remoteConfigEnabled =
         configProvider.getBoolean(REMOTE_CONFIG_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED);
@@ -2462,6 +2466,10 @@ public class Config {
 
   public Set<SkippableTest> getCiVisibilitySkippableTests() {
     return ciVisibilitySkippableTests;
+  }
+
+  public boolean isCiVisibilityCiProviderIntegrationEnabled() {
+    return ciVisibilityCiProviderIntegrationEnabled;
   }
 
   public String getAppSecRulesFile() {

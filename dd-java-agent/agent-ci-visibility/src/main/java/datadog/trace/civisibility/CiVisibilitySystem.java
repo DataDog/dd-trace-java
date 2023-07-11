@@ -79,7 +79,7 @@ public class CiVisibilitySystem {
     BackendApi backendApi = backendApiFactory.createBackendApi();
 
     return (String projectName, Path projectRoot, String component, Long startTime) -> {
-      CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory();
+      CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(config);
       CIProviderInfo ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(projectRoot);
       CIInfo ciInfo = ciProviderInfo.buildCIInfo();
       String repoRoot = ciInfo.getCiWorkspace();
@@ -160,7 +160,8 @@ public class CiVisibilitySystem {
 
   private static TestEventsHandler createTestEventsHandler(
       String component, String testFramework, String testFrameworkVersion, Path path) {
-    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory();
+    Config config = Config.get();
+    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(config);
     CIProviderInfo ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(path);
     CIInfo ciInfo = ciProviderInfo.buildCIInfo();
     String repoRoot = ciInfo.getCiWorkspace();
@@ -175,12 +176,7 @@ public class CiVisibilitySystem {
         new TestDecoratorImpl(component, testFramework, testFrameworkVersion, ciTags);
 
     return new TestEventsHandlerImpl(
-        moduleName,
-        Config.get(),
-        testDecorator,
-        sourcePathResolver,
-        codeowners,
-        methodLinesResolver);
+        moduleName, config, testDecorator, sourcePathResolver, codeowners, methodLinesResolver);
   }
 
   private static SourcePathResolver getSourcePathResolver(String repoRoot) {

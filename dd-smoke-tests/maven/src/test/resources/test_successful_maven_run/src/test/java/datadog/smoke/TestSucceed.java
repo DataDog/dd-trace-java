@@ -10,4 +10,9 @@ public class TestSucceed {
   public void test_succeed() {
     assertTrue(true);
   }
+
+  @Test
+  public void test_to_skip_with_itr() {
+    assertTrue(true);
+  }
 }

@@ -1,6 +1,6 @@
 package datadog.trace.civisibility.ci
 
-
+import datadog.trace.api.Config
 import datadog.trace.api.git.GitInfo
 import datadog.trace.api.git.GitInfoProvider
 import datadog.trace.api.git.UserSuppliedGitInfoBuilder
@@ -45,7 +45,7 @@ abstract class CITagsProviderTest extends Specification {
     }
 
     when:
-    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(GIT_FOLDER_FOR_TESTS)
+    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), GIT_FOLDER_FOR_TESTS)
     def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(getWorkspacePath())
     def ciInfo = ciProviderInfo.buildCIInfo()
     def ciTagsProvider = ciTagsProvider()
@@ -70,7 +70,7 @@ abstract class CITagsProviderTest extends Specification {
     environmentVariables.set(GitInfo.DD_GIT_COMMIT_SHA, "1234567890123456789012345678901234567890")
 
     when:
-    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(GIT_FOLDER_FOR_TESTS)
+    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), GIT_FOLDER_FOR_TESTS)
     def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(getWorkspacePath())
     def ciInfo = ciProviderInfo.buildCIInfo()
     def ciTagsProvider = ciTagsProvider()
@@ -89,7 +89,7 @@ abstract class CITagsProviderTest extends Specification {
     environmentVariables.set(GitInfo.DD_GIT_REPOSITORY_URL, "local supplied repo url")
 
     when:
-    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(GIT_FOLDER_FOR_TESTS)
+    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), GIT_FOLDER_FOR_TESTS)
     def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(getWorkspacePath())
     def ciInfo = ciProviderInfo.buildCIInfo()
     def ciTagsProvider = ciTagsProvider()
@@ -106,7 +106,7 @@ abstract class CITagsProviderTest extends Specification {
     }
 
     when:
-    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(GIT_FOLDER_FOR_TESTS)
+    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), GIT_FOLDER_FOR_TESTS)
     def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(getWorkspacePath())
     def ciInfo = ciProviderInfo.buildCIInfo()
     def ciTagsProvider = ciTagsProvider()
@@ -138,7 +138,7 @@ abstract class CITagsProviderTest extends Specification {
 
     then:
     if (isCi()) {
-      CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(GIT_FOLDER_FOR_TESTS)
+      CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), GIT_FOLDER_FOR_TESTS)
       def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(getWorkspacePath())
       def ciInfo = ciProviderInfo.buildCIInfo()
       def tags = ciTagsProvider.getCiTags(ciInfo)
