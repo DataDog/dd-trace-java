@@ -98,7 +98,15 @@ public class TracingListener extends RunListener {
     List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);
 
     testEventsHandler.onTestStart(
-        testSuiteName, testName, null, null, testParameters, categories, testClass, testMethod);
+        testSuiteName,
+        testName,
+        null,
+        null,
+        null,
+        testParameters,
+        categories,
+        testClass,
+        testMethod);
   }
 
   @Override
@@ -108,7 +116,7 @@ public class TracingListener extends RunListener {
     Method testMethod = JUnit4Utils.getTestMethod(description);
     String testName = JUnit4Utils.getTestName(description, testMethod);
     String testParameters = JUnit4Utils.getParameters(description);
-    testEventsHandler.onTestFinish(testSuiteName, testClass, testName, testParameters);
+    testEventsHandler.onTestFinish(testSuiteName, testClass, testName, null, testParameters);
   }
 
   // same callback is executed both for test cases and test suites (for setup/teardown errors)
@@ -126,7 +134,7 @@ public class TracingListener extends RunListener {
       String testParameters = JUnit4Utils.getParameters(description);
       Throwable throwable = failure.getException();
       testEventsHandler.onTestFailure(
-          testSuiteName, testClass, testName, testParameters, throwable);
+          testSuiteName, testClass, testName, null, testParameters, throwable);
     }
   }
 
@@ -156,7 +164,8 @@ public class TracingListener extends RunListener {
       String testName = JUnit4Utils.getTestName(description, testMethod);
       String testParameters = JUnit4Utils.getParameters(description);
 
-      testEventsHandler.onTestSkip(testSuiteName, testClass, testName, testParameters, reason);
+      testEventsHandler.onTestSkip(
+          testSuiteName, testClass, testName, null, testParameters, reason);
     }
   }
 
@@ -199,6 +208,7 @@ public class TracingListener extends RunListener {
     testEventsHandler.onTestIgnore(
         testSuiteName,
         testName,
+        null,
         null,
         null,
         testParameters,
