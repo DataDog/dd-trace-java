@@ -13,14 +13,17 @@ import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.instrument.ClassFileTransformer;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.security.CodeSource;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -31,6 +34,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.pool.TypePool;
 import org.objectweb.asm.ClassReader;
@@ -56,6 +60,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private static final Logger log = LoggerFactory.getLogger(DebuggerTransformer.class);
   private static final String CANNOT_FIND_METHOD = "Cannot find method %s::%s";
   private static final String CANNOT_FIND_LINE = "No executable code was found at %s:L%s";
+  private static final Pattern COMMA_PATTERN = Pattern.compile(",");
 
   private final Config config;
   private final TransformerDefinitionMatcher definitonMatcher;
@@ -81,7 +86,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     this.instrumentTheWorld = config.isDebuggerInstrumentTheWorld();
     if (this.instrumentTheWorld) {
       instrumentTheWorldProbes = new ConcurrentHashMap<>();
-      readExcludeFile(config.getDebuggerExcludeFile());
+      readExcludeFiles(config.getDebuggerExcludeFiles());
     } else {
       instrumentTheWorldProbes = null;
     }
@@ -91,27 +96,33 @@ public class DebuggerTransformer implements ClassFileTransformer {
     this(config, configuration, null);
   }
 
-  private void readExcludeFile(String fileName) {
-    if (fileName == null) {
+  private void readExcludeFiles(String commaSeparatedFileNames) {
+    if (commaSeparatedFileNames == null) {
       return;
     }
-    Path excludePath = Paths.get(fileName);
-    if (!Files.exists(excludePath)) {
-      log.warn("Cannot find exclude file: {}", excludePath);
-      return;
-    }
-    try {
-      Files.lines(excludePath)
-          .forEach(
-              line -> {
-                if (line.endsWith("*")) {
-                  excludeTrie.insert(line.substring(0, line.length() - 1));
-                } else {
-                  excludeClasses.add(line);
-                }
-              });
-    } catch (IOException ex) {
-      log.warn("Error reading exclude file '{}' for Instrument-The-World: ", fileName, ex);
+    String[] fileNames = COMMA_PATTERN.split(commaSeparatedFileNames);
+    for (String fileName : fileNames) {
+      Path excludePath = Paths.get(fileName);
+      if (!Files.exists(excludePath)) {
+        log.warn("Cannot find exclude file: {}", excludePath);
+        continue;
+      }
+      try {
+        Files.lines(excludePath)
+            .forEach(
+                line -> {
+                  if (line.startsWith("#")) {
+                    return;
+                  }
+                  if (line.endsWith("*")) {
+                    excludeTrie.insert(line.substring(0, line.length() - 1));
+                  } else {
+                    excludeClasses.add(line);
+                  }
+                });
+      } catch (IOException ex) {
+        log.warn("Error reading exclude file '{}' for Instrument-The-World: ", fileName, ex);
+      }
     }
   }
 
@@ -204,7 +215,19 @@ public class DebuggerTransformer implements ClassFileTransformer {
       if (isExcludedFromTransformation(classFilePath)) {
         return null;
       }
-      log.debug("Parsing class '{}' loaded from '{}'", classFilePath, loader);
+      URL location = null;
+      if (protectionDomain != null) {
+        CodeSource codeSource = protectionDomain.getCodeSource();
+        if (codeSource != null) {
+          location = codeSource.getLocation();
+        }
+      }
+      log.debug(
+          "Parsing class '{}' {}B loaded from loader='{}' location={}",
+          classFilePath,
+          classfileBuffer.length,
+          loader,
+          location);
       ClassNode classNode = parseClassFile(classFilePath, classfileBuffer);
       List<ProbeDefinition> probes = new ArrayList<>();
       Set<String> methodNames = new HashSet<>();
@@ -227,8 +250,18 @@ public class DebuggerTransformer implements ClassFileTransformer {
       }
     } catch (Throwable ex) {
       log.warn("Cannot transform: ", ex);
+      writeToInstrumentationLog(classFilePath);
     }
     return null;
+  }
+
+  private synchronized void writeToInstrumentationLog(String classFilePath) {
+    try (FileWriter writer = new FileWriter("/tmp/debugger/instrumentation.log", true)) {
+      writer.write(classFilePath);
+      writer.write("\n");
+    } catch (Exception ex) {
+      log.warn("Cannot write to instrumentation.log", ex);
+    }
   }
 
   public ProbeImplementation instrumentTheWorldResolver(String id, Class<?> callingClass) {
@@ -318,7 +351,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
         try {
           analyzer.analyze(classNode.name, method);
         } catch (AnalyzerException e) {
-          printWriter.printf("Error analyzing method '%s.%s':%n", classNode.name, method.name);
+          printWriter.printf(
+              "Error analyzing method '%s.%s%s':%n", classNode.name, method.name, method.desc);
           e.printStackTrace(printWriter);
         }
       }

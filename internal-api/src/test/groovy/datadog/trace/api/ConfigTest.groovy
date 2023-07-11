@@ -29,7 +29,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCLUDE_FILE
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCLUDE_FILES
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_INSTRUMENT_THE_WORLD
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_METRICS_ENABLED
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_POLL_INTERVAL
@@ -236,7 +236,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(DEBUGGER_DIAGNOSTICS_INTERVAL, "60")
     prop.setProperty(DEBUGGER_VERIFY_BYTECODE, "true")
     prop.setProperty(DEBUGGER_INSTRUMENT_THE_WORLD, "true")
-    prop.setProperty(DEBUGGER_EXCLUDE_FILE, "exclude file")
+    prop.setProperty(DEBUGGER_EXCLUDE_FILES, "exclude file")
     prop.setProperty(TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
 
     when:
@@ -325,7 +325,7 @@ class ConfigTest extends DDSpecification {
     config.debuggerDiagnosticsInterval == 60
     config.debuggerVerifyByteCode == true
     config.debuggerInstrumentTheWorld == true
-    config.debuggerExcludeFile == "exclude file"
+    config.debuggerExcludeFiles == "exclude file"
 
     config.xDatadogTagsMaxLength == 128
   }
@@ -413,7 +413,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + DEBUGGER_DIAGNOSTICS_INTERVAL, "60")
     System.setProperty(PREFIX + DEBUGGER_VERIFY_BYTECODE, "true")
     System.setProperty(PREFIX + DEBUGGER_INSTRUMENT_THE_WORLD, "true")
-    System.setProperty(PREFIX + DEBUGGER_EXCLUDE_FILE, "exclude file")
+    System.setProperty(PREFIX + DEBUGGER_EXCLUDE_FILES, "exclude file")
     System.setProperty(PREFIX + TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
 
     when:
@@ -500,7 +500,7 @@ class ConfigTest extends DDSpecification {
     config.debuggerDiagnosticsInterval == 60
     config.debuggerVerifyByteCode == true
     config.debuggerInstrumentTheWorld == true
-    config.debuggerExcludeFile == "exclude file"
+    config.debuggerExcludeFiles == "exclude file"
 
     config.xDatadogTagsMaxLength == 128
   }

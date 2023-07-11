@@ -1,6 +1,8 @@
 FROM debian:bookworm-slim
 
-ARG JAVA_VERSION="8.0.332-tem"
+ARG JAVA_8_VERSION="8.0.372-tem"
+ARG JAVA_11_VERSION="11.0.19-tem"
+ARG JAVA_17_VERSION="17.0.7-tem"
 ARG MAVEN_VERSION=3.8.4
 
 RUN apt-get update && \
@@ -11,10 +13,15 @@ RUN apt-get update && \
 # install sdkman
 RUN curl -s "https://get.sdkman.io" | bash
 RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && \
-    yes | sdk install java $JAVA_VERSION && \
+    yes | sdk install java $JAVA_8_VERSION && \
+    yes | sdk install java $JAVA_11_VERSION && \
+    yes | sdk install java $JAVA_17_VERSION && \
     yes | sdk install maven $MAVEN_VERSION && \
     rm -rf $HOME/.sdkman/archives/* && \
     rm -rf $HOME/.sdkman/tmp/*"
+ENV JAVA_8_HOME=/root/.sdkman/candidates/java/$JAVA_8_VERSION
+ENV JAVA_11_HOME=/root/.sdkman/candidates/java/$JAVA_11_VERSION
+ENV JAVA_17_HOME=/root/.sdkman/candidates/java/$JAVA_17_VERSION
 
 RUN mkdir exploration-tests
 WORKDIR /exploration-tests

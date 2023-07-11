@@ -1457,7 +1457,7 @@ public class CapturedSnapshotTest {
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
     when(config.isDebuggerInstrumentTheWorld()).thenReturn(true);
-    when(config.getDebuggerExcludeFile()).thenReturn(excludeFileName);
+    when(config.getDebuggerExcludeFiles()).thenReturn(excludeFileName);
     DebuggerTransformerTest.TestSnapshotListener listener =
         new DebuggerTransformerTest.TestSnapshotListener();
     DebuggerAgentHelper.injectSink(listener);
