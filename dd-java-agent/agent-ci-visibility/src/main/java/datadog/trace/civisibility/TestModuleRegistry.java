@@ -2,7 +2,10 @@ package datadog.trace.civisibility;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.civisibility.ipc.AckResponse;
+import datadog.trace.civisibility.ipc.ErrorResponse;
 import datadog.trace.civisibility.ipc.ModuleExecutionResult;
+import datadog.trace.civisibility.ipc.SignalResponse;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
@@ -26,15 +29,16 @@ public class TestModuleRegistry {
     testModuleById.remove(module.getId());
   }
 
-  public void onModuleExecutionResultReceived(ModuleExecutionResult result) {
+  public SignalResponse onModuleExecutionResultReceived(ModuleExecutionResult result) {
     long moduleId = result.getModuleId();
     DDTestModuleImpl module = testModuleById.get(moduleId);
     if (module == null) {
-      LOGGER.warn(
-          "Could not find module with ID {}, test execution result will be ignored: {}",
-          moduleId,
-          result);
-      return;
+      String message =
+          String.format(
+              "Could not find module with ID %s, " + "test execution result will be ignored: %s",
+              moduleId, result);
+      LOGGER.warn(message);
+      return new ErrorResponse(message);
     }
 
     if (result.isCoverageEnabled()) {
@@ -46,5 +50,6 @@ public class TestModuleRegistry {
     if (result.isItrTestsSkipped()) {
       module.setTag(DDTags.CI_ITR_TESTS_SKIPPED, true);
     }
+    return AckResponse.INSTANCE;
   }
 }

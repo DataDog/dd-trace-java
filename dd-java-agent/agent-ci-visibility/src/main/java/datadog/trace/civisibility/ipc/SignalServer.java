@@ -9,7 +9,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.util.EnumMap;
 import java.util.Map;
-import java.util.function.Consumer;
+import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,7 +32,8 @@ public class SignalServer {
 
   private final int port;
   private final String address;
-  private final Map<SignalType, Consumer<Signal>> signalHandlers = new EnumMap<>(SignalType.class);
+  private final Map<SignalType, Function<Signal, SignalResponse>> signalHandlers =
+      new EnumMap<>(SignalType.class);
 
   public SignalServer() {
     this("127.0.0.1", 0);
@@ -95,11 +96,11 @@ public class SignalServer {
 
   @SuppressWarnings("unchecked")
   public synchronized <T extends Signal> void registerSignalHandler(
-      SignalType type, Consumer<T> handler) {
+      SignalType type, Function<T, SignalResponse> handler) {
     if (serverSocketChannel != null) {
       throw new IllegalStateException("Cannot register a signal handler after server has started");
     }
-    signalHandlers.put(type, (Consumer<Signal>) handler);
+    signalHandlers.put(type, (Function<Signal, SignalResponse>) handler);
   }
 
   public synchronized void stop() {
