@@ -52,7 +52,7 @@ class JUnit5Test extends CiVisibilityTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSucceed", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceed", "test_succeed", CIConstants.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceed", "test_succeed", "test_succeed()V", CIConstants.TEST_PASS)
       }
     })
   }
@@ -70,7 +70,7 @@ class JUnit5Test extends CiVisibilityTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestInheritance", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestInheritance", "test_succeed", CIConstants.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestInheritance", "test_succeed", "test_succeed()V", CIConstants.TEST_PASS)
       }
     })
   }
@@ -88,10 +88,10 @@ class JUnit5Test extends CiVisibilityTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestParameterized", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterized", "test_parameterized", CIConstants.TEST_PASS, testTags_0)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterized", "test_parameterized", "test_parameterized(IIILjava/lang/String;)V", CIConstants.TEST_PASS, testTags_0)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterized", "test_parameterized", CIConstants.TEST_PASS, testTags_1)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterized", "test_parameterized", "test_parameterized(IIILjava/lang/String;)V", CIConstants.TEST_PASS, testTags_1)
       }
     })
 
@@ -113,10 +113,10 @@ class JUnit5Test extends CiVisibilityTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestRepeated", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestRepeated", "test_repeated", CIConstants.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestRepeated", "test_repeated", "test_repeated()V", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestRepeated", "test_repeated", CIConstants.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestRepeated", "test_repeated", "test_repeated()V", CIConstants.TEST_PASS)
       }
     })
   }
@@ -134,10 +134,10 @@ class JUnit5Test extends CiVisibilityTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestTemplate", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestTemplate", "test_template", CIConstants.TEST_PASS, testTags_0)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestTemplate", "test_template", "test_template(Lorg/example/TestTemplate\$SampleTestCase;)V", CIConstants.TEST_PASS, testTags_0)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestTemplate", "test_template", CIConstants.TEST_PASS, testTags_1)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestTemplate", "test_template", "test_template(Lorg/example/TestTemplate\$SampleTestCase;)V", CIConstants.TEST_PASS, testTags_1)
       }
     })
 
@@ -159,10 +159,10 @@ class JUnit5Test extends CiVisibilityTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestFactory", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFactory", "test_factory", CIConstants.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFactory", "test_factory", "test_factory()Ljava/lang/Iterable;", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFactory", "test_factory", CIConstants.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFactory", "test_factory", "test_factory()Ljava/lang/Iterable;", CIConstants.TEST_PASS)
       }
     })
   }
@@ -180,7 +180,7 @@ class JUnit5Test extends CiVisibilityTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestFailed", CIConstants.TEST_FAIL)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailed", "test_failed", CIConstants.TEST_FAIL, null, exception)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailed", "test_failed", "test_failed()V", CIConstants.TEST_FAIL, null, exception)
       }
     })
 
@@ -201,7 +201,7 @@ class JUnit5Test extends CiVisibilityTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestError", CIConstants.TEST_FAIL)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestError", "test_error", CIConstants.TEST_FAIL, null, exception)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestError", "test_error", "test_error()V", CIConstants.TEST_FAIL, null, exception)
       }
     })
 
@@ -222,7 +222,7 @@ class JUnit5Test extends CiVisibilityTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSkipped", CIConstants.TEST_SKIP)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkipped", "test_skipped", "test_skipped()V", CIConstants.TEST_SKIP, testTags, null)
       }
     })
 
@@ -243,16 +243,16 @@ class JUnit5Test extends CiVisibilityTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSkippedClass", CIConstants.TEST_SKIP, testTags)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_case_skipped", CIConstants.TEST_SKIP, testTags, null)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_case_skipped", "test_case_skipped()V", CIConstants.TEST_SKIP, testTags, null)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_factory_skipped", CIConstants.TEST_SKIP, testTags, null)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_factory_skipped", "test_factory_skipped()Ljava/lang/Iterable;", CIConstants.TEST_SKIP, testTags, null)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_parameterized_skipped", CIConstants.TEST_SKIP, parameterizedTestTags, null)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_parameterized_skipped", "test_parameterized_skipped(IIILjava/lang/String;)V", CIConstants.TEST_SKIP, parameterizedTestTags, null)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_repeated_skipped", CIConstants.TEST_SKIP, testTags, null)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_repeated_skipped", "test_repeated_skipped()V", CIConstants.TEST_SKIP, testTags, null)
       }
     })
 
@@ -274,7 +274,7 @@ class JUnit5Test extends CiVisibilityTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestAssumption", CIConstants.TEST_SKIP)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestAssumption", "test_fail_assumption", CIConstants.TEST_SKIP, testTags)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestAssumption", "test_fail_assumption", "test_fail_assumption()V", CIConstants.TEST_SKIP, testTags)
       }
     })
 
@@ -295,7 +295,7 @@ class JUnit5Test extends CiVisibilityTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestAssumptionLegacy", CIConstants.TEST_SKIP)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestAssumptionLegacy", "test_fail_assumption_legacy", CIConstants.TEST_SKIP, testTags)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestAssumptionLegacy", "test_fail_assumption_legacy", "test_fail_assumption_legacy()V", CIConstants.TEST_SKIP, testTags)
       }
     })
 
@@ -316,10 +316,10 @@ class JUnit5Test extends CiVisibilityTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSucceedAndSkipped", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", "test_skipped()V", CIConstants.TEST_SKIP, testTags, null)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", CIConstants.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", "test_succeed()V", CIConstants.TEST_PASS)
       }
     })
 
@@ -340,13 +340,13 @@ class JUnit5Test extends CiVisibilityTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestFailedAndSucceed", CIConstants.TEST_FAIL)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_another_succeed", CIConstants.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_another_succeed", "test_another_succeed()V", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_failed", CIConstants.TEST_FAIL, null, exception)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_failed", "test_failed()V", CIConstants.TEST_FAIL, null, exception)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_succeed", CIConstants.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_succeed", "test_succeed()V", CIConstants.TEST_PASS)
       }
     })
 
@@ -367,10 +367,10 @@ class JUnit5Test extends CiVisibilityTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestFailedSuiteTearDown", CIConstants.TEST_FAIL, null, exception)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedSuiteTearDown", "test_another_succeed", CIConstants.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedSuiteTearDown", "test_another_succeed", "test_another_succeed()V", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedSuiteTearDown", "test_succeed", CIConstants.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedSuiteTearDown", "test_succeed", "test_succeed()V", CIConstants.TEST_PASS)
       }
     })
 
@@ -409,7 +409,7 @@ class JUnit5Test extends CiVisibilityTest {
           ["Slow", "Flaky"])
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedWithCategories", "test_succeed",
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedWithCategories", "test_succeed", "test_succeed()V",
           CIConstants.TEST_PASS, null, null, false,
           ["End2end", "Browser", "Slow", "Flaky"])
       }
@@ -429,7 +429,7 @@ class JUnit5Test extends CiVisibilityTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSuiteSetUpAssumption", CIConstants.TEST_SKIP, testTags)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSuiteSetUpAssumption", "test_succeed", CIConstants.TEST_SKIP, testTags, null)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSuiteSetUpAssumption", "test_succeed", "test_succeed()V", CIConstants.TEST_SKIP, testTags, null)
       }
     })
 
@@ -450,10 +450,10 @@ class JUnit5Test extends CiVisibilityTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestAssumptionAndSucceed", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestAssumptionAndSucceed", "test_fail_assumption", CIConstants.TEST_SKIP, testTags)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestAssumptionAndSucceed", "test_fail_assumption", "test_fail_assumption()V", CIConstants.TEST_SKIP, testTags)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestAssumptionAndSucceed", "test_succeed", CIConstants.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestAssumptionAndSucceed", "test_succeed", "test_succeed()V", CIConstants.TEST_PASS)
       }
     })
 
@@ -476,13 +476,13 @@ class JUnit5Test extends CiVisibilityTest {
         secondSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestSucceedAndSkipped", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, firstSuiteId, "org.example.TestSucceed", "test_succeed", CIConstants.TEST_PASS)
+        testSpan(it, 0, testModuleId, firstSuiteId, "org.example.TestSucceed", "test_succeed", "test_succeed()V", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags, null)
+        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", "test_skipped()V", CIConstants.TEST_SKIP, testTags, null)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", CIConstants.TEST_PASS)
+        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", "test_succeed()V", CIConstants.TEST_PASS)
       }
     })
 
@@ -505,16 +505,16 @@ class JUnit5Test extends CiVisibilityTest {
         secondSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestFailedAndSucceed", CIConstants.TEST_FAIL)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_another_succeed", CIConstants.TEST_PASS)
+        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_another_succeed", "test_another_succeed()V", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_failed", CIConstants.TEST_FAIL, null, exception)
+        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_failed", "test_failed()V", CIConstants.TEST_FAIL, null, exception)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_succeed", CIConstants.TEST_PASS)
+        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_succeed", "test_succeed()V", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, firstSuiteId, "org.example.TestSucceed", "test_succeed", CIConstants.TEST_PASS)
+        testSpan(it, 0, testModuleId, firstSuiteId, "org.example.TestSucceed", "test_succeed", "test_succeed()V", CIConstants.TEST_PASS)
       }
     })
 
@@ -537,10 +537,10 @@ class JUnit5Test extends CiVisibilityTest {
         nestedSuiteId = testSuiteSpan(it, 2, testModuleId, 'org.example.TestSucceedNested$NestedSuite', CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, nestedSuiteId, 'org.example.TestSucceedNested$NestedSuite', "test_succeed_nested", CIConstants.TEST_PASS)
+        testSpan(it, 0, testModuleId, nestedSuiteId, 'org.example.TestSucceedNested$NestedSuite', "test_succeed_nested", "test_succeed_nested()V", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, topLevelSuiteId, "org.example.TestSucceedNested", "test_succeed", CIConstants.TEST_PASS)
+        testSpan(it, 0, testModuleId, topLevelSuiteId, "org.example.TestSucceedNested", "test_succeed", "test_succeed()V", CIConstants.TEST_PASS)
       }
     })
   }
@@ -560,10 +560,10 @@ class JUnit5Test extends CiVisibilityTest {
         nestedSuiteId = testSuiteSpan(it, 2, testModuleId, 'org.example.TestSkippedNested$NestedSuite', CIConstants.TEST_SKIP, testTags)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, nestedSuiteId, 'org.example.TestSkippedNested$NestedSuite', "test_succeed_nested", CIConstants.TEST_SKIP, testTags, null)
+        testSpan(it, 0, testModuleId, nestedSuiteId, 'org.example.TestSkippedNested$NestedSuite', "test_succeed_nested", "test_succeed_nested()V", CIConstants.TEST_SKIP, testTags, null)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, topLevelSuiteId, "org.example.TestSkippedNested", "test_succeed", CIConstants.TEST_SKIP, testTags, null)
+        testSpan(it, 0, testModuleId, topLevelSuiteId, "org.example.TestSkippedNested", "test_succeed", "test_succeed()V", CIConstants.TEST_SKIP, testTags, null)
       }
     })
 
@@ -588,13 +588,13 @@ class JUnit5Test extends CiVisibilityTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestFailedAndSucceed", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_another_succeed", CIConstants.TEST_SKIP, testTags)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_another_succeed", "test_another_succeed()V", CIConstants.TEST_SKIP, testTags)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_failed", CIConstants.TEST_SKIP, testTags)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_failed", "test_failed()V", CIConstants.TEST_SKIP, testTags)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_succeed", CIConstants.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_succeed", "test_succeed()V", CIConstants.TEST_PASS)
       }
     })
 
@@ -618,10 +618,10 @@ class JUnit5Test extends CiVisibilityTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestParameterized", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterized", "test_parameterized", CIConstants.TEST_SKIP, testTags_0)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterized", "test_parameterized", "test_parameterized(IIILjava/lang/String;)V", CIConstants.TEST_SKIP, testTags_0)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterized", "test_parameterized", CIConstants.TEST_PASS, testTags_1)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterized", "test_parameterized", "test_parameterized(IIILjava/lang/String;)V", CIConstants.TEST_PASS, testTags_1)
       }
     })
 

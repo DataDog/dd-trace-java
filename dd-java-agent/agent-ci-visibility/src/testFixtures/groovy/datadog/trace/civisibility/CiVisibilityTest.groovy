@@ -308,11 +308,11 @@ abstract class CiVisibilityTest extends AgentTestRunner {
   final Long testSuiteId,
   final String testSuite,
   final String testName,
+  final String testMethod,
   final String testStatus,
   final Map<String, String> testTags = null,
   final Throwable exception = null,
-  final boolean emptyDuration = false,
-  final Collection<String> categories = null) {
+  final boolean emptyDuration = false, final Collection<String> categories = null) {
     def testFramework = expectedTestFramework()
     def testFrameworkVersion = expectedTestFrameworkVersion()
 
@@ -349,6 +349,7 @@ abstract class CiVisibilityTest extends AgentTestRunner {
           testTags.each { key, val -> tag(key, val) }
         }
         "$Tags.TEST_SOURCE_FILE" DUMMY_SOURCE_PATH
+        "$Tags.TEST_SOURCE_METHOD" testMethod
         "$Tags.TEST_SOURCE_START" DUMMY_TEST_METHOD_START
         "$Tags.TEST_SOURCE_END" DUMMY_TEST_METHOD_END
         "$Tags.TEST_CODEOWNERS" Strings.toJson(DUMMY_CODE_OWNERS)
