@@ -143,10 +143,8 @@ public class DDSpanContext
   private volatile BlockResponseFunction blockResponseFunction;
 
   private final ProfilingContextIntegration profilingContextIntegration;
-
+  private static final boolean injectBaggageAsTags = Config.get().isInjectBaggageAsTagsEnabled();
   private volatile int encodedOperationName;
-
-  private final boolean injectBaggageAsTags;
 
   public DDSpanContext(
       final DDTraceId traceId,
@@ -277,7 +275,7 @@ public class DDSpanContext
 
     this.requestContextDataAppSec = requestContextDataAppSec;
     this.requestContextDataIast = requestContextDataIast;
-    ciVisibilityContextData = CiVisibilityContextData;
+    this.ciVisibilityContextData = CiVisibilityContextData;
 
     assert pathwayContext != null;
     this.pathwayContext = pathwayContext;
@@ -285,15 +283,13 @@ public class DDSpanContext
     // The +1 is the magic number from the tags below that we set at the end,
     // and "* 4 / 3" is to make sure that we don't resize immediately
     final int capacity = Math.max((tagsSize <= 0 ? 3 : (tagsSize + 1)) * 4 / 3, 8);
-    unsafeTags = new HashMap<>(capacity);
-    injectBaggageAsTags = Config.get().isInjectBaggageAsTagsEnabled();
-
+    this.unsafeTags = new HashMap<>(capacity);
     // must set this before setting the service and resource names below
     this.profilingContextIntegration = profilingContextIntegration;
     // as fast as we can try to make this operation, we still might need to activate/deactivate
     // contexts at alarming rates in unpredictable async applications, so we'll try
     // to get away with doing this just once per span
-    encodedOperationName = profilingContextIntegration.encode(operationName);
+    this.encodedOperationName = profilingContextIntegration.encode(operationName);
 
     setServiceName(serviceName);
     this.operationName = operationName;
@@ -303,8 +299,8 @@ public class DDSpanContext
 
     // Additional Metadata
     final Thread current = Thread.currentThread();
-    threadId = current.getId();
-    threadName = THREAD_NAMES.computeIfAbsent(current.getName(), Functions.UTF8_ENCODE);
+    this.threadId = current.getId();
+    this.threadName = THREAD_NAMES.computeIfAbsent(current.getName(), Functions.UTF8_ENCODE);
 
     this.disableSamplingMechanismValidation = disableSamplingMechanismValidation;
     this.propagationTags =
@@ -351,7 +347,7 @@ public class DDSpanContext
 
   public void setServiceName(final String serviceName) {
     this.serviceName = trace.mapServiceName(serviceName);
-    topLevel = isTopLevel(parentServiceName, this.serviceName);
+    this.topLevel = isTopLevel(parentServiceName, this.serviceName);
   }
 
   // TODO this logic is inconsistent with hasResourceName
@@ -371,8 +367,8 @@ public class DDSpanContext
     if (null == resourceName) {
       return;
     }
-    if (priority >= resourceNamePriority) {
-      resourceNamePriority = priority;
+    if (priority >= this.resourceNamePriority) {
+      this.resourceNamePriority = priority;
       this.resourceName = resourceName;
     }
   }
@@ -387,7 +383,7 @@ public class DDSpanContext
 
   public void setOperationName(final CharSequence operationName) {
     this.operationName = operationName;
-    encodedOperationName = profilingContextIntegration.encode(operationName);
+    this.encodedOperationName = profilingContextIntegration.encode(operationName);
   }
 
   public boolean getErrorFlag() {
@@ -395,9 +391,9 @@ public class DDSpanContext
   }
 
   public void setErrorFlag(final boolean errorFlag, final byte priority) {
-    if (priority >= errorFlagPriority) {
+    if (priority >= this.errorFlagPriority) {
       this.errorFlag = errorFlag;
-      errorFlagPriority = priority;
+      this.errorFlagPriority = priority;
     }
   }
 
@@ -620,7 +616,7 @@ public class DDSpanContext
   }
 
   public void setHttpStatusCode(short statusCode) {
-    httpStatusCode = statusCode;
+    this.httpStatusCode = statusCode;
   }
 
   public short getHttpStatusCode() {
@@ -786,11 +782,11 @@ public class DDSpanContext
   @Override
   public Object getData(RequestContextSlot slot) {
     if (slot == RequestContextSlot.APPSEC) {
-      return requestContextDataAppSec;
+      return this.requestContextDataAppSec;
     } else if (slot == RequestContextSlot.CI_VISIBILITY) {
-      return ciVisibilityContextData;
+      return this.ciVisibilityContextData;
     } else if (slot == RequestContextSlot.IAST) {
-      return requestContextDataIast;
+      return this.requestContextDataIast;
     }
     return null;
   }
@@ -798,16 +794,16 @@ public class DDSpanContext
   @Override
   public void close() throws IOException {
     Exception exc = null;
-    if (requestContextDataAppSec instanceof Closeable) {
+    if (this.requestContextDataAppSec instanceof Closeable) {
       try {
-        ((Closeable) requestContextDataAppSec).close();
+        ((Closeable) this.requestContextDataAppSec).close();
       } catch (IOException | RuntimeException e) {
         exc = e;
       }
     }
-    if (requestContextDataIast instanceof Closeable) {
+    if (this.requestContextDataIast instanceof Closeable) {
       try {
-        ((Closeable) requestContextDataIast).close();
+        ((Closeable) this.requestContextDataIast).close();
       } catch (IOException | RuntimeException e) {
         exc = e;
       }
@@ -851,7 +847,7 @@ public class DDSpanContext
     if (sanitize) {
       key = TagsHelper.sanitize(key);
     }
-    setTag(key, value);
+    this.setTag(key, value);
   }
 
   @Override
@@ -863,6 +859,6 @@ public class DDSpanContext
   public void setDataCurrent(String key, Object value) {
     // TODO is this decided?
     String tagKey = "_dd." + key + ".json";
-    setTag(tagKey, value);
+    this.setTag(tagKey, value);
   }
 }
