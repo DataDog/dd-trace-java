@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.rocketmq;
 
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -22,7 +21,7 @@ public class RocketMqDecorator extends BaseDecorator {
   private static final String BROKER_HOST = "bornHost";
   private static final String BROKER_ADDR = "bornAddr";
   private static final String BROKER_NAME = "brokerName";
-  private static final String TOPIC = "brokerName";
+  private static final String TOPIC = "topic";
   private static final String MESSAGING_ROCKETMQ_TAGS = "messaging.rocketmq.tags";
   private static final String MESSAGING_ROCKETMQ_BROKER_ADDRESS = "messaging.rocketmq.broker_address";
   private static final String MESSAGING_ROCKETMQ_SEND_RESULT = "messaging.rocketmq.send_result";
@@ -48,16 +47,17 @@ public class RocketMqDecorator extends BaseDecorator {
     return null;
   }
 
-  private static final String LOCAL_SERVICE_NAME =
-      Config.get().getServiceName();
+  private static final String LOCAL_SERVICE_NAME = "rocketmq";
 
 
   public AgentScope start(ConsumeMessageContext context) {
     MessageExt ext = context.getMsgList().get(0);
     AgentSpan.Context parentContext = propagate().extract(ext, GETTER);
-    UTF8BytesString name = UTF8BytesString.create(ext.getTopic() + " send");
+    UTF8BytesString name = UTF8BytesString.create(ext.getTopic() + " receive");
     final AgentSpan span = startSpan(name, parentContext);
-    span.setResourceName(LOCAL_SERVICE_NAME);
+    span.setResourceName(name);
+
+    span.setServiceName(LOCAL_SERVICE_NAME);
 
     span.setTag(BROKER_NAME, ext.getBrokerName());
     String tags = ext.getTags();
@@ -94,10 +94,11 @@ public class RocketMqDecorator extends BaseDecorator {
     String topic = context.getMessage().getTopic();
     UTF8BytesString spanName = UTF8BytesString.create(topic + " send");
     final AgentSpan span = startSpan(spanName);
-    span.setResourceName(LOCAL_SERVICE_NAME);
+    span.setResourceName(spanName);
+
     span.setTag(BROKER_HOST, context.getBornHost());
     span.setTag(BROKER_ADDR, context.getBrokerAddr());
-
+    span.setServiceName(LOCAL_SERVICE_NAME);
     if (context.getMessage() != null) {
       String tags = context.getMessage().getTags();
       if (tags != null) {
@@ -129,7 +130,10 @@ public class RocketMqDecorator extends BaseDecorator {
     if (null != exception) {
       onError(scope, exception);
     }
-    scope.span().setTag(MESSAGING_ROCKETMQ_SEND_RESULT, context.getSendResult().getSendStatus().name());
+    if (context.getSendResult() != null&&context.getSendResult().getSendStatus() != null){
+      scope.span().setTag(MESSAGING_ROCKETMQ_SEND_RESULT, context.getSendResult().getSendStatus().name());
+    }
+
     beforeFinish(scope.span());
     scope.close();
     scope.span().finish();

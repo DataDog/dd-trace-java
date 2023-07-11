@@ -11,8 +11,7 @@ public class MessageMapSetter implements AgentPropagation.Setter<MessageBuilderI
   @Override
   public void set(MessageBuilderImpl carrier, String key, String value) {
     if (log.isDebugEnabled()) {
-//      System.out.println("dubbo Inject " + key + ":\t" + value);
-      log.debug("dubbo Inject {} :\t {}" , key , value);
+      log.debug("rocketmq Inject {} :\t {}" , key , value);
     }
     carrier.addProperty(key,value);
   }

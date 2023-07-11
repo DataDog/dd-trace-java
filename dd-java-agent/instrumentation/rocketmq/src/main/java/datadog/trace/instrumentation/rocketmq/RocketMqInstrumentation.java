@@ -1,13 +1,18 @@
 package datadog.trace.instrumentation.rocketmq;
 
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
+import org.apache.rocketmq.client.hook.ConsumeMessageContext;
 import org.apache.rocketmq.client.impl.consumer.DefaultMQPushConsumerImpl;
+import java.util.HashMap;
+import java.util.Map;
 
 import static net.bytebuddy.matcher.ElementMatchers.*;
 
@@ -44,6 +49,13 @@ public class RocketMqInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public Map<String, String> contextStore() {
+    Map<String, String> map = new HashMap<>(1);
+    map.put("org.apache.rocketmq.client.hook.ConsumeMessageContext", "datadog.trace.bootstrap.instrumentation.api.AgentScope");
+    return map;
+  }
+
+  @Override
   public void adviceTransformations(AdviceTransformation transformation) {
 
     transformation.applyAdvice(
@@ -60,8 +72,11 @@ public class RocketMqInstrumentation extends Instrumenter.Tracing
         @Advice.FieldValue(
             value = "defaultMQPushConsumerImpl", declaringType = DefaultMQPushConsumer.class)
         DefaultMQPushConsumerImpl defaultMqPushConsumerImpl) {
-      defaultMqPushConsumerImpl.registerConsumeMessageHook(
-          RocketMqHook.CONSUME_MESSAGE_HOOK);
+      final ContextStore<ConsumeMessageContext, AgentScope> contextStore =
+          InstrumentationContext.get(ConsumeMessageContext.class, AgentScope.class);
+
+      defaultMqPushConsumerImpl.registerConsumeMessageHook(RocketMqHook.buildConsumerHook(contextStore));
+
     }
   }
 }

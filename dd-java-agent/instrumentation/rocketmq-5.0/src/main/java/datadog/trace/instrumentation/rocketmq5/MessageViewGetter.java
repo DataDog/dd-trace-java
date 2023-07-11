@@ -19,8 +19,6 @@ public class MessageViewGetter implements AgentPropagation.ContextVisitor<Messag
       log.debug("Extract size: {}",properties.entrySet().size());
     }
     for (Map.Entry<String,String> entry : properties.entrySet()){
-      log.debug("Extract "+entry.getKey()+"\t"+entry.getValue());
-      System.out.println("Extract "+entry.getKey()+"\t"+entry.getValue());
       if (null != entry.getValue()) {
         if (!classifier.accept(entry.getKey(), entry.getValue())) {
           return;

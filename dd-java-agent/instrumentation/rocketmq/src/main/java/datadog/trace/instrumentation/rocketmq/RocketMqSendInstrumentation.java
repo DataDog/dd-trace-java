@@ -2,11 +2,18 @@ package datadog.trace.instrumentation.rocketmq;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.apache.rocketmq.client.hook.SendMessageContext;
 import org.apache.rocketmq.client.impl.producer.DefaultMQProducerImpl;
 import org.apache.rocketmq.client.producer.DefaultMQProducer;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import static net.bytebuddy.matcher.ElementMatchers.*;
 
@@ -19,11 +26,6 @@ public class RocketMqSendInstrumentation extends Instrumenter.Tracing
   public RocketMqSendInstrumentation() {
     super("rocketmq", "rocketmq-client");
   }
-
-//  @Override
-//  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-//    return hasClassesNamed(CLASS_NAME);
-//  }
 
   @Override
   public String hierarchyMarkerType() {
@@ -46,6 +48,12 @@ public class RocketMqSendInstrumentation extends Instrumenter.Tracing
         packageName + ".TextMapInjectAdapter",
     };
   }
+  @Override
+  public Map<String, String> contextStore() {
+    Map<String, String> map = new HashMap<>(1);
+    map.put("org.apache.rocketmq.client.hook.SendMessageContext", "datadog.trace.bootstrap.instrumentation.api.AgentScope");
+    return map;
+  }
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
@@ -61,8 +69,10 @@ public class RocketMqSendInstrumentation extends Instrumenter.Tracing
     public static void onEnter(
         @Advice.FieldValue(value = "defaultMQProducerImpl", declaringType = DefaultMQProducer.class)
         DefaultMQProducerImpl defaultMqProducerImpl) {
-      defaultMqProducerImpl.registerSendMessageHook(
-          RocketMqHook.SEND_MESSAGE_HOOK);
+      final ContextStore<SendMessageContext, AgentScope> contextStore =
+          InstrumentationContext.get(SendMessageContext.class, AgentScope.class);
+
+      defaultMqProducerImpl.registerSendMessageHook(RocketMqHook.buildSendHook(contextStore));
     }
   }
 }
