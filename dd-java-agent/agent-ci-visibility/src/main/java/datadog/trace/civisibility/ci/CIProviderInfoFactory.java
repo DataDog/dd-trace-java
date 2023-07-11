@@ -1,20 +1,27 @@
 package datadog.trace.civisibility.ci;
 
+import datadog.trace.api.Config;
 import java.nio.file.Path;
 
 public class CIProviderInfoFactory {
 
   private final String targetFolder;
+  private final Config config;
 
-  public CIProviderInfoFactory() {
-    this(".git");
+  public CIProviderInfoFactory(Config config) {
+    this(config, ".git");
   }
 
-  CIProviderInfoFactory(String targetFolder) {
+  CIProviderInfoFactory(Config config, String targetFolder) {
     this.targetFolder = targetFolder;
+    this.config = config;
   }
 
   public CIProviderInfo createCIProviderInfo(Path currentPath) {
+    if (!config.isCiVisibilityCiProviderIntegrationEnabled()) {
+      return new UnknownCIInfo(targetFolder, currentPath);
+    }
+
     // CI and Git information is obtained
     // from different environment variables
     // depending on which CI server is running the build.

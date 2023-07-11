@@ -11,7 +11,10 @@ class ChannelContextTest extends Specification {
   def "test message is read"() {
     given:
     def messages = new LinkedList<byte[]>()
-    def context = new ChannelContext(8, { ByteBuffer bb -> messages.offer(bb.array()) })
+    def context = new ChannelContext(10, { ByteBuffer bb ->
+      messages.offer(bb.array())
+      return new ByteBuffer[0]
+    })
 
     when:
     def channel = new InMemoryReadableByteChannel()
@@ -27,7 +30,10 @@ class ChannelContextTest extends Specification {
   def "test message equal to buffer size is read"() {
     given:
     def messages = new LinkedList<byte[]>()
-    def context = new ChannelContext(8, { ByteBuffer bb -> messages.offer(bb.array()) })
+    def context = new ChannelContext(10, { ByteBuffer bb ->
+      messages.offer(bb.array())
+      return new ByteBuffer[0]
+    })
 
     when:
     def channel = new InMemoryReadableByteChannel()
@@ -43,7 +49,10 @@ class ChannelContextTest extends Specification {
   def "test message larger than buffer size is read"() {
     given:
     def messages = new LinkedList<byte[]>()
-    def context = new ChannelContext(8, { ByteBuffer bb -> messages.offer(bb.array()) })
+    def context = new ChannelContext(10, { ByteBuffer bb ->
+      messages.offer(bb.array())
+      return new ByteBuffer[0]
+    })
 
     when:
     def channel = new InMemoryReadableByteChannel()
@@ -59,7 +68,10 @@ class ChannelContextTest extends Specification {
   def "test multiple messages are read"() {
     given:
     def messages = new LinkedList<byte[]>()
-    def context = new ChannelContext(8, { ByteBuffer bb -> messages.offer(bb.array()) })
+    def context = new ChannelContext(10, { ByteBuffer bb ->
+      messages.offer(bb.array())
+      return new ByteBuffer[0]
+    })
 
     when:
     def channel = new InMemoryReadableByteChannel()
@@ -81,7 +93,10 @@ class ChannelContextTest extends Specification {
   def "test multiple messages larger than buffer size is read"() {
     given:
     def messages = new LinkedList<byte[]>()
-    def context = new ChannelContext(8, { ByteBuffer bb -> messages.offer(bb.array()) })
+    def context = new ChannelContext(10, { ByteBuffer bb ->
+      messages.offer(bb.array())
+      return new ByteBuffer[0]
+    })
 
     when:
     def channel = new InMemoryReadableByteChannel()
@@ -99,7 +114,10 @@ class ChannelContextTest extends Specification {
   def "test multiple messages are read in two attempts"() {
     given:
     def messages = new LinkedList<byte[]>()
-    def context = new ChannelContext(8, { ByteBuffer bb -> messages.offer(bb.array()) })
+    def context = new ChannelContext(10, { ByteBuffer bb ->
+      messages.offer(bb.array())
+      return new ByteBuffer[0]
+    })
 
     when:
     def channel = new InMemoryReadableByteChannel()
@@ -124,19 +142,24 @@ class ChannelContextTest extends Specification {
   def "test partial message length write: #length"() {
     given:
     def messages = new LinkedList<byte[]>()
-    def context = new ChannelContext(8, { ByteBuffer bb -> messages.offer(bb.array()) })
+    def context = new ChannelContext(10, { ByteBuffer bb ->
+      messages.offer(bb.array())
+      return new ByteBuffer[0]
+    })
 
     when:
     def channel = new InMemoryReadableByteChannel()
-    channel.write((byte) (length >> 8)) // first byte of the message length
+    channel.writeInput((byte) (length >> 24)) // first byte of the message length
 
     context.read(channel)
 
-    channel.write((byte) length) // second byte of the message length
+    channel.writeInput((byte) (length >> 16)) // second byte of the message length
+    channel.writeInput((byte) (length >> 8)) // third byte of the message length
+    channel.writeInput((byte) length) // fourth byte of the message length
 
     byte[] message = new byte[length]
     Arrays.fill(message, (byte) 42)
-    channel.write(message)
+    channel.writeInput(message)
 
     context.read(channel)
 
@@ -151,28 +174,34 @@ class ChannelContextTest extends Specification {
   def "test partial second message length write"() {
     given:
     def messages = new LinkedList<byte[]>()
-    def context = new ChannelContext(8, { ByteBuffer bb -> messages.offer(bb.array()) })
+    def context = new ChannelContext(10, { ByteBuffer bb ->
+      messages.offer(bb.array())
+      return new ByteBuffer[0]
+    })
 
     when:
     def channel = new InMemoryReadableByteChannel()
-    // message length (2 bytes) + message (5 bytes) leave
-    // only 1 byte in the buffer for the next message length,
+    // message length (4 bytes) + message (3 bytes) leave
+    // 3 bytes in the buffer for the next message length,
     // which is not enough
-    writeMessage("12345".bytes, channel)
+    writeMessage("123".bytes, channel)
     writeMessage("67890".bytes, channel)
 
     context.read(channel)
 
     then:
     messages.size() == 2
-    Arrays.equals(messages.poll(), "12345".bytes)
+    Arrays.equals(messages.poll(), "123".bytes)
     Arrays.equals(messages.poll(), "67890".bytes)
   }
 
   def "test message with length larger than max short value"() {
     given:
     def messages = new LinkedList<byte[]>()
-    def context = new ChannelContext(8, { ByteBuffer bb -> messages.offer(bb.array()) })
+    def context = new ChannelContext(10, { ByteBuffer bb ->
+      messages.offer(bb.array())
+      return new ByteBuffer[0]
+    })
 
     def message = new byte[Short.MAX_VALUE + 1]
     ThreadLocalRandom.current().nextBytes(message)
@@ -197,7 +226,10 @@ class ChannelContextTest extends Specification {
     }
 
     def messages = new LinkedList<byte[]>()
-    def context = new ChannelContext(8, { ByteBuffer bb -> messages.offer(bb.array()) })
+    def context = new ChannelContext(bufferCapacity, { ByteBuffer bb ->
+      messages.offer(bb.array())
+      return new ByteBuffer[0]
+    })
 
     when:
     def channel = new InMemoryReadableByteChannel()
@@ -216,23 +248,97 @@ class ChannelContextTest extends Specification {
     }
 
     where:
-    bufferCapacity << [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    bufferCapacity << [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+  }
+
+  def "test response is written: buffer #channelOutputBufferCapacity response length #responseLength"() {
+    given:
+    def expectedResponse = new byte[responseLength]
+    ThreadLocalRandom.current().nextBytes(expectedResponse)
+
+    def context = new ChannelContext(10, {
+      return new ByteBuffer[] {
+        ByteBuffer.allocate(Integer.BYTES).putInt(expectedResponse.length).flip(),
+        ByteBuffer.wrap(expectedResponse)
+      }
+    })
+
+    when:
+    def channel = new InMemoryReadableByteChannel(channelOutputBufferCapacity)
+    writeMessage("test".bytes, channel)
+
+    context.read(channel)
+    while (context.hasPendingResponses()) {
+      context.write(channel)
+    }
+
+    def response = readMessage(channel)
+
+    then:
+    response == expectedResponse
+
+    where:
+    channelOutputBufferCapacity | responseLength
+    2 | 4
+    3 | 4
+    7 | 8
+    8 | 4
+    8 | 7
+    8 | 8
+    8 | 16
+    256 | 256
+    256 | 1024
+    256 | 1024 * 1024
   }
 
   private void writeMessage(byte[] bytes, InMemoryReadableByteChannel channel) {
-    channel.write((byte) (bytes.length >> 8), (byte) bytes.length)
-    channel.write(bytes)
+    ByteBuffer header = ByteBuffer.allocate(Integer.BYTES)
+    header.putInt(bytes.length)
+    header.flip()
+    channel.writeInput(header.array())
+    channel.writeInput(bytes)
+  }
+
+  private byte[] readMessage(InMemoryReadableByteChannel channel) {
+    def output = channel.readOutput()
+    def payload = Arrays.copyOfRange(output, Integer.BYTES, output.length)
+    return payload
   }
 
   private static final class InMemoryReadableByteChannel implements ByteChannel {
     private boolean closed
     private boolean eos
-    private final Queue<Byte> remaining = new ArrayDeque<>()
+    private final Deque<byte[]> input = new ArrayDeque<>()
+    private final Deque<byte[]> output = new ArrayDeque<>()
 
-    void write(byte... bytes) {
-      for (byte b : bytes) {
-        remaining.offer(b)
+    private final int outputBufferCapacity
+
+    InMemoryReadableByteChannel() {
+      this(Integer.MAX_VALUE)
+    }
+
+    InMemoryReadableByteChannel(int outputBufferCapacity) {
+      this.outputBufferCapacity = outputBufferCapacity
+    }
+
+    void writeInput(byte... bytes) {
+      input.offer(bytes)
+    }
+
+    byte[] readOutput() {
+      int cumulativeSize = 0
+      for (byte[] b : (this.output)) {
+        cumulativeSize += b.length
       }
+
+      int idx = 0
+      byte[] bytes = new byte[cumulativeSize]
+      while (!this.output.empty) {
+        byte[] b = this.output.poll()
+        System.arraycopy(b, 0, bytes, idx, b.length)
+        idx += b.length
+      }
+      return bytes
     }
 
     void eos() {
@@ -244,13 +350,26 @@ class ChannelContextTest extends Specification {
       if (closed) {
         throw new IOException("Channel is closed")
       }
-      if (eos && remaining.isEmpty()) {
+      if (eos && input.isEmpty()) {
         return -1
       }
+
       int read = 0
-      while (!remaining.isEmpty() && dst.remaining() > 0) {
-        dst.put(remaining.poll())
-        read++
+      while (!input.isEmpty() && dst.remaining() > 0) {
+        byte[] b = input.poll()
+        if (dst.remaining() >= b.length) {
+          dst.put(b)
+          read += b.length
+        } else {
+          byte[] whatFits = new byte[dst.remaining()]
+          byte[] remainder = new byte[b.length - dst.remaining()]
+          System.arraycopy(b, 0, whatFits, 0, whatFits.length)
+          System.arraycopy(b, whatFits.length, remainder, 0, remainder.length)
+
+          dst.put(whatFits)
+          input.offerFirst(remainder)
+          read += whatFits.length
+        }
       }
       return read
     }
@@ -267,7 +386,11 @@ class ChannelContextTest extends Specification {
 
     @Override
     int write(ByteBuffer src) throws IOException {
-      return src.remaining()
+      int length = Math.min(outputBufferCapacity, src.remaining())
+      byte[] bytes = new byte[length]
+      src.get(bytes, 0, length)
+      this.output.offer(bytes)
+      return length
     }
   }
 }

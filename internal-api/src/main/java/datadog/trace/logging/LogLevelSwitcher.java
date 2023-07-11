@@ -4,8 +4,7 @@ package datadog.trace.logging;
 public interface LogLevelSwitcher {
 
   /**
-   * Temporarily switch the current LogLevel to a new LogLevel. Will only change LogLevel to a more
-   * verbose level.
+   * Temporarily switch the current LogLevel to a new LogLevel
    *
    * @param level the LogLevel to switch to
    */

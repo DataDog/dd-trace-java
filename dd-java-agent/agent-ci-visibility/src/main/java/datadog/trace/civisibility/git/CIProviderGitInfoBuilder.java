@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.git;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoBuilder;
 import datadog.trace.civisibility.ci.CIProviderInfo;
@@ -12,7 +13,7 @@ public class CIProviderGitInfoBuilder implements GitInfoBuilder {
   @Override
   public GitInfo build(@Nullable String repositoryPath) {
     Path currentPath = repositoryPath != null ? Paths.get(repositoryPath) : null;
-    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory();
+    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get());
     CIProviderInfo ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(currentPath);
     return ciProviderInfo.buildCIGitInfo();
   }

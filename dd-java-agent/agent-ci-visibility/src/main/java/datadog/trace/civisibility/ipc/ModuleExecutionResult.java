@@ -5,7 +5,7 @@ import java.util.Objects;
 
 public class ModuleExecutionResult implements Signal {
 
-  private static final int SERIALIZED_LENGTH = 1 + Long.BYTES + Long.BYTES + 1;
+  private static final int SERIALIZED_LENGTH = Long.BYTES + Long.BYTES + 1;
   private static final int COVERAGE_ENABLED_FLAG = 1;
   private static final int ITR_ENABLED_FLAG = 2;
   private static final int ITR_TESTS_SKIPPED_FLAG = 4;
@@ -87,9 +87,13 @@ public class ModuleExecutionResult implements Signal {
   }
 
   @Override
+  public SignalType getType() {
+    return SignalType.MODULE_EXECUTION_RESULT;
+  }
+
+  @Override
   public ByteBuffer serialize() {
     ByteBuffer buffer = ByteBuffer.allocate(SERIALIZED_LENGTH);
-    buffer.put(SignalType.MODULE_EXECUTION_RESULT.getCode());
     buffer.putLong(sessionId);
     buffer.putLong(moduleId);
 
@@ -109,17 +113,12 @@ public class ModuleExecutionResult implements Signal {
   }
 
   public static ModuleExecutionResult deserialize(ByteBuffer buffer) {
-    int expectedLength = SERIALIZED_LENGTH;
-    if (buffer.remaining() != expectedLength) {
+    if (buffer.remaining() != SERIALIZED_LENGTH) {
       throw new IllegalArgumentException(
-          "Expected " + expectedLength + " bytes, got " + buffer.remaining() + ", " + buffer);
+          "Expected " + SERIALIZED_LENGTH + " bytes, got " + buffer.remaining() + ", " + buffer);
     }
-
-    buffer.get(); // signal type
     long sessionId = buffer.getLong();
     long moduleId = buffer.getLong();
-    ;
-
     int flags = buffer.get();
     boolean coverageEnabled = (flags & COVERAGE_ENABLED_FLAG) != 0;
     boolean itrEnabled = (flags & ITR_ENABLED_FLAG) != 0;

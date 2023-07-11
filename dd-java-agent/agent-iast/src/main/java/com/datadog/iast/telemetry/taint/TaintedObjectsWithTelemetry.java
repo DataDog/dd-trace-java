@@ -41,8 +41,9 @@ public class TaintedObjectsWithTelemetry implements TaintedObjects {
   }
 
   @Override
-  public TaintedObject taintInputString(@Nonnull String obj, @Nonnull Source source) {
-    final TaintedObject result = delegate.taintInputString(obj, source);
+  public TaintedObject taintInputString(
+      @Nonnull String obj, @Nonnull Source source, final int mark) {
+    final TaintedObject result = delegate.taintInputString(obj, source, mark);
     if (debug) {
       IastMetricCollector.add(EXECUTED_TAINTED, 1, getRequestContext());
     }
@@ -59,8 +60,9 @@ public class TaintedObjectsWithTelemetry implements TaintedObjects {
   }
 
   @Override
-  public TaintedObject taintInputObject(@Nonnull Object obj, @Nonnull Source source) {
-    final TaintedObject result = delegate.taintInputObject(obj, source);
+  public TaintedObject taintInputObject(
+      @Nonnull Object obj, @Nonnull Source source, final int mark) {
+    final TaintedObject result = delegate.taintInputObject(obj, source, mark);
     if (debug) {
       IastMetricCollector.add(EXECUTED_TAINTED, 1, getRequestContext());
     }

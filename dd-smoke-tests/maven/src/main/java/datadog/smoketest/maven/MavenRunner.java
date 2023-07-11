@@ -28,10 +28,11 @@ public class MavenRunner {
     }
 
     Path projectHome = Paths.get(args[0]);
+    String[] command = Arrays.copyOfRange(args, 1, args.length);
 
     WrapperExecutor wrapperExecutor = WrapperExecutor.forProjectDirectory(projectHome);
     wrapperExecutor.execute(
-        new String[] {args[1]},
+        command,
         new Installer(
             new DefaultDownloader("mvnw", "3.2.0"),
             new HashAlgorithmVerifier(),

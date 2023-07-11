@@ -68,15 +68,15 @@ trait IastRequestContextPreparationTrait {
 
       List<Object> objects = Collections.synchronizedList([])
 
-      TaintedObject taintInputString(String obj, Source source) {
+      TaintedObject taintInputString(String obj, Source source, int mark) {
         objects << obj
-        this.delegate.taintInputString(obj, source)
+        this.delegate.taintInputString(obj, source, mark)
         logTaint obj
       }
 
-      TaintedObject taintInputObject(Object obj, Source source) {
+      TaintedObject taintInputObject(Object obj, Source source, int mark) {
         objects << obj
-        this.delegate.taintInputObject(obj, source)
+        this.delegate.taintInputObject(obj, source, mark)
         logTaint obj
       }
 
@@ -88,8 +88,9 @@ trait IastRequestContextPreparationTrait {
 
       private final static Logger LOGGER = LoggerFactory.getLogger("map tainted objects")
       static {
-        ((ch.qos.logback.classic.Logger)LOGGER).level = ch.qos.logback.classic.Level.DEBUG
+        ((ch.qos.logback.classic.Logger) LOGGER).level = ch.qos.logback.classic.Level.DEBUG
       }
+
       private static void logTaint(Object o) {
         def content
         if (o.getClass().name.startsWith('java.')) {

@@ -311,6 +311,12 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     }
   }
 
+  @Override
+  void rebuildConfig() {
+    super.rebuildConfig()
+    TEST_TRACER?.rebuildTraceConfig(Config.get())
+  }
+
   void cleanup() {
     if (isTestAgentEnabled()) {
       // save Datadog environment to DDAgentWriter header

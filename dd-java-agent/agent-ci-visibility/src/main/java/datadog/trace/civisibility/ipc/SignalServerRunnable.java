@@ -9,7 +9,6 @@ import java.nio.channels.SocketChannel;
 import java.util.EnumMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,10 +26,12 @@ class SignalServerRunnable implements Runnable {
 
   private final Selector selector;
   private final int bufferCapacity;
-  private final Map<SignalType, Consumer<Signal>> signalHandlers;
+  private final Map<SignalType, Function<Signal, SignalResponse>> signalHandlers;
 
   SignalServerRunnable(
-      Selector selector, int bufferCapacity, Map<SignalType, Consumer<Signal>> signalHandlers) {
+      Selector selector,
+      int bufferCapacity,
+      Map<SignalType, Function<Signal, SignalResponse>> signalHandlers) {
     this.selector = selector;
     this.bufferCapacity = bufferCapacity;
     this.signalHandlers = signalHandlers;
@@ -92,27 +93,34 @@ class SignalServerRunnable implements Runnable {
     context.write(childChannel);
   }
 
-  private void onMessage(ByteBuffer message) {
-    message.mark();
-    byte code = message.get();
-    message.reset();
-    SignalType signalType = SignalType.fromCode(code);
+  private ByteBuffer[] onMessage(ByteBuffer message) {
+    SignalType signalType = SignalType.fromCode(message.get());
 
     Function<ByteBuffer, Signal> deserializer = DESERIALIZERS.get(signalType);
     if (deserializer == null) {
       LOGGER.error("Deserializer not defined for signal type {}, skipping processing", signalType);
-      return;
+      return serialize(new ErrorResponse("Deserializer not found for " + signalType));
     }
 
     Signal signal = deserializer.apply(message);
     LOGGER.debug("Received signal: {}", signal);
 
-    Consumer<Signal> handler = signalHandlers.get(signalType);
+    Function<Signal, SignalResponse> handler = signalHandlers.get(signalType);
     if (handler == null) {
       LOGGER.warn("No handler register for signal type {}, skipping signal {}", signalType, signal);
-      return;
+      return serialize(new ErrorResponse("Deserializer not found for " + signalType));
     }
 
-    handler.accept(signal);
+    SignalResponse response = handler.apply(signal);
+    return serialize(response);
+  }
+
+  private ByteBuffer[] serialize(SignalResponse response) {
+    ByteBuffer payload = response.serialize();
+    ByteBuffer header = ByteBuffer.allocate(Integer.BYTES + 1);
+    header.putInt(payload.remaining() + 1);
+    header.put(response.getType().getCode());
+    header.flip();
+    return new ByteBuffer[] {header, payload};
   }
 }

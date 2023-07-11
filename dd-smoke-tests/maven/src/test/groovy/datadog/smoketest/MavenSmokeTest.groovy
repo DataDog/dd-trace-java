@@ -32,6 +32,8 @@ class MavenSmokeTest extends Specification {
 
   private static final String TEST_SERVICE_NAME = "test-maven-service"
   private static final String TEST_ENVIRONMENT_NAME = "integration-test"
+  private static final String JAVAC_PLUGIN_VERSION = "0.1.6"
+  private static final String JACOCO_PLUGIN_VERSION = "0.8.10"
 
   private static final int PROCESS_TIMEOUT_SECS = 60
 
@@ -76,7 +78,15 @@ class MavenSmokeTest extends Specification {
       }
 
       prefix("/api/v2/ci/tests/skippable") {
-        response.status(200).send('{ "data": [] }')
+        response.status(200).send('{ "data": [{' +
+          '  "id": "d230520a0561ee2f",' +
+          '  "type": "test",' +
+          '  "attributes": {' +
+          '    "configurations": {},' +
+          '    "name": "test_to_skip_with_itr",' +
+          '    "suite": "datadog.smoke.TestSucceed"' +
+          '  }' +
+          '}] }')
       }
     }
   }
@@ -89,7 +99,7 @@ class MavenSmokeTest extends Specification {
   def "test successful maven run, v#mavenVersion"() {
     given:
     givenWrapperPropertiesFile(mavenVersion)
-    givenMavenProjectFiles("test_sucessful_maven_run")
+    givenMavenProjectFiles("test_successful_maven_run")
     givenMavenDependenciesAreLoaded()
 
     when:
@@ -98,8 +108,8 @@ class MavenSmokeTest extends Specification {
     then:
     exitCode == 0
 
-    def events = waitForEvents(4)
-    assert events.size() == 4
+    def events = waitForEvents(5)
+    assert events.size() == 5
 
     def sessionEndEvent = events.find { it.type == "test_session_end" }
     verifyCommonTags(sessionEndEvent)
@@ -114,6 +124,10 @@ class MavenSmokeTest extends Specification {
           it["span.kind"] == "test_session_end"
           it["language"] == "jvm" // only applied to root spans
           it["test.toolchain"] == "maven:${mavenVersion}" // only applied to session events
+          it["test.status"] == "pass"
+          it["test.code_coverage.enabled"] == "true"
+          it["test.itr.tests_skipping.enabled"] == "true"
+          it["_dd.ci.itr.tests_skipped"] == "true"
         }
       }
     }
@@ -130,6 +144,7 @@ class MavenSmokeTest extends Specification {
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
           it["test.module"] == "Maven Smoke Tests Project test" // project name + execution goal
+          it["test.status"] == "pass"
         }
       }
     }
@@ -152,11 +167,12 @@ class MavenSmokeTest extends Specification {
           it["test.suite"] == "datadog.smoke.TestSucceed"
           it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
           it["ci.provider.name"] == "jenkins"
+          it["test.status"] == "pass"
         }
       }
     }
 
-    def testEvent = events.find { it.type == "test" }
+    def testEvent = events.find { it.type == "test" && it.content.resource == "datadog.smoke.TestSucceed.test_succeed" }
     verifyCommonTags(testEvent, false)
     verifyAll(testEvent) {
       verifyAll(content) {
@@ -177,6 +193,34 @@ class MavenSmokeTest extends Specification {
           it["test.name"] == "test_succeed"
           it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
           it["ci.provider.name"] == "jenkins"
+          it["test.status"] == "pass"
+        }
+      }
+    }
+
+    def skippedTestEvent = events.find { it.type == "test" && it.content.resource == "datadog.smoke.TestSucceed.test_to_skip_with_itr" }
+    verifyCommonTags(skippedTestEvent, false)
+    verifyAll(skippedTestEvent) {
+      verifyAll(content) {
+        name == "junit.test"
+        resource == "datadog.smoke.TestSucceed.test_to_skip_with_itr"
+        test_session_id == sessionEndEvent.content.test_session_id
+        test_module_id == moduleEndEvent.content.test_module_id
+        test_suite_id == suiteEndEvent.content.test_suite_id
+        trace_id > 0
+        span_id > 0
+        parent_id == 0
+        verifyAll(metrics) {
+          process_id > 0
+        }
+        verifyAll(meta) {
+          it["span.kind"] == "test"
+          it["test.suite"] == "datadog.smoke.TestSucceed"
+          it["test.name"] == "test_to_skip_with_itr"
+          it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
+          it["ci.provider.name"] == "jenkins"
+          it["test.status"] == "skip"
+          it["test.skip_reason"] == "Skipped by Datadog Intelligent Test Runner"
         }
       }
     }
@@ -244,18 +288,27 @@ class MavenSmokeTest extends Specification {
    * before proceeding with running the build
    */
   private void givenMavenDependenciesAreLoaded() {
-    def processBuilder = createProcessBuilder("dependency:go-offline", false)
+    retryUntilSuccessfulOrNoAttemptsLeft(["dependency:go-offline"])
+    // dependencies below are download separately
+    // because they are not declared in the project,
+    // but are added at runtime by the tracer
+    retryUntilSuccessfulOrNoAttemptsLeft(["dependency:get", "-Dartifact=com.datadoghq:dd-javac-plugin:$JAVAC_PLUGIN_VERSION".toString()])
+    retryUntilSuccessfulOrNoAttemptsLeft(["dependency:get", "-Dartifact=org.jacoco:jacoco-maven-plugin:$JACOCO_PLUGIN_VERSION".toString()])
+  }
+
+  private void retryUntilSuccessfulOrNoAttemptsLeft(List<String> mvnCommand) {
+    def processBuilder = createProcessBuilder(mvnCommand, false)
     for (int attempt = 0; attempt < DEPENDENCIES_DOWNLOAD_RETRIES; attempt++) {
       def exitCode = runProcess(processBuilder.start())
       if (exitCode == 0) {
         return
       }
     }
-    throw new AssertionError((Object) "Tried to download dependencies $DEPENDENCIES_DOWNLOAD_RETRIES times and failed")
+    throw new AssertionError((Object) "Tried $DEPENDENCIES_DOWNLOAD_RETRIES times to execute $mvnCommand and failed")
   }
 
   private int whenRunningMavenBuild() {
-    def processBuilder = createProcessBuilder("test")
+    def processBuilder = createProcessBuilder(["test"])
 
     processBuilder.environment().put("DD_API_KEY", "01234567890abcdef123456789ABCDEF")
     processBuilder.environment().put("DD_APPLICATION_KEY", "01234567890abcdef123456789ABCDEF")
@@ -281,7 +334,7 @@ class MavenSmokeTest extends Specification {
     return p.exitValue()
   }
 
-  ProcessBuilder createProcessBuilder(String mvnCommand, boolean runWithAgent = true) {
+  ProcessBuilder createProcessBuilder(List<String> mvnCommand, boolean runWithAgent = true) {
     String mavenRunnerShadowJar = System.getProperty("datadog.smoketest.maven.jar.path")
     assert new File(mavenRunnerShadowJar).isFile()
 
@@ -290,7 +343,7 @@ class MavenSmokeTest extends Specification {
     command.addAll(jvmArguments(runWithAgent))
     command.addAll((String[]) ["-jar", mavenRunnerShadowJar])
     command.addAll(programArguments())
-    command.add(mvnCommand)
+    command.addAll(mvnCommand)
 
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(projectHome.toFile())
@@ -319,7 +372,9 @@ class MavenSmokeTest extends Specification {
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED)}=true," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED)}=true," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED)}=true," +
-        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=0.8.10," +
+        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED)}=false," +
+        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION)}=${JAVAC_PLUGIN_VERSION}," +
+        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=${JACOCO_PLUGIN_VERSION}," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES)}=datadog.smoke.*," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${intakeServer.address.toString()}"
       arguments += agentArgument.toString()
@@ -374,7 +429,6 @@ class MavenSmokeTest extends Specification {
         error == 0
         verifyAll(meta) {
           it["test.type"] == "test"
-          it["test.status"] == "pass"
 
           if (buildEvent) {
             // Maven 4 sets "-B" flag ("batch", non-interactive mode)

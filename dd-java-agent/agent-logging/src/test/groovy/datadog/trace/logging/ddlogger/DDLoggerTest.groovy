@@ -36,23 +36,23 @@ class DDLoggerTest extends LogValidatingSpecification {
     when:
     Properties props = new Properties()
     props.setProperty(Keys.DEFAULT_LOG_LEVEL, level)
-    def factory = new SwitchableLogLevelFactory(new SLCompatFactory(props))
-    def logger = new DDLogger(factory, "foo.bar")
+    def factory = new DDLoggerFactory(new SLCompatFactory(props))
+    def logger = factory.getLogger("foo.bar")
 
     then:
     validateEnabled(logger, trace, debug, info, warn, error)
     factory.switchLevel(LogLevel.TRACE)
     validateEnabled(logger, true, true, true, true, true)
     factory.switchLevel(LogLevel.DEBUG)
-    validateEnabled(logger, trace, true, true, true, true)
+    validateEnabled(logger, false, true, true, true, true)
     factory.switchLevel(LogLevel.INFO)
-    validateEnabled(logger, trace, debug, true, true, true)
+    validateEnabled(logger, false, false, true, true, true)
     factory.switchLevel(LogLevel.WARN)
-    validateEnabled(logger, trace, debug, info, true, true)
+    validateEnabled(logger, false, false, false, true, true)
     factory.switchLevel(LogLevel.ERROR)
-    validateEnabled(logger, trace, debug, info, warn, true)
+    validateEnabled(logger, false, false, false, false, true)
     factory.switchLevel(LogLevel.OFF)
-    validateEnabled(logger, trace, debug, info, warn, error)
+    validateEnabled(logger, false, false, false, false, false)
     factory.restore()
     validateEnabled(logger, trace, debug, info, warn, error)
 
@@ -86,8 +86,8 @@ class DDLoggerTest extends LogValidatingSpecification {
     def validator = createValidator("foo.bar")
     def printStream = new PrintStream(validator.outputStream, true)
     def settings = new SLCompatSettings(props, null, printStream)
-    def factory = new SwitchableLogLevelFactory(new SLCompatFactory(props, settings))
-    def logger = new DDLogger(factory, "foo.bar")
+    def factory = new DDLoggerFactory(new SLCompatFactory(props, settings))
+    def logger = factory.getLogger("foo.bar")
 
     then: {
       // TRACE
@@ -219,8 +219,8 @@ class DDLoggerTest extends LogValidatingSpecification {
     def outputStream = new ByteArrayOutputStream()
     def printStream = new PrintStream(outputStream, true)
     def settings = new SLCompatSettings(props, null, printStream)
-    def factory = new SwitchableLogLevelFactory(new SLCompatFactory(props, settings))
-    def logger = new DDLogger(factory, "foo")
+    def factory = new DDLoggerFactory(new SLCompatFactory(props, settings))
+    def logger = factory.getLogger("foo")
 
     when:
     try {
@@ -262,8 +262,8 @@ class DDLoggerTest extends LogValidatingSpecification {
     def outputStream = new ByteArrayOutputStream()
     def printStream = new PrintStream(outputStream, true)
     def settings = new SLCompatSettings(props, null, printStream)
-    def factory = new SwitchableLogLevelFactory(new SLCompatFactory(props, settings))
-    def logger = new DDLogger(factory, "foo")
+    def factory = new DDLoggerFactory(new SLCompatFactory(props, settings))
+    def logger = factory.getLogger("foo")
 
     when:
     try {
@@ -311,8 +311,8 @@ class DDLoggerTest extends LogValidatingSpecification {
     props.setProperty(Keys.SHOW_THREAD_NAME, "false")
     props.setProperty(Keys.LOG_FILE, file.getAbsolutePath())
     def settings = new SLCompatSettings(props)
-    def factory = new SLCompatFactory(props)
-    def logger = new DDLogger(factory, "bar.baz")
+    def factory = new DDLoggerFactory(new SLCompatFactory(props))
+    def logger = factory.getLogger("bar.baz")
     logger.trace("test trace")
     logger.debug("test debug")
     logger.info("test info")
@@ -348,7 +348,7 @@ class DDLoggerTest extends LogValidatingSpecification {
       props.setProperty(Keys.WARN_LEVEL_STRING, warn)
     }
     def settings = new SLCompatSettings(props)
-    def factory = new SwitchableLogLevelFactory(new SLCompatFactory(props, settings))
+    def factory = new SLCompatFactory(props, settings)
 
     expect:
     factory.settingsDescription == [

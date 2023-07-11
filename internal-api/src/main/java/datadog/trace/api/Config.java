@@ -83,6 +83,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SECURE_RANDOM;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_METRICS_INTERVAL;
@@ -125,6 +126,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENT_JAR
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION;
@@ -155,7 +157,7 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CAPTURE_TIMEOUT;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED;
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCLUDE_FILE;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCLUDE_FILES;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_INSTRUMENT_THE_WORLD;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_PAYLOAD_SIZE;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_METRICS_ENABLED;
@@ -188,6 +190,7 @@ import static datadog.trace.api.config.GeneralConfig.RUNTIME_ID_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.SITE;
+import static datadog.trace.api.config.GeneralConfig.STARTUP_LOGS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL;
@@ -197,6 +200,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
+import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE;
@@ -365,7 +369,6 @@ import static datadog.trace.api.iast.IastDetectionMode.DEFAULT;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
-import static datadog.trace.util.Strings.toEnvVar;
 
 import datadog.trace.api.civisibility.config.SkippableTest;
 import datadog.trace.api.civisibility.config.SkippableTestsSerializer;
@@ -646,6 +649,7 @@ public class Config {
   private final int ciVisibilitySignalServerPort;
   private final boolean ciVisibilityItrEnabled;
   private final Set<SkippableTest> ciVisibilitySkippableTests;
+  private final boolean ciVisibilityCiProviderIntegrationEnabled;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -669,7 +673,7 @@ public class Config {
   private final long debuggerMaxPayloadSize;
   private final boolean debuggerVerifyByteCode;
   private final boolean debuggerInstrumentTheWorld;
-  private final String debuggerExcludeFile;
+  private final String debuggerExcludeFiles;
   private final int debuggerCaptureTimeout;
 
   private final boolean awsPropagationEnabled;
@@ -712,6 +716,7 @@ public class Config {
   private final boolean traceAgentV05Enabled;
 
   private final boolean debugEnabled;
+  private final boolean startupLogsEnabled;
   private final String configFileStatus;
 
   private final IdGenerationStrategy idGenerationStrategy;
@@ -1508,6 +1513,8 @@ public class Config {
                 SkippableTestsSerializer.deserialize(
                     configProvider.getString(CIVISIBILITY_SKIPPABLE_TESTS)))
             : Collections.emptySet();
+    ciVisibilityCiProviderIntegrationEnabled =
+        configProvider.getBoolean(CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED, true);
 
     remoteConfigEnabled =
         configProvider.getBoolean(REMOTE_CONFIG_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED);
@@ -1557,7 +1564,7 @@ public class Config {
     debuggerInstrumentTheWorld =
         configProvider.getBoolean(
             DEBUGGER_INSTRUMENT_THE_WORLD, DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD);
-    debuggerExcludeFile = configProvider.getString(DEBUGGER_EXCLUDE_FILE);
+    debuggerExcludeFiles = configProvider.getString(DEBUGGER_EXCLUDE_FILES);
     debuggerCaptureTimeout =
         configProvider.getInteger(DEBUGGER_CAPTURE_TIMEOUT, DEFAULT_DEBUGGER_CAPTURE_TIMEOUT);
 
@@ -1620,7 +1627,10 @@ public class Config {
 
     servletAsyncTimeoutError = configProvider.getBoolean(SERVLET_ASYNC_TIMEOUT_ERROR, true);
 
-    debugEnabled = isDebugMode();
+    debugEnabled = configProvider.getBoolean(TRACE_DEBUG, false);
+
+    startupLogsEnabled =
+        configProvider.getBoolean(STARTUP_LOGS_ENABLED, DEFAULT_STARTUP_LOGS_ENABLED);
 
     cwsEnabled = configProvider.getBoolean(CWS_ENABLED, DEFAULT_CWS_ENABLED);
     cwsTlsRefresh = configProvider.getInteger(CWS_TLS_REFRESH, DEFAULT_CWS_TLS_REFRESH);
@@ -2472,6 +2482,10 @@ public class Config {
     return ciVisibilitySkippableTests;
   }
 
+  public boolean isCiVisibilityCiProviderIntegrationEnabled() {
+    return ciVisibilityCiProviderIntegrationEnabled;
+  }
+
   public String getAppSecRulesFile() {
     return appSecRulesFile;
   }
@@ -2548,8 +2562,8 @@ public class Config {
     return debuggerInstrumentTheWorld;
   }
 
-  public String getDebuggerExcludeFile() {
-    return debuggerExcludeFile;
+  public String getDebuggerExcludeFiles() {
+    return debuggerExcludeFiles;
   }
 
   public int getDebuggerCaptureTimeout() {
@@ -2664,6 +2678,10 @@ public class Config {
 
   public boolean isDebugEnabled() {
     return debugEnabled;
+  }
+
+  public boolean isStartupLogsEnabled() {
+    return startupLogsEnabled;
   }
 
   public boolean isCwsEnabled() {
@@ -3159,22 +3177,6 @@ public class Config {
   public <T extends Enum<T>> T getEnumValue(
       final String name, final Class<T> type, final T defaultValue) {
     return configProvider.getEnum(name, type, defaultValue);
-  }
-
-  private static boolean isDebugMode() {
-    final String tracerDebugLevelSysprop = "dd.trace.debug";
-    final String tracerDebugLevelProp = getProp(tracerDebugLevelSysprop);
-
-    if (tracerDebugLevelProp != null) {
-      return Boolean.parseBoolean(tracerDebugLevelProp);
-    }
-
-    final String tracerDebugLevelEnv = getEnv(toEnvVar(tracerDebugLevelSysprop));
-
-    if (tracerDebugLevelEnv != null) {
-      return Boolean.parseBoolean(tracerDebugLevelEnv);
-    }
-    return false;
   }
 
   /**
@@ -3675,7 +3677,7 @@ public class Config {
         + ", debuggerInstrumentTheWorld="
         + debuggerInstrumentTheWorld
         + ", debuggerExcludeFile="
-        + debuggerExcludeFile
+        + debuggerExcludeFiles
         + ", awsPropagationEnabled="
         + awsPropagationEnabled
         + ", sqsPropagationEnabled="
@@ -3716,6 +3718,8 @@ public class Config {
         + traceAgentV05Enabled
         + ", debugEnabled="
         + debugEnabled
+        + ", startLogsEnabled="
+        + startupLogsEnabled
         + ", configFile='"
         + configFileStatus
         + '\''

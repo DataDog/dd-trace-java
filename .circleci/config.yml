@@ -830,6 +830,41 @@ jobs:
       - store_artifacts:
           path: logs_java_<< parameters.weblog-variant >>_dev.tar.gz
 
+  integrations-system-tests:
+    machine:
+      # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
+      image: ubuntu-2004:current
+    resource_class: large
+    steps:
+      - setup_system_tests
+
+      - run:
+          name: Copy jar file to system test binaries folder
+          command: |
+            ls -la ~/dd-trace-java/workspace/dd-java-agent/build/libs
+            cp ~/dd-trace-java/workspace/dd-java-agent/build/libs/*.jar system-tests/binaries/
+
+      - run:
+          name: Build
+          # Build the default framework, which is springboot
+          command: |
+            cd system-tests
+            ./build.sh java
+
+      - run:
+          name: Run APM Integrations tests
+          # Stop the job after 5m to avoid excessive overhead. Will need adjustment as more tests are added.
+          no_output_timeout: 5m
+          command: |
+            cd system-tests
+            DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh INTEGRATIONS
+
+      - store_test_results:
+          path: system-tests/logs_integrations
+
+      - store_artifacts:
+          path: system-tests/logs_integrations
+
   parametric-tests:
     machine:
       # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
@@ -1189,6 +1224,10 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
       matrix:
           <<: *system_test_matrix
+
+  - integrations-system-tests:
+      requires:
+        - ok_to_test
 
   - parametric-tests:
       requires:
