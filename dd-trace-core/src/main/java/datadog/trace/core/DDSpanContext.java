@@ -728,17 +728,14 @@ public class DDSpanContext
 
   public void processTagsAndBaggage(final MetadataConsumer consumer, int longRunningVersion) {
     synchronized (unsafeTags) {
-      Map<String, String> baggageItemsWithPropagationTags = EMPTY_BAGGAGE;
-      if (injectBaggageAsTags) {
-        baggageItemsWithPropagationTags = new HashMap<>(baggageItems);
-        propagationTags.fillTagMap(baggageItemsWithPropagationTags);
-      }
+      Map<String, String> baggageItemsWithPropagationTags = new HashMap<>(baggageItems);
+      propagationTags.fillTagMap(baggageItemsWithPropagationTags);
       consumer.accept(
           new Metadata(
               threadId,
               threadName,
               postProcessor.processTags(unsafeTags),
-              baggageItemsWithPropagationTags,
+              injectBaggageAsTags ? baggageItemsWithPropagationTags : EMPTY_BAGGAGE,
               samplingPriority != PrioritySampling.UNSET ? samplingPriority : getSamplingPriority(),
               measured,
               topLevel,
