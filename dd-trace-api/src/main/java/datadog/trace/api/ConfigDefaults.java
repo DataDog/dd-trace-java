@@ -37,10 +37,9 @@ public final class ConfigDefaults {
   public static final String DEFAULT_SERVICE_NAME = "unnamed-java-app";
   public static final String DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME = "root-servlet";
   public static final String DEFAULT_AGENT_WRITER_TYPE = "DDAgentWriter";
-  public static final boolean DEFAULT_WRITER_BAGGAGE_INJECT = false;
   public static final boolean DEFAULT_STARTUP_LOGS_ENABLED = true;
 
-
+  static final boolean DEFAULT_WRITER_BAGGAGE_INJECT = false;
   static final String DEFAULT_SITE = "datadoghq.com";
 
   static final boolean DEFAULT_TRACE_ENABLED = true;
