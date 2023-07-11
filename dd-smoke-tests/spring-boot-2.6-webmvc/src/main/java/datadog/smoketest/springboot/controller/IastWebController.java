@@ -264,6 +264,18 @@ public class IastWebController {
     return "XPath Injection page";
   }
 
+  @GetMapping("/xss/write")
+  @SuppressFBWarnings
+  public String xssWrite(final HttpServletRequest request, final HttpServletResponse response)
+      throws XPathExpressionException {
+    try {
+      response.getWriter().write(request.getParameter("string"));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+    return "XSS page";
+  }
+
   private void withProcess(final Operation<Process> op) {
     Process process = null;
     try {
