@@ -35,6 +35,7 @@ public interface TestEventsHandler {
       @Nullable String testParameters,
       @Nullable Collection<String> categories,
       @Nullable Class<?> testClass,
+      @Nullable String testMethodName,
       @Nullable Method testMethod);
 
   void onTestSkip(
@@ -69,6 +70,7 @@ public interface TestEventsHandler {
       @Nullable String testParameters,
       @Nullable List<String> categories,
       @Nullable Class<?> testClass,
+      @Nullable String testMethodName,
       @Nullable Method testMethod,
       @Nullable String reason);
 

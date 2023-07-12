@@ -91,6 +91,7 @@ public class TracingListener extends RunListener {
   public void testStarted(final Description description) {
     Class<?> testClass = description.getTestClass();
     Method testMethod = JUnit4Utils.getTestMethod(description);
+    String testMethodName = testMethod != null ? testMethod.getName() : null;
 
     String testSuiteName = description.getClassName();
     String testName = JUnit4Utils.getTestName(description, testMethod);
@@ -106,6 +107,7 @@ public class TracingListener extends RunListener {
         testParameters,
         categories,
         testClass,
+        testMethodName,
         testMethod);
   }
 
@@ -199,6 +201,7 @@ public class TracingListener extends RunListener {
 
   private void testIgnored(Description description, Method testMethod, String reason) {
     Class<?> testClass = description.getTestClass();
+    String testMethodName = testMethod != null ? testMethod.getName() : null;
 
     String testSuiteName = description.getClassName();
     String testName = JUnit4Utils.getTestName(description, testMethod);
@@ -214,6 +217,7 @@ public class TracingListener extends RunListener {
         testParameters,
         categories,
         testClass,
+        testMethodName,
         testMethod,
         reason);
   }

@@ -89,6 +89,7 @@ public class TracingListener extends TestNGClassListener
 
     Class<?> testClass = TestNGUtils.getTestClass(result);
     Method testMethod = TestNGUtils.getTestMethod(result);
+    String testMethodName = testMethod != null ? testMethod.getName() : null;
 
     testEventsHandler.onTestStart(
         testSuiteName,
@@ -99,6 +100,7 @@ public class TracingListener extends TestNGClassListener
         testParameters,
         groups,
         testClass,
+        testMethodName,
         testMethod);
   }
 

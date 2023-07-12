@@ -4,14 +4,12 @@ import static datadog.trace.util.Strings.toJson;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DisableTestTrace;
-import datadog.trace.api.civisibility.DDTest;
-import datadog.trace.api.civisibility.DDTestModule;
-import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.DDTestImpl;
 import datadog.trace.civisibility.DDTestModuleImpl;
+import datadog.trace.civisibility.DDTestSuiteImpl;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.context.EmptyTestContext;
 import datadog.trace.civisibility.decorator.TestDecorator;
@@ -37,15 +35,16 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   private final Codeowners codeowners;
   private final MethodLinesResolver methodLinesResolver;
 
-  private volatile DDTestModule testModule;
+  private volatile DDTestModuleImpl testModule;
 
   private final ConcurrentMap<TestSuiteDescriptor, Integer> testSuiteNestedCallCounters =
       new ConcurrentHashMap<>();
 
-  private final ConcurrentMap<TestSuiteDescriptor, DDTestSuite> inProgressTestSuites =
+  private final ConcurrentMap<TestSuiteDescriptor, DDTestSuiteImpl> inProgressTestSuites =
       new ConcurrentHashMap<>();
 
-  private final ConcurrentMap<TestDescriptor, DDTest> inProgressTests = new ConcurrentHashMap<>();
+  private final ConcurrentMap<TestDescriptor, DDTestImpl> inProgressTests =
+      new ConcurrentHashMap<>();
 
   public TestEventsHandlerImpl(
       String moduleName,
@@ -121,7 +120,8 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       return;
     }
 
-    DDTestSuite testSuite = testModule.testSuiteStart(testSuiteName, testClass, null, parallelized);
+    DDTestSuiteImpl testSuite =
+        testModule.testSuiteStart(testSuiteName, testClass, null, parallelized);
 
     if (testFramework != null) {
       testSuite.setTag(Tags.TEST_FRAMEWORK, testFramework);
@@ -148,7 +148,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       return;
     }
 
-    DDTestSuite testSuite = inProgressTestSuites.remove(descriptor);
+    DDTestSuiteImpl testSuite = inProgressTestSuites.remove(descriptor);
     testSuite.end(null);
   }
 
@@ -164,7 +164,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   @Override
   public void onTestSuiteSkip(String testSuiteName, Class<?> testClass, @Nullable String reason) {
     TestSuiteDescriptor descriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    DDTestSuite testSuite = inProgressTestSuites.get(descriptor);
+    DDTestSuiteImpl testSuite = inProgressTestSuites.get(descriptor);
     if (testSuite == null) {
       log.debug(
           "Ignoring skip event, could not find test suite with name {} and class {}",
@@ -179,7 +179,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   public void onTestSuiteFailure(
       String testSuiteName, Class<?> testClass, @Nullable Throwable throwable) {
     TestSuiteDescriptor descriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    DDTestSuite testSuite = inProgressTestSuites.get(descriptor);
+    DDTestSuiteImpl testSuite = inProgressTestSuites.get(descriptor);
     if (testSuite == null) {
       log.debug(
           "Ignoring fail event, could not find test suite with name {} and class {}",
@@ -200,16 +200,17 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       final @Nullable String testParameters,
       final @Nullable Collection<String> categories,
       final @Nullable Class<?> testClass,
+      final @Nullable String testMethodName,
       final @Nullable Method testMethod) {
     if (skipTrace(testClass)) {
       return;
     }
 
     TestSuiteDescriptor suiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    DDTestSuite testSuite = inProgressTestSuites.get(suiteDescriptor);
-    DDTest test =
+    DDTestSuiteImpl testSuite = inProgressTestSuites.get(suiteDescriptor);
+    DDTestImpl test =
         testSuite != null
-            ? testSuite.testStart(testName, testMethod, null)
+            ? testSuite.testStart(testName, testMethodName, testMethod, null)
             // suite events are not reported in Cucumber / JUnit 4 combination
             : new DDTestImpl(
                 EmptyTestContext.INSTANCE,
@@ -219,6 +220,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
                 testName,
                 null,
                 testClass,
+                testMethodName,
                 testMethod,
                 config,
                 testDecorator,
@@ -255,7 +257,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       @Nullable String reason) {
     TestDescriptor descriptor =
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
-    DDTest test = inProgressTests.get(descriptor);
+    DDTestImpl test = inProgressTests.get(descriptor);
     if (test == null) {
       log.debug(
           "Ignoring skip event, could not find test with name {}, suite name{} and class {}",
@@ -277,7 +279,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       @Nullable Throwable throwable) {
     TestDescriptor descriptor =
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
-    DDTest test = inProgressTests.get(descriptor);
+    DDTestImpl test = inProgressTests.get(descriptor);
     if (test == null) {
       log.debug(
           "Ignoring fail event, could not find test with name {}, suite name{} and class {}",
@@ -298,7 +300,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       final @Nullable String testParameters) {
     TestDescriptor descriptor =
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
-    DDTest test = inProgressTests.remove(descriptor);
+    DDTestImpl test = inProgressTests.remove(descriptor);
     if (test == null) {
       log.debug(
           "Ignoring finish event, could not find test with name {}, suite name{} and class {}",
@@ -320,6 +322,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       final @Nullable String testParameters,
       final @Nullable List<String> categories,
       final @Nullable Class<?> testClass,
+      final @Nullable String testMethodName,
       final @Nullable Method testMethod,
       final @Nullable String reason) {
     onTestStart(
@@ -331,6 +334,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
         testParameters,
         categories,
         testClass,
+        testMethodName,
         testMethod);
     onTestSkip(testSuiteName, testClass, testName, testQualifier, testParameters, reason);
     onTestFinish(testSuiteName, testClass, testName, testQualifier, testParameters);

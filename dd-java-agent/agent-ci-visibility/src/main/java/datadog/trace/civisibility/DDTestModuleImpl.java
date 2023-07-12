@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTestModule;
-import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.api.config.CiVisibilityConfig;
@@ -213,7 +212,7 @@ public class DDTestModuleImpl implements DDTestModule {
   }
 
   @Override
-  public DDTestSuite testSuiteStart(
+  public DDTestSuiteImpl testSuiteStart(
       String testSuiteName,
       @Nullable Class<?> testClass,
       @Nullable Long startTime,

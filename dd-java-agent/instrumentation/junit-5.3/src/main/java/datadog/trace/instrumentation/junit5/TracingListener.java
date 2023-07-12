@@ -146,6 +146,7 @@ public class TracingListener implements TestExecutionListener {
 
     Class<?> testClass = TestFrameworkUtils.getTestClass(methodSource);
     Method testMethod = TestFrameworkUtils.getTestMethod(methodSource, testEngineId);
+    String testMethodName = methodSource.getMethodName();
 
     testEventsHandler.onTestStart(
         testSuitName,
@@ -156,6 +157,7 @@ public class TracingListener implements TestExecutionListener {
         testParameters,
         tags,
         testClass,
+        testMethodName,
         testMethod);
   }
 
@@ -242,6 +244,7 @@ public class TracingListener implements TestExecutionListener {
 
     Class<?> testClass = TestFrameworkUtils.getTestClass(methodSource);
     Method testMethod = TestFrameworkUtils.getTestMethod(methodSource, testEngineId);
+    String testMethodName = methodSource.getMethodName();
 
     testEventsHandler.onTestIgnore(
         testSuiteName,
@@ -252,6 +255,7 @@ public class TracingListener implements TestExecutionListener {
         testParameters,
         tags,
         testClass,
+        testMethodName,
         testMethod,
         reason);
   }

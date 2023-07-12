@@ -39,6 +39,7 @@ public class DDTestImpl implements DDTest {
       String testName,
       @Nullable Long startTime,
       @Nullable Class<?> testClass,
+      @Nullable String testMethodName,
       @Nullable Method testMethod,
       Config config,
       TestDecorator testDecorator,
@@ -87,9 +88,8 @@ public class DDTestImpl implements DDTest {
     if (testClass != null && !testClass.getName().equals(testSuiteName)) {
       span.setTag(Tags.TEST_SOURCE_CLASS, testClass.getName());
     }
-    if (testMethod != null) {
-      span.setTag(
-          Tags.TEST_SOURCE_METHOD, testMethod.getName() + Type.getMethodDescriptor(testMethod));
+    if (testMethodName != null && testMethod != null) {
+      span.setTag(Tags.TEST_SOURCE_METHOD, testMethodName + Type.getMethodDescriptor(testMethod));
     }
 
     if (config.isCiVisibilitySourceDataEnabled()) {
