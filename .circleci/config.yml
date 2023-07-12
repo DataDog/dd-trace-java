@@ -628,7 +628,7 @@ jobs:
       - image: << pipeline.parameters.docker_image >>:<< parameters.testJvm >>
         environment:
           - CI_USE_TEST_AGENT=true
-      - image: williamconti549/dd-apm-test-agent:service-naming-2
+      - image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.11.0
         environment:
           - LOG_LEVEL=DEBUG
           - TRACE_LANGUAGE=java
