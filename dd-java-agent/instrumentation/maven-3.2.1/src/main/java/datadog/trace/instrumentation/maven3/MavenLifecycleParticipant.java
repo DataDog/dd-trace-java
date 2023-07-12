@@ -47,11 +47,6 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MavenLifecycleParticipant.class);
 
-  private static final String MAVEN_SUREFIRE_PLUGIN_KEY =
-      "org.apache.maven.plugins:maven-surefire-plugin";
-  private static final String MAVEN_FAILSAFE_PLUGIN_KEY =
-      "org.apache.maven.plugins:maven-failsafe-plugin";
-
   private final BuildEventsHandler<MavenSession> buildEventsHandler =
       InstrumentationBridge.createBuildEventsHandler();
 
@@ -200,9 +195,7 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
         Plugin plugin = mojoExecution.getPlugin();
         String pluginKey = plugin.getKey();
 
-        if (MAVEN_SUREFIRE_PLUGIN_KEY.equals(pluginKey)
-            || MAVEN_FAILSAFE_PLUGIN_KEY.equals(pluginKey)) {
-
+        if (MavenUtils.isTestExecution(mojoExecution)) {
           MojoDescriptor mojoDescriptor = mojoExecution.getMojoDescriptor();
           PluginDescriptor pluginDescriptor = mojoDescriptor.getPluginDescriptor();
           // ensure plugin realm is loaded in container
