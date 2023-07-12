@@ -728,13 +728,13 @@ public class DDSpanContext
 
   public void processTagsAndBaggage(final MetadataConsumer consumer, int longRunningVersion) {
     synchronized (unsafeTags) {
-        Map<String, String> baggageItemsWithPropagationTags;
-        if(injectBaggageAsTags){
-            baggageItemsWithPropagationTags = new HashMap<>(baggageItems);
-            propagationTags.fillTagMap(baggageItemsWithPropagationTags);
-        }else{
-            baggageItemsWithPropagationTags = propagationTags.createTagMap();
-        }
+      Map<String, String> baggageItemsWithPropagationTags;
+      if (injectBaggageAsTags) {
+        baggageItemsWithPropagationTags = new HashMap<>(baggageItems);
+        propagationTags.fillTagMap(baggageItemsWithPropagationTags);
+      } else {
+        baggageItemsWithPropagationTags = propagationTags.createTagMap();
+      }
       consumer.accept(
           new Metadata(
               threadId,
