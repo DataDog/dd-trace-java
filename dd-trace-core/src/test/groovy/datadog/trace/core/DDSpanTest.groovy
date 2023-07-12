@@ -1,19 +1,25 @@
 package datadog.trace.core
 
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.DynamicConfig
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
+import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities
+import datadog.trace.bootstrap.instrumentation.api.SpanLink
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.common.sampling.RateByServiceTraceSampler
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
+import datadog.trace.core.propagation.W3CHttpCodec
 import datadog.trace.core.test.DDCoreSpecification
+import groovy.json.JsonSlurper
 import spock.lang.Shared
 
 import java.util.concurrent.TimeUnit
@@ -23,6 +29,8 @@ import static datadog.trace.api.sampling.SamplingMechanism.SPAN_SAMPLING_RATE
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MAX_PER_SECOND_TAG
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MECHANISM_TAG
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_RULE_RATE_TAG
+import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_PARENT_KEY
+import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_STATE_KEY
 
 class DDSpanTest extends DDCoreSpecification {
 
@@ -459,5 +467,61 @@ class DDSpanTest extends DDCoreSpecification {
     span.setError(true, Byte.MAX_VALUE)
     then:
     span.isError()
+  }
+
+  def "create span link from extracted context"() {
+    setup:
+    def traceId = "11223344556677889900aabbccddeeff"
+    def spanId = "123456789abcdef0"
+    def traceState = "dd=s:-1;o:some;t.dm:-4"
+    Map<String, String> headers = [
+      (TRACE_PARENT_KEY.toUpperCase()): "00-$traceId-$spanId-00",
+      (TRACE_STATE_KEY.toUpperCase()) : "$traceState"
+    ]
+    def extractor = W3CHttpCodec.newExtractor(Config.get(), { DynamicConfig.create().apply().captureTraceConfig() })
+
+    when:
+    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    def link = DDSpanLink.from(context)
+
+    then:
+    link.traceId() == DDTraceId.fromHex(traceId)
+    link.spanId() == DDSpanId.fromHex(spanId)
+    link.traceState() == "$traceState;t.tid:${traceId.substring(0, 16)}"
+  }
+
+  def "test span link attributes encoding"() {
+    when:
+    def span = tracer.buildSpan("test", "operation").withLink(new SpanLink(
+      DDTraceId.fromHex("11223344556677889900aabbccddeeff"),
+      DDSpanId.fromHex("1234567890abcdef"),
+      "",
+      ['key1': 'value1',
+        'key2': '',
+        'key3': '"',
+        'key4': 'value,key=value']
+      )).start()
+    def spanLinksJson = span.getTag(DDTags.SPAN_LINKS)
+
+    then:
+    spanLinksJson != null
+    spanLinksJson instanceof String
+
+    when:
+    def slurper = new JsonSlurper()
+    def spanLinks = slurper.parseText(spanLinksJson as String)
+
+    then:
+    spanLinks instanceof List
+    spanLinks.size == 1
+    spanLinks[0].attributes instanceof Map
+    spanLinks[0].attributes instanceof Map
+    spanLinks[0].attributes['key1'] == 'value1'
+    spanLinks[0].attributes['key2'] == ''
+    spanLinks[0].attributes['key3'] == '"'
+    spanLinks[0].attributes['key4'] == 'value,key=value'
+
+    cleanup:
+    span.finish()
   }
 }
