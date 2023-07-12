@@ -150,6 +150,7 @@ public class TracingListener implements TestExecutionListener {
     testEventsHandler.onTestStart(
         testSuitName,
         testName,
+        null,
         testFramework,
         testFrameworkVersion,
         testParameters,
@@ -178,14 +179,14 @@ public class TracingListener implements TestExecutionListener {
     if (throwable != null) {
       if (JUnit5Utils.isAssumptionFailure(throwable)) {
         testEventsHandler.onTestSkip(
-            testSuiteName, testClass, testName, testParameters, throwable.getMessage());
+            testSuiteName, testClass, testName, null, testParameters, throwable.getMessage());
       } else {
         testEventsHandler.onTestFailure(
-            testSuiteName, testClass, testName, testParameters, throwable);
+            testSuiteName, testClass, testName, null, testParameters, throwable);
       }
     }
 
-    testEventsHandler.onTestFinish(testSuiteName, testClass, testName, testParameters);
+    testEventsHandler.onTestFinish(testSuiteName, testClass, testName, null, testParameters);
   }
 
   @Override
@@ -245,6 +246,7 @@ public class TracingListener implements TestExecutionListener {
     testEventsHandler.onTestIgnore(
         testSuiteName,
         testName,
+        null,
         testFramework,
         testFrameworkVersion,
         testParameters,
