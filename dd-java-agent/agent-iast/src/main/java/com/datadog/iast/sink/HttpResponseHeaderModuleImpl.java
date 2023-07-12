@@ -32,6 +32,7 @@ public class HttpResponseHeaderModuleImpl extends SinkModuleBase
   private static final String HSTS_HEADER = "Strict-Transport-Security";
 
   private static final String CONTENT_TYPE_HEADER = "Content-Type";
+  private static final String X_CONTENT_TYPE_OPTIONS = "X-Content-Type-Options";
 
   @Override
   public void onHeader(@Nonnull final String name, final String value) {
@@ -51,6 +52,16 @@ public class HttpResponseHeaderModuleImpl extends SinkModuleBase
     } else if (SET_COOKIE_HEADER.equalsIgnoreCase(name)) {
       CookieSecurityParser cookieSecurityInfo = new CookieSecurityParser();
       onCookies(CookieSecurityParser.parse(value));
+    } else if (X_CONTENT_TYPE_OPTIONS.equalsIgnoreCase(name)) {
+      if ("nosniff".equalsIgnoreCase(value)) {
+        final AgentSpan span = AgentTracer.activeSpan();
+        final IastRequestContext ctx = IastRequestContext.get(span);
+        if (ctx == null) {
+          return;
+        } else {
+          ctx.setContentTypeOptionsIsNoSniff();
+        }
+      }
     }
     if (null != InstrumentationBridge.UNVALIDATED_REDIRECT) {
       InstrumentationBridge.UNVALIDATED_REDIRECT.onHeader(name, value);

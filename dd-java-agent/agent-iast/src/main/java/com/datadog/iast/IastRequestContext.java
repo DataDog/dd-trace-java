@@ -20,6 +20,7 @@ public class IastRequestContext implements HasMetricCollector {
   private final OverheadContext overheadContext;
   private final IastMetricCollector collector;
   private volatile boolean hstsHeaderIsSet;
+  private volatile boolean contentTypeOptionsIsNoSniff;
   private volatile boolean xForwardedProtoIsHtttps;
   private volatile String contentType;
 
@@ -36,6 +37,7 @@ public class IastRequestContext implements HasMetricCollector {
     this.vulnerabilityBatch = new VulnerabilityBatch();
     this.spanDataIsSet = new AtomicBoolean(false);
     this.hstsHeaderIsSet = false;
+    this.contentTypeOptionsIsNoSniff = false;
     this.xForwardedProtoIsHtttps = false;
     this.contentType = null;
     this.overheadContext = new OverheadContext();
@@ -53,6 +55,14 @@ public class IastRequestContext implements HasMetricCollector {
 
   public boolean getHstsHeaderIsSet() {
     return hstsHeaderIsSet;
+  }
+
+  public void setContentTypeOptionsIsNoSniff() {
+    contentTypeOptionsIsNoSniff = true;
+  }
+
+  public boolean getContentTypeOptionsIsNoSniff() {
+    return contentTypeOptionsIsNoSniff;
   }
 
   public void setXForwardedProtoIsHtttps() {
