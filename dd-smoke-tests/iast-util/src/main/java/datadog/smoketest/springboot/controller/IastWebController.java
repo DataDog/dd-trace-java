@@ -297,6 +297,13 @@ public class IastWebController {
     return "ok";
   }
 
+  @GetMapping(value = "/xcontenttypeoptionsmissing", produces = "text/html")
+  public String xContentTypeOptionsMissing(HttpServletResponse response) {
+    response.addHeader("X-Content-Type-Options", "dosniff");
+    response.setStatus(HttpStatus.OK.value());
+    return "ok";
+  }
+
   private void withProcess(final Operation<Process> op) {
     Process process = null;
     try {

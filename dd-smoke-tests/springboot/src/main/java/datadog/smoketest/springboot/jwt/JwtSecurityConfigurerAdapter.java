@@ -38,7 +38,10 @@ public class JwtSecurityConfigurerAdapter extends WebSecurityConfigurerAdapter {
         .accessDeniedHandler(
             (request, response, accessDeniedException) -> {
               response.sendError(403, "Access Denied.");
-            });
+            })
+        .and()
+        .headers()
+        .disable();
   }
 
   @Autowired
