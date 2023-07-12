@@ -19,14 +19,8 @@ forbiddenApisMain {
 }
 
 // Use Java 17 to build application
-def jdkVersion = 17
-def latestJdkHome = System.getenv("JAVA_${jdkVersion}_HOME")
-if (latestJdkHome != null) {
-  tasks.withType(JavaCompile) {
-    options.fork = true
-    options.release = jdkVersion
-    compileJava.options.forkOptions.javaHome = file(latestJdkHome)
-  }
+tasks.withType(JavaCompile) {
+  setJavaVersion(delegate, 17)
 }
 
 dependencies {

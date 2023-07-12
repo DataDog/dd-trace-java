@@ -21,13 +21,6 @@ apply from: "$rootDir/gradle/java.gradle"
   }
 }
 
-repositories {
-  ivy {
-    artifactPattern 'https://sqreen-ci-java.s3.amazonaws.com/jars/[organisation]/[artifact]-[revision](-[classifier]).[ext]'
-    ivyPattern 'https://sqreen-ci-java.s3.amazonaws.com/jars/[organisation]/[module]-[revision].xml'
-  }
-}
-
 compileTestGroovy {
   javaLauncher = getJavaLauncherFor(17)
 }

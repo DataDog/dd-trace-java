@@ -19,10 +19,6 @@ public class UserDetailsManagerInstrumentation extends Instrumenter.AppSec
     super("spring-security");
   }
 
-  public UserDetailsManagerInstrumentation(String instrumentationName, String... additionalNames) {
-    super(instrumentationName, additionalNames);
-  }
-
   @Override
   public String hierarchyMarkerType() {
     return "org.springframework.security.provisioning.UserDetailsManager";
