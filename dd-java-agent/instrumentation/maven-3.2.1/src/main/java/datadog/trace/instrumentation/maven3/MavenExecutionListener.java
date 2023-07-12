@@ -11,6 +11,7 @@ import org.apache.maven.execution.AbstractExecutionListener;
 import org.apache.maven.execution.ExecutionEvent;
 import org.apache.maven.execution.MavenExecutionResult;
 import org.apache.maven.execution.MavenSession;
+import org.apache.maven.model.Plugin;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
@@ -23,6 +24,7 @@ public class MavenExecutionListener extends AbstractExecutionListener {
 
   private static final String FORK_COUNT_CONFIG = "forkCount";
   private static final String SYSTEM_PROPERTY_VARIABLES_CONFIG = "systemPropertyVariables";
+  private static final String SYSTEM_PROPERTIES_CONFIG = "systemProperties";
 
   private final BuildEventsHandler<MavenSession> buildEventsHandler;
 
@@ -46,8 +48,7 @@ public class MavenExecutionListener extends AbstractExecutionListener {
   @Override
   public void mojoSkipped(ExecutionEvent event) {
     MojoExecution mojoExecution = event.getMojoExecution();
-    if (MavenUtils.isMavenSurefireTest(mojoExecution)
-        || MavenUtils.isMavenFailsafeTest(mojoExecution)) {
+    if (MavenUtils.isTestExecution(mojoExecution)) {
       MavenSession session = event.getSession();
       MavenProject project = event.getProject();
       String projectName = project.getName();
@@ -63,9 +64,7 @@ public class MavenExecutionListener extends AbstractExecutionListener {
   @Override
   public void mojoStarted(ExecutionEvent event) {
     MojoExecution mojoExecution = event.getMojoExecution();
-    if (MavenUtils.isMavenSurefireTest(mojoExecution)
-        || MavenUtils.isMavenFailsafeTest(mojoExecution)) {
-
+    if (MavenUtils.isTestExecution(mojoExecution)) {
       MavenSession session = event.getSession();
       MavenProject project = event.getProject();
       String projectName = project.getName();
@@ -104,23 +103,27 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       if (forkTestVm) {
         configuration =
             setForkedVmSystemProperty(
+                mojoExecution.getPlugin(),
                 configuration,
                 Strings.propertyNameToSystemPropertyName(
                     CiVisibilityConfig.CIVISIBILITY_SESSION_ID),
                 moduleInfo.sessionId);
         configuration =
             setForkedVmSystemProperty(
+                mojoExecution.getPlugin(),
                 configuration,
                 Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_ID),
                 moduleInfo.moduleId);
         configuration =
             setForkedVmSystemProperty(
+                mojoExecution.getPlugin(),
                 configuration,
                 Strings.propertyNameToSystemPropertyName(
                     CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST),
                 moduleInfo.signalServerHost);
         configuration =
             setForkedVmSystemProperty(
+                mojoExecution.getPlugin(),
                 configuration,
                 Strings.propertyNameToSystemPropertyName(
                     CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT),
@@ -141,19 +144,19 @@ public class MavenExecutionListener extends AbstractExecutionListener {
   }
 
   private static Xpp3Dom setForkedVmSystemProperty(
-      Xpp3Dom configuration, String propertyName, Object propertyValue) {
+      Plugin plugin, Xpp3Dom configuration, String propertyName, Object propertyValue) {
+    String configTag =
+        !"tycho-surefire-plugin".equals(plugin.getArtifactId())
+            ? SYSTEM_PROPERTY_VARIABLES_CONFIG
+            : SYSTEM_PROPERTIES_CONFIG;
     return MavenUtils.setConfigurationValue(
-        String.valueOf(propertyValue),
-        configuration,
-        SYSTEM_PROPERTY_VARIABLES_CONFIG,
-        propertyName);
+        String.valueOf(propertyValue), configuration, configTag, propertyName);
   }
 
   @Override
   public void mojoSucceeded(ExecutionEvent event) {
     MojoExecution mojoExecution = event.getMojoExecution();
-    if (MavenUtils.isMavenSurefireTest(mojoExecution)
-        || MavenUtils.isMavenFailsafeTest(mojoExecution)) {
+    if (MavenUtils.isTestExecution(mojoExecution)) {
       MavenSession session = event.getSession();
       MavenProject project = event.getProject();
 
@@ -172,8 +175,7 @@ public class MavenExecutionListener extends AbstractExecutionListener {
   @Override
   public void mojoFailed(ExecutionEvent event) {
     MojoExecution mojoExecution = event.getMojoExecution();
-    if (MavenUtils.isMavenSurefireTest(mojoExecution)
-        || MavenUtils.isMavenFailsafeTest(mojoExecution)) {
+    if (MavenUtils.isTestExecution(mojoExecution)) {
       MavenSession session = event.getSession();
       MavenProject project = event.getProject();
 

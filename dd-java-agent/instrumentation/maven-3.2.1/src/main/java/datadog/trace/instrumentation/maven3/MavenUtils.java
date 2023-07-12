@@ -214,18 +214,20 @@ public abstract class MavenUtils {
     }
   }
 
-  public static boolean isMavenSurefireTest(MojoExecution mojoExecution) {
+  public static boolean isTestExecution(MojoExecution mojoExecution) {
     Plugin plugin = mojoExecution.getPlugin();
-    return "maven-surefire-plugin".equals(plugin.getArtifactId())
-        && "org.apache.maven.plugins".equals(plugin.getGroupId())
-        && "test".equals(mojoExecution.getGoal());
-  }
-
-  public static boolean isMavenFailsafeTest(MojoExecution mojoExecution) {
-    Plugin plugin = mojoExecution.getPlugin();
-    return "maven-failsafe-plugin".equals(plugin.getArtifactId())
-        && "org.apache.maven.plugins".equals(plugin.getGroupId())
-        && "integration-test".equals(mojoExecution.getGoal());
+    String artifactId = plugin.getArtifactId();
+    String groupId = plugin.getGroupId();
+    String goal = mojoExecution.getGoal();
+    return "maven-surefire-plugin".equals(artifactId)
+            && "org.apache.maven.plugins".equals(groupId)
+            && "test".equals(goal)
+        || "maven-failsafe-plugin".equals(artifactId)
+            && "org.apache.maven.plugins".equals(groupId)
+            && "integration-test".equals(goal)
+        || "tycho-surefire-plugin".equals(artifactId)
+            && "org.eclipse.tycho".equals(groupId)
+            && ("test".equals(goal) || "plugin-test".equals(goal) || "bnd-test".equals(goal));
   }
 
   public static String getConfigurationValue(Xpp3Dom configuration, String... path) {
