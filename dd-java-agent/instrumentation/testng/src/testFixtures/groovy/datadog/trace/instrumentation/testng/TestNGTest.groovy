@@ -717,13 +717,13 @@ abstract class TestNGTest extends CiVisibilityTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSucceed", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceed", "test_succeed", CIConstants.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceed", "test_succeed", "test_succeed()V", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceed", "test_succeed", CIConstants.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceed", "test_succeed", "test_succeed()V", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceed", "test_succeed", CIConstants.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceed", "test_succeed", "test_succeed()V", CIConstants.TEST_PASS)
       }
     })
   }
