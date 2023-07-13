@@ -143,7 +143,7 @@ public class DDSpanContext
   private volatile BlockResponseFunction blockResponseFunction;
 
   private final ProfilingContextIntegration profilingContextIntegration;
-  private static final boolean injectBaggageAsTags = Config.get().isInjectBaggageAsTagsEnabled();
+  private static boolean injectBaggageAsTags = Config.get().isInjectBaggageAsTagsEnabled();
   private volatile int encodedOperationName;
 
   public DDSpanContext(
@@ -862,5 +862,9 @@ public class DDSpanContext
     // TODO is this decided?
     String tagKey = "_dd." + key + ".json";
     this.setTag(tagKey, value);
+  }
+  // This method is for testing functionality of dd.writer.baggage.inject
+  public void setInjectBaggageAsTags(boolean injectBaggageAsTags) {
+    this.injectBaggageAsTags = injectBaggageAsTags;
   }
 }

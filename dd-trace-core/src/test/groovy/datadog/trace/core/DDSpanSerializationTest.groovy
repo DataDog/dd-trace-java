@@ -428,6 +428,149 @@ class DDSpanSerializationTest extends DDCoreSpecification {
     cleanup:
     tracer.close()
   }
+  def "serialize trace with tags correctly v0.4 with baggage injection disabled"() {
+    setup:
+    def writer = new ListWriter()
+    def tracer = tracerBuilder().writer(writer).build()
+    def context = new DDSpanContext(
+      DDTraceId.ONE,
+      1,
+      DDSpanId.ZERO,
+      null,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      PrioritySampling.UNSET,
+      null,
+      baggage,
+      false,
+      null,
+      tags.size(),
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
+      null,
+      null,
+      NoopPathwayContext.INSTANCE,
+      false,
+      null)
+    context.setAllTags(tags)
+    context.setInjectBaggageAsTags(false)
+    def span = DDSpan.create("test", 0, context)
+    CaptureBuffer capture = new CaptureBuffer()
+    def packer = new MsgPackWriter(new FlushingBuffer(1024, capture))
+    packer.format(Collections.singletonList(span), new TraceMapperV0_4())
+    packer.flush()
+    def unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(capture.bytes))
+    int traceCount = capture.messageCount
+    int spanCount = unpacker.unpackArrayHeader()
+    int size = unpacker.unpackMapHeader()
+
+    expect:
+    traceCount == 1
+    spanCount == 1
+    size == 12
+    for (int i = 0; i < size; i++) {
+      String key = unpacker.unpackString()
+
+      switch (key) {
+        case "meta":
+          int packedSize = unpacker.unpackMapHeader()
+          Map<String, String> unpackedMeta = [:]
+          for (int j = 0; j < packedSize; j++) {
+            def k = unpacker.unpackString()
+            def v = unpacker.unpackString()
+            if (k != "thread.name" && k != "thread.id") {
+              unpackedMeta.put(k, v)
+            }
+          }
+          assert unpackedMeta == expected
+          break
+        default:
+          unpacker.unpackValue()
+      }
+    }
+
+    cleanup:
+    tracer.close()
+
+    where:
+    baggage       | tags          | expected
+    [:]           | [:]           | [:]
+    [foo: "bbar"] | [:]           | [:]
+    [foo: "bbar"] | [bar: "tfoo"] | [bar: "tfoo"]
+    [foo: "bbar"] | [foo: "tbar"] | [foo: "tbar"]
+  }
+
+  def "serialize trace with tags correctly v0.5 with baggage injection disabled"() {
+    setup:
+    def writer = new ListWriter()
+    def tracer = tracerBuilder().writer(writer).build()
+    def context = new DDSpanContext(
+      DDTraceId.ONE,
+      1,
+      DDSpanId.ZERO,
+      null,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      PrioritySampling.UNSET,
+      null,
+      baggage,
+      false,
+      null,
+      tags.size(),
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
+      null,
+      null,
+      NoopPathwayContext.INSTANCE,
+      false,
+      null)
+    context.setAllTags(tags)
+    context.setInjectBaggageAsTags(false)
+    def span = DDSpan.create("test", 0, context)
+    CaptureBuffer capture = new CaptureBuffer()
+    def packer = new MsgPackWriter(new FlushingBuffer(1024, capture))
+    def mapper = new TraceMapperV0_5()
+    packer.format(Collections.singletonList(span), mapper)
+    packer.flush()
+    def unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(capture.bytes))
+    int traceCount = capture.messageCount
+    int spanCount = unpacker.unpackArrayHeader()
+    int size = unpacker.unpackArrayHeader()
+    def dictionaryUnpacker = MessagePack.newDefaultUnpacker(mapper.dictionary.slice())
+    String[] dictionary = new String[mapper.encoding.size()]
+    for (int i = 0; i < dictionary.length; ++i) {
+      dictionary[i] = dictionaryUnpacker.unpackString()
+    }
+
+    expect:
+    traceCount == 1
+    spanCount == 1
+    size == 12
+    for (int i = 0; i < 9; ++i) {
+      unpacker.skipValue()
+    }
+
+    int packedSize = unpacker.unpackMapHeader()
+    Map<String, String> unpackedMeta = [:]
+    for (int j = 0; j < packedSize; j++) {
+      def k = dictionary[unpacker.unpackInt()]
+      def v = dictionary[unpacker.unpackInt()]
+      if (k != "thread.name" && k != "thread.id") {
+        unpackedMeta.put(k, v)
+      }
+    }
+    assert unpackedMeta == expected
+
+    cleanup:
+    tracer.close()
+
+    where:
+    baggage       | tags          | expected
+    [:]           | [:]           | [:]
+    [foo: "bbar"] | [:]           | [:]
+    [foo: "bbar"] | [bar: "tfoo"] | [bar: "tfoo"]
+    [foo: "bbar"] | [foo: "tbar"] | [foo: "tbar"]
+  }
 
   private class CaptureBuffer implements ByteBufferConsumer {
 
