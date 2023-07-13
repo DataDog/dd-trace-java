@@ -5,6 +5,7 @@ import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.CodecModule;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.propagation.StringModule;
 import datadog.trace.util.stacktrace.StackUtils;
 import java.nio.charset.Charset;
@@ -316,6 +317,20 @@ public class StringCallSite {
       }
     } catch (final Throwable e) {
       module.onUnexpectedException("afterFormat threw", e);
+    }
+    return result;
+  }
+
+  @CallSite.After("char[] java.lang.String.toCharArray()")
+  public static char[] afterToCHarArray(
+      @CallSite.This @Nonnull final String self, @CallSite.Return @Nonnull final char[] result) {
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
+    try {
+      if (module != null) {
+        module.taintIfInputIsTainted(result, self);
+      }
+    } catch (final Throwable e) {
+      module.onUnexpectedException("afterGetBytes threw", e);
     }
     return result;
   }

@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.java.lang
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.CodecModule
+import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.propagation.StringModule
 import foo.bar.TestStringSuite
 import groovy.transform.CompileDynamic
@@ -258,5 +259,20 @@ class StringCallSiteTest extends AgentTestRunner {
     null                | ''      | null
     null                | '%s'    | ['Hello']
     Locale.getDefault() | '%s'    | ['Hello']
+  }
+
+  void 'test string toCharArray'() {
+    given:
+    final module = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(module)
+    final string = 'test'
+
+    when:
+    final char[] result = TestStringSuite.toCharArray(string)
+
+    then:
+    result != null && result.length > 0
+    1 * module.taintIfInputIsTainted(_ as byte[], string)
+    0 * _
   }
 }

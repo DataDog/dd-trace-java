@@ -161,6 +161,19 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
+  public void taintIfInputIsTainted(@Nullable char[] toTaint, @Nullable String input) {
+    if (!canBeTainted(input) || toTaint == null || toTaint.length == 0) {
+      return;
+    }
+    final TaintedObjects taintedObjects = TaintedObjects.activeTaintedObjects(true);
+    TaintedObject taintedObject = taintedObjects.get(input);
+    if (taintedObject == null) {
+      return;
+    }
+    taintedObjects.taint(toTaint, taintedObject.getRanges());
+  }
+
+  @Override
   public void taintObject(final byte origin, @Nullable final Object toTaint) {
     if (toTaint == null) {
       return;
