@@ -165,7 +165,11 @@ public class PropagationModuleImpl implements PropagationModule {
     if (!canBeTainted(input) || toTaint == null || toTaint.length == 0) {
       return;
     }
-    final TaintedObjects taintedObjects = TaintedObjects.activeTaintedObjects(true);
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
     TaintedObject taintedObject = taintedObjects.get(input);
     if (taintedObject == null) {
       return;

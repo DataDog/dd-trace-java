@@ -322,7 +322,7 @@ public class StringCallSite {
   }
 
   @CallSite.After("char[] java.lang.String.toCharArray()")
-  public static char[] afterToCHarArray(
+  public static char[] afterToCharArray(
       @CallSite.This @Nonnull final String self, @CallSite.Return @Nonnull final char[] result) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     try {
@@ -330,7 +330,7 @@ public class StringCallSite {
         module.taintIfInputIsTainted(result, self);
       }
     } catch (final Throwable e) {
-      module.onUnexpectedException("afterGetBytes threw", e);
+      module.onUnexpectedException("afterToCharArray threw", e);
     }
     return result;
   }
