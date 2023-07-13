@@ -282,8 +282,14 @@ class SparkAggregatedTaskMetrics {
 
   private static String histogramToBase64(AgentHistogram hist) {
     ByteBuffer bb = hist.serialize();
-    byte[] bytes = new byte[bb.remaining()];
-    bb.get(bytes);
+
+    byte[] bytes;
+    if (bb.hasArray()) {
+      bytes = bb.array();
+    } else {
+      bytes = new byte[bb.remaining()];
+      bb.get(bytes);
+    }
 
     return Base64.getEncoder().encodeToString(bytes);
   }
