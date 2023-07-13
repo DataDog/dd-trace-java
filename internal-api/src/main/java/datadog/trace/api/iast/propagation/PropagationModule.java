@@ -30,11 +30,12 @@ public interface PropagationModule extends IastModule {
 
   void taintIfAnyInputIsTainted(@Nullable Object toTaint, @Nullable Object... inputs);
 
-  void taintIfInputIsTainted(@Nullable char[] toTaint, @Nullable String input);
-
   void taint(byte source, @Nullable String name, @Nullable String value);
 
   void taint(@Nullable Object ctx_, byte source, @Nullable String name, @Nullable String value);
+
+  void taintObjectIfInputIsTaintedKeepingRanges(
+      @Nullable final Object toTaint, @Nullable Object input);
 
   /**
    * Taint a non-String object. It might be {@link Taintable} or not. It is tainted with a source

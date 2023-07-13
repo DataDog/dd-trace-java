@@ -67,10 +67,8 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', null as Collection, 'test']
     'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', [], 'test']
     'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', ['value'], null]
-    'taintIfInputIsTainted'    | [null as char[], 'ab']
-    'taintIfInputIsTainted'    | [['a', 'b'] as char[], null]
-    'taintIfInputIsTainted'    | [new char[0], 'ab']
-    'taintIfInputIsTainted'    | [['a', 'b'] as char[], '']
+    'taintObjectIfInputIsTaintedKeepingRanges' | [null, new Object()]
+    'taintObjectIfInputIsTaintedKeepingRanges' | [new Object(), null]
     'taintIfAnyInputIsTainted' | [null, null]
     'taintIfAnyInputIsTainted' | [null, [].toArray()]
     'taintIfAnyInputIsTainted' | ['test', [].toArray()]
@@ -99,7 +97,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', ['value'], new Object()]
     'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, ['value'].toSet(), new Object()]
     'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, [key: 'value'].entrySet().toList(), new Object()]
-    'taintIfInputIsTainted'    | [['a', 'b'] as char[], 'ab']
+    'taintObjectIfInputIsTaintedKeepingRanges' | [new Object(), new Object()]
     'taintIfAnyInputIsTainted' | ['value', ['test', 'test2'].toArray()]
     'taint'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value']
     'taintObjects'             | [SourceTypes.REQUEST_PARAMETER_VALUE, [new Object()] as Object[]]
@@ -219,7 +217,8 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     } | {
       it[2]
     }
-    'taintIfInputIsTainted'    | [['a', 'b'] as char[], 'ab']                                                                    | { it[0] }          | { it[1] }
+    'taintObjectIfInputIsTaintedKeepingRanges' | [new Object(), new Object()]                                                                    | { it[0] }          | { it[1] }
+    'taintObjectIfInputIsTaintedKeepingRanges' | [new Object(), new MockTaintable()]                                                             | { it[0] }          | { it[1] }
     'taintIfAnyInputIsTainted' | [new Object(), ['I am an string'].toArray()]                                                    | {
       it[0]
     }          | {

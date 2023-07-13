@@ -272,7 +272,7 @@ class StringCallSiteTest extends AgentTestRunner {
 
     then:
     result != null && result.length > 0
-    1 * module.taintIfInputIsTainted(_ as byte[], string)
+    1 * module.taintObjectIfInputIsTaintedKeepingRanges(_ as byte[], string)
     0 * _
   }
 }
