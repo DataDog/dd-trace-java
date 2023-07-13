@@ -36,7 +36,7 @@ public class ReaderInterceptorExecutorInstrumentation extends Instrumenter.Iast
     static void after(@Advice.Return final InputStream inputStream) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taint(SourceTypes.REQUEST_BODY, inputStream);
+        module.taintObject(SourceTypes.REQUEST_BODY, inputStream);
       }
     }
   }

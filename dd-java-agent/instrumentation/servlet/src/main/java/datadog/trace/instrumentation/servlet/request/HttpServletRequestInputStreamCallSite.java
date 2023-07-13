@@ -23,7 +23,7 @@ public class HttpServletRequestInputStreamCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taint(SourceTypes.REQUEST_BODY, inputStream);
+        module.taintObject(SourceTypes.REQUEST_BODY, inputStream);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetInputStream threw", e);
       }

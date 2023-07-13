@@ -125,7 +125,7 @@ class JakartaServletRequestCallSiteTest extends AgentTestRunner {
     testSuite.getInputStream()
 
     then:
-    1 * iastModule.taint(SourceTypes.REQUEST_BODY, stream)
+    1 * iastModule.taintObject(SourceTypes.REQUEST_BODY, stream)
 
     where:
     testSuite                                       | clazz

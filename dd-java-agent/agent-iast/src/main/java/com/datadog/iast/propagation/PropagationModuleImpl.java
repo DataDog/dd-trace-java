@@ -161,7 +161,20 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
-  public void taint(final byte origin, @Nullable final Object... toTaintArray) {
+  public void taintObject(final byte origin, @Nullable final Object toTaint) {
+    if (toTaint == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = TaintedObjects.activeTaintedObjects(false);
+    if (taintedObjects == null) {
+      return;
+    }
+    final Source source = new Source(origin, null, null);
+    taintObject(taintedObjects, toTaint, source);
+  }
+
+  @Override
+  public void taintObjects(final byte origin, @Nullable final Object[] toTaintArray) {
     if (toTaintArray == null || toTaintArray.length == 0) {
       return;
     }
@@ -186,7 +199,8 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
-  public void taint(final byte origin, @Nullable final Collection<Object> toTaintCollection) {
+  public void taintObjects(
+      final byte origin, @Nullable final Collection<Object> toTaintCollection) {
     if (toTaintCollection == null || toTaintCollection.isEmpty()) {
       return;
     }
