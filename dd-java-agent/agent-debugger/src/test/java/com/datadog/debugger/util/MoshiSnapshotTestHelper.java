@@ -14,6 +14,7 @@ import static com.datadog.debugger.util.MoshiSnapshotHelper.LOCATION;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.RETURN;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.SIZE;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.STATIC_FIELDS;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.THROWABLE;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TRUNCATED;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TYPE;
@@ -150,6 +151,9 @@ public class MoshiSnapshotTestHelper {
             break;
           case LOCALS:
             capturedContext.addLocals(fromJsonCapturedValues(jsonReader));
+            break;
+          case STATIC_FIELDS:
+            capturedContext.addStaticFields(fromJsonCapturedValues(jsonReader));
             break;
           case THROWABLE:
             capturedContext.addThrowable(throwableAdapter.fromJson(jsonReader));

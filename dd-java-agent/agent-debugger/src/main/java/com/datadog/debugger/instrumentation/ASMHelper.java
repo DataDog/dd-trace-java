@@ -64,6 +64,10 @@ public class ASMHelper {
     return (fieldNode.access & Opcodes.ACC_STATIC) != 0;
   }
 
+  public static boolean isFinalField(FieldNode fieldNode) {
+    return (fieldNode.access & Opcodes.ACC_FINAL) != 0;
+  }
+
   public static void invokeStatic(
       InsnList insnList,
       org.objectweb.asm.Type owner,

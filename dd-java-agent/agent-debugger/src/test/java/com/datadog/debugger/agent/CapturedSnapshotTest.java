@@ -5,6 +5,7 @@ import static com.datadog.debugger.util.MoshiSnapshotHelper.FIELD_COUNT_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
 import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -843,6 +844,30 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  public void staticFieldCondition() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot19";
+    LogProbe logProbe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "main", "int (java.lang.String)")
+            .when(
+                new ProbeCondition(
+                    DSL.when(DSL.eq(DSL.ref("strField"), DSL.value("foo"))), "strField == 'foo'"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "0").get();
+    Assertions.assertEquals(42, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    Map<String, CapturedContext.CapturedValue> staticFields =
+        snapshot.getCaptures().getReturn().getStaticFields();
+    assertEquals(4, staticFields.size());
+    assertEquals("foo", getValue(staticFields.get("strField")));
+    assertEquals("1001", getValue(staticFields.get("intField")));
+    assertEquals(String.valueOf(Math.PI), getValue(staticFields.get("doubleField")));
+    assertTrue(staticFields.containsKey("intArrayField"));
+  }
+
+  @Test
   public void simpleFalseConditionTest() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot08";
     LogProbe logProbe =
@@ -1100,6 +1125,23 @@ public class CapturedSnapshotTest {
     assertCaptureFieldCount(snapshot.getCaptures().getReturn(), 2);
     assertCaptureFields(
         snapshot.getCaptures().getReturn(), "strValue", "java.lang.String", "barfoo");
+  }
+
+  @Test
+  public void staticFields() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot15";
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installSingleProbe(CLASS_NAME, "<init>", "()");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    long result = Reflect.on(testClass).call("main", "").get();
+    Assertions.assertEquals(4_000_000_001L, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    Map<String, CapturedContext.CapturedValue> staticFields =
+        snapshot.getCaptures().getEntry().getStaticFields();
+    assertEquals(1, staticFields.size());
+    CapturedContext.CapturedValue globalArray = staticFields.get("globalArray");
+    assertNotNull(globalArray);
+    assertEquals("long[]", globalArray.getType());
   }
 
   @Test

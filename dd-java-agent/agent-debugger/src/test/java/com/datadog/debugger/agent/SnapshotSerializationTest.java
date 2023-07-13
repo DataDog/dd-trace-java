@@ -14,6 +14,7 @@ import static com.datadog.debugger.util.MoshiSnapshotHelper.LOCALS;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.RETURN;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.SIZE;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.STATIC_FIELDS;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.THIS;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TIMEOUT_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TRUNCATED;
@@ -404,6 +405,21 @@ public class SnapshotSerializationTest {
     assertArrayItem(localObjFieldsMap, "booleanArray", "true", "false", "true");
     assertArrayItem(localObjFieldsMap, "floatArray", "3.14", "3.15", "3.16");
     assertArrayItem(localObjFieldsMap, "doubleArray", "2.612", "2.613", "2.614");
+  }
+
+  @Test
+  public void staticFields() throws IOException {
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
+    Snapshot snapshot = createSnapshot();
+    CapturedContext context = new CapturedContext();
+    CapturedContext.CapturedValue staticStr =
+        CapturedContext.CapturedValue.of("staticStr", String.class.getTypeName(), "foo");
+    context.addStaticFields(new CapturedContext.CapturedValue[] {staticStr});
+    snapshot.setExit(context);
+    String buffer = adapter.toJson(snapshot);
+    System.out.println(buffer);
+    Map<String, Object> staticFields = getStaticFieldsFromJson(buffer);
+    assertPrimitiveValue(staticFields, "staticStr", String.class.getTypeName(), "foo");
   }
 
   @Test
@@ -966,12 +982,15 @@ public class SnapshotSerializationTest {
   }
 
   private Map<String, Object> getFieldsFromJson(String buffer) throws IOException {
+    Map<String, Object> thisArg = getThisFromJson(buffer);
+    return (Map<String, Object>) thisArg.get(FIELDS);
+  }
+
+  private Map<String, Object> getStaticFieldsFromJson(String buffer) throws IOException {
     Map<String, Object> json = MoshiHelper.createGenericAdapter().fromJson(buffer);
     Map<String, Object> capturesJson = (Map<String, Object>) json.get(CAPTURES);
     Map<String, Object> returnJson = (Map<String, Object>) capturesJson.get(RETURN);
-    Map<String, Object> arguments = (Map<String, Object>) returnJson.get(ARGUMENTS);
-    Map<String, Object> thisArg = (Map<String, Object>) arguments.get(THIS);
-    return (Map<String, Object>) thisArg.get(FIELDS);
+    return (Map<String, Object>) returnJson.get(STATIC_FIELDS);
   }
 
   private Map<String, Object> getThisFromJson(String buffer) throws IOException {

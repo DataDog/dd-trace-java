@@ -23,6 +23,7 @@ public class CapturedContext implements ValueReferenceResolver {
   private Map<String, CapturedValue> arguments;
   private Map<String, CapturedValue> locals;
   private CapturedThrowable throwable;
+  private Map<String, CapturedValue> staticFields;
   private Map<String, CapturedValue> fields;
   private Limits limits = Limits.DEFAULT;
   private String thisClassName;
@@ -150,6 +151,12 @@ public class CapturedContext implements ValueReferenceResolver {
     if (fields != null && !fields.isEmpty()) {
       result = fields.get(name);
     }
+    if (result != null) {
+      return result;
+    }
+    if (staticFields != null && !staticFields.isEmpty()) {
+      result = staticFields.get(name);
+    }
     return result != null ? result : Values.UNDEFINED_OBJECT;
   }
 
@@ -205,6 +212,18 @@ public class CapturedContext implements ValueReferenceResolver {
     this.throwable = capturedThrowable;
   }
 
+  public void addStaticFields(CapturedValue[] values) {
+    if (values == null) {
+      return;
+    }
+    if (staticFields == null) {
+      staticFields = new HashMap<>();
+    }
+    for (CapturedValue value : values) {
+      staticFields.put(value.name, value);
+    }
+  }
+
   public void addFields(CapturedValue[] values) {
     if (values == null) {
       return;
@@ -245,6 +264,10 @@ public class CapturedContext implements ValueReferenceResolver {
     return throwable;
   }
 
+  public Map<String, CapturedValue> getStaticFields() {
+    return staticFields;
+  }
+
   public Map<String, CapturedValue> getFields() {
     return fields;
   }
@@ -275,6 +298,9 @@ public class CapturedContext implements ValueReferenceResolver {
     }
     if (locals != null) {
       locals.values().forEach(capturedValue -> capturedValue.freeze(timeoutChecker));
+    }
+    if (staticFields != null) {
+      staticFields.values().forEach(capturedValue -> capturedValue.freeze(timeoutChecker));
     }
     if (fields != null) {
       fields.values().forEach(capturedValue -> capturedValue.freeze(timeoutChecker));

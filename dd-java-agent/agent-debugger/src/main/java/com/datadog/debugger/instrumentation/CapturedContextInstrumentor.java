@@ -3,6 +3,7 @@ package com.datadog.debugger.instrumentation;
 import static com.datadog.debugger.instrumentation.ASMHelper.getStatic;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeStatic;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeVirtual;
+import static com.datadog.debugger.instrumentation.ASMHelper.isFinalField;
 import static com.datadog.debugger.instrumentation.ASMHelper.isStaticField;
 import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
 import static com.datadog.debugger.instrumentation.Types.CAPTURED_CONTEXT_TYPE;
@@ -448,6 +449,8 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack: [capturedcontext]
     collectArguments(insnList, kind);
     // stack: [capturedcontext]
+    collectStaticFields(insnList);
+    // stack: [capturedcontext]
     collectFields(insnList);
     // stack: [capturedcontext]
     if (kind != Snapshot.Kind.UNHANDLED_EXCEPTION) {
@@ -676,6 +679,59 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack: [throwable, capturedcontext]
   }
 
+  private void collectStaticFields(InsnList insnList) {
+    // count static fields
+    int fieldCount = 0;
+    for (FieldNode fieldNode : classNode.fields) {
+      if (isStaticField(fieldNode) && !isFinalField(fieldNode)) {
+        fieldCount++;
+      }
+    }
+    if (fieldCount == 0) {
+      // bail out if no fields
+      return;
+    }
+    insnList.add(new InsnNode(Opcodes.DUP));
+    // stack: [capturedcontext, capturedcontext]
+    ldc(insnList, fieldCount);
+    // stack: [capturedcontext, capturedcontext, int]
+    insnList.add(new TypeInsnNode(Opcodes.ANEWARRAY, CAPTURED_VALUE.getInternalName()));
+    // stack: [capturedcontext, capturedcontext, array]
+    int counter = 0;
+    List<FieldNode> fieldList = new ArrayList<>(classNode.fields);
+    for (FieldNode fieldNode : fieldList) {
+      if (!isStaticField(fieldNode) || isFinalField(fieldNode)) {
+        continue;
+      }
+      insnList.add(new InsnNode(Opcodes.DUP));
+      // stack: [capturedcontext, capturedcontext, array, array]
+      ldc(insnList, counter++);
+      // stack: [capturedcontext, capturedcontext, array, array, int]
+      ldc(insnList, fieldNode.name);
+      // stack: [capturedcontext, capturedcontext, array, array, int, string]
+      Type fieldType = Type.getType(fieldNode.desc);
+      ldc(insnList, fieldType.getClassName());
+      // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name]
+      insnList.add(
+          new FieldInsnNode(Opcodes.GETSTATIC, classNode.name, fieldNode.name, fieldNode.desc));
+      // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
+      // field_value]
+      tryBox(fieldType, insnList);
+      // stack: [capturedcontext, capturedcontext, array, array, int, type_name, object]
+      addCapturedValueOf(insnList, limits);
+      // stack: [capturedcontext, capturedcontext, array, array, int, typed_value]
+      insnList.add(new InsnNode(Opcodes.AASTORE));
+      // stack: [capturedcontext, capturedcontext, array]
+    }
+    invokeVirtual(
+        insnList,
+        CAPTURED_CONTEXT_TYPE,
+        "addStaticFields",
+        Type.VOID_TYPE,
+        Types.asArray(CAPTURED_VALUE, 1));
+    // stack: [capturedcontext]
+  }
+
   private void collectFields(InsnList insnList) {
     // expected stack top: [capturedcontext]
 
@@ -743,8 +799,6 @@ public class CapturedContextInstrumentor extends Instrumentor {
             // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
             // access]
             invokeVirtual(insnList, CORRELATION_ACCESS_TYPE, "getTraceId", STRING_TYPE);
-            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-            // field_value]
             break;
           }
         case "dd.span_id":
@@ -757,19 +811,22 @@ public class CapturedContextInstrumentor extends Instrumentor {
             // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
             // access]
             invokeVirtual(insnList, CORRELATION_ACCESS_TYPE, "getSpanId", STRING_TYPE);
-            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-            // field_value]
             break;
           }
         default:
           {
-            insnList.add(new VarInsnNode(Opcodes.ALOAD, 0));
-            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name, this]
-            insnList.add(
-                new FieldInsnNode(
-                    Opcodes.GETFIELD, classNode.name, fieldNode.name, fieldNode.desc));
-            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-            // field_value]
+            if (isStaticField(fieldNode)) {
+              insnList.add(
+                  new FieldInsnNode(
+                      Opcodes.GETSTATIC, classNode.name, fieldNode.name, fieldNode.desc));
+            } else {
+              insnList.add(new VarInsnNode(Opcodes.ALOAD, 0));
+              // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
+              // this]
+              insnList.add(
+                  new FieldInsnNode(
+                      Opcodes.GETFIELD, classNode.name, fieldNode.name, fieldNode.desc));
+            }
           }
       }
       // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
