@@ -41,7 +41,7 @@ public class OtelSpan implements Span {
 
   @Override
   public <T> Span setAttribute(AttributeKey<T> key, T value) {
-    this.delegate.setAttribute(key.getKey(), value);
+    this.delegate.setTag(key.getKey(), value);
     return this;
   }
 

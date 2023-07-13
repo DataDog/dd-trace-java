@@ -375,15 +375,6 @@ public class DDSpan
   }
 
   @Override
-  public AgentSpan setAttribute(String key, Object value) {
-    if (key == null || key.isEmpty() || value == null) {
-      return this;
-    }
-    this.context.setTag(key, value);
-    return this;
-  }
-
-  @Override
   public void setRequestBlockingAction(Flow.Action.RequestBlockingAction rba) {
     this.requestBlockingAction = rba;
   }

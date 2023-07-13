@@ -1395,6 +1395,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     @Override
     public CoreSpanBuilder withTag(final String tag, final Object value) {
+      if (tag == null) {
+        return this;
+      }
       Map<String, Object> tagMap = tags;
       if (tagMap == null) {
         tags = tagMap = new LinkedHashMap<>(); // Insertion order is important

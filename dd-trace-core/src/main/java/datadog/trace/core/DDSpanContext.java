@@ -646,6 +646,9 @@ public class DDSpanContext
    * @param value The nullable tag value.
    */
   public void setTag(final String tag, final Object value) {
+    if (null == tag) {
+      return;
+    }
     if (null == value) {
       synchronized (unsafeTags) {
         unsafeTags.remove(tag);
