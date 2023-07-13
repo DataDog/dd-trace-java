@@ -113,5 +113,7 @@ public final class TraceInstrumentationConfig {
   public static final String ELASTICSEARCH_BODY_AND_PARAMS_ENABLED =
       "trace.elasticsearch.body-and-params.enabled";
 
+  public static final String SPARK_TASK_HISTOGRAM_ENABLED = "spark.task-histogram.enabled";
+
   private TraceInstrumentationConfig() {}
 }

@@ -184,5 +184,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED = true;
 
+  static final boolean DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED = true;
+
   private ConfigDefaults() {}
 }

@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.spark;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentHistogram;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -112,19 +113,21 @@ class SparkAggregatedTaskMetrics {
       long taskRunTime = computeTaskRunTime(taskMetrics);
       taskRunTimeSinceLastStage += taskRunTime;
 
-      taskRunTimeHistogram = lazyHistogramAccept(taskRunTimeHistogram, taskRunTime);
-      inputBytesHistogram =
-          lazyHistogramAccept(inputBytesHistogram, taskMetrics.inputMetrics().bytesRead());
-      outputBytesHistogram =
-          lazyHistogramAccept(outputBytesHistogram, taskMetrics.outputMetrics().bytesWritten());
-      shuffleReadBytesHistogram =
-          lazyHistogramAccept(
-              shuffleReadBytesHistogram, taskMetrics.shuffleReadMetrics().totalBytesRead());
-      shuffleWriteBytesHistogram =
-          lazyHistogramAccept(
-              shuffleWriteBytesHistogram, taskMetrics.shuffleWriteMetrics().bytesWritten());
-      diskBytesSpilledHistogram =
-          lazyHistogramAccept(diskBytesSpilledHistogram, taskMetrics.diskBytesSpilled());
+      if (Config.get().isSparkTaskHistogramEnabled()) {
+        taskRunTimeHistogram = lazyHistogramAccept(taskRunTimeHistogram, taskRunTime);
+        inputBytesHistogram =
+            lazyHistogramAccept(inputBytesHistogram, taskMetrics.inputMetrics().bytesRead());
+        outputBytesHistogram =
+            lazyHistogramAccept(outputBytesHistogram, taskMetrics.outputMetrics().bytesWritten());
+        shuffleReadBytesHistogram =
+            lazyHistogramAccept(
+                shuffleReadBytesHistogram, taskMetrics.shuffleReadMetrics().totalBytesRead());
+        shuffleWriteBytesHistogram =
+            lazyHistogramAccept(
+                shuffleWriteBytesHistogram, taskMetrics.shuffleWriteMetrics().bytesWritten());
+        diskBytesSpilledHistogram =
+            lazyHistogramAccept(diskBytesSpilledHistogram, taskMetrics.diskBytesSpilled());
+      }
     }
   }
 

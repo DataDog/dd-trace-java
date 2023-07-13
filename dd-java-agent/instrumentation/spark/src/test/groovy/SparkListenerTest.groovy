@@ -296,6 +296,40 @@ class SparkListenerTest extends AgentTestRunner {
     }
   }
 
+  def "feature flag for task histograms"() {
+    setup:
+    injectSysConfig("spark.task-histogram.enabled", "false")
+    def listener = getTestDatadogSparkListener()
+
+    listener.onApplicationStart(applicationStartEvent(1000L))
+    listener.onJobStart(jobStartEvent(1, 1900L, [1]))
+    listener.onStageSubmitted(stageSubmittedEvent(1, 1900L))
+    listener.onTaskEnd(taskEndEvent(1,1900L, 300))
+    listener.onStageCompleted(stageCompletedEvent(1, 2200L))
+    listener.onJobEnd(jobEndEvent(1, 17200L))
+    listener.onApplicationEnd(new SparkListenerApplicationEnd(3100L))
+
+    assertTraces(1) {
+      trace(3) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.stage"
+          assert span.tags["_dd.spark.task_run_time"] == null
+          spanType "spark"
+          childOf(span(1))
+        }
+      }
+    }
+  }
+
   def "compute task metrics histograms"() {
     setup:
     def listener = getTestDatadogSparkListener()
