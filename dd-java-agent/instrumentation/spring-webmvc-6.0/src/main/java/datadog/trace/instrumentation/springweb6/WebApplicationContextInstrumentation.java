@@ -19,7 +19,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class WebApplicationContextInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public WebApplicationContextInstrumentation() {
-    super("spring-web");
+    super("spring-web", "spring-path-filter");
   }
 
   @Override
