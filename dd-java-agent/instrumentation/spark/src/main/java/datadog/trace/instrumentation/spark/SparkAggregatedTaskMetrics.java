@@ -223,10 +223,7 @@ class SparkAggregatedTaskMetrics {
     span.setMetric(prefix + ".skew_time", skewTime);
 
     if (taskRunTimeHistogram.getCount() > 0) {
-      String base64hist = histogramToBase64(taskRunTimeHistogram);
-      span.setTag("_dd.spark.task_run_time", base64hist);
-      span.setMetric(prefix + ".histogram_serialized_length", base64hist.length());
-      span.setMetric(prefix + ".max_task_run_time", taskRunTimeHistogram.getMaxValue());
+      span.setTag("_dd.spark.task_run_time", histogramToBase64(taskRunTimeHistogram));
     }
     if (inputBytesHistogram.getCount() > 0) {
       span.setTag("_dd.spark.input_bytes", histogramToBase64(inputBytesHistogram));
