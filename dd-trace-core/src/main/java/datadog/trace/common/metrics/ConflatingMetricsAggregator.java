@@ -17,13 +17,16 @@ import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.metrics.SignalItem.ReportSignal;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.util.AgentTaskScheduler;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -40,6 +43,14 @@ import org.slf4j.LoggerFactory;
 public final class ConflatingMetricsAggregator implements MetricsAggregator, EventListener {
 
   private static final Logger log = LoggerFactory.getLogger(ConflatingMetricsAggregator.class);
+
+  private static final Set<String> ELIGIBLE_SPAN_KINDS =
+      new HashSet<>(
+          Arrays.asList(
+              Tags.SPAN_KIND_CLIENT,
+              Tags.SPAN_KIND_SERVER,
+              Tags.SPAN_KIND_CONSUMER,
+              Tags.SPAN_KIND_PRODUCER));
 
   private static final Map<String, String> DEFAULT_HEADERS =
       Collections.singletonMap(DDAgentApi.DATADOG_META_TRACER_VERSION, DDTraceCoreInfo.VERSION);
@@ -233,8 +244,14 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     return forceKeep;
   }
 
+  private boolean isSpanKindEligible(final CoreSpan<?> span) {
+    final String kind = span.getTag(Tags.SPAN_KIND);
+    return ELIGIBLE_SPAN_KINDS.contains(kind);
+  }
+
   private boolean shouldComputeMetric(CoreSpan<?> span) {
-    return (span.isMeasured() || span.isTopLevel()) && span.getDurationNano() > 0;
+    return (span.isMeasured() || span.isTopLevel() || isSpanKindEligible(span))
+        && span.getDurationNano() > 0;
   }
 
   private boolean publish(CoreSpan<?> span, boolean isTopLevel) {
@@ -244,6 +261,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             SERVICE_NAMES.computeIfAbsent(span.getServiceName(), UTF8_ENCODE),
             span.getOperationName(),
             span.getType(),
+            span.getTag(Tags.SPAN_KIND),
+            span.getTag(Tags.PEER_SERVICE),
             span.getHttpStatusCode(),
             isSynthetic(span));
     boolean isNewKey = false;

@@ -2,6 +2,7 @@ package datadog.trace.common.metrics
 
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.CoreSpan
 import datadog.trace.core.MetadataConsumer
 
@@ -11,6 +12,8 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   private final String operationName
   private final CharSequence resourceName
   private final String type
+  private final String kind
+  private final String peerService
   private final boolean measured
   private final boolean topLevel
   private final boolean error
@@ -23,6 +26,8 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   String operationName,
   CharSequence resourceName,
   String type,
+  String kind,
+  String peerService,
   boolean measured,
   boolean topLevel,
   boolean error,
@@ -33,6 +38,8 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
     this.operationName = operationName
     this.resourceName = resourceName
     this.type = type
+    this.kind = kind
+    this.peerService = peerService
     this.measured = measured
     this.topLevel = topLevel
     this.error = error
@@ -163,12 +170,19 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
 
   @Override
   <U> U getTag(CharSequence name, U defaultValue) {
-    return defaultValue
+    switch (name.toString()) {
+      case Tags.PEER_SERVICE:
+        return (U) peerService
+      case Tags.SPAN_KIND:
+        return (U) kind
+      default:
+        return defaultValue
+    }
   }
 
   @Override
   <U> U getTag(CharSequence name) {
-    return null
+    return getTag(name, null)
   }
 
   @Override
