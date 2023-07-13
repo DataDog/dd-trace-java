@@ -43,7 +43,9 @@ public class JSONObjectUtilsInstrumentation extends Instrumenter.Iast
       if (module != null) {
         for (Map.Entry entry : map.entrySet()) {
           if (entry.getValue() instanceof String) {
-            module.taint(SourceTypes.REQUEST_HEADER_VALUE, (String) entry.getValue());
+            // TODO: We could represent this source more accurately, perhaps tracking the original
+            // source, or using a special name.
+            module.taint(SourceTypes.REQUEST_HEADER_VALUE, null, (String) entry.getValue());
           }
         }
       }

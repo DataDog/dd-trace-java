@@ -101,7 +101,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
 
     then:
     result == cookies
-    1 * iastModule.taint(SourceTypes.REQUEST_COOKIE_VALUE, cookies)
+    1 * iastModule.taintObjects(SourceTypes.REQUEST_COOKIE_VALUE, cookies)
 
     where:
     clazz                     | _

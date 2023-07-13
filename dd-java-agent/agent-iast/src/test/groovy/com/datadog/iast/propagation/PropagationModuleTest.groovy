@@ -73,9 +73,9 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     'taint'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', null as String]
     'taint'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, null as String, null as String]
     'taint'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', '']
-    'taint'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, null as Object[]]
-    'taint'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, [] as Object[]]
-    'taint'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, null as Collection]
+    'taintObjects'             | [SourceTypes.REQUEST_PARAMETER_VALUE, null as Object[]]
+    'taintObjects'             | [SourceTypes.REQUEST_PARAMETER_VALUE, [] as Object[]]
+    'taintObjects'             | [SourceTypes.REQUEST_PARAMETER_VALUE, null as Collection]
   }
 
   void '#method without span'() {
@@ -97,8 +97,9 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, [key: 'value'].entrySet().toList(), new Object()]
     'taintIfAnyInputIsTainted' | ['value', ['test', 'test2'].toArray()]
     'taint'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value']
-    'taint'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, [new Object()] as Object[]]
-    'taint'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, [new Object()]]
+    'taintObjects'             | [SourceTypes.REQUEST_PARAMETER_VALUE, [new Object()] as Object[]]
+    'taintObjects'             | [SourceTypes.REQUEST_PARAMETER_VALUE, [new Object()]]
+    'taintObjects'             | [SourceTypes.REQUEST_PARAMETER_VALUE, [new Object()] as Collection<Object>]
   }
 
   void 'test propagation for #method'() {
@@ -123,30 +124,126 @@ class PropagationModuleTest extends IastModuleImplTestBase {
 
     where:
     method                     | args                                                                                            | toTaintClosure     | inputClosure
-    'taintIfInputIsTainted'    | [new Object(), 'I am an string']                                                                | { it[0] }          | { it[1] }
-    'taintIfInputIsTainted'    | [new Object(), new Object()]                                                                    | { it[0] }          | { it[1] }
-    'taintIfInputIsTainted'    | [new Object(), new MockTaintable()]                                                             | { it[0] }          | { it[1] }
-    'taintIfInputIsTainted'    | ['Hello', 'I am an string']                                                                     | { it[0] }          | { it[1] }
-    'taintIfInputIsTainted'    | ['Hello', new Object()]                                                                         | { it[0] }          | { it[1] }
-    'taintIfInputIsTainted'    | ['Hello', new MockTaintable()]                                                                  | { it[0] }          | { it[1] }
-    'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value', 'I am an string']                        | { it[2] }          | { it[3] }
-    'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value', new Object()]                            | { it[2] }          | { it[3] }
-    'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value', new MockTaintable()]                     | { it[2] }          | { it[3] }
-    'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', ['value'], 'I am an string']                      | { it[2][0] }       | { it[3] }
-    'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', ['value'], new Object()]                          | { it[2][0] }       | { it[3] }
-    'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', ['value'], new MockTaintable()]                   | { it[2][0] }       | { it[3] }
-    'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, ['value'].toSet(), 'I am an string']                      | { it[1][0] }       | { it[2] }
-    'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, ['value'].toSet(), new Object()]                          | { it[1][0] }       | { it[2] }
-    'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, ['value'].toSet(), new MockTaintable()]                   | { it[1][0] }       | { it[2] }
-    'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, [name: 'value'].entrySet().toList(), 'I am an string']    | { it[1][0].value } | { it[2] }
-    'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, [name: 'value'].entrySet().toList(), new Object()]        | { it[1][0].value } | { it[2] }
-    'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, [name: 'value'].entrySet().toList(), new MockTaintable()] | { it[1][0].value } | { it[2] }
-    'taintIfAnyInputIsTainted' | [new Object(), ['I am an string'].toArray()]                                                    | { it[0] }          | { it[1][0] }
-    'taintIfAnyInputIsTainted' | [new Object(), [new Object()].toArray()]                                                        | { it[0] }          | { it[1][0] }
-    'taintIfAnyInputIsTainted' | [new Object(), [new MockTaintable()].toArray()]                                                 | { it[0] }          | { it[1][0] }
-    'taintIfAnyInputIsTainted' | ['Hello', ['I am an string'].toArray()]                                                         | { it[0] }          | { it[1][0] }
-    'taintIfAnyInputIsTainted' | ['Hello', [new Object()].toArray()]                                                             | { it[0] }          | { it[1][0] }
-    'taintIfAnyInputIsTainted' | ['Hello', [new MockTaintable()].toArray()]                                                      | { it[0] }          | { it[1][0] }
+    'taintIfInputIsTainted'    | [new Object(), 'I am an string']                                                                | {
+      it[0]
+    }          | {
+      it[1]
+    }
+    'taintIfInputIsTainted'    | [new Object(), new Object()]                                                                    | {
+      it[0]
+    }          | {
+      it[1]
+    }
+    'taintIfInputIsTainted'    | [new Object(), new MockTaintable()]                                                             | {
+      it[0]
+    }          | {
+      it[1]
+    }
+    'taintIfInputIsTainted'    | ['Hello', 'I am an string']                                                                     | {
+      it[0]
+    }          | {
+      it[1]
+    }
+    'taintIfInputIsTainted'    | ['Hello', new Object()]                                                                         | {
+      it[0]
+    }          | {
+      it[1]
+    }
+    'taintIfInputIsTainted'    | ['Hello', new MockTaintable()]                                                                  | {
+      it[0]
+    }          | {
+      it[1]
+    }
+    'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value', 'I am an string']                        | {
+      it[2]
+    }          | {
+      it[3]
+    }
+    'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value', new Object()]                            | {
+      it[2]
+    }          | {
+      it[3]
+    }
+    'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value', new MockTaintable()]                     | {
+      it[2]
+    }          | {
+      it[3]
+    }
+    'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', ['value'], 'I am an string']                      | {
+      it[2][0]
+    }       | {
+      it[3]
+    }
+    'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', ['value'], new Object()]                          | {
+      it[2][0]
+    }       | {
+      it[3]
+    }
+    'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', ['value'], new MockTaintable()]                   | {
+      it[2][0]
+    }       | {
+      it[3]
+    }
+    'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, ['value'].toSet(), 'I am an string']                      | {
+      it[1][0]
+    }       | {
+      it[2]
+    }
+    'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, ['value'].toSet(), new Object()]                          | {
+      it[1][0]
+    }       | {
+      it[2]
+    }
+    'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, ['value'].toSet(), new MockTaintable()]                   | {
+      it[1][0]
+    }       | {
+      it[2]
+    }
+    'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, [name: 'value'].entrySet().toList(), 'I am an string']    | {
+      it[1][0].value
+    } | {
+      it[2]
+    }
+    'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, [name: 'value'].entrySet().toList(), new Object()]        | {
+      it[1][0].value
+    } | {
+      it[2]
+    }
+    'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, [name: 'value'].entrySet().toList(), new MockTaintable()] | {
+      it[1][0].value
+    } | {
+      it[2]
+    }
+    'taintIfAnyInputIsTainted' | [new Object(), ['I am an string'].toArray()]                                                    | {
+      it[0]
+    }          | {
+      it[1][0]
+    }
+    'taintIfAnyInputIsTainted' | [new Object(), [new Object()].toArray()]                                                        | {
+      it[0]
+    }          | {
+      it[1][0]
+    }
+    'taintIfAnyInputIsTainted' | [new Object(), [new MockTaintable()].toArray()]                                                 | {
+      it[0]
+    }          | {
+      it[1][0]
+    }
+    'taintIfAnyInputIsTainted' | ['Hello', ['I am an string'].toArray()]                                                         | {
+      it[0]
+    }          | {
+      it[1][0]
+    }
+    'taintIfAnyInputIsTainted' | ['Hello', [new Object()].toArray()]                                                             | {
+      it[0]
+    }          | {
+      it[1][0]
+    }
+    'taintIfAnyInputIsTainted' | ['Hello', [new MockTaintable()].toArray()]                                                      | {
+      it[0]
+    }          | {
+      it[1][0]
+    }
   }
 
   void 'test value source for #method'() {
@@ -206,21 +303,32 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     'taint' | "param" | "value" | SourceTypes.REQUEST_PATH_PARAMETER
   }
 
-  void 'test taint'() {
-    given:
-    final method = module.&taint
-
+  void 'test taintObject'() {
     when:
-    method.call(args.toArray())
+    module.taintObject(origin, toTaint)
 
     then:
-    final toTaint = toTaintClosure.call(args)
     assertTainted(toTaint)
 
     where:
-    args                                                       | toTaintClosure
-    [SourceTypes.REQUEST_PARAMETER_VALUE, new Object()]        | { it[1] }
-    [SourceTypes.REQUEST_PARAMETER_VALUE, new MockTaintable()] | { it[1] }
+    origin                              | toTaint
+    SourceTypes.REQUEST_PARAMETER_VALUE | new Object()
+    SourceTypes.REQUEST_PARAMETER_VALUE | new MockTaintable()
+  }
+
+  void 'test taintObjects[array]'() {
+    when:
+    module.taintObjects(origin, new Object[]{
+      toTaint
+    })
+
+    then:
+    assertTainted(toTaint)
+
+    where:
+    origin                              | toTaint
+    SourceTypes.REQUEST_PARAMETER_VALUE | new Object()
+    SourceTypes.REQUEST_PARAMETER_VALUE | new MockTaintable()
   }
 
   void 'onJsonFactoryCreateParser'() {
@@ -290,7 +398,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     before == null
 
     when:
-    module.taint(origin, target)
+    module.taintObject(origin, target)
     final after = module.firstTaintedSource(target)
 
     then:
