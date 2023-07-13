@@ -29,6 +29,7 @@ class EventTrackerTest extends DDSpecification {
 
     then:
     1 * traceSegment.setTagTop('appsec.events.users.login.success.track', true)
+    1 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.sdk', true)
     1 * traceSegment.setTagTop('usr.id', 'user1')
     1 * traceSegment.setTagTop('manual.keep', true)
     1 * traceSegment.setTagTop('appsec.events.users.login.success', ['key1':'value1', 'key2':'value2'])
@@ -41,6 +42,7 @@ class EventTrackerTest extends DDSpecification {
 
     then:
     1 * traceSegment.setTagTop('appsec.events.users.login.failure.track', true)
+    1 * traceSegment.setTagTop('_dd.appsec.events.users.login.failure.sdk', true)
     1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.id', 'user1')
     1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.exists', true)
     1 * traceSegment.setTagTop('manual.keep', true)
@@ -54,6 +56,7 @@ class EventTrackerTest extends DDSpecification {
 
     then:
     1 * traceSegment.setTagTop('appsec.events.myevent.track', true, true)
+    1 * traceSegment.setTagTop('_dd.appsec.events.myevent.sdk', true)
     1 * traceSegment.setTagTop('manual.keep', true)
     1 * traceSegment.setTagTop('appsec.events.myevent', ['key1':'value1', 'key2':'value2'], true)
     0 * _
