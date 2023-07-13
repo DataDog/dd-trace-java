@@ -1141,6 +1141,9 @@ public class AgentTracer {
     public void accept(double value) {}
 
     @Override
+    public void accept(double value, double count) {}
+
+    @Override
     public double getValueAtQuantile(double quantile) {
       return 0;
     }

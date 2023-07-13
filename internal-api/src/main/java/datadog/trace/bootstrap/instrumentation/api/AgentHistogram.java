@@ -10,6 +10,8 @@ public interface AgentHistogram {
 
   void accept(double value);
 
+  void accept(double value, double count);
+
   double getValueAtQuantile(double quantile);
 
   double getMinValue();

@@ -28,6 +28,11 @@ public class Histogram implements AgentHistogram {
   }
 
   @Override
+  public void accept(double value, double count) {
+    sketch.accept(value, count);
+  }
+
+  @Override
   public double getValueAtQuantile(double quantile) {
     return sketch.getValueAtQuantile(quantile);
   }

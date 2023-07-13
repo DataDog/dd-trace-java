@@ -304,6 +304,9 @@ class SparkListenerTest extends AgentTestRunner {
     listener.onJobStart(jobStartEvent(1, 1900L, [1, 2]))
 
     listener.onStageSubmitted(stageSubmittedEvent(1, 1900L))
+    for(int i = 1; i <= 100; i++) {
+      listener.onTaskEnd(taskEndEvent(1,1900L, 0))
+    }
     for(int i = 1; i <= 300; i++) {
       listener.onTaskEnd(taskEndEvent(1,1900L, i))
     }
@@ -324,13 +327,13 @@ class SparkListenerTest extends AgentTestRunner {
       trace(4) {
         span {
           operationName "spark.application"
-          validateRelativeError(span.tags["spark_application_metrics.skew_time"] as double, 7650, relativeAccuracy)
+          validateRelativeError(span.tags["spark_application_metrics.skew_time"] as double, 7700, relativeAccuracy)
           spanType "spark"
         }
         span {
           operationName "spark.job"
           spanType "spark"
-          validateRelativeError(span.tags["spark_job_metrics.skew_time"] as double, 7650, relativeAccuracy)
+          validateRelativeError(span.tags["spark_job_metrics.skew_time"] as double, 7700, relativeAccuracy)
           childOf(span(0))
         }
         span {
@@ -344,8 +347,8 @@ class SparkListenerTest extends AgentTestRunner {
         span {
           operationName "spark.stage"
           assert span.tags["stage_id"] == 1
-          validateRelativeError(span.tags["spark_stage_metrics.skew_time"] as double, 150, relativeAccuracy)
-          validateSerializedHistogram(span.tags["_dd.spark.task_run_time"] as String, 150, 225, 300, relativeAccuracy)
+          validateRelativeError(span.tags["spark_stage_metrics.skew_time"] as double, 200, relativeAccuracy)
+          validateSerializedHistogram(span.tags["_dd.spark.task_run_time"] as String, 100, 200, 300, relativeAccuracy)
           spanType "spark"
           childOf(span(1))
         }
