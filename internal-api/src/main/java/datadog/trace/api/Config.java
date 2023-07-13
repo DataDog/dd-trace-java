@@ -1683,7 +1683,7 @@ public class Config {
     longRunningTraceEnabled = longRunningEnabled;
     this.longRunningTraceFlushInterval = longRunningTraceFlushInterval;
 
-    traceFlushIntervalSeconds =
+    this.traceFlushIntervalSeconds =
         configProvider.getFloat(
             TracerConfig.TRACE_FLUSH_INTERVAL, ConfigDefaults.DEFAULT_TRACE_FLUSH_INTERVAL);
     if (profilingAgentless && apiKey == null) {
