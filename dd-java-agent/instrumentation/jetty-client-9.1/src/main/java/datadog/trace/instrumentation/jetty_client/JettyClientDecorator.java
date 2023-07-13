@@ -35,4 +35,14 @@ public class JettyClientDecorator extends HttpClientDecorator<Request, Response>
   protected int status(final Response httpResponse) {
     return httpResponse.getStatus();
   }
+
+  @Override
+  protected String getRequestHeader(Request request, String headerName) {
+    return request.getHeaders().get(headerName);
+  }
+
+  @Override
+  protected String getResponseHeader(Response response, String headerName) {
+    return response.getHeaders().get(headerName);
+  }
 }

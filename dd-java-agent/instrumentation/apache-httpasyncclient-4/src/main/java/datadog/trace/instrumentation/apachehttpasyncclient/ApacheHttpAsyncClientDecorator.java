@@ -5,6 +5,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 import java.net.URISyntaxException;
+import org.apache.http.Header;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
 import org.apache.http.RequestLine;
@@ -67,5 +68,26 @@ public class ApacheHttpAsyncClientDecorator extends HttpClientDecorator<HttpRequ
       }
     }
     return 0;
+  }
+
+  @Override
+  protected String getRequestHeader(HttpRequest request, String headerName) {
+    Header header = request.getFirstHeader(headerName);
+    if (header != null) {
+      return header.getValue();
+    }
+    return null;
+  }
+
+  @Override
+  protected String getResponseHeader(HttpContext context, String headerName) {
+    final Object responseObject = context.getAttribute(HttpCoreContext.HTTP_RESPONSE);
+    if (responseObject instanceof HttpResponse) {
+      Header header = ((HttpResponse) responseObject).getFirstHeader(headerName);
+      if (header != null) {
+        return header.getValue();
+      }
+    }
+    return null;
   }
 }

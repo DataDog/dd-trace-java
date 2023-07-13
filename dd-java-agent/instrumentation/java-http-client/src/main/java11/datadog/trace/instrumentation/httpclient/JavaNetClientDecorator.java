@@ -40,4 +40,14 @@ public class JavaNetClientDecorator extends HttpClientDecorator<HttpRequest, Htt
   protected int status(HttpResponse<?> httpResponse) {
     return httpResponse.statusCode();
   }
+
+  @Override
+  protected String getRequestHeader(HttpRequest request, String headerName) {
+    return request.headers().firstValue(headerName).orElse(null);
+  }
+
+  @Override
+  protected String getResponseHeader(HttpResponse<?> response, String headerName) {
+    return response.headers().firstValue(headerName).orElse(null);
+  }
 }

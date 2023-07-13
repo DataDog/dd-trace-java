@@ -60,9 +60,20 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest implements Tes
 
   @Override
   // parent spanRef must be cast otherwise it breaks debugging classloading (junit loads it early)
-  void clientSpan(TraceAssert trace, Object parentSpan, String method = "GET", boolean renameService = false, boolean tagQueryString = false, URI uri = server.address.resolve("/success"), Integer status = 200, boolean error = false, Throwable exception = null) {
+  void clientSpan(
+    TraceAssert trace,
+    Object parentSpan,
+    String method = "GET",
+    boolean renameService = false,
+    boolean tagQueryString = false,
+    URI uri = server.address.resolve("/success"),
+    Integer status = 200,
+    boolean error = false,
+    Throwable exception = null,
+    boolean ignorePeer = false,
+    Map<String, Serializable> extraTags = null) {
     def leafParentId = trace.spanAssertCount.get()
-    super.clientSpan(trace, parentSpan, method, renameService, tagQueryString, uri, status, error, exception)
+    super.clientSpan(trace, parentSpan, method, renameService, tagQueryString, uri, status, error, exception, ignorePeer, extraTags)
     if (!exception) {
       def expectedQuery = tagQueryString ? uri.query : null
       def expectedUrl = URIUtils.buildURL(uri.scheme, uri.host, uri.port, uri.path)
@@ -101,6 +112,9 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest implements Tes
             "$DDTags.PATHWAY_HASH" { String }
           }
           defaultTags()
+          if (extraTags) {
+            it.addTags(extraTags)
+          }
         }
       }
     }
