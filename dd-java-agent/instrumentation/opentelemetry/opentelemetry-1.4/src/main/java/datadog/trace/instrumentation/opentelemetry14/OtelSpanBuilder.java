@@ -51,7 +51,8 @@ public class OtelSpanBuilder implements SpanBuilder {
 
   @Override
   public SpanBuilder setAttribute(String key, String value) {
-    this.delegate.withTag(key, value);
+    // Store as object to prevent delegate to remove tag when value is empty
+    this.delegate.withTag(key, (Object) value);
     return this;
   }
 

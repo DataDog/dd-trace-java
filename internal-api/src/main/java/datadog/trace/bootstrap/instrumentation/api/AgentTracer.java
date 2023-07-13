@@ -625,11 +625,6 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentSpan setAttribute(String key, Object value) {
-      return this;
-    }
-
-    @Override
     public AgentSpan setMetric(final CharSequence key, final int value) {
       return this;
     }

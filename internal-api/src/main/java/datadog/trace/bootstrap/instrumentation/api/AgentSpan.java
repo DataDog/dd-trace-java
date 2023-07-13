@@ -33,18 +33,6 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
   @Override
   AgentSpan setTag(String key, Number value);
 
-  /**
-   * Set a span attribute.
-   *
-   * <p>Existing attributes with the same name will be replaced. Setting a {@code null} value will
-   * do nothing.
-   *
-   * @param key The span attribute key.
-   * @param value The span attribute value.
-   * @return The span instance.
-   */
-  AgentSpan setAttribute(String key, Object value);
-
   @Override
   AgentSpan setMetric(CharSequence key, int value);
 
