@@ -35,7 +35,7 @@ public class TestModuleRegistry {
     if (module == null) {
       String message =
           String.format(
-              "Could not find module with ID %s, " + "test execution result will be ignored: %s",
+              "Could not find module with ID %s, test execution result will be ignored: %s",
               moduleId, result);
       LOGGER.warn(message);
       return new ErrorResponse(message);

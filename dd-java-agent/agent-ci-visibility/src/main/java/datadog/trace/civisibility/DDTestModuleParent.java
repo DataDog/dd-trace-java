@@ -37,16 +37,16 @@ public class DDTestModuleParent extends DDTestModuleImpl {
 
   private final AgentSpan span;
   private final SpanTestContext context;
-  @Nullable private final TestContext sessionContext;
-  @Nullable private final TestModuleRegistry testModuleRegistry;
+  private final TestContext sessionContext;
+  private final TestModuleRegistry testModuleRegistry;
   private final ModuleExecutionSettingsFactory moduleExecutionSettingsFactory;
 
   public DDTestModuleParent(
-      @Nullable TestContext sessionContext,
+      TestContext sessionContext,
       String moduleName,
       @Nullable Long startTime,
       Config config,
-      @Nullable TestModuleRegistry testModuleRegistry,
+      TestModuleRegistry testModuleRegistry,
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
@@ -65,7 +65,7 @@ public class DDTestModuleParent extends DDTestModuleImpl {
     this.testModuleRegistry = testModuleRegistry;
     this.moduleExecutionSettingsFactory = moduleExecutionSettingsFactory;
 
-    AgentSpan sessionSpan = sessionContext != null ? sessionContext.getSpan() : null;
+    AgentSpan sessionSpan = sessionContext.getSpan();
     AgentSpan.Context sessionSpanContext = sessionSpan != null ? sessionSpan.context() : null;
 
     if (startTime != null) {
@@ -74,8 +74,7 @@ public class DDTestModuleParent extends DDTestModuleImpl {
       span = startSpan(testDecorator.component() + ".test_module", sessionSpanContext);
     }
 
-    Long sessionId = sessionContext != null ? sessionContext.getId() : null;
-    context = new SpanTestContext(span, sessionId);
+    context = new SpanTestContext(span, sessionContext);
 
     span.setSpanType(InternalSpanTypes.TEST_MODULE_END);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST_MODULE);
@@ -84,11 +83,7 @@ public class DDTestModuleParent extends DDTestModuleImpl {
     span.setTag(Tags.TEST_MODULE, moduleName);
 
     span.setTag(Tags.TEST_MODULE_ID, context.getId());
-    span.setTag(Tags.TEST_SESSION_ID, sessionId);
-
-    if (sessionContext != null) {
-      span.setTag(Tags.TEST_STATUS, CIConstants.TEST_PASS);
-    }
+    span.setTag(Tags.TEST_SESSION_ID, sessionContext.getId());
 
     testDecorator.afterStart(span);
   }
@@ -120,29 +115,21 @@ public class DDTestModuleParent extends DDTestModuleImpl {
 
   @Override
   public void end(@Nullable Long endTime) {
-    if (testModuleRegistry != null) {
-      testModuleRegistry.removeModule(this);
-    }
+    testModuleRegistry.removeModule(this);
 
-    if (sessionContext != null) {
-      sessionContext.reportChildStatus(context.getStatus());
-    }
     span.setTag(Tags.TEST_STATUS, context.getStatus());
+    sessionContext.reportChildStatus(context.getStatus());
 
     long testsSkippedTotal = testsSkipped.sum();
     if (testsSkippedTotal > 0) {
-      setTag(DDTags.CI_ITR_TESTS_SKIPPED, true);
-      setTag(Tags.TEST_ITR_TESTS_SKIPPING_TYPE, "test");
-      setTag(Tags.TEST_ITR_TESTS_SKIPPING_COUNT, testsSkippedTotal);
-    }
+      span.setTag(DDTags.CI_ITR_TESTS_SKIPPED, true);
+      sessionContext.reportChildTag(DDTags.CI_ITR_TESTS_SKIPPED, true);
 
-    Object testFramework = context.getChildTag(Tags.TEST_FRAMEWORK);
-    if (testFramework != null) {
-      span.setTag(Tags.TEST_FRAMEWORK, testFramework);
-    }
-    Object testFrameworkVersion = context.getChildTag(Tags.TEST_FRAMEWORK_VERSION);
-    if (testFrameworkVersion != null) {
-      span.setTag(Tags.TEST_FRAMEWORK_VERSION, testFrameworkVersion);
+      span.setTag(Tags.TEST_ITR_TESTS_SKIPPING_TYPE, "test");
+      sessionContext.reportChildTag(Tags.TEST_ITR_TESTS_SKIPPING_TYPE, "test");
+
+      span.setTag(Tags.TEST_ITR_TESTS_SKIPPING_COUNT, testsSkippedTotal);
+      sessionContext.reportChildTag(Tags.TEST_ITR_TESTS_SKIPPING_COUNT, testsSkippedTotal);
     }
 
     testDecorator.beforeFinish(span);
@@ -160,10 +147,12 @@ public class DDTestModuleParent extends DDTestModuleImpl {
         moduleExecutionSettingsFactory.create(JvmInfo.CURRENT_JVM, moduleName);
     Map<String, String> systemProperties = moduleExecutionSettings.getSystemProperties();
     if (propertyEnabled(systemProperties, CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED)) {
-      setTag(Tags.TEST_CODE_COVERAGE_ENABLED, true);
+      span.setTag(Tags.TEST_CODE_COVERAGE_ENABLED, true);
+      sessionContext.reportChildTag(Tags.TEST_CODE_COVERAGE_ENABLED, true);
     }
     if (propertyEnabled(systemProperties, CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED)) {
-      setTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, true);
+      span.setTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, true);
+      sessionContext.reportChildTag(Tags.TEST_CODE_COVERAGE_ENABLED, true);
     }
 
     return new HashSet<>(moduleExecutionSettings.getSkippableTests(moduleName));

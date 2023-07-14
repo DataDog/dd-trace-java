@@ -4,24 +4,19 @@ import static datadog.trace.util.Strings.toJson;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DisableTestTrace;
+import datadog.trace.api.civisibility.DDTestSession;
 import datadog.trace.api.civisibility.config.SkippableTest;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
-import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.DDTestImpl;
-import datadog.trace.civisibility.DDTestModuleChild;
 import datadog.trace.civisibility.DDTestModuleImpl;
-import datadog.trace.civisibility.DDTestModuleParent;
 import datadog.trace.civisibility.DDTestSuiteImpl;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory;
 import datadog.trace.civisibility.context.EmptyTestContext;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
-import datadog.trace.util.Strings;
 import java.lang.reflect.Method;
-import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -35,15 +30,13 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
   private static final Logger log = LoggerFactory.getLogger(TestEventsHandlerImpl.class);
 
-  private final String moduleName;
   private final Config config;
   private final TestDecorator testDecorator;
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
   private final MethodLinesResolver methodLinesResolver;
-  private final ModuleExecutionSettingsFactory moduleExecutionSettingsFactory;
-
-  private volatile DDTestModuleImpl testModule;
+  private final DDTestSession testSession;
+  private final DDTestModuleImpl testModule;
 
   private final ConcurrentMap<TestSuiteDescriptor, Integer> testSuiteNestedCallCounters =
       new ConcurrentHashMap<>();
@@ -55,114 +48,20 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       new ConcurrentHashMap<>();
 
   public TestEventsHandlerImpl(
-      String moduleName,
+      DDTestSession testSession,
+      DDTestModuleImpl testModule,
       Config config,
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
-      MethodLinesResolver methodLinesResolver,
-      ModuleExecutionSettingsFactory moduleExecutionSettingsFactory) {
-    this.moduleName = moduleName;
+      MethodLinesResolver methodLinesResolver) {
+    this.testSession = testSession;
+    this.testModule = testModule;
     this.config = config;
     this.testDecorator = testDecorator;
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
-    this.moduleExecutionSettingsFactory = moduleExecutionSettingsFactory;
-  }
-
-  @Override
-  public void onTestModuleStart() {
-    testModule();
-  }
-
-  private DDTestModuleImpl testModule() {
-    if (testModule == null) {
-      synchronized (this) {
-        if (testModule == null) {
-          testModule = createTestModule();
-        }
-      }
-    }
-    return testModule;
-  }
-
-  private DDTestModuleImpl createTestModule() {
-    // fallbacks to System.getProperty below are needed for cases when
-    // system variables are set after config was initialized
-
-    Long parentProcessSessionId = config.getCiVisibilitySessionId();
-    if (parentProcessSessionId == null) {
-      String systemProp =
-          System.getProperty(
-              Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_SESSION_ID));
-      if (systemProp != null) {
-        parentProcessSessionId = Long.parseLong(systemProp);
-      }
-    }
-
-    Long parentProcessModuleId = config.getCiVisibilityModuleId();
-    if (parentProcessModuleId == null) {
-      String systemProp =
-          System.getProperty(
-              Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_ID));
-      if (systemProp != null) {
-        parentProcessModuleId = Long.parseLong(systemProp);
-      }
-    }
-
-    if (parentProcessSessionId == null || parentProcessModuleId == null) {
-      // it is likely that parent process (build system) is not instrumented
-      // since session and module IDs are not provided to us
-      return new DDTestModuleParent(
-          null,
-          moduleName,
-          null,
-          config,
-          null,
-          testDecorator,
-          sourcePathResolver,
-          codeowners,
-          methodLinesResolver,
-          moduleExecutionSettingsFactory,
-          null);
-    }
-
-    InetSocketAddress signalServerAddress = null;
-    String host =
-        System.getProperty(
-            Strings.propertyNameToSystemPropertyName(
-                CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST));
-    String port =
-        System.getProperty(
-            Strings.propertyNameToSystemPropertyName(
-                CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT));
-    if (host != null && port != null) {
-      signalServerAddress = new InetSocketAddress(host, Integer.parseInt(port));
-    }
-
-    return new DDTestModuleChild(
-        parentProcessSessionId,
-        parentProcessModuleId,
-        moduleName,
-        config,
-        testDecorator,
-        sourcePathResolver,
-        codeowners,
-        methodLinesResolver,
-        signalServerAddress);
-  }
-
-  @Override
-  public void onTestModuleFinish() {
-    if (testModule != null) {
-      synchronized (this) {
-        if (testModule != null) {
-          testModule.end(null);
-          testModule = null;
-        }
-      }
-    }
   }
 
   @Override
@@ -183,7 +82,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
     }
 
     DDTestSuiteImpl testSuite =
-        testModule().testSuiteStart(testSuiteName, testClass, null, parallelized);
+        testModule.testSuiteStart(testSuiteName, testClass, null, parallelized);
 
     if (testFramework != null) {
       testSuite.setTag(Tags.TEST_FRAMEWORK, testFramework);
@@ -408,6 +307,12 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
   @Override
   public boolean skip(SkippableTest test) {
-    return testModule().skip(test);
+    return testModule.skip(test);
+  }
+
+  @Override
+  public void close() {
+    testModule.end(null);
+    testSession.end(null);
   }
 }

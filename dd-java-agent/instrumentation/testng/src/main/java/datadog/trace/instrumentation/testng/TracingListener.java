@@ -3,14 +3,13 @@ package datadog.trace.instrumentation.testng;
 import java.lang.reflect.Method;
 import java.util.List;
 import org.testng.IConfigurationListener;
-import org.testng.IExecutionListener;
 import org.testng.ITestClass;
 import org.testng.ITestContext;
 import org.testng.ITestListener;
 import org.testng.ITestResult;
 
 public class TracingListener extends TestNGClassListener
-    implements ITestListener, IExecutionListener, IConfigurationListener {
+    implements ITestListener, IConfigurationListener {
 
   private static final String TESTNG_FRAMEWORK = "testng";
   private final String version;
@@ -27,16 +26,6 @@ public class TracingListener extends TestNGClassListener
   @Override
   public void onFinish(final ITestContext context) {
     // ignore
-  }
-
-  @Override
-  public void onExecutionStart() {
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestModuleStart();
-  }
-
-  @Override
-  public void onExecutionFinish() {
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestModuleFinish();
   }
 
   @Override

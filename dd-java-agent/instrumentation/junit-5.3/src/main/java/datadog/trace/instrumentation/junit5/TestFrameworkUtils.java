@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.junit5;
 
-import datadog.trace.api.DisableTestTrace;
 import datadog.trace.api.civisibility.config.SkippableTest;
 import datadog.trace.util.Strings;
 import java.lang.annotation.Annotation;
@@ -154,13 +153,6 @@ public abstract class TestFrameworkUtils {
     }
 
     MethodSource methodSource = (MethodSource) testSource;
-    Class<?> testClass = TestFrameworkUtils.getTestClass(methodSource);
-    if (testClass != null) {
-      if (testClass.getAnnotation(DisableTestTrace.class) != null) {
-        return null;
-      }
-    }
-
     String testSuiteName = methodSource.getClassName();
     String displayName = testDescriptor.getDisplayName();
     UniqueId uniqueId = testDescriptor.getUniqueId();

@@ -35,7 +35,7 @@ import java.util.Collection;
 import java.util.concurrent.atomic.LongAdder;
 import javax.annotation.Nullable;
 
-public class DDTestSessionImpl implements DDTestSession {
+public class DDTestSessionParent implements DDTestSession {
 
   private final AgentSpan span;
   private final TestContext context;
@@ -50,7 +50,7 @@ public class DDTestSessionImpl implements DDTestSession {
   private final RepoIndexBuilder repoIndexBuilder;
   protected final LongAdder testsSkipped = new LongAdder();
 
-  public DDTestSessionImpl(
+  public DDTestSessionParent(
       String projectName,
       @Nullable Long startTime,
       Config config,

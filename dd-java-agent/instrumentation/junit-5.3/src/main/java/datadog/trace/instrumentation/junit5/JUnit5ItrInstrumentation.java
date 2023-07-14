@@ -71,6 +71,12 @@ public class JUnit5ItrInstrumentation extends Instrumenter.CiVisibility
         return;
       }
 
+      if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER == null) {
+        // should only happen in integration tests
+        // because we cannot avoid instrumenting ourselves
+        return;
+      }
+
       SkippableTest test = TestFrameworkUtils.toSkippableTest(testDescriptor);
       if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
         skipResult = Node.SkipResult.skip(InstrumentationBridge.ITR_SKIP_REASON);

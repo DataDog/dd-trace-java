@@ -7,6 +7,8 @@ import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.civisibility.CIVisibility
+import datadog.trace.api.civisibility.DDTestModule
+import datadog.trace.api.civisibility.DDTestSession
 import datadog.trace.api.civisibility.InstrumentationBridge
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings
 import datadog.trace.api.civisibility.config.SkippableTest
@@ -73,7 +75,7 @@ abstract class CiVisibilityTest extends AgentTestRunner {
       TestModuleRegistry testModuleRegistry = new TestModuleRegistry()
       SignalServer signalServer = new SignalServer()
       RepoIndexBuilder repoIndexBuilder = Stub(RepoIndexBuilder)
-      return new DDTestSessionImpl(
+      return new DDTestSessionParent(
       projectName,
       startTime,
       Config.get(),
@@ -92,7 +94,10 @@ abstract class CiVisibilityTest extends AgentTestRunner {
       component, path ->
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
       def testDecorator = new TestDecoratorImpl(component, ciTags)
-      new TestEventsHandlerImpl(dummyModule, Config.get(), testDecorator, sourcePathResolver, codeowners, methodLinesResolver, moduleExecutionSettingsFactory)
+      DDTestSession testSession = CIVisibility.startSession(dummyModule, path, component, null)
+      DDTestModule testModule = (DDTestModuleImpl) testSession.testModuleStart(dummyModule, null)
+      // TODO remove explicit casting
+      new TestEventsHandlerImpl(testSession, testModule, Config.get(), testDecorator, sourcePathResolver, codeowners, methodLinesResolver)
     }
 
     InstrumentationBridge.registerBuildEventsHandlerFactory {
@@ -125,11 +130,11 @@ abstract class CiVisibilityTest extends AgentTestRunner {
 
   Long testSessionSpan(final TraceAssert trace,
   final int index,
-  final String sessionName,
-  final String testCommand,
-  final String testToolchain,
   final String testStatus,
-  final Map<String, String> testTags = null,
+  final Map<String, Object> testTags = null,
+  final String resource = null,
+  final String testCommand = null,
+  final String testToolchain = null,
   final Throwable exception = null) {
     def testFramework = expectedTestFramework()
     def testFrameworkVersion = expectedTestFrameworkVersion()
@@ -140,7 +145,7 @@ abstract class CiVisibilityTest extends AgentTestRunner {
 
       parent()
       operationName expectedOperationPrefix() + ".test_session"
-      resourceName sessionName
+      resourceName resource ? resource : dummyModule
       spanType DDSpanTypes.TEST_SESSION_END
       errored exception != null
       duration({ it > 1L })
@@ -148,8 +153,12 @@ abstract class CiVisibilityTest extends AgentTestRunner {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_TEST_SESSION
         "$Tags.TEST_TYPE" TestDecorator.TEST_TYPE
-        "$Tags.TEST_COMMAND" testCommand
-        "$Tags.TEST_TOOLCHAIN" testToolchain
+        if (testCommand) {
+          "$Tags.TEST_COMMAND" testCommand
+        }
+        if (testToolchain) {
+          "$Tags.TEST_TOOLCHAIN" testToolchain
+        }
         "$Tags.TEST_FRAMEWORK" testFramework
         if (testFrameworkVersion) {
           "$Tags.TEST_FRAMEWORK_VERSION" testFrameworkVersion
@@ -184,10 +193,10 @@ abstract class CiVisibilityTest extends AgentTestRunner {
 
   Long testModuleSpan(final TraceAssert trace,
   final int index,
+  final Long testSessionId,
   final String testStatus,
   final Map<String, Object> testTags = null,
   final Throwable exception = null,
-  final Long testSessionId = null,
   final String resource = null) {
     def testFramework = expectedTestFramework()
     def testFrameworkVersion = expectedTestFrameworkVersion()
@@ -196,11 +205,7 @@ abstract class CiVisibilityTest extends AgentTestRunner {
     trace.span(index) {
       testModuleId = span.getTag(Tags.TEST_MODULE_ID)
 
-      if (testSessionId) {
-        parentSpanId(BigInteger.valueOf(testSessionId))
-      } else {
-        parent()
-      }
+      parentSpanId(BigInteger.valueOf(testSessionId))
       operationName expectedOperationPrefix() + ".test_module"
       resourceName resource ? resource : dummyModule
       spanType DDSpanTypes.TEST_MODULE_END
@@ -249,13 +254,13 @@ abstract class CiVisibilityTest extends AgentTestRunner {
 
   Long testSuiteSpan(final TraceAssert trace,
   final int index,
+  final Long testSessionId,
   final Long testModuleId,
   final String testSuite,
   final String testStatus,
   final Map<String, String> testTags = null,
   final Throwable exception = null,
-  final boolean emptyDuration = false,
-  final Collection<String> categories = null) {
+  final boolean emptyDuration = false, final Collection<String> categories = null) {
     def testFramework = expectedTestFramework()
     def testFrameworkVersion = expectedTestFrameworkVersion()
 
@@ -277,6 +282,7 @@ abstract class CiVisibilityTest extends AgentTestRunner {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_TEST_SUITE
         "$Tags.TEST_TYPE" TestDecorator.TEST_TYPE
+        "$Tags.TEST_SESSION_ID" testSessionId
         "$Tags.TEST_MODULE_ID" testModuleId
         "$Tags.TEST_MODULE" dummyModule
         "$Tags.TEST_SUITE" testSuite
@@ -319,6 +325,7 @@ abstract class CiVisibilityTest extends AgentTestRunner {
 
   void testSpan(final TraceAssert trace,
   final int index,
+  final Long testSessionId,
   final Long testModuleId,
   final Long testSuiteId,
   final String testSuite,
@@ -346,19 +353,14 @@ abstract class CiVisibilityTest extends AgentTestRunner {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_TEST
         "$Tags.TEST_TYPE" TestDecorator.TEST_TYPE
-        if (testModuleId != null) {
-          "$Tags.TEST_MODULE_ID" testModuleId
-        }
-        if (testSuiteId != null) {
-          "$Tags.TEST_SUITE_ID" testSuiteId
-        }
+        "$Tags.TEST_SESSION_ID" testSessionId
+        "$Tags.TEST_MODULE_ID" testModuleId
+        "$Tags.TEST_SUITE_ID" testSuiteId
         "$Tags.TEST_MODULE" dummyModule
         "$Tags.TEST_SUITE" testSuite
         "$Tags.TEST_NAME" testName
         "$Tags.TEST_FRAMEWORK" testFramework
-        if (testFrameworkVersion) {
-          "$Tags.TEST_FRAMEWORK_VERSION" testFrameworkVersion
-        }
+        "$Tags.TEST_FRAMEWORK_VERSION" testFrameworkVersion
         "$Tags.TEST_STATUS" testStatus
         if (testTags) {
           testTags.each { key, val -> tag(key, val) }
