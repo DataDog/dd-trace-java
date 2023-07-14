@@ -217,8 +217,16 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     } | {
       it[2]
     }
-    'taintObjectIfInputIsTaintedKeepingRanges' | [new Object(), new Object()]                                                                    | { it[0] }          | { it[1] }
-    'taintObjectIfInputIsTaintedKeepingRanges' | [new Object(), new MockTaintable()]                                                             | { it[0] }          | { it[1] }
+    'taintObjectIfInputIsTaintedKeepingRanges' | [new Object(), new Object()]                                                                    | {
+      it[0]
+    }          | {
+      it[1]
+    }
+    'taintObjectIfInputIsTaintedKeepingRanges' | [new Object(), new MockTaintable()]                                                             | {
+      it[0]
+    }          | {
+      it[1]
+    }
     'taintIfAnyInputIsTainted' | [new Object(), ['I am an string'].toArray()]                                                    | {
       it[0]
     }          | {

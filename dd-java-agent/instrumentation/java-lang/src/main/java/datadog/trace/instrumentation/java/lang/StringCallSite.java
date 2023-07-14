@@ -8,13 +8,12 @@ import datadog.trace.api.iast.propagation.CodecModule;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.propagation.StringModule;
 import datadog.trace.util.stacktrace.StackUtils;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 @Propagation
 @CallSite(spi = IastCallSites.class)
