@@ -149,4 +149,11 @@ public class TestStringSuite {
     LOGGER.debug("After format {}", result);
     return result;
   }
+
+  public static char[] toCharArray(final String string) {
+    LOGGER.debug("Before toCharArray {}", string);
+    char[] result = string.toCharArray();
+    LOGGER.debug("After toCharArray {}", result);
+    return result;
+  }
 }

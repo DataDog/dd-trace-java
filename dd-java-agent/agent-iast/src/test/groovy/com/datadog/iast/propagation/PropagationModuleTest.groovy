@@ -67,6 +67,8 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', null as Collection, 'test']
     'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', [], 'test']
     'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', ['value'], null]
+    'taintObjectIfInputIsTaintedKeepingRanges' | [null, new Object()]
+    'taintObjectIfInputIsTaintedKeepingRanges' | [new Object(), null]
     'taintIfAnyInputIsTainted' | [null, null]
     'taintIfAnyInputIsTainted' | [null, [].toArray()]
     'taintIfAnyInputIsTainted' | ['test', [].toArray()]
@@ -95,6 +97,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', ['value'], new Object()]
     'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, ['value'].toSet(), new Object()]
     'taintIfInputIsTainted'    | [SourceTypes.REQUEST_PARAMETER_VALUE, [key: 'value'].entrySet().toList(), new Object()]
+    'taintObjectIfInputIsTaintedKeepingRanges' | [new Object(), new Object()]
     'taintIfAnyInputIsTainted' | ['value', ['test', 'test2'].toArray()]
     'taint'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value']
     'taintObjects'             | [SourceTypes.REQUEST_PARAMETER_VALUE, [new Object()] as Object[]]
@@ -213,6 +216,16 @@ class PropagationModuleTest extends IastModuleImplTestBase {
       it[1][0].value
     } | {
       it[2]
+    }
+    'taintObjectIfInputIsTaintedKeepingRanges' | [new Object(), new Object()]                                                                    | {
+      it[0]
+    }          | {
+      it[1]
+    }
+    'taintObjectIfInputIsTaintedKeepingRanges' | [new Object(), new MockTaintable()]                                                             | {
+      it[0]
+    }          | {
+      it[1]
     }
     'taintIfAnyInputIsTainted' | [new Object(), ['I am an string'].toArray()]                                                    | {
       it[0]
