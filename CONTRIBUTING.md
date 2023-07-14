@@ -180,7 +180,7 @@ Add the following configuration setting or you will need to remember to add `--r
 git config --local submodule.recurse true
 ```
 
-This will keep submodule `dd-java-agent/agent-jmxfetch/integrations-core` up to date.
+This will keep the submodule in `dd-java-agent/agent-jmxfetch/integrations-core` up to date.
 
 
 ## Intellij IDEA
