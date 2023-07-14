@@ -4,9 +4,7 @@ class TestNG64Test extends TestNGTest {
 
   @Override
   String expectedTestFrameworkVersion() {
-    // For the TestNG version used for tests (minimum supported)
-    // it's not possible to extract the version.
-    return null
+    return "6.4.0"
   }
 
   @Override
