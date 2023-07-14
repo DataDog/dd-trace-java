@@ -12,9 +12,14 @@ class Liberty20Server implements HttpServer {
   File serverXmlFile = new File(System.getProperty('server.xml'))
   long serverXmlLastModified
   byte[] origServerXml
+  final String prefix
 
   def port
   Server server
+
+  Liberty20Server(String prefix = '') {
+    this.prefix = prefix
+  }
 
   @Override
   void start() {
@@ -56,7 +61,7 @@ class Liberty20Server implements HttpServer {
 
   @Override
   URI address() {
-    new URI("http://localhost:$port/testapp/")
+    new URI("http://localhost:$port/testapp/${this.prefix}")
   }
 
   @Override
