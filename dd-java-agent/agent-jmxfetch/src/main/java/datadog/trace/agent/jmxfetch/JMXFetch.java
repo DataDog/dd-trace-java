@@ -95,6 +95,7 @@ public class JMXFetch {
             // App should be run as daemon otherwise CLI apps would not exit once main method exits.
             .daemon(true)
             .embedded(true)
+            .exitWatcher(new TraceConfigExitWatcher())
             .confdDirectory(jmxFetchConfigDir)
             .yamlFileList(jmxFetchConfigs)
             .targetDirectInstances(true)
@@ -127,18 +128,19 @@ public class JMXFetch {
               public void run() {
                 App app = new App(appConfig);
                 while (true) {
-                  try {
-                    final int result = app.run();
-                    log.error("jmx collector exited with result: " + result);
-                  } catch (final Exception e) {
-                    log.error("Exception in jmx collector thread", e);
+                  // check in case dynamic-config has temporarily disabled JMXFetch
+                  if (!appConfig.getExitWatcher().shouldExit()) {
+                    try {
+                      final int result = app.run();
+                      log.error("jmx collector exited with result: " + result);
+                    } catch (final Exception e) {
+                      log.error("Exception in jmx collector thread", e);
+                    }
                   }
+                  // always wait before next attempt
                   try {
                     Thread.sleep(SLEEP_AFTER_JMXFETCH_EXITS);
-                  } catch (final InterruptedException e) {
-                    // It looks like JMXFetch itself eats up InterruptedException, so we will do
-                    // same here for consistency
-                    log.error("JMXFetch was interrupted, ignoring", e);
+                  } catch (final InterruptedException ignore) {
                   }
                 }
               }
