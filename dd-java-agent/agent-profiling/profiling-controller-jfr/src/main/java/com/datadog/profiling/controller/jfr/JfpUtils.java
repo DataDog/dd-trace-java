@@ -33,6 +33,8 @@ import java.util.Properties;
  */
 public final class JfpUtils {
   public static final String DEFAULT_JFP = "jfr/dd.jfp";
+
+  public static final String SAFEPOINTS_JFP = "jfr/safepoints.jfp";
   private static final String OVERRIDES_PATH = "jfr/overrides/";
   public static final String JFP_EXTENSION = ".jfp";
 

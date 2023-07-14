@@ -17,6 +17,7 @@ package com.datadog.profiling.controller.openjdk;
 
 import static com.datadog.profiling.controller.ProfilingSupport.*;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
 
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
@@ -64,10 +65,14 @@ public final class OpenJdkController implements Controller {
     Class.forName("jdk.jfr.Recording");
     Class.forName("jdk.jfr.FlightRecorder");
 
+    boolean ultraMinimal = configProvider.getBoolean(PROFILING_ULTRA_MINIMAL, false);
+
     Map<String, String> recordingSettings;
 
     try {
-      recordingSettings = JfpUtils.readNamedJfpResource(JfpUtils.DEFAULT_JFP);
+      recordingSettings =
+          JfpUtils.readNamedJfpResource(
+              ultraMinimal ? JfpUtils.SAFEPOINTS_JFP : JfpUtils.DEFAULT_JFP);
     } catch (final IOException e) {
       throw new ConfigurationException(e);
     }

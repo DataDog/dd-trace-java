@@ -176,5 +176,7 @@ public final class ProfilingConfig {
 
   public static final long PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT = 50;
 
+  public static final String PROFILING_ULTRA_MINIMAL = "profiling.ultra.minimal";
+
   private ProfilingConfig() {}
 }

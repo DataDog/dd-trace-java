@@ -14,11 +14,12 @@ public class TaskUnwrappingInstrumentation extends Instrumenter.Profiling
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return ConfigProvider.getInstance()
-        .getBoolean(
-            ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED,
-            ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
+  public boolean isEnabled() {
+    return super.isEnabled()
+        && ConfigProvider.getInstance()
+            .getBoolean(
+                ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED,
+                ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
   }
 
   private static final String[] TYPES_WITH_FIELDS = {
