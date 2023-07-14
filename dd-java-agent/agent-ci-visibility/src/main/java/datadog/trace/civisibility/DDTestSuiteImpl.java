@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
-import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -157,7 +156,17 @@ public class DDTestSuiteImpl implements DDTestSuite {
   }
 
   @Override
-  public DDTest testStart(String testName, @Nullable Method testMethod, @Nullable Long startTime) {
+  public DDTestImpl testStart(
+      String testName, @Nullable Method testMethod, @Nullable Long startTime) {
+    return testStart(
+        testName, testMethod != null ? testMethod.getName() : null, testMethod, startTime);
+  }
+
+  public DDTestImpl testStart(
+      String testName,
+      @Nullable String methodName,
+      @Nullable Method testMethod,
+      @Nullable Long startTime) {
     return new DDTestImpl(
         context,
         moduleContext,
@@ -166,6 +175,7 @@ public class DDTestSuiteImpl implements DDTestSuite {
         testName,
         startTime,
         testClass,
+        methodName,
         testMethod,
         config,
         testDecorator,

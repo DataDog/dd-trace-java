@@ -32,7 +32,7 @@ class SpockTest extends CiVisibilityTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSucceedSpock", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedSpock", "test success", CIConstants.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedSpock", "test success", "test success()V", CIConstants.TEST_PASS)
       }
     })
   }
@@ -50,10 +50,10 @@ class SpockTest extends CiVisibilityTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestParameterizedSpock", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterizedSpock", "test add 1 and 2", CIConstants.TEST_PASS, testTags_0)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterizedSpock", "test add 1 and 2", "test add #a and #b(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)V", CIConstants.TEST_PASS, testTags_0)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterizedSpock", "test add 4 and 4", CIConstants.TEST_PASS, testTags_1)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterizedSpock", "test add 4 and 4", "test add #a and #b(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)V", CIConstants.TEST_PASS, testTags_1)
       }
     })
 
@@ -76,7 +76,7 @@ class SpockTest extends CiVisibilityTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSucceedSpock", CIConstants.TEST_SKIP)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedSpock", "test success", CIConstants.TEST_SKIP, testTags)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedSpock", "test success", "test success()V", CIConstants.TEST_SKIP, testTags)
       }
     })
 
@@ -100,10 +100,10 @@ class SpockTest extends CiVisibilityTest {
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestParameterizedSpock", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterizedSpock", "test add 1 and 2", CIConstants.TEST_SKIP, testTags_0)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterizedSpock", "test add 1 and 2", "test add #a and #b(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)V", CIConstants.TEST_SKIP, testTags_0)
       }
       trace(1) {
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterizedSpock", "test add 4 and 4", CIConstants.TEST_PASS, testTags_1)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterizedSpock", "test add 4 and 4", "test add #a and #b(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)V", CIConstants.TEST_PASS, testTags_1)
       }
     })
 

@@ -22,6 +22,7 @@ import datadog.trace.civisibility.source.MethodLinesResolver;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import javax.annotation.Nullable;
+import org.objectweb.asm.Type;
 
 public class DDTestImpl implements DDTest {
 
@@ -38,6 +39,7 @@ public class DDTestImpl implements DDTest {
       String testName,
       @Nullable Long startTime,
       @Nullable Class<?> testClass,
+      @Nullable String testMethodName,
       @Nullable Method testMethod,
       Config config,
       TestDecorator testDecorator,
@@ -82,6 +84,13 @@ public class DDTestImpl implements DDTest {
     span.setTag(Tags.TEST_SESSION_ID, sessionId);
 
     span.setTag(Tags.TEST_STATUS, CIConstants.TEST_PASS);
+
+    if (testClass != null && !testClass.getName().equals(testSuiteName)) {
+      span.setTag(Tags.TEST_SOURCE_CLASS, testClass.getName());
+    }
+    if (testMethodName != null && testMethod != null) {
+      span.setTag(Tags.TEST_SOURCE_METHOD, testMethodName + Type.getMethodDescriptor(testMethod));
+    }
 
     if (config.isCiVisibilitySourceDataEnabled()) {
       populateSourceDataTags(

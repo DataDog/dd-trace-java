@@ -53,6 +53,8 @@ public class Tags {
   public static final String TEST_PARAMETERS = "test.parameters";
   public static final String TEST_CODEOWNERS = "test.codeowners";
   public static final String TEST_SOURCE_FILE = "test.source.file";
+  public static final String TEST_SOURCE_CLASS = "test.source.class";
+  public static final String TEST_SOURCE_METHOD = "test.source.method";
   public static final String TEST_SOURCE_START = "test.source.start";
   public static final String TEST_SOURCE_END = "test.source.end";
   public static final String TEST_TRAITS = "test.traits";
