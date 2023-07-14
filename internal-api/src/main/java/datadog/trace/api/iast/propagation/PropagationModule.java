@@ -34,6 +34,9 @@ public interface PropagationModule extends IastModule {
 
   void taint(@Nullable Object ctx_, byte source, @Nullable String name, @Nullable String value);
 
+  void taintObjectIfInputIsTaintedKeepingRanges(
+      @Nullable final Object toTaint, @Nullable Object input);
+
   /**
    * Taint a non-String object. It might be {@link Taintable} or not. It is tainted with a source
    * with no name or value.

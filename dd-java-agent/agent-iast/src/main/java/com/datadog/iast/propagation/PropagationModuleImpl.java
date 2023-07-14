@@ -1,10 +1,12 @@
 package com.datadog.iast.propagation;
 
+import static com.datadog.iast.model.Range.NOT_MARKED;
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
+import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.iast.SourceTypes;
@@ -161,6 +163,19 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
+  public void taintObjectIfInputIsTaintedKeepingRanges(
+      @Nullable final Object toTaint, @Nullable Object input) {
+    if (toTaint == null || input == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = TaintedObjects.activeTaintedObjects(true);
+    final Range[] ranges = getTaintedRanges(taintedObjects, input);
+    if (ranges != null && ranges.length > 0) {
+      taintedObjects.taint(toTaint, ranges);
+    }
+  }
+
+  @Override
   public void taintObject(final byte origin, @Nullable final Object toTaint) {
     if (toTaint == null) {
       return;
@@ -255,6 +270,21 @@ public class PropagationModuleImpl implements PropagationModule {
       final TaintedObject tainted = taintedObjects.get(object);
       final Range[] ranges = tainted == null ? null : tainted.getRanges();
       return ranges != null && ranges.length > 0 ? ranges[0].getSource() : null;
+    }
+  }
+
+  private static Range[] getTaintedRanges(
+      final TaintedObjects taintedObjects, final Object object) {
+    if (object instanceof Taintable) {
+      Source source = (Source) ((Taintable) object).$$DD$getSource();
+      if (source == null) {
+        return null;
+      } else {
+        return Ranges.forObject(source, NOT_MARKED);
+      }
+    } else {
+      final TaintedObject tainted = taintedObjects.get(object);
+      return tainted == null ? null : tainted.getRanges();
     }
   }
 }
