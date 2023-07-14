@@ -1,12 +1,9 @@
 package datadog.trace.civisibility.context;
 
 import datadog.trace.api.civisibility.CIConstants;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 abstract class AbstractTestContext implements TestContext {
 
-  private final Map<String, Object> childTags = new ConcurrentHashMap<>();
   private String status;
 
   @Override
@@ -37,13 +34,6 @@ abstract class AbstractTestContext implements TestContext {
 
   @Override
   public void reportChildTag(String key, Object value) {
-    if (value != null) {
-      childTags.put(key, value);
-    }
-  }
-
-  @Override
-  public Object getChildTag(String key) {
-    return childTags.get(key);
+    // no op
   }
 }

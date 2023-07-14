@@ -34,12 +34,11 @@ public class TracingListener implements TestExecutionListener {
   @Override
   public void testPlanExecutionStarted(final TestPlan testPlan) {
     this.testPlan = testPlan;
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestModuleStart();
   }
 
   @Override
   public void testPlanExecutionFinished(final TestPlan testPlan) {
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestModuleFinish();
+    // no op
   }
 
   @Override
