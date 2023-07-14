@@ -11,6 +11,8 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -308,6 +310,12 @@ public interface Instrumenter {
     @Override
     public boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.PROFILING);
+    }
+
+    @Override
+    public boolean isEnabled() {
+      return !ConfigProvider.getInstance()
+          .getBoolean(ProfilingConfig.PROFILING_ULTRA_MINIMAL, false);
     }
   }
 
