@@ -174,7 +174,7 @@ git config core.hooksPath .githooks
 
 Git does not automatically update submodules when switching branches.
 
-Use next setting, otherwise you will need to remember to add `--recurse-submodules` to git checkout when switching to old branches.
+Add the following configuration setting or you will need to remember to add `--recurse-submodules` to `git checkout` when switching to old branches.
 
 ```bash
 git config --local submodule.recurse true
