@@ -275,4 +275,22 @@ class StringCallSiteTest extends AgentTestRunner {
     1 * module.taintObjectIfInputIsTaintedKeepingRanges(_ as char[], string)
     0 * _
   }
+
+  void 'test string split'() {
+    final module = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    final String[] result = TestStringSuite.&split.call(args)
+
+    then:
+    result != null && result.length > 0
+    1 * module.onSplit(args[0], _ as String[])
+    0 * _
+
+    where:
+    args                      | _
+    ['test the test', ' ']    | _
+    ['test the test', ' ', 0] | _
+  }
 }

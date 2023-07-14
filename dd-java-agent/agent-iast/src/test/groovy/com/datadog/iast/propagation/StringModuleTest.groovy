@@ -11,7 +11,11 @@ import org.junit.jupiter.api.Assertions
 
 import java.text.SimpleDateFormat
 
-import static com.datadog.iast.taint.TaintUtils.*
+import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
+import static com.datadog.iast.taint.TaintUtils.fromTaintFormat
+import static com.datadog.iast.taint.TaintUtils.getStringFromTaintFormat
+import static com.datadog.iast.taint.TaintUtils.taint
+import static com.datadog.iast.taint.TaintUtils.taintFormat
 
 @CompileDynamic
 class StringModuleTest extends IastModuleImplTestBase {
@@ -902,6 +906,41 @@ class StringModuleTest extends IastModuleImplTestBase {
     'Hello ==>%s<=='                | ['World!']                          | 'Hello ==>World!<==' // tainted placeholder [non tainted parameter]
     'He==>llo %s!<=='               | ['World']                           | 'He==>llo <====>World<====>!<==' // tainted placeholder (2) [non tainted parameter]
     'He==>llo %s!<=='               | ['W==>or<==ld']                     | 'He==>llo <==W==>or<==ld==>!<==' // tainted placeholder (3) [mixing with tainted parameter]
+  }
+
+  void 'onSplit'() {
+    given:
+    final to = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(to, testString)
+    def result = self.split(regexp)
+    assert expectedTaintedArray.length == result.length
+
+    def expectedArray = new String[expectedTaintedArray.length]
+    for (int i = 0; i < expectedTaintedArray.length; i++) {
+      expectedArray[i] = getStringFromTaintFormat(expectedTaintedArray[i])
+      assert expectedArray[i] == result[i]
+    }
+
+    when:
+    module.onSplit(self, result)
+
+    then:
+    for (int i = 0; i < expectedTaintedArray.length; i++) {
+      final tainted = to.get(result[i])
+      final formattedResult = taintFormat(result[i], tainted?.ranges)
+      assert formattedResult == expectedTaintedArray[i]: tainted?.ranges
+    }
+
+    where:
+    testString                     | regexp | expectedTaintedArray
+    'test'                         | ' '    | ['test'] as String[]
+    '==>test<=='                   | ' '    | ['==>test<=='] as String[]
+    't==>es<==t'                   | ' '    | ['t==>es<==t'] as String[]
+    'testing the test'             | ' '    | ['testing', 'the', 'test'] as String[]
+    '==>testing the test<=='       | ' '    | ['==>testing<==', '==>the<==', '==>test<=='] as String[]
+    '==>testing<== the test'       | ' '    | ['==>testing<==', '==>the<==', '==>test<=='] as String[]
+    'testing ==>the test<=='       | ' '    | ['==>testing<==', '==>the<==', '==>test<=='] as String[]
+    '==>testing<== the ==>test<==' | ' '    | ['==>testing<==', '==>the<==', '==>test<=='] as String[]
   }
 
   private static Date date(final String pattern, final String value) {

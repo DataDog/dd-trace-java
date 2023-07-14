@@ -1,6 +1,7 @@
 package com.datadog.iast.propagation;
 
 import static com.datadog.iast.taint.Ranges.EMPTY;
+import static com.datadog.iast.taint.Ranges.highestPriorityRange;
 import static com.datadog.iast.taint.Ranges.mergeRanges;
 import static com.datadog.iast.taint.Ranges.rangesProviderFor;
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
@@ -497,6 +498,30 @@ public class StringModuleImpl implements StringModule {
         END, offset, formatRanges, finalRanges); // add remaining ranges from the format
     if (!finalRanges.isEmpty()) {
       to.taint(result, finalRanges.toArray(new Range[0]));
+    }
+  }
+
+  @Override
+  @SuppressFBWarnings
+  public void onSplit(@Nonnull String self, @Nonnull String[] result) {
+    if (!canBeTainted(self) || !canBeTainted(result)) {
+      return;
+    }
+    if (result.length == 1 && result[0] == self) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects to = ctx.getTaintedObjects();
+    TaintedObject taintedString = to.get(self);
+    if (taintedString == null) {
+      return;
+    }
+    Range priorityRange = highestPriorityRange(taintedString.getRanges());
+    for (String s : result) {
+      to.taint(s, new Range[] {Ranges.copyWithPosition(priorityRange, 0, s.length())});
     }
   }
 
