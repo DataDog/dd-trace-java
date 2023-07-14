@@ -8,12 +8,13 @@ import datadog.trace.api.iast.propagation.CodecModule;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.propagation.StringModule;
 import datadog.trace.util.stacktrace.StackUtils;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 @Propagation
 @CallSite(spi = IastCallSites.class)
@@ -325,12 +326,12 @@ public class StringCallSite {
   public static char[] afterToCharArray(
       @CallSite.This @Nonnull final String self, @CallSite.Return @Nonnull final char[] result) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
-    try {
-      if (module != null) {
+    if (module != null) {
+      try {
         module.taintObjectIfInputIsTaintedKeepingRanges(result, self);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterToCharArray threw", e);
       }
-    } catch (final Throwable e) {
-      module.onUnexpectedException("afterToCharArray threw", e);
     }
     return result;
   }
