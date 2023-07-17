@@ -284,13 +284,16 @@ class StringCallSiteTest extends AgentTestRunner {
     final String[] result = TestStringSuite.&split.call(args)
 
     then:
-    result != null && result.length > 0
+    result != null && result.length == expected.length
+    for (def i = 0; i < expected.length; i++) {
+      result[i] == expected[i]
+    }
     1 * module.onSplit(args[0], _ as String[])
     0 * _
 
     where:
-    args                      | _
-    ['test the test', ' ']    | _
-    ['test the test', ' ', 0] | _
+    args                      | expected
+    ['test the test', ' ']    | ['test', 'the', 'test'] as String[]
+    ['test the test', ' ', 0] | ['test', 'the', 'test'] as String[]
   }
 }
