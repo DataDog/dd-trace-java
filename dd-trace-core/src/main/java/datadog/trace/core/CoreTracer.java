@@ -35,7 +35,6 @@ import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
-import datadog.trace.api.experimental.Profiling;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.InstrumentationGateway;
 import datadog.trace.api.gateway.RequestContext;
@@ -1202,7 +1201,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public Profiling getProfilingContext() {
+  public ProfilingContextIntegration getProfilingContext() {
     return profilingContextIntegration;
   }
 

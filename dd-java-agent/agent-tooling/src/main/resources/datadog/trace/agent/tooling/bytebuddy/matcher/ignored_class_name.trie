@@ -47,6 +47,7 @@
 0 java.lang.ProcessImpl
 0 java.net.http.*
 0 java.net.HttpURLConnection
+0 java.net.Socket
 0 java.net.URL
 0 java.nio.DirectByteBuffer
 0 java.nio.ByteBuffer

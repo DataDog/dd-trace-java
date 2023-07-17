@@ -10,7 +10,6 @@ import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
-import datadog.trace.api.experimental.Profiling;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -300,6 +299,8 @@ public class AgentTracer {
     String getSpanId(AgentSpan span);
 
     TraceConfig captureTraceConfig();
+
+    ProfilingContextIntegration getProfilingContext();
   }
 
   public interface SpanBuilder {
@@ -423,8 +424,8 @@ public class AgentTracer {
     public void flushMetrics() {}
 
     @Override
-    public Profiling getProfilingContext() {
-      return Profiling.NoOp.INSTANCE;
+    public ProfilingContextIntegration getProfilingContext() {
+      return ProfilingContextIntegration.NoOp.INSTANCE;
     }
 
     @Override
