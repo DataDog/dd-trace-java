@@ -334,4 +334,37 @@ public class StringCallSite {
     }
     return result;
   }
+
+  @CallSite.After("java.lang.String[] java.lang.String.split(java.lang.String)")
+  public static String[] afterSplit(
+      @CallSite.This @Nonnull final String self,
+      @CallSite.Argument(0) @Nonnull final String regex,
+      @CallSite.Return @Nonnull final String[] result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        module.onSplit(self, result);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterSplit threw", e);
+      }
+    }
+    return result;
+  }
+
+  @CallSite.After("java.lang.String[] java.lang.String.split(java.lang.String, int)")
+  public static String[] afterSplitWithLimit(
+      @CallSite.This @Nonnull final String self,
+      @CallSite.Argument(0) @Nonnull final String regex,
+      @CallSite.Argument(1) @Nonnull final int pos,
+      @CallSite.Return @Nonnull final String[] result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        module.onSplit(self, result);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterSplit threw", e);
+      }
+    }
+    return result;
+  }
 }

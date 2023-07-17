@@ -156,4 +156,18 @@ public class TestStringSuite {
     LOGGER.debug("After toCharArray {}", result);
     return result;
   }
+
+  public static String[] split(final String string, final String regex) {
+    LOGGER.debug("Before split {} {}", string, regex);
+    String[] result = string.split(regex);
+    LOGGER.debug("After split {}", result);
+    return result;
+  }
+
+  public static String[] split(final String string, final String regex, final int limit) {
+    LOGGER.debug("Before split {} {} {}", string, regex, limit);
+    String[] result = string.split(regex, limit);
+    LOGGER.debug("After split {}", result);
+    return result;
+  }
 }
