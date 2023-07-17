@@ -1,4 +1,4 @@
-package datadog.trace.civisibility.source
+package datadog.trace.civisibility.source.index
 
 import com.google.common.jimfs.Configuration
 import com.google.common.jimfs.Jimfs
@@ -121,7 +121,7 @@ class RepoIndexSourcePathResolverTest extends Specification {
   def "test source path resolution for repo with multiple files"() {
     setup:
     def expectedSourcePathOne = givenSourceFile(RepoIndexSourcePathResolverTest, repoRoot + "/src")
-    def expectedSourcePathTwo = givenSourceFile(RepoIndexSourcePathResolver, repoRoot + "/src", RepoIndexSourcePathResolver.SourceType.JAVA)
+    def expectedSourcePathTwo = givenSourceFile(RepoIndexSourcePathResolver, repoRoot + "/src", SourceType.JAVA)
 
     givenRepoFile(fileSystem.getPath(repoRoot, "README.md"))
 
@@ -134,7 +134,7 @@ class RepoIndexSourcePathResolverTest extends Specification {
     sourcePathResolver.getSourcePath(RepoIndexSourcePathResolver) == expectedSourcePathTwo
   }
 
-  private String givenSourceFile(Class c, String sourceRoot, RepoIndexSourcePathResolver.SourceType sourceType = RepoIndexSourcePathResolver.SourceType.GROOVY) {
+  private String givenSourceFile(Class c, String sourceRoot, SourceType sourceType = SourceType.GROOVY) {
     def classPath = fileSystem.getPath(generateSourceFileName(c, sourceRoot, sourceType))
     sourceRootResolver.getSourceRoot(classPath) >> fileSystem.getPath(sourceRoot)
 
@@ -148,7 +148,7 @@ class RepoIndexSourcePathResolverTest extends Specification {
     Files.write(file, "STUB FILE BODY".getBytes())
   }
 
-  private static String generateSourceFileName(Class c, String sourceRoot, RepoIndexSourcePathResolver.SourceType sourceType = RepoIndexSourcePathResolver.SourceType.GROOVY) {
+  private static String generateSourceFileName(Class c, String sourceRoot, SourceType sourceType = SourceType.GROOVY) {
     return sourceRoot + File.separator + c.getName().replace(".", File.separator) + sourceType.extension
   }
 

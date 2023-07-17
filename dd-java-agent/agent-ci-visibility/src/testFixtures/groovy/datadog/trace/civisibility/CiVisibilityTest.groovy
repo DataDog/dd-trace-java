@@ -20,6 +20,8 @@ import datadog.trace.civisibility.events.BuildEventsHandlerImpl
 import datadog.trace.civisibility.events.TestEventsHandlerImpl
 import datadog.trace.civisibility.ipc.SignalServer
 import datadog.trace.civisibility.source.MethodLinesResolver
+import datadog.trace.civisibility.source.index.RepoIndex
+import datadog.trace.civisibility.source.index.RepoIndexBuilder
 import datadog.trace.core.DDSpan
 import datadog.trace.util.Strings
 import spock.lang.Unroll
@@ -77,6 +79,7 @@ abstract class CiVisibilityTest extends AgentTestRunner {
       TestDecorator testDecorator = new TestDecoratorImpl(component, null, null, ciTags)
       TestModuleRegistry testModuleRegistry = new TestModuleRegistry()
       SignalServer signalServer = new SignalServer()
+      RepoIndexBuilder repoIndexBuilder = Stub(RepoIndexBuilder)
       return new DDTestSessionImpl(
       projectName,
       startTime,
@@ -87,7 +90,8 @@ abstract class CiVisibilityTest extends AgentTestRunner {
       codeowners,
       methodLinesResolver,
       moduleExecutionSettingsFactory,
-      signalServer
+      signalServer,
+      repoIndexBuilder
       )
     }
   }
