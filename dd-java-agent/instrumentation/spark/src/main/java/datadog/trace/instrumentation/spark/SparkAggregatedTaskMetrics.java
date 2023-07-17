@@ -13,6 +13,7 @@ import org.apache.spark.scheduler.SparkListenerTaskEnd;
 class SparkAggregatedTaskMetrics {
   private static final double HISTOGRAM_RELATIVE_ACCURACY = 1 / 32.0;
   private static final int HISTOGRAM_MAX_NUM_BINS = 512;
+  private final boolean isSparkTaskHistogramEnabled = Config.get().isSparkTaskHistogramEnabled();
 
   private long executorDeserializeTime = 0L;
   private long executorDeserializeCpuTime = 0L;
@@ -113,7 +114,7 @@ class SparkAggregatedTaskMetrics {
       long taskRunTime = computeTaskRunTime(taskMetrics);
       taskRunTimeSinceLastStage += taskRunTime;
 
-      if (Config.get().isSparkTaskHistogramEnabled()) {
+      if (isSparkTaskHistogramEnabled) {
         taskRunTimeHistogram = lazyHistogramAccept(taskRunTimeHistogram, taskRunTime);
         inputBytesHistogram =
             lazyHistogramAccept(inputBytesHistogram, taskMetrics.inputMetrics().bytesRead());
@@ -262,6 +263,8 @@ class SparkAggregatedTaskMetrics {
       hist.accept(value);
     } else {
       if (value != 0) {
+        // All the callbacks in DatadogSparkListener are called from the same thread, meaning we
+        // don't risk to lose values by creating the histogram this way
         hist = AgentTracer.get().newHistogram(HISTOGRAM_RELATIVE_ACCURACY, HISTOGRAM_MAX_NUM_BINS);
         if (taskCompletedCount > 1) {
           // Filling all the previous 0s that we might have missed
