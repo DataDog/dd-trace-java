@@ -680,29 +680,19 @@ public class CapturedContextInstrumentor extends Instrumentor {
   }
 
   private void collectStaticFields(InsnList insnList) {
-    // count static fields
-    int fieldCount = 0;
-    for (FieldNode fieldNode : classNode.fields) {
-      if (isStaticField(fieldNode) && !isFinalField(fieldNode)) {
-        fieldCount++;
-      }
-    }
-    if (fieldCount == 0) {
+    List<FieldNode> fieldsToCapture = extractStaticFields(classNode.fields);
+    if (fieldsToCapture.isEmpty()) {
       // bail out if no fields
       return;
     }
     insnList.add(new InsnNode(Opcodes.DUP));
     // stack: [capturedcontext, capturedcontext]
-    ldc(insnList, fieldCount);
+    ldc(insnList, fieldsToCapture.size());
     // stack: [capturedcontext, capturedcontext, int]
     insnList.add(new TypeInsnNode(Opcodes.ANEWARRAY, CAPTURED_VALUE.getInternalName()));
     // stack: [capturedcontext, capturedcontext, array]
     int counter = 0;
-    List<FieldNode> fieldList = new ArrayList<>(classNode.fields);
-    for (FieldNode fieldNode : fieldList) {
-      if (!isStaticField(fieldNode) || isFinalField(fieldNode)) {
-        continue;
-      }
+    for (FieldNode fieldNode : fieldsToCapture) {
       insnList.add(new InsnNode(Opcodes.DUP));
       // stack: [capturedcontext, capturedcontext, array, array]
       ldc(insnList, counter++);
@@ -745,40 +735,19 @@ public class CapturedContextInstrumentor extends Instrumentor {
       // static method and no correlation info, no need to capture fields
       return;
     }
-    // count instance fields
-    int fieldCount = correlationAvailable ? 2 : 0; // correlation will add 2 synthetic fields
-    if (!isStatic) {
-      for (FieldNode fieldNode : classNode.fields) {
-        if (isStaticField(fieldNode)) {
-          continue;
-        }
-        fieldCount++;
-      }
-    }
-    if (fieldCount == 0) {
+    List<FieldNode> fieldsToCapture = extractInstanceField(classNode.fields, isStatic);
+    if (fieldsToCapture.isEmpty()) {
       // bail out if no fields
       return;
     }
     insnList.add(new InsnNode(Opcodes.DUP));
     // stack: [capturedcontext, capturedcontext]
-    ldc(insnList, fieldCount);
+    ldc(insnList, fieldsToCapture.size());
     // stack: [capturedcontext, capturedcontext, int]
     insnList.add(new TypeInsnNode(Opcodes.ANEWARRAY, CAPTURED_VALUE.getInternalName()));
     // stack: [capturedcontext, capturedcontext, array]
     int counter = 0;
-    List<FieldNode> fieldList = isStatic ? new ArrayList<>() : new ArrayList<>(classNode.fields);
-    if (correlationAvailable) {
-      fieldList.add(
-          new FieldNode(
-              Opcodes.ACC_PRIVATE, "dd.trace_id", STRING_TYPE.getDescriptor(), null, null));
-      fieldList.add(
-          new FieldNode(
-              Opcodes.ACC_PRIVATE, "dd.span_id", STRING_TYPE.getDescriptor(), null, null));
-    }
-    for (FieldNode fieldNode : fieldList) {
-      if (isStaticField(fieldNode)) {
-        continue;
-      }
+    for (FieldNode fieldNode : fieldsToCapture) {
       insnList.add(new InsnNode(Opcodes.DUP));
       // stack: [capturedcontext, capturedcontext, array, array]
       ldc(insnList, counter++);
@@ -845,6 +814,39 @@ public class CapturedContextInstrumentor extends Instrumentor {
         Type.VOID_TYPE,
         Types.asArray(CAPTURED_VALUE, 1));
     // stack: [capturedcontext]
+  }
+
+  private static List<FieldNode> extractInstanceField(
+      List<FieldNode> classFields, boolean isStatic) {
+    List<FieldNode> results = new ArrayList<>();
+    if (CorrelationAccess.instance().isAvailable()) {
+      results.add(
+          new FieldNode(
+              Opcodes.ACC_PRIVATE, "dd.trace_id", STRING_TYPE.getDescriptor(), null, null));
+      results.add(
+          new FieldNode(
+              Opcodes.ACC_PRIVATE, "dd.span_id", STRING_TYPE.getDescriptor(), null, null));
+    }
+    if (isStatic) {
+      return results;
+    }
+    for (FieldNode fieldNode : classFields) {
+      if (isStaticField(fieldNode)) {
+        continue;
+      }
+      results.add(fieldNode);
+    }
+    return results;
+  }
+
+  private static List<FieldNode> extractStaticFields(List<FieldNode> classFields) {
+    List<FieldNode> results = new ArrayList<>();
+    for (FieldNode fieldNode : classFields) {
+      if (isStaticField(fieldNode) && !isFinalField(fieldNode)) {
+        results.add(fieldNode);
+      }
+    }
+    return results;
   }
 
   private boolean isInScope(LocalVariableNode variableNode, AbstractInsnNode location) {
