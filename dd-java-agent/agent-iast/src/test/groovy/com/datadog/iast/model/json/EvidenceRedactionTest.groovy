@@ -1,6 +1,9 @@
 package com.datadog.iast.model.json
 
-import com.datadog.iast.model.*
+import com.datadog.iast.model.Source
+import com.datadog.iast.model.Vulnerability
+import com.datadog.iast.model.VulnerabilityBatch
+import com.datadog.iast.model.VulnerabilityType
 import com.squareup.moshi.*
 import datadog.trace.api.config.IastConfig
 import datadog.trace.api.iast.SourceTypes
@@ -16,6 +19,11 @@ import javax.annotation.Nonnull
 import java.lang.reflect.Modifier
 import java.util.regex.Matcher
 import java.util.regex.Pattern
+
+import static com.datadog.iast.model.json.EvidenceAdapter.RedactedValuePart
+import static com.datadog.iast.model.json.EvidenceAdapter.StringValuePart
+import static com.datadog.iast.model.json.EvidenceAdapter.TaintedValuePart
+
 
 class EvidenceRedactionTest extends DDSpecification {
 
@@ -44,6 +52,29 @@ class EvidenceRedactionTest extends DDSpecification {
       .build()
     sourcesParser = moshi.adapter(Types.newParameterizedType(List, Source))
     vulnerabilitiesParser = moshi.adapter(Types.newParameterizedType(List, Vulnerability))
+  }
+
+  void 'test empty value parts'() {
+    given:
+    final writer = Mock(JsonWriter)
+    final ctx = new AdapterFactory.Context()
+
+    when:
+    part.write(ctx, writer)
+
+    then:
+    0 * _
+
+    where:
+    part                                                       | _
+    new StringValuePart(null)                                  | _
+    new StringValuePart('')                                    | _
+    new RedactedValuePart(null)                                | _
+    new RedactedValuePart('')                                  | _
+    new TaintedValuePart(Mock(JsonAdapter), null, null, true)  | _
+    new TaintedValuePart(Mock(JsonAdapter), null, '', true)    | _
+    new TaintedValuePart(Mock(JsonAdapter), null, null, false) | _
+    new TaintedValuePart(Mock(JsonAdapter), null, '', false)   | _
   }
 
   void 'test #suite'() {
@@ -142,7 +173,19 @@ class EvidenceRedactionTest extends DDSpecification {
       return null
     }
     return parameters.entrySet().inject(pattern) { result, entry ->
-      return result.replaceAll(Pattern.quote(entry.key), Matcher.quoteReplacement(entry.value))
+      final key = entry.key
+      final value = entry.value
+      switch (value) {
+        case String:
+          return result.replaceAll(Pattern.quote(key), Matcher.quoteReplacement(value))
+        case Map.Entry:
+          final keyPattern = Pattern.quote("$key:key")
+          final valuePattern = Pattern.quote("$key:value")
+          return result.replaceAll(keyPattern, Matcher.quoteReplacement(value.key))
+            .replaceAll(valuePattern, Matcher.quoteReplacement(value.value))
+        default:
+          throw new UnsupportedOperationException("Unsupported parameter type ${value.getClass().name}")
+      }
     }
   }
 
