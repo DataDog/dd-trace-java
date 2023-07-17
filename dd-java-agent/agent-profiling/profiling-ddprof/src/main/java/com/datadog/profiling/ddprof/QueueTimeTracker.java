@@ -33,7 +33,10 @@ public class QueueTimeTracker implements QueueTiming {
   @Override
   public void close() {
     assert task != null && scheduler != null;
-    profiler.recordQueueTime(
-        threshold, startTicks, profiler.getCurrentTicks(), task, scheduler, origin);
+    // potentually avoidable JNI call
+    long endTicks = profiler.getCurrentTicks();
+    if (profiler.isThresholdExceeded(threshold, startTicks, endTicks)) {
+      profiler.recordQueueTime(startTicks, endTicks, task, scheduler, origin);
+    }
   }
 }
