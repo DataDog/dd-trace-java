@@ -36,6 +36,7 @@ public class MoshiSnapshotHelper {
   public static final String ARGUMENTS = "arguments";
   public static final String LOCALS = "locals";
   public static final String THROWABLE = "throwable";
+  public static final String STATIC_FIELDS = "staticFields";
   public static final String THIS = "this";
   public static final String NOT_CAPTURED_REASON = "notCapturedReason";
   public static final String FIELD_COUNT_REASON = "fieldCount";
@@ -162,11 +163,18 @@ public class MoshiSnapshotHelper {
           toJsonCapturedValues(
               jsonWriter, capturedContext.getLocals(), capturedContext.getLimits(), timeoutChecker);
       jsonWriter.endObject(); // LOCALS
-      handleSerializationResult(jsonWriter, resultLocals, resultArgs);
+      jsonWriter.name(STATIC_FIELDS);
+      jsonWriter.beginObject();
+      SerializationResult resultStaticFields =
+          toJsonCapturedValues(
+              jsonWriter,
+              capturedContext.getStaticFields(),
+              capturedContext.getLimits(),
+              timeoutChecker);
+      jsonWriter.endObject();
+      handleSerializationResult(jsonWriter, resultLocals, resultArgs, resultStaticFields);
       jsonWriter.name(THROWABLE);
       throwableAdapter.toJson(jsonWriter, capturedContext.getThrowable());
-      // TODO add static fields
-      // jsonWriter.name("staticFields");
       jsonWriter.endObject();
     }
 
