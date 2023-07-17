@@ -31,7 +31,7 @@ public class JMXFetch {
   public static final List<String> DEFAULT_CONFIGS =
       Collections.singletonList("jmxfetch-config.yaml");
 
-  private static final int SLEEP_AFTER_JMXFETCH_EXITS = 5000;
+  private static final int DELAY_BETWEEN_RUN_ATTEMPTS = 5000;
 
   public static void run(final StatsDClientManager statsDClientManager) {
     run(statsDClientManager, Config.get());
@@ -139,7 +139,7 @@ public class JMXFetch {
                   }
                   // always wait before next attempt
                   try {
-                    Thread.sleep(SLEEP_AFTER_JMXFETCH_EXITS);
+                    Thread.sleep(DELAY_BETWEEN_RUN_ATTEMPTS);
                   } catch (final InterruptedException ignore) {
                   }
                 }
