@@ -107,6 +107,7 @@ public class MultiPartReaderServerSideInstrumentation extends Instrumenter.AppSe
           blockResponseFunction.tryCommitBlockingResponse(
               rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
           t = new BlockingException("Blocked request (for MultiPartReaderClientSide/readFrom)");
+          reqCtx.getTraceSegment().effectivelyBlocked();
         }
       }
     }

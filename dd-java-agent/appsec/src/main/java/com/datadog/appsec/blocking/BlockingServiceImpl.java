@@ -88,7 +88,7 @@ public class BlockingServiceImpl implements BlockingService {
     if (res) {
       TraceSegment traceSegment = reqCtx.getTraceSegment();
       if (traceSegment != null) {
-        traceSegment.setTagTop("appsec.blocked", "true");
+        traceSegment.effectivelyBlocked();
       }
     }
     return res;

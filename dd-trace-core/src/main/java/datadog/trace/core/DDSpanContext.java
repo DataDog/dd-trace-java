@@ -857,6 +857,11 @@ public class DDSpanContext
   }
 
   @Override
+  public void effectivelyBlocked() {
+    setTag("appsec.blocked", "true");
+  }
+
+  @Override
   public void setDataCurrent(String key, Object value) {
     // TODO is this decided?
     String tagKey = "_dd." + key + ".json";

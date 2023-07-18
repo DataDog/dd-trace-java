@@ -82,6 +82,7 @@ public class Servlet3Advice {
     Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
     if (rba != null) {
       ServletBlockingHelper.commitBlockingResponse(httpServletRequest, httpServletResponse, rba);
+      span.getRequestContext().getTraceSegment().effectivelyBlocked();
       return true; // skip method body
     }
 

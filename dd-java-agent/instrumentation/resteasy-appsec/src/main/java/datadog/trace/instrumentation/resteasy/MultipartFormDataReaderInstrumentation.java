@@ -93,6 +93,7 @@ public class MultipartFormDataReaderInstrumentation extends Instrumenter.AppSec
           blockResponseFunction.tryCommitBlockingResponse(
               rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
           t = new BlockingException("Blocked request (for MultipartFormDataInput/readFrom)");
+          reqCtx.getTraceSegment().effectivelyBlocked();
         }
       }
     }

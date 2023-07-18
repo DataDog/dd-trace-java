@@ -40,6 +40,7 @@ public class RatpackRequestBodyGetTextCalledAdvice {
           rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
       if (throwable == null) {
         throwable = new BlockingException("Blocked request (for ByteBufBackedTypedData/getText)");
+        reqCtx.getTraceSegment().effectivelyBlocked();
       }
     }
   }

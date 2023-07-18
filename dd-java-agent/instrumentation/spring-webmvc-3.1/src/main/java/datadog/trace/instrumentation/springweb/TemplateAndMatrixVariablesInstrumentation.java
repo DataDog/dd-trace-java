@@ -156,6 +156,7 @@ public class TemplateAndMatrixVariablesInstrumentation extends Instrumenter.Defa
                   brf.tryCommitBlockingResponse(
                       rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
                 }
+                reqCtx.getTraceSegment().effectivelyBlocked();
                 t =
                     new BlockingException(
                         "Blocked request (for RequestMappingInfoHandlerMapping/handleMatch)");

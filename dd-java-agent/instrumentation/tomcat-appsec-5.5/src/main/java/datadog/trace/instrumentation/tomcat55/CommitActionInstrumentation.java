@@ -113,6 +113,7 @@ public class CommitActionInstrumentation extends Instrumenter.AppSec
         if (brf != null) {
           brf.tryCommitBlockingResponse(
               rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+          requestContext.getTraceSegment().effectivelyBlocked();
           thiz.action(ActionCode.ACTION_CLOSE, null);
           return true;
         }

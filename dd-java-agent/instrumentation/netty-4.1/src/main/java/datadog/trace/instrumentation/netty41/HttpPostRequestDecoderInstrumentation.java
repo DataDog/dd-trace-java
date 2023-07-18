@@ -123,6 +123,7 @@ public class HttpPostRequestDecoderInstrumentation extends Instrumenter.AppSec
               rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
         }
         thr = new BlockingException("Blocked request (multipart/urlencoded post data)");
+        requestContext.getTraceSegment().effectivelyBlocked();
       }
 
       if (exc != null) {

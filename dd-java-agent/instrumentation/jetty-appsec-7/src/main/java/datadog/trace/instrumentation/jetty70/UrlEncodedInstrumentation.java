@@ -103,6 +103,7 @@ public class UrlEncodedInstrumentation extends Instrumenter.AppSec
                 rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
             if (t == null) {
               t = new BlockingException("Blocked request (for UrlEncoded/decodeTo)");
+              reqCtx.getTraceSegment().effectivelyBlocked();
             }
           }
         }
