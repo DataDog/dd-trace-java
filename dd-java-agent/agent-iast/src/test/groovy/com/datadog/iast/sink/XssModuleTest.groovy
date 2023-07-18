@@ -86,6 +86,39 @@ class XssModuleTest extends IastModuleImplTestBase {
     'test'.toCharArray() | VulnerabilityMarks.SQL_INJECTION_MARK | true    | true
   }
 
+  void 'module detects String format and args [] XSS'() {
+    setup:
+    final param = mapTainted(format, mark)
+    List<String> list = new ArrayList<>()
+    for (String o : array) {
+      list.add(mapTainted(o, mark))
+    }
+
+
+    when:
+    module.onXss(param, list.toArray())
+
+    then:
+    if (expected != null) {
+      1 * reporter.report(_, _) >> { args -> assertEvidence(args[1] as Vulnerability, expected) }
+    } else {
+      0 * reporter.report(_, _)
+    }
+
+    where:
+    format       | array                  | mark                                  | expected
+    null         | null                   | NOT_MARKED                            | null
+    '/var'       | ['a', 'b']             | NOT_MARKED                            | null
+    '/==>var<==' | ['a', 'b']             | NOT_MARKED                            | "/==>var<== a b"
+    null         | ['a', 'b']             | NOT_MARKED                            | null
+    '/var'       | ['==>a<==', null]      | NOT_MARKED                            | "/var ==>a<=="
+    '/var'       | ['==>a<==', 'b']       | NOT_MARKED                            | "/var ==>a<== b"
+    '/var'       | ['==>a<==', '==>b<=='] | NOT_MARKED                            | "/var ==>a<== ==>b<=="
+    '/==>var<==' | ['==>a<==', '==>b<=='] | NOT_MARKED                            | "/==>var<== ==>a<== ==>b<=="
+    '/==>var<==' | ['a', 'b']             | VulnerabilityMarks.XSS_MARK           | null
+    '/==>var<==' | ['a', 'b']             | VulnerabilityMarks.SQL_INJECTION_MARK | "/==>var<== a b"
+  }
+
 
   private String mapTainted(final String value, final int mark) {
     final result = addFromTaintFormat(ctx.taintedObjects, value, mark)
