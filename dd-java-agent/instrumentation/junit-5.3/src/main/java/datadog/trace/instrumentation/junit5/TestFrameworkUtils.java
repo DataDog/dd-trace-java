@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.junit5;
 
+import datadog.trace.api.Pair;
 import datadog.trace.api.civisibility.config.SkippableTest;
 import datadog.trace.util.Strings;
-import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -11,24 +11,19 @@ import java.util.List;
 import java.util.ListIterator;
 import javax.annotation.Nullable;
 import org.junit.platform.commons.JUnitException;
-import org.junit.platform.commons.util.ClassLoaderUtils;
 import org.junit.platform.commons.util.ReflectionUtils;
 import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestSource;
 import org.junit.platform.engine.UniqueId;
+import org.junit.platform.engine.support.descriptor.ClasspathResourceSource;
 import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.launcher.TestIdentifier;
 
 public abstract class TestFrameworkUtils {
-  private static final String SPOCK_ENGINE_ID = "spock";
 
   private static final MethodHandle GET_JAVA_CLASS;
   private static final MethodHandle GET_JAVA_METHOD;
   private static final MethodHandle GET_UNIQUE_ID_OBJECT;
-
-  private static final Class<Annotation> SPOCK_FEATURE_METADATA;
-
-  private static final MethodHandle SPOCK_FEATURE_NAME;
 
   static {
     /*
@@ -40,14 +35,6 @@ public abstract class TestFrameworkUtils {
     GET_JAVA_CLASS = accessGetJavaClass(lookup);
     GET_JAVA_METHOD = accessGetJavaMethod(lookup);
     GET_UNIQUE_ID_OBJECT = accessGetUniqueIdObject(lookup);
-
-    /*
-     * Spock's classes are accessed via reflection and method handles
-     * since they are loaded by a different classloader in some envs
-     */
-    ClassLoader defaultClassLoader = ClassLoaderUtils.getDefaultClassLoader();
-    SPOCK_FEATURE_METADATA = accessSpockFeatureMetadata(defaultClassLoader);
-    SPOCK_FEATURE_NAME = accessSpockFeatureName(lookup, SPOCK_FEATURE_METADATA);
   }
 
   private static MethodHandle accessGetJavaClass(MethodHandles.Lookup lookup) {
@@ -82,28 +69,6 @@ public abstract class TestFrameworkUtils {
       // assuming we're dealing with an older framework version
       // that does not have the methods we need;
       // fallback logic will be used in corresponding utility methods
-      return null;
-    }
-  }
-
-  private static Class<Annotation> accessSpockFeatureMetadata(ClassLoader classLoader) {
-    try {
-      return (Class<Annotation>)
-          classLoader.loadClass("org.spockframework.runtime.model.FeatureMetadata");
-    } catch (Exception e) {
-      return null;
-    }
-  }
-
-  private static MethodHandle accessSpockFeatureName(
-      MethodHandles.Lookup lookup, Class<Annotation> spockFeatureMetadata) {
-    if (spockFeatureMetadata == null) {
-      return null;
-    }
-    try {
-      MethodType returnsString = MethodType.methodType(String.class);
-      return lookup.findVirtual(spockFeatureMetadata, "name", returnsString);
-    } catch (Exception e) {
       return null;
     }
   }
@@ -147,39 +112,14 @@ public abstract class TestFrameworkUtils {
     }
   }
 
-  public static Method getSpockTestMethod(MethodSource methodSource) {
-    String methodName = methodSource.getMethodName();
-    if (methodName == null) {
-      return null;
-    }
-
-    Class<?> testClass = getTestClass(methodSource);
-    if (testClass == null) {
-      return null;
-    }
-
-    if (SPOCK_FEATURE_METADATA == null || SPOCK_FEATURE_NAME == null) {
-      return null;
-    }
-
-    try {
-      for (Method declaredMethod : testClass.getDeclaredMethods()) {
-        Annotation featureMetadata = declaredMethod.getAnnotation(SPOCK_FEATURE_METADATA);
-        if (featureMetadata == null) {
-          continue;
-        }
-
-        String annotatedName = (String) SPOCK_FEATURE_NAME.invoke(featureMetadata);
-        if (methodName.equals(annotatedName)) {
-          return declaredMethod;
-        }
-      }
-
-    } catch (Throwable e) {
-      // ignore
-    }
-
-    return null;
+  public static boolean isSuite(TestIdentifier testIdentifier) {
+    UniqueId uniqueId = TestFrameworkUtils.getUniqueId(testIdentifier);
+    List<UniqueId.Segment> segments = uniqueId.getSegments();
+    UniqueId.Segment lastSegment = segments.get(segments.size() - 1);
+    return "class".equals(lastSegment.getType()) // "regular" JUnit test class
+        || "nested-class".equals(lastSegment.getType()) // nested JUnit test class
+        || "spec".equals(lastSegment.getType()) // Spock specification
+        || "feature".equals(lastSegment.getType()); // Cucumber feature
   }
 
   public static String getParameters(MethodSource methodSource, String displayName) {
@@ -192,32 +132,45 @@ public abstract class TestFrameworkUtils {
 
   public static String getTestName(
       String displayName, MethodSource methodSource, String testEngineId) {
-    return SPOCK_ENGINE_ID.equals(testEngineId) ? displayName : methodSource.getMethodName();
+    return SpockUtils.SPOCK_ENGINE_ID.equals(testEngineId)
+        ? displayName
+        : methodSource.getMethodName();
   }
 
   @Nullable
   public static Method getTestMethod(MethodSource methodSource, String testEngineId) {
-    return SPOCK_ENGINE_ID.equals(testEngineId)
-        ? getSpockTestMethod(methodSource)
+    return SpockUtils.SPOCK_ENGINE_ID.equals(testEngineId)
+        ? SpockUtils.getSpockTestMethod(methodSource)
         : getTestMethod(methodSource);
   }
 
   public static SkippableTest toSkippableTest(TestDescriptor testDescriptor) {
     TestSource testSource = testDescriptor.getSource().orElse(null);
-    if (!(testSource instanceof MethodSource)) {
+    if (testSource instanceof MethodSource) {
+      MethodSource methodSource = (MethodSource) testSource;
+      String testSuiteName = methodSource.getClassName();
+      String displayName = testDescriptor.getDisplayName();
+      UniqueId uniqueId = testDescriptor.getUniqueId();
+      String testEngineId = uniqueId.getEngineId().orElse(null);
+      String testName = getTestName(displayName, methodSource, testEngineId);
+
+      String testParameters = getParameters(methodSource, displayName);
+
+      return new SkippableTest(testSuiteName, testName, testParameters, null);
+
+    } else if (testSource instanceof ClasspathResourceSource) {
+      ClasspathResourceSource classpathResourceSource = (ClasspathResourceSource) testSource;
+      String classpathResourceName = classpathResourceSource.getClasspathResourceName();
+
+      Pair<String, String> names =
+          CucumberUtils.getFeatureAndScenarioNames(testDescriptor, classpathResourceName);
+      String testSuiteName = names.getLeft();
+      String testName = names.getRight();
+      return new SkippableTest(testSuiteName, testName, null, null);
+
+    } else {
       return null;
     }
-
-    MethodSource methodSource = (MethodSource) testSource;
-    String testSuiteName = methodSource.getClassName();
-    String displayName = testDescriptor.getDisplayName();
-    UniqueId uniqueId = testDescriptor.getUniqueId();
-    String testEngineId = uniqueId.getEngineId().orElse(null);
-    String testName = getTestName(displayName, methodSource, testEngineId);
-
-    String testParameters = getParameters(methodSource, displayName);
-
-    return new SkippableTest(testSuiteName, testName, testParameters, null);
   }
 
   public static @Nullable String getTestEngineId(final TestIdentifier testIdentifier) {
@@ -239,7 +192,7 @@ public abstract class TestFrameworkUtils {
     return null;
   }
 
-  private static UniqueId getUniqueId(TestIdentifier testIdentifier) {
+  public static UniqueId getUniqueId(TestIdentifier testIdentifier) {
     if (GET_UNIQUE_ID_OBJECT != null) {
       try {
         return (UniqueId) GET_UNIQUE_ID_OBJECT.invokeExact(testIdentifier);

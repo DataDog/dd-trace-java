@@ -46,6 +46,7 @@ public class JUnit5ItrInstrumentation extends Instrumenter.CiVisibility
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".JUnit5Utils",
+      packageName + ".SpockUtils",
       packageName + ".TestFrameworkUtils",
       packageName + ".TestEventsHandlerHolder",
     };
@@ -78,7 +79,7 @@ public class JUnit5ItrInstrumentation extends Instrumenter.CiVisibility
       }
 
       SkippableTest test = TestFrameworkUtils.toSkippableTest(testDescriptor);
-      if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
+      if (test != null && TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
         skipResult = Node.SkipResult.skip(InstrumentationBridge.ITR_SKIP_REASON);
       }
     }

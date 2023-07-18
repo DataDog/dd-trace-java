@@ -39,6 +39,8 @@ public class JUnit5Instrumentation extends Instrumenter.CiVisibility
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".JUnit5Utils",
+      packageName + ".SpockUtils",
+      packageName + ".CucumberUtils",
       packageName + ".TestFrameworkUtils",
       packageName + ".TestEventsHandlerHolder",
       packageName + ".TracingListener",
