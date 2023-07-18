@@ -35,11 +35,11 @@ public class TestPrintWriterSuite {
     return pw.format(format, args);
   }
 
-  public PrintWriter printf(String format, Object... args) {
-    return pw.format(format, args);
+  public PrintWriter testPrintf(String format, Object... args) {
+    return pw.printf(format, args);
   }
 
-  public PrintWriter printf(Locale l, String format, Object... args) {
+  public PrintWriter testPrintf(Locale l, String format, Object... args) {
     return pw.printf(l, format, args);
   }
 

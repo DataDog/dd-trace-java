@@ -1,169 +1,90 @@
 package datadog.trace.instrumentation.java.io
 
+import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.XssModule
 import foo.bar.TestPrintWriterSuite
 import org.apache.catalina.connector.CoyoteWriter
 
-class PrintWriterCallSiteTest extends BaseIoCallSiteTest {
+class PrintWriterCallSiteTest extends AgentTestRunner {
 
-  void 'test write'() {
-    setup:
-    XssModule module = Mock(XssModule)
-    InstrumentationBridge.registerIastModule(module)
-    final String s = 'test'
-    final char[] buf = 'test'.toCharArray()
-    final int off = 0
-    final int len = 1
-    final testPrintWriterSuite = new TestPrintWriterSuite(Mock(clazz))
-
-    when:
-    testPrintWriterSuite.write(s)
-
-    then:
-    expected * module.onXss(s)
-    0 * module._
-
-
-    when:
-    testPrintWriterSuite.write(s, off, len)
-
-    then:
-    expected * module.onXss(s)
-    0 * module._
-
-
-    when:
-    testPrintWriterSuite.write(buf, off, len)
-
-    then:
-    expected * module.onXss(buf)
-    0 * module._
-
-    when:
-    testPrintWriterSuite.write(buf)
-
-    then:
-    expected * module.onXss(buf)
-    0 * module._
-
-    where:
-    clazz        | expected
-    PrintWriter  | 1
-    CoyoteWriter | 1
+  @Override
+  protected void configurePreAgent() {
+    injectSysConfig("dd.iast.enabled", "true")
   }
 
-  void 'test println'() {
+  void 'test  #method #args #clazz'() {
     setup:
     XssModule module = Mock(XssModule)
     InstrumentationBridge.registerIastModule(module)
-    final String s = 'test'
-    final char[] buf = 'test'.toCharArray()
     final testPrintWriterSuite = new TestPrintWriterSuite(Mock(clazz))
 
     when:
-    testPrintWriterSuite.println(s)
+    testPrintWriterSuite.&"$method".call(args.toArray())
 
     then:
-    expected * module.onXss(s)
-    0 * module._
-
-    when:
-    testPrintWriterSuite.println(buf)
-
-    then:
-    expected * module.onXss(buf)
+    1 * module.onXss(args.get(0))
     0 * module._
 
     where:
-    clazz        | expected
-    PrintWriter  | 1
-    CoyoteWriter | 1
+    clazz        | method    | args
+    PrintWriter  | 'write'   | ['test']
+    PrintWriter  | 'write'   | ['test'.toCharArray()]
+    PrintWriter  | 'write'   | ['test', 0, 1]
+    PrintWriter  | 'write'   | ['test'.toCharArray(), 0, 1]
+    PrintWriter  | 'println' | ['test']
+    PrintWriter  | 'println' | ['test'.toCharArray()]
+    PrintWriter  | 'print'   | ['test']
+    PrintWriter  | 'print'   | ['test'.toCharArray()]
+    CoyoteWriter | 'write'   | ['test']
+    CoyoteWriter | 'write'   | ['test'.toCharArray()]
+    CoyoteWriter | 'write'   | ['test', 0, 1]
+    CoyoteWriter | 'write'   | ['test'.toCharArray(), 0, 1]
+    CoyoteWriter | 'println' | ['test']
+    CoyoteWriter | 'println' | ['test'.toCharArray()]
+    CoyoteWriter | 'print'   | ['test']
+    CoyoteWriter | 'print'   | ['test'.toCharArray()]
   }
 
-  void 'test print'() {
+  void 'test  #method #args #clazz'() {
     setup:
     XssModule module = Mock(XssModule)
     InstrumentationBridge.registerIastModule(module)
-    final String s = 'test'
-    final char[] buf = 'test'.toCharArray()
     final testPrintWriterSuite = new TestPrintWriterSuite(Mock(clazz))
 
     when:
-    testPrintWriterSuite.print(s)
+    testPrintWriterSuite.&"$method".call(args.toArray())
 
     then:
-    expected * module.onXss(s)
-    0 * module._
-
-    when:
-    testPrintWriterSuite.print(buf)
-
-    then:
-    expected * module.onXss(buf)
+    1 * module.onXss(args.get(1), args.get(2))
     0 * module._
 
     where:
-    clazz        | expected
-    PrintWriter  | 1
-    CoyoteWriter | 1
+    clazz        | method       | args
+    PrintWriter  | 'testPrintf' | [Locale.getDefault(), '"Formatted like: %1$s and %2$s."', ['a', 'b']]
+    PrintWriter  | 'format'     | [Locale.getDefault(), '"Formatted like: %1$s and %2$s."', ['a', 'b']]
+    CoyoteWriter | 'testPrintf' | [Locale.getDefault(), '"Formatted like: %1$s and %2$s."', ['a', 'b']]
+    CoyoteWriter | 'format'     | [Locale.getDefault(), '"Formatted like: %1$s and %2$s."', ['a', 'b']]
   }
 
-
-  void 'test printf'() {
+  void 'test  #method #args #clazz'() {
     setup:
     XssModule module = Mock(XssModule)
     InstrumentationBridge.registerIastModule(module)
-    final format = '"Formatted like: %1$s and %2$s."'
-    final Object[] args = ['a', 'b']
     final testPrintWriterSuite = new TestPrintWriterSuite(Mock(clazz))
 
     when:
-    testPrintWriterSuite.printf(Locale.getDefault(), format, args)
+    testPrintWriterSuite.&"$method".call(args.toArray())
 
     then:
-    expected * module.onXss(format, args)
-    0 * module._
-
-    when:
-    testPrintWriterSuite.printf(format, args)
-
-    then:
-    expected * module.onXss(format, args)
+    1 * module.onXss(args.get(0), args.get(1))
     0 * module._
 
     where:
-    clazz        | expected
-    PrintWriter  | 1
-    CoyoteWriter | 1
-  }
-
-
-  void 'test format'() {
-    setup:
-    XssModule module = Mock(XssModule)
-    InstrumentationBridge.registerIastModule(module)
-    final format = '"Formatted like: %1$s and %2$s."'
-    final Object[] args = ['a', 'b']
-    final testPrintWriterSuite = new TestPrintWriterSuite(Mock(clazz))
-
-    when:
-    testPrintWriterSuite.format(Locale.getDefault(), format, args)
-
-    then:
-    expected * module.onXss(format, args)
-    0 * module._
-
-    when:
-    testPrintWriterSuite.format(format, args)
-
-    then:
-    expected * module.onXss(format, args)
-    0 * module._
-
-    where:
-    clazz        | expected
-    PrintWriter  | 1
-    CoyoteWriter | 1
+    clazz        | method       | args
+    PrintWriter  | 'testPrintf' | ['"Formatted like: %1$s and %2$s."', ['a', 'b']]
+    PrintWriter  | 'format'     | ['"Formatted like: %1$s and %2$s."', ['a', 'b']]
+    CoyoteWriter | 'testPrintf' | ['"Formatted like: %1$s and %2$s."', ['a', 'b']]
+    CoyoteWriter | 'format'     | ['"Formatted like: %1$s and %2$s."', ['a', 'b']]
   }
 }
