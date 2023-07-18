@@ -153,6 +153,10 @@ public class DDTestSuiteImpl implements DDTestSuite {
         span.finish();
       }
     }
+
+    moduleContext.reportChildTag(Tags.TEST_FRAMEWORK, span.getTag(Tags.TEST_FRAMEWORK));
+    moduleContext.reportChildTag(
+        Tags.TEST_FRAMEWORK_VERSION, span.getTag(Tags.TEST_FRAMEWORK_VERSION));
   }
 
   @Override

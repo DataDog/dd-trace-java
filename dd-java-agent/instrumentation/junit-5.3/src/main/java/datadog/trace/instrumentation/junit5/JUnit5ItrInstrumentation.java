@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.config.SkippableTest;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
@@ -43,7 +44,9 @@ public class JUnit5ItrInstrumentation extends Instrumenter.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TestFrameworkUtils", packageName + ".ItrFilter",
+      packageName + ".JUnit5Utils",
+      packageName + ".TestFrameworkUtils",
+      packageName + ".TestEventsHandlerHolder",
     };
   }
 
@@ -63,8 +66,12 @@ public class JUnit5ItrInstrumentation extends Instrumenter.CiVisibility
     public static void shouldBeSkipped(
         @Advice.This TestDescriptor testDescriptor,
         @Advice.Return(readOnly = false) Node.SkipResult skipResult) {
+      if (skipResult.isSkipped()) {
+        return;
+      }
 
-      if (!skipResult.isSkipped() && ItrFilter.INSTANCE.skip(testDescriptor)) {
+      SkippableTest test = TestFrameworkUtils.toSkippableTest(testDescriptor);
+      if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
         skipResult = Node.SkipResult.skip("Skipped by Datadog Intelligent Test Runner");
       }
     }

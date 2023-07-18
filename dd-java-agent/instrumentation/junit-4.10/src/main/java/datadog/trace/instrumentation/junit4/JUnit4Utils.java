@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.junit4;
 
+import datadog.trace.api.civisibility.config.SkippableTest;
 import datadog.trace.util.Strings;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
@@ -298,5 +299,13 @@ public abstract class JUnit4Utils {
     String name = matcher.matches() ? matcher.group(1) : getTestName(description, null);
 
     return Description.createTestDescription(description.getTestClass(), name, updatedAnnotations);
+  }
+
+  public static SkippableTest toSkippableTest(Description description) {
+    Method testMethod = JUnit4Utils.getTestMethod(description);
+    String suite = description.getClassName();
+    String name = JUnit4Utils.getTestName(description, testMethod);
+    String parameters = JUnit4Utils.getParameters(description);
+    return new SkippableTest(suite, name, parameters, null);
   }
 }

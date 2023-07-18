@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.testng;
 
+import datadog.trace.api.civisibility.config.SkippableTest;
 import datadog.trace.util.Strings;
 import java.io.InputStream;
 import java.lang.reflect.Method;
@@ -145,6 +146,13 @@ public abstract class TestNGUtils {
     } catch (Exception e) {
       return false;
     }
+  }
+
+  public static SkippableTest toSkippableTest(Method method, Object instance, Object[] parameters) {
+    String testSuiteName = instance.getClass().getName();
+    String testName = method.getName();
+    String testParameters = TestNGUtils.getParameters(parameters);
+    return new SkippableTest(testSuiteName, testName, testParameters, null);
   }
 
   public static String getTestNGVersion() {

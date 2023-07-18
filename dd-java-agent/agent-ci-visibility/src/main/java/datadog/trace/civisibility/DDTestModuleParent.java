@@ -109,6 +109,16 @@ public class DDTestModuleParent extends DDTestModuleImpl {
       sessionContext.reportChildStatus(context.getStatus());
     }
     span.setTag(Tags.TEST_STATUS, context.getStatus());
+
+    Object testFramework = context.getChildTag(Tags.TEST_FRAMEWORK);
+    if (testFramework != null) {
+      span.setTag(Tags.TEST_FRAMEWORK, testFramework);
+    }
+    Object testFrameworkVersion = context.getChildTag(Tags.TEST_FRAMEWORK_VERSION);
+    if (testFrameworkVersion != null) {
+      span.setTag(Tags.TEST_FRAMEWORK_VERSION, testFrameworkVersion);
+    }
+
     testDecorator.beforeFinish(span);
 
     if (endTime != null) {

@@ -1,5 +1,6 @@
 package datadog.trace.api.civisibility.events;
 
+import datadog.trace.api.civisibility.config.SkippableTest;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -10,7 +11,7 @@ public interface TestEventsHandler {
 
   void onTestModuleStart();
 
-  void onTestModuleFinish(boolean itrTestsSkipped);
+  void onTestModuleFinish();
 
   void onTestSuiteStart(
       String testSuiteName,
@@ -74,8 +75,9 @@ public interface TestEventsHandler {
       @Nullable Method testMethod,
       @Nullable String reason);
 
+  boolean skip(SkippableTest test);
+
   interface Factory {
-    TestEventsHandler create(
-        String component, String testFramework, String testFrameworkVersion, Path path);
+    TestEventsHandler create(String component, Path path);
   }
 }

@@ -13,18 +13,10 @@ public class TestDecoratorImpl implements TestDecorator {
   private static final UTF8BytesString CIAPP_TEST_ORIGIN = UTF8BytesString.create("ciapp-test");
 
   private final String component;
-  private final String testFramework;
-  private final String testFrameworkVersion;
   private final Map<String, String> ciTags;
 
-  public TestDecoratorImpl(
-      String component,
-      String testFramework,
-      String testFrameworkVersion,
-      Map<String, String> ciTags) {
+  public TestDecoratorImpl(String component, Map<String, String> ciTags) {
     this.component = component;
-    this.testFramework = testFramework;
-    this.testFrameworkVersion = testFrameworkVersion;
     this.ciTags = ciTags;
   }
 
@@ -75,8 +67,6 @@ public class TestDecoratorImpl implements TestDecorator {
      * as they are used to establish correspondence between
      * executions of the same test case
      */
-    span.setTag(Tags.TEST_FRAMEWORK, testFramework);
-    span.setTag(Tags.TEST_FRAMEWORK_VERSION, testFrameworkVersion);
     span.setTag(Tags.TEST_TYPE, testType());
     span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP);
     span.setTag(Tags.RUNTIME_NAME, runtimeName());

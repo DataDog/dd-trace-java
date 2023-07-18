@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.config.SkippableTest;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
@@ -45,10 +46,10 @@ public class JUnit4ItrInstrumentation extends Instrumenter.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TracingListener",
       packageName + ".SkippedByItr",
       packageName + ".JUnit4Utils",
-      packageName + ".ItrFilter",
+      packageName + ".TestEventsHandlerHolder",
+      packageName + ".TracingListener",
     };
   }
 
@@ -80,7 +81,8 @@ public class JUnit4ItrInstrumentation extends Instrumenter.CiVisibility
         return null;
       }
 
-      if (ItrFilter.INSTANCE.skip(description)) {
+      SkippableTest test = JUnit4Utils.toSkippableTest(description);
+      if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
         Description skippedDescription = JUnit4Utils.getSkippedDescription(description);
         notifier.fireTestIgnored(skippedDescription);
         return Boolean.FALSE;

@@ -1,10 +1,6 @@
 package datadog.trace.instrumentation.junit5;
 
-import datadog.trace.api.civisibility.InstrumentationBridge;
-import datadog.trace.api.civisibility.events.TestEventsHandler;
 import java.lang.reflect.Method;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -25,7 +21,6 @@ import org.junit.platform.launcher.TestPlan;
 public class TracingListener implements TestExecutionListener {
 
   private final Map<String, String> versionByTestEngineId = new HashMap<>();
-  private final TestEventsHandler testEventsHandler;
 
   private volatile TestPlan testPlan;
 
@@ -34,27 +29,17 @@ public class TracingListener implements TestExecutionListener {
       String testEngineId = testEngine.getId();
       versionByTestEngineId.put(testEngineId, testEngine.getVersion().orElse(null));
     }
-
-    String testEngineId =
-        versionByTestEngineId.size() == 1 ? versionByTestEngineId.keySet().iterator().next() : null;
-    String testFramework = getTestFramework(testEngineId);
-    String testFrameworkVersion = versionByTestEngineId.get(testEngineId);
-
-    Path currentPath = Paths.get("").toAbsolutePath();
-    testEventsHandler =
-        InstrumentationBridge.createTestEventsHandler(
-            "junit", testFramework, testFrameworkVersion, currentPath);
   }
 
   @Override
   public void testPlanExecutionStarted(final TestPlan testPlan) {
     this.testPlan = testPlan;
-    testEventsHandler.onTestModuleStart();
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestModuleStart();
   }
 
   @Override
   public void testPlanExecutionFinished(final TestPlan testPlan) {
-    testEventsHandler.onTestModuleFinish(ItrFilter.INSTANCE.testsSkipped());
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestModuleFinish();
   }
 
   @Override
@@ -91,7 +76,7 @@ public class TracingListener implements TestExecutionListener {
 
     List<String> tags =
         testIdentifier.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
-    testEventsHandler.onTestSuiteStart(
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
         testSuiteName, testFramework, testFrameworkVersion, testClass, tags, false);
   }
 
@@ -110,18 +95,20 @@ public class TracingListener implements TestExecutionListener {
       if (JUnit5Utils.isAssumptionFailure(throwable)) {
 
         String reason = throwable.getMessage();
-        testEventsHandler.onTestSuiteSkip(testSuiteName, testClass, reason);
+        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(
+            testSuiteName, testClass, reason);
 
         for (TestIdentifier child : testPlan.getChildren(testIdentifier)) {
           executionSkipped(child, reason);
         }
 
       } else {
-        testEventsHandler.onTestSuiteFailure(testSuiteName, testClass, throwable);
+        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFailure(
+            testSuiteName, testClass, throwable);
       }
     }
 
-    testEventsHandler.onTestSuiteFinish(testSuiteName, testClass);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(testSuiteName, testClass);
   }
 
   private void testCaseExecutionStarted(final TestIdentifier testIdentifier) {
@@ -148,7 +135,7 @@ public class TracingListener implements TestExecutionListener {
     Method testMethod = TestFrameworkUtils.getTestMethod(methodSource, testEngineId);
     String testMethodName = methodSource.getMethodName();
 
-    testEventsHandler.onTestStart(
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         testSuitName,
         testName,
         null,
@@ -180,15 +167,16 @@ public class TracingListener implements TestExecutionListener {
     Throwable throwable = testExecutionResult.getThrowable().orElse(null);
     if (throwable != null) {
       if (JUnit5Utils.isAssumptionFailure(throwable)) {
-        testEventsHandler.onTestSkip(
+        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(
             testSuiteName, testClass, testName, null, testParameters, throwable.getMessage());
       } else {
-        testEventsHandler.onTestFailure(
+        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(
             testSuiteName, testClass, testName, null, testParameters, throwable);
       }
     }
 
-    testEventsHandler.onTestFinish(testSuiteName, testClass, testName, null, testParameters);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
+        testSuiteName, testClass, testName, null, testParameters);
   }
 
   @Override
@@ -217,15 +205,15 @@ public class TracingListener implements TestExecutionListener {
     List<String> tags =
         testIdentifier.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
 
-    testEventsHandler.onTestSuiteStart(
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
         testSuiteName, testFramework, testFrameworkVersion, testClass, tags, false);
-    testEventsHandler.onTestSuiteSkip(testSuiteName, testClass, reason);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(testSuiteName, testClass, reason);
 
     for (TestIdentifier child : testPlan.getChildren(testIdentifier)) {
       executionSkipped(child, reason);
     }
 
-    testEventsHandler.onTestSuiteFinish(testSuiteName, testClass);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(testSuiteName, testClass);
   }
 
   private void testCaseExecutionSkipped(
@@ -246,7 +234,7 @@ public class TracingListener implements TestExecutionListener {
     Method testMethod = TestFrameworkUtils.getTestMethod(methodSource, testEngineId);
     String testMethodName = methodSource.getMethodName();
 
-    testEventsHandler.onTestIgnore(
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
         testSuiteName,
         testName,
         null,
