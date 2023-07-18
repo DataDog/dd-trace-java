@@ -896,6 +896,25 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
   }
 
+  @Override
+  public <C> String generatePathwayContext(
+      AgentSpan span, LinkedHashMap<String, String> sortedTags) {
+    PathwayContext pathwayContext = span.context().getPathwayContext();
+    if (pathwayContext == null) {
+      return "";
+    }
+    pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring::add);
+    try {
+      String encodedContext = pathwayContext.strEncode();
+      if (encodedContext != null) {
+        return encodedContext;
+      }
+    } catch (IOException e) {
+      return "";
+    }
+    return "";
+  }
+
   private <C> void inject(
       AgentSpan.Context context, C carrier, Setter<C> setter, TracePropagationStyle style) {
     if (!(context instanceof DDSpanContext)) {

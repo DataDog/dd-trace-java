@@ -4,6 +4,11 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.PROPAGATION_KEY;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.AWS_LEGACY_TRACING;
 import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.DECORATE;
 
@@ -20,6 +25,17 @@ import software.amazon.awssdk.core.interceptor.ExecutionAttribute;
 import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 import software.amazon.awssdk.http.SdkHttpRequest;
+import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
+import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
+
+import software.amazon.awssdk.core.interceptor.SdkExecutionAttribute;
+import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 
 /** AWS request execution interceptor */
 public class TracingExecutionInterceptor implements ExecutionInterceptor {
@@ -45,6 +61,38 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     final AgentSpan span = startSpan(DECORATE.spanName(executionAttributes));
     DECORATE.afterStart(span);
     executionAttributes.putAttribute(SPAN_ATTRIBUTE, span);
+  }
+
+
+  @Override
+  public SdkRequest modifyRequest(final Context.ModifyRequest context, final ExecutionAttributes executionAttributes) {
+    if (context.request() instanceof SendMessageRequest) {
+      final SendMessageRequest request = (SendMessageRequest) context.request();
+
+      final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
+
+      LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+      sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+      sortedTags.put(TOPIC_TAG, "hriday-test-sqs-java");
+      sortedTags.put(TYPE_TAG, "sqs");
+
+      String pathway = propagate().generatePathwayContext(span, sortedTags);
+
+      final Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
+      messageAttributes.put(PROPAGATION_KEY, MessageAttributeValue.builder()
+          .dataType("String")
+          .stringValue(pathway)
+          .build());
+
+      return request.toBuilder().messageAttributes(messageAttributes).build();
+
+    } else if (context.request() instanceof ReceiveMessageRequest) {
+      final ReceiveMessageRequest request = (ReceiveMessageRequest) context.request();
+      return request.toBuilder().messageAttributeNames(PROPAGATION_KEY).build();
+    } else {
+      return context.request();
+    }
+
   }
 
   @Override
