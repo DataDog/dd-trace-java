@@ -89,9 +89,9 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
       final int status = status(response);
       if (status > UNSET_STATUS) {
         span.setHttpStatusCode(status);
-      }
-      if (CLIENT_ERROR_STATUSES.get(status)) {
-        span.setError(true);
+        if (CLIENT_ERROR_STATUSES.get(status)) {
+          span.setError(true);
+        }
       }
     }
     return span;
