@@ -18,7 +18,7 @@ public class RequestAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope beginRequest(@Advice.This Filter filter, @Advice.Argument(0) final Invoker invoker,
                                         @Advice.Argument(1) final Invocation invocation) {
-    logger.info("dubboFilterName:"+filter.getClass().getName());
+    //logger.info("dubboFilterName:"+filter.getClass().getName());
 
 //    final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(RpcContext.class);
 //    if (callDepth > 0) {
