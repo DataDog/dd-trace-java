@@ -39,7 +39,7 @@ class XssModuleTest extends IastModuleImplTestBase {
     overheadController.consumeQuota(_, _) >> true
   }
 
-  void 'module detects String XSS'(final String s, final int mark, final String expected) {
+  void 'module detects String XSS'() {
     setup:
     final param = mapTainted(s, mark)
 

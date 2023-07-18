@@ -24,7 +24,7 @@ public class PrintWriterCallSite {
       try {
         module.onXss(s);
       } catch (final Throwable e) {
-        module.onUnexpectedException("beforeWrite threw", e);
+        module.onUnexpectedException("beforeStringParam threw", e);
       }
     }
   }
@@ -39,7 +39,7 @@ public class PrintWriterCallSite {
       try {
         module.onXss(buf);
       } catch (final Throwable e) {
-        module.onUnexpectedException("beforeWrite threw", e);
+        module.onUnexpectedException("beforeCharArrayParam threw", e);
       }
     }
   }
@@ -57,7 +57,7 @@ public class PrintWriterCallSite {
       try {
         module.onXss(format, args);
       } catch (final Throwable e) {
-        module.onUnexpectedException("beforeWrite threw", e);
+        module.onUnexpectedException("beforeLocaleAndStringAndObjects threw", e);
       }
     }
   }
@@ -74,7 +74,7 @@ public class PrintWriterCallSite {
       try {
         module.onXss(format, args);
       } catch (final Throwable e) {
-        module.onUnexpectedException("beforeWrite threw", e);
+        module.onUnexpectedException("beforeStringAndObjects threw", e);
       }
     }
   }
