@@ -149,6 +149,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TRACE_SANITATION_ENABLED;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_TAGS;
@@ -623,6 +624,7 @@ public class Config {
   private final String iastRedactionNamePattern;
   private final String iastRedactionValuePattern;
 
+  private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
   private final String ciVisibilityAgentlessUrl;
 
@@ -1423,6 +1425,9 @@ public class Config {
     iastRedactionValuePattern =
         configProvider.getString(
             IAST_REDACTION_VALUE_PATTERN, DEFAULT_IAST_REDACTION_VALUE_PATTERN);
+
+    ciVisibilityTraceSanitationEnabled =
+        configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
 
     ciVisibilityAgentlessEnabled =
         configProvider.getBoolean(
@@ -2373,6 +2378,10 @@ public class Config {
 
   public boolean isUsmEnabled() {
     return instrumenterConfig.isUsmEnabled();
+  }
+
+  public boolean isCiVisibilityTraceSanitationEnabled() {
+    return ciVisibilityTraceSanitationEnabled;
   }
 
   public boolean isCiVisibilityAgentlessEnabled() {

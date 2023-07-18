@@ -33,23 +33,6 @@ public abstract class JUnit5Utils {
     }
   }
 
-  /*
-   * JUnit5 considers parameterized or factory test cases as containers.
-   * We need to differentiate this type of containers from "regular" ones, that are test classes
-   */
-  public static boolean isTestCase(TestIdentifier testIdentifier) {
-    return testIdentifier.isContainer() && getMethodSourceOrNull(testIdentifier) != null;
-  }
-
-  public static boolean isRootContainer(TestIdentifier testIdentifier) {
-    return !testIdentifier.getParentId().isPresent();
-  }
-
-  private static MethodSource getMethodSourceOrNull(TestIdentifier testIdentifier) {
-    return (MethodSource)
-        testIdentifier.getSource().filter(s -> s instanceof MethodSource).orElse(null);
-  }
-
   public static boolean isAssumptionFailure(Throwable throwable) {
     switch (throwable.getClass().getName()) {
       case "org.junit.AssumptionViolatedException":
