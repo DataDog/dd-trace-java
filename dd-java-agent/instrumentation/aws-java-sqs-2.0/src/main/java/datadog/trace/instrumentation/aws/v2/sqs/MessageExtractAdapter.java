@@ -8,7 +8,6 @@ import software.amazon.awssdk.services.sqs.model.Message;
 import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
 
 import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.DSM_KEY;
-import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.PROPAGATION_KEY;
 
 public final class MessageExtractAdapter implements AgentPropagation.ContextVisitor<Message> {
   private static final Logger log = LoggerFactory.getLogger(MessageExtractAdapter.class);

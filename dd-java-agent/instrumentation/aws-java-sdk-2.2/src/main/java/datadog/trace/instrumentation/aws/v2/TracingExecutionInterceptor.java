@@ -5,7 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.DSM_KEY;
-import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.PROPAGATION_KEY;
+import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.PROPAGATION_KEY_BASE64;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
@@ -80,7 +80,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
       String pathway = propagate().generatePathwayContext(span, sortedTags);
 
-      String jsonPathway = String.format("{\"%s\": \"%s\"}", PROPAGATION_KEY, pathway);
+      String jsonPathway = String.format("{\"%s\": \"%s\"}", PROPAGATION_KEY_BASE64, pathway);
       final Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
       messageAttributes.put(DSM_KEY, MessageAttributeValue.builder()
           .dataType("String")
