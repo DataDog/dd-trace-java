@@ -17,7 +17,7 @@ public class DubboHeadersExtractAdapter implements AgentPropagation.ContextVisit
       log.debug("Extract size: {}",objectAttachments.entrySet().size());
     }
     for (Map.Entry<String,String> entry : objectAttachments.entrySet()){
-      log.debug("Extract "+entry.getKey()+"\t"+entry.getValue());
+    //  log.debug("Extract "+entry.getKey()+"\t"+entry.getValue());
       if (null != entry.getValue()) {
         if (!classifier.accept(entry.getKey(), entry.getValue())) {
           return;
