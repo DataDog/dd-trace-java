@@ -8,6 +8,9 @@ abstract class AbstractTestContext implements TestContext {
 
   @Override
   public synchronized void reportChildStatus(String childStatus) {
+    if (childStatus == null) {
+      return;
+    }
     switch (childStatus) {
       case CIConstants.TEST_PASS:
         if (status == null || CIConstants.TEST_SKIP.equals(status)) {
