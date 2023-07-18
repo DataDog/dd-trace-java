@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.sqs.model.Message;
 import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
 
+import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.DSM_KEY;
 import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.PROPAGATION_KEY;
 
 public final class MessageExtractAdapter implements AgentPropagation.ContextVisitor<Message> {
@@ -19,7 +20,7 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
     for (Map.Entry<String, MessageAttributeValue> entry : carrier.messageAttributes().entrySet()) {
       String key = entry.getKey();
       String value = entry.getValue().getValueForField("StringValue", Object.class).get().toString();
-      if (key.equalsIgnoreCase(PROPAGATION_KEY)) {
+      if (key.equalsIgnoreCase(DSM_KEY)) {
         classifier.accept(key, value);
       }
 

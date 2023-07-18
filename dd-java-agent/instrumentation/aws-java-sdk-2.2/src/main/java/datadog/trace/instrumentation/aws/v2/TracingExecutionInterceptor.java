@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.DSM_KEY;
 import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.PROPAGATION_KEY;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
@@ -79,17 +80,20 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
       String pathway = propagate().generatePathwayContext(span, sortedTags);
 
+      String jsonPathway = String.format("{\"%s\": \"%s\"}", PROPAGATION_KEY, pathway);
       final Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
-      messageAttributes.put(PROPAGATION_KEY, MessageAttributeValue.builder()
+      messageAttributes.put(DSM_KEY, MessageAttributeValue.builder()
           .dataType("String")
-          .stringValue(pathway)
+          .stringValue(jsonPathway)
           .build());
+
+     System.out.println(jsonPathway);
 
       return request.toBuilder().messageAttributes(messageAttributes).build();
 
     } else if (context.request() instanceof ReceiveMessageRequest) {
       final ReceiveMessageRequest request = (ReceiveMessageRequest) context.request();
-      return request.toBuilder().messageAttributeNames(PROPAGATION_KEY).build();
+      return request.toBuilder().messageAttributeNames(DSM_KEY).build();
     } else {
       return context.request();
     }
