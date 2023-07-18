@@ -151,8 +151,8 @@ public class DDTestSessionImpl implements DDTestSession {
 
   @Override
   public DDTestModule testModuleStart(String moduleName, @Nullable Long startTime) {
-    DDTestModuleImpl module =
-        new DDTestModuleImpl(
+    DDTestModuleParent module =
+        new DDTestModuleParent(
             context,
             moduleName,
             startTime,
