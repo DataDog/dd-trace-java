@@ -1,7 +1,5 @@
 package datadog.trace.api.civisibility;
 
-import datadog.trace.api.civisibility.config.JvmInfo;
-import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import javax.annotation.Nullable;
 
 /**
@@ -69,6 +67,4 @@ public interface DDTestSession {
    * @return Handle to the module instance
    */
   DDTestModule testModuleStart(String moduleName, @Nullable Long startTime);
-
-  ModuleExecutionSettings getModuleExecutionSettings(JvmInfo jvmInfo);
 }
