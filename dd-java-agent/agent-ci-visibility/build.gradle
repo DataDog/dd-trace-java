@@ -11,7 +11,9 @@ minimumInstructionCoverage = 0.8
 
 excludedClassesCoverage += [
   "datadog.trace.civisibility.CiVisibilitySystem",
+  "datadog.trace.civisibility.DDTestModuleChild",
   "datadog.trace.civisibility.DDTestModuleImpl",
+  "datadog.trace.civisibility.DDTestModuleParent",
   "datadog.trace.civisibility.DDTestSessionImpl",
   "datadog.trace.civisibility.DDTestSuiteImpl",
   "datadog.trace.civisibility.DDTestImpl",
