@@ -1,11 +1,7 @@
 package datadog.trace.instrumentation.gradle
 
 import datadog.trace.api.Config
-import datadog.trace.api.civisibility.config.SkippableTest
-import datadog.trace.api.civisibility.config.SkippableTestsSerializer
-import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.bootstrap.DatadogClassLoader
-import datadog.trace.util.Strings
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.internal.jvm.Jvm
@@ -47,17 +43,12 @@ class GradleProjectConfigurator {
 
   public static final GradleProjectConfigurator INSTANCE = new GradleProjectConfigurator()
 
-  void configureTracer(Task task, Map<String, String> propagatedSystemProperties, Collection<SkippableTest> skippableTests) {
+  void configureTracer(Task task, Map<String, String> propagatedSystemProperties) {
     List<String> jvmArgs = new ArrayList<>(task.jvmArgs != null ? task.jvmArgs : Collections.<String> emptyList())
 
     // propagate to child process all "dd." system properties available in current process
     for (def e : propagatedSystemProperties.entrySet()) {
       jvmArgs.add("-D" + e.key + '=' + e.value)
-    }
-
-    if (skippableTests != null && !skippableTests.isEmpty()) {
-      String skippableTestsString = SkippableTestsSerializer.serialize(skippableTests)
-      jvmArgs.add("-D" + Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_SKIPPABLE_TESTS) + '=' + skippableTestsString)
     }
 
     def ciVisibilityDebugPort = Config.get().ciVisibilityDebugPort

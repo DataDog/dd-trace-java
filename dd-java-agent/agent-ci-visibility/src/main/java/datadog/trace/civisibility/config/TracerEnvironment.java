@@ -30,6 +30,10 @@ public class TracerEnvironment {
     this.configurations = configurations;
   }
 
+  public Configurations getConfigurations() {
+    return configurations;
+  }
+
   public static Builder builder() {
     return new Builder();
   }

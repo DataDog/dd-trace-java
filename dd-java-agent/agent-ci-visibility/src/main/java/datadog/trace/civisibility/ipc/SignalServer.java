@@ -17,9 +17,8 @@ import org.slf4j.LoggerFactory;
  * A server for processing signals sent from children processes (forked JVMs that run tests) to the
  * parent process (build system).
  *
- * <p>Client message is: length (2 bytes) + body [ signal type(1 byte) + payload ]
- *
- * <p>Server response is an ack: 0x01 (1 byte)
+ * <p>Client message and server response both have a similar structure: length (4 bytes) + body [
+ * signal type(1 byte) + payload ]
  */
 public class SignalServer {
 

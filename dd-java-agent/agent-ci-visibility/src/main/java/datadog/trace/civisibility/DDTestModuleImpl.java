@@ -2,6 +2,7 @@ package datadog.trace.civisibility;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.DDTestModule;
+import datadog.trace.api.civisibility.config.SkippableTest;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.codeowners.Codeowners;
@@ -9,6 +10,7 @@ import datadog.trace.civisibility.context.TestContext;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import java.net.InetSocketAddress;
+import java.util.Collection;
 import javax.annotation.Nullable;
 
 public abstract class DDTestModuleImpl implements DDTestModule {
@@ -20,6 +22,10 @@ public abstract class DDTestModuleImpl implements DDTestModule {
   protected final Codeowners codeowners;
   protected final MethodLinesResolver methodLinesResolver;
   @Nullable protected final InetSocketAddress signalServerAddress;
+
+  protected volatile boolean testsSkipped;
+  private volatile Collection<SkippableTest> skippableTests;
+  private final Object skippableTestsInitLock = new Object();
 
   protected DDTestModuleImpl(
       String moduleName,
@@ -59,6 +65,30 @@ public abstract class DDTestModuleImpl implements DDTestModule {
         methodLinesResolver,
         parallelized);
   }
+
+  @Override
+  public boolean skip(SkippableTest test) {
+    if (test == null) {
+      return false;
+    }
+
+    if (skippableTests == null) {
+      synchronized (skippableTestsInitLock) {
+        if (skippableTests == null) {
+          skippableTests = fetchSkippableTests();
+        }
+      }
+    }
+
+    if (skippableTests.contains(test)) {
+      testsSkipped = true;
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  protected abstract Collection<SkippableTest> fetchSkippableTests();
 
   public BuildEventsHandler.ModuleInfo getModuleInfo() {
     TestContext context = getContext();

@@ -7,7 +7,9 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTestModule;
 import datadog.trace.api.civisibility.DDTestSession;
+import datadog.trace.api.civisibility.config.JvmInfo;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
+import datadog.trace.api.civisibility.config.SkippableTest;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -24,10 +26,12 @@ import datadog.trace.civisibility.ipc.RepoIndexResponse;
 import datadog.trace.civisibility.ipc.SignalResponse;
 import datadog.trace.civisibility.ipc.SignalServer;
 import datadog.trace.civisibility.ipc.SignalType;
+import datadog.trace.civisibility.ipc.SkippableTestsRequest;
+import datadog.trace.civisibility.ipc.SkippableTestsResponse;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.index.RepoIndex;
 import datadog.trace.civisibility.source.index.RepoIndexBuilder;
-import java.nio.file.Path;
+import java.util.Collection;
 import javax.annotation.Nullable;
 
 public class DDTestSessionImpl implements DDTestSession {
@@ -86,6 +90,8 @@ public class DDTestSessionImpl implements DDTestSession {
         SignalType.MODULE_EXECUTION_RESULT, this::onModuleExecutionResultReceived);
     signalServer.registerSignalHandler(
         SignalType.REPO_INDEX_REQUEST, this::onRepoIndexRequestReceived);
+    signalServer.registerSignalHandler(
+        SignalType.SKIPPABLE_TESTS_REQUEST, this::onSkippableTestsRequestReceived);
     signalServer.start();
   }
 
@@ -111,6 +117,20 @@ public class DDTestSessionImpl implements DDTestSession {
       return new RepoIndexResponse(index);
     } catch (Exception e) {
       return new ErrorResponse("Error while building repo index: " + e.getMessage());
+    }
+  }
+
+  private SignalResponse onSkippableTestsRequestReceived(
+      SkippableTestsRequest skippableTestsRequest) {
+    try {
+      String relativeModulePath = skippableTestsRequest.getRelativeModulePath();
+      JvmInfo jvmInfo = skippableTestsRequest.getJvmInfo();
+      ModuleExecutionSettings moduleExecutionSettings = getModuleExecutionSettings(jvmInfo);
+      Collection<SkippableTest> tests =
+          moduleExecutionSettings.getSkippableTests(relativeModulePath);
+      return new SkippableTestsResponse(tests);
+    } catch (Exception e) {
+      return new ErrorResponse("Error while getting skippable tests: " + e.getMessage());
     }
   }
 
@@ -162,13 +182,14 @@ public class DDTestSessionImpl implements DDTestSession {
             sourcePathResolver,
             codeowners,
             methodLinesResolver,
+            moduleExecutionSettingsFactory,
             signalServer.getAddress());
     testModuleRegistry.addModule(module);
     return module;
   }
 
   @Override
-  public ModuleExecutionSettings getModuleExecutionSettings(@Nullable Path jvmExecutablePath) {
-    return moduleExecutionSettingsFactory.create(jvmExecutablePath);
+  public ModuleExecutionSettings getModuleExecutionSettings(JvmInfo jvmInfo) {
+    return moduleExecutionSettingsFactory.create(jvmInfo, null);
   }
 }

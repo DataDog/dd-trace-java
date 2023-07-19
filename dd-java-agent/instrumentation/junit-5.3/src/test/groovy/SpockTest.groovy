@@ -1,12 +1,11 @@
 import datadog.trace.agent.test.asserts.ListWriterAssert
-import datadog.trace.api.civisibility.config.SkippableTest
-import datadog.trace.api.civisibility.config.SkippableTestsSerializer
-import datadog.trace.api.config.CiVisibilityConfig
-import datadog.trace.civisibility.CiVisibilityTest
+import datadog.trace.api.DDTags
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.CIConstants
+import datadog.trace.api.civisibility.config.SkippableTest
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
+import datadog.trace.civisibility.CiVisibilityTest
 import org.example.TestParameterizedSpock
 import org.example.TestSucceedSpock
 import org.junit.platform.engine.DiscoverySelector
@@ -70,7 +69,7 @@ class SpockTest extends CiVisibilityTest {
 
   def "test ITR test skipping"() {
     setup:
-    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_SKIPPABLE_TESTS, SkippableTestsSerializer.serialize([new SkippableTest("org.example.TestSucceedSpock", "test success", null, null),]))
+    givenSkippableTests([new SkippableTest("org.example.TestSucceedSpock", "test success", null, null),])
     runTestClasses(TestSucceedSpock)
 
     expect:
@@ -78,7 +77,9 @@ class SpockTest extends CiVisibilityTest {
       long testModuleId
       long testSuiteId
       trace(2, true) {
-        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_SKIP)
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_SKIP, [
+          (DDTags.CI_ITR_TESTS_SKIPPED): true
+        ])
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSucceedSpock", CIConstants.TEST_SKIP)
       }
       trace(1) {
@@ -92,9 +93,9 @@ class SpockTest extends CiVisibilityTest {
 
   def "test ITR skipping for parameterized tests"() {
     setup:
-    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_SKIPPABLE_TESTS, SkippableTestsSerializer.serialize([
+    givenSkippableTests([
       new SkippableTest("org.example.TestParameterizedSpock", "test add 1 and 2", testTags_0[Tags.TEST_PARAMETERS], null),
-    ]))
+    ])
     runTestClasses(TestParameterizedSpock)
 
     expect:
@@ -102,7 +103,9 @@ class SpockTest extends CiVisibilityTest {
       long testModuleId
       long testSuiteId
       trace(2, true) {
-        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS, [
+          (DDTags.CI_ITR_TESTS_SKIPPED): true
+        ])
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestParameterizedSpock", CIConstants.TEST_PASS)
       }
       trace(1) {
