@@ -143,7 +143,7 @@ public class DDSpanContext
   private volatile BlockResponseFunction blockResponseFunction;
 
   private final ProfilingContextIntegration profilingContextIntegration;
-  private static boolean injectBaggageAsTags = Config.get().isInjectBaggageAsTagsEnabled();
+  private boolean injectBaggageAsTags;
   private volatile int encodedOperationName;
 
   public DDSpanContext(
@@ -187,7 +187,54 @@ public class DDSpanContext
         pathwayContext,
         disableSamplingMechanismValidation,
         propagationTags,
-        ProfilingContextIntegration.NoOp.INSTANCE);
+        ProfilingContextIntegration.NoOp.INSTANCE,
+        true);
+  }
+
+  public DDSpanContext(
+      final DDTraceId traceId,
+      final long spanId,
+      final long parentId,
+      final CharSequence parentServiceName,
+      final String serviceName,
+      final CharSequence operationName,
+      final CharSequence resourceName,
+      final int samplingPriority,
+      final CharSequence origin,
+      final Map<String, String> baggageItems,
+      final boolean errorFlag,
+      final CharSequence spanType,
+      final int tagsSize,
+      final PendingTrace trace,
+      final Object requestContextDataAppSec,
+      final Object requestContextDataIast,
+      final PathwayContext pathwayContext,
+      final boolean disableSamplingMechanismValidation,
+      final PropagationTags propagationTags,
+      final boolean injectBaggageAsTags) {
+    this(
+        traceId,
+        spanId,
+        parentId,
+        parentServiceName,
+        serviceName,
+        operationName,
+        resourceName,
+        samplingPriority,
+        origin,
+        baggageItems,
+        errorFlag,
+        spanType,
+        tagsSize,
+        trace,
+        requestContextDataAppSec,
+        requestContextDataIast,
+        null,
+        pathwayContext,
+        disableSamplingMechanismValidation,
+        propagationTags,
+        ProfilingContextIntegration.NoOp.INSTANCE,
+        injectBaggageAsTags);
   }
 
   public DDSpanContext(
@@ -232,7 +279,8 @@ public class DDSpanContext
         pathwayContext,
         disableSamplingMechanismValidation,
         propagationTags,
-        profilingContextIntegration);
+        profilingContextIntegration,
+        true);
   }
 
   public DDSpanContext(
@@ -256,7 +304,8 @@ public class DDSpanContext
       final PathwayContext pathwayContext,
       final boolean disableSamplingMechanismValidation,
       final PropagationTags propagationTags,
-      final ProfilingContextIntegration profilingContextIntegration) {
+      final ProfilingContextIntegration profilingContextIntegration,
+      final boolean injectBaggageAsTags) {
 
     assert trace != null;
     this.trace = trace;
@@ -308,7 +357,7 @@ public class DDSpanContext
             ? propagationTags
             : trace.getTracer().getPropagationTagsFactory().empty();
     this.propagationTags.updateTraceIdHighOrderBits(this.traceId.toHighOrderLong());
-
+    this.injectBaggageAsTags = injectBaggageAsTags;
     if (origin != null) {
       setOrigin(origin);
     }
@@ -862,9 +911,5 @@ public class DDSpanContext
     // TODO is this decided?
     String tagKey = "_dd." + key + ".json";
     this.setTag(tagKey, value);
-  }
-  // This method is for testing functionality of dd.writer.baggage.inject
-  public void setInjectBaggageAsTags(boolean injectBaggageAsTags) {
-    this.injectBaggageAsTags = injectBaggageAsTags;
   }
 }
