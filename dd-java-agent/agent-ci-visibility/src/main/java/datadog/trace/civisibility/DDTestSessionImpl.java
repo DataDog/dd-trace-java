@@ -32,6 +32,7 @@ import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.index.RepoIndex;
 import datadog.trace.civisibility.source.index.RepoIndexBuilder;
 import java.util.Collection;
+import java.util.concurrent.atomic.LongAdder;
 import javax.annotation.Nullable;
 
 public class DDTestSessionImpl implements DDTestSession {
@@ -47,6 +48,7 @@ public class DDTestSessionImpl implements DDTestSession {
   private final ModuleExecutionSettingsFactory moduleExecutionSettingsFactory;
   private final SignalServer signalServer;
   private final RepoIndexBuilder repoIndexBuilder;
+  protected final LongAdder testsSkipped = new LongAdder();
 
   public DDTestSessionImpl(
       String projectName,
@@ -105,9 +107,7 @@ public class DDTestSessionImpl implements DDTestSession {
     if (result.isItrEnabled()) {
       setTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, true);
     }
-    if (result.isItrTestsSkipped()) {
-      setTag(DDTags.CI_ITR_TESTS_SKIPPED, true);
-    }
+    testsSkipped.add(result.getTestsSkippedTotal());
     return testModuleRegistry.onModuleExecutionResultReceived(result);
   }
 
@@ -161,6 +161,13 @@ public class DDTestSessionImpl implements DDTestSession {
     String status = context.getStatus();
     span.setTag(Tags.TEST_STATUS, status != null ? status : CIConstants.TEST_SKIP);
     testDecorator.beforeFinish(span);
+
+    long testsSkippedTotal = testsSkipped.sum();
+    if (testsSkippedTotal > 0) {
+      setTag(DDTags.CI_ITR_TESTS_SKIPPED, true);
+      setTag(Tags.TEST_ITR_TESTS_SKIPPING_TYPE, "test");
+      setTag(Tags.TEST_ITR_TESTS_SKIPPING_COUNT, testsSkippedTotal);
+    }
 
     if (endTime != null) {
       span.finish(endTime);

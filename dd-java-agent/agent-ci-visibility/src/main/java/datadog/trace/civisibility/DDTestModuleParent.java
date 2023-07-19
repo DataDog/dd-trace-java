@@ -129,8 +129,11 @@ public class DDTestModuleParent extends DDTestModuleImpl {
     }
     span.setTag(Tags.TEST_STATUS, context.getStatus());
 
-    if (testsSkipped) {
+    long testsSkippedTotal = testsSkipped.sum();
+    if (testsSkippedTotal > 0) {
       setTag(DDTags.CI_ITR_TESTS_SKIPPED, true);
+      setTag(Tags.TEST_ITR_TESTS_SKIPPING_TYPE, "test");
+      setTag(Tags.TEST_ITR_TESTS_SKIPPING_COUNT, testsSkippedTotal);
     }
 
     Object testFramework = context.getChildTag(Tags.TEST_FRAMEWORK);
