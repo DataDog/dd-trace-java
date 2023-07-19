@@ -453,13 +453,13 @@ class JUnit4Test extends CiVisibilityTest {
     })
 
     where:
-    testTags = [(Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner"]
+    testTags = [(Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner", (Tags.TEST_SKIPPED_BY_ITR): true ]
   }
 
   def "test ITR skipping for parameterized"() {
     setup:
     givenSkippableTests([
-      new SkippableTest("org.example.TestParameterized", "parameterized_test_succeed", testTags_0[Tags.TEST_PARAMETERS], null),
+      new SkippableTest("org.example.TestParameterized", "parameterized_test_succeed", testTags_0[Tags.TEST_PARAMETERS].toString(), null),
     ])
     runner.run(TestParameterized)
 
@@ -483,7 +483,8 @@ class JUnit4Test extends CiVisibilityTest {
     where:
     testTags_0 = [
       (Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"parameterized_test_succeed[0]"}}',
-      (Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner"
+      (Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner",
+      (Tags.TEST_SKIPPED_BY_ITR): true
     ]
     testTags_1 = [(Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"parameterized_test_succeed[1]"}}']
   }

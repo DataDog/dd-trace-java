@@ -240,6 +240,7 @@ class GradleDaemonSmokeTest extends Specification {
           it["test.name"] == "test_to_skip_with_itr"
           it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
           it["test.skip_reason"] == "Skipped by Datadog Intelligent Test Runner"
+          it["test.skipped_by_itr"] == "true"
         }
       }
     }
@@ -388,6 +389,7 @@ class GradleDaemonSmokeTest extends Specification {
           it["test.name"] == "test_to_skip_with_itr"
           it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
           it["test.skip_reason"] == "Skipped by Datadog Intelligent Test Runner"
+          it["test.skipped_by_itr"] == "true"
         }
       }
     }

@@ -218,6 +218,7 @@ class MavenSmokeTest extends Specification {
           it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
           it["test.status"] == "skip"
           it["test.skip_reason"] == "Skipped by Datadog Intelligent Test Runner"
+          it["test.skipped_by_itr"] == "true"
         }
       }
     }

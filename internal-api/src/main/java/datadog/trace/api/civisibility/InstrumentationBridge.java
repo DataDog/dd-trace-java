@@ -13,6 +13,8 @@ import java.nio.file.Path;
 
 public abstract class InstrumentationBridge {
 
+  public static final String ITR_SKIP_REASON = "Skipped by Datadog Intelligent Test Runner";
+
   private static volatile TestEventsHandler.Factory TEST_EVENTS_HANDLER_FACTORY;
   private static volatile BuildEventsHandler.Factory BUILD_EVENTS_HANDLER_FACTORY;
   private static volatile CoverageProbeStore.Factory COVERAGE_PROBE_STORE_FACTORY;

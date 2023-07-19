@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.SkippableTest;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Set;
@@ -72,7 +73,7 @@ public class JUnit5ItrInstrumentation extends Instrumenter.CiVisibility
 
       SkippableTest test = TestFrameworkUtils.toSkippableTest(testDescriptor);
       if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
-        skipResult = Node.SkipResult.skip("Skipped by Datadog Intelligent Test Runner");
+        skipResult = Node.SkipResult.skip(InstrumentationBridge.ITR_SKIP_REASON);
       }
     }
 

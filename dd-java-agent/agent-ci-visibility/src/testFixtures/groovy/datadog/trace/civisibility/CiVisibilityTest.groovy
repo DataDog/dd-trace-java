@@ -325,7 +325,7 @@ abstract class CiVisibilityTest extends AgentTestRunner {
   final String testName,
   final String testMethod,
   final String testStatus,
-  final Map<String, String> testTags = null,
+  final Map<String, Object> testTags = null,
   final Throwable exception = null,
   final boolean emptyDuration = false, final Collection<String> categories = null) {
     def testFramework = expectedTestFramework()

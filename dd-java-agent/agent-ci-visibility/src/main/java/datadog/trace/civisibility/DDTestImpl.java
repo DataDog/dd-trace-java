@@ -150,6 +150,9 @@ public class DDTestImpl implements DDTest {
     span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
     if (skipReason != null) {
       span.setTag(Tags.TEST_SKIP_REASON, skipReason);
+      if (skipReason.equals(InstrumentationBridge.ITR_SKIP_REASON)) {
+        span.setTag(Tags.TEST_SKIPPED_BY_ITR, true);
+      }
     }
   }
 
