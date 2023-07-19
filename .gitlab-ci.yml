@@ -143,7 +143,8 @@ deploy_to_di_backend:automatic:
     UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
     UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
     UPSTREAM_TAG: $CI_COMMIT_TAG
-    
+    UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
+ 
 deploy_to_di_backend:manual:
   stage: deploy
   rules:
@@ -162,6 +163,7 @@ deploy_to_di_backend:manual:
     UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
     UPSTREAM_TAG: $CI_COMMIT_TAG
     UPSTREAM_COMMIT_AUTHOR: $CI_COMMIT_AUTHOR
+    UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
 
 deploy_to_sonatype:
   <<: *gradle_build
