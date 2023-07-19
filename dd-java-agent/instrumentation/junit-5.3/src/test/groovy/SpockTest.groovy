@@ -88,7 +88,7 @@ class SpockTest extends CiVisibilityTest {
     })
 
     where:
-    testTags = [(Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner"]
+    testTags = [(Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner", (Tags.TEST_SKIPPED_BY_ITR): true]
   }
 
   def "test ITR skipping for parameterized tests"() {
@@ -119,7 +119,8 @@ class SpockTest extends CiVisibilityTest {
     where:
     testTags_0 = [
       (Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"test add 1 and 2"}}',
-      (Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner"
+      (Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner",
+      (Tags.TEST_SKIPPED_BY_ITR): true
     ]
     testTags_1 = [(Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"test add 4 and 4"}}']
   }
