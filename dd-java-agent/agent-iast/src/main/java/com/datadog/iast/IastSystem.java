@@ -19,6 +19,7 @@ import com.datadog.iast.sink.WeakCipherModuleImpl;
 import com.datadog.iast.sink.WeakHashModuleImpl;
 import com.datadog.iast.sink.WeakRandomnessModuleImpl;
 import com.datadog.iast.sink.XPathInjectionModuleImpl;
+import com.datadog.iast.sink.XssModuleImpl;
 import com.datadog.iast.source.WebModuleImpl;
 import com.datadog.iast.telemetry.TelemetryRequestEndedHandler;
 import com.datadog.iast.telemetry.TelemetryRequestStartedHandler;
@@ -100,7 +101,8 @@ public class IastSystem {
         new SsrfModuleImpl(),
         new UnvalidatedRedirectModuleImpl(),
         new WeakRandomnessModuleImpl(),
-        new XPathInjectionModuleImpl());
+        new XPathInjectionModuleImpl(),
+        new XssModuleImpl());
   }
 
   private static void registerRequestStartedCallback(
