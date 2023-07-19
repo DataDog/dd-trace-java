@@ -27,6 +27,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.apache.maven.AbstractMavenLifecycleParticipant;
 import org.apache.maven.execution.ExecutionListener;
+import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.lifecycle.MavenExecutionPlan;
 import org.apache.maven.lifecycle.internal.LifecycleExecutionPlanCalculator;
@@ -47,7 +48,7 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MavenLifecycleParticipant.class);
 
-  private final BuildEventsHandler<MavenSession> buildEventsHandler =
+  private final BuildEventsHandler<MavenExecutionRequest> buildEventsHandler =
       InstrumentationBridge.createBuildEventsHandler();
 
   @Override
@@ -88,18 +89,19 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
     MavenProject rootProject = session.getTopLevelProject();
     Path projectRoot = rootProject.getBasedir().toPath();
 
+    MavenExecutionRequest request = session.getRequest();
     String projectName = rootProject.getName();
     String startCommand = MavenUtils.getCommandLine(session);
     String mavenVersion = MavenUtils.getMavenVersion(session);
     buildEventsHandler.onTestSessionStart(
-        session, projectName, projectRoot, startCommand, "maven", mavenVersion);
+        request, projectName, projectRoot, startCommand, "maven", mavenVersion);
 
     Collection<MavenUtils.TestFramework> testFrameworks =
         MavenUtils.collectTestFrameworks(rootProject);
     if (testFrameworks.size() == 1) {
       MavenUtils.TestFramework testFramework = testFrameworks.iterator().next();
       buildEventsHandler.onTestFrameworkDetected(
-          session, testFramework.name, testFramework.version);
+          request, testFramework.name, testFramework.version);
     } else if (testFrameworks.size() > 1) {
       // if the module uses multiple test frameworks, we do not set the tags
       LOGGER.info(
@@ -299,8 +301,9 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
 
   private Void configureTestExecutions(
       MavenSession session, Path jvmExecutablePath, Collection<TestsExecution> testExecutions) {
+    MavenExecutionRequest request = session.getRequest();
     ModuleExecutionSettings moduleExecutionSettings =
-        buildEventsHandler.getModuleExecutionSettings(session, jvmExecutablePath);
+        buildEventsHandler.getModuleExecutionSettings(request, jvmExecutablePath);
 
     for (TestsExecution testExecution : testExecutions) {
       Path modulePath = testExecution.project.getBasedir().toPath();
