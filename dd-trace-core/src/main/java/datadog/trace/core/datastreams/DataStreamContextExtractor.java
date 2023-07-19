@@ -22,12 +22,16 @@ public class DataStreamContextExtractor implements HttpCodec.Extractor {
   public <C> TagContext extract(C carrier, AgentPropagation.ContextVisitor<C> getter) {
     // Delegate the default HTTP extraction
     TagContext extracted = this.delegate.extract(carrier, getter);
-    // Extract the pathway context
-    if (extracted != null) {
-      DefaultPathwayContext pathwayContext =
-          DefaultPathwayContext.extract(carrier, getter, this.timeSource, this.wellKnownTags);
-      extracted.withPathwayContext(pathwayContext);
+
+    if (extracted == null) {
+      extracted = new TagContext();
     }
+
+    // Extract the pathway context
+    DefaultPathwayContext pathwayContext =
+        DefaultPathwayContext.extract(carrier, getter, this.timeSource, this.wellKnownTags);
+    extracted.withPathwayContext(pathwayContext);
+
     // Return merged extracted context
     return extracted;
   }
