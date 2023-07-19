@@ -68,7 +68,6 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
   @Override
   public SdkRequest modifyRequest(final Context.ModifyRequest context, final ExecutionAttributes executionAttributes) {
     if (context.request() instanceof SendMessageRequest) {
-      System.out.println("we are here");
       final SendMessageRequest request = (SendMessageRequest) context.request();
 
       final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
@@ -86,8 +85,6 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
           .dataType("String")
           .stringValue(jsonPathway)
           .build());
-
-     System.out.println(jsonPathway);
 
       return request.toBuilder().messageAttributes(messageAttributes).build();
 
