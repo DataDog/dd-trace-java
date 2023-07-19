@@ -272,14 +272,12 @@ public class IastWebController {
 
   @GetMapping("/xss/write")
   @SuppressFBWarnings
-  public String xssWrite(final HttpServletRequest request, final HttpServletResponse response)
-      throws XPathExpressionException {
+  public void xssWrite(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       response.getWriter().write(request.getParameter("string"));
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    return "XSS page";
   }
 
   private void withProcess(final Operation<Process> op) {
