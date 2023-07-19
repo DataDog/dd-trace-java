@@ -5,28 +5,27 @@ import java.util.Objects;
 
 public class ModuleExecutionResult implements Signal {
 
-  private static final int SERIALIZED_LENGTH = Long.BYTES + Long.BYTES + 1;
+  private static final int SERIALIZED_LENGTH = Long.BYTES + Long.BYTES + Long.BYTES + 1;
   private static final int COVERAGE_ENABLED_FLAG = 1;
   private static final int ITR_ENABLED_FLAG = 2;
-  private static final int ITR_TESTS_SKIPPED_FLAG = 4;
 
   private final long sessionId;
   private final long moduleId;
   private final boolean coverageEnabled;
   private final boolean itrEnabled;
-  private final boolean itrTestsSkipped;
+  private final long testsSkippedTotal;
 
   public ModuleExecutionResult(
       long sessionId,
       long moduleId,
       boolean coverageEnabled,
       boolean itrEnabled,
-      boolean itrTestsSkipped) {
+      long testsSkippedTotal) {
     this.sessionId = sessionId;
     this.moduleId = moduleId;
     this.coverageEnabled = coverageEnabled;
     this.itrEnabled = itrEnabled;
-    this.itrTestsSkipped = itrTestsSkipped;
+    this.testsSkippedTotal = testsSkippedTotal;
   }
 
   public long getSessionId() {
@@ -45,8 +44,8 @@ public class ModuleExecutionResult implements Signal {
     return itrEnabled;
   }
 
-  public boolean isItrTestsSkipped() {
-    return itrTestsSkipped;
+  public long getTestsSkippedTotal() {
+    return testsSkippedTotal;
   }
 
   @Override
@@ -62,12 +61,12 @@ public class ModuleExecutionResult implements Signal {
         && moduleId == that.moduleId
         && coverageEnabled == that.coverageEnabled
         && itrEnabled == that.itrEnabled
-        && itrTestsSkipped == that.itrTestsSkipped;
+        && testsSkippedTotal == that.testsSkippedTotal;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(sessionId, moduleId, coverageEnabled, itrEnabled, itrEnabled);
+    return Objects.hash(sessionId, moduleId, coverageEnabled, itrEnabled, testsSkippedTotal);
   }
 
   @Override
@@ -82,7 +81,7 @@ public class ModuleExecutionResult implements Signal {
         + ", itrEnabled="
         + itrEnabled
         + ", itrTestsSkipped="
-        + itrTestsSkipped
+        + testsSkippedTotal
         + '}';
   }
 
@@ -96,6 +95,7 @@ public class ModuleExecutionResult implements Signal {
     ByteBuffer buffer = ByteBuffer.allocate(SERIALIZED_LENGTH);
     buffer.putLong(sessionId);
     buffer.putLong(moduleId);
+    buffer.putLong(testsSkippedTotal);
 
     byte flags = 0;
     if (coverageEnabled) {
@@ -103,9 +103,6 @@ public class ModuleExecutionResult implements Signal {
     }
     if (itrEnabled) {
       flags |= ITR_ENABLED_FLAG;
-    }
-    if (itrTestsSkipped) {
-      flags |= ITR_TESTS_SKIPPED_FLAG;
     }
     buffer.put(flags);
     buffer.flip();
@@ -119,11 +116,11 @@ public class ModuleExecutionResult implements Signal {
     }
     long sessionId = buffer.getLong();
     long moduleId = buffer.getLong();
+    long testsSkippedTotal = buffer.getLong();
     int flags = buffer.get();
     boolean coverageEnabled = (flags & COVERAGE_ENABLED_FLAG) != 0;
     boolean itrEnabled = (flags & ITR_ENABLED_FLAG) != 0;
-    boolean itrTestsSkipped = (flags & ITR_TESTS_SKIPPED_FLAG) != 0;
     return new ModuleExecutionResult(
-        sessionId, moduleId, coverageEnabled, itrEnabled, itrTestsSkipped);
+        sessionId, moduleId, coverageEnabled, itrEnabled, testsSkippedTotal);
   }
 }

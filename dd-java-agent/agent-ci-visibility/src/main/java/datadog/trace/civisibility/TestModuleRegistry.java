@@ -47,8 +47,11 @@ public class TestModuleRegistry {
     if (result.isItrEnabled()) {
       module.setTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, true);
     }
-    if (result.isItrTestsSkipped()) {
+    long testsSkippedTotal = result.getTestsSkippedTotal();
+    if (testsSkippedTotal > 0) {
       module.setTag(DDTags.CI_ITR_TESTS_SKIPPED, true);
+      module.setTag(Tags.TEST_ITR_TESTS_SKIPPING_TYPE, "test");
+      module.setTag(Tags.TEST_ITR_TESTS_SKIPPING_COUNT, testsSkippedTotal);
     }
     return AckResponse.INSTANCE;
   }

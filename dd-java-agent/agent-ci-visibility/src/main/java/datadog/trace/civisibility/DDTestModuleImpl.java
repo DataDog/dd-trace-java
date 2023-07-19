@@ -11,6 +11,7 @@ import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import java.net.InetSocketAddress;
 import java.util.Collection;
+import java.util.concurrent.atomic.LongAdder;
 import javax.annotation.Nullable;
 
 public abstract class DDTestModuleImpl implements DDTestModule {
@@ -23,7 +24,7 @@ public abstract class DDTestModuleImpl implements DDTestModule {
   protected final MethodLinesResolver methodLinesResolver;
   @Nullable protected final InetSocketAddress signalServerAddress;
 
-  protected volatile boolean testsSkipped;
+  protected final LongAdder testsSkipped = new LongAdder();
   private volatile Collection<SkippableTest> skippableTests;
   private final Object skippableTestsInitLock = new Object();
 
@@ -81,7 +82,7 @@ public abstract class DDTestModuleImpl implements DDTestModule {
     }
 
     if (skippableTests.contains(test)) {
-      testsSkipped = true;
+      testsSkipped.increment();
       return true;
     } else {
       return false;

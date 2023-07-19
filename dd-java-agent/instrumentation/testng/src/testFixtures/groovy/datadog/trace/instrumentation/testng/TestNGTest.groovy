@@ -745,7 +745,9 @@ abstract class TestNGTest extends CiVisibilityTest {
       long testSuiteId
       trace(2, true) {
         testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS, [
-          (DDTags.CI_ITR_TESTS_SKIPPED): true
+          (DDTags.CI_ITR_TESTS_SKIPPED): true,
+          (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
+          (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 2,
         ])
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestFailedAndSucceed", CIConstants.TEST_PASS)
       }
@@ -781,7 +783,9 @@ abstract class TestNGTest extends CiVisibilityTest {
       long testSuiteId
       trace(2, true) {
         testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS, [
-          (DDTags.CI_ITR_TESTS_SKIPPED): true
+          (DDTags.CI_ITR_TESTS_SKIPPED): true,
+          (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
+          (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 1,
         ])
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestParameterized", CIConstants.TEST_PASS)
       }
