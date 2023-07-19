@@ -117,13 +117,7 @@ public class AgentTracer {
   }
 
   public static TraceConfig traceConfig(final AgentSpan span) {
-    if (null != span) {
-      TraceConfig traceConfig = span.traceConfig();
-      if (null != traceConfig) {
-        return traceConfig;
-      }
-    }
-    return get().captureTraceConfig();
+    return null != span ? span.traceConfig() : traceConfig();
   }
 
   public static TraceConfig traceConfig() {
@@ -568,7 +562,7 @@ public class AgentTracer {
 
     @Override
     public TraceConfig captureTraceConfig() {
-      return null;
+      return NoopTraceConfig.INSTANCE;
     }
 
     @Override
@@ -865,7 +859,7 @@ public class AgentTracer {
 
     @Override
     public TraceConfig traceConfig() {
-      return null;
+      return NoopTraceConfig.INSTANCE;
     }
   }
 
@@ -1165,6 +1159,56 @@ public class AgentTracer {
 
     @Override
     public ByteBuffer serialize() {
+      return null;
+    }
+  }
+
+  /** TraceConfig when there is no tracer; this is not the same as a default config. */
+  public static final class NoopTraceConfig implements TraceConfig {
+    public static final NoopTraceConfig INSTANCE = new NoopTraceConfig();
+
+    @Override
+    public boolean isDebugEnabled() {
+      return false;
+    }
+
+    @Override
+    public boolean isRuntimeMetricsEnabled() {
+      return false;
+    }
+
+    @Override
+    public boolean isLogsInjectionEnabled() {
+      return false;
+    }
+
+    @Override
+    public boolean isDataStreamsEnabled() {
+      return false;
+    }
+
+    @Override
+    public Map<String, String> getServiceMapping() {
+      return Collections.emptyMap();
+    }
+
+    @Override
+    public Map<String, String> getRequestHeaderTags() {
+      return Collections.emptyMap();
+    }
+
+    @Override
+    public Map<String, String> getResponseHeaderTags() {
+      return Collections.emptyMap();
+    }
+
+    @Override
+    public Map<String, String> getBaggageMapping() {
+      return Collections.emptyMap();
+    }
+
+    @Override
+    public Double getTraceSampleRate() {
       return null;
     }
   }
