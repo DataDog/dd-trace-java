@@ -33,8 +33,10 @@ import software.amazon.awssdk.core.interceptor.SdkExecutionAttribute;
 import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 
@@ -80,17 +82,26 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       String pathway = propagate().generatePathwayContext(span, sortedTags);
 
       String jsonPathway = String.format("{\"%s\": \"%s\"}", PROPAGATION_KEY_BASE64, pathway);
-      final Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
-      messageAttributes.put(DSM_KEY, MessageAttributeValue.builder()
-          .dataType("String")
-          .stringValue(jsonPathway)
-          .build());
-
-      return request.toBuilder().messageAttributes(messageAttributes).build();
+      final Map<String, MessageAttributeValue> messageAttributes = new HashMap<>(request.messageAttributes());
+      if (messageAttributes.size() < 10 && !messageAttributes.containsKey(DSM_KEY)) {
+        messageAttributes.put(DSM_KEY, MessageAttributeValue.builder()
+            .dataType("String")
+            .stringValue(jsonPathway)
+            .build());
+        return request.toBuilder().messageAttributes(messageAttributes).build();
+      } else {
+        return request;
+      }
 
     } else if (context.request() instanceof ReceiveMessageRequest) {
       final ReceiveMessageRequest request = (ReceiveMessageRequest) context.request();
-      return request.toBuilder().messageAttributeNames(DSM_KEY).build();
+      List<String> messageAttributeNames = new ArrayList<>(request.messageAttributeNames());
+      if (messageAttributeNames.size() < 10 && !messageAttributeNames.contains(DSM_KEY)) {
+        messageAttributeNames.add(DSM_KEY);
+        return request.toBuilder().messageAttributeNames(messageAttributeNames).build();
+      } else {
+        return request;
+      }
     } else {
       return context.request();
     }
