@@ -253,10 +253,13 @@ public class DefaultPathwayContext implements PathwayContext {
           int startIndex = value.indexOf("\"dd-pathway-ctx-base64\": ");
           int startValueIndex = value.indexOf("\"", startIndex + "\"dd-pathway-ctx-base64\": ".length());
           int endValueIndex = value.indexOf("\"", startValueIndex + 1);
+          if (startIndex == -1 || startValueIndex == -1 || endValueIndex == -1) {
+            return false;
+          }
           String ddPathwayCtxBase64Value = value.substring(startValueIndex + 1, endValueIndex);
           ddPathwayCtxBase64Value = ddPathwayCtxBase64Value.trim();
           extractedContext = strDecode(timeSource, wellKnownTags, ddPathwayCtxBase64Value);
-        } catch (IOException e) {
+        } catch (IOException | IndexOutOfBoundsException e) {
           return false;
         }
       }

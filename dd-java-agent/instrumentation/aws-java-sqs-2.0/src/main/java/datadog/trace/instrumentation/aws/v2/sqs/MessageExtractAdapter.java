@@ -20,7 +20,9 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
       String key = entry.getKey();
       String value = entry.getValue().getValueForField("StringValue", Object.class).get().toString();
       if (key.equalsIgnoreCase(DSM_KEY)) {
-        classifier.accept(key, value);
+        if (!classifier.accept(key, value)) {
+          return;
+        }
       }
 
     }
