@@ -11,7 +11,6 @@ import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.TestSource;
 import org.junit.platform.engine.TestTag;
-import org.junit.platform.engine.UniqueId;
 import org.junit.platform.engine.support.descriptor.ClassSource;
 import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.launcher.TestExecutionListener;
@@ -69,7 +68,7 @@ public class TracingListener implements TestExecutionListener {
     String testSuiteName =
         testClass != null ? testClass.getName() : testIdentifier.getLegacyReportingName();
 
-    String testEngineId = getTestEngineId(testIdentifier);
+    String testEngineId = TestFrameworkUtils.getTestEngineId(testIdentifier);
     String testFramework = getTestFramework(testEngineId);
     String testFrameworkVersion = versionByTestEngineId.get(testEngineId);
 
@@ -118,7 +117,7 @@ public class TracingListener implements TestExecutionListener {
 
     MethodSource methodSource = (MethodSource) testSource;
 
-    String testEngineId = getTestEngineId(testIdentifier);
+    String testEngineId = TestFrameworkUtils.getTestEngineId(testIdentifier);
     String testFramework = getTestFramework(testEngineId);
     String testFrameworkVersion = versionByTestEngineId.get(testEngineId);
 
@@ -154,7 +153,7 @@ public class TracingListener implements TestExecutionListener {
       return;
     }
 
-    String testEngineId = getTestEngineId(testIdentifier);
+    String testEngineId = TestFrameworkUtils.getTestEngineId(testIdentifier);
 
     MethodSource methodSource = (MethodSource) testSource;
     String testSuiteName = methodSource.getClassName();
@@ -197,7 +196,7 @@ public class TracingListener implements TestExecutionListener {
     String testSuiteName =
         testClass != null ? testClass.getName() : testIdentifier.getLegacyReportingName();
 
-    String testEngineId = getTestEngineId(testIdentifier);
+    String testEngineId = TestFrameworkUtils.getTestEngineId(testIdentifier);
     String testFramework = getTestFramework(testEngineId);
     String testFrameworkVersion = versionByTestEngineId.get(testEngineId);
 
@@ -217,7 +216,7 @@ public class TracingListener implements TestExecutionListener {
 
   private void testCaseExecutionSkipped(
       final TestIdentifier testIdentifier, final MethodSource methodSource, final String reason) {
-    String testEngineId = getTestEngineId(testIdentifier);
+    String testEngineId = TestFrameworkUtils.getTestEngineId(testIdentifier);
     String testFramework = getTestFramework(testEngineId);
     String testFrameworkVersion = versionByTestEngineId.get(testEngineId);
 
@@ -245,11 +244,6 @@ public class TracingListener implements TestExecutionListener {
         testMethodName,
         testMethod,
         reason);
-  }
-
-  private static @Nullable String getTestEngineId(final TestIdentifier testIdentifier) {
-    UniqueId uniqueId = UniqueId.parse(testIdentifier.getUniqueId());
-    return uniqueId.getEngineId().orElse(null);
   }
 
   private static @Nullable String getTestFramework(String testEngineId) {
