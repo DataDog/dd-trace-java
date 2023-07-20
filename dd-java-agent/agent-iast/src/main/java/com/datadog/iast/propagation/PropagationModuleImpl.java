@@ -244,6 +244,19 @@ public class PropagationModuleImpl implements PropagationModule {
     return firstTaintedSource(taintedObjects, input);
   }
 
+  @Override
+  public void taintAndMarkIfInputIsTainted(
+      @Nullable final String toTaint, @Nullable final Object input, final int mark) {
+    if (!canBeTainted(toTaint) || input == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = TaintedObjects.activeTaintedObjects(true);
+    final Source source = firstTaintedSource(taintedObjects, input);
+    if (source != null) {
+      taintedObjects.taintInputString(toTaint, source, mark);
+    }
+  }
+
   private static void taintString(
       final TaintedObjects taintedObjects, final String toTaint, final Source source) {
     taintedObjects.taintInputString(toTaint, source);
