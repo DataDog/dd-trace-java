@@ -53,6 +53,17 @@ public class TestModuleRegistry {
       module.setTag(Tags.TEST_ITR_TESTS_SKIPPING_TYPE, "test");
       module.setTag(Tags.TEST_ITR_TESTS_SKIPPING_COUNT, testsSkippedTotal);
     }
+
+    String testFramework = result.getTestFramework();
+    if (testFramework != null) {
+      module.setTag(Tags.TEST_FRAMEWORK, testFramework);
+    }
+
+    String testFrameworkVersion = result.getTestFrameworkVersion();
+    if (testFrameworkVersion != null) {
+      module.setTag(Tags.TEST_FRAMEWORK_VERSION, testFrameworkVersion);
+    }
+
     return AckResponse.INSTANCE;
   }
 }

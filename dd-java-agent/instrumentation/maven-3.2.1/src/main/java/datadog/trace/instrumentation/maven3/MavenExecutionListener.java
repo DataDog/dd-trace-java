@@ -4,7 +4,6 @@ import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.Strings;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.maven.execution.AbstractExecutionListener;
@@ -83,19 +82,6 @@ public class MavenExecutionListener extends AbstractExecutionListener {
 
       BuildEventsHandler.ModuleInfo moduleInfo =
           buildEventsHandler.onTestModuleStart(session, moduleName, startCommand, additionalTags);
-
-      Collection<MavenUtils.TestFramework> testFrameworks =
-          MavenUtils.collectTestFrameworks(project);
-      if (testFrameworks.size() == 1) {
-        // if the module uses multiple test frameworks, we do not set the tags
-        MavenUtils.TestFramework testFramework = testFrameworks.iterator().next();
-        buildEventsHandler.onModuleTestFrameworkDetected(
-            session, moduleName, testFramework.name, testFramework.version);
-      } else if (testFrameworks.size() > 1) {
-        log.info(
-            "Multiple test frameworks detected: {}. Test framework data will not be populated",
-            testFrameworks);
-      }
 
       Xpp3Dom configuration = mojoExecution.getConfiguration();
       boolean forkTestVm =

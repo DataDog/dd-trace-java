@@ -152,7 +152,7 @@ public class DDTestModuleParent extends DDTestModuleImpl {
     }
     if (propertyEnabled(systemProperties, CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED)) {
       span.setTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, true);
-      sessionContext.reportChildTag(Tags.TEST_CODE_COVERAGE_ENABLED, true);
+      sessionContext.reportChildTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, true);
     }
 
     return new HashSet<>(moduleExecutionSettings.getSkippableTests(moduleName));

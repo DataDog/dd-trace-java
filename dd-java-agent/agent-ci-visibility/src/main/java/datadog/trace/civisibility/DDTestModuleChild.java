@@ -4,6 +4,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.JvmInfo;
 import datadog.trace.api.civisibility.config.SkippableTest;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.context.ParentProcessTestContext;
 import datadog.trace.civisibility.decorator.TestDecorator;
@@ -83,9 +84,18 @@ public class DDTestModuleChild extends DDTestModuleImpl {
     boolean coverageEnabled = config.isCiVisibilityCodeCoverageEnabled();
     boolean itrEnabled = config.isCiVisibilityItrEnabled();
     long testsSkippedTotal = testsSkipped.sum();
+    String testFramework = String.valueOf(context.getChildTag(Tags.TEST_FRAMEWORK));
+    String testFrameworkVersion = String.valueOf(context.getChildTag(Tags.TEST_FRAMEWORK_VERSION));
+
     ModuleExecutionResult moduleExecutionResult =
         new ModuleExecutionResult(
-            sessionId, moduleId, coverageEnabled, itrEnabled, testsSkippedTotal);
+            sessionId,
+            moduleId,
+            coverageEnabled,
+            itrEnabled,
+            testsSkippedTotal,
+            testFramework,
+            testFrameworkVersion);
 
     try (SignalClient signalClient = new SignalClient(signalServerAddress)) {
       signalClient.send(moduleExecutionResult);

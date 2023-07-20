@@ -94,19 +94,6 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
     buildEventsHandler.onTestSessionStart(
         session, projectName, projectRoot, startCommand, "maven", mavenVersion);
 
-    Collection<MavenUtils.TestFramework> testFrameworks =
-        MavenUtils.collectTestFrameworks(rootProject);
-    if (testFrameworks.size() == 1) {
-      MavenUtils.TestFramework testFramework = testFrameworks.iterator().next();
-      buildEventsHandler.onTestFrameworkDetected(
-          session, testFramework.name, testFramework.version);
-    } else if (testFrameworks.size() > 1) {
-      // if the module uses multiple test frameworks, we do not set the tags
-      LOGGER.info(
-          "Multiple test frameworks detected: {}. Test framework data will not be populated",
-          testFrameworks);
-    }
-
     if (!config.isCiVisibilityAutoConfigurationEnabled()) {
       return;
     }

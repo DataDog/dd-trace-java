@@ -13,17 +13,12 @@ public interface BuildEventsHandler<T> {
       String buildSystemName,
       String buildSystemVersion);
 
-  void onTestFrameworkDetected(T sessionKey, String frameworkName, String frameworkVersion);
-
   void onTestSessionFail(T sessionKey, Throwable throwable);
 
   void onTestSessionFinish(T sessionKey);
 
   ModuleInfo onTestModuleStart(
       T sessionKey, String moduleName, String startCommand, Map<String, Object> additionalTags);
-
-  void onModuleTestFrameworkDetected(
-      T sessionKey, String moduleName, String frameworkName, String frameworkVersion);
 
   void onTestModuleSkip(T sessionKey, String moduleName, String reason);
 
