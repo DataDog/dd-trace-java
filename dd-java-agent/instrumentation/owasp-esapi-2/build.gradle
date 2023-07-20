@@ -1,7 +1,7 @@
 muzzle {
   pass {
-    group = 'owasp-esapi'
-    module = 'owasp-esapi'
+    group = 'org.owasp.esapi'
+    module = 'esapi'
     versions = '[2.1.0,]'
     assertInverse = true
   }
