@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.testng;
 import datadog.trace.api.civisibility.config.SkippableTest;
 import datadog.trace.util.Strings;
 import java.io.InputStream;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.ArrayList;
@@ -23,6 +25,19 @@ import org.testng.internal.ITestResultNotifier;
 import org.testng.xml.XmlTest;
 
 public abstract class TestNGUtils {
+
+  private static final MethodHandle XML_TEST_GET_PARALLEL = accessGetParallel();
+
+  private static MethodHandle accessGetParallel() {
+    try {
+      Method getParallel = XmlTest.class.getMethod("getParallel");
+      MethodHandles.Lookup lookup = MethodHandles.lookup();
+      return lookup.unreflect(getParallel);
+
+    } catch (Exception e) {
+      return null;
+    }
+  }
 
   public static Class<?> getTestClass(final ITestResult result) {
     IClass testClass = result.getTestClass();
@@ -121,16 +136,6 @@ public abstract class TestNGUtils {
     }
   }
 
-  private static final Method XML_TEST_GET_PARALLEL = getParallelMethod();
-
-  private static Method getParallelMethod() {
-    try {
-      return XmlTest.class.getMethod("getParallel");
-    } catch (NoSuchMethodException e) {
-      return null;
-    }
-  }
-
   public static boolean isParallelized(ITestClass testClass) {
     try {
       // reflection needs to be used since XmlTest#getParallel
@@ -143,7 +148,7 @@ public abstract class TestNGUtils {
               : null;
       return parallel != null
           && ("methods".equals(parallel.toString()) || "tests".equals(parallel.toString()));
-    } catch (Exception e) {
+    } catch (Throwable e) {
       return false;
     }
   }
