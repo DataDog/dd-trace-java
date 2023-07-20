@@ -18,16 +18,18 @@ import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie;
 import datadog.trace.util.stacktrace.StackWalker;
-import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /** Base class with utility methods for with sinks */
 public abstract class SinkModuleBase implements HasDependencies {
-
+  private static final int MAX_VISITED_OBJECTS = 1000;
+  private static final int MAX_RECURSIVE_DEPTH = 10;
   protected OverheadController overheadController;
   protected Reporter reporter;
   protected StackWalker stackWalker;
@@ -163,16 +165,15 @@ public abstract class SinkModuleBase implements HasDependencies {
 
   protected Object isDeeplyTainted(
       @Nonnull final Object value, @Nonnull final TaintedObjects taintedObjects) {
-    ArrayList<Object> visitedObjects = new ArrayList<>();
-    return isDeeplyTaintedRecursive(value, taintedObjects, new ArrayList<Object>(), 10);
+    return isDeeplyTaintedRecursive(value, taintedObjects, new HashSet<>(), MAX_RECURSIVE_DEPTH);
   }
 
   private Object isDeeplyTaintedRecursive(
       @Nonnull final Object value,
       @Nonnull final TaintedObjects taintedObjects,
-      ArrayList<Object> visitedObjects,
+      Set<Object> visitedObjects,
       int depth) {
-    if (visitedObjects.size() > 1000) {
+    if (visitedObjects.size() > MAX_VISITED_OBJECTS) {
       return null;
     }
     if (visitedObjects.contains(value)) {

@@ -283,7 +283,7 @@ public class IastWebController {
       throws UnsupportedEncodingException {
 
     for (Cookie theCookie : request.getCookies()) {
-      if (theCookie.getName().equals("user-id2")) {
+      if (theCookie.getName().equals("https%3A%2F%2Fuser-id2")) {
         String value = java.net.URLDecoder.decode(theCookie.getValue(), "UTF-8");
         request.getSession().putValue(value, "88888");
       }
