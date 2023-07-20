@@ -120,7 +120,7 @@ class SparkListenerTest extends AgentTestRunner {
     return new SparkListenerStageCompleted(stageInfo)
   }
 
-  private taskEndEvent(Integer stageId, Long launchTime, Long executorTime, Long deserializeTime = 0L, Long resultSerializeTime = 0L) {
+  private taskEndEvent(Integer stageId, Long launchTime, Long executorTime, Long deserializeTime = 0L, Long resultSerializeTime = 0L, Long peakExecutionMemory = 0L) {
     def taskInfo = new TaskInfo(
       0,
       0,
@@ -136,6 +136,7 @@ class SparkListenerTest extends AgentTestRunner {
     taskMetrics.setExecutorRunTime(executorTime)
     taskMetrics.setExecutorDeserializeTime(deserializeTime)
     taskMetrics.setResultSerializationTime(resultSerializeTime)
+    taskMetrics.incPeakExecutionMemory(peakExecutionMemory)
 
     if (TestSparkComputation.getSparkVersion() < "3") {
       return new SparkListenerTaskEnd(
@@ -289,6 +290,58 @@ class SparkListenerTest extends AgentTestRunner {
           assert span.tags["spark_stage_metrics.executor_run_time"] == 100L
           assert span.tags["spark_stage_metrics.executor_deserialize_time"] == 100L
           assert span.tags["spark_stage_metrics.result_serialization_time"] == 0L
+          spanType "spark"
+          childOf(span(1))
+        }
+      }
+    }
+  }
+
+  def "compute peak execution memory using the max of all stages"() {
+    setup:
+    def listener = getTestDatadogSparkListener()
+    listener.onApplicationStart(applicationStartEvent(1000L))
+
+    listener.onJobStart(jobStartEvent(1, 1000L, [1, 2]))
+
+    listener.onStageSubmitted(stageSubmittedEvent(1, 1000L))
+    listener.onTaskEnd(taskEndEvent(1, 1000L, 100L, 0L, 0L, 1000L))
+    listener.onTaskEnd(taskEndEvent(1, 1000L, 100L, 0L, 0L, 1200L))
+    listener.onStageCompleted(stageCompletedEvent(1, 2000L))
+
+    listener.onStageSubmitted(stageSubmittedEvent(2, 2000L))
+    listener.onTaskEnd(taskEndEvent(2, 2000L, 100L, 0L, 0L, 1300L))
+    listener.onTaskEnd(taskEndEvent(2, 2000L, 100L, 0L, 0L, 1400L))
+    listener.onStageCompleted(stageCompletedEvent(2, 3000L))
+
+    listener.onJobEnd(jobEndEvent(1, 3000L))
+    listener.onApplicationEnd(new SparkListenerApplicationEnd(3000L))
+
+    expect:
+    assertTraces(1) {
+      trace(4) {
+        span {
+          operationName "spark.application"
+          assert span.tags["spark_application_metrics.peak_execution_memory"] == 1400L
+          spanType "spark"
+        }
+        span {
+          operationName "spark.job"
+          assert span.tags["spark_job_metrics.peak_execution_memory"] == 1400L
+          spanType "spark"
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.stage"
+          assert span.tags["stage_id"] == 2
+          assert span.tags["spark_stage_metrics.peak_execution_memory"] == 1400L
+          spanType "spark"
+          childOf(span(1))
+        }
+        span {
+          operationName "spark.stage"
+          assert span.tags["stage_id"] == 1
+          assert span.tags["spark_stage_metrics.peak_execution_memory"] == 1200L
           spanType "spark"
           childOf(span(1))
         }

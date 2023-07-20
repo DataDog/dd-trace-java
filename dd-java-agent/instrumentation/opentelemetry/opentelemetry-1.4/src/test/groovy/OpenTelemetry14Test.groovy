@@ -64,10 +64,12 @@ class OpenTelemetry14Test extends AgentTestRunner {
         span {
           parent()
           operationName "some-name"
+          resourceName "some-name"
         }
         span {
           childOfPrevious()
           operationName "other-name"
+          resourceName "other-name"
         }
       }
     }

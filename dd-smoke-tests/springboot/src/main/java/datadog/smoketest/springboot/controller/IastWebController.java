@@ -270,6 +270,16 @@ public class IastWebController {
     return "XPath Injection page";
   }
 
+  @GetMapping("/xss/write")
+  @SuppressFBWarnings
+  public void xssWrite(final HttpServletRequest request, final HttpServletResponse response) {
+    try {
+      response.getWriter().write(request.getParameter("string"));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   private void withProcess(final Operation<Process> op) {
     Process process = null;
     try {

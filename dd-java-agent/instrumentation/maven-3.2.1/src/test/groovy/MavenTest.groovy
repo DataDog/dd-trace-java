@@ -1,7 +1,7 @@
-import datadog.trace.civisibility.CiVisibilityTest
 import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.civisibility.CiVisibilityTest
 import org.apache.maven.cli.MavenCli
 import org.apache.maven.lifecycle.LifecycleExecutionException
 import org.apache.maven.lifecycle.LifecyclePhaseNotFoundException
@@ -183,6 +183,42 @@ class MavenTest extends CiVisibilityTest {
           ],
           testsFailedException,
           testSessionId, "module-b test")
+      }
+    }
+  }
+
+  def "test_maven_build_with_tests_in_multiple_modules_run_in_parallel_generates_spans"() {
+    given:
+    String[] args = ["-T4", "clean", "test"]
+    String workingDirectory = projectFolder.toString()
+
+    when:
+    def exitCode = new MavenCli().doMain(args, workingDirectory, null, null)
+
+    then:
+    exitCode == 0
+
+    assertTraces(1) {
+      trace(3, true) {
+        def testSessionId = testSessionSpan(it, 2,
+          "Maven Integration Tests Project",
+          "mvn -T4 clean test",
+          "maven:3.2.5",
+          CIConstants.TEST_PASS)
+        testModuleSpan(it, 0,
+          CIConstants.TEST_PASS,
+          [
+            (Tags.TEST_COMMAND)  : "mvn -T4 clean test",
+            (Tags.TEST_EXECUTION): "maven-surefire-plugin:test:default-test",
+          ],
+          null, testSessionId, "module-a test")
+        testModuleSpan(it, 1,
+          CIConstants.TEST_PASS,
+          [
+            (Tags.TEST_COMMAND)  : "mvn -T4 clean test",
+            (Tags.TEST_EXECUTION): "maven-surefire-plugin:test:default-test",
+          ],
+          null, testSessionId, "module-b test")
       }
     }
   }

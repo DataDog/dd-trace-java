@@ -161,7 +161,7 @@ class SparkAggregatedTaskMetrics {
     resultSerializationTime += stageMetrics.resultSerializationTime;
     memoryBytesSpilled += stageMetrics.memoryBytesSpilled;
     diskBytesSpilled += stageMetrics.diskBytesSpilled;
-    peakExecutionMemory += stageMetrics.peakExecutionMemory;
+    peakExecutionMemory = Math.max(stageMetrics.peakExecutionMemory, peakExecutionMemory);
 
     inputBytesRead += stageMetrics.inputBytesRead;
     inputRecordsRead += stageMetrics.inputRecordsRead;
