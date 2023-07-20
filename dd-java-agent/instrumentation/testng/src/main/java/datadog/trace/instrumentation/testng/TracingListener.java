@@ -78,8 +78,7 @@ public class TracingListener extends TestNGClassListener
   public void onTestStart(final ITestResult result) {
     String testSuiteName = result.getInstanceName();
     String testName =
-        (result.getTestName() != null) ? result.getTestName() : result.getMethod().getMethodName();
-    String testQualifier = result.getTestContext().getName();
+        (result.getName() != null) ? result.getName() : result.getMethod().getMethodName();
     String testParameters = TestNGUtils.getParameters(result);
     List<String> groups = TestNGUtils.getGroups(result);
 
@@ -90,7 +89,7 @@ public class TracingListener extends TestNGClassListener
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         testSuiteName,
         testName,
-        testQualifier,
+        result,
         TESTNG_FRAMEWORK,
         version,
         testParameters,
@@ -105,11 +104,10 @@ public class TracingListener extends TestNGClassListener
     final String testSuiteName = result.getInstanceName();
     final Class<?> testClass = TestNGUtils.getTestClass(result);
     String testName =
-        (result.getTestName() != null) ? result.getTestName() : result.getMethod().getMethodName();
-    String testQualifier = result.getTestContext().getName();
+        (result.getName() != null) ? result.getName() : result.getMethod().getMethodName();
     String testParameters = TestNGUtils.getParameters(result);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
-        testSuiteName, testClass, testName, testQualifier, testParameters);
+        testSuiteName, testClass, testName, result, testParameters);
   }
 
   @Override
@@ -117,15 +115,14 @@ public class TracingListener extends TestNGClassListener
     final String testSuiteName = result.getInstanceName();
     final Class<?> testClass = TestNGUtils.getTestClass(result);
     String testName =
-        (result.getTestName() != null) ? result.getTestName() : result.getMethod().getMethodName();
-    String testQualifier = result.getTestContext().getName();
+        (result.getName() != null) ? result.getName() : result.getMethod().getMethodName();
     String testParameters = TestNGUtils.getParameters(result);
 
     final Throwable throwable = result.getThrowable();
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(
-        testSuiteName, testClass, testName, testQualifier, testParameters, throwable);
+        testSuiteName, testClass, testName, result, testParameters, throwable);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
-        testSuiteName, testClass, testName, testQualifier, testParameters);
+        testSuiteName, testClass, testName, result, testParameters);
   }
 
   @Override
@@ -138,16 +135,15 @@ public class TracingListener extends TestNGClassListener
     final String testSuiteName = result.getInstanceName();
     final Class<?> testClass = TestNGUtils.getTestClass(result);
     String testName =
-        (result.getTestName() != null) ? result.getTestName() : result.getMethod().getMethodName();
-    String testQualifier = result.getTestContext().getName();
+        (result.getName() != null) ? result.getName() : result.getMethod().getMethodName();
     String testParameters = TestNGUtils.getParameters(result);
 
     // Typically the way of skipping a TestNG test is throwing a SkipException
     Throwable throwable = result.getThrowable();
     String reason = throwable != null ? throwable.getMessage() : null;
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(
-        testSuiteName, testClass, testName, testQualifier, testParameters, reason);
+        testSuiteName, testClass, testName, result, testParameters, reason);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
-        testSuiteName, testClass, testName, testQualifier, testParameters);
+        testSuiteName, testClass, testName, result, testParameters);
   }
 }
