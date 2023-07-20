@@ -4,6 +4,7 @@ import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.agent.LogMessageTemplateBuilder;
 import com.datadog.debugger.el.EvaluationException;
+import com.datadog.debugger.el.PermanentEvaluationException;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
@@ -28,6 +29,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import org.objectweb.asm.tree.ClassNode;
@@ -365,7 +367,8 @@ public class LogProbe extends ProbeDefinition {
               "uncaught exception", throwable.getType() + ": " + throwable.getMessage()));
     }
     if (logStatus.getCondition()) {
-      LogMessageTemplateBuilder logMessageBuilder = new LogMessageTemplateBuilder(segments);
+      LogMessageTemplateBuilder logMessageBuilder =
+          new LogMessageTemplateBuilder(getProbeId(), segments);
       logStatus.setMessage(logMessageBuilder.evaluate(context, logStatus));
     }
   }
@@ -379,6 +382,13 @@ public class LogProbe extends ProbeDefinition {
       if (!probeCondition.execute(capture)) {
         return false;
       }
+    } catch (PermanentEvaluationException ex) {
+      LOGGER.debug("Permanent evaluation error: ", ex);
+      DiagnosticMessage diagnosticMessage =
+          new DiagnosticMessage(DiagnosticMessage.Kind.ERROR, ex.getMessage());
+      DebuggerAgent.getSink()
+          .addDiagnostics(getProbeId(), Collections.singletonList(diagnosticMessage));
+      return false;
     } catch (EvaluationException ex) {
       LOGGER.debug("Evaluation error: ", ex);
       status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));

@@ -1,7 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
-import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Generated;
+import com.datadog.debugger.el.PermanentEvaluationException;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
@@ -25,7 +25,7 @@ public class GetMemberExpression implements ValueExpression<Value<?>> {
     try {
       return Value.of(valueRefResolver.getMember(targetValue.getValue(), memberName));
     } catch (RuntimeException ex) {
-      throw new EvaluationException(ex.getMessage(), memberName, ex);
+      throw new PermanentEvaluationException(ex.getMessage(), memberName, ex);
     }
   }
 

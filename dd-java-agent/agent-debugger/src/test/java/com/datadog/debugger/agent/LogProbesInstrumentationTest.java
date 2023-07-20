@@ -261,11 +261,10 @@ public class LogProbesInstrumentationTest {
     Assertions.assertEquals(3, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCapturesNull(snapshot);
+    assertEquals("this is log line with local var=", snapshot.getMessage());
+    assertEquals(1, listener.errors.size());
     assertEquals(
-        "this is log line with local var={Cannot find symbol: var42}", snapshot.getMessage());
-    assertEquals(1, snapshot.getEvaluationErrors().size());
-    assertEquals("var42", snapshot.getEvaluationErrors().get(0).getExpr());
-    assertEquals("Cannot find symbol: var42", snapshot.getEvaluationErrors().get(0).getMessage());
+        "Cannot find symbol: var42", listener.errors.get(LOG_ID.getId()).get(0).getMessage());
   }
 
   @Test
@@ -279,14 +278,11 @@ public class LogProbesInstrumentationTest {
     Assertions.assertEquals(143, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCapturesNull(snapshot);
-    assertEquals(
-        "this is log line with field={Cannot dereference to field: intValue}",
-        snapshot.getMessage());
-    assertEquals(1, snapshot.getEvaluationErrors().size());
-    assertEquals("intValue", snapshot.getEvaluationErrors().get(0).getExpr());
+    assertEquals("this is log line with field=", snapshot.getMessage());
+    assertEquals(1, listener.errors.size());
     assertEquals(
         "Cannot dereference to field: intValue",
-        snapshot.getEvaluationErrors().get(0).getMessage());
+        listener.errors.get(LOG_ID.getId()).get(0).getMessage());
   }
 
   @Test
@@ -342,50 +338,50 @@ public class LogProbesInstrumentationTest {
     Snapshot snapshot = listener.snapshots.get(0);
     Assertions.assertNotNull(snapshot.getCaptures().getEntry());
     Assertions.assertEquals(2, snapshot.getCaptures().getEntry().getArguments().size());
-    Assertions.assertEquals(1, snapshot.getEvaluationErrors().size());
+    Assertions.assertEquals(1, listener.errors.size());
     Assertions.assertEquals(
-        "Cannot find symbol: typoArg", snapshot.getEvaluationErrors().get(0).getMessage());
+        "Cannot find symbol: typoArg", listener.errors.get(LOG_ID.getId()).get(0).getMessage());
   }
 
   @Test
   public void mergedMethodTemplateMainNoErrorAdditionalLogError()
       throws IOException, URISyntaxException {
-    List<Snapshot> snapshots =
+    DebuggerTransformerTest.TestSnapshotListener listener =
         doMergedMethodTemplateMixLogError(
             "this is log line #1 with arg={arg}", "this is log line #2 with arg={typoArg}");
-    Snapshot snapshot0 = snapshots.get(0);
+    Assertions.assertEquals(2, listener.snapshots.size());
+    Snapshot snapshot0 = listener.snapshots.get(0);
     assertEquals(LOG_ID1.getId(), snapshot0.getProbe().getId());
     assertNotNull(snapshot0.getCaptures().getEntry());
     assertNotNull(snapshot0.getCaptures().getReturn());
     assertNull(snapshot0.getEvaluationErrors());
     assertEquals("this is log line #1 with arg=1", snapshot0.getMessage());
-    Snapshot snapshot1 = snapshots.get(1);
+    Snapshot snapshot1 = listener.snapshots.get(1);
     assertEquals(LOG_ID2.getId(), snapshot1.getProbe().getId());
     assertNotNull(snapshot1.getCaptures().getEntry());
     assertNotNull(snapshot1.getCaptures().getReturn());
+    assertEquals("this is log line #2 with arg=", snapshot1.getMessage());
+    assertEquals(1, listener.errors.size());
     assertEquals(
-        "this is log line #2 with arg={Cannot find symbol: typoArg}", snapshot1.getMessage());
-    assertEquals(1, snapshot1.getEvaluationErrors().size());
-    assertEquals(
-        "Cannot find symbol: typoArg", snapshot1.getEvaluationErrors().get(0).getMessage());
+        "Cannot find symbol: typoArg", listener.errors.get(LOG_ID2.getId()).get(0).getMessage());
   }
 
   @Test
   public void mergedMethodTemplateMainLogErrorAdditionalNoError()
       throws IOException, URISyntaxException {
-    List<Snapshot> snapshots =
+    DebuggerTransformerTest.TestSnapshotListener listener =
         doMergedMethodTemplateMixLogError(
             "this is log line #1 with arg={typoArg}", "this is log line #2 with arg={arg}");
-    Snapshot snapshot0 = snapshots.get(0);
+    Assertions.assertEquals(2, listener.snapshots.size());
+    Snapshot snapshot0 = listener.snapshots.get(0);
     assertEquals(LOG_ID1.getId(), snapshot0.getProbe().getId());
     assertNotNull(snapshot0.getCaptures().getEntry());
     assertNotNull(snapshot0.getCaptures().getReturn());
+    assertEquals("this is log line #1 with arg=", snapshot0.getMessage());
+    assertEquals(1, listener.errors.size());
     assertEquals(
-        "this is log line #1 with arg={Cannot find symbol: typoArg}", snapshot0.getMessage());
-    assertEquals(1, snapshot0.getEvaluationErrors().size());
-    assertEquals(
-        "Cannot find symbol: typoArg", snapshot0.getEvaluationErrors().get(0).getMessage());
-    Snapshot snapshot1 = snapshots.get(1);
+        "Cannot find symbol: typoArg", listener.errors.get(LOG_ID.getId()).get(0).getMessage());
+    Snapshot snapshot1 = listener.snapshots.get(1);
     assertEquals(LOG_ID2.getId(), snapshot1.getProbe().getId());
     assertNotNull(snapshot1.getCaptures().getEntry());
     assertNotNull(snapshot1.getCaptures().getReturn());
@@ -396,30 +392,28 @@ public class LogProbesInstrumentationTest {
   @Test
   public void mergedMethodTemplateMainLogErrorAdditionalLogError()
       throws IOException, URISyntaxException {
-    List<Snapshot> snapshots =
+    DebuggerTransformerTest.TestSnapshotListener listener =
         doMergedMethodTemplateMixLogError(
             "this is log line #1 with arg={typoArg1}", "this is log line #2 with arg={typoArg2}");
-    Snapshot snapshot0 = snapshots.get(0);
+    Assertions.assertEquals(2, listener.snapshots.size());
+    Snapshot snapshot0 = listener.snapshots.get(0);
     assertEquals(LOG_ID1.getId(), snapshot0.getProbe().getId());
     assertNotNull(snapshot0.getCaptures().getEntry());
     assertNotNull(snapshot0.getCaptures().getReturn());
+    assertEquals("this is log line #1 with arg=", snapshot0.getMessage());
+    assertEquals(2, listener.errors.size());
     assertEquals(
-        "this is log line #1 with arg={Cannot find symbol: typoArg1}", snapshot0.getMessage());
-    assertEquals(1, snapshot0.getEvaluationErrors().size());
-    assertEquals(
-        "Cannot find symbol: typoArg1", snapshot0.getEvaluationErrors().get(0).getMessage());
-    Snapshot snapshot1 = snapshots.get(1);
+        "Cannot find symbol: typoArg1", listener.errors.get(LOG_ID1.getId()).get(0).getMessage());
+    Snapshot snapshot1 = listener.snapshots.get(1);
     assertEquals(LOG_ID2.getId(), snapshot1.getProbe().getId());
     assertNotNull(snapshot1.getCaptures().getEntry());
     assertNotNull(snapshot1.getCaptures().getReturn());
+    assertEquals("this is log line #2 with arg=", snapshot1.getMessage());
     assertEquals(
-        "this is log line #2 with arg={Cannot find symbol: typoArg2}", snapshot1.getMessage());
-    assertEquals(1, snapshot1.getEvaluationErrors().size());
-    assertEquals(
-        "Cannot find symbol: typoArg2", snapshot1.getEvaluationErrors().get(0).getMessage());
+        "Cannot find symbol: typoArg2", listener.errors.get(LOG_ID2.getId()).get(0).getMessage());
   }
 
-  private List<Snapshot> doMergedMethodTemplateMixLogError(
+  private DebuggerTransformerTest.TestSnapshotListener doMergedMethodTemplateMixLogError(
       String mainTemplate, String additionalTemplate) throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     LogProbe logProbe1 =
@@ -436,8 +430,7 @@ public class LogProbesInstrumentationTest {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
-    Assertions.assertEquals(2, listener.snapshots.size());
-    return listener.snapshots;
+    return listener;
   }
 
   private DebuggerTransformerTest.TestSnapshotListener installSingleProbe(

@@ -410,7 +410,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
           }
           List<DiagnosticMessage> diagnosticMessages =
               result.getDiagnostics().get(definition.getProbeId());
-          if (!result.getDiagnostics().isEmpty()) {
+          if (!diagnosticMessages.isEmpty()) {
             DebuggerAgent.getSink().addDiagnostics(definition.getProbeId(), diagnosticMessages);
           }
         }

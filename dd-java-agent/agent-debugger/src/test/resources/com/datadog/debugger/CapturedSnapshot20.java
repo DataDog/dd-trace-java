@@ -14,6 +14,7 @@ import java.util.Map;
 
 public class CapturedSnapshot20 {
   private int intField = 42;
+  private List<String> nullListField = null;
   private final String strField = "hello";
   private final List<String> strList = Arrays.asList("foobar1", "foobar2", "foobar3");
   private final Map<String, String> map = new HashMap<>();

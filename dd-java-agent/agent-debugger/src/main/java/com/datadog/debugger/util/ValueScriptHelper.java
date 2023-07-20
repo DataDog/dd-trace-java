@@ -9,6 +9,11 @@ import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 
 public class ValueScriptHelper {
+  /**
+   * Serialization limits for log messages. Most values are lower than snapshot because you can
+   * directly reference values that are in your interest with Expression Language:
+   * obj.field.deepfield or array[1001]
+   */
   private static final Limits LIMITS = new Limits(1, 3, 255, 5);
 
   public static void serializeValue(

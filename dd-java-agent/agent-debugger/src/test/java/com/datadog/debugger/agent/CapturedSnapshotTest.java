@@ -18,6 +18,7 @@ import static utils.TestHelper.getFixtureContent;
 
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
+import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.MoshiHelper;
@@ -901,54 +902,63 @@ public class CapturedSnapshotTest {
     DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbes);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
-    Assertions.assertEquals(1, listener.snapshots.size());
-    List<EvaluationError> evaluationErrors = listener.snapshots.get(0).getEvaluationErrors();
-    Assertions.assertEquals(1, evaluationErrors.size());
-    Assertions.assertEquals("fld", evaluationErrors.get(0).getExpr());
-    Assertions.assertEquals(
-        "Cannot dereference to field: fld", evaluationErrors.get(0).getMessage());
+    Assertions.assertEquals(0, listener.snapshots.size());
+    Assertions.assertEquals(1, listener.errors.size());
+    List<DiagnosticMessage> errors = listener.errors.get(PROBE_ID.getId());
+    Assertions.assertEquals(1, errors.size());
+    Assertions.assertEquals("Cannot dereference to field: fld", errors.get(0).getMessage());
   }
 
   @Test
   public void mergedProbesWithAllConditionsTrueTest() throws IOException, URISyntaxException {
-    doMergedProbeConditions(
-        new ProbeCondition(DSL.when(DSL.TRUE), "true"),
-        new ProbeCondition(DSL.when(DSL.TRUE), "true"),
-        2);
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        doMergedProbeConditions(
+            new ProbeCondition(DSL.when(DSL.TRUE), "true"),
+            new ProbeCondition(DSL.when(DSL.TRUE), "true"));
+    assertEquals(2, listener.snapshots.size());
   }
 
   @Test
   public void mergedProbesWithAllConditionsFalseTest() throws IOException, URISyntaxException {
-    doMergedProbeConditions(
-        new ProbeCondition(DSL.when(DSL.FALSE), "false"),
-        new ProbeCondition(DSL.when(DSL.FALSE), "false"),
-        0);
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        doMergedProbeConditions(
+            new ProbeCondition(DSL.when(DSL.FALSE), "false"),
+            new ProbeCondition(DSL.when(DSL.FALSE), "false"));
+    assertEquals(0, listener.snapshots.size());
   }
 
   @Test
   public void mergedProbesWithMainProbeConditionTest() throws IOException, URISyntaxException {
-    doMergedProbeConditions(new ProbeCondition(DSL.when(DSL.TRUE), "true"), null, 2);
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        doMergedProbeConditions(new ProbeCondition(DSL.when(DSL.TRUE), "true"), null);
+    assertEquals(2, listener.snapshots.size());
   }
 
   @Test
   public void mergedProbesWithAdditionalProbeConditionTest()
       throws IOException, URISyntaxException {
-    doMergedProbeConditions(null, new ProbeCondition(DSL.when(DSL.TRUE), "true"), 2);
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        doMergedProbeConditions(null, new ProbeCondition(DSL.when(DSL.TRUE), "true"));
+    assertEquals(2, listener.snapshots.size());
   }
 
   @Test
   public void mergedProbesWithMainProbeConditionFalseTest() throws IOException, URISyntaxException {
-    doMergedProbeConditions(new ProbeCondition(DSL.when(DSL.FALSE), "false"), null, 1);
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        doMergedProbeConditions(new ProbeCondition(DSL.when(DSL.FALSE), "false"), null);
+    assertEquals(1, listener.snapshots.size());
   }
 
   @Test
   public void mergedProbesWithAdditionalProbeConditionFalseTest()
       throws IOException, URISyntaxException {
-    doMergedProbeConditions(null, new ProbeCondition(DSL.when(DSL.FALSE), "false"), 1);
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        doMergedProbeConditions(null, new ProbeCondition(DSL.when(DSL.FALSE), "false"));
+    assertEquals(1, listener.snapshots.size());
   }
 
-  private List<Snapshot> doMergedProbeConditions(
-      ProbeCondition probeCondition1, ProbeCondition probeCondition2, int expectedSnapshots)
+  private DebuggerTransformerTest.TestSnapshotListener doMergedProbeConditions(
+      ProbeCondition probeCondition1, ProbeCondition probeCondition2)
       throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot08";
     LogProbe probe1 =
@@ -964,8 +974,7 @@ public class CapturedSnapshotTest {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
-    Assertions.assertEquals(expectedSnapshots, listener.snapshots.size());
-    return listener.snapshots;
+    return listener;
   }
 
   @Test
@@ -980,12 +989,12 @@ public class CapturedSnapshotTest {
                     DSL.value("hello"))),
             "nullTyped.fld.fld.msg == 'hello'");
     ProbeCondition condition2 = new ProbeCondition(DSL.when(DSL.FALSE), "false");
-    List<Snapshot> snapshots = doMergedProbeConditions(condition1, condition2, 1);
-    List<EvaluationError> evaluationErrors = snapshots.get(0).getEvaluationErrors();
-    Assertions.assertEquals(1, evaluationErrors.size());
-    Assertions.assertEquals("fld", evaluationErrors.get(0).getExpr());
-    Assertions.assertEquals(
-        "Cannot dereference to field: fld", evaluationErrors.get(0).getMessage());
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        doMergedProbeConditions(condition1, condition2);
+    assertEquals(0, listener.snapshots.size());
+    List<DiagnosticMessage> errors = listener.errors.get(PROBE_ID1.getId());
+    Assertions.assertEquals(1, errors.size());
+    Assertions.assertEquals("Cannot dereference to field: fld", errors.get(0).getMessage());
   }
 
   @Test
@@ -1000,13 +1009,13 @@ public class CapturedSnapshotTest {
                     DSL.value("hello"))),
             "nullTyped.fld.fld.msg == 'hello'");
     ProbeCondition condition2 = new ProbeCondition(DSL.when(DSL.TRUE), "true");
-    List<Snapshot> snapshots = doMergedProbeConditions(condition1, condition2, 2);
-    List<EvaluationError> evaluationErrors = snapshots.get(0).getEvaluationErrors();
-    Assertions.assertEquals(1, evaluationErrors.size());
-    Assertions.assertEquals("fld", evaluationErrors.get(0).getExpr());
-    Assertions.assertEquals(
-        "Cannot dereference to field: fld", evaluationErrors.get(0).getMessage());
-    Assertions.assertNull(snapshots.get(1).getEvaluationErrors());
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        doMergedProbeConditions(condition1, condition2);
+    assertEquals(1, listener.snapshots.size());
+    List<DiagnosticMessage> errors = listener.errors.get(PROBE_ID1.getId());
+    Assertions.assertEquals(1, errors.size());
+    Assertions.assertEquals("Cannot dereference to field: fld", errors.get(0).getMessage());
+    Assertions.assertNull(listener.snapshots.get(0).getEvaluationErrors());
   }
 
   @Test
@@ -1021,12 +1030,13 @@ public class CapturedSnapshotTest {
                         DSL.getMember(DSL.getMember(DSL.ref("nullTyped"), "fld"), "fld"), "msg"),
                     DSL.value("hello"))),
             "nullTyped.fld.fld.msg == 'hello'");
-    List<Snapshot> snapshots = doMergedProbeConditions(condition1, condition2, 1);
-    List<EvaluationError> evaluationErrors = snapshots.get(0).getEvaluationErrors();
-    Assertions.assertEquals(1, evaluationErrors.size());
-    Assertions.assertEquals("fld", evaluationErrors.get(0).getExpr());
-    Assertions.assertEquals(
-        "Cannot dereference to field: fld", evaluationErrors.get(0).getMessage());
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        doMergedProbeConditions(condition1, condition2);
+    assertEquals(0, listener.snapshots.size());
+    assertEquals(1, listener.errors.size());
+    List<DiagnosticMessage> errors = listener.errors.get(PROBE_ID2.getId());
+    Assertions.assertEquals(1, errors.size());
+    Assertions.assertEquals("Cannot dereference to field: fld", errors.get(0).getMessage());
   }
 
   @Test
@@ -1041,13 +1051,14 @@ public class CapturedSnapshotTest {
                         DSL.getMember(DSL.getMember(DSL.ref("nullTyped"), "fld"), "fld"), "msg"),
                     DSL.value("hello"))),
             "nullTyped.fld.fld.msg == 'hello'");
-    List<Snapshot> snapshots = doMergedProbeConditions(condition1, condition2, 2);
-    Assertions.assertNull(snapshots.get(0).getEvaluationErrors());
-    List<EvaluationError> evaluationErrors = snapshots.get(1).getEvaluationErrors();
-    Assertions.assertEquals(1, evaluationErrors.size());
-    Assertions.assertEquals("fld", evaluationErrors.get(0).getExpr());
-    Assertions.assertEquals(
-        "Cannot dereference to field: fld", evaluationErrors.get(0).getMessage());
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        doMergedProbeConditions(condition1, condition2);
+    assertEquals(1, listener.snapshots.size());
+    assertEquals(1, listener.errors.size());
+    Assertions.assertNull(listener.snapshots.get(0).getEvaluationErrors());
+    List<DiagnosticMessage> errors = listener.errors.get(PROBE_ID2.getId());
+    Assertions.assertEquals(1, errors.size());
+    Assertions.assertEquals("Cannot dereference to field: fld", errors.get(0).getMessage());
   }
 
   @Test
@@ -1407,19 +1418,11 @@ public class CapturedSnapshotTest {
     } catch (ReflectException ex) {
       Assertions.assertEquals("oops", ex.getCause().getCause().getMessage());
     }
-    Snapshot snapshot = assertOneSnapshot(listener);
-    assertCaptureThrowable(
-        snapshot.getCaptures().getReturn(),
-        "java.lang.IllegalStateException",
-        "oops",
-        "CapturedSnapshot05.triggerUncaughtException",
-        7);
-    Assertions.assertEquals(2, snapshot.getEvaluationErrors().size());
-    Assertions.assertEquals(
-        "Cannot find symbol: after", snapshot.getEvaluationErrors().get(0).getMessage());
-    Assertions.assertEquals(
-        "java.lang.IllegalStateException: oops",
-        snapshot.getEvaluationErrors().get(1).getMessage());
+    assertEquals(0, listener.snapshots.size());
+    assertEquals(1, listener.errors.size());
+    List<DiagnosticMessage> errors = listener.errors.get(PROBE_ID.getId());
+    Assertions.assertEquals(1, errors.size());
+    Assertions.assertEquals("Cannot find symbol: after", errors.get(0).getMessage());
   }
 
   @Test

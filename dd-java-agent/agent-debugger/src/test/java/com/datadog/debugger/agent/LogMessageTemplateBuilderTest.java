@@ -4,10 +4,17 @@ import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.sink.DebuggerSink;
+import com.datadog.debugger.sink.ProbeStatusSink;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -20,11 +27,13 @@ import org.junit.jupiter.api.condition.EnabledOnJre;
 import org.junit.jupiter.api.condition.JRE;
 
 class LogMessageTemplateBuilderTest {
+  private static final ProbeId PROBE_ID = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 0);
 
   @Test
   public void emptyProbe() {
     LogProbe probe = LogProbe.builder().build();
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    LogMessageTemplateBuilder summaryBuilder =
+        new LogMessageTemplateBuilder(PROBE_ID, probe.getSegments());
     String message = summaryBuilder.evaluate(new CapturedContext(), new LogProbe.LogStatus(probe));
     assertNull(message);
   }
@@ -32,7 +41,8 @@ class LogMessageTemplateBuilderTest {
   @Test
   public void emptyTemplate() {
     LogProbe probe = createLogProbe("");
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    LogMessageTemplateBuilder summaryBuilder =
+        new LogMessageTemplateBuilder(PROBE_ID, probe.getSegments());
     String message = summaryBuilder.evaluate(new CapturedContext(), new LogProbe.LogStatus(probe));
     assertEquals("", message);
   }
@@ -40,23 +50,29 @@ class LogMessageTemplateBuilderTest {
   @Test
   public void onlyStringTemplate() {
     LogProbe probe = createLogProbe("this is a simple string");
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    LogMessageTemplateBuilder summaryBuilder =
+        new LogMessageTemplateBuilder(PROBE_ID, probe.getSegments());
     String message = summaryBuilder.evaluate(new CapturedContext(), new LogProbe.LogStatus(probe));
     assertEquals("this is a simple string", message);
   }
 
   @Test
   public void undefinedArgTemplate() {
+    ProbeStatusSink probeStatusSink = mock(ProbeStatusSink.class);
+    DebuggerAgent.initSink(new DebuggerSink(Config.get(), probeStatusSink));
     LogProbe probe = createLogProbe("{arg}");
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    LogMessageTemplateBuilder summaryBuilder =
+        new LogMessageTemplateBuilder(PROBE_ID, probe.getSegments());
     String message = summaryBuilder.evaluate(new CapturedContext(), new LogProbe.LogStatus(probe));
-    assertEquals("{Cannot find symbol: arg}", message);
+    assertEquals("", message);
+    verify(probeStatusSink).addError(eq(PROBE_ID), eq("Cannot find symbol: arg"));
   }
 
   @Test
   public void argTemplate() {
     LogProbe probe = createLogProbe("{arg}");
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    LogMessageTemplateBuilder summaryBuilder =
+        new LogMessageTemplateBuilder(PROBE_ID, probe.getSegments());
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
@@ -69,14 +85,16 @@ class LogMessageTemplateBuilderTest {
   @Test
   public void argMultipleInFlightTemplate() {
     LogProbe probe = createLogProbe("{arg}");
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    LogMessageTemplateBuilder summaryBuilder =
+        new LogMessageTemplateBuilder(PROBE_ID, probe.getSegments());
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
           CapturedContext.CapturedValue.of("arg", String.class.getTypeName(), "foo")
         });
     String message = summaryBuilder.evaluate(capturedContext, new LogProbe.LogStatus(probe));
-    LogMessageTemplateBuilder summaryBuilder2 = new LogMessageTemplateBuilder(probe.getSegments());
+    LogMessageTemplateBuilder summaryBuilder2 =
+        new LogMessageTemplateBuilder(PROBE_ID, probe.getSegments());
     CapturedContext capturedContext2 = new CapturedContext();
     capturedContext2.addArguments(
         new CapturedContext.CapturedValue[] {
@@ -90,7 +108,8 @@ class LogMessageTemplateBuilderTest {
   @Test
   public void argNullTemplate() {
     LogProbe probe = createLogProbe("{nullObject}");
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    LogMessageTemplateBuilder summaryBuilder =
+        new LogMessageTemplateBuilder(PROBE_ID, probe.getSegments());
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
@@ -103,7 +122,8 @@ class LogMessageTemplateBuilderTest {
   @Test
   public void argArrayTemplate() {
     LogProbe probe = createLogProbe("{primArray} {strArray}");
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    LogMessageTemplateBuilder summaryBuilder =
+        new LogMessageTemplateBuilder(PROBE_ID, probe.getSegments());
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
@@ -123,7 +143,8 @@ class LogMessageTemplateBuilderTest {
   @Test
   public void argCollectionTemplate() {
     LogProbe probe = createLogProbe("{strList} {strSet}");
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    LogMessageTemplateBuilder summaryBuilder =
+        new LogMessageTemplateBuilder(PROBE_ID, probe.getSegments());
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
@@ -149,7 +170,8 @@ class LogMessageTemplateBuilderTest {
   @Test
   public void argMapTemplate() {
     LogProbe probe = createLogProbe("{strMap}");
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    LogMessageTemplateBuilder summaryBuilder =
+        new LogMessageTemplateBuilder(PROBE_ID, probe.getSegments());
     CapturedContext capturedContext = new CapturedContext();
     Map<String, String> map = new LinkedHashMap<>();
     for (int i = 0; i < 10; i++) {
@@ -177,7 +199,8 @@ class LogMessageTemplateBuilderTest {
   @Test
   public void argComplexObjectTemplate() {
     LogProbe probe = createLogProbe("{obj}");
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    LogMessageTemplateBuilder summaryBuilder =
+        new LogMessageTemplateBuilder(PROBE_ID, probe.getSegments());
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
@@ -190,7 +213,8 @@ class LogMessageTemplateBuilderTest {
   @Test
   public void argComplexObjectArrayTemplate() {
     LogProbe probe = createLogProbe("{array}");
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    LogMessageTemplateBuilder summaryBuilder =
+        new LogMessageTemplateBuilder(PROBE_ID, probe.getSegments());
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
@@ -205,7 +229,8 @@ class LogMessageTemplateBuilderTest {
   @EnabledOnJre(JRE.JAVA_17)
   public void argInaccessibleFieldTemplate() {
     LogProbe probe = createLogProbe("{obj}");
-    LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());
+    LogMessageTemplateBuilder summaryBuilder =
+        new LogMessageTemplateBuilder(PROBE_ID, probe.getSegments());
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {

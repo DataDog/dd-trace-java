@@ -4,6 +4,7 @@ import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.agent.LogMessageTemplateBuilder;
 import com.datadog.debugger.el.EvaluationException;
+import com.datadog.debugger.el.PermanentEvaluationException;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.SpanDecorationInstrumentor;
@@ -150,6 +151,13 @@ public class SpanDecorationProbe extends ProbeDefinition {
           if (!condition) {
             continue;
           }
+        } catch (PermanentEvaluationException ex) {
+          LOGGER.debug("Permanent evaluation error: ", ex);
+          DiagnosticMessage diagnosticMessage =
+              new DiagnosticMessage(DiagnosticMessage.Kind.ERROR, ex.getMessage());
+          DebuggerAgent.getSink()
+              .addDiagnostics(getProbeId(), Collections.singletonList(diagnosticMessage));
+          continue;
         } catch (EvaluationException ex) {
           LOGGER.debug("Evaluation error: ", ex);
           status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
@@ -162,7 +170,8 @@ public class SpanDecorationProbe extends ProbeDefinition {
       SpanDecorationStatus spanStatus = (SpanDecorationStatus) status;
       for (Tag tag : decoration.tags) {
         String tagName = sanitize(tag.name);
-        LogMessageTemplateBuilder builder = new LogMessageTemplateBuilder(tag.value.getSegments());
+        LogMessageTemplateBuilder builder =
+            new LogMessageTemplateBuilder(getProbeId(), tag.value.getSegments());
         LogProbe.LogStatus logStatus = new LogProbe.LogStatus(this);
         String tagValue = builder.evaluate(context, logStatus);
         if (logStatus.hasLogTemplateErrors()) {

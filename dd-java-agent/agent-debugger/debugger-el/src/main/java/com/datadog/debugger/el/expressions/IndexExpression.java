@@ -24,6 +24,10 @@ public class IndexExpression implements ValueExpression<Value<?>> {
     if (targetValue == Value.undefined()) {
       return targetValue;
     }
+    if (targetValue.isNull()) {
+      throw new EvaluationException(
+          NullPointerException.class.getName(), PrettyPrintVisitor.print(this));
+    }
     Value<?> result = Value.undefinedValue();
     Value<?> keyValue = key.evaluate(valueRefResolver);
     if (keyValue == Value.undefined()) {

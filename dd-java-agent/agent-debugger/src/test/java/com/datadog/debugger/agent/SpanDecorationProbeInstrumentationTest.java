@@ -17,7 +17,6 @@ import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.expressions.BooleanExpression;
 import com.datadog.debugger.probe.SpanDecorationProbe;
-import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
 import datadog.trace.api.interceptor.MutableSpan;
@@ -132,7 +131,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   }
 
   @Test
-  public void methodTagEvalError() throws IOException, URISyntaxException {
+  public void methodTagPermanentEvalError() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
     SpanDecorationProbe.Decoration decoration = createDecoration("tag1", "{noarg}");
     installSingleSpanDecoration(
@@ -140,9 +139,26 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(42, result);
+    assertEquals(0, mockSink.getSnapshots().size());
+    assertEquals(1, mockSink.getCurrentDiagnostics().size());
+    assertEquals("Cannot find symbol: noarg", mockSink.getCurrentDiagnostics().get(0).getMessage());
     MutableSpan span = traceInterceptor.getFirstSpan();
     assertNull(span.getTags().get("tag1"));
-    assertEquals("Cannot find symbol: noarg", span.getTags().get("_dd.di.tag1.evaluation_error"));
+  }
+
+  @Test
+  public void methodTagEvalError() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
+    SpanDecorationProbe.Decoration decoration = createDecoration("tag1", "{nullListField[0]}");
+    installSingleSpanDecoration(
+        CLASS_NAME, ACTIVE, decoration, "process", "int (java.lang.String)");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    assertEquals(42, result);
+    MutableSpan span = traceInterceptor.getFirstSpan();
+    assertNull(span.getTags().get("tag1"));
+    assertEquals(
+        NullPointerException.class.getName(), span.getTags().get("_dd.di.tag1.evaluation_error"));
   }
 
   @Test
@@ -156,17 +172,16 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     int result = Reflect.on(testClass).call("main", "5").get();
     assertEquals(42, result);
     assertFalse(traceInterceptor.getFirstSpan().getTags().containsKey("tag1"));
-    assertEquals(1, mockSink.getSnapshots().size());
-    Snapshot snapshot = mockSink.getSnapshots().get(0);
-    assertEquals(1, snapshot.getEvaluationErrors().size());
-    assertEquals("Cannot find symbol: noarg", snapshot.getEvaluationErrors().get(0).getMessage());
+    assertEquals(0, mockSink.getSnapshots().size());
+    assertEquals(1, mockSink.getCurrentDiagnostics().size());
+    assertEquals("Cannot find symbol: noarg", mockSink.getCurrentDiagnostics().get(0).getMessage());
   }
 
   @Test
   public void lineActiveSpanSimpleTag() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
     SpanDecorationProbe.Decoration decoration = createDecoration("tag1", "{arg}");
-    installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 37);
+    installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 38);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(42, result);
@@ -198,7 +213,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
     SpanDecorationProbe.Decoration decoration =
         createDecoration(eq(ref("arg"), value("5")), "arg == '5'", "tag1", "{arg}");
-    installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 37);
+    installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 38);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     for (int i = 0; i < 10; i++) {
       int result = Reflect.on(testClass).call("main", String.valueOf(i)).get();
@@ -214,15 +229,14 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
     SpanDecorationProbe.Decoration decoration =
         createDecoration(eq(ref("noarg"), value("5")), "arg == '5'", "tag1", "{arg}");
-    installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 37);
+    installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 38);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "5").get();
     assertEquals(42, result);
     assertFalse(traceInterceptor.getFirstSpan().getTags().containsKey("tag1"));
-    assertEquals(1, mockSink.getSnapshots().size());
-    Snapshot snapshot = mockSink.getSnapshots().get(0);
-    assertEquals(1, snapshot.getEvaluationErrors().size());
-    assertEquals("Cannot find symbol: noarg", snapshot.getEvaluationErrors().get(0).getMessage());
+    assertEquals(0, mockSink.getSnapshots().size());
+    assertEquals(1, mockSink.getCurrentDiagnostics().size());
+    assertEquals("Cannot find symbol: noarg", mockSink.getCurrentDiagnostics().get(0).getMessage());
   }
 
   @Test
