@@ -34,9 +34,4 @@ abstract class AbstractTestContext implements TestContext {
   public synchronized String getStatus() {
     return status;
   }
-
-  @Override
-  public void reportChildTag(String key, Object value) {
-    // no op
-  }
 }

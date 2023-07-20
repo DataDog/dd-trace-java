@@ -104,6 +104,15 @@ public class DDTestSessionParent extends DDTestSessionImpl {
     if (result.isItrEnabled()) {
       itrEnabled = true;
     }
+    String testFramework = result.getTestFramework();
+    if (testFramework != null) {
+      setTag(Tags.TEST_FRAMEWORK, testFramework);
+    }
+    String testFrameworkVersion = result.getTestFrameworkVersion();
+    if (testFrameworkVersion != null) {
+      setTag(Tags.TEST_FRAMEWORK_VERSION, testFrameworkVersion);
+    }
+
     testsSkipped.add(result.getTestsSkippedTotal());
     return testModuleRegistry.onModuleExecutionResultReceived(result);
   }

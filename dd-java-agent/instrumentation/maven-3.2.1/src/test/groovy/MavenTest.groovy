@@ -315,12 +315,12 @@ class MavenTest extends CiVisibilityTest {
 
   @Override
   String expectedTestFramework() {
-    return "junit4"
+    return null
   }
 
   @Override
   String expectedTestFrameworkVersion() {
-    return "4.13.2"
+    return null
   }
 
   @Override

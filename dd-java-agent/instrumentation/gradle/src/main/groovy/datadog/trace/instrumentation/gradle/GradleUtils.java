@@ -1,15 +1,8 @@
 package datadog.trace.instrumentation.gradle;
 
-import java.util.Collection;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Objects;
 import org.gradle.StartParameter;
-import org.gradle.api.Project;
 import org.gradle.api.Task;
-import org.gradle.api.artifacts.Configuration;
-import org.gradle.api.artifacts.ConfigurationContainer;
-import org.gradle.api.artifacts.Dependency;
 import org.gradle.process.JavaForkOptions;
 
 public abstract class GradleUtils {
@@ -66,63 +59,5 @@ public abstract class GradleUtils {
     }
 
     return command.toString();
-  }
-
-  public static Collection<TestFramework> collectTestFrameworks(Project project) {
-    Collection<TestFramework> testFrameworks = new HashSet<>();
-
-    ConfigurationContainer configurations = project.getConfigurations();
-    for (Configuration configuration : configurations.getAsMap().values()) {
-      for (Dependency dependency : configuration.getAllDependencies()) {
-        String group = dependency.getGroup();
-        String name = dependency.getName();
-        if ("junit".equals(group) && "junit".equals(name)) {
-          testFrameworks.add(new TestFramework("junit4", dependency.getVersion()));
-
-        } else if ("org.junit.jupiter".equals(group)) {
-          testFrameworks.add(new TestFramework("junit5", dependency.getVersion()));
-
-        } else if ("org.testng".equals(group) && "testng".equals(name)) {
-          testFrameworks.add(new TestFramework("testng", dependency.getVersion()));
-        }
-      }
-    }
-
-    for (Project childProject : project.getChildProjects().values()) {
-      testFrameworks.addAll(collectTestFrameworks(childProject));
-    }
-    return testFrameworks;
-  }
-
-  public static final class TestFramework {
-    public final String name;
-    public final String version;
-
-    TestFramework(String name, String version) {
-      this.name = name;
-      this.version = version;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      TestFramework that = (TestFramework) o;
-      return Objects.equals(name, that.name) && Objects.equals(version, that.version);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(name, version);
-    }
-
-    @Override
-    public String toString() {
-      return "TestFramework{" + "name='" + name + '\'' + ", version='" + version + '\'' + '}';
-    }
   }
 }

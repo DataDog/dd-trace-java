@@ -46,14 +46,6 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
   }
 
   @Override
-  public void onTestFrameworkDetected(
-      final T sessionKey, final String frameworkName, final String frameworkVersion) {
-    DDTestSessionImpl testSession = getTestSession(sessionKey);
-    testSession.setTag(Tags.TEST_FRAMEWORK, frameworkName);
-    testSession.setTag(Tags.TEST_FRAMEWORK_VERSION, frameworkVersion);
-  }
-
-  @Override
   public void onTestSessionFail(final T sessionKey, final Throwable throwable) {
     DDTestSessionImpl testSession = getTestSession(sessionKey);
     testSession.setErrorInfo(throwable);
@@ -98,17 +90,6 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
     inProgressTestModules.put(testModuleDescriptor, testModule);
 
     return testModule.getModuleInfo();
-  }
-
-  @Override
-  public void onModuleTestFrameworkDetected(
-      final T sessionKey,
-      final String moduleName,
-      final String frameworkName,
-      final String frameworkVersion) {
-    DDTestModuleImpl testModule = getTestModule(sessionKey, moduleName);
-    testModule.setTag(Tags.TEST_FRAMEWORK, frameworkName);
-    testModule.setTag(Tags.TEST_FRAMEWORK_VERSION, frameworkVersion);
   }
 
   @Override
