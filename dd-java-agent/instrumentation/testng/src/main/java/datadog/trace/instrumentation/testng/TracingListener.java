@@ -90,15 +90,7 @@ public class TracingListener extends TestNGClassListener
     Method testMethod = TestNGUtils.getTestMethod(result);
 
     testEventsHandler.onTestStart(
-        testSuiteName,
-        testName,
-        result,
-        null,
-        null,
-        testParameters,
-        groups,
-        testClass,
-        testMethod);
+        testSuiteName, testName, result, null, null, testParameters, groups, testClass, testMethod);
   }
 
   @Override
