@@ -1,6 +1,7 @@
 package com.datadog.debugger.instrumentation;
 
 import static com.datadog.debugger.instrumentation.ASMHelper.decodeSignature;
+import static com.datadog.debugger.instrumentation.ASMHelper.emitReflectiveCall;
 import static com.datadog.debugger.instrumentation.ASMHelper.ensureSafeClassLoad;
 import static com.datadog.debugger.instrumentation.ASMHelper.getStatic;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeInterface;
@@ -708,7 +709,7 @@ public class MetricInstrumentor extends Instrumentor {
         } else {
           ldc(insnList, fieldName);
           // stack: [target_object, string]
-          emitReflectiveCall(insnList, returnType);
+          emitReflectiveCall(insnList, returnType, OBJECT_TYPE);
         }
         // build null branch which will be added later after the call to emit metric
         LabelNode gotoNode = new LabelNode();
@@ -724,50 +725,6 @@ public class MetricInstrumentor extends Instrumentor {
         throw new InvalidValueException(message);
       }
       return returnType;
-    }
-
-    private String getReflectiveMethodName(int sort) {
-      switch (sort) {
-        case Type.LONG:
-          return "getFieldValueAsLong";
-        case Type.INT:
-          return "getFieldValueAsInt";
-        case Type.DOUBLE:
-          return "getFieldValueAsDouble";
-        case Type.FLOAT:
-          return "getFieldValueAsFloat";
-        case Type.SHORT:
-          return "getFieldValueAsShort";
-        case Type.CHAR:
-          return "getFieldValueAsChar";
-        case Type.BYTE:
-          return "getFieldValueAsByte";
-        case Type.BOOLEAN:
-          return "getFieldValueAsBoolean";
-        case Type.OBJECT:
-          return "getFieldValue";
-        default:
-          throw new IllegalArgumentException("Unsupported type sort:" + sort);
-      }
-    }
-
-    private void emitReflectiveCall(InsnList insnList, ASMHelper.Type fieldType) {
-      int sort = fieldType.getMainType().getSort();
-      String methodName = getReflectiveMethodName(sort);
-      // stack: [target_object, string]
-      Type returnType = sort == Type.OBJECT ? OBJECT_TYPE : fieldType.getMainType();
-      invokeStatic(
-          insnList,
-          REFLECTIVE_FIELD_VALUE_RESOLVER_TYPE,
-          methodName,
-          returnType,
-          OBJECT_TYPE,
-          STRING_TYPE);
-      if (sort == Type.OBJECT) {
-        insnList.add(
-            new TypeInsnNode(Opcodes.CHECKCAST, fieldType.getMainType().getInternalName()));
-      }
-      // stack: [field_value]
     }
   }
 }
