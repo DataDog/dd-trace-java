@@ -44,6 +44,13 @@ class LocationsCollectingTransformer implements ClassFileTransformer {
     if (null != codeSource) {
       final URL location = codeSource.getLocation();
       if (null != location) {
+
+        StringBuilder sb = new StringBuilder("Load class " + location);
+        for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
+          sb.append("\r\n").append(ste);
+        }
+        log.debug(sb.toString());
+
         dependencyService.addURL(location);
       }
     }
