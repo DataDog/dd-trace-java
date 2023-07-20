@@ -50,7 +50,6 @@ class LocationsCollectingTransformer implements ClassFileTransformer {
           sb.append("\r\n").append(ste);
         }
         log.debug(sb.toString());
-
         dependencyService.addURL(location);
       }
     }
