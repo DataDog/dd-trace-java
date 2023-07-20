@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.DSM_KEY;
 import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.PROPAGATION_KEY_BASE64;
+import static datadog.trace.bootstrap.instrumentation.api.URIUtils.parseSqsUrl;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
@@ -74,9 +75,10 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
       final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
 
+      String queueUrl = request.getValueForField("QueueUrl", String.class).get().toString();
       LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
       sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-      sortedTags.put(TOPIC_TAG, "hriday-test-sqs-java");
+      sortedTags.put(TOPIC_TAG, parseSqsUrl(queueUrl));
       sortedTags.put(TYPE_TAG, "sqs");
 
       String pathway = propagate().generatePathwayContext(span, sortedTags);
