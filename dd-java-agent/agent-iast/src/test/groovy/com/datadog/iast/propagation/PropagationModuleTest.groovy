@@ -12,6 +12,10 @@ import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import groovy.transform.CompileDynamic
 
+import static com.datadog.iast.model.Range.NOT_MARKED
+import static com.datadog.iast.model.VulnerabilityMarks.SQL_INJECTION_MARK
+import static com.datadog.iast.model.VulnerabilityMarks.XPATH_INJECTION_MARK
+import static com.datadog.iast.model.VulnerabilityMarks.XSS_MARK
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.fromTaintFormat
 
@@ -389,7 +393,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
 
     if (shouldBeTainted) {
       def ranges = new Range[1]
-      ranges[0] = new Range(0, Integer.MAX_VALUE, new Source((byte) 1, "test", "test"), Range.NOT_MARKED)
+      ranges[0] = new Range(0, Integer.MAX_VALUE, new Source((byte) 1, "test", "test"), NOT_MARKED)
       taintedObjects.taint(secondParam, ranges)
     }
 
@@ -445,6 +449,30 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     new MockTaintable() | SourceTypes.REQUEST_PARAMETER_VALUE
   }
 
+  void 'test taintAndMarkXSSIfInputIsTainted marks ranges for XSS'() {
+    given:
+    final toTaint = 'this is a string'
+    final tainted = new Object()
+    ctx.getTaintedObjects().taint(tainted, previousRanges)
+    objectHolder.add(toTaint)
+
+    when:
+    module.taintAndMarkXSSIfInputIsTainted(toTaint, tainted)
+
+    then:
+    final to = ctx.getTaintedObjects().get(toTaint)
+    final ranges = to.getRanges()
+    ranges != null && ranges.length == 1
+    ranges[0].marks == expected
+
+    where:
+    previousRanges                                                                                                                  | expected
+    [new Range(0, Integer.MAX_VALUE, getDefaultSource(), NOT_MARKED)] as Range[]                                                    | XSS_MARK
+    [new Range(0, 1, getDefaultSource(), SQL_INJECTION_MARK), new Range(2, 3, getDefaultSource(), NOT_MARKED)] as Range[]           | XSS_MARK
+    [new Range(2, 3, getDefaultSource(), NOT_MARKED), new Range(0, 1, getDefaultSource(), SQL_INJECTION_MARK)] as Range[]           | XSS_MARK
+    [new Range(2, 3, getDefaultSource(), XPATH_INJECTION_MARK), new Range(0, 1, getDefaultSource(), SQL_INJECTION_MARK)] as Range[] | getMarks(XPATH_INJECTION_MARK, XSS_MARK)
+  }
+
   private <E> E taint(final E toTaint) {
     final source = new Source(SourceTypes.REQUEST_PARAMETER_VALUE, null, null)
     if (toTaint instanceof Taintable) {
@@ -472,6 +500,18 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     if (toTaint instanceof Taintable) {
       assert toTaint.$$DD$getSource() == null
     }
+  }
+
+  private static Source getDefaultSource() {
+    return new Source(SourceTypes.REQUEST_PARAMETER_VALUE, null, null)
+  }
+
+  private static int getMarks(int ... marks) {
+    int result = NOT_MARKED
+    for (int mark : marks) {
+      result = result | mark
+    }
+    return result
   }
 
   /**

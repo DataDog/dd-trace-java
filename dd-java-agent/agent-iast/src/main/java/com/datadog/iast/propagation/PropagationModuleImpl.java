@@ -1,6 +1,7 @@
 package com.datadog.iast.propagation;
 
 import static com.datadog.iast.model.Range.NOT_MARKED;
+import static com.datadog.iast.taint.Ranges.highestPriorityRange;
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 
 import com.datadog.iast.IastRequestContext;
@@ -252,9 +253,13 @@ public class PropagationModuleImpl implements PropagationModule {
       return;
     }
     final TaintedObjects taintedObjects = TaintedObjects.activeTaintedObjects(true);
-    final Source source = firstTaintedSource(taintedObjects, input);
-    if (source != null) {
-      taintedObjects.taintInputString(toTaint, source, VulnerabilityMarks.XSS_MARK);
+    final Range[] ranges = getTaintedRanges(taintedObjects, input);
+    if (ranges != null && ranges.length > 0) {
+      Range priorityRange = highestPriorityRange(ranges);
+      taintedObjects.taintInputString(
+          toTaint,
+          priorityRange.getSource(),
+          priorityRange.getMarks() | VulnerabilityMarks.XSS_MARK);
     }
   }
 
@@ -283,7 +288,7 @@ public class PropagationModuleImpl implements PropagationModule {
     } else {
       final TaintedObject tainted = taintedObjects.get(object);
       final Range[] ranges = tainted == null ? null : tainted.getRanges();
-      return ranges != null && ranges.length > 0 ? ranges[0].getSource() : null;
+      return ranges != null && ranges.length > 0 ? highestPriorityRange(ranges).getSource() : null;
     }
   }
 
