@@ -294,14 +294,14 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   public AgentSpan onResponseStatus(final AgentSpan span, final int status) {
     if (status > UNSET_STATUS) {
       span.setHttpStatusCode(status);
-    }
-    // explicitly set here because some other decorators might already set an error without
-    // looking at the status code
-    // XXX: the logic is questionable: span.error becomes equivalent to status 5xx,
-    // even if the server chooses not to respond with 5xx to an error.
-    // Anyway, we def don't want it applied to blocked requests
-    if (!BlockingException.class.getName().equals(span.getTag("error.type"))) {
-      span.setError(SERVER_ERROR_STATUSES.get(status), ErrorPriorities.HTTP_SERVER_DECORATOR);
+      // explicitly set here because some other decorators might already set an error without
+      // looking at the status code
+      // XXX: the logic is questionable: span.error becomes equivalent to status 5xx,
+      // even if the server chooses not to respond with 5xx to an error.
+      // Anyway, we def don't want it applied to blocked requests
+      if (!BlockingException.class.getName().equals(span.getTag("error.type"))) {
+        span.setError(SERVER_ERROR_STATUSES.get(status), ErrorPriorities.HTTP_SERVER_DECORATOR);
+      }
     }
 
     if (SHOULD_SET_404_RESOURCE_NAME && status == 404) {

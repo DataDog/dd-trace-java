@@ -22,9 +22,8 @@ public abstract class InstrumentationBridge {
     TEST_EVENTS_HANDLER_FACTORY = testEventsHandlerFactory;
   }
 
-  public static TestEventsHandler createTestEventsHandler(
-      String component, String testFramework, String testFrameworkVersion, Path path) {
-    return TEST_EVENTS_HANDLER_FACTORY.create(component, testFramework, testFrameworkVersion, path);
+  public static TestEventsHandler createTestEventsHandler(String component, Path path) {
+    return TEST_EVENTS_HANDLER_FACTORY.create(component, path);
   }
 
   public static void registerBuildEventsHandlerFactory(

@@ -6,6 +6,7 @@ import datadog.trace.api.civisibility.config.SkippableTestsSerializer
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.civisibility.CiVisibilityTest
+import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import org.example.TestAssumption
 import org.example.TestAssumptionAndSucceed
 import org.example.TestAssumptionLegacy
@@ -38,6 +39,11 @@ import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
 @DisableTestTrace(reason = "avoid self-tracing")
 class JUnit5Test extends CiVisibilityTest {
+
+  @Override
+  def setupSpec() {
+    TestEventsHandlerHolder.reset()
+  }
 
   def "test success generate spans"() {
     setup:

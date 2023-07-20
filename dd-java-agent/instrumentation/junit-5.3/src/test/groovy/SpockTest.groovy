@@ -6,6 +6,7 @@ import datadog.trace.civisibility.CiVisibilityTest
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import org.example.TestParameterizedSpock
 import org.example.TestSucceedSpock
 import org.junit.platform.engine.DiscoverySelector
@@ -18,6 +19,11 @@ import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
 @DisableTestTrace(reason = "avoid self-tracing")
 class SpockTest extends CiVisibilityTest {
+
+  @Override
+  def setupSpec() {
+    TestEventsHandlerHolder.reset()
+  }
 
   def "test success generate spans"() {
     setup:

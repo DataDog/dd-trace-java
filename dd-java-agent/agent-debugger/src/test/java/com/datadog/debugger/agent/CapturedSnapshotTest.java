@@ -1112,19 +1112,28 @@ public class CapturedSnapshotTest {
   public void inheritedFields() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot06";
     final String INHERITED_CLASS_NAME = CLASS_NAME + "$Inherited";
+    LogProbe probe =
+        createProbeBuilder(PROBE_ID, INHERITED_CLASS_NAME, "f", "()")
+            .when(
+                new ProbeCondition(
+                    DSL.when(DSL.eq(DSL.ref("intValue"), DSL.value(24))), "intValue == 24"))
+            .evaluateAt(MethodLocation.ENTRY)
+            .build();
     DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(INHERITED_CLASS_NAME, createProbe(PROBE_ID, INHERITED_CLASS_NAME, "f", "()"));
+        installProbes(INHERITED_CLASS_NAME, probe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "inherited").get();
     Assertions.assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     // Only Declared fields in the current class are captured, not inherited fields
-    assertCaptureFieldCount(snapshot.getCaptures().getEntry(), 2);
+    assertCaptureFieldCount(snapshot.getCaptures().getEntry(), 5);
     assertCaptureFields(
         snapshot.getCaptures().getEntry(), "strValue", "java.lang.String", "foobar");
-    assertCaptureFieldCount(snapshot.getCaptures().getReturn(), 2);
+    assertCaptureFields(snapshot.getCaptures().getEntry(), "intValue", "int", "24");
+    assertCaptureFieldCount(snapshot.getCaptures().getReturn(), 5);
     assertCaptureFields(
         snapshot.getCaptures().getReturn(), "strValue", "java.lang.String", "barfoo");
+    assertCaptureFields(snapshot.getCaptures().getEntry(), "intValue", "int", "24");
   }
 
   @Test
@@ -1142,6 +1151,31 @@ public class CapturedSnapshotTest {
     CapturedContext.CapturedValue globalArray = staticFields.get("globalArray");
     assertNotNull(globalArray);
     assertEquals("long[]", globalArray.getType());
+  }
+
+  @Test
+  public void staticInheritedFields() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot19";
+    final String INHERITED_CLASS_NAME = CLASS_NAME + "$Inherited";
+    LogProbe logProbe =
+        createProbeBuilder(PROBE_ID, INHERITED_CLASS_NAME, "f", "()")
+            .when(
+                new ProbeCondition(
+                    DSL.when(DSL.eq(DSL.ref("intValue"), DSL.value(48))), "intValue == 48"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(INHERITED_CLASS_NAME, logProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "inherited").get();
+    Assertions.assertEquals(42, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    Map<String, CapturedContext.CapturedValue> staticFields =
+        snapshot.getCaptures().getReturn().getStaticFields();
+    assertEquals(5, staticFields.size());
+    assertEquals("barfoo", getValue(staticFields.get("strValue")));
+    assertEquals("48", getValue(staticFields.get("intValue")));
+    assertEquals("6.28", getValue(staticFields.get("doubleValue")));
   }
 
   @Test

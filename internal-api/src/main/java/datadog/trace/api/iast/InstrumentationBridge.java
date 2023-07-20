@@ -17,6 +17,7 @@ import datadog.trace.api.iast.sink.WeakCipherModule;
 import datadog.trace.api.iast.sink.WeakHashModule;
 import datadog.trace.api.iast.sink.WeakRandomnessModule;
 import datadog.trace.api.iast.sink.XPathInjectionModule;
+import datadog.trace.api.iast.sink.XssModule;
 import datadog.trace.api.iast.source.WebModule;
 
 /** Bridge between instrumentations and {@link IastModule} instances. */
@@ -41,6 +42,8 @@ public abstract class InstrumentationBridge {
   public static volatile HttpResponseHeaderModule RESPONSE_HEADER_MODULE;
 
   public static volatile XPathInjectionModule XPATH_INJECTION;
+
+  public static volatile XssModule XSS;
 
   private InstrumentationBridge() {}
 
@@ -81,13 +84,14 @@ public abstract class InstrumentationBridge {
       RESPONSE_HEADER_MODULE = (HttpResponseHeaderModule) module;
     } else if (module instanceof XPathInjectionModule) {
       XPATH_INJECTION = (XPathInjectionModule) module;
+    } else if (module instanceof XssModule) {
+      XSS = (XssModule) module;
     } else {
       throw new UnsupportedOperationException("Module not yet supported: " + module);
     }
   }
 
   /** Mainly used for testing modules */
-  @SuppressWarnings("unchecked")
   public static <E extends IastModule> E getIastModule(final Class<E> type) {
     if (type == StringModule.class) {
       return (E) STRING;
@@ -143,6 +147,9 @@ public abstract class InstrumentationBridge {
     if (type == HttpResponseHeaderModule.class) {
       return (E) RESPONSE_HEADER_MODULE;
     }
+    if (type == XssModule.class) {
+      return (E) XSS;
+    }
     throw new UnsupportedOperationException("Module not yet supported: " + type);
   }
 
@@ -166,5 +173,6 @@ public abstract class InstrumentationBridge {
     WEAK_RANDOMNESS = null;
     RESPONSE_HEADER_MODULE = null;
     XPATH_INJECTION = null;
+    XSS = null;
   }
 }

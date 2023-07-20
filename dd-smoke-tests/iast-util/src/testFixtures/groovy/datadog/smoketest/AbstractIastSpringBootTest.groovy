@@ -276,6 +276,18 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     hasVulnerability { vul -> vul.type == 'XPATH_INJECTION' }
   }
 
+  void 'xss is present when write String'() {
+    setup:
+    final url = "http://localhost:${httpPort}/xss/write?string=test"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'XSS' && vul.location.method == 'xssWrite' }
+  }
+
   void 'path traversal is present with file'() {
     setup:
     final url = "http://localhost:${httpPort}/path_traversal/file?path=test"

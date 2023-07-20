@@ -35,7 +35,7 @@ public class TestNGInstrumentation extends Instrumenter.CiVisibility
       packageName + ".TestNGUtils",
       packageName + ".TestNGSuiteListener",
       packageName + ".TestNGClassListener",
-      packageName + ".ItrFilter",
+      packageName + ".TestEventsHandlerHolder",
       packageName + ".TracingListener"
     };
   }
