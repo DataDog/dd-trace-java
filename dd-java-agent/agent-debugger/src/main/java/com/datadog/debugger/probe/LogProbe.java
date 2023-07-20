@@ -183,7 +183,7 @@ public class LogProbe extends ProbeDefinition {
 
     public static Limits toLimits(Capture capture) {
       if (capture == null) {
-        return null;
+        return Limits.DEFAULT;
       }
       return new Limits(
           capture.maxReferenceDepth,

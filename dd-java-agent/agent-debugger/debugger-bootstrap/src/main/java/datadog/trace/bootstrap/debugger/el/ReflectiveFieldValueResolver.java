@@ -22,9 +22,19 @@ public class ReflectiveFieldValueResolver {
     return getField(target, fieldName).get(target);
   }
 
+  public static Object getFieldValue(Class<?> targetClass, String fieldName)
+      throws IllegalAccessException {
+    return getField(targetClass, fieldName).get(null);
+  }
+
   public static long getFieldValueAsLong(Object target, String fieldName)
       throws NoSuchFieldException, IllegalAccessException {
     return getField(target, fieldName).getLong(target);
+  }
+
+  public static long getFieldValueAsLong(Class<?> targetClass, String fieldName)
+      throws IllegalAccessException {
+    return getField(targetClass, fieldName).getLong(null);
   }
 
   public static int getFieldValueAsInt(Object target, String fieldName)
@@ -32,9 +42,19 @@ public class ReflectiveFieldValueResolver {
     return getField(target, fieldName).getInt(target);
   }
 
+  public static int getFieldValueAsInt(Class<?> targetClass, String fieldName)
+      throws IllegalAccessException {
+    return getField(targetClass, fieldName).getInt(null);
+  }
+
   public static double getFieldValueAsDouble(Object target, String fieldName)
       throws NoSuchFieldException, IllegalAccessException {
     return getField(target, fieldName).getDouble(target);
+  }
+
+  public static double getFieldValueAsDouble(Class<?> targetClass, String fieldName)
+      throws IllegalAccessException {
+    return getField(targetClass, fieldName).getDouble(null);
   }
 
   public static float getFieldValueAsFloat(Object target, String fieldName)
@@ -42,9 +62,19 @@ public class ReflectiveFieldValueResolver {
     return getField(target, fieldName).getFloat(target);
   }
 
+  public static float getFieldValueAsFloat(Class<?> targetClass, String fieldName)
+      throws IllegalAccessException {
+    return getField(targetClass, fieldName).getFloat(null);
+  }
+
   public static float getFieldValueAsShort(Object target, String fieldName)
       throws NoSuchFieldException, IllegalAccessException {
     return getField(target, fieldName).getShort(target);
+  }
+
+  public static float getFieldValueAsShort(Class<?> targetClass, String fieldName)
+      throws IllegalAccessException {
+    return getField(targetClass, fieldName).getShort(null);
   }
 
   public static char getFieldValueAsChar(Object target, String fieldName)
@@ -52,14 +82,29 @@ public class ReflectiveFieldValueResolver {
     return getField(target, fieldName).getChar(target);
   }
 
+  public static char getFieldValueAsChar(Class<?> targetClass, String fieldName)
+      throws IllegalAccessException {
+    return getField(targetClass, fieldName).getChar(null);
+  }
+
   public static byte getFieldValueAsByte(Object target, String fieldName)
       throws NoSuchFieldException, IllegalAccessException {
     return getField(target, fieldName).getByte(target);
   }
 
+  public static byte getFieldValueAsByte(Class<?> targetClass, String fieldName)
+      throws IllegalAccessException {
+    return getField(targetClass, fieldName).getByte(null);
+  }
+
   public static boolean getFieldValueAsBoolean(Object target, String fieldName)
       throws NoSuchFieldException, IllegalAccessException {
     return getField(target, fieldName).getBoolean(target);
+  }
+
+  public static boolean getFieldValueAsBoolean(Class<?> targetClass, String fieldName)
+      throws IllegalAccessException {
+    return getField(targetClass, fieldName).getBoolean(null);
   }
 
   private static Field getField(Object target, String name) throws NoSuchFieldException {

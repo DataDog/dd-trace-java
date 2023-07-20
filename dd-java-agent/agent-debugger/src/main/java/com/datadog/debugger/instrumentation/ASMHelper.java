@@ -1,9 +1,12 @@
 package com.datadog.debugger.instrumentation;
 
+import static com.datadog.debugger.instrumentation.Types.REFLECTIVE_FIELD_VALUE_RESOLVER_TYPE;
 import static org.objectweb.asm.Type.getMethodDescriptor;
 import static org.objectweb.asm.Type.getObjectType;
 
 import com.datadog.debugger.agent.Generated;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -18,6 +21,7 @@ import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
+import org.objectweb.asm.tree.TypeInsnNode;
 
 /** Helper class for bytecode generation */
 public class ASMHelper {
@@ -64,8 +68,16 @@ public class ASMHelper {
     return (fieldNode.access & Opcodes.ACC_STATIC) != 0;
   }
 
+  public static boolean isStaticField(Field field) {
+    return Modifier.isStatic(field.getModifiers());
+  }
+
   public static boolean isFinalField(FieldNode fieldNode) {
     return (fieldNode.access & Opcodes.ACC_FINAL) != 0;
+  }
+
+  public static boolean isFinalField(Field field) {
+    return Modifier.isFinal(field.getModifiers());
   }
 
   public static void invokeStatic(
@@ -143,6 +155,51 @@ public class ASMHelper {
       return Class.forName(className, true, classLoader);
     } catch (Throwable t) {
       throw new RuntimeException("Cannot load class " + className, t);
+    }
+  }
+
+  public static void emitReflectiveCall(
+      InsnList insnList, Type fieldType, org.objectweb.asm.Type targetType) {
+    int sort = fieldType.getMainType().getSort();
+    String methodName = getReflectiveMethodName(sort);
+    // stack: [target_object, string]
+    org.objectweb.asm.Type returnType =
+        sort == org.objectweb.asm.Type.OBJECT ? Types.OBJECT_TYPE : fieldType.getMainType();
+    invokeStatic(
+        insnList,
+        REFLECTIVE_FIELD_VALUE_RESOLVER_TYPE,
+        methodName,
+        returnType,
+        targetType,
+        Types.STRING_TYPE);
+    if (sort == org.objectweb.asm.Type.OBJECT) {
+      insnList.add(new TypeInsnNode(Opcodes.CHECKCAST, fieldType.getMainType().getInternalName()));
+    }
+    // stack: [field_value]
+  }
+
+  private static String getReflectiveMethodName(int sort) {
+    switch (sort) {
+      case org.objectweb.asm.Type.LONG:
+        return "getFieldValueAsLong";
+      case org.objectweb.asm.Type.INT:
+        return "getFieldValueAsInt";
+      case org.objectweb.asm.Type.DOUBLE:
+        return "getFieldValueAsDouble";
+      case org.objectweb.asm.Type.FLOAT:
+        return "getFieldValueAsFloat";
+      case org.objectweb.asm.Type.SHORT:
+        return "getFieldValueAsShort";
+      case org.objectweb.asm.Type.CHAR:
+        return "getFieldValueAsChar";
+      case org.objectweb.asm.Type.BYTE:
+        return "getFieldValueAsByte";
+      case org.objectweb.asm.Type.BOOLEAN:
+        return "getFieldValueAsBoolean";
+      case org.objectweb.asm.Type.OBJECT:
+        return "getFieldValue";
+      default:
+        throw new IllegalArgumentException("Unsupported type sort:" + sort);
     }
   }
 
