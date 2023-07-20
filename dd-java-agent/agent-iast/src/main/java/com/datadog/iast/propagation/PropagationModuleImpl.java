@@ -7,7 +7,6 @@ import static com.datadog.iast.taint.Tainteds.canBeTainted;
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
-import com.datadog.iast.model.VulnerabilityMarks;
 import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
@@ -27,7 +26,7 @@ public class PropagationModuleImpl implements PropagationModule {
       return;
     }
     final TaintedObjects taintedObjects = TaintedObjects.activeTaintedObjects(true);
-    final Source source = firstTaintedSource(taintedObjects, input);
+    final Source source = highestPriorityTaintedSource(taintedObjects, input);
     if (source != null) {
       taintObject(taintedObjects, toTaint, source);
     }
@@ -39,7 +38,7 @@ public class PropagationModuleImpl implements PropagationModule {
       return;
     }
     final TaintedObjects taintedObjects = TaintedObjects.activeTaintedObjects(true);
-    final Source source = firstTaintedSource(taintedObjects, input);
+    final Source source = highestPriorityTaintedSource(taintedObjects, input);
     if (source != null) {
       taintString(taintedObjects, toTaint, source);
     }
@@ -129,7 +128,7 @@ public class PropagationModuleImpl implements PropagationModule {
     }
     final TaintedObjects taintedObjects = TaintedObjects.activeTaintedObjects(true);
     for (final Object input : inputs) {
-      final Source source = firstTaintedSource(taintedObjects, input);
+      final Source source = highestPriorityTaintedSource(taintedObjects, input);
       if (source != null) {
         taintObject(taintedObjects, toTaint, source);
         return;
@@ -243,12 +242,12 @@ public class PropagationModuleImpl implements PropagationModule {
       return null;
     }
     final TaintedObjects taintedObjects = TaintedObjects.activeTaintedObjects(true);
-    return firstTaintedSource(taintedObjects, input);
+    return highestPriorityTaintedSource(taintedObjects, input);
   }
 
   @Override
-  public void taintAndMarkXSSIfInputIsTainted(
-      @Nullable final String toTaint, @Nullable final Object input) {
+  public void taintIfInputIsTaintedWithMarks(
+      @Nullable final String toTaint, @Nullable final Object input, final int mark) {
     if (!canBeTainted(toTaint) || input == null) {
       return;
     }
@@ -257,9 +256,7 @@ public class PropagationModuleImpl implements PropagationModule {
     if (ranges != null && ranges.length > 0) {
       Range priorityRange = highestPriorityRange(ranges);
       taintedObjects.taintInputString(
-          toTaint,
-          priorityRange.getSource(),
-          priorityRange.getMarks() | VulnerabilityMarks.XSS_MARK);
+          toTaint, priorityRange.getSource(), priorityRange.getMarks() | mark);
     }
   }
 
@@ -278,10 +275,10 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   private static boolean isTainted(final TaintedObjects taintedObjects, final Object object) {
-    return firstTaintedSource(taintedObjects, object) != null;
+    return highestPriorityTaintedSource(taintedObjects, object) != null;
   }
 
-  private static Source firstTaintedSource(
+  private static Source highestPriorityTaintedSource(
       final TaintedObjects taintedObjects, final Object object) {
     if (object instanceof Taintable) {
       return (Source) ((Taintable) object).$$DD$getSource();

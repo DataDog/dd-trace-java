@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.propagation.PropagationModule
 import foo.bar.TestHtmlUtilsSuite
 import groovy.transform.CompileDynamic
@@ -22,7 +23,7 @@ class HtmlUtilsCallSiteTest extends AgentTestRunner {
 
     then:
     result == expected
-    1 * module.taintAndMarkXSSIfInputIsTainted(_ as String, args[0])
+    1 * module.taintIfInputIsTaintedWithMarks(_ as String, args[0], VulnerabilityMarks.XSS_MARK)
     0 * _
 
     where:

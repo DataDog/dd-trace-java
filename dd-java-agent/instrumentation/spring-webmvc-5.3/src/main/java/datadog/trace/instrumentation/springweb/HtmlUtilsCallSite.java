@@ -4,6 +4,7 @@ import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
+import datadog.trace.api.iast.VulnerabilityMarks;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import javax.annotation.Nonnull;
 
@@ -18,7 +19,7 @@ public class HtmlUtilsCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintAndMarkXSSIfInputIsTainted(result, input);
+        module.taintIfInputIsTaintedWithMarks(result, input, VulnerabilityMarks.XSS_MARK);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterHtmlEscape1 threw", e);
       }
@@ -35,7 +36,7 @@ public class HtmlUtilsCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintAndMarkXSSIfInputIsTainted(result, input);
+        module.taintIfInputIsTaintedWithMarks(result, input, VulnerabilityMarks.XSS_MARK);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterHtmlEscape2 threw", e);
       }
