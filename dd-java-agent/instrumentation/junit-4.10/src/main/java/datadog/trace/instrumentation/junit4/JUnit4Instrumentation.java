@@ -35,10 +35,10 @@ public class JUnit4Instrumentation extends Instrumenter.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TracingListener",
       packageName + ".SkippedByItr",
       packageName + ".JUnit4Utils",
-      packageName + ".ItrFilter",
+      packageName + ".TestEventsHandlerHolder",
+      packageName + ".TracingListener",
     };
   }
 

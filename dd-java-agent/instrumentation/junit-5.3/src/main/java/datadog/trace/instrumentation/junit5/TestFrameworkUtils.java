@@ -1,11 +1,15 @@
 package datadog.trace.instrumentation.junit5;
 
+import datadog.trace.api.civisibility.config.SkippableTest;
 import datadog.trace.util.Strings;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import javax.annotation.Nullable;
 import org.junit.platform.commons.JUnitException;
 import org.junit.platform.commons.util.ReflectionUtils;
+import org.junit.platform.engine.TestDescriptor;
+import org.junit.platform.engine.TestSource;
+import org.junit.platform.engine.UniqueId;
 import org.junit.platform.engine.support.descriptor.MethodSource;
 
 public abstract class TestFrameworkUtils {
@@ -140,5 +144,24 @@ public abstract class TestFrameworkUtils {
     return SPOCK_ENGINE_ID.equals(testEngineId)
         ? getSpockTestMethod(methodSource)
         : getTestMethod(methodSource);
+  }
+
+  public static SkippableTest toSkippableTest(TestDescriptor testDescriptor) {
+    TestSource testSource = testDescriptor.getSource().orElse(null);
+    if (!(testSource instanceof MethodSource)) {
+      return null;
+    }
+
+    MethodSource methodSource = (MethodSource) testSource;
+    String testSuitName = methodSource.getClassName();
+
+    String displayName = testDescriptor.getDisplayName();
+    UniqueId uniqueId = testDescriptor.getUniqueId();
+    String testEngineId = uniqueId.getEngineId().orElse(null);
+    String testName = getTestName(displayName, methodSource, testEngineId);
+
+    String testParameters = getParameters(methodSource, displayName);
+
+    return new SkippableTest(testSuitName, testName, testParameters, null);
   }
 }

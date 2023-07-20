@@ -1,11 +1,7 @@
 package datadog.trace.instrumentation.junit4;
 
-import datadog.trace.api.civisibility.InstrumentationBridge;
-import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.util.AgentThreadFactory;
 import java.lang.reflect.Method;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import junit.runner.Version;
 import org.junit.Ignore;
@@ -18,15 +14,13 @@ import org.junit.runners.model.TestClass;
 
 public class TracingListener extends RunListener {
 
+  private static final String JUNIT4_FRAMEWORK = "junit4";
   private static final String GRADLE_TEST_WORKER_ID_SYSTEM_PROP = "org.gradle.test.worker";
 
-  private final TestEventsHandler testEventsHandler;
+  private final String version;
 
   public TracingListener() {
-    String version = Version.id();
-    Path currentPath = Paths.get("").toAbsolutePath();
-    testEventsHandler =
-        InstrumentationBridge.createTestEventsHandler("junit", "junit4", version, currentPath);
+    version = Version.id();
 
     boolean isRunByGradle = System.getProperty(GRADLE_TEST_WORKER_ID_SYSTEM_PROP) != null;
     if (isRunByGradle) {
@@ -50,12 +44,12 @@ public class TracingListener extends RunListener {
 
   @Override
   public void testRunStarted(Description description) {
-    testEventsHandler.onTestModuleStart();
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestModuleStart();
   }
 
   @Override
   public void testRunFinished(Result result) {
-    testEventsHandler.onTestModuleFinish(ItrFilter.INSTANCE.testsSkipped());
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestModuleFinish();
   }
 
   public void testSuiteStarted(final TestClass junitTestClass) {
@@ -70,7 +64,8 @@ public class TracingListener extends RunListener {
     String testSuiteName = junitTestClass.getName();
     Class<?> testClass = junitTestClass.getJavaClass();
     List<String> categories = JUnit4Utils.getCategories(testClass, null);
-    testEventsHandler.onTestSuiteStart(testSuiteName, null, null, testClass, categories, false);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
+        testSuiteName, JUNIT4_FRAMEWORK, version, testClass, categories, false);
   }
 
   public void testSuiteFinished(final TestClass junitTestClass) {
@@ -84,7 +79,7 @@ public class TracingListener extends RunListener {
 
     String testSuiteName = junitTestClass.getName();
     Class<?> testClass = junitTestClass.getJavaClass();
-    testEventsHandler.onTestSuiteFinish(testSuiteName, testClass);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(testSuiteName, testClass);
   }
 
   @Override
@@ -98,12 +93,12 @@ public class TracingListener extends RunListener {
     String testParameters = JUnit4Utils.getParameters(description);
     List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);
 
-    testEventsHandler.onTestStart(
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         testSuiteName,
         testName,
         null,
-        null,
-        null,
+        JUNIT4_FRAMEWORK,
+        version,
         testParameters,
         categories,
         testClass,
@@ -118,7 +113,8 @@ public class TracingListener extends RunListener {
     Method testMethod = JUnit4Utils.getTestMethod(description);
     String testName = JUnit4Utils.getTestName(description, testMethod);
     String testParameters = JUnit4Utils.getParameters(description);
-    testEventsHandler.onTestFinish(testSuiteName, testClass, testName, null, testParameters);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
+        testSuiteName, testClass, testName, null, testParameters);
   }
 
   // same callback is executed both for test cases and test suites (for setup/teardown errors)
@@ -129,13 +125,14 @@ public class TracingListener extends RunListener {
     Class<?> testClass = description.getTestClass();
     if (JUnit4Utils.isTestSuiteDescription(description)) {
       Throwable throwable = failure.getException();
-      testEventsHandler.onTestSuiteFailure(testSuiteName, testClass, throwable);
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFailure(
+          testSuiteName, testClass, throwable);
     } else {
       Method testMethod = JUnit4Utils.getTestMethod(description);
       String testName = JUnit4Utils.getTestName(description, testMethod);
       String testParameters = JUnit4Utils.getParameters(description);
       Throwable throwable = failure.getException();
-      testEventsHandler.onTestFailure(
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(
           testSuiteName, testClass, testName, null, testParameters, throwable);
     }
   }
@@ -155,7 +152,7 @@ public class TracingListener extends RunListener {
     Class<?> testClass = description.getTestClass();
 
     if (JUnit4Utils.isTestSuiteDescription(description)) {
-      testEventsHandler.onTestSuiteSkip(testSuiteName, testClass, reason);
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(testSuiteName, testClass, reason);
 
       List<Method> testMethods = JUnit4Utils.getTestMethods(description.getTestClass());
       for (Method testMethod : testMethods) {
@@ -166,7 +163,7 @@ public class TracingListener extends RunListener {
       String testName = JUnit4Utils.getTestName(description, testMethod);
       String testParameters = JUnit4Utils.getParameters(description);
 
-      testEventsHandler.onTestSkip(
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(
           testSuiteName, testClass, testName, null, testParameters, reason);
     }
   }
@@ -187,15 +184,16 @@ public class TracingListener extends RunListener {
 
       List<String> categories = JUnit4Utils.getCategories(testClass, null);
 
-      testEventsHandler.onTestSuiteStart(testSuiteName, null, null, testClass, categories, false);
-      testEventsHandler.onTestSuiteSkip(testSuiteName, testClass, reason);
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
+          testSuiteName, JUNIT4_FRAMEWORK, version, testClass, categories, false);
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(testSuiteName, testClass, reason);
 
       List<Method> testMethods = JUnit4Utils.getTestMethods(testClass);
       for (Method testMethod : testMethods) {
         testIgnored(description, testMethod, reason);
       }
 
-      testEventsHandler.onTestSuiteFinish(testSuiteName, testClass);
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(testSuiteName, testClass);
     }
   }
 
@@ -208,12 +206,12 @@ public class TracingListener extends RunListener {
     String testParameters = JUnit4Utils.getParameters(description);
     List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);
 
-    testEventsHandler.onTestIgnore(
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
         testSuiteName,
         testName,
         null,
-        null,
-        null,
+        JUNIT4_FRAMEWORK,
+        version,
         testParameters,
         categories,
         testClass,

@@ -19,8 +19,6 @@ class TestDecoratorImplTest extends Specification {
 
     then:
     1 * span.setTag(Tags.COMPONENT, "test-component")
-    1 * span.setTag(Tags.TEST_FRAMEWORK, "test-framework")
-    1 * span.setTag(Tags.TEST_FRAMEWORK_VERSION, "test-framework-version")
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
     1 * span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP)
     1 * span.setTag(Tags.RUNTIME_NAME, decorator.runtimeName())
@@ -51,6 +49,6 @@ class TestDecoratorImplTest extends Specification {
   }
 
   static newDecorator() {
-    new TestDecoratorImpl("test-component", "test-framework", "test-framework-version", ["ci-tag-1": "value", "ci-tag-2": "another value"])
+    new TestDecoratorImpl("test-component", ["ci-tag-1": "value", "ci-tag-2": "another value"])
   }
 }

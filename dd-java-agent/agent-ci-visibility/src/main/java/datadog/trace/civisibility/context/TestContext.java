@@ -14,6 +14,10 @@ public interface TestContext {
 
   String getStatus();
 
+  void reportChildTag(String key, Object value);
+
+  Object getChildTag(String key);
+
   boolean isLocalToCurrentProcess();
 
   @Nullable

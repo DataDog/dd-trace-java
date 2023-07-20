@@ -4,6 +4,7 @@ import static datadog.trace.util.Strings.toJson;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DisableTestTrace;
+import datadog.trace.api.civisibility.config.SkippableTest;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.api.config.CiVisibilityConfig;
@@ -23,6 +24,7 @@ import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import javax.annotation.Nullable;
@@ -51,6 +53,8 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   private final ConcurrentMap<TestDescriptor, DDTestImpl> inProgressTests =
       new ConcurrentHashMap<>();
 
+  private volatile boolean testsSkipped;
+
   public TestEventsHandlerImpl(
       String moduleName,
       Config config,
@@ -64,18 +68,22 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
-
-    // some framework/build system combinations fire "onTestModuleStart" event, some cannot do it,
-    // hence creating a module here
-    testModule = createTestModule();
   }
 
   @Override
   public void onTestModuleStart() {
-    // needed to support JVMs that run tests for multiple modules, e.g. Maven in non-forking mode
+    getTestModule();
+  }
+
+  private DDTestModuleImpl getTestModule() {
     if (testModule == null) {
-      testModule = createTestModule();
+      synchronized (this) {
+        if (testModule == null) {
+          testModule = createTestModule();
+        }
+      }
     }
+    return testModule;
   }
 
   private DDTestModuleImpl createTestModule() {
@@ -144,10 +152,14 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   }
 
   @Override
-  public void onTestModuleFinish(boolean itrTestsSkipped) {
+  public void onTestModuleFinish() {
     if (testModule != null) {
-      testModule.end(null, itrTestsSkipped);
-      testModule = null;
+      synchronized (this) {
+        if (testModule != null) {
+          testModule.end(null, testsSkipped);
+          testModule = null;
+        }
+      }
     }
   }
 
@@ -169,7 +181,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
     }
 
     DDTestSuiteImpl testSuite =
-        testModule.testSuiteStart(testSuiteName, testClass, null, parallelized);
+        getTestModule().testSuiteStart(testSuiteName, testClass, null, parallelized);
 
     if (testFramework != null) {
       testSuite.setTag(Tags.TEST_FRAMEWORK, testFramework);
@@ -390,5 +402,16 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
   private static boolean skipTrace(final Class<?> testClass) {
     return testClass != null && testClass.getAnnotation(DisableTestTrace.class) != null;
+  }
+
+  @Override
+  public boolean skip(SkippableTest test) {
+    Set<SkippableTest> skippableTests = Config.get().getCiVisibilitySkippableTests();
+    if (skippableTests.contains(test)) {
+      testsSkipped = true;
+      return true;
+    } else {
+      return false;
+    }
   }
 }
