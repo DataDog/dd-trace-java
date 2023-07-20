@@ -3,28 +3,6 @@ package datadog.smoketest.springboot.controller;
 import datadog.smoketest.springboot.TestBean;
 import ddtest.client.sources.Hasher;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.io.File;
-import java.io.IOException;
-import java.net.HttpCookie;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
-import java.util.Map;
-import java.util.Random;
-import java.util.concurrent.ThreadLocalRandom;
-import javax.servlet.ServletException;
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.websocket.server.PathParam;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.xpath.XPath;
-import javax.xml.xpath.XPathConstants;
-import javax.xml.xpath.XPathExpressionException;
-import javax.xml.xpath.XPathFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
@@ -42,6 +20,30 @@ import org.springframework.web.servlet.view.RedirectView;
 import org.springframework.web.servlet.view.UrlBasedViewResolver;
 import org.w3c.dom.Document;
 import org.xml.sax.SAXException;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.websocket.server.PathParam;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpressionException;
+import javax.xml.xpath.XPathFactory;
+import java.io.File;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.HttpCookie;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
+import java.util.Map;
+import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 @RestController
 public class IastWebController {
@@ -272,6 +274,26 @@ public class IastWebController {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  @GetMapping("/trust_boundary_violation")
+  public String trustBoundaryViolation(final HttpServletRequest request) {
+    String paramValue = request.getParameter("paramValue");
+    request.getSession().setAttribute("name", paramValue);
+    return "Trust Boundary violation page";
+  }
+
+  @GetMapping("/trust_boundary_violation_for_cookie")
+  public String trustBoundaryViolationForCookie(final HttpServletRequest request)
+      throws UnsupportedEncodingException {
+
+    for (Cookie theCookie : request.getCookies()) {
+      if (theCookie.getName().equals("https%3A%2F%2Fuser-id2")) {
+        String value = java.net.URLDecoder.decode(theCookie.getValue(), "UTF-8");
+        request.getSession().putValue(value, "88888");
+      }
+    }
+    return "Trust Boundary violation with cookie page";
   }
 
   private void withProcess(final Operation<Process> op) {
