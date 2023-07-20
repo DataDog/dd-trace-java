@@ -47,6 +47,7 @@ public class JUnit5ItrInstrumentation extends Instrumenter.CiVisibility
     return new String[] {
       packageName + ".JUnit5Utils",
       packageName + ".SpockUtils",
+      packageName + ".CucumberUtils",
       packageName + ".TestFrameworkUtils",
       packageName + ".TestEventsHandlerHolder",
     };
