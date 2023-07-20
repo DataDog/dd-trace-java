@@ -303,8 +303,6 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     then:
     if (status) {
       1 * this.span.setHttpStatusCode(status)
-    }
-    if (resp) {
       1 * this.span.setError(error, ErrorPriorities.HTTP_SERVER_DECORATOR)
     }
     if (status == 404) {

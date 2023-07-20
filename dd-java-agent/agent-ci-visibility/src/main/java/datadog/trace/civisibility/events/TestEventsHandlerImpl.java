@@ -73,10 +73,10 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
   @Override
   public void onTestModuleStart() {
-    testModule();
+    getTestModule();
   }
 
-  private DDTestModuleImpl testModule() {
+  private DDTestModuleImpl getTestModule() {
     if (testModule == null) {
       synchronized (this) {
         if (testModule == null) {
@@ -183,7 +183,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
     }
 
     DDTestSuiteImpl testSuite =
-        testModule().testSuiteStart(testSuiteName, testClass, null, parallelized);
+        getTestModule().testSuiteStart(testSuiteName, testClass, null, parallelized);
 
     if (testFramework != null) {
       testSuite.setTag(Tags.TEST_FRAMEWORK, testFramework);
@@ -408,6 +408,6 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
   @Override
   public boolean skip(SkippableTest test) {
-    return testModule().skip(test);
+    return getTestModule().skip(test);
   }
 }
