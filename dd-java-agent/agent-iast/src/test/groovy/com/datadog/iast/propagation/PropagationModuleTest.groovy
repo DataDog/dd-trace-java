@@ -4,7 +4,6 @@ import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.IastRequestContext
 import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
-import com.datadog.iast.model.VulnerabilityMarks
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.SourceTypes
@@ -79,11 +78,11 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     'taintObjects'                             | [SourceTypes.REQUEST_PARAMETER_VALUE, null as Object[]]
     'taintObjects'                             | [SourceTypes.REQUEST_PARAMETER_VALUE, [] as Object[]]
     'taintObjects'                             | [SourceTypes.REQUEST_PARAMETER_VALUE, null as Collection]
-    'taintAndMarkIfInputIsTainted'             | ['', null, VulnerabilityMarks.XPATH_INJECTION_MARK]
-    'taintAndMarkIfInputIsTainted'             | ['', new Object(), VulnerabilityMarks.XPATH_INJECTION_MARK]
-    'taintAndMarkIfInputIsTainted'             | [null as String, new Object(), VulnerabilityMarks.XPATH_INJECTION_MARK]
-    'taintAndMarkIfInputIsTainted'             | ['test', null, VulnerabilityMarks.XPATH_INJECTION_MARK]
-    'taintAndMarkIfInputIsTainted'             | [null as String, 'test', VulnerabilityMarks.XPATH_INJECTION_MARK]
+    'taintAndMarkXSSIfInputIsTainted'          | ['', null]
+    'taintAndMarkXSSIfInputIsTainted'          | ['', new Object()]
+    'taintAndMarkXSSIfInputIsTainted'          | [null as String, new Object()]
+    'taintAndMarkXSSIfInputIsTainted'          | ['test', null]
+    'taintAndMarkXSSIfInputIsTainted'          | [null as String, 'test']
   }
 
   void '#method without span'() {
@@ -109,7 +108,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     'taintObjects'                             | [SourceTypes.REQUEST_PARAMETER_VALUE, [new Object()] as Object[]]
     'taintObjects'                             | [SourceTypes.REQUEST_PARAMETER_VALUE, [new Object()]]
     'taintObjects'                             | [SourceTypes.REQUEST_PARAMETER_VALUE, [new Object()] as Collection<Object>]
-    'taintAndMarkIfInputIsTainted'             | ['test', new Object(), VulnerabilityMarks.XPATH_INJECTION_MARK]
+    'taintAndMarkXSSIfInputIsTainted'          | ['test', new Object()]
   }
 
   void 'test propagation for #method'() {
@@ -133,150 +132,150 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     assertTainted(toTaint)
 
     where:
-    method                                     | args                                                                                            | toTaintClosure                | inputClosure
+    method                                     | args                                                                                            | toTaintClosure | inputClosure
     'taintIfInputIsTainted'                    | [new Object(), 'I am an string']                                                                | {
       it[0]
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[1]
     }
     'taintIfInputIsTainted'                    | [new Object(), new Object()]                                                                    | {
       it[0]
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[1]
     }
     'taintIfInputIsTainted'                    | [new Object(), new MockTaintable()]                                                             | {
       it[0]
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[1]
     }
     'taintIfInputIsTainted'                    | ['Hello', 'I am an string']                                                                     | {
       it[0]
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[1]
     }
     'taintIfInputIsTainted'                    | ['Hello', new Object()]                                                                         | {
       it[0]
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[1]
     }
     'taintIfInputIsTainted'                    | ['Hello', new MockTaintable()]                                                                  | {
       it[0]
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[1]
     }
     'taintIfInputIsTainted'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value', 'I am an string']                        | {
       it[2]
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[3]
     }
     'taintIfInputIsTainted'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value', new Object()]                            | {
       it[2]
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[3]
     }
     'taintIfInputIsTainted'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value', new MockTaintable()]                     | {
       it[2]
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[3]
     }
     'taintIfInputIsTainted'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', ['value'], 'I am an string']                      | {
       it[2][0]
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[3]
     }
     'taintIfInputIsTainted'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', ['value'], new Object()]                          | {
       it[2][0]
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[3]
     }
     'taintIfInputIsTainted'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', ['value'], new MockTaintable()]                   | {
       it[2][0]
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[3]
     }
     'taintIfInputIsTainted'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, ['value'].toSet(), 'I am an string']                      | {
       it[1][0]
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[2]
     }
     'taintIfInputIsTainted'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, ['value'].toSet(), new Object()]                          | {
       it[1][0]
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[2]
     }
     'taintIfInputIsTainted'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, ['value'].toSet(), new MockTaintable()]                   | {
       it[1][0]
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[2]
     }
     'taintIfInputIsTainted'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, [name: 'value'].entrySet().toList(), 'I am an string']    | {
       it[1][0].value
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[2]
     }
     'taintIfInputIsTainted'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, [name: 'value'].entrySet().toList(), new Object()]        | {
       it[1][0].value
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[2]
     }
     'taintIfInputIsTainted'                    | [SourceTypes.REQUEST_PARAMETER_VALUE, [name: 'value'].entrySet().toList(), new MockTaintable()] | {
       it[1][0].value
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[2]
     }
     'taintObjectIfInputIsTaintedKeepingRanges' | [new Object(), new Object()]                                                                    | {
       it[0]
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[1]
     }
     'taintObjectIfInputIsTaintedKeepingRanges' | [new Object(), new MockTaintable()]                                                             | {
       it[0]
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[1]
     }
     'taintIfAnyInputIsTainted'                 | [new Object(), ['I am an string'].toArray()]                                                    | {
       it[0]
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[1][0]
     }
     'taintIfAnyInputIsTainted'                 | [new Object(), [new Object()].toArray()]                                                        | {
       it[0]
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[1][0]
     }
     'taintIfAnyInputIsTainted'                 | [new Object(), [new MockTaintable()].toArray()]                                                 | {
       it[0]
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[1][0]
     }
     'taintIfAnyInputIsTainted'                 | ['Hello', ['I am an string'].toArray()]                                                         | {
       it[0]
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[1][0]
     }
     'taintIfAnyInputIsTainted'                 | ['Hello', [new Object()].toArray()]                                                             | {
       it[0]
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[1][0]
     }
     'taintIfAnyInputIsTainted'                 | ['Hello', [new MockTaintable()].toArray()]                                                      | {
       it[0]
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[1][0]
     }
-    'taintAndMarkIfInputIsTainted'             | ['Hello', 'I am an string', VulnerabilityMarks.XPATH_INJECTION_MARK]                            | {
+    'taintAndMarkXSSIfInputIsTainted'          | ['Hello', 'I am an string']                                                                     | {
       it[0]
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[1]
     }
-    'taintAndMarkIfInputIsTainted'             | ['Hello', new Object(), VulnerabilityMarks.XPATH_INJECTION_MARK]                                | {
+    'taintAndMarkXSSIfInputIsTainted'          | ['Hello', new Object()]                                                                         | {
       it[0]
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[1]
     }
-    'taintAndMarkIfInputIsTainted'             | ['Hello', new MockTaintable(), VulnerabilityMarks.XPATH_INJECTION_MARK]                         | {
+    'taintAndMarkXSSIfInputIsTainted'          | ['Hello', new MockTaintable()]                                                                  | {
       it[0]
-    }                                                                                                                                                                            | {
+    }                                                                                                                                                             | {
       it[1]
     }
   }

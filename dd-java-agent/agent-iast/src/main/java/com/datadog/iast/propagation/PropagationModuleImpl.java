@@ -6,6 +6,7 @@ import static com.datadog.iast.taint.Tainteds.canBeTainted;
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
+import com.datadog.iast.model.VulnerabilityMarks;
 import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
@@ -245,15 +246,15 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
-  public void taintAndMarkIfInputIsTainted(
-      @Nullable final String toTaint, @Nullable final Object input, final int mark) {
+  public void taintAndMarkXSSIfInputIsTainted(
+      @Nullable final String toTaint, @Nullable final Object input) {
     if (!canBeTainted(toTaint) || input == null) {
       return;
     }
     final TaintedObjects taintedObjects = TaintedObjects.activeTaintedObjects(true);
     final Source source = firstTaintedSource(taintedObjects, input);
     if (source != null) {
-      taintedObjects.taintInputString(toTaint, source, mark);
+      taintedObjects.taintInputString(toTaint, source, VulnerabilityMarks.XSS_MARK);
     }
   }
 

@@ -53,8 +53,8 @@ public interface PropagationModule extends IastModule {
 
   void taint(byte origin, @Nullable String name, @Nullable String value, @Nullable Taintable t);
 
-  void taintAndMarkIfInputIsTainted(
-      @Nullable final String toTaint, @Nullable final Object input, final int mark);
+  void taintAndMarkXSSIfInputIsTainted(
+      @Nullable final String toTaint, @Nullable final Object input);
 
   boolean isTainted(@Nullable Object obj);
 
