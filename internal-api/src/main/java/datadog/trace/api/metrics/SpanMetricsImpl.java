@@ -18,8 +18,8 @@ public class SpanMetricsImpl implements SpanMetrics {
     this.spanCreatedCounter = new AtomicLong(0);
     this.spanFinishedCounter = new AtomicLong(0);
     List<CoreCounter> coreCounters = new ArrayList<>(2);
-    coreCounters.add(new SpanCounter("span_created", this.spanCreatedCounter));
-    coreCounters.add(new SpanCounter("span_finished", this.spanFinishedCounter));
+    coreCounters.add(new SpanCounter("spans_created", this.spanCreatedCounter));
+    coreCounters.add(new SpanCounter("spans_finished", this.spanFinishedCounter));
     this.coreCounters = Collections.unmodifiableList(coreCounters);
   }
 
