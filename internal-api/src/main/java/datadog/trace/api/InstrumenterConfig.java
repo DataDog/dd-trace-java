@@ -55,8 +55,10 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class InstrumenterConfig {
@@ -98,8 +100,8 @@ public class InstrumenterConfig {
   private final boolean serialVersionUIDFieldInjection;
 
   private final String traceAnnotations;
-  private final String traceMethods;
-  private final String measureMethods;
+  private final Map<String, Set<String>> traceMethods;
+  private final Map<String, Set<String>> measureMethods;
 
   private final boolean internalExitOnFailure;
 
@@ -180,8 +182,12 @@ public class InstrumenterConfig {
             SERIALVERSIONUID_FIELD_INJECTION, DEFAULT_SERIALVERSIONUID_FIELD_INJECTION);
 
     traceAnnotations = configProvider.getString(TRACE_ANNOTATIONS, DEFAULT_TRACE_ANNOTATIONS);
-    traceMethods = configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS);
-    measureMethods = configProvider.getString(MEASURE_METHODS, DEFAULT_MEASURE_METHODS);
+    traceMethods =
+        MethodFilterConfigParser.parse(
+            configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS));
+    measureMethods =
+        MethodFilterConfigParser.parse(
+            configProvider.getString(MEASURE_METHODS, DEFAULT_MEASURE_METHODS));
     internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
 
     legacyInstallerEnabled = configProvider.getBoolean(LEGACY_INSTALLER_ENABLED, false);
@@ -330,12 +336,17 @@ public class InstrumenterConfig {
     return traceAnnotations;
   }
 
-  public String getTraceMethods() {
+  public Map<String, Set<String>> getTraceMethods() {
     return traceMethods;
   }
 
-  public String getMeasureMethods() {
-    return measureMethods;
+  public boolean isMethodMeasured(Method method) {
+    if (this.measureMethods.isEmpty()) {
+      return false;
+    }
+    String clazz = method.getDeclaringClass().getName();
+    Set<String> methods = this.measureMethods.get(clazz);
+    return methods != null && (methods.contains(method.getName()) || methods.contains("*"));
   }
 
   public boolean isInternalExitOnFailure() {
