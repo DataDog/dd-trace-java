@@ -1,0 +1,23 @@
+muzzle {
+  pass {
+    group = 'org.owasp.esapi'
+    module = 'esapi'
+    versions = '[2.1.0,]'
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'call-site-instrumentation'
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'org.owasp.esapi', name: 'esapi', version: '2.1.0'
+
+  testImplementation group: 'org.owasp.esapi', name: 'esapi', version: '2.1.0'
+
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+
+  latestDepTestImplementation group: 'org.owasp.esapi', name: 'esapi', version: '+'
+}

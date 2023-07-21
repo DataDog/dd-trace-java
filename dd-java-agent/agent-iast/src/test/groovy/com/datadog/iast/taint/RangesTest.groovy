@@ -2,9 +2,9 @@ package com.datadog.iast.taint
 
 import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
-import com.datadog.iast.model.VulnerabilityMarks
 import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.test.util.DDSpecification
 
 import static com.datadog.iast.model.Range.NOT_MARKED
