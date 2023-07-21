@@ -84,6 +84,7 @@ public class MessageBodyReaderInvocationInstrumentation extends Instrumenter.App
           t =
               new BlockingException(
                   "Blocked request (for AbstractReaderInterceptorContext/readFrom)");
+          reqCtx.getTraceSegment().effectivelyBlocked();
         }
       }
     }

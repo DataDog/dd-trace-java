@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jetty;
 
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.List;
 import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.jar.asm.MethodVisitor;
@@ -14,8 +15,11 @@ import org.slf4j.LoggerFactory;
  * and replaces it with:
  *
  * <pre>
- * if (span != null && span.getRequestBlockingAction()) {
- *   JettyBlockingHelper.block(this.getRequest(), this.getResponse(), span.getRequestBlockingAction());
+ * if (span != null && span.getRequestBlockingAction() &&
+ *     JettyBlockingHelper.blockAndMarkBlocked(
+ *         this.getRequest(), this.getResponse(),
+ *         span.getRequestBlockingAction(), span) {
+ *   // nothing
  * } else {
  *   server.handle(this);
  * }
@@ -108,15 +112,17 @@ public class HandleRequestVisitor extends MethodVisitor {
           "getRequestBlockingAction",
           "()" + Type.getDescriptor(Flow.Action.RequestBlockingAction.class),
           true);
+      super.visitVarInsn(Opcodes.ALOAD, agentSpanVar);
       super.visitMethodInsn(
           Opcodes.INVOKESTATIC,
           Type.getInternalName(JettyBlockingHelper.class),
-          "block",
+          "blockAndMarkBlocked",
           "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;"
               + Type.getDescriptor(Flow.Action.RequestBlockingAction.class)
-              + ")V",
+              + Type.getDescriptor(AgentSpan.class)
+              + ")Z",
           false);
-      super.visitJumpInsn(Opcodes.GOTO, afterHandle);
+      super.visitJumpInsn(Opcodes.IFNE, afterHandle);
 
       super.visitLabel(beforeHandle);
       if (needsStackFrames()) {

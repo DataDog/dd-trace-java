@@ -146,6 +146,7 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
                 rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
             if (t == null) {
               t = new BlockingException("Blocked request (for processParameters)");
+              reqCtx.getTraceSegment().effectivelyBlocked();
             }
           }
         }

@@ -88,6 +88,7 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing
       if (rba != null) {
         boolean success = GrizzlyBlockingHelper.block(request, response, rba, scope);
         if (success) {
+          span.getRequestContext().getTraceSegment().effectivelyBlocked();
           return true; /* skip body */
         }
       }

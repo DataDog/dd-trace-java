@@ -7074,6 +7074,32 @@
         }
       ],
       "transformers": []
+    },
+    {
+      "id": "__troubleshooting_rule",
+      "name": "troubleshooting rule for block on request body",
+      "tags": {
+        "type": "troubleshooting",
+        "category": "troubleshooting",
+        "confidence": "1"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.body"
+              }
+            ],
+            "regex": "ADKMFFpndcwHNnr2MW9W"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "block"
+      ]
     }
   ]
 }

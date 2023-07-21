@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jetty9;
 
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.jetty.JettyBlockingHelper;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,8 +26,9 @@ import org.slf4j.LoggerFactory;
  * </code> is replaced with: <code>
  *   case REQUEST_DISPATCH:
  *   // ...
- *   if (span != null && span.isToBeBlocked()) {
- *     JettyBlockingHelper.block(this.getRequest(), this.getResponse());
+ *   if (span != null && span.getBlockingAction() != null &&
+ *       JettyBlockingHelper.block(this.getRequest(), this.getResponse())) {
+ *     // nothing
  *   } else {
  *     getServer().handle(this);
  *   }
@@ -43,15 +45,15 @@ import org.slf4j.LoggerFactory;
  *   case DISPATCH:
  *   {
  *     // ...
- *     if (span != null && span.isToBeBlocked()) {
+ *     if (span != null && span.getBlockingAction() != null) {
  *       Request req = getRequest(); // actually on the stack only
  *       Response resp = getResponse(); // idem
  *       dispatch(DispatcherType.REQUEST, () -> {
- *         JettyBlockingHelper.block(request, response);
+ *         JettyBlockingHelper.blockAndMarkBlockedThrowOnFailure(
+ *             request, response, span.getBlockingAction(), span);
  *       });
  *     } else {
- *     dispatch(DispatcherType.REQUEST, () ->
- *       {
+ *       dispatch(DispatcherType.REQUEST, () -> {
  *         // ...
  *         getServer().handle(HttpChannel.this);
  *       });
@@ -143,15 +145,17 @@ public class HandleVisitor extends MethodVisitor {
           "getRequestBlockingAction",
           "()" + Type.getDescriptor(Flow.Action.RequestBlockingAction.class),
           true);
+      super.visitVarInsn(Opcodes.ALOAD, agentSpanVar);
       super.visitMethodInsn(
           Opcodes.INVOKESTATIC,
           Type.getInternalName(JettyBlockingHelper.class),
-          "block",
+          "blockAndMarkBlocked",
           "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;"
               + Type.getDescriptor(Flow.Action.RequestBlockingAction.class)
-              + ")V",
+              + Type.getDescriptor(AgentSpan.class)
+              + ")Z",
           false);
-      super.visitJumpInsn(Opcodes.GOTO, afterHandle);
+      super.visitJumpInsn(Opcodes.IFNE, afterHandle);
 
       super.visitLabel(beforeHandle);
       super.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
@@ -221,7 +225,7 @@ public class HandleVisitor extends MethodVisitor {
       List<Function> loadThisAndEnum = new ArrayList<>(savedVisitations.subList(0, 2));
       mv.commitVisitations(loadThisAndEnum);
       // set up the arguments to the method underlying the lambda (Request, Response,
-      // RequestBlockingAction)
+      // RequestBlockingAction, AgentSpan)
       super.visitVarInsn(Opcodes.ALOAD, 0);
       super.visitMethodInsn(
           Opcodes.INVOKEVIRTUAL,
@@ -243,12 +247,14 @@ public class HandleVisitor extends MethodVisitor {
           "getRequestBlockingAction",
           "()" + Type.getDescriptor(Flow.Action.RequestBlockingAction.class),
           true);
+      super.visitVarInsn(Opcodes.ALOAD, agentSpanVar);
 
       // create the lambda
       super.visitInvokeDynamicInsn(
           "dispatch",
           "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;"
               + Type.getDescriptor(Flow.Action.RequestBlockingAction.class)
+              + Type.getDescriptor(AgentSpan.class)
               + ")Lorg/eclipse/jetty/server/HttpChannel$Dispatchable;",
           new Handle(
               Opcodes.H_INVOKESTATIC,
@@ -261,9 +267,10 @@ public class HandleVisitor extends MethodVisitor {
             new Handle(
                 Opcodes.H_INVOKESTATIC,
                 Type.getInternalName(JettyBlockingHelper.class),
-                "block",
+                "blockAndMarkBlockedThrowOnFailure",
                 "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;"
                     + Type.getDescriptor(Flow.Action.RequestBlockingAction.class)
+                    + Type.getDescriptor(AgentSpan.class)
                     + ")V",
                 false),
             Type.getType("()V")

@@ -49,6 +49,7 @@ public class ContextParseAdvice {
             rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
 
         t = new BlockingException("Blocked request (for DefaultContext/parse)");
+        reqCtx.getTraceSegment().effectivelyBlocked();
       }
     }
   }
