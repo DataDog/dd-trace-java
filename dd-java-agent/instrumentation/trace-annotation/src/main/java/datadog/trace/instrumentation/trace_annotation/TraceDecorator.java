@@ -7,7 +7,6 @@ import datadog.trace.api.Trace;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
-import datadog.trace.bootstrap.instrumentation.traceannotation.MeasuredMethodFilter;
 import java.lang.reflect.Method;
 
 public class TraceDecorator extends BaseDecorator {
@@ -78,7 +77,7 @@ public class TraceDecorator extends BaseDecorator {
     DECORATE.afterStart(span);
     span.setResourceName(resourceName);
 
-    if (measured || MeasuredMethodFilter.filter(method)) {
+    if (measured || InstrumenterConfig.get().isMethodMeasured(method)) {
       span.setMeasured(true);
     }
 

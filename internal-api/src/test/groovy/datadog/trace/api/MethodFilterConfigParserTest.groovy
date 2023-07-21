@@ -1,7 +1,8 @@
-import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.instrumentation.trace_annotation.TraceConfigInstrumentation
+package datadog.trace.api
 
-class TraceAnnotationConfigParserTest extends AgentTestRunner{
+import datadog.trace.test.util.DDSpecification
+
+class MethodFilterConfigParserTest extends DDSpecification {
   def "test configuration \"#value\""() {
     setup:
     if (value) {
@@ -11,7 +12,7 @@ class TraceAnnotationConfigParserTest extends AgentTestRunner{
     }
 
     expect:
-    new TraceConfigInstrumentation().classMethodsToTrace == expected
+    InstrumenterConfig.get().traceMethods == expected
 
     where:
     value                                                           | expected
@@ -56,7 +57,6 @@ class TraceAnnotationConfigParserTest extends AgentTestRunner{
     injectSysConfig("dd.trace.methods", methods)
 
     expect:
-    new TraceConfigInstrumentation().classMethodsToTrace == expected
+    InstrumenterConfig.get().traceMethods == expected
   }
 }
-

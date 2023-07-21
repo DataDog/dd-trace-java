@@ -1,6 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.test.util.Flaky
 
 import java.util.concurrent.Callable
 
@@ -42,7 +41,6 @@ class MeasuredConfigTest extends AgentTestRunner {
     }
   }
 
-  @Flaky("assertTraces sometimes fails")
   def "test configuration based trace"() {
     when:
     Thread.sleep(100)
@@ -62,7 +60,6 @@ class MeasuredConfigTest extends AgentTestRunner {
       }
     }
   }
-  @Flaky("assertTraces sometimes fails")
   def "test wildcard configuration"() {
     when:
     ConfigTracedCallable2 object = new ConfigTracedCallable2()
