@@ -3,6 +3,7 @@ package datadog.trace.core;
 import static datadog.communication.monitor.DDAgentStatsDClientManager.statsDClientManager;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.api.DDTags.PATHWAY_HASH;
+import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
@@ -53,6 +54,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
@@ -1306,6 +1308,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private Object builderRequestContextDataAppSec;
     private Object builderRequestContextDataIast;
     private Object builderCiVisibilityContextData;
+    private List<AgentSpanLink> links;
 
     CoreSpanBuilder(
         final String instrumentationName, final CharSequence operationName, CoreTracer tracer) {
@@ -1422,6 +1425,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           builderRequestContextDataIast = data;
           break;
       }
+      return this;
+    }
+
+    @Override
+    public AgentTracer.SpanBuilder withLink(AgentSpanLink link) {
+      if (this.links == null) {
+        this.links = new ArrayList<>();
+      }
+      this.links.add(link);
       return this;
     }
 
@@ -1569,7 +1581,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           (null == tags ? 0 : tags.size())
               + defaultSpanTags.size()
               + (null == coreTags ? 0 : coreTags.size())
-              + (null == rootSpanTags ? 0 : rootSpanTags.size());
+              + (null == rootSpanTags ? 0 : rootSpanTags.size())
+              + (null == links ? 0 : 1);
 
       if (builderRequestContextDataAppSec != null) {
         requestContextDataAppSec = builderRequestContextDataAppSec;
@@ -1613,6 +1626,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       context.setAllTags(tags);
       context.setAllTags(coreTags);
       context.setAllTags(rootSpanTags);
+      if (links != null) {
+        context.setTag(SPAN_LINKS, DDSpanLink.toTag(links));
+      }
       return context;
     }
   }
