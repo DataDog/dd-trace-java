@@ -3,10 +3,10 @@ package com.datadog.iast.sink
 import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.IastRequestContext
 import com.datadog.iast.model.Vulnerability
-import com.datadog.iast.model.VulnerabilityMarks
 import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.sink.PathTraversalModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
