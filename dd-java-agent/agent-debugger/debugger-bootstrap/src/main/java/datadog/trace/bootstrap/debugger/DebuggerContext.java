@@ -4,6 +4,7 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -269,6 +270,7 @@ public class DebuggerContext {
   public static void evalContextAndCommit(
       CapturedContext context, Class<?> callingClass, int line, String... probeIds) {
     try {
+      List<ProbeImplementation> probeImplementations = new ArrayList<>();
       for (String probeId : probeIds) {
         ProbeImplementation probeImplementation = resolveProbe(probeId, callingClass);
         if (probeImplementation == null) {
@@ -276,6 +278,9 @@ public class DebuggerContext {
         }
         context.evaluate(
             probeId, probeImplementation, callingClass.getTypeName(), -1, MethodLocation.DEFAULT);
+        probeImplementations.add(probeImplementation);
+      }
+      for (ProbeImplementation probeImplementation : probeImplementations) {
         probeImplementation.commit(context, line);
       }
     } catch (Exception ex) {
