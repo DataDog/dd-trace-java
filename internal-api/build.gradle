@@ -122,6 +122,9 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration.NoOp",
   // debug
   'datadog.trace.api.iast.Taintable.DebugLogger',
+  // POJO
+  'datadog.trace.api.iast.util.Cookie',
+  'datadog.trace.api.iast.util.Cookie.Builder',
   // stubs
   'datadog.trace.api.profiling.Timing.NoOp',
   'datadog.trace.api.profiling.Timer.NoOp',

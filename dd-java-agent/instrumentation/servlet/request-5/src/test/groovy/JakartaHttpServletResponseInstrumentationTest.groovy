@@ -3,6 +3,7 @@ import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.sink.HttpResponseHeaderModule
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
+import datadog.trace.api.iast.util.Cookie as IastCookie
 import foo.bar.smoketest.DummyResponse
 import jakarta.servlet.http.Cookie
 import jakarta.servlet.http.HttpServletResponse
@@ -30,7 +31,11 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.addCookie(cookie)
 
     then:
-    1 * module.onCookie('user-id', false, false, false)
+    1 * module.onCookie({ IastCookie vul ->
+      vul.cookieName == cookie.name &&
+        vul.secure == cookie.secure &&
+        vul.httpOnly == cookie.httpOnly
+    })
     0 * _
   }
 
@@ -62,7 +67,11 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.addCookie(cookie)
 
     then:
-    1 * module.onCookie('user-id', true, false, false)
+    1 * module.onCookie({ IastCookie vul ->
+      vul.cookieName == cookie.name &&
+        vul.secure == cookie.secure &&
+        vul.httpOnly == cookie.httpOnly
+    })
     0 * _
   }
 

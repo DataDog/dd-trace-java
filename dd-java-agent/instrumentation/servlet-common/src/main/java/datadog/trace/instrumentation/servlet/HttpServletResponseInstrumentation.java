@@ -18,6 +18,7 @@ import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.sink.HttpResponseHeaderModule;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
+import datadog.trace.api.iast.util.Cookie;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -70,7 +71,7 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Iast
       if (null != cookie) {
         HttpResponseHeaderModule mod = InstrumentationBridge.RESPONSE_HEADER_MODULE;
         if (mod != null) {
-          mod.onCookie(cookie.getName(), cookie.getSecure(), false, false);
+          mod.onCookie(Cookie.named(cookie.getName()).secure(cookie.getSecure()).build());
         }
       }
     }

@@ -34,9 +34,9 @@ public abstract class InstrumentationBridge {
   public static volatile WeakHashModule WEAK_HASH;
   public static volatile LdapInjectionModule LDAP_INJECTION;
   public static volatile PropagationModule PROPAGATION;
-  public static volatile InsecureCookieModule INSECURE_COOKIE;
-  public static volatile NoHttpOnlyCookieModule NO_HTTPONLY_COOKIE;
-  public static volatile NoSameSiteCookieModule NO_SAMESITE_COOKIE;
+  public static volatile InsecureCookieModule<?> INSECURE_COOKIE;
+  public static volatile NoHttpOnlyCookieModule<?> NO_HTTPONLY_COOKIE;
+  public static volatile NoSameSiteCookieModule<?> NO_SAMESITE_COOKIE;
   public static volatile SsrfModule SSRF;
   public static volatile UnvalidatedRedirectModule UNVALIDATED_REDIRECT;
   public static volatile WeakRandomnessModule WEAK_RANDOMNESS;
@@ -71,11 +71,11 @@ public abstract class InstrumentationBridge {
     } else if (module instanceof PropagationModule) {
       PROPAGATION = (PropagationModule) module;
     } else if (module instanceof InsecureCookieModule) {
-      INSECURE_COOKIE = (InsecureCookieModule) module;
+      INSECURE_COOKIE = (InsecureCookieModule<?>) module;
     } else if (module instanceof NoHttpOnlyCookieModule) {
-      NO_HTTPONLY_COOKIE = (NoHttpOnlyCookieModule) module;
+      NO_HTTPONLY_COOKIE = (NoHttpOnlyCookieModule<?>) module;
     } else if (module instanceof NoSameSiteCookieModule) {
-      NO_SAMESITE_COOKIE = (NoSameSiteCookieModule) module;
+      NO_SAMESITE_COOKIE = (NoSameSiteCookieModule<?>) module;
     } else if (module instanceof SsrfModule) {
       SSRF = (SsrfModule) module;
     } else if (module instanceof UnvalidatedRedirectModule) {

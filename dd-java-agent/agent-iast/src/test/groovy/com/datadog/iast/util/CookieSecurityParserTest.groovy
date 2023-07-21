@@ -19,26 +19,26 @@ class CookieSecurityParserTest extends Specification {
 
   void 'parsing single cookie header'() {
     when:
-    final badCookies = new CookieSecurityParser(header).getCookies()
-    final badCookie = badCookies.get(0)
+    final badCookies = CookieSecurityParser.parse(header)
+    final badCookie = badCookies.first()
 
     then:
     cookieName == badCookie.getCookieName()
     isSecure == badCookie.isSecure()
     isHttpOnly == badCookie.isHttpOnly()
-    isSameSiteStrict == badCookie.isSameSiteStrict()
+    sameSite == badCookie.getSameSite()
 
     where:
-    header                                                                                                                                              | cookieName      | isSecure | isHttpOnly | isSameSiteStrict
-    "user-id=7"                                                                                                                                         | "user-id"       | false    | false      | false
-    "user-id=7;Secure"                                                                                                                                  | "user-id"       | true     | false      | false
-    "user-id=7;Secure;HttpOnly=true"                                                                                                                    | "user-id"       | true     | true       | false
-    "CUSTOMER=WILE_E_COYOTE; version='1'"                                                                                                               | "CUSTOMER"      | false    | false      | false
-    "CUSTOMER=WILE_E_COYOTE; path=/; expires=Wednesday, 09-Nov-99 23:12:40 GMT"                                                                         | "CUSTOMER"      | false    | false      | false
-    "CUSTOMER=WILE_E_COYOTE; path=/; expires=Wednesday, 09-Nov-99 23:12:40 GMT;SameSite=Lax;HttpOnly=true"                                              | "CUSTOMER"      | false    | true       | false
-    "PREF=ID=1eda537de48ac25d:CR=1:TM=1112868587:LM=1112868587:S=t3FPA-mT9lTR3bxU;expires=Sun, 17-Jan-2038 19:14:07 GMT; path=/; domain=.google.com"    | "PREF"          | false    | false      | false
-    "CUSTOMER=WILE_E_COYOTE; path=/; expires=Wednesday, 09-Nov-99 23:12:40 GMT; Secure"                                                                 | "CUSTOMER"      | true     | false      | false
-    "CUSTOMER=WILE_E_COYOTE; path=/; expires=Wednesday, 09-Nov-99 23:12:40 GMT; path=\"/acme\";SameSite=Strict"                                         | "CUSTOMER"      | false    | false      | true
+    header                                                                                                                                           | cookieName | isSecure | isHttpOnly | sameSite
+    "user-id=7"                                                                                                                                      | "user-id"  | false    | false      | null
+    "user-id=7;Secure"                                                                                                                               | "user-id"  | true     | false      | null
+    "user-id=7;Secure;HttpOnly"                                                                                                                      | "user-id"  | true     | true       | null
+    "CUSTOMER=WILE_E_COYOTE; version='1'"                                                                                                            | "CUSTOMER" | false    | false      | null
+    "CUSTOMER=WILE_E_COYOTE; path=/; expires=Wednesday, 09-Nov-99 23:12:40 GMT"                                                                      | "CUSTOMER" | false    | false      | null
+    "CUSTOMER=WILE_E_COYOTE; path=/; expires=Wednesday, 09-Nov-99 23:12:40 GMT;SameSite=Lax;HttpOnly"                                                | "CUSTOMER" | false    | true       | 'Lax'
+    "PREF=ID=1eda537de48ac25d:CR=1:TM=1112868587:LM=1112868587:S=t3FPA-mT9lTR3bxU;expires=Sun, 17-Jan-2038 19:14:07 GMT; path=/; domain=.google.com" | "PREF"     | false    | false      | null
+    "CUSTOMER=WILE_E_COYOTE; path=/; expires=Wednesday, 09-Nov-99 23:12:40 GMT; Secure"                                                              | "CUSTOMER" | true     | false      | null
+    "CUSTOMER=WILE_E_COYOTE; path=/; expires=Wednesday, 09-Nov-99 23:12:40 GMT; path=\"/acme\";SameSite=Strict"                                      | "CUSTOMER" | false    | false      | 'Strict'
   }
 
 
@@ -46,7 +46,7 @@ class CookieSecurityParserTest extends Specification {
     given:
     String headerValue = "A=1;Secure;HttpOnly=true;SameSite=Strict;version='1',B=2;Secure;SameSite=Strict,C=3"
     when:
-    final badCookies = new CookieSecurityParser(headerValue).getCookies()
+    final badCookies = CookieSecurityParser.parse(headerValue)
 
     then:
     badCookies.size() == 3
@@ -54,17 +54,17 @@ class CookieSecurityParserTest extends Specification {
     badCookies.get(0).getCookieName() == 'A'
     badCookies.get(0).isSecure()
     badCookies.get(0).isHttpOnly()
-    badCookies.get(0).isSameSiteStrict()
+    badCookies.get(0).getSameSite() == 'Strict'
 
 
     badCookies.get(1).getCookieName() == 'B'
     badCookies.get(1).isSecure()
-    ! badCookies.get(1).isHttpOnly()
-    badCookies.get(1).isSameSiteStrict()
+    !badCookies.get(1).isHttpOnly()
+    badCookies.get(1).getSameSite() == 'Strict'
 
     badCookies.get(2).getCookieName() == 'C'
-    ! badCookies.get(2).isSecure()
-    ! badCookies.get(2).isHttpOnly()
-    ! badCookies.get(2).isSameSiteStrict()
+    !badCookies.get(2).isSecure()
+    !badCookies.get(2).isHttpOnly()
+    badCookies.get(2).getSameSite() == null
   }
 }
