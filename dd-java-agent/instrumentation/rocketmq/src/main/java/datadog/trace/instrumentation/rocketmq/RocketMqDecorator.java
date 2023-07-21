@@ -9,6 +9,8 @@ import org.apache.rocketmq.client.hook.SendMessageContext;
 import org.apache.rocketmq.client.producer.SendResult;
 import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.common.message.MessageExt;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.SocketAddress;
 
@@ -17,6 +19,7 @@ import static datadog.trace.instrumentation.rocketmq.TextMapExtractAdapter.GETTE
 import static datadog.trace.instrumentation.rocketmq.TextMapInjectAdapter.SETTER;
 
 public class RocketMqDecorator extends BaseDecorator {
+  private static final Logger log = LoggerFactory.getLogger(RocketMqDecorator.class);
   public static final CharSequence ROCKETMQ_NAME = UTF8BytesString.create("rocketmq");
   private static final String BROKER_HOST = "bornHost";
   private static final String BROKER_ADDR = "bornAddr";
@@ -74,7 +77,9 @@ public class RocketMqDecorator extends BaseDecorator {
     }
     afterStart(span);
     AgentScope scope = activateSpan(span);
-
+    if (log.isDebugEnabled()){
+      log.debug("consumer span start topic:{}",ext.getTopic());
+    }
     return scope;
   }
 
@@ -88,6 +93,9 @@ public class RocketMqDecorator extends BaseDecorator {
     beforeFinish(scope);
     scope.close();
     scope.span().finish();
+    if (log.isDebugEnabled()){
+      log.debug("consumer span end");
+    }
   }
 
   public AgentScope start(SendMessageContext context) {
@@ -122,6 +130,9 @@ public class RocketMqDecorator extends BaseDecorator {
     afterStart(span);
     propagate().inject(span, context, SETTER);
     AgentScope scope = activateSpan(span);
+    if (log.isDebugEnabled()){
+      log.debug("consumer span start topic:{}",topic);
+    }
     return scope;
   }
 
@@ -134,9 +145,12 @@ public class RocketMqDecorator extends BaseDecorator {
       scope.span().setTag(MESSAGING_ROCKETMQ_SEND_RESULT, context.getSendResult().getSendStatus().name());
     }
 
-    beforeFinish(scope.span());
+    beforeFinish(scope);
     scope.close();
     scope.span().finish();
+    if (log.isDebugEnabled()){
+      log.debug("consumer span end");
+    }
   }
 }
 
