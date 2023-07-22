@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.servlet;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
@@ -38,8 +37,11 @@ public class HttpSessionInstrumentation extends Instrumenter.Iast
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
-        .and(not(extendsClass(named("com.ibm.ws.session.HttpSessionFacade"))))
-        .and(not(named("org.apache.catalina.session.StandardSessionFacade")));
+        .and(
+            not(
+                namedOneOf(
+                    "com.ibm.ws.session.HttpSessionFacade",
+                    "org.apache.catalina.session.StandardSessionFacade")));
   }
 
   @Override
