@@ -18,38 +18,18 @@ class HttpSessionInstrumentationTest  extends AgentTestRunner {
     given:
     final module = Mock(TrustBoundaryViolationModule)
     InstrumentationBridge.registerIastModule(module)
-    final args = ['A','B']
-
-    when:
-    session.&"$method".call(args)
-
-    then:
-    expected * module.onSessionValue(args[0], args[1])
-    0 * _
-
-    where:
-    method          |  httpSession | expected
-            'putValue' |  new DummyHttpSession() | 1
-            'setAttribute' | new DummyHttpSession() | 1
-            'putValue' |  new ExcludedHttpSessionInstance() | 0
-            'setAttribute' | new ExcludedHttpSessionInstance() | 0
-    
-    setup:
-    final httpSession = new DummyHttpSession()
-    final module = Mock(TrustBoundaryViolationModule)
-    InstrumentationBridge.registerIastModule(module)
     final args = ['A', 'B']
 
     when:
     httpSession.&"$method".call(args)
 
     then:
-    1 * module.onSessionValue("A", "B")
+    expected * module.onSessionValue(args[0], args[1])
     0 * _
 
     where:
-    method          | _
-    'putValue' | _
-    'setAttribute' | _
+    method         | httpSession                     | expected
+    'putValue'     | new DummyHttpSession()          | 1
+    'setAttribute' | new DummyHttpSession()          | 1
   }
 }
