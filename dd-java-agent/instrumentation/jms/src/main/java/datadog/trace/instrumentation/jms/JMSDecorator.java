@@ -147,6 +147,12 @@ public final class JMSDecorator extends MessagingClientDecorator {
     }
   }
 
+  public static boolean canInject(Message message) {
+    // JMS->SQS already stores the trace context in 'X-Amzn-Trace-Id' / 'AWSTraceHeader',
+    // so skip storing same context again to avoid SQS limit of 10 attributes per message.
+    return !message.getClass().getName().startsWith("com.amazon.sqs.javamessaging");
+  }
+
   public void onTimeInQueue(AgentSpan span, CharSequence resourceName, String serviceName) {
     if (null != resourceName) {
       span.setResourceName(resourceName);
