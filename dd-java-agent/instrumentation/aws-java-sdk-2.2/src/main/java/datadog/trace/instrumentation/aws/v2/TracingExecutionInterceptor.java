@@ -27,7 +27,9 @@ import software.amazon.awssdk.core.interceptor.ExecutionAttribute;
 import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 import software.amazon.awssdk.http.SdkHttpRequest;
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 
 import software.amazon.awssdk.core.interceptor.SdkExecutionAttribute;
@@ -69,13 +71,11 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
 
   @Override
-  public SdkRequest modifyRequest(final Context.ModifyRequest context, final ExecutionAttributes executionAttributes) {
+  public SdkRequest modifyRequest(Context.ModifyRequest context, ExecutionAttributes executionAttributes) {
     if (Config.get().isDataStreamsEnabled()) {
+      AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
       if (context.request() instanceof SendMessageRequest) {
-        final SendMessageRequest request = (SendMessageRequest) context.request();
-
-        final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
-
+        SendMessageRequest request = (SendMessageRequest) context.request();
         String queueUrl = request.getValueForField("QueueUrl", String.class).get().toString();
         LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
         sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
@@ -85,7 +85,8 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
         String pathway = propagate().generatePathwayContext(span, sortedTags);
 
         String jsonPathway = String.format("{\"%s\": \"%s\"}", PROPAGATION_KEY_BASE64, pathway);
-        final Map<String, MessageAttributeValue> messageAttributes = new HashMap<>(request.messageAttributes());
+        Map<String, MessageAttributeValue> messageAttributes = new HashMap<>(request.messageAttributes());
+
         if (messageAttributes.size() < 10 && !messageAttributes.containsKey(DSM_KEY)) {
           messageAttributes.put(DSM_KEY, MessageAttributeValue.builder()
               .dataType("String")
@@ -96,8 +97,37 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
           return request;
         }
 
+      } else if (context.request() instanceof SendMessageBatchRequest) {
+        SendMessageBatchRequest request = (SendMessageBatchRequest) context.request();
+        String queueUrl = request.getValueForField("QueueUrl", String.class).get().toString();
+        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+        sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+        sortedTags.put(TOPIC_TAG, parseSqsUrl(queueUrl));
+        sortedTags.put(TYPE_TAG, "sqs");
+
+        List<SendMessageBatchRequestEntry> entries = new ArrayList<>();
+
+        String jsonPathway = "";
+        for (SendMessageBatchRequestEntry entry: request.entries()) {
+          String pathway = propagate().generatePathwayContext(span, sortedTags);
+          Map<String, MessageAttributeValue> messageAttributes = new HashMap<>(entry.messageAttributes());
+          jsonPathway = String.format("{\"%s\": \"%s\"}", PROPAGATION_KEY_BASE64, pathway);
+
+          if (messageAttributes.size() < 10 && !messageAttributes.containsKey(DSM_KEY)) {
+            messageAttributes.put(DSM_KEY, MessageAttributeValue.builder()
+                .dataType("String")
+                .stringValue(jsonPathway)
+                .build());
+            entries.add(entry.toBuilder().messageAttributes(messageAttributes).build());
+          } else {
+            entries.add(entry.toBuilder().build());
+          }
+        }
+
+        return request.toBuilder().entries(entries).build();
+
       } else if (context.request() instanceof ReceiveMessageRequest) {
-        final ReceiveMessageRequest request = (ReceiveMessageRequest) context.request();
+        ReceiveMessageRequest request = (ReceiveMessageRequest) context.request();
         List<String> messageAttributeNames = new ArrayList<>(request.messageAttributeNames());
         if (messageAttributeNames.size() < 10 && !messageAttributeNames.contains(DSM_KEY)) {
           messageAttributeNames.add(DSM_KEY);
