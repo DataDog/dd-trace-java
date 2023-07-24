@@ -56,7 +56,7 @@ public class EncoderCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintIfInputIsTainted(result, input);
+        module.taintIfInputIsTaintedWithMarks(result, input, VulnerabilityMarks.XSS_MARK);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterCanonicalize2 threw", e);
       }
@@ -75,7 +75,7 @@ public class EncoderCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintIfInputIsTainted(result, input);
+        module.taintIfInputIsTaintedWithMarks(result, input, VulnerabilityMarks.XSS_MARK);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterCanonicalize3 threw", e);
       }
