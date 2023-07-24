@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.regex.Matcher
 import java.util.regex.Pattern
 
 /**
@@ -51,16 +52,40 @@ class GradleProjectConfigurator {
       jvmArgs.add("-D" + e.key + '=' + e.value)
     }
 
-    def ciVisibilityDebugPort = Config.get().ciVisibilityDebugPort
+    def config = Config.get()
+    def ciVisibilityDebugPort = config.ciVisibilityDebugPort
     if (ciVisibilityDebugPort != null) {
       jvmArgs.add(
         "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address="
         + ciVisibilityDebugPort)
     }
 
-    jvmArgs.add("-javaagent:" + Config.get().ciVisibilityAgentJarFile.toPath())
+    String additionalArgs = config.ciVisibilityAdditionalChildProcessJvmArgs
+    if (additionalArgs != null) {
+      def project = task.getProject()
+      def projectProperties = project.getProperties()
+      def processedArgs = replaceProjectProperties(additionalArgs, projectProperties)
+      def splitArgs = processedArgs.split(" ")
+      jvmArgs.addAll(splitArgs)
+    }
+
+    jvmArgs.add("-javaagent:" + config.ciVisibilityAgentJarFile.toPath())
 
     task.jvmArgs(jvmArgs)
+  }
+
+  private static final Pattern PROJECT_PROPERTY_REFERENCE = Pattern.compile("\\\$\\{([^}]+)\\}")
+
+  static String replaceProjectProperties(String s, Map<String, ?> projectProperties) {
+    StringBuffer output = new StringBuffer()
+    Matcher matcher = PROJECT_PROPERTY_REFERENCE.matcher(s)
+    while (matcher.find()) {
+      def propertyName = matcher.group(1)
+      def propertyValue = projectProperties.get(propertyName)
+      matcher.appendReplacement(output, Matcher.quoteReplacement(String.valueOf(propertyValue)))
+    }
+    matcher.appendTail(output)
+    return output.toString()
   }
 
   void configureCompilerPlugin(Project project, String compilerPluginVersion) {
