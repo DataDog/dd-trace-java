@@ -29,9 +29,9 @@ public class TracingListener implements TestExecutionListener {
     for (TestEngine testEngine : testEngines) {
       String engineId = testEngine.getId();
       String engineVersion =
-          !CucumberUtils.CUCUMBER_ENGINE_ID.equals(engineId)
+          !JUnitPlatformUtils.Cucumber.ENGINE_ID.equals(engineId)
               ? testEngine.getVersion().orElse(null)
-              : CucumberUtils.getCucumberVersion(testEngine);
+              : JUnitPlatformUtils.Cucumber.getCucumberVersion(testEngine);
       versionByTestEngineId.put(engineId, engineVersion);
     }
   }
@@ -66,15 +66,15 @@ public class TracingListener implements TestExecutionListener {
   }
 
   private void containerExecutionStarted(final TestIdentifier testIdentifier) {
-    if (!TestFrameworkUtils.isSuite(testIdentifier)) {
+    if (!JUnitPlatformLauncherUtils.isSuite(testIdentifier)) {
       return;
     }
 
-    Class<?> testClass = JUnit5Utils.getJavaClass(testIdentifier);
+    Class<?> testClass = JUnitPlatformLauncherUtils.getJavaClass(testIdentifier);
     String testSuiteName =
         testClass != null ? testClass.getName() : testIdentifier.getLegacyReportingName();
 
-    String testEngineId = TestFrameworkUtils.getTestEngineId(testIdentifier);
+    String testEngineId = JUnitPlatformLauncherUtils.getTestEngineId(testIdentifier);
     String testFramework = getTestFramework(testEngineId);
     String testFrameworkVersion = versionByTestEngineId.get(testEngineId);
 
@@ -86,17 +86,17 @@ public class TracingListener implements TestExecutionListener {
 
   private void containerExecutionFinished(
       final TestIdentifier testIdentifier, final TestExecutionResult testExecutionResult) {
-    if (!TestFrameworkUtils.isSuite(testIdentifier)) {
+    if (!JUnitPlatformLauncherUtils.isSuite(testIdentifier)) {
       return;
     }
 
-    Class<?> testClass = JUnit5Utils.getJavaClass(testIdentifier);
+    Class<?> testClass = JUnitPlatformLauncherUtils.getJavaClass(testIdentifier);
     String testSuiteName =
         testClass != null ? testClass.getName() : testIdentifier.getLegacyReportingName();
 
     Throwable throwable = testExecutionResult.getThrowable().orElse(null);
     if (throwable != null) {
-      if (JUnit5Utils.isAssumptionFailure(throwable)) {
+      if (JUnitPlatformUtils.isAssumptionFailure(throwable)) {
 
         String reason = throwable.getMessage();
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(
@@ -126,20 +126,20 @@ public class TracingListener implements TestExecutionListener {
   }
 
   private void testMethodExecutionStarted(TestIdentifier testIdentifier, MethodSource testSource) {
-    String testEngineId = TestFrameworkUtils.getTestEngineId(testIdentifier);
+    String testEngineId = JUnitPlatformLauncherUtils.getTestEngineId(testIdentifier);
     String testFramework = getTestFramework(testEngineId);
     String testFrameworkVersion = versionByTestEngineId.get(testEngineId);
 
     String testSuitName = testSource.getClassName();
     String displayName = testIdentifier.getDisplayName();
-    String testName = TestFrameworkUtils.getTestName(displayName, testSource, testEngineId);
+    String testName = JUnitPlatformUtils.getTestName(displayName, testSource, testEngineId);
 
-    String testParameters = TestFrameworkUtils.getParameters(testSource, displayName);
+    String testParameters = JUnitPlatformUtils.getParameters(testSource, displayName);
     List<String> tags =
         testIdentifier.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
 
-    Class<?> testClass = TestFrameworkUtils.getTestClass(testSource);
-    Method testMethod = TestFrameworkUtils.getTestMethod(testSource, testEngineId);
+    Class<?> testClass = JUnitPlatformUtils.getTestClass(testSource);
+    Method testMethod = JUnitPlatformUtils.getTestMethod(testSource, testEngineId);
     String testMethodName = testSource.getMethodName();
 
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
@@ -157,15 +157,16 @@ public class TracingListener implements TestExecutionListener {
 
   private void testResourceExecutionStarted(
       TestIdentifier testIdentifier, ClasspathResourceSource testSource) {
-    String testEngineId = TestFrameworkUtils.getTestEngineId(testIdentifier);
-    if (!CucumberUtils.CUCUMBER_ENGINE_ID.equals(testEngineId)) {
+    String testEngineId = JUnitPlatformLauncherUtils.getTestEngineId(testIdentifier);
+    if (!JUnitPlatformUtils.Cucumber.ENGINE_ID.equals(testEngineId)) {
       return;
     }
 
     String classpathResourceName = testSource.getClasspathResourceName();
 
     Pair<String, String> names =
-        CucumberUtils.getFeatureAndScenarioNames(testPlan, testIdentifier, classpathResourceName);
+        JUnitPlatformLauncherUtils.Cucumber.getFeatureAndScenarioNames(
+            testPlan, testIdentifier, classpathResourceName);
     String testSuiteName = names.getLeft();
     String testName = names.getRight();
 
@@ -204,17 +205,17 @@ public class TracingListener implements TestExecutionListener {
       TestIdentifier testIdentifier,
       TestExecutionResult testExecutionResult,
       MethodSource testSource) {
-    String testEngineId = TestFrameworkUtils.getTestEngineId(testIdentifier);
+    String testEngineId = JUnitPlatformLauncherUtils.getTestEngineId(testIdentifier);
 
     String testSuiteName = testSource.getClassName();
-    Class<?> testClass = TestFrameworkUtils.getTestClass(testSource);
+    Class<?> testClass = JUnitPlatformUtils.getTestClass(testSource);
     String displayName = testIdentifier.getDisplayName();
-    String testName = TestFrameworkUtils.getTestName(displayName, testSource, testEngineId);
-    String testParameters = TestFrameworkUtils.getParameters(testSource, displayName);
+    String testName = JUnitPlatformUtils.getTestName(displayName, testSource, testEngineId);
+    String testParameters = JUnitPlatformUtils.getParameters(testSource, displayName);
 
     Throwable throwable = testExecutionResult.getThrowable().orElse(null);
     if (throwable != null) {
-      if (JUnit5Utils.isAssumptionFailure(throwable)) {
+      if (JUnitPlatformUtils.isAssumptionFailure(throwable)) {
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(
             testSuiteName, testClass, testName, null, testParameters, throwable.getMessage());
       } else {
@@ -231,21 +232,22 @@ public class TracingListener implements TestExecutionListener {
       TestIdentifier testIdentifier,
       TestExecutionResult testExecutionResult,
       ClasspathResourceSource testSource) {
-    String testEngineId = TestFrameworkUtils.getTestEngineId(testIdentifier);
-    if (!CucumberUtils.CUCUMBER_ENGINE_ID.equals(testEngineId)) {
+    String testEngineId = JUnitPlatformLauncherUtils.getTestEngineId(testIdentifier);
+    if (!JUnitPlatformUtils.Cucumber.ENGINE_ID.equals(testEngineId)) {
       return;
     }
 
     String classpathResourceName = testSource.getClasspathResourceName();
 
     Pair<String, String> names =
-        CucumberUtils.getFeatureAndScenarioNames(testPlan, testIdentifier, classpathResourceName);
+        JUnitPlatformLauncherUtils.Cucumber.getFeatureAndScenarioNames(
+            testPlan, testIdentifier, classpathResourceName);
     String testSuiteName = names.getLeft();
     String testName = names.getRight();
 
     Throwable throwable = testExecutionResult.getThrowable().orElse(null);
     if (throwable != null) {
-      if (JUnit5Utils.isAssumptionFailure(throwable)) {
+      if (JUnitPlatformUtils.isAssumptionFailure(throwable)) {
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(
             testSuiteName, null, testName, null, null, throwable.getMessage());
       } else {
@@ -276,15 +278,15 @@ public class TracingListener implements TestExecutionListener {
   }
 
   private void containerExecutionSkipped(final TestIdentifier testIdentifier, final String reason) {
-    if (!TestFrameworkUtils.isSuite(testIdentifier)) {
+    if (!JUnitPlatformLauncherUtils.isSuite(testIdentifier)) {
       return;
     }
 
-    Class<?> testClass = JUnit5Utils.getJavaClass(testIdentifier);
+    Class<?> testClass = JUnitPlatformLauncherUtils.getJavaClass(testIdentifier);
     String testSuiteName =
         testClass != null ? testClass.getName() : testIdentifier.getLegacyReportingName();
 
-    String testEngineId = TestFrameworkUtils.getTestEngineId(testIdentifier);
+    String testEngineId = JUnitPlatformLauncherUtils.getTestEngineId(testIdentifier);
     String testFramework = getTestFramework(testEngineId);
     String testFrameworkVersion = versionByTestEngineId.get(testEngineId);
 
@@ -304,20 +306,20 @@ public class TracingListener implements TestExecutionListener {
 
   private void testMethodExecutionSkipped(
       final TestIdentifier testIdentifier, final MethodSource methodSource, final String reason) {
-    String testEngineId = TestFrameworkUtils.getTestEngineId(testIdentifier);
+    String testEngineId = JUnitPlatformLauncherUtils.getTestEngineId(testIdentifier);
     String testFramework = getTestFramework(testEngineId);
     String testFrameworkVersion = versionByTestEngineId.get(testEngineId);
 
     String testSuiteName = methodSource.getClassName();
     String displayName = testIdentifier.getDisplayName();
-    String testName = TestFrameworkUtils.getTestName(displayName, methodSource, testEngineId);
+    String testName = JUnitPlatformUtils.getTestName(displayName, methodSource, testEngineId);
 
-    String testParameters = TestFrameworkUtils.getParameters(methodSource, displayName);
+    String testParameters = JUnitPlatformUtils.getParameters(methodSource, displayName);
     List<String> tags =
         testIdentifier.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
 
-    Class<?> testClass = TestFrameworkUtils.getTestClass(methodSource);
-    Method testMethod = TestFrameworkUtils.getTestMethod(methodSource, testEngineId);
+    Class<?> testClass = JUnitPlatformUtils.getTestClass(methodSource);
+    Method testMethod = JUnitPlatformUtils.getTestMethod(methodSource, testEngineId);
     String testMethodName = methodSource.getMethodName();
 
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
@@ -336,14 +338,15 @@ public class TracingListener implements TestExecutionListener {
 
   private void testResourceExecutionSkipped(
       TestIdentifier testIdentifier, ClasspathResourceSource testSource, String reason) {
-    String testEngineId = TestFrameworkUtils.getTestEngineId(testIdentifier);
-    if (!CucumberUtils.CUCUMBER_ENGINE_ID.equals(testEngineId)) {
+    String testEngineId = JUnitPlatformLauncherUtils.getTestEngineId(testIdentifier);
+    if (!JUnitPlatformUtils.Cucumber.ENGINE_ID.equals(testEngineId)) {
       return;
     }
 
     String classpathResourceName = testSource.getClasspathResourceName();
     Pair<String, String> names =
-        CucumberUtils.getFeatureAndScenarioNames(testPlan, testIdentifier, classpathResourceName);
+        JUnitPlatformLauncherUtils.Cucumber.getFeatureAndScenarioNames(
+            testPlan, testIdentifier, classpathResourceName);
     String testSuiteName = names.getLeft();
     String testName = names.getRight();
 

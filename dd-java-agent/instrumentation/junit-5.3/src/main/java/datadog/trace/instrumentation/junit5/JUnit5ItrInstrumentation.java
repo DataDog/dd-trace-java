@@ -45,10 +45,9 @@ public class JUnit5ItrInstrumentation extends Instrumenter.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JUnit5Utils",
-      packageName + ".SpockUtils",
-      packageName + ".CucumberUtils",
-      packageName + ".TestFrameworkUtils",
+      packageName + ".JUnitPlatformUtils",
+      packageName + ".JUnitPlatformUtils$Cucumber",
+      packageName + ".JUnitPlatformUtils$Spock",
       packageName + ".TestEventsHandlerHolder",
     };
   }
@@ -60,6 +59,12 @@ public class JUnit5ItrInstrumentation extends Instrumenter.CiVisibility
         JUnit5ItrInstrumentation.class.getName() + "$JUnit5ItrAdvice");
   }
 
+  /**
+   * !!!!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!! Do not use or refer to {@code
+   * datadog.trace.instrumentation.junit5.JunitPlatformLauncherUtils} or any classes from {@code
+   * org.junit.platform.launcher} package in here: in some Gradle projects this package is not
+   * available in CL where this instrumentation is injected
+   */
   public static class JUnit5ItrAdvice {
 
     @SuppressFBWarnings(
@@ -79,7 +84,7 @@ public class JUnit5ItrInstrumentation extends Instrumenter.CiVisibility
         return;
       }
 
-      SkippableTest test = TestFrameworkUtils.toSkippableTest(testDescriptor);
+      SkippableTest test = JUnitPlatformUtils.toSkippableTest(testDescriptor);
       if (test != null && TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
         skipResult = Node.SkipResult.skip(InstrumentationBridge.ITR_SKIP_REASON);
       }
