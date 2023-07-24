@@ -94,7 +94,7 @@ public class BatchUploader {
             config,
             new Dispatcher(okHttpExecutorService),
             urlBase,
-            true, /* retryOnConnectionFailure */
+            true, /* retry */
             MAX_RUNNING_REQUESTS,
             null, /* proxyHost */
             null, /* proxyPort */
