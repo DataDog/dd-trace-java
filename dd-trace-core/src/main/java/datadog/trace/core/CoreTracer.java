@@ -185,6 +185,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final boolean disableSamplingMechanismValidation;
   private final TimeSource timeSource;
   private final ProfilingContextIntegration profilingContextIntegration;
+  private boolean injectBaggageAsTags;
 
   private Timer timer = Timer.NoOp.INSTANCE;
 
@@ -280,6 +281,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private ProfilingContextIntegration profilingContextIntegration =
         ProfilingContextIntegration.NoOp.INSTANCE;
     private boolean pollForTracingConfiguration;
+    private boolean injectBaggageAsTags;
 
     public CoreTracerBuilder serviceName(String serviceName) {
       this.serviceName = serviceName;
@@ -403,6 +405,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
+    public CoreTracerBuilder injectBaggageAsTags(boolean injectBaggageAsTags) {
+      this.injectBaggageAsTags = injectBaggageAsTags;
+      return this;
+    }
+
     public CoreTracerBuilder() {
       // Apply the default values from config.
       config(Config.get());
@@ -432,7 +439,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       baggageMapping(config.getBaggageMapping());
       partialFlushMinSpans(config.getPartialFlushMinSpans());
       strictTraceWrites(config.isTraceStrictWritesEnabled());
-
+      injectBaggageAsTags(config.isInjectBaggageAsTagsEnabled());
       return this;
     }
 
@@ -461,7 +468,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           timeSource,
           dataStreamsMonitoring,
           profilingContextIntegration,
-          pollForTracingConfiguration);
+          pollForTracingConfiguration,
+          injectBaggageAsTags);
     }
   }
 
@@ -490,7 +498,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final TimeSource timeSource,
       final DataStreamsMonitoring dataStreamsMonitoring,
       final ProfilingContextIntegration profilingContextIntegration,
-      final boolean pollForTracingConfiguration) {
+      final boolean pollForTracingConfiguration,
+      final boolean injectBaggageAsTags) {
 
     assert localRootSpanTags != null;
     assert defaultSpanTags != null;
@@ -668,6 +677,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     propagationTagsFactory = PropagationTags.factory(config);
     this.profilingContextIntegration = profilingContextIntegration;
+    this.injectBaggageAsTags = injectBaggageAsTags;
   }
 
   /** Used by AgentTestRunner to inject configuration into the test tracer. */
@@ -1624,7 +1634,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               pathwayContext,
               disableSamplingMechanismValidation,
               propagationTags,
-              profilingContextIntegration);
+              profilingContextIntegration,
+              injectBaggageAsTags);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`

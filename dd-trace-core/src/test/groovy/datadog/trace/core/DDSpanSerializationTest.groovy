@@ -170,7 +170,8 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      null)
+      null,
+      injectBaggage)
     context.setAllTags(tags)
     def span = DDSpan.create("test", 0, context)
     CaptureBuffer capture = new CaptureBuffer()
@@ -211,11 +212,15 @@ class DDSpanSerializationTest extends DDCoreSpecification {
     tracer.close()
 
     where:
-    baggage       | tags          | expected
-    [:]           | [:]           | [:]
-    [foo: "bbar"] | [:]           | [foo: "bbar"]
-    [foo: "bbar"] | [bar: "tfoo"] | [foo: "bbar", bar: "tfoo"]
-    [foo: "bbar"] | [foo: "tbar"] | [foo: "tbar"]
+    baggage       | tags          | expected                    | injectBaggage
+    [:]           | [:]           | [:]                         | true
+    [foo: "bbar"] | [:]           | [foo: "bbar"]               | true
+    [foo: "bbar"] | [bar: "tfoo"] | [foo: "bbar", bar: "tfoo"]  | true
+    [foo: "bbar"] | [foo: "tbar"] | [foo: "tbar"]               | true
+    [:]           | [:]           | [:]                         | false
+    [foo: "bbar"] | [:]           | [:]                         | false
+    [foo: "bbar"] | [bar: "tfoo"] | [bar: "tfoo"]               | false
+    [foo: "bbar"] | [foo: "tbar"] | [foo: "tbar"]               | false
   }
 
   def "serialize trace with baggage and tags correctly v0.5"() {
@@ -241,7 +246,8 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      null)
+      null,
+      injectBaggage)
     context.setAllTags(tags)
     def span = DDSpan.create("test", 0, context)
     CaptureBuffer capture = new CaptureBuffer()
@@ -282,11 +288,15 @@ class DDSpanSerializationTest extends DDCoreSpecification {
     tracer.close()
 
     where:
-    baggage       | tags          | expected
-    [:]           | [:]           | [:]
-    [foo: "bbar"] | [:]           | [foo: "bbar"]
-    [foo: "bbar"] | [bar: "tfoo"] | [foo: "bbar", bar: "tfoo"]
-    [foo: "bbar"] | [foo: "tbar"] | [foo: "tbar"]
+    baggage       | tags          | expected                    | injectBaggage
+    [:]           | [:]           | [:]                         | true
+    [foo: "bbar"] | [:]           | [foo: "bbar"]               | true
+    [foo: "bbar"] | [bar: "tfoo"] | [foo: "bbar", bar: "tfoo"]  | true
+    [foo: "bbar"] | [foo: "tbar"] | [foo: "tbar"]               | true
+    [:]           | [:]           | [:]                         | false
+    [foo: "bbar"] | [:]           | [:]                         | false
+    [foo: "bbar"] | [bar: "tfoo"] | [bar: "tfoo"]               | false
+    [foo: "bbar"] | [foo: "tbar"] | [foo: "tbar"]               | false
   }
 
   def "serialize trace with flat map tag v0.4"() {

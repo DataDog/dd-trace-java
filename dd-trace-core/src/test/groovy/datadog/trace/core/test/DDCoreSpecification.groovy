@@ -68,7 +68,8 @@ abstract class DDCoreSpecification extends DDSpecification {
       AgentTracer.NoopPathwayContext.INSTANCE,
       false,
       propagationTags,
-      ProfilingContextIntegration.NoOp.INSTANCE)
+      ProfilingContextIntegration.NoOp.INSTANCE,
+      true)
 
     def span = DDSpan.create("test", timestamp, context)
     for (Map.Entry<String, Object> e : tags.entrySet()) {
