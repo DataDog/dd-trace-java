@@ -71,6 +71,8 @@ public class TestProbes implements CoverageProbeStore {
         ExecutionDataStore store = new ExecutionDataStore();
         store.put(executionDataAdapter.toExecutionData(totalProbeCount));
 
+        // TODO optimize this part to avoid parsing
+        //  the same class multiple times for different test cases
         Analyzer analyzer = new Analyzer(store, new SourceAnalyzer(segments));
         analyzer.analyzeClass(is, null);
 
