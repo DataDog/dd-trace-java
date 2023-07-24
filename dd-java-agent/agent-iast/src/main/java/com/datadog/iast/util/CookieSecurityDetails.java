@@ -20,7 +20,7 @@ public class CookieSecurityDetails {
     if ("SECURE".equalsIgnoreCase(name)) {
       isSecure = true;
     }
-    if ("HTTPONLY".equalsIgnoreCase(name) && "true".equalsIgnoreCase(value)) {
+    if ("HTTPONLY".equalsIgnoreCase(name)) {
       isHttpOnly = true;
     }
     if ("SAMESITE".equalsIgnoreCase(name) && "strict".equalsIgnoreCase(value)) {
