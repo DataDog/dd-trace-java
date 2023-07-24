@@ -10,7 +10,6 @@ import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentThreadFactory;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Collections;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.SynchronousQueue;
@@ -20,7 +19,6 @@ import java.util.concurrent.TimeoutException;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.ConnectionPool;
-import okhttp3.ConnectionSpec;
 import okhttp3.Dispatcher;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
@@ -91,17 +89,18 @@ public class BatchUploader {
     ConnectionPool connectionPool = new ConnectionPool(MAX_RUNNING_REQUESTS, 1, TimeUnit.SECONDS);
 
     Duration requestTimeout = Duration.ofSeconds(config.getDebuggerUploadTimeout());
-    client = OkHttpUtils.buildHttpClient(
-        config,
-        new Dispatcher(okHttpExecutorService),
-        urlBase,
-        true,
-        MAX_RUNNING_REQUESTS,
-        null,
-        null,
-        null,
-        null,
-        requestTimeout.toMillis());
+    client =
+        OkHttpUtils.buildHttpClient(
+            config,
+            new Dispatcher(okHttpExecutorService),
+            urlBase,
+            true,
+            MAX_RUNNING_REQUESTS,
+            null,
+            null,
+            null,
+            null,
+            requestTimeout.toMillis());
 
     debuggerMetrics = DebuggerMetrics.getInstance(config);
   }
