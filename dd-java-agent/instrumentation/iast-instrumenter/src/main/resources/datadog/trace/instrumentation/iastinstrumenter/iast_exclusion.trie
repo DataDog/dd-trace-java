@@ -79,6 +79,8 @@
 1 com.hazelcast.*
 1 com.hdivsecurity.*
 1 com.ibm.*
+# ibm compiled jsps
+0 com.ibm._jsp.*
 1 com.intellij.*
 1 com.itext.*
 1 com.itextpdf.*
@@ -181,6 +183,8 @@
 1 org.aopalliance.*
 1 org.antlr.*
 1 org.apache.*
+# apache compiled jsps
+0 org.apache.jsp.*
 1 org.apiguardian.*
 1 org.aspectj.*
 1 org.attoparser.*
@@ -203,6 +207,11 @@
 1 org.h2.*
 1 org.hamcrest.*
 1 org.hdiv.*
+# hdiv related propagations
+2 org.hdiv.urlProcessor.UrlDataImpl
+2 org.hdiv.ee.urlProcessor.EELinkUrlProcessor
+2 org.hdiv.urlProcessor.LinkUrlProcessor
+2 org.hdiv.urlProcessor.CachedUrlDataImpl
 1 org.hibernate.*
 1 org.hsqldb.*
 1 org.htmlparser.*
