@@ -1,11 +1,15 @@
 package datadog.trace.civisibility.ipc
 
+import spock.lang.IgnoreIf
 import spock.lang.Specification
 
 import java.nio.ByteBuffer
 import java.nio.channels.ByteChannel
 import java.util.concurrent.ThreadLocalRandom
 
+@IgnoreIf(reason = "JVM crash with IBM JDK", value = {
+  System.getProperty("java.vendor").contains("IBM") && System.getProperty("java.version").contains("1.8.")
+})
 class ChannelContextTest extends Specification {
 
   def "test message is read"() {
