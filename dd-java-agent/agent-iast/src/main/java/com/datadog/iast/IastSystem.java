@@ -14,6 +14,7 @@ import com.datadog.iast.sink.NoSameSiteCookieModuleImpl;
 import com.datadog.iast.sink.PathTraversalModuleImpl;
 import com.datadog.iast.sink.SqlInjectionModuleImpl;
 import com.datadog.iast.sink.SsrfModuleImpl;
+import com.datadog.iast.sink.TrustBoundaryViolationModuleImpl;
 import com.datadog.iast.sink.UnvalidatedRedirectModuleImpl;
 import com.datadog.iast.sink.WeakCipherModuleImpl;
 import com.datadog.iast.sink.WeakHashModuleImpl;
@@ -102,6 +103,7 @@ public class IastSystem {
         new UnvalidatedRedirectModuleImpl(),
         new WeakRandomnessModuleImpl(),
         new XPathInjectionModuleImpl(),
+        new TrustBoundaryViolationModuleImpl(),
         new XssModuleImpl());
   }
 
