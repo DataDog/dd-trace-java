@@ -94,12 +94,12 @@ public class BatchUploader {
             config,
             new Dispatcher(okHttpExecutorService),
             urlBase,
-            true,
+            true, /* retryOnConnectionFailure */
             MAX_RUNNING_REQUESTS,
-            null,
-            null,
-            null,
-            null,
+            null, /* proxyHost */
+            null, /* proxyPort */
+            null, /* proxyUsername */
+            null, /* proxyPassword */
             requestTimeout.toMillis());
 
     debuggerMetrics = DebuggerMetrics.getInstance(config);
