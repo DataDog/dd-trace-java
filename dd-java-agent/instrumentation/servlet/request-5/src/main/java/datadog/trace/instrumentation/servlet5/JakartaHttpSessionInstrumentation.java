@@ -1,12 +1,5 @@
 package datadog.trace.instrumentation.servlet5;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static net.bytebuddy.matcher.ElementMatchers.isPublic;
-import static net.bytebuddy.matcher.ElementMatchers.not;
-import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
@@ -15,6 +8,13 @@ import datadog.trace.api.iast.sink.TrustBoundaryViolationModule;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.not;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 public class JakartaHttpSessionInstrumentation extends Instrumenter.Iast
     implements Instrumenter.ForTypeHierarchy {
@@ -32,9 +32,8 @@ public class JakartaHttpSessionInstrumentation extends Instrumenter.Iast
     return implementsInterface(named(hierarchyMarkerType()))
         .and(
             not(
-                namedOneOf(
-                    "com.ibm.ws.session.HttpSessionFacade",
-                    "org.apache.catalina.session.StandardSessionFacade")));
+                named(
+                    "com.ibm.ws.session.HttpSessionFacade")));
   }
 
   @Override
