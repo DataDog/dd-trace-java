@@ -302,6 +302,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGA
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_CONTEXT_SERVICE_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.SPARK_TASK_HISTOGRAM_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME;
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST;
 import static datadog.trace.api.config.TracerConfig.AGENT_NAMED_PIPE;
@@ -760,6 +761,7 @@ public class Config {
   private final boolean longRunningTraceEnabled;
   private final long longRunningTraceFlushInterval;
   private final boolean elasticsearchBodyAndParamsEnabled;
+  private final boolean sparkTaskHistogramEnabled;
 
   private final float traceFlushIntervalSeconds;
 
@@ -1681,6 +1683,10 @@ public class Config {
     }
     longRunningTraceEnabled = longRunningEnabled;
     this.longRunningTraceFlushInterval = longRunningTraceFlushInterval;
+
+    this.sparkTaskHistogramEnabled =
+        configProvider.getBoolean(
+            SPARK_TASK_HISTOGRAM_ENABLED, ConfigDefaults.DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED);
 
     this.traceFlushIntervalSeconds =
         configProvider.getFloat(
@@ -2751,6 +2757,10 @@ public class Config {
     return elasticsearchBodyAndParamsEnabled;
   }
 
+  public boolean isSparkTaskHistogramEnabled() {
+    return sparkTaskHistogramEnabled;
+  }
+
   /** @return A map of tags to be applied only to the local application root span. */
   public Map<String, Object> getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
@@ -3761,6 +3771,8 @@ public class Config {
         + traceFlushIntervalSeconds
         + ", logsInjectionEnabled="
         + logsInjectionEnabled
+        + ", sparkTaskHistogramEnabled="
+        + sparkTaskHistogramEnabled
         + '}';
   }
 }

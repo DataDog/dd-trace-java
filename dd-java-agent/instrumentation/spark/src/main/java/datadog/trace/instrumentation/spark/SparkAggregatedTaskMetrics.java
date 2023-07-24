@@ -1,11 +1,20 @@
 package datadog.trace.instrumentation.spark;
 
+import datadog.trace.api.Config;
+import datadog.trace.bootstrap.instrumentation.api.AgentHistogram;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.nio.ByteBuffer;
+import java.util.Base64;
 import org.apache.spark.TaskFailedReason;
 import org.apache.spark.executor.TaskMetrics;
 import org.apache.spark.scheduler.SparkListenerTaskEnd;
 
 class SparkAggregatedTaskMetrics {
+  private static final double HISTOGRAM_RELATIVE_ACCURACY = 1 / 32.0;
+  private static final int HISTOGRAM_MAX_NUM_BINS = 512;
+  private final boolean isSparkTaskHistogramEnabled = Config.get().isSparkTaskHistogramEnabled();
+
   private long executorDeserializeTime = 0L;
   private long executorDeserializeCpuTime = 0L;
   private long executorRunTime = 0L;
@@ -42,6 +51,14 @@ class SparkAggregatedTaskMetrics {
   private long previousAvailableExecutorTime = 0L;
   private long taskRunTimeSinceLastStage = 0L;
   private long totalTaskRunTimeSinceLastStage = 0L;
+  private long skewTime = 0;
+
+  private AgentHistogram taskRunTimeHistogram;
+  private AgentHistogram inputBytesHistogram;
+  private AgentHistogram outputBytesHistogram;
+  private AgentHistogram shuffleReadBytesHistogram;
+  private AgentHistogram shuffleWriteBytesHistogram;
+  private AgentHistogram diskBytesSpilledHistogram;
 
   public SparkAggregatedTaskMetrics() {}
 
@@ -94,7 +111,24 @@ class SparkAggregatedTaskMetrics {
         taskWithOutputCount += 1;
       }
 
-      taskRunTimeSinceLastStage += computeTaskRunTime(taskMetrics);
+      long taskRunTime = computeTaskRunTime(taskMetrics);
+      taskRunTimeSinceLastStage += taskRunTime;
+
+      if (isSparkTaskHistogramEnabled) {
+        taskRunTimeHistogram = lazyHistogramAccept(taskRunTimeHistogram, taskRunTime);
+        inputBytesHistogram =
+            lazyHistogramAccept(inputBytesHistogram, taskMetrics.inputMetrics().bytesRead());
+        outputBytesHistogram =
+            lazyHistogramAccept(outputBytesHistogram, taskMetrics.outputMetrics().bytesWritten());
+        shuffleReadBytesHistogram =
+            lazyHistogramAccept(
+                shuffleReadBytesHistogram, taskMetrics.shuffleReadMetrics().totalBytesRead());
+        shuffleWriteBytesHistogram =
+            lazyHistogramAccept(
+                shuffleWriteBytesHistogram, taskMetrics.shuffleWriteMetrics().bytesWritten());
+        diskBytesSpilledHistogram =
+            lazyHistogramAccept(diskBytesSpilledHistogram, taskMetrics.diskBytesSpilled());
+      }
     }
   }
 
@@ -151,6 +185,16 @@ class SparkAggregatedTaskMetrics {
     taskWithOutputCount += stageMetrics.taskWithOutputCount;
 
     attributedAvailableExecutorTime += stageMetrics.attributedAvailableExecutorTime;
+    skewTime += stageMetrics.skewTime;
+  }
+
+  public void computeSkew() {
+    if (taskRunTimeHistogram != null && taskRunTimeHistogram.getCount() > 0) {
+      double p50 = taskRunTimeHistogram.getValueAtQuantile(0.5);
+      double max = taskRunTimeHistogram.getMaxValue();
+
+      skewTime = (long) (max - p50);
+    }
   }
 
   public void setSpanMetrics(AgentSpan span, String prefix) {
@@ -187,11 +231,69 @@ class SparkAggregatedTaskMetrics {
     span.setMetric(prefix + ".task_with_output_count", taskWithOutputCount);
 
     span.setMetric(prefix + ".available_executor_time", attributedAvailableExecutorTime);
+    span.setMetric(prefix + ".skew_time", skewTime);
+
+    if (taskRunTimeHistogram != null && taskRunTimeHistogram.getCount() > 0) {
+      span.setTag("_dd.spark.task_run_time", histogramToBase64(taskRunTimeHistogram));
+    }
+    if (inputBytesHistogram != null && inputBytesHistogram.getCount() > 0) {
+      span.setTag("_dd.spark.input_bytes", histogramToBase64(inputBytesHistogram));
+    }
+    if (outputBytesHistogram != null && outputBytesHistogram.getCount() > 0) {
+      span.setTag("_dd.spark.output_bytes", histogramToBase64(outputBytesHistogram));
+    }
+    if (shuffleReadBytesHistogram != null && shuffleReadBytesHistogram.getCount() > 0) {
+      span.setTag("_dd.spark.shuffle_read_bytes", histogramToBase64(shuffleReadBytesHistogram));
+    }
+    if (shuffleWriteBytesHistogram != null && shuffleWriteBytesHistogram.getCount() > 0) {
+      span.setTag("_dd.spark.shuffle_write_bytes", histogramToBase64(shuffleWriteBytesHistogram));
+    }
+    if (diskBytesSpilledHistogram != null && diskBytesSpilledHistogram.getCount() > 0) {
+      span.setTag("_dd.spark.disk_bytes_spilled", histogramToBase64(diskBytesSpilledHistogram));
+    }
+  }
+
+  /**
+   * Lazy creation of histograms, only creating one if there is a non-zero value. Spark stages
+   * usually involve either input/output or shuffle read/write operations, resulting in an average
+   * of 3 histograms having non-zero values
+   */
+  private AgentHistogram lazyHistogramAccept(AgentHistogram hist, double value) {
+    if (hist != null) {
+      hist.accept(value);
+    } else {
+      if (value != 0) {
+        // All the callbacks in DatadogSparkListener are called from the same thread, meaning we
+        // don't risk to lose values by creating the histogram this way
+        hist = AgentTracer.get().newHistogram(HISTOGRAM_RELATIVE_ACCURACY, HISTOGRAM_MAX_NUM_BINS);
+        if (taskCompletedCount > 1) {
+          // Filling all the previous 0s that we might have missed
+          hist.accept(0, taskCompletedCount - 1);
+        }
+        hist.accept(value);
+      }
+    }
+
+    return hist;
   }
 
   public static long computeTaskRunTime(TaskMetrics metrics) {
     return metrics.executorDeserializeTime()
         + metrics.executorRunTime()
         + metrics.resultSerializationTime();
+  }
+
+  private static String histogramToBase64(AgentHistogram hist) {
+    ByteBuffer bb = hist.serialize();
+
+    byte[] bytes;
+    if (bb.hasArray()) {
+      bytes = bb.array();
+    } else {
+      bytes = new byte[bb.remaining()];
+      bb.get(bytes);
+    }
+
+    return Base64.getEncoder().encodeToString(bytes);
   }
 }

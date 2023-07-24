@@ -38,7 +38,16 @@ class HistogramsTest extends DDSpecification {
 
   def "test quantiles have 1% relative error"() {
     setup:
-    def histogram = Histograms.newHistogram()
+    def histogram
+
+    if (relativeAccuracy == null) {
+      histogram = Histograms.newHistogram()
+      relativeAccuracy = 0.01
+    }
+    else {
+      histogram = Histograms.newHistogram(relativeAccuracy, 1024)
+    }
+
     long[] data = sortedRandomData(size) {
       scenario(params)
     }
@@ -48,7 +57,7 @@ class HistogramsTest extends DDSpecification {
     }
 
     then: "have accurate quantiles"
-    validateQuantiles(histogram, data)
+    validateQuantiles(histogram, data, relativeAccuracy)
 
     when: "perform serialization round trip"
     ByteBuffer buffer = histogram.serialize()
@@ -57,24 +66,38 @@ class HistogramsTest extends DDSpecification {
     }, DDSketch.parseFrom(buffer.array()))
 
     then: "quantiles accurate afterwards"
-    validateQuantiles(newHistogram, data)
+    validateQuantiles(newHistogram, data, relativeAccuracy)
 
     where:
-    scenario   |   size   | params
-    poisson    |   10000  | [0.01D]
-    poisson    |   100000 | [0.01D]
-    poisson    |   10000  | [0.1D]
-    poisson    |   100000 | [0.1D]
-    poisson    |   10000  | [0.99D]
-    poisson    |   100000 | [0.99D]
-    uniform    |   10000  | [1D, 200D]
-    uniform    |   100000 | [1D, 200D]
-    uniform    |   10000  | [1000D, 2000D]
-    uniform    |   100000 | [1000D, 2000D]
-    normal     |   10000  | [1000D, 10D]
-    normal     |   100000 | [1000D, 10D]
-    normal     |   10000  | [10000D, 100D]
-    normal     |   100000 | [10000D, 100D]
+    scenario   |   size   | params          | relativeAccuracy
+    poisson    |   10000  | [0.01D]         | null
+    poisson    |   100000 | [0.01D]         | null
+    poisson    |   10000  | [0.1D]          | null
+    poisson    |   100000 | [0.1D]          | null
+    poisson    |   10000  | [0.99D]         | null
+    poisson    |   100000 | [0.99D]         | null
+    uniform    |   10000  | [1D, 200D]      | null
+    uniform    |   100000 | [1D, 200D]      | null
+    uniform    |   10000  | [1000D, 2000D]  | null
+    uniform    |   100000 | [1000D, 2000D]  | null
+    normal     |   10000  | [1000D, 10D]    | null
+    normal     |   100000 | [1000D, 10D]    | null
+    normal     |   10000  | [10000D, 100D]  | null
+    normal     |   100000 | [10000D, 100D]  | null
+    poisson    |   10000  | [0.01D]         | 0.01
+    poisson    |   100000 | [0.01D]         | 0.02
+    poisson    |   10000  | [0.1D]          | 0.03
+    poisson    |   100000 | [0.1D]          | 0.04
+    poisson    |   10000  | [0.99D]         | 0.05
+    poisson    |   100000 | [0.99D]         | 0.01
+    uniform    |   10000  | [1D, 200D]      | 0.02
+    uniform    |   100000 | [1D, 200D]      | 0.03
+    uniform    |   10000  | [1000D, 2000D]  | 0.04
+    uniform    |   100000 | [1000D, 2000D]  | 0.05
+    normal     |   10000  | [1000D, 10D]    | 0.01
+    normal     |   100000 | [1000D, 10D]    | 0.02
+    normal     |   10000  | [10000D, 100D]  | 0.03
+    normal     |   100000 | [10000D, 100D]  | 0.04
   }
 
   def "test serialization of empty histogram after clear"() {
@@ -106,10 +129,10 @@ class HistogramsTest extends DDSpecification {
     (int)sketch.getMaxValue() == 3
   }
 
-  def validateQuantiles(def histogram, long[] data) {
+  def validateQuantiles(def histogram, long[] data, double relativeAccuracy) {
     for (double quantile : quantiles) {
       double relativeError = relativeError(histogram.getValueAtQuantile(quantile), empiricalQuantile(data, quantile))
-      assert relativeError < 0.01
+      assert relativeError < (relativeAccuracy + 1E-12)
     }
     true
   }
