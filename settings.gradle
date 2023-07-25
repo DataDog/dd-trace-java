@@ -395,3 +395,6 @@ include ':dd-java-agent:benchmark'
 include ':dd-java-agent:benchmark-integration'
 include ':dd-java-agent:benchmark-integration:jetty-perftest'
 include ':dd-java-agent:benchmark-integration:play-perftest'
+include 'dd-java-agent:instrumentation:liberty-23'
+findProject(':dd-java-agent:instrumentation:liberty-23')?.name = 'liberty-23'
+
