@@ -21,6 +21,8 @@ import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest
 import spock.lang.Shared
 
+import datadog.trace.core.datastreams.StatsGroup
+
 import javax.jms.Session
 
 abstract class SqsClientTest extends VersionedNamingTestBase {
@@ -60,6 +62,11 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
   @Override
   String service() {
     null
+  }
+
+  @Override
+  boolean isDataStreamsEnabled() {
+    true
   }
 
   boolean hasTimeInQueueSpan() {
@@ -138,11 +145,31 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             "aws.requestId" "00000000-0000-0000-0000-000000000000"
+            "pathway.hash" "915523242097889673"
             defaultTags(true)
           }
         }
       }
     }
+
+
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+
+      verifyAll(first) {
+        edgeTags == ["direction:out", "topic:somequeue", "type:sqs"]
+        edgeTags.size() == 3
+      }
+
+      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+      verifyAll(second) {
+        edgeTags == ["direction:in", "topic:somequeue", "type:sqs"]
+        edgeTags.size() == 3
+      }
+
+    }
+
 
     assert messages[0].attributesAsStrings()['AWSTraceHeader'] =~
     /Root=1-[0-9a-f]{8}-00000000${sendSpan.traceId.toHexStringPadded(16)};Parent=${DDSpanId.toHexStringPadded(sendSpan.spanId)};Sampled=1/

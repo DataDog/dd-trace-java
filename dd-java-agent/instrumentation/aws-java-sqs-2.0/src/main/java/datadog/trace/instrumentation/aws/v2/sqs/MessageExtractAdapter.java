@@ -28,18 +28,19 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
       }
     }
 
-    if (Config.get().isDataStreamsEnabled()) {
-      for (Map.Entry<String, MessageAttributeValue> entry : carrier.messageAttributes().entrySet()) {
-        String key = entry.getKey();
-        String value = entry.getValue().getValueForField("StringValue", Object.class).get().toString();
-        if (key.equalsIgnoreCase(DSM_KEY)) {
-          if (!classifier.accept(key, value)) {
-            return;
-          }
+  }
+
+  @Override
+  public void extractPathway(Message carrier, AgentPropagation.KeyClassifier classifier) {
+    for (Map.Entry<String, MessageAttributeValue> entry : carrier.messageAttributes().entrySet()) {
+      String key = entry.getKey();
+      String value = entry.getValue().getValueForField("StringValue", Object.class).get().toString();
+      if (key.equalsIgnoreCase(DSM_KEY)) {
+        if (!classifier.accept(key, value)) {
+          return;
         }
       }
     }
-
   }
 
   public long extractTimeInQueueStart(final Message carrier) {
