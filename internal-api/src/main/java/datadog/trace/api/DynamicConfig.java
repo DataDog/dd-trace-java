@@ -41,13 +41,13 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
   /** Dynamic configuration that uses the default snapshot type. */
   public static DynamicConfig<Snapshot>.Builder create() {
-    return new DynamicConfig<>(Snapshot::new).initial();
+    return new DynamicConfig<>(Snapshot::new).new Builder();
   }
 
   /** Dynamic configuration that wants to add its own state to the snapshot. */
   public static <S extends DynamicConfig.Snapshot> DynamicConfig<S>.Builder create(
       BiFunction<DynamicConfig<S>.Builder, S, S> snapshotFactory) {
-    return new DynamicConfig<S>(snapshotFactory).initial();
+    return new DynamicConfig<S>(snapshotFactory).new Builder();
   }
 
   /** Captures a snapshot of the configuration at the start of a trace. */
@@ -85,27 +85,21 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     Double traceSampleRate;
 
+    Builder() {}
+
     Builder(Snapshot snapshot) {
-      if (null == snapshot) {
-        this.serviceMapping = Collections.emptyMap();
-        this.requestHeaderTags = Collections.emptyMap();
-        this.responseHeaderTags = Collections.emptyMap();
-        this.baggageMapping = Collections.emptyMap();
-        this.logsInjectionEnabled = ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
-      } else {
 
-        this.debugEnabled = snapshot.debugEnabled;
-        this.runtimeMetricsEnabled = snapshot.runtimeMetricsEnabled;
-        this.logsInjectionEnabled = snapshot.logsInjectionEnabled;
-        this.dataStreamsEnabled = snapshot.dataStreamsEnabled;
+      this.debugEnabled = snapshot.debugEnabled;
+      this.runtimeMetricsEnabled = snapshot.runtimeMetricsEnabled;
+      this.logsInjectionEnabled = snapshot.logsInjectionEnabled;
+      this.dataStreamsEnabled = snapshot.dataStreamsEnabled;
 
-        this.serviceMapping = snapshot.serviceMapping;
-        this.requestHeaderTags = snapshot.requestHeaderTags;
-        this.responseHeaderTags = snapshot.responseHeaderTags;
-        this.baggageMapping = snapshot.baggageMapping;
+      this.serviceMapping = snapshot.serviceMapping;
+      this.requestHeaderTags = snapshot.requestHeaderTags;
+      this.responseHeaderTags = snapshot.responseHeaderTags;
+      this.baggageMapping = snapshot.baggageMapping;
 
-        this.traceSampleRate = snapshot.traceSampleRate;
-      }
+      this.traceSampleRate = snapshot.traceSampleRate;
     }
 
     public Builder setDebugEnabled(boolean debugEnabled) {
@@ -171,17 +165,6 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       return this;
     }
 
-    private Map<String, String> cleanMapping(
-        Collection<? extends Map.Entry<String, String>> mapping,
-        Function<Map.Entry<String, String>, String> keyMapper,
-        Function<Map.Entry<String, String>, String> valueMapper) {
-      final Map<String, String> cleanedMapping = new HashMap<>(mapping.size() * 4 / 3);
-      for (Map.Entry<String, String> association : mapping) {
-        cleanedMapping.put(keyMapper.apply(association), valueMapper.apply(association));
-      }
-      return tryMakeImmutableMap(cleanedMapping);
-    }
-
     /** Overwrites the current configuration with a new snapshot. */
     public DynamicConfig<S> apply() {
       S oldSnapshot = currentSnapshot;
@@ -195,6 +178,17 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       }
       return DynamicConfig.this;
     }
+  }
+
+  static Map<String, String> cleanMapping(
+      Collection<? extends Map.Entry<String, String>> mapping,
+      Function<Map.Entry<String, String>, String> keyMapper,
+      Function<Map.Entry<String, String>, String> valueMapper) {
+    final Map<String, String> cleanedMapping = new HashMap<>(mapping.size() * 4 / 3);
+    for (Map.Entry<String, String> association : mapping) {
+      cleanedMapping.put(keyMapper.apply(association), valueMapper.apply(association));
+    }
+    return tryMakeImmutableMap(cleanedMapping);
   }
 
   static String key(Map.Entry<String, String> association) {
@@ -273,12 +267,16 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       this.logsInjectionEnabled = builder.logsInjectionEnabled;
       this.dataStreamsEnabled = builder.dataStreamsEnabled;
 
-      this.serviceMapping = builder.serviceMapping;
-      this.requestHeaderTags = builder.requestHeaderTags;
-      this.responseHeaderTags = builder.responseHeaderTags;
-      this.baggageMapping = builder.baggageMapping;
+      this.serviceMapping = nullToEmpty(builder.serviceMapping);
+      this.requestHeaderTags = nullToEmpty(builder.requestHeaderTags);
+      this.responseHeaderTags = nullToEmpty(builder.responseHeaderTags);
+      this.baggageMapping = nullToEmpty(builder.baggageMapping);
 
       this.traceSampleRate = builder.traceSampleRate;
+    }
+
+    private static <K, V> Map<K, V> nullToEmpty(Map<K, V> mapping) {
+      return null != mapping ? mapping : Collections.emptyMap();
     }
 
     @Override

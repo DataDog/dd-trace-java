@@ -5,6 +5,7 @@
 package datadog.trace.instrumentation.log4j27;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
@@ -12,7 +13,6 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.List;
 import org.apache.logging.log4j.core.ContextDataInjector;
@@ -34,7 +34,7 @@ public final class SpanDecoratingContextDataInjector implements ContextDataInjec
 
     AgentSpan span = activeSpan();
 
-    if (!AgentTracer.traceConfig(span).isLogsInjectionEnabled()) {
+    if (!traceConfig(span).isLogsInjectionEnabled()) {
       return contextData;
     }
 
