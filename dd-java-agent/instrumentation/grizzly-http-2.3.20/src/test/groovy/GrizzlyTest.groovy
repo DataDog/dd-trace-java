@@ -47,6 +47,10 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     true
   }
 
+  @Override
+  boolean testBlockingOnResponse() {
+    true
+  }
   //@Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")
   @Override
   boolean testBadUrl() {

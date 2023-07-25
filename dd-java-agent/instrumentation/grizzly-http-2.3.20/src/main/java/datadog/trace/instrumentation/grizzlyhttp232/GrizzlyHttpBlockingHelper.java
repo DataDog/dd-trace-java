@@ -27,6 +27,7 @@ import org.glassfish.grizzly.http.HttpPacket;
 import org.glassfish.grizzly.http.HttpRequestPacket;
 import org.glassfish.grizzly.http.HttpResponsePacket;
 import org.glassfish.grizzly.http.HttpServerFilter;
+import org.glassfish.grizzly.http.Protocol;
 import org.glassfish.grizzly.http.util.HttpStatus;
 import org.glassfish.grizzly.memory.HeapBuffer;
 import org.slf4j.Logger;
@@ -145,10 +146,22 @@ public class GrizzlyHttpBlockingHelper {
     }
     HttpServerFilter httpServerFilter = (HttpServerFilter) ctx.getFilterChain().get(filterIdx);
 
-    HttpStatus status =
-        HttpStatus.newHttpStatus(BlockingActionHelper.getHttpCode(statusCode), "Request Blocked");
     HttpResponsePacket httpResponse =
         (HttpResponsePacket) ctx.getAttributes().getAttribute(DD_RESPONSE_ATTRIBUTE);
+    if (httpResponse.isCommitted()) {
+      log.warn("Can't block: response committed");
+      return false;
+    }
+
+    // reset response & restore necessary parts
+    HttpRequestPacket request = httpResponse.getRequest();
+    Protocol protocol = httpResponse.getProtocol();
+    httpResponse.recycle();
+    httpResponse.setRequest(request);
+    httpResponse.setProtocol(protocol);
+
+    HttpStatus status =
+        HttpStatus.newHttpStatus(BlockingActionHelper.getHttpCode(statusCode), "Request Blocked");
     status.setValues(httpResponse);
 
     for (Map.Entry<String, String> h : extraHeaders.entrySet()) {
@@ -183,7 +196,7 @@ public class GrizzlyHttpBlockingHelper {
     ctx.flush(CLOSE_COMPLETION_HANDLER);
 
     Context ictx = ctx.getInternalContext();
-    // see ProcessorExecutor::execute
+    // see ProcessorExecutor::execute; replace filterchain executor with a noop
     ictx.setProcessor(JustCompleteProcessor.INSTANCE);
 
     return true;

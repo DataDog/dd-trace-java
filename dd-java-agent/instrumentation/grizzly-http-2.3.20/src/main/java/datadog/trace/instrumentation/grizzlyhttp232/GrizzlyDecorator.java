@@ -83,12 +83,34 @@ public class GrizzlyDecorator
     return GRIZZLY_FILTER_CHAIN_SERVER;
   }
 
-  public static void onHttpServerFilterPrepareResponseEnter(
+  @Override
+  protected boolean isAppSecOnResponseSeparate() {
+    return true;
+  }
+
+  public static Flow.Action.RequestBlockingAction onHttpServerFilterPrepareResponseEnter(
       FilterChainContext ctx, HttpResponsePacket responsePacket) {
     AgentSpan span = (AgentSpan) ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE);
-    if (null != span) {
-      DECORATE.onResponse(span, responsePacket);
+    if (null == span) {
+      return null;
     }
+
+    // use attribute to track the recursive call when blocking on response
+    if (ctx.getAttributes().getAttribute(DD_IGNORE_COMMIT_ATTRIBUTE) == null) {
+      Flow<Void> flow =
+          DECORATE.callIGCallbackResponseAndHeaders(
+              span, responsePacket, responsePacket.getStatus(), ExtractAdapter.responseGetter());
+      ctx.getAttributes().setAttribute(DD_IGNORE_COMMIT_ATTRIBUTE, Boolean.TRUE);
+      Flow.Action action = flow.getAction();
+      if (action instanceof Flow.Action.RequestBlockingAction && !responsePacket.isCommitted()) {
+        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+        // we are committing a new response, so do not process this response
+        return rba;
+      }
+    }
+
+    DECORATE.onResponse(span, responsePacket);
+    return null;
   }
 
   public static void onHttpServerFilterPrepareResponseExit(
