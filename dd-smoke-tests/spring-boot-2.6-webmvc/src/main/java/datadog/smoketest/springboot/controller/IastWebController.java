@@ -265,16 +265,6 @@ public class IastWebController {
     return "XPath Injection page";
   }
 
-  @GetMapping("/xss/write")
-  @SuppressFBWarnings
-  public void xssWrite(final HttpServletRequest request, final HttpServletResponse response) {
-    try {
-      response.getWriter().write(request.getParameter("string"));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
   @GetMapping("/trust_boundary_violation")
   public String trustBoundaryViolation(final HttpServletRequest request) {
     String paramValue = request.getParameter("paramValue");
