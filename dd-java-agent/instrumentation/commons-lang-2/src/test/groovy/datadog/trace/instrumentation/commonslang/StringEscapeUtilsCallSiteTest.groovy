@@ -29,7 +29,11 @@ class StringEscapeUtilsCallSiteTest extends AgentTestRunner {
     0 * _
 
     where:
-    method       | args                  | expected
-    'escapeHtml' | ['Ø-This is a quote'] | '&Oslash;-This is a quote'
+    method             | args                  | expected
+    'escapeHtml'       | ['Ø-This is a quote'] | '&Oslash;-This is a quote'
+    'escapeJava'       | ['Ø-This is a quote'] | '\\u00D8-This is a quote'
+    'escapeJavaScript' | ['Ø-This is a quote'] | '\\u00D8-This is a quote'
+    'escapeXml'        | ['Ø-This is a quote'] | '&#216;-This is a quote'
+    'escapeSql'        | ['Ø-This is a quote'] | 'Ø-This is a quote'
   }
 }
