@@ -49,6 +49,8 @@ public class DDTestSessionImpl implements DDTestSession {
   private final SignalServer signalServer;
   private final RepoIndexBuilder repoIndexBuilder;
   protected final LongAdder testsSkipped = new LongAdder();
+  private volatile boolean codeCoverageEnabled;
+  private volatile boolean itrEnabled;
 
   public DDTestSessionImpl(
       String projectName,
@@ -98,14 +100,11 @@ public class DDTestSessionImpl implements DDTestSession {
   }
 
   private SignalResponse onModuleExecutionResultReceived(ModuleExecutionResult result) {
-    // We need to set coverage enabled to true on session span
-    // if at least one of the children module has it enabled.
-    // The same is true for the other flags below
     if (result.isCoverageEnabled()) {
-      setTag(Tags.TEST_CODE_COVERAGE_ENABLED, true);
+      codeCoverageEnabled = true;
     }
     if (result.isItrEnabled()) {
-      setTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, true);
+      itrEnabled = true;
     }
     testsSkipped.add(result.getTestsSkippedTotal());
     return testModuleRegistry.onModuleExecutionResultReceived(result);
@@ -162,11 +161,18 @@ public class DDTestSessionImpl implements DDTestSession {
     span.setTag(Tags.TEST_STATUS, status != null ? status : CIConstants.TEST_SKIP);
     testDecorator.beforeFinish(span);
 
-    long testsSkippedTotal = testsSkipped.sum();
-    if (testsSkippedTotal > 0) {
-      setTag(DDTags.CI_ITR_TESTS_SKIPPED, true);
+    if (codeCoverageEnabled) {
+      setTag(Tags.TEST_CODE_COVERAGE_ENABLED, true);
+    }
+    if (itrEnabled) {
+      setTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, true);
       setTag(Tags.TEST_ITR_TESTS_SKIPPING_TYPE, "test");
+
+      long testsSkippedTotal = testsSkipped.sum();
       setTag(Tags.TEST_ITR_TESTS_SKIPPING_COUNT, testsSkippedTotal);
+      if (testsSkippedTotal > 0) {
+        setTag(DDTags.CI_ITR_TESTS_SKIPPED, true);
+      }
     }
 
     if (endTime != null) {

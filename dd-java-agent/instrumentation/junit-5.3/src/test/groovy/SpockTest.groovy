@@ -79,6 +79,7 @@ class SpockTest extends CiVisibilityTest {
       trace(2, true) {
         testModuleId = testModuleSpan(it, 0, CIConstants.TEST_SKIP, [
           (DDTags.CI_ITR_TESTS_SKIPPED): true,
+          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
           (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
           (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 1,
         ])
@@ -107,6 +108,7 @@ class SpockTest extends CiVisibilityTest {
       trace(2, true) {
         testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS, [
           (DDTags.CI_ITR_TESTS_SKIPPED): true,
+          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
           (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
           (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 1,
         ])

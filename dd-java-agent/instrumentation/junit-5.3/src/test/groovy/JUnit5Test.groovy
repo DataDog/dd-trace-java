@@ -591,6 +591,7 @@ class JUnit5Test extends CiVisibilityTest {
       trace(2, true) {
         testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS, [
           (DDTags.CI_ITR_TESTS_SKIPPED): true,
+          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
           (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
           (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 2,
         ])
@@ -625,6 +626,7 @@ class JUnit5Test extends CiVisibilityTest {
       trace(2, true) {
         testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS, [
           (DDTags.CI_ITR_TESTS_SKIPPED): true,
+          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
           (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
           (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 1,
         ])

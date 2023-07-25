@@ -63,9 +63,13 @@ abstract class CiVisibilityTest extends AgentTestRunner {
     def methodLinesResolver = Stub(MethodLinesResolver)
     methodLinesResolver.getLines(_) >> new MethodLinesResolver.MethodLines(DUMMY_TEST_METHOD_START, DUMMY_TEST_METHOD_END)
 
-    def moduleExecutionSettings = new ModuleExecutionSettings(Collections.emptyMap(), Collections.singletonMap(dummyModule, skippableTests))
     def moduleExecutionSettingsFactory = Stub(ModuleExecutionSettingsFactory)
-    moduleExecutionSettingsFactory.create(_, _) >> moduleExecutionSettings
+    moduleExecutionSettingsFactory.create(_, _) >> {
+      Map<String, String> properties = [
+        (CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED) : String.valueOf(!skippableTests.isEmpty())
+      ]
+      return new ModuleExecutionSettings(properties, Collections.singletonMap(dummyModule, skippableTests))
+    }
 
     CIVisibility.registerSessionFactory (String projectName, Path projectRoot, String component, Long startTime) -> {
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
