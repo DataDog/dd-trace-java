@@ -72,8 +72,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
   @Override
   public SdkRequest modifyRequest(Context.ModifyRequest context, ExecutionAttributes executionAttributes) {
-    //todo(Hriday Sheth): remove the need for the "true" below which is required for the test case to pass
-    if (true || Config.get().isDataStreamsEnabled()) {
+    if (Config.get().isDataStreamsEnabled()) {
       AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
       if (context.request() instanceof SendMessageRequest) {
         SendMessageRequest request = (SendMessageRequest) context.request();

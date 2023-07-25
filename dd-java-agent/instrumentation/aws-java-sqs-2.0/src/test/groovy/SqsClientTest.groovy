@@ -37,6 +37,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     super.configurePreAgent()
     // Set a service name that gets sorted early with SORT_BY_NAMES
     injectSysConfig(GeneralConfig.SERVICE_NAME, "A-service")
+    injectSysConfig("dd.data.streams.enabled", "true")
   }
 
   @Shared
