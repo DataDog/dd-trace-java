@@ -1,6 +1,7 @@
 package com.datadog.iast.model
 
 import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.test.util.DDSpecification
 
 class RangeTest extends DDSpecification {

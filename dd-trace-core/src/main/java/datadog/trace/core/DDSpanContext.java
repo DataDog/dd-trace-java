@@ -143,7 +143,7 @@ public class DDSpanContext
   private volatile BlockResponseFunction blockResponseFunction;
 
   private final ProfilingContextIntegration profilingContextIntegration;
-
+  private boolean injectBaggageAsTags;
   private volatile int encodedOperationName;
 
   public DDSpanContext(
@@ -187,7 +187,54 @@ public class DDSpanContext
         pathwayContext,
         disableSamplingMechanismValidation,
         propagationTags,
-        ProfilingContextIntegration.NoOp.INSTANCE);
+        ProfilingContextIntegration.NoOp.INSTANCE,
+        true);
+  }
+
+  public DDSpanContext(
+      final DDTraceId traceId,
+      final long spanId,
+      final long parentId,
+      final CharSequence parentServiceName,
+      final String serviceName,
+      final CharSequence operationName,
+      final CharSequence resourceName,
+      final int samplingPriority,
+      final CharSequence origin,
+      final Map<String, String> baggageItems,
+      final boolean errorFlag,
+      final CharSequence spanType,
+      final int tagsSize,
+      final PendingTrace trace,
+      final Object requestContextDataAppSec,
+      final Object requestContextDataIast,
+      final PathwayContext pathwayContext,
+      final boolean disableSamplingMechanismValidation,
+      final PropagationTags propagationTags,
+      final boolean injectBaggageAsTags) {
+    this(
+        traceId,
+        spanId,
+        parentId,
+        parentServiceName,
+        serviceName,
+        operationName,
+        resourceName,
+        samplingPriority,
+        origin,
+        baggageItems,
+        errorFlag,
+        spanType,
+        tagsSize,
+        trace,
+        requestContextDataAppSec,
+        requestContextDataIast,
+        null,
+        pathwayContext,
+        disableSamplingMechanismValidation,
+        propagationTags,
+        ProfilingContextIntegration.NoOp.INSTANCE,
+        injectBaggageAsTags);
   }
 
   public DDSpanContext(
@@ -232,7 +279,8 @@ public class DDSpanContext
         pathwayContext,
         disableSamplingMechanismValidation,
         propagationTags,
-        profilingContextIntegration);
+        profilingContextIntegration,
+        true);
   }
 
   public DDSpanContext(
@@ -256,7 +304,8 @@ public class DDSpanContext
       final PathwayContext pathwayContext,
       final boolean disableSamplingMechanismValidation,
       final PropagationTags propagationTags,
-      final ProfilingContextIntegration profilingContextIntegration) {
+      final ProfilingContextIntegration profilingContextIntegration,
+      final boolean injectBaggageAsTags) {
 
     assert trace != null;
     this.trace = trace;
@@ -284,7 +333,6 @@ public class DDSpanContext
     // and "* 4 / 3" is to make sure that we don't resize immediately
     final int capacity = Math.max((tagsSize <= 0 ? 3 : (tagsSize + 1)) * 4 / 3, 8);
     this.unsafeTags = new HashMap<>(capacity);
-
     // must set this before setting the service and resource names below
     this.profilingContextIntegration = profilingContextIntegration;
     // as fast as we can try to make this operation, we still might need to activate/deactivate
@@ -309,7 +357,7 @@ public class DDSpanContext
             ? propagationTags
             : trace.getTracer().getPropagationTagsFactory().empty();
     this.propagationTags.updateTraceIdHighOrderBits(this.traceId.toHighOrderLong());
-
+    this.injectBaggageAsTags = injectBaggageAsTags;
     if (origin != null) {
       setOrigin(origin);
     }
@@ -732,8 +780,13 @@ public class DDSpanContext
 
   public void processTagsAndBaggage(final MetadataConsumer consumer, int longRunningVersion) {
     synchronized (unsafeTags) {
-      Map<String, String> baggageItemsWithPropagationTags = new HashMap<>(baggageItems);
-      propagationTags.fillTagMap(baggageItemsWithPropagationTags);
+      Map<String, String> baggageItemsWithPropagationTags;
+      if (injectBaggageAsTags) {
+        baggageItemsWithPropagationTags = new HashMap<>(baggageItems);
+        propagationTags.fillTagMap(baggageItemsWithPropagationTags);
+      } else {
+        baggageItemsWithPropagationTags = propagationTags.createTagMap();
+      }
       consumer.accept(
           new Metadata(
               threadId,
@@ -854,6 +907,11 @@ public class DDSpanContext
   @Override
   public void setDataTop(String key, Object value) {
     getRootSpanContextOrThis().setDataCurrent(key, value);
+  }
+
+  @Override
+  public void effectivelyBlocked() {
+    setTag("appsec.blocked", "true");
   }
 
   @Override

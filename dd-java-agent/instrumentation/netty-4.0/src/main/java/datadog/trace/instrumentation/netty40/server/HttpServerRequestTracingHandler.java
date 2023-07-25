@@ -49,6 +49,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
 
       Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
       if (rba != null) {
+        span.getRequestContext().getTraceSegment().effectivelyBlocked();
         ctx.pipeline().addAfter(ctx.name(), "blocking_handler", new BlockingResponseHandler(rba));
       }
 

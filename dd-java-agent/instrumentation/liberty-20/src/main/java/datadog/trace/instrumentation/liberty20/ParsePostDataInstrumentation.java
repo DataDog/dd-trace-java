@@ -76,6 +76,7 @@ public class ParsePostDataInstrumentation extends Instrumenter.AppSec
           blockResponseFunction.tryCommitBlockingResponse(
               rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
           t = new BlockingException("Blocked request (for SRTServletRequest/parsePostData)");
+          reqCtx.getTraceSegment().effectivelyBlocked();
         }
       }
     }

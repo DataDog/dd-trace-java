@@ -131,4 +131,31 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
       assert it['rule']['tags']['type'] == 'attack_tool'
     }
   }
+
+  void 'block request with post parameters'() {
+    when:
+    String url = "http://localhost:${httpPort}/greeting"
+    def request = new Request.Builder()
+      .url(url)
+      .post(RequestBody.create(MediaType.parse('application/x-www-form-urlencoded'), 'k=ADKMFFpndcwHNnr2MW9W'))
+      .build()
+    def response = client.newCall(request).execute()
+    def responseBodyStr = response.body().string()
+
+    then:
+    responseBodyStr.contains("blocked")
+    response.code() == 403
+
+    when:
+    waitForTraceCount(1) == 1
+
+    then:
+    rootSpans.size() == 1
+    forEachRootSpanTrigger {
+      assert it['rule']['id'] == '__troubleshooting_rule'
+    }
+    rootSpans.each {
+      assert it.meta.get('appsec.blocked') != null, 'appsec.blocked is not set'
+    }
+  }
 }

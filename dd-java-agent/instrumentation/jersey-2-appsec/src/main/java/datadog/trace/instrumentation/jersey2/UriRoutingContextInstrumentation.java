@@ -74,6 +74,7 @@ public class UriRoutingContextInstrumentation extends Instrumenter.AppSec
           t =
               new BlockingException(
                   "Blocked request (for UriRoutingContextInstrumentation/getPathParameters)");
+          reqCtx.getTraceSegment().effectivelyBlocked();
         }
       }
     }

@@ -5,8 +5,11 @@ import static java.lang.invoke.MethodHandles.lookup;
 import static java.lang.invoke.MethodType.methodType;
 
 import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.lang.invoke.MethodHandle;
@@ -216,13 +219,27 @@ public class JettyBlockingHelper {
     return true;
   }
 
-  public static void block(
-      Request request, Response response, Flow.Action.RequestBlockingAction rba) {
-    block(
+  public static boolean blockAndMarkBlocked(
+      Request request, Response response, Flow.Action.RequestBlockingAction rba, AgentSpan span) {
+    if (block(
         request,
         response,
         rba.getStatusCode(),
         rba.getBlockingContentType(),
-        rba.getExtraHeaders());
+        rba.getExtraHeaders())) {
+      RequestContext requestContext = span.getRequestContext();
+      if (requestContext != null) {
+        requestContext.getTraceSegment().effectivelyBlocked();
+      }
+      return true;
+    }
+    return false;
+  }
+
+  public static void blockAndMarkBlockedThrowOnFailure(
+      Request request, Response response, Flow.Action.RequestBlockingAction rba, AgentSpan span) {
+    if (!blockAndMarkBlocked(request, response, rba, span)) {
+      throw new BlockingException("Throwing after being unable to commit blocking response");
+    }
   }
 }

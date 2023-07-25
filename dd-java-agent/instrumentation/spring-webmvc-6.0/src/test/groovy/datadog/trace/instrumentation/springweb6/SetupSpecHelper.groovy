@@ -46,6 +46,7 @@ class SetupSpecHelper {
         ServletBlockingHelper
           .commitBlockingResponse(attributes.request, attributes.response, statusCode, templateType, extraHeaders)
       }
+      true
     }
   }
 }

@@ -118,9 +118,6 @@ public class GatewayBridge {
           if (traceSeg != null) {
             traceSeg.setTagTop("_dd.appsec.enabled", 1);
             traceSeg.setTagTop("_dd.runtime_family", "jvm");
-            if (spanInfo.getRequestBlockingAction() != null) {
-              traceSeg.setTagTop("appsec.blocked", "true");
-            }
 
             Collection<AppSecEvent100> collectedEvents = ctx.transferCollectedEvents();
 
@@ -226,7 +223,8 @@ public class GatewayBridge {
               DataBundle bundle =
                   new SingletonDataBundle<>(KnownAddresses.REQUEST_PATH_PARAMS, data);
               try {
-                return producerService.publishDataEvent(subInfo, ctx, bundle, false);
+                Flow<Void> flow = producerService.publishDataEvent(subInfo, ctx, bundle, false);
+                return flow;
               } catch (ExpiredSubscriberInfoException e) {
                 pathParamsSubInfo = null;
               }

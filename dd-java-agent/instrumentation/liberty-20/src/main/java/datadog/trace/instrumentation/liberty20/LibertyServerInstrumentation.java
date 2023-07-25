@@ -104,6 +104,7 @@ public final class LibertyServerInstrumentation extends Instrumenter.Tracing
         // prevent caching of the handler
         req.setAttribute(
             "javax.servlet.error.status_code", ((SRTServletResponse) resp).getStatusCode());
+        span.getRequestContext().getTraceSegment().effectivelyBlocked();
         return true; // skip method body
       }
 

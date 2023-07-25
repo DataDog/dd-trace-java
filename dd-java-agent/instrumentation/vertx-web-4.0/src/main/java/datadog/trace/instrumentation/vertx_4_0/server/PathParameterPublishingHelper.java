@@ -49,6 +49,7 @@ public class PathParameterPublishingHelper {
             brf.tryCommitBlockingResponse(
                 rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
 
+            requestContext.getTraceSegment().effectivelyBlocked();
             return new BlockingException("Blocked request (for route/matches)");
           }
         }

@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.http.StoredByteBody;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.netty.buffer.ByteBuf;
@@ -76,13 +77,17 @@ public class RequestBodyCollectionPublisher implements TransformablePublisher<By
             if (agentSpan == null) {
               return;
             }
-            BlockResponseFunction blockResponseFunction =
-                agentSpan.getRequestContext().getBlockResponseFunction();
+            RequestContext requestContext = agentSpan.getRequestContext();
+            BlockResponseFunction blockResponseFunction = requestContext.getBlockResponseFunction();
             if (blockResponseFunction == null) {
               return;
             }
-            blockResponseFunction.tryCommitBlockingResponse(
-                rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+            boolean committedBlockingResponse =
+                blockResponseFunction.tryCommitBlockingResponse(
+                    rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+            if (committedBlockingResponse) {
+              requestContext.getTraceSegment().effectivelyBlocked();
+            }
 
             // we can't directly interrupt user code here by throwing an exception
             // user code must listen for errors and implement its own logic to prevent

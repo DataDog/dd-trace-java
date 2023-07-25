@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.traceannotation;
+package datadog.trace.api;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Collections;
@@ -9,8 +9,8 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class TraceAnnotationConfigParser {
-  private static final Logger log = LoggerFactory.getLogger(TraceAnnotationConfigParser.class);
+public final class MethodFilterConfigParser {
+  private static final Logger log = LoggerFactory.getLogger(MethodFilterConfigParser.class);
 
   private static Map<String, Set<String>> logWarn(
       String message, int start, int end, String configString) {
@@ -44,7 +44,7 @@ public final class TraceAnnotationConfigParser {
   @SuppressForbidden
   public static Map<String, Set<String>> parse(String configString) {
     Map<String, Set<String>> classMethodsToTrace;
-    if (configString == null || configString.isEmpty()) {
+    if (configString == null || configString.trim().isEmpty()) {
       classMethodsToTrace = Collections.emptyMap();
     } else {
       Map<String, Set<String>> toTrace = new HashMap<>();

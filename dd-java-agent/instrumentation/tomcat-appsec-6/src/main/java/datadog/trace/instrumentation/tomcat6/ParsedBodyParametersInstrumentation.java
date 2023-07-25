@@ -130,10 +130,14 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
           Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
           BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
           if (blockResponseFunction != null) {
-            blockResponseFunction.tryCommitBlockingResponse(
-                rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
-            if (t == null) {
-              t = new BlockingException("Blocked request (for processParameters)");
+            boolean committedBlockingResponse =
+                blockResponseFunction.tryCommitBlockingResponse(
+                    rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+            if (committedBlockingResponse) {
+              reqCtx.getTraceSegment().effectivelyBlocked();
+              if (t == null) {
+                t = new BlockingException("Blocked request (for processParameters)");
+              }
             }
           }
         }

@@ -96,6 +96,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESOLVER_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.DDTags.HOST_TAG;
 import static datadog.trace.api.DDTags.INTERNAL_HOST_NAME;
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY;
@@ -302,6 +303,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGA
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_CONTEXT_SERVICE_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.SPARK_TASK_HISTOGRAM_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME;
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST;
 import static datadog.trace.api.config.TracerConfig.AGENT_NAMED_PIPE;
@@ -363,6 +365,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES
 import static datadog.trace.api.config.TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA;
 import static datadog.trace.api.config.TracerConfig.TRACE_STRICT_WRITES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH;
+import static datadog.trace.api.config.TracerConfig.WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
 import static datadog.trace.api.iast.IastDetectionMode.DEFAULT;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
@@ -475,6 +478,7 @@ public class Config {
   private final String rootContextServiceName;
   private final boolean integrationSynapseLegacyOperationName;
   private final String writerType;
+  private final boolean injectBaggageAsTagsEnabled;
   private final boolean agentConfiguredUsingDefault;
   private final String agentUrl;
   private final String agentHost;
@@ -760,6 +764,7 @@ public class Config {
   private final boolean longRunningTraceEnabled;
   private final long longRunningTraceFlushInterval;
   private final boolean elasticsearchBodyAndParamsEnabled;
+  private final boolean sparkTaskHistogramEnabled;
 
   private final float traceFlushIntervalSeconds;
 
@@ -829,7 +834,8 @@ public class Config {
     integrationSynapseLegacyOperationName =
         configProvider.getBoolean(INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME, false);
     writerType = configProvider.getString(WRITER_TYPE, DEFAULT_AGENT_WRITER_TYPE);
-
+    injectBaggageAsTagsEnabled =
+        configProvider.getBoolean(WRITER_BAGGAGE_INJECT, DEFAULT_WRITER_BAGGAGE_INJECT);
     String lambdaInitType = getEnv("AWS_LAMBDA_INITIALIZATION_TYPE");
     if (lambdaInitType != null && lambdaInitType.equals("snap-start")) {
       secureRandom = true;
@@ -1682,6 +1688,10 @@ public class Config {
     longRunningTraceEnabled = longRunningEnabled;
     this.longRunningTraceFlushInterval = longRunningTraceFlushInterval;
 
+    this.sparkTaskHistogramEnabled =
+        configProvider.getBoolean(
+            SPARK_TASK_HISTOGRAM_ENABLED, ConfigDefaults.DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED);
+
     this.traceFlushIntervalSeconds =
         configProvider.getFloat(
             TracerConfig.TRACE_FLUSH_INTERVAL, ConfigDefaults.DEFAULT_TRACE_FLUSH_INTERVAL);
@@ -1778,6 +1788,10 @@ public class Config {
 
   public String getWriterType() {
     return writerType;
+  }
+
+  public boolean isInjectBaggageAsTagsEnabled() {
+    return injectBaggageAsTagsEnabled;
   }
 
   public boolean isAgentConfiguredUsingDefault() {
@@ -2749,6 +2763,10 @@ public class Config {
 
   public boolean isElasticsearchBodyAndParamsEnabled() {
     return elasticsearchBodyAndParamsEnabled;
+  }
+
+  public boolean isSparkTaskHistogramEnabled() {
+    return sparkTaskHistogramEnabled;
   }
 
   /** @return A map of tags to be applied only to the local application root span. */
@@ -3759,8 +3777,12 @@ public class Config {
         + elasticsearchBodyAndParamsEnabled
         + ", traceFlushInterval="
         + traceFlushIntervalSeconds
+        + ", injectBaggageAsTagsEnabled="
+        + injectBaggageAsTagsEnabled
         + ", logsInjectionEnabled="
         + logsInjectionEnabled
+        + ", sparkTaskHistogramEnabled="
+        + sparkTaskHistogramEnabled
         + '}';
   }
 }

@@ -172,6 +172,7 @@ public final class TomcatServerInstrumentation extends Instrumenter.Tracing
         DECORATE.onRequest(span, req, req, ctx);
         Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
         if (rba != null) {
+          span.getRequestContext().getTraceSegment().effectivelyBlocked();
           TomcatBlockingHelper.commitBlockingResponse(req, resp, rba);
           ret = false; // skip pipeline
         }

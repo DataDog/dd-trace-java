@@ -25,13 +25,14 @@ public class PathBindingPublishingHandler implements Handler {
 
   @Override
   public void handle(Context ctx) {
-    boolean delegate = true;
+    boolean doDelegation = true;
     try {
-      delegate = maybePublishTokens(ctx);
+      doDelegation = maybePublishTokens(ctx);
     } finally {
-      if (delegate) {
+      if (doDelegation) {
         ctx.next();
       } else {
+        activeSpan().getRequestContext().getTraceSegment().effectivelyBlocked();
         throw new BlockingException("Blocking request");
       }
     }

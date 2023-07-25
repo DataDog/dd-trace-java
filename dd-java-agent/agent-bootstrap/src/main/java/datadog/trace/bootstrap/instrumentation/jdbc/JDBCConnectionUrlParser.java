@@ -144,7 +144,7 @@ public enum JDBCConnectionUrlParser {
     }
   },
 
-  POSTGRES("postgresql") {
+  POSTGRES("postgresql", "edb") {
     private static final String DEFAULT_HOST = "localhost";
     private static final int DEFAULT_PORT = 5432;
 
