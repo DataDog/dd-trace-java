@@ -93,6 +93,10 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     })
     def messages = client.receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build()).messages()
 
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+    }
+
     messages.forEach {/* consume to create message spans */ }
 
     then:
