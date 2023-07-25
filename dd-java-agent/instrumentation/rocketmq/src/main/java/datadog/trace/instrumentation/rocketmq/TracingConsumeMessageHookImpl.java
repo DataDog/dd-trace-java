@@ -25,7 +25,7 @@ public final class TracingConsumeMessageHookImpl implements ConsumeMessageHook {
       return;
     }
     AgentScope scope = rocketMqDecorator.start(context);
-    System.out.println("start Span  and put to ContextStore");
+   // System.out.println("start Span  and put to ContextStore");
     scopeAccessor.put(context,scope);
   }
 
