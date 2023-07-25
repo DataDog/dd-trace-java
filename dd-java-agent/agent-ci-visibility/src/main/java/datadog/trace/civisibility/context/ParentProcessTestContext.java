@@ -38,8 +38,8 @@ public class ParentProcessTestContext extends AbstractTestContext implements Tes
   public void reportChildTag(String key, Object value) {
     // the method leaves room for a
     // proper implementation using a thread-safe map,
-    // but for not it's just this,
-    // in order to save some performance costs
+    // but for now it's just this,
+    // to save some performance costs
     switch (key) {
       case Tags.TEST_FRAMEWORK:
         testFramework = String.valueOf(value);
