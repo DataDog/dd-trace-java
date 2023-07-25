@@ -106,8 +106,12 @@ abstract class CiVisibilityTest extends AgentTestRunner {
     InstrumentationBridge.registerCoverageProbeStoreFactory(new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory())
   }
 
-  def givenSkippableTests(List<SkippableTest> tests) {
+  @Override
+  void setup() {
     skippableTests.clear()
+  }
+
+  def givenSkippableTests(List<SkippableTest> tests) {
     skippableTests.addAll(tests)
   }
 
