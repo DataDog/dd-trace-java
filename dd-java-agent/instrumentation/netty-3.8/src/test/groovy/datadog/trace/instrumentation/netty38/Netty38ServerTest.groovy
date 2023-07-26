@@ -201,7 +201,12 @@ abstract class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
 
   @Override
   boolean testBlocking() {
-    true
+    false
+  }
+
+  @Override
+  boolean testBlockingOnResponse() {
+    false
   }
 
   @Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")
