@@ -193,13 +193,14 @@ public final class Events<D> {
 
   @SuppressWarnings("rawtypes")
   private static final EventType RESPONSE_STACKTRACE =
-          new ET<>("response.stacktrace_leak", RESPONSE_STACKTRACE_ID);
+      new ET<>("response.stacktrace_leak", RESPONSE_STACKTRACE_ID);
   /** Response contains stacktrace */
   @SuppressWarnings("unchecked")
-  public EventType<TriFunction<RequestContext, Throwable, Boolean, Flow<Void>>> responseStacktrace() {
-    return (EventType<TriFunction<RequestContext, Throwable, Boolean, Flow<Void>>>) RESPONSE_STACKTRACE;
+  public EventType<TriFunction<RequestContext, Throwable, Boolean, Flow<Void>>>
+      responseStacktrace() {
+    return (EventType<TriFunction<RequestContext, Throwable, Boolean, Flow<Void>>>)
+        RESPONSE_STACKTRACE;
   }
-
 
   static final int MAX_EVENTS = nextId.get();
 

@@ -28,8 +28,7 @@ public class ErrorReportValueInstrumentation extends Instrumenter.AppSec
       "java.io.Writer",
       "java.io.IOException",
       "java.lang.IllegalStateException",
-      "datadog.trace.bootstrap.instrumentation.decorator.StacktraceLeakDecorator",
-      "datadog.trace.instrumentation.tomcat7.TestIast"
+      "datadog.trace.bootstrap.instrumentation.decorator.StacktraceLeakDecorator"
     };
   }
 
