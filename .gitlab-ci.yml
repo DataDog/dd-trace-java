@@ -6,12 +6,12 @@ include:
   - local: ".gitlab/ci-vis-open-source-tests.yml"
 
 stages:
+  - ci-vis-open-source-tests
   - build
   - package
   - deploy
   - benchmarks
   - exploration-tests
-  - ci-vis-open-source-tests
   - generate-signing-key
 
 variables:
