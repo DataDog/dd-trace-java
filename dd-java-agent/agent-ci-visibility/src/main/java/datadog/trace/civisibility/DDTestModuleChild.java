@@ -82,8 +82,10 @@ public class DDTestModuleChild extends DDTestModuleImpl {
     long sessionId = context.getParentId();
     boolean coverageEnabled = config.isCiVisibilityCodeCoverageEnabled();
     boolean itrEnabled = config.isCiVisibilityItrEnabled();
+    long testsSkippedTotal = testsSkipped.sum();
     ModuleExecutionResult moduleExecutionResult =
-        new ModuleExecutionResult(sessionId, moduleId, coverageEnabled, itrEnabled, testsSkipped);
+        new ModuleExecutionResult(
+            sessionId, moduleId, coverageEnabled, itrEnabled, testsSkippedTotal);
 
     try (SignalClient signalClient = new SignalClient(signalServerAddress)) {
       signalClient.send(moduleExecutionResult);

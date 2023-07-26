@@ -18,6 +18,7 @@ import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory;
 import datadog.trace.civisibility.context.SpanTestContext;
 import datadog.trace.civisibility.context.TestContext;
 import datadog.trace.civisibility.decorator.TestDecorator;
+import datadog.trace.civisibility.ipc.ModuleExecutionResult;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import java.net.InetSocketAddress;
 import java.util.Collection;
@@ -40,6 +41,8 @@ public class DDTestModuleParent extends DDTestModuleImpl {
   @Nullable private final TestContext sessionContext;
   @Nullable private final TestModuleRegistry testModuleRegistry;
   private final ModuleExecutionSettingsFactory moduleExecutionSettingsFactory;
+  private volatile boolean codeCoverageEnabled;
+  private volatile boolean itrEnabled;
 
   public DDTestModuleParent(
       @Nullable TestContext sessionContext,
@@ -129,8 +132,18 @@ public class DDTestModuleParent extends DDTestModuleImpl {
     }
     span.setTag(Tags.TEST_STATUS, context.getStatus());
 
-    if (testsSkipped) {
-      setTag(DDTags.CI_ITR_TESTS_SKIPPED, true);
+    if (codeCoverageEnabled) {
+      setTag(Tags.TEST_CODE_COVERAGE_ENABLED, true);
+    }
+    if (itrEnabled) {
+      setTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, true);
+      setTag(Tags.TEST_ITR_TESTS_SKIPPING_TYPE, "test");
+
+      long testsSkippedTotal = testsSkipped.sum();
+      setTag(Tags.TEST_ITR_TESTS_SKIPPING_COUNT, testsSkippedTotal);
+      if (testsSkippedTotal > 0) {
+        setTag(DDTags.CI_ITR_TESTS_SKIPPED, true);
+      }
     }
 
     Object testFramework = context.getChildTag(Tags.TEST_FRAMEWORK);
@@ -156,18 +169,20 @@ public class DDTestModuleParent extends DDTestModuleImpl {
     ModuleExecutionSettings moduleExecutionSettings =
         moduleExecutionSettingsFactory.create(JvmInfo.CURRENT_JVM, moduleName);
     Map<String, String> systemProperties = moduleExecutionSettings.getSystemProperties();
-    if (propertyEnabled(systemProperties, CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED)) {
-      setTag(Tags.TEST_CODE_COVERAGE_ENABLED, true);
-    }
-    if (propertyEnabled(systemProperties, CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED)) {
-      setTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, true);
-    }
-
+    codeCoverageEnabled =
+        propertyEnabled(systemProperties, CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED);
+    itrEnabled = propertyEnabled(systemProperties, CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED);
     return new HashSet<>(moduleExecutionSettings.getSkippableTests(moduleName));
   }
 
   private boolean propertyEnabled(Map<String, String> systemProperties, String propertyName) {
     String property = systemProperties.get(propertyName);
     return Boolean.parseBoolean(property);
+  }
+
+  public void onModuleExecutionResultReceived(ModuleExecutionResult result) {
+    codeCoverageEnabled = result.isCoverageEnabled();
+    itrEnabled = result.isItrEnabled();
+    testsSkipped.add(result.getTestsSkippedTotal());
   }
 }

@@ -155,7 +155,11 @@ class GradleDaemonSmokeTest extends Specification {
           it["test.toolchain"] == "gradle:${gradleVersion}" // only applied to session events
           it["test.code_coverage.enabled"] == "true"
           it["test.itr.tests_skipping.enabled"] == "true"
+          it["test.itr.tests_skipping.type"] == "test"
           it["_dd.ci.itr.tests_skipped"] == "true"
+        }
+        verifyAll(metrics) {
+          it["test.itr.tests_skipping.count"] == 1
         }
       }
     }
@@ -171,6 +175,12 @@ class GradleDaemonSmokeTest extends Specification {
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
           it["test.module"] == ":test" // task path
+          it["test.itr.tests_skipping.enabled"] == "true"
+          it["test.itr.tests_skipping.type"] == "test"
+          it["_dd.ci.itr.tests_skipped"] == "true"
+        }
+        verifyAll(metrics) {
+          it["test.itr.tests_skipping.count"] == 1
         }
       }
     }
@@ -240,6 +250,7 @@ class GradleDaemonSmokeTest extends Specification {
           it["test.name"] == "test_to_skip_with_itr"
           it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
           it["test.skip_reason"] == "Skipped by Datadog Intelligent Test Runner"
+          it["test.skipped_by_itr"] == "true"
         }
       }
     }
@@ -304,6 +315,12 @@ class GradleDaemonSmokeTest extends Specification {
           it["span.kind"] == "test_session_end"
           it["language"] == "jvm" // only applied to root spans
           it["test.toolchain"] == "gradle:${gradleVersion}" // only applied to session events
+          it["test.itr.tests_skipping.enabled"] == "true"
+          it["test.itr.tests_skipping.type"] == "test"
+          it["_dd.ci.itr.tests_skipped"] == "true"
+        }
+        verifyAll(metrics) {
+          it["test.itr.tests_skipping.count"] == 1
         }
       }
     }
@@ -319,6 +336,12 @@ class GradleDaemonSmokeTest extends Specification {
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
           it["test.module"] == ":test" // task path
+          it["test.itr.tests_skipping.enabled"] == "true"
+          it["test.itr.tests_skipping.type"] == "test"
+          it["_dd.ci.itr.tests_skipped"] == "true"
+        }
+        verifyAll(metrics) {
+          it["test.itr.tests_skipping.count"] == 1
         }
       }
     }
@@ -388,6 +411,7 @@ class GradleDaemonSmokeTest extends Specification {
           it["test.name"] == "test_to_skip_with_itr"
           it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
           it["test.skip_reason"] == "Skipped by Datadog Intelligent Test Runner"
+          it["test.skipped_by_itr"] == "true"
         }
       }
     }

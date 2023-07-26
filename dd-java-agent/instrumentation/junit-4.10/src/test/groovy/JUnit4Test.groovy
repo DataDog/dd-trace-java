@@ -437,7 +437,10 @@ class JUnit4Test extends CiVisibilityTest {
       long testSuiteId
       trace(2, true) {
         testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS, [
-          (DDTags.CI_ITR_TESTS_SKIPPED): true
+          (DDTags.CI_ITR_TESTS_SKIPPED): true,
+          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
+          (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
+          (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 2,
         ])
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestFailedAndSucceed", CIConstants.TEST_PASS)
       }
@@ -453,7 +456,7 @@ class JUnit4Test extends CiVisibilityTest {
     })
 
     where:
-    testTags = [(Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner"]
+    testTags = [(Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner", (Tags.TEST_SKIPPED_BY_ITR): true ]
   }
 
   def "test ITR skipping for parameterized"() {
@@ -468,7 +471,10 @@ class JUnit4Test extends CiVisibilityTest {
       long testSuiteId
       trace(2, true) {
         testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS, [
-          (DDTags.CI_ITR_TESTS_SKIPPED): true
+          (DDTags.CI_ITR_TESTS_SKIPPED): true,
+          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
+          (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
+          (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 1,
         ])
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestParameterized", CIConstants.TEST_PASS)
       }
@@ -483,7 +489,8 @@ class JUnit4Test extends CiVisibilityTest {
     where:
     testTags_0 = [
       (Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"parameterized_test_succeed[0]"}}',
-      (Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner"
+      (Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner",
+      (Tags.TEST_SKIPPED_BY_ITR): true
     ]
     testTags_1 = [(Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"parameterized_test_succeed[1]"}}']
   }

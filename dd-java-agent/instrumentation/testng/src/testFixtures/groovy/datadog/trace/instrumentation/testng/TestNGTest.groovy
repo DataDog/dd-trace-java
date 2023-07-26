@@ -745,7 +745,10 @@ abstract class TestNGTest extends CiVisibilityTest {
       long testSuiteId
       trace(2, true) {
         testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS, [
-          (DDTags.CI_ITR_TESTS_SKIPPED): true
+          (DDTags.CI_ITR_TESTS_SKIPPED): true,
+          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
+          (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
+          (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 2,
         ])
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestFailedAndSucceed", CIConstants.TEST_PASS)
       }
@@ -761,7 +764,7 @@ abstract class TestNGTest extends CiVisibilityTest {
     })
 
     where:
-    testTags = [(Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner"]
+    testTags = [(Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner", (Tags.TEST_SKIPPED_BY_ITR): true]
   }
 
   def "test ITR skipping for parameterized tests"() {
@@ -781,7 +784,10 @@ abstract class TestNGTest extends CiVisibilityTest {
       long testSuiteId
       trace(2, true) {
         testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS, [
-          (DDTags.CI_ITR_TESTS_SKIPPED): true
+          (DDTags.CI_ITR_TESTS_SKIPPED): true,
+          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
+          (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
+          (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 1,
         ])
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestParameterized", CIConstants.TEST_PASS)
       }
@@ -796,7 +802,8 @@ abstract class TestNGTest extends CiVisibilityTest {
     where:
     testTags_0 = [
       (Tags.TEST_PARAMETERS): '{"arguments":{"0":"hello","1":"true"}}',
-      (Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner"
+      (Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner",
+      (Tags.TEST_SKIPPED_BY_ITR): true
     ]
     testTags_1 = [(Tags.TEST_PARAMETERS): '{"arguments":{"0":"\\\"goodbye\\\"","1":"false"}}']
   }

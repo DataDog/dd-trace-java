@@ -127,7 +127,11 @@ class MavenSmokeTest extends Specification {
           it["test.status"] == "pass"
           it["test.code_coverage.enabled"] == "true"
           it["test.itr.tests_skipping.enabled"] == "true"
+          it["test.itr.tests_skipping.type"] == "test"
           it["_dd.ci.itr.tests_skipped"] == "true"
+        }
+        verifyAll(metrics) {
+          it["test.itr.tests_skipping.count"] == 1
         }
       }
     }
@@ -145,6 +149,13 @@ class MavenSmokeTest extends Specification {
           it["span.kind"] == "test_module_end"
           it["test.module"] == "Maven Smoke Tests Project test" // project name + execution goal
           it["test.status"] == "pass"
+          it["test.code_coverage.enabled"] == "true"
+          it["test.itr.tests_skipping.enabled"] == "true"
+          it["test.itr.tests_skipping.type"] == "test"
+          it["_dd.ci.itr.tests_skipped"] == "true"
+        }
+        verifyAll(metrics) {
+          it["test.itr.tests_skipping.count"] == 1
         }
       }
     }
@@ -218,6 +229,7 @@ class MavenSmokeTest extends Specification {
           it["test.source.file"] == "src/test/java/datadog/smoke/TestSucceed.java"
           it["test.status"] == "skip"
           it["test.skip_reason"] == "Skipped by Datadog Intelligent Test Runner"
+          it["test.skipped_by_itr"] == "true"
         }
       }
     }

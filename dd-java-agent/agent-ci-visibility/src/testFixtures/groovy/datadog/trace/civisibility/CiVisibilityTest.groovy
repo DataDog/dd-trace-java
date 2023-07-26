@@ -63,9 +63,13 @@ abstract class CiVisibilityTest extends AgentTestRunner {
     def methodLinesResolver = Stub(MethodLinesResolver)
     methodLinesResolver.getLines(_) >> new MethodLinesResolver.MethodLines(DUMMY_TEST_METHOD_START, DUMMY_TEST_METHOD_END)
 
-    def moduleExecutionSettings = new ModuleExecutionSettings(Collections.emptyMap(), Collections.singletonMap(dummyModule, skippableTests))
     def moduleExecutionSettingsFactory = Stub(ModuleExecutionSettingsFactory)
-    moduleExecutionSettingsFactory.create(_, _) >> moduleExecutionSettings
+    moduleExecutionSettingsFactory.create(_, _) >> {
+      Map<String, String> properties = [
+        (CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED) : String.valueOf(!skippableTests.isEmpty())
+      ]
+      return new ModuleExecutionSettings(properties, Collections.singletonMap(dummyModule, skippableTests))
+    }
 
     CIVisibility.registerSessionFactory (String projectName, Path projectRoot, String component, Long startTime) -> {
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
@@ -102,8 +106,12 @@ abstract class CiVisibilityTest extends AgentTestRunner {
     InstrumentationBridge.registerCoverageProbeStoreFactory(new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory())
   }
 
-  def givenSkippableTests(List<SkippableTest> tests) {
+  @Override
+  void setup() {
     skippableTests.clear()
+  }
+
+  def givenSkippableTests(List<SkippableTest> tests) {
     skippableTests.addAll(tests)
   }
 
@@ -325,7 +333,7 @@ abstract class CiVisibilityTest extends AgentTestRunner {
   final String testName,
   final String testMethod,
   final String testStatus,
-  final Map<String, String> testTags = null,
+  final Map<String, Object> testTags = null,
   final Throwable exception = null,
   final boolean emptyDuration = false, final Collection<String> categories = null) {
     def testFramework = expectedTestFramework()

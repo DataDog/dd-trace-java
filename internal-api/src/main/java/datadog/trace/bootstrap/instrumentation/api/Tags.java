@@ -49,6 +49,7 @@ public class Tags {
   public static final String TEST_FRAMEWORK = "test.framework";
   public static final String TEST_FRAMEWORK_VERSION = "test.framework_version";
   public static final String TEST_SKIP_REASON = "test.skip_reason";
+  public static final String TEST_SKIPPED_BY_ITR = "test.skipped_by_itr";
   public static final String TEST_TYPE = "test.type";
   public static final String TEST_PARAMETERS = "test.parameters";
   public static final String TEST_CODEOWNERS = "test.codeowners";
@@ -67,6 +68,8 @@ public class Tags {
   public static final String TEST_SUITE_ID = "test_suite_id";
   public static final String TEST_CODE_COVERAGE_ENABLED = "test.code_coverage.enabled";
   public static final String TEST_ITR_TESTS_SKIPPING_ENABLED = "test.itr.tests_skipping.enabled";
+  public static final String TEST_ITR_TESTS_SKIPPING_TYPE = "test.itr.tests_skipping.type";
+  public static final String TEST_ITR_TESTS_SKIPPING_COUNT = "test.itr.tests_skipping.count";
 
   public static final String CI_PROVIDER_NAME = "ci.provider.name";
   public static final String CI_PIPELINE_ID = "ci.pipeline.id";
