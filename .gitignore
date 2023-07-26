@@ -36,6 +36,7 @@ Thumbs.db
 # Intellij Idea #
 #################
 /.idea
+/.run
 *.iml
 *.ipr
 *.iws

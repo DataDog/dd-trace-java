@@ -1,0 +1,21 @@
+variables:
+  BASE_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/relenv-microbenchmarking-platform:dd-trace-java
+
+ci-vis-open-source-tests:
+  stage: deploy
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      allow_failure: true
+  trigger:
+    project: DataDog/apm-reliability/test-environment
+    strategy: depend
+    branch: "main"
+  variables:
+    UPSTREAM_PACKAGE_JOB: build
+    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
+    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
+    UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
+    UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
+    UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA
+    FORCE_TRIGGER: $FORCE_TRIGGER
+    JAVA_TRACER_REF_TO_TEST: $CI_COMMIT_REF_NAME
