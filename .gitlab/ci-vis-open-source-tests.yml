@@ -4,8 +4,6 @@ variables:
 ci-vis-open-source-tests:
   stage: ci-vis-open-source-tests
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      allow_failure: true
     - when: manual
       allow_failure: true
   trigger:
