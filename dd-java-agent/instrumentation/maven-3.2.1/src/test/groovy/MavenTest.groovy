@@ -196,25 +196,25 @@ class MavenTest extends CiVisibilityTest {
 
     assertTraces(1) {
       trace(3, true) {
-        def testSessionId = testSessionSpan(it, 2,
-          "Maven Integration Tests Project",
-          "mvn -T4 clean test",
-          "maven:3.2.5",
-          CIConstants.TEST_PASS)
-        testModuleSpan(it, 0,
+        def testSessionId = testSessionSpan(it, 2, CIConstants.TEST_PASS, [:],
+        "Maven Integration Tests Project",
+        "mvn -T4 clean test",
+        "maven:3.2.5",
+        )
+        testModuleSpan(it, 0, testSessionId,
           CIConstants.TEST_PASS,
           [
             (Tags.TEST_COMMAND)  : "mvn -T4 clean test",
             (Tags.TEST_EXECUTION): "maven-surefire-plugin:test:default-test",
           ],
-          null, testSessionId, "module-a test")
-        testModuleSpan(it, 1,
+          null, "module-a test")
+        testModuleSpan(it, 1, testSessionId,
           CIConstants.TEST_PASS,
           [
             (Tags.TEST_COMMAND)  : "mvn -T4 clean test",
             (Tags.TEST_EXECUTION): "maven-surefire-plugin:test:default-test",
           ],
-          null, testSessionId, "module-b test")
+          null, "module-b test")
       }
     }
   }
