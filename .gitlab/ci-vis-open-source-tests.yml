@@ -3,9 +3,6 @@ variables:
 
 run-ci-vis-open-source-tests:
   stage: ci-vis-open-source-tests
-  rules:
-    - when: manual
-      allow_failure: true
   trigger:
     project: DataDog/apm-reliability/test-environment
     branch: main
