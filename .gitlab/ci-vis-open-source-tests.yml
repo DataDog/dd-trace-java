@@ -4,9 +4,14 @@ variables:
 run-ci-vis-open-source-tests:
   stage: ci-vis-open-source-tests
   when: manual
-  needs: []
-  tags: [ "runner:docker" ]
-  image: $REGISTRY/docker:20.10.3
-  script:
-    - docker build --tag $EXPLORATION_TESTS_IMAGE -f dd-java-agent/agent-debugger/exploration-tests/Dockerfile.exploration-tests dd-java-agent/agent-debugger/exploration-tests
-    - docker push $EXPLORATION_TESTS_IMAGE
+  trigger:
+    project: DataDog/apm-reliability/datadog-reliability-env
+    branch: main
+  variables:
+    UPSTREAM_PACKAGE_JOB: build
+    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
+    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
+    UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
+    UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
+    UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA
+    FORCE_TRIGGER: $FORCE_TRIGGER
