@@ -1,13 +1,10 @@
-variables:
-  BASE_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/relenv-microbenchmarking-platform:dd-trace-java
-
-ci-vis-open-source-tests:
+ci-vis-open-source-tests-execute:
   stage: ci-vis-open-source-tests
   when: manual
   trigger:
     project: DataDog/apm-reliability/test-environment
     strategy: depend
-    branch: "main"
+    branch: main
   variables:
     UPSTREAM_PACKAGE_JOB: build
     UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
