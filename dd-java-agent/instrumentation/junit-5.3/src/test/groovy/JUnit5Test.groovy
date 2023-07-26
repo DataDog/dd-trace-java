@@ -630,14 +630,10 @@ class JUnit5Test extends CiVisibilityTest {
       long testModuleId
       long testSuiteId
       trace(3, true) {
-        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS, [
-          (DDTags.CI_ITR_TESTS_SKIPPED): true,
-          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
-          (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
-          (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 2,
-        ])
+        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
         testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS, [
           (DDTags.CI_ITR_TESTS_SKIPPED): true,
+          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
           (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
           (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 2,
         ])
@@ -671,14 +667,10 @@ class JUnit5Test extends CiVisibilityTest {
       long testModuleId
       long testSuiteId
       trace(3, true) {
-        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS, [
-          (DDTags.CI_ITR_TESTS_SKIPPED): true,
-          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
-          (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
-          (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 1,
-        ])
+        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
         testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS, [
           (DDTags.CI_ITR_TESTS_SKIPPED): true,
+          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
           (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
           (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 1,
         ])
