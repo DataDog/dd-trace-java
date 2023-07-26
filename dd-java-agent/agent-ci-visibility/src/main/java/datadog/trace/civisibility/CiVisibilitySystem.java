@@ -4,6 +4,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIVisibility;
 import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.api.git.GitInfoProvider;
@@ -15,10 +16,12 @@ import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.codeowners.CodeownersProvider;
 import datadog.trace.civisibility.communication.BackendApi;
 import datadog.trace.civisibility.communication.BackendApiFactory;
+import datadog.trace.civisibility.config.CachingModuleExecutionSettingsFactory;
 import datadog.trace.civisibility.config.ConfigurationApi;
 import datadog.trace.civisibility.config.ConfigurationApiImpl;
 import datadog.trace.civisibility.config.JvmInfoFactory;
 import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory;
+import datadog.trace.civisibility.config.ModuleExecutionSettingsFactoryImpl;
 import datadog.trace.civisibility.coverage.TestProbes;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.decorator.TestDecoratorImpl;
@@ -68,8 +71,9 @@ public class CiVisibilitySystem {
     GitInfoProvider.INSTANCE.registerGitInfoBuilder(new CILocalGitInfoBuilder(GIT_FOLDER_NAME));
 
     InstrumentationBridge.registerTestEventsHandlerFactory(
-        CiVisibilitySystem::createTestEventsHandler);
-    InstrumentationBridge.registerBuildEventsHandlerFactory(BuildEventsHandlerImpl::new);
+        buildTestEventsHandlerFactory(config, sco));
+    InstrumentationBridge.registerBuildEventsHandlerFactory(
+        CiVisibilitySystem::createBuildEventsHandler);
     InstrumentationBridge.registerCoverageProbeStoreFactory(new TestProbes.TestProbesFactory());
 
     CIVisibility.registerSessionFactory(buildSessionFactory(config, sco));
@@ -158,28 +162,45 @@ public class CiVisibilitySystem {
     } else {
       configurationApi = new ConfigurationApiImpl(backendApi);
     }
-    return new ModuleExecutionSettingsFactory(
-        config, configurationApi, new JvmInfoFactory(), gitDataUploader, repositoryRoot);
+    return new CachingModuleExecutionSettingsFactory(
+        config,
+        new ModuleExecutionSettingsFactoryImpl(
+            config, configurationApi, gitDataUploader, repositoryRoot));
   }
 
-  private static TestEventsHandler createTestEventsHandler(String component, Path path) {
-    Config config = Config.get();
-    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(config);
-    CIProviderInfo ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(path);
-    CIInfo ciInfo = ciProviderInfo.buildCIInfo();
-    String repoRoot = ciInfo.getCiWorkspace();
-    String moduleName =
-        (repoRoot != null) ? Paths.get(repoRoot).relativize(path).toString() : path.toString();
+  private static TestEventsHandler.Factory buildTestEventsHandlerFactory(
+      Config config, SharedCommunicationObjects sco) {
+    BackendApiFactory backendApiFactory = new BackendApiFactory(config, sco);
+    BackendApi backendApi = backendApiFactory.createBackendApi();
 
-    RepoIndexProvider indexProvider = getRepoIndexProvider(config, repoRoot);
-    SourcePathResolver sourcePathResolver = getSourcePathResolver(repoRoot, indexProvider);
-    Codeowners codeowners = getCodeowners(repoRoot);
-    MethodLinesResolver methodLinesResolver = new MethodLinesResolverImpl();
-    Map<String, String> ciTags = new CITagsProvider().getCiTags(ciInfo);
-    TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags);
+    return (String component, Path path) -> {
+      CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(config);
+      CIProviderInfo ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(path);
+      CIInfo ciInfo = ciProviderInfo.buildCIInfo();
+      String repoRoot = ciInfo.getCiWorkspace();
+      String moduleName =
+          (repoRoot != null) ? Paths.get(repoRoot).relativize(path).toString() : path.toString();
 
-    return new TestEventsHandlerImpl(
-        moduleName, config, testDecorator, sourcePathResolver, codeowners, methodLinesResolver);
+      RepoIndexProvider indexProvider = getRepoIndexProvider(config, repoRoot);
+      SourcePathResolver sourcePathResolver = getSourcePathResolver(repoRoot, indexProvider);
+      Codeowners codeowners = getCodeowners(repoRoot);
+      MethodLinesResolver methodLinesResolver = new MethodLinesResolverImpl();
+      Map<String, String> ciTags = new CITagsProvider().getCiTags(ciInfo);
+      TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags);
+
+      GitDataUploader gitDataUploader = buildGitDataUploader(config, backendApi, repoRoot);
+      ModuleExecutionSettingsFactory moduleExecutionSettingsFactory =
+          buildModuleExecutionSettingsFactory(config, backendApi, gitDataUploader, repoRoot);
+
+      return new TestEventsHandlerImpl(
+          moduleName,
+          config,
+          testDecorator,
+          sourcePathResolver,
+          codeowners,
+          methodLinesResolver,
+          moduleExecutionSettingsFactory);
+    };
   }
 
   private static RepoIndexProvider getRepoIndexProvider(Config config, String repoRoot) {
@@ -220,5 +241,9 @@ public class CiVisibilitySystem {
     } else {
       return path -> null;
     }
+  }
+
+  private static <U> BuildEventsHandler<U> createBuildEventsHandler() {
+    return new BuildEventsHandlerImpl<>(new JvmInfoFactory());
   }
 }

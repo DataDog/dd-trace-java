@@ -1,12 +1,11 @@
 package datadog.trace.instrumentation.testng
 
 import datadog.trace.agent.test.asserts.ListWriterAssert
-import datadog.trace.api.civisibility.config.SkippableTest
-import datadog.trace.api.civisibility.config.SkippableTestsSerializer
-import datadog.trace.api.config.CiVisibilityConfig
-import datadog.trace.civisibility.CiVisibilityTest
+import datadog.trace.api.DDTags
 import datadog.trace.api.civisibility.CIConstants
+import datadog.trace.api.civisibility.config.SkippableTest
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.civisibility.CiVisibilityTest
 import org.example.TestError
 import org.example.TestFailed
 import org.example.TestFailedAndSucceed
@@ -730,10 +729,10 @@ abstract class TestNGTest extends CiVisibilityTest {
 
   def "test ITR skipping"() {
     setup:
-    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_SKIPPABLE_TESTS, SkippableTestsSerializer.serialize([
+    givenSkippableTests([
       new SkippableTest("org.example.TestFailedAndSucceed", "test_another_succeed", null, null),
       new SkippableTest("org.example.TestFailedAndSucceed", "test_failed", null, null),
-    ]))
+    ])
 
     def testNG = new TestNG()
     testNG.setTestClasses(TestFailedAndSucceed)
@@ -745,7 +744,9 @@ abstract class TestNGTest extends CiVisibilityTest {
       long testModuleId
       long testSuiteId
       trace(2, true) {
-        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS, [
+          (DDTags.CI_ITR_TESTS_SKIPPED): true
+        ])
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestFailedAndSucceed", CIConstants.TEST_PASS)
       }
       trace(1) {
@@ -765,9 +766,9 @@ abstract class TestNGTest extends CiVisibilityTest {
 
   def "test ITR skipping for parameterized tests"() {
     setup:
-    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_SKIPPABLE_TESTS, SkippableTestsSerializer.serialize([
+    givenSkippableTests([
       new SkippableTest("org.example.TestParameterized", "parameterized_test_succeed", testTags_0[Tags.TEST_PARAMETERS], null),
-    ]))
+    ])
 
     def testNG = new TestNG()
     testNG.setTestClasses(TestParameterized)
@@ -779,7 +780,9 @@ abstract class TestNGTest extends CiVisibilityTest {
       long testModuleId
       long testSuiteId
       trace(2, true) {
-        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS, [
+          (DDTags.CI_ITR_TESTS_SKIPPED): true
+        ])
         testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestParameterized", CIConstants.TEST_PASS)
       }
       trace(1) {

@@ -1,18 +1,18 @@
 package datadog.trace.api.civisibility.config;
 
-import java.nio.file.Path;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 
 public class ModuleExecutionSettings {
 
   private final Map<String, String> systemProperties;
-  private final Map<Path, List<SkippableTest>> skippableTestsByModule;
+  private final Map<String, List<SkippableTest>> skippableTestsByModule;
 
   public ModuleExecutionSettings(
-      Map<String, String> systemProperties, Map<Path, List<SkippableTest>> skippableTestsByModule) {
+      Map<String, String> systemProperties,
+      Map<String, List<SkippableTest>> skippableTestsByModule) {
     this.systemProperties = systemProperties;
     this.skippableTestsByModule = skippableTestsByModule;
   }
@@ -21,8 +21,7 @@ public class ModuleExecutionSettings {
     return systemProperties;
   }
 
-  @Nullable
-  public Collection<SkippableTest> getSkippableTests(Path absoluteModulePath) {
-    return skippableTestsByModule.get(absoluteModulePath);
+  public Collection<SkippableTest> getSkippableTests(String relativeModulePath) {
+    return skippableTestsByModule.getOrDefault(relativeModulePath, Collections.emptyList());
   }
 }

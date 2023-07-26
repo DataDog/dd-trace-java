@@ -114,11 +114,8 @@ public class GradleBuildListener extends BuildAdapter {
         buildEventsHandler.getModuleExecutionSettings(gradle, jvmExecutablePath);
 
     for (Task testExecution : testExecutions) {
-      Path modulePath = testExecution.getProject().getProjectDir().toPath();
       GradleProjectConfigurator.INSTANCE.configureTracer(
-          testExecution,
-          moduleExecutionSettings.getSystemProperties(),
-          moduleExecutionSettings.getSkippableTests(modulePath));
+          testExecution, moduleExecutionSettings.getSystemProperties());
     }
   }
 

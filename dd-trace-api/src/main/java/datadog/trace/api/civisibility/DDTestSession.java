@@ -1,7 +1,7 @@
 package datadog.trace.api.civisibility;
 
+import datadog.trace.api.civisibility.config.JvmInfo;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
-import java.nio.file.Path;
 import javax.annotation.Nullable;
 
 /**
@@ -70,5 +70,5 @@ public interface DDTestSession {
    */
   DDTestModule testModuleStart(String moduleName, @Nullable Long startTime);
 
-  ModuleExecutionSettings getModuleExecutionSettings(@Nullable Path jvmPath);
+  ModuleExecutionSettings getModuleExecutionSettings(JvmInfo jvmInfo);
 }

@@ -15,6 +15,7 @@ import datadog.trace.civisibility.DDTestModuleImpl;
 import datadog.trace.civisibility.DDTestModuleParent;
 import datadog.trace.civisibility.DDTestSuiteImpl;
 import datadog.trace.civisibility.codeowners.Codeowners;
+import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory;
 import datadog.trace.civisibility.context.EmptyTestContext;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
@@ -24,7 +25,6 @@ import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import javax.annotation.Nullable;
@@ -41,6 +41,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
   private final MethodLinesResolver methodLinesResolver;
+  private final ModuleExecutionSettingsFactory moduleExecutionSettingsFactory;
 
   private volatile DDTestModuleImpl testModule;
 
@@ -53,21 +54,21 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   private final ConcurrentMap<TestDescriptor, DDTestImpl> inProgressTests =
       new ConcurrentHashMap<>();
 
-  private volatile boolean testsSkipped;
-
   public TestEventsHandlerImpl(
       String moduleName,
       Config config,
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
-      MethodLinesResolver methodLinesResolver) {
+      MethodLinesResolver methodLinesResolver,
+      ModuleExecutionSettingsFactory moduleExecutionSettingsFactory) {
     this.moduleName = moduleName;
     this.config = config;
     this.testDecorator = testDecorator;
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
+    this.moduleExecutionSettingsFactory = moduleExecutionSettingsFactory;
   }
 
   @Override
@@ -123,6 +124,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
           sourcePathResolver,
           codeowners,
           methodLinesResolver,
+          moduleExecutionSettingsFactory,
           null);
     }
 
@@ -156,7 +158,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
     if (testModule != null) {
       synchronized (this) {
         if (testModule != null) {
-          testModule.end(null, testsSkipped);
+          testModule.end(null);
           testModule = null;
         }
       }
@@ -406,12 +408,6 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
   @Override
   public boolean skip(SkippableTest test) {
-    Set<SkippableTest> skippableTests = Config.get().getCiVisibilitySkippableTests();
-    if (skippableTests.contains(test)) {
-      testsSkipped = true;
-      return true;
-    } else {
-      return false;
-    }
+    return getTestModule().skip(test);
   }
 }

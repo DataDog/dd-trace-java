@@ -8,11 +8,14 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.civisibility.CIVisibility
 import datadog.trace.api.civisibility.InstrumentationBridge
+import datadog.trace.api.civisibility.config.ModuleExecutionSettings
+import datadog.trace.api.civisibility.config.SkippableTest
 import datadog.trace.api.civisibility.source.SourcePathResolver
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.civisibility.codeowners.Codeowners
+import datadog.trace.civisibility.config.JvmInfoFactory
 import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory
 import datadog.trace.civisibility.decorator.TestDecorator
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
@@ -20,7 +23,6 @@ import datadog.trace.civisibility.events.BuildEventsHandlerImpl
 import datadog.trace.civisibility.events.TestEventsHandlerImpl
 import datadog.trace.civisibility.ipc.SignalServer
 import datadog.trace.civisibility.source.MethodLinesResolver
-import datadog.trace.civisibility.source.index.RepoIndex
 import datadog.trace.civisibility.source.index.RepoIndexBuilder
 import datadog.trace.core.DDSpan
 import datadog.trace.util.Strings
@@ -45,6 +47,8 @@ abstract class CiVisibilityTest extends AgentTestRunner {
 
   private static Path agentKeyFile
 
+  private static final List<SkippableTest> skippableTests = new ArrayList<>()
+
   def setupSpec() {
     def currentPath = Paths.get("").toAbsolutePath()
     def rootPath = currentPath.parent
@@ -59,20 +63,9 @@ abstract class CiVisibilityTest extends AgentTestRunner {
     def methodLinesResolver = Stub(MethodLinesResolver)
     methodLinesResolver.getLines(_) >> new MethodLinesResolver.MethodLines(DUMMY_TEST_METHOD_START, DUMMY_TEST_METHOD_END)
 
+    def moduleExecutionSettings = new ModuleExecutionSettings(Collections.emptyMap(), Collections.singletonMap(dummyModule, skippableTests))
     def moduleExecutionSettingsFactory = Stub(ModuleExecutionSettingsFactory)
-
-    InstrumentationBridge.registerTestEventsHandlerFactory {
-      component, path ->
-      def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
-      def testDecorator = new TestDecoratorImpl(component, ciTags)
-      new TestEventsHandlerImpl(dummyModule, Config.get(), testDecorator, sourcePathResolver, codeowners, methodLinesResolver)
-    }
-
-    InstrumentationBridge.registerBuildEventsHandlerFactory {
-      decorator -> new BuildEventsHandlerImpl<>()
-    }
-
-    InstrumentationBridge.registerCoverageProbeStoreFactory(new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory())
+    moduleExecutionSettingsFactory.create(_, _) >> moduleExecutionSettings
 
     CIVisibility.registerSessionFactory (String projectName, Path projectRoot, String component, Long startTime) -> {
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
@@ -94,6 +87,24 @@ abstract class CiVisibilityTest extends AgentTestRunner {
       repoIndexBuilder
       )
     }
+
+    InstrumentationBridge.registerTestEventsHandlerFactory {
+      component, path ->
+      def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
+      def testDecorator = new TestDecoratorImpl(component, ciTags)
+      new TestEventsHandlerImpl(dummyModule, Config.get(), testDecorator, sourcePathResolver, codeowners, methodLinesResolver, moduleExecutionSettingsFactory)
+    }
+
+    InstrumentationBridge.registerBuildEventsHandlerFactory {
+      decorator -> new BuildEventsHandlerImpl<>(new JvmInfoFactory())
+    }
+
+    InstrumentationBridge.registerCoverageProbeStoreFactory(new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory())
+  }
+
+  def givenSkippableTests(List<SkippableTest> tests) {
+    skippableTests.clear()
+    skippableTests.addAll(tests)
   }
 
   @Override
@@ -174,7 +185,7 @@ abstract class CiVisibilityTest extends AgentTestRunner {
   Long testModuleSpan(final TraceAssert trace,
   final int index,
   final String testStatus,
-  final Map<String, String> testTags = null,
+  final Map<String, Object> testTags = null,
   final Throwable exception = null,
   final Long testSessionId = null,
   final String resource = null) {

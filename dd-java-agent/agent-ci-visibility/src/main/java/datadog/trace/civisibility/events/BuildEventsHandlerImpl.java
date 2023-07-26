@@ -3,10 +3,12 @@ package datadog.trace.civisibility.events;
 import datadog.trace.api.civisibility.CIVisibility;
 import datadog.trace.api.civisibility.DDTestModule;
 import datadog.trace.api.civisibility.DDTestSession;
+import datadog.trace.api.civisibility.config.JvmInfo;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.DDTestModuleImpl;
+import datadog.trace.civisibility.config.JvmInfoFactory;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -18,6 +20,12 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
 
   private final ConcurrentMap<TestModuleDescriptor<T>, DDTestModule> inProgressTestModules =
       new ConcurrentHashMap<>();
+
+  private final JvmInfoFactory jvmInfoFactory;
+
+  public BuildEventsHandlerImpl(JvmInfoFactory jvmInfoFactory) {
+    this.jvmInfoFactory = jvmInfoFactory;
+  }
 
   @Override
   public void onTestSessionStart(
@@ -135,12 +143,13 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
               + " and module name "
               + moduleName);
     }
-    testModule.end(null, false);
+    testModule.end(null);
   }
 
   @Override
   public ModuleExecutionSettings getModuleExecutionSettings(T sessionKey, Path jvmExecutablePath) {
     DDTestSession testSession = getTestSession(sessionKey);
-    return testSession.getModuleExecutionSettings(jvmExecutablePath);
+    JvmInfo jvmInfo = jvmInfoFactory.getJvmInfo(jvmExecutablePath);
+    return testSession.getModuleExecutionSettings(jvmInfo);
   }
 }

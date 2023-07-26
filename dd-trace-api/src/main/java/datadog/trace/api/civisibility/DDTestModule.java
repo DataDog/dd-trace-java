@@ -1,5 +1,6 @@
 package datadog.trace.api.civisibility;
 
+import datadog.trace.api.civisibility.config.SkippableTest;
 import javax.annotation.Nullable;
 
 /**
@@ -55,10 +56,8 @@ public interface DDTestModule {
    *
    * @param endTime Optional finish time in microseconds. If {@code null} is supplied, current time
    *     will be assumed
-   * @param testsSkipped Flag indicating whether module contained tests that were skipped by
-   *     Intelligent Test Runner
    */
-  void end(@Nullable Long endTime, boolean testsSkipped);
+  void end(@Nullable Long endTime);
 
   /**
    * Marks the start of a new test suite in the module.
@@ -90,4 +89,12 @@ public interface DDTestModule {
       @Nullable Class<?> testClass,
       @Nullable Long startTime,
       boolean parallelized);
+
+  /**
+   * Checks if a given test can be skipped with Intelligent Test Runner or not
+   *
+   * @param test Test to be checked
+   * @return {@code true} if the test can be skipped, {@code false} otherwise
+   */
+  boolean skip(SkippableTest test);
 }
