@@ -2,7 +2,7 @@ variables:
   BASE_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/relenv-microbenchmarking-platform:dd-trace-java
 
 ci-vis-open-source-tests:
-  stage: deploy
+  stage: ci-vis-open-source-tests
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       allow_failure: true
