@@ -1,0 +1,23 @@
+muzzle {
+  pass {
+    group = 'org.apache.commons'
+    module = 'commons-text'
+    versions = '[1.0,]'
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'call-site-instrumentation'
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'org.apache.commons', name: 'commons-text', version: '1.0'
+
+  testImplementation group: 'org.apache.commons', name: 'commons-text', version: '1.0'
+
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+
+  latestDepTestImplementation group: 'org.apache.commons', name: 'commons-text', version: '+'
+}
