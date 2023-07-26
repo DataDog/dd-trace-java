@@ -16,6 +16,7 @@ public class DependencyPeriodicAction implements TelemetryRunnable.TelemetryPeri
   public void doIteration(TelemetryService telService) {
     Collection<Dependency> dependencies = dependencyService.drainDeterminedDependencies();
     for (Dependency dep : dependencies) {
+      // TODO no need to convert anymore
       datadog.telemetry.api.Dependency telDep = new datadog.telemetry.api.Dependency();
       telDep.setHash(dep.getHash());
       telDep.setName(dep.getName());

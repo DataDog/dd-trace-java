@@ -1,47 +1,35 @@
 package datadog.telemetry;
 
-import datadog.telemetry.api.AppClientConfigurationChange;
-import datadog.telemetry.api.AppDependenciesLoaded;
-import datadog.telemetry.api.AppIntegrationsChange;
-import datadog.telemetry.api.AppStarted;
 import datadog.telemetry.api.Dependency;
 import datadog.telemetry.api.DistributionSeries;
-import datadog.telemetry.api.Distributions;
-import datadog.telemetry.api.GenerateMetrics;
 import datadog.telemetry.api.Integration;
 import datadog.telemetry.api.KeyValue;
 import datadog.telemetry.api.LogMessage;
-import datadog.telemetry.api.Logs;
 import datadog.telemetry.api.Metric;
-import datadog.telemetry.api.Payload;
 import datadog.telemetry.api.RequestType;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.function.Supplier;
 import javax.annotation.Nullable;
+import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
-import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TelemetryService {
 
   private static final Logger log = LoggerFactory.getLogger(TelemetryService.class);
-  private static final String TELEMETRY_NAMESPACE_TAG_TRACER = "tracers";
 
   private static final int MAX_ELEMENTS_PER_REQUEST = 100;
 
   // https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/producing-telemetry.md#when-to-use-it-1
   private static final int MAX_DEPENDENCIES_PER_REQUEST = 2000;
 
-  private final OkHttpClient httpClient;
-  private final Supplier<RequestBuilder> requestBuilderSupplier;
+  private final HttpClient httpClient;
   private final int maxElementsPerReq;
   private final int maxDepsPerReq;
   private final BlockingQueue<KeyValue> configurations = new LinkedBlockingQueue<>();
@@ -63,29 +51,34 @@ public class TelemetryService {
   private boolean openTracingIntegrationEnabled;
   private boolean openTelemetryIntegrationEnabled;
 
-  public TelemetryService(
-      final OkHttpClient httpClient, final Supplier<RequestBuilder> requestBuilderSupplier) {
-    this(
-        httpClient, requestBuilderSupplier, MAX_ELEMENTS_PER_REQUEST, MAX_DEPENDENCIES_PER_REQUEST);
+  private RequestBuilderProvider requestBuilderProvider;
+
+  public TelemetryService(final OkHttpClient okHttpClient, final HttpUrl agentUrl) {
+    this(new HttpClient(okHttpClient), agentUrl);
+  }
+
+  public TelemetryService(final HttpClient httpClient, final HttpUrl agentUrl) {
+    this(httpClient, MAX_ELEMENTS_PER_REQUEST, MAX_DEPENDENCIES_PER_REQUEST, agentUrl);
   }
 
   // For testing purposes
   TelemetryService(
-      final OkHttpClient httpClient,
-      final Supplier<RequestBuilder> requestBuilderSupplier,
+      final HttpClient httpClient,
       final int maxElementsPerReq,
-      final int maxDepsPerReq) {
+      final int maxDepsPerReq,
+      final HttpUrl agentUrl) {
     this.httpClient = httpClient;
-    this.requestBuilderSupplier = requestBuilderSupplier;
     this.sentAppStarted = false;
     this.openTracingIntegrationEnabled = false;
     this.openTelemetryIntegrationEnabled = false;
     this.maxElementsPerReq = maxElementsPerReq;
     this.maxDepsPerReq = maxDepsPerReq;
+    this.requestBuilderProvider = new RequestBuilderProvider(agentUrl);
   }
 
   public boolean addConfiguration(Map<String, Object> configuration) {
     for (Map.Entry<String, Object> entry : configuration.entrySet()) {
+      // TODO no need to convert anymore?
       if (!this.configurations.offer(new KeyValue().name(entry.getKey()).value(entry.getValue()))) {
         return false;
       }
@@ -113,15 +106,21 @@ public class TelemetryService {
   }
 
   public boolean addLogMessage(LogMessage message) {
+    // TODO doesn't seem to be used
     return this.logMessages.offer(message);
   }
 
   public boolean addDistributionSeries(DistributionSeries series) {
+    // TODO doesn't seem to be used
     return this.distributionSeries.offer(series);
   }
 
   public void sendAppClosingRequest() {
-    sendRequest(RequestType.APP_CLOSING, null);
+    RequestBuilder rb = requestBuilderProvider.create(RequestType.APP_CLOSING);
+    rb.writeHeader();
+    rb.writeFooter();
+    Request request = rb.request();
+    httpClient.sendRequest(request);
   }
 
   public void sendIntervalRequests() {
@@ -129,13 +128,15 @@ public class TelemetryService {
         new State(
             configurations, integrations, dependencies, metrics, distributionSeries, logMessages);
     if (!sentAppStarted) {
-      final Payload payload =
-          new AppStarted()
-              .configuration(state.configurations.getOrNull()) // absent if nothing
-              .integrations(state.integrations.get(maxElementsPerReq)) // empty list if nothing
-              .dependencies(state.dependencies.get(maxDepsPerReq)) // empty list if nothing
-              .requestType(RequestType.APP_STARTED);
-      if (sendRequest(RequestType.APP_STARTED, payload) != SendResult.SUCCESS) {
+      RequestBuilder rb = requestBuilderProvider.create(RequestType.APP_STARTED);
+      rb.writeHeader();
+      rb.writeConfigChangeEvent(state.configurations.getOrNull());
+      rb.writeIntegrationsEvent(state.integrations.get(maxElementsPerReq));
+      rb.writeDependenciesLoadedEvent(state.dependencies.get(maxElementsPerReq));
+      rb.writeFooter();
+      HttpClient.Result result = httpClient.sendRequest(rb.request());
+
+      if (result != HttpClient.Result.SUCCESS) {
         // Do not send other telemetry messages unless app-started has been sent successfully.
         state.rollback();
         return;
@@ -147,20 +148,26 @@ public class TelemetryService {
       return;
     }
 
-    if (sendRequest(RequestType.APP_HEARTBEAT, null) == SendResult.NOT_FOUND) {
-      state.rollback();
-      return;
+    {
+      RequestBuilder rb = requestBuilderProvider.create(RequestType.APP_HEARTBEAT);
+      rb.writeHeader();
+      rb.writeFooter();
+      if (httpClient.sendRequest(rb.request()) == HttpClient.Result.NOT_FOUND) {
+        state.rollback();
+        return;
+      }
     }
 
     while (!state.configurations.isEmpty()) {
-      final Payload payload =
-          new AppClientConfigurationChange()
-              .configuration(state.configurations.get(maxElementsPerReq))
-              .requestType(RequestType.APP_CLIENT_CONFIGURATION_CHANGE);
-      final SendResult result = sendRequest(RequestType.APP_CLIENT_CONFIGURATION_CHANGE, payload);
-      if (result == SendResult.SUCCESS) {
+      RequestBuilder rb =
+          requestBuilderProvider.create(RequestType.APP_CLIENT_CONFIGURATION_CHANGE);
+      rb.writeHeader();
+      rb.writeConfigChangeEvent(state.configurations.get(maxElementsPerReq));
+      rb.writeFooter();
+      HttpClient.Result result = httpClient.sendRequest(rb.request());
+      if (result == HttpClient.Result.SUCCESS) {
         state.commit();
-      } else if (result == SendResult.NOT_FOUND) {
+      } else if (result == HttpClient.Result.NOT_FOUND) {
         state.rollback();
         return;
       } else {
@@ -170,14 +177,14 @@ public class TelemetryService {
     }
 
     while (!state.integrations.isEmpty()) {
-      final Payload payload =
-          new AppIntegrationsChange()
-              .integrations(state.integrations.get(maxElementsPerReq))
-              .requestType(RequestType.APP_INTEGRATIONS_CHANGE);
-      final SendResult result = sendRequest(RequestType.APP_INTEGRATIONS_CHANGE, payload);
-      if (result == SendResult.SUCCESS) {
+      RequestBuilder rb = requestBuilderProvider.create(RequestType.APP_INTEGRATIONS_CHANGE);
+      rb.writeHeader();
+      rb.writeIntegrationsEvent(state.integrations.get(maxElementsPerReq));
+      rb.writeFooter();
+      HttpClient.Result result = httpClient.sendRequest(rb.request());
+      if (result == HttpClient.Result.SUCCESS) {
         state.commit();
-      } else if (result == SendResult.NOT_FOUND) {
+      } else if (result == HttpClient.Result.NOT_FOUND) {
         state.rollback();
         return;
       } else {
@@ -187,14 +194,14 @@ public class TelemetryService {
     }
 
     while (!state.dependencies.isEmpty()) {
-      final Payload payload =
-          new AppDependenciesLoaded()
-              .dependencies(state.dependencies.get(maxDepsPerReq))
-              .requestType(RequestType.APP_DEPENDENCIES_LOADED);
-      final SendResult result = sendRequest(RequestType.APP_DEPENDENCIES_LOADED, payload);
-      if (result == SendResult.SUCCESS) {
+      RequestBuilder rb = requestBuilderProvider.create(RequestType.APP_DEPENDENCIES_LOADED);
+      rb.writeHeader();
+      rb.writeDependenciesLoadedEvent(state.dependencies.get(maxDepsPerReq));
+      rb.writeFooter();
+      HttpClient.Result result = httpClient.sendRequest(rb.request());
+      if (result == HttpClient.Result.SUCCESS) {
         state.commit();
-      } else if (result == SendResult.NOT_FOUND) {
+      } else if (result == HttpClient.Result.NOT_FOUND) {
         state.rollback();
         return;
       } else {
@@ -204,15 +211,14 @@ public class TelemetryService {
     }
 
     while (!state.metrics.isEmpty()) {
-      final Payload payload =
-          new GenerateMetrics()
-              .namespace(TELEMETRY_NAMESPACE_TAG_TRACER)
-              .series(state.metrics.get(maxElementsPerReq))
-              .requestType(RequestType.GENERATE_METRICS);
-      final SendResult result = sendRequest(RequestType.GENERATE_METRICS, payload);
-      if (result == SendResult.SUCCESS) {
+      RequestBuilder rb = requestBuilderProvider.create(RequestType.GENERATE_METRICS);
+      rb.writeHeader();
+      rb.writeMetrics(state.metrics.get(maxElementsPerReq));
+      rb.writeFooter();
+      HttpClient.Result result = httpClient.sendRequest(rb.request());
+      if (result == HttpClient.Result.SUCCESS) {
         state.commit();
-      } else if (result == SendResult.NOT_FOUND) {
+      } else if (result == HttpClient.Result.NOT_FOUND) {
         state.rollback();
         return;
       } else {
@@ -222,15 +228,14 @@ public class TelemetryService {
     }
 
     while (!state.distributionSeries.isEmpty()) {
-      final Payload payload =
-          new Distributions()
-              .namespace(TELEMETRY_NAMESPACE_TAG_TRACER)
-              .series(state.distributionSeries.get(maxElementsPerReq))
-              .requestType(RequestType.DISTRIBUTIONS);
-      final SendResult result = sendRequest(RequestType.DISTRIBUTIONS, payload);
-      if (result == SendResult.SUCCESS) {
+      RequestBuilder rb = requestBuilderProvider.create(RequestType.DISTRIBUTIONS);
+      rb.writeHeader();
+      rb.writeDistributionsEvent(state.distributionSeries.get(maxElementsPerReq));
+      rb.writeFooter();
+      HttpClient.Result result = httpClient.sendRequest(rb.request());
+      if (result == HttpClient.Result.SUCCESS) {
         state.commit();
-      } else if (result == SendResult.NOT_FOUND) {
+      } else if (result == HttpClient.Result.NOT_FOUND) {
         state.rollback();
         return;
       } else {
@@ -240,14 +245,16 @@ public class TelemetryService {
     }
 
     while (!state.logMessages.isEmpty()) {
-      final Payload payload =
-          new Logs()
-              .messages(state.logMessages.get(maxElementsPerReq))
-              .requestType(RequestType.LOGS);
-      final SendResult result = sendRequest(RequestType.LOGS, payload);
-      if (result == SendResult.SUCCESS) {
+
+      RequestBuilder rb = requestBuilderProvider.create(RequestType.LOGS);
+      rb.writeHeader();
+      rb.writeLogsEvent(state.logMessages.get(maxElementsPerReq));
+      rb.writeFooter();
+      HttpClient.Result result = httpClient.sendRequest(rb.request());
+
+      if (result == HttpClient.Result.SUCCESS) {
         state.commit();
-      } else if (result == SendResult.NOT_FOUND) {
+      } else if (result == HttpClient.Result.NOT_FOUND) {
         state.rollback();
         return;
       } else {
@@ -255,33 +262,6 @@ public class TelemetryService {
         break;
       }
     }
-  }
-
-  private SendResult sendRequest(final RequestType type, final Payload payload) {
-    final Request request = requestBuilderSupplier.get().build(type, payload);
-    try (Response response = httpClient.newCall(request).execute()) {
-      if (response.code() == 404) {
-        log.debug("Telemetry endpoint is disabled, dropping {} message", type);
-        return SendResult.NOT_FOUND;
-      }
-      if (!response.isSuccessful()) {
-        log.debug(
-            "Telemetry message {} failed with: {} {} ", type, response.code(), response.message());
-        return SendResult.FAILURE;
-      }
-    } catch (IOException e) {
-      log.debug("Telemetry message {} failed with exception: {}", type, e.toString());
-      return SendResult.FAILURE;
-    }
-
-    log.debug("Telemetry message {} sent successfully", type);
-    return SendResult.SUCCESS;
-  }
-
-  enum SendResult {
-    SUCCESS,
-    FAILURE,
-    NOT_FOUND
   }
 
   private void warnAboutExclusiveIntegrations() {

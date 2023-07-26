@@ -22,7 +22,7 @@ public class HostInfo {
   private static final Path ETC_HOSTNAME = FileSystems.getDefault().getPath("/etc/hostname");
 
   private static final Path PROC_VERSION = FileSystems.getDefault().getPath("/proc/version");
-  private static final Logger log = LoggerFactory.getLogger(RequestBuilder.class);
+  private static final Logger log = LoggerFactory.getLogger(RequestBuilderProvider.class);
 
   private static String hostname;
   private static String osName;
