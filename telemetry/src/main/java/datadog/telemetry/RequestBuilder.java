@@ -107,27 +107,9 @@ public class RequestBuilder extends RequestBody {
         bodyWriter.name("namespace").value(m.getNamespace());
         bodyWriter.name("common").value(m.getCommon());
         bodyWriter.name("metric").value(m.getMetric());
-
-        bodyWriter.name("points");
-        bodyWriter.beginArray();
-        for (List<Number> points : m.getPoints()) {
-          bodyWriter.beginArray();
-          for (Number point : points) {
-            bodyWriter.value(point);
-          }
-          bodyWriter.endArray();
-        }
-        bodyWriter.endArray();
-
-        bodyWriter.name("tags");
-        bodyWriter.beginArray();
-        for (String t : m.getTags()) {
-          bodyWriter.value(t);
-        }
-        bodyWriter.endArray();
-
+        bodyWriter.name("points").jsonValue(m.getPoints());
+        bodyWriter.name("tags").jsonValue(m.getTags());
         if (m.getType() != null) bodyWriter.name("type").value(m.getType().toString());
-
         bodyWriter.endObject();
       }
       bodyWriter.endArray();
@@ -144,19 +126,8 @@ public class RequestBuilder extends RequestBody {
       for (DistributionSeries ds : series) {
         bodyWriter.beginObject();
         bodyWriter.name("metric").value(ds.getMetric());
-
-        bodyWriter.name("points").beginArray();
-        for (int p : ds.getPoints()) {
-          bodyWriter.value(p);
-        }
-        bodyWriter.endArray();
-
-        bodyWriter.name("tags").beginArray();
-        for (String t : ds.getTags()) {
-          bodyWriter.value(t);
-        }
-        bodyWriter.endArray();
-
+        bodyWriter.name("points").jsonValue(ds.getPoints());
+        bodyWriter.name("tags").jsonValue(ds.getTags());
         bodyWriter.name("common").value(ds.getCommon());
         bodyWriter.name("namespace").value(ds.getNamespace());
         bodyWriter.endObject();
