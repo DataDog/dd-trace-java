@@ -19,9 +19,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.util.EnumSet;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
+import java.util.EnumSet;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)

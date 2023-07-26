@@ -2,10 +2,10 @@ package datadog.trace.instrumentation.liberty23;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.util.Collections;
-import java.util.Enumeration;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.util.Collections;
+import java.util.Enumeration;
 
 public abstract class HttpServletExtractAdapter<T> implements AgentPropagation.ContextVisitor<T> {
   abstract Enumeration<String> getHeaderNames(T t);

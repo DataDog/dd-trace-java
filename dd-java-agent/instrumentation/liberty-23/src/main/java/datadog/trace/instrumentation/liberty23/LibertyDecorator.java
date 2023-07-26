@@ -17,10 +17,10 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
-import java.util.Map;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -112,7 +112,7 @@ public class LibertyDecorator
     }
     super.onResponse(span, response);
 
-    Object ex = req.getAttribute("javax.servlet.error.exception");
+    Object ex = req.getAttribute("jakarta.servlet.error.exception");
     Object report = req.getAttribute("ErrorReport");
     Throwable throwable = null;
     if (ex instanceof Throwable) {

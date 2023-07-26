@@ -1,6 +1,14 @@
 plugins {
   id 'java-test-fixtures'
 }
+muzzle {
+  pass {
+    group = "io.openliberty"
+    module = 'openliberty-runtime'
+    versions = "[21.0.0.3,)"
+    assertInverse = true
+  }
+}
 apply from: "$rootDir/gradle/java.gradle"
 
 String relAppDir = 'openliberty-jars/wlp/usr/servers/defaultServer/dropins/war/testapp'
@@ -21,10 +29,10 @@ configurations {
 evaluationDependsOn ':dd-java-agent:instrumentation:servlet:request-3'
 
 dependencies {
-  zipped group: 'io.openliberty', name: 'openliberty-runtime', version: '21.0.0.3', ext: 'zip'
+  zipped group: 'io.openliberty', name: 'openliberty-runtime', version: '22.0.0.6', ext: 'zip'
   testLogging deps.testLogging
 
-  compileOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '3.0.1'
+  compileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   compileOnly files({ tasks.installOpenLibertyDeps.extractedJars })
   implementation project(':dd-java-agent:instrumentation:servlet-common')
 
@@ -34,7 +42,7 @@ dependencies {
   testRuntimeOnly files({ tasks.filterLogbackClassic.filteredLogbackDir })
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-3')
 
-  webappCompileOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '3.0.1'
+  webappCompileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   // compileOnly to avoid bringing all the test dependencies to the test app
   // these are to be provided by the system classloader on test time
   webappCompileOnly project(':dd-java-agent:instrumentation:servlet:request-3')

@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.liberty20
+package datadog.trace.instrumentation.liberty23
 
 import com.ibm.wsspi.kernel.embeddable.Server
 import datadog.trace.agent.test.base.HttpServer
