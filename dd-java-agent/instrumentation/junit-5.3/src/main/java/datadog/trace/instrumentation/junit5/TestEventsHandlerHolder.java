@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.junit5;
 
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
+import datadog.trace.util.AgentThreadFactory;
 import java.nio.file.Paths;
 
 public abstract class TestEventsHandlerHolder {
@@ -9,15 +10,26 @@ public abstract class TestEventsHandlerHolder {
   public static volatile TestEventsHandler TEST_EVENTS_HANDLER;
 
   static {
-    reset();
+    start();
+    Runtime.getRuntime()
+        .addShutdownHook(
+            AgentThreadFactory.newAgentThread(
+                AgentThreadFactory.AgentThread.CI_TEST_EVENTS_SHUTDOWN_HOOK,
+                TestEventsHandlerHolder::stop,
+                false));
   }
 
-  private TestEventsHandlerHolder() {}
-
-  // TODO a hack to work around shared state problems in integration tests;
-  //  to be removed later
-  public static void reset() {
+  public static void start() {
     TEST_EVENTS_HANDLER =
         InstrumentationBridge.createTestEventsHandler("junit", Paths.get("").toAbsolutePath());
   }
+
+  public static void stop() {
+    if (TEST_EVENTS_HANDLER != null) {
+      TEST_EVENTS_HANDLER.close();
+      TEST_EVENTS_HANDLER = null;
+    }
+  }
+
+  private TestEventsHandlerHolder() {}
 }

@@ -16,10 +16,6 @@ public interface TestContext {
 
   void reportChildTag(String key, Object value);
 
-  Object getChildTag(String key);
-
-  boolean isLocalToCurrentProcess();
-
   @Nullable
   AgentSpan getSpan();
 }

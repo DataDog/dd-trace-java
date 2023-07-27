@@ -31,16 +31,6 @@ public final class EmptyTestContext implements TestContext {
   @Override
   public void reportChildTag(String key, Object value) {}
 
-  @Override
-  public Object getChildTag(String key) {
-    return null;
-  }
-
-  @Override
-  public boolean isLocalToCurrentProcess() {
-    return false;
-  }
-
   @Nullable
   @Override
   public AgentSpan getSpan() {

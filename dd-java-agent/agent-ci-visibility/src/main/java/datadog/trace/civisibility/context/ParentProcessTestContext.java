@@ -25,11 +25,6 @@ public class ParentProcessTestContext extends AbstractTestContext implements Tes
     return sessionId;
   }
 
-  @Override
-  public boolean isLocalToCurrentProcess() {
-    return false;
-  }
-
   @Nullable
   @Override
   public AgentSpan getSpan() {

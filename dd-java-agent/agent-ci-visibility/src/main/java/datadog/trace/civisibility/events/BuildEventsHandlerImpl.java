@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.events;
 
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.CIVisibility;
 import datadog.trace.api.civisibility.DDTestModule;
 import datadog.trace.api.civisibility.DDTestSession;
@@ -79,6 +80,7 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
 
     DDTestSession testSession = inProgressTestSessions.get(sessionKey);
     DDTestModule testModule = testSession.testModuleStart(moduleName, null);
+    testModule.setTag(Tags.TEST_STATUS, CIConstants.TEST_PASS);
     testModule.setTag(Tags.TEST_COMMAND, startCommand);
 
     if (additionalTags != null) {

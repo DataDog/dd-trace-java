@@ -175,6 +175,7 @@ class GradleDaemonSmokeTest extends Specification {
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
           it["test.module"] == ":test" // task path
+          it["test.code_coverage.enabled"] == "true"
           it["test.itr.tests_skipping.enabled"] == "true"
           it["test.itr.tests_skipping.type"] == "test"
           it["_dd.ci.itr.tests_skipped"] == "true"
@@ -280,8 +281,8 @@ class GradleDaemonSmokeTest extends Specification {
     "7.6.1" | "success"
     "8.0.2" | "success"
     "8.1.1" | "success"
-    "8.2" | "success"
-    "8.2" | "successJunit5"
+    "8.2.1" | "success"
+    "8.2.1" | "successJunit5"
   }
 
   // this is a separate test case since older Gradle versions need to declare dependencies differently
@@ -590,7 +591,7 @@ class GradleDaemonSmokeTest extends Specification {
 
     where:
     //
-    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.2"]
+    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.2.1"]
   }
 
   def "Failed build emits session and module spans: Gradle v#gradleVersion"() {
@@ -694,7 +695,7 @@ class GradleDaemonSmokeTest extends Specification {
     }
 
     where:
-    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.2"]
+    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.2.1"]
   }
 
   def "Build without tests emits session and module spans: Gradle v#gradleVersion"() {
@@ -747,7 +748,7 @@ class GradleDaemonSmokeTest extends Specification {
     }
 
     where:
-    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.2"]
+    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.2.1"]
   }
 
   def "Corrupted build emits session span: Gradle v#gradleVersion"() {
@@ -784,7 +785,7 @@ class GradleDaemonSmokeTest extends Specification {
     }
 
     where:
-    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.2"]
+    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.2.1"]
   }
 
   private void givenGradleProperties() {
