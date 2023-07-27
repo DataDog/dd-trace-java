@@ -205,7 +205,7 @@ public class TelemetryService {
         state.rollback();
         return;
       } else {
-        state.integrations.rollback();
+        state.dependencies.rollback();
         break;
       }
     }

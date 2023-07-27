@@ -220,7 +220,11 @@ public class RequestBuilder extends RequestBody {
   }
 
   /**
-   * @return associated request. Its body can still be extended with write methods until it's sent.
+   * @return associated request. <br>
+   *     NOTE: Its body can still be extended with write methods until it's been sent. That's
+   *     because the request body is lazily evaluated and backed with a buffer that can still be
+   *     extended until the request is sent. <br>
+   *     TODO: see if there is a better way to express this peculiarity in the code.
    */
   public Request request() {
     return request;

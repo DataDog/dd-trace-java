@@ -3,6 +3,7 @@ package datadog.telemetry;
 import datadog.communication.ddagent.TracerVersion;
 import datadog.telemetry.api.RequestType;
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.Platform;
 import okhttp3.HttpUrl;
 
@@ -33,7 +34,7 @@ public class RequestBuilderProvider {
   public RequestBuilderProvider(HttpUrl agentUrl) {
     this.httpUrl = agentUrl.newBuilder().addPathSegments(API_ENDPOINT).build();
 
-    this.debug = true; // TODO get from config? or pass as a param
+    this.debug = false; // TODO get from config? or pass as a param
 
     Config config = Config.get();
 
@@ -42,7 +43,7 @@ public class RequestBuilderProvider {
     this.serviceName = config.getServiceName();
     this.serviceVersion = config.getVersion();
     this.tracerVersion = TracerVersion.TRACER_VERSION;
-    this.languageName = "jvm";
+    this.languageName = DDTags.LANGUAGE_TAG_VALUE;
     this.languageVersion = Platform.getLangVersion();
     this.runtimeName = Platform.getRuntimeVendor();
     this.runtimeVersion = Platform.getRuntimeVersion();
