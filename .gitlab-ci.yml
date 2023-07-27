@@ -3,6 +3,7 @@ include:
   - remote: https://gitlab-templates.ddbuild.io/apm/packaging.yml
   - local: ".gitlab/benchmarks.yml"
   - local: ".gitlab/exploration-tests.yml"
+  - local: ".gitlab/ci-visibility-tests.yml"
 
 stages:
   - build
@@ -10,6 +11,7 @@ stages:
   - deploy
   - benchmarks
   - exploration-tests
+  - ci-visibility-tests
   - generate-signing-key
 
 variables:
