@@ -6,7 +6,7 @@ run-ci-vis-open-source-tests:
   trigger:
     include:
       project: DataDog/apm-reliability/test-environment
-      branch: nikita-tkachenko/split-pipeline-yaml
+      ref: nikita-tkachenko/split-pipeline-yaml
       file: '/.gitlab/pipelines/java.yml'
   variables:
     UPSTREAM_PACKAGE_JOB: build
