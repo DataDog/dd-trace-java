@@ -15,8 +15,10 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
+  //implementation project(path: ':dd-java-agent:instrumentation:aws-java-sdk-2.2')
   compileOnly group: 'software.amazon.awssdk', name: 'sqs', version: '2.2.0'
   compileOnly group: 'com.amazonaws', name: 'amazon-sqs-java-messaging-lib', version: '2.0.0'
+  compileOnly project(':dd-java-agent:instrumentation:aws-java-sdk-2.2')
 
   // Include httpclient instrumentation for testing because it is a dependency for aws-sdk.
   testImplementation project(':dd-java-agent:instrumentation:apache-httpclient-4')
