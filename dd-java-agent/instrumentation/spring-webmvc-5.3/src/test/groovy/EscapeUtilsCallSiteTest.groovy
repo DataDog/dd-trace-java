@@ -2,24 +2,23 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.propagation.PropagationModule
-import foo.bar.TestHtmlUtilsSuite
+import foo.bar.TestEscapeUtilsSuite
 import groovy.transform.CompileDynamic
 
-@CompileDynamic
-class HtmlUtilsCallSiteTest extends AgentTestRunner {
+class EscapeUtilsCallSiteTest extends AgentTestRunner {
 
   @Override
   protected void configurePreAgent() {
     injectSysConfig("dd.iast.enabled", "true")
   }
 
-  void 'test htmlEscape'() {
+  void 'test #method'() {
     given:
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
 
     when:
-    final result = TestHtmlUtilsSuite.&htmlEscape.call(args)
+    final result = TestEscapeUtilsSuite.&"$method".call(args)
 
     then:
     result == expected
@@ -27,8 +26,9 @@ class HtmlUtilsCallSiteTest extends AgentTestRunner {
     0 * _
 
     where:
-    args                                | expected
-    ['Ø-This is a quote']               | '&Oslash;-This is a quote'
-    ['Ø-This is a quote', 'ISO-8859-1'] | '&Oslash;-This is a quote'
+    method | args                                | expected
+    'htmlEscape' | ['Ø-This is a quote']               | '&Oslash;-This is a quote'
+    'htmlEscape' | ['Ø-This is a quote', 'ISO-8859-1'] | '&Oslash;-This is a quote'
+    'javaScriptEscape' | ['<script>function a(){console.log("escape this < ")}<script>'] | '\\u003Cscript\\u003Efunction a(){console.log(\\"escape this \\u003C \\")}\\u003Cscript\\u003E'
   }
 }

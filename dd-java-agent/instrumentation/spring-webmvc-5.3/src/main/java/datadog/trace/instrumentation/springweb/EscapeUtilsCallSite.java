@@ -10,18 +10,20 @@ import javax.annotation.Nonnull;
 
 @Propagation
 @CallSite(spi = IastCallSites.class)
-public class HtmlUtilsCallSite {
+public class EscapeUtilsCallSite {
 
   @CallSite.After(
       "java.lang.String org.springframework.web.util.HtmlUtils.htmlEscape(java.lang.String)")
-  public static String afterHtmlEscape1(
+  @CallSite.After(
+      "java.lang.String org.springframework.web.util.JavaScriptUtils.javaScriptEscape(java.lang.String)")
+  public static String afterEscape(
       @CallSite.Argument(0) @Nonnull final String input, @CallSite.Return final String result) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
         module.taintIfInputIsTaintedWithMarks(result, input, VulnerabilityMarks.XSS_MARK);
       } catch (final Throwable e) {
-        module.onUnexpectedException("afterHtmlEscape1 threw", e);
+        module.onUnexpectedException("afterEscape threw", e);
       }
     }
     return result;
