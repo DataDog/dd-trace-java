@@ -2,13 +2,13 @@ package datadog.telemetry;
 
 import com.squareup.moshi.JsonWriter;
 import datadog.communication.ddagent.TracerVersion;
-import datadog.telemetry.api.Dependency;
+import datadog.telemetry.api.ConfigChange;
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Integration;
-import datadog.telemetry.api.KeyValue;
 import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.RequestType;
+import datadog.telemetry.dependency.Dependency;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
@@ -156,14 +156,14 @@ public class RequestBuilder extends RequestBody {
     }
   }
 
-  public void writeConfigChangeEvent(List<KeyValue> kvs) {
-    if (kvs != null) {
+  public void writeConfigChangeEvent(List<ConfigChange> configChanges) {
+    if (configChanges != null) {
       try {
         bodyWriter.name("configuration").beginArray();
-        for (KeyValue kv : kvs) {
+        for (ConfigChange cc : configChanges) {
           bodyWriter.beginObject();
-          bodyWriter.name("name").value(kv.getName());
-          bodyWriter.name("value").jsonValue(kv.getValue());
+          bodyWriter.name("name").value(cc.name);
+          bodyWriter.name("value").jsonValue(cc.value);
           bodyWriter.endObject();
         }
         bodyWriter.endArray();
@@ -179,10 +179,10 @@ public class RequestBuilder extends RequestBody {
       bodyWriter.beginArray();
       for (Dependency d : dependencies) {
         bodyWriter.beginObject();
-        bodyWriter.name("hash").value(d.getHash());
-        bodyWriter.name("name").value(d.getName());
-        bodyWriter.name("type").value(String.valueOf(d.getType()));
-        bodyWriter.name("version").value(d.getVersion());
+        bodyWriter.name("hash").value(d.hash);
+        bodyWriter.name("name").value(d.name);
+        bodyWriter.name("type").value("PlatformStandard");
+        bodyWriter.name("version").value(d.version);
         bodyWriter.endObject();
       }
       bodyWriter.endArray();
@@ -197,11 +197,8 @@ public class RequestBuilder extends RequestBody {
       bodyWriter.beginArray();
       for (Integration i : integrations) {
         bodyWriter.beginObject();
-        bodyWriter.name("auto_enabled").value(i.getAutoEnabled());
-        bodyWriter.name("compatible").value(i.getCompatible());
-        bodyWriter.name("enabled").value(i.getEnabled());
-        bodyWriter.name("name").value(i.getName());
-        bodyWriter.name("version").value(i.getVersion());
+        bodyWriter.name("enabled").value(i.enabled);
+        bodyWriter.name("name").value(i.name);
         bodyWriter.endObject();
       }
       bodyWriter.endArray();

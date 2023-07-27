@@ -19,6 +19,7 @@ import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,61 +45,16 @@ public final class Dependency {
     md = digest;
   }
 
-  private final String name;
-  private final String version;
-  private final String source;
-  private final String hash;
+  public final String name;
+  public final String version;
+  public final String source;
+  public final String hash;
 
-  Dependency(String name, String version, String source) {
-    this(name, version, source, null);
-  }
-
-  Dependency(String name, String version, String source, String hash) {
-    this.name = checkNotNull(name);
-    this.version = checkNotNull(version);
-    this.source = checkNotNull(source);
+  public Dependency(String name, String version, String source, @Nullable String hash) {
+    this.name = name;
+    this.version = version;
+    this.source = source;
     this.hash = hash;
-  }
-
-  private static <T> T checkNotNull(T val) {
-    if (val == null) {
-      throw new NullPointerException("Expected arg to be non-null");
-    }
-    return val;
-  }
-
-  public String getName() {
-    return name;
-  }
-
-  public String getVersion() {
-    return version;
-  }
-
-  public String getSource() {
-    return source;
-  }
-
-  public String getHash() {
-    return hash;
-  }
-
-  @Override
-  public String toString() {
-    return "Dependency{"
-        + "name='"
-        + name
-        + '\''
-        + ", version='"
-        + version
-        + '\''
-        + ", source='"
-        + source
-        + '\''
-        + ", hash='"
-        + hash
-        + '\''
-        + '}';
   }
 
   public static List<Dependency> fromMavenPom(JarFile jar) {
@@ -140,7 +96,8 @@ public final class Dependency {
                 groupId,
                 artifactId,
                 version);
-            dependencies.add(new Dependency(name, version, (new File(jar.getName())).getName()));
+            dependencies.add(
+                new Dependency(name, version, new File(jar.getName()).getName(), null));
           }
         } catch (IOException e) {
           log.debug("unable to read 'pom.properties' file from {}", jar.getName(), e);
@@ -278,7 +235,7 @@ public final class Dependency {
   private static String parseGroupId(String bundleSymbolicName, String bundleName) {
     // Usually bundleSymbolicName contains bundleName at the end. Check this
 
-    // Bundle name can contains dash, so normalize it
+    // Bundle name can contain dash, so normalize it
     String normalizedBundleName = Strings.replace(bundleName, "-", ".");
 
     String bundleNameWithPrefix = "." + normalizedBundleName;

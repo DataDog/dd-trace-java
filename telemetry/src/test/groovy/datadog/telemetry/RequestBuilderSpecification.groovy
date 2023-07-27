@@ -1,6 +1,6 @@
 package datadog.telemetry
 
-import datadog.telemetry.api.KeyValue
+import datadog.telemetry.api.ConfigChange
 import datadog.telemetry.api.RequestType
 import okhttp3.HttpUrl
 import okhttp3.Request
@@ -58,21 +58,14 @@ class RequestBuilderSpecification extends Specification {
 
     then:
     rb.writeConfigChangeEvent([
-      keyValue("string", "bar"),
-      keyValue("int", 2342),
-      keyValue("double", Double.valueOf("123.456")),
-      keyValue("map", map)
+      new ConfigChange("string", "bar"),
+      new ConfigChange("int", 2342),
+      new ConfigChange("double", Double.valueOf("123.456")),
+      new ConfigChange("map", map)
     ])
 
     then:
     drainToString(rb.request()) == '"configuration":[{"name":"string","value":"bar"},{"name":"int","value":2342},{"name":"double","value":123.456},{"name":"map","value":{"key1":"value1","key2":432.32,"key3":324}}]'
-  }
-
-  KeyValue keyValue(String key, Object value) {
-    KeyValue kv = new KeyValue()
-    kv.setName(key)
-    kv.setValue(value)
-    return kv
   }
 
   String drainToString(Request req) {

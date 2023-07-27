@@ -1,12 +1,12 @@
 package datadog.telemetry;
 
-import datadog.telemetry.api.Dependency;
+import datadog.telemetry.api.ConfigChange;
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Integration;
-import datadog.telemetry.api.KeyValue;
 import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.RequestType;
+import datadog.telemetry.dependency.Dependency;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -32,7 +32,7 @@ public class TelemetryService {
   private final HttpClient httpClient;
   private final int maxElementsPerReq;
   private final int maxDepsPerReq;
-  private final BlockingQueue<KeyValue> configurations = new LinkedBlockingQueue<>();
+  private final BlockingQueue<ConfigChange> configurations = new LinkedBlockingQueue<>();
   private final BlockingQueue<Integration> integrations = new LinkedBlockingQueue<>();
   private final BlockingQueue<Dependency> dependencies = new LinkedBlockingQueue<>();
   private final BlockingQueue<Metric> metrics =
@@ -78,8 +78,7 @@ public class TelemetryService {
 
   public boolean addConfiguration(Map<String, Object> configuration) {
     for (Map.Entry<String, Object> entry : configuration.entrySet()) {
-      // TODO no need to convert anymore?
-      if (!this.configurations.offer(new KeyValue().name(entry.getKey()).value(entry.getValue()))) {
+      if (!this.configurations.offer(new ConfigChange(entry.getKey(), entry.getValue()))) {
         return false;
       }
     }
@@ -91,10 +90,10 @@ public class TelemetryService {
   }
 
   public boolean addIntegration(Integration integration) {
-    if ("opentelemetry-1".equals(integration.getName())) {
+    if ("opentelemetry-1".equals(integration.name) && integration.enabled) {
       this.openTelemetryIntegrationEnabled = true;
       warnAboutExclusiveIntegrations();
-    } else if ("opentracing".equals(integration.getName())) {
+    } else if ("opentracing".equals(integration.name) && integration.enabled) {
       this.openTracingIntegrationEnabled = true;
       warnAboutExclusiveIntegrations();
     }
@@ -332,7 +331,7 @@ public class TelemetryService {
   }
 
   private static class State {
-    private final StateList<KeyValue> configurations;
+    private final StateList<ConfigChange> configurations;
     private final StateList<Integration> integrations;
     private final StateList<Dependency> dependencies;
     private final StateList<Metric> metrics;
@@ -340,7 +339,7 @@ public class TelemetryService {
     private final StateList<LogMessage> logMessages;
 
     public State(
-        BlockingQueue<KeyValue> configurations,
+        BlockingQueue<ConfigChange> configurations,
         BlockingQueue<Integration> integrations,
         BlockingQueue<Dependency> dependencies,
         BlockingQueue<Metric> metrics,

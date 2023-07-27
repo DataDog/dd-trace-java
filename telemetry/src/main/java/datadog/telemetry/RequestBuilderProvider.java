@@ -34,7 +34,8 @@ public class RequestBuilderProvider {
   public RequestBuilderProvider(HttpUrl agentUrl) {
     this.httpUrl = agentUrl.newBuilder().addPathSegments(API_ENDPOINT).build();
 
-    this.debug = false; // TODO get from config? or pass as a param
+    // TODO It was hardcoded ad disabled. Should it be taken from the config?
+    this.debug = false;
 
     Config config = Config.get();
 

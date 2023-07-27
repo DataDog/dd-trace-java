@@ -1,11 +1,12 @@
 package datadog.telemetry
 
-
-import datadog.telemetry.api.Dependency
-import datadog.telemetry.api.DistributionSeries
+import datadog.telemetry.dependency.Dependency
 import datadog.telemetry.api.Integration
-import datadog.telemetry.api.KeyValue
+import datadog.telemetry.api.DistributionSeries
+
+import datadog.telemetry.api.ConfigChange
 import datadog.telemetry.api.LogMessage
+import datadog.telemetry.api.LogMessageLevel
 import datadog.telemetry.api.Metric
 import datadog.telemetry.api.RequestType
 import okhttp3.HttpUrl
@@ -16,12 +17,12 @@ class TelemetryServiceSpecification extends Specification {
   TestHttpClient testHttpClient = new TestHttpClient()
 
   def configuration = ["confkey": "confvalue"]
-  def confKeyValue = new KeyValue().name("confkey").value("confvalue")
-  def integration = new Integration().name("integration").enabled(true)
-  def dependency = new Dependency().name("dependency").version("1.0.0").hash("hash")
+  def confKeyValue = new ConfigChange("confkey", "confvalue")
+  def integration = new Integration("integration", true)
+  def dependency = new Dependency("dependency", "1.0.0", "src", "hash")
   def metric = new Metric().namespace("tracers").metric("metric").points([[1, 2]]).tags(["tag1", "tag2"])
-  def distribution = new DistributionSeries().namespace("tracers").metric("distro").points([1, 2, 3]).tags(["tag1", "tag2"])
-  def logMessage = new LogMessage().message("log-message").tags("tag1:tag2")
+  def distribution = new DistributionSeries().namespace("tracers").metric("distro").points([1, 2, 3]).tags(["tag1", "tag2"]).common(false)
+  def logMessage = new LogMessage().message("log-message").tags("tag1:tag2").level(LogMessageLevel.DEBUG).stackTrace("stack-trace").tracerTime(32423)
   TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"))
 
   void 'happy path without data'() {

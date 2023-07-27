@@ -1,10 +1,11 @@
 package datadog.telemetry
 
 import datadog.communication.ddagent.TracerVersion
-import datadog.telemetry.api.Dependency
-import datadog.telemetry.api.DistributionSeries
+import datadog.telemetry.dependency.Dependency
 import datadog.telemetry.api.Integration
-import datadog.telemetry.api.KeyValue
+import datadog.telemetry.api.DistributionSeries
+
+import datadog.telemetry.api.ConfigChange
 import datadog.telemetry.api.LogMessage
 import datadog.telemetry.api.Metric
 import datadog.telemetry.api.RequestType
@@ -146,11 +147,11 @@ class TestHttpClient extends HttpClient {
       this.payload = payload
     }
 
-    PayloadAssertions configuration(List<KeyValue> configuration) {
+    PayloadAssertions configuration(List<ConfigChange> configuration) {
       def expected = configuration == null ? null : []
       if (configuration != null) {
-        for (KeyValue kv : configuration) {
-          expected.add([name: kv.getName(), value: kv.getValue()])
+        for (ConfigChange kv : configuration) {
+          expected.add([name: kv.name, value: kv.value])
         }
       }
       assert payload['configuration'] == expected
@@ -160,7 +161,7 @@ class TestHttpClient extends HttpClient {
     PayloadAssertions dependencies(List<Dependency> dependencies) {
       def expected = []
       for (Dependency d : dependencies) {
-        expected.add([hash: d.getHash(), name: d.getName(), type: d.getType().toString(), version: d.getVersion()])
+        expected.add([hash: d.hash, name: d.name, type: "PlatformStandard", version: d.version])
       }
       assert payload['dependencies'] == expected
       return this
@@ -170,21 +171,8 @@ class TestHttpClient extends HttpClient {
       def expected = []
       for (Integration i : integrations) {
         Map map = new HashMap()
-        if (i.getAutoEnabled() != null) {
-          map.put("auto_enabled", i.getAutoEnabled())
-        }
-        if (i.getCompatible() != null) {
-          map.put("compatible", i.getCompatible())
-        }
-        if (i.getEnabled() != null) {
-          map.put("enabled", i.getEnabled())
-        }
-        if (i.getName() != null) {
-          map.put("name", i.getName())
-        }
-        if (i.getVersion() != null) {
-          map.put("version", i.getVersion())
-        }
+        map.put("enabled", i.enabled)
+        map.put("name", i.name)
         expected.add(map)
       }
       assert payload['integrations'] == expected
@@ -201,11 +189,7 @@ class TestHttpClient extends HttpClient {
       for (Metric m : metrics) {
         List<List<Number>> points = []
         for (List<Number> ps: m.getPoints()) {
-          def pps = []
-          points.add(pps)
-          for (Number p: ps) {
-            pps.add(p)
-          }
+          points.add(ps)
         }
         Map obj = new HashMap()
         obj.put("namespace", m.getNamespace())
@@ -227,17 +211,13 @@ class TestHttpClient extends HttpClient {
     PayloadAssertions distributionSeries(List<DistributionSeries> ds) {
       def expected = []
       for (DistributionSeries d : ds) {
-        List<Integer> points = []
-        for (Integer p: d.getPoints()) {
-          points.add(p)
-        }
         Map obj = new HashMap()
         obj.put("namespace", d.getNamespace())
         if (d.getCommon() != null) {
           obj.put("common", d.getCommon())
         }
         obj.put("metric", d.getMetric())
-        obj.put("points", points)
+        obj.put("points", d.getPoints())
         obj.put("tags", d.getTags())
         expected.add(obj)
       }
@@ -253,7 +233,7 @@ class TestHttpClient extends HttpClient {
         map.put("level", l.getLevel().toString())
         map.put("tags", l.getTags())
         if (l.getStackTrace() != null) {
-          map.put("stacktrace", l.getStackTrace())
+          map.put("stack_trace", l.getStackTrace())
         }
         if (l.getTracerTime() != null) {
           map.put("tracer_time", l.getTracerTime())
