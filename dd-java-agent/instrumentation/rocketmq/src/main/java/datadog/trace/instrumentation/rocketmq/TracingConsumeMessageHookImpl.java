@@ -7,11 +7,11 @@ import org.apache.rocketmq.client.hook.ConsumeMessageHook;
 
 public final class TracingConsumeMessageHookImpl implements ConsumeMessageHook {
   private final RocketMqDecorator rocketMqDecorator;
-  private final ContextStore<ConsumeMessageContext,AgentScope> scopeAccessor;
+  //private final ContextStore<ConsumeMessageContext,AgentScope> scopeAccessor;
 
-  TracingConsumeMessageHookImpl(ContextStore<ConsumeMessageContext,AgentScope> scopeAccessor) {
+  TracingConsumeMessageHookImpl() {
     this.rocketMqDecorator = new RocketMqDecorator();
-    this.scopeAccessor = scopeAccessor;
+ //   this.scopeAccessor = scopeAccessor;
   }
 
   @Override
@@ -24,9 +24,7 @@ public final class TracingConsumeMessageHookImpl implements ConsumeMessageHook {
     if (context == null || context.getMsgList() == null || context.getMsgList().isEmpty()) {
       return;
     }
-    AgentScope scope = rocketMqDecorator.start(context);
-   // System.out.println("start Span  and put to ContextStore");
-    scopeAccessor.put(context,scope);
+     rocketMqDecorator.start(context);
   }
 
   @Override
@@ -34,10 +32,7 @@ public final class TracingConsumeMessageHookImpl implements ConsumeMessageHook {
     if (context == null || context.getMsgList() == null || context.getMsgList().isEmpty()) {
       return;
     }
-    AgentScope scope = scopeAccessor.get(context);
-    if (scope!=null){
-      rocketMqDecorator.end(context, scope);
-    }
+      rocketMqDecorator.end(context);
   }
 }
 

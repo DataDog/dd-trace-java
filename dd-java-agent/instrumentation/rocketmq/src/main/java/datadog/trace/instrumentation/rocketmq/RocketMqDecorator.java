@@ -11,7 +11,6 @@ import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.net.SocketAddress;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
@@ -87,12 +86,13 @@ public class RocketMqDecorator extends BaseDecorator {
     return storeHost.toString().replace("/", "");
   }
 
-  public void end(ConsumeMessageContext context, AgentScope scope) {
+  public void end(ConsumeMessageContext context) {
     String status = context.getStatus();
+    AgentScope scope = activeScope();
     scope.span().setTag("status", status);
     beforeFinish(scope);
-    scope.close();
     scope.span().finish();
+    scope.close();
     if (log.isDebugEnabled()){
       log.debug("consumer span end");
     }
@@ -136,8 +136,9 @@ public class RocketMqDecorator extends BaseDecorator {
     return scope;
   }
 
-  public void end(SendMessageContext context, AgentScope scope) {
+  public void end(SendMessageContext context) {
     Exception exception = context.getException();
+    AgentScope scope = activeScope();
     if (null != exception) {
       onError(scope, exception);
     }
@@ -146,8 +147,8 @@ public class RocketMqDecorator extends BaseDecorator {
     }
 
     beforeFinish(scope);
-    scope.close();
     scope.span().finish();
+    scope.close();
     if (log.isDebugEnabled()){
       log.debug("consumer span end");
     }

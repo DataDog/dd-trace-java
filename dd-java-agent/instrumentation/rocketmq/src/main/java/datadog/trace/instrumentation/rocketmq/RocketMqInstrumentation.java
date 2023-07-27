@@ -72,10 +72,8 @@ public class RocketMqInstrumentation extends Instrumenter.Tracing
         @Advice.FieldValue(
             value = "defaultMQPushConsumerImpl", declaringType = DefaultMQPushConsumer.class)
         DefaultMQPushConsumerImpl defaultMqPushConsumerImpl) {
-      final ContextStore<ConsumeMessageContext, AgentScope> contextStore =
-          InstrumentationContext.get(ConsumeMessageContext.class, AgentScope.class);
 
-      defaultMqPushConsumerImpl.registerConsumeMessageHook(RocketMqHook.buildConsumerHook(contextStore));
+      defaultMqPushConsumerImpl.registerConsumeMessageHook(RocketMqHook.buildConsumerHook());
 
     }
   }

@@ -8,11 +8,13 @@ import org.apache.rocketmq.client.hook.SendMessageHook;
 public final class TracingSendMessageHookImpl implements SendMessageHook {
 
   private final RocketMqDecorator rocketMqDecorator;
-  private final ContextStore<SendMessageContext,AgentScope> scopeAccessor;
+ // private final ContextStore<SendMessageContext,AgentScope> scopeAccessor;
 
-  TracingSendMessageHookImpl(ContextStore<SendMessageContext,AgentScope> scopeAccessor) {
+  private AgentScope scope;
+
+  TracingSendMessageHookImpl() {
     this.rocketMqDecorator = new RocketMqDecorator();
-    this.scopeAccessor = scopeAccessor;
+   // this.scopeAccessor = scopeAccessor;
   }
 
   @Override
@@ -25,9 +27,7 @@ public final class TracingSendMessageHookImpl implements SendMessageHook {
     if (context == null) {
       return;
     }
-    AgentScope scope = rocketMqDecorator.start(context);
-    scopeAccessor.put(context,scope);
-
+     rocketMqDecorator.start(context);
   }
 
   @Override
@@ -35,9 +35,6 @@ public final class TracingSendMessageHookImpl implements SendMessageHook {
     if (context == null) {
       return;
     }
-    AgentScope scope = scopeAccessor.get(context);
-    if (scope != null) {
-      rocketMqDecorator.end(context, scope);
-    }
+      rocketMqDecorator.end(context);
   }
 }

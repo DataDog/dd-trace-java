@@ -8,10 +8,10 @@ import org.apache.rocketmq.client.hook.SendMessageContext;
 import org.apache.rocketmq.client.hook.SendMessageHook;
 
 public final class RocketMqHook {
-  public static ConsumeMessageHook buildConsumerHook(ContextStore<ConsumeMessageContext, AgentScope> contextStore){
-    return new TracingConsumeMessageHookImpl(contextStore);
+  public static ConsumeMessageHook buildConsumerHook(){
+    return new TracingConsumeMessageHookImpl();
   }
-  public static SendMessageHook buildSendHook(ContextStore<SendMessageContext, AgentScope> contextStore){
-      return new TracingSendMessageHookImpl(contextStore);
+  public static SendMessageHook buildSendHook(){
+      return new TracingSendMessageHookImpl();
   }
 }

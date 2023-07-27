@@ -48,12 +48,6 @@ public class RocketMqSendInstrumentation extends Instrumenter.Tracing
         packageName + ".TextMapInjectAdapter",
     };
   }
-  @Override
-  public Map<String, String> contextStore() {
-    Map<String, String> map = new HashMap<>(1);
-    map.put("org.apache.rocketmq.client.hook.SendMessageContext", "datadog.trace.bootstrap.instrumentation.api.AgentScope");
-    return map;
-  }
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
@@ -69,10 +63,8 @@ public class RocketMqSendInstrumentation extends Instrumenter.Tracing
     public static void onEnter(
         @Advice.FieldValue(value = "defaultMQProducerImpl", declaringType = DefaultMQProducer.class)
         DefaultMQProducerImpl defaultMqProducerImpl) {
-      final ContextStore<SendMessageContext, AgentScope> contextStore =
-          InstrumentationContext.get(SendMessageContext.class, AgentScope.class);
 
-      defaultMqProducerImpl.registerSendMessageHook(RocketMqHook.buildSendHook(contextStore));
+      defaultMqProducerImpl.registerSendMessageHook(RocketMqHook.buildSendHook());
     }
   }
 }
