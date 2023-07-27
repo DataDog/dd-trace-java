@@ -11,8 +11,11 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.context.Context;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class OtelExtractedContext implements AgentSpan.Context {
+  private static final Logger LOGGER = LoggerFactory.getLogger(OtelExtractedContext.class);
   private final DDTraceId traceId;
   private final long spanId;
   private final int prioritySampling;
@@ -29,13 +32,17 @@ class OtelExtractedContext implements AgentSpan.Context {
     SpanContext spanContext = span.getSpanContext();
     if (spanContext instanceof OtelSpanContext) {
       return ((OtelSpanContext) spanContext).delegate;
-    } else {
+    } else if (spanContext.isValid()) {
       try {
         return new OtelExtractedContext(spanContext);
       } catch (NumberFormatException e) {
-        return AgentTracer.NoopContext.INSTANCE;
+        LOGGER.debug(
+            "Failed to convert span context with trace id = {} and span id = {}",
+            spanContext.getTraceId(),
+            spanContext.getSpanId());
       }
     }
+    return null;
   }
 
   @Override
