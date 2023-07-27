@@ -34,8 +34,7 @@ abstract class QuarkusSmokeTest extends AbstractServerSmokeTest {
 
   @Override
   protected Set<String> expectedTraces() {
-    // TODO is this really how quarkus requests should look?
-    return ["[jax-rs.request]", "[netty.request[vertx.route-handler]]"].toSet()
+    ['[netty.request[vertx.route-handler[jax-rs.request]]]'] as Set
   }
 
   @Shared
@@ -56,8 +55,7 @@ abstract class QuarkusSmokeTest extends AbstractServerSmokeTest {
       def id = ThreadLocalRandom.current().nextInt(1, 4711)
       doAndValidateRequest(id)
     })
-    // TODO quarkus requests are split in two, so we need to wait for the double amount
-    waitForTraceCount(2 * totalInvocations) == 2 * totalInvocations
+    waitForTraceCount(totalInvocations) == totalInvocations
     validateLogInjection(resourceName()) == totalInvocations
     checkLogPostExit()
     !logHasErrors
