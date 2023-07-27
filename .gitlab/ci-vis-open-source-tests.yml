@@ -1,8 +1,6 @@
-stages:
-  - ci-vis-open-source-tests
-
 run-ci-vis-open-source-tests:
   stage: ci-vis-open-source-tests
+  when: manual
   trigger:
     project: DataDog/apm-reliability/test-environment
     branch: nikita-tkachenko/split-pipeline-yaml
