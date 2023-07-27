@@ -50,6 +50,7 @@ class SparkStructuredStreamingTest extends AgentTestRunner {
     query.processAllAvailable()
 
     query.stop()
+    sparkSession.stop()
 
     expect:
     assertTraces(2) {
@@ -163,9 +164,6 @@ class SparkStructuredStreamingTest extends AgentTestRunner {
         }
       }
     }
-
-    cleanup:
-    sparkSession.stop()
   }
 
   def "handle failure during streaming processing"() {
@@ -185,6 +183,7 @@ class SparkStructuredStreamingTest extends AgentTestRunner {
       query.processAllAvailable()
     }
     catch (Exception ignored) {}
+    sparkSession.stop()
 
     assertTraces(1) {
       trace(4) {
@@ -217,8 +216,5 @@ class SparkStructuredStreamingTest extends AgentTestRunner {
         }
       }
     }
-
-    cleanup:
-    sparkSession.stop()
   }
 }

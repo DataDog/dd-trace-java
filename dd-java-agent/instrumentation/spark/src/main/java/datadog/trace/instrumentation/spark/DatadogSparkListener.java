@@ -47,6 +47,7 @@ public class DatadogSparkListener extends SparkListener {
   private final AgentTracer.TracerAPI tracer;
 
   private AgentSpan applicationSpan;
+  private SparkListenerApplicationStart applicationStart;
   private final HashMap<String, AgentSpan> streamingBatchSpans = new HashMap<>();
   private final HashMap<Integer, AgentSpan> jobSpans = new HashMap<>();
   private final HashMap<Long, AgentSpan> stageSpans = new HashMap<>();
@@ -68,6 +69,7 @@ public class DatadogSparkListener extends SparkListener {
   private boolean lastJobFailed = false;
   private String lastJobFailedMessage;
   private String lastJobFailedStackTrace;
+  private int jobCount = 0;
   private int currentExecutorCount = 0;
   private int maxExecutorCount = 0;
   private long availableExecutorTime = 0;
@@ -86,24 +88,36 @@ public class DatadogSparkListener extends SparkListener {
 
   @Override
   public synchronized void onApplicationStart(SparkListenerApplicationStart applicationStart) {
-    applicationSpan =
-        buildSparkSpan("spark.application")
-            .withStartTimestamp(applicationStart.time() * 1000)
-            .withTag("application_name", applicationStart.appName())
-            .withTag("spark_user", applicationStart.sparkUser())
-            .start();
+    this.applicationStart = applicationStart;
+  }
 
-    applicationSpan.setMeasured(true);
+  private void initApplicationSpanIfNotInitialized() {
+    if (applicationSpan != null) {
+      return;
+    }
 
-    if (applicationStart.appAttemptId().isDefined())
-      applicationSpan.setTag("app_attempt_id", applicationStart.appAttemptId().get());
+    AgentTracer.SpanBuilder builder = buildSparkSpan("spark.application");
+
+    if (applicationStart != null) {
+      builder
+          .withStartTimestamp(applicationStart.time() * 1000)
+          .withTag("application_name", applicationStart.appName())
+          .withTag("spark_user", applicationStart.sparkUser());
+
+      if (applicationStart.appAttemptId().isDefined()) {
+        builder.withTag("app_attempt_id", applicationStart.appAttemptId().get());
+      }
+    }
 
     for (Tuple2<String, String> conf : sparkConf.getAll()) {
       if (SparkConfAllowList.canCaptureApplicationParameter(conf._1)) {
-        applicationSpan.setTag("config." + conf._1.replace(".", "_"), conf._2);
+        builder.withTag("config." + conf._1.replace(".", "_"), conf._2);
       }
     }
-    applicationSpan.setTag("config.spark_version", sparkVersion);
+    builder.withTag("config.spark_version", sparkVersion);
+
+    applicationSpan = builder.start();
+    applicationSpan.setMeasured(true);
   }
 
   @Override
@@ -119,6 +133,13 @@ public class DatadogSparkListener extends SparkListener {
       return;
     }
     applicationEnded = true;
+
+    if (applicationSpan == null && jobCount > 0) {
+      // If the application span is not initialized, but spark jobs have been executed, all those
+      // spark jobs were databricks or streaming. In this case we don't send the application span
+      return;
+    }
+    initApplicationSpanIfNotInitialized();
 
     if (throwable != null) {
       applicationSpan.addThrowable(throwable);
@@ -148,6 +169,7 @@ public class DatadogSparkListener extends SparkListener {
 
   @Override
   public synchronized void onJobStart(SparkListenerJobStart jobStart) {
+    jobCount++;
     if (jobSpans.size() > MAX_COLLECTION_SIZE) {
       return;
     }
@@ -203,6 +225,7 @@ public class DatadogSparkListener extends SparkListener {
       }
     } else {
       // In non-databricks, non-streaming env, the spark application is the local root span
+      initApplicationSpanIfNotInitialized();
       jobSpanBuilder.asChildOf(applicationSpan.context());
     }
 
