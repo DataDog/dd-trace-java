@@ -172,7 +172,6 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
         edgeTags == ["direction:in", "topic:somequeue", "type:sqs"]
         edgeTags.size() == 3
       }
-
     }
 
 

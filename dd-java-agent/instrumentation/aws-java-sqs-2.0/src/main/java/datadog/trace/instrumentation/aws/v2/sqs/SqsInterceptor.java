@@ -1,35 +1,6 @@
 package datadog.trace.instrumentation.aws.v2.sqs;
 
-import datadog.trace.api.Config;
-import datadog.trace.api.TracePropagationStyle;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.core.SdkRequest;
-import software.amazon.awssdk.core.SdkResponse;
-import software.amazon.awssdk.core.interceptor.Context;
-import software.amazon.awssdk.core.interceptor.ExecutionAttribute;
-import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
-import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
-import software.amazon.awssdk.http.SdkHttpRequest;
-import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
-import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
-import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest;
-import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry;
-import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
-import datadog.trace.bootstrap.ContextStore;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.DSM_KEY;
 import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.PROPAGATION_KEY_BASE64;
 import static datadog.trace.bootstrap.instrumentation.api.URIUtils.parseSqsUrl;
@@ -38,6 +9,24 @@ import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.aws.v2.AwsExecutionAttribute.SPAN_ATTRIBUTE;
+
+import datadog.trace.api.Config;
+import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import software.amazon.awssdk.core.SdkRequest;
+import software.amazon.awssdk.core.interceptor.Context;
+import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
+import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
+import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
+import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest;
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry;
+import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
 public class SqsInterceptor implements ExecutionInterceptor {
 
@@ -48,7 +37,8 @@ public class SqsInterceptor implements ExecutionInterceptor {
   }
 
   @Override
-  public SdkRequest modifyRequest(Context.ModifyRequest context, ExecutionAttributes executionAttributes) {
+  public SdkRequest modifyRequest(
+      Context.ModifyRequest context, ExecutionAttributes executionAttributes) {
     if (Config.get().isDataStreamsEnabled()) {
       if (context.request() instanceof SendMessageRequest) {
         SendMessageRequest request = (SendMessageRequest) context.request();
@@ -62,13 +52,13 @@ public class SqsInterceptor implements ExecutionInterceptor {
         String pathway = propagate().generatePathwayContext(span, sortedTags);
 
         String jsonPathway = String.format("{\"%s\": \"%s\"}", PROPAGATION_KEY_BASE64, pathway);
-        Map<String, MessageAttributeValue> messageAttributes = new HashMap<>(request.messageAttributes());
+        Map<String, MessageAttributeValue> messageAttributes =
+            new HashMap<>(request.messageAttributes());
 
         if (messageAttributes.size() < 10 && !messageAttributes.containsKey(DSM_KEY)) {
-          messageAttributes.put(DSM_KEY, MessageAttributeValue.builder()
-              .dataType("String")
-              .stringValue(jsonPathway)
-              .build());
+          messageAttributes.put(
+              DSM_KEY,
+              MessageAttributeValue.builder().dataType("String").stringValue(jsonPathway).build());
           return request.toBuilder().messageAttributes(messageAttributes).build();
         } else {
           return request;
@@ -87,14 +77,17 @@ public class SqsInterceptor implements ExecutionInterceptor {
         String jsonPathway = "";
         for (SendMessageBatchRequestEntry entry : request.entries()) {
           String pathway = propagate().generatePathwayContext(span, sortedTags);
-          Map<String, MessageAttributeValue> messageAttributes = new HashMap<>(entry.messageAttributes());
+          Map<String, MessageAttributeValue> messageAttributes =
+              new HashMap<>(entry.messageAttributes());
           jsonPathway = String.format("{\"%s\": \"%s\"}", PROPAGATION_KEY_BASE64, pathway);
 
           if (messageAttributes.size() < 10 && !messageAttributes.containsKey(DSM_KEY)) {
-            messageAttributes.put(DSM_KEY, MessageAttributeValue.builder()
-                .dataType("String")
-                .stringValue(jsonPathway)
-                .build());
+            messageAttributes.put(
+                DSM_KEY,
+                MessageAttributeValue.builder()
+                    .dataType("String")
+                    .stringValue(jsonPathway)
+                    .build());
             entries.add(entry.toBuilder().messageAttributes(messageAttributes).build());
           } else {
             entries.add(entry.toBuilder().build());
@@ -118,7 +111,5 @@ public class SqsInterceptor implements ExecutionInterceptor {
     } else {
       return context.request();
     }
-
   }
 }
-

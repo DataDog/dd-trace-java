@@ -48,7 +48,6 @@ public final class SqsClientInstrumentation extends AbstractSqsClientInstrumenta
               InstrumentationContext.get(
                   "software.amazon.awssdk.services.sqs.model.SendMessageBatchResponse",
                   "java.lang.String")));
-
     }
   }
 }

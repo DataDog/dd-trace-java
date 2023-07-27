@@ -251,7 +251,8 @@ public class DefaultPathwayContext implements PathwayContext {
       if (PathwayContext.DSM_KEY.equalsIgnoreCase(key)) {
         try {
           int startIndex = value.indexOf("\"dd-pathway-ctx-base64\": ");
-          int startValueIndex = value.indexOf("\"", startIndex + "\"dd-pathway-ctx-base64\": ".length());
+          int startValueIndex =
+              value.indexOf("\"", startIndex + "\"dd-pathway-ctx-base64\": ".length());
           int endValueIndex = value.indexOf("\"", startValueIndex + 1);
           if (startIndex == -1 || startValueIndex == -1 || endValueIndex == -1) {
             return false;

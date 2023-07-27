@@ -32,10 +32,10 @@ def fixedSdkVersion = '2.20.33' // 2.20.34 is missing and breaks IDEA import
 
 dependencies {
   implementation project(path: ':dd-java-agent:agent-bootstrap')
-    implementation project(path: ':dd-java-agent:agent-bootstrap')
-    compileOnly group: 'software.amazon.awssdk', name: 'aws-core', version: '2.2.0'
-    compileOnly group: 'software.amazon.awssdk', name: 'sqs', version: '2.2.0'
-    compileOnly group: 'software.amazon.awssdk', name: 'sns', version: '2.2.0'
+  implementation project(path: ':dd-java-agent:agent-bootstrap')
+  compileOnly group: 'software.amazon.awssdk', name: 'aws-core', version: '2.2.0'
+  compileOnly group: 'software.amazon.awssdk', name: 'sqs', version: '2.2.0'
+  compileOnly group: 'software.amazon.awssdk', name: 'sns', version: '2.2.0'
 
   // Include httpclient instrumentation for testing because it is a dependency for aws-sdk.
   testImplementation project(':dd-java-agent:instrumentation:apache-httpclient-4')

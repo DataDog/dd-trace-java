@@ -1,14 +1,13 @@
 package datadog.trace.instrumentation.aws.v2.sqs;
 
+import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.DSM_KEY;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.sqs.model.Message;
 import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
-
-import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.DSM_KEY;
-import datadog.trace.api.Config;
 
 public final class MessageExtractAdapter implements AgentPropagation.ContextVisitor<Message> {
   private static final Logger log = LoggerFactory.getLogger(MessageExtractAdapter.class);
@@ -27,14 +26,14 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
         return;
       }
     }
-
   }
 
   @Override
   public void extractPathway(Message carrier, AgentPropagation.KeyClassifier classifier) {
     for (Map.Entry<String, MessageAttributeValue> entry : carrier.messageAttributes().entrySet()) {
       String key = entry.getKey();
-      String value = entry.getValue().getValueForField("StringValue", Object.class).get().toString();
+      String value =
+          entry.getValue().getValueForField("StringValue", Object.class).get().toString();
       if (key.equalsIgnoreCase(DSM_KEY)) {
         if (!classifier.accept(key, value)) {
           return;

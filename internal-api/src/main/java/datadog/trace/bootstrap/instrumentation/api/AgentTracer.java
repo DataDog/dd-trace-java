@@ -502,7 +502,8 @@ public class AgentTracer {
         AgentSpan span, C carrier, Setter<C> setter, TracePropagationStyle style) {}
 
     @Override
-    public <C> String generatePathwayContext(AgentSpan span, LinkedHashMap<String, String> sortedTags) {
+    public <C> String generatePathwayContext(
+        AgentSpan span, LinkedHashMap<String, String> sortedTags) {
       return "";
     }
 
@@ -924,7 +925,8 @@ public class AgentTracer {
         AgentSpan span, C carrier, Setter<C> setter, TracePropagationStyle style) {}
 
     @Override
-    public <C> String generatePathwayContext(AgentSpan span, LinkedHashMap<String, String> sortedTags) {
+    public <C> String generatePathwayContext(
+        AgentSpan span, LinkedHashMap<String, String> sortedTags) {
       return "";
     }
 

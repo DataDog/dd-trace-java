@@ -6,5 +6,4 @@ import software.amazon.awssdk.core.interceptor.ExecutionAttribute;
 public class AwsExecutionAttribute {
   public static final ExecutionAttribute<AgentSpan> SPAN_ATTRIBUTE =
       new ExecutionAttribute<>("DatadogSpan");
-
 }
