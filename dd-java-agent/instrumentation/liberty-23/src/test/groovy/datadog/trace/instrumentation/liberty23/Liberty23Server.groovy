@@ -8,7 +8,7 @@ import groovy.xml.XmlUtil
 
 import java.util.concurrent.TimeUnit
 
-class Liberty20Server implements HttpServer {
+class Liberty23Server implements HttpServer {
   File serverXmlFile = new File(System.getProperty('server.xml'))
   long serverXmlLastModified
   byte[] origServerXml

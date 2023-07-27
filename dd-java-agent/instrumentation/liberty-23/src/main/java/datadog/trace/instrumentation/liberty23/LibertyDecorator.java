@@ -19,7 +19,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.*;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

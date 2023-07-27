@@ -6,7 +6,7 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import spock.lang.IgnoreIf
 
-abstract class Liberty20Test extends HttpServerTest<Server> {
+abstract class Liberty23Test extends HttpServerTest<Server> {
 
   @Override
   HttpServer server() {

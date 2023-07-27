@@ -8,7 +8,7 @@ import spock.lang.IgnoreIf
   System.getProperty('java.vm.name') == 'IBM J9 VM' &&
   System.getProperty('java.specification.version') == '1.8'
 })
-class Liberty20InactiveAppSecTest extends AppSecInactiveHttpServerTest {
+class Liberty23InactiveAppSecTest extends AppSecInactiveHttpServerTest {
   HttpServer server() {
     new Liberty20Server()
   }
