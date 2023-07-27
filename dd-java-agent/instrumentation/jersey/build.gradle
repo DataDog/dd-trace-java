@@ -65,6 +65,7 @@ dependencies {
   jersey3JettyTestRuntimeOnly group: 'org.glassfish.jersey.inject', name: 'jersey-hk2', version: jersey3Version
   jersey3JettyTestRuntimeOnly group: 'javax.activation', name: 'javax.activation-api', version: '1.2.0'
   jersey3JettyTestRuntimeOnly group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
+  jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jetty-9')
   jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jetty-11')
   jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jersey-2-appsec')
   jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jersey-3-appsec')

@@ -84,7 +84,9 @@ class MuzzlePlugin implements Plugin<Project> {
     def compileMuzzle = project.task('compileMuzzle')
     compileMuzzle.dependsOn(toolingProject.tasks.named("compileJava"))
     project.afterEvaluate {
-      project.tasks.matching { it.name in ['instrumentJava', 'instrumentScala', 'instrumentKotlin'] }.all {
+      project.tasks.matching {
+        it.name =~ /\Ainstrument(Main)?(_.+)?(Java|Scala|Kotlin)/
+      }.all {
         compileMuzzle.dependsOn(it)
       }
     }

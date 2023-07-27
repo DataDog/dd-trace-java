@@ -3,9 +3,12 @@ package datadog.trace.civisibility;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIVisibility;
+import datadog.trace.api.civisibility.DDTestSession;
 import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
+import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.ci.CIInfo;
 import datadog.trace.civisibility.ci.CIProviderInfo;
@@ -15,10 +18,12 @@ import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.codeowners.CodeownersProvider;
 import datadog.trace.civisibility.communication.BackendApi;
 import datadog.trace.civisibility.communication.BackendApiFactory;
+import datadog.trace.civisibility.config.CachingModuleExecutionSettingsFactory;
 import datadog.trace.civisibility.config.ConfigurationApi;
 import datadog.trace.civisibility.config.ConfigurationApiImpl;
 import datadog.trace.civisibility.config.JvmInfoFactory;
 import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory;
+import datadog.trace.civisibility.config.ModuleExecutionSettingsFactoryImpl;
 import datadog.trace.civisibility.coverage.TestProbes;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.decorator.TestDecoratorImpl;
@@ -40,6 +45,7 @@ import datadog.trace.civisibility.source.index.RepoIndexBuilder;
 import datadog.trace.civisibility.source.index.RepoIndexFetcher;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
 import datadog.trace.civisibility.source.index.RepoIndexSourcePathResolver;
+import datadog.trace.util.Strings;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.file.FileSystems;
@@ -69,7 +75,8 @@ public class CiVisibilitySystem {
 
     InstrumentationBridge.registerTestEventsHandlerFactory(
         CiVisibilitySystem::createTestEventsHandler);
-    InstrumentationBridge.registerBuildEventsHandlerFactory(BuildEventsHandlerImpl::new);
+    InstrumentationBridge.registerBuildEventsHandlerFactory(
+        CiVisibilitySystem::createBuildEventsHandler);
     InstrumentationBridge.registerCoverageProbeStoreFactory(new TestProbes.TestProbesFactory());
 
     CIVisibility.registerSessionFactory(buildSessionFactory(config, sco));
@@ -104,18 +111,73 @@ public class CiVisibilitySystem {
       int signalServerPort = config.getCiVisibilitySignalServerPort();
       SignalServer signalServer = new SignalServer(signalServerHost, signalServerPort);
 
-      return new DDTestSessionImpl(
-          projectName,
-          startTime,
+      // fallbacks to System.getProperty below are needed for cases when
+      // system variables are set after config was initialized
+      Long parentProcessSessionId = config.getCiVisibilitySessionId();
+      if (parentProcessSessionId == null) {
+        String systemProp =
+            System.getProperty(
+                Strings.propertyNameToSystemPropertyName(
+                    CiVisibilityConfig.CIVISIBILITY_SESSION_ID));
+        if (systemProp != null) {
+          parentProcessSessionId = Long.parseLong(systemProp);
+        }
+      }
+
+      Long parentProcessModuleId = config.getCiVisibilityModuleId();
+      if (parentProcessModuleId == null) {
+        String systemProp =
+            System.getProperty(
+                Strings.propertyNameToSystemPropertyName(
+                    CiVisibilityConfig.CIVISIBILITY_MODULE_ID));
+        if (systemProp != null) {
+          parentProcessModuleId = Long.parseLong(systemProp);
+        }
+      }
+
+      if (parentProcessSessionId == null || parentProcessModuleId == null) {
+        // session ID and module ID are supplied by the parent process
+        // if it runs with the tracer attached;
+
+        // if session ID and module ID are not provided,
+        // either we are in the build system
+        // or we are in the tests JVM and the build system is not instrumented
+        return new DDTestSessionParent(
+            projectName,
+            startTime,
+            config,
+            testModuleRegistry,
+            testDecorator,
+            sourcePathResolver,
+            codeowners,
+            methodLinesResolver,
+            moduleExecutionSettingsFactory,
+            signalServer,
+            indexBuilder);
+      }
+
+      InetSocketAddress signalServerAddress = null;
+      String host =
+          System.getProperty(
+              Strings.propertyNameToSystemPropertyName(
+                  CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST));
+      String port =
+          System.getProperty(
+              Strings.propertyNameToSystemPropertyName(
+                  CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT));
+      if (host != null && port != null) {
+        signalServerAddress = new InetSocketAddress(host, Integer.parseInt(port));
+      }
+
+      return new DDTestSessionChild(
+          parentProcessSessionId,
+          parentProcessModuleId,
           config,
-          testModuleRegistry,
           testDecorator,
           sourcePathResolver,
           codeowners,
           methodLinesResolver,
-          moduleExecutionSettingsFactory,
-          signalServer,
-          indexBuilder);
+          signalServerAddress);
     };
   }
 
@@ -158,8 +220,10 @@ public class CiVisibilitySystem {
     } else {
       configurationApi = new ConfigurationApiImpl(backendApi);
     }
-    return new ModuleExecutionSettingsFactory(
-        config, configurationApi, new JvmInfoFactory(), gitDataUploader, repositoryRoot);
+    return new CachingModuleExecutionSettingsFactory(
+        config,
+        new ModuleExecutionSettingsFactoryImpl(
+            config, configurationApi, gitDataUploader, repositoryRoot));
   }
 
   private static TestEventsHandler createTestEventsHandler(String component, Path path) {
@@ -178,8 +242,17 @@ public class CiVisibilitySystem {
     Map<String, String> ciTags = new CITagsProvider().getCiTags(ciInfo);
     TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags);
 
+    DDTestSession testSession = CIVisibility.startSession(moduleName, path, component, null);
+    // TODO remove explicit casting
+    DDTestModuleImpl testModule = (DDTestModuleImpl) testSession.testModuleStart(moduleName, null);
     return new TestEventsHandlerImpl(
-        moduleName, config, testDecorator, sourcePathResolver, codeowners, methodLinesResolver);
+        testSession,
+        testModule,
+        config,
+        testDecorator,
+        sourcePathResolver,
+        codeowners,
+        methodLinesResolver);
   }
 
   private static RepoIndexProvider getRepoIndexProvider(Config config, String repoRoot) {
@@ -220,5 +293,9 @@ public class CiVisibilitySystem {
     } else {
       return path -> null;
     }
+  }
+
+  private static <U> BuildEventsHandler<U> createBuildEventsHandler() {
+    return new BuildEventsHandlerImpl<>(new JvmInfoFactory());
   }
 }

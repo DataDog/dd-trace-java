@@ -1,4 +1,4 @@
-package datadog.trace.civisibility.config;
+package datadog.trace.api.civisibility.config;
 
 import java.util.Objects;
 

@@ -1,10 +1,7 @@
 package datadog.trace.instrumentation.jetty11;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
-import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
@@ -61,15 +58,7 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        takesNoArguments()
-            .and(
-                named("handle")
-                    .or(
-                        // In 9.0.3 the handle logic was extracted out to "handle"
-                        // but we still want to instrument run in case handle is missing
-                        // (without the risk of double instrumenting).
-                        named("run").and(isDeclaredBy(not(declaresMethod(named("handle"))))))),
-        packageName + ".JettyServerAdvice$HandleAdvice");
+        takesNoArguments().and(named("handle")), packageName + ".JettyServerAdvice$HandleAdvice");
     transformation.applyAdvice(
         named("recycle").and(takesNoArguments()), packageName + ".JettyServerAdvice$ResetAdvice");
   }

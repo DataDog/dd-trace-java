@@ -27,6 +27,11 @@ public final class RequestInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String muzzleDirective() {
+    return "9_full_series";
+  }
+
+  @Override
   public String instrumentedType() {
     return "org.eclipse.jetty.server.Request";
   }

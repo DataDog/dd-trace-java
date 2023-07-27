@@ -4,6 +4,7 @@ import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper.TemplateType;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
@@ -20,7 +21,6 @@ import org.slf4j.LoggerFactory;
 public class TomcatBlockingHelper {
   private static final Logger log = LoggerFactory.getLogger(TomcatBlockingHelper.class);
   private static final MethodHandle GET_OUTPUT_STREAM;
-  public static final String TOMCAT_IGNORE_COMMIT_ATTRIBUTE = "datadog.commit.ignore";
 
   static {
     MethodHandle mh = null;
@@ -116,7 +116,7 @@ public class TomcatBlockingHelper {
     log.debug("Committing blocking response");
 
     resp.reset();
-    resp.getRequest().setAttribute(TOMCAT_IGNORE_COMMIT_ATTRIBUTE, Boolean.TRUE);
+    resp.getRequest().setAttribute(HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE, Boolean.TRUE);
     resp.setStatus(statusCode);
 
     return true;

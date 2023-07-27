@@ -42,11 +42,12 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_SIGNAL_SERVER_HOST = "civisibility.signal.server.host";
   public static final String CIVISIBILITY_SIGNAL_SERVER_PORT = "civisibility.signal.server.port";
   public static final String CIVISIBILITY_ITR_ENABLED = "civisibility.itr.enabled";
-  public static final String CIVISIBILITY_SKIPPABLE_TESTS = "civisibility.skippable.tests";
   public static final String CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED =
       "civisibility.ciprovider.integration.enabled";
   public static final String CIVISIBILITY_REPO_INDEX_SHARING_ENABLED =
       "civisibility.repo.index.sharing.enabled";
+  public static final String CIVISIBILITY_MODULE_EXECUTION_SETTINGS_CACHE_SIZE =
+      "civisibility.module.execution.settings.cache.size";
 
   private CiVisibilityConfig() {}
 }

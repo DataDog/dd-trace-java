@@ -153,8 +153,7 @@ public abstract class TestFrameworkUtils {
     }
 
     MethodSource methodSource = (MethodSource) testSource;
-    String testSuitName = methodSource.getClassName();
-
+    String testSuiteName = methodSource.getClassName();
     String displayName = testDescriptor.getDisplayName();
     UniqueId uniqueId = testDescriptor.getUniqueId();
     String testEngineId = uniqueId.getEngineId().orElse(null);
@@ -162,6 +161,6 @@ public abstract class TestFrameworkUtils {
 
     String testParameters = getParameters(methodSource, displayName);
 
-    return new SkippableTest(testSuitName, testName, testParameters, null);
+    return new SkippableTest(testSuiteName, testName, testParameters, null);
   }
 }

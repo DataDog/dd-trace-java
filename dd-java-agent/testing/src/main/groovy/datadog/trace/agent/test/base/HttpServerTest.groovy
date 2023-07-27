@@ -1787,6 +1787,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
     response.code() == 413
     response.header('Content-type') =~ /(?i)\Aapplication\/json(?:;\s?charset=utf-8)?\z/
+    response.header(IG_RESPONSE_HEADER) == null // the header should've been cleared
     response.body().charStream().text.contains('"title":"You\'ve been blocked"')
     TEST_WRITER.waitForTraces(1)
 

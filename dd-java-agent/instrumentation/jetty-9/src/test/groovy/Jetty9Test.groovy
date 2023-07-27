@@ -56,6 +56,11 @@ abstract class Jetty9Test extends HttpServerTest<Server> {
   }
 
   @Override
+  boolean testBlockingOnResponse() {
+    true
+  }
+
+  @Override
   boolean hasExtraErrorInformation() {
     true
   }

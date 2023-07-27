@@ -13,7 +13,6 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import datadog.trace.instrumentation.tomcat.ExtractAdapter;
-import datadog.trace.instrumentation.tomcat.TomcatBlockingHelper;
 import datadog.trace.instrumentation.tomcat.TomcatDecorator;
 import net.bytebuddy.asm.Advice;
 import org.apache.coyote.ActionCode;
@@ -86,10 +85,10 @@ public class CommitActionInstrumentation extends Instrumenter.AppSec
         return false;
       }
       Request request = coyoteResponse.getRequest();
-      if (request.getAttribute(TomcatBlockingHelper.TOMCAT_IGNORE_COMMIT_ATTRIBUTE) != null) {
+      if (request.getAttribute(HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE) != null) {
         return false;
       }
-      request.setAttribute(TomcatBlockingHelper.TOMCAT_IGNORE_COMMIT_ATTRIBUTE, Boolean.TRUE);
+      request.setAttribute(HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE, Boolean.TRUE);
 
       // on async requests AgentTracer.activeSpan() may return null
       AgentSpan agentSpan = (AgentSpan) request.getAttribute(HttpServerDecorator.DD_SPAN_ATTRIBUTE);
