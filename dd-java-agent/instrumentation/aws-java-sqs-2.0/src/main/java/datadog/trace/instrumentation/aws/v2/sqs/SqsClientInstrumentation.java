@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -43,11 +42,7 @@ public final class SqsClientInstrumentation extends AbstractSqsClientInstrumenta
           return; // list already has our interceptor, return to builder
         }
       }
-      interceptors.add(
-          new SqsInterceptor(
-              InstrumentationContext.get(
-                  "software.amazon.awssdk.services.sqs.model.SendMessageBatchResponse",
-                  "java.lang.String")));
+      interceptors.add(new SqsInterceptor());
     }
   }
 }

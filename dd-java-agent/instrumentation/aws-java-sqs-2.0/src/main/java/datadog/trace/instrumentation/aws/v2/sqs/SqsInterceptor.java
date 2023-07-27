@@ -11,7 +11,6 @@ import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.aws.v2.AwsExecutionAttribute.SPAN_ATTRIBUTE;
 
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,11 +29,7 @@ import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
 public class SqsInterceptor implements ExecutionInterceptor {
 
-  private final ContextStore<Object, String> responseQueueStore;
-
-  public SqsInterceptor(ContextStore<Object, String> responseQueueStore) {
-    this.responseQueueStore = responseQueueStore;
-  }
+  public SqsInterceptor() {}
 
   @Override
   public SdkRequest modifyRequest(
