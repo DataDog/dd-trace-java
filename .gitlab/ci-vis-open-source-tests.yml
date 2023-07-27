@@ -4,6 +4,8 @@ variables:
 run-ci-vis-open-source-tests:
   stage: ci-vis-open-source-tests
   trigger:
+    project: DataDog/apm-reliability/test-environment
+    branch: nikita-tkachenko/split-pipeline-yaml
     include:
       project: DataDog/apm-reliability/test-environment
       ref: nikita-tkachenko/split-pipeline-yaml
@@ -18,4 +20,3 @@ run-ci-vis-open-source-tests:
     UPSTREAM_COMMIT_AUTHOR: $CI_COMMIT_AUTHOR
     UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
     JAVA_TRACER_REF_TO_TEST: $CI_COMMIT_BRANCH
-    TEST: TEST
