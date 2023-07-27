@@ -5,12 +5,13 @@ import io.opentelemetry.api.trace.TracerBuilder;
 import io.opentelemetry.api.trace.TracerProvider;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.Logger;
 import javax.annotation.ParametersAreNonnullByDefault;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @ParametersAreNonnullByDefault
 public class OtelTracerProvider implements TracerProvider {
-  private static final Logger logger = Logger.getLogger(OtelTracerProvider.class.getName());
+  private static final Logger LOGGER = LoggerFactory.getLogger(OtelTracerProvider.class);
   private static final String DEFAULT_TRACER_NAME = "";
   public static final OtelTracerProvider INSTANCE = new OtelTracerProvider();
 
@@ -47,7 +48,7 @@ public class OtelTracerProvider implements TracerProvider {
   @Override
   public TracerBuilder tracerBuilder(String instrumentationScopeName) {
     if (instrumentationScopeName.trim().isEmpty()) {
-      logger.fine("Tracer requested without instrumentation scope name.");
+      LOGGER.debug("Tracer requested without instrumentation scope name.");
       instrumentationScopeName = DEFAULT_TRACER_NAME;
     }
     return new OtelTracerBuilder(instrumentationScopeName);
