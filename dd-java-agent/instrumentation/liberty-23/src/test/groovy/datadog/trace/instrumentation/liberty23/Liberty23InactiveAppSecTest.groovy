@@ -10,6 +10,6 @@ import spock.lang.IgnoreIf
 })
 class Liberty23InactiveAppSecTest extends AppSecInactiveHttpServerTest {
   HttpServer server() {
-    new Liberty20Server()
+    new Liberty23Server()
   }
 }
