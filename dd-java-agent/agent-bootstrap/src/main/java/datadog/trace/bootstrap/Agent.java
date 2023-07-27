@@ -829,7 +829,7 @@ public class Agent {
    * on JFR.
    */
   private static ProfilingContextIntegration createProfilingContextIntegration() {
-    if (Config.get().isProfilingEnabled()) {
+    if (Config.get().isProfilingEnabled() && !Platform.isWindows()) {
       try {
         return (ProfilingContextIntegration)
             AGENT_CLASSLOADER
