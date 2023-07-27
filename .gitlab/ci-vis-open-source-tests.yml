@@ -1,6 +1,3 @@
-variables:
-  EXPLORATION_TESTS_IMAGE: $REGISTRY/ci/dd-trace-java:exploration-tests
-
 run-ci-vis-open-source-tests:
   stage: ci-vis-open-source-tests
   trigger:
@@ -17,3 +14,4 @@ run-ci-vis-open-source-tests:
     UPSTREAM_COMMIT_AUTHOR: $CI_COMMIT_AUTHOR
     UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
     JAVA_TRACER_REF_TO_TEST: $CI_COMMIT_BRANCH
+    TRACER_LANG: java
