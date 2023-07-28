@@ -320,7 +320,6 @@ public class DefaultPathwayContext implements PathwayContext {
     PathwayContextExtractor pathwayContextExtractor =
         new PathwayContextExtractor(timeSource, wellKnownTags);
     getter.forEachKey(carrier, pathwayContextExtractor);
-    getter.extractPathway(carrier, pathwayContextExtractor);
     if (pathwayContextExtractor.extractedContext == null) {
       log.debug("No context extracted");
     } else {

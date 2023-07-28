@@ -44,10 +44,6 @@ public interface AgentPropagation {
 
   interface ContextVisitor<C> {
     void forEachKey(C carrier, KeyClassifier classifier);
-
-    default void extractPathway(C carrier, KeyClassifier classifier) {
-      return;
-    }
   }
 
   interface BinaryContextVisitor<C> extends ContextVisitor<C> {
