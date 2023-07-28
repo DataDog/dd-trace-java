@@ -39,7 +39,8 @@ public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Tra
       "io.netty.util.concurrent.GlobalEventExecutor",
       "io.netty.util.concurrent.SingleThreadEventExecutor",
       "java.util.concurrent.AbstractExecutorService",
-      "org.glassfish.grizzly.threadpool.GrizzlyExecutorService"
+      "org.glassfish.grizzly.threadpool.GrizzlyExecutorService",
+      "org.jboss.threads.EnhancedQueueExecutor",
     };
   }
 
