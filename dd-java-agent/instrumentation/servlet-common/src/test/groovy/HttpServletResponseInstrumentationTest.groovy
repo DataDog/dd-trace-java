@@ -3,6 +3,7 @@ import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.sink.HttpResponseHeaderModule
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
+import datadog.trace.api.iast.util.Cookie as IastCookie
 import foo.bar.DummyResponse
 
 import javax.servlet.http.Cookie
@@ -31,7 +32,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.addCookie(cookie)
 
     then:
-    1 * module.onCookie('user-id', false, false, false)
+    1 * module.onCookie({ IastCookie vul -> vul.cookieName == cookie.name && vul.secure == cookie.secure })
     0 * _
   }
 
@@ -63,7 +64,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
     response.addCookie(cookie)
 
     then:
-    1 * module.onCookie('user-id', true, false, false)
+    1 * module.onCookie({ IastCookie vul -> vul.cookieName == cookie.name && vul.secure == cookie.secure })
     0 * _
   }
 

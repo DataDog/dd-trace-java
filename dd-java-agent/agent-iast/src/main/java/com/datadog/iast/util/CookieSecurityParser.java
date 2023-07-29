@@ -1,39 +1,54 @@
 package com.datadog.iast.util;
 
+import static java.util.Collections.emptyList;
+
+import datadog.trace.api.iast.util.Cookie;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.StringTokenizer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CookieSecurityParser {
-  ArrayList<CookieSecurityDetails> cookies = new ArrayList<>();
 
-  public CookieSecurityParser(String cookieString) {
+  private static final Logger LOG = LoggerFactory.getLogger(CookieSecurityParser.class);
+  private static final String SECURE_ATTR = "Secure";
+  private static final String HTTP_ONLY_ATTR = "HttpOnly";
+  private static final String SAME_SITE_ATTR = "SameSite";
+
+  public static List<Cookie> parse(final String cookieString) {
+    if (cookieString == null || cookieString.isEmpty()) {
+      return emptyList();
+    }
     try {
-      int version = guessCookieVersion(cookieString);
-      List<String> cookieStrings = null;
+      final List<Cookie> cookies = new ArrayList<>();
+      final int version = guessCookieVersion(cookieString);
       if (0 != version) {
-        cookieStrings = splitMultiCookies(cookieString);
+        for (final String header : splitMultiCookies(cookieString)) {
+          final Cookie cookie = parseInternal(header);
+          if (cookie != null) {
+            cookies.add(cookie);
+          }
+        }
       } else {
-        cookieStrings = Arrays.asList(cookieString);
+        final Cookie cookie = parseInternal(cookieString);
+        if (cookie != null) {
+          cookies.add(cookie);
+        }
       }
-      for (String cookieStr : cookieStrings) {
-        CookieSecurityDetails cookie = parseInternal(cookieStr);
-        cookies.add(cookie);
-      }
-    } catch (Exception e) {
-      // Cookie is not parseable
+      return cookies;
+    } catch (final Throwable e) {
+      LOG.warn("Failed to parse the cookie {}", cookieString, e);
+      return emptyList();
     }
   }
 
-  public ArrayList<CookieSecurityDetails> getCookies() {
-    return cookies;
-  }
-
-  private CookieSecurityDetails parseInternal(String header) {
-    CookieSecurityDetails analyzedCookie = new CookieSecurityDetails();
-
+  private static Cookie parseInternal(final String header) {
+    String cookieName;
+    boolean httpOnly = false;
+    boolean secure = false;
+    String sameSite = null;
     StringTokenizer tokenizer = new StringTokenizer(header, ";");
 
     // there should always have at least on name-value pair;
@@ -42,7 +57,7 @@ public class CookieSecurityParser {
       String nameValuePair = tokenizer.nextToken();
       int index = nameValuePair.indexOf('=');
       if (index != -1) {
-        analyzedCookie.setCookieName(nameValuePair.substring(0, index).trim());
+        cookieName = nameValuePair.substring(0, index).trim();
       } else {
         return null;
       }
@@ -62,13 +77,20 @@ public class CookieSecurityParser {
         name = attribute.trim();
         value = null;
       }
-      analyzedCookie.addAttribute(name, value);
+      if (SECURE_ATTR.equalsIgnoreCase(name)) {
+        secure = true;
+      }
+      if (HTTP_ONLY_ATTR.equalsIgnoreCase(name)) {
+        httpOnly = true;
+      }
+      if (SAME_SITE_ATTR.equalsIgnoreCase(name)) {
+        sameSite = value;
+      }
     }
-
-    return analyzedCookie;
+    return new Cookie(cookieName, secure, httpOnly, sameSite);
   }
 
-  private static List<String> splitMultiCookies(String header) {
+  private static List<String> splitMultiCookies(final String header) {
     List<String> cookies = new java.util.ArrayList<String>();
     int quoteCount = 0;
     int p, q;
@@ -89,20 +111,17 @@ public class CookieSecurityParser {
   }
 
   private static int guessCookieVersion(String header) {
-    int version = 0;
-
     header = header.toLowerCase();
-    if (header.indexOf("expires=") != -1) {
+    if (header.contains("expires=")) {
       // only netscape cookie using 'expires'
-      version = 0;
-    } else if (header.indexOf("version=") != -1) {
+      return 0;
+    } else if (header.contains("version=")) {
       // version is mandatory for rfc 2965/2109 cookie
-      version = 1;
-    } else if (header.indexOf("max-age") != -1) {
+      return 1;
+    } else if (header.contains("max-age")) {
       // rfc 2965/2109 use 'max-age'
-      version = 1;
+      return 1;
     }
-
-    return version;
+    return 0;
   }
 }

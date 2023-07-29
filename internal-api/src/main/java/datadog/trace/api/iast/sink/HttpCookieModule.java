@@ -4,9 +4,9 @@ import datadog.trace.api.iast.IastModule;
 import datadog.trace.api.iast.util.Cookie;
 import javax.annotation.Nonnull;
 
-public interface HttpResponseHeaderModule extends IastModule {
+public interface HttpCookieModule<T> extends IastModule {
 
-  void onHeader(@Nonnull String name, String value);
+  boolean isVulnerable(@Nonnull final Cookie cookie);
 
-  void onCookie(@Nonnull Cookie cookie);
+  T getType();
 }
