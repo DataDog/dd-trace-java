@@ -1,14 +1,12 @@
 package datadog.trace.instrumentation.aws.v2.sqs;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import datadog.trace.api.Config;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
 import java.util.List;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 

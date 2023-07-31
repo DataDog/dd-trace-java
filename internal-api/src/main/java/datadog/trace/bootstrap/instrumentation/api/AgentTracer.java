@@ -918,7 +918,6 @@ public class AgentTracer {
     public <C> void inject(
         AgentSpan span, C carrier, Setter<C> setter, TracePropagationStyle style) {}
 
-
     @Override
     public <C> void injectBinaryPathwayContext(
         AgentSpan span,

@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.aws.v2.sqs;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.DSM_KEY;
-import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.PROPAGATION_KEY_BASE64;
 import static datadog.trace.bootstrap.instrumentation.api.URIUtils.parseSqsUrl;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
@@ -10,7 +9,6 @@ import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.aws.v2.sqs.MessageAttributeInjector.SETTER;
 
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.ArrayList;
@@ -31,10 +29,9 @@ import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
 public class SqsInterceptor implements ExecutionInterceptor {
 
-
   public static final ExecutionAttribute<AgentSpan> SPAN_ATTRIBUTE =
-      InstanceStore.of(ExecutionAttribute.class).putIfAbsent(
-          "DatadogSpan", () -> new ExecutionAttribute<>("DatadogSpan"));
+      InstanceStore.of(ExecutionAttribute.class)
+          .putIfAbsent("DatadogSpan", () -> new ExecutionAttribute<>("DatadogSpan"));
 
   public SqsInterceptor() {}
 
@@ -50,7 +47,8 @@ public class SqsInterceptor implements ExecutionInterceptor {
       sortedTags.put(TOPIC_TAG, parseSqsUrl(queueUrl));
       sortedTags.put(TYPE_TAG, "sqs");
 
-      Map<String, MessageAttributeValue> messageAttributes = new HashMap<>(request.messageAttributes());
+      Map<String, MessageAttributeValue> messageAttributes =
+          new HashMap<>(request.messageAttributes());
       propagate().injectPathwayContext(span, messageAttributes, SETTER, sortedTags);
       return request.toBuilder().messageAttributes(messageAttributes).build();
 
@@ -70,7 +68,6 @@ public class SqsInterceptor implements ExecutionInterceptor {
             new HashMap<>(entry.messageAttributes());
         propagate().injectPathwayContext(span, messageAttributes, SETTER, sortedTags);
         entries.add(entry.toBuilder().messageAttributes(messageAttributes).build());
-
       }
 
       return request.toBuilder().entries(entries).build();

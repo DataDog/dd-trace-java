@@ -29,7 +29,8 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
     }
 
     if (Config.get().isDataStreamsEnabled()) {
-      for (Map.Entry<String, MessageAttributeValue> entry : carrier.messageAttributes().entrySet()) {
+      for (Map.Entry<String, MessageAttributeValue> entry :
+          carrier.messageAttributes().entrySet()) {
         String key = entry.getKey();
         String value =
             entry.getValue().getValueForField("StringValue", Object.class).get().toString();
