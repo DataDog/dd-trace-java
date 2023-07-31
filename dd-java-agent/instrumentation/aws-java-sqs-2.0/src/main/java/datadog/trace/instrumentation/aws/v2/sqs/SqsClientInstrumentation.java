@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.aws.v2.sqs;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import datadog.trace.api.Config;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -31,12 +32,14 @@ public final class SqsClientInstrumentation extends AbstractSqsClientInstrumenta
   public static class AwsSqsBuilderAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void methodExit(@Advice.Return final List<ExecutionInterceptor> interceptors) {
-      for (ExecutionInterceptor interceptor : interceptors) {
-        if (interceptor instanceof SqsInterceptor) {
-          return; // list already has our interceptor, return to builder
+      if (Config.get().isDataStreamsEnabled()) {
+        for (ExecutionInterceptor interceptor : interceptors) {
+          if (interceptor instanceof SqsInterceptor) {
+            return; // list already has our interceptor, return to builder
+          }
         }
+        interceptors.add(new SqsInterceptor());
       }
-      interceptors.add(new SqsInterceptor());
     }
   }
 }

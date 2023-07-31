@@ -35,53 +35,49 @@ public class SqsInterceptor implements ExecutionInterceptor {
   @Override
   public SdkRequest modifyRequest(
       Context.ModifyRequest context, ExecutionAttributes executionAttributes) {
-    if (Config.get().isDataStreamsEnabled()) {
-      if (context.request() instanceof SendMessageRequest) {
-        SendMessageRequest request = (SendMessageRequest) context.request();
-        String queueUrl = request.getValueForField("QueueUrl", String.class).get().toString();
-        AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
-        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-        sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-        sortedTags.put(TOPIC_TAG, parseSqsUrl(queueUrl));
-        sortedTags.put(TYPE_TAG, "sqs");
+    if (context.request() instanceof SendMessageRequest) {
+      SendMessageRequest request = (SendMessageRequest) context.request();
+      String queueUrl = request.getValueForField("QueueUrl", String.class).get().toString();
+      AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
+      LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+      sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+      sortedTags.put(TOPIC_TAG, parseSqsUrl(queueUrl));
+      sortedTags.put(TYPE_TAG, "sqs");
 
-        Map<String, MessageAttributeValue> messageAttributes = new HashMap<>(request.messageAttributes());
+      Map<String, MessageAttributeValue> messageAttributes = new HashMap<>(request.messageAttributes());
+      propagate().injectPathwayContext(span, messageAttributes, SETTER, sortedTags);
+      return request.toBuilder().messageAttributes(messageAttributes).build();
+
+    } else if (context.request() instanceof SendMessageBatchRequest) {
+      System.out.println("we are here");
+      SendMessageBatchRequest request = (SendMessageBatchRequest) context.request();
+      String queueUrl = request.getValueForField("QueueUrl", String.class).get().toString();
+      AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
+      LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+      sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+      sortedTags.put(TOPIC_TAG, parseSqsUrl(queueUrl));
+      sortedTags.put(TYPE_TAG, "sqs");
+
+      List<SendMessageBatchRequestEntry> entries = new ArrayList<>();
+
+      for (SendMessageBatchRequestEntry entry : request.entries()) {
+        Map<String, MessageAttributeValue> messageAttributes =
+            new HashMap<>(entry.messageAttributes());
         propagate().injectPathwayContext(span, messageAttributes, SETTER, sortedTags);
-        return request.toBuilder().messageAttributes(messageAttributes).build();
+        entries.add(entry.toBuilder().messageAttributes(messageAttributes).build());
 
-      } else if (context.request() instanceof SendMessageBatchRequest) {
-        System.out.println("we are here");
-        SendMessageBatchRequest request = (SendMessageBatchRequest) context.request();
-        String queueUrl = request.getValueForField("QueueUrl", String.class).get().toString();
-        AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
-        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-        sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-        sortedTags.put(TOPIC_TAG, parseSqsUrl(queueUrl));
-        sortedTags.put(TYPE_TAG, "sqs");
+      }
 
-        List<SendMessageBatchRequestEntry> entries = new ArrayList<>();
+      return request.toBuilder().entries(entries).build();
 
-        for (SendMessageBatchRequestEntry entry : request.entries()) {
-          Map<String, MessageAttributeValue> messageAttributes =
-              new HashMap<>(entry.messageAttributes());
-          propagate().injectPathwayContext(span, messageAttributes, SETTER, sortedTags);
-          entries.add(entry.toBuilder().messageAttributes(messageAttributes).build());
-
-        }
-
-        return request.toBuilder().entries(entries).build();
-
-      } else if (context.request() instanceof ReceiveMessageRequest) {
-        ReceiveMessageRequest request = (ReceiveMessageRequest) context.request();
-        List<String> messageAttributeNames = new ArrayList<>(request.messageAttributeNames());
-        if (messageAttributeNames.size() < 10 && !messageAttributeNames.contains(DSM_KEY)) {
-          messageAttributeNames.add(DSM_KEY);
-          return request.toBuilder().messageAttributeNames(messageAttributeNames).build();
-        } else {
-          return request;
-        }
+    } else if (context.request() instanceof ReceiveMessageRequest) {
+      ReceiveMessageRequest request = (ReceiveMessageRequest) context.request();
+      List<String> messageAttributeNames = new ArrayList<>(request.messageAttributeNames());
+      if (messageAttributeNames.size() < 10 && !messageAttributeNames.contains(DSM_KEY)) {
+        messageAttributeNames.add(DSM_KEY);
+        return request.toBuilder().messageAttributeNames(messageAttributeNames).build();
       } else {
-        return context.request();
+        return request;
       }
     } else {
       return context.request();
