@@ -175,8 +175,12 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     client.close()
   }
 
-  @IgnoreIf({ isDataStreamsEnabled() })
   def "trace details propagated from SQS to JMS"() {
+
+    if (isDataStreamsEnabled()) {
+      return
+    }
+
     setup:
     def client = SqsClient.builder()
       .region(Region.EU_CENTRAL_1)
@@ -326,9 +330,11 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     /Root=1-[0-9a-f]{8}-00000000${sendSpan.traceId.toHexStringPadded(16)};Parent=${DDSpanId.toHexStringPadded(sendSpan.spanId)};Sampled=1/
 
     cleanup:
-    session.close()
-    connection.stop()
-    client.close()
+    if (!isDataStreamsEnabled()) {
+      session.close()
+      connection.stop()
+      client.close()
+    }
   }
 }
 
