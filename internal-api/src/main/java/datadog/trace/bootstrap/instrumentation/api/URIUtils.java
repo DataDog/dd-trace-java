@@ -162,7 +162,12 @@ public class URIUtils {
     try {
       URL url = new URL(raw);
       String path = url.getPath();
-      path = path.replaceAll("^/|/$", "");
+      if (path.startsWith("/")) {
+        path = path.substring(1);
+      }
+      if (path.endsWith("/")) {
+        path = path.substring(0, path.length() - 1);
+      }
       String name = path.substring(path.lastIndexOf('/') + 1);
       return name;
     } catch (MalformedURLException e) {
