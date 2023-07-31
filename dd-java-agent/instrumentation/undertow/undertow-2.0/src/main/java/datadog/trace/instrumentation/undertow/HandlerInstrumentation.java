@@ -57,6 +57,7 @@ public final class HandlerInstrumentation extends Instrumenter.Tracing
       packageName + ".UndertowExtractAdapter$Request",
       packageName + ".UndertowExtractAdapter$Response",
       packageName + ".UndertowBlockingHandler",
+      packageName + ".IgnoreSendAttribute",
       packageName + ".UndertowBlockResponseFunction",
     };
   }

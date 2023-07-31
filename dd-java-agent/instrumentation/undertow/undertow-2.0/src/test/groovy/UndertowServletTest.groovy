@@ -136,6 +136,11 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
     true
   }
 
+  @Override
+  boolean testBlockingOnResponse() {
+    true
+  }
+
   boolean hasResponseSpan(ServerEndpoint endpoint) {
     return endpoint == REDIRECT || endpoint == NOT_FOUND
   }

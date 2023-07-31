@@ -13,7 +13,8 @@ class QueryEncodedBothServlet extends HttpServlet {
   protected void doGet(final HttpServletRequest req, final HttpServletResponse resp) throws ServletException, IOException {
     controller(QUERY_ENCODED_BOTH) {
       resp.addHeader(HttpServerTest.IG_RESPONSE_HEADER, HttpServerTest.IG_RESPONSE_HEADER_VALUE)
-      resp.writer.print(QUERY_ENCODED_BOTH.bodyForQuery(req.queryString))
+      def queryString = req.queryString ?: req.getAttribute('javax.servlet.async.query_string')
+      resp.writer.print(QUERY_ENCODED_BOTH.bodyForQuery(queryString))
     }
   }
 }

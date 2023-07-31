@@ -1,5 +1,3 @@
 package datadog.trace.api.iast.sink;
 
-import datadog.trace.api.iast.IastModule;
-
-public interface NoSameSiteCookieModule extends IastModule {}
+public interface NoSameSiteCookieModule<T> extends HttpCookieModule<T> {}

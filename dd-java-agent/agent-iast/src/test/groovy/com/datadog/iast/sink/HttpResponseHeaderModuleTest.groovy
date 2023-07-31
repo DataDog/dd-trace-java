@@ -7,6 +7,7 @@ import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.util.Cookie
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
 class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
@@ -39,40 +40,40 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
 
   void 'check quota is consumed correctly'() {
     given:
-    Vulnerability savedVul1
-    Vulnerability savedVul2
-    Vulnerability savedVul3
+    Map<VulnerabilityType, Vulnerability> savedVul = [:]
+    final onReport = { Vulnerability vul ->
+      savedVul.put(vul.type, vul)
+    }
+    final cookie = Cookie.named('user-id').build()
 
     when:
-    module.onCookie("user-id", false, false, false)
+    module.onCookie(cookie)
 
     then:
     1 * tracer.activeSpan() >> span
     1 * span.getSpanId()
     1 * overheadController.consumeQuota(_, _) >> true
-    1 * reporter.report(_, _ as Vulnerability) >> { savedVul1 = it[1] }
-    1 * reporter.report(_, _ as Vulnerability) >> { savedVul2 = it[1] }
-    1 * reporter.report(_, _ as Vulnerability) >> { savedVul3 = it[1] }
+    1 * reporter.report(_, _ as Vulnerability) >> { onReport.call(it[1] as Vulnerability) }
+    1 * reporter.report(_, _ as Vulnerability) >> { onReport.call(it[1] as Vulnerability) }
+    1 * reporter.report(_, _ as Vulnerability) >> { onReport.call(it[1] as Vulnerability) }
     0 * _
-    with(savedVul1) {
-      type == VulnerabilityType.INSECURE_COOKIE
+    with(savedVul[VulnerabilityType.INSECURE_COOKIE]) {
       location != null
       with(evidence) {
-        value == "user-id"
+        value == cookie.cookieName
       }
     }
-    with(savedVul2) {
-      type == VulnerabilityType.NO_HTTPONLY_COOKIE
+    with(savedVul[VulnerabilityType.NO_HTTPONLY_COOKIE]) {
       location != null
       with(evidence) {
-        value == "user-id"
+        value == cookie.cookieName
       }
     }
-    with(savedVul3) {
+    with(savedVul[VulnerabilityType.NO_SAMESITE_COOKIE]) {
       type == VulnerabilityType.NO_SAMESITE_COOKIE
       location != null
       with(evidence) {
-        value == "user-id"
+        value == cookie.cookieName
       }
     }
   }
