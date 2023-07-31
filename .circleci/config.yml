@@ -23,7 +23,7 @@ instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 
-default_system_tests_commit: &default_system_tests_commit 7b39609e7bc21c951e78ed1f2ec7a88e8d042c6a
+default_system_tests_commit: &default_system_tests_commit 18afda441d6e92fe3befeddd4dd20ff558ca4f0c
 
 parameters:
   gradle_flags:
