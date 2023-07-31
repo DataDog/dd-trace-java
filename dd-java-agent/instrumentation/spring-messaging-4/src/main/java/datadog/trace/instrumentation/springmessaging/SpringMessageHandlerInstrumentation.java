@@ -24,7 +24,7 @@ public final class SpringMessageHandlerInstrumentation extends Instrumenter.Trac
     implements Instrumenter.ForSingleType {
 
   public SpringMessageHandlerInstrumentation() {
-    super("spring-messaging");
+    super("spring-messaging", "spring-messaging-4");
   }
 
   @Override
