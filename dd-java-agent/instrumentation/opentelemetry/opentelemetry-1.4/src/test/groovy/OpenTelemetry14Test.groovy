@@ -100,6 +100,23 @@ class OpenTelemetry14Test extends AgentTestRunner {
     }
   }
 
+  def "test parent span using invalid reference"() {
+    when:
+    def invalidCurrentSpanContext = Context.root() // Contains a SpanContext with TID/SID to 0 as current span
+    def childSpan = tracer.spanBuilder("some-name")
+      .setParent(invalidCurrentSpanContext)
+      .startSpan()
+    childSpan.end()
+
+    TEST_WRITER.waitForTraces(1)
+    def trace = TEST_WRITER.firstTrace()
+
+
+    then:
+    trace.size() == 1
+    trace[0].spanId != 0
+  }
+
   def "test no parent to create new root span"() {
     setup:
     def parentSpan = tracer.spanBuilder("some-name").startSpan()
