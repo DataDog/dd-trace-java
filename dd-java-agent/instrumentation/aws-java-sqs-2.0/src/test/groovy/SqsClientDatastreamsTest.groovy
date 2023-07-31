@@ -125,6 +125,7 @@ abstract class SqsClientTestDatastreamsEnabled extends VersionedNamingTestBase {
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             "aws.requestId" "00000000-0000-0000-0000-000000000000"
+            "pathway.hash" "13498838317474586795"
             defaultTags()
           }
         }

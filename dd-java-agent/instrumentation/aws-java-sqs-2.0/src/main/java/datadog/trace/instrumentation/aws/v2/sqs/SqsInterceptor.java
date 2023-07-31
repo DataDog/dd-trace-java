@@ -9,6 +9,7 @@ import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.aws.v2.AwsExecutionAttribute.SPAN_ATTRIBUTE;
+import static datadog.trace.instrumentation.aws.v2.sqs.MessageAttributeInjector.SETTER;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -44,22 +45,12 @@ public class SqsInterceptor implements ExecutionInterceptor {
         sortedTags.put(TOPIC_TAG, parseSqsUrl(queueUrl));
         sortedTags.put(TYPE_TAG, "sqs");
 
-        String pathway = propagate().generatePathwayContext(span, sortedTags);
-
-        String jsonPathway = String.format("{\"%s\": \"%s\"}", PROPAGATION_KEY_BASE64, pathway);
-        Map<String, MessageAttributeValue> messageAttributes =
-            new HashMap<>(request.messageAttributes());
-
-        if (messageAttributes.size() < 10 && !messageAttributes.containsKey(DSM_KEY)) {
-          messageAttributes.put(
-              DSM_KEY,
-              MessageAttributeValue.builder().dataType("String").stringValue(jsonPathway).build());
-          return request.toBuilder().messageAttributes(messageAttributes).build();
-        } else {
-          return request;
-        }
+        Map<String, MessageAttributeValue> messageAttributes = new HashMap<>(request.messageAttributes());
+        propagate().injectPathwayContext(span, messageAttributes, SETTER, sortedTags);
+        return request.toBuilder().messageAttributes(messageAttributes).build();
 
       } else if (context.request() instanceof SendMessageBatchRequest) {
+        System.out.println("we are here");
         SendMessageBatchRequest request = (SendMessageBatchRequest) context.request();
         String queueUrl = request.getValueForField("QueueUrl", String.class).get().toString();
         AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
@@ -69,24 +60,13 @@ public class SqsInterceptor implements ExecutionInterceptor {
         sortedTags.put(TYPE_TAG, "sqs");
 
         List<SendMessageBatchRequestEntry> entries = new ArrayList<>();
-        String jsonPathway = "";
+
         for (SendMessageBatchRequestEntry entry : request.entries()) {
-          String pathway = propagate().generatePathwayContext(span, sortedTags);
           Map<String, MessageAttributeValue> messageAttributes =
               new HashMap<>(entry.messageAttributes());
-          jsonPathway = String.format("{\"%s\": \"%s\"}", PROPAGATION_KEY_BASE64, pathway);
+          propagate().injectPathwayContext(span, messageAttributes, SETTER, sortedTags);
+          entries.add(entry.toBuilder().messageAttributes(messageAttributes).build());
 
-          if (messageAttributes.size() < 10 && !messageAttributes.containsKey(DSM_KEY)) {
-            messageAttributes.put(
-                DSM_KEY,
-                MessageAttributeValue.builder()
-                    .dataType("String")
-                    .stringValue(jsonPathway)
-                    .build());
-            entries.add(entry.toBuilder().messageAttributes(messageAttributes).build());
-          } else {
-            entries.add(entry.toBuilder().build());
-          }
         }
 
         return request.toBuilder().entries(entries).build();
