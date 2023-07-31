@@ -12,8 +12,7 @@ public abstract class AbstractSqsClientInstrumentation extends Instrumenter.Trac
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SqsInterceptor", "datadog.trace.instrumentation.aws.v2.AwsExecutionAttribute",
-        packageName + ".MessageAttributeInjector",
+      packageName + ".SqsInterceptor", packageName + ".MessageAttributeInjector",
     };
   }
 }

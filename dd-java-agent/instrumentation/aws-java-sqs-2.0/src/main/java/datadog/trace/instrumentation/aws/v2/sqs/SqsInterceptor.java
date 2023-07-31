@@ -11,6 +11,7 @@ import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.aws.v2.sqs.MessageAttributeInjector.SETTER;
 
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,9 +31,10 @@ import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
 public class SqsInterceptor implements ExecutionInterceptor {
 
+
   public static final ExecutionAttribute<AgentSpan> SPAN_ATTRIBUTE =
       InstanceStore.of(ExecutionAttribute.class).putIfAbsent(
-          "DatadogSpan", new ExecutionAttribute<>("DatadogSpan"));
+          "DatadogSpan", () -> new ExecutionAttribute<>("DatadogSpan"));
 
   public SqsInterceptor() {}
 
@@ -53,7 +55,6 @@ public class SqsInterceptor implements ExecutionInterceptor {
       return request.toBuilder().messageAttributes(messageAttributes).build();
 
     } else if (context.request() instanceof SendMessageBatchRequest) {
-      System.out.println("we are here");
       SendMessageBatchRequest request = (SendMessageBatchRequest) context.request();
       String queueUrl = request.getValueForField("QueueUrl", String.class).get().toString();
       AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);

@@ -14,7 +14,6 @@ public abstract class AbstractAwsClientInstrumentation extends Instrumenter.Trac
     return new String[] {
       packageName + ".AwsSdkClientDecorator",
       packageName + ".TracingExecutionInterceptor",
-      packageName + ".AwsExecutionAttribute",
     };
   }
 }
