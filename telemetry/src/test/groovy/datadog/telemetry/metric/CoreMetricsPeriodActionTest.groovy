@@ -32,13 +32,13 @@ class CoreMetricsPeriodActionTest extends Specification {
 
     then:
     1 * telemetryService.addMetric({ Metric metric ->
-      assertMetric(metric, 'span_created', 'instr-1', 2)
+      assertMetric(metric, 'spans_created', 'instr-1', 2)
     })
     1 * telemetryService.addMetric({ Metric metric ->
-      assertMetric(metric, 'span_created', 'instr-2', 3)
+      assertMetric(metric, 'spans_created', 'instr-2', 3)
     })
     1 * telemetryService.addMetric({ Metric metric ->
-      assertMetric(metric, 'span_finished', 'instr-2', 4)
+      assertMetric(metric, 'spans_finished', 'instr-2', 4)
     })
     0 * _
   }
@@ -71,34 +71,34 @@ class CoreMetricsPeriodActionTest extends Specification {
 
     then:
     1 * telemetryService.addMetric({ Metric metric ->
-      assertMetric(metric, 'span_created', 'instr-1', 1)
+      assertMetric(metric, 'spans_created', 'instr-1', 1)
     })
     1 * telemetryService.addMetric({ Metric metric ->
-      assertMetric(metric, 'span_created', 'instr-2', 1)
+      assertMetric(metric, 'spans_created', 'instr-2', 1)
     })
     1 * telemetryService.addMetric({ Metric metric ->
-      assertMetric(metric, 'span_created', 'instr-3', 1)
+      assertMetric(metric, 'spans_created', 'instr-3', 1)
     })
     1 * telemetryService.addMetric({ Metric metric ->
-      assertMetric(metric, 'span_finished', 'instr-3', 1)
+      assertMetric(metric, 'spans_finished', 'instr-3', 1)
     })
     1 * telemetryService.addMetric({ Metric metric ->
-      assertMetric(metric, 'span_created', 'instr-a', 1)
+      assertMetric(metric, 'spans_created', 'instr-a', 1)
     })
     1 * telemetryService.addMetric({ Metric metric ->
-      assertMetric(metric, 'span_created', 'instr-b', 1)
+      assertMetric(metric, 'spans_created', 'instr-b', 1)
     })
     1 * telemetryService.addMetric({ Metric metric ->
-      assertMetric(metric, 'span_finished', 'instr-b', 1)
+      assertMetric(metric, 'spans_finished', 'instr-b', 1)
     })
     1 * telemetryService.addMetric({ Metric metric ->
-      assertMetric(metric, 'span_finished', 'instr-2', 1)
+      assertMetric(metric, 'spans_finished', 'instr-2', 1)
     })
     1 * telemetryService.addMetric({ Metric metric ->
-      assertMetric(metric, 'span_finished', 'instr-a', 1)
+      assertMetric(metric, 'spans_finished', 'instr-a', 1)
     })
     1 * telemetryService.addMetric({ Metric metric ->
-      assertMetric(metric, 'span_finished', 'instr-1', 1)
+      assertMetric(metric, 'spans_finished', 'instr-1', 1)
     })
     0 * _
   }
@@ -131,34 +131,34 @@ class CoreMetricsPeriodActionTest extends Specification {
 
     then:
     1 * telemetryService.addMetric({ Metric metric ->
-      assertMetric(metric, 'span_created', 'instr-1', 1)
+      assertMetric(metric, 'spans_created', 'instr-1', 1)
     })
     1 * telemetryService.addMetric({ Metric metric ->
-      assertMetric(metric, 'span_created', 'instr-2', 1)
+      assertMetric(metric, 'spans_created', 'instr-2', 1)
     })
     1 * telemetryService.addMetric({ Metric metric ->
-      assertMetric(metric, 'span_created', 'instr-3', 1)
+      assertMetric(metric, 'spans_created', 'instr-3', 1)
     })
     1 * telemetryService.addMetric({ Metric metric ->
-      assertMetric(metric, 'span_finished', 'instr-3', 1)
+      assertMetric(metric, 'spans_finished', 'instr-3', 1)
     })
     1 * telemetryService.addMetric({ Metric metric ->
-      assertMetric(metric, 'span_created', 'instr-a', 1)
+      assertMetric(metric, 'spans_created', 'instr-a', 1)
     })
     1 * telemetryService.addMetric({ Metric metric ->
-      assertMetric(metric, 'span_created', 'instr-b', 1)
+      assertMetric(metric, 'spans_created', 'instr-b', 1)
     })
     1 * telemetryService.addMetric({ Metric metric ->
-      assertMetric(metric, 'span_finished', 'instr-b', 1)
+      assertMetric(metric, 'spans_finished', 'instr-b', 1)
     })
     1 * telemetryService.addMetric({ Metric metric ->
-      assertMetric(metric, 'span_finished', 'instr-2', 1)
+      assertMetric(metric, 'spans_finished', 'instr-2', 1)
     })
     1 * telemetryService.addMetric({ Metric metric ->
-      assertMetric(metric, 'span_finished', 'instr-a', 1)
+      assertMetric(metric, 'spans_finished', 'instr-a', 1)
     })
     1 * telemetryService.addMetric({ Metric metric ->
-      assertMetric(metric, 'span_finished', 'instr-1', 1)
+      assertMetric(metric, 'spans_finished', 'instr-1', 1)
     })
     0 * _
   }
