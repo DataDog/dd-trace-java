@@ -189,19 +189,6 @@ public final class Events<D> {
     return (EventType<BiFunction<RequestContext, Object, Flow<Void>>>) GRPC_SERVER_REQUEST_MESSAGE;
   }
 
-  static final int RESPONSE_STACKTRACE_ID = 15;
-
-  @SuppressWarnings("rawtypes")
-  private static final EventType RESPONSE_STACKTRACE =
-      new ET<>("response.stacktrace_leak", RESPONSE_STACKTRACE_ID);
-  /** Response contains stacktrace */
-  @SuppressWarnings("unchecked")
-  public EventType<TriFunction<RequestContext, Throwable, Boolean, Flow<Void>>>
-      responseStacktrace() {
-    return (EventType<TriFunction<RequestContext, Throwable, Boolean, Flow<Void>>>)
-        RESPONSE_STACKTRACE;
-  }
-
   static final int MAX_EVENTS = nextId.get();
 
   private static final class ET<T> extends EventType<T> {

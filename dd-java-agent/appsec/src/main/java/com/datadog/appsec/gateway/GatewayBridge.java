@@ -383,64 +383,6 @@ public class GatewayBridge {
             }
           }
         });
-
-    subscriptionService.registerCallback(
-        EVENTS.responseStacktrace(),
-        (ctx_, throwable, leaked) -> {
-          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-          if (ctx == null || throwable == null) {
-            return NoopFlow.INSTANCE;
-          }
-
-          List<Parameter> parameterList = new ArrayList<>();
-
-          // Recursive variant
-          //            while (throwable != null) {
-          //                parameterList.add(
-          //                        new Parameter.ParameterBuilder()
-          //                                .withAddress("Response body")
-          //                                //.withKeyPath(Arrays.asList("user-agent2",0))
-          //                                .withValue(throwable.toString())
-          //
-          // //.withHighlight(Collections.singletonList(throwable.getCause().toString()))
-          //                                .build());
-          //                throwable = throwable.getCause();
-          //            }
-
-          parameterList.add(
-              new Parameter.ParameterBuilder()
-                  .withAddress("Response body")
-                  // .withKeyPath(Arrays.asList("user-agent2",0))
-                  .withValue(throwable.toString())
-                  .withHighlight(Collections.singletonList(throwable.getCause().toString()))
-                  .build());
-
-          RuleMatch ruleMatch =
-              new RuleMatch.RuleMatchBuilder()
-                  // .withOperator("exact_match")
-                  // .withOperatorValue("Exception")
-                  .withParameters(parameterList)
-                  .build();
-
-          AppSecEvent100 event =
-              new AppSecEvent100.AppSecEvent100Builder()
-                  .withRule(
-                      new Rule.RuleBuilder()
-                          .withId("Stacktrace leak")
-                          // .withName("Stacktrace leak")
-                          .withTags(
-                              new com.datadog.appsec.report.raw.events.Tags.TagsBuilder()
-                                  .withType("Exception")
-                                  .withCategory("attack_attempt")
-                                  .build())
-                          .build())
-                  .withRuleMatches(Collections.singletonList(ruleMatch))
-                  .build();
-          ctx.reportEvents(Collections.singletonList(event), null);
-
-          // TODO need to be Flow that suppress stacktrace
-          return NoopFlow.INSTANCE;
-        });
   }
 
   public void stop() {

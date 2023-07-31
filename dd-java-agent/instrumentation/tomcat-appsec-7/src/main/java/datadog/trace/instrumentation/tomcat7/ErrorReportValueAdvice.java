@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.sink.StacktraceLeakModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.decorator.StacktraceLeakDecorator;
 import java.io.IOException;
 import java.io.Writer;
 import net.bytebuddy.asm.Advice;
@@ -34,9 +33,6 @@ public class ErrorReportValueAdvice {
 
     final AgentSpan span = activeSpan();
     if (span != null && throwable != null) {
-      // Report AppSec
-      StacktraceLeakDecorator.DECORATE.onStacktraceLeak(span, throwable, false);
-
       // Report IAST
       final StacktraceLeakModule module = InstrumentationBridge.STACKTRACE_LEAK_MODULE;
       if (module != null) {
