@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.aws.v2.AwsExecutionAttribute.SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.AWS_LEGACY_TRACING;
 import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.DECORATE;
 
@@ -17,12 +16,18 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.SdkRequest;
 import software.amazon.awssdk.core.SdkResponse;
 import software.amazon.awssdk.core.interceptor.Context;
+import software.amazon.awssdk.core.interceptor.ExecutionAttribute;
 import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 import software.amazon.awssdk.http.SdkHttpRequest;
 
 /** AWS request execution interceptor */
 public class TracingExecutionInterceptor implements ExecutionInterceptor {
+
+  public static final ExecutionAttribute<AgentSpan> SPAN_ATTRIBUTE =
+      InstanceStore.of(ExecutionAttribute.class).putIfAbsent(
+          "DatadogSpan", new ExecutionAttribute<>("DatadogSpan"));
+
   private static final Logger log = LoggerFactory.getLogger(TracingExecutionInterceptor.class);
 
   private final ContextStore<Object, String> responseQueueStore;

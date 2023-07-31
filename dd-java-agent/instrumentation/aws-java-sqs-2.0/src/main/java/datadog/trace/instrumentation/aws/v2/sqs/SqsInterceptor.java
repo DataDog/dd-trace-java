@@ -8,7 +8,6 @@ import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
-import static datadog.trace.instrumentation.aws.v2.AwsExecutionAttribute.SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.aws.v2.sqs.MessageAttributeInjector.SETTER;
 
 import datadog.trace.api.Config;
@@ -20,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import software.amazon.awssdk.core.SdkRequest;
 import software.amazon.awssdk.core.interceptor.Context;
+import software.amazon.awssdk.core.interceptor.ExecutionAttribute;
 import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
@@ -29,6 +29,10 @@ import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
 public class SqsInterceptor implements ExecutionInterceptor {
+
+  public static final ExecutionAttribute<AgentSpan> SPAN_ATTRIBUTE =
+      InstanceStore.of(ExecutionAttribute.class).putIfAbsent(
+          "DatadogSpan", new ExecutionAttribute<>("DatadogSpan"));
 
   public SqsInterceptor() {}
 
