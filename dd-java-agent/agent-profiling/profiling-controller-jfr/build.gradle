@@ -20,7 +20,7 @@ dependencies {
   annotationProcessor deps.autoserviceProcessor
   compileOnly deps.autoserviceAnnotation
 
-  testImplementation group: 'org.openjdk.jmc', name: 'flightrecorder.writer', version: '8.1.0-SNAPSHOT'
+  testImplementation group: 'org.openjdk.jmc', name: 'flightrecorder.writer', version: '8.1.0'
   testImplementation deps.mockito
   testImplementation deps.junit5
 }
