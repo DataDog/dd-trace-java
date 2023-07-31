@@ -1,15 +1,6 @@
 repositories {
   mavenLocal()
   mavenCentral()
-  maven {
-    url "https://adoptopenjdk.jfrog.io/adoptopenjdk/jmc-libs-snapshots"
-    content {
-      includeGroup "org.openjdk.jmc"
-    }
-    mavenContent {
-      snapshotsOnly()
-    }
-  }
   // add sonatype repository for snapshot dependencies
   maven {
     content {
