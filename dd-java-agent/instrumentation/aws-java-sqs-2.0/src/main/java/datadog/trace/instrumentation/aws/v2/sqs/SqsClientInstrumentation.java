@@ -22,12 +22,6 @@ public final class SqsClientInstrumentation extends AbstractSqsClientInstrumenta
   }
 
   @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(
-        "software.amazon.awssdk.services.sqs.model.SendMessageBatchResponse", "java.lang.String");
-  }
-
-  @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         isMethod().and(named("resolveExecutionInterceptors")),
