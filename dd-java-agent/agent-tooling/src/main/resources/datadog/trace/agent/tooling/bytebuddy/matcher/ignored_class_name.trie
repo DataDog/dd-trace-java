@@ -299,6 +299,7 @@
 2 org.springframework.jndi.*
 2 org.springframework.lang.*
 2 org.springframework.messaging.*
+0 org.springframework.messaging.handler.invocation.InvocableHandlerMethod
 2 org.springframework.objenesis.*
 2 org.springframework.orm.*
 2 org.springframework.remoting.*
