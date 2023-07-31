@@ -129,9 +129,10 @@ public class TelemetryService {
     if (!sentAppStarted) {
       RequestBuilder rb = new RequestBuilder(RequestType.APP_STARTED, httpUrl);
       rb.writeHeader();
+      // products - optional
       rb.writeConfigChangeEvent(state.configurations.getOrNull());
-      rb.writeIntegrationsEvent(state.integrations.get(maxElementsPerReq));
-      rb.writeDependenciesLoadedEvent(state.dependencies.get(maxElementsPerReq));
+      // error - optional
+      // additional_payload - optional
       rb.writeFooter();
       HttpClient.Result result = httpClient.sendRequest(rb.request());
 
@@ -211,7 +212,7 @@ public class TelemetryService {
     while (!state.metrics.isEmpty()) {
       RequestBuilder rb = new RequestBuilder(RequestType.GENERATE_METRICS, httpUrl);
       rb.writeHeader();
-      rb.writeMetrics(state.metrics.get(maxElementsPerReq));
+      rb.writeGenerateMetricsEvent(state.metrics.get(maxElementsPerReq));
       rb.writeFooter();
       HttpClient.Result result = httpClient.sendRequest(rb.request());
       if (result == HttpClient.Result.SUCCESS) {

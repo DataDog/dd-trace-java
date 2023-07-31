@@ -32,7 +32,7 @@ public class RequestBuilder extends RequestBody {
   }
 
   private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
-  private static final String API_VERSION = "v1";
+  private static final String API_VERSION = "v2";
   private static final AtomicLong SEQ_ID = new AtomicLong();
   private static final String TELEMETRY_NAMESPACE_TAG_TRACER = "tracers";
 
@@ -87,18 +87,23 @@ public class RequestBuilder extends RequestBody {
       CommonData commonData = CommonData.INSTANCE;
       bodyWriter.beginObject();
       bodyWriter.name("api_version").value(API_VERSION);
+      // naming_schema_version - optional
+      bodyWriter.name("request_type").value(requestType.toString());
+      bodyWriter.name("runtime_id").value(commonData.runtimeId);
+      bodyWriter.name("seq_id").value(SEQ_ID.incrementAndGet());
+      bodyWriter.name("tracer_time").value(System.currentTimeMillis() / 1000L);
 
       bodyWriter.name("application");
       bodyWriter.beginObject();
+      bodyWriter.name("service_name").value(commonData.serviceName);
       bodyWriter.name("env").value(commonData.env);
+      bodyWriter.name("service_version").value(commonData.serviceVersion);
+      bodyWriter.name("tracer_version").value(TracerVersion.TRACER_VERSION);
       bodyWriter.name("language_name").value(DDTags.LANGUAGE_TAG_VALUE);
       bodyWriter.name("language_version").value(commonData.langVersion);
       bodyWriter.name("runtime_name").value(commonData.runtimeName);
-      bodyWriter.name("runtime_patches").value(commonData.runtimePatches); // optional
       bodyWriter.name("runtime_version").value(commonData.runtimeVersion);
-      bodyWriter.name("service_name").value(commonData.serviceName);
-      bodyWriter.name("service_version").value(commonData.serviceVersion);
-      bodyWriter.name("tracer_version").value(TracerVersion.TRACER_VERSION);
+      bodyWriter.name("runtime_patches").value(commonData.runtimePatches); // optional
       bodyWriter.endObject();
 
       if (debug) {
@@ -106,20 +111,15 @@ public class RequestBuilder extends RequestBody {
       }
       bodyWriter.name("host");
       bodyWriter.beginObject();
-      bodyWriter.name("architecture").value(commonData.architecture);
       bodyWriter.name("hostname").value(commonData.hostname);
+      bodyWriter.name("os").value(commonData.osName);
+      bodyWriter.name("os_version").value(commonData.osVersion); // optional
+      bodyWriter.name("architecture").value(commonData.architecture);
       // only applicable to UNIX based OS
       bodyWriter.name("kernel_name").value(commonData.kernelName);
       bodyWriter.name("kernel_release").value(commonData.kernelRelease);
       bodyWriter.name("kernel_version").value(commonData.kernelVersion);
-      bodyWriter.name("os").value(commonData.osName);
-      bodyWriter.name("os_version").value(commonData.osVersion); // optional
       bodyWriter.endObject();
-
-      bodyWriter.name("request_type").value(requestType.toString());
-      bodyWriter.name("runtime_id").value(commonData.runtimeId);
-      bodyWriter.name("seq_id").value(SEQ_ID.incrementAndGet());
-      bodyWriter.name("tracer_time").value(System.currentTimeMillis() / 1000L);
 
       bodyWriter.name("payload");
       bodyWriter.beginObject();
@@ -128,19 +128,23 @@ public class RequestBuilder extends RequestBody {
     }
   }
 
-  public void writeMetrics(List<Metric> series) {
+  /**
+   * https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/SchemaDocumentation/Schemas/metric_data.md#metric_data
+   */
+  public void writeGenerateMetricsEvent(List<Metric> series) {
     try {
       bodyWriter.name("namespace").value(TELEMETRY_NAMESPACE_TAG_TRACER);
       bodyWriter.name("series");
       bodyWriter.beginArray();
       for (Metric m : series) {
         bodyWriter.beginObject();
-        bodyWriter.name("namespace").value(m.getNamespace());
-        bodyWriter.name("common").value(m.getCommon());
         bodyWriter.name("metric").value(m.getMetric());
         bodyWriter.name("points").jsonValue(m.getPoints());
-        bodyWriter.name("tags").jsonValue(m.getTags());
+        // interval - optional
         if (m.getType() != null) bodyWriter.name("type").value(m.getType().toString());
+        bodyWriter.name("tags").jsonValue(m.getTags()); // optional
+        bodyWriter.name("common").value(m.getCommon()); // optional
+        bodyWriter.name("namespace").value(m.getNamespace()); // optional
         bodyWriter.endObject();
       }
       bodyWriter.endArray();
@@ -169,6 +173,9 @@ public class RequestBuilder extends RequestBody {
     }
   }
 
+  /**
+   * https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/SchemaDocumentation/Schemas/payload.md#if-request_type--app-extended-heartbeat-we-add-the-following-to-payload
+   */
   public void writeLogsEvent(List<LogMessage> messages) {
     try {
       bodyWriter.name("logs").beginArray();
@@ -176,9 +183,9 @@ public class RequestBuilder extends RequestBody {
         bodyWriter.beginObject();
         bodyWriter.name("message").value(m.getMessage());
         bodyWriter.name("level").value(String.valueOf(m.getLevel()));
-        bodyWriter.name("tags").value(m.getTags());
-        bodyWriter.name("stack_trace").value(m.getStackTrace());
-        bodyWriter.name("tracer_time").value(m.getTracerTime());
+        bodyWriter.name("tags").value(m.getTags()); // optional
+        bodyWriter.name("stack_trace").value(m.getStackTrace()); // optional
+        bodyWriter.name("tracer_time").value(m.getTracerTime()); // optional
         bodyWriter.endObject();
       }
       bodyWriter.endArray();
@@ -187,6 +194,9 @@ public class RequestBuilder extends RequestBody {
     }
   }
 
+  /**
+   * https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/SchemaDocumentation/Schemas/conf_key_value.md
+   */
   public void writeConfigChangeEvent(List<ConfigChange> configChanges) {
     if (configChanges != null) {
       try {
@@ -195,6 +205,9 @@ public class RequestBuilder extends RequestBody {
           bodyWriter.beginObject();
           bodyWriter.name("name").value(cc.name);
           bodyWriter.name("value").jsonValue(cc.value);
+          // TODO origin - mandatory
+          // error - optional
+          // seq_id - optional
           bodyWriter.endObject();
         }
         bodyWriter.endArray();
@@ -204,16 +217,18 @@ public class RequestBuilder extends RequestBody {
     }
   }
 
+  /**
+   * https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/SchemaDocumentation/Schemas/dependency.md
+   */
   public void writeDependenciesLoadedEvent(List<Dependency> dependencies) {
     try {
       bodyWriter.name("dependencies");
       bodyWriter.beginArray();
       for (Dependency d : dependencies) {
         bodyWriter.beginObject();
-        bodyWriter.name("hash").value(d.hash);
+        bodyWriter.name("hash").value(d.hash); // optional
         bodyWriter.name("name").value(d.name);
-        bodyWriter.name("type").value("PlatformStandard");
-        bodyWriter.name("version").value(d.version);
+        bodyWriter.name("version").value(d.version); // optional
         bodyWriter.endObject();
       }
       bodyWriter.endArray();
@@ -222,14 +237,21 @@ public class RequestBuilder extends RequestBody {
     }
   }
 
+  /**
+   * https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/SchemaDocumentation/Schemas/integration.md
+   */
   public void writeIntegrationsEvent(List<Integration> integrations) {
     try {
       bodyWriter.name("integrations");
       bodyWriter.beginArray();
       for (Integration i : integrations) {
         bodyWriter.beginObject();
+        // auto_enabled - optional
+        // compatible - optional
         bodyWriter.name("enabled").value(i.enabled);
+        // error - optional
         bodyWriter.name("name").value(i.name);
+        // version - optional
         bodyWriter.endObject();
       }
       bodyWriter.endArray();
@@ -245,6 +267,26 @@ public class RequestBuilder extends RequestBody {
     } catch (Exception ex) {
       throw new SerializationException("footer", ex);
     }
+  }
+
+  /**
+   * https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/SchemaDocumentation/Schemas/products.md
+   */
+  public void writeProductChangeEvent() {
+    // TODO
+    // appsec - optional
+    // profiler - optional
+    // dynamic_instrumentation - optional
+  }
+
+  /**
+   * https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/SchemaDocumentation/Schemas/payload.md#if-request_type--app-extended-heartbeat-we-add-the-following-to-payload
+   */
+  public void extendedHeartbeat() {
+    // TODO
+    // configuration - optional
+    // dependencies - optional
+    // integrations - optional
   }
 
   /**

@@ -34,8 +34,6 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertRequestBody(RequestType.APP_STARTED)
       .assertPayload()
       .configuration(null)
-      .dependencies([])
-      .integrations([])
     testHttpClient.assertNoMoreRequests()
 
     when: 'second iteration'
@@ -64,16 +62,20 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertRequestBody(RequestType.APP_STARTED)
       .assertPayload()
       .configuration([confKeyValue])
-      .dependencies([dependency])
-      .integrations([integration])
     testHttpClient.assertNoMoreRequests()
 
     when: 'second iteration'
-    testHttpClient.expectRequests(4, HttpClient.Result.SUCCESS)
+    testHttpClient.expectRequests(6, HttpClient.Result.SUCCESS)
     telemetryService.sendIntervalRequests()
 
     then:
     testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT)
+    testHttpClient.assertRequestBody(RequestType.APP_INTEGRATIONS_CHANGE)
+      .assertPayload()
+      .integrations([integration])
+    testHttpClient.assertRequestBody(RequestType.APP_DEPENDENCIES_LOADED)
+      .assertPayload()
+      .dependencies([dependency])
     testHttpClient.assertRequestBody(RequestType.GENERATE_METRICS)
       .assertPayload()
       .namespace("tracers")
@@ -97,8 +99,6 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertRequestBody(RequestType.APP_STARTED)
       .assertPayload()
       .configuration(null)
-      .dependencies([])
-      .integrations([])
     testHttpClient.assertNoMoreRequests()
 
     when: 'add data after first iteration'
@@ -145,8 +145,6 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertRequestBody(RequestType.APP_STARTED)
       .assertPayload()
       .configuration(null)
-      .dependencies([])
-      .integrations([])
     testHttpClient.assertNoMoreRequests()
 
     when: 'attempt with 500 error'
@@ -157,8 +155,6 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertRequestBody(RequestType.APP_STARTED)
       .assertPayload()
       .configuration(null)
-      .dependencies([])
-      .integrations([])
     testHttpClient.assertNoMoreRequests()
 
     when: 'attempt with unexpected FAILURE (e.g. 100 http status code) (not valid)'
@@ -169,8 +165,6 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertRequestBody(RequestType.APP_STARTED)
       .assertPayload()
       .configuration(null)
-      .dependencies([])
-      .integrations([])
     testHttpClient.assertNoMoreRequests()
 
     when: 'attempt with success'
@@ -181,8 +175,6 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertRequestBody(RequestType.APP_STARTED)
       .assertPayload()
       .configuration(null)
-      .dependencies([])
-      .integrations([])
     testHttpClient.assertNoMoreRequests()
   }
 

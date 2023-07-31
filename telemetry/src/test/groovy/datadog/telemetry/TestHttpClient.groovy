@@ -87,7 +87,7 @@ class TestHttpClient extends HttpClient {
       assert request.header('Content-Type') == 'application/json; charset=utf-8'
       assert request.header('DD-Client-Library-Language') == 'jvm'
       assert request.header('DD-Client-Library-Version') == TracerVersion.TRACER_VERSION
-      assert request.header('DD-Telemetry-API-Version') == 'v1'
+      assert request.header('DD-Telemetry-API-Version') == 'v2'
       assert request.header('DD-Telemetry-Request-Type') == requestType.toString()
       return this
     }
@@ -109,7 +109,7 @@ class TestHttpClient extends HttpClient {
     }
 
     BodyAssertions commonParts(RequestType requestType) {
-      assert body['api_version'] == 'v1'
+      assert body['api_version'] == 'v2'
 
       def app = body['application']
       assert app['env'] != null
@@ -161,7 +161,7 @@ class TestHttpClient extends HttpClient {
     PayloadAssertions dependencies(List<Dependency> dependencies) {
       def expected = []
       for (Dependency d : dependencies) {
-        expected.add([hash: d.hash, name: d.name, type: "PlatformStandard", version: d.version])
+        expected.add([hash: d.hash, name: d.name, version: d.version])
       }
       assert payload['dependencies'] == expected
       return this
