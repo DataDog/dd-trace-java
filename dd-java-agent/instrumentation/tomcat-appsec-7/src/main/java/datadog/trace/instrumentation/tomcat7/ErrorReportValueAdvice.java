@@ -1,33 +1,30 @@
 package datadog.trace.instrumentation.tomcat7;
 
+import static datadog.trace.bootstrap.blocking.BlockingActionHelper.TemplateType.HTML;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.sink.StacktraceLeakModule;
+import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import net.bytebuddy.asm.Advice;
-import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
 
 public class ErrorReportValueAdvice {
 
   @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class)
   public static boolean onEnter(
-      @Advice.Argument(value = 0) Request request,
       @Advice.Argument(value = 1) Response response,
       @Advice.Argument(value = 2) Throwable throwable) {
-    System.out.println(
-        ">>> ErrorReportValue.report(" + throwable + ") -> " + response.getBytesWritten(false));
-
     int statusCode = response.getStatus();
 
     // Do nothing on a 1xx, 2xx and 3xx status
-    // Do nothing if anything has been written already
     // Do nothing if the response hasn't been explicitly marked as in error
     //    and that error has not been reported.
-    if (statusCode < 400 || response.getContentWritten() > 0 || !response.isError()) {
+    if (statusCode < 400 || !response.isError()) {
       return true; // skip original method
     }
 
@@ -44,13 +41,15 @@ public class ErrorReportValueAdvice {
       }
     }
 
-    StringBuilder sb = new StringBuilder();
-    sb.append("This is fake page displayed to suppress stack trace leak");
+    byte[] template = BlockingActionHelper.getTemplate(HTML);
+    if (template == null) {
+      return false;
+    }
 
     try {
       try {
-        response.setContentType("text/html");
-        response.setCharacterEncoding("utf-8");
+        String contentType = BlockingActionHelper.getContentType(HTML);
+        response.setContentType(contentType);
       } catch (Throwable t) {
         // Ignore
       }
@@ -58,7 +57,8 @@ public class ErrorReportValueAdvice {
       if (writer != null) {
         // If writer is null, it's an indication that the response has
         // been hard committed already, which should never happen
-        writer.write(sb.toString());
+        String html = new String(template, StandardCharsets.UTF_8);
+        writer.write(html);
         response.finishResponse();
       }
     } catch (IOException | IllegalStateException e) {
@@ -67,13 +67,4 @@ public class ErrorReportValueAdvice {
 
     return false;
   }
-
-  //    @Advice.OnMethodExit
-  //    public static void onExit(
-  //            @Advice.Argument(value = 0) Request request,
-  //            @Advice.Argument(value = 1) Response response,
-  //            @Advice.Argument(value = 2) Throwable throwable) {
-  //        System.out.println("<<< ErrorReportValue.report(" + throwable + ") -> " +
-  // response.getBytesWritten(false));
-  //    }
 }

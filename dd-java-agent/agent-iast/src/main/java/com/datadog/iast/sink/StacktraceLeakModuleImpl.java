@@ -15,8 +15,8 @@ public class StacktraceLeakModuleImpl extends SinkModuleBase implements Stacktra
       final AgentSpan span = AgentTracer.activeSpan();
       String serviceName = Config.get().getServiceName();
       reporter.report(
-              span,
-              new Vulnerability(VulnerabilityType.STACKTRACE_LEAK, null, new Evidence(serviceName)));
+          span,
+          new Vulnerability(VulnerabilityType.STACKTRACE_LEAK, null, new Evidence(serviceName)));
     }
   }
 }
