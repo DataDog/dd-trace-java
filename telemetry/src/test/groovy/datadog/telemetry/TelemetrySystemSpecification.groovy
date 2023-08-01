@@ -5,13 +5,13 @@ import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.communication.monitor.Monitoring
 import datadog.telemetry.dependency.DependencyService
 import datadog.telemetry.dependency.LocationsCollectingTransformer
-import datadog.trace.test.util.DDSpecification
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
+import spock.lang.Specification
 
 import java.lang.instrument.Instrumentation
 
-class TelemetrySystemSpecification extends DDSpecification {
+class TelemetrySystemSpecification extends Specification {
   Instrumentation inst = Mock()
 
   void 'installs dependencies transformer'() {

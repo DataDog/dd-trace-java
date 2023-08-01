@@ -55,17 +55,18 @@ public class TelemetrySystem {
         AgentThreadFactory.AgentThread.TELEMETRY, telemetryRunnable);
   }
 
+  /** Called by reflection (see Agent.startTelemetry) */
   public static void startTelemetry(
       Instrumentation instrumentation, SharedCommunicationObjects sco) {
     sco.createRemaining(Config.get());
     DependencyService dependencyService = createDependencyService(instrumentation);
-    TelemetryService telemetryService =
-        new TelemetryService(sco.okHttpClient, new RequestBuilderSupplier(sco.agentUrl));
+    TelemetryService telemetryService = new TelemetryService(sco.okHttpClient, sco.agentUrl);
     TELEMETRY_THREAD = createTelemetryRunnable(telemetryService, dependencyService);
     TELEMETRY_THREAD.start();
   }
 
   public static void stop() {
+    // TODO This is never called in the prod code. Should be part of Agent.shutdown?
     if (DEPENDENCY_SERVICE != null) {
       DEPENDENCY_SERVICE.stop();
     }

@@ -1,88 +1,50 @@
 package datadog.telemetry
 
-import datadog.telemetry.api.AppClientConfigurationChange
-import datadog.telemetry.api.AppDependenciesLoaded
-import datadog.telemetry.api.AppIntegrationsChange
-import datadog.telemetry.api.AppStarted
-import datadog.telemetry.api.Dependency
-import datadog.telemetry.api.DistributionSeries
-import datadog.telemetry.api.Distributions
-import datadog.telemetry.api.GenerateMetrics
+import datadog.telemetry.dependency.Dependency
 import datadog.telemetry.api.Integration
-import datadog.telemetry.api.KeyValue
+import datadog.telemetry.api.DistributionSeries
+
+import datadog.telemetry.api.ConfigChange
 import datadog.telemetry.api.LogMessage
-import datadog.telemetry.api.Logs
+import datadog.telemetry.api.LogMessageLevel
 import datadog.telemetry.api.Metric
 import datadog.telemetry.api.RequestType
-import datadog.trace.test.util.DDSpecification
-import okhttp3.Call
 import okhttp3.HttpUrl
-import okhttp3.MediaType
-import okhttp3.OkHttpClient
-import okhttp3.Protocol
-import okhttp3.Request
-import okhttp3.Response
-import okhttp3.ResponseBody
+import spock.lang.Specification
 
-import java.util.function.Supplier
+class TelemetryServiceSpecification extends Specification {
 
-class TelemetryServiceSpecification extends DDSpecification {
-
-  OkHttpClient httpClient = Mock()
-  RequestBuilder requestBuilder = Spy(new RequestBuilder(HttpUrl.get("https://example.com")))
-  Supplier<RequestBuilder> requestBuilderSupplier = { requestBuilder }
-  TelemetryService telemetryService = new TelemetryService(httpClient, requestBuilderSupplier)
-
-  def dummyRequest = new Request.Builder().url(HttpUrl.get("https://example.com")).build()
-
-  Call mockResponse(int code) {
-    Stub(Call) {
-      execute() >> {
-        new Response.Builder()
-          .request(dummyRequest)
-          .protocol(Protocol.HTTP_1_1)
-          .message("OK")
-          .body(ResponseBody.create(MediaType.get("text/plain"), "OK"))
-          .code(code)
-          .build()
-      }
-    }
-  }
-
-  def okResponse = mockResponse(202)
-  def continueResponse = mockResponse(100)
-  def notFoundResponse = mockResponse(404)
-  def serverErrorResponse = mockResponse(500)
+  TestHttpClient testHttpClient = new TestHttpClient()
 
   def configuration = ["confkey": "confvalue"]
-  def confKeyValue = new KeyValue().name("confkey").value("confvalue")
-  def integration = new Integration().name("integration").enabled(true)
-  def dependency = new Dependency().name("dependency").version("1.0.0")
-  def metric = new Metric().namespace("tracers").metric("metric").points([[1, 2]])
-  def distribution = new DistributionSeries().namespace("tracers").metric("distro").points([1, 2, 3])
-  def logMessage = new LogMessage().message("log-message")
+  def confKeyValue = new ConfigChange("confkey", "confvalue")
+  def integration = new Integration("integration", true)
+  def dependency = new Dependency("dependency", "1.0.0", "src", "hash")
+  def metric = new Metric().namespace("tracers").metric("metric").points([[1, 2]]).tags(["tag1", "tag2"])
+  def distribution = new DistributionSeries().namespace("tracers").metric("distro").points([1, 2, 3]).tags(["tag1", "tag2"]).common(false)
+  def logMessage = new LogMessage().message("log-message").tags("tag1:tag2").level(LogMessageLevel.DEBUG).stackTrace("stack-trace").tracerTime(32423)
+  TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"))
 
   void 'happy path without data'() {
     when: 'first iteration'
+    testHttpClient.expectRequests(1, HttpClient.Result.SUCCESS)
     telemetryService.sendIntervalRequests()
 
     then: 'app-started'
-    1 * requestBuilder.build(RequestType.APP_STARTED, { AppStarted p ->
-      p.requestType == RequestType.APP_STARTED
-      p.configuration == null
-      p.dependencies.isEmpty()
-      p.integrations.isEmpty()
-    })
-    1 * httpClient.newCall(_) >> okResponse
-    0 * _
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED)
+      .assertPayload()
+      .configuration(null)
+      .dependencies([])
+      .integrations([])
+    testHttpClient.assertNoMoreRequests()
 
     when: 'second iteration'
+    testHttpClient.expectRequests(1, HttpClient.Result.SUCCESS)
     telemetryService.sendIntervalRequests()
 
-    then: 'only heartbeat'
-    1 * requestBuilder.build(RequestType.APP_HEARTBEAT, null)
-    1 * httpClient.newCall(_) >> okResponse
-    0 * _
+    then: 'app-heartbeat only'
+    testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT)
+    testHttpClient.assertNoMoreRequests()
   }
 
   void 'happy path with data before app-started'() {
@@ -95,60 +57,49 @@ class TelemetryServiceSpecification extends DDSpecification {
     telemetryService.addLogMessage(logMessage)
 
     and: 'send messages'
+    testHttpClient.expectRequests(1, HttpClient.Result.SUCCESS)
     telemetryService.sendIntervalRequests()
 
     then:
-    1 * requestBuilder.build(RequestType.APP_STARTED, { AppStarted p ->
-      p.requestType == RequestType.APP_STARTED
-      p.configuration == [confKeyValue]
-      p.dependencies == [dependency]
-      p.integrations == [integration]
-    })
-    1 * httpClient.newCall(_) >> okResponse
-    0 * _
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED)
+      .assertPayload()
+      .configuration([confKeyValue])
+      .dependencies([dependency])
+      .integrations([integration])
+    testHttpClient.assertNoMoreRequests()
 
-    when:
+    when: 'second iteration'
+    testHttpClient.expectRequests(4, HttpClient.Result.SUCCESS)
     telemetryService.sendIntervalRequests()
 
     then:
-    1 * requestBuilder.build(RequestType.APP_HEARTBEAT, null)
-    1 * httpClient.newCall(_) >> okResponse
-
-    then:
-    1 * requestBuilder.build(RequestType.GENERATE_METRICS, { GenerateMetrics p ->
-      p.series == [metric]
-    })
-    1 * httpClient.newCall(_) >> okResponse
-
-    then:
-    1 * requestBuilder.build(RequestType.DISTRIBUTIONS, { Distributions p ->
-      p.series == [distribution]
-    })
-    1 * httpClient.newCall(_) >> okResponse
-
-    then:
-    1 * requestBuilder.build(RequestType.LOGS, { Logs p ->
-      p.messages == [logMessage]
-    })
-    1 * httpClient.newCall(_) >> okResponse
-
-    then:
-    0 * _
+    testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT)
+    testHttpClient.assertRequestBody(RequestType.GENERATE_METRICS)
+      .assertPayload()
+      .namespace("tracers")
+      .metrics([metric])
+    testHttpClient.assertRequestBody(RequestType.DISTRIBUTIONS)
+      .assertPayload()
+      .namespace("tracers")
+      .distributionSeries([distribution])
+    testHttpClient.assertRequestBody(RequestType.LOGS)
+      .assertPayload()
+      .logs([logMessage])
+    testHttpClient.assertNoMoreRequests()
   }
 
   void 'happy path with data after app-started'() {
     when: 'send messages'
+    testHttpClient.expectRequests(1, HttpClient.Result.SUCCESS)
     telemetryService.sendIntervalRequests()
 
     then:
-    1 * requestBuilder.build(RequestType.APP_STARTED, { AppStarted p ->
-      p.requestType == RequestType.APP_STARTED
-      p.configuration == null
-      p.dependencies == []
-      p.integrations == []
-    })
-    1 * httpClient.newCall(_) >> okResponse
-    0 * _
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED)
+      .assertPayload()
+      .configuration(null)
+      .dependencies([])
+      .integrations([])
+    testHttpClient.assertNoMoreRequests()
 
     when: 'add data after first iteration'
     telemetryService.addConfiguration(configuration)
@@ -159,114 +110,90 @@ class TelemetryServiceSpecification extends DDSpecification {
     telemetryService.addLogMessage(logMessage)
 
     and: 'send messages'
+    testHttpClient.expectRequests(7, HttpClient.Result.SUCCESS)
     telemetryService.sendIntervalRequests()
 
     then:
-    1 * requestBuilder.build(RequestType.APP_HEARTBEAT, null)
-    1 * httpClient.newCall(_) >> okResponse
-
-    then:
-    1 * requestBuilder.build(RequestType.APP_CLIENT_CONFIGURATION_CHANGE, { AppClientConfigurationChange p ->
-      p.configuration == [confKeyValue]
-    })
-    1 * httpClient.newCall(_) >> okResponse
-
-    then:
-    1 * requestBuilder.build(RequestType.APP_INTEGRATIONS_CHANGE, { AppIntegrationsChange p ->
-      p.integrations == [integration]
-    })
-    1 * httpClient.newCall(_) >> okResponse
-
-    then:
-    1 * requestBuilder.build(RequestType.APP_DEPENDENCIES_LOADED, { AppDependenciesLoaded p ->
-      p.dependencies == [dependency]
-    })
-    1 * httpClient.newCall(_) >> okResponse
-
-    then:
-    1 * requestBuilder.build(RequestType.GENERATE_METRICS, { GenerateMetrics p ->
-      p.series == [metric]
-    })
-    1 * httpClient.newCall(_) >> okResponse
-
-    then:
-    1 * requestBuilder.build(RequestType.DISTRIBUTIONS, { Distributions p ->
-      p.series == [distribution]
-    })
-    1 * httpClient.newCall(_) >> okResponse
-
-    then:
-    1 * requestBuilder.build(RequestType.LOGS, { Logs p ->
-      p.messages == [logMessage]
-    })
-    1 * httpClient.newCall(_) >> okResponse
-
-    then:
-    0 * _
+    testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT)
+    testHttpClient.assertRequestBody(RequestType.APP_CLIENT_CONFIGURATION_CHANGE)
+      .assertPayload()
+      .configuration([confKeyValue])
+    testHttpClient.assertRequestBody(RequestType.APP_INTEGRATIONS_CHANGE)
+      .assertPayload()
+      .integrations([integration])
+    testHttpClient.assertRequestBody(RequestType.APP_DEPENDENCIES_LOADED)
+      .assertPayload()
+      .dependencies([dependency])
+    testHttpClient.assertRequestBody(RequestType.GENERATE_METRICS)
+      .assertPayload()
+      .metrics([metric])
+    testHttpClient.assertRequestBody(RequestType.DISTRIBUTIONS)
+      .assertPayload()
+      .distributionSeries([distribution])
+    testHttpClient.assertRequestBody(RequestType.LOGS)
+      .assertPayload()
+      .logs([logMessage])
+    testHttpClient.assertNoMoreRequests()
   }
 
   void 'no message before app-started'() {
     when: 'attempt with 404 error'
+    testHttpClient.expectRequests(1, HttpClient.Result.NOT_FOUND)
     telemetryService.sendIntervalRequests()
 
     then: 'app-started is attempted'
-    1 * requestBuilder.build(RequestType.APP_STARTED, { AppStarted p ->
-      p.requestType == RequestType.APP_STARTED
-      p.configuration == null
-      p.dependencies.isEmpty()
-      p.integrations.isEmpty()
-    })
-    1 * httpClient.newCall(_) >> notFoundResponse
-    0 * _
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED)
+      .assertPayload()
+      .configuration(null)
+      .dependencies([])
+      .integrations([])
+    testHttpClient.assertNoMoreRequests()
 
     when: 'attempt with 500 error'
+    testHttpClient.expectRequests(1, HttpClient.Result.FAILURE)
     telemetryService.sendIntervalRequests()
 
     then: 'app-started is attempted'
-    1 * requestBuilder.build(RequestType.APP_STARTED, { AppStarted p ->
-      p.requestType == RequestType.APP_STARTED
-      p.configuration == null
-      p.dependencies.isEmpty()
-      p.integrations.isEmpty()
-    })
-    1 * httpClient.newCall(_) >> serverErrorResponse
-    0 * _
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED)
+      .assertPayload()
+      .configuration(null)
+      .dependencies([])
+      .integrations([])
+    testHttpClient.assertNoMoreRequests()
 
-    when: 'attempt with unexpected 200 code (not valid)'
+    when: 'attempt with unexpected FAILURE (e.g. 100 http status code) (not valid)'
+    testHttpClient.expectRequests(1, HttpClient.Result.FAILURE)
     telemetryService.sendIntervalRequests()
 
     then: 'app-started is attempted'
-    1 * requestBuilder.build(RequestType.APP_STARTED, { AppStarted p ->
-      p.requestType == RequestType.APP_STARTED
-      p.configuration == null
-      p.dependencies.isEmpty()
-      p.integrations.isEmpty()
-    })
-    1 * httpClient.newCall(_) >> continueResponse
-    0 * _
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED)
+      .assertPayload()
+      .configuration(null)
+      .dependencies([])
+      .integrations([])
+    testHttpClient.assertNoMoreRequests()
 
     when: 'attempt with success'
+    testHttpClient.expectRequests(1, HttpClient.Result.SUCCESS)
     telemetryService.sendIntervalRequests()
 
     then:
-    1 * requestBuilder.build(RequestType.APP_STARTED, { AppStarted p ->
-      p.requestType == RequestType.APP_STARTED
-      p.configuration == null
-      p.dependencies.isEmpty()
-      p.integrations.isEmpty()
-    })
-    1 * httpClient.newCall(_) >> okResponse
-    0 * _
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED)
+      .assertPayload()
+      .configuration(null)
+      .dependencies([])
+      .integrations([])
+    testHttpClient.assertNoMoreRequests()
   }
 
-  void '404 at #requestType prevents further messages'() {
+  void 'NOT_FOUND (e.g. 404 http status code) at #requestType prevents further messages'() {
     when: 'initial iteration'
+    testHttpClient.expectRequests(1, HttpClient.Result.SUCCESS)
     telemetryService.sendIntervalRequests()
 
     then:
-    1 * requestBuilder.build(_, _)
-    1 * httpClient.newCall(_) >> okResponse
-    0 * _
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED)
+    testHttpClient.assertNoMoreRequests()
 
     when: 'add data'
     telemetryService.addConfiguration(configuration)
@@ -276,19 +203,17 @@ class TelemetryServiceSpecification extends DDSpecification {
     telemetryService.addDistributionSeries(distribution)
     telemetryService.addLogMessage(logMessage)
 
-    and:
+    and: 'send messages'
+    testHttpClient.expectRequests(prevCalls, HttpClient.Result.SUCCESS)
+    testHttpClient.expectRequests(1, HttpClient.Result.NOT_FOUND)
     telemetryService.sendIntervalRequests()
 
     then:
-    prevCalls * requestBuilder.build(_, _)
-    prevCalls * httpClient.newCall(_) >> okResponse
+    testHttpClient.assertRequests(prevCalls)
+    testHttpClient.assertRequestBody(requestType)
 
-    then:
-    1 * requestBuilder.build(requestType, _)
-    1 * httpClient.newCall(_) >> notFoundResponse
-
-    then: 'no further requests after the first 404'
-    0 * _
+    and: 'no further requests after the first 404'
+    testHttpClient.assertNoMoreRequests()
 
     where:
     requestType                                 | prevCalls
@@ -301,14 +226,14 @@ class TelemetryServiceSpecification extends DDSpecification {
     RequestType.LOGS                            | 6
   }
 
-  void '500 at #requestType does not prevents further messages'() {
+  void 'FAILURE (e.g. 500 http status code) at #requestType does not prevents further messages'() {
     when: 'initial iteration'
+    testHttpClient.expectRequests(1, HttpClient.Result.SUCCESS)
     telemetryService.sendIntervalRequests()
 
     then:
-    1 * requestBuilder.build(_, _)
-    1 * httpClient.newCall(_) >> okResponse
-    0 * _
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED)
+    testHttpClient.assertNoMoreRequests()
 
     when: 'add data'
     telemetryService.addConfiguration(configuration)
@@ -318,21 +243,19 @@ class TelemetryServiceSpecification extends DDSpecification {
     telemetryService.addDistributionSeries(distribution)
     telemetryService.addLogMessage(logMessage)
 
-    and:
+    and: 'send messages'
+    testHttpClient.expectRequests(prevCalls, HttpClient.Result.SUCCESS)
+    testHttpClient.expectRequests(1, HttpClient.Result.FAILURE)
+    testHttpClient.expectRequests(afterCalls, HttpClient.Result.SUCCESS)
     telemetryService.sendIntervalRequests()
 
     then:
-    prevCalls * requestBuilder.build(_, _)
-    prevCalls * httpClient.newCall(_) >> okResponse
-
-    then:
-    1 * requestBuilder.build(requestType, _)
-    1 * httpClient.newCall(_) >> serverErrorResponse
+    testHttpClient.assertRequests(prevCalls)
+    testHttpClient.assertRequestBody(requestType)
 
     then: 'requests continue after first 500'
-    afterCalls * requestBuilder.build(_, _)
-    afterCalls * httpClient.newCall(_) >> okResponse
-    0 * _
+    testHttpClient.assertRequests(afterCalls)
+    testHttpClient.assertNoMoreRequests()
 
     where:
     requestType                                 | prevCalls | afterCalls
@@ -345,47 +268,12 @@ class TelemetryServiceSpecification extends DDSpecification {
     RequestType.LOGS                            | 6         | 0
   }
 
-  void 'Exception at #requestType does not prevents further messages'() {
-    when: 'initial iteration'
-    telemetryService.sendIntervalRequests()
+  void 'Send closing event request'() {
+    when:
+    testHttpClient.expectRequests(1, HttpClient.Result.SUCCESS)
+    telemetryService.sendAppClosingRequest()
 
     then:
-    1 * requestBuilder.build(_, _)
-    1 * httpClient.newCall(_) >> okResponse
-    0 * _
-
-    when: 'add data'
-    telemetryService.addConfiguration(configuration)
-    telemetryService.addIntegration(integration)
-    telemetryService.addDependency(dependency)
-    telemetryService.addMetric(metric)
-    telemetryService.addDistributionSeries(distribution)
-    telemetryService.addLogMessage(logMessage)
-
-    and:
-    telemetryService.sendIntervalRequests()
-
-    then:
-    prevCalls * requestBuilder.build(_, _)
-    prevCalls * httpClient.newCall(_) >> okResponse
-
-    then:
-    1 * requestBuilder.build(requestType, _)
-    1 * httpClient.newCall(_) >> { throw new IOException("exception") }
-
-    then: 'requests continue after first exception'
-    afterCalls * requestBuilder.build(_, _)
-    afterCalls * httpClient.newCall(_) >> okResponse
-    0 * _
-
-    where:
-    requestType                                 | prevCalls | afterCalls
-    RequestType.APP_HEARTBEAT                   | 0         | 6
-    RequestType.APP_CLIENT_CONFIGURATION_CHANGE | 1         | 5
-    RequestType.APP_INTEGRATIONS_CHANGE         | 2         | 4
-    RequestType.APP_DEPENDENCIES_LOADED         | 3         | 3
-    RequestType.GENERATE_METRICS                | 4         | 2
-    RequestType.DISTRIBUTIONS                   | 5         | 1
-    RequestType.LOGS                            | 6         | 0
+    testHttpClient.assertRequestBody(RequestType.APP_CLOSING)
   }
 }
