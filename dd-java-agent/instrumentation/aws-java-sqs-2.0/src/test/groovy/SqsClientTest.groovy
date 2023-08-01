@@ -1,7 +1,5 @@
 import datadog.trace.api.DDTags
 import datadog.trace.core.datastreams.StatsGroup
-import spock.lang.IgnoreIf
-import spock.lang.Requires
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
