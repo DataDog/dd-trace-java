@@ -912,8 +912,12 @@ jobs:
       - store_test_results:
           path: system-tests/logs_parametric
 
+      - run:
+          name: Collect artifacts
+          command: tar -cvzf logs_java_parametric_dev.tar.gz -C system-tests logs_parametric
+
       - store_artifacts:
-          path: system-tests/logs_parametric
+          path: logs_java_parametric_dev.tar.gz
 
 
 build_test_jobs: &build_test_jobs
