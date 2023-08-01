@@ -37,7 +37,7 @@ public class ErrorReportValueAdvice {
       final StacktraceLeakModule module = InstrumentationBridge.STACKTRACE_LEAK_MODULE;
       if (module != null) {
         try {
-          module.onResponseException(throwable.getMessage());
+          module.onStacktraceLeak(throwable);
         } catch (final Throwable e) {
           module.onUnexpectedException("onResponseException threw", e);
         }
