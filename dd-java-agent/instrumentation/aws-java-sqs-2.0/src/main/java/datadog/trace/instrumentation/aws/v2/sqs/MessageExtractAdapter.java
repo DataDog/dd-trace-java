@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.aws.v2.sqs;
 
-import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.DSM_KEY;
+import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.DATADOG_KEY;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -34,7 +34,7 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
         String key = entry.getKey();
         String value =
             entry.getValue().getValueForField("StringValue", Object.class).get().toString();
-        if (key.equalsIgnoreCase(DSM_KEY)) {
+        if (key.equalsIgnoreCase(DATADOG_KEY)) {
           if (!classifier.accept(key, value)) {
             return;
           }

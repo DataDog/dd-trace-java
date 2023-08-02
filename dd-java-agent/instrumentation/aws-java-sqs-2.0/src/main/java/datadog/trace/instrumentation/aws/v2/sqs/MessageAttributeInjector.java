@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.aws.v2.sqs;
 
-import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.DSM_KEY;
+import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.DATADOG_KEY;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.util.Map;
@@ -15,9 +15,9 @@ public class MessageAttributeInjector
   public void set(
       final Map<String, MessageAttributeValue> carrier, final String key, final String value) {
     String jsonPathway = String.format("{\"%s\": \"%s\"}", key, value);
-    if (carrier.size() < 10 && !carrier.containsKey(DSM_KEY)) {
+    if (carrier.size() < 10 && !carrier.containsKey(DATADOG_KEY)) {
       carrier.put(
-          DSM_KEY,
+          DATADOG_KEY,
           MessageAttributeValue.builder().dataType("String").stringValue(jsonPathway).build());
     }
   }

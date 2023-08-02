@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.aws.v2.sqs;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
-import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.DSM_KEY;
+import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.DATADOG_KEY;
 import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
@@ -75,8 +75,8 @@ public class SqsInterceptor implements ExecutionInterceptor {
     } else if (context.request() instanceof ReceiveMessageRequest) {
       ReceiveMessageRequest request = (ReceiveMessageRequest) context.request();
       List<String> messageAttributeNames = new ArrayList<>(request.messageAttributeNames());
-      if (messageAttributeNames.size() < 10 && !messageAttributeNames.contains(DSM_KEY)) {
-        messageAttributeNames.add(DSM_KEY);
+      if (messageAttributeNames.size() < 10 && !messageAttributeNames.contains(DATADOG_KEY)) {
+        messageAttributeNames.add(DATADOG_KEY);
         return request.toBuilder().messageAttributeNames(messageAttributeNames).build();
       } else {
         return request;

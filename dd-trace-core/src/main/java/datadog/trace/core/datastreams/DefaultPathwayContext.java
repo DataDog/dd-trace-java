@@ -248,7 +248,7 @@ public class DefaultPathwayContext implements PathwayContext {
 
     @Override
     public boolean accept(String key, String value) {
-      if (PathwayContext.DSM_KEY.equalsIgnoreCase(key)) {
+      if (PathwayContext.DATADOG_KEY.equalsIgnoreCase(key)) {
         try {
           int startIndex = value.indexOf("\"dd-pathway-ctx-base64\": ");
           int startValueIndex =
