@@ -9,7 +9,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 
 @AutoService(Instrumenter.class)
-public class ErrorReportValueInstrumentation extends Instrumenter.AppSec
+public class ErrorReportValueInstrumentation extends Instrumenter.Iast
     implements Instrumenter.ForSingleType {
 
   public ErrorReportValueInstrumentation() {
