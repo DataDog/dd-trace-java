@@ -32,8 +32,7 @@ class TelemetryServiceSpecification extends Specification {
 
     then: 'app-started'
     testHttpClient.assertRequestBody(RequestType.APP_STARTED)
-      .assertPayload()
-      .configuration(null)
+      .assertNoPayload()
     testHttpClient.assertNoMoreRequests()
 
     when: 'second iteration'
@@ -97,8 +96,7 @@ class TelemetryServiceSpecification extends Specification {
 
     then:
     testHttpClient.assertRequestBody(RequestType.APP_STARTED)
-      .assertPayload()
-      .configuration(null)
+      .assertNoPayload()
     testHttpClient.assertNoMoreRequests()
 
     when: 'add data after first iteration'
@@ -143,8 +141,7 @@ class TelemetryServiceSpecification extends Specification {
 
     then: 'app-started is attempted'
     testHttpClient.assertRequestBody(RequestType.APP_STARTED)
-      .assertPayload()
-      .configuration(null)
+      .assertNoPayload()
     testHttpClient.assertNoMoreRequests()
 
     when: 'attempt with 500 error'
@@ -153,8 +150,7 @@ class TelemetryServiceSpecification extends Specification {
 
     then: 'app-started is attempted'
     testHttpClient.assertRequestBody(RequestType.APP_STARTED)
-      .assertPayload()
-      .configuration(null)
+      .assertNoPayload()
     testHttpClient.assertNoMoreRequests()
 
     when: 'attempt with unexpected FAILURE (e.g. 100 http status code) (not valid)'
@@ -163,8 +159,7 @@ class TelemetryServiceSpecification extends Specification {
 
     then: 'app-started is attempted'
     testHttpClient.assertRequestBody(RequestType.APP_STARTED)
-      .assertPayload()
-      .configuration(null)
+      .assertNoPayload()
     testHttpClient.assertNoMoreRequests()
 
     when: 'attempt with success'
@@ -173,8 +168,7 @@ class TelemetryServiceSpecification extends Specification {
 
     then:
     testHttpClient.assertRequestBody(RequestType.APP_STARTED)
-      .assertPayload()
-      .configuration(null)
+      .assertNoPayload()
     testHttpClient.assertNoMoreRequests()
   }
 

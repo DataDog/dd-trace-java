@@ -136,7 +136,13 @@ class TestHttpClient extends HttpClient {
     }
 
     PayloadAssertions assertPayload() {
-      return new PayloadAssertions(body['payload'] as Map<String, Object>)
+      def payload = body['payload'] as Map<String, Object>
+      assert payload != null
+      return new PayloadAssertions(payload)
+    }
+
+    void assertNoPayload() {
+      assert body['payload'] == null
     }
   }
 

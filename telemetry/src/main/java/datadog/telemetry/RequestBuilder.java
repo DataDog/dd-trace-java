@@ -82,7 +82,7 @@ public class RequestBuilder extends RequestBody {
     this.debug = debug;
   }
 
-  public void writeHeader() {
+  public void beginRequest() {
     try {
       CommonData commonData = CommonData.INSTANCE;
       bodyWriter.beginObject();
@@ -121,10 +121,48 @@ public class RequestBuilder extends RequestBody {
       bodyWriter.name("kernel_version").value(commonData.kernelVersion);
       bodyWriter.endObject();
 
+      bodyWriter.name("request_type").value(requestType.toString());
+      if (requestType == RequestType.MESSAGE_BATCH) {
+        bodyWriter.name("payload");
+        bodyWriter.beginArray();
+      }
+    } catch (Exception ex) {
+      throw new SerializationException("header", ex);
+    }
+  }
+
+  public void endRequest() {
+    try {
+      if (requestType == RequestType.MESSAGE_BATCH) {
+        bodyWriter.endArray(); // payload
+      }
+      bodyWriter.endObject(); // request
+    } catch (Exception ex) {
+      throw new SerializationException("footer", ex);
+    }
+  }
+
+  private void beginPayload(RequestType payloadType) {
+    try {
+      if (requestType == RequestType.MESSAGE_BATCH) {
+        bodyWriter.beginObject();
+        bodyWriter.name("request_type").value(String.valueOf(payloadType));
+      }
       bodyWriter.name("payload");
       bodyWriter.beginObject();
     } catch (Exception ex) {
-      throw new SerializationException("header", ex);
+      throw new SerializationException("begin-batch", ex);
+    }
+  }
+
+  private void endPayload() {
+    try {
+      bodyWriter.endObject(); // payload
+      if (requestType == RequestType.MESSAGE_BATCH) {
+        bodyWriter.endObject(); // event
+      }
+    } catch (Exception ex) {
+      throw new SerializationException("end-batch", ex);
     }
   }
 
@@ -133,6 +171,7 @@ public class RequestBuilder extends RequestBody {
    */
   public void writeGenerateMetricsEvent(List<Metric> series) {
     try {
+      beginPayload(RequestType.GENERATE_METRICS);
       bodyWriter.name("namespace").value(TELEMETRY_NAMESPACE_TAG_TRACER);
       bodyWriter.name("series");
       bodyWriter.beginArray();
@@ -148,6 +187,7 @@ public class RequestBuilder extends RequestBody {
         bodyWriter.endObject();
       }
       bodyWriter.endArray();
+      endPayload();
     } catch (Exception ex) {
       throw new SerializationException("metrics payload", ex);
     }
@@ -155,6 +195,7 @@ public class RequestBuilder extends RequestBody {
 
   public void writeDistributionsEvent(List<DistributionSeries> series) {
     try {
+      beginPayload(RequestType.DISTRIBUTIONS);
       bodyWriter.name("namespace").value(TELEMETRY_NAMESPACE_TAG_TRACER);
       bodyWriter.name("series");
       bodyWriter.beginArray();
@@ -168,6 +209,7 @@ public class RequestBuilder extends RequestBody {
         bodyWriter.endObject();
       }
       bodyWriter.endArray();
+      endPayload();
     } catch (Exception ex) {
       throw new SerializationException("distribution series payload", ex);
     }
@@ -178,6 +220,7 @@ public class RequestBuilder extends RequestBody {
    */
   public void writeLogsEvent(List<LogMessage> messages) {
     try {
+      beginPayload(RequestType.LOGS);
       bodyWriter.name("logs").beginArray();
       for (LogMessage m : messages) {
         bodyWriter.beginObject();
@@ -189,31 +232,49 @@ public class RequestBuilder extends RequestBody {
         bodyWriter.endObject();
       }
       bodyWriter.endArray();
+      endPayload();
     } catch (Exception ex) {
       throw new SerializationException("logs payload", ex);
     }
   }
 
   /**
-   * https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/SchemaDocumentation/Schemas/conf_key_value.md
+   * https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/SchemaDocumentation/Schemas/app_started.md
    */
+  public void writeAppStartedEvent(List<ConfigChange> configChanges) {
+    if (configChanges != null) {
+      beginPayload(RequestType.APP_STARTED);
+      // products - optional
+      writeConfigurationChanges(configChanges);
+      // error - optional
+      // additional_payload - optional
+      endPayload();
+    }
+  }
+
   public void writeConfigChangeEvent(List<ConfigChange> configChanges) {
     if (configChanges != null) {
-      try {
-        bodyWriter.name("configuration").beginArray();
-        for (ConfigChange cc : configChanges) {
-          bodyWriter.beginObject();
-          bodyWriter.name("name").value(cc.name);
-          bodyWriter.name("value").jsonValue(cc.value);
-          // TODO origin - mandatory
-          // error - optional
-          // seq_id - optional
-          bodyWriter.endObject();
-        }
-        bodyWriter.endArray();
-      } catch (Exception ex) {
-        throw new SerializationException("config changes payload", ex);
+      beginPayload(RequestType.APP_CLIENT_CONFIGURATION_CHANGE);
+      writeConfigurationChanges(configChanges);
+      endPayload();
+    }
+  }
+
+  private void writeConfigurationChanges(List<ConfigChange> configChanges) {
+    try {
+      bodyWriter.name("configuration").beginArray();
+      for (ConfigChange cc : configChanges) {
+        bodyWriter.beginObject();
+        bodyWriter.name("name").value(cc.name);
+        bodyWriter.name("value").jsonValue(cc.value);
+        // TODO origin - mandatory
+        // error - optional
+        // seq_id - optional
+        bodyWriter.endObject();
       }
+      bodyWriter.endArray();
+    } catch (Exception ex) {
+      throw new SerializationException("config changes payload", ex);
     }
   }
 
@@ -222,6 +283,7 @@ public class RequestBuilder extends RequestBody {
    */
   public void writeDependenciesLoadedEvent(List<Dependency> dependencies) {
     try {
+      beginPayload(RequestType.APP_DEPENDENCIES_LOADED);
       bodyWriter.name("dependencies");
       bodyWriter.beginArray();
       for (Dependency d : dependencies) {
@@ -232,6 +294,7 @@ public class RequestBuilder extends RequestBody {
         bodyWriter.endObject();
       }
       bodyWriter.endArray();
+      endPayload();
     } catch (Exception ex) {
       throw new SerializationException("dependencies payload", ex);
     }
@@ -242,6 +305,7 @@ public class RequestBuilder extends RequestBody {
    */
   public void writeIntegrationsEvent(List<Integration> integrations) {
     try {
+      beginPayload(RequestType.APP_INTEGRATIONS_CHANGE);
       bodyWriter.name("integrations");
       bodyWriter.beginArray();
       for (Integration i : integrations) {
@@ -255,17 +319,9 @@ public class RequestBuilder extends RequestBody {
         bodyWriter.endObject();
       }
       bodyWriter.endArray();
+      endPayload();
     } catch (Exception ex) {
       throw new SerializationException("integrations payload", ex);
-    }
-  }
-
-  public void writeFooter() {
-    try {
-      bodyWriter.endObject(); // payload
-      bodyWriter.endObject(); // request
-    } catch (Exception ex) {
-      throw new SerializationException("footer", ex);
     }
   }
 

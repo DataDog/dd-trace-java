@@ -21,7 +21,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TelemetryService {
+
   private static final Logger log = LoggerFactory.getLogger(TelemetryService.class);
+
   private static final String API_ENDPOINT = "telemetry/proxy/api/v2/apmtelemetry";
 
   private static final int MAX_ELEMENTS_PER_REQUEST = 100;
@@ -116,8 +118,9 @@ public class TelemetryService {
 
   public void sendAppClosingRequest() {
     RequestBuilder rb = new RequestBuilder(RequestType.APP_CLOSING, httpUrl);
-    rb.writeHeader();
-    rb.writeFooter();
+    rb.beginRequest();
+    // TODO include metrics and other payloads
+    rb.endRequest();
     Request request = rb.request();
     httpClient.sendRequest(request);
   }
@@ -128,12 +131,9 @@ public class TelemetryService {
             configurations, integrations, dependencies, metrics, distributionSeries, logMessages);
     if (!sentAppStarted) {
       RequestBuilder rb = new RequestBuilder(RequestType.APP_STARTED, httpUrl);
-      rb.writeHeader();
-      // products - optional
-      rb.writeConfigChangeEvent(state.configurations.getOrNull());
-      // error - optional
-      // additional_payload - optional
-      rb.writeFooter();
+      rb.beginRequest();
+      rb.writeAppStartedEvent(state.configurations.getOrNull());
+      rb.endRequest();
       HttpClient.Result result = httpClient.sendRequest(rb.request());
 
       if (result != HttpClient.Result.SUCCESS) {
@@ -150,8 +150,8 @@ public class TelemetryService {
 
     {
       RequestBuilder rb = new RequestBuilder(RequestType.APP_HEARTBEAT, httpUrl);
-      rb.writeHeader();
-      rb.writeFooter();
+      rb.beginRequest();
+      rb.endRequest();
       if (httpClient.sendRequest(rb.request()) == HttpClient.Result.NOT_FOUND) {
         state.rollback();
         return;
@@ -160,9 +160,9 @@ public class TelemetryService {
 
     while (!state.configurations.isEmpty()) {
       RequestBuilder rb = new RequestBuilder(RequestType.APP_CLIENT_CONFIGURATION_CHANGE, httpUrl);
-      rb.writeHeader();
+      rb.beginRequest();
       rb.writeConfigChangeEvent(state.configurations.get(maxElementsPerReq));
-      rb.writeFooter();
+      rb.endRequest();
       HttpClient.Result result = httpClient.sendRequest(rb.request());
       if (result == HttpClient.Result.SUCCESS) {
         state.commit();
@@ -177,9 +177,9 @@ public class TelemetryService {
 
     while (!state.integrations.isEmpty()) {
       RequestBuilder rb = new RequestBuilder(RequestType.APP_INTEGRATIONS_CHANGE, httpUrl);
-      rb.writeHeader();
+      rb.beginRequest();
       rb.writeIntegrationsEvent(state.integrations.get(maxElementsPerReq));
-      rb.writeFooter();
+      rb.endRequest();
       HttpClient.Result result = httpClient.sendRequest(rb.request());
       if (result == HttpClient.Result.SUCCESS) {
         state.commit();
@@ -194,9 +194,9 @@ public class TelemetryService {
 
     while (!state.dependencies.isEmpty()) {
       RequestBuilder rb = new RequestBuilder(RequestType.APP_DEPENDENCIES_LOADED, httpUrl);
-      rb.writeHeader();
+      rb.beginRequest();
       rb.writeDependenciesLoadedEvent(state.dependencies.get(maxDepsPerReq));
-      rb.writeFooter();
+      rb.endRequest();
       HttpClient.Result result = httpClient.sendRequest(rb.request());
       if (result == HttpClient.Result.SUCCESS) {
         state.commit();
@@ -211,9 +211,9 @@ public class TelemetryService {
 
     while (!state.metrics.isEmpty()) {
       RequestBuilder rb = new RequestBuilder(RequestType.GENERATE_METRICS, httpUrl);
-      rb.writeHeader();
+      rb.beginRequest();
       rb.writeGenerateMetricsEvent(state.metrics.get(maxElementsPerReq));
-      rb.writeFooter();
+      rb.endRequest();
       HttpClient.Result result = httpClient.sendRequest(rb.request());
       if (result == HttpClient.Result.SUCCESS) {
         state.commit();
@@ -228,9 +228,9 @@ public class TelemetryService {
 
     while (!state.distributionSeries.isEmpty()) {
       RequestBuilder rb = new RequestBuilder(RequestType.DISTRIBUTIONS, httpUrl);
-      rb.writeHeader();
+      rb.beginRequest();
       rb.writeDistributionsEvent(state.distributionSeries.get(maxElementsPerReq));
-      rb.writeFooter();
+      rb.endRequest();
       HttpClient.Result result = httpClient.sendRequest(rb.request());
       if (result == HttpClient.Result.SUCCESS) {
         state.commit();
@@ -246,9 +246,9 @@ public class TelemetryService {
     while (!state.logMessages.isEmpty()) {
 
       RequestBuilder rb = new RequestBuilder(RequestType.LOGS, httpUrl);
-      rb.writeHeader();
+      rb.beginRequest();
       rb.writeLogsEvent(state.logMessages.get(maxElementsPerReq));
-      rb.writeFooter();
+      rb.endRequest();
       HttpClient.Result result = httpClient.sendRequest(rb.request());
 
       if (result == HttpClient.Result.SUCCESS) {

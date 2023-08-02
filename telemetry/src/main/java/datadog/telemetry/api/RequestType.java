@@ -12,11 +12,12 @@ public enum RequestType {
   APP_CLOSING("app-closing"),
   GENERATE_METRICS("generate-metrics"),
   LOGS("logs"),
-  DISTRIBUTIONS("distributions");
+  DISTRIBUTIONS("distributions"),
   // apm-onboarding-event -
   // https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/SchemaDocumentation/Schemas/payload.md#if-request_type--apm-onboarding-event-we-add-the-following-to-payload
   // apm-remote-config-event -
   // https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/SchemaDocumentation/Schemas/payload.md#if-request_type--apm-remote-config-event-we-add-the-following-to-payload
+  MESSAGE_BATCH("message-batch");
 
   private final String value;
 

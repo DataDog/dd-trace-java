@@ -18,8 +18,8 @@ class RequestBuilderSpecification extends Specification {
     def b = new RequestBuilder(RequestType.APP_STARTED, httpUrl)
 
     when:
-    b.writeHeader()
-    b.writeHeader()
+    b.beginRequest()
+    b.beginRequest()
 
     then:
     RequestBuilder.SerializationException ex = thrown()
@@ -32,9 +32,9 @@ class RequestBuilderSpecification extends Specification {
     def b = new RequestBuilder(RequestType.APP_STARTED, httpUrl)
 
     when:
-    b.writeHeader()
-    b.writeFooter()
-    b.writeHeader()
+    b.beginRequest()
+    b.endRequest()
+    b.beginRequest()
 
     then:
     RequestBuilder.SerializationException ex = thrown()
@@ -52,7 +52,7 @@ class RequestBuilderSpecification extends Specification {
 
     when:
     // header needed for a proper JSON
-    rb.writeHeader()
+    rb.beginRequest()
     // but not needed for verification
     drainToString(rb.request())
 
@@ -65,7 +65,7 @@ class RequestBuilderSpecification extends Specification {
     ])
 
     then:
-    drainToString(rb.request()) == '"configuration":[{"name":"string","value":"bar"},{"name":"int","value":2342},{"name":"double","value":123.456},{"name":"map","value":{"key1":"value1","key2":432.32,"key3":324}}]'
+    drainToString(rb.request()) == ',"payload":{"configuration":[{"name":"string","value":"bar"},{"name":"int","value":2342},{"name":"double","value":123.456},{"name":"map","value":{"key1":"value1","key2":432.32,"key3":324}}]}'
   }
 
   String drainToString(Request req) {
