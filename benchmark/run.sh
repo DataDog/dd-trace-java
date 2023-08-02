@@ -3,8 +3,6 @@ set -eu
 
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 readonly INITIAL_DIR="$(pwd)"
-readonly USER_ID="$(id -u)"
-readonly GROUP_ID="$(id -g)"
 readonly TRACER="${SCRIPT_DIR}/tracer/dd-java-agent.jar"
 
 cd "${SCRIPT_DIR}"
@@ -12,8 +10,6 @@ cd "${SCRIPT_DIR}"
 # Build container image
 echo "Building base image ..."
 docker build \
-  --build-arg="UID=${USER_ID}" \
-  --build-arg="GID=${GROUP_ID}" \
   -t dd-trace-java/benchmark \
   .
 
@@ -34,7 +30,6 @@ fi
 # Trigger benchmarks
 echo "Running benchmarks ..."
 docker run --rm \
-  -u "${USER_ID}:${GROUP_ID}" \
   -v "${HOME}/.gradle":/home/benchmark/.gradle:delegated \
   -v "${PWD}/..":/tracer:delegated \
   -w /tracer/benchmark \

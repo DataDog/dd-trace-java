@@ -63,18 +63,9 @@ RUN apt-get update \
   && apt-get -y clean \
   && rm -rf /var/lib/apt/lists/*
 
-ARG UID
-ARG GID
-
-RUN groupadd -g ${GID} benchmark \
-  && useradd -u ${UID} -g ${GID} -m benchmark \
-  && mkdir -p /home/benchmark/.bin
-
-ENV PATH=${PATH}:/home/benchmark/.bin
-
-COPY --chown=benchmark --from=eclipse-temurin:8-jammy /opt/java/openjdk /usr/lib/jvm/8
-COPY --chown=benchmark --from=eclipse-temurin:11-jammy /opt/java/openjdk /usr/lib/jvm/11
-COPY --chown=benchmark --from=eclipse-temurin:17-jammy /opt/java/openjdk /usr/lib/jvm/17
+COPY --from=eclipse-temurin:8-jammy /opt/java/openjdk /usr/lib/jvm/8
+COPY --from=eclipse-temurin:11-jammy /opt/java/openjdk /usr/lib/jvm/11
+COPY --from=eclipse-temurin:17-jammy /opt/java/openjdk /usr/lib/jvm/17
 
 RUN rm -rf \
     /usr/lib/jvm/*/man \
@@ -89,15 +80,13 @@ ENV JAVA_17_HOME=/usr/lib/jvm/17
 ENV JAVA_HOME=${JAVA_8_HOME}
 ENV PATH=${PATH}:${JAVA_HOME}/bin
 
-COPY --chown=benchmark --from=k6 /k6 /usr/bin/k6
-COPY --chown=benchmark --from=sirun /sirun /usr/bin/sirun
+COPY --from=k6 /k6 /usr/bin/k6
+COPY --from=sirun /sirun /usr/bin/sirun
 
 RUN mkdir -p /app
 
-COPY --chown=benchmark --from=petclinic /spring-petclinic.jar /app/spring-petclinic.jar
+COPY --from=petclinic /spring-petclinic.jar /app/spring-petclinic.jar
 ENV PETCLINIC=/app/spring-petclinic.jar
 
-COPY --chown=benchmark --from=insecure-bank /insecure-bank.war /app/insecure-bank.war
+COPY --from=insecure-bank /insecure-bank.war /app/insecure-bank.war
 ENV INSECURE_BANK=/app/insecure-bank.war
-
-USER benchmark
