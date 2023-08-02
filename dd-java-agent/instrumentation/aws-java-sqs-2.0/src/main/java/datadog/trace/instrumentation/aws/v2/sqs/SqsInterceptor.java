@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.aws.v2.sqs;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.DSM_KEY;
-import static datadog.trace.bootstrap.instrumentation.api.URIUtils.parseSqsUrl;
+import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
@@ -44,7 +44,7 @@ public class SqsInterceptor implements ExecutionInterceptor {
       AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
       LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
       sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-      sortedTags.put(TOPIC_TAG, parseSqsUrl(queueUrl));
+      sortedTags.put(TOPIC_TAG, urlFileName(queueUrl));
       sortedTags.put(TYPE_TAG, "sqs");
 
       Map<String, MessageAttributeValue> messageAttributes =
@@ -58,7 +58,7 @@ public class SqsInterceptor implements ExecutionInterceptor {
       AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
       LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
       sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-      sortedTags.put(TOPIC_TAG, parseSqsUrl(queueUrl));
+      sortedTags.put(TOPIC_TAG, urlFileName(queueUrl));
       sortedTags.put(TYPE_TAG, "sqs");
 
       List<SendMessageBatchRequestEntry> entries = new ArrayList<>();

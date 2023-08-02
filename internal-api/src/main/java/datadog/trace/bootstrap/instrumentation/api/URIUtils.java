@@ -158,7 +158,7 @@ public class URIUtils {
     return new InvalidUrl(raw);
   }
 
-  public static String parseSqsUrl(String raw) {
+  public static String urlFileName(String raw) {
     try {
       URL url = new URL(raw);
       String path = url.getPath();

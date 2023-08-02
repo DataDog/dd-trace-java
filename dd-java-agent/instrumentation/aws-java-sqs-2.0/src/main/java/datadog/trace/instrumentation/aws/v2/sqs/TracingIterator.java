@@ -4,7 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNe
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.URIUtils.parseSqsUrl;
+import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
@@ -89,7 +89,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
 
         LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
         sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
-        sortedTags.put(TOPIC_TAG, parseSqsUrl(queueUrl));
+        sortedTags.put(TOPIC_TAG, urlFileName(queueUrl));
         sortedTags.put(TYPE_TAG, "sqs");
         AgentTracer.get().setDataStreamCheckpoint(span, sortedTags, 0);
 
