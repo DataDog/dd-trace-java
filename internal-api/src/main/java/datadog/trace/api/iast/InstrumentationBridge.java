@@ -10,6 +10,7 @@ import datadog.trace.api.iast.sink.LdapInjectionModule;
 import datadog.trace.api.iast.sink.NoHttpOnlyCookieModule;
 import datadog.trace.api.iast.sink.NoSameSiteCookieModule;
 import datadog.trace.api.iast.sink.PathTraversalModule;
+import datadog.trace.api.iast.sink.SecretsModule;
 import datadog.trace.api.iast.sink.SqlInjectionModule;
 import datadog.trace.api.iast.sink.SsrfModule;
 import datadog.trace.api.iast.sink.TrustBoundaryViolationModule;
@@ -46,6 +47,8 @@ public abstract class InstrumentationBridge {
   public static volatile XPathInjectionModule XPATH_INJECTION;
 
   public static volatile XssModule XSS;
+
+  public static volatile SecretsModule HARDCODED_SECRET;
 
   private InstrumentationBridge() {}
 
@@ -90,6 +93,8 @@ public abstract class InstrumentationBridge {
       TRUST_BOUNDARY_VIOLATION = (TrustBoundaryViolationModule) module;
     } else if (module instanceof XssModule) {
       XSS = (XssModule) module;
+    } else if (module instanceof SecretsModule) {
+      HARDCODED_SECRET = (SecretsModule) module;
     } else {
       throw new UnsupportedOperationException("Module not yet supported: " + module);
     }
@@ -157,6 +162,9 @@ public abstract class InstrumentationBridge {
     if (type == XssModule.class) {
       return (E) XSS;
     }
+    if (type == SecretsModule.class) {
+      return (E) HARDCODED_SECRET;
+    }
     throw new UnsupportedOperationException("Module not yet supported: " + type);
   }
 
@@ -182,5 +190,6 @@ public abstract class InstrumentationBridge {
     XPATH_INJECTION = null;
     TRUST_BOUNDARY_VIOLATION = null;
     XSS = null;
+    HARDCODED_SECRET = null;
   }
 }

@@ -12,6 +12,7 @@ import com.datadog.iast.sink.LdapInjectionModuleImpl;
 import com.datadog.iast.sink.NoHttpOnlyCookieModuleImpl;
 import com.datadog.iast.sink.NoSameSiteCookieModuleImpl;
 import com.datadog.iast.sink.PathTraversalModuleImpl;
+import com.datadog.iast.sink.SecretsModuleImpl;
 import com.datadog.iast.sink.SqlInjectionModuleImpl;
 import com.datadog.iast.sink.SsrfModuleImpl;
 import com.datadog.iast.sink.TrustBoundaryViolationModuleImpl;
@@ -104,7 +105,8 @@ public class IastSystem {
         new WeakRandomnessModuleImpl(),
         new XPathInjectionModuleImpl(),
         new TrustBoundaryViolationModuleImpl(),
-        new XssModuleImpl());
+        new XssModuleImpl(),
+        new SecretsModuleImpl());
   }
 
   private static void registerRequestStartedCallback(
