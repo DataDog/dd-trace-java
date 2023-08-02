@@ -35,7 +35,7 @@ public final class SqsClientInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SqsInterceptor", packageName + ".MessageAttributeInjector",
+      packageName + ".SqsInterceptor", packageName + ".MessageAttributeInjector"
     };
   }
 
