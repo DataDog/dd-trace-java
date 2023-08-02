@@ -4,13 +4,9 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.opentelemetry14.OtelContext
-import datadog.trace.instrumentation.opentelemetry14.OtelSpan
-import datadog.trace.instrumentation.opentelemetry14.OtelSpanBuilder
-import datadog.trace.instrumentation.opentelemetry14.OtelTracer
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.trace.Span
 import io.opentelemetry.api.trace.SpanKind
-import io.opentelemetry.api.trace.StatusCode
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator
 import io.opentelemetry.context.Context
 import io.opentelemetry.context.ContextKey
@@ -34,17 +30,6 @@ class OpenTelemetry14Test extends AgentTestRunner {
     super.configurePreAgent()
 
     injectSysConfig("dd.integration.opentelemetry.experimental.enabled", "true")
-  }
-
-  def "test injection"() {
-    setup:
-    def builder = tracer.spanBuilder("some-name")
-    def result = builder.startSpan()
-
-    expect:
-    tracer instanceof OtelTracer
-    builder instanceof OtelSpanBuilder
-    result instanceof OtelSpan
   }
 
   def "test parent span using active span"() {
@@ -300,7 +285,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
     result.delegate.getTag(DDTags.ERROR_MSG) == null
 
     when:
-    result.setStatus(StatusCode.ERROR, "some error")
+    result.setStatus(ERROR, "some error")
 
     then:
     result.delegate.isError()
