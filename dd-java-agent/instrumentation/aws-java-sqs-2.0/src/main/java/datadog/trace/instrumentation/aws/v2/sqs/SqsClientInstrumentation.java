@@ -12,7 +12,8 @@ import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 
 /** AWS SDK v2 instrumentation */
 @AutoService(Instrumenter.class)
-public final class SqsClientInstrumentation extends Instrumenter.Tracing implements Instrumenter.ForSingleType {
+public final class SqsClientInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   private static final String INSTRUMENTATION_NAME = "aws-sdk";
 
   public SqsClientInstrumentation() {
@@ -33,8 +34,8 @@ public final class SqsClientInstrumentation extends Instrumenter.Tracing impleme
 
   @Override
   public String[] helperClassNames() {
-    return new String[]{
-        packageName + ".SqsInterceptor", packageName + ".MessageAttributeInjector",
+    return new String[] {
+      packageName + ".SqsInterceptor", packageName + ".MessageAttributeInjector",
     };
   }
 
