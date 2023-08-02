@@ -425,6 +425,59 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     }
   }
 
+  def "Encoding and decoding (SQS-formatted) with injects and extracts"() {
+    // Timesource needs to be advanced in milliseconds because encoding truncates to millis
+    given:
+    def timeSource = new ControllableTimeSource()
+    def context = new DefaultPathwayContext(timeSource, wellKnownTags)
+    def contextVisitor = new Base64MapContextVisitor()
+
+    when:
+    timeSource.advance(MILLISECONDS.toNanos(50))
+    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
+
+    def encoded = context.strEncode()
+    def jsonPathway = String.format("{\"%s\": \"%s\"}", PathwayContext.PROPAGATION_KEY_BASE64, encoded)
+    Map<String, String> carrier = [(PathwayContext.DSM_KEY): jsonPathway, "someotherkey": "someothervalue"]
+    timeSource.advance(MILLISECONDS.toNanos(1))
+    def decodedContext = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, wellKnownTags)
+    timeSource.advance(MILLISECONDS.toNanos(25))
+    context.setCheckpoint(new LinkedHashMap<>(["topic": "topic", "type": "sqs"]), pointConsumer)
+
+    then:
+    decodedContext.isStarted()
+    pointConsumer.points.size() == 2
+    with(pointConsumer.points[1]) {
+      edgeTags == ["topic:topic", "type:sqs"]
+      edgeTags.size() == 2
+      parentHash == pointConsumer.points[0].hash
+      hash != 0
+      pathwayLatencyNano == MILLISECONDS.toNanos(26)
+      edgeLatencyNano == MILLISECONDS.toNanos(26)
+    }
+
+    when:
+    def secondEncode = decodedContext.strEncode()
+    def secondJsonPathway = String.format("{\"%s\": \"%s\"}", PathwayContext.PROPAGATION_KEY_BASE64, secondEncode)
+    carrier = [(PathwayContext.DSM_KEY): secondJsonPathway]
+    timeSource.advance(MILLISECONDS.toNanos(2))
+    def secondDecode = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, wellKnownTags)
+    timeSource.advance(MILLISECONDS.toNanos(30))
+    context.setCheckpoint(new LinkedHashMap<>(["topic": "topicB", "type": "sqs"]), pointConsumer)
+
+    then:
+    secondDecode.isStarted()
+    pointConsumer.points.size() == 3
+    with(pointConsumer.points[2]) {
+      edgeTags == ["topic:topicB", "type:sqs"]
+      edgeTags.size() == 2
+      parentHash == pointConsumer.points[1].hash
+      hash != 0
+      pathwayLatencyNano == MILLISECONDS.toNanos(58)
+      edgeLatencyNano == MILLISECONDS.toNanos(32)
+    }
+  }
+
   def "Empty tags not set"() {
     given:
     def timeSource = new ControllableTimeSource()
