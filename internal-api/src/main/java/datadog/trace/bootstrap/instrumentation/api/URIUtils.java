@@ -162,13 +162,14 @@ public class URIUtils {
     try {
       URL url = new URL(raw);
       String path = url.getPath();
-      if (path.startsWith("/")) {
-        path = path.substring(1);
+      int nameEnd = path.length() - 1;
+      while (nameEnd >= 0 && path.charAt(nameEnd) == '/') {
+        nameEnd--;
       }
-      if (path.endsWith("/")) {
-        path = path.substring(0, path.length() - 1);
+      if (nameEnd < 0) {
+        return "";
       }
-      String name = path.substring(path.lastIndexOf('/') + 1);
+      String name = path.substring(path.lastIndexOf('/', nameEnd) + 1, nameEnd + 1);
       return name;
     } catch (MalformedURLException e) {
       return "";
