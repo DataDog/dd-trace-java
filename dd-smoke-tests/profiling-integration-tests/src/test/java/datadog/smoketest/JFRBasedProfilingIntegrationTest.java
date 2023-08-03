@@ -145,23 +145,46 @@ class JFRBasedProfilingIntegrationTest {
   }
 
   @Test
-  @DisplayName("Test continuous recording - no jmx delay")
+  @DisplayName("Test continuous recording - no jmx delay, no jmethodid cache")
   public void testContinuousRecording_no_jmx_delay(final TestInfo testInfo) throws Exception {
     testWithRetry(
         () ->
             testContinuousRecording(
-                0, ENDPOINT_COLLECTION_ENABLED, OperatingSystem.getCurrent().isLinux()),
+                0, ENDPOINT_COLLECTION_ENABLED, OperatingSystem.getCurrent().isLinux(), false),
         testInfo,
         5);
   }
 
   @Test
-  @DisplayName("Test continuous recording - 1 sec jmx delay")
+  @DisplayName("Test continuous recording - no jmx delay, jmethodid cache")
+  public void testContinuousRecording_no_jmx_delay_jmethodid_cache(final TestInfo testInfo)
+      throws Exception {
+    testWithRetry(
+        () ->
+            testContinuousRecording(
+                0, ENDPOINT_COLLECTION_ENABLED, OperatingSystem.getCurrent().isLinux(), true),
+        testInfo,
+        5);
+  }
+
+  @Test
+  @DisplayName("Test continuous recording - 1 sec jmx delay, no jmethodid cache")
   public void testContinuousRecording(final TestInfo testInfo) throws Exception {
     testWithRetry(
         () ->
             testContinuousRecording(
-                1, ENDPOINT_COLLECTION_ENABLED, OperatingSystem.getCurrent().isLinux()),
+                1, ENDPOINT_COLLECTION_ENABLED, OperatingSystem.getCurrent().isLinux(), false),
+        testInfo,
+        5);
+  }
+
+  @Test
+  @DisplayName("Test continuous recording - 1 sec jmx delay, jmethodid cache")
+  public void testContinuousRecording_jmethodid_cache(final TestInfo testInfo) throws Exception {
+    testWithRetry(
+        () ->
+            testContinuousRecording(
+                1, ENDPOINT_COLLECTION_ENABLED, OperatingSystem.getCurrent().isLinux(), true),
         testInfo,
         5);
   }
@@ -169,13 +192,18 @@ class JFRBasedProfilingIntegrationTest {
   private void testContinuousRecording(
       final int jmxFetchDelay,
       final boolean endpointCollectionEnabled,
-      final boolean asyncProfilerEnabled)
+      final boolean asyncProfilerEnabled,
+      final boolean jmethodIdCacheEnabled)
       throws Exception {
     final ObjectMapper mapper = new ObjectMapper();
     try {
       targetProcess =
           createDefaultProcessBuilder(
-                  jmxFetchDelay, endpointCollectionEnabled, asyncProfilerEnabled, logFilePath)
+                  jmxFetchDelay,
+                  endpointCollectionEnabled,
+                  asyncProfilerEnabled,
+                  jmethodIdCacheEnabled,
+                  logFilePath)
               .start();
 
       Assumptions.assumeFalse(Platform.isJ9());
@@ -396,6 +424,7 @@ class JFRBasedProfilingIntegrationTest {
                         PROFILING_UPLOAD_PERIOD_SECONDS,
                         ENDPOINT_COLLECTION_ENABLED,
                         true,
+                        false,
                         exitDelay,
                         logFilePath)
                     .start();
@@ -453,6 +482,7 @@ class JFRBasedProfilingIntegrationTest {
                         PROFILING_UPLOAD_PERIOD_SECONDS,
                         ENDPOINT_COLLECTION_ENABLED,
                         true,
+                        false,
                         duration,
                         logFilePath)
                     .start();
@@ -619,6 +649,7 @@ class JFRBasedProfilingIntegrationTest {
       final int jmxFetchDelay,
       final boolean endpointCollectionEnabled,
       final boolean asyncProfilerEnabled,
+      final boolean jmethodIdCacheEnabled,
       final Path logFilePath) {
     return createProcessBuilder(
         VALID_API_KEY,
@@ -627,6 +658,7 @@ class JFRBasedProfilingIntegrationTest {
         PROFILING_UPLOAD_PERIOD_SECONDS,
         endpointCollectionEnabled,
         asyncProfilerEnabled,
+        jmethodIdCacheEnabled,
         0,
         logFilePath);
   }
@@ -638,6 +670,7 @@ class JFRBasedProfilingIntegrationTest {
       final int profilingUploadPeriodSecs,
       final boolean endpointCollectionEnabled,
       final boolean asyncProfilerEnabled,
+      final boolean jmethodIdCacheEnabled,
       final int exitDelay,
       final Path logFilePath) {
     return createProcessBuilder(
@@ -649,6 +682,7 @@ class JFRBasedProfilingIntegrationTest {
         profilingUploadPeriodSecs,
         endpointCollectionEnabled,
         asyncProfilerEnabled,
+        jmethodIdCacheEnabled,
         exitDelay,
         logFilePath);
   }
@@ -662,6 +696,7 @@ class JFRBasedProfilingIntegrationTest {
       final int profilingUploadPeriodSecs,
       final boolean endpointCollectionEnabled,
       final boolean asyncProfilerEnabled,
+      final boolean jmethodIdCacheEnabled,
       final int exitDelay,
       final Path logFilePath) {
     final String templateOverride =
@@ -694,6 +729,7 @@ class JFRBasedProfilingIntegrationTest {
             "-Ddd.profiling.debug.dump_path=/tmp/dd-profiler",
             "-Ddd.profiling.experimental.queueing.time.enabled=true",
             "-Ddd.profiling.experimental.queueing.time.threshold.millis=0",
+            "-Ddd.profiling.experimental.jmethodid_cache.enabled=" + jmethodIdCacheEnabled,
             "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
             "-Ddd.profiling.experimental.context.attributes=foo,bar",
             "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",

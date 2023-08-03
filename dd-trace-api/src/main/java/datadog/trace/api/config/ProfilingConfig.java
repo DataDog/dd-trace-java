@@ -176,6 +176,10 @@ public final class ProfilingConfig {
 
   public static final long PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT = 50;
 
+  public static final String PROFILING_JMETHODID_CACHE_ENABLED =
+      "profiling.experimental.jmethodid_cache.enabled";
+  public static final boolean PROFILING_JMETHODID_CACHE_ENABLED_DEFAULT = false;
+
   public static final String PROFILING_ULTRA_MINIMAL = "profiling.ultra.minimal";
 
   private ProfilingConfig() {}

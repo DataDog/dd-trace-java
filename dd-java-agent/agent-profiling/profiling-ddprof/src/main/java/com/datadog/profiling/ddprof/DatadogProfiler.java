@@ -14,6 +14,7 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallContextF
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallInterval;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isAllocationProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isCpuProfilerEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isJmethodIdCacheEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isLiveHeapSizeTrackingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isMemoryLeakProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isSpanNameContextAttributeEnabled;
@@ -341,6 +342,10 @@ public final class DatadogProfiler {
       if (profilingModes.contains(MEMLEAK)) {
         cmd.append(isLiveHeapSizeTrackingEnabled(configProvider) ? 'L' : 'l');
       }
+    }
+    if (isJmethodIdCacheEnabled()) {
+      // element retention is 30 chunk rotations, will be checked only if >10000 elements in cache
+      cmd.append(",minfocache=30:1000");
     }
     String cmdString = cmd.toString();
     log.debug("Datadog profiler command line: {}", cmdString);
