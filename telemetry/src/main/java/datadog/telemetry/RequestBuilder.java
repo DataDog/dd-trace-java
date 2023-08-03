@@ -54,6 +54,7 @@ public class RequestBuilder extends RequestBody {
   }
 
   public void writeHeader() {
+    RequestBuilderProvider.CommonData provider = RequestBuilderProvider.CommonData.INSTANCE;
     try {
       bodyWriter.beginObject();
       bodyWriter.name("api_version").value(API_VERSION);
@@ -71,7 +72,7 @@ public class RequestBuilder extends RequestBody {
       bodyWriter.name("tracer_version").value(provider.tracerVersion);
       bodyWriter.endObject();
 
-      bodyWriter.name("debug").value(provider.debug);
+      bodyWriter.name("debug").value(this.provider.debug);
 
       bodyWriter.name("host");
       bodyWriter.beginObject();

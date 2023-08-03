@@ -1,7 +1,5 @@
 package datadog.telemetry;
 
-import static datadog.telemetry.RequestBuilderProvider.DD_TELEMETRY_REQUEST_TYPE;
-
 import java.io.IOException;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -16,6 +14,7 @@ public class HttpClient {
     NOT_FOUND
   }
 
+  public static final String DD_TELEMETRY_REQUEST_TYPE = "DD-Telemetry-Request-Type";
   private static final Logger log = LoggerFactory.getLogger(HttpClient.class);
 
   private final OkHttpClient httpClient;

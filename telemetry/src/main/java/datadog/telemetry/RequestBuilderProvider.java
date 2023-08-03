@@ -8,55 +8,39 @@ import datadog.trace.api.Platform;
 import okhttp3.HttpUrl;
 
 public class RequestBuilderProvider {
-  public static final String DD_TELEMETRY_REQUEST_TYPE = "DD-Telemetry-Request-Type";
   private static final String API_ENDPOINT = "telemetry/proxy/api/v2/apmtelemetry";
 
   final HttpUrl httpUrl;
   final boolean debug;
-  final String runtimeId;
-  final String env;
-  final String serviceName;
-  final String serviceVersion;
-  final String tracerVersion;
-  final String languageName;
-  final String languageVersion;
-  final String runtimeName;
-  final String runtimeVersion;
-  final String runtimePatches;
-  final String hostname;
-  final String os;
-  final String osVersion;
-  final String kernelName;
-  final String kernelRelease;
-  final String kernelVersion;
-  final String architecture;
+
+  enum CommonData {
+    INSTANCE;
+
+    final String runtimeId = Config.get().getRuntimeId();
+    final String env = Config.get().getEnv();
+    final String serviceName = Config.get().getServiceName();
+    final String serviceVersion = Config.get().getVersion();
+    final String tracerVersion = TracerVersion.TRACER_VERSION;
+    final String languageName = DDTags.LANGUAGE_TAG_VALUE;
+    final String languageVersion = Platform.getLangVersion();
+    final String runtimeName = Platform.getRuntimeVendor();
+    final String runtimeVersion = Platform.getRuntimeVersion();
+    final String runtimePatches = Platform.getRuntimePatches();
+
+    final String hostname = HostInfo.getHostname();
+    final String os = HostInfo.getOsName();
+    final String osVersion = HostInfo.getOsVersion();
+    final String kernelName = HostInfo.getKernelName();
+    final String kernelRelease = HostInfo.getKernelRelease();
+    final String kernelVersion = HostInfo.getKernelVersion();
+    final String architecture = HostInfo.getArchitecture();
+  }
 
   public RequestBuilderProvider(HttpUrl agentUrl) {
     this.httpUrl = agentUrl.newBuilder().addPathSegments(API_ENDPOINT).build();
 
     // TODO It was hardcoded ad disabled. Should it be taken from the config?
     this.debug = false;
-
-    Config config = Config.get();
-
-    this.runtimeId = config.getRuntimeId();
-    this.env = config.getEnv();
-    this.serviceName = config.getServiceName();
-    this.serviceVersion = config.getVersion();
-    this.tracerVersion = TracerVersion.TRACER_VERSION;
-    this.languageName = DDTags.LANGUAGE_TAG_VALUE;
-    this.languageVersion = Platform.getLangVersion();
-    this.runtimeName = Platform.getRuntimeVendor();
-    this.runtimeVersion = Platform.getRuntimeVersion();
-    this.runtimePatches = Platform.getRuntimePatches();
-
-    this.hostname = HostInfo.getHostname();
-    this.os = HostInfo.getOsName();
-    this.osVersion = HostInfo.getOsVersion();
-    this.kernelName = HostInfo.getKernelName();
-    this.kernelRelease = HostInfo.getKernelRelease();
-    this.kernelVersion = HostInfo.getKernelVersion();
-    this.architecture = HostInfo.getArchitecture();
   }
 
   public RequestBuilder create(RequestType requestType) {
