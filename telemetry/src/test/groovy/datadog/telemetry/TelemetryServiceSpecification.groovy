@@ -27,8 +27,8 @@ class TelemetryServiceSpecification extends Specification {
 
   void 'happy path without data'() {
     when: 'first iteration'
-    testHttpClient.expectRequests(1, HttpClient.Result.SUCCESS)
-    telemetryService.sendIntervalRequests()
+    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    telemetryService.sendTelemetryEvents()
 
     then: 'app-started'
     testHttpClient.assertRequestBody(RequestType.APP_STARTED)
@@ -36,15 +36,23 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertNoMoreRequests()
 
     when: 'second iteration'
-    testHttpClient.expectRequests(1, HttpClient.Result.SUCCESS)
-    telemetryService.sendIntervalRequests()
+    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    telemetryService.sendTelemetryEvents()
+
+    then: 'app-heartbeat only'
+    testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT)
+    testHttpClient.assertNoMoreRequests()
+
+    when: 'third iteration'
+    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    telemetryService.sendTelemetryEvents()
 
     then: 'app-heartbeat only'
     testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT)
     testHttpClient.assertNoMoreRequests()
   }
 
-  void 'happy path with data before app-started'() {
+  void 'happy path with data'() {
     when: 'add data before first iteration'
     telemetryService.addConfiguration(configuration)
     telemetryService.addIntegration(integration)
@@ -54,49 +62,59 @@ class TelemetryServiceSpecification extends Specification {
     telemetryService.addLogMessage(logMessage)
 
     and: 'send messages'
-    testHttpClient.expectRequests(1, HttpClient.Result.SUCCESS)
-    telemetryService.sendIntervalRequests()
+    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    telemetryService.sendTelemetryEvents()
 
     then:
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED)
-      .assertPayload()
-      .configuration([confKeyValue])
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).hasPayload().configuration([confKeyValue])
     testHttpClient.assertNoMoreRequests()
 
     when: 'second iteration'
-    testHttpClient.expectRequests(6, HttpClient.Result.SUCCESS)
-    telemetryService.sendIntervalRequests()
+    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    telemetryService.sendTelemetryEvents()
 
     then:
-    testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT)
-    testHttpClient.assertRequestBody(RequestType.APP_INTEGRATIONS_CHANGE)
-      .assertPayload()
-      .integrations([integration])
-    testHttpClient.assertRequestBody(RequestType.APP_DEPENDENCIES_LOADED)
-      .assertPayload()
-      .dependencies([dependency])
-    testHttpClient.assertRequestBody(RequestType.GENERATE_METRICS)
-      .assertPayload()
-      .namespace("tracers")
-      .metrics([metric])
-    testHttpClient.assertRequestBody(RequestType.DISTRIBUTIONS)
-      .assertPayload()
-      .namespace("tracers")
-      .distributionSeries([distribution])
-    testHttpClient.assertRequestBody(RequestType.LOGS)
-      .assertPayload()
-      .logs([logMessage])
+    testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
+      .assertBatch(6)
+      .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
+      // no configuration here as it has already been sent with the app-started event
+      .assertNextMessage(RequestType.APP_INTEGRATIONS_CHANGE).hasPayload().integrations([integration])
+      .assertNextMessage(RequestType.APP_DEPENDENCIES_LOADED).hasPayload().dependencies([dependency])
+      .assertNextMessage(RequestType.GENERATE_METRICS).hasPayload().namespace("tracers").metrics([metric])
+      .assertNextMessage(RequestType.DISTRIBUTIONS).hasPayload().namespace("tracers").distributionSeries([distribution])
+      .assertNextMessage(RequestType.LOGS).hasPayload().logs([logMessage])
+      .assertNoMoreMessages()
+    testHttpClient.assertNoMoreRequests()
+
+    when: 'third iteration heartbeat only'
+    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    telemetryService.sendTelemetryEvents()
+
+    then:
+    testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT).assertNoPayload()
+    testHttpClient.assertNoMoreRequests()
+
+    when: 'forth iteration metrics data'
+    telemetryService.addMetric(metric)
+    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    telemetryService.sendTelemetryEvents()
+
+    then:
+    testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
+      .assertBatch(2)
+      .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
+      .assertNextMessage(RequestType.GENERATE_METRICS).hasPayload().namespace("tracers").metrics([metric])
+      .assertNoMoreMessages()
     testHttpClient.assertNoMoreRequests()
   }
 
   void 'happy path with data after app-started'() {
     when: 'send messages'
-    testHttpClient.expectRequests(1, HttpClient.Result.SUCCESS)
-    telemetryService.sendIntervalRequests()
+    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    telemetryService.sendTelemetryEvents()
 
     then:
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED)
-      .assertNoPayload()
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertNoPayload()
     testHttpClient.assertNoMoreRequests()
 
     when: 'add data after first iteration'
@@ -108,80 +126,59 @@ class TelemetryServiceSpecification extends Specification {
     telemetryService.addLogMessage(logMessage)
 
     and: 'send messages'
-    testHttpClient.expectRequests(7, HttpClient.Result.SUCCESS)
-    telemetryService.sendIntervalRequests()
+    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    telemetryService.sendTelemetryEvents()
 
     then:
-    testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT)
-    testHttpClient.assertRequestBody(RequestType.APP_CLIENT_CONFIGURATION_CHANGE)
-      .assertPayload()
-      .configuration([confKeyValue])
-    testHttpClient.assertRequestBody(RequestType.APP_INTEGRATIONS_CHANGE)
-      .assertPayload()
-      .integrations([integration])
-    testHttpClient.assertRequestBody(RequestType.APP_DEPENDENCIES_LOADED)
-      .assertPayload()
-      .dependencies([dependency])
-    testHttpClient.assertRequestBody(RequestType.GENERATE_METRICS)
-      .assertPayload()
-      .metrics([metric])
-    testHttpClient.assertRequestBody(RequestType.DISTRIBUTIONS)
-      .assertPayload()
-      .distributionSeries([distribution])
-    testHttpClient.assertRequestBody(RequestType.LOGS)
-      .assertPayload()
-      .logs([logMessage])
+    testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
+      .assertBatch(7)
+      .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
+      .assertNextMessage(RequestType.APP_CLIENT_CONFIGURATION_CHANGE).hasPayload().configuration([confKeyValue])
+      .assertNextMessage(RequestType.APP_INTEGRATIONS_CHANGE).hasPayload().integrations([integration])
+      .assertNextMessage(RequestType.APP_DEPENDENCIES_LOADED).hasPayload().dependencies([dependency])
+      .assertNextMessage(RequestType.GENERATE_METRICS).hasPayload().namespace("tracers").metrics([metric])
+      .assertNextMessage(RequestType.DISTRIBUTIONS).hasPayload().namespace("tracers").distributionSeries([distribution])
+      .assertNextMessage(RequestType.LOGS).hasPayload().logs([logMessage])
+      .assertNoMoreMessages()
     testHttpClient.assertNoMoreRequests()
   }
 
   void 'no message before app-started'() {
     when: 'attempt with 404 error'
-    testHttpClient.expectRequests(1, HttpClient.Result.NOT_FOUND)
-    telemetryService.sendIntervalRequests()
+    testHttpClient.expectRequest(HttpClient.Result.NOT_FOUND)
+    telemetryService.sendTelemetryEvents()
 
     then: 'app-started is attempted'
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED)
-      .assertNoPayload()
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertNoPayload()
     testHttpClient.assertNoMoreRequests()
 
     when: 'attempt with 500 error'
-    testHttpClient.expectRequests(1, HttpClient.Result.FAILURE)
-    telemetryService.sendIntervalRequests()
+    testHttpClient.expectRequest(HttpClient.Result.FAILURE)
+    telemetryService.sendTelemetryEvents()
 
     then: 'app-started is attempted'
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED)
-      .assertNoPayload()
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertNoPayload()
     testHttpClient.assertNoMoreRequests()
 
-    when: 'attempt with unexpected FAILURE (e.g. 100 http status code) (not valid)'
-    testHttpClient.expectRequests(1, HttpClient.Result.FAILURE)
-    telemetryService.sendIntervalRequests()
+    when: 'attempt with unexpected FAILURE (not valid)'
+    testHttpClient.expectRequest(HttpClient.Result.FAILURE)
+    telemetryService.sendTelemetryEvents()
 
     then: 'app-started is attempted'
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED)
-      .assertNoPayload()
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertNoPayload()
     testHttpClient.assertNoMoreRequests()
 
     when: 'attempt with success'
-    testHttpClient.expectRequests(1, HttpClient.Result.SUCCESS)
-    telemetryService.sendIntervalRequests()
+    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    telemetryService.sendTelemetryEvents()
 
-    then:
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED)
-      .assertNoPayload()
+    then: 'app-started is attempted'
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertNoPayload()
     testHttpClient.assertNoMoreRequests()
   }
 
-  void 'NOT_FOUND (e.g. 404 http status code) at #requestType prevents further messages'() {
-    when: 'initial iteration'
-    testHttpClient.expectRequests(1, HttpClient.Result.SUCCESS)
-    telemetryService.sendIntervalRequests()
-
-    then:
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED)
-    testHttpClient.assertNoMoreRequests()
-
-    when: 'add data'
+  def 'resend data on successful attempt after a failure'() {
+    setup:
     telemetryService.addConfiguration(configuration)
     telemetryService.addIntegration(integration)
     telemetryService.addDependency(dependency)
@@ -189,75 +186,61 @@ class TelemetryServiceSpecification extends Specification {
     telemetryService.addDistributionSeries(distribution)
     telemetryService.addLogMessage(logMessage)
 
-    and: 'send messages'
-    testHttpClient.expectRequests(prevCalls, HttpClient.Result.SUCCESS)
-    testHttpClient.expectRequests(1, HttpClient.Result.NOT_FOUND)
-    telemetryService.sendIntervalRequests()
+    when: 'attempt with NOT_FOUND error'
+    testHttpClient.expectRequest(HttpClient.Result.NOT_FOUND)
+    telemetryService.sendTelemetryEvents()
 
-    then:
-    testHttpClient.assertRequests(prevCalls)
-    testHttpClient.assertRequestBody(requestType)
-
-    and: 'no further requests after the first 404'
+    then: 'app-started attempted with config'
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).hasPayload().configuration([confKeyValue])
     testHttpClient.assertNoMoreRequests()
 
-    where:
-    requestType                                 | prevCalls
-    RequestType.APP_HEARTBEAT                   | 0
-    RequestType.APP_CLIENT_CONFIGURATION_CHANGE | 1
-    RequestType.APP_INTEGRATIONS_CHANGE         | 2
-    RequestType.APP_DEPENDENCIES_LOADED         | 3
-    RequestType.GENERATE_METRICS                | 4
-    RequestType.DISTRIBUTIONS                   | 5
-    RequestType.LOGS                            | 6
-  }
+    when: 'successful attempt'
+    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    telemetryService.sendTelemetryEvents()
 
-  void 'FAILURE (e.g. 500 http status code) at #requestType does not prevents further messages'() {
-    when: 'initial iteration'
-    testHttpClient.expectRequests(1, HttpClient.Result.SUCCESS)
-    telemetryService.sendIntervalRequests()
-
-    then:
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED)
+    then: 'attempt with SUCCESS'
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).hasPayload().configuration([confKeyValue])
     testHttpClient.assertNoMoreRequests()
 
-    when: 'add data'
-    telemetryService.addConfiguration(configuration)
-    telemetryService.addIntegration(integration)
-    telemetryService.addDependency(dependency)
-    telemetryService.addMetric(metric)
-    telemetryService.addDistributionSeries(distribution)
-    telemetryService.addLogMessage(logMessage)
+    when: 'attempt with NOT_FOUND error'
+    testHttpClient.expectRequest(HttpClient.Result.FAILURE)
+    telemetryService.sendTelemetryEvents()
 
-    and: 'send messages'
-    testHttpClient.expectRequests(prevCalls, HttpClient.Result.SUCCESS)
-    testHttpClient.expectRequests(1, HttpClient.Result.FAILURE)
-    testHttpClient.expectRequests(afterCalls, HttpClient.Result.SUCCESS)
-    telemetryService.sendIntervalRequests()
-
-    then:
-    testHttpClient.assertRequests(prevCalls)
-    testHttpClient.assertRequestBody(requestType)
-
-    then: 'requests continue after first 500'
-    testHttpClient.assertRequests(afterCalls)
+    then: 'message-batch attempted with data except config'
+    testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
+      .assertBatch(6)
+      .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
+      // no configuration here as it has already been sent with the app-started event
+      .assertNextMessage(RequestType.APP_INTEGRATIONS_CHANGE).hasPayload().integrations([integration])
+      .assertNextMessage(RequestType.APP_DEPENDENCIES_LOADED).hasPayload().dependencies([dependency])
+      .assertNextMessage(RequestType.GENERATE_METRICS).hasPayload().namespace("tracers").metrics([metric])
+      .assertNextMessage(RequestType.DISTRIBUTIONS).hasPayload().namespace("tracers").distributionSeries([distribution])
+      .assertNextMessage(RequestType.LOGS).hasPayload().logs([logMessage])
+      .assertNoMoreMessages()
     testHttpClient.assertNoMoreRequests()
 
-    where:
-    requestType                                 | prevCalls | afterCalls
-    RequestType.APP_HEARTBEAT                   | 0         | 6
-    RequestType.APP_CLIENT_CONFIGURATION_CHANGE | 1         | 5
-    RequestType.APP_INTEGRATIONS_CHANGE         | 2         | 4
-    RequestType.APP_DEPENDENCIES_LOADED         | 3         | 3
-    RequestType.GENERATE_METRICS                | 4         | 2
-    RequestType.DISTRIBUTIONS                   | 5         | 1
-    RequestType.LOGS                            | 6         | 0
+    when: 'attempt with SUCCESS'
+    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    telemetryService.sendTelemetryEvents()
+
+    then: 'attempt with all data'
+    testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
+      .assertBatch(6)
+      .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
+      // no configuration here as it has already been sent with the app-started event
+      .assertNextMessage(RequestType.APP_INTEGRATIONS_CHANGE).hasPayload().integrations([integration])
+      .assertNextMessage(RequestType.APP_DEPENDENCIES_LOADED).hasPayload().dependencies([dependency])
+      .assertNextMessage(RequestType.GENERATE_METRICS).hasPayload().namespace("tracers").metrics([metric])
+      .assertNextMessage(RequestType.DISTRIBUTIONS).hasPayload().namespace("tracers").distributionSeries([distribution])
+      .assertNextMessage(RequestType.LOGS).hasPayload().logs([logMessage])
+      .assertNoMoreMessages()
+    testHttpClient.assertNoMoreRequests()
   }
 
   void 'Send closing event request'() {
     when:
-    testHttpClient.expectRequests(1, HttpClient.Result.SUCCESS)
-    telemetryService.sendAppClosingRequest()
+    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    telemetryService.sendAppClosingEvent()
 
     then:
     testHttpClient.assertRequestBody(RequestType.APP_CLOSING)

@@ -116,7 +116,7 @@ public class TelemetryService {
     return this.distributionSeries.offer(series);
   }
 
-  public void sendAppClosingRequest() {
+  public void sendAppClosingEvent() {
     RequestBuilder rb = new RequestBuilder(RequestType.APP_CLOSING, httpUrl);
     rb.beginRequest();
     // TODO include metrics and other payloads
@@ -125,7 +125,7 @@ public class TelemetryService {
     httpClient.sendRequest(request);
   }
 
-  public void sendIntervalRequests() {
+  public void sendTelemetryEvents() {
     final State state =
         new State(
             configurations, integrations, dependencies, metrics, distributionSeries, logMessages);
@@ -148,119 +148,30 @@ public class TelemetryService {
       return;
     }
 
-    {
-      RequestBuilder rb = new RequestBuilder(RequestType.APP_HEARTBEAT, httpUrl);
-      rb.beginRequest();
-      rb.endRequest();
-      if (httpClient.sendRequest(rb.request()) == HttpClient.Result.NOT_FOUND) {
-        state.rollback();
-        return;
-      }
+    RequestBuilder requestBuilder;
+    if (state.isEmpty()) {
+      requestBuilder = new RequestBuilder(RequestType.APP_HEARTBEAT, httpUrl);
+      requestBuilder.beginRequest();
+      requestBuilder.endRequest();
+    } else {
+      requestBuilder = new RequestBuilder(RequestType.MESSAGE_BATCH, httpUrl);
+      requestBuilder.beginRequest();
+      requestBuilder.writeHeartbeatEvent();
+      requestBuilder.writeConfigChangeEvent(state.configurations.get(maxElementsPerReq));
+      requestBuilder.writeIntegrationsEvent(state.integrations.get(maxElementsPerReq));
+      requestBuilder.writeDependenciesLoadedEvent(state.dependencies.get(maxDepsPerReq));
+      requestBuilder.writeGenerateMetricsEvent(state.metrics.get());
+      requestBuilder.writeDistributionsEvent(state.distributionSeries.get());
+      requestBuilder.writeLogsEvent(state.logMessages.get());
+      requestBuilder.endRequest();
     }
 
-    while (!state.configurations.isEmpty()) {
-      RequestBuilder rb = new RequestBuilder(RequestType.APP_CLIENT_CONFIGURATION_CHANGE, httpUrl);
-      rb.beginRequest();
-      rb.writeConfigChangeEvent(state.configurations.get(maxElementsPerReq));
-      rb.endRequest();
-      HttpClient.Result result = httpClient.sendRequest(rb.request());
-      if (result == HttpClient.Result.SUCCESS) {
-        state.commit();
-      } else if (result == HttpClient.Result.NOT_FOUND) {
-        state.rollback();
-        return;
-      } else {
-        state.configurations.rollback();
-        break;
-      }
+    HttpClient.Result result = httpClient.sendRequest(requestBuilder.request());
+    if (result == HttpClient.Result.SUCCESS) {
+      state.commit();
     }
-
-    while (!state.integrations.isEmpty()) {
-      RequestBuilder rb = new RequestBuilder(RequestType.APP_INTEGRATIONS_CHANGE, httpUrl);
-      rb.beginRequest();
-      rb.writeIntegrationsEvent(state.integrations.get(maxElementsPerReq));
-      rb.endRequest();
-      HttpClient.Result result = httpClient.sendRequest(rb.request());
-      if (result == HttpClient.Result.SUCCESS) {
-        state.commit();
-      } else if (result == HttpClient.Result.NOT_FOUND) {
-        state.rollback();
-        return;
-      } else {
-        state.integrations.rollback();
-        break;
-      }
-    }
-
-    while (!state.dependencies.isEmpty()) {
-      RequestBuilder rb = new RequestBuilder(RequestType.APP_DEPENDENCIES_LOADED, httpUrl);
-      rb.beginRequest();
-      rb.writeDependenciesLoadedEvent(state.dependencies.get(maxDepsPerReq));
-      rb.endRequest();
-      HttpClient.Result result = httpClient.sendRequest(rb.request());
-      if (result == HttpClient.Result.SUCCESS) {
-        state.commit();
-      } else if (result == HttpClient.Result.NOT_FOUND) {
-        state.rollback();
-        return;
-      } else {
-        state.dependencies.rollback();
-        break;
-      }
-    }
-
-    while (!state.metrics.isEmpty()) {
-      RequestBuilder rb = new RequestBuilder(RequestType.GENERATE_METRICS, httpUrl);
-      rb.beginRequest();
-      rb.writeGenerateMetricsEvent(state.metrics.get(maxElementsPerReq));
-      rb.endRequest();
-      HttpClient.Result result = httpClient.sendRequest(rb.request());
-      if (result == HttpClient.Result.SUCCESS) {
-        state.commit();
-      } else if (result == HttpClient.Result.NOT_FOUND) {
-        state.rollback();
-        return;
-      } else {
-        state.metrics.rollback();
-        break;
-      }
-    }
-
-    while (!state.distributionSeries.isEmpty()) {
-      RequestBuilder rb = new RequestBuilder(RequestType.DISTRIBUTIONS, httpUrl);
-      rb.beginRequest();
-      rb.writeDistributionsEvent(state.distributionSeries.get(maxElementsPerReq));
-      rb.endRequest();
-      HttpClient.Result result = httpClient.sendRequest(rb.request());
-      if (result == HttpClient.Result.SUCCESS) {
-        state.commit();
-      } else if (result == HttpClient.Result.NOT_FOUND) {
-        state.rollback();
-        return;
-      } else {
-        state.distributionSeries.rollback();
-        break;
-      }
-    }
-
-    while (!state.logMessages.isEmpty()) {
-
-      RequestBuilder rb = new RequestBuilder(RequestType.LOGS, httpUrl);
-      rb.beginRequest();
-      rb.writeLogsEvent(state.logMessages.get(maxElementsPerReq));
-      rb.endRequest();
-      HttpClient.Result result = httpClient.sendRequest(rb.request());
-
-      if (result == HttpClient.Result.SUCCESS) {
-        state.commit();
-      } else if (result == HttpClient.Result.NOT_FOUND) {
-        state.rollback();
-        return;
-      } else {
-        state.logMessages.rollback();
-        break;
-      }
-    }
+    // rollback everything that hasn't been sent, e.g. app-started only includes configuration
+    state.rollback();
   }
 
   private void warnAboutExclusiveIntegrations() {
@@ -369,6 +280,15 @@ public class TelemetryService {
       this.metrics.commit();
       this.distributionSeries.commit();
       this.logMessages.commit();
+    }
+
+    public boolean isEmpty() {
+      return configurations.isEmpty()
+          && integrations.isEmpty()
+          && dependencies.isEmpty()
+          && metrics.isEmpty()
+          && distributionSeries.isEmpty()
+          && logMessages.isEmpty();
     }
   }
 }

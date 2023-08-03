@@ -62,7 +62,7 @@ class TelemetryRunnableSpecification extends Specification {
     1 * periodicAction.doIteration(telemetryService)
 
     then:
-    1 * telemetryService.sendIntervalRequests()
+    1 * telemetryService.sendTelemetryEvents()
     1 * timeSource.getCurrentTimeMillis() >> 60 * 1000 + 1
     1 * sleeperMock.sleep(9999)
     0 * _
@@ -157,7 +157,7 @@ class TelemetryRunnableSpecification extends Specification {
     1 * periodicAction.doIteration(telemetryService)
 
     then:
-    1 * telemetryService.sendIntervalRequests()
+    1 * telemetryService.sendTelemetryEvents()
     1 * timeSource.getCurrentTimeMillis() >> 120 * 1000 + 7
     1 * sleeperMock.sleep(9993)
     0 * _
@@ -167,7 +167,7 @@ class TelemetryRunnableSpecification extends Specification {
     t.join()
 
     then:
-    1 * telemetryService.sendAppClosingRequest()
+    1 * telemetryService.sendAppClosingEvent()
     0 * _
   }
 

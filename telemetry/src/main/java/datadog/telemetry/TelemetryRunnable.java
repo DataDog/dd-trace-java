@@ -66,7 +66,7 @@ public class TelemetryRunnable implements Runnable {
       }
     }
 
-    telemetryService.sendAppClosingRequest();
+    telemetryService.sendAppClosingEvent();
     log.debug("Telemetry thread finished");
   }
 
@@ -87,7 +87,7 @@ public class TelemetryRunnable implements Runnable {
       for (final TelemetryPeriodicAction action : this.actions) {
         action.doIteration(this.telemetryService);
       }
-      telemetryService.sendIntervalRequests();
+      telemetryService.sendTelemetryEvents();
     }
   }
 

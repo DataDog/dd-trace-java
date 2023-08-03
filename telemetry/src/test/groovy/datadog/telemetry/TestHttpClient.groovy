@@ -30,6 +30,10 @@ class TestHttpClient extends HttpClient {
     return mockResults.poll()
   }
 
+  void expectRequest(Result mockResult) {
+    expectRequests(1, mockResult)
+  }
+
   void expectRequests(int requestNumber, Result mockResult) {
     for (int i=0; i < requestNumber; i++) {
       mockResults.add(mockResult)
@@ -46,15 +50,9 @@ class TestHttpClient extends HttpClient {
     return this.requests.poll()
   }
 
-  void assertRequests(int numberOfRequests) {
-    for (int i=0; i < numberOfRequests; i++) {
-      assertRequest()
-    }
-  }
-
   BodyAssertions assertRequestBody(RequestType rt) {
     return assertRequest().headers(rt)
-      .assertBody().commonParts(rt)
+    .assertBody().commonParts(rt)
   }
 
   void assertNoMoreRequests() {
@@ -75,7 +73,7 @@ class TestHttpClient extends HttpClient {
       this.request = request
     }
 
-    RequestAssertions headers(RequestType requestType) {
+    private RequestAssertions headers(RequestType requestType) {
       assert request.method() == 'POST'
       assert request.headers().names() == [
         'Content-Type',
@@ -108,7 +106,7 @@ class TestHttpClient extends HttpClient {
       this.body = body
     }
 
-    BodyAssertions commonParts(RequestType requestType) {
+    private BodyAssertions commonParts(RequestType requestType) {
       assert body['api_version'] == 'v2'
 
       def app = body['application']
@@ -135,10 +133,17 @@ class TestHttpClient extends HttpClient {
       return this
     }
 
-    PayloadAssertions assertPayload() {
+    PayloadAssertions hasPayload() {
       def payload = body['payload'] as Map<String, Object>
       assert payload != null
       return new PayloadAssertions(payload)
+    }
+
+    BatchAssertions assertBatch(int expectedNumberOfPayloads) {
+      def payloads = body['payload'] as List<Map<String, Object>>
+      assert payloads != null
+      assert payloads.size() == expectedNumberOfPayloads
+      return new BatchAssertions(payloads)
     }
 
     void assertNoPayload() {
@@ -146,11 +151,73 @@ class TestHttpClient extends HttpClient {
     }
   }
 
+  static class BatchAssertions {
+    private List<Map<String, Object>> messages
+
+    BatchAssertions(List<Map<String, Object>> messages) {
+      this.messages = messages
+    }
+
+    BatchMessageAssertions assertFirstMessage(RequestType expected) {
+      return assertMessage(0, expected)
+    }
+
+    private BatchMessageAssertions assertMessage(int index, RequestType expected) {
+      if (index > messages.size()) {
+        throw new IllegalStateException("Asserted more messages than available (${messages.size()}) in the batch")
+      }
+      def message = messages[index]
+      assert message['request_type'] == String.valueOf(expected)
+      return new BatchMessageAssertions(this, index, message)
+    }
+  }
+
+  static class BatchMessageAssertions {
+    private BatchAssertions batchAssertions
+    private int messageIndex
+    private Map<String, Object> message
+
+    BatchMessageAssertions(BatchAssertions batchAssertions, int messageIndex, Map<String, Object> message) {
+      this.batchAssertions = batchAssertions
+      this.messageIndex = messageIndex
+      this.message = message
+    }
+
+    BatchMessageAssertions hasNoPayload() {
+      assert message['payload'] == null
+      return this
+    }
+
+    BatchMessageAssertions assertNextMessage(RequestType expected) {
+      messageIndex += 1
+      if (messageIndex >= batchAssertions.messages.size()) {
+        throw new IllegalStateException("No more messages available")
+      }
+      return batchAssertions.assertMessage(messageIndex, expected)
+    }
+
+    PayloadAssertions hasPayload() {
+      def payload = message['payload'] as Map<String, Object>
+      assert payload != null
+      return new PayloadAssertions(payload, this)
+    }
+
+    void assertNoMoreMessages() {
+      assert messageIndex == batchAssertions.messages.size() - 1
+    }
+  }
+
   static class PayloadAssertions {
     private Map<String, Object> payload
+    private BatchMessageAssertions batch
 
     PayloadAssertions(Map<String, Object> payload) {
+      this(payload, null)
+    }
+
+    PayloadAssertions(Map<String, Object> payload, BatchMessageAssertions batch) {
       this.payload = payload
+      this.batch = batch
     }
 
     PayloadAssertions configuration(List<ConfigChange> configuration) {
@@ -160,7 +227,7 @@ class TestHttpClient extends HttpClient {
           expected.add([name: kv.name, value: kv.value])
         }
       }
-      assert payload['configuration'] == expected
+      assert this.payload['configuration'] == expected
       return this
     }
 
@@ -169,7 +236,7 @@ class TestHttpClient extends HttpClient {
       for (Dependency d : dependencies) {
         expected.add([hash: d.hash, name: d.name, version: d.version])
       }
-      assert payload['dependencies'] == expected
+      assert this.payload['dependencies'] == expected
       return this
     }
 
@@ -181,12 +248,12 @@ class TestHttpClient extends HttpClient {
         map.put("name", i.name)
         expected.add(map)
       }
-      assert payload['integrations'] == expected
+      assert this.payload['integrations'] == expected
       return this
     }
 
     PayloadAssertions namespace(String namespace) {
-      assert payload['namespace'] == namespace
+      assert this.payload['namespace'] == namespace
       return this
     }
 
@@ -210,7 +277,7 @@ class TestHttpClient extends HttpClient {
         obj.put("tags", m.getTags())
         expected.add(obj)
       }
-      assert payload['series'] == expected
+      assert this.payload['series'] == expected
       return this
     }
 
@@ -227,7 +294,7 @@ class TestHttpClient extends HttpClient {
         obj.put("tags", d.getTags())
         expected.add(obj)
       }
-      assert payload['series'] == expected
+      assert this.payload['series'] == expected
       return this
     }
 
@@ -246,8 +313,16 @@ class TestHttpClient extends HttpClient {
         }
         expected.add(map)
       }
-      assert payload['logs'] == expected
+      assert this.payload['logs'] == expected
       return this
+    }
+
+    BatchMessageAssertions assertNextMessage(RequestType requestType) {
+      return batch.assertNextMessage(requestType)
+    }
+
+    void assertNoMoreMessages() {
+      batch.assertNoMoreMessages()
     }
   }
 }
