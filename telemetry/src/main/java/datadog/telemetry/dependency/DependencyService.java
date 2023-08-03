@@ -38,7 +38,7 @@ public class DependencyService implements Runnable {
     List<Dependency> dependencies = resolverQueue.pollDependency();
     if (!dependencies.isEmpty()) {
       for (Dependency dependency : dependencies) {
-        log.debug("Resolved dependency {}", dependency.name);
+        log.debug("Resolved dependency {}", dependency.getName());
         newDependencies.add(dependency);
       }
     }

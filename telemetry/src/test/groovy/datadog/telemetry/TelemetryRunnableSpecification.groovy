@@ -3,12 +3,12 @@ package datadog.telemetry
 import datadog.telemetry.metric.MetricPeriodicAction
 import datadog.trace.api.telemetry.MetricCollector
 import datadog.trace.api.time.TimeSource
-import spock.lang.Specification
+import datadog.trace.test.util.DDSpecification
 
 import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.TimeUnit
 
-class TelemetryRunnableSpecification extends Specification {
+class TelemetryRunnableSpecification extends DDSpecification {
 
   static class TickSleeper implements TelemetryRunnable.ThreadSleeper {
     CyclicBarrier sleeped = new CyclicBarrier(2)

@@ -25,6 +25,6 @@ class IntegrationPeriodicActionTest extends Specification {
       integration.name == 'jdbc' &&
         integration.enabled
     } )
-    0 * _
+    0 * _._
   }
 }
