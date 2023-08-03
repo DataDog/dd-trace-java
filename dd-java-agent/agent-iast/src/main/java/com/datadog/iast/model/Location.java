@@ -26,8 +26,9 @@ public final class Location {
     return new Location(spanId, clazz, -1, method);
   }
 
-  public static Location forSpanAndClass(final long spanId, final String clazz) {
-    return new Location(spanId, clazz, 0, null);
+  public static Location forClassAndMethodAndLine(
+      final String clazz, final String method, final int line) {
+    return new Location(0, clazz, line, method);
   }
 
   public long getSpanId() {

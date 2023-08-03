@@ -259,7 +259,7 @@ public class Advices {
         final ConstantPool cp = new ConstantPool(classFile);
         for (final Listener listener : listeners) {
           try {
-            listener.onConstantPool(type, cp);
+            listener.onConstantPool(type, cp, classFile);
           } catch (final Throwable e) {
             LOG.debug("Failed to apply advice listener {}", listener, e);
           }
@@ -357,6 +357,7 @@ public class Advices {
   }
 
   public interface Listener {
-    void onConstantPool(@Nonnull TypeDescription type, @Nonnull ConstantPool pool);
+    void onConstantPool(
+        @Nonnull TypeDescription type, @Nonnull ConstantPool pool, final byte[] classFile);
   }
 }

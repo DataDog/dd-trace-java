@@ -1,15 +1,11 @@
 package com.datadog.iast.sink;
 
-import com.datadog.iast.model.Evidence;
-import com.datadog.iast.model.Location;
-import com.datadog.iast.model.Vulnerability;
-import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.overhead.Operations;
+import com.datadog.iast.util.IastClassVisitor;
 import datadog.trace.api.iast.sink.SecretsModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
+import org.objectweb.asm.ClassReader;
 
 public class SecretsModuleImpl extends SinkModuleBase implements SecretsModule {
 
@@ -20,21 +16,26 @@ public class SecretsModuleImpl extends SinkModuleBase implements SecretsModule {
   private static final int MIN_SECRET_LENGTH = 12;
 
   @Override
-  public void onStringLiteral(@Nonnull final String value, @Nonnull final String clazz) {
+  public void onStringLiteral(
+      @Nonnull final String value, @Nonnull final String clazz, final @Nonnull byte[] classFile) {
 
     String secretEvidence = getSecretEvidence(value);
     if (secretEvidence != null) {
-      final AgentSpan span = AgentTracer.activeSpan();
-      if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
+      if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, null)) {
         return;
       }
-      reporter.report(
-          span,
-          new Vulnerability(
-              VulnerabilityType.HARDCODED_SECRET,
-              Location.forSpanAndClass(span != null ? span.getSpanId() : 0, clazz),
-              new Evidence(secretEvidence)));
+      reportVulnerability(value, clazz, secretEvidence, classFile);
     }
+  }
+
+  private void reportVulnerability(
+      final String value,
+      final String clazz,
+      final String secretEvidence,
+      final @Nonnull byte[] classFile) {
+    ClassReader classReader = new ClassReader(classFile);
+    IastClassVisitor classVisitor = new IastClassVisitor(value, clazz, secretEvidence, reporter);
+    classReader.accept(classVisitor, 0);
   }
 
   private String getSecretEvidence(String value) {

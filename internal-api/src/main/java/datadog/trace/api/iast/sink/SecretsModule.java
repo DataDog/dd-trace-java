@@ -5,5 +5,6 @@ import javax.annotation.Nonnull;
 
 public interface SecretsModule extends IastModule {
 
-  void onStringLiteral(@Nonnull final String value, @Nonnull final String clazz);
+  void onStringLiteral(
+      @Nonnull final String value, @Nonnull final String clazz, final @Nonnull byte[] classFile);
 }

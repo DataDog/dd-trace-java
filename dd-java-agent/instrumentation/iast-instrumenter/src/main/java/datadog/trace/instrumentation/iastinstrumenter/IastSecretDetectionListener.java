@@ -13,14 +13,16 @@ public class IastSecretDetectionListener implements Advices.Listener {
 
   @Override
   public void onConstantPool(
-      final @Nonnull TypeDescription type, final @Nonnull ConstantPool pool) {
+      final @Nonnull TypeDescription type,
+      final @Nonnull ConstantPool pool,
+      final @Nonnull byte[] classFile) {
     final SecretsModule iastModule = InstrumentationBridge.HARDCODED_SECRET;
     if (iastModule != null) {
       for (int index = 1; index < pool.getCount(); index++) {
         if (pool.getType(index) == ConstantPool.CONSTANT_STRING_TAG) {
           final int literalIndex = pool.readUnsignedShort(pool.getOffset(index));
           final String literal = pool.readUTF8(pool.getOffset(literalIndex));
-          iastModule.onStringLiteral(literal, type.getName());
+          iastModule.onStringLiteral(literal, type.getName(), classFile);
         }
       }
     }
