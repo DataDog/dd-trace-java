@@ -40,6 +40,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_INTERVAL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_INTERVAL_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_JMETHODID_CACHE_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_JMETHODID_CACHE_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
@@ -278,6 +280,15 @@ public class DatadogProfilerConfig {
 
   public static boolean isSpanNameContextAttributeEnabled(ConfigProvider configProvider) {
     return configProvider.getBoolean(PROFILING_CONTEXT_ATTRIBUTES_SPAN_NAME_ENABLED, true);
+  }
+
+  public static boolean isJmethodIdCacheEnabled() {
+    return isJmethodIdCacheEnabled(ConfigProvider.getInstance());
+  }
+
+  public static boolean isJmethodIdCacheEnabled(ConfigProvider configProvider) {
+    return configProvider.getBoolean(
+        PROFILING_JMETHODID_CACHE_ENABLED, PROFILING_JMETHODID_CACHE_ENABLED_DEFAULT);
   }
 
   public static String getString(ConfigProvider configProvider, String key, String defaultValue) {
