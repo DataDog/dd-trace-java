@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
 
 public class HostInfo {
   private static final Path PROC_VERSION = FileSystems.getDefault().getPath("/proc/version");
-  private static final Logger log = LoggerFactory.getLogger(RequestBuilderProvider.class);
+  private static final Logger log = LoggerFactory.getLogger(RequestBuilder.class);
 
   private static String hostname;
   private static String osName;

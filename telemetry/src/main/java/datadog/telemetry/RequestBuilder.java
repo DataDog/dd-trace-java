@@ -9,10 +9,14 @@ import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
+import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
+import datadog.trace.api.Platform;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
+import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -34,16 +38,40 @@ public class RequestBuilder extends RequestBody {
 
   private final Buffer body = new Buffer();
   private final JsonWriter bodyWriter = JsonWriter.of(body);
-  private final RequestBuilderProvider provider;
   private final RequestType requestType;
   private final Request request;
+  private final boolean debug;
 
-  RequestBuilder(RequestBuilderProvider provider, RequestType requestType) {
-    this.provider = provider;
+  private enum CommonData {
+    INSTANCE;
+
+    Config config = Config.get();
+    String env = config.getEnv();
+    String langVersion = Platform.getLangVersion();
+    String runtimeName = Platform.getRuntimeVendor();
+    String runtimePatches = Platform.getRuntimePatches();
+    String runtimeVersion = Platform.getRuntimeVersion();
+    String serviceName = config.getServiceName();
+    String serviceVersion = config.getVersion();
+    String runtimeId = config.getRuntimeId();
+    String architecture = HostInfo.getArchitecture();
+    String hostname = HostInfo.getHostname();
+    String kernelName = HostInfo.getKernelName();
+    String kernelRelease = HostInfo.getKernelRelease();
+    String kernelVersion = HostInfo.getKernelVersion();
+    String osName = HostInfo.getOsName();
+    String osVersion = HostInfo.getOsVersion();
+  }
+
+  RequestBuilder(RequestType requestType, HttpUrl httpUrl) {
+    this(requestType, httpUrl, false);
+  }
+
+  RequestBuilder(RequestType requestType, HttpUrl httpUrl, boolean debug) {
     this.requestType = requestType;
     this.request =
         new Request.Builder()
-            .url(provider.httpUrl)
+            .url(httpUrl)
             .addHeader("Content-Type", String.valueOf(JSON))
             .addHeader("DD-Telemetry-API-Version", API_VERSION)
             .addHeader("DD-Telemetry-Request-Type", String.valueOf(requestType))
@@ -51,42 +79,45 @@ public class RequestBuilder extends RequestBody {
             .addHeader("DD-Client-Library-Version", TracerVersion.TRACER_VERSION)
             .post(this)
             .build();
+    this.debug = debug;
   }
 
   public void writeHeader() {
     try {
+      CommonData commonData = CommonData.INSTANCE;
       bodyWriter.beginObject();
       bodyWriter.name("api_version").value(API_VERSION);
 
       bodyWriter.name("application");
       bodyWriter.beginObject();
-      bodyWriter.name("env").value(provider.env);
-      bodyWriter.name("language_name").value(provider.languageName);
-      bodyWriter.name("language_version").value(provider.languageVersion);
-      bodyWriter.name("runtime_name").value(provider.runtimeName);
-      bodyWriter.name("runtime_patches").value(provider.runtimePatches); // optional
-      bodyWriter.name("runtime_version").value(provider.runtimeVersion);
-      bodyWriter.name("service_name").value(provider.serviceName);
-      bodyWriter.name("service_version").value(provider.serviceVersion);
-      bodyWriter.name("tracer_version").value(provider.tracerVersion);
+      bodyWriter.name("env").value(commonData.env);
+      bodyWriter.name("language_name").value(DDTags.LANGUAGE_TAG_VALUE);
+      bodyWriter.name("language_version").value(commonData.langVersion);
+      bodyWriter.name("runtime_name").value(commonData.runtimeName);
+      bodyWriter.name("runtime_patches").value(commonData.runtimePatches); // optional
+      bodyWriter.name("runtime_version").value(commonData.runtimeVersion);
+      bodyWriter.name("service_name").value(commonData.serviceName);
+      bodyWriter.name("service_version").value(commonData.serviceVersion);
+      bodyWriter.name("tracer_version").value(TracerVersion.TRACER_VERSION);
       bodyWriter.endObject();
 
-      bodyWriter.name("debug").value(provider.debug);
-
+      if (debug) {
+        bodyWriter.name("debug").value(true);
+      }
       bodyWriter.name("host");
       bodyWriter.beginObject();
-      bodyWriter.name("architecture").value(provider.architecture);
-      bodyWriter.name("hostname").value(provider.hostname);
+      bodyWriter.name("architecture").value(commonData.architecture);
+      bodyWriter.name("hostname").value(commonData.hostname);
       // only applicable to UNIX based OS
-      bodyWriter.name("kernel_name").value(provider.kernelName);
-      bodyWriter.name("kernel_release").value(provider.kernelRelease);
-      bodyWriter.name("kernel_version").value(provider.kernelVersion);
-      bodyWriter.name("os").value(provider.os);
-      bodyWriter.name("os_version").value(provider.osVersion); // optional
+      bodyWriter.name("kernel_name").value(commonData.kernelName);
+      bodyWriter.name("kernel_release").value(commonData.kernelRelease);
+      bodyWriter.name("kernel_version").value(commonData.kernelVersion);
+      bodyWriter.name("os").value(commonData.osName);
+      bodyWriter.name("os_version").value(commonData.osVersion); // optional
       bodyWriter.endObject();
 
       bodyWriter.name("request_type").value(requestType.toString());
-      bodyWriter.name("runtime_id").value(provider.runtimeId);
+      bodyWriter.name("runtime_id").value(commonData.runtimeId);
       bodyWriter.name("seq_id").value(SEQ_ID.incrementAndGet());
       bodyWriter.name("tracer_time").value(System.currentTimeMillis() / 1000L);
 
