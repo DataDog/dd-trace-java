@@ -1,7 +1,5 @@
 package datadog.telemetry;
 
-import static datadog.telemetry.RequestBuilderProvider.DD_TELEMETRY_REQUEST_TYPE;
-
 import java.io.IOException;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -10,6 +8,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class HttpClient {
+  public static final String DD_TELEMETRY_REQUEST_TYPE = "DD-Telemetry-Request-Type";
+
   public enum Result {
     SUCCESS,
     FAILURE,

@@ -21,8 +21,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TelemetryService {
-
   private static final Logger log = LoggerFactory.getLogger(TelemetryService.class);
+  private static final String API_ENDPOINT = "telemetry/proxy/api/v2/apmtelemetry";
 
   private static final int MAX_ELEMENTS_PER_REQUEST = 100;
 
@@ -43,6 +43,8 @@ public class TelemetryService {
   private final BlockingQueue<DistributionSeries> distributionSeries =
       new LinkedBlockingQueue<>(1024);
 
+  private final HttpUrl httpUrl;
+
   private boolean sentAppStarted;
 
   /*
@@ -51,14 +53,12 @@ public class TelemetryService {
   private boolean openTracingIntegrationEnabled;
   private boolean openTelemetryIntegrationEnabled;
 
-  private RequestBuilderProvider requestBuilderProvider;
-
-  public TelemetryService(final OkHttpClient okHttpClient, final HttpUrl agentUrl) {
-    this(new HttpClient(okHttpClient), agentUrl);
+  public TelemetryService(final OkHttpClient okHttpClient, final HttpUrl httpUrl) {
+    this(new HttpClient(okHttpClient), httpUrl);
   }
 
-  public TelemetryService(final HttpClient httpClient, final HttpUrl agentUrl) {
-    this(httpClient, MAX_ELEMENTS_PER_REQUEST, MAX_DEPENDENCIES_PER_REQUEST, agentUrl);
+  public TelemetryService(final HttpClient httpClient, final HttpUrl httpUrl) {
+    this(httpClient, MAX_ELEMENTS_PER_REQUEST, MAX_DEPENDENCIES_PER_REQUEST, httpUrl);
   }
 
   // For testing purposes
@@ -73,7 +73,7 @@ public class TelemetryService {
     this.openTelemetryIntegrationEnabled = false;
     this.maxElementsPerReq = maxElementsPerReq;
     this.maxDepsPerReq = maxDepsPerReq;
-    this.requestBuilderProvider = new RequestBuilderProvider(agentUrl);
+    this.httpUrl = agentUrl.newBuilder().addPathSegments(API_ENDPOINT).build();
   }
 
   public boolean addConfiguration(Map<String, Object> configuration) {
@@ -115,7 +115,7 @@ public class TelemetryService {
   }
 
   public void sendAppClosingRequest() {
-    RequestBuilder rb = requestBuilderProvider.create(RequestType.APP_CLOSING);
+    RequestBuilder rb = new RequestBuilder(RequestType.APP_CLOSING, httpUrl);
     rb.writeHeader();
     rb.writeFooter();
     Request request = rb.request();
@@ -127,7 +127,7 @@ public class TelemetryService {
         new State(
             configurations, integrations, dependencies, metrics, distributionSeries, logMessages);
     if (!sentAppStarted) {
-      RequestBuilder rb = requestBuilderProvider.create(RequestType.APP_STARTED);
+      RequestBuilder rb = new RequestBuilder(RequestType.APP_STARTED, httpUrl);
       rb.writeHeader();
       rb.writeConfigChangeEvent(state.configurations.getOrNull());
       rb.writeIntegrationsEvent(state.integrations.get(maxElementsPerReq));
@@ -148,7 +148,7 @@ public class TelemetryService {
     }
 
     {
-      RequestBuilder rb = requestBuilderProvider.create(RequestType.APP_HEARTBEAT);
+      RequestBuilder rb = new RequestBuilder(RequestType.APP_HEARTBEAT, httpUrl);
       rb.writeHeader();
       rb.writeFooter();
       if (httpClient.sendRequest(rb.request()) == HttpClient.Result.NOT_FOUND) {
@@ -158,8 +158,7 @@ public class TelemetryService {
     }
 
     while (!state.configurations.isEmpty()) {
-      RequestBuilder rb =
-          requestBuilderProvider.create(RequestType.APP_CLIENT_CONFIGURATION_CHANGE);
+      RequestBuilder rb = new RequestBuilder(RequestType.APP_CLIENT_CONFIGURATION_CHANGE, httpUrl);
       rb.writeHeader();
       rb.writeConfigChangeEvent(state.configurations.get(maxElementsPerReq));
       rb.writeFooter();
@@ -176,7 +175,7 @@ public class TelemetryService {
     }
 
     while (!state.integrations.isEmpty()) {
-      RequestBuilder rb = requestBuilderProvider.create(RequestType.APP_INTEGRATIONS_CHANGE);
+      RequestBuilder rb = new RequestBuilder(RequestType.APP_INTEGRATIONS_CHANGE, httpUrl);
       rb.writeHeader();
       rb.writeIntegrationsEvent(state.integrations.get(maxElementsPerReq));
       rb.writeFooter();
@@ -193,7 +192,7 @@ public class TelemetryService {
     }
 
     while (!state.dependencies.isEmpty()) {
-      RequestBuilder rb = requestBuilderProvider.create(RequestType.APP_DEPENDENCIES_LOADED);
+      RequestBuilder rb = new RequestBuilder(RequestType.APP_DEPENDENCIES_LOADED, httpUrl);
       rb.writeHeader();
       rb.writeDependenciesLoadedEvent(state.dependencies.get(maxDepsPerReq));
       rb.writeFooter();
@@ -210,7 +209,7 @@ public class TelemetryService {
     }
 
     while (!state.metrics.isEmpty()) {
-      RequestBuilder rb = requestBuilderProvider.create(RequestType.GENERATE_METRICS);
+      RequestBuilder rb = new RequestBuilder(RequestType.GENERATE_METRICS, httpUrl);
       rb.writeHeader();
       rb.writeMetrics(state.metrics.get(maxElementsPerReq));
       rb.writeFooter();
@@ -227,7 +226,7 @@ public class TelemetryService {
     }
 
     while (!state.distributionSeries.isEmpty()) {
-      RequestBuilder rb = requestBuilderProvider.create(RequestType.DISTRIBUTIONS);
+      RequestBuilder rb = new RequestBuilder(RequestType.DISTRIBUTIONS, httpUrl);
       rb.writeHeader();
       rb.writeDistributionsEvent(state.distributionSeries.get(maxElementsPerReq));
       rb.writeFooter();
@@ -245,7 +244,7 @@ public class TelemetryService {
 
     while (!state.logMessages.isEmpty()) {
 
-      RequestBuilder rb = requestBuilderProvider.create(RequestType.LOGS);
+      RequestBuilder rb = new RequestBuilder(RequestType.LOGS, httpUrl);
       rb.writeHeader();
       rb.writeLogsEvent(state.logMessages.get(maxElementsPerReq));
       rb.writeFooter();

@@ -11,11 +11,11 @@ import spock.lang.Specification
  * This test only verifies non-functional specifics that are not covered in TelemetryServiceSpecification
  */
 class RequestBuilderSpecification extends Specification {
-  final RequestBuilderProvider provider = new RequestBuilderProvider(HttpUrl.get("https://example.com"))
+  final HttpUrl httpUrl = HttpUrl.get("https://example.com")
 
   def 'throw SerializationException in case of JSON nesting problem'() {
     setup:
-    def b = provider.create(RequestType.APP_STARTED)
+    def b = new RequestBuilder(RequestType.APP_STARTED, httpUrl)
 
     when:
     b.writeHeader()
@@ -29,7 +29,7 @@ class RequestBuilderSpecification extends Specification {
 
   def 'throw SerializationException in case of more than one top-level JSON value'() {
     setup:
-    def b = provider.create()
+    def b = new RequestBuilder(RequestType.APP_STARTED, httpUrl)
 
     when:
     b.writeHeader()
@@ -44,7 +44,7 @@ class RequestBuilderSpecification extends Specification {
 
   def 'writeConfig must support values of Boolean, String, Integer, Double, Map<String, Object>'() {
     setup:
-    RequestBuilder rb = provider.create(RequestType.APP_CLIENT_CONFIGURATION_CHANGE)
+    RequestBuilder rb = new RequestBuilder(RequestType.APP_CLIENT_CONFIGURATION_CHANGE, httpUrl)
     Map<String, Object> map = new HashMap<>()
     map.put("key1", "value1")
     map.put("key2", Double.parseDouble("432.32"))
