@@ -35,10 +35,10 @@ public class BatchUploader {
   private static final Logger log = LoggerFactory.getLogger(BatchUploader.class);
   private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
   private static final MediaType APPLICATION_JSON = MediaType.parse("application/json");
-  private static final String HEADER_DD_API_KEY = "DD-API-KEY";
   private static final String HEADER_DD_CONTAINER_ID = "Datadog-Container-ID";
   private final String containerId;
 
+  static final String HEADER_DD_API_KEY = "DD-API-KEY";
   static final int MAX_RUNNING_REQUESTS = 10;
   static final int MAX_ENQUEUED_REQUESTS = 20;
   static final int TERMINATION_TIMEOUT = 5;
