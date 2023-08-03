@@ -85,6 +85,7 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
         @Advice.Enter final HttpUrlState state,
+        @Advice.This final HttpURLConnection thiz,
         @Advice.FieldValue("responseCode") final int responseCode,
         @Advice.Thrown final Throwable throwable,
         @Advice.Origin("#m") final String methodName) {
@@ -96,9 +97,9 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing
       synchronized (state) {
         if (state.hasSpan() && !state.isFinished()) {
           if (throwable != null) {
-            state.finishSpan(responseCode, throwable);
+            state.finishSpan(thiz, responseCode, throwable);
           } else if ("getInputStream".equals(methodName)) {
-            state.finishSpan(responseCode);
+            state.finishSpan(thiz, responseCode);
           }
         }
       }

@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.akkahttp;
 
+import akka.http.javadsl.model.HttpHeader;
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
@@ -37,5 +38,15 @@ public class AkkaHttpClientDecorator extends HttpClientDecorator<HttpRequest, Ht
   @Override
   protected int status(final HttpResponse httpResponse) {
     return httpResponse.status().intValue();
+  }
+
+  @Override
+  protected String getRequestHeader(HttpRequest request, String headerName) {
+    return request.getHeader(headerName).map(HttpHeader::value).orElse(null);
+  }
+
+  @Override
+  protected String getResponseHeader(HttpResponse response, String headerName) {
+    return response.getHeader(headerName).map(HttpHeader::value).orElse(null);
   }
 }

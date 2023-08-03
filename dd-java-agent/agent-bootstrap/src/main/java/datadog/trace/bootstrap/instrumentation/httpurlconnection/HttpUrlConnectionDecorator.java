@@ -1,12 +1,15 @@
 package datadog.trace.bootstrap.instrumentation.httpurlconnection;
 
+import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
+
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-public class HttpUrlConnectionDecorator extends HttpClientDecorator<HttpURLConnection, Integer> {
+public class HttpUrlConnectionDecorator
+    extends HttpClientDecorator<HttpURLConnection, HttpURLConnection> {
 
   public static final CharSequence HTTP_URL_CONNECTION =
       UTF8BytesString.create("http-url-connection");
@@ -37,7 +40,21 @@ public class HttpUrlConnectionDecorator extends HttpClientDecorator<HttpURLConne
   }
 
   @Override
-  protected int status(final Integer status) {
-    return status;
+  protected int status(final HttpURLConnection connection) {
+    try {
+      return connection.getResponseCode();
+    } catch (Exception ignored) {
+      return UNSET_STATUS;
+    }
+  }
+
+  @Override
+  protected String getRequestHeader(HttpURLConnection connection, String headerName) {
+    return connection.getRequestProperty(headerName);
+  }
+
+  @Override
+  protected String getResponseHeader(HttpURLConnection connection, String headerName) {
+    return connection.getHeaderField(headerName);
   }
 }

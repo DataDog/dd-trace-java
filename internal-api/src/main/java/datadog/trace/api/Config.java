@@ -279,6 +279,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_O
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_TRIM_PACKAGE_RESOURCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN;
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_HEADERS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE;
@@ -508,6 +509,7 @@ public class Config {
   private final Map<String, String> httpClientPathResourceNameMapping;
   private final boolean httpResourceRemoveTrailingSlash;
   private final boolean httpClientTagQueryString;
+  private final boolean httpClientTagHeaders;
   private final boolean httpClientSplitByDomain;
   private final boolean dbClientSplitByInstance;
   private final boolean dbClientSplitByInstanceTypeSuffix;
@@ -1026,6 +1028,8 @@ public class Config {
     httpClientTagQueryString =
         configProvider.getBoolean(
             HTTP_CLIENT_TAG_QUERY_STRING, DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING);
+
+    httpClientTagHeaders = configProvider.getBoolean(HTTP_CLIENT_TAG_HEADERS, true);
 
     httpClientSplitByDomain =
         configProvider.getBoolean(
@@ -1913,6 +1917,10 @@ public class Config {
 
   public boolean isHttpClientTagQueryString() {
     return httpClientTagQueryString;
+  }
+
+  public boolean isHttpClientTagHeaders() {
+    return httpClientTagHeaders;
   }
 
   public boolean isHttpClientSplitByDomain() {

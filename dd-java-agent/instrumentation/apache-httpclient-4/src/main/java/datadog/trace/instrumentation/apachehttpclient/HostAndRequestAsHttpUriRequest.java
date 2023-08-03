@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.apachehttpclient;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import org.apache.http.Header;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequest;
 import org.apache.http.ProtocolVersion;
@@ -68,6 +69,11 @@ public class HostAndRequestAsHttpUriRequest extends AbstractHttpMessage implemen
   @Override
   public java.net.URI getURI() {
     return uri;
+  }
+
+  @Override
+  public Header getFirstHeader(String name) {
+    return actualRequest.getFirstHeader(name);
   }
 
   public HttpRequest getActualRequest() {

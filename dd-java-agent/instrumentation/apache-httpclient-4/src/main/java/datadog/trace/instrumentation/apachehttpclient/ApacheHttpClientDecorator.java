@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.apachehttpclient;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
+import org.apache.http.Header;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
 
@@ -36,5 +37,23 @@ public class ApacheHttpClientDecorator extends HttpClientDecorator<HttpUriReques
   @Override
   protected int status(final HttpResponse httpResponse) {
     return httpResponse.getStatusLine().getStatusCode();
+  }
+
+  @Override
+  protected String getRequestHeader(HttpUriRequest request, String headerName) {
+    Header header = request.getFirstHeader(headerName);
+    if (null != header) {
+      return header.getValue();
+    }
+    return null;
+  }
+
+  @Override
+  protected String getResponseHeader(HttpResponse response, String headerName) {
+    Header header = response.getFirstHeader(headerName);
+    if (null != header) {
+      return header.getValue();
+    }
+    return null;
   }
 }

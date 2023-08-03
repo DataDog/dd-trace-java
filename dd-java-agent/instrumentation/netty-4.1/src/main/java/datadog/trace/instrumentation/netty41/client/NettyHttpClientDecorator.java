@@ -59,4 +59,14 @@ public class NettyHttpClientDecorator extends HttpClientDecorator<HttpRequest, H
   protected int status(final HttpResponse httpResponse) {
     return httpResponse.status().code();
   }
+
+  @Override
+  protected String getRequestHeader(HttpRequest request, String headerName) {
+    return request.headers().get(headerName);
+  }
+
+  @Override
+  protected String getResponseHeader(HttpResponse response, String headerName) {
+    return response.headers().get(headerName);
+  }
 }
