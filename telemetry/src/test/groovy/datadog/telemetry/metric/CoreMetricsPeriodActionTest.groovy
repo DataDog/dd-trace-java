@@ -170,7 +170,7 @@ class CoreMetricsPeriodActionTest extends Specification {
     assert metric.points.size() == 1
     assert metric.points[0].size() == 2
     assert metric.points[0][1] == count
-    assert metric.tags == [instrumentationName]
+    assert metric.tags == ['integration_name:' + instrumentationName]
     assert metric.type == Metric.TypeEnum.COUNT
   }
 }

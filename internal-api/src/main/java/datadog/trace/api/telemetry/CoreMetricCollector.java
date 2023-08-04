@@ -14,6 +14,7 @@ import java.util.concurrent.BlockingQueue;
 /** This class is in charge of draining core metrics for telemetry. */
 public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.CoreMetric> {
   private static final String METRIC_NAMESPACE = "tracers";
+  private static final String INTEGRATION_NAME_TAG = "integration_name:";
   private static final CoreMetricCollector INSTANCE = new CoreMetricCollector();
   private final SpanMetricRegistryImpl spanMetricRegistry = SpanMetricRegistryImpl.getInstance();
 
@@ -31,7 +32,7 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
   public void prepareMetrics() {
     for (SpanMetrics spanMetric : this.spanMetricRegistry.getSpanMetrics()) {
       SpanMetricsImpl spanMetricsImpl = (SpanMetricsImpl) spanMetric;
-      String tag = spanMetricsImpl.getInstrumentationName();
+      String tag = INTEGRATION_NAME_TAG + spanMetricsImpl.getInstrumentationName();
       for (CoreCounter counter : spanMetricsImpl.getCounters()) {
         long value = counter.getValueAndReset();
         if (value == 0) {
