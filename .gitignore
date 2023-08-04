@@ -67,3 +67,7 @@ replay_pid*
 ############
 _circle_ci_cache_*
 upstream.env
+
+# Benchmarks #
+benchmark/reports
+benchmark/tracer
