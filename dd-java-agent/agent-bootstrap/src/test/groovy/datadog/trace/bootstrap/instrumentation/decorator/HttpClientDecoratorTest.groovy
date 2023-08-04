@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import spock.lang.Shared
@@ -34,6 +35,7 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
       if (renameService) {
         1 * span.setServiceName(req.url.host)
       }
+      1 * span.traceConfig() >> AgentTracer.traceConfig()
     }
     0 * _
 
@@ -73,6 +75,9 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     } else {
       1 * span.setResourceName({ it as String == expectedPath })
     }
+    if (req) {
+      1 * span.traceConfig() >> AgentTracer.traceConfig()
+    }
     0 * _
 
     where:
@@ -110,6 +115,9 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     } else {
       1 * span.setResourceName(_)
     }
+    if (req) {
+      1 * span.traceConfig() >> AgentTracer.traceConfig()
+    }
     _ * span.setTag(_, _)
     0 * _
 
@@ -141,6 +149,9 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     }
     if (error) {
       1 * span.setError(true)
+    }
+    if (resp) {
+      1 * span.traceConfig() >> AgentTracer.traceConfig()
     }
     0 * _
 
@@ -191,8 +202,19 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
           null == m.status ? 0 : m.status.intValue()
         }
 
+        @Override
         protected boolean traceAnalyticsDefault() {
           return true
+        }
+
+        @Override
+        protected String getRequestHeader(Map map, String headerName) {
+          return null
+        }
+
+        @Override
+        protected String getResponseHeader(Map map, String headerName) {
+          return null
         }
       }
   }

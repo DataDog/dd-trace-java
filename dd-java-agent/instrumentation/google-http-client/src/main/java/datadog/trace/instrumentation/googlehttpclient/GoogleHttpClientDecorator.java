@@ -57,4 +57,14 @@ public class GoogleHttpClientDecorator extends HttpClientDecorator<HttpRequest, 
   protected CharSequence component() {
     return GOOGLE_HTTP_CLIENT;
   }
+
+  @Override
+  protected String getRequestHeader(HttpRequest request, String headerName) {
+    return request.getHeaders().getFirstHeaderStringValue(headerName);
+  }
+
+  @Override
+  protected String getResponseHeader(HttpResponse response, String headerName) {
+    return response.getHeaders().getFirstHeaderStringValue(headerName);
+  }
 }

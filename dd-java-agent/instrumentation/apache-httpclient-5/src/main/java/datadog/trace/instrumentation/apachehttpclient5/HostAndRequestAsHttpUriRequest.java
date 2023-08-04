@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.apachehttpclient5;
 
+import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.HttpRequest;
 import org.apache.hc.core5.http.message.BasicClassicHttpRequest;
@@ -17,5 +18,10 @@ public class HostAndRequestAsHttpUriRequest extends BasicClassicHttpRequest {
   @Override
   public void setHeader(String name, Object value) {
     actualRequest.setHeader(name, value);
+  }
+
+  @Override
+  public Header getFirstHeader(String name) {
+    return actualRequest.getFirstHeader(name);
   }
 }

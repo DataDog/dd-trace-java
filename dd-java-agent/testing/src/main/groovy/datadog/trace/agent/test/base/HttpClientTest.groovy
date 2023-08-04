@@ -1,6 +1,5 @@
 package datadog.trace.agent.test.base
 
-
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.server.http.HttpProxy
@@ -26,6 +25,9 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING
+import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
+import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS
+import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS
 import static org.junit.Assume.assumeTrue
 
@@ -78,6 +80,13 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
         handleDistributedRequest()
         redirect(server.address.resolve("/secured").toURL().toString())
       }
+      prefix("respond-with-header") {
+        handleDistributedRequest()
+        String msg = "Hello."
+        response.status(200)
+          .addHeader('x-datadog-test-response-header', 'baz')
+          .send(msg)
+      }
     }
   }
 
@@ -102,6 +111,10 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     // not starting with "/" made full url (http://..) matching but not the path portion (because starting with /)
     // this settings should not affect test results
     injectSysConfig(TracerConfig.TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING, "**/success:*")
+
+    injectSysConfig(HEADER_TAGS, 'x-datadog-test-both-header:both_header_tag')
+    injectSysConfig(REQUEST_HEADER_TAGS, 'x-datadog-test-request-header:request_header_tag')
+    // We don't inject a matching response header tag here since it would be always on and show up in all the tests
   }
 
   def setupSpec() {
@@ -747,8 +760,82 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     method = "HEAD"
   }
 
+  def "test request header #header tag mapping"() {
+    when:
+    def url = server.address.resolve("/success")
+    def status = doRequest(method, url, [(header): value])
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
+
+    then:
+    status == 200
+    assertTraces(2) {
+      trace(size(1)) {
+        clientSpan(it, null, method, false, false, url, status, false, null, false, tags)
+      }
+      server.distributedRequestTrace(it, trace(0).last(), tags)
+    }
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
+
+    where:
+    method | header                           | value | tags
+    'GET'  | 'X-Datadog-Test-Both-Header'     | 'foo' | [ 'both_header_tag': 'foo' ]
+    'GET'  | 'X-Datadog-Test-Request-Header'  | 'bar' | [ 'request_header_tag': 'bar' ]
+  }
+
+  def "test response header #header tag mapping"() {
+    when:
+    injectSysConfig(RESPONSE_HEADER_TAGS, "$header:$mapping")
+    def url = server.address.resolve("/respond-with-header")
+    def status = doRequest(method, url)
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
+
+    then:
+    status == 200
+    assertTraces(2) {
+      trace(size(1)) {
+        clientSpan(it, null, method, false, false, url, status, false, null, false, tags)
+      }
+      server.distributedRequestTrace(it, trace(0).last())
+    }
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
+
+    where:
+    method | header                           | mapping               | tags
+    'GET'  | 'X-Datadog-Test-Response-Header' | 'response_header_tag' | [ 'response_header_tag': 'baz' ]
+  }
+
   // parent span must be cast otherwise it breaks debugging classloading (junit loads it early)
-  void clientSpan(TraceAssert trace, Object parentSpan, String method = "GET", boolean renameService = false, boolean tagQueryString = false, URI uri = server.address.resolve("/success"), Integer status = 200, boolean error = false, Throwable exception = null, boolean ignorePeer = false) {
+  void clientSpan(
+    TraceAssert trace,
+    Object parentSpan,
+    String method = "GET",
+    boolean renameService = false,
+    boolean tagQueryString = false,
+    URI uri = server.address.resolve("/success"),
+    Integer status = 200,
+    boolean error = false,
+    Throwable exception = null,
+    boolean ignorePeer = false,
+    Map<String, Serializable> extraTags = null) {
+
     def expectedQuery = tagQueryString ? uri.query : null
     def expectedUrl = URIUtils.buildURL(uri.scheme, uri.host, uri.port, uri.path)
     if (expectedQuery != null && !expectedQuery.empty) {
@@ -791,6 +878,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
         }
         peerServiceFrom(Tags.PEER_HOSTNAME)
         defaultTags()
+        if (extraTags) {
+          it.addTags(extraTags)
+        }
       }
     }
   }

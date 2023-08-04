@@ -1,13 +1,12 @@
 package datadog.trace.instrumentation.opentelemetry14;
 
-import static datadog.trace.bootstrap.instrumentation.api.ScopeSource.INSTRUMENTATION;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static io.opentelemetry.api.trace.StatusCode.ERROR;
 import static io.opentelemetry.api.trace.StatusCode.OK;
 import static io.opentelemetry.api.trace.StatusCode.UNSET;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
@@ -16,7 +15,6 @@ import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.TraceFlags;
 import io.opentelemetry.api.trace.TraceState;
-import io.opentelemetry.context.Scope;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.ParametersAreNonnullByDefault;
 
@@ -104,11 +102,8 @@ public class OtelSpan implements Span {
     return this.recording;
   }
 
-  @Override
-  public Scope makeCurrent() {
-    Scope scope = Span.super.makeCurrent();
-    AgentScope agentScope = AgentTracer.get().activateSpan(this.delegate, INSTRUMENTATION);
-    return new OtelScope(scope, agentScope);
+  AgentScope activate() {
+    return activateSpan(this.delegate);
   }
 
   private static class NoopSpan implements Span {
