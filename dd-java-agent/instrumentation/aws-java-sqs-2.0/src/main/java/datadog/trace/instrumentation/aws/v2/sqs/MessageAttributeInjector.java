@@ -14,8 +14,8 @@ public class MessageAttributeInjector
   @Override
   public void set(
       final Map<String, MessageAttributeValue> carrier, final String key, final String value) {
-    String jsonPathway = String.format("{\"%s\": \"%s\"}", key, value);
     if (carrier.size() < 10 && !carrier.containsKey(DATADOG_KEY)) {
+      String jsonPathway = String.format("{\"%s\": \"%s\"}", key, value);
       carrier.put(
           DATADOG_KEY,
           MessageAttributeValue.builder().dataType("String").stringValue(jsonPathway).build());

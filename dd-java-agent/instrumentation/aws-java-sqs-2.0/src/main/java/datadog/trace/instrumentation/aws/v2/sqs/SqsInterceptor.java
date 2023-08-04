@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import software.amazon.awssdk.core.SdkRequest;
 import software.amazon.awssdk.core.interceptor.Context;
 import software.amazon.awssdk.core.interceptor.ExecutionAttribute;
@@ -40,7 +41,11 @@ public class SqsInterceptor implements ExecutionInterceptor {
       Context.ModifyRequest context, ExecutionAttributes executionAttributes) {
     if (context.request() instanceof SendMessageRequest) {
       SendMessageRequest request = (SendMessageRequest) context.request();
-      String queueUrl = request.getValueForField("QueueUrl", String.class).get().toString();
+      Optional<String> optionalQueueUrl = request.getValueForField("QueueUrl", String.class);
+      if (!optionalQueueUrl.isPresent()) {
+        return request;
+      }
+      String queueUrl = optionalQueueUrl.get();
       AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
       LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
       sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
@@ -54,7 +59,11 @@ public class SqsInterceptor implements ExecutionInterceptor {
 
     } else if (context.request() instanceof SendMessageBatchRequest) {
       SendMessageBatchRequest request = (SendMessageBatchRequest) context.request();
-      String queueUrl = request.getValueForField("QueueUrl", String.class).get().toString();
+      Optional<String> optionalQueueUrl = request.getValueForField("QueueUrl", String.class);
+      if (!optionalQueueUrl.isPresent()) {
+        return request;
+      }
+      String queueUrl = optionalQueueUrl.get();
       AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
       LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
       sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
@@ -74,8 +83,9 @@ public class SqsInterceptor implements ExecutionInterceptor {
 
     } else if (context.request() instanceof ReceiveMessageRequest) {
       ReceiveMessageRequest request = (ReceiveMessageRequest) context.request();
-      List<String> messageAttributeNames = new ArrayList<>(request.messageAttributeNames());
-      if (messageAttributeNames.size() < 10 && !messageAttributeNames.contains(DATADOG_KEY)) {
+      if (request.messageAttributeNames().size() < 10
+          && !request.messageAttributeNames().contains(DATADOG_KEY)) {
+        List<String> messageAttributeNames = new ArrayList<>(request.messageAttributeNames());
         messageAttributeNames.add(DATADOG_KEY);
         return request.toBuilder().messageAttributeNames(messageAttributeNames).build();
       } else {

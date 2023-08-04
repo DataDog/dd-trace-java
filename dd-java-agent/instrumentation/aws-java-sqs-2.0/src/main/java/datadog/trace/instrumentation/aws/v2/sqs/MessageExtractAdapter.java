@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.DATADOG
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.util.Map;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.sqs.model.Message;
@@ -32,11 +33,12 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
       for (Map.Entry<String, MessageAttributeValue> entry :
           carrier.messageAttributes().entrySet()) {
         String key = entry.getKey();
-        String value =
-            entry.getValue().getValueForField("StringValue", Object.class).get().toString();
         if (key.equalsIgnoreCase(DATADOG_KEY)) {
-          if (!classifier.accept(key, value)) {
-            return;
+          Optional<String> value = entry.getValue().getValueForField("StringValue", String.class);
+          if (value.isPresent()) {
+            if (!classifier.accept(key, value.get())) {
+              return;
+            }
           }
         }
       }

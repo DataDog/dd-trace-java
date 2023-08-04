@@ -33,6 +33,13 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     System.setProperty(SdkSystemSetting.AWS_SECRET_ACCESS_KEY.property(), "my-secret-key")
   }
 
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    // Set a service name that gets sorted early with SORT_BY_NAMES
+    injectSysConfig(GeneralConfig.SERVICE_NAME, "A-service")
+  }
+
   @Shared
   def credentialsProvider = AnonymousCredentialsProvider.create()
   @Shared
@@ -339,13 +346,6 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
 class SqsClientV0Test extends SqsClientTest {
 
   @Override
-  protected void configurePreAgent() {
-    super.configurePreAgent()
-    // Set a service name that gets sorted early with SORT_BY_NAMES
-    injectSysConfig(GeneralConfig.SERVICE_NAME, "A-service")
-  }
-
-  @Override
   String expectedOperation(String awsService, String awsOperation) {
     "aws.http"
   }
@@ -365,12 +365,6 @@ class SqsClientV0Test extends SqsClientTest {
 }
 
 class SqsClientV1ForkedTest extends SqsClientTest {
-
-  @Override
-  protected void configurePreAgent() {
-    super.configurePreAgent()
-    injectSysConfig(GeneralConfig.SERVICE_NAME, "A-service")
-  }
 
   @Override
   String expectedOperation(String awsService, String awsOperation) {
@@ -400,7 +394,6 @@ class SqsClientV0DataStreamsTest extends SqsClientTest {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
-    injectSysConfig(GeneralConfig.SERVICE_NAME, "A-service")
     injectSysConfig("dd.data.streams.enabled", "true")
   }
 
@@ -434,8 +427,6 @@ class SqsClientV1DataStreamsForkedTest extends SqsClientTest {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
-    // Set a service name that gets sorted early with SORT_BY_NAMES
-    injectSysConfig(GeneralConfig.SERVICE_NAME, "A-service")
     injectSysConfig("dd.data.streams.enabled", "true")
   }
 
