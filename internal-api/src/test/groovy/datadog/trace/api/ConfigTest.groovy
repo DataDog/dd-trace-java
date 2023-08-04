@@ -1165,7 +1165,9 @@ class ConfigTest extends DDSpecification {
     where:
     value               | expected // null means default value
     // spotless:off
-    "1"                 | null
+    "1"                 | [1]
+    "3,13,400-403"      | [3,13,400,401,402,403]
+    "2,10,13-15"        | [2,10,13,14,15]
     "a"                 | null
     ""                  | null
     "1000"              | null
