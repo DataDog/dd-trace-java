@@ -31,6 +31,7 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.instrumentation.kafka_clients.DataStreamsIgnoreContext;
 import datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -230,19 +231,20 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
           // The queueSpan will be finished after inner span has been activated to ensure that
           // spans are written out together by TraceStructureWriter when running in strict mode
         }
-
-        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-        sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
-        if (streamTaskContext != null) {
-          String applicationId = streamTaskContext.getApplicationId();
-          if (applicationId != null) {
-            // Kafka Streams uses the application ID as the consumer group.id.
-            sortedTags.put(GROUP_TAG, applicationId);
+        if (!DataStreamsIgnoreContext.contains(record.topic())) {
+          LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+          sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
+          if (streamTaskContext != null) {
+            String applicationId = streamTaskContext.getApplicationId();
+            if (applicationId != null) {
+              // Kafka Streams uses the application ID as the consumer group.id.
+              sortedTags.put(GROUP_TAG, applicationId);
+            }
           }
+          sortedTags.put(TOPIC_TAG, record.topic());
+          sortedTags.put(TYPE_TAG, "kafka");
+          AgentTracer.get().setDataStreamCheckpoint(span, sortedTags, record.timestamp);
         }
-        sortedTags.put(TOPIC_TAG, record.topic());
-        sortedTags.put(TYPE_TAG, "kafka");
-        AgentTracer.get().setDataStreamCheckpoint(span, sortedTags, record.timestamp);
       } else {
         span = startSpan(KAFKA_CONSUME, null);
       }
@@ -294,18 +296,20 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
           // spans are written out together by TraceStructureWriter when running in strict mode
         }
 
-        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-        sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
-        if (streamTaskContext != null) {
-          String applicationId = streamTaskContext.getApplicationId();
-          if (applicationId != null) {
-            // Kafka Streams uses the application ID as the consumer group.id.
-            sortedTags.put(GROUP_TAG, applicationId);
+        if (!DataStreamsIgnoreContext.contains(record.topic())) {
+          LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+          sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
+          if (streamTaskContext != null) {
+            String applicationId = streamTaskContext.getApplicationId();
+            if (applicationId != null) {
+              // Kafka Streams uses the application ID as the consumer group.id.
+              sortedTags.put(GROUP_TAG, applicationId);
+            }
           }
+          sortedTags.put(TOPIC_TAG, record.topic());
+          sortedTags.put(TYPE_TAG, "kafka");
+          AgentTracer.get().setDataStreamCheckpoint(span, sortedTags, record.timestamp());
         }
-        sortedTags.put(TOPIC_TAG, record.topic());
-        sortedTags.put(TYPE_TAG, "kafka");
-        AgentTracer.get().setDataStreamCheckpoint(span, sortedTags, record.timestamp());
       } else {
         span = startSpan(KAFKA_CONSUME, null);
       }

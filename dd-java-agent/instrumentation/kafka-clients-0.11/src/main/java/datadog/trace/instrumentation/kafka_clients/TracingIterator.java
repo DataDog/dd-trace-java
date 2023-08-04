@@ -84,13 +84,15 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
             // spans are written out together by TraceStructureWriter when running in strict mode
           }
 
-          LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-          sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
-          sortedTags.put(GROUP_TAG, group);
-          sortedTags.put(TOPIC_TAG, val.topic());
-          sortedTags.put(TYPE_TAG, "kafka");
+          if (!DataStreamsIgnoreContext.contains(val.topic())) {
+            LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+            sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
+            sortedTags.put(GROUP_TAG, group);
+            sortedTags.put(TOPIC_TAG, val.topic());
+            sortedTags.put(TYPE_TAG, "kafka");
 
-          AgentTracer.get().setDataStreamCheckpoint(span, sortedTags, val.timestamp());
+            AgentTracer.get().setDataStreamCheckpoint(span, sortedTags, val.timestamp());
+          }
         } else {
           span = startSpan(operationName, null);
         }

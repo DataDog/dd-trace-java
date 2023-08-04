@@ -642,6 +642,11 @@ public class DDSpanContext
     return pathwayContext;
   }
 
+  @Override
+  public void overridePathwayContext(PathwayContext pathwayContext){
+    this.pathwayContext = pathwayContext;
+  }
+
   public void mergePathwayContext(PathwayContext pathwayContext) {
     if (pathwayContext == null) {
       return;
