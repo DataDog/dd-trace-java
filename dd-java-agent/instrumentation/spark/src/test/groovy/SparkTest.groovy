@@ -45,21 +45,21 @@ class SparkTest extends AgentTestRunner {
         }
         span {
           operationName "spark.job"
-          resourceName "count at TestSparkComputation.java:12"
+          resourceName "count at TestSparkComputation.java:17"
           spanType "spark"
           errored false
           childOf(span(0))
         }
         span {
           operationName "spark.stage"
-          resourceName "count at TestSparkComputation.java:12"
+          resourceName "count at TestSparkComputation.java:17"
           spanType "spark"
           errored false
           childOf(span(1))
         }
         span {
           operationName "spark.stage"
-          resourceName "distinct at TestSparkComputation.java:12"
+          resourceName "distinct at TestSparkComputation.java:17"
           spanType "spark"
           errored false
           childOf(span(1))
@@ -142,7 +142,7 @@ class SparkTest extends AgentTestRunner {
         }
         span {
           operationName "spark.job"
-          resourceName "collect at TestSparkComputation.java:21"
+          resourceName "collect at TestSparkComputation.java:26"
           spanType "spark"
           errored true
           childOf(span(0))
@@ -152,7 +152,7 @@ class SparkTest extends AgentTestRunner {
         }
         span {
           operationName "spark.stage"
-          resourceName "collect at TestSparkComputation.java:21"
+          resourceName "collect at TestSparkComputation.java:26"
           spanType "spark"
           errored true
           childOf(span(1))
@@ -204,6 +204,7 @@ class SparkTest extends AgentTestRunner {
 
     cleanup:
     sparkSession.stop()
+    DatadogSparkListener.finishTraceOnApplicationEnd = true
   }
 
   def "generate databricks spans"() {
@@ -230,7 +231,7 @@ class SparkTest extends AgentTestRunner {
       trace(3) {
         span {
           operationName "spark.job"
-          resourceName "count at TestSparkComputation.java:12"
+          resourceName "count at TestSparkComputation.java:17"
           spanType "spark"
           errored false
           traceId 8944764253919609482G
@@ -238,14 +239,14 @@ class SparkTest extends AgentTestRunner {
         }
         span {
           operationName "spark.stage"
-          resourceName "count at TestSparkComputation.java:12"
+          resourceName "count at TestSparkComputation.java:17"
           spanType "spark"
           errored false
           childOf(span(0))
         }
         span {
           operationName "spark.stage"
-          resourceName "distinct at TestSparkComputation.java:12"
+          resourceName "distinct at TestSparkComputation.java:17"
           spanType "spark"
           errored false
           childOf(span(0))
@@ -254,21 +255,21 @@ class SparkTest extends AgentTestRunner {
       trace(3) {
         span {
           operationName "spark.job"
-          resourceName "count at TestSparkComputation.java:12"
+          resourceName "count at TestSparkComputation.java:17"
           spanType "spark"
           errored false
           parent()
         }
         span {
           operationName "spark.stage"
-          resourceName "count at TestSparkComputation.java:12"
+          resourceName "count at TestSparkComputation.java:17"
           spanType "spark"
           errored false
           childOf(span(0))
         }
         span {
           operationName "spark.stage"
-          resourceName "distinct at TestSparkComputation.java:12"
+          resourceName "distinct at TestSparkComputation.java:17"
           spanType "spark"
           errored false
           childOf(span(0))
