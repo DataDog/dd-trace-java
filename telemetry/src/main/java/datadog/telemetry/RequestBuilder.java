@@ -308,7 +308,8 @@ public class RequestBuilder extends RequestBody {
         bodyWriter.beginObject();
         bodyWriter.name("name").value(cc.name);
         bodyWriter.name("value").jsonValue(cc.value);
-        // TODO origin - mandatory
+        // TODO provide a real origin when it's implemented
+        bodyWriter.name("origin").jsonValue("unknown");
         // error - optional
         // seq_id - optional
         bodyWriter.endObject();

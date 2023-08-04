@@ -65,7 +65,7 @@ class RequestBuilderSpecification extends Specification {
     ])
 
     then:
-    drainToString(rb.request()) == ',"payload":{"configuration":[{"name":"string","value":"bar"},{"name":"int","value":2342},{"name":"double","value":123.456},{"name":"map","value":{"key1":"value1","key2":432.32,"key3":324}}]}'
+    drainToString(rb.request()) == ',"payload":{"configuration":[{"name":"string","value":"bar","origin":"unknown"},{"name":"int","value":2342,"origin":"unknown"},{"name":"double","value":123.456,"origin":"unknown"},{"name":"map","value":{"key1":"value1","key2":432.32,"key3":324},"origin":"unknown"}]}'
   }
 
   String drainToString(Request req) {

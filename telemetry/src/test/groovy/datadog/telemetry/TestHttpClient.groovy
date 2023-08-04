@@ -141,8 +141,7 @@ class TestHttpClient extends HttpClient {
 
     BatchAssertions assertBatch(int expectedNumberOfPayloads) {
       def payloads = body['payload'] as List<Map<String, Object>>
-      assert payloads != null
-      assert payloads.size() == expectedNumberOfPayloads
+      assert payloads != null && payloads.size() == expectedNumberOfPayloads
       return new BatchAssertions(payloads)
     }
 
@@ -224,7 +223,7 @@ class TestHttpClient extends HttpClient {
       def expected = configuration == null ? null : []
       if (configuration != null) {
         for (ConfigChange kv : configuration) {
-          expected.add([name: kv.name, value: kv.value])
+          expected.add([name: kv.name, value: kv.value, origin: 'unknown'])
         }
       }
       assert this.payload['configuration'] == expected
