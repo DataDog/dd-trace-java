@@ -4,11 +4,10 @@ import datadog.communication.ddagent.TracerVersion
 import datadog.telemetry.dependency.Dependency
 import datadog.telemetry.api.Integration
 import datadog.telemetry.api.DistributionSeries
-
-import datadog.telemetry.api.ConfigChange
 import datadog.telemetry.api.LogMessage
 import datadog.telemetry.api.Metric
 import datadog.telemetry.api.RequestType
+import datadog.trace.api.ConfigSetting
 import groovy.json.JsonSlurper
 import okhttp3.Request
 import okio.Buffer
@@ -227,11 +226,11 @@ class TestHttpClient extends HttpClient {
       this.batch = batch
     }
 
-    PayloadAssertions configuration(List<ConfigChange> configuration) {
+    PayloadAssertions configuration(List<ConfigSetting> configuration) {
       def expected = configuration == null ? null : []
       if (configuration != null) {
-        for (ConfigChange kv : configuration) {
-          expected.add([name: kv.name, value: kv.value, origin: 'unknown'])
+        for (ConfigSetting cs : configuration) {
+          expected.add([name: cs.key, value: cs.value, origin: cs.origin.value])
         }
       }
       assert this.payload['configuration'] == expected

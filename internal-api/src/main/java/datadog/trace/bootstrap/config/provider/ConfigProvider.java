@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.config.provider;
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
 
 import datadog.trace.api.ConfigCollector;
+import datadog.trace.api.ConfigOrigin;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -182,7 +183,7 @@ public final class ConfigProvider {
         T value = ConfigConverter.valueOf(sourceValue, type);
         if (value != null) {
           if (collectConfig) {
-            ConfigCollector.get().put(key, sourceValue);
+            ConfigCollector.get().put(key, sourceValue, source.origin());
           }
           return value;
         }
@@ -190,6 +191,8 @@ public final class ConfigProvider {
         // continue
       }
     }
+    // Report all accessed default settings as it's required by Telemetry V2
+    ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     return defaultValue;
   }
 
@@ -439,5 +442,7 @@ public final class ConfigProvider {
     }
 
     protected abstract String get(String key);
+
+    public abstract ConfigOrigin origin();
   }
 }

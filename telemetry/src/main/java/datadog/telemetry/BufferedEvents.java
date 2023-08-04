@@ -1,11 +1,11 @@
 package datadog.telemetry;
 
-import datadog.telemetry.api.ConfigChange;
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Integration;
 import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.dependency.Dependency;
+import datadog.trace.api.ConfigSetting;
 import java.util.ArrayList;
 
 /**
@@ -14,7 +14,7 @@ import java.util.ArrayList;
  */
 public final class BufferedEvents implements EventSource, EventSink {
   private static final int INITIAL_CAPACITY = 32;
-  private ArrayList<ConfigChange> configChangeEvents;
+  private ArrayList<ConfigSetting> configChangeEvents;
   private int configChangeIndex;
   private ArrayList<Integration> integrationEvents;
   private int integrationIndex;
@@ -27,7 +27,7 @@ public final class BufferedEvents implements EventSource, EventSink {
   private ArrayList<LogMessage> logMessageEvents;
   private int logMessageIndex;
 
-  public void addConfigChangeEvent(ConfigChange event) {
+  public void addConfigChangeEvent(ConfigSetting event) {
     if (configChangeEvents == null) {
       configChangeEvents = new ArrayList<>(INITIAL_CAPACITY);
     }
@@ -80,7 +80,7 @@ public final class BufferedEvents implements EventSource, EventSink {
   }
 
   @Override
-  public ConfigChange nextConfigChangeEvent() {
+  public ConfigSetting nextConfigChangeEvent() {
     return configChangeEvents.get(configChangeIndex++);
   }
 

@@ -24,6 +24,7 @@ tasks.compileTestJava.configure {
 minimumBranchCoverage = 0.7
 minimumInstructionCoverage = 0.8
 excludedClassesCoverage += [
+  "datadog.trace.api.ConfigSetting",
   "datadog.trace.api.EndpointTracker",
   "datadog.trace.api.Platform",
   "datadog.trace.api.Platform.GC",
