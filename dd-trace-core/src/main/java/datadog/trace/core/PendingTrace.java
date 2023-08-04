@@ -312,7 +312,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
       // Finished root with pending work ... delay write
       pendingTraceBuffer.enqueue(this);
       return PublishState.ROOT_BUFFERED;
-    } else if (0 < partialFlushMinSpans && partialFlushMinSpans < size()) {
+    } else if (partialFlushMinSpans > 0 && size() >= partialFlushMinSpans) {
       // Trace is getting too big, write anything completed.
       partialFlush();
       return PublishState.PARTIAL_FLUSH;
@@ -361,7 +361,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
           // the completedSpanCount has not yet been incremented. This means that eventually the
           // count(s) will be incremented, and any new spans added during the period that the count
           // was negative will be written by someone even if we don't write them right now.
-          if (size > 0 && (!isPartial || size > tracer.getPartialFlushMinSpans())) {
+          if (size > 0 && (!isPartial || size >= tracer.getPartialFlushMinSpans())) {
             trace = new ArrayList<>(size);
             completedSpans = enqueueSpansToWrite(trace, writeRunningSpans);
           } else {
