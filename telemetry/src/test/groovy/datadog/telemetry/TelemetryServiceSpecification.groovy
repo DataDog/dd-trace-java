@@ -245,4 +245,30 @@ class TelemetryServiceSpecification extends Specification {
     then:
     testHttpClient.assertRequestBody(RequestType.APP_CLOSING)
   }
+
+  void 'report when both OTel and OT are enabled'() {
+    setup:
+    TelemetryService telemetryService = Spy(new TelemetryService(testHttpClient, HttpUrl.get("https://example.com")))
+    def otel = new Integration("opentelemetry-1", otelEnabled)
+    def ot = new Integration("opentracing", otEnabled)
+
+    when:
+    telemetryService.addIntegration(otel)
+
+    then:
+    0 * telemetryService.warnAboutExclusiveIntegrations()
+
+    when:
+    telemetryService.addIntegration(ot)
+
+    then:
+    warnining * telemetryService.warnAboutExclusiveIntegrations()
+
+    where:
+    otelEnabled | otEnabled | warnining
+    true        | true      | 1
+    true        | false     | 0
+    false       | true      | 0
+    false       | false     | 0
+  }
 }

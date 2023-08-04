@@ -92,11 +92,13 @@ public class TelemetryService {
   }
 
   public boolean addIntegration(Integration integration) {
-    if ("opentelemetry-1".equals(integration.name) && integration.enabled) {
-      this.openTelemetryIntegrationEnabled = true;
-      warnAboutExclusiveIntegrations();
-    } else if ("opentracing".equals(integration.name) && integration.enabled) {
-      this.openTracingIntegrationEnabled = true;
+    if ("opentelemetry-1".equals(integration.name)) {
+      openTelemetryIntegrationEnabled = integration.enabled;
+    }
+    if ("opentracing".equals(integration.name)) {
+      openTracingIntegrationEnabled = integration.enabled;
+    }
+    if (openTelemetryIntegrationEnabled && openTracingIntegrationEnabled) {
       warnAboutExclusiveIntegrations();
     }
     return this.integrations.offer(integration);
@@ -170,15 +172,13 @@ public class TelemetryService {
     if (result == HttpClient.Result.SUCCESS) {
       state.commit();
     }
-    // rollback everything that hasn't been sent, e.g. app-started only includes configuration
+    // rollback everything that hasn't been sent
     state.rollback();
   }
 
-  private void warnAboutExclusiveIntegrations() {
-    if (this.openTelemetryIntegrationEnabled && this.openTracingIntegrationEnabled) {
-      log.warn(
-          "Both Open Tracing and Open Telemetry integrations are enabled but mutually exclusive. Tracing performance can be degraded.");
-    }
+  void warnAboutExclusiveIntegrations() {
+    log.warn(
+        "Both OpenTracing and OpenTelemetry integrations are enabled but mutually exclusive. Tracing performance can be degraded.");
   }
 
   private static class StateList<T> {
