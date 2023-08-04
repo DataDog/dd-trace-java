@@ -307,7 +307,7 @@ final class ConfigConverter {
   static BitSet parseIntegerRangeSet(@Nonnull String str, final String settingName)
       throws NumberFormatException {
     str = str.replaceAll("\\s", "");
-    if (!str.matches("\\d{3}(?:-\\d{3})?(?:,\\d{3}(?:-\\d{3})?)*")) {
+    if (!str.matches("\\d{1,3}(?:-\\d{1,3})?(?:,\\d{1,3}(?:-\\d{1,3})?)*")) {
       log.warn(
           "Invalid config for {}: '{}'. Must be formatted like '400-403,405,410-499'.",
           settingName,

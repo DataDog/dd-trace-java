@@ -1,4 +1,9 @@
+import java.util.concurrent.TimeoutException;
+import org.apache.spark.api.java.function.MapFunction;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.streaming.StreamingQuery;
 
 /**
  * Helper class to generate the spark computation for test. Doing it in java because spark does not
@@ -19,6 +24,16 @@ public class TestSparkComputation {
         .toJavaRDD()
         .map(x -> ((Long) null).toString())
         .collect();
+  }
+
+  public static StreamingQuery generateTestFailingStreamingComputation(Dataset<String> ds)
+      throws TimeoutException {
+    return ds.map((MapFunction<String, String>) x -> ((Long) null).toString(), Encoders.STRING())
+        .writeStream()
+        .queryName("failing-query")
+        .outputMode("append")
+        .format("console")
+        .start();
   }
 
   public static String getSparkVersion() {
