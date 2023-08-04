@@ -1,8 +1,10 @@
 package datadog.trace.instrumentation.opentelemetry14;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.ContextKey;
+import io.opentelemetry.context.Scope;
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
@@ -38,5 +40,15 @@ public class OtelContext implements Context {
       return new OtelContext(this.currentSpan, (Span) v1);
     }
     return this;
+  }
+
+  @Override
+  public Scope makeCurrent() {
+    Scope scope = Context.super.makeCurrent();
+    if (this.currentSpan instanceof OtelSpan) {
+      AgentScope agentScope = ((OtelSpan) this.currentSpan).activate();
+      scope = new OtelScope(scope, agentScope);
+    }
+    return scope;
   }
 }
