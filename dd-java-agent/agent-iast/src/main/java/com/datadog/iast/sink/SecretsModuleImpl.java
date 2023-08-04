@@ -3,6 +3,9 @@ package com.datadog.iast.sink;
 import com.datadog.iast.overhead.Operations;
 import com.datadog.iast.util.IastClassVisitor;
 import datadog.trace.api.iast.sink.SecretsModule;
+
+import java.util.HashSet;
+import java.util.Set;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import org.objectweb.asm.ClassReader;
@@ -17,36 +20,60 @@ public class SecretsModuleImpl extends SinkModuleBase implements SecretsModule {
 
   @Override
   public void onStringLiteral(
-      @Nonnull final String value, @Nonnull final String clazz, final @Nonnull byte[] classFile) {
+      @Nonnull final Set<String> literals, @Nonnull final String clazz, final @Nonnull byte[] classFile) {
 
-    String secretEvidence = getSecretEvidence(value);
-    if (secretEvidence != null) {
+    Set<Secret> secrets = getSecrets(literals, clazz);
+    if (secrets != null) {
       if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, null)) {
         return;
       }
-      reportVulnerability(value, clazz, secretEvidence, classFile);
+      reportVulnerability(secrets, clazz, classFile);
     }
   }
 
   private void reportVulnerability(
-      final String value,
+      final Set<Secret> secrets,
       final String clazz,
-      final String secretEvidence,
       final @Nonnull byte[] classFile) {
     ClassReader classReader = new ClassReader(classFile);
-    IastClassVisitor classVisitor = new IastClassVisitor(value, clazz, secretEvidence, reporter);
+    IastClassVisitor classVisitor = new IastClassVisitor(secrets, clazz, reporter);
     classReader.accept(classVisitor, 0);
   }
 
-  private String getSecretEvidence(String value) {
-    if (value.length() >= MIN_SECRET_LENGTH) {
-      for (SecretMatcher secretMatcher : matchers) {
-        if (secretMatcher.matches(value)) {
-          return secretMatcher.getRedactedEvidence();
+  private Set<Secret> getSecrets(final Set<String> literals, final String clazz) {
+    Set<Secret> secrets = null;
+    for (String literal : literals) {
+      if (literal.length() >= MIN_SECRET_LENGTH) {
+        for (SecretMatcher secretMatcher : matchers) {
+          if (secretMatcher.matches(literal)) {
+            if(secrets == null){
+              secrets = new HashSet<>();
+            }
+            secrets.add(new Secret(literal, secretMatcher.getRedactedEvidence()));
+          }
         }
       }
     }
-    return null;
+    return secrets;
+  }
+
+  public static class Secret{
+    private final String value;
+    private final String redacted;
+
+    public Secret(final String value, final String redacted) {
+      this.value = value;
+      this.redacted = redacted;
+    }
+
+    public String getValue() {
+      return value;
+    }
+
+    public String getRedacted() {
+      return redacted;
+    }
+
   }
 
   static class SecretMatcher {

@@ -7,6 +7,9 @@ import datadog.trace.api.iast.sink.SecretsModule;
 import javax.annotation.Nonnull;
 import net.bytebuddy.description.type.TypeDescription;
 
+import java.util.HashSet;
+import java.util.Set;
+
 public class IastSecretDetectionListener implements Advices.Listener {
 
   public static final IastSecretDetectionListener INSTANCE = new IastSecretDetectionListener();
@@ -18,12 +21,16 @@ public class IastSecretDetectionListener implements Advices.Listener {
       final @Nonnull byte[] classFile) {
     final SecretsModule iastModule = InstrumentationBridge.HARDCODED_SECRET;
     if (iastModule != null) {
+      Set<String> literals = new HashSet<>();
       for (int index = 1; index < pool.getCount(); index++) {
         if (pool.getType(index) == ConstantPool.CONSTANT_STRING_TAG) {
           final int literalIndex = pool.readUnsignedShort(pool.getOffset(index));
           final String literal = pool.readUTF8(pool.getOffset(literalIndex));
-          iastModule.onStringLiteral(literal, type.getName(), classFile);
+          literals.add(literal);
         }
+      }
+      if(!literals.isEmpty()){
+        iastModule.onStringLiteral(literals, type.getName(), classFile);
       }
     }
   }
