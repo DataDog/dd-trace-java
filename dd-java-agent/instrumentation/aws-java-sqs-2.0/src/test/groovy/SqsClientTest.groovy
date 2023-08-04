@@ -1,3 +1,6 @@
+import datadog.trace.api.DDTags
+import datadog.trace.core.datastreams.StatsGroup
+
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
 import com.amazon.sqs.javamessaging.ProviderConfiguration
@@ -86,6 +89,10 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     })
     def messages = client.receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build()).messages()
 
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+    }
+
     messages.forEach {/* consume to create message spans */ }
 
     then:
@@ -115,6 +122,9 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             "aws.requestId" "00000000-0000-0000-0000-000000000000"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags()
           }
         }
@@ -138,9 +148,28 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             "aws.requestId" "00000000-0000-0000-0000-000000000000"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(true)
           }
         }
+      }
+    }
+
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+
+      verifyAll(first) {
+        edgeTags == ["direction:out", "topic:somequeue", "type:sqs"]
+        edgeTags.size() == 3
+      }
+
+      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+      verifyAll(second) {
+        edgeTags == ["direction:in", "topic:somequeue", "type:sqs"]
+        edgeTags.size() == 3
       }
     }
 
@@ -152,6 +181,11 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
   }
 
   def "trace details propagated from SQS to JMS"() {
+
+    if (isDataStreamsEnabled()) {
+      return
+    }
+
     setup:
     def client = SqsClient.builder()
       .region(Region.EU_CENTRAL_1)
@@ -301,9 +335,11 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     /Root=1-[0-9a-f]{8}-00000000${sendSpan.traceId.toHexStringPadded(16)};Parent=${DDSpanId.toHexStringPadded(sendSpan.spanId)};Sampled=1/
 
     cleanup:
-    session.close()
-    connection.stop()
-    client.close()
+    if (!isDataStreamsEnabled()) {
+      session.close()
+      connection.stop()
+      client.close()
+    }
   }
 }
 
@@ -352,3 +388,74 @@ class SqsClientV1ForkedTest extends SqsClientTest {
     1
   }
 }
+
+class SqsClientV0DataStreamsTest extends SqsClientTest {
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.data.streams.enabled", "true")
+  }
+
+  @Override
+  String expectedOperation(String awsService, String awsOperation) {
+    "aws.http"
+  }
+
+  @Override
+  String expectedService(String awsService, String awsOperation) {
+    if ("Sqs" == awsService) {
+      return "sqs"
+    }
+    return "java-aws-sdk"
+  }
+
+  @Override
+  boolean isDataStreamsEnabled() {
+    true
+  }
+
+
+  @Override
+  int version() {
+    0
+  }
+}
+
+class SqsClientV1DataStreamsForkedTest extends SqsClientTest {
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.data.streams.enabled", "true")
+  }
+
+  @Override
+  String expectedOperation(String awsService, String awsOperation) {
+    if (awsService == "Sqs") {
+      if (awsOperation == "ReceiveMessage") {
+        return "aws.sqs.process"
+      } else if (awsOperation == "SendMessage") {
+        return "aws.sqs.send"
+      }
+    }
+    return "aws.${awsService.toLowerCase()}.request"
+  }
+
+  @Override
+  String expectedService(String awsService, String awsOperation) {
+    "A-service"
+  }
+
+  @Override
+  boolean isDataStreamsEnabled() {
+    true
+  }
+
+  @Override
+  int version() {
+    1
+  }
+}
+
+
