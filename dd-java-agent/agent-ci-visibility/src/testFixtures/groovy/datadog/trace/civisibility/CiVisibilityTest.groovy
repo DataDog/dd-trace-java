@@ -2,7 +2,7 @@ package datadog.trace.civisibility
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.agent.test.civisibility.coverage.NoopCoverageProbeStore
+import datadog.trace.civisibility.coverage.NoopCoverageProbeStore
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags

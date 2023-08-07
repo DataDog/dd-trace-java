@@ -5,7 +5,6 @@ import java.util.List;
 import org.jacoco.core.analysis.IClassCoverage;
 import org.jacoco.core.analysis.ICounter;
 import org.jacoco.core.analysis.ICoverageVisitor;
-import org.jacoco.core.analysis.ILine;
 
 public class SourceAnalyzer implements ICoverageVisitor {
 
@@ -22,13 +21,22 @@ public class SourceAnalyzer implements ICoverageVisitor {
     }
 
     int firstLine = coverage.getFirstLine();
-    if (firstLine != -1) {
-      int lastLine = coverage.getLastLine();
-      for (int i = firstLine; i <= lastLine; i++) {
-        ILine line = coverage.getLine(i);
-        if (line.getStatus() >= ICounter.FULLY_COVERED) {
-          segments.add(new TestReportFileEntry.Segment(i, -1, i, -1, -1));
+    if (firstLine == -1) {
+      return;
+    }
+
+    int lastLine = coverage.getLastLine();
+    int line = firstLine;
+    while (line <= lastLine) {
+      if (coverage.getLine(line).getStatus() >= ICounter.FULLY_COVERED) {
+        int start = line++;
+        while (line <= lastLine && coverage.getLine(line).getStatus() >= ICounter.FULLY_COVERED) {
+          line++;
         }
+        segments.add(new TestReportFileEntry.Segment(start, -1, line - 1, -1, -1));
+
+      } else {
+        line++;
       }
     }
   }

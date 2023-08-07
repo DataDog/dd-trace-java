@@ -4,6 +4,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIVisibility;
 import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
@@ -23,6 +24,8 @@ import datadog.trace.civisibility.config.ConfigurationApiImpl;
 import datadog.trace.civisibility.config.JvmInfoFactory;
 import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory;
 import datadog.trace.civisibility.config.ModuleExecutionSettingsFactoryImpl;
+import datadog.trace.civisibility.coverage.NoopCoverageProbeStore;
+import datadog.trace.civisibility.coverage.SegmentlessTestProbes;
 import datadog.trace.civisibility.coverage.TestProbes;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.decorator.TestDecoratorImpl;
@@ -79,7 +82,17 @@ public class CiVisibilitySystem {
         testEventsHandlerFactory(config, sessionFactory));
     InstrumentationBridge.registerBuildEventsHandlerFactory(
         buildEventsHandlerFactory(sessionFactory));
-    InstrumentationBridge.registerCoverageProbeStoreFactory(new TestProbes.TestProbesFactory());
+    InstrumentationBridge.registerCoverageProbeStoreFactory(buildTestProbesFactory(config));
+  }
+
+  private static CoverageProbeStore.Factory buildTestProbesFactory(Config config) {
+    if (!config.isCiVisibilityCodeCoverageEnabled()) {
+      return new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory();
+    }
+    if (!config.isCiVisibilityCoverageSegmentsEnabled()) {
+      return new SegmentlessTestProbes.SegmentlessTestProbesFactory();
+    }
+    return new TestProbes.TestProbesFactory();
   }
 
   private static DDTestSessionImpl.SessionImplFactory sessionFactory(

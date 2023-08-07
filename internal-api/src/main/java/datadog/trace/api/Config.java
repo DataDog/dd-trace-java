@@ -131,6 +131,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CIPROVIDE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_REMOTE_NAME;
@@ -655,6 +656,7 @@ public class Config {
   private final boolean ciVisibilityCiProviderIntegrationEnabled;
   private final boolean ciVisibilityRepoIndexSharingEnabled;
   private final int ciVisibilityModuleExecutionSettingsCacheSize;
+  private final boolean ciVisibilityCoverageSegmentsEnabled;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1526,6 +1528,8 @@ public class Config {
         configProvider.getBoolean(CIVISIBILITY_REPO_INDEX_SHARING_ENABLED, true);
     ciVisibilityModuleExecutionSettingsCacheSize =
         configProvider.getInteger(CIVISIBILITY_MODULE_EXECUTION_SETTINGS_CACHE_SIZE, 16);
+    ciVisibilityCoverageSegmentsEnabled =
+        configProvider.getBoolean(CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED, false);
 
     remoteConfigEnabled =
         configProvider.getBoolean(REMOTE_CONFIG_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED);
@@ -2511,6 +2515,10 @@ public class Config {
 
   public int getCiVisibilityModuleExecutionSettingsCacheSize() {
     return ciVisibilityModuleExecutionSettingsCacheSize;
+  }
+
+  public boolean isCiVisibilityCoverageSegmentsEnabled() {
+    return ciVisibilityCoverageSegmentsEnabled;
   }
 
   public String getAppSecRulesFile() {
