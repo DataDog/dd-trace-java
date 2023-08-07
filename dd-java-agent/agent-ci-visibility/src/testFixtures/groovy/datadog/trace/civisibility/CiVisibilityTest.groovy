@@ -260,9 +260,11 @@ abstract class CiVisibilityTest extends AgentTestRunner {
   final Long testModuleId,
   final String testSuite,
   final String testStatus,
-  final Map<String, String> testTags = null,
+  final Map<String, Object> testTags = null,
   final Throwable exception = null,
-  final boolean emptyDuration = false, final Collection<String> categories = null) {
+  final boolean emptyDuration = false,
+  final Collection<String> categories = null,
+  final boolean sourceFilePresent = true) {
     def testFramework = expectedTestFramework()
     def testFrameworkVersion = expectedTestFrameworkVersion()
 
@@ -296,7 +298,9 @@ abstract class CiVisibilityTest extends AgentTestRunner {
         if (testTags) {
           testTags.each { key, val -> tag(key, val) }
         }
-        "$Tags.TEST_SOURCE_FILE" DUMMY_SOURCE_PATH
+        if (sourceFilePresent) {
+          "$Tags.TEST_SOURCE_FILE" DUMMY_SOURCE_PATH
+        }
 
         if (exception) {
           errorTags(exception.class, exception.message)
@@ -336,7 +340,9 @@ abstract class CiVisibilityTest extends AgentTestRunner {
   final String testStatus,
   final Map<String, Object> testTags = null,
   final Throwable exception = null,
-  final boolean emptyDuration = false, final Collection<String> categories = null) {
+  final boolean emptyDuration = false,
+  final Collection<String> categories = null,
+  final boolean sourceFilePresent = true) {
     def testFramework = expectedTestFramework()
     def testFrameworkVersion = expectedTestFrameworkVersion()
 
@@ -367,11 +373,14 @@ abstract class CiVisibilityTest extends AgentTestRunner {
         if (testTags) {
           testTags.each { key, val -> tag(key, val) }
         }
-        "$Tags.TEST_SOURCE_FILE" DUMMY_SOURCE_PATH
-        "$Tags.TEST_SOURCE_METHOD" testMethod
-        "$Tags.TEST_SOURCE_START" DUMMY_TEST_METHOD_START
-        "$Tags.TEST_SOURCE_END" DUMMY_TEST_METHOD_END
-        "$Tags.TEST_CODEOWNERS" Strings.toJson(DUMMY_CODE_OWNERS)
+
+        if (sourceFilePresent) {
+          "$Tags.TEST_SOURCE_FILE" DUMMY_SOURCE_PATH
+          "$Tags.TEST_SOURCE_METHOD" testMethod
+          "$Tags.TEST_SOURCE_START" DUMMY_TEST_METHOD_START
+          "$Tags.TEST_SOURCE_END" DUMMY_TEST_METHOD_END
+          "$Tags.TEST_CODEOWNERS" Strings.toJson(DUMMY_CODE_OWNERS)
+        }
 
         if (exception) {
           errorTags(exception.class, exception.message)

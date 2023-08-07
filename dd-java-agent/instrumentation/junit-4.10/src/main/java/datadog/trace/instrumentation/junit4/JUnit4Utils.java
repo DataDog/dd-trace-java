@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.junit4;
 
 import datadog.trace.api.civisibility.config.SkippableTest;
 import datadog.trace.util.Strings;
+import java.io.InputStream;
+import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -10,6 +12,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
@@ -19,6 +22,7 @@ import org.junit.runner.Description;
 import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.ParentRunner;
+import org.junit.runners.model.TestClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,12 +41,18 @@ public abstract class JUnit4Utils {
   private static final MethodHandle PARENT_RUNNER_DESCRIBE_CHILD;
   private static final MethodHandle RUN_NOTIFIER_LISTENERS;
   private static final MethodHandle INNER_SYNCHRONIZED_LISTENER;
+  private static final MethodHandle DESCRIPTION_UNIQUE_ID;
+  private static final MethodHandle CREATE_DESCRIPTION_WITH_UNIQUE_ID;
+  public static final String JUNIT_4_FRAMEWORK = "junit4";
+  public static final String CUCUMBER_FRAMEWORK = "cucumber";
 
   static {
     MethodHandles.Lookup lookup = MethodHandles.lookup();
     PARENT_RUNNER_DESCRIBE_CHILD = accessDescribeChildMethodInParentRunner(lookup);
     RUN_NOTIFIER_LISTENERS = accessListenersFieldInRunNotifier(lookup);
     INNER_SYNCHRONIZED_LISTENER = accessListenerFieldInSynchronizedListener(lookup);
+    DESCRIPTION_UNIQUE_ID = accessUniqueIdInDescription(lookup);
+    CREATE_DESCRIPTION_WITH_UNIQUE_ID = accessCreateDescriptionWithUniqueId(lookup);
   }
 
   private static MethodHandle accessDescribeChildMethodInParentRunner(MethodHandles.Lookup lookup) {
@@ -94,6 +104,27 @@ public abstract class JUnit4Utils {
       innerListenerField.setAccessible(true);
       return lookup.unreflectGetter(innerListenerField);
     } catch (Exception e) {
+      return null;
+    }
+  }
+
+  private static MethodHandle accessUniqueIdInDescription(MethodHandles.Lookup lookup) {
+    try {
+      final Field uniqueIdField = Description.class.getDeclaredField("fUniqueId");
+      uniqueIdField.setAccessible(true);
+      return lookup.unreflectGetter(uniqueIdField);
+    } catch (Throwable throwable) {
+      return null;
+    }
+  }
+
+  private static MethodHandle accessCreateDescriptionWithUniqueId(MethodHandles.Lookup lookup) {
+    try {
+      Method createDescription =
+          Description.class.getDeclaredMethod(
+              "createSuiteDescription", String.class, Serializable.class, Annotation[].class);
+      return lookup.unreflect(createDescription);
+    } catch (Throwable throwable) {
       return null;
     }
   }
@@ -306,6 +337,31 @@ public abstract class JUnit4Utils {
     return description.getTestClass() != null && !isTestCaseDescription(description);
   }
 
+  public static boolean isSuiteContainingChildren(
+      final TestClass testClass, final Description description) {
+    if (!testClass.getAnnotatedMethods(Test.class).isEmpty()) {
+      return true;
+    }
+    // check if this is a Cucumber feature
+    Object uniqueId = getUniqueId(description);
+    return uniqueId != null && uniqueId.toString().endsWith(".feature");
+  }
+
+  private static Object getUniqueId(final Description description) {
+    try {
+      if (DESCRIPTION_UNIQUE_ID != null) {
+        return DESCRIPTION_UNIQUE_ID.invoke(description);
+      }
+    } catch (Throwable e) {
+      log.error("Could not get unique ID from descriptions: " + description, e);
+    }
+    return null;
+  }
+
+  public static String getSuiteName(final Class<?> testClass, final Description description) {
+    return testClass != null ? testClass.getName() : description.getClassName();
+  }
+
   public static List<Method> getTestMethods(final Class<?> testClass) {
     final List<Method> testMethods = new ArrayList<>();
 
@@ -339,10 +395,30 @@ public abstract class JUnit4Utils {
     updatedAnnotations[idx] = new SkippedByItr();
 
     String displayName = description.getDisplayName();
-    Matcher matcher = METHOD_AND_CLASS_NAME_PATTERN.matcher(displayName);
-    String name = matcher.matches() ? matcher.group(1) : getTestName(description, null);
 
-    return Description.createTestDescription(description.getTestClass(), name, updatedAnnotations);
+    Class<?> testClass = description.getTestClass();
+    if (testClass != null) {
+      Matcher matcher = METHOD_AND_CLASS_NAME_PATTERN.matcher(displayName);
+      String name = matcher.matches() ? matcher.group(1) : getTestName(description, null);
+      return Description.createTestDescription(testClass, name, updatedAnnotations);
+
+    } else {
+      // Cucumber
+      if (CREATE_DESCRIPTION_WITH_UNIQUE_ID != null) {
+        // Try to preserve unique ID
+        // since we use it to determine framework.
+        // The factory method that accepts unique ID
+        // is only available in JUnit 4.12+
+        try {
+          Object uniqueId = getUniqueId(description);
+          return (Description)
+              CREATE_DESCRIPTION_WITH_UNIQUE_ID.invoke(displayName, uniqueId, updatedAnnotations);
+        } catch (Throwable throwable) {
+          // ignored
+        }
+      }
+      return Description.createSuiteDescription(displayName, updatedAnnotations);
+    }
   }
 
   public static SkippableTest toSkippableTest(Description description) {
@@ -351,5 +427,43 @@ public abstract class JUnit4Utils {
     String name = JUnit4Utils.getTestName(description, testMethod);
     String parameters = JUnit4Utils.getParameters(description);
     return new SkippableTest(suite, name, parameters, null);
+  }
+
+  public static String getTestFramework(final Description description) {
+    Object uniqueId = JUnit4Utils.getUniqueId(description);
+    if (uniqueId != null && uniqueId.getClass().getName().startsWith("io.cucumber.")) {
+      return CUCUMBER_FRAMEWORK;
+    } else {
+      return JUNIT_4_FRAMEWORK;
+    }
+  }
+
+  private static volatile String CUCUMBER_VERSION;
+
+  public static String getCucumberVersion(Description description) {
+    if (CUCUMBER_VERSION == null) {
+      String version = null;
+      Object cucumberId = JUnit4Utils.getUniqueId(description);
+      try (InputStream cucumberPropsStream =
+          cucumberId
+              .getClass()
+              .getClassLoader()
+              .getResourceAsStream("META-INF/maven/io.cucumber/cucumber-junit/pom.properties")) {
+        Properties cucumberProps = new Properties();
+        cucumberProps.load(cucumberPropsStream);
+        version = cucumberProps.getProperty("version");
+      } catch (Exception e) {
+        // fallback below
+      }
+      if (version != null) {
+        CUCUMBER_VERSION = version;
+      } else {
+        // Shouldn't happen normally.
+        // Put here as a guard against running the code above for every test case
+        // if version cannot be determined for whatever reason
+        CUCUMBER_VERSION = "unknown";
+      }
+    }
+    return CUCUMBER_VERSION;
   }
 }

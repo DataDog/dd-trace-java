@@ -21,4 +21,8 @@ dependencies {
       strictly '4.13.2'
     }
   }
+
+  testImplementation group: 'io.cucumber', name: 'cucumber-java', version: '5.4.0'
+  testImplementation group: 'io.cucumber', name: 'cucumber-junit', version: '5.4.0'
+  testImplementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.14.1'
 }
