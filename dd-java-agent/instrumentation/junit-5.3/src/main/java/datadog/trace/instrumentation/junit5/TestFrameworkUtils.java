@@ -3,55 +3,116 @@ package datadog.trace.instrumentation.junit5;
 import datadog.trace.api.civisibility.config.SkippableTest;
 import datadog.trace.util.Strings;
 import java.lang.annotation.Annotation;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
+import java.util.List;
+import java.util.ListIterator;
 import javax.annotation.Nullable;
 import org.junit.platform.commons.JUnitException;
+import org.junit.platform.commons.util.ClassLoaderUtils;
 import org.junit.platform.commons.util.ReflectionUtils;
 import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestSource;
 import org.junit.platform.engine.UniqueId;
 import org.junit.platform.engine.support.descriptor.MethodSource;
+import org.junit.platform.launcher.TestIdentifier;
 
 public abstract class TestFrameworkUtils {
   private static final String SPOCK_ENGINE_ID = "spock";
 
-  static final Method GET_JAVA_CLASS;
-  static final Method GET_JAVA_METHOD;
+  private static final MethodHandle GET_JAVA_CLASS;
+  private static final MethodHandle GET_JAVA_METHOD;
+  private static final MethodHandle GET_UNIQUE_ID_OBJECT;
+
+  private static final Class<Annotation> SPOCK_FEATURE_METADATA;
+
+  private static final MethodHandle SPOCK_FEATURE_NAME;
 
   static {
-    GET_JAVA_CLASS = accessGetJavaClass();
-    GET_JAVA_METHOD = accessGetJavaMethod();
+    /*
+     * We have to support older versions of JUnit 5 that do not have certain methods that we would
+     * like to use. We try to get method handles in runtime, and if we fail to do it there's a
+     * fallback to alternative (less efficient) ways of getting the required info
+     */
+    MethodHandles.Lookup lookup = MethodHandles.publicLookup();
+    GET_JAVA_CLASS = accessGetJavaClass(lookup);
+    GET_JAVA_METHOD = accessGetJavaMethod(lookup);
+    GET_UNIQUE_ID_OBJECT = accessGetUniqueIdObject(lookup);
+
+    /*
+     * Spock's classes are accessed via reflection and method handles
+     * since they are loaded by a different classloader in some envs
+     */
+    ClassLoader defaultClassLoader = ClassLoaderUtils.getDefaultClassLoader();
+    SPOCK_FEATURE_METADATA = accessSpockFeatureMetadata(defaultClassLoader);
+    SPOCK_FEATURE_NAME = accessSpockFeatureName(lookup, SPOCK_FEATURE_METADATA);
   }
 
-  private static Method accessGetJavaClass() {
+  private static MethodHandle accessGetJavaClass(MethodHandles.Lookup lookup) {
     try {
-      // the method was added in JUnit 5.7
-      // if older version of the framework is used, we fall back to a slower mechanism
-      Method method = MethodSource.class.getMethod("getJavaClass");
-      method.setAccessible(true);
-      return method;
+      MethodType returnsClass = MethodType.methodType(Class.class);
+      return lookup.findVirtual(MethodSource.class, "getJavaClass", returnsClass);
+    } catch (Exception e) {
+      // assuming we're dealing with an older framework version
+      // that does not have the methods we need;
+      // fallback logic will be used in corresponding utility methods
+      return null;
+    }
+  }
+
+  private static MethodHandle accessGetJavaMethod(MethodHandles.Lookup lookup) {
+    try {
+      MethodType returnsMethod = MethodType.methodType(Method.class);
+      return lookup.findVirtual(MethodSource.class, "getJavaMethod", returnsMethod);
+    } catch (Exception e) {
+      // assuming we're dealing with an older framework version
+      // that does not have the methods we need;
+      // fallback logic will be used in corresponding utility methods
+      return null;
+    }
+  }
+
+  private static MethodHandle accessGetUniqueIdObject(MethodHandles.Lookup lookup) {
+    try {
+      MethodType returnsUniqueId = MethodType.methodType(UniqueId.class);
+      return lookup.findVirtual(TestIdentifier.class, "getUniqueIdObject", returnsUniqueId);
+    } catch (Exception e) {
+      // assuming we're dealing with an older framework version
+      // that does not have the methods we need;
+      // fallback logic will be used in corresponding utility methods
+      return null;
+    }
+  }
+
+  private static Class<Annotation> accessSpockFeatureMetadata(ClassLoader classLoader) {
+    try {
+      return (Class<Annotation>)
+          classLoader.loadClass("org.spockframework.runtime.model.FeatureMetadata");
     } catch (Exception e) {
       return null;
     }
   }
 
-  private static Method accessGetJavaMethod() {
+  private static MethodHandle accessSpockFeatureName(
+      MethodHandles.Lookup lookup, Class<Annotation> spockFeatureMetadata) {
+    if (spockFeatureMetadata == null) {
+      return null;
+    }
     try {
-      // the method was added in JUnit 5.7
-      // if older version of the framework is used, we fall back to a slower mechanism
-      Method method = MethodSource.class.getMethod("getJavaMethod");
-      method.setAccessible(true);
-      return method;
+      MethodType returnsString = MethodType.methodType(String.class);
+      return lookup.findVirtual(spockFeatureMetadata, "name", returnsString);
     } catch (Exception e) {
       return null;
     }
   }
 
   public static Class<?> getTestClass(MethodSource methodSource) {
-    if (GET_JAVA_CLASS != null && GET_JAVA_CLASS.isAccessible()) {
+    if (GET_JAVA_CLASS != null) {
       try {
-        return (Class<?>) GET_JAVA_CLASS.invoke(methodSource);
-      } catch (Exception e) {
+        return (Class<?>) GET_JAVA_CLASS.invokeExact(methodSource);
+      } catch (Throwable e) {
         // ignore, fallback to slower mechanism below
       }
     }
@@ -59,10 +120,10 @@ public abstract class TestFrameworkUtils {
   }
 
   public static Method getTestMethod(MethodSource methodSource) {
-    if (GET_JAVA_METHOD != null && GET_JAVA_METHOD.isAccessible()) {
+    if (GET_JAVA_METHOD != null) {
       try {
-        return (Method) GET_JAVA_METHOD.invoke(methodSource);
-      } catch (Exception e) {
+        return (Method) GET_JAVA_METHOD.invokeExact(methodSource);
+      } catch (Throwable e) {
         // ignore, fallback to slower mechanism below
       }
     }
@@ -97,29 +158,24 @@ public abstract class TestFrameworkUtils {
       return null;
     }
 
-    try {
-      // annotation class has to be loaded like this since at runtime
-      // it is absent from the classloader that loads instrumentation code
-      Class<Annotation> featureMetadataClass =
-          (Class<Annotation>)
-              testClass
-                  .getClassLoader()
-                  .loadClass("org.spockframework.runtime.model.FeatureMetadata");
-      Method nameMethod = featureMetadataClass.getDeclaredMethod("name");
+    if (SPOCK_FEATURE_METADATA == null || SPOCK_FEATURE_NAME == null) {
+      return null;
+    }
 
+    try {
       for (Method declaredMethod : testClass.getDeclaredMethods()) {
-        Annotation featureMetadata = declaredMethod.getAnnotation(featureMetadataClass);
+        Annotation featureMetadata = declaredMethod.getAnnotation(SPOCK_FEATURE_METADATA);
         if (featureMetadata == null) {
           continue;
         }
 
-        String annotatedName = (String) nameMethod.invoke(featureMetadata);
+        String annotatedName = (String) SPOCK_FEATURE_NAME.invoke(featureMetadata);
         if (methodName.equals(annotatedName)) {
           return declaredMethod;
         }
       }
 
-    } catch (Exception e) {
+    } catch (Throwable e) {
       // ignore
     }
 
@@ -162,5 +218,35 @@ public abstract class TestFrameworkUtils {
     String testParameters = getParameters(methodSource, displayName);
 
     return new SkippableTest(testSuiteName, testName, testParameters, null);
+  }
+
+  public static @Nullable String getTestEngineId(final TestIdentifier testIdentifier) {
+    UniqueId uniqueId = getUniqueId(testIdentifier);
+    List<UniqueId.Segment> segments = uniqueId.getSegments();
+    ListIterator<UniqueId.Segment> iterator = segments.listIterator(segments.size());
+    // Iterating from the end of the list,
+    // since we want the last segment with type "engine".
+    // In case junit-platform-suite engine is used,
+    // its segment will be the first,
+    // and the actual engine that runs the test
+    // will be in some later segment
+    while (iterator.hasPrevious()) {
+      UniqueId.Segment segment = iterator.previous();
+      if ("engine".equals(segment.getType())) {
+        return segment.getValue();
+      }
+    }
+    return null;
+  }
+
+  private static UniqueId getUniqueId(TestIdentifier testIdentifier) {
+    if (GET_UNIQUE_ID_OBJECT != null) {
+      try {
+        return (UniqueId) GET_UNIQUE_ID_OBJECT.invokeExact(testIdentifier);
+      } catch (Throwable e) {
+        // fallback to slower mechanism below
+      }
+    }
+    return UniqueId.parse(testIdentifier.getUniqueId());
   }
 }

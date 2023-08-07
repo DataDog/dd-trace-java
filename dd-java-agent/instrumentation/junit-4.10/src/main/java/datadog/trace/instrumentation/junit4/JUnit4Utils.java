@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.junit4;
 import datadog.trace.api.civisibility.config.SkippableTest;
 import datadog.trace.util.Strings;
 import java.lang.annotation.Annotation;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -32,13 +34,65 @@ public abstract class JUnit4Utils {
   private static final Pattern METHOD_AND_CLASS_NAME_PATTERN =
       Pattern.compile("([\\s\\S]*)\\((.*)\\)");
 
-  private static final Method DESCRIBE_CHILD = accesDescribeChildMethod();
+  private static final MethodHandle PARENT_RUNNER_DESCRIBE_CHILD;
+  private static final MethodHandle RUN_NOTIFIER_LISTENERS;
+  private static final MethodHandle INNER_SYNCHRONIZED_LISTENER;
 
-  private static Method accesDescribeChildMethod() {
+  static {
+    MethodHandles.Lookup lookup = MethodHandles.lookup();
+    PARENT_RUNNER_DESCRIBE_CHILD = accessDescribeChildMethodInParentRunner(lookup);
+    RUN_NOTIFIER_LISTENERS = accessListenersFieldInRunNotifier(lookup);
+    INNER_SYNCHRONIZED_LISTENER = accessListenerFieldInSynchronizedListener(lookup);
+  }
+
+  private static MethodHandle accessDescribeChildMethodInParentRunner(MethodHandles.Lookup lookup) {
     try {
       Method describeChild = ParentRunner.class.getDeclaredMethod("describeChild", Object.class);
       describeChild.setAccessible(true);
-      return describeChild;
+      return lookup.unreflect(describeChild);
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  private static MethodHandle accessListenersFieldInRunNotifier(MethodHandles.Lookup lookup) {
+    try {
+      Field listeners;
+      try {
+        // Since JUnit 4.12, the field is called "listeners"
+        listeners = RunNotifier.class.getDeclaredField("listeners");
+      } catch (final NoSuchFieldException e) {
+        // Before JUnit 4.12, the field is called "fListeners"
+        listeners = RunNotifier.class.getDeclaredField("fListeners");
+      }
+
+      listeners.setAccessible(true);
+      return lookup.unreflectGetter(listeners);
+    } catch (final Throwable e) {
+      log.debug("Could not get runListeners for JUnit4Advice", e);
+      return null;
+    }
+  }
+
+  private static MethodHandle accessListenerFieldInSynchronizedListener(
+      MethodHandles.Lookup lookup) {
+    ClassLoader classLoader = RunListener.class.getClassLoader();
+    MethodHandle handle = accessListenerFieldInSynchronizedListener(lookup, classLoader);
+    if (handle != null) {
+      return handle;
+    } else {
+      ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+      return accessListenerFieldInSynchronizedListener(lookup, contextClassLoader);
+    }
+  }
+
+  private static MethodHandle accessListenerFieldInSynchronizedListener(
+      MethodHandles.Lookup lookup, ClassLoader classLoader) {
+    try {
+      Class<?> synchronizedListenerClass = classLoader.loadClass(SYNCHRONIZED_LISTENER);
+      final Field innerListenerField = synchronizedListenerClass.getDeclaredField("listener");
+      innerListenerField.setAccessible(true);
+      return lookup.unreflectGetter(innerListenerField);
     } catch (Exception e) {
       return null;
     }
@@ -46,22 +100,34 @@ public abstract class JUnit4Utils {
 
   public static List<RunListener> runListenersFromRunNotifier(final RunNotifier runNotifier) {
     try {
-
-      Field listeners;
-      try {
-        // Since JUnit 4.12, the field is called "listeners"
-        listeners = runNotifier.getClass().getDeclaredField("listeners");
-      } catch (final NoSuchFieldException e) {
-        // Before JUnit 4.12, the field is called "fListeners"
-        listeners = runNotifier.getClass().getDeclaredField("fListeners");
+      if (RUN_NOTIFIER_LISTENERS != null) {
+        return (List<RunListener>) RUN_NOTIFIER_LISTENERS.invoke(runNotifier);
       }
-
-      listeners.setAccessible(true);
-      return (List<RunListener>) listeners.get(runNotifier);
     } catch (final Throwable e) {
       log.debug("Could not get runListeners for JUnit4Advice", e);
-      return null;
     }
+    return null;
+  }
+
+  public static TracingListener toTracingListener(final RunListener listener) {
+    if (listener instanceof TracingListener) {
+      return (TracingListener) listener;
+    }
+
+    // Since JUnit 4.12, the RunListener are wrapped by a SynchronizedRunListener object.
+    if (SYNCHRONIZED_LISTENER.equals(listener.getClass().getName())) {
+      try {
+        if (INNER_SYNCHRONIZED_LISTENER != null) {
+          Object innerListener = INNER_SYNCHRONIZED_LISTENER.invoke(listener);
+          if (innerListener instanceof TracingListener) {
+            return (TracingListener) innerListener;
+          }
+        }
+      } catch (final Throwable e) {
+        log.debug("Could not get inner listener from SynchronizedRunListener", e);
+      }
+    }
+    return null;
   }
 
   public static boolean isTracingListener(final RunListener listener) {
@@ -77,39 +143,17 @@ public abstract class JUnit4Utils {
   public static RunListener unwrapListener(final RunListener listener) {
     if (SYNCHRONIZED_LISTENER.equals(listener.getClass().getName())) {
       try {
-        // There is no public accessor to the inner listener.
-        final Field innerListener = listener.getClass().getDeclaredField("listener");
-        innerListener.setAccessible(true);
-        return (RunListener) innerListener.get(listener);
-      } catch (final Throwable e) {
-        log.debug("Could not get inner listener from SynchronizedRunListener", e);
-      }
-    }
-    return listener;
-  }
-
-  public static TracingListener toTracingListener(final RunListener listener) {
-    if (listener instanceof TracingListener) {
-      return (TracingListener) listener;
-    }
-
-    // Since JUnit 4.12, the RunListener are wrapped by a SynchronizedRunListener object.
-    if (SYNCHRONIZED_LISTENER.equals(listener.getClass().getName())) {
-      try {
-        // There is no public accessor to the inner listener.
-        final Field innerListenerField = listener.getClass().getDeclaredField("listener");
-        innerListenerField.setAccessible(true);
-
-        Object innerListener = innerListenerField.get(listener);
-        if (innerListener instanceof TracingListener) {
-          return (TracingListener) innerListener;
+        if (INNER_SYNCHRONIZED_LISTENER != null) {
+          Object innerListener = INNER_SYNCHRONIZED_LISTENER.invoke(listener);
+          if (innerListener instanceof TracingListener) {
+            return (TracingListener) innerListener;
+          }
         }
       } catch (final Throwable e) {
         log.debug("Could not get inner listener from SynchronizedRunListener", e);
       }
     }
-
-    return null;
+    return listener;
   }
 
   @Nullable
@@ -276,10 +320,10 @@ public abstract class JUnit4Utils {
 
   public static Description getDescription(ParentRunner runner, Object child) {
     try {
-      if (DESCRIBE_CHILD != null) {
-        return (Description) DESCRIBE_CHILD.invoke(runner, child);
+      if (PARENT_RUNNER_DESCRIBE_CHILD != null) {
+        return (Description) PARENT_RUNNER_DESCRIBE_CHILD.invoke(runner, child);
       }
-    } catch (Exception e) {
+    } catch (Throwable e) {
       log.error("Could not describe child: " + child, e);
     }
     return null;
