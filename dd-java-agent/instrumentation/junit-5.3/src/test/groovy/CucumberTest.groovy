@@ -158,13 +158,10 @@ class CucumberTest extends CiVisibilityTest {
       long testModuleId
       long testSuiteId
       trace(3, true) {
-        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_SKIP, [
-          (DDTags.CI_ITR_TESTS_SKIPPED): true,
-          (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
-          (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 1,
-        ])
+        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_SKIP)
         testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_SKIP, [
           (DDTags.CI_ITR_TESTS_SKIPPED): true,
+          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
           (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
           (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 1,
         ])
