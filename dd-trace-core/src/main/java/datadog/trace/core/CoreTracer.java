@@ -876,17 +876,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return;
     }
     pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring::add);
-    try {
-      byte[] encodedContext = pathwayContext.encode();
-
-      if (encodedContext != null) {
-        log.debug("Injecting pathway context {}", pathwayContext);
-        setter.set(carrier, PathwayContext.PROPAGATION_KEY_BASE64, encodedContext);
-        injectPathwayTags(span, pathwayContext);
-      }
-    } catch (IOException e) {
-      log.debug("Unable to set encode pathway context", e);
-    }
+    pathwayContext.injectBinary(carrier, setter);
+    injectPathwayTags(span, pathwayContext);
   }
 
   private static void injectPathwayTags(AgentSpan span, PathwayContext pathwayContext) {

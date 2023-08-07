@@ -13,6 +13,7 @@ import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.BROKER_
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_DELIVER;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_clients.TextMapExtractAdapter.GETTER;
+import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.SETTER;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.api.Config;
@@ -20,6 +21,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -84,14 +86,27 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
             // spans are written out together by TraceStructureWriter when running in strict mode
           }
 
-          if (!DataStreamsIgnoreContext.contains(val.topic())) {
-            LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-            sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
-            sortedTags.put(GROUP_TAG, group);
-            sortedTags.put(TOPIC_TAG, val.topic());
-            sortedTags.put(TYPE_TAG, "kafka");
+          LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+          sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
+          sortedTags.put(GROUP_TAG, group);
+          sortedTags.put(TOPIC_TAG, val.topic());
+          sortedTags.put(TYPE_TAG, "kafka");
 
+          if (StreamingContext.empty()) {
             AgentTracer.get().setDataStreamCheckpoint(span, sortedTags, val.timestamp());
+          } else {
+            // when we're in a streaming context we want to consume only from source topics
+            if (StreamingContext.isSourceTopic(val.topic())) {
+              AgentTracer.get().setDataStreamCheckpoint(span, sortedTags, val.timestamp());
+              // We have to inject the context to headers here,
+              // since the data received from the source may leave the topology on
+              // some other instance of the application, breaking the context propagation
+              // for DSM users
+              PathwayContext pathwayContext = span.context().getPathwayContext();
+              pathwayContext.injectBinary(val.headers(), SETTER);
+
+              System.out.println("#### -> Re-injected context for data originated @" + val.topic());
+            }
           }
         } else {
           span = startSpan(operationName, null);

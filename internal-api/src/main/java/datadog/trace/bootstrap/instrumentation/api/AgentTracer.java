@@ -21,6 +21,7 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.profiling.Timer;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation.BinarySetter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -1123,6 +1124,9 @@ public class AgentTracer {
     public String strEncode() {
       return null;
     }
+
+    @Override
+    public <C> void injectBinary(C carrier, BinarySetter<C> setter) {}
   }
 
   public static class NoopAgentHistogram implements AgentHistogram {

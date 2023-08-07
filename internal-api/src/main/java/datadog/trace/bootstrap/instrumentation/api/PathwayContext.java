@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation.BinarySetter;
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.function.Consumer;
@@ -23,4 +24,6 @@ public interface PathwayContext {
   byte[] encode() throws IOException;
 
   String strEncode() throws IOException;
+
+  <C> void injectBinary(C carrier, BinarySetter<C> setter);
 }

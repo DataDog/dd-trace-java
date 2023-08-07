@@ -11,6 +11,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation.BinarySetter;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.util.FNV64Hash;
@@ -210,6 +211,19 @@ public class DefaultPathwayContext implements PathwayContext {
       return null;
     }
     return new String(bytes, ISO_8859_1);
+  }
+
+  @Override
+  public <C> void injectBinary(C carrier, BinarySetter<C> setter) {
+    try {
+      byte[] encodedContext = encode();
+      if (encodedContext != null) {
+        log.debug("Injecting pathway context {}", this);
+        setter.set(carrier, PathwayContext.PROPAGATION_KEY_BASE64, encodedContext);
+      }
+    } catch (IOException e) {
+      log.debug("Unable to set encode pathway context", e);
+    }
   }
 
   @Override

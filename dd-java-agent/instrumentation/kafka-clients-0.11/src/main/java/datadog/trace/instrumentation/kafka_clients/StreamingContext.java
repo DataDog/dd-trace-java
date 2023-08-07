@@ -1,23 +1,19 @@
-package datadog.trace.instrumentation.kafka_streams;
+package datadog.trace.instrumentation.kafka_clients;
 
-import java.util.HashSet;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import org.apache.kafka.streams.processor.StateStore;
-import org.apache.kafka.streams.processor.internals.ProcessorTopology;
 
-public class GlobalTopologyContext {
-
+/// StreamingContext holds the KStreams topology information
+public class StreamingContext {
   private static final Integer UNKNOWN_TOPIC = 0;
   private static final Integer SOURCE_TOPIC = 1;
   private static final Integer INTERNAL_TOPIC = 2;
   private static final Integer SINK_TOPIC = 3;
 
-  public static void registerTopology(ProcessorTopology topology) {
-    allSourceTopics.addAll(topology.sourceTopics());
-    allSinkTopics.addAll(topology.sinkTopics());
+  public static void registerTopics(Set<String> sourceTopics, Set<String> sinkTopics, Set<String> internalTopics) {
+    allSourceTopics.addAll(sourceTopics);
+    allSinkTopics.addAll(sinkTopics);
 
     ConcurrentHashMap<String, Integer> newTopics = new ConcurrentHashMap<>();
     for (String sourceTopic: allSourceTopics) {
@@ -34,11 +30,8 @@ public class GlobalTopologyContext {
       }
     }
 
-    Map<String, String> storeToChanglogMap = topology.storeToChangelogTopic();
-    for (StateStore store: topology.stateStores()) {
-      if (storeToChanglogMap.containsKey(store.name())) {
-        newTopics.put(storeToChanglogMap.get(store.name()), INTERNAL_TOPIC);
-      }
+    for (String internalTopic: internalTopics) {
+      newTopics.put(internalTopic, INTERNAL_TOPIC);
     }
 
     topics = newTopics;
@@ -48,16 +41,12 @@ public class GlobalTopologyContext {
     return Objects.equals(topics.getOrDefault(topic, UNKNOWN_TOPIC), SINK_TOPIC);
   }
 
-  public static Set<String> getInternalTopics() {
-    HashSet<String> result = new HashSet<>();
+  public static boolean isSourceTopic(final String topic) {
+    return Objects.equals(topics.getOrDefault(topic, UNKNOWN_TOPIC), SOURCE_TOPIC);
+  }
 
-    for (Map.Entry<String, Integer> entry: topics.entrySet()) {
-      if (Objects.equals(entry.getValue(), INTERNAL_TOPIC)) {
-        result.add(entry.getKey());
-      }
-    }
-
-    return result;
+  public static boolean empty() {
+    return topics.size() == 0;
   }
 
   private static final Set<String> allSourceTopics = ConcurrentHashMap.newKeySet();
@@ -65,4 +54,5 @@ public class GlobalTopologyContext {
   private static final Set<String> allSinkTopics = ConcurrentHashMap.newKeySet();
 
   private static ConcurrentHashMap<String, Integer> topics = new ConcurrentHashMap<>();
+
 }

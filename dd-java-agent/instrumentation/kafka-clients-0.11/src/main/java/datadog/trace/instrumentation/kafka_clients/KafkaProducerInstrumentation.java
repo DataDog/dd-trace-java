@@ -50,7 +50,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
       packageName + ".KafkaDecorator",
       packageName + ".TextMapInjectAdapter",
       packageName + ".KafkaProducerCallback",
-      packageName + ".DataStreamsIgnoreContext",
+      packageName + ".StreamingContext",
     };
   }
 
@@ -100,11 +100,8 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
         sortedTags.put(TYPE_TAG, "kafka");
         try {
           propagate().inject(span, record.headers(), SETTER);
-          System.out.println("#### -> Checking topic on produce " + record.topic());
-          if (!DataStreamsIgnoreContext.contains(record.topic())) {
+          if (StreamingContext.empty() || StreamingContext.isSinkTopic(record.topic())) {
             propagate().injectBinaryPathwayContext(span, record.headers(), SETTER, sortedTags);
-          } else {
-            System.out.println("#### -> Ignoring topic " + record.topic());
           }
         } catch (final IllegalStateException e) {
           // headers must be read-only from reused record. try again with new one.
@@ -118,7 +115,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
                   record.headers());
 
           propagate().inject(span, record.headers(), SETTER);
-          if (!DataStreamsIgnoreContext.contains(record.topic())) {
+          if (StreamingContext.empty() || StreamingContext.isSinkTopic(record.topic())) {
             propagate().injectBinaryPathwayContext(span, record.headers(), SETTER, sortedTags);
           }
         }

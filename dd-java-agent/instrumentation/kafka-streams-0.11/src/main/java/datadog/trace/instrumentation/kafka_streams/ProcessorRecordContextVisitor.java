@@ -16,7 +16,8 @@ import org.slf4j.LoggerFactory;
 
 public class ProcessorRecordContextVisitor
     implements AgentPropagation.ContextVisitor<ProcessorRecordContext>,
-        AgentPropagation.BinaryContextVisitor<ProcessorRecordContext> {
+        AgentPropagation.BinaryContextVisitor<ProcessorRecordContext>,
+        AgentPropagation.BinarySetter<ProcessorRecordContext> {
 
   private static final Logger log = LoggerFactory.getLogger(ProcessorRecordContextVisitor.class);
 
@@ -37,7 +38,7 @@ public class ProcessorRecordContextVisitor
     HEADERS_METHOD = method;
   }
 
-  public static final ProcessorRecordContextVisitor PR_GETTER = new ProcessorRecordContextVisitor();
+  public static final ProcessorRecordContextVisitor PR_GETTER_SETTER = new ProcessorRecordContextVisitor();
 
   @Override
   public void forEachKey(
@@ -100,5 +101,18 @@ public class ProcessorRecordContextVisitor
       log.debug("Unable to get kafka produced time", e);
     }
     return 0;
+  }
+
+  @Override
+  public void set(ProcessorRecordContext carrier, String key, byte[] value) {
+    if (HEADERS_METHOD == null) {
+      return;
+    }
+    try {
+      Headers headers = (Headers) HEADERS_METHOD.invokeExact(carrier);
+      headers.remove(key).add(key, value);
+    } catch (Throwable e) {
+      log.debug("Unable to set value", e);
+    }
   }
 }

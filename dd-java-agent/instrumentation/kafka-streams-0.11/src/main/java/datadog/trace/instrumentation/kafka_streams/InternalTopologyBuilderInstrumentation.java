@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.instrumentation.kafka_clients.DataStreamsIgnoreContext;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.streams.processor.internals.ProcessorTopology;
 
@@ -28,8 +27,8 @@ public class InternalTopologyBuilderInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-        packageName + ".GlobalTopologyContext",
-        "datadog.trace.instrumentation.kafka_clients.DataStreamsIgnoreContext"
+        packageName + ".StreamingContextUpdater",
+        "datadog.trace.instrumentation.kafka_clients.StreamingContext"
     };
   }
 
@@ -44,12 +43,7 @@ public class InternalTopologyBuilderInstrumentation extends Instrumenter.Tracing
     public static void exit(
         @Advice.Return final ProcessorTopology topology
     ) {
-      GlobalTopologyContext.registerTopology(topology);
-      System.out.println("#### -> Registered topology");
-      for (String topic: GlobalTopologyContext.getInternalTopics()) {
-        System.out.println("#### -> Excluded topics extended with " + topic);
-        DataStreamsIgnoreContext.add(topic);
-      }
+      StreamingContextUpdater.updateWithTopology(topology);
     }
   }
 }
