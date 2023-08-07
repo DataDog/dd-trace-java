@@ -35,18 +35,6 @@
         "VARIANT": "iast",
         "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.iast.enabled=true"
       }
-    },
-    "iast_FULL": {
-      "env": {
-        "VARIANT": "iast_FULL",
-        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.iast.enabled=true -Ddd.iast.detection.mode=FULL"
-      }
-    },
-    "iast_INACTIVE": {
-      "env": {
-        "VARIANT": "iast_INACTIVE",
-        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.iast.enabled=inactive"
-      }
     }
   }
 }

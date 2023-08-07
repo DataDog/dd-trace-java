@@ -32,30 +32,6 @@ RUN cd insecure-bank \
   && cp build/libs/*.war /insecure-bank.war
 
 
-# K6 distribution
-FROM grafana/xk6 as k6
-
-USER 0:0
-RUN xk6 build \
-    --with github.com/szkiba/xk6-faker@latest \
-    --output /k6
-
-
-# sirun distribution
-FROM debian:bookworm-slim as sirun
-
-RUN apt-get update \
-  && apt-get -y install wget \
-  && apt-get -y clean \
-  && rm -rf /var/lib/apt/lists/*
-
-USER 0:0
-ARG SIRUN_VERSION=0.1.11
-RUN wget -O sirun.tar.gz https://github.com/DataDog/sirun/releases/download/v$SIRUN_VERSION/sirun-v$SIRUN_VERSION-x86_64-unknown-linux-musl.tar.gz \
-	&& tar -xzf sirun.tar.gz \
-	&& rm sirun.tar.gz
-
-
 FROM debian:bookworm-slim
 
 RUN apt-get update \
@@ -80,8 +56,17 @@ ENV JAVA_17_HOME=/usr/lib/jvm/17
 ENV JAVA_HOME=${JAVA_8_HOME}
 ENV PATH=${PATH}:${JAVA_HOME}/bin
 
-COPY --from=k6 /k6 /usr/bin/k6
-COPY --from=sirun /sirun /usr/bin/sirun
+ARG SIRUN_VERSION=0.1.11
+RUN wget -O sirun.tar.gz https://github.com/DataDog/sirun/releases/download/v$SIRUN_VERSION/sirun-v$SIRUN_VERSION-x86_64-unknown-linux-musl.tar.gz \
+	&& tar -xzf sirun.tar.gz \
+	&& rm sirun.tar.gz \
+  && mv sirun /usr/bin/sirun
+
+ARG K6_VERSION=0.45.1
+RUN wget -O k6.tar.gz https://github.com/grafana/k6/releases/download/v$K6_VERSION/k6-v$K6_VERSION-linux-amd64.tar.gz \
+	&& tar --strip-components=1 -xzf k6.tar.gz \
+	&& rm k6.tar.gz \
+  && mv k6 /usr/bin/k6
 
 RUN mkdir -p /app
 
