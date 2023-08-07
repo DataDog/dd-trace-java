@@ -413,12 +413,9 @@ public class LogProbe extends ProbeDefinition {
     int maxDepth = capture != null ? capture.maxReferenceDepth : -1;
     Snapshot snapshot = new Snapshot(Thread.currentThread(), this, maxDepth);
     if (entryStatus.shouldSend() && exitStatus.shouldSend()) {
-      // only rate limit if a condition is defined
-      if (probeCondition != null) {
-        if (!ProbeRateLimiter.tryProbe(id)) {
-          sink.skipSnapshot(id, DebuggerContext.SkipCause.RATE);
-          return;
-        }
+      if (!ProbeRateLimiter.tryProbe(id)) {
+        sink.skipSnapshot(id, DebuggerContext.SkipCause.RATE);
+        return;
       }
       if (isCaptureSnapshot()) {
         snapshot.setEntry(entryContext);
@@ -487,12 +484,9 @@ public class LogProbe extends ProbeDefinition {
     Snapshot snapshot = new Snapshot(Thread.currentThread(), this, maxDepth);
     boolean shouldCommit = false;
     if (status.shouldSend()) {
-      // only rate limit if a condition is defined
-      if (probeCondition != null) {
-        if (!ProbeRateLimiter.tryProbe(id)) {
-          sink.skipSnapshot(id, DebuggerContext.SkipCause.RATE);
-          return;
-        }
+      if (!ProbeRateLimiter.tryProbe(id)) {
+        sink.skipSnapshot(id, DebuggerContext.SkipCause.RATE);
+        return;
       }
       if (isCaptureSnapshot()) {
         snapshot.addLine(lineContext, line);
