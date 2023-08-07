@@ -1,5 +1,6 @@
 import datadog.trace.api.DDTags
 import datadog.trace.core.datastreams.StatsGroup
+import spock.lang.IgnoreIf
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
@@ -38,6 +39,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     super.configurePreAgent()
     // Set a service name that gets sorted early with SORT_BY_NAMES
     injectSysConfig(GeneralConfig.SERVICE_NAME, "A-service")
+    injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, isDataStreamsEnabled().toString())
   }
 
   @Shared
@@ -180,12 +182,8 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     client.close()
   }
 
+  @IgnoreIf({instance.isDataStreamsEnabled()})
   def "trace details propagated from SQS to JMS"() {
-
-    if (isDataStreamsEnabled()) {
-      return
-    }
-
     setup:
     def client = SqsClient.builder()
       .region(Region.EU_CENTRAL_1)
@@ -335,11 +333,9 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     /Root=1-[0-9a-f]{8}-00000000${sendSpan.traceId.toHexStringPadded(16)};Parent=${DDSpanId.toHexStringPadded(sendSpan.spanId)};Sampled=1/
 
     cleanup:
-    if (!isDataStreamsEnabled()) {
-      session.close()
-      connection.stop()
-      client.close()
-    }
+    session.close()
+    connection.stop()
+    client.close()
   }
 }
 
@@ -423,13 +419,6 @@ class SqsClientV0DataStreamsTest extends SqsClientTest {
 }
 
 class SqsClientV1DataStreamsForkedTest extends SqsClientTest {
-
-  @Override
-  protected void configurePreAgent() {
-    super.configurePreAgent()
-    injectSysConfig("dd.data.streams.enabled", "true")
-  }
-
   @Override
   String expectedOperation(String awsService, String awsOperation) {
     if (awsService == "Sqs") {
