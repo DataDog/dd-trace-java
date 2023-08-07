@@ -1,5 +1,6 @@
 package datadog.trace.core.scopemanager;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.CONTEXT_KEY;
 import static datadog.trace.bootstrap.instrumentation.api.ContextKey.named;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
@@ -19,8 +20,8 @@ import java.util.Objects;
  * and can be retrieved using {@link AgentScopeManager#active()}.
  */
 public class ScopeContext implements AgentScopeContext {
-  public static final ContextKey<AgentSpan> SPAN_KEY = named("dd-span-key");
   public static final ContextKey<Baggage> BAGGAGE_KEY = named("dd-baggage-key");
+  private static final ScopeContext EMPTY = new ScopeContext(null, null, null);
   private final AgentSpan span;
   private final Baggage baggage;
   /**
@@ -41,7 +42,7 @@ public class ScopeContext implements AgentScopeContext {
    * @return An empty {@link ScopeContext} instance.
    */
   public static ScopeContext empty() {
-    return new ScopeContext(null, null, null);
+    return EMPTY;
   }
 
   /**
@@ -69,7 +70,7 @@ public class ScopeContext implements AgentScopeContext {
   public <T> T get(ContextKey<T> key) {
     if (key == null) {
       return null;
-    } else if (key == SPAN_KEY) {
+    } else if (key == CONTEXT_KEY) {
       return (T) this.span;
     } else if (key == BAGGAGE_KEY) {
       return (T) this.baggage;
@@ -91,7 +92,7 @@ public class ScopeContext implements AgentScopeContext {
     AgentSpan newSpan = this.span;
     Baggage newBaggage = this.baggage;
     Object[] newStore = this.store;
-    if (key == SPAN_KEY) {
+    if (key == CONTEXT_KEY) {
       newSpan = (AgentSpan) value;
     } else if (key == BAGGAGE_KEY) {
       newBaggage = (Baggage) value;

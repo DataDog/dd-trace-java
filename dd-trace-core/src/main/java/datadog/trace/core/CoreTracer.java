@@ -79,6 +79,7 @@ import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
+import datadog.trace.core.scopemanager.ScopeContext;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.lambda.LambdaHandler;
@@ -833,6 +834,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public AgentScope activeScope() {
     return scopeManager.active();
+  }
+
+  @Override
+  public AgentScopeContext activeContext() {
+    AgentScope activeScope = this.scopeManager.active();
+    return activeScope == null ? ScopeContext.empty() : activeScope.context();
   }
 
   @Override

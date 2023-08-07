@@ -4,7 +4,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan;
 import static datadog.trace.bootstrap.instrumentation.api.ScopeSource.INSTRUMENTATION;
 import static datadog.trace.bootstrap.instrumentation.api.ScopeSource.ITERATION;
-import static datadog.trace.core.scopemanager.ScopeContext.SPAN_KEY;
 import static datadog.trace.core.scopemanager.ScopeContext.fromSpan;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
@@ -221,7 +220,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     final ContinuableScope top = scopeStack.top;
 
     AgentScopeContext context =
-        (top == null ? ScopeContext.empty() : top.context).with(SPAN_KEY, span);
+        (top == null ? ScopeContext.empty() : top.context).with(AgentSpan.CONTEXT_KEY, span);
 
     boolean asyncPropagation =
         inheritAsyncPropagation && top != null
@@ -254,7 +253,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
   @Override
   public AgentScope activateContext(AgentScopeContext context) {
-
     return this.activate(context, INSTRUMENTATION.id(), false, false);
   }
 

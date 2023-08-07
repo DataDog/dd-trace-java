@@ -133,6 +133,25 @@ public class AgentTracer {
     return get().activeScope();
   }
 
+  /**
+   * Actives a context.
+   *
+   * @param context The context to activate.
+   * @return The scope of the newly activated context.
+   */
+  public static AgentScope activateContext(AgentScopeContext context) {
+    return get().activateContext(context);
+  }
+
+  /**
+   * Gets the active context.
+   *
+   * @return The active context, or an empty context if no active scope.
+   */
+  public static AgentScopeContext activeContext() {
+    return get().activeContext();
+  }
+
   public static AgentScope.Continuation capture() {
     final AgentScope activeScope = activeScope();
     return activeScope == null ? null : activeScope.capture();
@@ -234,6 +253,13 @@ public class AgentTracer {
     AgentSpan activeSpan();
 
     AgentScope activeScope();
+
+    /**
+     * Gets the active context.
+     *
+     * @return The active context, or an empty context if no active scope.
+     */
+    AgentScopeContext activeContext();
 
     AgentPropagation propagate();
 
@@ -387,6 +413,11 @@ public class AgentTracer {
     @Override
     public AgentScope activeScope() {
       return null;
+    }
+
+    @Override
+    public AgentScopeContext activeContext() {
+      return NoopAgentScopeContext.INSTANCE;
     }
 
     @Override

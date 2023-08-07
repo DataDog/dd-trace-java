@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import static datadog.trace.bootstrap.instrumentation.api.ContextKey.named;
+
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.gateway.IGSpanInfo;
@@ -9,6 +11,7 @@ import datadog.trace.api.sampling.PrioritySampling;
 import java.util.Map;
 
 public interface AgentSpan extends MutableSpan, IGSpanInfo {
+  ContextKey<AgentSpan> CONTEXT_KEY = named("dd-span-key");
 
   DDTraceId getTraceId();
 
