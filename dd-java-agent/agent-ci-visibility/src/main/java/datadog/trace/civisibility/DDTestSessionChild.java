@@ -1,8 +1,6 @@
 package datadog.trace.civisibility;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.DDTestModule;
-import datadog.trace.api.civisibility.DDTestSession;
 import datadog.trace.api.civisibility.config.JvmInfo;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
@@ -12,7 +10,7 @@ import datadog.trace.civisibility.source.MethodLinesResolver;
 import java.net.InetSocketAddress;
 import javax.annotation.Nullable;
 
-public class DDTestSessionChild implements DDTestSession {
+public class DDTestSessionChild extends DDTestSessionImpl {
 
   private final Long parentProcessSessionId;
   private final Long parentProcessModuleId;
@@ -63,7 +61,7 @@ public class DDTestSessionChild implements DDTestSession {
   }
 
   @Override
-  public DDTestModule testModuleStart(String moduleName, @Nullable Long startTime) {
+  public DDTestModuleImpl testModuleStart(String moduleName, @Nullable Long startTime) {
     return new DDTestModuleChild(
         parentProcessSessionId,
         parentProcessModuleId,
