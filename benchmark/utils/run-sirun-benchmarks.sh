@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
 set -eu
 
+function message() {
+  echo "$(date +"%T"): $1"
+}
+
 run_benchmark() {
   local type=$1
   local app=$2
   if [[ -d "${app}" ]] && [[ -f "${app}/benchmark.json" ]]; then
 
-    echo "Running ${type} benchmark: ${app}"
+    message "${type} benchmark: ${app} started"
     cd "${app}"
 
     # create output folder for the test
@@ -21,6 +25,8 @@ run_benchmark() {
 
     # run the sirun test
     sirun "${benchmark}" &>"${OUTPUT_DIR}/${app}.json"
+
+    message "${type} benchmark: ${app} finished"
 
     cd ..
   fi
