@@ -199,7 +199,7 @@ class SparkListenerTest extends AgentTestRunner {
         span {
           operationName "spark.application"
           spanType "spark"
-          assert span.tags["spark_application_metrics.available_executor_time"] == expectedExecutorTime
+          assert span.tags["spark.available_executor_time"] == expectedExecutorTime
         }
       }
     }
@@ -248,48 +248,48 @@ class SparkListenerTest extends AgentTestRunner {
       trace(5) {
         span {
           operationName "spark.application"
-          assert span.tags["spark_application_metrics.available_executor_time"] == 8000L
-          assert span.tags["spark_application_metrics.executor_run_time"] == 2900L
-          assert span.tags["spark_application_metrics.executor_deserialize_time"] == 100L
-          assert span.tags["spark_application_metrics.result_serialization_time"] == 100L
+          assert span.tags["spark.available_executor_time"] == 8000L
+          assert span.tags["spark.executor_run_time"] == 2900L
+          assert span.tags["spark.executor_deserialize_time"] == 100L
+          assert span.tags["spark.result_serialization_time"] == 100L
           spanType "spark"
         }
         span {
           operationName "spark.job"
-          assert span.tags["spark_job_metrics.available_executor_time"] == 4800L
-          assert span.tags["spark_job_metrics.executor_run_time"] == 2900L
-          assert span.tags["spark_job_metrics.executor_deserialize_time"] == 100L
-          assert span.tags["spark_job_metrics.result_serialization_time"] == 100L
+          assert span.tags["spark.available_executor_time"] == 4800L
+          assert span.tags["spark.executor_run_time"] == 2900L
+          assert span.tags["spark.executor_deserialize_time"] == 100L
+          assert span.tags["spark.result_serialization_time"] == 100L
           spanType "spark"
           childOf(span(0))
         }
         span {
           operationName "spark.stage"
           assert span.tags["stage_id"] == 3
-          assert span.tags["spark_stage_metrics.available_executor_time"] == 3000L
-          assert span.tags["spark_stage_metrics.executor_run_time"] == 1900L
-          assert span.tags["spark_stage_metrics.executor_deserialize_time"] == 0L
-          assert span.tags["spark_stage_metrics.result_serialization_time"] == 0L
+          assert span.tags["spark.available_executor_time"] == 3000L
+          assert span.tags["spark.executor_run_time"] == 1900L
+          assert span.tags["spark.executor_deserialize_time"] == 0L
+          assert span.tags["spark.result_serialization_time"] == 0L
           spanType "spark"
           childOf(span(1))
         }
         span {
           operationName "spark.stage"
           assert span.tags["stage_id"] == 2
-          assert span.tags["spark_stage_metrics.available_executor_time"] == 1000L
-          assert span.tags["spark_stage_metrics.executor_run_time"] == 900L
-          assert span.tags["spark_stage_metrics.executor_deserialize_time"] == 0L
-          assert span.tags["spark_stage_metrics.result_serialization_time"] == 100L
+          assert span.tags["spark.available_executor_time"] == 1000L
+          assert span.tags["spark.executor_run_time"] == 900L
+          assert span.tags["spark.executor_deserialize_time"] == 0L
+          assert span.tags["spark.result_serialization_time"] == 100L
           spanType "spark"
           childOf(span(1))
         }
         span {
           operationName "spark.stage"
           assert span.tags["stage_id"] == 1
-          assert span.tags["spark_stage_metrics.available_executor_time"] == 800L
-          assert span.tags["spark_stage_metrics.executor_run_time"] == 100L
-          assert span.tags["spark_stage_metrics.executor_deserialize_time"] == 100L
-          assert span.tags["spark_stage_metrics.result_serialization_time"] == 0L
+          assert span.tags["spark.available_executor_time"] == 800L
+          assert span.tags["spark.executor_run_time"] == 100L
+          assert span.tags["spark.executor_deserialize_time"] == 100L
+          assert span.tags["spark.result_serialization_time"] == 0L
           spanType "spark"
           childOf(span(1))
         }
@@ -322,26 +322,26 @@ class SparkListenerTest extends AgentTestRunner {
       trace(4) {
         span {
           operationName "spark.application"
-          assert span.tags["spark_application_metrics.peak_execution_memory"] == 1400L
+          assert span.tags["spark.peak_execution_memory"] == 1400L
           spanType "spark"
         }
         span {
           operationName "spark.job"
-          assert span.tags["spark_job_metrics.peak_execution_memory"] == 1400L
+          assert span.tags["spark.peak_execution_memory"] == 1400L
           spanType "spark"
           childOf(span(0))
         }
         span {
           operationName "spark.stage"
           assert span.tags["stage_id"] == 2
-          assert span.tags["spark_stage_metrics.peak_execution_memory"] == 1400L
+          assert span.tags["spark.peak_execution_memory"] == 1400L
           spanType "spark"
           childOf(span(1))
         }
         span {
           operationName "spark.stage"
           assert span.tags["stage_id"] == 1
-          assert span.tags["spark_stage_metrics.peak_execution_memory"] == 1200L
+          assert span.tags["spark.peak_execution_memory"] == 1200L
           spanType "spark"
           childOf(span(1))
         }
@@ -414,19 +414,19 @@ class SparkListenerTest extends AgentTestRunner {
       trace(4) {
         span {
           operationName "spark.application"
-          validateRelativeError(span.tags["spark_application_metrics.skew_time"] as double, 7700, relativeAccuracy)
+          validateRelativeError(span.tags["spark.skew_time"] as double, 7700, relativeAccuracy)
           spanType "spark"
         }
         span {
           operationName "spark.job"
           spanType "spark"
-          validateRelativeError(span.tags["spark_job_metrics.skew_time"] as double, 7700, relativeAccuracy)
+          validateRelativeError(span.tags["spark.skew_time"] as double, 7700, relativeAccuracy)
           childOf(span(0))
         }
         span {
           operationName "spark.stage"
           assert span.tags["stage_id"] == 2
-          validateRelativeError(span.tags["spark_stage_metrics.skew_time"] as double, 7500, relativeAccuracy)
+          validateRelativeError(span.tags["spark.skew_time"] as double, 7500, relativeAccuracy)
           validateSerializedHistogram(span.tags["_dd.spark.task_run_time"] as String, 7500, 11250, 15000, relativeAccuracy)
           spanType "spark"
           childOf(span(1))
@@ -434,7 +434,7 @@ class SparkListenerTest extends AgentTestRunner {
         span {
           operationName "spark.stage"
           assert span.tags["stage_id"] == 1
-          validateRelativeError(span.tags["spark_stage_metrics.skew_time"] as double, 200, relativeAccuracy)
+          validateRelativeError(span.tags["spark.skew_time"] as double, 200, relativeAccuracy)
           validateSerializedHistogram(span.tags["_dd.spark.task_run_time"] as String, 100, 200, 300, relativeAccuracy)
           spanType "spark"
           childOf(span(1))

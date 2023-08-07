@@ -158,11 +158,10 @@ public class DatadogSparkListener extends SparkListener {
       applicationSpan.setTag(DDTags.ERROR_STACK, lastJobFailedStackTrace);
     }
 
-    applicationMetrics.setSpanMetrics(applicationSpan, "spark_application_metrics");
-    applicationSpan.setMetric("spark_application_metrics.max_executor_count", maxExecutorCount);
+    applicationMetrics.setSpanMetrics(applicationSpan);
+    applicationSpan.setMetric("spark.max_executor_count", maxExecutorCount);
     applicationSpan.setMetric(
-        "spark_application_metrics.available_executor_time",
-        computeCurrentAvailableExecutorTime(time));
+        "spark.available_executor_time", computeCurrentAvailableExecutorTime(time));
 
     applicationSpan.finish(time * 1000);
   }
@@ -278,7 +277,7 @@ public class DatadogSparkListener extends SparkListener {
 
     SparkAggregatedTaskMetrics metrics = jobMetrics.remove(jobEnd.jobId());
     if (metrics != null) {
-      metrics.setSpanMetrics(jobSpan, "spark_job_metrics");
+      metrics.setSpanMetrics(jobSpan);
     }
 
     jobSpan.finish(jobEnd.time() * 1000);
@@ -374,7 +373,7 @@ public class DatadogSparkListener extends SparkListener {
     SparkAggregatedTaskMetrics stageMetric = stageMetrics.remove(stageSpanKey);
     if (stageMetric != null) {
       stageMetric.computeSkew();
-      stageMetric.setSpanMetrics(span, "spark_stage_metrics");
+      stageMetric.setSpanMetrics(span);
       applicationMetrics.accumulateStageMetrics(stageMetric);
 
       jobMetrics
@@ -530,7 +529,7 @@ public class DatadogSparkListener extends SparkListener {
 
       if (batchSpan != null) {
         if (metrics != null) {
-          metrics.setSpanMetrics(batchSpan, "spark");
+          metrics.setSpanMetrics(batchSpan);
         }
 
         batchSpan.setTag("id", event.id());
@@ -565,7 +564,7 @@ public class DatadogSparkListener extends SparkListener {
     SparkAggregatedTaskMetrics metrics = streamingBatchMetrics.remove(batchKey);
     if (batchSpan != null) {
       if (metrics != null) {
-        metrics.setSpanMetrics(batchSpan, "spark");
+        metrics.setSpanMetrics(batchSpan);
       }
 
       batchSpan.setTag("id", progress.id());
