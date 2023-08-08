@@ -93,8 +93,4 @@ public class DatabricksParentContext implements AgentSpan.Context {
   public PathwayContext getPathwayContext() {
     return null;
   }
-
-  @Override
-  public void overridePathwayContext(PathwayContext pathwayContext){
-  }
 }

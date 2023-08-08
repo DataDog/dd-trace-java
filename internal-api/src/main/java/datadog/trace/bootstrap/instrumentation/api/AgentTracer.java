@@ -990,10 +990,6 @@ public class AgentTracer {
     }
 
     @Override
-    public void overridePathwayContext(PathwayContext pathwayContext){
-    }
-
-    @Override
     public String getForwarded() {
       return null;
     }
