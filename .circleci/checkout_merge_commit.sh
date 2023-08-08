@@ -6,13 +6,15 @@ if [[ -z ${CIRCLE_PULL_REQUEST:-} ]]; then
   exit 0
 fi
 
+# CIRCLE_PR_NUMBER is not available in forked PRs.
+# https://support.circleci.com/hc/en-us/articles/360047521451-Why-is-CIRCLE-PR-NUMBER-empty-
 CCI_PR_NUMBER="${CIRCLE_PR_NUMBER:-${CIRCLE_PULL_REQUEST##*/}}"
 
 if [[ "$CIRCLE_BRANCH" != "master" && -n "${CCI_PR_NUMBER}" ]]; then
-  FETCH_REFS="${FETCH_REFS} +refs/pull/${CCI_PR_NUMBER}/merge:refs/pull/${CCI_PR_NUMBER}/merge +refs/pull/${CCI_PR_NUMBER}/head:refs/pull/${CCI_PR_NUMBER}/head"
+  FETCH_REFS="${FETCH_REFS:-} +refs/pull/${CCI_PR_NUMBER}/merge:refs/pull/${CCI_PR_NUMBER}/merge +refs/pull/${CCI_PR_NUMBER}/head:refs/pull/${CCI_PR_NUMBER}/head"
   git fetch -u origin ${FETCH_REFS}
 
-  if git merge-base --is-ancestor $(git show-ref --hash refs/pull/${CCI_PR_NUMBER}/head) $(git show-ref --hash refs/pull/${CCI_PR_NUMBER}/merge); then
+  if git merge-base --is-ancestor "$(git show-ref --hash refs/pull/${CCI_PR_NUMBER}/head) $(git show-ref --hash refs/pull/${CCI_PR_NUMBER}/merge)"; then
     git checkout "pull/${CCI_PR_NUMBER}/merge"
   else
     echo "[WARN] There is a merge conflict between master and PR ${CCI_PR_NUMBER}, merge branch cannot be checked out."
