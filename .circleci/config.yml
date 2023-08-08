@@ -62,21 +62,7 @@ commands:
       - checkout
       - run:
           name: Checkout merge commit
-          command: |
-            CCI_PR_NUMBER="${CIRCLE_PR_NUMBER:-${CIRCLE_PULL_REQUEST##*/}}"
-
-            if [[ "$CIRCLE_BRANCH" != "master" && -n "${CCI_PR_NUMBER}" ]]
-            then
-              FETCH_REFS="${FETCH_REFS} +refs/pull/${CCI_PR_NUMBER}/merge:refs/pull/${CCI_PR_NUMBER}/merge +refs/pull/${CCI_PR_NUMBER}/head:refs/pull/${CCI_PR_NUMBER}/head"
-              git fetch -u origin ${FETCH_REFS}
-
-              if git merge-base --is-ancestor $(git show-ref --hash refs/pull/${CCI_PR_NUMBER}/head) $(git show-ref --hash refs/pull/${CCI_PR_NUMBER}/merge); then
-                git checkout "pull/${CCI_PR_NUMBER}/merge"
-              else
-                echo "[WARN] There is a merge conflict between master and PR ${CCI_PR_NUMBER}, merge branch cannot be checked out."
-                git checkout "pull/${CCI_PR_NUMBER}/head"
-              fi
-            fi
+          command: .circleci/checkout_merge_commit
 
       - check_for_leftover_files
 
@@ -114,11 +100,7 @@ commands:
     steps:
       - run:
           name: Early return if this build is from a forked PR
-          command: |
-            if [[ "$CIRCLE_BRANCH" != "master" && -n "$CIRCLE_PR_NUMBER" ]]; then
-              echo "Nothing to do for forked PRs, so marking this step successful"
-              circleci step halt
-            fi
+          command: .circleci/early_return_for_forked_pull_requests.sh
 
   skip_unless_matching_files_changed:
     description: >-
@@ -129,22 +111,7 @@ commands:
     steps:
       - run:
           name: "Check if files relevant to job have changed"
-          command: |
-            CCI_PR_NUMBER="${CIRCLE_PR_NUMBER:-${CIRCLE_PULL_REQUEST##*/}}"
-
-            if [[ "$CIRCLE_BRANCH" != "master" && -n "$CCI_PR_NUMBER" ]]; then
-              BRANCH="$(git rev-parse --abbrev-ref HEAD)"
-              if [[ "$BRANCH" != "master" ]] && [[ "$BRANCH" != "release/*" ]]; then
-                # We know that we have checked out the PR merge branch, so the HEAD commit is a merge
-                # As a backup, if anything goes wrong with the diff, the build will fail
-                CHANGED_FILES=$(git show HEAD | grep -e "^Merge:" | cut -d ' ' -f 2- | sed 's/ /.../' | xargs git diff --name-only)
-                # Count the number of matches, and ignore if the grep doesn't match anything
-                MATCH_COUNT=$(echo "$CHANGED_FILES" | grep -c -E "<< pipeline.parameters.global_pattern >>|<< parameters.pattern >>") || true
-                if [[ "$MATCH_COUNT" -eq "0" ]]; then
-                  circleci step halt
-                fi
-              fi
-            fi
+          command: ./skip_unless_matching_files_changed.sh "<< pipeline.parameters.global_pattern >>|<< parameters.pattern >>"
 
   display_memory_usage:
     steps:
