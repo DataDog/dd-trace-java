@@ -7,11 +7,17 @@ defaults: &defaults
 
 test_matrix: &test_matrix
   parameters:
-    testJvm: [ "ibm8", "semeru8", "zulu8", "oracle8", "11", "zulu11", "17", "ubuntu17" ]
+    testJvm:
+{% for jdk in nocov_jdks %}
+      - "{{ jdk }}"
+{% endfor %}
 
 profiling_test_matrix: &profiling_test_matrix
   parameters:
-    testJvm: [ "8", "zulu8", "oracle8", "11", "zulu11", "17", "ubuntu17" ]
+    testJvm:
+{% for jdk in all_jdks %}
+      - "{{ jdk }}"
+{% endfor %}
 
 system_test_matrix: &system_test_matrix
   parameters:
@@ -179,6 +185,7 @@ commands:
   # 2) Cache keys are prefix matched, and the most recently updated cache that matches will be picked
   #
   # There is a weekly job that runs on Monday mornings that builds a new cache from scratch.
+  {% raw %}
   restore_dependency_cache:
     parameters:
       cacheType:
@@ -239,6 +246,7 @@ commands:
             # Workspace
             - ~/dd-trace-java/.gradle
             - ~/dd-trace-java/workspace
+{% endraw %}
 
   setup_system_tests:
     parameters:
@@ -1048,6 +1056,7 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 4
       testJvm: "8"
 
+{% if flaky %}
   - tests:
       requires:
         - ok_to_test
@@ -1088,6 +1097,7 @@ build_test_jobs: &build_test_jobs
       parallelism: 4
       maxWorkers: 4
       testJvm: "8"
+{% endif %}
 
   - tests:
       requires:
@@ -1127,30 +1137,6 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 3
       matrix:
         <<: *test_matrix
-
-  - tests:
-      requires:
-        - ok_to_test
-      name: test_semeru11_smoke
-      gradleTarget: "stageMainDist :smokeTest"
-      gradleParameters: "-PskipFlakyTests"
-      stage: smoke
-      cacheType: smoke
-      parallelism: 4
-      maxWorkers: 3
-      testJvm: "semeru11"
-
-  - tests:
-      requires:
-        - ok_to_test
-      name: test_semeru17_smoke
-      gradleTarget: "stageMainDist :smokeTest"
-      gradleParameters: "-PskipFlakyTests"
-      stage: smoke
-      cacheType: smoke
-      parallelism: 4
-      maxWorkers: 3
-      testJvm: "semeru17"
 
   - tests:
       requires:
@@ -1231,24 +1217,18 @@ build_test_jobs: &build_test_jobs
   - fan_in:
       requires:
         - test_published_artifacts
-        - test_8_profiling
-        - test_oracle8_profiling
-        - test_zulu8_profiling
-        - test_zulu11_profiling
-        - test_11_profiling
-        - test_17_profiling
+{% for jdk in all_jdks %}
+        - "test_{{ jdk }}_profiling"
+{% endfor %}
       name: profiling
       stage: profiling
 
   - fan_in:
       requires:
         - test_published_artifacts
-        - test_8_debugger
-        - test_oracle8_debugger
-        - test_zulu8_debugger
-        - test_zulu11_debugger
-        - test_11_debugger
-        - test_17_debugger
+{% for jdk in all_jdks %}
+        - "test_{{ jdk }}_debugger"
+{% endfor %}
       name: debugger
       stage: debugger
 
@@ -1259,13 +1239,9 @@ build_test_jobs: &build_test_jobs
         - check
         - test_published_artifacts
         - agent_integration_tests
-        - test_8
-        - test_ibm8
-        - test_11
-        - test_semeru11_smoke
-        - test_17
-        - test_semeru17_smoke
-        - test_zulu8
+{% for jdk in all_jdks %}
+        - "test_{{ jdk }}"
+{% endfor %}
         - profiling
         - debugger
       name: required
