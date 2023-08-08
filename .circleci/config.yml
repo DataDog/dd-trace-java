@@ -49,32 +49,13 @@ commands:
     steps:
       - run:
           name: Check for leftover files
-          command: |
-            LEFTOVER_FILES=$(find . -type f -regex '.*\.orig$')
-            if [[ "$LEFTOVER_FILES" != "" ]]
-            then
-              echo -e "Found leftover files in the commit:\n$LEFTOVER_FILES"
-              exit 1
-            fi
+          command: .circleci/check_for_leftover_files.sh
 
   generate_cache_ids:
     steps:
       - run:
           name: Generate cache ids
-          command: |
-            # Everything falls back to the main cache
-            BASE_CACHE_ID="main"
-            if [ "$CIRCLE_BRANCH" == "master" ];
-            then
-              # If we're on a the main branch, then they are the same
-              echo "${BASE_CACHE_ID}" >| _circle_ci_cache_id
-            else
-              # If we're on a PR branch, then we use the name of the branch and the
-              # PR number as a stable identifier for the branch cache
-              echo "${CIRCLE_BRANCH}-${CIRCLE_PULL_REQUEST##*/}" >| _circle_ci_cache_id
-            fi
-            # Have new branches start from the main cache
-            echo "${BASE_CACHE_ID}" >| _circle_ci_cache_base_id
+          command: .circleci/generate_cache_ids.sh
 
   setup_code:
     steps:
