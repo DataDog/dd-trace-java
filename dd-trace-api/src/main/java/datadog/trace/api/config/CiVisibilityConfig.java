@@ -4,6 +4,8 @@ package datadog.trace.api.config;
 public final class CiVisibilityConfig {
 
   public static final String CIVISIBILITY_ENABLED = "civisibility.enabled";
+  public static final String CIVISIBILITY_TRACE_SANITATION_ENABLED =
+      "civisibility.trace.sanitation.enabled";
   public static final String CIVISIBILITY_AGENTLESS_ENABLED = "civisibility.agentless.enabled";
   public static final String CIVISIBILITY_AGENTLESS_URL = "civisibility.agentless.url";
   public static final String CIVISIBILITY_SOURCE_DATA_ENABLED = "civisibility.source.data.enabled";
@@ -48,6 +50,8 @@ public final class CiVisibilityConfig {
       "civisibility.repo.index.sharing.enabled";
   public static final String CIVISIBILITY_MODULE_EXECUTION_SETTINGS_CACHE_SIZE =
       "civisibility.module.execution.settings.cache.size";
+  public static final String CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED =
+      "civisibility.coverage.segments.enabled";
 
   private CiVisibilityConfig() {}
 }

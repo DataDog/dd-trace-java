@@ -1,0 +1,38 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    group = 'io.cucumber'
+    module = 'cucumber-core'
+    versions = '[5.4.0,)'
+  }
+}
+
+dependencies {
+  compileOnly group: 'io.cucumber', name: 'cucumber-core', version: '5.4.0'
+
+  testImplementation(group: 'org.junit.platform', name: 'junit-platform-launcher') {
+    version {
+      strictly '1.8.2'
+    }
+  }
+  testImplementation(group: 'org.junit.platform', name: 'junit-platform-engine') {
+    version {
+      strictly '1.8.2'
+    }
+  }
+  testImplementation(group: 'org.junit.platform', name: 'junit-platform-suite') {
+    version {
+      strictly '1.8.2'
+    }
+  }
+  testImplementation(group: 'org.junit.platform', name: 'junit-platform-suite-engine') {
+    version {
+      strictly '1.8.2'
+    }
+  }
+
+  testImplementation group: 'io.cucumber', name: 'cucumber-java', version: '5.4.0'
+  testImplementation group: 'io.cucumber', name: 'cucumber-junit-platform-engine', version: '5.4.0'
+  testImplementation group: 'io.cucumber', name: 'cucumber-junit', version: '5.4.0'
+}

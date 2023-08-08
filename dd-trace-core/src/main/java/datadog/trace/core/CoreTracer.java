@@ -640,7 +640,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;
 
     if (config.isCiVisibilityEnabled()) {
-      addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE);
+      if (config.isCiVisibilityTraceSanitationEnabled()) {
+        addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE);
+      }
+
       if (config.isCiVisibilityAgentlessEnabled()) {
         addTraceInterceptor(DDIntakeTraceInterceptor.INSTANCE);
       } else {

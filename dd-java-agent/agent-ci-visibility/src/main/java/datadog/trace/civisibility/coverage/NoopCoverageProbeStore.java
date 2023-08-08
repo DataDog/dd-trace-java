@@ -1,4 +1,4 @@
-package datadog.trace.agent.test.civisibility.coverage;
+package datadog.trace.civisibility.coverage;
 
 import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
 import datadog.trace.api.civisibility.coverage.TestReport;

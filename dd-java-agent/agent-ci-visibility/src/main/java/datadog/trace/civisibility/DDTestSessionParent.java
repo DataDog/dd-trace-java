@@ -5,8 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.CIConstants;
-import datadog.trace.api.civisibility.DDTestModule;
-import datadog.trace.api.civisibility.DDTestSession;
 import datadog.trace.api.civisibility.config.JvmInfo;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.config.SkippableTest;
@@ -35,7 +33,7 @@ import java.util.Collection;
 import java.util.concurrent.atomic.LongAdder;
 import javax.annotation.Nullable;
 
-public class DDTestSessionParent implements DDTestSession {
+public class DDTestSessionParent extends DDTestSessionImpl {
 
   private final AgentSpan span;
   private final TestContext context;
@@ -106,6 +104,15 @@ public class DDTestSessionParent implements DDTestSession {
     if (result.isItrEnabled()) {
       itrEnabled = true;
     }
+    String testFramework = result.getTestFramework();
+    if (testFramework != null) {
+      setTag(Tags.TEST_FRAMEWORK, testFramework);
+    }
+    String testFrameworkVersion = result.getTestFrameworkVersion();
+    if (testFrameworkVersion != null) {
+      setTag(Tags.TEST_FRAMEWORK_VERSION, testFrameworkVersion);
+    }
+
     testsSkipped.add(result.getTestsSkippedTotal());
     return testModuleRegistry.onModuleExecutionResultReceived(result);
   }
@@ -183,7 +190,7 @@ public class DDTestSessionParent implements DDTestSession {
   }
 
   @Override
-  public DDTestModule testModuleStart(String moduleName, @Nullable Long startTime) {
+  public DDTestModuleImpl testModuleStart(String moduleName, @Nullable Long startTime) {
     DDTestModuleParent module =
         new DDTestModuleParent(
             context,

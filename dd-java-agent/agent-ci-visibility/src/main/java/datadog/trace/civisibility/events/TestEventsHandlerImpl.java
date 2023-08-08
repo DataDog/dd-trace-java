@@ -2,20 +2,14 @@ package datadog.trace.civisibility.events;
 
 import static datadog.trace.util.Strings.toJson;
 
-import datadog.trace.api.Config;
 import datadog.trace.api.DisableTestTrace;
-import datadog.trace.api.civisibility.DDTestSession;
 import datadog.trace.api.civisibility.config.SkippableTest;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
-import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.DDTestImpl;
 import datadog.trace.civisibility.DDTestModuleImpl;
+import datadog.trace.civisibility.DDTestSessionImpl;
 import datadog.trace.civisibility.DDTestSuiteImpl;
-import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.context.EmptyTestContext;
-import datadog.trace.civisibility.decorator.TestDecorator;
-import datadog.trace.civisibility.source.MethodLinesResolver;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
@@ -30,12 +24,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
   private static final Logger log = LoggerFactory.getLogger(TestEventsHandlerImpl.class);
 
-  private final Config config;
-  private final TestDecorator testDecorator;
-  private final SourcePathResolver sourcePathResolver;
-  private final Codeowners codeowners;
-  private final MethodLinesResolver methodLinesResolver;
-  private final DDTestSession testSession;
+  private final DDTestSessionImpl testSession;
   private final DDTestModuleImpl testModule;
 
   private final ConcurrentMap<TestSuiteDescriptor, Integer> testSuiteNestedCallCounters =
@@ -47,21 +36,9 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   private final ConcurrentMap<TestDescriptor, DDTestImpl> inProgressTests =
       new ConcurrentHashMap<>();
 
-  public TestEventsHandlerImpl(
-      DDTestSession testSession,
-      DDTestModuleImpl testModule,
-      Config config,
-      TestDecorator testDecorator,
-      SourcePathResolver sourcePathResolver,
-      Codeowners codeowners,
-      MethodLinesResolver methodLinesResolver) {
+  public TestEventsHandlerImpl(DDTestSessionImpl testSession, DDTestModuleImpl testModule) {
     this.testSession = testSession;
     this.testModule = testModule;
-    this.config = config;
-    this.testDecorator = testDecorator;
-    this.sourcePathResolver = sourcePathResolver;
-    this.codeowners = codeowners;
-    this.methodLinesResolver = methodLinesResolver;
   }
 
   @Override
@@ -169,25 +146,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
     TestSuiteDescriptor suiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
     DDTestSuiteImpl testSuite = inProgressTestSuites.get(suiteDescriptor);
-    DDTestImpl test =
-        testSuite != null
-            ? testSuite.testStart(testName, testMethodName, testMethod, null)
-            // suite events are not reported in Cucumber / JUnit 4 combination
-            : new DDTestImpl(
-                EmptyTestContext.INSTANCE,
-                EmptyTestContext.INSTANCE,
-                null,
-                testSuiteName,
-                testName,
-                null,
-                testClass,
-                testMethodName,
-                testMethod,
-                config,
-                testDecorator,
-                sourcePathResolver,
-                methodLinesResolver,
-                codeowners);
+    DDTestImpl test = testSuite.testStart(testName, testMethodName, testMethod, null);
 
     if (testFramework != null) {
       test.setTag(Tags.TEST_FRAMEWORK, testFramework);

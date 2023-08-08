@@ -166,5 +166,15 @@ public class DDTestModuleParent extends DDTestModuleImpl {
     codeCoverageEnabled = result.isCoverageEnabled();
     itrEnabled = result.isItrEnabled();
     testsSkipped.add(result.getTestsSkippedTotal());
+
+    String testFramework = result.getTestFramework();
+    if (testFramework != null) {
+      span.setTag(Tags.TEST_FRAMEWORK, testFramework);
+    }
+
+    String testFrameworkVersion = result.getTestFrameworkVersion();
+    if (testFrameworkVersion != null) {
+      span.setTag(Tags.TEST_FRAMEWORK_VERSION, testFrameworkVersion);
+    }
   }
 }

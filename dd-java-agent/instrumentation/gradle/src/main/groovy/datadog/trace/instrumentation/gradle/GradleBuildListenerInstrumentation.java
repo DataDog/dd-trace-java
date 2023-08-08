@@ -26,7 +26,6 @@ public class GradleBuildListenerInstrumentation extends Instrumenter.CiVisibilit
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".GradleUtils",
-      packageName + ".GradleUtils$TestFramework",
       packageName + ".GradleProjectConfigurator",
       packageName + ".GradleProjectConfigurator$_configureCompilerPlugin_closure1",
       packageName + ".GradleProjectConfigurator$_configureJacoco_closure2",

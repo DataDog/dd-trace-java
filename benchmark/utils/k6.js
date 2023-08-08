@@ -1,5 +1,4 @@
 import {check} from 'k6';
-import {Faker} from "k6/x/faker";
 
 export function checkResponse(response) {
   const checks = Array.prototype.slice.call(arguments, 1);
@@ -20,5 +19,3 @@ export function bodyContains(text) {
     'body contains': r => r.body.includes(text)
   }
 }
-
-export const faker = new Faker(123456789)
