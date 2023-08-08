@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -eu
 
+if [[ -z ${CIRCLE_PULL_REQUEST:-} ]]; then
+  echo "Not a pull request, skipping."
+  exit 0
+fi
+
 CCI_PR_NUMBER="${CIRCLE_PR_NUMBER:-${CIRCLE_PULL_REQUEST##*/}}"
 
 if [[ "$CIRCLE_BRANCH" != "master" && -n "${CCI_PR_NUMBER}" ]]; then
