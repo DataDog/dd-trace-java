@@ -1828,6 +1828,7 @@ public class CapturedSnapshotTest {
         .probeId(id)
         .captureSnapshot(true)
         .where(typeName, methodName, signature, lines)
+        // Increase sampling limit to avoid being sampled during tests
         .sampling(new LogProbe.Sampling(100));
   }
 

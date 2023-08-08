@@ -25,6 +25,7 @@ import static org.objectweb.asm.Type.VOID_TYPE;
 import static org.objectweb.asm.Type.getType;
 
 import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.api.Config;
@@ -302,8 +303,9 @@ public class CapturedContextInstrumentor extends Instrumentor {
       throwableListVar = declareThrowableList(insnList);
     }
     insnList.add(contextInitLabel);
-    if (definition.getEvaluateAt() == MethodLocation.EXIT) {
-      // if evaluation is at exit, skip collecting data at enter
+    if (definition instanceof SpanDecorationProbe
+        && definition.getEvaluateAt() == MethodLocation.EXIT) {
+      // if evaluation is at exit for a span decoration probe, skip collecting data at enter
       methodNode.instructions.insert(methodEnterLabel, insnList);
       return;
     }
@@ -315,32 +317,38 @@ public class CapturedContextInstrumentor extends Instrumentor {
     LabelNode targetNode = new LabelNode();
     LabelNode gotoNode = new LabelNode();
     insnList.add(new JumpInsnNode(Opcodes.IFEQ, targetNode));
-    LabelNode inProbeStartLabel = new LabelNode();
-    insnList.add(inProbeStartLabel);
-    // stack []
-    insnList.add(collectCapturedContext(Snapshot.Kind.ENTER, null));
-    // stack [capturedcontext]
-    ldc(insnList, Type.getObjectType(classNode.name));
-    // stack [capturedcontext, class]
-    ldc(insnList, -1L);
-    // stack [capturedcontext, class, long]
-    getStatic(insnList, METHOD_LOCATION_TYPE, "ENTRY");
-    // stack [capturedcontext, class, long, methodlocation]
-    pushProbesIds(insnList);
-    // stack [capturedcontext, class, long, methodlocation, array]
-    invokeStatic(
-        insnList,
-        DEBUGGER_CONTEXT_TYPE,
-        "evalContext",
-        VOID_TYPE,
-        CAPTURED_CONTEXT_TYPE,
-        CLASS_TYPE,
-        LONG_TYPE,
-        METHOD_LOCATION_TYPE,
-        STRING_ARRAY_TYPE);
-    invokeStatic(insnList, DEBUGGER_CONTEXT_TYPE, "disableInProbe", VOID_TYPE);
-    LabelNode inProbeEndLabel = new LabelNode();
-    insnList.add(inProbeEndLabel);
+    // if evaluation is at exit, skip collecting data at enter
+    if (definition.getEvaluateAt() != MethodLocation.EXIT) {
+      LabelNode inProbeStartLabel = new LabelNode();
+      insnList.add(inProbeStartLabel);
+      // stack []
+      insnList.add(collectCapturedContext(Snapshot.Kind.ENTER, null));
+      // stack [capturedcontext]
+      ldc(insnList, Type.getObjectType(classNode.name));
+      // stack [capturedcontext, class]
+      ldc(insnList, -1L);
+      // stack [capturedcontext, class, long]
+      getStatic(insnList, METHOD_LOCATION_TYPE, "ENTRY");
+      // stack [capturedcontext, class, long, methodlocation]
+      pushProbesIds(insnList);
+      // stack [capturedcontext, class, long, methodlocation, array]
+      invokeStatic(
+          insnList,
+          DEBUGGER_CONTEXT_TYPE,
+          "evalContext",
+          VOID_TYPE,
+          CAPTURED_CONTEXT_TYPE,
+          CLASS_TYPE,
+          LONG_TYPE,
+          METHOD_LOCATION_TYPE,
+          STRING_ARRAY_TYPE);
+      invokeStatic(insnList, DEBUGGER_CONTEXT_TYPE, "disableInProbe", VOID_TYPE);
+      LabelNode inProbeEndLabel = new LabelNode();
+      insnList.add(inProbeEndLabel);
+      createInProbeFinallyHandler(inProbeStartLabel, inProbeEndLabel);
+    } else {
+      invokeStatic(insnList, DEBUGGER_CONTEXT_TYPE, "disableInProbe", VOID_TYPE);
+    }
     // stack []
     insnList.add(new JumpInsnNode(Opcodes.GOTO, gotoNode));
     insnList.add(targetNode);
@@ -350,7 +358,6 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack []
     insnList.add(gotoNode);
     methodNode.instructions.insert(methodEnterLabel, insnList);
-    createInProbeFinallyHandler(inProbeStartLabel, inProbeEndLabel);
   }
 
   private void createInProbeFinallyHandler(LabelNode inProbeStartLabel, LabelNode inProbeEndLabel) {
