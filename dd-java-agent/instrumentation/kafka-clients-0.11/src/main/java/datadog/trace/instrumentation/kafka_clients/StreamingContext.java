@@ -11,12 +11,13 @@ public class StreamingContext {
   private static final Integer INTERNAL_TOPIC = 2;
   private static final Integer SINK_TOPIC = 3;
 
-  public static void registerTopics(Set<String> sourceTopics, Set<String> sinkTopics, Set<String> internalTopics) {
+  public static void registerTopics(
+      Set<String> sourceTopics, Set<String> sinkTopics, Set<String> internalTopics) {
     allSourceTopics.addAll(sourceTopics);
     allSinkTopics.addAll(sinkTopics);
 
     ConcurrentHashMap<String, Integer> newTopics = new ConcurrentHashMap<>();
-    for (String sourceTopic: allSourceTopics) {
+    for (String sourceTopic : allSourceTopics) {
       if (allSinkTopics.contains(sourceTopic)) {
         newTopics.put(sourceTopic, INTERNAL_TOPIC);
       } else {
@@ -24,13 +25,13 @@ public class StreamingContext {
       }
     }
 
-    for (String sinkTopic: allSinkTopics) {
+    for (String sinkTopic : allSinkTopics) {
       if (!allSourceTopics.contains(sinkTopic)) {
         newTopics.put(sinkTopic, SINK_TOPIC);
       }
     }
 
-    for (String internalTopic: internalTopics) {
+    for (String internalTopic : internalTopics) {
       newTopics.put(internalTopic, INTERNAL_TOPIC);
     }
 
@@ -54,5 +55,4 @@ public class StreamingContext {
   private static final Set<String> allSinkTopics = ConcurrentHashMap.newKeySet();
 
   private static ConcurrentHashMap<String, Integer> topics = new ConcurrentHashMap<>();
-
 }
