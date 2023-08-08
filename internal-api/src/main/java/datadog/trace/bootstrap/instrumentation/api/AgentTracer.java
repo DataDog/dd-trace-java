@@ -133,6 +133,11 @@ public class AgentTracer {
     return get().activeScope();
   }
 
+  public static AgentScope.Continuation capture() {
+    final AgentScope activeScope = activeScope();
+    return activeScope == null ? null : activeScope.capture();
+  }
+
   public static AgentPropagation propagate() {
     return get().propagate();
   }
@@ -485,11 +490,6 @@ public class AgentTracer {
     @Override
     public CallbackProvider getUniversalCallbackProvider() {
       return CallbackProvider.CallbackProviderNoop.INSTANCE;
-    }
-
-    @Override
-    public AgentScope.Continuation capture() {
-      return null;
     }
 
     @Override

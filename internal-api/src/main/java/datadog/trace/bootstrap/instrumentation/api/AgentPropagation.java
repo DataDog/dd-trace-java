@@ -4,9 +4,6 @@ import datadog.trace.api.TracePropagationStyle;
 import java.util.LinkedHashMap;
 
 public interface AgentPropagation {
-
-  AgentScope.Continuation capture();
-
   <C> void inject(AgentSpan span, C carrier, Setter<C> setter);
 
   <C> void inject(AgentSpan.Context context, C carrier, Setter<C> setter);

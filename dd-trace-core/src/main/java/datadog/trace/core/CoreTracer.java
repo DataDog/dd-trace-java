@@ -232,12 +232,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return propagationTagsFactory;
   }
 
-  @Override
-  public AgentScope.Continuation capture() {
-    final AgentScope activeScope = activeScope();
 
-    return activeScope == null ? null : activeScope.capture();
-  }
 
   @Override
   public void onRootSpanFinished(AgentSpan root, EndpointTracker tracker) {
