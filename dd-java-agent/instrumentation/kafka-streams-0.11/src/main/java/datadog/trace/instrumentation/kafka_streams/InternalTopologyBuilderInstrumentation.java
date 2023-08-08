@@ -27,22 +27,21 @@ public class InternalTopologyBuilderInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-        packageName + ".StreamingContextUpdater",
-        "datadog.trace.instrumentation.kafka_clients.StreamingContext"
+      packageName + ".StreamingContextUpdater",
+      "datadog.trace.instrumentation.kafka_clients.StreamingContext"
     };
   }
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isMethod().and(named("build")).and(isPrivate()).and(takesArguments(1)),
+    transformation.applyAdvice(
+        isMethod().and(named("build")).and(isPrivate()).and(takesArguments(1)),
         InternalTopologyBuilderInstrumentation.class.getName() + "$BuildAdvice");
   }
 
   public static class BuildAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void exit(
-        @Advice.Return final ProcessorTopology topology
-    ) {
+    public static void exit(@Advice.Return final ProcessorTopology topology) {
       StreamingContextUpdater.updateWithTopology(topology);
     }
   }

@@ -233,17 +233,17 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
           // The queueSpan will be finished after inner span has been activated to ensure that
           // spans are written out together by TraceStructureWriter when running in strict mode
         }
-          LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-          sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
-          if (streamTaskContext != null) {
-            String applicationId = streamTaskContext.getApplicationId();
-            if (applicationId != null) {
-              // Kafka Streams uses the application ID as the consumer group.id.
-              sortedTags.put(GROUP_TAG, applicationId);
-            }
+        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+        sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
+        if (streamTaskContext != null) {
+          String applicationId = streamTaskContext.getApplicationId();
+          if (applicationId != null) {
+            // Kafka Streams uses the application ID as the consumer group.id.
+            sortedTags.put(GROUP_TAG, applicationId);
           }
-          sortedTags.put(TOPIC_TAG, record.topic());
-          sortedTags.put(TYPE_TAG, "kafka");
+        }
+        sortedTags.put(TOPIC_TAG, record.topic());
+        sortedTags.put(TYPE_TAG, "kafka");
 
         if (StreamingContext.empty()) {
           AgentTracer.get().setDataStreamCheckpoint(span, sortedTags, record.timestamp);

@@ -18,7 +18,8 @@ public class StampedRecordContextVisitor
 
   private static final Logger log = LoggerFactory.getLogger(StampedRecordContextVisitor.class);
 
-  public static final StampedRecordContextVisitor SR_GETTER_SETTER = new StampedRecordContextVisitor();
+  public static final StampedRecordContextVisitor SR_GETTER_SETTER =
+      new StampedRecordContextVisitor();
 
   @Override
   public void forEachKey(StampedRecord carrier, AgentPropagation.KeyClassifier classifier) {
@@ -64,7 +65,7 @@ public class StampedRecordContextVisitor
   @Override
   public void set(StampedRecord carrier, String key, byte[] value) {
     Headers headers = carrier.value.headers();
-    if (headers != null){
+    if (headers != null) {
       headers.remove(key).add(key, value);
     }
   }

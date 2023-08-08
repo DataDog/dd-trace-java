@@ -13,7 +13,7 @@ public class StreamingContextUpdater {
     Set<String> internalTopics = ConcurrentHashMap.newKeySet();
     Map<String, String> storeToChanglogMap = topology.storeToChangelogTopic();
 
-    for (StateStore store: topology.stateStores()) {
+    for (StateStore store : topology.stateStores()) {
       if (storeToChanglogMap.containsKey(store.name())) {
         internalTopics.add(storeToChanglogMap.get(store.name()));
       }

@@ -38,7 +38,8 @@ public class ProcessorRecordContextVisitor
     HEADERS_METHOD = method;
   }
 
-  public static final ProcessorRecordContextVisitor PR_GETTER_SETTER = new ProcessorRecordContextVisitor();
+  public static final ProcessorRecordContextVisitor PR_GETTER_SETTER =
+      new ProcessorRecordContextVisitor();
 
   @Override
   public void forEachKey(
