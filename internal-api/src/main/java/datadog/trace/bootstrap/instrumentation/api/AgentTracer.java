@@ -554,7 +554,7 @@ public class AgentTracer {
     }
   }
 
-  public static final class NoopAgentSpan implements AgentSpan {
+  public static class NoopAgentSpan implements AgentSpan {
     public static final NoopAgentSpan INSTANCE = new NoopAgentSpan();
 
     protected NoopAgentSpan() {}
@@ -919,11 +919,12 @@ public class AgentTracer {
     public <C> void inject(final AgentSpan span, final C carrier, final Setter<C> setter) {}
 
     @Override
-    public <C> void inject(final Context context, final C carrier, final Setter<C> setter) {}
+    public <C> void inject(
+        AgentSpan span, C carrier, Setter<C> setter, TracePropagationStyle style) {}
 
     @Override
     public <C> void inject(
-        AgentSpan span, C carrier, Setter<C> setter, TracePropagationStyle style) {}
+        AgentScopeContext context, C carrier, Setter<C> setter, TracePropagationStyle style) {}
 
     @Override
     public <C> void injectPathwayContext(

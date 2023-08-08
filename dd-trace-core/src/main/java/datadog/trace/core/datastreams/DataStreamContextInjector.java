@@ -1,41 +1,51 @@
 package datadog.trace.core.datastreams;
 
 import static datadog.trace.api.DDTags.PATHWAY_HASH;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.CONTEXT_KEY;
 import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.PROPAGATION_KEY_BASE64;
+import static datadog.trace.core.datastreams.DefaultPathwayContext.TAGS_CONTEXT_KEY;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
+import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.propagation.HttpCodec;
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DataStreamContextInjector {
+public class DataStreamContextInjector implements HttpCodec.ContextInjector {
   private static final Logger LOGGER = LoggerFactory.getLogger(DataStreamContextInjector.class);
+  private static final LinkedHashMap<String, String> EMPTY = new LinkedHashMap<>();
   private final DataStreamsMonitoring dataStreamsMonitoring;
 
   public DataStreamContextInjector(DataStreamsMonitoring dataStreamsMonitoring) {
     this.dataStreamsMonitoring = dataStreamsMonitoring;
   }
 
-  public <C> void injectPathwayContext(
-      AgentSpan span,
-      C carrier,
-      AgentPropagation.Setter<C> setter,
-      LinkedHashMap<String, String> sortedTags) {
-    PathwayContext pathwayContext = span.context().getPathwayContext();
-    if (pathwayContext == null) {
+  @Override
+  public <C> void inject(
+      AgentScopeContext scopeContext, C carrier, AgentPropagation.Setter<C> setter) {
+    // Get Pathway context and tags from context
+    AgentSpan span = scopeContext.get(CONTEXT_KEY);
+    if (span == null || !(span.context() instanceof DDSpanContext)) {
       return;
     }
-    pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring::add);
+    LinkedHashMap<String, String> tags = scopeContext.get(TAGS_CONTEXT_KEY);
+    if (tags == null) {
+      tags = EMPTY;
+    }
+    final DDSpanContext context = (DDSpanContext) span.context();
+    PathwayContext pathwayContext = context.getPathwayContext();
+    pathwayContext.setCheckpoint(tags, dataStreamsMonitoring::add);
 
     boolean injected =
         setter instanceof AgentPropagation.BinarySetter
             ? injectBinaryPathwayContext(
                 pathwayContext, carrier, (AgentPropagation.BinarySetter<C>) setter)
             : injectPathwayContext(pathwayContext, carrier, setter);
-
     if (injected && pathwayContext.getHash() != 0) {
       span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayContext.getHash()));
     }

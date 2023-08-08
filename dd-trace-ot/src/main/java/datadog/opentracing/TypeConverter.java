@@ -116,6 +116,24 @@ class TypeConverter {
     }
   }
 
+  public AgentSpan wrapContext(final AgentSpan.Context context) {
+    return new WrappedContext(context);
+  }
+
+  static final class WrappedContext extends AgentTracer.NoopAgentSpan {
+    private final Context context;
+
+    WrappedContext(Context context) {
+      super();
+      this.context = context;
+    }
+
+    @Override
+    public Context context() {
+      return this.context;
+    }
+  }
+
   /**
    * Wraps an internal {@link AgentScope} to automatically finish its span when the scope is closed.
    */

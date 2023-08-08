@@ -44,6 +44,7 @@ public class GlobalTracerInstrumentation extends Instrumenter.Tracing
       packageName + ".OTScopeManager",
       packageName + ".OTScopeManager$OTScope",
       packageName + ".TypeConverter",
+      packageName + ".TypeConverter$WrappedContext",
       packageName + ".OTSpan",
       packageName + ".OTSpanContext",
       "datadog.trace.instrumentation.opentracing.LogHandler",

@@ -5,11 +5,11 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.core.ControllableSampler
-import datadog.trace.core.datastreams.DataStreamContextInjector
 import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.TracePropagationStyle.B3MULTI
 import static datadog.trace.api.TracePropagationStyle.DATADOG
+import static datadog.trace.api.TracePropagationStyle.PATHWAY_CONTEXT
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
 
@@ -18,8 +18,8 @@ class CorePropagationTest extends DDCoreSpecification {
   HttpCodec.Injector datadogInjector
   HttpCodec.Injector b3Injector
   HttpCodec.Injector traceContextInjector
-  Map<TracePropagationStyle, HttpCodec.Injector> allInjectors
-  DataStreamContextInjector dataStreamContextInjector
+  HttpCodec.ContextInjector dataStreamContextInjector
+  Map<TracePropagationStyle, HttpCodec.ContextInjector> allInjectors
   AgentPropagation propagation
 
   def setup() {
@@ -27,13 +27,14 @@ class CorePropagationTest extends DDCoreSpecification {
     datadogInjector = Mock(HttpCodec.Injector)
     b3Injector = Mock(HttpCodec.Injector)
     traceContextInjector = Mock(HttpCodec.Injector)
+    dataStreamContextInjector = Mock(HttpCodec.ContextInjector)
     allInjectors = [
       (DATADOG)     : datadogInjector,
       (B3MULTI)     : b3Injector,
       (TRACECONTEXT): traceContextInjector,
+      (PATHWAY_CONTEXT): dataStreamContextInjector
     ]
-    dataStreamContextInjector = Mock(DataStreamContextInjector)
-    propagation = new CorePropagation(extractor, datadogInjector, allInjectors, dataStreamContextInjector)
+    propagation = new CorePropagation(extractor, datadogInjector, allInjectors)
   }
 
   def 'test default injector for span'() {
@@ -50,7 +51,7 @@ class CorePropagationTest extends DDCoreSpecification {
     1 * datadogInjector.inject(_, carrier, setter)
     0 * b3Injector.inject(_, carrier, setter)
     0 * traceContextInjector.inject(_, carrier, setter)
-    0 * dataStreamContextInjector.injectPathwayContext(_, carrier, setter, _)
+    0 * dataStreamContextInjector.inject(_, carrier, setter)
 
     cleanup:
     span.finish()
@@ -65,14 +66,13 @@ class CorePropagationTest extends DDCoreSpecification {
     def carrier = new Object()
 
     when:
-    def spanContext = span.context()
-    propagation.inject(spanContext, carrier, setter)
+    propagation.inject(span, carrier, setter)
 
     then:
     1 * datadogInjector.inject(_, carrier, setter)
     0 * b3Injector.inject(_, carrier, setter)
     0 * traceContextInjector.inject(_, carrier, setter)
-    0 * dataStreamContextInjector.injectPathwayContext(_, carrier, setter, _)
+    0 * dataStreamContextInjector.inject(_, carrier, setter)
 
     cleanup:
     span.finish()
@@ -101,14 +101,16 @@ class CorePropagationTest extends DDCoreSpecification {
     if (injector != traceContextInjector) {
       0 * traceContextInjector.inject(_, carrier, setter)
     }
-    0 * dataStreamContextInjector.injectPathwayContext(_, carrier, setter, _)
+    if (injector != dataStreamContextInjector) {
+      0 * dataStreamContextInjector.inject(_, carrier, setter)
+    }
 
     cleanup:
     span.finish()
     tracer.close()
 
     where:
-    style << [DATADOG, B3MULTI, TRACECONTEXT, null]
+    style << [DATADOG, B3MULTI, TRACECONTEXT, PATHWAY_CONTEXT, null]
   }
 
   def 'test context extractor'() {

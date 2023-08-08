@@ -26,7 +26,7 @@ public interface DataStreamsMonitoring extends AgentDataStreamsMonitoring, AutoC
    *
    * @return A context injector if supported, {@code null} otherwise.
    */
-  DataStreamContextInjector injector();
+  HttpCodec.ContextInjector injector();
 
   /**
    * Injects DSM {@link PathwayContext} into a span {@link Context}.

@@ -3,6 +3,7 @@ package datadog.trace.core;
 import static datadog.communication.monitor.DDAgentStatsDClientManager.statsDClientManager;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.api.DDTags.SPAN_LINKS;
+import static datadog.trace.api.TracePropagationStyle.PATHWAY_CONTEXT;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
@@ -66,7 +67,6 @@ import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
-import datadog.trace.core.datastreams.DataStreamContextInjector;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
 import datadog.trace.core.datastreams.NoopDataStreamsMonitoring;
@@ -616,12 +616,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         extractor == null ? HttpCodec.createExtractor(config, this::captureTraceConfig) : extractor;
     builtExtractor = this.dataStreamsMonitoring.extractor(builtExtractor);
     // Create all HTTP injectors plus the DSM one
-    Map<TracePropagationStyle, HttpCodec.Injector> injectors =
+    Map<TracePropagationStyle, HttpCodec.Injector> httpInjectors =
         HttpCodec.allInjectorsFor(config, invertMap(baggageMapping));
-    DataStreamContextInjector dataStreamContextInjector = this.dataStreamsMonitoring.injector();
+    Map<TracePropagationStyle, HttpCodec.ContextInjector> contextInjectors =
+        new HashMap<>(httpInjectors);
+    contextInjectors.put(PATHWAY_CONTEXT, this.dataStreamsMonitoring.injector());
     // Store all propagators to propagation
-    this.propagation =
-        new CorePropagation(builtExtractor, injector, injectors, dataStreamContextInjector);
+    this.propagation = new CorePropagation(builtExtractor, injector, contextInjectors);
 
     this.tagInterceptor =
         null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;

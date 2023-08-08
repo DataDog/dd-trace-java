@@ -1,9 +1,13 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.CONTEXT_KEY;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
 import java.io.UnsupportedEncodingException;
@@ -41,9 +45,30 @@ public class HttpCodec {
   static final String CF_CONNECTING_IP_KEY = "cf-connecting-ip";
   static final String CF_CONNECTING_IP_V6_KEY = "cf-connecting-ipv6";
 
-  public interface Injector {
+  public interface ContextInjector {
+    <C> void inject(
+        final AgentScopeContext context, final C carrier, final AgentPropagation.Setter<C> setter);
+  }
+
+  public interface Injector extends ContextInjector {
+    @Override
+    default <C> void inject(
+        final AgentScopeContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
+      DDSpanContext spanContext = getSpanContext(context);
+      spanContext.getTrace().setSamplingPriorityIfNecessary();
+      inject(spanContext, carrier, setter);
+    }
+
     <C> void inject(
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter);
+
+    default DDSpanContext getSpanContext(AgentScopeContext context) {
+      AgentSpan agentSpan = context.get(CONTEXT_KEY);
+      if (agentSpan != null && agentSpan.context() instanceof DDSpanContext) {
+        return (DDSpanContext) agentSpan.context();
+      }
+      return null;
+    }
   }
 
   public interface Extractor {

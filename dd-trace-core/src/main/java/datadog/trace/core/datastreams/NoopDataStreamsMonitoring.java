@@ -1,14 +1,23 @@
 package datadog.trace.core.datastreams;
 
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
+import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.propagation.HttpCodec;
 import java.util.LinkedHashMap;
 
 public class NoopDataStreamsMonitoring implements DataStreamsMonitoring {
+  private static final HttpCodec.Injector NOOP_INJECTOR =
+      new HttpCodec.Injector() {
+        @Override
+        public <C> void inject(
+            DDSpanContext context, C carrier, AgentPropagation.Setter<C> setter) {}
+      };
+
   @Override
   public void start() {}
 
@@ -26,8 +35,8 @@ public class NoopDataStreamsMonitoring implements DataStreamsMonitoring {
   }
 
   @Override
-  public DataStreamContextInjector injector() {
-    return new DataStreamContextInjector(this);
+  public HttpCodec.ContextInjector injector() {
+    return NOOP_INJECTOR;
   }
 
   @Override
