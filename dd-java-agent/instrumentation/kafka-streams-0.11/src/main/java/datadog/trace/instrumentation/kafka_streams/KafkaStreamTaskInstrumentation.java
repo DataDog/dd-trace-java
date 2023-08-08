@@ -326,8 +326,6 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
 
             PathwayContext pathwayContext = span.context().getPathwayContext();
             pathwayContext.injectBinary(record, PR_GETTER_SETTER);
-
-            System.out.println("#### -> Re-injected context (KS) for data originated @" + record.topic());
           }
         }
       } else {

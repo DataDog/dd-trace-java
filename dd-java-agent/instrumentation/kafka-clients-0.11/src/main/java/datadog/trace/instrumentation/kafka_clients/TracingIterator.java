@@ -104,8 +104,6 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
               // for DSM users
               PathwayContext pathwayContext = span.context().getPathwayContext();
               pathwayContext.injectBinary(val.headers(), SETTER);
-
-              System.out.println("#### -> Re-injected context for data originated @" + val.topic());
             }
           }
         } else {
