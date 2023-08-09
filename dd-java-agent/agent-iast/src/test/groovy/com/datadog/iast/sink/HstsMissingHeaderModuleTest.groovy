@@ -166,18 +166,20 @@ public class HstsMissingHeaderModuleTest extends IastModuleImplTestBase {
 
   void 'test max age'(){
     when:
-    final result = HstsMissingHeaderModuleImpl.isMaxAgeZero(value)
+    final result = HstsMissingHeaderModuleImpl.isValidMaxAge(value)
 
     then:
     result == expected
 
     where:
-    value         | expected
-    "max-age=0"   | true
-    "max-age=-1"  | true
-    null          | false
-    ""            | false
-    "max-age-3"   | false
-    "ramdom"      | false
+    value               | expected
+    "max-age=0"         | false
+    "max-age=-1"        | false
+    null                | false
+    ""                  | false
+    "max-age-3"         | false
+    "ramdom"            | false
+    "max-age=10"        | true
+    "max-age=0122344"   | true
   }
 }

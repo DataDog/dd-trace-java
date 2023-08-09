@@ -75,7 +75,7 @@ public class HstsMissingHeaderModuleImpl extends SinkModuleBase implements HstsM
     }
   }
 
-  private static boolean isValidMaxAge(@Nullable final String value) {
+  public static boolean isValidMaxAge(@Nullable final String value) {
     if (value == null) {
       return false;
     }
