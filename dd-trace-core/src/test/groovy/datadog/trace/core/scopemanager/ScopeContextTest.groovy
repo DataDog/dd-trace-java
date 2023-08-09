@@ -6,8 +6,8 @@ import datadog.trace.core.DDBaggage
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.CONTEXT_KEY
-import static datadog.trace.core.scopemanager.ScopeContext.BAGGAGE_KEY
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.SPAN_CONTEXT_KEY
+import static datadog.trace.core.scopemanager.ScopeContext.BAGGAGE_CONTEXT_KEY
 
 class ScopeContextTest extends DDSpecification {
   @Shared
@@ -29,8 +29,8 @@ class ScopeContextTest extends DDSpecification {
 
     when:
 
-    def context1 = empty.with(BAGGAGE_KEY, baggage)
-    def context2 = context1.with(CONTEXT_KEY, span)
+    def context1 = empty.with(BAGGAGE_CONTEXT_KEY, baggage)
+    def context2 = context1.with(SPAN_CONTEXT_KEY, span)
 
     then:
     empty.span() == null
@@ -49,13 +49,13 @@ class ScopeContextTest extends DDSpecification {
     context.get(key) == expected
 
     where:
-    element    | key           | expected
-    null       | null          | null
-    span       | null          | null
-    span       | CONTEXT_KEY   | span
-    null       | CONTEXT_KEY   | null
-    baggage    | BAGGAGE_KEY   | baggage
-    someObject | someObjectKey | someObject
+    element    | key                 | expected
+    null       | null                | null
+    span       | null                | null
+    span       | SPAN_CONTEXT_KEY    | span
+    null       | SPAN_CONTEXT_KEY    | null
+    baggage    | BAGGAGE_CONTEXT_KEY | baggage
+    someObject | someObjectKey       | someObject
   }
 
   def "check generic storage"() {

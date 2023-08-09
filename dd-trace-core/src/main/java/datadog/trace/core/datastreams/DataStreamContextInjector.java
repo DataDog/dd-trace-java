@@ -1,7 +1,7 @@
 package datadog.trace.core.datastreams;
 
 import static datadog.trace.api.DDTags.PATHWAY_HASH;
-import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.CONTEXT_KEY;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.SPAN_CONTEXT_KEY;
 import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.PROPAGATION_KEY_BASE64;
 import static datadog.trace.core.datastreams.DefaultPathwayContext.TAGS_CONTEXT_KEY;
 
@@ -29,7 +29,7 @@ public class DataStreamContextInjector implements HttpCodec.ContextInjector {
   public <C> void inject(
       AgentScopeContext scopeContext, C carrier, AgentPropagation.Setter<C> setter) {
     // Get Pathway context and tags from context
-    AgentSpan span = scopeContext.get(CONTEXT_KEY);
+    AgentSpan span = scopeContext.get(SPAN_CONTEXT_KEY);
     if (span == null || !(span.context() instanceof DDSpanContext)) {
       return;
     }

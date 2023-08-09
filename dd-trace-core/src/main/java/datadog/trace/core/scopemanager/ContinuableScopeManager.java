@@ -1,6 +1,7 @@
 package datadog.trace.core.scopemanager;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.SPAN_CONTEXT_KEY;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan;
 import static datadog.trace.bootstrap.instrumentation.api.ScopeSource.INSTRUMENTATION;
 import static datadog.trace.bootstrap.instrumentation.api.ScopeSource.ITERATION;
@@ -220,7 +221,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     final ContinuableScope top = scopeStack.top;
 
     AgentScopeContext context =
-        (top == null ? ScopeContext.empty() : top.context).with(AgentSpan.CONTEXT_KEY, span);
+        (top == null ? ScopeContext.empty() : top.context).with(SPAN_CONTEXT_KEY, span);
 
     boolean asyncPropagation =
         inheritAsyncPropagation && top != null

@@ -1,15 +1,20 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
  * The key to store and retrieve values from ScopedContext key-value storage.
  *
  * @param <T> The type of the value to store.
  */
 public class ContextKey<T> {
+  private static final AtomicInteger INDEX_GENERATOR = new AtomicInteger(0);
   private final String name;
+  private final int index;
 
   private ContextKey(String name) {
     this.name = name;
+    this.index = INDEX_GENERATOR.getAndIncrement();
   }
 
   /**
@@ -21,6 +26,15 @@ public class ContextKey<T> {
    */
   public static <T> ContextKey<T> named(String name) {
     return new ContextKey<T>(name);
+  }
+
+  /**
+   * Get the context store index for this key.
+   *
+   * @return The context store index for this key.
+   */
+  public int index() {
+    return this.index;
   }
 
   @Override

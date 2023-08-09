@@ -1,7 +1,9 @@
 package datadog.trace.core.scopemanager;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.CONTEXT_KEY;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.SPAN_CONTEXT_KEY;
 import static datadog.trace.bootstrap.instrumentation.api.ContextKey.named;
+import static java.lang.Math.max;
+import static java.util.Arrays.copyOfRange;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
@@ -9,7 +11,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.bootstrap.instrumentation.api.ContextKey;
 import java.util.Arrays;
-import java.util.Objects;
 
 /**
  * An immutable context key-value store tied to span scope lifecycle. {@link ScopeContext} can store
@@ -20,19 +21,12 @@ import java.util.Objects;
  * and can be retrieved using {@link AgentScopeManager#active()}.
  */
 public class ScopeContext implements AgentScopeContext {
-  public static final ContextKey<Baggage> BAGGAGE_KEY = named("dd-baggage-key");
-  private static final ScopeContext EMPTY = new ScopeContext(null, null, null);
-  private final AgentSpan span;
-  private final Baggage baggage;
-  /**
-   * Generic key/value store. Even indexes are keys, odd indexes are values. Example: [key1, value1,
-   * key2, value2].
-   */
+  public static final ContextKey<Baggage> BAGGAGE_CONTEXT_KEY = named("dd-baggage-key");
+  private static final ScopeContext EMPTY = new ScopeContext(new Object[0]);
+  /** The generic store. Values are indexed by their {@link ContextKey#index()}. */
   private final Object[] store;
 
-  private ScopeContext(AgentSpan span, Baggage baggage, Object[] store) {
-    this.span = span;
-    this.baggage = baggage;
+  private ScopeContext(Object[] store) {
     this.store = store;
   }
 
@@ -52,36 +46,23 @@ public class ScopeContext implements AgentScopeContext {
    * @return The new context instance.
    */
   public static AgentScopeContext fromSpan(AgentSpan span) {
-    return new ScopeContext(span, null, null);
+    return EMPTY.with(SPAN_CONTEXT_KEY, span);
   }
 
   @Override
   public AgentSpan span() {
-    return this.span;
+    return get(SPAN_CONTEXT_KEY);
   }
 
   @Override
   public Baggage baggage() {
-    return this.baggage;
+    return get(BAGGAGE_CONTEXT_KEY);
   }
 
   @SuppressWarnings("unchecked")
   @Override
   public <T> T get(ContextKey<T> key) {
-    if (key == null) {
-      return null;
-    } else if (key == CONTEXT_KEY) {
-      return (T) this.span;
-    } else if (key == BAGGAGE_KEY) {
-      return (T) this.baggage;
-    } else if (this.store != null) {
-      for (int index = 0; index < this.store.length; index += 2) {
-        if (this.store[index] == key) {
-          return (T) this.store[index + 1];
-        }
-      }
-    }
-    return null;
+    return key != null && key.index() < this.store.length ? (T) this.store[key.index()] : null;
   }
 
   @Override
@@ -89,44 +70,22 @@ public class ScopeContext implements AgentScopeContext {
     if (key == null) {
       return this;
     }
-    AgentSpan newSpan = this.span;
-    Baggage newBaggage = this.baggage;
-    Object[] newStore = this.store;
-    if (key == CONTEXT_KEY) {
-      newSpan = (AgentSpan) value;
-    } else if (key == BAGGAGE_KEY) {
-      newBaggage = (Baggage) value;
-    } else if (this.store == null) {
-      newStore = new Object[] {key, value};
-    } else {
-      boolean updated = false;
-      for (int index = 0; index < this.store.length; index += 2) {
-        if (this.store[index] == key) {
-          newStore = Arrays.copyOfRange(this.store, 0, this.store.length);
-          newStore[index + 1] = value;
-          updated = true;
-          break;
-        }
-      }
-      if (!updated) {
-        newStore = Arrays.copyOfRange(this.store, 0, this.store.length + 2);
-        newStore[this.store.length] = key;
-        newStore[this.store.length + 1] = value;
-      }
-    }
-    return new ScopeContext(newSpan, newBaggage, newStore);
+    Object[] newStore = copyOfRange(this.store, 0, max(this.store.length, key.index() + 1));
+    newStore[key.index()] = value;
+    return new ScopeContext(newStore);
   }
 
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
+
     ScopeContext that = (ScopeContext) o;
-    return Objects.equals(span, that.span) && Objects.equals(baggage, that.baggage);
+    return Arrays.equals(this.store, that.store);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(span, baggage);
+    return Arrays.hashCode(this.store);
   }
 }

@@ -11,7 +11,7 @@ import datadog.trace.api.sampling.PrioritySampling;
 import java.util.Map;
 
 public interface AgentSpan extends MutableSpan, IGSpanInfo {
-  ContextKey<AgentSpan> CONTEXT_KEY = named("dd-span-key");
+  ContextKey<AgentSpan> SPAN_CONTEXT_KEY = named("dd-span-key");
 
   DDTraceId getTraceId();
 

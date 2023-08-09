@@ -1,6 +1,6 @@
 package datadog.trace.core.propagation;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.CONTEXT_KEY;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.SPAN_CONTEXT_KEY;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.TraceConfig;
@@ -63,7 +63,7 @@ public class HttpCodec {
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter);
 
     default DDSpanContext getSpanContext(AgentScopeContext context) {
-      AgentSpan agentSpan = context.get(CONTEXT_KEY);
+      AgentSpan agentSpan = context.get(SPAN_CONTEXT_KEY);
       if (agentSpan != null && agentSpan.context() instanceof DDSpanContext) {
         return (DDSpanContext) agentSpan.context();
       }
