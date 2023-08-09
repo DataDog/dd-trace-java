@@ -74,10 +74,11 @@ public class HstsMissingHeaderModuleImpl extends SinkModuleBase implements HstsM
     if (null == value || 0 == value.length()) {
       return false;
     }
-    if (value.toLowerCase().contains("max-age=0")) {
+    String lowercaseValue = value.toLowerCase();
+    if (lowercaseValue.contains("max-age=0")) {
       return true;
     }
-    if (value.toLowerCase().contains("max-age=-1")) {
+    if (lowercaseValue.contains("max-age=-1")) {
       return true;
     }
     return false;
