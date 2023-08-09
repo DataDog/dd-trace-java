@@ -11,10 +11,15 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class HstsMissingHeaderModuleImpl extends SinkModuleBase implements HstsMissingHeaderModule {
+  private static final Pattern MAX_AGE =
+      Pattern.compile("max-age=(\\d+)", Pattern.CASE_INSENSITIVE);
 
   private static final Logger LOGGER = LoggerFactory.getLogger(HstsMissingHeaderModuleImpl.class);
 
@@ -59,7 +64,7 @@ public class HstsMissingHeaderModuleImpl extends SinkModuleBase implements HstsM
 
   @Override
   public void onHstsHeader(String value) {
-    if (!isMaxAgeZero(value)) {
+    if (isValidMaxAge(value)) {
       final AgentSpan span = AgentTracer.activeSpan();
       final IastRequestContext ctx = IastRequestContext.get(span);
       if (ctx == null) {
@@ -70,17 +75,14 @@ public class HstsMissingHeaderModuleImpl extends SinkModuleBase implements HstsM
     }
   }
 
-  public static boolean isMaxAgeZero(String value) {
-    if (null == value || 0 == value.length()) {
+  private static boolean isValidMaxAge(@Nullable final String value) {
+    if (value == null) {
       return false;
     }
-    String lowercaseValue = value.toLowerCase();
-    if (lowercaseValue.contains("max-age=0")) {
-      return true;
+    final Matcher matcher = MAX_AGE.matcher(value);
+    if (!matcher.find()) {
+      return false;
     }
-    if (lowercaseValue.contains("max-age=-1")) {
-      return true;
-    }
-    return false;
+    return Integer.parseInt(matcher.group(1)) > 0;
   }
 }
