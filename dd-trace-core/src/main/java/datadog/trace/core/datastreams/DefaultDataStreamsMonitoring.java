@@ -1,6 +1,13 @@
 package datadog.trace.core.datastreams;
 
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT;
+import static datadog.trace.api.DDTags.PATHWAY_HASH;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.DATA_STREAMS_MONITORING;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
@@ -53,6 +60,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private final TimeSource timeSource;
   private final WellKnownTags wellKnownTags;
   private final long bucketDurationNanos;
+  private final DataStreamContextInjector injector;
   private final Thread thread;
   private AgentTaskScheduler.Scheduled<DefaultDataStreamsMonitoring> cancellation;
   private volatile long nextFeatureCheck;
@@ -97,6 +105,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     this.wellKnownTags = wellKnownTags;
     this.payloadWriter = payloadWriter;
     this.bucketDurationNanos = bucketDurationNanos;
+    this.injector = new DataStreamContextInjector(this);
 
     thread = newAgentThread(DATA_STREAMS_MONITORING, new InboxProcessor());
     sink.register(this);
@@ -136,8 +145,13 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
-  public HttpCodec.Extractor decorate(HttpCodec.Extractor extractor) {
-    return new DataStreamContextExtractor(extractor, timeSource, wellKnownTags);
+  public HttpCodec.Extractor extractor(HttpCodec.Extractor delegate) {
+    return new DataStreamContextExtractor(delegate, timeSource, wellKnownTags);
+  }
+
+  @Override
+  public DataStreamContextInjector injector() {
+    return this.injector;
   }
 
   @Override
@@ -163,6 +177,62 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       tags.add(tag);
     }
     inbox.offer(new Backlog(tags, value, timeSource.getCurrentTimeNanos()));
+  }
+
+  @Override
+  public void setDataStreamCheckpoint(
+      AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp) {
+    PathwayContext pathwayContext = span.context().getPathwayContext();
+    if (pathwayContext != null) {
+      pathwayContext.setCheckpoint(sortedTags, this::add, defaultTimestamp);
+      if (pathwayContext.getHash() != 0) {
+        span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayContext.getHash()));
+      }
+    }
+  }
+
+  @Override
+  public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {
+    if (type == null || type.isEmpty() || source == null || source.isEmpty()) {
+      log.warn("setConsumeCheckpoint should be called with non-empty type and source");
+      return;
+    }
+
+    AgentSpan span = activeSpan();
+    if (span == null) {
+      log.warn("SetConsumeCheckpoint is called with no active span");
+      return;
+    }
+    mergePathwayContextIntoSpan(span, carrier);
+
+    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+    sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
+    sortedTags.put(TOPIC_TAG, source);
+    sortedTags.put(TYPE_TAG, type);
+
+    setDataStreamCheckpoint(span, sortedTags, 0);
+  }
+
+  @Override
+  public void setProduceCheckpoint(String type, String target, DataStreamsContextCarrier carrier) {
+    if (type == null || type.isEmpty() || target == null || target.isEmpty()) {
+      log.warn("SetProduceCheckpoint should be called with non-empty type and target");
+      return;
+    }
+
+    AgentSpan span = activeSpan();
+    if (span == null) {
+      log.warn("SetProduceCheckpoint is called with no active span");
+      return;
+    }
+
+    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+    sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+    sortedTags.put(TOPIC_TAG, target);
+    sortedTags.put(TYPE_TAG, type);
+
+    this.injector.injectPathwayContext(
+        span, carrier, DataStreamsContextCarrierAdapter.INSTANCE, sortedTags);
   }
 
   @Override

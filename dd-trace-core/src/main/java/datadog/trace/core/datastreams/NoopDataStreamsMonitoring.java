@@ -21,8 +21,13 @@ public class NoopDataStreamsMonitoring implements DataStreamsMonitoring {
   }
 
   @Override
-  public HttpCodec.Extractor decorate(HttpCodec.Extractor extractor) {
-    return extractor;
+  public HttpCodec.Extractor extractor(HttpCodec.Extractor delegate) {
+    return delegate;
+  }
+
+  @Override
+  public DataStreamContextInjector injector() {
+    return new DataStreamContextInjector(this);
   }
 
   @Override
@@ -30,6 +35,16 @@ public class NoopDataStreamsMonitoring implements DataStreamsMonitoring {
 
   @Override
   public void trackBacklog(LinkedHashMap<String, String> sortedTags, long value) {}
+
+  @Override
+  public void setDataStreamCheckpoint(
+      AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp) {}
+
+  @Override
+  public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {}
+
+  @Override
+  public void setProduceCheckpoint(String type, String target, DataStreamsContextCarrier carrier) {}
 
   @Override
   public void close() {}

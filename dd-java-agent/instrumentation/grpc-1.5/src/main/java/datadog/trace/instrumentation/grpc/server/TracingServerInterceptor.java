@@ -67,7 +67,9 @@ public class TracingServerInterceptor implements ServerInterceptor {
     CallbackProvider cbp = tracer.getCallbackProvider(RequestContextSlot.APPSEC);
     final AgentSpan span = startSpan(GRPC_SERVER, spanContext).setMeasured(true);
 
-    AgentTracer.get().setDataStreamCheckpoint(span, SERVER_PATHWAY_EDGE_TAGS, 0);
+    AgentTracer.get()
+        .getDataStreamsMonitoring()
+        .setDataStreamCheckpoint(span, SERVER_PATHWAY_EDGE_TAGS, 0);
 
     RequestContext reqContext = span.getRequestContext();
     if (reqContext != null) {

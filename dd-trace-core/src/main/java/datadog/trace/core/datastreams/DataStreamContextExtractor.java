@@ -12,8 +12,8 @@ public class DataStreamContextExtractor implements HttpCodec.Extractor {
   private final WellKnownTags wellKnownTags;
 
   public DataStreamContextExtractor(
-      HttpCodec.Extractor extractor, TimeSource timeSource, WellKnownTags wellKnownTags) {
-    this.delegate = extractor;
+      HttpCodec.Extractor delegate, TimeSource timeSource, WellKnownTags wellKnownTags) {
+    this.delegate = delegate;
     this.timeSource = timeSource;
     this.wellKnownTags = wellKnownTags;
   }
