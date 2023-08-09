@@ -1,12 +1,15 @@
 package com.datadog.iast.sink
 
+
 import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.IastRequestContext
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
+import com.datadog.iast.taint.TaintedObjects
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.telemetry.IastMetricCollector
 import datadog.trace.api.iast.util.Cookie
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
@@ -23,6 +26,7 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
   def setup() {
     InstrumentationBridge.clearIastModules()
     module = registerDependencies(new HttpResponseHeaderModuleImpl())
+    InstrumentationBridge.registerIastModule(module)
     InstrumentationBridge.registerIastModule(new InsecureCookieModuleImpl())
     InstrumentationBridge.registerIastModule(new NoHttpOnlyCookieModuleImpl())
     InstrumentationBridge.registerIastModule(new NoSameSiteCookieModuleImpl())
@@ -85,6 +89,32 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
     then:
     1 * tracer.activeSpan()
     1 * overheadController.consumeQuota(_,_)
+    0 * _
+  }
+
+  void 'exercise IastRequestController'(){
+    given:
+    final taintedObjects = Mock(TaintedObjects)
+    IastRequestContext ctx = new IastRequestContext(taintedObjects)
+
+    when:
+    ctx.setXForwardedProtoIsHtttps()
+
+    then:
+    ctx.getXForwardedProtoIsHtttps()
+  }
+
+  void 'exercise IastRequestContext'(){
+    given:
+    final taintedObjects = Mock(TaintedObjects)
+    final iastMetricsCollector = Mock(IastMetricCollector)
+
+    when:
+    IastRequestContext ctx = new IastRequestContext(taintedObjects, iastMetricsCollector)
+    ctx.setXForwardedProtoIsHtttps()
+    ctx.setContentType("text/html")
+
+    then:
     0 * _
   }
 }

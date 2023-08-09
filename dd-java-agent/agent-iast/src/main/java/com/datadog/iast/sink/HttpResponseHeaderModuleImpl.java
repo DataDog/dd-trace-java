@@ -2,6 +2,7 @@ package com.datadog.iast.sink;
 
 import static java.util.Collections.singletonList;
 
+import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Location;
 import com.datadog.iast.model.Vulnerability;
@@ -9,6 +10,7 @@ import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.overhead.Operations;
 import com.datadog.iast.util.CookieSecurityParser;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.sink.HstsMissingHeaderModule;
 import datadog.trace.api.iast.sink.HttpCookieModule;
 import datadog.trace.api.iast.sink.HttpResponseHeaderModule;
 import datadog.trace.api.iast.util.Cookie;
@@ -19,14 +21,35 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class HttpResponseHeaderModuleImpl extends SinkModuleBase
     implements HttpResponseHeaderModule {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(HttpResponseHeaderModuleImpl.class);
   private static final String SET_COOKIE_HEADER = "Set-Cookie";
+  private static final String HSTS_HEADER = "Strict-Transport-Security";
+
+  private static final String CONTENT_TYPE_HEADER = "Content-Type";
 
   @Override
   public void onHeader(@Nonnull final String name, final String value) {
-    if (SET_COOKIE_HEADER.equalsIgnoreCase(name)) {
+    if (HSTS_HEADER.equalsIgnoreCase(name)) {
+      HstsMissingHeaderModule mod = InstrumentationBridge.HSTS_MISSING_HEADER_MODULE;
+      if (mod != null) {
+        mod.onHstsHeader(value);
+      }
+    } else if (CONTENT_TYPE_HEADER.equalsIgnoreCase(name)) {
+      final AgentSpan span = AgentTracer.activeSpan();
+      final IastRequestContext ctx = IastRequestContext.get(span);
+      if (ctx == null) {
+        return;
+      } else {
+        ctx.setContentType(value);
+      }
+    } else if (SET_COOKIE_HEADER.equalsIgnoreCase(name)) {
+      CookieSecurityParser cookieSecurityInfo = new CookieSecurityParser();
       onCookies(CookieSecurityParser.parse(value));
     }
     if (null != InstrumentationBridge.UNVALIDATED_REDIRECT) {

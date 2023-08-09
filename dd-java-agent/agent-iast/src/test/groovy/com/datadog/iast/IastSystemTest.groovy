@@ -1,5 +1,6 @@
 package com.datadog.iast
 
+import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.gateway.InstrumentationGateway
 import datadog.trace.api.gateway.RequestContextSlot
@@ -10,6 +11,10 @@ import datadog.trace.api.gateway.SubscriptionService
 import datadog.trace.test.util.DDSpecification
 
 class IastSystemTest extends DDSpecification {
+
+  def setup() {
+    InstrumentationBridge.clearIastModules()
+  }
 
   void 'start'() {
     given:
@@ -33,6 +38,7 @@ class IastSystemTest extends DDSpecification {
     then:
     1 * ss.registerCallback(Events.get().requestStarted(), _)
     1 * ss.registerCallback(Events.get().requestEnded(), _)
+    1 * ss.registerCallback(Events.get().requestHeader(), _)
     0 * _
 
     when:
@@ -52,6 +58,8 @@ class IastSystemTest extends DDSpecification {
     1 * iastContext.getTaintedObjects()
     1 * iastContext.getMetricCollector()
     1 * traceSegment.setTagTop('_dd.iast.enabled', 1)
+    1 * igSpanInfo.getTags()
+    1 * iastContext.getHstsHeaderIsSet()
     0 * _
     noExceptionThrown()
   }
