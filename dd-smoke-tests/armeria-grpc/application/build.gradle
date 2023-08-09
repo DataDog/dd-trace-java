@@ -1,0 +1,75 @@
+buildscript {
+  dependencies {
+    classpath 'com.google.protobuf:protobuf-gradle-plugin:0.9.3'
+  }
+}
+
+plugins {
+  id 'application'
+  id 'java'
+  id "com.diffplug.spotless" version "6.11.0"
+  id "com.github.johnrengelman.shadow" version "7.1.2"
+  id 'com.google.protobuf' version '0.9.3'
+}
+
+def sharedRootDir = "$rootDir/../../../"
+def sharedConfigDirectory = "$sharedRootDir/gradle"
+rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
+
+apply from: "$sharedConfigDirectory/repositories.gradle"
+apply from: "$sharedConfigDirectory/spotless.gradle"
+
+if (hasProperty('appBuildDir')) {
+  buildDir = property('appBuildDir')
+}
+
+version = ""
+
+protobuf {
+  // Configure the protoc executable.
+  protoc {
+    // Same version as the transitive protobuf-java included in armeria
+    artifact = 'com.google.protobuf:protoc:3.19.2'
+  }
+
+  // Locate the codegen plugins.
+  plugins {
+    // Locate a plugin with name 'grpc'.
+    grpc {
+      // Download from the repository.
+      artifact = 'io.grpc:protoc-gen-grpc-java:1.56.0'
+    }
+  }
+  generateProtoTasks {
+    ofSourceSet('main')*.plugins {
+      grpc {}
+    }
+  }
+}
+
+shadowJar {
+  configurations = [project.configurations.runtimeClasspath]
+}
+
+dependencies {
+  // Adjust the list as you need.
+  ['armeria', 'armeria-grpc', 'armeria-logback'].each {
+    implementation "com.linecorp.armeria:${it}:1.16.0"
+  }
+
+  compileOnly 'javax.annotation:javax.annotation-api:1.3.2'
+
+  // Logging
+  runtimeOnly 'ch.qos.logback:logback-classic:1.4.7'
+  runtimeOnly 'org.slf4j:log4j-over-slf4j:1.7.36'
+
+  if (hasProperty('apiJar')) {
+    implementation files(property('apiJar'))
+  } else {
+    implementation "com.datadoghq:dd-trace-api:+"
+  }
+}
+
+application {
+  mainClass.set('datadog.smoketest.Main')
+}
