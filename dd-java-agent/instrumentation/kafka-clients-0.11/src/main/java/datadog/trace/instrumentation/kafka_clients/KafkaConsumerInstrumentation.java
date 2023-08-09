@@ -50,6 +50,7 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
       packageName + ".TracingListIterator",
       packageName + ".Base64Decoder",
       packageName + ".StreamingContext",
+      packageName + ".TextMapInjectAdapter",
     };
   }
 
