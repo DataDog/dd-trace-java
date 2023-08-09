@@ -21,10 +21,10 @@ public class ErrorReportValueAdvice {
       @Advice.Argument(value = 2) Throwable throwable) {
     int statusCode = response.getStatus();
 
-    // Do nothing on a 1xx, 2xx and 3xx status
+    // Do nothing on a 1xx, 2xx, 3xx and 404 status
     // Do nothing if the response hasn't been explicitly marked as in error
     //    and that error has not been reported.
-    if (statusCode < 400 || !response.isError()) {
+    if (statusCode < 400 || statusCode == 404 || !response.isError()) {
       return true; // skip original method
     }
 
