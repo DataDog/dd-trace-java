@@ -124,7 +124,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
         log.warn(
             "Error reading exclude file '{}' for Instrument-The-World. Exception: {}",
             fileName,
-            ex.getMessage());      }
+            ex.getMessage());
+      }
     }
   }
 

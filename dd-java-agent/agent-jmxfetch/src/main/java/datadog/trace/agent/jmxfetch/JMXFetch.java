@@ -31,7 +31,7 @@ public class JMXFetch {
   public static final List<String> DEFAULT_CONFIGS =
       Collections.singletonList("jmxfetch-config.yaml");
 
-  private static final int SLEEP_AFTER_JMXFETCH_EXITS = 5000;
+  private static final int DELAY_BETWEEN_RUN_ATTEMPTS = 5000;
 
   public static void run(final StatsDClientManager statsDClientManager) {
     run(statsDClientManager, Config.get());
@@ -108,7 +108,7 @@ public class JMXFetch {
 
     if (config.isJmxFetchMultipleRuntimeServicesEnabled()) {
       ServiceNameCollectingTraceInterceptor serviceNameProvider =
-          new ServiceNameCollectingTraceInterceptor();
+          ServiceNameCollectingTraceInterceptor.INSTANCE;
       GlobalTracer.get().addTraceInterceptor(serviceNameProvider);
 
       configBuilder.serviceNameProvider(serviceNameProvider);
@@ -134,7 +134,6 @@ public class JMXFetch {
                       log.error("jmx collector exited with result: {}", result);
                     } catch (final Exception e) {
                       log.error("Exception in jmx collector thread", e);
-
                     }
                   }
                   // always wait before next attempt
