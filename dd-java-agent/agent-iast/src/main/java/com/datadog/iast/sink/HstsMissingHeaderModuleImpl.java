@@ -52,7 +52,7 @@ public class HstsMissingHeaderModuleImpl extends SinkModuleBase implements HstsM
           }
         }
       } catch (Throwable e) {
-        LOGGER.error("Exception while checking for hsts vulnerability", e);
+        LOGGER.debug("Exception while checking for missing HSTS headers vulnerability", e);
       }
     }
   }
