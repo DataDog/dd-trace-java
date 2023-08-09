@@ -12,6 +12,7 @@ import datadog.trace.core.CoreTracer.CoreTracerBuilder
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.propagation.PropagationTags
+import datadog.trace.core.tagprocessor.TagsPostProcessorFactory
 import datadog.trace.test.util.DDSpecification
 
 abstract class DDCoreSpecification extends DDSpecification {
@@ -22,6 +23,16 @@ abstract class DDCoreSpecification extends DDSpecification {
 
   protected boolean useStrictTraceWrites() {
     return true
+  }
+
+  @Override
+  void setupSpec() {
+    TagsPostProcessorFactory.withAddBaseService(false)
+  }
+
+  @Override
+  void cleanupSpec() {
+    TagsPostProcessorFactory.reset()
   }
 
   protected CoreTracerBuilder tracerBuilder() {
