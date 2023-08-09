@@ -22,8 +22,8 @@ excludedClassesCoverage += [
   "datadog.opentracing.DDTracer.DDTracerBuilder"
 ]
 
-addTestSuite('ot31CompatabilityTest')
-addTestSuite('ot33CompatabilityTest')
+addTestSuite('ot31CompatibilityTest')
+addTestSuite('ot33CompatibilityTest')
 
 dependencies {
   annotationProcessor deps.autoserviceProcessor
@@ -46,17 +46,17 @@ dependencies {
 
   testImplementation project(":dd-java-agent:testing")
 
-  ot33CompatabilityTestImplementation('io.opentracing:opentracing-api') {
+  ot33CompatibilityTestImplementation('io.opentracing:opentracing-api') {
     version {
       strictly '0.33.0'
     }
   }
-  ot33CompatabilityTestImplementation('io.opentracing:opentracing-util')  {
+  ot33CompatibilityTestImplementation('io.opentracing:opentracing-util')  {
     version {
       strictly '0.33.0'
     }
   }
-  ot33CompatabilityTestImplementation('io.opentracing:opentracing-noop')  {
+  ot33CompatibilityTestImplementation('io.opentracing:opentracing-noop')  {
     version {
       strictly '0.33.0'
     }
@@ -73,7 +73,7 @@ configurations.matching({ it.name.startsWith('ot31') }).each({
 })
 
 tasks.named("test").configure {
-  finalizedBy "ot31CompatabilityTest", "ot33CompatabilityTest"
+  finalizedBy "ot31CompatibilityTest", "ot33CompatibilityTest"
 }
 
 jar {
