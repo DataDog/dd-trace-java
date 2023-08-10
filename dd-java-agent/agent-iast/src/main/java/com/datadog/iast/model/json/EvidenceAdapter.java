@@ -339,7 +339,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
 
     @Override
     public void write(final Context ctx, final JsonWriter writer) throws IOException {
-      if (value == null || value.isEmpty()) {
+      if (value == null) {
         return;
       }
       writer.beginObject();
@@ -470,7 +470,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
 
     @Override
     public void write(final Context ctx, final JsonWriter writer) throws IOException {
-      if (value == null || value.isEmpty()) {
+      if (value == null) {
         return;
       }
       writer.beginObject();
