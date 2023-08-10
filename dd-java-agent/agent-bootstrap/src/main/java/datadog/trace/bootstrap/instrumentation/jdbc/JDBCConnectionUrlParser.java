@@ -868,7 +868,7 @@ public enum JDBCConnectionUrlParser {
         try {
           builder.port(Integer.parseInt(portNumber));
         } catch (final NumberFormatException e) {
-          ExceptionLogger.LOGGER.debug("Error parsing portnumber property: " + portNumber, e);
+          ExceptionLogger.LOGGER.debug("Error parsing portnumber property: {}", portNumber, e);
         }
       }
 
@@ -877,7 +877,7 @@ public enum JDBCConnectionUrlParser {
         try {
           builder.port(Integer.parseInt(portNumber));
         } catch (final NumberFormatException e) {
-          ExceptionLogger.LOGGER.debug("Error parsing portNumber property: " + portNumber, e);
+          ExceptionLogger.LOGGER.debug("Error parsing portNumber property: {}", portNumber, e);
         }
       }
     }

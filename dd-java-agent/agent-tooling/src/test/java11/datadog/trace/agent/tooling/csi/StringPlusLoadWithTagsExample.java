@@ -11,7 +11,7 @@ public class StringPlusLoadWithTagsExample implements TriFunction<String, String
   public String apply(final String first, final String second, final String third) {
     LOGGER.debug("Before apply");
     final String result = first + " \u0002 " + second + " \u0001 " + third;
-    LOGGER.debug("After apply " + result);
+    LOGGER.debug("After apply {}", result);
     return result;
   }
 }

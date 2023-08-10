@@ -184,7 +184,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       try {
         listener.onNewSubconfig(newConfig.get(key), reconfiguration);
       } catch (Exception rte) {
-        log.warn("Error updating configuration of app sec module listening on key " + key, rte);
+        log.warn("Error updating configuration of app sec module listening on key {}", key, rte);
       }
     }
   }

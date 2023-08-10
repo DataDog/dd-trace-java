@@ -128,7 +128,7 @@ public final class AgentCLI {
 
   private static void unzipJar(Consumer<File> invoker, File file) throws IOException {
     try (JarFile jar = new JarFile(file)) {
-      log.debug("Finding entries in file:" + file.getName());
+      log.debug("Finding entries in file: {}", file.getName());
 
       jar.stream()
           .forEach(

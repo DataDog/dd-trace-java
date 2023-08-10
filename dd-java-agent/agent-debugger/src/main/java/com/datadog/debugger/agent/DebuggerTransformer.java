@@ -328,7 +328,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     try {
       classNode.accept(writer);
     } catch (Throwable t) {
-      log.error("Cannot write classfile for class: {}", classFilePath, t);
+      log.error("Cannot write classfile for class: {} Exception: ", classFilePath, t.getMessage());
     }
     byte[] data = writer.toByteArray();
     dumpInstrumentedClassFile(classFilePath, data);

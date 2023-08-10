@@ -85,7 +85,7 @@ public class DDEvpProxyApi extends RemoteApi {
 
       final HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0);
 
-      log.debug("proxiedApiUrl: " + proxiedApiUrl);
+      log.debug("proxiedApiUrl: {}", proxiedApiUrl);
       return new DDEvpProxyApi(client, proxiedApiUrl, subdomain, retryPolicyFactory);
     }
   }

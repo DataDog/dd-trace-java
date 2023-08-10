@@ -249,7 +249,7 @@ public final class ConfigProvider {
     try {
       return value == null ? defaultValue : ConfigConverter.parseIntegerRangeSet(value, key);
     } catch (final NumberFormatException e) {
-      log.warn("Invalid configuration for " + key, e);
+      log.warn("Invalid configuration for {}", key, e);
       return defaultValue;
     }
   }
