@@ -330,5 +330,8 @@
 
 # -------- SPECIAL CASES --------
 
+# incomplete wrapper that throws exceptions for all but one method
+1 reactor.rabbitmq.ChannelProxy
+
 3 com.mchange.v2.c3p0.*
 4 org.springframework.http.converter.*
