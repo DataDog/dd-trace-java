@@ -19,31 +19,36 @@ public class XContentTypeOptionsModuleImpl extends SinkModuleBase
 
   @Override
   public void onRequestEnd(final Object iastRequestContextObject, final IGSpanInfo igSpanInfo) {
+    try {
 
-    final IastRequestContext iastRequestContext = (IastRequestContext) iastRequestContextObject;
+      final IastRequestContext iastRequestContext = (IastRequestContext) iastRequestContextObject;
 
-    if (!iastRequestContext.getContentTypeOptionsIsNoSniff()) {
-      if (null != iastRequestContext.getContentType()
-              && (iastRequestContext.getContentType().contains("text/html"))
-          || (iastRequestContext.getContentType().contains("application/xhtml+xml"))) {
-        Map<String, Object> tags = igSpanInfo.getTags();
-        Integer httpStatus = (Integer) tags.get("http.status_code");
-        if (httpStatus == HttpURLConnection.HTTP_MOVED_PERM
-            || httpStatus == HttpURLConnection.HTTP_MOVED_TEMP
-            || httpStatus == HttpURLConnection.HTTP_NOT_MODIFIED
-            || httpStatus == HttpURLConnection.HTTP_NOT_FOUND
-            || httpStatus == HttpURLConnection.HTTP_GONE
-            || httpStatus == HttpURLConnection.HTTP_INTERNAL_ERROR
-            || httpStatus == 307) {
-          return;
-        }
-        final AgentSpan span = AgentTracer.activeSpan();
-        if (overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
-          reporter.report(
-              span,
-              new Vulnerability(VulnerabilityType.XCONTENTTYPEOPTIONS_HEADER_MISSING, null, null));
+      if (!iastRequestContext.getContentTypeOptionsIsNoSniff()) {
+        if (null != iastRequestContext.getContentType()
+                && (iastRequestContext.getContentType().contains("text/html"))
+            || (iastRequestContext.getContentType().contains("application/xhtml+xml"))) {
+          Map<String, Object> tags = igSpanInfo.getTags();
+          Integer httpStatus = (Integer) tags.get("http.status_code");
+          if (httpStatus == HttpURLConnection.HTTP_MOVED_PERM
+              || httpStatus == HttpURLConnection.HTTP_MOVED_TEMP
+              || httpStatus == HttpURLConnection.HTTP_NOT_MODIFIED
+              || httpStatus == HttpURLConnection.HTTP_NOT_FOUND
+              || httpStatus == HttpURLConnection.HTTP_GONE
+              || httpStatus == HttpURLConnection.HTTP_INTERNAL_ERROR
+              || httpStatus == 307) {
+            return;
+          }
+          final AgentSpan span = AgentTracer.activeSpan();
+          if (overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
+            reporter.report(
+                span,
+                new Vulnerability(
+                    VulnerabilityType.XCONTENTTYPEOPTIONS_HEADER_MISSING, null, null));
+          }
         }
       }
+    } catch (Throwable e) {
+      LOGGER.debug("Exception while checking for missing HSTS headers vulnerability", e);
     }
   }
 }
