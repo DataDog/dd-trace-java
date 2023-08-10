@@ -34,7 +34,7 @@ class AppSecConfigDeserializerSpecification extends Specification {
               "parameters": {
                 "inputs": [
                   {
-                    "address": "http.client_ip",
+                    "address": "http.client_ip"
                   }
                 ],
                 "data": "blocked_ips"
