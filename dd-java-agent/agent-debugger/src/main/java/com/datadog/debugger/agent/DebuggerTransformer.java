@@ -1,8 +1,5 @@
 package com.datadog.debugger.agent;
 
-import static java.util.Collections.singletonList;
-import static java.util.stream.Collectors.toList;
-
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
@@ -13,6 +10,23 @@ import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.pool.TypePool;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.LineNumberNode;
+import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.analysis.Analyzer;
+import org.objectweb.asm.tree.analysis.AnalyzerException;
+import org.objectweb.asm.tree.analysis.BasicValue;
+import org.objectweb.asm.tree.analysis.BasicVerifier;
+import org.objectweb.asm.util.CheckClassAdapter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -35,22 +49,9 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.pool.TypePool;
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.LineNumberNode;
-import org.objectweb.asm.tree.MethodNode;
-import org.objectweb.asm.tree.analysis.Analyzer;
-import org.objectweb.asm.tree.analysis.AnalyzerException;
-import org.objectweb.asm.tree.analysis.BasicValue;
-import org.objectweb.asm.tree.analysis.BasicVerifier;
-import org.objectweb.asm.util.CheckClassAdapter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import static java.util.Collections.singletonList;
+import static java.util.stream.Collectors.toList;
 
 /**
  * Handles transformations of loading classes matching the probe definitions provided by the
@@ -121,10 +122,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
                   }
                 });
       } catch (IOException ex) {
-        log.warn(
-            "Error reading exclude file '{}' for Instrument-The-World. Exception: {}",
-            fileName,
-            ex.getMessage());
+        log.warn("Error reading exclude file '{}' for Instrument-The-World: ", fileName, ex);
       }
     }
   }
