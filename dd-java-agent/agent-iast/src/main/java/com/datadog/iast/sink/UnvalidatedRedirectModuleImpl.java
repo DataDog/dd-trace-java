@@ -1,6 +1,8 @@
 package com.datadog.iast.sink;
 
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
+import static com.datadog.iast.util.HttpHeader.Values.LOCATION;
+import static com.datadog.iast.util.HttpHeader.Values.REFERER;
 
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Evidence;
@@ -21,9 +23,6 @@ import javax.annotation.Nullable;
 
 public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
     implements UnvalidatedRedirectModule {
-
-  private static final String LOCATION_HEADER = "Location";
-  private static final String REFERER = "Referer";
 
   @Override
   public void onRedirect(final @Nullable String value) {
@@ -51,7 +50,7 @@ public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
 
   @Override
   public void onHeader(@Nonnull final String name, @Nullable final String value) {
-    if (value != null && LOCATION_HEADER.equalsIgnoreCase(name)) {
+    if (value != null && LOCATION.matches(name)) {
       onRedirect(value);
     }
   }
@@ -99,7 +98,7 @@ public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
   private boolean isRefererHeader(Range[] ranges) {
     for (Range range : ranges) {
       if (range.getSource().getOrigin() != SourceTypes.REQUEST_HEADER_VALUE
-          || !range.getSource().getName().equalsIgnoreCase(REFERER)) {
+          || !REFERER.matches(range.getSource().getName())) {
         return false;
       }
     }

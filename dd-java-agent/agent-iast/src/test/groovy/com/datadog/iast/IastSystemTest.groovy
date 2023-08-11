@@ -24,8 +24,6 @@ class IastSystemTest extends DDSpecification {
     final traceSegment = Mock(TraceSegment)
     final iastContext = Mock(IastRequestContext) {
       getTaintedObjects() >> null
-      getContentTypeOptionsIsNoSniff() >> true
-      getHstsHeaderIsSet() >> true
     }
     final RequestContext reqCtx = Stub(RequestContext) {
       getTraceSegment() >> traceSegment
@@ -60,8 +58,8 @@ class IastSystemTest extends DDSpecification {
     1 * iastContext.getTaintedObjects()
     1 * iastContext.getMetricCollector()
     1 * traceSegment.setTagTop('_dd.iast.enabled', 1)
-    1 * iastContext.getHstsHeaderIsSet() >> true
-    1 * iastContext.getContentTypeOptionsIsNoSniff() >> true
+    1 * iastContext.getxContentTypeOptions() >> 'nosniff'
+    1 * iastContext.getStrictTransportSecurity() >> 'max-age=35660'
     0 * _
     noExceptionThrown()
   }

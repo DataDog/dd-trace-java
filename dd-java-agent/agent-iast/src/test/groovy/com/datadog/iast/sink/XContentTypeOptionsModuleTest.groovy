@@ -48,7 +48,6 @@ public class XContentTypeOptionsModuleTest extends IastModuleImplTestBase {
     Vulnerability savedVul1
     final OverheadController overheadController = Mock(OverheadController)
     final iastCtx = Mock(IastRequestContext)
-    iastCtx.getContentTypeOptionsIsNoSniff() >> false
     iastCtx.getContentType() >> "text/html"
     final StackWalker stackWalker = Mock(StackWalker)
     final dependencies = new HasDependencies.Dependencies(
@@ -79,9 +78,9 @@ public class XContentTypeOptionsModuleTest extends IastModuleImplTestBase {
     1 * overheadController.releaseRequest()
     1 * spanInfo.getTags() >> tags
     1 * tags.get('http.status_code') >> 200i
-    1 * iastCtx.getContentTypeOptionsIsNoSniff()
+    1 * iastCtx.getxContentTypeOptions() >> null
     1 * tracer.activeSpan() >> span
-    2 * iastCtx.getContentType() >> "text/html"
+    1 * iastCtx.getContentType() >> "text/html"
     1 * reporter.report(_, _ as Vulnerability) >> {
       savedVul1 = it[1]
     }
@@ -97,7 +96,7 @@ public class XContentTypeOptionsModuleTest extends IastModuleImplTestBase {
     Vulnerability savedVul1
     final OverheadController overheadController = Mock(OverheadController)
     final iastCtx = Mock(IastRequestContext)
-    iastCtx.getXForwardedProtoIsHtttps() >> true
+    iastCtx.getxForwardedProto() >> 'https'
     iastCtx.getContentType() >> "text/html"
     final StackWalker stackWalker = Mock(StackWalker)
     final dependencies = new HasDependencies.Dependencies(
@@ -128,9 +127,9 @@ public class XContentTypeOptionsModuleTest extends IastModuleImplTestBase {
     1 * iastCtx.getTaintedObjects() >> null
     1 * overheadController.releaseRequest()
     1 * spanInfo.getTags() >> tags
-    2 * iastCtx.getContentType() >> "text/html"
+    1 * iastCtx.getContentType() >> "text/html"
     1 * tags.get('http.status_code') >> status
-    1 * iastCtx.getContentTypeOptionsIsNoSniff()
+    1 * iastCtx.getxContentTypeOptions()
     0 * _
 
     where:

@@ -10,8 +10,7 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.sink.HstsMissingHeaderModule;
-import datadog.trace.api.iast.sink.XContentTypeOptionsModule;
+import datadog.trace.api.iast.sink.HttpRequestEndModule;
 import datadog.trace.api.internal.TraceSegment;
 import java.util.function.BiFunction;
 import javax.annotation.Nonnull;
@@ -29,14 +28,10 @@ public class RequestEndedHandler implements BiFunction<RequestContext, IGSpanInf
     final TraceSegment traceSegment = requestContext.getTraceSegment();
     final IastRequestContext iastRequestContext = IastRequestContext.get(requestContext);
     if (iastRequestContext != null) {
-      HstsMissingHeaderModule mod = InstrumentationBridge.HSTS_MISSING_HEADER_MODULE;
-      if (mod != null) {
-        mod.onRequestEnd(iastRequestContext, igSpanInfo);
-      }
-      XContentTypeOptionsModule modXContentType =
-          InstrumentationBridge.X_CONTENT_TYPE_OPTIONS_HEADER_MODULE;
-      if (modXContentType != null) {
-        modXContentType.onRequestEnd(iastRequestContext, igSpanInfo);
+      for (HttpRequestEndModule module : requestEndModules()) {
+        if (module != null) {
+          module.onRequestEnd(iastRequestContext, igSpanInfo);
+        }
       }
       try {
         ANALYZED.setTagTop(traceSegment);
@@ -51,5 +46,12 @@ public class RequestEndedHandler implements BiFunction<RequestContext, IGSpanInf
       SKIPPED.setTagTop(traceSegment);
     }
     return Flow.ResultFlow.empty();
+  }
+
+  private HttpRequestEndModule[] requestEndModules() {
+    return new HttpRequestEndModule[] {
+      InstrumentationBridge.HSTS_MISSING_HEADER_MODULE,
+      InstrumentationBridge.X_CONTENT_TYPE_OPTIONS_HEADER_MODULE
+    };
   }
 }

@@ -103,10 +103,10 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
     IastRequestContext ctx = new IastRequestContext(taintedObjects)
 
     when:
-    ctx.setXForwardedProtoIsHtttps()
+    ctx.setxForwardedProto('https')
 
     then:
-    ctx.getXForwardedProtoIsHtttps()
+    ctx.getxForwardedProto() == 'https'
   }
 
   void 'exercise IastRequestContext'(){
@@ -116,12 +116,11 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
 
     when:
     IastRequestContext ctx = new IastRequestContext(taintedObjects, iastMetricsCollector)
-    ctx.setXForwardedProtoIsHtttps()
+    ctx.setxForwardedProto('https')
     ctx.setContentType("text/html")
-    ctx.setContentTypeOptionsIsNoSniff()
-    ctx.getContentTypeOptionsIsNoSniff()
-    ctx.removeContentTypeOptionsIsNoSniff()
-    ctx.setHstsHeaderIsSet()
+    ctx.setxContentTypeOptions('nosniff')
+    ctx.getxContentTypeOptions()
+    ctx.setStrictTransportSecurity('max-age=2345')
 
     then:
     0 * _
