@@ -165,7 +165,7 @@ class MuzzlePlugin implements Plugin<Project> {
         } else {
           def range = resolveVersionRange(muzzleDirective, system, session)
           if (!range.versions.empty) {
-            testedArtifacts.add(new TestedArtifact(muzzleDirective.module, range.lowestVersion, range.highestVersion))
+            testedArtifacts.add(new TestedArtifact(muzzleDirective.group + ":" + muzzleDirective.module, range.lowestVersion, range.highestVersion))
           }
           runLast = muzzleDirectiveToArtifacts(muzzleDirective, range).inject(runLast) { last, Artifact singleVersion ->
             runAfter = addMuzzleTask(muzzleDirective, singleVersion, project, runAfter, muzzleBootstrap, muzzleTooling)
