@@ -53,13 +53,15 @@ public class HttpResponseHeaderModuleImpl extends SinkModuleBase
       CookieSecurityParser cookieSecurityInfo = new CookieSecurityParser();
       onCookies(CookieSecurityParser.parse(value));
     } else if (X_CONTENT_TYPE_OPTIONS.equalsIgnoreCase(name)) {
-      if ("nosniff".equalsIgnoreCase(value)) {
-        final AgentSpan span = AgentTracer.activeSpan();
-        final IastRequestContext ctx = IastRequestContext.get(span);
-        if (ctx == null) {
-          return;
-        } else {
+      final AgentSpan span = AgentTracer.activeSpan();
+      final IastRequestContext ctx = IastRequestContext.get(span);
+      if (ctx == null) {
+        return;
+      } else {
+        if ("nosniff".equalsIgnoreCase(value)) {
           ctx.setContentTypeOptionsIsNoSniff();
+        } else {
+          ctx.removeContentTypeOptionsIsNoSniff();
         }
       }
     }

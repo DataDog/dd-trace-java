@@ -58,7 +58,13 @@ public class IastRequestContext implements HasMetricCollector {
   }
 
   public void setContentTypeOptionsIsNoSniff() {
+    System.out.println("!!! set nosniff to true");
     contentTypeOptionsIsNoSniff = true;
+  }
+
+  public void removeContentTypeOptionsIsNoSniff() {
+    System.out.println("!!! set nosniff to false");
+    contentTypeOptionsIsNoSniff = false;
   }
 
   public boolean getContentTypeOptionsIsNoSniff() {

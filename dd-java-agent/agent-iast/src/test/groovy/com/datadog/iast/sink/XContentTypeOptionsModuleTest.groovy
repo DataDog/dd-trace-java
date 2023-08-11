@@ -151,6 +151,6 @@ public class XContentTypeOptionsModuleTest extends IastModuleImplTestBase {
     module.onRequestEnd(null, null)
 
     then:
-    thrown(NullPointerException)
+    noExceptionThrown()
   }
 }

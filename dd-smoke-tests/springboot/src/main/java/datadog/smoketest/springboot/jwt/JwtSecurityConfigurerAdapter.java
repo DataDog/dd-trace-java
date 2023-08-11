@@ -39,6 +39,8 @@ public class JwtSecurityConfigurerAdapter extends WebSecurityConfigurerAdapter {
             (request, response, accessDeniedException) -> {
               response.sendError(403, "Access Denied.");
             });
+
+    http.headers().defaultsDisabled().contentTypeOptions();
   }
 
   @Autowired

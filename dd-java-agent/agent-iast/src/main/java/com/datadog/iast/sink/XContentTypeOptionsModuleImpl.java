@@ -48,7 +48,7 @@ public class XContentTypeOptionsModuleImpl extends SinkModuleBase
         }
       }
     } catch (Throwable e) {
-      LOGGER.debug("Exception while checking for missing HSTS headers vulnerability", e);
+      LOGGER.debug("Exception while checking for missing X Content type optios header", e);
     }
   }
 }
