@@ -180,7 +180,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
-  public void setDataStreamCheckpoint(
+  public void setCheckpoint(
       AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
     if (pathwayContext != null) {
@@ -210,7 +210,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     sortedTags.put(TOPIC_TAG, source);
     sortedTags.put(TYPE_TAG, type);
 
-    setDataStreamCheckpoint(span, sortedTags, 0);
+    setCheckpoint(span, sortedTags, 0);
   }
 
   @Override

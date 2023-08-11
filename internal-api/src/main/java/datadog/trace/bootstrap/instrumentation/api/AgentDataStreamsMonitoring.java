@@ -16,6 +16,6 @@ public interface AgentDataStreamsMonitoring extends DataStreamsCheckpointer {
    *     message / payload itself (for instance: produce operations; http produce / consume etc).
    *     Value will be ignored for checkpoints happening not at the start of the pipeline.
    */
-  void setDataStreamCheckpoint(
+  void setCheckpoint(
       AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp);
 }

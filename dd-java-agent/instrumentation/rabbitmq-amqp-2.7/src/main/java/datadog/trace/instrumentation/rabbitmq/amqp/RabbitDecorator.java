@@ -234,9 +234,7 @@ public class RabbitDecorator extends MessagingClientDecorator {
       sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
       sortedTags.put(TOPIC_TAG, queue);
       sortedTags.put(TYPE_TAG, "rabbitmq");
-      AgentTracer.get()
-          .getDataStreamsMonitoring()
-          .setDataStreamCheckpoint(span, sortedTags, produceMillis);
+      AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, sortedTags, produceMillis);
     }
 
     CONSUMER_DECORATE.afterStart(span);

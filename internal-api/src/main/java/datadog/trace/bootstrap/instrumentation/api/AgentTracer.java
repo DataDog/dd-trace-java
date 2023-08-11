@@ -1019,7 +1019,7 @@ public class AgentTracer {
     public void trackBacklog(LinkedHashMap<String, String> sortedTags, long value) {}
 
     @Override
-    public void setDataStreamCheckpoint(
+    public void setCheckpoint(
         AgentSpan span, LinkedHashMap<String, String> sortedTags, long defaultTimestamp) {}
 
     @Override
