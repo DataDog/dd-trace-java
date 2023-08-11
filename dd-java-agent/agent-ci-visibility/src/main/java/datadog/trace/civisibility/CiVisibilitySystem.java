@@ -219,7 +219,8 @@ public class CiVisibilitySystem {
 
     GitDataApi gitDataApi = new GitDataApi(backendApi);
     GitClient gitClient = new GitClient(repoRoot, "1 month ago", 1000, commandTimeoutMillis);
-    return new GitDataUploaderImpl(config, gitDataApi, gitClient, remoteName);
+    return new GitDataUploaderImpl(
+        config, gitDataApi, gitClient, GitInfoProvider.INSTANCE, repoRoot, remoteName);
   }
 
   private static ModuleExecutionSettingsFactory buildModuleExecutionSettingsFactory(

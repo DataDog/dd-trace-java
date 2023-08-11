@@ -1,8 +1,12 @@
 package datadog.trace.civisibility.git.tree;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.git.GitInfo;
+import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.utils.FileUtils;
 import datadog.trace.util.AgentThreadFactory;
+import datadog.trace.util.Strings;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -23,15 +27,24 @@ public class GitDataUploaderImpl implements GitDataUploader {
   private final Config config;
   private final GitDataApi gitDataApi;
   private final GitClient gitClient;
+  private final GitInfoProvider gitInfoProvider;
+  private final String repoRoot;
   private final String remoteName;
   private final Thread uploadFinishedShutdownHook;
   private volatile CompletableFuture<Void> callback;
 
   public GitDataUploaderImpl(
-      Config config, GitDataApi gitDataApi, GitClient gitClient, String remoteName) {
+      Config config,
+      GitDataApi gitDataApi,
+      GitClient gitClient,
+      GitInfoProvider gitInfoProvider,
+      String repoRoot,
+      String remoteName) {
     this.config = config;
     this.gitDataApi = gitDataApi;
     this.gitClient = gitClient;
+    this.gitInfoProvider = gitInfoProvider;
+    this.repoRoot = repoRoot;
     this.remoteName = remoteName;
 
     // maven has a way of calling System.exit() when the build is done.
@@ -72,7 +85,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
         gitClient.unshallow();
       }
 
-      String remoteUrl = gitClient.getRemoteUrl(remoteName);
+      String remoteUrl = getRemoteUrl();
       List<String> latestCommits = gitClient.getLatestCommits();
       if (latestCommits.isEmpty()) {
         LOGGER.debug("No commits in the last month");
@@ -122,6 +135,16 @@ public class GitDataUploaderImpl implements GitDataUploader {
       callback.completeExceptionally(e);
     } finally {
       Runtime.getRuntime().removeShutdownHook(uploadFinishedShutdownHook);
+    }
+  }
+
+  private String getRemoteUrl() throws IOException, TimeoutException, InterruptedException {
+    GitInfo gitInfo = gitInfoProvider.getGitInfo(repoRoot);
+    String repositoryURL = gitInfo.getRepositoryURL();
+    if (Strings.isNotBlank(repositoryURL)) {
+      return repositoryURL;
+    } else {
+      return gitClient.getRemoteUrl(remoteName);
     }
   }
 
