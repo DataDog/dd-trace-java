@@ -88,7 +88,11 @@ public interface Ranged {
     if (range == null) {
       return true;
     }
-    return getStart() <= range.getStart();
+    final int offset = getStart() - range.getStart();
+    if (offset == 0) {
+      return getLength() <= range.getLength(); // put smaller ranges first
+    }
+    return offset < 0;
   }
 
   static Ranged build(int start, int end) {
