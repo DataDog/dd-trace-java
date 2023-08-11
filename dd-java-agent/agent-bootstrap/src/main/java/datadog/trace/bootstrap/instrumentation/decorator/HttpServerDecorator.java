@@ -122,8 +122,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     if (null != carrier && null != getter) {
       AgentScopeContext extracted =
           propagate().extractPathwayContext(activeContext(), carrier, getter);
-      PathwayContext pathwayContext = extracted.get(PathwayContext.CONTEXT_KEY);
-      span.mergePathwayContext(pathwayContext);
+      PathwayContextHolder pathwayContextHolder = extracted.get(PathwayContextHolder.CONTEXT_KEY);
+      span.mergePathwayContext(pathwayContextHolder.getPathwayContext());
       tracer().setDataStreamCheckpoint(span, SERVER_PATHWAY_EDGE_TAGS);
     }
     return span;

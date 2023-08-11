@@ -49,19 +49,7 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.DataStreamsMonitoring;
-import datadog.trace.bootstrap.instrumentation.api.NoopDataStreamsMonitoring;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
-import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
-import datadog.trace.bootstrap.instrumentation.api.ScopeState;
-import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.bootstrap.instrumentation.api.*;
 import datadog.trace.civisibility.interceptor.CiVisibilityApmProtocolInterceptor;
 import datadog.trace.civisibility.interceptor.CiVisibilityTraceInterceptor;
 import datadog.trace.common.GitMetadataTraceInterceptor;
@@ -813,8 +801,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       C carrier,
       BinarySetter<C> setter,
       LinkedHashMap<String, String> sortedTags) {
-    PathwayContext pathwayContext = context.get(PathwayContext.CONTEXT_KEY);
-    if (pathwayContext == null) {
+    PathwayContextHolder pathwayContextHolder = context.get(PathwayContextHolder.CONTEXT_KEY);
+    PathwayContext pathwayContext;
+    if (pathwayContextHolder == null
+        || (pathwayContext = pathwayContextHolder.getPathwayContext()) == null) {
       return;
     }
     pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring);
@@ -836,9 +826,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       C carrier,
       Setter<C> setter,
       LinkedHashMap<String, String> sortedTags) {
-    PathwayContext pathwayContext = context.get(PathwayContext.CONTEXT_KEY);
-    if (pathwayContext == null) {
+    PathwayContextHolder pathwayContextHolder = context.get(PathwayContextHolder.CONTEXT_KEY);
+    PathwayContext pathwayContext;
+    if (pathwayContextHolder == null
+        || (pathwayContext = pathwayContextHolder.getPathwayContext()) == null) {
       return;
+      //      pathwayContext = dataStreamsMonitoring.newPathwayContext(); // TODO Should be stored
+      // back in context
     }
     pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring);
     try {

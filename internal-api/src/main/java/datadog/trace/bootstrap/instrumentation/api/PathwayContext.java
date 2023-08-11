@@ -5,7 +5,6 @@ import java.util.LinkedHashMap;
 import java.util.function.Consumer;
 
 public interface PathwayContext {
-  ContextKey<PathwayContext> CONTEXT_KEY = ContextKey.named("dd-pathway-context");
   String PROPAGATION_KEY = "dd-pathway-ctx";
   String PROPAGATION_KEY_BASE64 = "dd-pathway-ctx-base64";
 

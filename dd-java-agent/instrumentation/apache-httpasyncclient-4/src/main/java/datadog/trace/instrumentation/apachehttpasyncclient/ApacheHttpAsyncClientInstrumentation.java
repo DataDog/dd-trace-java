@@ -95,8 +95,12 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Tracing
       final AgentSpan clientSpan = startSpan(HTTP_REQUEST);
       DECORATE.afterStart(clientSpan);
 
-      requestProducer =
-          new DelegatingRequestProducer(context, clientSpan, requestProducer);
+      //      PathwayContext pathwayContext = context.get(PathwayContext.CONTEXT_KEY);
+      //      if (pathwayContext == null) {
+      //
+      //      }
+
+      requestProducer = new DelegatingRequestProducer(context, clientSpan, requestProducer);
       futureCallback =
           new TraceContinuedFutureCallback(parentScope, clientSpan, httpContext, futureCallback);
 
