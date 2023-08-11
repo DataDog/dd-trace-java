@@ -51,8 +51,7 @@ class TestHttpClient extends HttpClient {
   }
 
   BodyAssertions assertRequestBody(RequestType rt) {
-    return assertRequest().headers(rt)
-    .assertBody().commonParts(rt)
+    return assertRequest().headers(rt).assertBody().commonParts(rt)
   }
 
   void assertNoMoreRequests() {
@@ -73,7 +72,7 @@ class TestHttpClient extends HttpClient {
       this.request = request
     }
 
-    private RequestAssertions headers(RequestType requestType) {
+    RequestAssertions headers(RequestType requestType) {
       assert request.method() == 'POST'
       assert request.headers().names() == [
         'Content-Type',
@@ -106,7 +105,7 @@ class TestHttpClient extends HttpClient {
       this.body = body
     }
 
-    private BodyAssertions commonParts(RequestType requestType) {
+    BodyAssertions commonParts(RequestType requestType) {
       assert body['api_version'] == 'v2'
 
       def app = body['application']
@@ -140,7 +139,7 @@ class TestHttpClient extends HttpClient {
     }
 
     BatchAssertions assertBatch(int expectedNumberOfPayloads) {
-      def payloads = body['payload'] as List<Map<String, Object>>
+      List<Map<String, Object>> payloads = body['payload']
       assert payloads != null && payloads.size() == expectedNumberOfPayloads
       return new BatchAssertions(payloads)
     }

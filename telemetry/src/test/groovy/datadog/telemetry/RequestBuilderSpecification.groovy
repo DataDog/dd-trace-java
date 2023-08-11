@@ -23,7 +23,7 @@ class RequestBuilderSpecification extends Specification {
 
     then:
     RequestBuilder.SerializationException ex = thrown()
-    ex.message == "Failed serializing Telemetry request header part!"
+    ex.message == "Failed serializing Telemetry begin-request part!"
     ex.cause != null
   }
 
@@ -38,7 +38,7 @@ class RequestBuilderSpecification extends Specification {
 
     then:
     RequestBuilder.SerializationException ex = thrown()
-    ex.message == "Failed serializing Telemetry request header part!"
+    ex.message == "Failed serializing Telemetry begin-request part!"
     ex.cause != null
   }
 

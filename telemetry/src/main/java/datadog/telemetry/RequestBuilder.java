@@ -26,17 +26,19 @@ import okio.BufferedSink;
 public class RequestBuilder extends RequestBody {
 
   public static class SerializationException extends RuntimeException {
+
     public SerializationException(String requestPartName, Throwable cause) {
-      super("Failed serializing Telemetry request " + requestPartName + " part!", cause);
+      super("Failed serializing Telemetry " + requestPartName + " part!", cause);
     }
   }
 
   private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+
   private static final String API_VERSION = "v2";
   private static final AtomicLong SEQ_ID = new AtomicLong();
   private static final String TELEMETRY_NAMESPACE_TAG_TRACER = "tracers";
-
   private final Buffer body = new Buffer();
+
   private final JsonWriter bodyWriter = JsonWriter.of(body);
   private final RequestType requestType;
   private final Request request;
@@ -127,7 +129,7 @@ public class RequestBuilder extends RequestBody {
         bodyWriter.beginArray();
       }
     } catch (Exception ex) {
-      throw new SerializationException("header", ex);
+      throw new SerializationException("begin-request", ex);
     }
   }
 
@@ -138,32 +140,32 @@ public class RequestBuilder extends RequestBody {
       }
       bodyWriter.endObject(); // request
     } catch (Exception ex) {
-      throw new SerializationException("footer", ex);
+      throw new SerializationException("end-request", ex);
     }
   }
 
-  private void beginMessage(RequestType payloadType) {
+  public void beginMessage(RequestType payloadType) {
     try {
       if (requestType == RequestType.MESSAGE_BATCH) {
         bodyWriter.beginObject();
         bodyWriter.name("request_type").value(String.valueOf(payloadType));
       }
     } catch (Exception ex) {
-      throw new SerializationException("begin-batch", ex);
+      throw new SerializationException("begin-message", ex);
     }
   }
 
-  private void endMessage() {
+  public void endMessage() {
     try {
       if (requestType == RequestType.MESSAGE_BATCH) {
         bodyWriter.endObject(); // event
       }
     } catch (Exception ex) {
-      throw new SerializationException("end-batch", ex);
+      throw new SerializationException("end-message", ex);
     }
   }
 
-  private void beginPayload() {
+  public void beginPayload() {
     try {
       bodyWriter.name("payload");
       bodyWriter.beginObject();
@@ -172,7 +174,7 @@ public class RequestBuilder extends RequestBody {
     }
   }
 
-  private void endPayload() {
+  public void endPayload() {
     try {
       bodyWriter.endObject(); // payload
     } catch (Exception ex) {
@@ -185,107 +187,82 @@ public class RequestBuilder extends RequestBody {
     endMessage();
   }
 
+  public void beginMetrics() throws IOException {
+    beginMessage(RequestType.GENERATE_METRICS);
+    beginPayload();
+    bodyWriter.name("namespace").value(TELEMETRY_NAMESPACE_TAG_TRACER);
+    bodyWriter.name("series");
+    bodyWriter.beginArray();
+  }
+
+  public void endMetrics() throws IOException {
+    bodyWriter.endArray();
+    endPayload();
+    endMessage();
+  }
+
   /**
    * https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/SchemaDocumentation/Schemas/metric_data.md#metric_data
    */
-  public void writeGenerateMetricsEvent(List<Metric> series) {
-    if (series.isEmpty()) {
-      return;
-    }
-    try {
-      beginMessage(RequestType.GENERATE_METRICS);
-      beginPayload();
-      bodyWriter.name("namespace").value(TELEMETRY_NAMESPACE_TAG_TRACER);
-      bodyWriter.name("series");
-      bodyWriter.beginArray();
-      for (Metric m : series) {
-        bodyWriter.beginObject();
-        bodyWriter.name("metric").value(m.getMetric());
-        bodyWriter.name("points").jsonValue(m.getPoints());
-        // interval - optional
-        if (m.getType() != null) bodyWriter.name("type").value(m.getType().toString());
-        bodyWriter.name("tags").jsonValue(m.getTags()); // optional
-        bodyWriter.name("common").value(m.getCommon()); // optional
-        bodyWriter.name("namespace").value(m.getNamespace()); // optional
-        bodyWriter.endObject();
-      }
-      bodyWriter.endArray();
-      endPayload();
-      endMessage();
-    } catch (Exception ex) {
-      throw new SerializationException("metrics payload", ex);
-    }
+  public void writeMetric(Metric m) throws IOException {
+    bodyWriter.beginObject();
+    bodyWriter.name("metric").value(m.getMetric());
+    bodyWriter.name("points").jsonValue(m.getPoints());
+    // interval - optional
+    if (m.getType() != null) bodyWriter.name("type").value(m.getType().toString());
+    bodyWriter.name("tags").jsonValue(m.getTags()); // optional
+    bodyWriter.name("common").value(m.getCommon()); // optional
+    bodyWriter.name("namespace").value(m.getNamespace()); // optional
+    bodyWriter.endObject();
   }
 
-  public void writeDistributionsEvent(List<DistributionSeries> series) {
-    if (series.isEmpty()) {
-      return;
-    }
-    try {
-      beginMessage(RequestType.DISTRIBUTIONS);
-      beginPayload();
-      bodyWriter.name("namespace").value(TELEMETRY_NAMESPACE_TAG_TRACER);
-      bodyWriter.name("series");
-      bodyWriter.beginArray();
-      for (DistributionSeries ds : series) {
-        bodyWriter.beginObject();
-        bodyWriter.name("metric").value(ds.getMetric());
-        bodyWriter.name("points").jsonValue(ds.getPoints());
-        bodyWriter.name("tags").jsonValue(ds.getTags());
-        bodyWriter.name("common").value(ds.getCommon());
-        bodyWriter.name("namespace").value(ds.getNamespace());
-        bodyWriter.endObject();
-      }
-      bodyWriter.endArray();
-      endPayload();
-      endMessage();
-    } catch (Exception ex) {
-      throw new SerializationException("distribution series payload", ex);
-    }
+  public void writeDistribution(DistributionSeries ds) throws IOException {
+    bodyWriter.beginObject();
+    bodyWriter.name("metric").value(ds.getMetric());
+    bodyWriter.name("points").jsonValue(ds.getPoints());
+    bodyWriter.name("tags").jsonValue(ds.getTags());
+    bodyWriter.name("common").value(ds.getCommon());
+    bodyWriter.name("namespace").value(ds.getNamespace());
+    bodyWriter.endObject();
+  }
+
+  public void beginDistributions() throws IOException {
+    beginMessage(RequestType.DISTRIBUTIONS);
+    beginPayload();
+    bodyWriter.name("namespace").value(TELEMETRY_NAMESPACE_TAG_TRACER);
+    bodyWriter.name("series");
+    bodyWriter.beginArray();
+  }
+
+  public void endDistributions() throws IOException {
+    bodyWriter.endArray();
+    endPayload();
+    endMessage();
+  }
+
+  public void beginLogs() throws IOException {
+    beginMessage(RequestType.LOGS);
+    beginPayload();
+    bodyWriter.name("logs").beginArray();
+  }
+
+  public void endLogs() throws IOException {
+    bodyWriter.endArray();
+    endPayload();
+    endMessage();
   }
 
   /**
    * https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/SchemaDocumentation/Schemas/payload.md#if-request_type--app-extended-heartbeat-we-add-the-following-to-payload
    */
-  public void writeLogsEvent(List<LogMessage> messages) {
-    if (messages.isEmpty()) {
-      return;
-    }
-    try {
-      beginMessage(RequestType.LOGS);
-      beginPayload();
-      bodyWriter.name("logs").beginArray();
-      for (LogMessage m : messages) {
-        bodyWriter.beginObject();
-        bodyWriter.name("message").value(m.getMessage());
-        bodyWriter.name("level").value(String.valueOf(m.getLevel()));
-        bodyWriter.name("tags").value(m.getTags()); // optional
-        bodyWriter.name("stack_trace").value(m.getStackTrace()); // optional
-        bodyWriter.name("tracer_time").value(m.getTracerTime()); // optional
-        bodyWriter.endObject();
-      }
-      bodyWriter.endArray();
-      endPayload();
-      endMessage();
-    } catch (Exception ex) {
-      throw new SerializationException("logs payload", ex);
-    }
-  }
-
-  /**
-   * https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/SchemaDocumentation/Schemas/app_started.md
-   */
-  public void writeAppStartedEvent(List<ConfigChange> configChanges) {
-    if (configChanges != null) {
-      beginMessage(RequestType.APP_STARTED);
-      beginPayload();
-      // products - optional
-      writeConfigurationChanges(configChanges);
-      // error - optional
-      // additional_payload - optional
-      endPayload();
-      endMessage();
-    }
+  public void writeLog(LogMessage m) throws IOException {
+    bodyWriter.beginObject();
+    bodyWriter.name("message").value(m.getMessage());
+    bodyWriter.name("level").value(String.valueOf(m.getLevel()));
+    bodyWriter.name("tags").value(m.getTags()); // optional
+    bodyWriter.name("stack_trace").value(m.getStackTrace()); // optional
+    bodyWriter.name("tracer_time").value(m.getTracerTime()); // optional
+    bodyWriter.endObject();
   }
 
   public void writeConfigChangeEvent(List<ConfigChange> configChanges) {
@@ -298,83 +275,89 @@ public class RequestBuilder extends RequestBody {
     }
   }
 
-  private void writeConfigurationChanges(List<ConfigChange> configChanges) {
+  public void writeConfigurationChanges(List<ConfigChange> configChanges) {
     if (configChanges.isEmpty()) {
       return;
     }
     try {
-      bodyWriter.name("configuration").beginArray();
+      beginConfiguration();
       for (ConfigChange cc : configChanges) {
-        bodyWriter.beginObject();
-        bodyWriter.name("name").value(cc.name);
-        bodyWriter.name("value").jsonValue(cc.value);
-        // TODO provide a real origin when it's implemented
-        bodyWriter.name("origin").jsonValue("unknown");
-        // error - optional
-        // seq_id - optional
-        bodyWriter.endObject();
+        writeConfiguration(cc);
       }
-      bodyWriter.endArray();
+      endConfiguration();
     } catch (Exception ex) {
       throw new SerializationException("config changes payload", ex);
     }
   }
 
-  /**
-   * https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/SchemaDocumentation/Schemas/dependency.md
-   */
-  public void writeDependenciesLoadedEvent(List<Dependency> dependencies) {
-    if (dependencies.isEmpty()) {
-      return;
-    }
-    try {
-      beginMessage(RequestType.APP_DEPENDENCIES_LOADED);
-      beginPayload();
-      bodyWriter.name("dependencies");
-      bodyWriter.beginArray();
-      for (Dependency d : dependencies) {
-        bodyWriter.beginObject();
-        bodyWriter.name("hash").value(d.hash); // optional
-        bodyWriter.name("name").value(d.name);
-        bodyWriter.name("version").value(d.version); // optional
-        bodyWriter.endObject();
-      }
-      bodyWriter.endArray();
-      endPayload();
-      endMessage();
-    } catch (Exception ex) {
-      throw new SerializationException("dependencies payload", ex);
-    }
+  public void beginConfiguration() throws IOException {
+    bodyWriter.name("configuration").beginArray();
+  }
+
+  public void endConfiguration() throws IOException {
+    bodyWriter.endArray();
+  }
+
+  public void writeConfiguration(ConfigChange cc) throws IOException {
+    bodyWriter.beginObject();
+    bodyWriter.name("name").value(cc.name);
+    bodyWriter.name("value").jsonValue(cc.value);
+    // TODO provide a real origin when it's implemented
+    bodyWriter.name("origin").jsonValue("unknown");
+    // error - optional
+    // seq_id - optional
+    bodyWriter.endObject();
+  }
+
+  public void beginIntegrations() throws IOException {
+    beginMessage(RequestType.APP_INTEGRATIONS_CHANGE);
+    beginPayload();
+    bodyWriter.name("integrations");
+    bodyWriter.beginArray();
+  }
+
+  public void endIntegrations() throws IOException {
+    bodyWriter.endArray();
+    endPayload();
+    endMessage();
   }
 
   /**
    * https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/SchemaDocumentation/Schemas/integration.md
    */
-  public void writeIntegrationsEvent(List<Integration> integrations) {
-    if (integrations.isEmpty()) {
-      return;
-    }
-    try {
-      beginMessage(RequestType.APP_INTEGRATIONS_CHANGE);
-      beginPayload();
-      bodyWriter.name("integrations");
-      bodyWriter.beginArray();
-      for (Integration i : integrations) {
-        bodyWriter.beginObject();
-        // auto_enabled - optional
-        // compatible - optional
-        bodyWriter.name("enabled").value(i.enabled);
-        // error - optional
-        bodyWriter.name("name").value(i.name);
-        // version - optional
-        bodyWriter.endObject();
-      }
-      bodyWriter.endArray();
-      endPayload();
-      endMessage();
-    } catch (Exception ex) {
-      throw new SerializationException("integrations payload", ex);
-    }
+  public void writeIntegration(Integration i) throws IOException {
+    bodyWriter.beginObject();
+    // auto_enabled - optional
+    // compatible - optional
+    bodyWriter.name("enabled").value(i.enabled);
+    // error - optional
+    bodyWriter.name("name").value(i.name);
+    // version - optional
+    bodyWriter.endObject();
+  }
+
+  public void beginDependencies() throws IOException {
+    beginMessage(RequestType.APP_DEPENDENCIES_LOADED);
+    beginPayload();
+    bodyWriter.name("dependencies");
+    bodyWriter.beginArray();
+  }
+
+  public void endDependencies() throws IOException {
+    bodyWriter.endArray();
+    endPayload();
+    endMessage();
+  }
+
+  /**
+   * https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/SchemaDocumentation/Schemas/dependency.md
+   */
+  public void writeDependency(Dependency d) throws IOException {
+    bodyWriter.beginObject();
+    bodyWriter.name("hash").value(d.hash); // optional
+    bodyWriter.name("name").value(d.name);
+    bodyWriter.name("version").value(d.version); // optional
+    bodyWriter.endObject();
   }
 
   /**
@@ -417,5 +400,9 @@ public class RequestBuilder extends RequestBody {
   @Override
   public void writeTo(BufferedSink sink) throws IOException {
     sink.write(body, body.size());
+  }
+
+  public long size() {
+    return body.size();
   }
 }

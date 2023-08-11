@@ -195,45 +195,29 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertNoMoreRequests()
 
     when: 'successful attempt'
-    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    testHttpClient.expectRequests(2, HttpClient.Result.SUCCESS)
     telemetryService.sendTelemetryEvents()
 
     then: 'attempt with SUCCESS'
     testHttpClient.assertRequestBody(RequestType.APP_STARTED).hasPayload().configuration([confKeyValue])
+    testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
+      .assertBatch(6)
+      .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
+      // no configuration here as it has already been sent with the app-started event
+      .assertNextMessage(RequestType.APP_INTEGRATIONS_CHANGE).hasPayload().integrations([integration])
+      .assertNextMessage(RequestType.APP_DEPENDENCIES_LOADED).hasPayload().dependencies([dependency])
+      .assertNextMessage(RequestType.GENERATE_METRICS).hasPayload().namespace("tracers").metrics([metric])
+      .assertNextMessage(RequestType.DISTRIBUTIONS).hasPayload().namespace("tracers").distributionSeries([distribution])
+      .assertNextMessage(RequestType.LOGS).hasPayload().logs([logMessage])
+      .assertNoMoreMessages()
     testHttpClient.assertNoMoreRequests()
 
     when: 'attempt with NOT_FOUND error'
     testHttpClient.expectRequest(HttpClient.Result.FAILURE)
     telemetryService.sendTelemetryEvents()
 
-    then: 'message-batch attempted with data except config'
-    testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
-      .assertBatch(6)
-      .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
-      // no configuration here as it has already been sent with the app-started event
-      .assertNextMessage(RequestType.APP_INTEGRATIONS_CHANGE).hasPayload().integrations([integration])
-      .assertNextMessage(RequestType.APP_DEPENDENCIES_LOADED).hasPayload().dependencies([dependency])
-      .assertNextMessage(RequestType.GENERATE_METRICS).hasPayload().namespace("tracers").metrics([metric])
-      .assertNextMessage(RequestType.DISTRIBUTIONS).hasPayload().namespace("tracers").distributionSeries([distribution])
-      .assertNextMessage(RequestType.LOGS).hasPayload().logs([logMessage])
-      .assertNoMoreMessages()
-    testHttpClient.assertNoMoreRequests()
-
-    when: 'attempt with SUCCESS'
-    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
-    telemetryService.sendTelemetryEvents()
-
-    then: 'attempt with all data'
-    testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
-      .assertBatch(6)
-      .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
-      // no configuration here as it has already been sent with the app-started event
-      .assertNextMessage(RequestType.APP_INTEGRATIONS_CHANGE).hasPayload().integrations([integration])
-      .assertNextMessage(RequestType.APP_DEPENDENCIES_LOADED).hasPayload().dependencies([dependency])
-      .assertNextMessage(RequestType.GENERATE_METRICS).hasPayload().namespace("tracers").metrics([metric])
-      .assertNextMessage(RequestType.DISTRIBUTIONS).hasPayload().namespace("tracers").distributionSeries([distribution])
-      .assertNextMessage(RequestType.LOGS).hasPayload().logs([logMessage])
-      .assertNoMoreMessages()
+    then: 'message-batch attempted with heartbeat'
+    testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT).assertNoPayload()
     testHttpClient.assertNoMoreRequests()
   }
 
@@ -244,6 +228,7 @@ class TelemetryServiceSpecification extends Specification {
 
     then:
     testHttpClient.assertRequestBody(RequestType.APP_CLOSING)
+    testHttpClient.assertNoMoreRequests()
   }
 
   void 'report when both OTel and OT are enabled'() {
