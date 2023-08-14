@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
@@ -53,6 +54,11 @@ public class HttpServerResponseInstrumentation extends Instrumenter.Iast
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()));
+  }
+
+  @Override
+  public ProductActivation activation() {
+    return ProductActivation.ENABLED_OPT_OUT;
   }
 
   public static class PutHeaderAdvice1 {

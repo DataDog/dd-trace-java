@@ -1,5 +1,7 @@
 package com.datadog.iast;
 
+import static datadog.trace.api.ProductActivation.FULLY_ENABLED;
+
 import com.datadog.iast.HasDependencies.Dependencies;
 import com.datadog.iast.overhead.OverheadController;
 import com.datadog.iast.propagation.FastCodecModule;
@@ -57,12 +59,13 @@ public class IastSystem {
 
   public static void start(final SubscriptionService ss, OverheadController overheadController) {
     final Config config = Config.get();
-    if (config.getIastActivation() != ProductActivation.FULLY_ENABLED) {
+    final ProductActivation activation = config.getIastActivation();
+    if (activation == ProductActivation.FULLY_DISABLED) {
       LOGGER.debug("IAST is disabled");
       return;
     }
     DEBUG = config.isIastDebugEnabled();
-    LOGGER.debug("IAST is starting: debug={}", DEBUG);
+    LOGGER.debug("IAST is starting: activation={}, debug={}", activation, DEBUG);
     final Reporter reporter = new Reporter(config, AgentTaskScheduler.INSTANCE);
     if (overheadController == null) {
       overheadController = OverheadController.build(config, AgentTaskScheduler.INSTANCE);
@@ -70,7 +73,7 @@ public class IastSystem {
     final Dependencies dependencies =
         new Dependencies(config, reporter, overheadController, StackWalkerFactory.INSTANCE);
     final boolean addTelemetry = config.getIastTelemetryVerbosity() != Verbosity.OFF;
-    iastModules().forEach(registerModule(dependencies));
+    iastModules(activation).forEach(registerModule(dependencies));
     registerRequestStartedCallback(ss, addTelemetry, dependencies);
     registerRequestEndedCallback(ss, addTelemetry, dependencies);
     registerHeadersCallback(ss, dependencies);
@@ -86,29 +89,37 @@ public class IastSystem {
     };
   }
 
-  private static Stream<IastModule> iastModules() {
-    return Stream.of(
-        new WebModuleImpl(),
-        new StringModuleImpl(),
-        new FastCodecModule(),
-        new SqlInjectionModuleImpl(),
-        new PathTraversalModuleImpl(),
-        new CommandInjectionModuleImpl(),
-        new WeakCipherModuleImpl(),
-        new WeakHashModuleImpl(),
-        new LdapInjectionModuleImpl(),
-        new PropagationModuleImpl(),
-        new HttpResponseHeaderModuleImpl(),
-        new HstsMissingHeaderModuleImpl(),
-        new InsecureCookieModuleImpl(),
-        new NoHttpOnlyCookieModuleImpl(),
-        new NoSameSiteCookieModuleImpl(),
-        new SsrfModuleImpl(),
-        new UnvalidatedRedirectModuleImpl(),
-        new WeakRandomnessModuleImpl(),
-        new XPathInjectionModuleImpl(),
-        new TrustBoundaryViolationModuleImpl(),
-        new XssModuleImpl());
+  private static Stream<IastModule> iastModules(final ProductActivation activation) {
+    final Stream<IastModule> modules =
+        Stream.of(
+            new HttpResponseHeaderModuleImpl(),
+            new HstsMissingHeaderModuleImpl(),
+            new InsecureCookieModuleImpl(),
+            new NoHttpOnlyCookieModuleImpl(),
+            new NoSameSiteCookieModuleImpl());
+    if (!activation.isAtLeast(FULLY_ENABLED)) {
+      return modules;
+    }
+    return Stream.concat(
+        modules,
+        Stream.of(
+            new WebModuleImpl(),
+            new StringModuleImpl(),
+            new FastCodecModule(),
+            new SqlInjectionModuleImpl(),
+            new PathTraversalModuleImpl(),
+            new CommandInjectionModuleImpl(),
+            new WeakCipherModuleImpl(),
+            new WeakHashModuleImpl(),
+            new LdapInjectionModuleImpl(),
+            new PropagationModuleImpl(),
+            new NoHttpOnlyCookieModuleImpl(),
+            new SsrfModuleImpl(),
+            new UnvalidatedRedirectModuleImpl(),
+            new WeakRandomnessModuleImpl(),
+            new XPathInjectionModuleImpl(),
+            new TrustBoundaryViolationModuleImpl(),
+            new XssModuleImpl()));
   }
 
   private static void registerRequestStartedCallback(

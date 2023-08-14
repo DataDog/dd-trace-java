@@ -109,8 +109,9 @@ class InstrumenterConfigTest extends DDSpecification {
 
     where:
     input      | expected
-    null       | ProductActivation.FULLY_DISABLED
-    ""         | ProductActivation.FULLY_DISABLED
+    null       | ProductActivation.ENABLED_OPT_OUT
+    ""         | ProductActivation.ENABLED_OPT_OUT
+    "opt-out"  | ProductActivation.ENABLED_OPT_OUT
     "bad"      | ProductActivation.FULLY_DISABLED
     "false"    | ProductActivation.FULLY_DISABLED
     "0"        | ProductActivation.FULLY_DISABLED

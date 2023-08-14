@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.iastinstrumenter;
 
+import static datadog.trace.api.ProductActivation.FULLY_ENABLED;
+
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteInstrumentation;
@@ -29,6 +31,15 @@ public class IastInstrumentation extends CallSiteInstrumentation {
   @Override
   public boolean isApplicable(final Set<TargetSystem> enabledSystems) {
     return enabledSystems.contains(TargetSystem.IAST);
+  }
+
+  /** Call sites should only be enabled when the full product is enabled. */
+  @Override
+  public boolean isEnabled() {
+    if (!super.isEnabled()) {
+      return false;
+    }
+    return Config.get().getIastActivation().isAtLeast(FULLY_ENABLED);
   }
 
   @Override

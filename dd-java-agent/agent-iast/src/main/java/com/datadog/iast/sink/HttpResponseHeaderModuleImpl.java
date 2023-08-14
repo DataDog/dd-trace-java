@@ -49,7 +49,6 @@ public class HttpResponseHeaderModuleImpl extends SinkModuleBase
         ctx.setContentType(value);
       }
     } else if (SET_COOKIE_HEADER.equalsIgnoreCase(name)) {
-      CookieSecurityParser cookieSecurityInfo = new CookieSecurityParser();
       onCookies(CookieSecurityParser.parse(value));
     }
     if (null != InstrumentationBridge.UNVALIDATED_REDIRECT) {
@@ -68,6 +67,10 @@ public class HttpResponseHeaderModuleImpl extends SinkModuleBase
       return;
     }
     final AgentSpan span = AgentTracer.activeSpan();
+    final IastRequestContext ctx = IastRequestContext.get(span);
+    if (ctx == null) {
+      return; // request dropped due to sampling
+    }
     if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
       return;
     }

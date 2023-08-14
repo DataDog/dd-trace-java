@@ -15,19 +15,19 @@
     "tracing": {
       "env": {
         "VARIANT": "tracing",
-        "JAVA_OPTS": "-javaagent:${TRACER}"
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.iast.enabled=false"
       }
     },
     "profiling": {
       "env": {
         "VARIANT": "profiling",
-        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.profiling.enabled=true"
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.profiling.enabled=true -Ddd.iast.enabled=false"
       }
     },
     "appsec": {
       "env": {
         "VARIANT": "appsec",
-        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.appsec.enabled=true"
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.appsec.enabled=true -Ddd.iast.enabled=false"
       }
     },
     "iast": {
@@ -46,6 +46,12 @@
       "env": {
         "VARIANT": "iast_INACTIVE",
         "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.iast.enabled=inactive"
+      }
+    },
+    "iast_OPT_OUT": {
+      "env": {
+        "VARIANT": "iast_OPT_OUT",
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.iast.enabled=opt-out"
       }
     }
   }

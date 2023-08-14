@@ -2,10 +2,12 @@ package com.datadog.iast;
 
 import static com.datadog.iast.IastTag.ANALYZED;
 import static com.datadog.iast.IastTag.SKIPPED;
+import static datadog.trace.api.ProductActivation.FULLY_ENABLED;
 
 import com.datadog.iast.HasDependencies.Dependencies;
 import com.datadog.iast.overhead.OverheadController;
 import com.datadog.iast.taint.TaintedObjects;
+import datadog.trace.api.Config;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
@@ -33,7 +35,7 @@ public class RequestEndedHandler implements BiFunction<RequestContext, IGSpanInf
         mod.onRequestEnd(iastRequestContext, igSpanInfo);
       }
       try {
-        ANALYZED.setTagTop(traceSegment);
+        setTag(traceSegment, ANALYZED);
         final TaintedObjects taintedObjects = iastRequestContext.getTaintedObjects();
         if (taintedObjects != null) {
           taintedObjects.release();
@@ -42,8 +44,15 @@ public class RequestEndedHandler implements BiFunction<RequestContext, IGSpanInf
         overheadController.releaseRequest();
       }
     } else {
-      SKIPPED.setTagTop(traceSegment);
+      setTag(traceSegment, SKIPPED);
     }
     return Flow.ResultFlow.empty();
+  }
+
+  private void setTag(final TraceSegment trace, final IastTag tag) {
+    // only set the tag when the product has been fully activated
+    if (Config.get().getIastActivation().isAtLeast(FULLY_ENABLED)) {
+      tag.setTagTop(trace);
+    }
   }
 }

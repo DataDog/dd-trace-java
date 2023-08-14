@@ -137,6 +137,7 @@ public class Agent {
   private static boolean appSecFullyDisabled;
   private static boolean remoteConfigEnabled = true;
   private static boolean iastEnabled = false;
+  private static boolean iastFullyDisabled;
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
   private static boolean usmEnabled = false;
@@ -200,9 +201,10 @@ public class Agent {
     jmxFetchEnabled = isFeatureEnabled(AgentFeature.JMXFETCH);
     profilingEnabled = isFeatureEnabled(AgentFeature.PROFILING);
     iastEnabled = isFeatureEnabled(AgentFeature.IAST);
+    iastFullyDisabled = isFullyDisabled(AgentFeature.IAST);
     usmEnabled = isFeatureEnabled(AgentFeature.USM);
     appSecEnabled = isFeatureEnabled(AgentFeature.APPSEC);
-    appSecFullyDisabled = isAppSecFullyDisabled();
+    appSecFullyDisabled = isFullyDisabled(AgentFeature.APPSEC);
     remoteConfigEnabled = isFeatureEnabled(AgentFeature.REMOTE_CONFIG);
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
     telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
@@ -721,7 +723,7 @@ public class Agent {
   }
 
   private static void maybeStartIast(Class<?> scoClass, Object o) {
-    if (iastEnabled) {
+    if (iastEnabled || !iastFullyDisabled) {
 
       StaticEventLogger.begin("IAST");
 
@@ -1037,9 +1039,9 @@ public class Agent {
   }
 
   /** @see datadog.trace.api.ProductActivation#fromString(String) */
-  private static boolean isAppSecFullyDisabled() {
+  private static boolean isFullyDisabled(final AgentFeature feature) {
     // must be kept in sync with logic from Config!
-    final String featureEnabledSysprop = AgentFeature.APPSEC.systemProp;
+    String featureEnabledSysprop = feature.systemProp;
     String settingValue = getNullIfEmpty(System.getProperty(featureEnabledSysprop));
     if (settingValue == null) {
       settingValue = getNullIfEmpty(ddGetEnv(featureEnabledSysprop));
@@ -1050,7 +1052,8 @@ public class Agent {
     return !(settingValue == null
         || settingValue.equalsIgnoreCase("true")
         || settingValue.equalsIgnoreCase("1")
-        || settingValue.equalsIgnoreCase("inactive"));
+        || settingValue.equalsIgnoreCase("inactive")
+        || settingValue.equalsIgnoreCase("opt-out"));
   }
 
   private static String getNullIfEmpty(final String value) {

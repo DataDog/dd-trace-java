@@ -9,10 +9,15 @@ import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_REDACTION_ENABLED
+import static org.junit.Assume.assumeTrue
 
 abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   private static final MediaType JSON = MediaType.parse('application/json; charset=utf-8')
+
+  protected String iastEnabledFlag() {
+    return 'true'
+  }
 
   @Override
   ProcessBuilder createProcessBuilder() {
@@ -22,10 +27,10 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
     command.addAll([
-      withSystemProperty(IAST_ENABLED, true),
+      withSystemProperty(IAST_ENABLED, iastEnabledFlag()),
       withSystemProperty(IAST_DETECTION_MODE, 'FULL'),
       withSystemProperty(IAST_DEBUG_ENABLED, true),
-      withSystemProperty(IAST_REDACTION_ENABLED, false)
+      withSystemProperty(IAST_REDACTION_ENABLED, false),
     ])
     command.addAll((String[]) ['-jar', springBootShadowJar, "--server.port=${httpPort}"])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
@@ -33,6 +38,10 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     // Spring will print all environment variables to the log, which may pollute it and affect log assertions.
     processBuilder.environment().clear()
     return processBuilder
+  }
+
+  protected void assumeFullActivation() {
+    assumeTrue(iastEnabledFlag() == 'true')
   }
 
   void 'IAST subsystem starts'() {
@@ -85,6 +94,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'iast.enabled tag is present'() {
     setup:
+    assumeFullActivation()
     String url = "http://localhost:${httpPort}/greeting"
     def request = new Request.Builder().url(url).get().build()
 
@@ -97,6 +107,8 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'weak hash vulnerability is present'() {
     setup:
+    assumeFullActivation()
+
     String url = "http://localhost:${httpPort}/weakhash"
     def request = new Request.Builder().url(url).get().build()
 
@@ -196,6 +208,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'weak hash vulnerability is present on boot'() {
     setup:
+    assumeFullActivation()
     String url = "http://localhost:${httpPort}/greeting"
     def request = new Request.Builder().url(url).get().build()
 
@@ -212,6 +225,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'weak hash vulnerability is present on thread'() {
     setup:
+    assumeFullActivation()
     String url = "http://localhost:${httpPort}/async_weakhash"
     def request = new Request.Builder().url(url).get().build()
 
@@ -228,6 +242,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'getParameter taints string'() {
     setup:
+    assumeFullActivation()
     String url = "http://localhost:${httpPort}/getparameter?param=A"
     def request = new Request.Builder().url(url).get().build()
 
@@ -244,6 +259,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'command injection is present with runtime'() {
     setup:
+    assumeFullActivation()
     final url = "http://localhost:${httpPort}/cmdi/runtime?cmd=ls"
     final request = new Request.Builder().url(url).get().build()
 
@@ -256,6 +272,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'command injection is present with process builder'() {
     setup:
+    assumeFullActivation()
     final url = "http://localhost:${httpPort}/cmdi/process_builder?cmd=ls"
     final request = new Request.Builder().url(url).get().build()
 
@@ -268,6 +285,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'xpath injection is present when compile expression'() {
     setup:
+    assumeFullActivation()
     final url = "http://localhost:${httpPort}/xpathi/compile?expression=%2Fbookstore%2Fbook%2Ftitle"
     final request = new Request.Builder().url(url).get().build()
 
@@ -281,6 +299,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'xpath injection is present when evaluate expression'() {
     setup:
+    assumeFullActivation()
     final url = "http://localhost:${httpPort}/xpathi/evaluate?expression=%2Fbookstore%2Fbook%2Ftitle"
     final request = new Request.Builder().url(url).get().build()
 
@@ -293,6 +312,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'trust boundary violation is present'() {
     setup:
+    assumeFullActivation()
     final url = "http://localhost:${httpPort}/trust_boundary_violation?paramValue=test"
     final request = new Request.Builder().url(url).get().build()
 
@@ -305,6 +325,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'xss is present'() {
     setup:
+    assumeFullActivation()
     final url = "http://localhost:${httpPort}/xss/${method}?string=${param}"
     final request = new Request.Builder().url(url).get().build()
 
@@ -336,6 +357,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'trust boundary violation with cookie propagation'() {
     setup:
+    assumeFullActivation()
     final url = "http://localhost:${httpPort}/trust_boundary_violation_for_cookie"
     final request = new Request.Builder().url(url).get().addHeader("Cookie", "https%3A%2F%2Fuser-id2=https%3A%2F%2Fkkk").build()
 
@@ -357,6 +379,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'path traversal is present with file'() {
     setup:
+    assumeFullActivation()
     final url = "http://localhost:${httpPort}/path_traversal/file?path=test"
     final request = new Request.Builder().url(url).get().build()
 
@@ -369,6 +392,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'path traversal is present with paths'() {
     setup:
+    assumeFullActivation()
     final url = "http://localhost:${httpPort}/path_traversal/paths?path=test"
     final request = new Request.Builder().url(url).get().build()
 
@@ -381,6 +405,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'path traversal is present with path'() {
     setup:
+    assumeFullActivation()
     final url = "http://localhost:${httpPort}/path_traversal/path?path=test"
     final request = new Request.Builder().url(url).get().build()
 
@@ -393,6 +418,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'parameter binding taints bean strings'() {
     setup:
+    assumeFullActivation()
     String url = "http://localhost:${httpPort}/param_binding/test?name=parameter&value=binding"
     def request = new Request.Builder().url(url).get().build()
 
@@ -409,6 +435,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'request header taint string'() {
     setup:
+    assumeFullActivation()
     String url = "http://localhost:${httpPort}/request_header/test"
     def request = new Request.Builder().url(url).header("test-header", "test").get().build()
 
@@ -425,6 +452,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'path param taint string'() {
     setup:
+    assumeFullActivation()
     String url = "http://localhost:${httpPort}/path_param?param=test"
     def request = new Request.Builder().url(url).get().build()
 
@@ -441,6 +469,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'request body taint json'() {
     setup:
+    assumeFullActivation()
     String url = "http://localhost:${httpPort}/request_body/test"
     def request = new Request.Builder().url(url).post(RequestBody.create(JSON, '{"name": "nameTest", "value" : "valueTest"}')).build()
 
@@ -456,6 +485,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'request query string'() {
     given:
+    assumeFullActivation()
     final url = "http://localhost:${httpPort}/query_string?key=value"
     final request = new Request.Builder().url(url).get().build()
 
@@ -471,6 +501,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'request cookie propagation'() {
     given:
+    assumeFullActivation()
     final url = "http://localhost:${httpPort}/cookie"
     final request = new Request.Builder().url(url).header('Cookie', 'name=value').get().build()
 
@@ -491,6 +522,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'tainting of path variables — simple variant'() {
     given:
+    assumeFullActivation()
     String url = "http://localhost:${httpPort}/simple/foobar"
     def request = new Request.Builder().url(url).get().build()
 
@@ -508,6 +540,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
   @SuppressWarnings('CyclomaticComplexity')
   void 'tainting of path variables — RequestMappingInfoHandlerMapping variant'() {
     given:
+    assumeFullActivation()
     String url = "http://localhost:${httpPort}/matrix/value1;xxx=aaa,bbb;yyy=ccc/value2;zzz=ddd"
     def request = new Request.Builder().url(url).get().build()
 
@@ -547,6 +580,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'ssrf is present'() {
     setup:
+    assumeFullActivation()
     final url = "http://localhost:${httpPort}/ssrf"
     final body = new FormBody.Builder().add('url', 'https://dd.datad0g.com/').build()
     final request = new Request.Builder().url(url).post(body).build()
@@ -560,6 +594,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'test iast metrics stored in spans'() {
     setup:
+    assumeFullActivation()
     final url = "http://localhost:${httpPort}/cmdi/runtime?cmd=ls"
     final request = new Request.Builder().url(url).get().build()
 
@@ -572,6 +607,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'weak randomness is present in #evidence'() {
     setup:
+    assumeFullActivation()
     final url = "http://localhost:${httpPort}/weak_randomness?mode=${evidence}"
     final request = new Request.Builder().url(url).get().build()
 
@@ -590,6 +626,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   def "unvalidated  redirect from addheader is present"() {
     setup:
+    assumeFullActivation()
     String url = "http://localhost:${httpPort}/unvalidated_redirect_from_header?param=redirected"
     def request = new Request.Builder().url(url).get().build()
 
@@ -604,6 +641,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   def "unvalidated  redirect from sendRedirect is present"() {
     setup:
+    assumeFullActivation()
     String url = "http://localhost:${httpPort}/unvalidated_redirect_from_send_redirect?param=redirected"
     def request = new Request.Builder().url(url).get().build()
 
@@ -620,6 +658,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   def "unvalidated  redirect from forward is present"() {
     setup:
+    assumeFullActivation()
     String url = "http://localhost:${httpPort}/unvalidated_redirect_from_forward?param=redirected"
     def request = new Request.Builder().url(url).get().build()
 
@@ -632,6 +671,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   def "unvalidated  redirect from RedirectView is present"() {
     setup:
+    assumeFullActivation()
     String url = "http://localhost:${httpPort}/unvalidated_redirect_from_redirect_view?param=redirected"
     def request = new Request.Builder().url(url).get().build()
 
@@ -645,6 +685,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   def "unvalidated  redirect from ModelAndView is present"() {
     setup:
+    assumeFullActivation()
     String url = "http://localhost:${httpPort}/unvalidated_redirect_from_model_and_view?param=redirected"
     def request = new Request.Builder().url(url).get().build()
 
@@ -659,6 +700,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   def "unvalidated  redirect forward from ModelAndView is present"() {
     setup:
+    assumeFullActivation()
     String url = "http://localhost:${httpPort}/unvalidated_redirect_forward_from_model_and_view?param=redirected"
     def request = new Request.Builder().url(url).get().build()
 
@@ -672,6 +714,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   def "unvalidated  redirect from string"() {
     setup:
+    assumeFullActivation()
     String url = "http://localhost:${httpPort}/unvalidated_redirect_from_string?param=redirected"
     def request = new Request.Builder().url(url).get().build()
 
@@ -685,6 +728,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   def "unvalidated  redirect forward from string"() {
     setup:
+    assumeFullActivation()
     String url = "http://localhost:${httpPort}/unvalidated_redirect_forward_from_string?param=redirected"
     def request = new Request.Builder().url(url).get().build()
 
@@ -697,6 +741,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   def "get View from tainted string"() {
     setup:
+    assumeFullActivation()
     String url = "http://localhost:${httpPort}/get_view_from_tainted_string?param=redirected"
     def request = new Request.Builder().url(url).get().build()
 
@@ -706,5 +751,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     then:
     hasVulnerabilityInLogs { vul -> vul.type == 'UNVALIDATED_REDIRECT' && vul.location.method == 'getViewfromTaintedString' }
   }
+
+
 
 }

@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.ANY_CLASS_LOADER;
+import static datadog.trace.api.ProductActivation.FULLY_ENABLED;
 import static java.util.Collections.addAll;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
@@ -10,7 +11,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
+import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.Strings;
@@ -352,6 +355,19 @@ public interface Instrumenter {
     @Override
     public boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.IAST);
+    }
+
+    @Override
+    public boolean isEnabled() {
+      if (!super.isEnabled()) {
+        return false;
+      }
+      return Config.get().getIastActivation().isAtLeast(activation());
+    }
+
+    /** Required the full product activation to turn on the instrumentation by default */
+    public ProductActivation activation() {
+      return FULLY_ENABLED;
     }
 
     /**

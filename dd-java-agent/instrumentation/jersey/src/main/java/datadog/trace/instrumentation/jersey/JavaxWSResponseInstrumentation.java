@@ -2,11 +2,14 @@ package datadog.trace.instrumentation.jersey;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.api.ProductActivation.FULLY_ENABLED;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
@@ -30,9 +33,12 @@ public class JavaxWSResponseInstrumentation extends Instrumenter.Iast
     transformation.applyAdvice(
         named("header").and(isPublic().and(takesArguments(String.class, Object.class))),
         JavaxWSResponseInstrumentation.class.getName() + "$HeaderAdvice");
-    transformation.applyAdvice(
-        named("location").and(isPublic().and(takesArguments(URI.class))),
-        JavaxWSResponseInstrumentation.class.getName() + "$RedirectionAdvice");
+
+    if (Config.get().getIastActivation().isAtLeast(FULLY_ENABLED)) {
+      transformation.applyAdvice(
+          named("location").and(isPublic().and(takesArguments(URI.class))),
+          JavaxWSResponseInstrumentation.class.getName() + "$RedirectionAdvice");
+    }
   }
 
   @Override
@@ -43,6 +49,11 @@ public class JavaxWSResponseInstrumentation extends Instrumenter.Iast
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named(hierarchyMarkerType()));
+  }
+
+  @Override
+  public ProductActivation activation() {
+    return ProductActivation.ENABLED_OPT_OUT;
   }
 
   public static class HeaderAdvice {

@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static datadog.trace.api.ProductActivation.FULLY_ENABLED;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -11,6 +12,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
@@ -41,6 +44,11 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
   }
 
   @Override
+  public ProductActivation activation() {
+    return ProductActivation.ENABLED_OPT_OUT;
+  }
+
+  @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         named("addCookie")
@@ -50,14 +58,17 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
     transformation.applyAdvice(
         namedOneOf("setHeader", "addHeader").and(takesArguments(String.class, String.class)),
         getClass().getName() + "$AddHeaderAdvice");
-    transformation.applyAdvice(
-        namedOneOf("encodeRedirectURL", "encodeURL")
-            .and(takesArgument(0, String.class))
-            .and(returns(String.class)),
-        getClass().getName() + "$EncodeURLAdvice");
-    transformation.applyAdvice(
-        named("sendRedirect").and(takesArgument(0, String.class)),
-        getClass().getName() + "$SendRedirectAdvice");
+
+    if (Config.get().getIastActivation().isAtLeast(FULLY_ENABLED)) {
+      transformation.applyAdvice(
+          namedOneOf("encodeRedirectURL", "encodeURL")
+              .and(takesArgument(0, String.class))
+              .and(returns(String.class)),
+          getClass().getName() + "$EncodeURLAdvice");
+      transformation.applyAdvice(
+          named("sendRedirect").and(takesArgument(0, String.class)),
+          getClass().getName() + "$SendRedirectAdvice");
+    }
   }
 
   public static class AddCookieAdvice {

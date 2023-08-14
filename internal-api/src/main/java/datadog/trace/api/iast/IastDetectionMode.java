@@ -56,6 +56,28 @@ public enum IastDetectionMode {
     public boolean isIastDeduplicationEnabled(@Nonnull final ConfigProvider config) {
       return config.getBoolean(IAST_DEDUPLICATION_ENABLED, DEFAULT_IAST_DEDUPLICATION_ENABLED);
     }
+  },
+
+  OPT_OUT {
+    @Override
+    public int getIastMaxConcurrentRequests(@Nonnull final ConfigProvider config) {
+      return config.getInteger(IAST_MAX_CONCURRENT_REQUESTS, 1); // only one concurrent request
+    }
+
+    @Override
+    public int getIastVulnerabilitiesPerRequest(@Nonnull final ConfigProvider config) {
+      return DEFAULT.getIastVulnerabilitiesPerRequest(config);
+    }
+
+    @Override
+    public float getIastRequestSampling(@Nonnull final ConfigProvider config) {
+      return config.getFloat(IAST_REQUEST_SAMPLING, 1); // 1% of requests
+    }
+
+    @Override
+    public boolean isIastDeduplicationEnabled(@Nonnull final ConfigProvider config) {
+      return DEFAULT.isIastDeduplicationEnabled(config);
+    }
   };
 
   public static final int UNLIMITED = Integer.MIN_VALUE;

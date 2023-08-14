@@ -17,6 +17,8 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
 
   private List<Object> objectHolder
 
+  private RequestContext reqCtx
+
   private IastRequestContext ctx
 
   private HttpResponseHeaderModuleImpl module
@@ -32,7 +34,7 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
     InstrumentationBridge.registerIastModule(new NoSameSiteCookieModuleImpl())
     objectHolder = []
     ctx = new IastRequestContext()
-    final reqCtx = Mock(RequestContext) {
+    reqCtx = Mock(RequestContext) {
       getData(RequestContextSlot.IAST) >> ctx
     }
     span = Mock(AgentSpan) {
@@ -56,6 +58,8 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
     then:
     1 * tracer.activeSpan() >> span
     1 * span.getSpanId()
+    1 * span.getRequestContext() >> reqCtx
+    1 * reqCtx.getData(RequestContextSlot.IAST) >> ctx
     1 * overheadController.consumeQuota(_, _) >> true
     1 * reporter.report(_, _ as Vulnerability) >> { onReport.call(it[1] as Vulnerability) }
     1 * reporter.report(_, _ as Vulnerability) >> { onReport.call(it[1] as Vulnerability) }
@@ -87,7 +91,9 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
     module.onHeader("Set-Cookie", "user-id=7")
 
     then:
-    1 * tracer.activeSpan()
+    1 * tracer.activeSpan() >> span
+    1 * span.getRequestContext() >> reqCtx
+    1 * reqCtx.getData(RequestContextSlot.IAST) >> ctx
     1 * overheadController.consumeQuota(_,_)
     0 * _
   }

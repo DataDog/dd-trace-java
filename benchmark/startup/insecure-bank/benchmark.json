@@ -9,25 +9,31 @@
     "tracing": {
       "env": {
         "VARIANT": "tracing",
-        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.benchmark.enabled=true -Ddd.benchmark.output.dir=${OUTPUT_DIR}/tracing"
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.benchmark.enabled=true -Ddd.benchmark.output.dir=${OUTPUT_DIR}/tracing -Ddd.iast.enabled=false"
       }
     },
     "profiling": {
       "env": {
         "VARIANT": "profiling",
-        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.benchmark.enabled=true -Ddd.benchmark.output.dir=${OUTPUT_DIR}/profiling -Ddd.profiling.enabled=true"
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.benchmark.enabled=true -Ddd.benchmark.output.dir=${OUTPUT_DIR}/profiling -Ddd.profiling.enabled=true -Ddd.iast.enabled=false"
       }
     },
     "appsec": {
       "env": {
         "VARIANT": "appsec",
-        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.benchmark.enabled=true -Ddd.benchmark.output.dir=${OUTPUT_DIR}/appsec -Ddd.appsec.enabled=true"
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.benchmark.enabled=true -Ddd.benchmark.output.dir=${OUTPUT_DIR}/appsec -Ddd.appsec.enabled=true -Ddd.iast.enabled=false"
       }
     },
     "iast": {
       "env": {
         "VARIANT": "iast",
         "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.benchmark.enabled=true -Ddd.benchmark.output.dir=${OUTPUT_DIR}/iast -Ddd.iast.enabled=true"
+      }
+    },
+    "iast_OPT_OUT": {
+      "env": {
+        "VARIANT": "iast_OPT_OUT",
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.benchmark.enabled=true -Ddd.benchmark.output.dir=${OUTPUT_DIR}/iast_OPT_OUT -Ddd.iast.enabled=opt-out"
       }
     }
   }
