@@ -7,6 +7,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -41,9 +42,14 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(named("addCookie"), getClass().getName() + "$AddCookieAdvice");
     transformation.applyAdvice(
-        namedOneOf("setHeader", "addHeader"), getClass().getName() + "$AddHeaderAdvice");
+        named("addCookie")
+            .and(takesArguments(1))
+            .and(takesArgument(0, named("jakarta.servlet.http.Cookie"))),
+        getClass().getName() + "$AddCookieAdvice");
+    transformation.applyAdvice(
+        namedOneOf("setHeader", "addHeader").and(takesArguments(String.class, String.class)),
+        getClass().getName() + "$AddHeaderAdvice");
     transformation.applyAdvice(
         namedOneOf("encodeRedirectURL", "encodeURL")
             .and(takesArgument(0, String.class))
