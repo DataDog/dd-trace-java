@@ -6,12 +6,13 @@ import datadog.trace.api.git.UserSuppliedGitInfoBuilder
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.civisibility.git.CILocalGitInfoBuilder
 import datadog.trace.civisibility.git.CIProviderGitInfoBuilder
+import datadog.trace.civisibility.git.tree.GitClient
 
 import java.nio.file.Paths
 
 class UnknownCIInfoTest extends CITagsProviderTest {
 
-  def workspaceForTests = Paths.get(getClass().getClassLoader().getResource(CITagsProviderTest.CI_WORKSPACE_PATH_FOR_TESTS).toURI())
+  def workspaceForTests = Paths.get(getClass().getClassLoader().getResource(CI_WORKSPACE_PATH_FOR_TESTS).toURI())
 
   @Override
   String getProviderName() {
@@ -58,7 +59,7 @@ class UnknownCIInfoTest extends CITagsProviderTest {
     GitInfoProvider gitInfoProvider = new GitInfoProvider()
     gitInfoProvider.registerGitInfoBuilder(new UserSuppliedGitInfoBuilder())
     gitInfoProvider.registerGitInfoBuilder(new CIProviderGitInfoBuilder())
-    gitInfoProvider.registerGitInfoBuilder(new CILocalGitInfoBuilder("this-target-folder-does-not-exist"))
+    gitInfoProvider.registerGitInfoBuilder(new CILocalGitInfoBuilder({ Stub(GitClient) }, "this-target-folder-does-not-exist"))
     CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), "this-target-folder-does-not-exist")
 
     def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(workspaceForTests)

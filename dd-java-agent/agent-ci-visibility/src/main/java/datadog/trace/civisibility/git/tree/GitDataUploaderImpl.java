@@ -5,8 +5,6 @@ import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.utils.FileUtils;
 import datadog.trace.util.AgentThreadFactory;
-import datadog.trace.util.Strings;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -85,7 +83,8 @@ public class GitDataUploaderImpl implements GitDataUploader {
         gitClient.unshallow();
       }
 
-      String remoteUrl = getRemoteUrl();
+      GitInfo gitInfo = gitInfoProvider.getGitInfo(repoRoot);
+      String remoteUrl = gitInfo.getRepositoryURL();
       List<String> latestCommits = gitClient.getLatestCommits();
       if (latestCommits.isEmpty()) {
         LOGGER.debug("No commits in the last month");
@@ -135,16 +134,6 @@ public class GitDataUploaderImpl implements GitDataUploader {
       callback.completeExceptionally(e);
     } finally {
       Runtime.getRuntime().removeShutdownHook(uploadFinishedShutdownHook);
-    }
-  }
-
-  private String getRemoteUrl() throws IOException, TimeoutException, InterruptedException {
-    GitInfo gitInfo = gitInfoProvider.getGitInfo(repoRoot);
-    String repositoryURL = gitInfo.getRepositoryURL();
-    if (Strings.isNotBlank(repositoryURL)) {
-      return repositoryURL;
-    } else {
-      return gitClient.getRemoteUrl(remoteName);
     }
   }
 
