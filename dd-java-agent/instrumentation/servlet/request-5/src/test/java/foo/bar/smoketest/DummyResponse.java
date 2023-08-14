@@ -12,6 +12,8 @@ public class DummyResponse implements HttpServletResponse {
   @Override
   public void addCookie(Cookie cookie) {}
 
+  public void addCookie(CustomCookie cookie) {}
+
   @Override
   public boolean containsHeader(String name) {
     return false;
@@ -55,8 +57,12 @@ public class DummyResponse implements HttpServletResponse {
   @Override
   public void setHeader(String name, String value) {}
 
+  public void setHeader(CustomHeaderName name, String value) {}
+
   @Override
   public void addHeader(String name, String value) {}
+
+  public void addHeader(CustomHeaderName name, String value) {}
 
   @Override
   public void setIntHeader(String name, int value) {}
@@ -151,4 +157,8 @@ public class DummyResponse implements HttpServletResponse {
   public Locale getLocale() {
     return null;
   }
+
+  public static class CustomCookie {}
+
+  public static class CustomHeaderName {}
 }
