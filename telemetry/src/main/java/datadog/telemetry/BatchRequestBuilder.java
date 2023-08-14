@@ -14,11 +14,14 @@ import okhttp3.Request;
 public class BatchRequestBuilder {
   private final EventSource eventSource;
   private final EventSink eventSink;
+  private final long messageBytesSoftLimit;
   private RequestBuilder requestBuilder;
 
-  public BatchRequestBuilder(EventSource eventSource, EventSink eventSink) {
+  public BatchRequestBuilder(
+      EventSource eventSource, EventSink eventSink, long messageBytesSoftLimit) {
     this.eventSource = eventSource;
     this.eventSink = eventSink;
+    this.messageBytesSoftLimit = messageBytesSoftLimit;
   }
 
   public void beginRequest(RequestType requestType, HttpUrl httpUrl) {
@@ -40,6 +43,9 @@ public class BatchRequestBuilder {
   }
 
   public void writeConfigurationMessage() {
+    if (!isWithinSizeLimits()) {
+      return;
+    }
     ConfigChange event = eventSource.nextConfigChangeEvent();
     if (event == null) {
       return;
@@ -51,7 +57,7 @@ public class BatchRequestBuilder {
       while (event != null) {
         requestBuilder.writeConfiguration(event);
         eventSink.addConfigChangeEvent(event);
-        if (!checkSize()) {
+        if (!isWithinSizeLimits()) {
           break;
         }
         event = eventSource.nextConfigChangeEvent();
@@ -65,6 +71,9 @@ public class BatchRequestBuilder {
   }
 
   public void writeIntegrationsMessage() {
+    if (!isWithinSizeLimits()) {
+      return;
+    }
     Integration event = eventSource.nextIntegrationEvent();
     if (event == null) {
       return;
@@ -74,7 +83,7 @@ public class BatchRequestBuilder {
       while (event != null) {
         requestBuilder.writeIntegration(event);
         eventSink.addIntegrationEvent(event);
-        if (!checkSize()) {
+        if (!isWithinSizeLimits()) {
           break;
         }
         event = eventSource.nextIntegrationEvent();
@@ -86,6 +95,9 @@ public class BatchRequestBuilder {
   }
 
   public void writeDependenciesMessage() {
+    if (!isWithinSizeLimits()) {
+      return;
+    }
     Dependency event = eventSource.nextDependencyEvent();
     if (event == null) {
       return;
@@ -95,7 +107,7 @@ public class BatchRequestBuilder {
       while (event != null) {
         requestBuilder.writeDependency(event);
         eventSink.addDependencyEvent(event);
-        if (!checkSize()) {
+        if (!isWithinSizeLimits()) {
           break;
         }
         event = eventSource.nextDependencyEvent();
@@ -107,6 +119,9 @@ public class BatchRequestBuilder {
   }
 
   public void writeMetricsMessage() {
+    if (!isWithinSizeLimits()) {
+      return;
+    }
     Metric event = eventSource.nextMetricEvent();
     if (event == null) {
       return;
@@ -116,7 +131,7 @@ public class BatchRequestBuilder {
       while (event != null) {
         requestBuilder.writeMetric(event);
         eventSink.addMetricEvent(event);
-        if (!checkSize()) {
+        if (!isWithinSizeLimits()) {
           break;
         }
         event = eventSource.nextMetricEvent();
@@ -128,6 +143,9 @@ public class BatchRequestBuilder {
   }
 
   public void writeDistributionsMessage() {
+    if (!isWithinSizeLimits()) {
+      return;
+    }
     DistributionSeries event = eventSource.nextDistributionSeriesEvent();
     if (event == null) {
       return;
@@ -137,7 +155,7 @@ public class BatchRequestBuilder {
       while (event != null) {
         requestBuilder.writeDistribution(event);
         eventSink.addDistributionSeriesEvent(event);
-        if (!checkSize()) {
+        if (!isWithinSizeLimits()) {
           break;
         }
         event = eventSource.nextDistributionSeriesEvent();
@@ -149,6 +167,9 @@ public class BatchRequestBuilder {
   }
 
   public void writeLogsMessage() {
+    if (!isWithinSizeLimits()) {
+      return;
+    }
     LogMessage event = eventSource.nextLogMessageEvent();
     if (event == null) {
       return;
@@ -158,7 +179,7 @@ public class BatchRequestBuilder {
       while (event != null) {
         requestBuilder.writeLog(event);
         eventSink.addLogMessageEvent(event);
-        if (!checkSize()) {
+        if (!isWithinSizeLimits()) {
           break;
         }
         event = eventSource.nextLogMessageEvent();
@@ -169,8 +190,8 @@ public class BatchRequestBuilder {
     }
   }
 
-  private boolean checkSize() {
-    return requestBuilder.size() < 3_000_000;
+  private boolean isWithinSizeLimits() {
+    return requestBuilder.size() < messageBytesSoftLimit;
   }
 
   public void writeHeartbeatEvent() {

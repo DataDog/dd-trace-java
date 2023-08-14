@@ -23,7 +23,7 @@ class TelemetryServiceSpecification extends Specification {
   def metric = new Metric().namespace("tracers").metric("metric").points([[1, 2]]).tags(["tag1", "tag2"])
   def distribution = new DistributionSeries().namespace("tracers").metric("distro").points([1, 2, 3]).tags(["tag1", "tag2"]).common(false)
   def logMessage = new LogMessage().message("log-message").tags("tag1:tag2").level(LogMessageLevel.DEBUG).stackTrace("stack-trace").tracerTime(32423)
-  TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"))
+  TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 10000)
 
   void 'happy path without data'() {
     when: 'first iteration'
@@ -226,7 +226,7 @@ class TelemetryServiceSpecification extends Specification {
 
   void 'report when both OTel and OT are enabled'() {
     setup:
-    TelemetryService telemetryService = Spy(new TelemetryService(testHttpClient, HttpUrl.get("https://example.com")))
+    TelemetryService telemetryService = Spy(new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 1000))
     def otel = new Integration("opentelemetry-1", otelEnabled)
     def ot = new Integration("opentracing", otEnabled)
 
@@ -248,5 +248,41 @@ class TelemetryServiceSpecification extends Specification {
     true        | false     | 0
     false       | true      | 0
     false       | false     | 0
+  }
+
+  void 'split telemetry requests if the size above the limit'() {
+    setup:
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 1000)
+
+    telemetryService.addConfiguration(configuration)
+    telemetryService.addIntegration(integration)
+    telemetryService.addDependency(dependency)
+    telemetryService.addMetric(metric)
+    telemetryService.addDistributionSeries(distribution)
+    telemetryService.addLogMessage(logMessage)
+
+    when: 'successful attempt'
+    testHttpClient.expectRequests(3, HttpClient.Result.SUCCESS)
+    telemetryService.sendTelemetryEvents()
+
+    then: 'attempt with SUCCESS'
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).hasPayload().configuration([confKeyValue])
+    testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
+      .assertBatch(4)
+      //TODO should we include heartbeat in every batch request?
+      .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
+      // no configuration here as it has already been sent with the app-started event
+      .assertNextMessage(RequestType.APP_INTEGRATIONS_CHANGE).hasPayload().integrations([integration])
+      .assertNextMessage(RequestType.APP_DEPENDENCIES_LOADED).hasPayload().dependencies([dependency])
+      .assertNextMessage(RequestType.GENERATE_METRICS).hasPayload().namespace("tracers").metrics([metric])
+      // no distributions or logs as they didn't fit because of the request size limit
+      .assertNoMoreMessages()
+    testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
+      .assertBatch(3)
+      .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
+      .assertNextMessage(RequestType.DISTRIBUTIONS).hasPayload().namespace("tracers").distributionSeries([distribution])
+      .assertNextMessage(RequestType.LOGS).hasPayload().logs([logMessage])
+      .assertNoMoreMessages()
+    testHttpClient.assertNoMoreRequests()
   }
 }

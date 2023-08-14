@@ -22,6 +22,8 @@ public class TelemetryService {
 
   private static final String API_ENDPOINT = "telemetry/proxy/api/v2/apmtelemetry";
 
+  private static final long DEFAULT_MESSAGE_BYTES_SOFT_LIMIT = Math.round(5 * 1024 * 1024 * 0.75);
+
   private final HttpClient httpClient;
   private final BlockingQueue<ConfigChange> configurations = new LinkedBlockingQueue<>();
   private final BlockingQueue<Integration> integrations = new LinkedBlockingQueue<>();
@@ -39,6 +41,7 @@ public class TelemetryService {
           configurations, integrations, dependencies, metrics, distributionSeries, logMessages);
 
   private final HttpUrl httpUrl;
+  private final long messageBytesSoftLimit;
 
   private boolean sentAppStarted;
 
@@ -49,16 +52,18 @@ public class TelemetryService {
   private boolean openTelemetryIntegrationEnabled;
 
   public TelemetryService(final OkHttpClient okHttpClient, final HttpUrl httpUrl) {
-    this(new HttpClient(okHttpClient), httpUrl);
+    this(new HttpClient(okHttpClient), httpUrl, DEFAULT_MESSAGE_BYTES_SOFT_LIMIT);
   }
 
   // For testing purposes
-  TelemetryService(final HttpClient httpClient, final HttpUrl agentUrl) {
+  TelemetryService(
+      final HttpClient httpClient, final HttpUrl agentUrl, final long messageBytesSoftLimit) {
     this.httpClient = httpClient;
     this.sentAppStarted = false;
     this.openTracingIntegrationEnabled = false;
     this.openTelemetryIntegrationEnabled = false;
     this.httpUrl = agentUrl.newBuilder().addPathSegments(API_ENDPOINT).build();
+    this.messageBytesSoftLimit = messageBytesSoftLimit;
   }
 
   public boolean addConfiguration(Map<String, Object> configuration) {
@@ -103,7 +108,7 @@ public class TelemetryService {
 
   public void sendAppClosingEvent() {
     BatchRequestBuilder batchRequestBuilder =
-        new BatchRequestBuilder(EventSource.noop(), EventSink.noop());
+        new BatchRequestBuilder(EventSource.noop(), EventSink.noop(), messageBytesSoftLimit);
     batchRequestBuilder.beginRequest(RequestType.APP_CLOSING, httpUrl);
     Request request = batchRequestBuilder.endRequest();
     // TODO include metrics and other payloads
@@ -119,9 +124,9 @@ public class TelemetryService {
     EventSource eventSource;
     EventSink eventSink;
     if (bufferedEvents == null) {
-      // build a telemetry request from the event queues
+      // use queued events as a source
       eventSource = this.eventSource;
-      // use a buffer, so we can retry on the next attempt in case of a request failure
+      // use a buffer as a sink, so we can retry on the next attempt in case of a request failure
       bufferedEvents = new BufferedEvents();
       eventSink = bufferedEvents;
     } else {
@@ -129,7 +134,8 @@ public class TelemetryService {
       eventSource = bufferedEvents;
       eventSink = EventSink.noop(); // TODO add metrics for unsent events
     }
-    BatchRequestBuilder batchRequestBuilder = new BatchRequestBuilder(eventSource, eventSink);
+    BatchRequestBuilder batchRequestBuilder =
+        new BatchRequestBuilder(eventSource, eventSink, messageBytesSoftLimit);
 
     Request request;
     if (!sentAppStarted) {
@@ -156,9 +162,7 @@ public class TelemetryService {
       sentAppStarted = true;
       bufferedEvents = null;
       if (!this.eventSource.isEmpty()) {
-        // if the events have been successfully sent then do another request immediately with new
-        // events if any
-        // TODO maybe limit number of requests
+        // flush other events if any
         sendTelemetryEvents();
       }
     }
