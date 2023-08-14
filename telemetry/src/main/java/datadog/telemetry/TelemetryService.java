@@ -102,9 +102,8 @@ public class TelemetryService {
   }
 
   public void sendAppClosingEvent() {
-    EventSource eventSource = new BufferedEvents(); // TODO empty source
     BatchRequestBuilder batchRequestBuilder =
-        new BatchRequestBuilder(eventSource, EventSink.noop());
+        new BatchRequestBuilder(EventSource.noop(), EventSink.noop());
     batchRequestBuilder.beginRequest(RequestType.APP_CLOSING, httpUrl);
     Request request = batchRequestBuilder.endRequest();
     // TODO include metrics and other payloads
@@ -155,17 +154,12 @@ public class TelemetryService {
     HttpClient.Result result = httpClient.sendRequest(request);
     if (result == HttpClient.Result.SUCCESS) {
       sentAppStarted = true;
-      // TODO send the other batch if not all data fit the request limit
-      if (eventSource == bufferedEvents) {
-        // if the buffered events have been successfully sent then do another request immediately
-        // with events if any
-        bufferedEvents = null;
-        if (!eventSource.isEmpty()) {
-          sendTelemetryEvents();
-        }
-      } else {
-        // discard buffered events when they have been successfully sent
-        bufferedEvents = null;
+      bufferedEvents = null;
+      if (!this.eventSource.isEmpty()) {
+        // if the events have been successfully sent then do another request immediately with new
+        // events if any
+        // TODO maybe limit number of requests
+        sendTelemetryEvents();
       }
     }
   }

@@ -23,6 +23,49 @@ interface EventSource {
 
   LogMessage nextLogMessageEvent();
 
+  static EventSource noop() {
+    return EventSource.Noop.INSTANCE;
+  }
+
+  enum Noop implements EventSource {
+    INSTANCE;
+
+    @Override
+    public boolean isEmpty() {
+      return true;
+    }
+
+    @Override
+    public ConfigChange nextConfigChangeEvent() {
+      return null;
+    }
+
+    @Override
+    public Integration nextIntegrationEvent() {
+      return null;
+    }
+
+    @Override
+    public Dependency nextDependencyEvent() {
+      return null;
+    }
+
+    @Override
+    public Metric nextMetricEvent() {
+      return null;
+    }
+
+    @Override
+    public DistributionSeries nextDistributionSeriesEvent() {
+      return null;
+    }
+
+    @Override
+    public LogMessage nextLogMessageEvent() {
+      return null;
+    }
+  }
+
   final class Queued implements EventSource {
     private final Queue<ConfigChange> configChangeQueue;
     private final Queue<Integration> integrationQueue;

@@ -62,18 +62,11 @@ class TelemetryServiceSpecification extends Specification {
     telemetryService.addLogMessage(logMessage)
 
     and: 'send messages'
-    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    testHttpClient.expectRequests(2, HttpClient.Result.SUCCESS)
     telemetryService.sendTelemetryEvents()
 
     then:
     testHttpClient.assertRequestBody(RequestType.APP_STARTED).hasPayload().configuration([confKeyValue])
-    testHttpClient.assertNoMoreRequests()
-
-    when: 'second iteration'
-    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
-    telemetryService.sendTelemetryEvents()
-
-    then:
     testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
       .assertBatch(6)
       .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
@@ -86,7 +79,7 @@ class TelemetryServiceSpecification extends Specification {
       .assertNoMoreMessages()
     testHttpClient.assertNoMoreRequests()
 
-    when: 'third iteration heartbeat only'
+    when: 'second iteration heartbeat only'
     testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
     telemetryService.sendTelemetryEvents()
 
@@ -94,7 +87,7 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT).assertNoPayload()
     testHttpClient.assertNoMoreRequests()
 
-    when: 'forth iteration metrics data'
+    when: 'third iteration metrics data'
     telemetryService.addMetric(metric)
     testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
     telemetryService.sendTelemetryEvents()

@@ -29,12 +29,12 @@ public final class BufferedEvents implements EventSource, EventSink {
 
   @Override
   public boolean isEmpty() {
-    return (configChangeEvents == null || configChangeEvents.isEmpty())
-        && (integrationEvents == null || integrationEvents.isEmpty())
-        && (dependencyEvents == null || dependencyEvents.isEmpty())
-        && (metricEvents == null || metricEvents.isEmpty())
-        && (distributionSeriesEvents == null || distributionSeriesEvents.isEmpty())
-        && (logMessageEvents == null || logMessageEvents.isEmpty());
+    return isConfigEventsEmpty()
+        && isIntegrationEventsEmpty()
+        && isDependencyEventsEmpty()
+        && isMetricEventsEmpty()
+        && isDistributionSeriesEmpty()
+        && isLogMessageEventsEmpty();
   }
 
   public void addConfigChangeEvent(ConfigChange event) {
@@ -86,50 +86,74 @@ public final class BufferedEvents implements EventSource, EventSink {
 
   @Override
   public ConfigChange nextConfigChangeEvent() {
-    if (configChangeEvents == null || configChangeIndex == configChangeEvents.size()) {
+    if (isConfigEventsEmpty()) {
       return null;
     }
     return configChangeEvents.get(configChangeIndex++);
   }
 
+  private boolean isConfigEventsEmpty() {
+    return configChangeEvents == null || configChangeIndex == configChangeEvents.size();
+  }
+
   @Override
   public Integration nextIntegrationEvent() {
-    if (integrationEvents == null || integrationIndex == integrationEvents.size()) {
+    if (isIntegrationEventsEmpty()) {
       return null;
     }
     return integrationEvents.get(integrationIndex++);
   }
 
+  private boolean isIntegrationEventsEmpty() {
+    return integrationEvents == null || integrationIndex == integrationEvents.size();
+  }
+
   @Override
   public Dependency nextDependencyEvent() {
-    if (dependencyEvents == null || dependencyIndex == dependencyEvents.size()) {
+    if (isDependencyEventsEmpty()) {
       return null;
     }
     return dependencyEvents.get(dependencyIndex++);
   }
 
+  private boolean isDependencyEventsEmpty() {
+    return dependencyEvents == null || dependencyIndex == dependencyEvents.size();
+  }
+
   @Override
   public Metric nextMetricEvent() {
-    if (metricEvents == null || metricIndex == metricEvents.size()) {
+    if (isMetricEventsEmpty()) {
       return null;
     }
     return metricEvents.get(metricIndex++);
   }
 
+  private boolean isMetricEventsEmpty() {
+    return metricEvents == null || metricIndex == metricEvents.size();
+  }
+
   @Override
   public DistributionSeries nextDistributionSeriesEvent() {
-    if (distributionSeriesEvents == null
-        || distributionSeriesIndex == distributionSeriesEvents.size()) {
+    if (isDistributionSeriesEmpty()) {
       return null;
     }
     return distributionSeriesEvents.get(distributionSeriesIndex++);
   }
 
+  private boolean isDistributionSeriesEmpty() {
+    return distributionSeriesEvents == null
+        || distributionSeriesIndex == distributionSeriesEvents.size();
+  }
+
   @Override
   public LogMessage nextLogMessageEvent() {
-    if (logMessageEvents == null || logMessageIndex == logMessageEvents.size()) {
+    if (isLogMessageEventsEmpty()) {
       return null;
     }
     return logMessageEvents.get(logMessageIndex++);
+  }
+
+  private boolean isLogMessageEventsEmpty() {
+    return logMessageEvents == null || logMessageIndex == logMessageEvents.size();
   }
 }
