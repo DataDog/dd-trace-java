@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import javax.annotation.Nullable;
 
 public class GitInfoProvider {
@@ -49,26 +50,34 @@ public class GitInfoProvider {
   private GitInfo buildGitInfo(String repositoryPath) {
     Evaluator evaluator = new Evaluator(repositoryPath, builders);
     return new GitInfo(
-        evaluator.firstNonBlank(gi -> GitUtils.filterSensitiveInfo(gi.getRepositoryURL())),
-        evaluator.firstNonBlank(GitInfo::getBranch),
-        evaluator.firstNonBlank(GitInfo::getTag),
+        evaluator.get(
+            gi -> GitUtils.filterSensitiveInfo(gi.getRepositoryURL()),
+            GitInfoProvider::validateGitRemoteUrl),
+        evaluator.get(GitInfo::getBranch, Strings::isNotBlank),
+        evaluator.get(GitInfo::getTag, Strings::isNotBlank),
         new CommitInfo(
-            evaluator.firstNonBlank(gi1 -> gi1.getCommit().getSha()),
+            evaluator.get(gi1 -> gi1.getCommit().getSha(), Strings::isNotBlank),
             new PersonInfo(
-                evaluator.firstNonBlankWithMatchingCommit(
-                    gi -> gi.getCommit().getAuthor().getName()),
-                evaluator.firstNonBlankWithMatchingCommit(
-                    gi -> gi.getCommit().getAuthor().getEmail()),
-                evaluator.firstNonBlankWithMatchingCommit(
-                    gi -> gi.getCommit().getAuthor().getIso8601Date())),
+                evaluator.getIfCommitShaMatches(
+                    gi -> gi.getCommit().getAuthor().getName(), Strings::isNotBlank),
+                evaluator.getIfCommitShaMatches(
+                    gi -> gi.getCommit().getAuthor().getEmail(), Strings::isNotBlank),
+                evaluator.getIfCommitShaMatches(
+                    gi -> gi.getCommit().getAuthor().getIso8601Date(), Strings::isNotBlank)),
             new PersonInfo(
-                evaluator.firstNonBlankWithMatchingCommit(
-                    gi -> gi.getCommit().getCommitter().getName()),
-                evaluator.firstNonBlankWithMatchingCommit(
-                    gi -> gi.getCommit().getCommitter().getEmail()),
-                evaluator.firstNonBlankWithMatchingCommit(
-                    gi -> gi.getCommit().getCommitter().getIso8601Date())),
-            evaluator.firstNonBlankWithMatchingCommit(gi -> gi.getCommit().getFullMessage())));
+                evaluator.getIfCommitShaMatches(
+                    gi -> gi.getCommit().getCommitter().getName(), Strings::isNotBlank),
+                evaluator.getIfCommitShaMatches(
+                    gi -> gi.getCommit().getCommitter().getEmail(), Strings::isNotBlank),
+                evaluator.getIfCommitShaMatches(
+                    gi -> gi.getCommit().getCommitter().getIso8601Date(), Strings::isNotBlank)),
+            evaluator.getIfCommitShaMatches(
+                gi -> gi.getCommit().getFullMessage(), Strings::isNotBlank)));
+  }
+
+  private static boolean validateGitRemoteUrl(String s) {
+    // we cannot work with URL that uses "file://" protocol
+    return Strings.isNotBlank(s) && !s.startsWith("file:");
   }
 
   /**
@@ -93,19 +102,23 @@ public class GitInfoProvider {
       }
     }
 
-    private String firstNonBlank(Function<GitInfo, String> function) {
-      return firstNonBlank(function, false);
+    private String get(Function<GitInfo, String> function, Predicate<String> validator) {
+      return get(function, validator, false);
     }
 
     /**
      * If a builder with a higher priority has commit SHA that differs from that of a builder with
      * lower priority, lower-priority info will be ignored.
      */
-    private String firstNonBlankWithMatchingCommit(Function<GitInfo, String> function) {
-      return firstNonBlank(function, true);
+    private String getIfCommitShaMatches(
+        Function<GitInfo, String> function, Predicate<String> validator) {
+      return get(function, validator, true);
     }
 
-    private String firstNonBlank(Function<GitInfo, String> function, boolean checkShaIntegrity) {
+    private String get(
+        Function<GitInfo, String> function,
+        Predicate<String> validator,
+        boolean checkShaIntegrity) {
       String commitSha = null;
       for (Map.Entry<GitInfoBuilder, GitInfo> e : infos.entrySet()) {
         GitInfo info = e.getValue();
@@ -130,7 +143,7 @@ public class GitInfoProvider {
         }
 
         String result = function.apply(info);
-        if (Strings.isNotBlank(result)) {
+        if (validator.test(result)) {
           return result;
         }
       }

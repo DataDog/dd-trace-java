@@ -238,6 +238,27 @@ class GitInfoProviderTest extends Specification {
     actualGitInfo.commit.committer.iso8601Date == null
   }
 
+  def "test ignores remote URLs starting with file protocol"() {
+    setup:
+    def gitInfoBuilderA = givenABuilderReturning(
+      new GitInfo("file://uselessUrl", null, null, new CommitInfo(null)), 1
+      )
+
+    def gitInfoBuilderB = givenABuilderReturning(
+      new GitInfo("http://usefulUrl", null, null, new CommitInfo(null)), 2
+      )
+
+    def gitInfoProvider = new GitInfoProvider()
+    gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderA)
+    gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderB)
+
+    when:
+    def actualGitInfo = gitInfoProvider.getGitInfo(REPO_PATH)
+
+    then:
+    actualGitInfo.repositoryURL == "http://usefulUrl"
+  }
+
   private GitInfoBuilder givenABuilderReturning(GitInfo gitInfo) {
     givenABuilderReturning(gitInfo, 1)
   }
