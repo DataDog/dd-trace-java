@@ -35,9 +35,7 @@ public final class WrappingResponseCallback implements ResponseCallback {
 
       @SuppressWarnings("deprecation")
       final boolean isJaxRsExceptionAsErrorEnabled = Config.get().isJaxRsExceptionAsErrorEnabled();
-      if (!isJaxRsExceptionAsErrorEnabled) {
-        span.setError(false);
-      }
+      span.setError(isJaxRsExceptionAsErrorEnabled);
 
       span.finish();
     }
