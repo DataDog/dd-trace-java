@@ -22,11 +22,6 @@ public class SqlClientBaseAdvice {
               DBQueryInfo.ofStatement(sql));
       InstrumentationContext.get(Query.class, Pair.class).put(query, info);
     }
-
-    // Limit ourselves to 3.9.x and MySQL by checking for this method that was removed in 4.x
-    private static void muzzleCheck(MySQLConnection connection) {
-      connection.close();
-    }
   }
 
   public static class PreparedQuery {
@@ -40,11 +35,6 @@ public class SqlClientBaseAdvice {
               InstrumentationContext.get(SqlClient.class, DBInfo.class).get(zis),
               DBQueryInfo.ofPreparedStatement(sql));
       InstrumentationContext.get(Query.class, Pair.class).put(query, info);
-    }
-
-    // Limit ourselves to 3.9.x and MySQL by checking for this method that was removed in 4.x
-    private static void muzzleCheck(MySQLConnection connection) {
-      connection.close();
     }
   }
 }

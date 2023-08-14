@@ -26,11 +26,6 @@ public class QueryAdvice {
       ContextStore<Query, Pair> contextStore = InstrumentationContext.get(Query.class, Pair.class);
       contextStore.put(ret, contextStore.get(zis));
     }
-
-    // Limit ourselves to 3.9.x and MySQL by checking for this method that was removed in 4.x
-    private static void muzzleCheck(MySQLConnection connection) {
-      connection.close();
-    }
   }
 
   public static class Execute {
@@ -72,11 +67,6 @@ public class QueryAdvice {
       if (null != clientScope) {
         clientScope.close();
       }
-    }
-
-    // Limit ourselves to 3.9.x and MySQL by checking for this method that was removed in 4.x
-    private static void muzzleCheck(MySQLConnection connection) {
-      connection.close();
     }
   }
 }

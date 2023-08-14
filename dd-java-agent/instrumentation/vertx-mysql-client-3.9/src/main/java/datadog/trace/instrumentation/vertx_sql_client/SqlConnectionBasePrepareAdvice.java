@@ -27,9 +27,4 @@ public class SqlConnectionBasePrepareAdvice {
         new PrepareHandlerWrapper(
             handler, InstrumentationContext.get(PreparedStatement.class, Pair.class), info);
   }
-
-  // Limit ourselves to 3.9.x and MySQL by checking for this method that was removed in 4.x
-  private static void muzzleCheck(MySQLConnection connection) {
-    connection.close();
-  }
 }

@@ -14,9 +14,4 @@ public class PreparedStatementQueryAdvice {
     InstrumentationContext.get(Query.class, Pair.class)
         .put(query, InstrumentationContext.get(PreparedStatement.class, Pair.class).get(zis));
   }
-
-  // Limit ourselves to 3.9.x and MySQL by checking for this method that was removed in 4.x
-  private static void muzzleCheck(MySQLConnection connection) {
-    connection.close();
-  }
 }
