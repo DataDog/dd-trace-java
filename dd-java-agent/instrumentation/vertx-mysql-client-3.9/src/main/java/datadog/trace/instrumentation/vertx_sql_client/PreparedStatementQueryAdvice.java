@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.vertx_sql_client;
 
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.InstrumentationContext;
-import io.vertx.mysqlclient.MySQLConnection;
 import io.vertx.sqlclient.PreparedStatement;
 import io.vertx.sqlclient.Query;
 import net.bytebuddy.asm.Advice;

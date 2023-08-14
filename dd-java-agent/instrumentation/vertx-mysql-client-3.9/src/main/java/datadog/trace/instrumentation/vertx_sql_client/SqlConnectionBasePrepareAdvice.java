@@ -6,7 +6,6 @@ import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
-import io.vertx.mysqlclient.MySQLConnection;
 import io.vertx.sqlclient.PreparedStatement;
 import io.vertx.sqlclient.SqlClient;
 import net.bytebuddy.asm.Advice;

@@ -12,7 +12,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
-import io.vertx.mysqlclient.MySQLConnection;
 import io.vertx.sqlclient.Query;
 import io.vertx.sqlclient.SqlResult;
 import net.bytebuddy.asm.Advice;

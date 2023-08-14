@@ -4,7 +4,6 @@ import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
-import io.vertx.mysqlclient.MySQLConnection;
 import io.vertx.sqlclient.Query;
 import io.vertx.sqlclient.SqlClient;
 import net.bytebuddy.asm.Advice;
