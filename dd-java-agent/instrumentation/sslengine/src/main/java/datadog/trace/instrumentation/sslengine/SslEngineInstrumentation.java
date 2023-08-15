@@ -59,9 +59,8 @@ public final class SslEngineInstrumentation extends Instrumenter.Usm
 
       // first condition - No source buffer - usually happens during handshake
       // second condition - Before accomplishing the handshake, the session doesn't have a session
-      // id, as it is
-      // generated during the handshake kickstart.
-      if (srcs.length != 0 || thiz.getSession().getId().length == 0) {
+      // id, which is generated during the handshake kickstart.
+      if (srcs.length == 0 || thiz.getSession().getId().length == 0) {
         return;
       }
       if (result.bytesConsumed() > 0) {
@@ -93,7 +92,7 @@ public final class SslEngineInstrumentation extends Instrumenter.Usm
 
       // before accomplishing the handshake, the session doesn't have a session id, as it is
       // generated during the handshake kickstart.
-      if (thiz.getSession().getId().length != 0) {
+      if (thiz.getSession().getId().length == 0) {
         return;
       }
       if (result.bytesProduced() > 0 && dst.limit() >= result.bytesProduced()) {
