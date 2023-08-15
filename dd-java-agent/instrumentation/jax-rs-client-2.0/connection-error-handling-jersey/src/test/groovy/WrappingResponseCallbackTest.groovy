@@ -16,7 +16,7 @@ class WrappingResponseCallbackTest extends AgentTestRunner {
       injectSysConfig(JAX_RS_EXCEPTION_AS_ERROR_ENABLED, "$jaxRsExceptionAsErrorEnabled")
     }
     def testSpan = TEST_TRACER.buildSpan("testInstrumentation", "testSpan").start()
-    def props = Map.of(ClientTracingFilter.SPAN_PROPERTY_NAME, testSpan)
+    def props = [(ClientTracingFilter.SPAN_PROPERTY_NAME): testSpan]
     def propertiesDelegate = new MapPropertiesDelegate(props)
     def clientConfig = new ClientConfig(new JerseyClient())
 
