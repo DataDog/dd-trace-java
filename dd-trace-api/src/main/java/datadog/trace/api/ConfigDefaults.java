@@ -186,5 +186,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED = true;
 
+  static final boolean DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED = true;
+
   private ConfigDefaults() {}
 }
