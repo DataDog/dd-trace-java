@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.java.concurrent;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.cancelTask;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.QueueTimerHelper.startQueuingTimer;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
@@ -13,7 +14,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.QueueTimerHelper;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
 import java.util.Timer;
@@ -24,7 +24,7 @@ import net.bytebuddy.asm.Advice;
 public class JavaTimerInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
   public JavaTimerInstrumentation() {
-    super("java-timer");
+    super("java_timer", "java_concurrent", "runnable");
   }
 
   @Override
@@ -61,7 +61,7 @@ public class JavaTimerInstrumentation extends Instrumenter.Tracing
       ContextStore<Runnable, State> contextStore =
           InstrumentationContext.get(Runnable.class, State.class);
       capture(contextStore, task, true);
-      QueueTimerHelper.startQueuingTimer(contextStore, Timer.class, task);
+      startQueuingTimer(contextStore, Timer.class, task);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)

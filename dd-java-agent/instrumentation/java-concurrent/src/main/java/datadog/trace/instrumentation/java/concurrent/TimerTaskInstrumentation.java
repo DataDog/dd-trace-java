@@ -28,7 +28,7 @@ public final class TimerTaskInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 
   public TimerTaskInstrumentation() {
-    super(AbstractExecutorInstrumentation.EXEC_NAME, "java-timer");
+    super("java_timer", AbstractExecutorInstrumentation.EXEC_NAME, "runnable");
   }
 
   @Override
