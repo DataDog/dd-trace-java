@@ -39,7 +39,9 @@ public class OtelSpan implements Span {
 
   @Override
   public <T> Span setAttribute(AttributeKey<T> key, T value) {
-    this.delegate.setTag(key.getKey(), value);
+    if (this.recording) {
+      this.delegate.setTag(key.getKey(), value);
+    }
     return this;
   }
 
@@ -57,13 +59,15 @@ public class OtelSpan implements Span {
 
   @Override
   public Span setStatus(StatusCode statusCode, String description) {
-    if (this.statusCode == UNSET) {
-      this.statusCode = statusCode;
-      this.delegate.setError(statusCode == ERROR);
-      this.delegate.setErrorMessage(statusCode == ERROR ? description : null);
-    } else if (this.statusCode == ERROR && statusCode == OK) {
-      this.delegate.setError(false);
-      this.delegate.setErrorMessage(null);
+    if (this.recording) {
+      if (this.statusCode == UNSET) {
+        this.statusCode = statusCode;
+        this.delegate.setError(statusCode == ERROR);
+        this.delegate.setErrorMessage(statusCode == ERROR ? description : null);
+      } else if (this.statusCode == ERROR && statusCode == OK) {
+        this.delegate.setError(false);
+        this.delegate.setErrorMessage(null);
+      }
     }
     return this;
   }
@@ -76,7 +80,9 @@ public class OtelSpan implements Span {
 
   @Override
   public Span updateName(String name) {
-    this.delegate.setOperationName(name);
+    if (this.recording) {
+      this.delegate.setOperationName(name);
+    }
     return this;
   }
 
