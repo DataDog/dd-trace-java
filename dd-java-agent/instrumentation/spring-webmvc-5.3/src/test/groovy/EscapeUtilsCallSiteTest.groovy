@@ -3,7 +3,6 @@ import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.propagation.PropagationModule
 import foo.bar.TestEscapeUtilsSuite
-import groovy.transform.CompileDynamic
 
 class EscapeUtilsCallSiteTest extends AgentTestRunner {
 
