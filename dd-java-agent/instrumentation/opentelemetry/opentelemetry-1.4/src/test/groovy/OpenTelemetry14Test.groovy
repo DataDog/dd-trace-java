@@ -341,4 +341,33 @@ class OpenTelemetry14Test extends AgentTestRunner {
       }
     }
   }
+
+  def "test span update after end"() {
+    setup:
+    def builder = tracer.spanBuilder("some-name")
+    def result = builder.startSpan()
+
+    when:
+    result.setAttribute("string", "value")
+    result.setStatus(ERROR)
+    result.end()
+    result.updateName("other-name")
+    result.setAttribute("string", "other-value")
+    result.setStatus(OK)
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          parent()
+          operationName "some-name"
+          errored true
+          tags {
+            defaultTags()
+            "string" "value"
+          }
+        }
+      }
+    }
+  }
 }
