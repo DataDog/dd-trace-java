@@ -59,7 +59,8 @@ public class WebSecurityConfig {
     UserDetailsManager userDetailsManager = new JdbcUserDetailsManager(dataSource);
 
     // Create some default for case when user creation happens outside request
-    userDetailsManager.createUser(User.withUsername("default_user").password("{noop}").roles("USER").build());
+    userDetailsManager.createUser(
+        User.withUsername("default_user").password("{noop}").roles("USER").build());
 
     return userDetailsManager;
   }
