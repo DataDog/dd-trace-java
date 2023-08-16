@@ -46,11 +46,12 @@ class WrappedFutureTest extends AgentTestRunner {
     def testSpan = TEST_TRACER.buildSpan("testInstrumentation", "testSpan").start()
     def props = [(ClientTracingFilter.SPAN_PROPERTY_NAME): testSpan]
 
-    def completedFuture = CompletableFuture.failedFuture(new RuntimeException("failed"))
+    def future = new CompletableFuture()
+    future.completeExceptionally(new RuntimeException("failed"))
 
     def clientConfig = new ClientConfiguration(new ResteasyProviderFactory())
     clientConfig.setProperties(props)
-    def wrappedFuture = new WrappedFuture(completedFuture, clientConfig)
+    def wrappedFuture = new WrappedFuture(future, clientConfig)
 
     when:
     try {
