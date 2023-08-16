@@ -111,9 +111,8 @@ public class TelemetryService {
         new BatchRequestBuilder(EventSource.noop(), EventSink.noop(), messageBytesSoftLimit);
     batchRequestBuilder.beginRequest(RequestType.APP_CLOSING, httpUrl);
     Request request = batchRequestBuilder.endRequest();
-    // TODO include metrics and other payloads
     if (httpClient.sendRequest(request) != HttpClient.Result.SUCCESS) {
-      // TODO log error
+      log.error("Couldn't send app-closing event!");
     }
   }
 
@@ -124,28 +123,32 @@ public class TelemetryService {
     EventSource eventSource;
     EventSink eventSink;
     if (bufferedEvents == null) {
-      // use queued events as a source
+      log.debug("Sending telemetry events");
       eventSource = this.eventSource;
       // use a buffer as a sink, so we can retry on the next attempt in case of a request failure
       bufferedEvents = new BufferedEvents();
       eventSink = bufferedEvents;
     } else {
-      // retry sending unsent buffered events from the last attempt
+      log.debug(
+          "Sending buffered telemetry events that couldn't have been sent on previous attempt");
       eventSource = bufferedEvents;
-      eventSink = EventSink.noop(); // TODO add metrics for unsent events
+      eventSink = EventSink.noop(); // TODO collect metrics for unsent events
     }
     BatchRequestBuilder batchRequestBuilder =
         new BatchRequestBuilder(eventSource, eventSink, messageBytesSoftLimit);
 
     Request request;
     if (!sentAppStarted) {
+      log.debug("Preparing app-started request");
       batchRequestBuilder.beginRequest(RequestType.APP_STARTED, httpUrl);
       batchRequestBuilder.writeConfigurationMessage();
       request = batchRequestBuilder.endRequest();
     } else if (eventSource.isEmpty()) {
+      log.debug("Preparing app-heartbeat request");
       batchRequestBuilder.beginRequest(RequestType.APP_HEARTBEAT, httpUrl);
       request = batchRequestBuilder.endRequest();
     } else {
+      log.debug("Preparing message-batch request");
       batchRequestBuilder.beginRequest(RequestType.MESSAGE_BATCH, httpUrl);
       batchRequestBuilder.writeHeartbeatEvent();
       batchRequestBuilder.writeConfigurationMessage();
@@ -159,11 +162,16 @@ public class TelemetryService {
 
     HttpClient.Result result = httpClient.sendRequest(request);
     if (result == HttpClient.Result.SUCCESS) {
+      log.debug("Telemetry request has been sent successfully.");
       sentAppStarted = true;
       bufferedEvents = null;
       if (!this.eventSource.isEmpty()) {
-        // flush other events if any
         sendTelemetryEvents();
+      }
+    } else {
+      log.debug("Telemetry request has failed: {}", result);
+      if (eventSource == bufferedEvents) {
+        // TODO report metrics for discarded events
       }
     }
   }

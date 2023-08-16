@@ -14,8 +14,6 @@ import spock.lang.Specification
 
 class TelemetryServiceSpecification extends Specification {
 
-  TestHttpClient testHttpClient = new TestHttpClient()
-
   def configuration = ["confkey": "confvalue"]
   def confKeyValue = new ConfigChange("confkey", "confvalue")
   def integration = new Integration("integration", true)
@@ -23,9 +21,12 @@ class TelemetryServiceSpecification extends Specification {
   def metric = new Metric().namespace("tracers").metric("metric").points([[1, 2]]).tags(["tag1", "tag2"])
   def distribution = new DistributionSeries().namespace("tracers").metric("distro").points([1, 2, 3]).tags(["tag1", "tag2"]).common(false)
   def logMessage = new LogMessage().message("log-message").tags("tag1:tag2").level(LogMessageLevel.DEBUG).stackTrace("stack-trace").tracerTime(32423)
-  TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 10000)
 
   void 'happy path without data'() {
+    setup:
+    TestHttpClient testHttpClient = new TestHttpClient()
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 10000)
+
     when: 'first iteration'
     testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
     telemetryService.sendTelemetryEvents()
@@ -53,6 +54,10 @@ class TelemetryServiceSpecification extends Specification {
   }
 
   void 'happy path with data'() {
+    setup:
+    TestHttpClient testHttpClient = new TestHttpClient()
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 10000)
+
     when: 'add data before first iteration'
     telemetryService.addConfiguration(configuration)
     telemetryService.addIntegration(integration)
@@ -102,6 +107,10 @@ class TelemetryServiceSpecification extends Specification {
   }
 
   void 'happy path with data after app-started'() {
+    setup:
+    TestHttpClient testHttpClient = new TestHttpClient()
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 10000)
+
     when: 'send messages'
     testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
     telemetryService.sendTelemetryEvents()
@@ -137,6 +146,10 @@ class TelemetryServiceSpecification extends Specification {
   }
 
   void 'no message before app-started'() {
+    setup:
+    TestHttpClient testHttpClient = new TestHttpClient()
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 10000)
+
     when: 'attempt with 404 error'
     testHttpClient.expectRequest(HttpClient.Result.NOT_FOUND)
     telemetryService.sendTelemetryEvents()
@@ -172,6 +185,9 @@ class TelemetryServiceSpecification extends Specification {
 
   def 'resend data on successful attempt after a failure'() {
     setup:
+    TestHttpClient testHttpClient = new TestHttpClient()
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 10000)
+
     telemetryService.addConfiguration(configuration)
     telemetryService.addIntegration(integration)
     telemetryService.addDependency(dependency)
@@ -215,6 +231,10 @@ class TelemetryServiceSpecification extends Specification {
   }
 
   void 'Send closing event request'() {
+    setup:
+    TestHttpClient testHttpClient = new TestHttpClient()
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 10000)
+
     when:
     testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
     telemetryService.sendAppClosingEvent()
@@ -226,6 +246,7 @@ class TelemetryServiceSpecification extends Specification {
 
   void 'report when both OTel and OT are enabled'() {
     setup:
+    TestHttpClient testHttpClient = new TestHttpClient()
     TelemetryService telemetryService = Spy(new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 1000))
     def otel = new Integration("opentelemetry-1", otelEnabled)
     def ot = new Integration("opentracing", otEnabled)
@@ -252,6 +273,7 @@ class TelemetryServiceSpecification extends Specification {
 
   void 'split telemetry requests if the size above the limit'() {
     setup:
+    TestHttpClient testHttpClient = new TestHttpClient()
     TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 1000)
 
     telemetryService.addConfiguration(configuration)
@@ -269,7 +291,7 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertRequestBody(RequestType.APP_STARTED).hasPayload().configuration([confKeyValue])
     testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
       .assertBatch(4)
-      //TODO should we include heartbeat in every batch request?
+      //TODO should a heartbeat be included in the batch request?
       .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
       // no configuration here as it has already been sent with the app-started event
       .assertNextMessage(RequestType.APP_INTEGRATIONS_CHANGE).hasPayload().integrations([integration])
