@@ -32,13 +32,8 @@ class MavenProjectConfigurator {
   private static final String DATADOG_GROUP_ID = "com.datadoghq";
   private static final String DATADOG_JAVAC_PLUGIN_ARTIFACT_ID = "dd-javac-plugin";
   private static final String DATADOG_JAVAC_PLUGIN_CLIENT_ARTIFACT_ID = "dd-javac-plugin-client";
-  private static final String LOMBOK_GROUP_ID = "org.projectlombok";
-  private static final String LOMBOK_ARTIFACT_ID = "lombok";
   private static final String JAVAC_COMPILER_ID = "javac";
   private static final String DATADOG_COMPILER_PLUGIN_ID = "DatadogCompilerPlugin";
-
-  private static final ComparableVersion ANNOTATION_PROCESSOR_PATHS_SUPPORTED_VERSION =
-      new ComparableVersion("3.5");
 
   private static final ComparableVersion LATE_SUBSTITUTION_SUPPORTED_VERSION =
       new ComparableVersion("2.17");
@@ -129,17 +124,10 @@ class MavenProjectConfigurator {
       List<Dependency> projectDependencies = project.getDependencies();
       addOrUpdate(projectDependencies, javacPluginClientDependency);
 
-      ComparableVersion mavenPluginVersion =
-          new ComparableVersion(
-              compilerPlugin.getVersion() != null ? compilerPlugin.getVersion() : "");
-
-      if (mavenPluginVersion.compareTo(ANNOTATION_PROCESSOR_PATHS_SUPPORTED_VERSION) >= 0) {
-        String lombokVersion = getLombokVersion(projectDependencies);
-        if (lombokVersion != null) {
-          configuration =
-              addAnnotationProcessorPath(
-                  configuration, LOMBOK_GROUP_ID, LOMBOK_ARTIFACT_ID, lombokVersion);
-        }
+      // if <annotationProcessorPaths> section is present,
+      // we have to add the plugin in there,
+      // otherwise it's best to add it as a regular dependency
+      if (configuration != null && configuration.getChild("annotationProcessorPaths") != null) {
         configuration =
             addAnnotationProcessorPath(
                 configuration,
@@ -184,16 +172,6 @@ class MavenProjectConfigurator {
       }
     }
     projectDependencies.add(dependency);
-  }
-
-  private String getLombokVersion(List<Dependency> dependencies) {
-    for (Dependency dependency : dependencies) {
-      if (LOMBOK_GROUP_ID.equals(dependency.getGroupId())
-          && LOMBOK_ARTIFACT_ID.equals(dependency.getArtifactId())) {
-        return dependency.getVersion();
-      }
-    }
-    return null;
   }
 
   private static Xpp3Dom addCompilerArg(Xpp3Dom configuration, String argValue) {
