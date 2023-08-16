@@ -5,9 +5,7 @@ import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.propagation.PropagationModule
 import foo.bar.TestStringUtilSuite
-import groovy.transform.CompileDynamic
 
-@CompileDynamic
 class StringUtilCallSiteTest extends AgentTestRunner {
 
   @Override
