@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.net.SocketAddress;
 
+
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
 import static datadog.trace.instrumentation.rocketmq.TextMapExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.rocketmq.TextMapInjectAdapter.SETTER;
@@ -127,9 +128,9 @@ public class RocketMqDecorator extends BaseDecorator {
       span.setTag(MESSAGING_ROCKETMQ_BROKER_ADDRESS, brokerAddr);
     }
 
-    afterStart(span);
     propagate().inject(span, context, SETTER);
     AgentScope scope = activateSpan(span);
+    afterStart(span);
     if (log.isDebugEnabled()){
       log.debug("consumer span start topic:{}",topic);
     }
@@ -139,6 +140,9 @@ public class RocketMqDecorator extends BaseDecorator {
   public void end(SendMessageContext context) {
     Exception exception = context.getException();
     AgentScope scope = activeScope();
+    if (scope == null){
+      return;
+    }
     if (null != exception) {
       onError(scope, exception);
     }
