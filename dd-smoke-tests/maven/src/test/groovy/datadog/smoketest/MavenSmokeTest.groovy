@@ -108,6 +108,31 @@ class MavenSmokeTest extends Specification {
     then:
     exitCode == 0
 
+    verifyEventsAndCoverages(mavenVersion)
+
+    where:
+    mavenVersion << ["3.2.1", "3.2.5", "3.3.9", "3.5.4", "3.6.3", "3.8.8", "3.9.4", "4.0.0-alpha-7"]
+  }
+
+  def "test maven run with jacoco and argLine, v#mavenVersion"() {
+    given:
+    givenWrapperPropertiesFile(mavenVersion)
+    givenMavenProjectFiles("test_successful_maven_run_with_jacoco_and_argline")
+    givenMavenDependenciesAreLoaded()
+
+    when:
+    def exitCode = whenRunningMavenBuild()
+
+    then:
+    exitCode == 0
+
+    verifyEventsAndCoverages(mavenVersion)
+
+    where:
+    mavenVersion << ["3.9.4"]
+  }
+
+  private verifyEventsAndCoverages(String mavenVersion) {
     def events = waitForEvents(5)
     assert events.size() == 5
 
@@ -249,9 +274,6 @@ class MavenSmokeTest extends Specification {
         ]
       ]
     ]
-
-    where:
-    mavenVersion << ["3.2.1", "3.2.5", "3.3.9", "3.5.4", "3.6.3", "3.8.8", "3.9.3", "4.0.0-alpha-7"]
   }
 
   private void givenWrapperPropertiesFile(String mavenVersion) {

@@ -17,12 +17,8 @@ import org.apache.maven.model.PluginExecution;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 class MavenProjectConfigurator {
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(MavenProjectConfigurator.class);
 
   static final MavenProjectConfigurator INSTANCE = new MavenProjectConfigurator();
 
