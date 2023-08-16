@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.connection_error.resteasy;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.jaxrs.ClientTracingFilter;
 import java.util.concurrent.ExecutionException;
@@ -38,13 +39,7 @@ public class WrappedFuture<T> implements Future<T> {
     try {
       return wrapped.get();
     } catch (final ExecutionException e) {
-      final Object prop = context.getProperty(ClientTracingFilter.SPAN_PROPERTY_NAME);
-      if (prop instanceof AgentSpan) {
-        final AgentSpan span = (AgentSpan) prop;
-        span.setError(true);
-        span.addThrowable(e.getCause());
-        span.finish();
-      }
+      handleExecutionException(e);
       throw e;
     }
   }
@@ -55,14 +50,22 @@ public class WrappedFuture<T> implements Future<T> {
     try {
       return wrapped.get(timeout, unit);
     } catch (final ExecutionException e) {
-      final Object prop = context.getProperty(ClientTracingFilter.SPAN_PROPERTY_NAME);
-      if (prop instanceof AgentSpan) {
-        final AgentSpan span = (AgentSpan) prop;
-        span.setError(true);
-        span.addThrowable(e.getCause());
-        span.finish();
-      }
+      handleExecutionException(e);
       throw e;
+    }
+  }
+
+  private void handleExecutionException(ExecutionException e) {
+    final Object prop = context.getProperty(ClientTracingFilter.SPAN_PROPERTY_NAME);
+    if (prop instanceof AgentSpan) {
+      final AgentSpan span = (AgentSpan) prop;
+      span.addThrowable(e.getCause());
+
+      @SuppressWarnings("deprecation")
+      final boolean isJaxRsExceptionAsErrorEnabled = Config.get().isJaxRsExceptionAsErrorEnabled();
+      span.setError(isJaxRsExceptionAsErrorEnabled);
+
+      span.finish();
     }
   }
 }
