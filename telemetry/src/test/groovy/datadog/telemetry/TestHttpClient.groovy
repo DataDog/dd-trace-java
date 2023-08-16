@@ -73,25 +73,27 @@ class TestHttpClient extends HttpClient {
     }
 
     RequestAssertions headers(RequestType requestType) {
-      assert request.method() == 'POST'
-      assert request.headers().names() == [
+      assert this.request.method() == 'POST'
+      assert this.request.headers().names() == [
         'Content-Type',
         'DD-Client-Library-Language',
         'DD-Client-Library-Version',
         'DD-Telemetry-API-Version',
-        'DD-Telemetry-Request-Type'
+        'DD-Telemetry-Request-Type',
+        'Content-Length'
       ] as Set
-      assert request.header('Content-Type') == 'application/json; charset=utf-8'
-      assert request.header('DD-Client-Library-Language') == 'jvm'
-      assert request.header('DD-Client-Library-Version') == TracerVersion.TRACER_VERSION
-      assert request.header('DD-Telemetry-API-Version') == 'v2'
-      assert request.header('DD-Telemetry-Request-Type') == requestType.toString()
+      assert this.request.header('Content-Type') == 'application/json; charset=utf-8'
+      assert this.request.header('DD-Client-Library-Language') == 'jvm'
+      assert this.request.header('DD-Client-Library-Version') == TracerVersion.TRACER_VERSION
+      assert this.request.header('DD-Telemetry-API-Version') == 'v2'
+      assert this.request.header('DD-Telemetry-Request-Type') == requestType.toString()
+      //      assert this.request.header('Content-Length') ==
       return this
     }
 
     BodyAssertions assertBody() {
       Buffer buf = new Buffer()
-      request.body().writeTo(buf)
+      this.request.body().writeTo(buf)
       byte[] bytes = new byte[buf.size()]
       buf.read(bytes)
       return new BodyAssertions(SLURPER.parse(bytes) as Map<String, Object>)

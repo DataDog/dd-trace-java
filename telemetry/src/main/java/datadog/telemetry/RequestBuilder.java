@@ -41,7 +41,7 @@ public class RequestBuilder extends RequestBody {
 
   private final JsonWriter bodyWriter = JsonWriter.of(body);
   private final RequestType requestType;
-  private final Request request;
+  private final Request.Builder requestBuilder;
   private final boolean debug;
 
   private enum CommonData {
@@ -71,7 +71,7 @@ public class RequestBuilder extends RequestBody {
 
   RequestBuilder(RequestType requestType, HttpUrl httpUrl, boolean debug) {
     this.requestType = requestType;
-    this.request =
+    this.requestBuilder =
         new Request.Builder()
             .url(httpUrl)
             .addHeader("Content-Type", String.valueOf(JSON))
@@ -79,8 +79,7 @@ public class RequestBuilder extends RequestBody {
             .addHeader("DD-Telemetry-Request-Type", String.valueOf(requestType))
             .addHeader("DD-Client-Library-Language", "jvm")
             .addHeader("DD-Client-Library-Version", TracerVersion.TRACER_VERSION)
-            .post(this)
-            .build();
+            .post(this);
     this.debug = debug;
   }
 
@@ -90,7 +89,6 @@ public class RequestBuilder extends RequestBody {
       bodyWriter.beginObject();
       bodyWriter.name("api_version").value(API_VERSION);
       // naming_schema_version - optional
-      bodyWriter.name("request_type").value(requestType.toString());
       bodyWriter.name("runtime_id").value(commonData.runtimeId);
       bodyWriter.name("seq_id").value(SEQ_ID.incrementAndGet());
       bodyWriter.name("tracer_time").value(System.currentTimeMillis() / 1000L);
@@ -139,6 +137,8 @@ public class RequestBuilder extends RequestBody {
         bodyWriter.endArray(); // payload
       }
       bodyWriter.endObject(); // request
+
+      requestBuilder.addHeader("Content-Length", String.valueOf(body.size()));
     } catch (Exception ex) {
       throw new SerializationException("end-request", ex);
     }
@@ -388,7 +388,7 @@ public class RequestBuilder extends RequestBody {
    *     TODO: see if there is a better way to express this peculiarity in the code.
    */
   public Request request() {
-    return request;
+    return requestBuilder.build();
   }
 
   @Nullable
