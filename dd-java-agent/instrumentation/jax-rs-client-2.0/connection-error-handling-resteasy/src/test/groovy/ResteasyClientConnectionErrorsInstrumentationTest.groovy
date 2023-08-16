@@ -13,7 +13,7 @@ class ResteasyClientConnectionErrorsInstrumentationTest extends AgentTestRunner 
       injectSysConfig(JAX_RS_EXCEPTION_AS_ERROR_ENABLED, "$jaxRsExceptionAsErrorEnabled")
     }
     def testSpan = TEST_TRACER.buildSpan("testInstrumentation", "testSpan").start()
-    def props = Map.of(ClientTracingFilter.SPAN_PROPERTY_NAME, testSpan)
+    def props = [(ClientTracingFilter.SPAN_PROPERTY_NAME): testSpan]
 
     def clientConfig = new ClientConfiguration(new ResteasyProviderFactory())
     clientConfig.setProperties(props)
@@ -37,7 +37,7 @@ class ResteasyClientConnectionErrorsInstrumentationTest extends AgentTestRunner 
       injectSysConfig(JAX_RS_EXCEPTION_AS_ERROR_ENABLED, "$jaxRsExceptionAsErrorEnabled")
     }
     def testSpan = TEST_TRACER.buildSpan("testInstrumentation", "testSpan").start()
-    def props = Map.of(ClientTracingFilter.SPAN_PROPERTY_NAME, testSpan)
+    def props = [(ClientTracingFilter.SPAN_PROPERTY_NAME): testSpan]
 
     def clientConfig = new ClientConfiguration(new ResteasyProviderFactory())
     clientConfig.setProperties(props)

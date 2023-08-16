@@ -14,8 +14,7 @@ class WrappedFutureTest extends AgentTestRunner {
       injectSysConfig(JAX_RS_EXCEPTION_AS_ERROR_ENABLED, "$jaxRsExceptionAsErrorEnabled")
     }
     def testSpan = TEST_TRACER.buildSpan("testInstrumentation", "testSpan").start()
-    def props = Map.of(ClientTracingFilter.SPAN_PROPERTY_NAME, testSpan)
-
+    def props = [(ClientTracingFilter.SPAN_PROPERTY_NAME): testSpan]
 
     def completedFuture = CompletableFuture.completedFuture("passed")
 
@@ -45,8 +44,7 @@ class WrappedFutureTest extends AgentTestRunner {
       injectSysConfig(JAX_RS_EXCEPTION_AS_ERROR_ENABLED, "$jaxRsExceptionAsErrorEnabled")
     }
     def testSpan = TEST_TRACER.buildSpan("testInstrumentation", "testSpan").start()
-    def props = Map.of(ClientTracingFilter.SPAN_PROPERTY_NAME, testSpan)
-
+    def props = [(ClientTracingFilter.SPAN_PROPERTY_NAME): testSpan]
 
     def completedFuture = CompletableFuture.failedFuture(new RuntimeException("failed"))
 
