@@ -291,16 +291,6 @@ public class IastWebController {
     return "Trust Boundary violation with cookie page";
   }
 
-  @GetMapping("/xss/write")
-  @SuppressFBWarnings
-  public void xssWrite(final HttpServletRequest request, final HttpServletResponse response) {
-    try {
-      response.getWriter().write(request.getParameter("string"));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
   @GetMapping(value = "/hstsmissing", produces = "text/html")
   public String hstsHeaderMissing(HttpServletResponse response) {
     response.setStatus(HttpStatus.OK.value());
