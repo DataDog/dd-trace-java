@@ -35,4 +35,28 @@ class StringUtilCallSiteTest extends AgentTestRunner {
     'javaScriptStringEnc' | ['<script>function a(){console.log("escape this < ")}<script>'] | '<script>function a(){console.log(\\"escape this < \\")}<script>'
     'jsonStringEnc' | ['["a":{"b":2}]'] | '[\\"a\\":{\\"b\\":2}]'
   }
+
+  void 'test #method with null args'() {
+    given:
+    final module = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    final result = TestStringUtilSuite.&"$method".call(null)
+
+    then:
+    def thrownException = thrown (Exception)
+    assert  thrownException.stackTrace[0].getClassName().startsWith('freemarker')
+    0 * module.taintIfInputIsTaintedWithMarks(_)
+    0 * _
+
+    where:
+    method       | _
+    'HTMLEnc' | _
+    'XMLEnc' | _
+    'XHTMLEnc' | _
+    'javaStringEnc' | _
+    'javaScriptStringEnc' | _
+    'jsonStringEnc' | _
+  }
 }
