@@ -117,7 +117,13 @@ shadowJar {
     exclude('datadog.trace.api.sampling.*')
     exclude('datadog.trace.context.*')
   }
-  exclude('META-INF/maven/')
+
+  duplicatesStrategy = DuplicatesStrategy.FAIL
+
+  // Remove some cruft from the final jar.
+  // These patterns should NOT include **/META-INF/maven/**/pom.properties, which is
+  // used to report our own dependencies.
+  exclude '**/META-INF/maven/**/pom.xml'
   exclude('META-INF/proguard/')
   exclude('/META-INF/*.kotlin_module')
 }
