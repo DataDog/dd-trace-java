@@ -1229,7 +1229,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public TraceSegment getTraceSegment() {
-    AgentSpan.Context ctx = activeSpan().context();
+    AgentSpan activeSpan = activeSpan();
+    if (activeSpan == null) {
+      return null;
+    }
+    AgentSpan.Context ctx = activeSpan.context();
     if (ctx instanceof DDSpanContext) {
       return ((DDSpanContext) ctx).getTraceSegment();
     }
