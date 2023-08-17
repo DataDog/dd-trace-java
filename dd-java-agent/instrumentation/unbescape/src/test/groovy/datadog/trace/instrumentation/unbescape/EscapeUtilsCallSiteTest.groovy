@@ -46,6 +46,8 @@ class EscapeUtilsCallSiteTest extends AgentTestRunner {
 
     then:
     notThrown(Exception)
+    0 * module.taintIfInputIsTaintedWithMarks(_)
+    0 * _
 
     where:
     method       | _
