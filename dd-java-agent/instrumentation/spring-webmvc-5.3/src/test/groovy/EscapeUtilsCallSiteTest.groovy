@@ -30,4 +30,25 @@ class EscapeUtilsCallSiteTest extends AgentTestRunner {
     'htmlEscape' | ['Ø-This is a quote', 'ISO-8859-1'] | '&Oslash;-This is a quote'
     'javaScriptEscape' | ['<script>function a(){console.log("escape this < ")}<script>'] | '\\u003Cscript\\u003Efunction a(){console.log(\\"escape this \\u003C \\")}\\u003Cscript\\u003E'
   }
+
+  void 'test #method with null args throws exception'() {
+    given:
+    final module = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    TestEscapeUtilsSuite.&"$method".call(args)
+
+    then:
+    def ex = thrown(Exception)
+    assert ex.stackTrace[0].getClassName().startsWith('org.springframework')
+    0 * module.taintIfInputIsTaintedWithMarks(_)
+    0 * _
+
+    where:
+    method | args
+    'htmlEscape' | [null]
+    'htmlEscape' | [null, null]
+    'javaScriptEscape' | [null]
+  }
 }
