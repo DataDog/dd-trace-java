@@ -20,12 +20,14 @@ public class EscapeUtilsCallSite {
       "java.lang.String org.unbescape.javascript.JavaScriptEscape.escapeJavaScript(java.lang.String)")
   public static String afterEscape(
       @CallSite.Argument(0) @Nullable final String input, @CallSite.Return final String result) {
-    final PropagationModule module = InstrumentationBridge.PROPAGATION;
-    if (module != null) {
-      try {
-        module.taintIfInputIsTaintedWithMarks(result, input, VulnerabilityMarks.XSS_MARK);
-      } catch (final Throwable e) {
-        module.onUnexpectedException("afterEscape threw", e);
+    if (input != null && result != null) {
+      final PropagationModule module = InstrumentationBridge.PROPAGATION;
+      if (module != null) {
+        try {
+          module.taintIfInputIsTaintedWithMarks(result, input, VulnerabilityMarks.XSS_MARK);
+        } catch (final Throwable e) {
+          module.onUnexpectedException("afterEscape threw", e);
+        }
       }
     }
     return result;
