@@ -1,11 +1,16 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.Platform
 import org.apache.spark.sql.Encoders
 import org.apache.spark.sql.execution.streaming.MemoryStream
 import org.apache.spark.sql.SparkSession
 import scala.Option
 import scala.collection.JavaConverters
 import scala.collection.immutable.Seq
+import spock.lang.IgnoreIf
 
+@IgnoreIf(reason="https://issues.apache.org/jira/browse/HADOOP-18174", value = {
+  Platform.isJ9()
+})
 class SparkStructuredStreamingTest extends AgentTestRunner {
 
   @Override

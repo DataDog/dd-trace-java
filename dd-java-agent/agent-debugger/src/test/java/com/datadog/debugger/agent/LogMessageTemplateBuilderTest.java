@@ -16,6 +16,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIf;
 import org.junit.jupiter.api.condition.EnabledOnJre;
 import org.junit.jupiter.api.condition.JRE;
 
@@ -203,6 +204,7 @@ class LogMessageTemplateBuilderTest {
 
   @Test
   @EnabledOnJre(JRE.JAVA_17)
+  @DisabledIf("datadog.trace.api.Platform#isJ9")
   public void argInaccessibleFieldTemplate() {
     LogProbe probe = createLogProbe("{obj}");
     LogMessageTemplateBuilder summaryBuilder = new LogMessageTemplateBuilder(probe.getSegments());

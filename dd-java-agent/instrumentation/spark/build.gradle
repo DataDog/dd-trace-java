@@ -11,9 +11,6 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuiteForDir('latestDepTest', 'test')
 
 ext {
-  // Hadoop does not behave correctly with OpenJ9 https://issues.apache.org/jira/browse/HADOOP-18174
-  excludeJdk = ['SEMERU8']
-
   // Spark does not support Java > 11 until 3.3.0 https://issues.apache.org/jira/browse/SPARK-33772
   maxJavaVersionForTests = JavaVersion.VERSION_11
 }
