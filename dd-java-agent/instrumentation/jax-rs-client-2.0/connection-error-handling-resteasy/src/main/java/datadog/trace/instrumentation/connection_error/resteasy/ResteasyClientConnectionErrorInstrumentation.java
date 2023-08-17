@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.jaxrs.ClientTracingFilter;
 import java.util.concurrent.Future;
@@ -58,8 +59,13 @@ public final class ResteasyClientConnectionErrorInstrumentation extends Instrume
         final Object prop = context.getProperty(ClientTracingFilter.SPAN_PROPERTY_NAME);
         if (prop instanceof AgentSpan) {
           final AgentSpan span = (AgentSpan) prop;
-          span.setError(true);
           span.addThrowable(throwable);
+
+          @SuppressWarnings("deprecation")
+          final boolean isJaxRsExceptionAsErrorEnabled =
+              Config.get().isJaxRsExceptionAsErrorEnabled();
+          span.setError(isJaxRsExceptionAsErrorEnabled);
+
           span.finish();
         }
       }
