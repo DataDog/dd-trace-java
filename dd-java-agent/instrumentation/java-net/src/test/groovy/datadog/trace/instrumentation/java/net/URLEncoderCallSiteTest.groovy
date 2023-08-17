@@ -31,4 +31,24 @@ class URLEncoderCallSiteTest extends AgentTestRunner {
     ['my test.asp?name=ståle&car=saab'] | 'my+test.asp%3Fname%3Dst%C3%A5le%26car%3Dsaab'
     ['my test.asp?name=ståle&car=saab', 'UTF-8'] | 'my+test.asp%3Fname%3Dst%C3%A5le%26car%3Dsaab'
   }
+
+  void 'test encode with null args'() {
+    given:
+    final iastModule = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(iastModule)
+
+    when:
+    TestURLEncoderCallSiteSuite.&encode.call(args)
+
+    then:
+    def ex = thrown(Exception)
+    assert ex.stackTrace[0].getClassName().startsWith('java.net.')
+    0 * iastModule.taintIfInputIsTaintedWithMarks(_)
+    0 * _
+
+    where:
+    args | _
+    [null, null]| _
+    [null]| _
+  }
 }
