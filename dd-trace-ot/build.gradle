@@ -118,6 +118,8 @@ shadowJar {
     exclude('datadog.trace.context.*')
   }
 
+  duplicatesStrategy = DuplicatesStrategy.FAIL
+
   // Remove some cruft from the final jar.
   // These patterns should NOT include **/META-INF/maven/**/pom.properties, which is
   // used to report our own dependencies.

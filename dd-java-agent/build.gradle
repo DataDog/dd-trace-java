@@ -30,6 +30,8 @@ targetCompatibility = JavaVersion.VERSION_1_7
 ext.generalShadowJarConfig = {
   mergeServiceFiles()
 
+  duplicatesStrategy = DuplicatesStrategy.FAIL
+
   // Remove some cruft from the final jar.
   // These patterns should NOT include **/META-INF/maven/**/pom.properties, which is
   // used to report our own dependencies.
