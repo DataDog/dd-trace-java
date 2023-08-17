@@ -34,4 +34,25 @@ class EscapeUtilsCallSiteTest extends AgentTestRunner {
     'escapeHtml5Xml' | ['<htmlTag>"escape this < </htmlTag>'] | '&lt;htmlTag&gt;&quot;escape this &lt; &lt;/htmlTag&gt;'
     'escapeJavaScript' | ['<script>function a(){console.log("escape this < ")}<script>'] | '<script>function a(){console.log(\\"escape this < \\")}<script>'
   }
+
+  void 'test #method with null args not thrown exception'() {
+
+    given:
+    final module = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    TestEscapeUtilsSuite.&"$method".call(null)
+
+    then:
+    notThrown(Exception)
+
+    where:
+    method       | _
+    'escapeHtml4Xml' | _
+    'escapeHtml4' | _
+    'escapeHtml5' | _
+    'escapeHtml5Xml' | _
+    'escapeJavaScript' | _
+  }
 }
