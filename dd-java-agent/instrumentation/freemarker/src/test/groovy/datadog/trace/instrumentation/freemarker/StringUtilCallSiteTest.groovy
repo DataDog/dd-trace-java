@@ -42,7 +42,7 @@ class StringUtilCallSiteTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
 
     when:
-    final result = TestStringUtilSuite.&"$method".call(null)
+    TestStringUtilSuite.&"$method".call(null)
 
     then:
     def thrownException = thrown (Exception)
