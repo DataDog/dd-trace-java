@@ -57,7 +57,17 @@ public class PassthruSyncServlet3 extends HttpServlet {
       // needed to trigger reading the body on openliberty
       ((HttpServletRequest) req).getParts();
     }
-    delegate.service(req, res);
+    try {
+      delegate.service(req, res);
+    } catch (Throwable t) {
+      throw t;
+    } finally {
+      if (((HttpServletRequest) req).getHeader("x-commit-during-response") != null) {
+        res.flushBuffer();
+        res.getWriter().close();
+        throw new RuntimeException("should not be reached");
+      }
+    }
   }
 
   @Override

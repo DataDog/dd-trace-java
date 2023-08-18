@@ -34,7 +34,7 @@ dependencies {
   testRuntimeOnly files({ tasks.filterLogbackClassic.filteredLogbackDir })
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-3')
 
-  webappCompileOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '3.0.1'
+  webappCompileOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '3.1.0'
   // compileOnly to avoid bringing all the test dependencies to the test app
   // these are to be provided by the system classloader on test time
   webappCompileOnly project(':dd-java-agent:instrumentation:servlet:request-3')

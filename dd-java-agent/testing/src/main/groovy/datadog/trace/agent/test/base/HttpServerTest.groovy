@@ -362,6 +362,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     true
   }
 
+  boolean testResponseHeadersMapping() {
+    true // bug in liberty-20
+  }
+
   @Override
   int version() {
     return 0
@@ -685,6 +689,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
   def "test QUERY_ENCODED_BOTH with response header x-ig-response-header tag mapping"() {
     setup:
+    assumeTrue(testResponseHeadersMapping())
     def endpoint = QUERY_ENCODED_BOTH
     def method = 'GET'
     def body = null
