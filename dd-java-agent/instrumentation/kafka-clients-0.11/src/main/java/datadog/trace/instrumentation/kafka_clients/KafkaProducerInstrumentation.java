@@ -99,7 +99,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
         sortedTags.put(TYPE_TAG, "kafka");
         try {
           propagate().inject(span, record.headers(), SETTER);
-          propagate().injectBinaryPathwayContext(span, record.headers(), SETTER, sortedTags);
+          propagate().injectPathwayContext(span, record.headers(), SETTER, sortedTags);
         } catch (final IllegalStateException e) {
           // headers must be read-only from reused record. try again with new one.
           record =
@@ -112,7 +112,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
                   record.headers());
 
           propagate().inject(span, record.headers(), SETTER);
-          propagate().injectBinaryPathwayContext(span, record.headers(), SETTER, sortedTags);
+          propagate().injectPathwayContext(span, record.headers(), SETTER, sortedTags);
         }
         if (TIME_IN_QUEUE_ENABLED) {
           SETTER.injectTimeInQueue(record.headers());

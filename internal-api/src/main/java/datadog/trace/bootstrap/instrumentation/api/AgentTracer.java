@@ -516,7 +516,7 @@ public class AgentTracer {
     }
   }
 
-  public static class NoopAgentSpan implements AgentSpan {
+  public static final class NoopAgentSpan implements AgentSpan {
     public static final NoopAgentSpan INSTANCE = new NoopAgentSpan();
 
     protected NoopAgentSpan() {}

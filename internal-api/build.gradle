@@ -47,7 +47,6 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.Tags",
   "datadog.trace.bootstrap.instrumentation.api.CommonTagValues",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentPropagation",
-  "datadog.trace.bootstrap.instrumentation.api.AgentPropagation",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopContext",
   "datadog.trace.bootstrap.instrumentation.api.InstrumentationTags",

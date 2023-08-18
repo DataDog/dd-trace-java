@@ -30,7 +30,6 @@ public class DataStreamContextInjector {
     }
     pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring::add);
 
-    @SuppressWarnings("unchecked")
     boolean injected =
         setter instanceof AgentPropagation.BinarySetter
             ? injectBinaryPathwayContext(

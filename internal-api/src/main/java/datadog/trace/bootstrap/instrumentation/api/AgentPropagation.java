@@ -11,13 +11,6 @@ public interface AgentPropagation {
   <C> void inject(AgentSpan span, C carrier, Setter<C> setter, TracePropagationStyle style);
 
   // The input tags should be sorted.
-  default <C> void injectBinaryPathwayContext(
-      AgentSpan span, C carrier, BinarySetter<C> setter, LinkedHashMap<String, String> sortedTags) {
-    //noinspection unchecked
-    injectPathwayContext(span, carrier, (Setter<C>) setter, sortedTags);
-  }
-
-  // The input tags should be sorted.
   <C> void injectPathwayContext(
       AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags);
 
@@ -25,7 +18,7 @@ public interface AgentPropagation {
     void set(C carrier, String key, String value);
   }
 
-  interface BinarySetter<C> {
+  interface BinarySetter<C> extends Setter<C> {
     void set(C carrier, String key, byte[] value);
   }
 
