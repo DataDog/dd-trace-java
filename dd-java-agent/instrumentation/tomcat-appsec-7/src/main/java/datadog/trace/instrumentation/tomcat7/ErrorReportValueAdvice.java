@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.tomcat7;
 import static datadog.trace.bootstrap.blocking.BlockingActionHelper.TemplateType.HTML;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.sink.StacktraceLeakModule;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
@@ -39,6 +40,11 @@ public class ErrorReportValueAdvice {
           module.onUnexpectedException("onResponseException threw", e);
         }
       }
+    }
+
+    // If we don't need to suppress stacktrace leak
+    if (!Config.get().isIastStacktraceLeakSuppress()) {
+      return false;
     }
 
     byte[] template = BlockingActionHelper.getTemplate(HTML);
