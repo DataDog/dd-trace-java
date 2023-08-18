@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.liberty20;
+package datadog.trace.instrumentation.liberty23;
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART;
 
@@ -39,12 +39,12 @@ import jakarta.servlet.http.HttpServletRequest;
     maxFileSize = 10 * 1024 * 1024,
     maxRequestSize = 20 * 1024 * 1024,
     fileSizeThreshold = 5 * 1024 * 1024)
-public class PassthruSyncServlet3 extends HttpServlet {
-  datadog.trace.instrumentation.servlet3.TestServlet3.Sync delegate;
+public class PassthruSyncServlet5 extends HttpServlet {
+  datadog.trace.instrumentation.servlet5.TestServlet5 delegate;
 
   {
     try {
-      delegate = new datadog.trace.instrumentation.servlet3.TestServlet3.Sync();
+      delegate = new datadog.trace.instrumentation.servlet5.TestServlet5();
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

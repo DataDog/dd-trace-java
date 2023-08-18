@@ -63,7 +63,7 @@ abstract class WithHttpServer<SERVER> extends VersionedNamingTestBase {
     address = server.address()
     assert address.port > 0
     assert address.path.endsWith("/")
-    println "$server started at: $address"
+    println "\n\n\n$server started at: $address"
   }
 
   void cleanupSpec() {

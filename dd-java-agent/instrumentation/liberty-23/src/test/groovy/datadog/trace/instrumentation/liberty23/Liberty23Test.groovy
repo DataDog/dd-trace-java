@@ -10,7 +10,7 @@ abstract class Liberty23Test extends HttpServerTest<Server> {
 
   @Override
   HttpServer server() {
-    new Liberty20Server()
+    new Liberty23Server()
   }
 
   @Override
@@ -91,7 +91,7 @@ abstract class Liberty23Test extends HttpServerTest<Server> {
   // instrumented while on the the global ignores list
   System.getProperty('java.vm.name') == 'IBM J9 VM' &&
   System.getProperty('java.specification.version') == '1.8' })
-class Liberty20V0ForkedTest extends Liberty20Test implements TestingGenericHttpNamingConventions.ServerV0 {
+class Liberty23V0ForkedTest extends Liberty23Test implements TestingGenericHttpNamingConventions.ServerV0 {
 }
 
 @IgnoreIf({
@@ -99,5 +99,5 @@ class Liberty20V0ForkedTest extends Liberty20Test implements TestingGenericHttpN
   // instrumented while on the the global ignores list
   System.getProperty('java.vm.name') == 'IBM J9 VM' &&
   System.getProperty('java.specification.version') == '1.8' })
-class Liberty20V1ForkedTest extends Liberty20Test implements TestingGenericHttpNamingConventions.ServerV1 {
+class Liberty23V1ForkedTest extends Liberty23Test implements TestingGenericHttpNamingConventions.ServerV1 {
 }

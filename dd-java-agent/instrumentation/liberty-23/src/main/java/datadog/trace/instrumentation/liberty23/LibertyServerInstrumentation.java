@@ -17,7 +17,7 @@ import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
+import datadog.trace.instrumentation.servlet5.JakartaServletBlockingHelper;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
@@ -46,7 +46,7 @@ public final class LibertyServerInstrumentation extends Instrumenter.Tracing
       packageName + ".LibertyDecorator",
       packageName + ".LibertyDecorator$LibertyBlockResponseFunction",
       packageName + ".RequestURIDataAdapter",
-      "datadog.trace.instrumentation.servlet.ServletBlockingHelper",
+      "datadog.trace.instrumentation.servlet.JakartaServletBlockingHelper",
     };
   }
 
@@ -102,7 +102,7 @@ public final class LibertyServerInstrumentation extends Instrumenter.Tracing
 
       Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
       if (rba != null) {
-        ServletBlockingHelper.commitBlockingResponse(request, (SRTServletResponse) resp, rba);
+        JakartaServletBlockingHelper.commitBlockingResponse(request, (SRTServletResponse) resp, rba);
         // prevent caching of the handler
         req.setAttribute(
             "javax.servlet.error.status_code", ((SRTServletResponse) resp).getStatusCode());

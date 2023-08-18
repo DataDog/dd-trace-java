@@ -16,7 +16,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
-import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
+import datadog.trace.instrumentation.servlet5.JakartaServletBlockingHelper;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -162,7 +162,7 @@ public class LibertyDecorator
         log.warn("Can't block; response not of type HttpServletResponse");
         return false;
       }
-      ServletBlockingHelper.commitBlockingResponse(
+      JakartaServletBlockingHelper.commitBlockingResponse(
           request, (HttpServletResponse) response, statusCode, bct, extraHeaders);
 
       return true;

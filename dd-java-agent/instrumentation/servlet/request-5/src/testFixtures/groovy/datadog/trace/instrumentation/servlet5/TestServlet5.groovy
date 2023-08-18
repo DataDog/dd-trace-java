@@ -103,4 +103,8 @@ class TestServlet5 extends HttpServlet {
       }
     }
   }
+
+  HttpServerTest.ServerEndpoint determineEndpoint(HttpServletRequest req) {
+        forPath(req.requestURI.substring(req.getContextPath().length()))
+      }
 }

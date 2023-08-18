@@ -31,7 +31,8 @@ class Liberty23Server implements HttpServer {
   }
 
   private void findRandomPort() {
-    port = PortUtils.randomOpenPort()
+    port = 20001
+    //port = PortUtils.randomOpenPort()
   }
 
   private void changeServerXml() {
