@@ -149,12 +149,24 @@ public final class ContinuableScopeManager implements AgentScopeManager {
   }
 
   /**
-   * Creates a new scope when a {@link AbstractContinuation} is activated.
+   * Activates a scope for the given {@link AbstractContinuation}.
    *
    * @param continuation {@code null} if a continuation is re-used
    */
   ContinuableScope continueSpan(
       final AbstractContinuation continuation, final AgentSpan span, final byte source) {
+    ScopeStack scopeStack = scopeStack();
+
+    // optimization: if the top scope is already keeping the same span alive
+    // then re-use that scope (avoids allocation) and cancel the continuation
+    final ContinuableScope top = scopeStack.top;
+    if (top != null && top.span.equals(span)) {
+      top.incrementReferences();
+      if (continuation != null) {
+        continuation.cancelFromContinuedScopeClose();
+      }
+      return top;
+    }
 
     final ContinuableScope scope;
     if (continuation != null) {
@@ -162,8 +174,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     } else {
       scope = new ContinuableScope(this, span, source, true);
     }
-
-    scopeStack().push(scope);
+    scopeStack.push(scope);
 
     return scope;
   }
