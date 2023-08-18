@@ -40,7 +40,6 @@ public final class WithSpanAnnotationInstrumentation extends Instrumenter.Tracin
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      this.packageName + ".AsyncResultHelper",
       this.packageName + ".WithSpanDecorator",
       this.packageName + ".WithSpanDecorator$1", // Switch over enum generated class
     };
