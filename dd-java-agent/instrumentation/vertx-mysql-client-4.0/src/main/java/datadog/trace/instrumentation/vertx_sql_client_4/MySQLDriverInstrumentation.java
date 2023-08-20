@@ -11,10 +11,10 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.*;
 
 @AutoService(Instrumenter.class)
-public class MySQLPoolInstrumentation extends Instrumenter.Tracing
+public class MySQLDriverInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForSingleType {
 
-  public MySQLPoolInstrumentation() {
+  public MySQLDriverInstrumentation() {
     super("vertx", "vertx-sql-client");
   }
 
@@ -24,24 +24,17 @@ public class MySQLPoolInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[]{
-        packageName + ".VertxSqlClientDecorator",
-    };
-  }
-
-  @Override
   public String instrumentedType() {
-    return "io.vertx.mysqlclient.MySQLPool";
+    return "io.vertx.mysqlclient.spi.MySQLDriver";
   }
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        isStatic()
-            .and(named("pool"))
-            .and(takesArguments(3)
-                .and(takesArgument(1, named("io.vertx.mysqlclient.MySQLConnectOptions")))),
-        packageName + ".MySQLPoolAdvice");
+        isPrivate()
+            .and(named("newPoolImpl"))
+            .and(takesArguments(4)
+                .and(takesArgument(1, named("java.util.function.Supplier")))),
+        packageName + ".MySQLDriverAdvice");
   }
 }
