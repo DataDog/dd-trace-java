@@ -6,6 +6,7 @@ import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
+import io.vertx.mysqlclient.MySQLConnection;
 import io.vertx.sqlclient.PreparedStatement;
 import io.vertx.sqlclient.SqlClient;
 import net.bytebuddy.asm.Advice;
@@ -25,5 +26,10 @@ public class SqlConnectionBasePrepareAdvice {
     handler =
         new PrepareHandlerWrapper(
             handler, InstrumentationContext.get(PreparedStatement.class, Pair.class), info);
+  }
+
+  // Limit ourselves to 3.9.x and MySQL by checking for this method that was removed in 4.x
+  private static void muzzleCheck(MySQLConnection connection) {
+    connection.close();
   }
 }

@@ -18,8 +18,10 @@ public class MySQLConnectionImplConstructorAdvice {
             InstrumentationContext.get(MySQLConnectionFactory.class, DBInfo.class).get(factory));
   }
 
-  // Limit ourselves to >= 3.9.x by checking for the Query interface that was added in 3.9.x
+  // Limit ourselves to 3.9.x by checking for the close() method that was removed in 4.x
+  // and the Query interface that was added in 3.9.x
   private static void muzzleCheck(SqlConnection connection, Query query) {
+    connection.close();
     query.execute(null);
   }
 }

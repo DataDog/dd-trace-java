@@ -1,9 +1,4 @@
-package datadog.trace.instrumentation.vertx_sql_client;
-
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
-import static datadog.trace.instrumentation.vertx_sql_client.VertxSqlClientDecorator.DECORATE;
+package datadog.trace.instrumentation.vertx_sql_client_4;
 
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.ContextStore;
@@ -12,11 +7,13 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
-import io.vertx.mysqlclient.MySQLConnection;
 import io.vertx.sqlclient.Query;
 import io.vertx.sqlclient.SqlResult;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
+
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
+import static datadog.trace.instrumentation.vertx_sql_client_4.VertxSqlClientDecorator.DECORATE;
 
 public class QueryAdvice {
   public static class Copy {
@@ -25,11 +22,6 @@ public class QueryAdvice {
         @Advice.This final Query<?> zis, @Advice.Return final Query<?> ret) {
       ContextStore<Query, Pair> contextStore = InstrumentationContext.get(Query.class, Pair.class);
       contextStore.put(ret, contextStore.get(zis));
-    }
-
-    // Limit ourselves to 3.9.x and MySQL by checking for this method that was removed in 4.x
-    private static void muzzleCheck(MySQLConnection connection) {
-      connection.close();
     }
   }
 
@@ -72,11 +64,6 @@ public class QueryAdvice {
       if (null != clientScope) {
         clientScope.close();
       }
-    }
-
-    // Limit ourselves to 3.9.x and MySQL by checking for this method that was removed in 4.x
-    private static void muzzleCheck(MySQLConnection connection) {
-      connection.close();
     }
   }
 }

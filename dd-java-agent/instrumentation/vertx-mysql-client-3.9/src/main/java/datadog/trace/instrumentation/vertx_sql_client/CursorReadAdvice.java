@@ -11,6 +11,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
+import io.vertx.mysqlclient.MySQLConnection;
 import io.vertx.sqlclient.PreparedStatement;
 import io.vertx.sqlclient.Row;
 import io.vertx.sqlclient.RowSet;
@@ -46,5 +47,10 @@ public class CursorReadAdvice {
     if (null != clientScope) {
       clientScope.close();
     }
+  }
+
+  // Limit ourselves to 3.9.x and MySQL by checking for this method that was removed in 4.x
+  private static void muzzleCheck(MySQLConnection connection) {
+    connection.close();
   }
 }
