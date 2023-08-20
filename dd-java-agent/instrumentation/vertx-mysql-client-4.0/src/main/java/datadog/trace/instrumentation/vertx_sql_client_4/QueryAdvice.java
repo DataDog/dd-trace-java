@@ -1,5 +1,8 @@
 package datadog.trace.instrumentation.vertx_sql_client_4;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
+import static datadog.trace.instrumentation.vertx_sql_client_4.VertxSqlClientDecorator.DECORATE;
+
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -11,9 +14,6 @@ import io.vertx.sqlclient.Query;
 import io.vertx.sqlclient.SqlResult;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
-
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
-import static datadog.trace.instrumentation.vertx_sql_client_4.VertxSqlClientDecorator.DECORATE;
 
 public class QueryAdvice {
   public static class Copy {

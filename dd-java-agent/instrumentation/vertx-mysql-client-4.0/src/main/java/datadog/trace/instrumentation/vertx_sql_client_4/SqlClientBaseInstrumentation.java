@@ -1,14 +1,13 @@
 package datadog.trace.instrumentation.vertx_sql_client_4;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.*;
+
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
-
 import java.util.HashMap;
 import java.util.Map;
-
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.*;
 
 @AutoService(Instrumenter.class)
 public class SqlClientBaseInstrumentation extends Instrumenter.Tracing

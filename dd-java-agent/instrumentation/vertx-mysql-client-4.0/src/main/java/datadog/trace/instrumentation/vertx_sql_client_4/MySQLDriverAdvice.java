@@ -6,15 +6,15 @@ import io.vertx.core.Future;
 import io.vertx.sqlclient.SqlClient;
 import io.vertx.sqlclient.SqlConnectOptions;
 import io.vertx.sqlclient.impl.SingletonSupplier;
-import net.bytebuddy.asm.Advice;
-
 import java.util.function.Supplier;
+import net.bytebuddy.asm.Advice;
 
 public class MySQLDriverAdvice {
 
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void afterNewPoolImpl(
-      @Advice.Return final SqlClient zis, @Advice.Argument(1) final Supplier<? extends Future<? extends SqlConnectOptions>> databases) {
+      @Advice.Return final SqlClient zis,
+      @Advice.Argument(1) final Supplier<? extends Future<? extends SqlConnectOptions>> databases) {
 
     if (databases instanceof SingletonSupplier) {
       SqlConnectOptions options = (SqlConnectOptions) ((SingletonSupplier) databases).unwrap();

@@ -1,5 +1,8 @@
 package datadog.trace.instrumentation.vertx_sql_client_4;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
+
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -9,9 +12,6 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
-
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
 
 public class VertxSqlClientDecorator extends DatabaseClientDecorator<DBInfo> {
 
@@ -27,7 +27,7 @@ public class VertxSqlClientDecorator extends DatabaseClientDecorator<DBInfo> {
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[]{"vertx", "vertx-sql-client"};
+    return new String[] {"vertx", "vertx-sql-client"};
   }
 
   @Override
