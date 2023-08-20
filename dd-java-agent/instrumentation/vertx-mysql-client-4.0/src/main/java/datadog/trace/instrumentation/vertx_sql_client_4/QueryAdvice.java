@@ -10,6 +10,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
+import io.vertx.mysqlclient.MySQLConnection;
 import io.vertx.sqlclient.Query;
 import io.vertx.sqlclient.SqlResult;
 import net.bytebuddy.asm.Advice;
@@ -22,6 +23,11 @@ public class QueryAdvice {
         @Advice.This final Query<?> zis, @Advice.Return final Query<?> ret) {
       ContextStore<Query, Pair> contextStore = InstrumentationContext.get(Query.class, Pair.class);
       contextStore.put(ret, contextStore.get(zis));
+    }
+
+    // Limit ourselves to 4.x by checking for the ping() method that was added in 4.x
+    private static void muzzleCheck(MySQLConnection connection) {
+      connection.ping();
     }
   }
 
@@ -64,6 +70,11 @@ public class QueryAdvice {
       if (null != clientScope) {
         clientScope.close();
       }
+    }
+
+    // Limit ourselves to 4.x by checking for the ping() method that was added in 4.x
+    private static void muzzleCheck(MySQLConnection connection) {
+      connection.ping();
     }
   }
 }
