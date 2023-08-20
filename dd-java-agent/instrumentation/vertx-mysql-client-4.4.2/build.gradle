@@ -28,7 +28,7 @@ dependencies {
   testImplementation group: 'mysql', name: 'mysql-connector-java', version: '8.0.23'
   testImplementation "org.testcontainers:mysql:${versions.testcontainers}"
 
-  latestDepTestImplementation group: 'io.vertx', name: 'vertx-mysql-client', version: '4.4.2.+'
+  latestDepTestImplementation group: 'io.vertx', name: 'vertx-mysql-client', version: '4.4.4'
 }
 
 tasks.withType(Test).configureEach {
