@@ -5,7 +5,7 @@ muzzle {
   pass {
     group = 'io.vertx'
     module = 'vertx-mysql-client'
-    versions = '[4.0.0,5.0.0)'
+    versions = '[4.4.2,4.5.0)'
     assertInverse = true
   }
 }
@@ -20,15 +20,15 @@ latestDepTest {
 }
 
 dependencies {
-  compileOnly group: 'io.vertx', name: 'vertx-mysql-client', version: '4.0.0'
+  compileOnly group: 'io.vertx', name: 'vertx-mysql-client', version: '4.4.2'
 
-  testImplementation group: 'io.vertx', name: 'vertx-mysql-client', version: '4.0.0'
+  testImplementation group: 'io.vertx', name: 'vertx-mysql-client', version: '4.4.2'
 
   // This is needed for the test container to start
   testImplementation group: 'mysql', name: 'mysql-connector-java', version: '8.0.23'
   testImplementation "org.testcontainers:mysql:${versions.testcontainers}"
 
-  latestDepTestImplementation group: 'io.vertx', name: 'vertx-mysql-client', version: '4.+'
+  latestDepTestImplementation group: 'io.vertx', name: 'vertx-mysql-client', version: '4.4.2.+'
 }
 
 tasks.withType(Test).configureEach {
