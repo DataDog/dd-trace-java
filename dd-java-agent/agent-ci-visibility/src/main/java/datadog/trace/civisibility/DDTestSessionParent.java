@@ -5,17 +5,17 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.CIConstants;
-import datadog.trace.api.civisibility.config.JvmInfo;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.config.SkippableTest;
-import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
+import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory;
 import datadog.trace.civisibility.context.SpanTestContext;
 import datadog.trace.civisibility.context.TestContext;
+import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.ipc.ErrorResponse;
 import datadog.trace.civisibility.ipc.ModuleExecutionResult;
@@ -27,6 +27,7 @@ import datadog.trace.civisibility.ipc.SignalType;
 import datadog.trace.civisibility.ipc.SkippableTestsRequest;
 import datadog.trace.civisibility.ipc.SkippableTestsResponse;
 import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.index.RepoIndex;
 import datadog.trace.civisibility.source.index.RepoIndexBuilder;
 import java.util.Collection;
@@ -43,6 +44,7 @@ public class DDTestSessionParent extends DDTestSessionImpl {
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
   private final MethodLinesResolver methodLinesResolver;
+  private final CoverageProbeStoreFactory coverageProbeStoreFactory;
   private final ModuleExecutionSettingsFactory moduleExecutionSettingsFactory;
   private final SignalServer signalServer;
   private final RepoIndexBuilder repoIndexBuilder;
@@ -60,6 +62,7 @@ public class DDTestSessionParent extends DDTestSessionImpl {
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
       ModuleExecutionSettingsFactory moduleExecutionSettingsFactory,
+      CoverageProbeStoreFactory coverageProbeStoreFactory,
       SignalServer signalServer,
       RepoIndexBuilder repoIndexBuilder) {
     this.config = config;
@@ -69,6 +72,7 @@ public class DDTestSessionParent extends DDTestSessionImpl {
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
     this.moduleExecutionSettingsFactory = moduleExecutionSettingsFactory;
+    this.coverageProbeStoreFactory = coverageProbeStoreFactory;
     this.signalServer = signalServer;
     this.repoIndexBuilder = repoIndexBuilder;
 
@@ -203,6 +207,7 @@ public class DDTestSessionParent extends DDTestSessionImpl {
             codeowners,
             methodLinesResolver,
             moduleExecutionSettingsFactory,
+            coverageProbeStoreFactory,
             signalServer.getAddress());
     testModuleRegistry.addModule(module);
     return module;

@@ -2,8 +2,8 @@ package datadog.trace.civisibility;
 
 import datadog.trace.api.civisibility.CIVisibility;
 import datadog.trace.api.civisibility.DDTestSession;
-import datadog.trace.api.civisibility.config.JvmInfo;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
+import datadog.trace.civisibility.config.JvmInfo;
 import java.nio.file.Path;
 import javax.annotation.Nullable;
 

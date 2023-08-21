@@ -7,7 +7,6 @@ import datadog.trace.api.git.GitInfoBuilder;
 import datadog.trace.api.git.PersonInfo;
 import datadog.trace.civisibility.git.tree.GitClient;
 import java.util.List;
-import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,16 +16,16 @@ public class GitClientGitInfoBuilder implements GitInfoBuilder {
   private static final Logger LOGGER = LoggerFactory.getLogger(GitClientGitInfoBuilder.class);
 
   private final Config config;
-  private final Function<String, GitClient> gitClientFactory;
+  private final GitClient.Factory gitClientFactory;
 
-  public GitClientGitInfoBuilder(Config config, Function<String, GitClient> gitClientFactory) {
+  public GitClientGitInfoBuilder(Config config, GitClient.Factory gitClientFactory) {
     this.config = config;
     this.gitClientFactory = gitClientFactory;
   }
 
   @Override
   public GitInfo build(@Nullable String repositoryPath) {
-    GitClient gitClient = gitClientFactory.apply(repositoryPath);
+    GitClient gitClient = gitClientFactory.create(repositoryPath);
     try {
       String remoteName = config.getCiVisibilityGitRemoteName();
       String remoteUrl = gitClient.getRemoteUrl(remoteName);

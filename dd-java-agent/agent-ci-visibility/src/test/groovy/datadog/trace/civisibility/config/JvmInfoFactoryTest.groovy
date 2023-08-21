@@ -1,6 +1,6 @@
 package datadog.trace.civisibility.config
 
-import datadog.trace.api.civisibility.config.JvmInfo
+
 import datadog.trace.util.ProcessUtils
 import spock.lang.Specification
 

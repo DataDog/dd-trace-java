@@ -4,10 +4,8 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIVisibility;
 import datadog.trace.api.civisibility.InstrumentationBridge;
-import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
-import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.ci.CIInfo;
@@ -24,6 +22,7 @@ import datadog.trace.civisibility.config.ConfigurationApiImpl;
 import datadog.trace.civisibility.config.JvmInfoFactory;
 import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory;
 import datadog.trace.civisibility.config.ModuleExecutionSettingsFactoryImpl;
+import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.coverage.NoopCoverageProbeStore;
 import datadog.trace.civisibility.coverage.SegmentlessTestProbes;
 import datadog.trace.civisibility.coverage.TestProbes;
@@ -46,6 +45,7 @@ import datadog.trace.civisibility.source.ByteCodeMethodLinesResolver;
 import datadog.trace.civisibility.source.CompilerAidedMethodLinesResolver;
 import datadog.trace.civisibility.source.CompilerAidedSourcePathResolver;
 import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.index.RepoIndexBuilder;
 import datadog.trace.civisibility.source.index.RepoIndexFetcher;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
@@ -58,7 +58,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,7 +75,8 @@ public class CiVisibilitySystem {
       return;
     }
 
-    Function<String, GitClient> gitClientFactory = buildGitClientFactory(config);
+    GitClient.Factory gitClientFactory = buildGitClientFactory(config);
+    CoverageProbeStoreFactory coverageProbeStoreFactory = buildTestProbesFactory(config);
 
     GitInfoProvider gitInfoProvider = GitInfoProvider.INSTANCE;
     gitInfoProvider.registerGitInfoBuilder(new CIProviderGitInfoBuilder());
@@ -85,24 +85,21 @@ public class CiVisibilitySystem {
     gitInfoProvider.registerGitInfoBuilder(new GitClientGitInfoBuilder(config, gitClientFactory));
 
     DDTestSessionImpl.SessionImplFactory sessionFactory =
-        sessionFactory(config, sco, gitInfoProvider, gitClientFactory);
+        sessionFactory(config, sco, gitInfoProvider, coverageProbeStoreFactory, gitClientFactory);
     CIVisibility.registerSessionFactory(sessionFactory);
 
     InstrumentationBridge.registerTestEventsHandlerFactory(
         testEventsHandlerFactory(config, sessionFactory));
     InstrumentationBridge.registerBuildEventsHandlerFactory(
         buildEventsHandlerFactory(sessionFactory));
-    InstrumentationBridge.registerCoverageProbeStoreFactory(buildTestProbesFactory(config));
+    InstrumentationBridge.registerCoverageProbeStoreRegistry(coverageProbeStoreFactory);
   }
 
-  private static Function<String, GitClient> buildGitClientFactory(Config config) {
-    return (String repoRoot) -> {
-      long commandTimeoutMillis = config.getCiVisibilityGitCommandTimeoutMillis();
-      return new GitClient(repoRoot, "1 month ago", 1000, commandTimeoutMillis);
-    };
+  private static GitClient.Factory buildGitClientFactory(Config config) {
+    return new GitClient.Factory(config);
   }
 
-  private static CoverageProbeStore.Factory buildTestProbesFactory(Config config) {
+  private static CoverageProbeStoreFactory buildTestProbesFactory(Config config) {
     if (!config.isCiVisibilityCodeCoverageEnabled()) {
       return new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory();
     }
@@ -116,7 +113,8 @@ public class CiVisibilitySystem {
       Config config,
       SharedCommunicationObjects sco,
       GitInfoProvider gitInfoProvider,
-      Function<String, GitClient> gitClientFactory) {
+      CoverageProbeStoreFactory coverageProbeStoreFactory,
+      GitClient.Factory gitClientFactory) {
     BackendApiFactory backendApiFactory = new BackendApiFactory(config, sco);
     BackendApi backendApi = backendApiFactory.createBackendApi();
 
@@ -198,6 +196,7 @@ public class CiVisibilitySystem {
             codeowners,
             methodLinesResolver,
             moduleExecutionSettingsFactory,
+            coverageProbeStoreFactory,
             signalServer,
             indexBuilder);
       }
@@ -223,6 +222,7 @@ public class CiVisibilitySystem {
           sourcePathResolver,
           codeowners,
           methodLinesResolver,
+          coverageProbeStoreFactory,
           signalServerAddress);
     };
   }
@@ -230,7 +230,7 @@ public class CiVisibilitySystem {
   private static GitDataUploader buildGitDataUploader(
       Config config,
       GitInfoProvider gitInfoProvider,
-      Function<String, GitClient> gitClientFactory,
+      GitClient.Factory gitClientFactory,
       BackendApi backendApi,
       String repoRoot) {
     if (!config.isCiVisibilityGitUploadEnabled()) {
@@ -251,7 +251,7 @@ public class CiVisibilitySystem {
 
     String remoteName = config.getCiVisibilityGitRemoteName();
     GitDataApi gitDataApi = new GitDataApi(backendApi);
-    GitClient gitClient = gitClientFactory.apply(repoRoot);
+    GitClient gitClient = gitClientFactory.create(repoRoot);
     return new GitDataUploaderImpl(
         config, gitDataApi, gitClient, gitInfoProvider, repoRoot, remoteName);
   }

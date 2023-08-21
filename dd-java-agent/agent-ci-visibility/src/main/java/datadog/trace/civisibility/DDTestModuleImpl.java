@@ -4,11 +4,12 @@ import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.DDTestModule;
 import datadog.trace.api.civisibility.config.SkippableTest;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
-import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.context.TestContext;
+import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.SourcePathResolver;
 import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.concurrent.atomic.LongAdder;
@@ -22,6 +23,8 @@ public abstract class DDTestModuleImpl implements DDTestModule {
   protected final SourcePathResolver sourcePathResolver;
   protected final Codeowners codeowners;
   protected final MethodLinesResolver methodLinesResolver;
+  private final CoverageProbeStoreFactory coverageProbeStoreFactory;
+
   @Nullable protected final InetSocketAddress signalServerAddress;
 
   protected final LongAdder testsSkipped = new LongAdder();
@@ -35,6 +38,7 @@ public abstract class DDTestModuleImpl implements DDTestModule {
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
+      CoverageProbeStoreFactory coverageProbeStoreFactory,
       InetSocketAddress signalServerAddress) {
     this.moduleName = moduleName;
     this.config = config;
@@ -42,6 +46,7 @@ public abstract class DDTestModuleImpl implements DDTestModule {
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
+    this.coverageProbeStoreFactory = coverageProbeStoreFactory;
     this.signalServerAddress = signalServerAddress;
   }
 
@@ -64,6 +69,7 @@ public abstract class DDTestModuleImpl implements DDTestModule {
         sourcePathResolver,
         codeowners,
         methodLinesResolver,
+        coverageProbeStoreFactory,
         parallelized);
   }
 

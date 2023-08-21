@@ -9,7 +9,6 @@ import spock.lang.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
-import java.util.function.Function
 
 class GitClientGitInfoBuilderTest extends Specification {
 
@@ -26,11 +25,9 @@ class GitClientGitInfoBuilderTest extends Specification {
 
     def config = Stub(Config)
     config.getCiVisibilityGitRemoteName() >> "origin"
+    config.getCiVisibilityGitCommandTimeoutMillis() >> GIT_COMMAND_TIMEOUT_MILLIS
 
-    Function<String, GitClient> gitClientFactory = {
-      new GitClient(it, "25 years ago", 10, GIT_COMMAND_TIMEOUT_MILLIS)
-    }
-
+    def gitClientFactory = new GitClient.Factory(config)
     def infoBuilder = new GitClientGitInfoBuilder(config, gitClientFactory)
 
     when:

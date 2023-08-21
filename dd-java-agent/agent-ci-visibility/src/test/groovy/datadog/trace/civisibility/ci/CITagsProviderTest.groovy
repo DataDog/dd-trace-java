@@ -168,10 +168,13 @@ abstract class CITagsProviderTest extends Specification {
   }
 
   CITagsProvider ciTagsProvider() {
+    GitClient.Factory gitClientFactory = Stub(GitClient.Factory)
+    gitClientFactory.create(_) >> Stub(GitClient)
+
     GitInfoProvider gitInfoProvider = new GitInfoProvider()
     gitInfoProvider.registerGitInfoBuilder(new UserSuppliedGitInfoBuilder())
     gitInfoProvider.registerGitInfoBuilder(new CIProviderGitInfoBuilder())
-    gitInfoProvider.registerGitInfoBuilder(new CILocalGitInfoBuilder({ Stub(GitClient) }, GIT_FOLDER_FOR_TESTS))
+    gitInfoProvider.registerGitInfoBuilder(new CILocalGitInfoBuilder(gitClientFactory, GIT_FOLDER_FOR_TESTS))
     return new CITagsProvider(gitInfoProvider)
   }
 

@@ -2,7 +2,6 @@ package datadog.trace.civisibility.config;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.Configurations;
-import datadog.trace.api.civisibility.config.JvmInfo;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.config.SkippableTest;
 import datadog.trace.api.config.CiVisibilityConfig;

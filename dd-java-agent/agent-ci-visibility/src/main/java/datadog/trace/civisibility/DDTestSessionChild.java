@@ -1,12 +1,13 @@
 package datadog.trace.civisibility;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.config.JvmInfo;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
-import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.codeowners.Codeowners;
+import datadog.trace.civisibility.config.JvmInfo;
+import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.SourcePathResolver;
 import java.net.InetSocketAddress;
 import javax.annotation.Nullable;
 
@@ -19,6 +20,7 @@ public class DDTestSessionChild extends DDTestSessionImpl {
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
   private final MethodLinesResolver methodLinesResolver;
+  private final CoverageProbeStoreFactory coverageProbeStoreFactory;
   @Nullable private final InetSocketAddress signalServerAddress;
 
   public DDTestSessionChild(
@@ -29,6 +31,7 @@ public class DDTestSessionChild extends DDTestSessionImpl {
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
+      CoverageProbeStoreFactory coverageProbeStoreFactory,
       @Nullable InetSocketAddress signalServerAddress) {
     this.parentProcessSessionId = parentProcessSessionId;
     this.parentProcessModuleId = parentProcessModuleId;
@@ -37,6 +40,7 @@ public class DDTestSessionChild extends DDTestSessionImpl {
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
+    this.coverageProbeStoreFactory = coverageProbeStoreFactory;
     this.signalServerAddress = signalServerAddress;
   }
 
@@ -71,6 +75,7 @@ public class DDTestSessionChild extends DDTestSessionImpl {
         sourcePathResolver,
         codeowners,
         methodLinesResolver,
+        coverageProbeStoreFactory,
         signalServerAddress);
   }
 

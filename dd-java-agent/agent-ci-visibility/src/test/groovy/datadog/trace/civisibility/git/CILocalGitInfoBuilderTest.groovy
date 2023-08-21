@@ -9,7 +9,9 @@ class CILocalGitInfoBuilderTest extends Specification {
 
   def "returns empty git info when repository path is not specified"() {
     setup:
-    def gitClientFactory = { Stub(GitClient) }
+    def gitClientFactory = Stub(GitClient.Factory)
+    gitClientFactory.create(_) >> Stub(GitClient)
+
     def builder = new CILocalGitInfoBuilder(gitClientFactory,".git")
 
     when:
@@ -22,7 +24,9 @@ class CILocalGitInfoBuilderTest extends Specification {
 
   def "parses git info"() {
     setup:
-    def gitClientFactory = { Stub(GitClient) }
+    def gitClientFactory = Stub(GitClient.Factory)
+    gitClientFactory.create(_) >> Stub(GitClient)
+
     def builder = new CILocalGitInfoBuilder(gitClientFactory, "git_folder_for_tests")
     def workspace = resolve("ci/ci_workspace_for_tests")
 

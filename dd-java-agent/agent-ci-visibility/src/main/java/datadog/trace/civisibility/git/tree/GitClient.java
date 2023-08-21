@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.git.tree;
 
+import datadog.trace.api.Config;
 import datadog.trace.civisibility.utils.IOUtils;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import datadog.trace.util.Strings;
@@ -412,5 +413,18 @@ public class GitClient {
   @Override
   public String toString() {
     return "GitClient{" + repoRoot + "}";
+  }
+
+  public static class Factory {
+    private final Config config;
+
+    public Factory(Config config) {
+      this.config = config;
+    }
+
+    public GitClient create(String repoRoot) {
+      long commandTimeoutMillis = config.getCiVisibilityGitCommandTimeoutMillis();
+      return new GitClient(repoRoot, "1 month ago", 1000, commandTimeoutMillis);
+    }
   }
 }

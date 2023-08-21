@@ -8,7 +8,6 @@ import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
-import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -17,8 +16,10 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.context.TestContext;
+import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.SourcePathResolver;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import javax.annotation.Nullable;
@@ -49,7 +50,8 @@ public class DDTestImpl implements DDTest {
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       MethodLinesResolver methodLinesResolver,
-      Codeowners codeowners) {
+      Codeowners codeowners,
+      CoverageProbeStoreFactory coverageProbeStoreFactory) {
     this.suiteContext = suiteContext;
     this.moduleContext = moduleContext;
 
@@ -60,7 +62,7 @@ public class DDTestImpl implements DDTest {
             .asChildOf(null)
             .withRequestContextData(
                 RequestContextSlot.CI_VISIBILITY,
-                InstrumentationBridge.createCoverageProbeStore(sourcePathResolver));
+                coverageProbeStoreFactory.create(sourcePathResolver));
 
     if (startTime != null) {
       spanBuilder = spanBuilder.withStartTimestamp(startTime);
