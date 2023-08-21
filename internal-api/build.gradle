@@ -81,6 +81,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.civisibility.events.BuildEventsHandler.ModuleInfo",
   // POJO
   "datadog.trace.api.git.GitInfo",
+  "datadog.trace.api.git.GitInfoProvider",
   // POJO
   "datadog.trace.api.git.PersonInfo",
   // POJO

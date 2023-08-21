@@ -7,8 +7,6 @@ apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
 
 minimumBranchCoverage = 0.7
-minimumInstructionCoverage = 0.8
-
 excludedClassesCoverage += [
   "datadog.trace.civisibility.CiVisibilitySystem",
   "datadog.trace.civisibility.CiVisibilitySystem.1",
@@ -52,6 +50,8 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.events.TestDescriptor",
   "datadog.trace.civisibility.events.TestModuleDescriptor",
   "datadog.trace.civisibility.events.TestSuiteDescriptor",
+  "datadog.trace.civisibility.git.CILocalGitInfoBuilder",
+  "datadog.trace.civisibility.git.GitClientGitInfoBuilder",
   "datadog.trace.civisibility.git.GitObject",
   "datadog.trace.civisibility.git.tree.*",
   "datadog.trace.civisibility.ipc.ModuleExecutionResult",
@@ -68,6 +68,8 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.utils.ShellCommandExecutor",
   "datadog.trace.civisibility.utils.ShellCommandExecutor.OutputParser",
 ]
+minimumInstructionCoverage = 0.8
+
 
 dependencies {
   api deps.slf4j

@@ -14,6 +14,8 @@ class GitClientTest extends Specification {
 
   private static final int GIT_COMMAND_TIMEOUT_MILLIS = 10_000
 
+  private static final String GIT_FOLDER = ".git"
+
   @TempDir
   private Path tempDir
 
@@ -64,6 +66,18 @@ class GitClientTest extends Specification {
     commits.size() == 10
   }
 
+  def "test get git folder"() {
+    given:
+    givenGitRepo()
+
+    when:
+    def gitClient = givenGitClient()
+    def folder = gitClient.getGitFolder()
+
+    then:
+    folder == tempDir.resolve(GIT_FOLDER).toRealPath().toString()
+  }
+
   def "test get remote url"() {
     given:
     givenGitRepo()
@@ -74,6 +88,129 @@ class GitClientTest extends Specification {
 
     then:
     remoteUrl == "git@github.com:DataDog/dd-trace-dotnet.git"
+  }
+
+  def "test get current branch"() {
+    given:
+    givenGitRepo()
+
+    when:
+    def gitClient = givenGitClient()
+    def branch = gitClient.getCurrentBranch()
+
+    then:
+    branch == "master"
+  }
+
+  def "test get tags"() {
+    given:
+    givenGitRepo()
+
+    when:
+    def gitClient = givenGitClient()
+    def tags = gitClient.getTags(GitClient.HEAD)
+
+    then:
+    tags.empty
+  }
+
+  def "test get sha"() {
+    given:
+    givenGitRepo()
+
+    when:
+    def gitClient = givenGitClient()
+    def sha = gitClient.getSha(GitClient.HEAD)
+
+    then:
+    sha == "5b6f3a6dab5972d73a56dff737bd08d995255c08"
+  }
+
+  def "test get full message"() {
+    given:
+    givenGitRepo()
+
+    when:
+    def gitClient = givenGitClient()
+    def message = gitClient.getFullMessage(GitClient.HEAD)
+
+    then:
+    message == "Adding Git information to test spans (#1242)\n\n" +
+      "* Initial basic GitInfo implementation.\r\n\r\n" +
+      "* Adds Author, Committer and Message git parser.\r\n\r\n" +
+      "* Changes based on the review."
+  }
+
+  def "test get author name"() {
+    given:
+    givenGitRepo()
+
+    when:
+    def gitClient = givenGitClient()
+    def authorName = gitClient.getAuthorName(GitClient.HEAD)
+
+    then:
+    authorName == "Tony Redondo"
+  }
+
+  def "test get author email"() {
+    given:
+    givenGitRepo()
+
+    when:
+    def gitClient = givenGitClient()
+    def authorEmail = gitClient.getAuthorEmail(GitClient.HEAD)
+
+    then:
+    authorEmail == "tony.redondo@datadoghq.com"
+  }
+
+  def "test get author date"() {
+    given:
+    givenGitRepo()
+
+    when:
+    def gitClient = givenGitClient()
+    def authorDate = gitClient.getAuthorDate(GitClient.HEAD)
+
+    then:
+    authorDate == "2021-02-26T19:32:13+01:00"
+  }
+
+  def "test get committer name"() {
+    given:
+    givenGitRepo()
+
+    when:
+    def gitClient = givenGitClient()
+    def authorName = gitClient.getCommitterName(GitClient.HEAD)
+
+    then:
+    authorName == "GitHub"
+  }
+
+  def "test get committer email"() {
+    given:
+    givenGitRepo()
+
+    when:
+    def gitClient = givenGitClient()
+    def authorEmail = gitClient.getCommitterEmail(GitClient.HEAD)
+
+    then:
+    authorEmail == "noreply@github.com"
+  }
+
+  def "test get committer date"() {
+    given:
+    givenGitRepo()
+
+    when:
+    def gitClient = givenGitClient()
+    def authorDate = gitClient.getCommitterDate(GitClient.HEAD)
+
+    then:
+    authorDate == "2021-02-26T19:32:13+01:00"
   }
 
   def "test get latest commits"() {
@@ -154,7 +291,7 @@ class GitClientTest extends Specification {
 
   private void givenGitRepo(String resourceName) {
     def gitFolder = Paths.get(getClass().getClassLoader().getResource(resourceName).toURI())
-    def tempGitFolder = tempDir.resolve(".git")
+    def tempGitFolder = tempDir.resolve(GIT_FOLDER)
     Files.createDirectories(tempGitFolder)
     IOUtils.copyFolder(gitFolder, tempGitFolder)
   }
