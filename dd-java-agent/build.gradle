@@ -205,6 +205,7 @@ dependencies {
     // do not bring along slf4j and dependent subprojects
     // (which are loaded on the bootstrap cl)
   }
+  sharedShadowInclude deps.cafe_crypto
   sharedShadowInclude project(':remote-config'), {
     transitive = false
   }
