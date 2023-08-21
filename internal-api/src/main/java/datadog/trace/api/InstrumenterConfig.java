@@ -61,6 +61,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * This config is needed before instrumentation is applied
+ *
+ * <p>For example anything that changes what advice is applied, or what classes are instrumented
+ *
+ * <p>This config will be baked into native-images at build time, because instrumentation is also
+ * baked in at that point
+ *
+ * <p>Config that is accessed from inside advice, for example during application runtime after the
+ * advice has been applied, shouldn't be in {@link InstrumenterConfig} (it really should just be
+ * config that must be there ahead of instrumentation)
+ *
+ * @see DynamicConfig for configuration that can be dynamically updated via remote-config
+ * @see Config for other configurations
+ */
 public class InstrumenterConfig {
   private final ConfigProvider configProvider;
 

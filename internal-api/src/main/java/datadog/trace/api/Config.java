@@ -425,14 +425,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Config reads values with the following priority: 1) system properties, 2) environment variables,
- * 3) optional configuration file, 4) platform dependant properties. It also includes default values
- * to ensure a valid config.
+ * Config reads values with the following priority:
  *
- * <p>
+ * <p>1) system properties
+ *
+ * <p>2) environment variables,
+ *
+ * <p>3) optional configuration file
+ *
+ * <p>4) platform dependant properties. It also includes default values to ensure a valid config.
  *
  * <p>System properties are {@link Config#PREFIX}'ed. Environment variables are the same as the
  * system property, but uppercased and '.' is replaced with '_'.
+ *
+ * @see InstrumenterConfig for pre-instrumentation configurations
+ * @see DynamicConfig for configuration that can be dynamically updated via remote-config
  */
 @Deprecated
 public class Config {
