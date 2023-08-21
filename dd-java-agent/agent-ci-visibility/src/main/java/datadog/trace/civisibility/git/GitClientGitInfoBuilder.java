@@ -25,6 +25,10 @@ public class GitClientGitInfoBuilder implements GitInfoBuilder {
 
   @Override
   public GitInfo build(@Nullable String repositoryPath) {
+    if (repositoryPath == null) {
+      return GitInfo.NOOP;
+    }
+
     GitClient gitClient = gitClientFactory.create(repositoryPath);
     try {
       String remoteName = config.getCiVisibilityGitRemoteName();
