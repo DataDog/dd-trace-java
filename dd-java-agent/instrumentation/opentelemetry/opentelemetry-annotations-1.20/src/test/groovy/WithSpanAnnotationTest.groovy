@@ -137,14 +137,40 @@ class WithSpanAnnotationTest extends AgentTestRunner {
 
   def "test WithSpan annotated async method (CompletableFuture)"() {
     setup:
-    TracedMethods.traceAsyncCompletableFuture().join()
+    def completableFuture = TracedMethods.traceAsyncCompletableFuture()
 
-    expect:
+    when:
+    completableFuture.join()
+
+    then:
     assertTraces(1) {
       trace(1) {
         span {
           resourceName "TracedMethods.traceAsyncCompletableFuture"
           operationName "TracedMethods.traceAsyncCompletableFuture"
+          duration { it > Duration.ofSeconds(2).toNanos() }
+          tags {
+            defaultTags()
+            "$Tags.COMPONENT" "opentelemetry"
+          }
+        }
+      }
+    }
+  }
+
+  def "test WithSpan annotated async method (CompletionStage)"() {
+    setup:
+    def completionStage = TracedMethods.traceAsyncCompletionStage()
+
+    when:
+    completionStage.toCompletableFuture().join()
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          resourceName "TracedMethods.traceAsyncCompletionStage"
+          operationName "TracedMethods.traceAsyncCompletionStage"
           duration { it > Duration.ofSeconds(2).toNanos() }
           tags {
             defaultTags()

@@ -13,6 +13,7 @@ import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 public class TracedMethods {
   @WithSpan
@@ -91,11 +92,16 @@ public class TracedMethods {
   public static CompletableFuture<String> traceAsyncCompletableFuture() {
     return CompletableFuture.supplyAsync(
         () -> {
-          try {
-            Thread.sleep(2_000); // Wait enough time to prevent test flakiness
-          } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-          }
+          sleep();
+          return "hello!";
+        });
+  }
+
+  @WithSpan
+  public static CompletionStage<String> traceAsyncCompletionStage() {
+    return CompletableFuture.supplyAsync(
+        () -> {
+          sleep();
           return "hello!";
         });
   }
@@ -103,5 +109,13 @@ public class TracedMethods {
   @WithSpan
   public static String sayHelloMeasured() {
     return "hello!";
+  }
+
+  private static void sleep() {
+    try {
+      Thread.sleep(2_000); // Wait enough time to prevent test flakiness
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
   }
 }
