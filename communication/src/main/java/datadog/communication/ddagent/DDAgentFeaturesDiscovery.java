@@ -168,8 +168,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
           supportsDropping,
           supportsLongRunning,
           dataStreamsEndpoint,
-          evpProxyEndpoint,
-          configEndpoint);
+          configEndpoint,
+          evpProxyEndpoint);
     }
   }
 
