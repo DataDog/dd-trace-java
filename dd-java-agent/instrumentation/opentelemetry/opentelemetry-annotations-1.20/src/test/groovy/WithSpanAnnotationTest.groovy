@@ -145,7 +145,7 @@ class WithSpanAnnotationTest extends AgentTestRunner {
         span {
           resourceName "TracedMethods.traceAsyncCompletableFuture"
           operationName "TracedMethods.traceAsyncCompletableFuture"
-          duration { it > Duration.ofSeconds(2).nano }
+          duration { it > Duration.ofSeconds(2).toNanos() }
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
