@@ -1,5 +1,6 @@
 package com.datadog.debugger.agent;
 
+import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.DEPTH_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.FIELD_COUNT_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
@@ -1525,6 +1526,29 @@ public class CapturedSnapshotTest {
     Assertions.assertEquals(76, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCaptureLocals(snapshot.getCaptures().getLines().get(46), "count", "int", "31");
+  }
+
+  @Test
+  public void dupLineProbeSameTemplate() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    final String LOG_TEMPLATE = "msg1={typed.fld.fld.msg}";
+    LogProbe probe1 =
+        createProbeBuilder(PROBE_ID1, CLASS_NAME, null, null, "39")
+            .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
+            .build();
+    LogProbe probe2 =
+        createProbeBuilder(PROBE_ID2, CLASS_NAME, null, null, "39")
+            .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, probe1, probe2);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    Assertions.assertEquals(3, result);
+    List<Snapshot> snapshots = assertSnapshots(listener, 2, PROBE_ID1, PROBE_ID2);
+    for (Snapshot snapshot : snapshots) {
+      assertEquals("msg1=hello", snapshot.getMessage());
+    }
   }
 
   private DebuggerTransformerTest.TestSnapshotListener setupInstrumentTheWorldTransformer(
