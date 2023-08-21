@@ -7,9 +7,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.agent.test.utils.PortUtils;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.util.TagsHelper;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -28,7 +29,7 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
 
   private static final String DEBUGGER_TEST_APP_CLASS =
       "datadog.smoketest.debugger.SpringBootTestApplication";
-  private static final String PROBE_ID = "123356536";
+  private static final ProbeId PROBE_ID = new ProbeId("123356536", 1);
 
   @Override
   protected String getAppClass() {
@@ -55,7 +56,7 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
     JsonSnapshotSerializer.IntakeRequest request = doTestTracer(logProbe);
     Snapshot snapshot = request.getDebugger().getSnapshot();
     assertEquals("123356536", snapshot.getProbe().getId());
-    assertTrue(Pattern.matches("\\d+", request.getTraceId()));
+    assertTrue(Pattern.matches("[0-9a-f]+", request.getTraceId()));
     assertTrue(Pattern.matches("\\d+", request.getSpanId()));
     assertFalse(
         logHasErrors(logFilePath, it -> it.contains("TypePool$Resolution$NoSuchTypeException")));
@@ -74,7 +75,7 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
     Snapshot snapshot = request.getDebugger().getSnapshot();
     assertEquals("123356536", snapshot.getProbe().getId());
     assertEquals(42, snapshot.getCaptures().getEntry().getArguments().get("argInt").getValue());
-    assertTrue(Pattern.matches("\\d+", request.getTraceId()));
+    assertTrue(Pattern.matches("[0-9a-f]+", request.getTraceId()));
     assertTrue(Pattern.matches("\\d+", request.getSpanId()));
   }
 

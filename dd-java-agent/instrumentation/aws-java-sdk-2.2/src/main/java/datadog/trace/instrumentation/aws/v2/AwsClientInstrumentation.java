@@ -10,7 +10,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import software.amazon.awssdk.core.SdkResponse;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 
 /** AWS SDK v2 instrumentation */
@@ -25,7 +24,8 @@ public final class AwsClientInstrumentation extends AbstractAwsClientInstrumenta
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("software.amazon.awssdk.core.SdkResponse", "java.lang.String");
+    return singletonMap(
+        "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse", "java.lang.String");
   }
 
   @Override
@@ -45,7 +45,9 @@ public final class AwsClientInstrumentation extends AbstractAwsClientInstrumenta
       }
       interceptors.add(
           new TracingExecutionInterceptor(
-              InstrumentationContext.get(SdkResponse.class, String.class)));
+              InstrumentationContext.get(
+                  "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse",
+                  "java.lang.String")));
     }
   }
 }

@@ -80,7 +80,4 @@ public class ElasticsearchTransportClientDecorator extends DBTypeProcessingDatab
     }
     return span;
   }
-
-  @Override
-  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
 }

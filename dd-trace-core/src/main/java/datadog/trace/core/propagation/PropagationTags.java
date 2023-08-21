@@ -3,8 +3,8 @@ package datadog.trace.core.propagation;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 
 import datadog.trace.api.Config;
+import datadog.trace.core.propagation.ptags.PTagsFactory;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -26,7 +26,7 @@ public abstract class PropagationTags {
   }
 
   public static PropagationTags.Factory factory(int datadogTagsLimit) {
-    return new PropagationTagsFactory(datadogTagsLimit);
+    return new PTagsFactory(datadogTagsLimit);
   }
 
   public static PropagationTags.Factory factory() {
@@ -34,7 +34,14 @@ public abstract class PropagationTags {
   }
 
   public enum HeaderType {
-    DATADOG
+    DATADOG,
+    W3C;
+
+    private static final int numValues = HeaderType.values().length;
+
+    public static int getNumValues() {
+      return numValues;
+    }
   }
 
   public interface Factory {
@@ -48,6 +55,16 @@ public abstract class PropagationTags {
    * tag doesn't exist. Called on the root span context.
    */
   public abstract void updateTraceSamplingPriority(int samplingPriority, int samplingMechanism);
+
+  public abstract int getSamplingPriority();
+
+  public abstract void updateTraceOrigin(CharSequence origin);
+
+  public abstract CharSequence getOrigin();
+
+  public abstract long getTraceIdHighOrderBits();
+
+  public abstract void updateTraceIdHighOrderBits(long highOrderBits);
 
   /**
    * Constructs a header value that includes valid propagated _dd.p.* tags and possibly a new
@@ -68,13 +85,4 @@ public abstract class PropagationTags {
     fillTagMap(result);
     return result;
   }
-
-  // Internal methods used by the different HeaderType implementations
-  abstract List<String> tagPairs();
-
-  abstract int tagsSize();
-
-  abstract boolean missingDecisionMaker();
-
-  abstract String decisionMakerTagValue();
 }

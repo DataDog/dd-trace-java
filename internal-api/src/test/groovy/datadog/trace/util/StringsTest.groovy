@@ -1,5 +1,6 @@
 package datadog.trace.util
 
+
 import datadog.trace.test.util.DDSpecification
 
 class StringsTest extends DDSpecification {
@@ -187,5 +188,27 @@ class StringsTest extends DDSpecification {
     ['value1']             | "[\"value1\"]"
     ['value1', 'value2']   | "[\"value1\",\"value2\"]"
     ['va"lu"e1', 'value2'] | "[\"va\\\"lu\\\"e1\",\"value2\"]"
+  }
+
+  def "test isNotBlank: #input"() {
+    when:
+    def notBlank = Strings.isNotBlank(input)
+
+    then:
+    notBlank == expected
+
+    where:
+    input        | expected
+    null         | false
+    ""           | false
+    " "          | false
+    "\t"         | false
+    "\n"         | false
+    " \t\n "     | false
+    "a"          | true
+    " a "        | true
+    "\n\t123 "   | true
+    " 測 試    " | true
+    "   𐢀𐢀𐢀𐢀"    | true
   }
 }

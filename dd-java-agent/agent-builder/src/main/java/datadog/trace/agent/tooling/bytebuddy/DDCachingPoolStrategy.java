@@ -4,9 +4,9 @@ import static datadog.trace.agent.tooling.bytebuddy.ClassFileLocators.classFileL
 import static datadog.trace.bootstrap.AgentClassLoading.LOCATING_CLASS;
 
 import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
-import datadog.trace.agent.tooling.WeakCaches;
 import datadog.trace.api.InstrumenterConfig;
-import datadog.trace.bootstrap.WeakCache;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
@@ -60,7 +60,7 @@ public final class DDCachingPoolStrategy
       WeakReference::new;
 
   public static final DDCachingPoolStrategy INSTANCE =
-      new DDCachingPoolStrategy(InstrumenterConfig.get().isResolverUseLoadClassEnabled());
+      new DDCachingPoolStrategy(InstrumenterConfig.get().isResolverUseLoadClass());
 
   public static void registerAsSupplier() {
     SharedTypePools.registerIfAbsent(INSTANCE);
@@ -74,8 +74,8 @@ public final class DDCachingPoolStrategy
    *   <li>Allow for quick fast path equivalence check of composite keys
    * </ul>
    */
-  final WeakCache<ClassLoader, WeakReference<ClassLoader>> loaderRefCache =
-      WeakCaches.newWeakCache(LOADER_CAPACITY);
+  final DDCache<ClassLoader, WeakReference<ClassLoader>> loaderRefCache =
+      DDCaches.newFixedSizeWeakKeyCache(LOADER_CAPACITY);
 
   /**
    * Single shared Type.Resolution cache -- uses a composite key -- conceptually of loader & name

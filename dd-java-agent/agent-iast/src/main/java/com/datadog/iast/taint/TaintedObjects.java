@@ -1,5 +1,7 @@
 package com.datadog.iast.taint;
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_CONCURRENT_REQUESTS;
+
 import com.datadog.iast.IastSystem;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
@@ -40,7 +42,9 @@ public interface TaintedObjects {
   class TaintedObjectsImpl implements TaintedObjects {
 
     private static final ArrayBlockingQueue<TaintedObjectsImpl> pool =
-        new ArrayBlockingQueue<>(Config.get().getIastMaxConcurrentRequests());
+        new ArrayBlockingQueue<>(
+            Math.max(
+                Config.get().getIastMaxConcurrentRequests(), DEFAULT_IAST_MAX_CONCURRENT_REQUESTS));
 
     private final TaintedMap map;
 

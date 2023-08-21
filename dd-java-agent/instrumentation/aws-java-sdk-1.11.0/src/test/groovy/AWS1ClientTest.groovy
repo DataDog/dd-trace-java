@@ -1,3 +1,7 @@
+import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
+import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
+
 import com.amazonaws.AmazonClientException
 import com.amazonaws.AmazonWebServiceClient
 import com.amazonaws.ClientConfiguration
@@ -30,7 +34,8 @@ import com.amazonaws.services.sns.model.PublishRequest
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder
 import com.amazonaws.services.sqs.model.CreateQueueRequest
 import com.amazonaws.services.sqs.model.SendMessageRequest
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.Flaky
@@ -39,11 +44,7 @@ import spock.lang.Shared
 
 import java.util.concurrent.atomic.AtomicReference
 
-import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
-import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
-
-class AWS1ClientTest extends AgentTestRunner {
+abstract class AWS1ClientTest extends VersionedNamingTestBase {
 
   private static final CREDENTIALS_PROVIDER_CHAIN = new AWSCredentialsProviderChain(
   new EnvironmentVariableCredentialsProvider(),
@@ -71,6 +72,20 @@ class AWS1ClientTest extends AgentTestRunner {
   }
   @Shared
   def endpoint = new AwsClientBuilder.EndpointConfiguration("http://localhost:$server.address.port", "us-west-2")
+
+  @Override
+  String operation() {
+    null
+  }
+
+  @Override
+  String service() {
+    null
+  }
+
+  abstract String expectedOperation(String awsService, String awsOperation)
+  abstract String expectedService(String awsService, String awsOperation)
+
 
   def "request handler is hooked up with builder"() {
     setup:
@@ -130,8 +145,8 @@ class AWS1ClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "$ddService"
-          operationName "aws.http"
+          serviceName expectedService(service, operation)
+          operationName expectedOperation(service, operation)
           resourceName "$service.$operation"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
@@ -161,18 +176,18 @@ class AWS1ClientTest extends AgentTestRunner {
     server.lastRequest.headers.get("x-datadog-parent-id") == null
 
     where:
-    service      | operation           | ddService      | method | path                  | client                                                                                                                                             | call                                                                            | additionalTags                    | body
-    "S3"         | "CreateBucket"      | "java-aws-sdk" | "PUT"  | "/testbucket/"        | AmazonS3ClientBuilder.standard().withPathStyleAccessEnabled(true).withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build() | { client -> client.createBucket("testbucket") }                                 | ["aws.bucket.name": "testbucket"] | ""
-    "S3"         | "GetObject"         | "java-aws-sdk" | "GET"  | "/someBucket/someKey" | AmazonS3ClientBuilder.standard().withPathStyleAccessEnabled(true).withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build() | { client -> client.getObject("someBucket", "someKey") }                         | ["aws.bucket.name": "someBucket"] | ""
-    "DynamoDBv2" | "CreateTable"       | "java-aws-sdk" | "POST" | "/"                   | AmazonDynamoDBClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                            | { c -> c.createTable(new CreateTableRequest("sometable", null)) }               | ["aws.table.name": "sometable"]   | ""
-    "Kinesis"    | "DeleteStream"      | "java-aws-sdk" | "POST" | "/"                   | AmazonKinesisClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                             | { c -> c.deleteStream(new DeleteStreamRequest().withStreamName("somestream")) } | ["aws.stream.name": "somestream"] | ""
-    "SQS"        | "CreateQueue"       | "java-aws-sdk" | "POST" | "/"                   | AmazonSQSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.createQueue(new CreateQueueRequest("somequeue")) }                     | ["aws.queue.name": "somequeue"]   | """
+    service      | operation           | method  | path                  | client                                                                                                                                             | call                                                                            | additionalTags                    | body
+    "S3"         | "CreateBucket"      |  "PUT"  | "/testbucket/"        | AmazonS3ClientBuilder.standard().withPathStyleAccessEnabled(true).withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build() | { c -> c.createBucket("testbucket") }                                 | ["aws.bucket.name": "testbucket"] | ""
+    "S3"         | "GetObject"         |  "GET"  | "/someBucket/someKey" | AmazonS3ClientBuilder.standard().withPathStyleAccessEnabled(true).withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build() | { c -> c.getObject("someBucket", "someKey") }                         | ["aws.bucket.name": "someBucket"] | ""
+    "DynamoDBv2" | "CreateTable"       |  "POST" | "/"                   | AmazonDynamoDBClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                            | { c -> c.createTable(new CreateTableRequest("sometable", null)) }               | ["aws.table.name": "sometable"]   | ""
+    "Kinesis"    | "DeleteStream"      |  "POST" | "/"                   | AmazonKinesisClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                             | { c -> c.deleteStream(new DeleteStreamRequest().withStreamName("somestream")) } | ["aws.stream.name": "somestream"] | ""
+    "SQS"        | "CreateQueue"       |  "POST" | "/"                   | AmazonSQSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.createQueue(new CreateQueueRequest("somequeue")) }                     | ["aws.queue.name": "somequeue"]   | """
         <CreateQueueResponse>
             <CreateQueueResult><QueueUrl>https://queue.amazonaws.com/123456789012/MyQueue</QueueUrl></CreateQueueResult>
             <ResponseMetadata><RequestId>7a62c49f-347e-4fc4-9331-6e8e7a96aa73</RequestId></ResponseMetadata>
         </CreateQueueResponse>
       """
-    "SQS"        | "SendMessage"       | "sqs"          | "POST" | "/someurl"            | AmazonSQSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.sendMessage(new SendMessageRequest("someurl", "")) }                   | ["aws.queue.url": "someurl"]      | """
+    "SQS"        | "SendMessage"       | "POST" | "/someurl"            | AmazonSQSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.sendMessage(new SendMessageRequest("someurl", "")) }                   | ["aws.queue.url": "someurl"]      | """
         <SendMessageResponse>
             <SendMessageResult>
                 <MD5OfMessageBody>d41d8cd98f00b204e9800998ecf8427e</MD5OfMessageBody>
@@ -182,7 +197,7 @@ class AWS1ClientTest extends AgentTestRunner {
             <ResponseMetadata><RequestId>27daac76-34dd-47df-bd01-1f6e873584a0</RequestId></ResponseMetadata>
         </SendMessageResponse>
       """
-    "SNS"        | "Publish"           | "sns"          | "POST" | "/"                   | AmazonSNSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.publish(new PublishRequest("arn:aws:sns::123:some-topic", "")) }       | ["aws.topic.name": "some-topic"]  | """
+    "SNS"        | "Publish"           | "POST" | "/"                   | AmazonSNSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.publish(new PublishRequest("arn:aws:sns::123:some-topic", "")) }       | ["aws.topic.name": "some-topic"]  | """
         <PublishResponse xmlns="https://sns.amazonaws.com/doc/2010-03-31/">
             <PublishResult>
                 <MessageId>567910cd-659e-55d4-8ccb-5aaf14679dc0</MessageId>
@@ -190,14 +205,14 @@ class AWS1ClientTest extends AgentTestRunner {
             <ResponseMetadata><RequestId>d74b8436-ae13-5ab4-a9ff-ce54dfea72a0</RequestId></ResponseMetadata>
         </PublishResponse>
       """
-    "EC2"        | "AllocateAddress"   | "java-aws-sdk" | "POST" | "/"                   | AmazonEC2ClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { client -> client.allocateAddress() }                                          | [:]                               | """
+    "EC2"        | "AllocateAddress"   |  "POST" | "/"                   | AmazonEC2ClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.allocateAddress() }                                          | [:]                               | """
         <AllocateAddressResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
            <requestId>59dbff89-35bd-4eac-99ed-be587EXAMPLE</requestId>
            <publicIp>192.0.2.1</publicIp>
            <domain>standard</domain>
         </AllocateAddressResponse>
       """
-    "RDS"        | "DeleteOptionGroup" | "java-aws-sdk" | "POST" | "/"                   | AmazonRDSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { client -> client.deleteOptionGroup(new DeleteOptionGroupRequest()) }          | [:]                               | """
+    "RDS"        | "DeleteOptionGroup" |  "POST" | "/"                   | AmazonRDSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.deleteOptionGroup(new DeleteOptionGroupRequest()) }          | [:]                               | """
         <DeleteOptionGroupResponse xmlns="http://rds.amazonaws.com/doc/2014-09-01/">
           <ResponseMetadata>
             <RequestId>0ac9cda2-bbf4-11d3-f92b-31fa5e8dbc99</RequestId>
@@ -219,8 +234,8 @@ class AWS1ClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "java-aws-sdk"
-          operationName "aws.http"
+          serviceName expectedService(service, operation)
+          operationName expectedOperation(service, operation)
           resourceName "$service.$operation"
           spanType DDSpanTypes.HTTP_CLIENT
           errored true
@@ -249,7 +264,7 @@ class AWS1ClientTest extends AgentTestRunner {
 
     where:
     service | operation   | method | url                  | call                                                    | additionalTags                    | body | client
-    "S3"    | "GetObject" | "GET"  | "someBucket/someKey" | { client -> client.getObject("someBucket", "someKey") } | ["aws.bucket.name": "someBucket"] | ""   | new AmazonS3Client(CREDENTIALS_PROVIDER_CHAIN, new ClientConfiguration().withRetryPolicy(PredefinedRetryPolicies.getDefaultRetryPolicyWithCustomMaxRetries(0))).withEndpoint("http://localhost:${UNUSABLE_PORT}")
+    "S3" | "GetObject" | "GET" | "someBucket/someKey" | { c -> c.getObject("someBucket", "someKey") } | ["aws.bucket.name": "someBucket"] | "" | new AmazonS3Client(CREDENTIALS_PROVIDER_CHAIN, new ClientConfiguration().withRetryPolicy(PredefinedRetryPolicies.getDefaultRetryPolicyWithCustomMaxRetries(0))).withEndpoint("http://localhost:${UNUSABLE_PORT}")
   }
 
   def "naughty request handler doesn't break the trace"() {
@@ -271,8 +286,8 @@ class AWS1ClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "java-aws-sdk"
-          operationName "aws.http"
+          serviceName expectedService("S3", "HeadBucket")
+          operationName expectedOperation("S3", "HeadBucket")
           resourceName "S3.HeadBucket"
           spanType DDSpanTypes.HTTP_CLIENT
           errored true
@@ -321,8 +336,8 @@ class AWS1ClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "java-aws-sdk"
-          operationName "aws.http"
+          serviceName expectedService("S3", "GetObject")
+          operationName expectedOperation("S3", "GetObject")
           resourceName "S3.GetObject"
           spanType DDSpanTypes.HTTP_CLIENT
           errored true
@@ -355,3 +370,53 @@ class AWS1ClientTest extends AgentTestRunner {
     server.close()
   }
 }
+
+class AWS1ClientV0Test extends AWS1ClientTest {
+
+  @Override
+  String expectedOperation(String awsService, String awsOperation) {
+    "aws.http"
+  }
+
+  @Override
+  String expectedService(String awsService, String awsOperation) {
+    if ("SNS" == awsService && "Publish" == awsOperation) {
+      return "sns"
+    }
+    if ("SQS" == awsService && "SendMessage" == awsOperation) {
+      return "sqs"
+    }
+    return "java-aws-sdk"
+  }
+
+  @Override
+  int version() {
+    0
+  }
+}
+
+class AWS1ClientV1ForkedTest extends AWS1ClientTest {
+
+  @Override
+  String expectedOperation(String awsService, String awsOperation) {
+    if (awsService == "SQS" && awsOperation == "SendMessage") {
+      return "aws.sqs.send"
+    }
+    if (awsService == "SNS" && awsOperation == "Publish") {
+      return "aws.sns.send"
+    }
+    return "aws.${awsService.toLowerCase()}.request"
+  }
+
+  @Override
+  String expectedService(String awsService, String awsOperation) {
+    Config.get().getServiceName()
+  }
+
+  @Override
+  int version() {
+    1
+  }
+}
+
+

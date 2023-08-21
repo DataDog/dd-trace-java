@@ -5,10 +5,11 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevi
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.aws.v1.sqs.MessageExtractAdapter.GETTER;
-import static datadog.trace.instrumentation.aws.v1.sqs.SqsDecorator.AWS_HTTP;
 import static datadog.trace.instrumentation.aws.v1.sqs.SqsDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.aws.v1.sqs.SqsDecorator.CONSUMER_DECORATE;
-import static datadog.trace.instrumentation.aws.v1.sqs.SqsDecorator.SQS_LEGACY_TRACING;
+import static datadog.trace.instrumentation.aws.v1.sqs.SqsDecorator.SQS_INBOUND_OPERATION;
+import static datadog.trace.instrumentation.aws.v1.sqs.SqsDecorator.SQS_TIME_IN_QUEUE_OPERATION;
+import static datadog.trace.instrumentation.aws.v1.sqs.SqsDecorator.TIME_IN_QUEUE_ENABLED;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import com.amazonaws.services.sqs.model.Message;
@@ -57,10 +58,14 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
           AgentSpan.Context spanContext =
               Config.get().isSqsPropagationEnabled() ? propagate().extract(message, GETTER) : null;
           // next add a time-in-queue span for non-legacy SQS traces
-          if (!SQS_LEGACY_TRACING) {
+          if (TIME_IN_QUEUE_ENABLED) {
             long timeInQueueStart = GETTER.extractTimeInQueueStart(message);
             if (timeInQueueStart > 0) {
-              queueSpan = startSpan(AWS_HTTP, spanContext, MILLISECONDS.toMicros(timeInQueueStart));
+              queueSpan =
+                  startSpan(
+                      SQS_TIME_IN_QUEUE_OPERATION,
+                      spanContext,
+                      MILLISECONDS.toMicros(timeInQueueStart));
               BROKER_DECORATE.afterStart(queueSpan);
               BROKER_DECORATE.onTimeInQueue(queueSpan, queueUrl);
               spanContext = queueSpan.context();
@@ -71,7 +76,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
           // re-use this context for any other messages received in this batch
           batchContext = spanContext;
         }
-        AgentSpan span = startSpan(AWS_HTTP, batchContext);
+        AgentSpan span = startSpan(SQS_INBOUND_OPERATION, batchContext);
         CONSUMER_DECORATE.afterStart(span);
         CONSUMER_DECORATE.onConsume(span, queueUrl);
         activateNext(span);

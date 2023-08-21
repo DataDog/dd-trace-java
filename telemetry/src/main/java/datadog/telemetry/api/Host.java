@@ -11,8 +11,8 @@ package datadog.telemetry.api;
 
 public class Host {
 
-  @com.squareup.moshi.Json(name = "container_id")
-  private String containerId;
+  @com.squareup.moshi.Json(name = "architecture")
+  private String architecture;
 
   @com.squareup.moshi.Json(name = "hostname")
   private String hostname;
@@ -33,21 +33,21 @@ public class Host {
   private String osVersion;
 
   /**
-   * Get containerId
+   * Get architecture
    *
-   * @return containerId
+   * @return architecture
    */
-  public String getContainerId() {
-    return containerId;
+  public String getArchitecture() {
+    return architecture;
   }
 
-  /** Set containerId */
-  public void setContainerId(String containerId) {
-    this.containerId = containerId;
+  /** Set architecture */
+  public void setArchitecture(String architecture) {
+    this.architecture = architecture;
   }
 
-  public Host containerId(String containerId) {
-    this.containerId = containerId;
+  public Host architecture(String architecture) {
+    this.architecture = architecture;
     return this;
   }
 
@@ -171,7 +171,7 @@ public class Host {
     StringBuilder sb = new StringBuilder();
     sb.append("class Host {\n");
 
-    sb.append("    containerId: ").append(containerId).append("\n");
+    sb.append("    architecture: ").append(architecture).append("\n");
     sb.append("    hostname: ").append(hostname).append("\n");
     sb.append("    kernelName: ").append(kernelName).append("\n");
     sb.append("    kernelRelease: ").append(kernelRelease).append("\n");

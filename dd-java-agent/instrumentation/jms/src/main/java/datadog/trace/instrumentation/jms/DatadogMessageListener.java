@@ -7,7 +7,7 @@ import static datadog.trace.instrumentation.jms.JMSDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_CONSUME;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_DELIVER;
-import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_LEGACY_TRACING;
+import static datadog.trace.instrumentation.jms.JMSDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.jms.MessageExtractAdapter.GETTER;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -42,7 +42,7 @@ public class DatadogMessageListener implements MessageListener {
       propagatedContext = propagate().extract(message, GETTER);
     }
     long startMillis = GETTER.extractTimeInQueueStart(message);
-    if (startMillis == 0 || JMS_LEGACY_TRACING) {
+    if (startMillis == 0 || !TIME_IN_QUEUE_ENABLED) {
       span = startSpan(JMS_CONSUME, propagatedContext);
     } else {
       long batchId = GETTER.extractMessageBatchId(message);

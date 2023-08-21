@@ -372,7 +372,7 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
     assertCouchbaseCall(trace, name, extraTags, null, internal, ex)
   }
 
-  void assertCouchbaseCall(TraceAssert trace, String name, Map<String, Serializable> extraTags, Object parentSpan, boolean internal = false, Throwable ex = null) {
+  void assertCouchbaseCall(TraceAssert trace, String name, Map<String, Serializable> extraTags, Object parentSpan, boolean internal = false, Throwable ex = null, boolean checkPeerService = false) {
     def opName = internal ? 'couchbase.internal' : operation()
     def isMeasured = !internal
     def isErrored = ex != null
@@ -404,7 +404,11 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
         if (extraTags != null) {
           addTags(extraTags)
         }
-        defaultTags()
+        //fixme: check peer service from seed nodes when the info will be available
+        if (checkPeerService) {
+          peerServiceFrom('net.peer.name')
+        }
+        defaultTags(false, checkPeerService)
       }
     }
   }
@@ -423,7 +427,7 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
     if (extraTags != null) {
       allExtraTags.putAll(extraTags)
     }
-    assertCouchbaseCall(trace, 'dispatch_to_server', allExtraTags, parentSpan, true)
+    assertCouchbaseCall(trace, 'dispatch_to_server', allExtraTags, parentSpan, true, null, true)
   }
 }
 
@@ -452,7 +456,7 @@ class CouchbaseClient32V1ForkedTest extends CouchbaseClient32Test {
 
   @Override
   String service() {
-    return Config.get().getServiceName() + "-couchbase"
+    return Config.get().getServiceName()
   }
 
   @Override

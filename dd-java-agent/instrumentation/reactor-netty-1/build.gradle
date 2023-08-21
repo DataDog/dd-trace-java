@@ -15,11 +15,7 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest
-}
+addTestSuite('latestDepTest')
 
 dependencies {
   compileOnly group: 'io.projectreactor.netty', name: 'reactor-netty-http', version: '1.0.0'

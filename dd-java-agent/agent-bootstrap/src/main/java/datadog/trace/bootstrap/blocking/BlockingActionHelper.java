@@ -64,6 +64,9 @@ public class BlockingActionHelper {
     if (blockingContentType == BlockingContentType.JSON) {
       return TemplateType.JSON;
     }
+    if (blockingContentType == BlockingContentType.NONE) {
+      throw new IllegalArgumentException("Does not accept BlockingContentType.NONE");
+    }
 
     float jsonPref = 0;
     Specificity curJsonSpecificity = Specificity.UNSPECIFIED;

@@ -11,6 +11,7 @@ public class Tags {
   public static final String SPAN_KIND_TEST = "test";
   public static final String SPAN_KIND_TEST_SUITE = "test_suite_end";
   public static final String SPAN_KIND_TEST_MODULE = "test_module_end";
+  public static final String SPAN_KIND_TEST_SESSION = "test_session_end";
 
   public static final String HTTP_URL = "http.url";
   public static final String HTTP_HOSTNAME = "http.hostname";
@@ -29,6 +30,7 @@ public class Tags {
   public static final String PEER_SERVICE = "peer.service";
   public static final String PEER_HOSTNAME = "peer.hostname";
   public static final String PEER_PORT = "peer.port";
+  public static final String RPC_SERVICE = "rpc.service";
   public static final String SAMPLING_PRIORITY = "sampling.priority";
   public static final String SPAN_KIND = "span.kind";
   public static final String COMPONENT = "component";
@@ -41,7 +43,6 @@ public class Tags {
   public static final String MESSAGE_BUS_DESTINATION = "message_bus.destination";
 
   public static final String TEST_MODULE = "test.module";
-  public static final String TEST_BUNDLE = "test.bundle";
   public static final String TEST_SUITE = "test.suite";
   public static final String TEST_NAME = "test.name";
   public static final String TEST_STATUS = "test.status";
@@ -55,6 +56,9 @@ public class Tags {
   public static final String TEST_SOURCE_START = "test.source.start";
   public static final String TEST_SOURCE_END = "test.source.end";
   public static final String TEST_TRAITS = "test.traits";
+  public static final String TEST_COMMAND = "test.command";
+  public static final String TEST_TOOLCHAIN = "test.toolchain";
+  public static final String TEST_EXECUTION = "test.execution";
 
   public static final String TEST_SESSION_ID = "test_session_id";
   public static final String TEST_MODULE_ID = "test_module_id";

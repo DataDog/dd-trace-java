@@ -1,5 +1,6 @@
 package com.datadog.debugger.el.expressions;
 
+import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
@@ -36,9 +37,8 @@ public class IndexExpression implements ValueExpression<Value<?>> {
         result = ((ListValue) targetValue).get(keyValue.getValue());
       }
     } catch (IllegalArgumentException ex) {
-      valueRefResolver.addEvaluationError(PrettyPrintVisitor.print(this), ex.getMessage());
+      throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this), ex);
     }
-
     return result;
   }
 

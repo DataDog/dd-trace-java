@@ -1,6 +1,7 @@
 import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.naming.TestingNettyHttpNamingConventions
 import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator
 import io.netty.bootstrap.ServerBootstrap
 import io.netty.buffer.ByteBuf
@@ -42,7 +43,7 @@ import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1
 
-class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
+abstract class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
 
   static final LoggingHandler LOGGING_HANDLER = new LoggingHandler(SERVER_LOGGER.name, LogLevel.DEBUG)
 
@@ -179,7 +180,7 @@ class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
 
   @Override
   String expectedOperationName() {
-    "netty.request"
+    operation()
   }
 
   @Override
@@ -191,4 +192,12 @@ class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
   boolean testBlocking() {
     true
   }
+}
+
+class Netty41ServerV0ForkedTest extends Netty41ServerTest implements TestingNettyHttpNamingConventions.ServerV0 {
+
+}
+
+class Netty41ServerV1ForkedTest extends Netty41ServerTest implements TestingNettyHttpNamingConventions.ServerV1 {
+
 }

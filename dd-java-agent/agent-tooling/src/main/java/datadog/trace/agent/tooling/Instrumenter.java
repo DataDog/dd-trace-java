@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.ANY_CLASS_LOADER;
 import static java.util.Collections.addAll;
+import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
@@ -17,6 +18,7 @@ import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -47,6 +49,7 @@ public interface Instrumenter {
    *   <li>{@link TargetSystem#APPSEC appsec}
    *   <li>{@link TargetSystem#IAST iast}
    *   <li>{@link TargetSystem#CIVISIBILITY ci-visibility}
+   *   <li>{@link TargetSystem#USM usm}
    * </ul>
    */
   enum TargetSystem {
@@ -54,17 +57,14 @@ public interface Instrumenter {
     PROFILING,
     APPSEC,
     IAST,
-    CIVISIBILITY
+    CIVISIBILITY,
+
+    USM
   }
 
   /** Instrumentation that only matches a single named type. */
   interface ForSingleType {
     String instrumentedType();
-  }
-
-  /** Instrumentation that matches a type configured at runtime. */
-  interface ForConfiguredType {
-    String configuredMatchingType();
   }
 
   /** Instrumentation that can match a series of named types. */
@@ -78,6 +78,26 @@ public interface Instrumenter {
     String hierarchyMarkerType();
 
     ElementMatcher<TypeDescription> hierarchyMatcher();
+  }
+
+  /** Instrumentation that matches a series of types configured at runtime. */
+  interface ForConfiguredTypes {
+    Collection<String> configuredMatchingTypes();
+  }
+
+  /** Instrumentation that matches an optional type configured at runtime. */
+  interface ForConfiguredType extends ForConfiguredTypes {
+    @Override
+    default Collection<String> configuredMatchingTypes() {
+      String type = configuredMatchingType();
+      if (null != type && !type.isEmpty()) {
+        return singletonList(type);
+      } else {
+        return emptyList();
+      }
+    }
+
+    String configuredMatchingType();
   }
 
   /** Instrumentation that matches based on the caller of an instruction. */
@@ -345,6 +365,18 @@ public interface Instrumenter {
     /** Get classes to force load* */
     public String[] getClassNamesToBePreloaded() {
       return null;
+    }
+  }
+
+  /** Parent class for all USM related instrumentations */
+  abstract class Usm extends Default {
+    public Usm(String instrumentationName, String... additionalNames) {
+      super(instrumentationName, additionalNames);
+    }
+
+    @Override
+    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+      return enabledSystems.contains(TargetSystem.USM);
     }
   }
 

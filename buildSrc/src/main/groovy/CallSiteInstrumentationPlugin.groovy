@@ -59,7 +59,7 @@ class CallSiteInstrumentationPlugin implements Plugin<Project> {
     target.dependencies.add('testImplementation', csiSourceSet.output)
 
     // include classes in final JAR
-    target.tasks.named('jar').configure { Jar it -> it.from(csiSourceSet.output.classesDirs) }
+    (target.tasks.named('jar').get()).configure { Jar it -> it.from(csiSourceSet.output.classesDirs) }
   }
 
   private static void createTasks(final Project target) {

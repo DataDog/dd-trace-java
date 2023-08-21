@@ -1,6 +1,5 @@
 package datadog.trace.api;
 
-import datadog.trace.util.Strings;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
@@ -103,7 +102,11 @@ public final class Platform {
   }
 
   private static Version parseJavaVersion(String javaVersion) {
-    javaVersion = Strings.replace(javaVersion, "-ea", "");
+    // Remove pre-release part, usually -ea
+    final int indexOfDash = javaVersion.indexOf('-');
+    if (indexOfDash >= 0) {
+      javaVersion = javaVersion.substring(0, indexOfDash);
+    }
 
     int major = 0;
     int minor = 0;

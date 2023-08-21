@@ -18,7 +18,6 @@ import java.util.function.Function;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeList;
 import net.bytebuddy.dynamic.ClassFileLocator;
-import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.pool.TypePool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,9 +41,9 @@ final class TypeFactory {
   static final ThreadLocal<TypeFactory> typeFactory = ThreadLocal.withInitial(TypeFactory::new);
 
   private static final boolean fallBackToLoadClass =
-      InstrumenterConfig.get().isResolverUseLoadClassEnabled();
+      InstrumenterConfig.get().isResolverUseLoadClass();
 
-  private static final Map<String, TypeDescription> primitiveDescriptorTypes = new HashMap<>();
+  private static final Map<Character, TypeDescription> primitiveDescriptorTypes = new HashMap<>();
 
   private static final Map<String, TypeDescription> primitiveTypes = new HashMap<>();
 
@@ -62,7 +61,7 @@ final class TypeFactory {
           void.class
         }) {
       TypeDescription primitiveType = TypeDescription.ForLoadedType.of(primitive);
-      primitiveDescriptorTypes.put(Type.getDescriptor(primitive), primitiveType);
+      primitiveDescriptorTypes.put(primitiveType.getDescriptor().charAt(0), primitiveType);
       primitiveTypes.put(primitive.getName(), primitiveType);
     }
   }
@@ -70,6 +69,9 @@ final class TypeFactory {
   private static final TypeParser outlineTypeParser = new OutlineTypeParser();
 
   private static final TypeParser fullTypeParser = new FullTypeParser();
+
+  private static final TypeDescription objectOutline =
+      new CachingType(outlineTypeParser.parse(Object.class));
 
   private static final TypeInfoCache<TypeDescription> outlineTypes =
       new TypeInfoCache<>(InstrumenterConfig.get().getResolverOutlinePoolSize());
@@ -183,14 +185,15 @@ final class TypeFactory {
   static TypeDescription findDescriptor(String descriptor) {
     TypeDescription type;
     int arity = 0;
-    while (descriptor.charAt(arity) == '[') {
-      arity++;
+    char c = descriptor.charAt(arity);
+    while (c == '[') {
+      c = descriptor.charAt(++arity);
     }
-    if (descriptor.charAt(arity) == 'L') {
+    if (c == 'L') {
       // discard leading 'L' and trailing ';'
       type = findType(descriptor.substring(arity + 1, descriptor.length() - 1).replace('/', '.'));
     } else {
-      type = primitiveDescriptorTypes.get(descriptor.substring(arity));
+      type = primitiveDescriptorTypes.get(c);
     }
     if (arity > 0 && null != type) {
       type = TypeDescription.ArrayProjection.of(type, arity);
@@ -215,11 +218,15 @@ final class TypeFactory {
   /** Attempts to resolve the named type using the current context. */
   TypeDescription resolveType(LazyType request) {
     if (null != classFileLocator) {
-      TypeDescription result =
-          createOutlines
-              ? lookupType(request, outlineTypes, outlineTypeParser)
-              : lookupType(request, fullTypes, fullTypeParser);
-
+      TypeDescription result;
+      if (createOutlines) {
+        if ("java.lang.Object".equals(request.name)) {
+          return objectOutline;
+        }
+        result = lookupType(request, outlineTypes, outlineTypeParser);
+      } else {
+        result = lookupType(request, fullTypes, fullTypeParser);
+      }
       if (null != result) {
         return new CachingType(result);
       }
@@ -232,17 +239,18 @@ final class TypeFactory {
       LazyType request, TypeInfoCache<TypeDescription> types, TypeParser typeParser) {
     String name = request.name;
 
-    // existing info from same classloader?
-    SharedTypeInfo<TypeDescription> typeInfo = types.find(name);
-    if (null != typeInfo && (name.startsWith("java.") || typeInfo.sameClassLoader(classLoader))) {
-      return typeInfo.get();
+    // existing type description from same classloader?
+    SharedTypeInfo<TypeDescription> sharedType = types.find(name);
+    if (null != sharedType
+        && (name.startsWith("java.") || sharedType.sameClassLoader(classLoader))) {
+      return sharedType.get();
     }
 
     URL classFile = request.getClassFile();
 
-    // existing info from same class file?
-    if (null != typeInfo && typeInfo.sameClassFile(classFile)) {
-      return typeInfo.get();
+    // existing type description from same class file?
+    if (null != sharedType && sharedType.sameClassFile(classFile)) {
+      return sharedType.get();
     }
 
     TypeDescription type = null;

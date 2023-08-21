@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.AWS_HTTP;
 import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.AWS_LEGACY_TRACING;
 import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.DECORATE;
 
@@ -15,6 +14,7 @@ import com.amazonaws.handlers.HandlerContextKey;
 import com.amazonaws.handlers.RequestHandler2;
 import datadog.trace.api.Config;
 import datadog.trace.api.TracePropagationStyle;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +26,12 @@ public class TracingRequestHandler extends RequestHandler2 {
       new HandlerContextKey<>("DatadogSpan"); // same as OnErrorDecorator.SPAN_CONTEXT_KEY
 
   private static final Logger log = LoggerFactory.getLogger(TracingRequestHandler.class);
+
+  private final ContextStore<Object, String> responseQueueStore;
+
+  public TracingRequestHandler(ContextStore<Object, String> responseQueueStore) {
+    this.responseQueueStore = responseQueueStore;
+  }
 
   @Override
   public AmazonWebServiceRequest beforeMarshalling(final AmazonWebServiceRequest request) {
@@ -40,7 +46,7 @@ public class TracingRequestHandler extends RequestHandler2 {
       // so we can tell when receive call is complete without affecting the rest of the trace
       span = noopSpan();
     } else {
-      span = startSpan(AWS_HTTP);
+      span = startSpan(AwsNameCache.spanName(request));
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       request.addHandlerContext(SPAN_CONTEXT_KEY, span);
@@ -66,6 +72,17 @@ public class TracingRequestHandler extends RequestHandler2 {
       DECORATE.beforeFinish(span);
       span.finish();
     }
+    if (!AWS_LEGACY_TRACING && isPollingResponse(response.getAwsResponse())) {
+      try {
+        // store queueUrl inside response for SqsReceiveResultInstrumentation
+        AmazonWebServiceRequest originalRequest = request.getOriginalRequest();
+        responseQueueStore.put(
+            response.getAwsResponse(),
+            RequestAccess.of(originalRequest).getQueueUrl(originalRequest));
+      } catch (Throwable e) {
+        log.debug("Unable to extract queueUrl from ReceiveMessageRequest", e);
+      }
+    }
   }
 
   @Override
@@ -83,5 +100,11 @@ public class TracingRequestHandler extends RequestHandler2 {
     return null != request
         && "com.amazonaws.services.sqs.model.ReceiveMessageRequest"
             .equals(request.getClass().getName());
+  }
+
+  private static boolean isPollingResponse(Object response) {
+    return null != response
+        && "com.amazonaws.services.sqs.model.ReceiveMessageResult"
+            .equals(response.getClass().getName());
   }
 }

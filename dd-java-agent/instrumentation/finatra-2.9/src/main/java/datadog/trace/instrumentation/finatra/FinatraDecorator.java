@@ -4,10 +4,10 @@ import com.twitter.finagle.http.Request;
 import com.twitter.finagle.http.Response;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase;
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
-import java.net.URI;
 
 public class FinatraDecorator extends HttpServerDecorator<Request, Request, Response, Void> {
 
@@ -46,7 +46,7 @@ public class FinatraDecorator extends HttpServerDecorator<Request, Request, Resp
 
   @Override
   protected URIDataAdapter url(final Request request) {
-    return new URIDefaultDataAdapter(URI.create(request.uri()));
+    return URIDataAdapterBase.fromURI(request.uri(), URIDefaultDataAdapter::new);
   }
 
   @Override

@@ -2,8 +2,14 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 
-import datadog.trace.api.*;
-import datadog.trace.api.experimental.ProfilingContext;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
+import datadog.trace.api.EndpointCheckpointer;
+import datadog.trace.api.EndpointTracker;
+import datadog.trace.api.TracePropagationStyle;
+import datadog.trace.api.experimental.DataStreamsCheckpointer;
+import datadog.trace.api.experimental.DataStreamsContextCarrier;
+import datadog.trace.api.experimental.Profiling;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -119,6 +125,7 @@ public class AgentTracer {
           InternalTracer,
           AgentPropagation,
           EndpointCheckpointer,
+          DataStreamsCheckpointer,
           ScopeStateAware {
     AgentSpan startSpan(CharSequence spanName);
 
@@ -203,6 +210,8 @@ public class AgentTracer {
     SpanBuilder withErrorFlag();
 
     SpanBuilder withSpanType(CharSequence spanType);
+
+    <T> SpanBuilder withRequestContextData(RequestContextSlot slot, T data);
   }
 
   static class NoopTracerAPI implements TracerAPI {
@@ -295,8 +304,8 @@ public class AgentTracer {
     public void flushMetrics() {}
 
     @Override
-    public ProfilingContext getProfilingContext() {
-      return ProfilingContext.NoOp.INSTANCE;
+    public Profiling getProfilingContext() {
+      return Profiling.NoOp.INSTANCE;
     }
 
     @Override
@@ -317,6 +326,11 @@ public class AgentTracer {
     @Override
     public boolean addTraceInterceptor(final TraceInterceptor traceInterceptor) {
       return false;
+    }
+
+    @Override
+    public DataStreamsCheckpointer getDataStreamsCheckpointer() {
+      return this;
     }
 
     @Override
@@ -410,6 +424,14 @@ public class AgentTracer {
     public DataStreamsMonitoring getDataStreamsMonitoring() {
       return dataStreamsMonitoring;
     }
+
+    @Override
+    public void setConsumeCheckpoint(
+        String type, String source, DataStreamsContextCarrier carrier) {}
+
+    @Override
+    public void setProduceCheckpoint(
+        String type, String target, DataStreamsContextCarrier carrier) {}
   }
 
   public static final class NoopAgentSpan implements AgentSpan {
@@ -467,6 +489,11 @@ public class AgentTracer {
 
     @Override
     public AgentSpan setTag(final String key, final Object value) {
+      return this;
+    }
+
+    @Override
+    public AgentSpan setAttribute(String key, Object value) {
       return this;
     }
 
@@ -547,6 +574,11 @@ public class AgentTracer {
 
     @Override
     public void mergePathwayContext(PathwayContext pathwayContext) {}
+
+    @Override
+    public Integer forceSamplingDecision() {
+      return null;
+    }
 
     @Override
     public Integer getSamplingPriority() {
@@ -808,6 +840,11 @@ public class AgentTracer {
     }
 
     @Override
+    public int getSamplingPriority() {
+      return PrioritySampling.UNSET;
+    }
+
+    @Override
     public Iterable<Map.Entry<String, String>> baggageItems() {
       return Collections.emptyList();
     }
@@ -819,6 +856,21 @@ public class AgentTracer {
 
     @Override
     public String getForwarded() {
+      return null;
+    }
+
+    @Override
+    public String getFastlyClientIp() {
+      return null;
+    }
+
+    @Override
+    public String getCfConnectingIp() {
+      return null;
+    }
+
+    @Override
+    public String getCfConnectingIpv6() {
       return null;
     }
 
@@ -863,17 +915,12 @@ public class AgentTracer {
     }
 
     @Override
-    public String getClientIp() {
+    public String getXClientIp() {
       return null;
     }
 
     @Override
     public String getUserAgent() {
-      return null;
-    }
-
-    @Override
-    public String getVia() {
       return null;
     }
 

@@ -4,6 +4,7 @@ import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
 import io.undertow.server.HttpServerExchange;
+import java.util.Map;
 
 public class UndertowBlockResponseFunction implements BlockResponseFunction {
   private final HttpServerExchange exchange;
@@ -13,9 +14,10 @@ public class UndertowBlockResponseFunction implements BlockResponseFunction {
   }
 
   @Override
-  public boolean tryCommitBlockingResponse(int statusCode, BlockingContentType templateType) {
+  public boolean tryCommitBlockingResponse(
+      int statusCode, BlockingContentType templateType, Map<String, String> extraHeaders) {
     Flow.Action.RequestBlockingAction rab =
-        new Flow.Action.RequestBlockingAction(statusCode, templateType);
+        new Flow.Action.RequestBlockingAction(statusCode, templateType, extraHeaders);
     exchange.putAttachment(UndertowBlockingHandler.REQUEST_BLOCKING_DATA, rab);
     if (exchange.isInIoThread()) {
       exchange.dispatch(UndertowBlockingHandler.INSTANCE);

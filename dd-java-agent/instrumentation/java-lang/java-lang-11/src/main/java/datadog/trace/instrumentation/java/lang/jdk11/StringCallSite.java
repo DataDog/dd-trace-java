@@ -4,10 +4,9 @@ import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.IastAdvice.Propagation;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.model.PropagationTypes;
 import datadog.trace.api.iast.propagation.StringModule;
 
-@Propagation(PropagationTypes.STRING)
+@Propagation
 @CallSite(spi = IastAdvice.class, minJavaVersion = 11)
 public class StringCallSite {
   @CallSite.After("java.lang.String java.lang.String.repeat(int)")

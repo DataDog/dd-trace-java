@@ -46,24 +46,27 @@ public abstract class JUnit4Utils {
   }
 
   public static boolean isTracingListener(final RunListener listener) {
-    if (listener instanceof TracingListener) {
-      return true;
-    }
+    return listener instanceof TracingListener;
+  }
 
-    // Since JUnit 4.12, the RunListener are wrapped by a SynchronizedRunListener object.
+  public static boolean isJUnitVintageListener(final RunListener listener) {
+    Class<? extends RunListener> listenerClass = listener.getClass();
+    String listenerClassName = listenerClass.getName();
+    return listenerClassName.startsWith("org.junit.vintage");
+  }
+
+  public static RunListener unwrapListener(final RunListener listener) {
     if (SYNCHRONIZED_LISTENER.equals(listener.getClass().getName())) {
       try {
         // There is no public accessor to the inner listener.
         final Field innerListener = listener.getClass().getDeclaredField("listener");
         innerListener.setAccessible(true);
-
-        return innerListener.get(listener) instanceof TracingListener;
+        return (RunListener) innerListener.get(listener);
       } catch (final Throwable e) {
         log.debug("Could not get inner listener from SynchronizedRunListener", e);
       }
     }
-
-    return false;
+    return listener;
   }
 
   public static TracingListener toTracingListener(final RunListener listener) {
@@ -157,7 +160,8 @@ public abstract class JUnit4Utils {
     final String methodName = description.getMethodName();
     if (methodName != null && !methodName.isEmpty()) {
       int actualMethodNameStart, actualMethodNameEnd;
-      if ((actualMethodNameStart = methodName.indexOf('(')) > 0
+      if (methodName.startsWith("[")
+          && (actualMethodNameStart = methodName.indexOf('(')) > 0
           && (actualMethodNameEnd = methodName.indexOf(')', actualMethodNameStart)) > 0) {
         // assuming this is a parameterized test case that uses use pl.pragmatists.JUnitParams
         // in that case method name will have the following structure:
@@ -208,13 +212,15 @@ public abstract class JUnit4Utils {
   public static List<String> getCategories(Class<?> testClass, @Nullable Method testMethod) {
     List<String> categories = new ArrayList<>();
 
-    if (testClass != null) {
+    while (testClass != null) {
       Category categoryAnnotation = testClass.getAnnotation(Category.class);
       if (categoryAnnotation != null) {
         for (Class<?> category : categoryAnnotation.value()) {
           categories.add(category.getName());
         }
       }
+      // Category annotation is not inherited in versions before 4.12
+      testClass = testClass.getSuperclass();
     }
 
     if (testMethod != null) {

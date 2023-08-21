@@ -28,7 +28,7 @@ public class StringBuilderInitBenchmark
   public StringBuilder iastDisabled() {
     final String param = context.notTainted;
     final StringBuilder self = new StringBuilder(param);
-    StringBuilderCallSite.afterInit(self, param);
+    StringBuilderCallSite.afterInit(new Object[] {param}, self);
     return self;
   }
 
@@ -37,7 +37,7 @@ public class StringBuilderInitBenchmark
   public StringBuilder notTainted() {
     final String param = context.notTainted;
     final StringBuilder self = new StringBuilder(param);
-    StringBuilderCallSite.afterInit(self, param);
+    StringBuilderCallSite.afterInit(new Object[] {param}, self);
     return self;
   }
 
@@ -46,7 +46,7 @@ public class StringBuilderInitBenchmark
   public StringBuilder tainted() {
     final String param = context.tainted;
     final StringBuilder self = new StringBuilder(param);
-    StringBuilderCallSite.afterInit(self, param);
+    StringBuilderCallSite.afterInit(new Object[] {param}, self);
     return self;
   }
 

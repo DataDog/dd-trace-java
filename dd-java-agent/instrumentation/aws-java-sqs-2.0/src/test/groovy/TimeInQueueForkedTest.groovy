@@ -298,6 +298,7 @@ class TimeInQueueForkedTest extends AgentTestRunner {
         "$Tags.PEER_PORT" address.port
         "$Tags.PEER_HOSTNAME" "localhost"
         "aws.service" "Sqs"
+        "aws_service" "Sqs"
         "aws.operation" "SendMessageBatch"
         "aws.agent" "java-aws-sdk"
         "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
@@ -320,6 +321,7 @@ class TimeInQueueForkedTest extends AgentTestRunner {
         "$Tags.COMPONENT" "java-aws-sdk"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
         "aws.service" "Sqs"
+        "aws_service" "Sqs"
         "aws.operation" "ReceiveMessage"
         "aws.agent" "java-aws-sdk"
         "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"

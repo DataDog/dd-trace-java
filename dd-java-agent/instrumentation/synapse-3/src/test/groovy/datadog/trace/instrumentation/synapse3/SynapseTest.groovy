@@ -94,6 +94,8 @@ abstract class SynapseTest extends VersionedNamingTestBase {
     return address.getPort()
   }
 
+  abstract String expectedServerOperation()
+
   def cleanupSpec() {
     server.shutdown()
 
@@ -230,7 +232,7 @@ abstract class SynapseTest extends VersionedNamingTestBase {
   def serverSpan(TraceAssert trace, int index, String method, int statusCode, String query = null, Object parentSpan = null, boolean distributedRootSpan = false, boolean legacyOperationName = false) {
     trace.span {
       serviceName expectedServiceName()
-      operationName legacyOperationName ? "http.request" : "synapse.request"
+      operationName legacyOperationName ? "http.request" : expectedServerOperation()
       resourceName "${method} /services/SimpleStockQuoteService"
       spanType DDSpanTypes.HTTP_SERVER
       errored statusCode >= 500
@@ -259,7 +261,7 @@ abstract class SynapseTest extends VersionedNamingTestBase {
   def proxySpan(TraceAssert trace, int index, String method, int statusCode, Object parentSpan = null) {
     trace.span {
       serviceName expectedServiceName()
-      operationName "synapse.request"
+      operationName expectedServerOperation()
       resourceName "${method} /services/StockQuoteProxy"
       spanType DDSpanTypes.HTTP_SERVER
       errored statusCode >= 500
@@ -309,10 +311,21 @@ abstract class SynapseTest extends VersionedNamingTestBase {
   }
 }
 
+@Flaky("Occasionally times out when receiving traces")
 class SynapseV0ForkedTest extends SynapseTest implements TestingGenericHttpNamingConventions.ClientV0 {
 
+
+  @Override
+  String expectedServerOperation() {
+    return "synapse.request"
+  }
 }
 
+@Flaky("Occasionally times out when receiving traces")
 class SynapseV1ForkedTest extends SynapseTest implements TestingGenericHttpNamingConventions.ClientV1 {
 
+  @Override
+  String expectedServerOperation() {
+    return "http.server.request"
+  }
 }

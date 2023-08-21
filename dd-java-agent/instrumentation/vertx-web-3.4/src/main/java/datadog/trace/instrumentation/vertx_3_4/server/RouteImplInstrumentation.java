@@ -11,9 +11,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import java.util.Set;
 
 @AutoService(Instrumenter.class)
-public class RouteImplInstrumentation extends Instrumenter.AppSec
+public class RouteImplInstrumentation extends Instrumenter.Default
     implements Instrumenter.ForKnownTypes {
 
   public RouteImplInstrumentation() {
@@ -23,6 +24,12 @@ public class RouteImplInstrumentation extends Instrumenter.AppSec
   @Override
   public Reference[] additionalMuzzleReferences() {
     return new Reference[] {PARSABLE_HEADER_VALUE, VIRTUAL_HOST_HANDLER};
+  }
+
+  @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    return enabledSystems.contains(TargetSystem.APPSEC)
+        || enabledSystems.contains(TargetSystem.IAST);
   }
 
   @Override

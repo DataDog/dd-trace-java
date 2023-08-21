@@ -90,6 +90,7 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
             "$Tags.PEER_PORT" address.port
             "$Tags.PEER_HOSTNAME" "localhost"
             "aws.service" "Sqs"
+            "aws_service" "Sqs"
             "aws.operation" "SendMessage"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
@@ -135,6 +136,7 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
             "$Tags.PEER_PORT" address.port
             "$Tags.PEER_HOSTNAME" "localhost"
             "aws.service" "Sqs"
+            "aws_service" "Sqs"
             "aws.operation" "ReceiveMessage"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
@@ -216,6 +218,7 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
             "$Tags.PEER_PORT" address.port
             "$Tags.PEER_HOSTNAME" "localhost"
             "aws.service" "Sqs"
+            "aws_service" "Sqs"
             "aws.operation" "SendMessage"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
@@ -278,6 +281,7 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
             "$Tags.PEER_PORT" address.port
             "$Tags.PEER_HOSTNAME" "localhost"
             "aws.service" "Sqs"
+            "aws_service" "Sqs"
             "aws.operation" "DeleteMessage"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
@@ -322,6 +326,7 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
             "$Tags.PEER_PORT" address.port
             "$Tags.PEER_HOSTNAME" "localhost"
             "aws.service" "Sqs"
+            "aws_service" "Sqs"
             "aws.operation" "ReceiveMessage"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"

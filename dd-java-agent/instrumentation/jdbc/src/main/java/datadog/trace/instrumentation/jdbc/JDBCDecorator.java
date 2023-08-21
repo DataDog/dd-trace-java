@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
 
+import datadog.trace.api.Config;
+import datadog.trace.api.DDSpanId;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -32,6 +34,16 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       UTF8BytesString.create("java-jdbc-statement");
   private static final UTF8BytesString JDBC_PREPARED_STATEMENT =
       UTF8BytesString.create("java-jdbc-prepared_statement");
+
+  public static final String DBM_PROPAGATION_MODE_STATIC = "service";
+  public static final String DBM_PROPAGATION_MODE_FULL = "full";
+
+  public static final String DBM_PROPAGATION_MODE = Config.get().getDBMPropagationMode();
+  public static final boolean INJECT_COMMENT =
+      DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL)
+          || DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_STATIC);
+  public static final boolean INJECT_TRACE_CONTEXT =
+      DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL);
 
   public static void logMissingQueryInfo(Statement statement) throws SQLException {
     if (log.isDebugEnabled()) {
@@ -107,6 +119,16 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       final AgentSpan span,
       final Connection connection,
       ContextStore<Connection, DBInfo> contextStore) {
+
+    final DBInfo dbInfo = parseDBInfo(connection, contextStore);
+    if (dbInfo != null) {
+      processDatabaseType(span, dbInfo.getType());
+    }
+    return super.onConnection(span, dbInfo);
+  }
+
+  public static DBInfo parseDBInfo(
+      final Connection connection, ContextStore<Connection, DBInfo> contextStore) {
     DBInfo dbInfo = contextStore.get(connection);
     /*
      * Logic to get the DBInfo from a JDBC Connection, if the connection was not created via
@@ -135,32 +157,42 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
         }
         if (dbInfo == null) {
           // couldn't find DBInfo anywhere, so fall back to default
-          try {
-            final DatabaseMetaData metaData = connection.getMetaData();
-            final String url = metaData.getURL();
-            if (url != null) {
-              try {
-                dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, connection.getClientInfo());
-              } catch (final Throwable ex) {
-                // getClientInfo is likely not allowed.
-                dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, null);
-              }
-            } else {
-              dbInfo = DBInfo.DEFAULT;
-            }
-          } catch (final SQLException se) {
-            dbInfo = DBInfo.DEFAULT;
-          }
+          dbInfo = parseDBInfoFromConnection(connection);
         }
         // store the DBInfo on the outermost connection instance to avoid future searches
         contextStore.put(connection, dbInfo);
       }
     }
+    return dbInfo;
+  }
 
-    if (dbInfo != null) {
-      processDatabaseType(span, dbInfo.getType());
+  public String getDbService(final DBInfo dbInfo) {
+    String dbService = null;
+    if (null != dbInfo) {
+      dbService = dbService(dbInfo.getType(), dbInstance(dbInfo));
     }
-    return super.onConnection(span, dbInfo);
+    return dbService;
+  }
+
+  public static DBInfo parseDBInfoFromConnection(final Connection connection) {
+    DBInfo dbInfo;
+    try {
+      final DatabaseMetaData metaData = connection.getMetaData();
+      final String url = metaData.getURL();
+      if (url != null) {
+        try {
+          dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, connection.getClientInfo());
+        } catch (final Throwable ex) {
+          // getClientInfo is likely not allowed.
+          dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, null);
+        }
+      } else {
+        dbInfo = DBInfo.DEFAULT;
+      }
+    } catch (final SQLException se) {
+      dbInfo = DBInfo.DEFAULT;
+    }
+    return dbInfo;
   }
 
   public AgentSpan onStatement(AgentSpan span, DBQueryInfo dbQueryInfo) {
@@ -179,5 +211,22 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       span.setResourceName(DB_QUERY);
     }
     return span.setTag(Tags.COMPONENT, component);
+  }
+
+  public String traceParent(AgentSpan span, int samplingPriority) {
+    StringBuilder sb = new StringBuilder(55);
+    sb.append("00-");
+    sb.append(span.getTraceId().toHexString());
+    sb.append("-");
+    sb.append(DDSpanId.toHexStringPadded(span.getSpanId()));
+    sb.append(samplingPriority > 0 ? "-01" : "-00");
+    return sb.toString();
+  }
+
+  @Override
+  protected void postProcessServiceAndOperationName(
+      AgentSpan span, DatabaseClientDecorator.NamingEntry namingEntry) {
+    span.setServiceName(namingEntry.getService());
+    span.setOperationName(namingEntry.getOperation());
   }
 }

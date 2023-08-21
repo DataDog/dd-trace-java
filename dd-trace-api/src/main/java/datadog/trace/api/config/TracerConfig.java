@@ -48,12 +48,17 @@ public final class TracerConfig {
   public static final String TRACE_REPORT_HOSTNAME = "trace.report-hostname";
   public static final String TRACE_CLIENT_IP_HEADER = "trace.client-ip-header";
   public static final String TRACE_CLIENT_IP_RESOLVER_ENABLED = "trace.client-ip.resolver.enabled";
+  public static final String TRACE_GIT_METADATA_ENABLED = "trace.git.metadata.enabled";
   public static final String HEADER_TAGS = "trace.header.tags";
   public static final String REQUEST_HEADER_TAGS = "trace.request_header.tags";
   public static final String RESPONSE_HEADER_TAGS = "trace.response_header.tags";
   public static final String BAGGAGE_MAPPING = "trace.header.baggage";
+  public static final String TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH =
+      "trace.http.resource.remove-trailing-slash";
   public static final String TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING =
       "trace.http.server.path-resource-name-mapping";
+  public static final String TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING =
+      "trace.http.client.path-resource-name-mapping";
   public static final String HTTP_SERVER_ERROR_STATUSES = "http.server.error.statuses";
   public static final String HTTP_CLIENT_ERROR_STATUSES = "http.client.error.statuses";
 
@@ -79,6 +84,9 @@ public final class TracerConfig {
 
   public static final String CLIENT_IP_ENABLED = "trace.client-ip.enabled";
 
+  public static final String TRACE_128_BIT_TRACEID_GENERATION_ENABLED =
+      "trace.128.bit.traceid.generation.enabled";
+
   public static final String SECURE_RANDOM = "trace.secure-random";
 
   /**
@@ -97,6 +105,11 @@ public final class TracerConfig {
   public static final String CLOCK_SYNC_PERIOD = "trace.clock.sync.period";
 
   public static final String TRACE_SPAN_ATTRIBUTE_SCHEMA = "trace.span.attribute.schema";
+
+  public static final String TRACE_PEER_SERVICE_DEFAULTS_ENABLED =
+      "trace.peer.service.defaults.enabled";
+
+  public static final String TRACE_PEER_SERVICE_MAPPING = "trace.peer.service.mapping";
 
   private TracerConfig() {}
 }

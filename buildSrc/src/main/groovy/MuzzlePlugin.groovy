@@ -20,11 +20,15 @@ import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
+import org.gradle.api.artifacts.Configuration
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.FileCollection
+import org.gradle.api.invocation.BuildInvocationDetails
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.SourceSet
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.workers.WorkAction
 import org.gradle.workers.WorkParameters
 import org.gradle.workers.WorkerExecutor
@@ -61,6 +65,17 @@ class MuzzlePlugin implements Plugin<Project> {
     def toolingProject = childProjects.get('agent-tooling')
     project.extensions.create("muzzle", MuzzleExtension, project.objects)
 
+    def muzzleBootstrap = project.configurations.create('muzzleBootstrap', {
+      canBeConsumed: false
+      canBeResolved: true
+    })
+    def muzzleTooling = project.configurations.create('muzzleTooling', {
+      canBeConsumed: false
+      canBeResolved: true
+    })
+    project.dependencies.add('muzzleBootstrap', bootstrapProject)
+    project.dependencies.add('muzzleTooling', toolingProject)
+
     // compileMuzzle compiles all projects required to run muzzle validation.
     // Not adding group and description to keep this task from showing in `gradle tasks`.
     def compileMuzzle = project.task('compileMuzzle')
@@ -78,7 +93,7 @@ class MuzzlePlugin implements Plugin<Project> {
       doLast {
         if (!project.muzzle.directives.any { it.assertPass }) {
           project.getLogger().info('No muzzle pass directives configured. Asserting pass against instrumentation compile-time dependencies')
-          assertMuzzle(bootstrapProject, toolingProject, project)
+          assertMuzzle(muzzleBootstrap, muzzleTooling, project)
         }
       }
     }
@@ -125,15 +140,15 @@ class MuzzlePlugin implements Plugin<Project> {
         project.getLogger().info("configured $muzzleDirective")
 
         if (muzzleDirective.coreJdk) {
-          runLast = runAfter = addMuzzleTask(muzzleDirective, null, project, runAfter, bootstrapProject, toolingProject)
+          runLast = runAfter = addMuzzleTask(muzzleDirective, null, project, runAfter, muzzleBootstrap, muzzleTooling)
         } else {
           runLast = muzzleDirectiveToArtifacts(muzzleDirective, system, session).inject(runLast) { last, Artifact singleVersion ->
-            runAfter = addMuzzleTask(muzzleDirective, singleVersion, project, runAfter, bootstrapProject, toolingProject)
+            runAfter = addMuzzleTask(muzzleDirective, singleVersion, project, runAfter, muzzleBootstrap, muzzleTooling)
           }
           if (muzzleDirective.assertInverse) {
             runLast = inverseOf(muzzleDirective, system, session).inject(runLast) { last1, MuzzleDirective inverseDirective ->
               muzzleDirectiveToArtifacts(inverseDirective, system, session).inject(last1) { last2, Artifact singleVersion ->
-                runAfter = addMuzzleTask(inverseDirective, singleVersion, project, runAfter, bootstrapProject, toolingProject)
+                runAfter = addMuzzleTask(inverseDirective, singleVersion, project, runAfter, muzzleBootstrap, muzzleTooling)
               }
             }
           }
@@ -163,19 +178,27 @@ class MuzzlePlugin implements Plugin<Project> {
                    |</testsuite>\n""".stripMargin()
   }
 
-  static FileCollection createMuzzleClassPath(Project project, Project bootstrapProject, String muzzleTaskName) {
+  static FileCollection createAgentClassPath(Project project) {
     FileCollection cp = project.files()
-    project.getLogger().info("Creating classpath for $muzzleTaskName")
-    // add project jars first so we can test different dd-trace-api versions
+    project.getLogger().info("Creating agent classpath for $project")
+    for (SourceSet sourceSet : project.sourceSets) {
+      if (sourceSet.name.startsWith('main')) {
+        cp += sourceSet.runtimeClasspath
+      }
+    }
+    if (project.getLogger().isInfoEnabled()) {
+      cp.forEach { project.getLogger().info("-- $it") }
+    }
+    return cp
+  }
+
+  static FileCollection createMuzzleClassPath(Project project, String muzzleTaskName) {
+    FileCollection cp = project.files()
+    project.getLogger().info("Creating muzzle classpath for $muzzleTaskName")
     if ('muzzle' == muzzleTaskName) {
       cp += project.configurations.compileClasspath
     } else {
       cp += project.configurations.getByName(muzzleTaskName)
-    }
-    for (SourceSet sourceSet: bootstrapProject.sourceSets) {
-      if (sourceSet.name.startsWith('main')) {
-        cp += sourceSet.runtimeClasspath
-      }
     }
     if (project.getLogger().isInfoEnabled()) {
       cp.forEach { project.getLogger().info("-- $it") }
@@ -284,7 +307,7 @@ class MuzzlePlugin implements Plugin<Project> {
    *
    * @return The created muzzle task.
    */
-  private static Task addMuzzleTask(MuzzleDirective muzzleDirective, Artifact versionArtifact, Project instrumentationProject, Task runAfter, Project bootstrapProject, Project toolingProject) {
+  private static Task addMuzzleTask(MuzzleDirective muzzleDirective, Artifact versionArtifact, Project instrumentationProject, Task runAfter, Configuration muzzleBootstrap, Configuration muzzleTooling) {
     def taskName
     if (muzzleDirective.coreJdk) {
       taskName = "muzzle-Assert$muzzleDirective"
@@ -317,7 +340,7 @@ class MuzzlePlugin implements Plugin<Project> {
 
     def muzzleTask = instrumentationProject.task(['type': MuzzleTask], taskName) {
       doLast {
-        assertMuzzle(bootstrapProject, toolingProject, instrumentationProject, muzzleDirective)
+        assertMuzzle(muzzleBootstrap, muzzleTooling, instrumentationProject, muzzleDirective)
       }
     }
     runAfter.finalizedBy(muzzleTask)
@@ -406,9 +429,11 @@ class MuzzleDirective {
   boolean assertPass
   boolean assertInverse = false
   boolean coreJdk = false
+  String javaVersion
 
-  void coreJdk() {
+  void coreJdk(version = null) {
     coreJdk = true
+    javaVersion = version
   }
 
   /**
@@ -537,13 +562,39 @@ abstract class MuzzleTask extends DefaultTask {
   }
 
   @javax.inject.Inject
+  abstract JavaToolchainService getJavaToolchainService()
+
+  @javax.inject.Inject
+  abstract BuildInvocationDetails getInvocationDetails()
+
+  @javax.inject.Inject
   abstract WorkerExecutor getWorkerExecutor()
 
-  void assertMuzzle(Project bootstrapProject, Project toolingProject, Project instrumentationProject, MuzzleDirective muzzleDirective = null) {
-    workerExecutor.noIsolation().submit(MuzzleAction.class, parameters -> {
-      parameters.toolingClassPath.setFrom(toolingProject.sourceSets.main.runtimeClasspath as FileCollection)
-      parameters.instrumentationClassPath.setFrom(instrumentationProject.sourceSets.main.runtimeClasspath as FileCollection)
-      parameters.testApplicationClassPath.setFrom(MuzzlePlugin.createMuzzleClassPath(instrumentationProject, bootstrapProject, name))
+  void assertMuzzle(Configuration muzzleBootstrap,
+                    Configuration muzzleTooling,
+                    Project instrumentationProject,
+                    MuzzleDirective muzzleDirective = null)
+  {
+    def workQueue
+    String javaVersion = muzzleDirective?.javaVersion
+    if (javaVersion) {
+      def javaLauncher = javaToolchainService.launcherFor { spec ->
+        spec.languageVersion.set(JavaLanguageVersion.of(javaVersion))
+      }.get()
+      workQueue = workerExecutor.processIsolation { spec ->
+        spec.forkOptions { fork ->
+          fork.executable = javaLauncher.executablePath
+        }
+      }
+    } else {
+      workQueue = workerExecutor.noIsolation()
+    }
+    workQueue.submit(MuzzleAction.class, parameters -> {
+      parameters.buildStartedTime.set(invocationDetails.buildStartedTime)
+      parameters.bootstrapClassPath.setFrom(muzzleBootstrap)
+      parameters.toolingClassPath.setFrom(muzzleTooling)
+      parameters.instrumentationClassPath.setFrom(MuzzlePlugin.createAgentClassPath(instrumentationProject))
+      parameters.testApplicationClassPath.setFrom(MuzzlePlugin.createMuzzleClassPath(instrumentationProject, name))
       if (muzzleDirective) {
         parameters.assertPass.set(muzzleDirective.assertPass)
         parameters.muzzleDirective.set(muzzleDirective.name ?: muzzleDirective.module)
@@ -563,6 +614,8 @@ abstract class MuzzleTask extends DefaultTask {
 }
 
 interface MuzzleWorkParameters extends WorkParameters {
+  Property<Long> getBuildStartedTime()
+  ConfigurableFileCollection getBootstrapClassPath()
   ConfigurableFileCollection getToolingClassPath()
   ConfigurableFileCollection getInstrumentationClassPath()
   ConfigurableFileCollection getTestApplicationClassPath()
@@ -572,19 +625,25 @@ interface MuzzleWorkParameters extends WorkParameters {
 
 abstract class MuzzleAction implements WorkAction<MuzzleWorkParameters> {
   private static final Object lock = new Object()
-  private static volatile ClassLoader toolCL
+  private static ClassLoader bootCL
+  private static ClassLoader toolCL
+  private static volatile long lastBuildStamp
 
   @Override
   void execute() {
-    if (!toolCL) {
+    // reset shared class-loaders each time a new build starts
+    long buildStamp = parameters.buildStartedTime.get()
+    if (lastBuildStamp < buildStamp || !bootCL || !toolCL) {
       synchronized (lock) {
-        if (!toolCL) {
-          toolCL = createClassLoader(parameters.toolingClassPath)
+        if (lastBuildStamp < buildStamp || !bootCL || !toolCL) {
+          bootCL = createClassLoader(parameters.bootstrapClassPath)
+          toolCL = createClassLoader(parameters.toolingClassPath, bootCL)
+          lastBuildStamp = buildStamp
         }
       }
     }
     ClassLoader instCL = createClassLoader(parameters.instrumentationClassPath, toolCL)
-    ClassLoader testCL = createClassLoader(parameters.testApplicationClassPath)
+    ClassLoader testCL = createClassLoader(parameters.testApplicationClassPath, bootCL)
     boolean assertPass = parameters.assertPass.get()
     String muzzleDirective = parameters.muzzleDirective.getOrNull()
     Method assertionMethod = instCL.loadClass('datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin')
@@ -592,7 +651,7 @@ abstract class MuzzleAction implements WorkAction<MuzzleWorkParameters> {
     assertionMethod.invoke(null, instCL, testCL, assertPass, muzzleDirective)
   }
 
-  static ClassLoader createClassLoader(cp, parent = null) {
+  static ClassLoader createClassLoader(cp, parent = ClassLoader.systemClassLoader) {
     return new URLClassLoader(cp*.toURI()*.toURL() as URL[], parent as ClassLoader)
   }
 }

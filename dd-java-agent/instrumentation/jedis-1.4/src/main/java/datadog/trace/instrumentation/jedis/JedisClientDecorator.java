@@ -2,14 +2,12 @@ package datadog.trace.instrumentation.jedis;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
-import redis.clients.jedis.Protocol;
+import redis.clients.jedis.Connection;
 
-public class JedisClientDecorator
-    extends DBTypeProcessingDatabaseClientDecorator<Protocol.Command> {
+public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Connection> {
   private static final String REDIS = "redis";
   public static final CharSequence COMPONENT_NAME = UTF8BytesString.create("redis-command");
   public static final CharSequence OPERATION_NAME =
@@ -44,20 +42,17 @@ public class JedisClientDecorator
   }
 
   @Override
-  protected String dbUser(final Protocol.Command session) {
+  protected String dbUser(final Connection connection) {
     return null;
   }
 
   @Override
-  protected String dbInstance(final Protocol.Command session) {
+  protected String dbInstance(final Connection connection) {
     return null;
   }
 
   @Override
-  protected String dbHostname(Protocol.Command command) {
-    return null;
+  protected String dbHostname(Connection connection) {
+    return connection.getHost();
   }
-
-  @Override
-  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
 }

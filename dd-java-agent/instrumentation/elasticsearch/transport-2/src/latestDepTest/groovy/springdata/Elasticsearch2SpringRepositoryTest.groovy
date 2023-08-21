@@ -55,7 +55,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
             "elasticsearch.request" "SearchRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.search.types" "doc"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -75,7 +75,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
     repo.index(doc) == doc
 
     and:
-    assertTraces(2) {
+    assertTraces(3) {
       trace(1) {
         span {
           resourceName "IndexAction"
@@ -89,7 +89,23 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
             "elasticsearch.request" "IndexRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.write.type" "doc"
-            defaultTags()
+            defaultTagsNoPeerService()
+          }
+        }
+      }
+      trace(1) {
+        span {
+          resourceName "PutMappingAction"
+          operationName "elasticsearch.query"
+          spanType DDSpanTypes.ELASTICSEARCH
+          tags {
+            "$Tags.COMPONENT" "elasticsearch-java"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.DB_TYPE" "elasticsearch"
+            "elasticsearch.action" "PutMappingAction"
+            "elasticsearch.request" "PutMappingRequest"
+            "elasticsearch.request.indices" indexName
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -108,7 +124,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
             "elasticsearch.shard.broadcast.failed" 0
             "elasticsearch.shard.broadcast.successful" 5
             "elasticsearch.shard.broadcast.total" 10
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -136,7 +152,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
             "elasticsearch.type" "doc"
             "elasticsearch.id" "1"
             "elasticsearch.version" Number
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -165,7 +181,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
             "elasticsearch.request" "IndexRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.write.type" "doc"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -184,7 +200,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
             "elasticsearch.shard.broadcast.failed" 0
             "elasticsearch.shard.broadcast.successful" 5
             "elasticsearch.shard.broadcast.total" 10
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -204,7 +220,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
             "elasticsearch.type" "doc"
             "elasticsearch.id" "1"
             "elasticsearch.version" Number
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -232,7 +248,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
             "elasticsearch.request" "DeleteRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.write.type" "doc"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -251,7 +267,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
             "elasticsearch.shard.broadcast.failed" 0
             "elasticsearch.shard.broadcast.successful" 5
             "elasticsearch.shard.broadcast.total" 10
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -269,7 +285,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
             "elasticsearch.request" "SearchRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.search.types" "doc"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }

@@ -74,6 +74,7 @@ class PlatformTest extends DDSpecification {
     "16.0.1"    | 16    | 0     | 1
     "11.0.9.1+1"| 11    | 0     | 9
     "11.0.6+10" | 11    | 0     | 6
+    "17.0.4-x"  | 17    | 0     | 4
   }
 
   def "test parse #version is at least #major, #minor, and #update"() {

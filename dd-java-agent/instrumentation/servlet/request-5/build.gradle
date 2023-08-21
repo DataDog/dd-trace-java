@@ -9,8 +9,6 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-
-apply plugin: 'org.unbroken-dome.test-sets'
 apply plugin: 'call-site-instrumentation'
 
 // jakarta.servlet-api dependencies are compiled with Java 11 and

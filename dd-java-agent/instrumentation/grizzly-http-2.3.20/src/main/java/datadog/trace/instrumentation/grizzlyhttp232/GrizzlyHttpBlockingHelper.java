@@ -8,6 +8,7 @@ import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
+import java.util.Map;
 import org.glassfish.grizzly.Buffer;
 import org.glassfish.grizzly.CompletionHandler;
 import org.glassfish.grizzly.Connection;
@@ -89,15 +90,24 @@ public class GrizzlyHttpBlockingHelper {
             BlockingActionHelper.getHttpCode(rba.getStatusCode()), "Request Blocked");
     status.setValues(httpResponse);
 
-    String acceptHeader = httpRequest.getHeader("Accept");
-    BlockingActionHelper.TemplateType type =
-        BlockingActionHelper.determineTemplateType(rba.getBlockingContentType(), acceptHeader);
+    for (Map.Entry<String, String> h : rba.getExtraHeaders().entrySet()) {
+      httpResponse.setHeader(h.getKey(), h.getValue());
+    }
 
-    httpResponse.setHeader("Content-type", BlockingActionHelper.getContentType(type));
-    byte[] template = BlockingActionHelper.getTemplate(type);
-    httpResponse.setContentLength(template.length);
-    HttpContent httpContent =
-        HttpContent.builder(httpResponse).content(HeapBuffer.wrap(template)).last(true).build();
+    HttpContent httpContent;
+    if (rba.getBlockingContentType() != BlockingContentType.NONE) {
+      String acceptHeader = httpRequest.getHeader("Accept");
+      BlockingActionHelper.TemplateType type =
+          BlockingActionHelper.determineTemplateType(rba.getBlockingContentType(), acceptHeader);
+
+      httpResponse.setHeader("Content-type", BlockingActionHelper.getContentType(type));
+      byte[] template = BlockingActionHelper.getTemplate(type);
+      httpResponse.setContentLength(template.length);
+      httpContent =
+          HttpContent.builder(httpResponse).content(HeapBuffer.wrap(template)).last(true).build();
+    } else {
+      httpContent = HttpContent.builder(httpResponse).last(true).build();
+    }
 
     Buffer buff;
     try {
@@ -123,7 +133,8 @@ public class GrizzlyHttpBlockingHelper {
       FilterChainContext ctx,
       String acceptHeader,
       int statusCode,
-      BlockingContentType templateType) {
+      BlockingContentType templateType,
+      Map<String, String> extraHeaders) {
     if (ENCODE_HTTP_PACKET == null) {
       return false;
     }
@@ -140,14 +151,23 @@ public class GrizzlyHttpBlockingHelper {
         (HttpResponsePacket) ctx.getAttributes().getAttribute(DD_RESPONSE_ATTRIBUTE);
     status.setValues(httpResponse);
 
-    BlockingActionHelper.TemplateType type =
-        BlockingActionHelper.determineTemplateType(templateType, acceptHeader);
+    for (Map.Entry<String, String> h : extraHeaders.entrySet()) {
+      httpResponse.setHeader(h.getKey(), h.getValue());
+    }
 
-    httpResponse.setHeader("Content-type", BlockingActionHelper.getContentType(type));
-    byte[] template = BlockingActionHelper.getTemplate(type);
-    httpResponse.setContentLength(template.length);
-    HttpContent httpContent =
-        HttpContent.builder(httpResponse).content(HeapBuffer.wrap(template)).last(true).build();
+    HttpContent httpContent;
+    if (templateType != BlockingContentType.NONE) {
+      BlockingActionHelper.TemplateType type =
+          BlockingActionHelper.determineTemplateType(templateType, acceptHeader);
+
+      httpResponse.setHeader("Content-type", BlockingActionHelper.getContentType(type));
+      byte[] template = BlockingActionHelper.getTemplate(type);
+      httpResponse.setContentLength(template.length);
+      httpContent =
+          HttpContent.builder(httpResponse).content(HeapBuffer.wrap(template)).last(true).build();
+    } else {
+      httpContent = HttpContent.builder(httpResponse).last(true).build();
+    }
 
     Buffer buff;
     try {

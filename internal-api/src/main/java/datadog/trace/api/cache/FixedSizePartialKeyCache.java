@@ -105,7 +105,7 @@ final class FixedSizePartialKeyCache<K, V> implements DDPartialKeyCache<K, V> {
 
   private V produceAndStoreValue(
       Producer<K, ? extends V> producer, int hash, K key, int m, int n, int pos) {
-    V value = producer.apply(key, m, n);
+    V value = producer.apply(key, hash, m, n);
     elements[pos] = new HVElement<>(hash, value);
     return value;
   }

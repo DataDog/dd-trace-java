@@ -16,5 +16,6 @@ class LocationTest extends DDSpecification {
     location.getSpanId() == spanId
     location.getPath() == "declaringClass"
     location.getLine() == 42
+    location.getMethod() == stack.methodName
   }
 }

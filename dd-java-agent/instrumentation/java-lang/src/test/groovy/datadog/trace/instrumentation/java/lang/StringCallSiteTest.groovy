@@ -2,9 +2,14 @@ package datadog.trace.instrumentation.java.lang
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.propagation.CodecModule
 import datadog.trace.api.iast.propagation.StringModule
 import foo.bar.TestStringSuite
+import groovy.transform.CompileDynamic
 
+import java.nio.charset.Charset
+
+@CompileDynamic
 class StringCallSiteTest extends AgentTestRunner {
 
   @Override
@@ -176,7 +181,45 @@ class StringCallSiteTest extends AgentTestRunner {
 
     then:
     result == 'hello'
-    1 * module.onStringConstructor(_,_)
+    1 * module.onStringConstructor(_, _)
     0 * _
+  }
+
+  void 'test get bytes'() {
+    given:
+    final module = Mock(CodecModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    final byte[] bytes = TestStringSuite.&"$method".call(args as Object[])
+
+    then:
+    bytes != null && bytes.length > 0
+    1 * module.onStringGetBytes(args[0] as String, charset, _ as byte[])
+
+    where:
+    method     | charset                         | args
+    'getBytes' | null                            | ['Hello']
+    'getBytes' | 'UTF-8'                         | ['Hello', charset]
+    'getBytes' | Charset.defaultCharset().name() | ['Hello', Charset.forName(charset)]
+  }
+
+  void 'test string constructor with byte array'() {
+    given:
+    final module = Mock(CodecModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    final result = TestStringSuite.&stringConstructor.call(args as Object[])
+
+    then:
+    result != null && !result.empty
+    1 * module.onStringFromBytes(args[0] as byte[], charset, _ as String)
+
+    where:
+    charset                         | args
+    null                            | ['Hello'.bytes]
+    'UTF-8'                         | ['Hello'.getBytes(charset), charset]
+    Charset.defaultCharset().name() | ['Hello'.getBytes(charset), Charset.forName(charset)]
   }
 }

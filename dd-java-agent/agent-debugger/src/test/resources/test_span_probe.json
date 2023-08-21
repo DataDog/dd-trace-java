@@ -1,0 +1,52 @@
+{
+  "id": "petclinic",
+  "orgId": 2,
+  "allowList": {
+    "packagePrefixes": ["com.datadog", "org.apache"],
+    "classes": []
+  },
+  "denyList": {
+    "packagePrefixes": ["java.security", "sun.security"],
+    "classes": []
+  },
+  "spanProbes": [{
+    "id": "123356536",
+    "language": "java",
+    "created": 1606407800.445507000,
+    "where": {
+      "typeName": "java.lang.Object",
+      "methodName": "toString",
+      "signature": "java.lang.String ()"
+    }
+  }, {
+    "id": "123356537",
+    "language": "java",
+    "created": 1606407801.445507000,
+    "where": {
+      "typeName": "java.lang.Object",
+      "methodName": "toString",
+      "signature": "java.lang.String ()"
+    },
+    "tags": ["version:v123", "env:staging"]
+  }, {
+    "id": "123356538",
+    "language": "java",
+    "created": 1606407801.445507000,
+    "where": {
+      "typeName": "java.lang.Object",
+      "methodName": "toString",
+      "signature": "java.lang.String ()"
+    },
+    "tags": ["version:v123", "env:staging"]
+  },{
+    "id": "123356539",
+    "language": "java",
+    "created": 1606407801.445507000,
+    "where": {
+      "typeName": "java.lang.Object",
+      "methodName": "toString",
+      "signature": "java.lang.String ()"
+    },
+    "tags": ["version:v123", "env:staging"]
+  }]
+}

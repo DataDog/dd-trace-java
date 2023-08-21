@@ -1,6 +1,7 @@
 package com.datadog.iast.sink;
 
 import com.datadog.iast.IastRequestContext;
+import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.VulnerabilityType;
 import datadog.trace.api.iast.sink.SqlInjectionModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -11,6 +12,11 @@ public class SqlInjectionModuleImpl extends SinkModuleBase implements SqlInjecti
 
   @Override
   public void onJdbcQuery(@Nullable final String queryString) {
+    onJdbcQuery(queryString, null);
+  }
+
+  @Override
+  public void onJdbcQuery(@Nullable final String queryString, @Nullable final String database) {
     if (queryString == null) {
       return;
     }
@@ -19,6 +25,10 @@ public class SqlInjectionModuleImpl extends SinkModuleBase implements SqlInjecti
     if (ctx == null) {
       return;
     }
-    checkInjection(span, ctx, VulnerabilityType.SQL_INJECTION, queryString);
+    final Evidence evidence =
+        checkInjection(span, ctx, VulnerabilityType.SQL_INJECTION, queryString);
+    if (evidence != null && database != null) {
+      evidence.getContext().put(DATABASE_PARAMETER, database);
+    }
   }
 }

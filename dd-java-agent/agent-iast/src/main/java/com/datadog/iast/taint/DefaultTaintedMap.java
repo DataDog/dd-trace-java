@@ -107,30 +107,50 @@ public final class DefaultTaintedMap implements TaintedMap {
    */
   @Override
   public void put(final @Nonnull TaintedObject entry) {
-    final int index = index(entry.positiveHashCode);
     if (isFlat) {
-      // If we flipped to flat mode:
-      // - Always override elements ignoring chaining.
-      // - Stop updating the estimated size.
-
-      // TODO: Fix the pathological case where all puts have the same identityHashCode (e.g. limit
-      // chain length?)
-      table[index] = entry;
-      if ((entry.positiveHashCode & PURGE_MASK) == 0) {
-        purge();
-      }
+      flatPut(entry);
     } else {
-      // By default, add the new entry to the head of the chain.
-      // We do not control duplicate keys (although we expect they are generally not used).
-      entry.next = table[index];
+      tailPut(entry);
+    }
+  }
+
+  /**
+   * Put operation when we are in flat mode: - Always override elements ignoring chaining. - Stop
+   * updating the estimated size.
+   */
+  private void flatPut(final @Nonnull TaintedObject entry) {
+    final int index = index(entry.positiveHashCode);
+    table[index] = entry;
+    if ((entry.positiveHashCode & PURGE_MASK) == 0) {
+      purge();
+    }
+  }
+
+  /**
+   * Put an object, always to the tail of the chain. It will not insert the element if it is already
+   * present in the map.
+   */
+  private void tailPut(final @Nonnull TaintedObject entry) {
+    final int index = index(entry.positiveHashCode);
+    TaintedObject cur = table[index];
+    if (cur == null) {
       table[index] = entry;
-      if ((entry.positiveHashCode & PURGE_MASK) == 0) {
-        // To mitigate the cost of maintaining an atomic counter, we only update the size every
-        // <PURGE_COUNT> puts. This is just an approximation, we rely on key's identity hash code as
-        // if it was a random number generator, and we assume duplicate keys are rarely inserted.
-        estimatedSize.addAndGet(PURGE_COUNT);
-        purge();
+    } else {
+      while (cur.next != null) {
+        if (cur.positiveHashCode == entry.positiveHashCode && cur.get() == entry.get()) {
+          // Duplicate, exit early.
+          return;
+        }
+        cur = cur.next;
       }
+      cur.next = entry;
+    }
+    if ((entry.positiveHashCode & PURGE_MASK) == 0) {
+      // To mitigate the cost of maintaining an atomic counter, we only update the size every
+      // <PURGE_COUNT> puts. This is just an approximation, we rely on key's identity hash code as
+      // if it was a random number generator.
+      estimatedSize.addAndGet(PURGE_COUNT);
+      purge();
     }
   }
 

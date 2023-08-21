@@ -15,13 +15,12 @@ import datadog.trace.api.iast.telemetry.IastTelemetryCollector.MetricData;
 import datadog.trace.api.iast.telemetry.IastTelemetryCollectorImpl;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.api.internal.TraceSegment;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Collection;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 public class IastTelemetryImpl implements IastTelemetry {
-
-  private static final String TRACE_METRIC_PATTERN = "dd.instrumentation_telemetry_data.iast.%s";
 
   private final Verbosity verbosity;
 
@@ -44,23 +43,43 @@ public class IastTelemetryImpl implements IastTelemetry {
       final Collection<MetricData> metrics = collector.drainMetrics();
       if (!metrics.isEmpty()) {
         addMetricsToTrace(trace, metrics);
-        IastTelemetryCollector.Holder.GLOBAL.merge(metrics);
+        addMetricsToTelemetry(metrics);
       }
     }
   }
 
   private static void addMetricsToTrace(
       final TraceSegment trace, final Collection<MetricData> metrics) {
-    final Map<IastMetric, Long> flatten =
+    final Map<String, Long> flatten =
         metrics.stream()
             .filter(data -> data.getMetric().getScope() == REQUEST)
             .collect(
                 Collectors.groupingBy(
-                    MetricData::getMetric,
+                    IastTelemetryImpl::taggedMetricName,
                     Collectors.reducing(0L, IastTelemetryImpl::flatten, Long::sum)));
-    for (final Map.Entry<IastMetric, Long> entry : flatten.entrySet()) {
-      final String tagName = String.format(TRACE_METRIC_PATTERN, entry.getKey().getName());
+    for (final Map.Entry<String, Long> entry : flatten.entrySet()) {
+      final String tagName = String.format(TRACE_METRIC_PATTERN, entry.getKey());
       trace.setTagTop(tagName, entry.getValue());
+    }
+  }
+
+  private static String taggedMetricName(final MetricData data) {
+    final IastMetric metric = data.getMetric();
+    final String tagValue = data.getTag();
+    return metric.getTag() == null || tagValue == null
+        ? metric.getName()
+        : String.format("%s.%s", metric.getName(), processTagValue(tagValue));
+  }
+
+  @SuppressForbidden
+  private static String processTagValue(final String tagValue) {
+    return tagValue.toLowerCase().replaceAll("\\.", "_");
+  }
+
+  private static void addMetricsToTelemetry(final Collection<MetricData> metrics) {
+    boolean added = IastTelemetryCollector.Holder.GLOBAL.merge(metrics);
+    if (!added) {
+      IastTelemetryCollector.LOGGER.debug("Failed to add global metrics after request");
     }
   }
 

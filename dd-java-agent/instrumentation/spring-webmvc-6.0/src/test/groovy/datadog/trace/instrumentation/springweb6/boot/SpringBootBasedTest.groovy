@@ -5,6 +5,8 @@ import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.ConfigDefaults
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.source.WebModule
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator
@@ -12,7 +14,9 @@ import datadog.trace.instrumentation.tomcat.TomcatDecorator
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import okhttp3.FormBody
+import okhttp3.Request
 import okhttp3.RequestBody
+import okhttp3.Response
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
@@ -20,7 +24,14 @@ import org.springframework.web.servlet.HandlerInterceptor
 import org.springframework.web.servlet.view.RedirectView
 import spock.lang.Shared
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.*
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.MATRIX_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_HERE
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
 class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext> {
 
@@ -68,6 +79,12 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   }
 
   @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig('dd.iast.enabled', 'true')
+  }
+
+  @Override
   HttpServer server() {
     return new SpringBootServer()
   }
@@ -109,6 +126,11 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   @Override
   boolean testBodyJson() {
     true
+  }
+
+  @Override
+  boolean testBadUrl() {
+    false
   }
 
   @Override
@@ -223,6 +245,27 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     span.getTag(IG_PATH_PARAMS_TAG) == [id: '123']
   }
 
+  void 'tainting on template var'() {
+    setup:
+    WebModule mod = Mock()
+    InstrumentationBridge.registerIastModule(mod)
+    Request request = this.request(PATH_PARAM, 'GET', null).build()
+
+    when:
+    Response response = client.newCall(request).execute()
+    response.code() == PATH_PARAM.status
+    response.close()
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    // spring-security filter causes uri matching to happen twice
+    2 * mod.onRequestPathParameter('id', '123', _)
+    0 * mod._
+
+    cleanup:
+    InstrumentationBridge.clearIastModules()
+  }
+
   def 'matrix var is pushed to IG'() {
     setup:
     def request = request(MATRIX_PARAM, 'GET', null)
@@ -239,6 +282,31 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     //FIXME: tomcat seems removing the part after the ';' on the decodedUri
     // should be  [var:['a=x,y;a=z'
     span.getTag(IG_PATH_PARAMS_TAG) == [var:['a=x,y', [a:['x', 'y', 'z']]]]
+  }
+
+  void 'tainting on matrix var'() {
+    setup:
+    WebModule mod = Mock()
+    InstrumentationBridge.registerIastModule(mod)
+    Request request = this.request(MATRIX_PARAM, 'GET', null).build()
+
+    when:
+    Response response = client.newCall(request).execute()
+    response.code() == MATRIX_PARAM.status
+    response.close()
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    // spring-security filter (AuthorizationFilter.java:95) causes uri matching to happen twice
+    2 * mod.onRequestPathParameter('var', 'a=x,y', _) // this version of spring removes ;a=z
+    2 * mod.onRequestMatrixParameter('var', 'a', _)
+    2 * mod.onRequestMatrixParameter('var', 'x', _)
+    2 * mod.onRequestMatrixParameter('var', 'y', _)
+    2 * mod.onRequestMatrixParameter('var', 'z', _)
+    0 * mod._
+
+    cleanup:
+    InstrumentationBridge.clearIastModules()
   }
 
   def 'path is extract when preHandle fails'() {

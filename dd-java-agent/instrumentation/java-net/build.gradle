@@ -5,18 +5,12 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-
-apply plugin: 'org.unbroken-dome.test-sets'
 apply plugin: 'call-site-instrumentation'
 
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  testRuntimeClasspath project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 }
 
 tasks.compileTestJava.configure {

@@ -9,6 +9,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -33,7 +34,8 @@ public final class SpanDecoratingContextDataInjector implements ContextDataInjec
     // We're at most adding 5 tags
     StringMap newContextData = new SortedArrayStringMap(contextData.size() + 5);
 
-    if (InstrumenterConfig.get().isLogsMDCTagsInjectionEnabled()) {
+    InstrumenterConfig instrumenterConfig = InstrumenterConfig.get();
+    if (instrumenterConfig.isLogsMDCTagsInjectionEnabled()) {
       String env = Config.get().getEnv();
       if (null != env && !env.isEmpty()) {
         newContextData.putValue(Tags.DD_ENV, env);
@@ -51,10 +53,14 @@ public final class SpanDecoratingContextDataInjector implements ContextDataInjec
     AgentSpan span = activeSpan();
 
     if (span != null) {
+      DDTraceId traceId = span.context().getTraceId();
+      String traceIdValue =
+          instrumenterConfig.isLogs128bTraceIdEnabled() && traceId.toHighOrderLong() != 0
+              ? traceId.toHexString()
+              : traceId.toString();
+      newContextData.putValue(CorrelationIdentifier.getTraceIdKey(), traceIdValue);
       newContextData.putValue(
           CorrelationIdentifier.getSpanIdKey(), DDSpanId.toString(span.context().getSpanId()));
-      newContextData.putValue(
-          CorrelationIdentifier.getTraceIdKey(), span.context().getTraceId().toString());
     }
 
     newContextData.putAll(contextData);

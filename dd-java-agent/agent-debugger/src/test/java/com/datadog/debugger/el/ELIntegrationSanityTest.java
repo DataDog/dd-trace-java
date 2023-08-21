@@ -4,10 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
+import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.Limits;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.lang.reflect.Field;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -39,19 +42,19 @@ public class ELIntegrationSanityTest {
   void extractAfterEl() throws IllegalAccessException {
     JsonSnapshotSerializer serializer =
         new JsonSnapshotSerializer(); // Mockito.spy(new JsonSnapshotSerializer());
-    DebuggerContext.initSnapshotSerializer(serializer);
+    DebuggerContext.initValueSerializer(serializer);
     Person p = new Person();
     // set the limit not to follow references to fields
     Limits initialLimits = new Limits(1, 0, Integer.MAX_VALUE, Integer.MAX_VALUE);
     // create new captured context
-    Snapshot.CapturedContext capturedContext = new Snapshot.CapturedContext();
+    CapturedContext capturedContext = new CapturedContext();
     // this will resolve only the first-level fields of the given object
-    List<Snapshot.CapturedValue> flds = new ArrayList<>();
+    List<CapturedContext.CapturedValue> flds = new ArrayList<>();
     Field[] fields = Person.class.getDeclaredFields();
     for (Field field : fields) {
       field.setAccessible(true);
       flds.add(
-          Snapshot.CapturedValue.of(
+          CapturedContext.CapturedValue.of(
               field.getName(),
               field.getType().getName(),
               field.get(p),
@@ -60,7 +63,7 @@ public class ELIntegrationSanityTest {
               initialLimits.maxLength,
               initialLimits.maxFieldCount));
     }
-    capturedContext.addFields(flds.toArray(new Snapshot.CapturedValue[0]));
+    capturedContext.addFields(flds.toArray(new CapturedContext.CapturedValue[0]));
 
     // '.name.value' is not present in the snapshot - it needs to be retrieved via reflection
     Value<?> val = DSL.getMember(DSL.ref("name"), "value").evaluate(capturedContext);
@@ -68,7 +71,7 @@ public class ELIntegrationSanityTest {
     assertEquals(p.name.value, val.getValue());
 
     // freeze the captured context
-    capturedContext.freeze();
+    capturedContext.freeze(new TimeoutChecker(Duration.of(1, ChronoUnit.SECONDS)));
 
     // after freezing the original value is removed and only the serialized json representation
     // remains

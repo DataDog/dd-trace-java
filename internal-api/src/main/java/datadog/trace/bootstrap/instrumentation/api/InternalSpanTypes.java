@@ -39,6 +39,8 @@ public class InternalSpanTypes {
       UTF8BytesString.create(DDSpanTypes.TEST_SUITE_END);
   public static final UTF8BytesString TEST_MODULE_END =
       UTF8BytesString.create(DDSpanTypes.TEST_MODULE_END);
+  public static final UTF8BytesString TEST_SESSION_END =
+      UTF8BytesString.create(DDSpanTypes.TEST_SESSION_END);
   public static final UTF8BytesString VULNERABILITY =
       UTF8BytesString.create(DDSpanTypes.VULNERABILITY);
 }

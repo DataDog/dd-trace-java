@@ -5,7 +5,6 @@ plugins {
 ext {
   // need access to sun.misc.SharedSecrets
   skipSettingCompilerRelease = true
-  enableJunitPlatform = true
 }
 
 // sun.misc.SharedSecrets is gone in later versions
@@ -66,8 +65,22 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.TagContext.HttpHeaders",
   "datadog.trace.bootstrap.instrumentation.api.ForwardedTagContext",
   "datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities",
+  "datadog.trace.api.civisibility.ci.CIInfo",
+  "datadog.trace.api.civisibility.ci.CIInfo.Builder",
   "datadog.trace.api.civisibility.InstrumentationBridge",
   "datadog.trace.api.civisibility.source.MethodLinesResolver.MethodLines",
+  "datadog.trace.api.civisibility.events.BuildEventsHandler.ModuleAndSessionId",
+  // POJO
+  "datadog.trace.api.git.GitInfo",
+  // POJO
+  "datadog.trace.api.git.PersonInfo",
+  // POJO
+  "datadog.trace.api.git.CommitInfo",
+  // POJO
+  "datadog.trace.api.git.GitUtils",
+  // tested indirectly by dependent modules
+  "datadog.trace.api.git.RawParseUtils",
+  // tested indirectly by dependent modules
   "datadog.trace.logging.LoggingSettingsDescription",
   "datadog.trace.util.AgentProxySelector",
   "datadog.trace.util.AgentTaskScheduler",
@@ -81,18 +94,26 @@ excludedClassesCoverage += [
   "datadog.trace.util.PidHelper",
   "datadog.trace.util.PidHelper.Fallback",
   "datadog.trace.api.IntegrationsCollector.Holder",
+  "datadog.trace.api.MetricCollector.Holder",
   "datadog.trace.api.ConfigCollector.Holder",
   "datadog.trace.api.Config.HostNameHolder",
   "datadog.trace.api.Config.RuntimeIdHolder",
+  "datadog.trace.api.DynamicConfig",
+  "datadog.trace.api.DynamicConfig.Builder",
+  "datadog.trace.api.DynamicConfig.State",
   "datadog.trace.api.InstrumenterConfig",
+  "datadog.trace.api.ResolverCacheConfig.*",
   // can't reliably force same identity hash for different instance to cover branch
   "datadog.trace.api.cache.FixedSizeCache.IdentityHash",
   "datadog.trace.api.cache.FixedSizeWeakKeyCache",
   // Interface with default method
   "datadog.trace.api.StatsDClientManager",
+  "datadog.trace.api.iast.Taintable",
   // a stub
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration",
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration.NoOp",
+  // debug
+  'datadog.trace.api.iast.Taintable.DebugLogger',
 ]
 
 excludedClassesBranchCoverage = [
@@ -116,7 +137,7 @@ dependencies {
   api "com.datadoghq:dd-javac-plugin-client:0.1.1"
 
   testImplementation project(":utils:test-utils")
-  testImplementation("org.assertj:assertj-core:2.9.1")
+  testImplementation("org.assertj:assertj-core:3.20.2")
   testImplementation deps.junit5
   testImplementation("org.junit.vintage:junit-vintage-engine:${versions.junit5}")
   testImplementation deps.commonsMath

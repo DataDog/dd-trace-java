@@ -142,6 +142,11 @@ public class CallSiteTransformer implements Instrumenter.AdviceTransformer {
     }
 
     @Override
+    public void instruction(final int opcode, final String type) {
+      mv.visitTypeInsn(opcode, type);
+    }
+
+    @Override
     public void loadConstant(final Object constant) {
       mv.visitLdcInsn(constant);
     }
@@ -207,9 +212,10 @@ public class CallSiteTransformer implements Instrumenter.AdviceTransformer {
     public void dupInvoke(String owner, String methodDescriptor, int[] parameterIndices) {
       final Type[] methodParameterTypesWithThis = methodParamTypesWithThis(owner, methodDescriptor);
 
-      int[] parameterIndicesWithThis = new int[parameterIndices.length];
+      int[] parameterIndicesWithThis = new int[parameterIndices.length + 1];
+      parameterIndices[0] = 0;
       for (int i = 0; i < parameterIndices.length; i++) {
-        parameterIndicesWithThis[i] = parameterIndices[i] + 1;
+        parameterIndicesWithThis[i + 1] = parameterIndices[i] + 1;
       }
       CallSiteUtils.dup(mv, methodParameterTypesWithThis, parameterIndicesWithThis);
     }

@@ -14,13 +14,7 @@ apply from: "$rootDir/gradle/java.gradle"
 apply plugin: "idea"
 
 // TODO latestDepTest only works on Java8 for now
-//apply plugin: 'org.unbroken-dome.test-sets'
-//
-//testSets {
-//  latestDepTest {
-//    dirName = 'test'
-//  }
-//}
+//addTestSuiteForDir('latestDepTest', 'test')
 
 sourceSets {
   "main_java11" {

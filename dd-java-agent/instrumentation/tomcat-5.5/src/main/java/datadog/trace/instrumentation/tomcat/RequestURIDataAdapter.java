@@ -40,4 +40,9 @@ final class RequestURIDataAdapter extends URIRawDataAdapter {
   protected String innerRawQuery() {
     return request.getQueryString();
   }
+
+  @Override
+  public boolean isValid() {
+    return request.getRequestURI() != null;
+  }
 }

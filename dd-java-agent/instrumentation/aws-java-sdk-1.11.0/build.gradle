@@ -16,23 +16,14 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  // Features used in test_1_11_106 (builder) is available since 1.11.84, but
-  // using 1.11.106 because of previous concerns with byte code differences
-  // in 1.11.106, also, the DeleteOptionGroup request generates more spans
-  // in 1.11.106 than 1.11.84.
-  // We test older version in separate test set to test newer version and latest deps in the 'default'
-  // test dir. Otherwise we get strange warnings in Idea.
-  test_before_1_11_106 {
-    dirName = 'test_before_1_11_106'
-  }
-
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+// Features used in test_1_11_106 (builder) is available since 1.11.84, but
+// using 1.11.106 because of previous concerns with byte code differences
+// in 1.11.106, also, the DeleteOptionGroup request generates more spans
+// in 1.11.106 than 1.11.84.
+// We test older version in separate test set to test newer version and latest deps in the 'default'
+// test dir. Otherwise we get strange warnings in Idea.
+addTestSuite('test_before_1_11_106')
+addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'com.amazonaws', name: 'aws-java-sdk-core', version: '1.11.0'

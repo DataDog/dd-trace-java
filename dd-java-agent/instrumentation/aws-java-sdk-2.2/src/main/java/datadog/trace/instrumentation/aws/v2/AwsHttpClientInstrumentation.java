@@ -7,9 +7,9 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
-import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.AWS_HTTP;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -18,6 +18,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import software.amazon.awssdk.core.internal.http.RequestExecutionContext;
 import software.amazon.awssdk.core.internal.http.pipeline.stages.MakeAsyncHttpRequestStage;
 
 /**
@@ -46,7 +47,12 @@ public final class AwsHttpClientInstrumentation extends AbstractAwsClientInstrum
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        isMethod().and(isPublic()).and(named("execute")),
+        isMethod()
+            .and(isPublic())
+            .and(named("execute"))
+            .and(
+                takesArgument(
+                    1, named("software.amazon.awssdk.core.internal.http.RequestExecutionContext"))),
         AwsHttpClientInstrumentation.class.getName() + "$AwsHttpClientAdvice");
   }
 
@@ -63,12 +69,16 @@ public final class AwsHttpClientInstrumentation extends AbstractAwsClientInstrum
      * stored in channel attributes.
      */
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(@Advice.This final Object thiz) {
+    public static AgentScope methodEnter(
+        @Advice.This final Object thiz,
+        @Advice.Argument(1) final RequestExecutionContext requestExecutionContext) {
       final AgentScope scope = activeScope();
       // check name in case TracingExecutionInterceptor failed to activate the span
       if (scope != null
-          && (AWS_HTTP.equals(scope.span().getSpanName())
-              || scope.span() instanceof AgentTracer.NoopAgentSpan)) {
+          && (scope.span() instanceof AgentTracer.NoopAgentSpan
+              || AwsSdkClientDecorator.DECORATE
+                  .spanName(requestExecutionContext.executionAttributes())
+                  .equals(scope.span().getSpanName()))) {
         if (thiz instanceof MakeAsyncHttpRequestStage) {
           scope.close(); // close async legacy HTTP span to avoid Netty leak
         } else {

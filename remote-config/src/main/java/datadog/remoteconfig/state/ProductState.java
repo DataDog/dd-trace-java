@@ -175,7 +175,7 @@ public class ProductState {
     RemoteConfigRequest.ClientInfo.ClientState.ConfigState newState =
         new RemoteConfigRequest.ClientInfo.ClientState.ConfigState();
     newState.setState(
-        configKey,
+        parsedConfigKey.getConfigId(),
         target.custom.version,
         product.name(),
         error != null ? error.getMessage() : null);

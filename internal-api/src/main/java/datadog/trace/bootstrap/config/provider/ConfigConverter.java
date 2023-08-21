@@ -68,13 +68,19 @@ final class ConfigConverter {
 
   @Nonnull
   static Map<String, String> parseMap(final String str, final String settingName) {
+    return parseMap(str, settingName, ':');
+  }
+
+  @Nonnull
+  static Map<String, String> parseMap(
+      final String str, final String settingName, final char keyValueSeparator) {
     // If we ever want to have default values besides an empty map, this will need to change.
     String trimmed = Strings.trim(str);
     if (trimmed.isEmpty()) {
       return Collections.emptyMap();
     }
     Map<String, String> map = new HashMap<>();
-    loadMap(map, trimmed, settingName);
+    loadMap(map, trimmed, settingName, keyValueSeparator);
     return map;
   }
 
@@ -116,64 +122,81 @@ final class ConfigConverter {
       return Collections.emptyMap();
     }
     Map<String, String> map = new LinkedHashMap<>();
-    loadMap(map, trimmed, settingName);
+    loadMap(map, trimmed, settingName, ':');
     return map;
   }
 
-  private static void loadMap(Map<String, String> map, String str, String settingName) {
-    // we know that the str is trimmed and rely on that there is no leading/trailing whitespace
-    boolean badFormat = false;
-    int start = 0;
-    int splitter = str.indexOf(':', start);
-    while (splitter != -1 && !badFormat) {
-      int nextSplitter = str.indexOf(':', splitter + 1);
-      int nextComma = str.indexOf(',', splitter + 1);
-      nextComma = nextComma == -1 ? str.length() : nextComma;
-      int nextSpace = str.indexOf(' ', splitter + 1);
-      nextSpace = nextSpace == -1 ? str.length() : nextSpace;
-      // if we have a delimiter after this splitter, then try to move the splitter forward to
-      // allow for tags with ':' in them
-      while (nextSplitter != -1 && nextSplitter < nextComma && nextSplitter < nextSpace) {
-        nextSplitter = str.indexOf(':', nextSplitter + 1);
-      }
-      int end;
-      if (nextSplitter == -1) {
-        // this is either the end of the string or the next position where the value should be
-        // trimmed
-        end = nextComma;
-        if (nextComma < str.length() - 1) {
-          // there are non-space characters after the ','
-          badFormat = true;
-        }
-      } else {
-        if (nextComma < str.length()) {
-          end = nextComma;
-        } else if (nextSpace < str.length()) {
-          end = nextSpace;
-        } else {
-          // this should not happen
-          end = str.length();
-          badFormat = true;
-        }
-      }
-      if (!badFormat) {
-        String key = str.substring(start, splitter).trim();
-        badFormat = key.indexOf(',') != -1;
-        if (!badFormat) {
-          String value = str.substring(splitter + 1, end).trim();
-          if (!key.isEmpty() && !value.isEmpty()) {
-            map.put(key, value);
-          }
-          splitter = nextSplitter;
-          start = end + 1;
-        }
-      }
+  private static final class BadFormatException extends Exception {
+    public BadFormatException(String message) {
+      super(message);
     }
-    if (badFormat) {
-      log.warn(
-          "Invalid config for {}: '{}'. Must match 'key1:value1,key2:value2' or 'key1:value1 key2:value2'.",
-          settingName,
-          str);
+  }
+
+  private static void loadMap(
+      Map<String, String> map, String str, String settingName, char keyValueSeparator) {
+    // we know that the str is trimmed and rely on that there is no leading/trailing whitespace
+    try {
+      int start = 0;
+      int splitter = str.indexOf(keyValueSeparator, start);
+      while (splitter != -1) {
+        int nextSplitter = str.indexOf(keyValueSeparator, splitter + 1);
+        int nextComma = str.indexOf(',', splitter + 1);
+        nextComma = nextComma == -1 ? str.length() : nextComma;
+        int nextSpace = str.indexOf(' ', splitter + 1);
+        nextSpace = nextSpace == -1 ? str.length() : nextSpace;
+        // if we have a delimiter after this splitter, then try to move the splitter forward to
+        // allow for tags with ':' in them
+        int end = nextComma < str.length() ? nextComma : nextSpace;
+        while (nextSplitter != -1 && nextSplitter < end) {
+          nextSplitter = str.indexOf(keyValueSeparator, nextSplitter + 1);
+        }
+        if (nextSplitter == -1) {
+          // this is either the end of the string or the next position where the value should be
+          // trimmed
+          end = nextComma;
+          if (nextComma < str.length() - 1) {
+            // there are non-space characters after the ','
+            throw new BadFormatException("Non white space characters after trailing ','");
+          }
+        } else {
+          if (nextComma < str.length()) {
+            end = nextComma;
+          } else if (nextSpace < str.length()) {
+            end = nextSpace;
+          } else {
+            // this should not happen
+            throw new BadFormatException("Illegal position of split character ':'");
+          }
+        }
+        String key = str.substring(start, splitter).trim();
+        if (key.indexOf(',') != -1) {
+          throw new BadFormatException("Illegal ',' character in key '" + key + "'");
+        }
+        String value = str.substring(splitter + 1, end).trim();
+        if (value.indexOf(' ') != -1) {
+          throw new BadFormatException("Illegal ' ' character in value for key '" + key + "'");
+        }
+        if (!key.isEmpty() && !value.isEmpty()) {
+          map.put(key, value);
+        }
+        splitter = nextSplitter;
+        start = end + 1;
+      }
+    } catch (Throwable t) {
+      if (t instanceof BadFormatException) {
+        log.warn(
+            "Invalid config for {}. {}. Must match "
+                + "'key1{}value1,key2{}value2' or "
+                + "'key1{}value1 key2{}value2'.",
+            settingName,
+            t.getMessage(),
+            keyValueSeparator,
+            keyValueSeparator,
+            keyValueSeparator,
+            keyValueSeparator);
+      } else {
+        log.warn("Unexpected exception during config parsing of {}.", settingName, t);
+      }
       map.clear();
     }
   }
@@ -184,68 +207,71 @@ final class ConfigConverter {
       String settingName,
       String defaultPrefix,
       boolean lowercaseKeys) {
-    boolean badFormat = false;
-    defaultPrefix = null == defaultPrefix ? "" : defaultPrefix;
-    if (!defaultPrefix.isEmpty() && !defaultPrefix.endsWith(".")) {
-      defaultPrefix = defaultPrefix + ".";
-    }
-    int start = 0;
-    int len = str.length();
-    char listChar = str.indexOf(',') == -1 ? ' ' : ',';
-    while (!badFormat && start < len) {
-      int end = len;
-      int listPos = str.indexOf(listChar, start);
-      int mapPos = str.indexOf(':', start);
-      int delimiter = listPos == -1 ? mapPos : mapPos == -1 ? listPos : Math.min(listPos, mapPos);
-      if (delimiter == -1) {
-        delimiter = end;
-      } else if (delimiter == mapPos) {
-        // we're in a mapping, so let's find the next part
-        int nextList = str.indexOf(listChar, delimiter + 1);
-        if (mapPos == start) {
-          // can't have an empty key
-          badFormat = true;
-        } else if (nextList != -1) {
-          end = nextList;
-        }
-      } else {
-        // delimiter is at listPos, so set end to delimiter
-        end = delimiter;
+    try {
+      defaultPrefix = null == defaultPrefix ? "" : defaultPrefix;
+      if (!defaultPrefix.isEmpty() && !defaultPrefix.endsWith(".")) {
+        defaultPrefix = defaultPrefix + ".";
       }
+      int start = 0;
+      int len = str.length();
+      char listChar = str.indexOf(',') == -1 ? ' ' : ',';
+      while (start < len) {
+        int end = len;
+        int listPos = str.indexOf(listChar, start);
+        int mapPos = str.indexOf(':', start);
+        int delimiter = listPos == -1 ? mapPos : mapPos == -1 ? listPos : Math.min(listPos, mapPos);
+        if (delimiter == -1) {
+          delimiter = end;
+        } else if (delimiter == mapPos) {
+          // we're in a mapping, so let's find the next part
+          int nextList = str.indexOf(listChar, delimiter + 1);
+          if (mapPos == start) {
+            // can't have an empty key
+            throw new BadFormatException("Illegal empty key at position " + start);
+          } else if (nextList != -1) {
+            end = nextList;
+          }
+        } else {
+          // delimiter is at listPos, so set end to delimiter
+          end = delimiter;
+        }
 
-      if (!badFormat && start != end) {
-        String key = trimmedHeader(str, start, delimiter, lowercaseKeys);
-        if (!key.isEmpty()) {
-          String value;
-          if (delimiter == mapPos) {
-            value = trimmedHeader(str, delimiter + 1, end, false);
-            // tags must start with a letter
-            if (!value.isEmpty() && !Character.isLetter(value.charAt(0))) {
-              value = "";
-              badFormat = true;
-            }
-          } else {
-            if (Character.isLetter(key.charAt(0))) {
-              value = defaultPrefix + normalizedHeaderTag(key);
-            } else {
+        if (start != end) {
+          String key = trimmedHeader(str, start, delimiter, lowercaseKeys);
+          if (!key.isEmpty()) {
+            String value;
+            if (delimiter == mapPos) {
+              value = trimmedHeader(str, delimiter + 1, end, false);
               // tags must start with a letter
-              value = "";
-              badFormat = true;
+              if (!value.isEmpty() && !Character.isLetter(value.charAt(0))) {
+                throw new BadFormatException(
+                    "Illegal tag starting with non letter for key '" + key + "'");
+              }
+            } else {
+              if (Character.isLetter(key.charAt(0))) {
+                value = defaultPrefix + normalizedHeaderTag(key);
+              } else {
+                // tags must start with a letter
+                throw new BadFormatException(
+                    "Illegal key only tag starting with non letter '" + key + "'");
+              }
+            }
+            if (!value.isEmpty()) {
+              map.put(key, value);
             }
           }
-          if (!value.isEmpty()) {
-            map.put(key, value);
-          }
         }
+        start = end + 1;
       }
-      start = end + 1;
-    }
-
-    if (badFormat) {
-      log.warn(
-          "Invalid config for {}: '{}'. Must match '(key:value|key)([ ,](key:value|key))*'.",
-          settingName,
-          str);
+    } catch (Throwable t) {
+      if (t instanceof BadFormatException) {
+        log.warn(
+            "Invalid config for {}. {}. Must match '(key:value|key)([ ,](key:value|key))*'.",
+            settingName,
+            t.getMessage());
+      } else {
+        log.warn("Unexpected exception during config parsing of {}.", settingName, t);
+      }
       map.clear();
     }
   }

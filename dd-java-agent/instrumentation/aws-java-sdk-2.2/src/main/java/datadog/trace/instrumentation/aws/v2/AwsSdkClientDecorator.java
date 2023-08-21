@@ -1,6 +1,9 @@
 package datadog.trace.instrumentation.aws.v2;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
@@ -18,8 +21,8 @@ import software.amazon.awssdk.http.SdkHttpResponse;
 public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, SdkHttpResponse>
     implements AgentPropagation.Setter<SdkHttpRequest.Builder> {
   public static final AwsSdkClientDecorator DECORATE = new AwsSdkClientDecorator();
-
-  public static final CharSequence AWS_HTTP = UTF8BytesString.create("aws.http");
+  private static final DDCache<String, CharSequence> CACHE =
+      DDCaches.newFixedSizeCache(128); // cloud services can have high cardinality
 
   static final CharSequence COMPONENT_NAME = UTF8BytesString.create("java-aws-sdk");
 
@@ -29,44 +32,88 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   public static final boolean AWS_LEGACY_TRACING =
       Config.get().isLegacyTracingEnabled(false, "aws-sdk");
 
-  public static final boolean SQS_LEGACY_TRACING = Config.get().isLegacyTracingEnabled(true, "sqs");
+  public static final boolean SQS_LEGACY_TRACING =
+      Config.get().isLegacyTracingEnabled(SpanNaming.instance().version() == 0, "sqs");
 
   private static final String SQS_SERVICE_NAME =
       AWS_LEGACY_TRACING || SQS_LEGACY_TRACING ? "sqs" : Config.get().getServiceName();
 
+  private static final String SNS_SERVICE_NAME =
+      SpanNaming.instance().namingSchema().cloud().serviceForRequest("aws", "sns");
+  private static final String GENERIC_SERVICE_NAME =
+      SpanNaming.instance().namingSchema().cloud().serviceForRequest("aws", null);
+
+  public CharSequence spanName(final ExecutionAttributes attributes) {
+    final String awsServiceName = attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME);
+    final String awsOperationName = attributes.getAttribute(SdkExecutionAttribute.OPERATION_NAME);
+
+    final String qualifiedName = awsServiceName + "." + awsOperationName;
+
+    return CACHE.computeIfAbsent(
+        qualifiedName,
+        s ->
+            SpanNaming.instance()
+                .namingSchema()
+                .cloud()
+                .operationForRequest(
+                    "aws", attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME), s));
+  }
+
   public AgentSpan onSdkRequest(final AgentSpan span, final SdkRequest request) {
     // S3
-    request
-        .getValueForField("Bucket", String.class)
-        .ifPresent(name -> span.setTag("aws.bucket.name", name));
+    request.getValueForField("Bucket", String.class).ifPresent(name -> setBucketName(span, name));
     request
         .getValueForField("StorageClass", String.class)
         .ifPresent(storageClass -> span.setTag("aws.storage.class", storageClass));
+
     // SQS
     request
         .getValueForField("QueueUrl", String.class)
-        .ifPresent(name -> span.setTag("aws.queue.url", name));
-    request
-        .getValueForField("QueueName", String.class)
-        .ifPresent(name -> span.setTag("aws.queue.name", name));
+        .ifPresent(url -> span.setTag("aws.queue.url", url));
+    request.getValueForField("QueueName", String.class).ifPresent(name -> setQueueName(span, name));
+
     // SNS
     request
         .getValueForField("TopicArn", String.class)
-        .ifPresent(
-            name -> span.setTag("aws.topic.name", name.substring(name.lastIndexOf(':') + 1)));
+        .ifPresent(arn -> setTopicName(span, arn.substring(arn.lastIndexOf(':') + 1)));
+
     // Kinesis
     request
         .getValueForField("StreamName", String.class)
-        .ifPresent(name -> span.setTag("aws.stream.name", name));
+        .ifPresent(name -> setStreamName(span, name));
+
     // DynamoDB
-    request
-        .getValueForField("TableName", String.class)
-        .ifPresent(name -> span.setTag("aws.table.name", name));
+    request.getValueForField("TableName", String.class).ifPresent(name -> setTableName(span, name));
+
     return span;
   }
 
-  public AgentSpan onAttributes(final AgentSpan span, final ExecutionAttributes attributes) {
+  private static void setBucketName(AgentSpan span, String name) {
+    span.setTag("aws.bucket.name", name);
+    span.setTag("bucketname", name);
+  }
 
+  private static void setQueueName(AgentSpan span, String name) {
+    span.setTag("aws.queue.name", name);
+    span.setTag("queuename", name);
+  }
+
+  private static void setTopicName(AgentSpan span, String name) {
+    span.setTag("aws.topic.name", name);
+    span.setTag("topicname", name);
+  }
+
+  private static void setStreamName(AgentSpan span, String name) {
+    span.setTag("aws.stream.name", name);
+    span.setTag("streamname", name);
+  }
+
+  private static void setTableName(AgentSpan span, String name) {
+    span.setTag("aws.table.name", name);
+    span.setTag("tablename", name);
+  }
+
+  public AgentSpan onAttributes(final AgentSpan span, final ExecutionAttributes attributes) {
     final String awsServiceName = attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME);
     final String awsOperationName = attributes.getAttribute(SdkExecutionAttribute.OPERATION_NAME);
 
@@ -81,16 +128,17 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       case "Sqs.DeleteMessageBatch":
         span.setServiceName(SQS_SERVICE_NAME);
         break;
+      case "Sns.PublishBatch":
       case "Sns.Publish":
-        span.setServiceName("sns");
+        span.setServiceName(SNS_SERVICE_NAME);
         break;
       default:
-        span.setServiceName("java-aws-sdk");
+        span.setServiceName(GENERIC_SERVICE_NAME);
         break;
     }
-
     span.setTag("aws.agent", COMPONENT_NAME);
     span.setTag("aws.service", awsServiceName);
+    span.setTag("aws_service", awsServiceName);
     span.setTag("aws.operation", awsOperationName);
 
     return span;

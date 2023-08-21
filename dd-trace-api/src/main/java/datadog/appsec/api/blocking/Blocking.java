@@ -1,5 +1,8 @@
 package datadog.appsec.api.blocking;
 
+import java.util.Collections;
+import java.util.Map;
+
 /**
  * Functionality related to blocking requests. This functionality is available if and only if the
  * AppSec subsystem is enabled.
@@ -45,11 +48,30 @@ public class Blocking {
    *
    * @param statusCode the status code of the response
    * @param contentType the content-type of the response.
+   * @param extraHeaders map of headers to set in the response
+   * @return whether blocking was/will be attempted
+   */
+  public static boolean tryCommitBlockingResponse(
+      int statusCode, BlockingContentType contentType, Map<String, String> extraHeaders) {
+    try {
+      return SERVICE.tryCommitBlockingResponse(statusCode, contentType, extraHeaders);
+    } catch (Exception e) {
+      return false;
+    }
+  }
+
+  /**
+   * Equivalent to calling {@link #tryCommitBlockingResponse(int, BlockingContentType, Map<String,
+   * String>)} with the last parameter being an empty map.
+   *
+   * @param statusCode the status code of the response
+   * @param contentType the content-type of the response.
    * @return whether blocking was/will be attempted
    */
   public static boolean tryCommitBlockingResponse(int statusCode, BlockingContentType contentType) {
     try {
-      return SERVICE.tryCommitBlockingResponse(statusCode, contentType);
+      return SERVICE.tryCommitBlockingResponse(
+          statusCode, BlockingContentType.NONE, Collections.emptyMap());
     } catch (Exception e) {
       return false;
     }
@@ -98,7 +120,9 @@ public class Blocking {
       }
 
       SERVICE.tryCommitBlockingResponse(
-          blockingDetails.statusCode, blockingDetails.blockingContentType);
+          blockingDetails.statusCode,
+          blockingDetails.blockingContentType,
+          blockingDetails.extraHeaders);
       throw new BlockingException("Blocking user with id '" + userId + "'");
     }
   }

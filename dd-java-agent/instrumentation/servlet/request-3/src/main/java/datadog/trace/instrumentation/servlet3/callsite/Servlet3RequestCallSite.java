@@ -4,7 +4,7 @@ import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.IastAdvice.Source;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.model.SourceTypes;
+import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.source.WebModule;
 import java.util.Map;
 import javax.servlet.ServletRequest;
@@ -12,7 +12,7 @@ import javax.servlet.ServletRequest;
 @CallSite(spi = IastAdvice.class)
 public class Servlet3RequestCallSite {
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
   @CallSite.After("java.util.Map javax.servlet.ServletRequest.getParameterMap()")
   @CallSite.After("java.util.Map javax.servlet.http.HttpServletRequest.getParameterMap()")
   @CallSite.After("java.util.Map javax.servlet.http.HttpServletRequestWrapper.getParameterMap()")
@@ -22,12 +22,7 @@ public class Servlet3RequestCallSite {
     final WebModule module = InstrumentationBridge.WEB;
     if (module != null) {
       try {
-        for (Map.Entry<String, String[]> entry : map.entrySet()) {
-          module.onParameterName(entry.getKey());
-          for (String value : entry.getValue()) {
-            module.onParameterValue(entry.getKey(), value);
-          }
-        }
+        module.onParameterValues(map);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetParameter threw", e);
       }

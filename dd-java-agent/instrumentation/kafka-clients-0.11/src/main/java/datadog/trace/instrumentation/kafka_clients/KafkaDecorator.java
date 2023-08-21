@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.kafka_clients;
 
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.CONSUMER_GROUP;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.OFFSET;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.PARTITION;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
@@ -10,23 +11,34 @@ import datadog.trace.api.Config;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
+import java.util.function.Function;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.record.TimestampType;
 
 public class KafkaDecorator extends MessagingClientDecorator {
+  private static final String KAFKA = "kafka";
   public static final CharSequence JAVA_KAFKA = UTF8BytesString.create("java-kafka");
-  public static final CharSequence KAFKA_CONSUME = UTF8BytesString.create("kafka.consume");
-  public static final CharSequence KAFKA_PRODUCE = UTF8BytesString.create("kafka.produce");
+  public static final CharSequence KAFKA_CONSUME =
+      UTF8BytesString.create(
+          SpanNaming.instance().namingSchema().messaging().inboundOperation(KAFKA));
+  public static final CharSequence KAFKA_PRODUCE =
+      UTF8BytesString.create(
+          SpanNaming.instance().namingSchema().messaging().outboundOperation(KAFKA));
   public static final CharSequence KAFKA_DELIVER = UTF8BytesString.create("kafka.deliver");
   public static final boolean KAFKA_LEGACY_TRACING =
-      Config.get().isLegacyTracingEnabled(true, "kafka");
-
+      Config.get().isLegacyTracingEnabled(SpanNaming.instance().version() == 0, KAFKA);
+  public static final boolean TIME_IN_QUEUE_ENABLED =
+      Config.get()
+          .isTimeInQueueEnabled(
+              !KAFKA_LEGACY_TRACING && SpanNaming.instance().version() == 0, KAFKA);
   public static final String KAFKA_PRODUCED_KEY = "x_datadog_kafka_produced";
   private final String spanKind;
   private final CharSequence spanType;
@@ -37,6 +49,10 @@ public class KafkaDecorator extends MessagingClientDecorator {
   private static final Functions.Prefix PRODUCER_PREFIX = new Functions.Prefix("Produce Topic ");
   private static final DDCache<CharSequence, CharSequence> CONSUMER_RESOURCE_NAME_CACHE =
       DDCaches.newFixedSizeCache(32);
+  private static final DDCache<ProducerConfig, CharSequence> PRODUCER_BOOSTRAP_SERVERS_CACHE =
+      DDCaches.newFixedSizeWeakKeyCache(16);
+  private static final Function<ProducerConfig, CharSequence> BOOTSTRAP_SERVERS_JOINER =
+      pc -> String.join(",", pc.getList(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG));
   private static final Functions.Prefix CONSUMER_PREFIX = new Functions.Prefix("Consume Topic ");
 
   private static final String LOCAL_SERVICE_NAME =
@@ -54,7 +70,7 @@ public class KafkaDecorator extends MessagingClientDecorator {
       new KafkaDecorator(
           Tags.SPAN_KIND_BROKER,
           InternalSpanTypes.MESSAGE_BROKER,
-          null /* service name will be set later on */);
+          SpanNaming.instance().namingSchema().messaging().timeInQueueService(KAFKA));
 
   protected KafkaDecorator(String spanKind, CharSequence spanType, String serviceName) {
     this.spanKind = spanKind;
@@ -112,16 +128,21 @@ public class KafkaDecorator extends MessagingClientDecorator {
       span.setResourceName(topic);
       if (Config.get().isMessageBrokerSplitByDestination()) {
         span.setServiceName(topic);
-      } else {
-        span.setServiceName("kafka");
       }
     }
   }
 
-  public void onProduce(final AgentSpan span, final ProducerRecord record) {
+  public void onProduce(
+      final AgentSpan span, final ProducerRecord record, final ProducerConfig producerConfig) {
     if (record != null) {
       if (record.partition() != null) {
         span.setTag(PARTITION, record.partition());
+      }
+      if (producerConfig != null) {
+        span.setTag(
+            KAFKA_BOOTSTRAP_SERVERS,
+            PRODUCER_BOOSTRAP_SERVERS_CACHE.computeIfAbsent(
+                producerConfig, BOOTSTRAP_SERVERS_JOINER));
       }
       final String topic = record.topic() == null ? "kafka" : record.topic();
       span.setResourceName(PRODUCER_RESOURCE_NAME_CACHE.computeIfAbsent(topic, PRODUCER_PREFIX));

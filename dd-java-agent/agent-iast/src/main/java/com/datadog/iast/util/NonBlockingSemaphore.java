@@ -5,17 +5,50 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public interface NonBlockingSemaphore {
 
-  boolean acquire();
+  default boolean acquire() {
+    return acquire(1);
+  }
 
-  int release();
+  boolean acquire(int count);
+
+  default int release() {
+    return release(1);
+  }
+
+  int release(int count);
 
   int available();
 
   void reset();
 
+  static NonBlockingSemaphore unlimited() {
+    return new UnlimitedSemaphore();
+  }
+
   static NonBlockingSemaphore withPermitCount(final int permits) {
     assert permits > 0;
     return permits == 1 ? new AtomicBooleanSemaphore() : new AtomicIntegerSemaphore(permits);
+  }
+
+  class UnlimitedSemaphore implements NonBlockingSemaphore {
+
+    @Override
+    public boolean acquire(final int count) {
+      return true;
+    }
+
+    @Override
+    public int release(final int count) {
+      return Integer.MAX_VALUE;
+    }
+
+    @Override
+    public int available() {
+      return Integer.MAX_VALUE;
+    }
+
+    @Override
+    public void reset() {}
   }
 
   class AtomicBooleanSemaphore implements NonBlockingSemaphore {
@@ -26,12 +59,12 @@ public interface NonBlockingSemaphore {
     }
 
     @Override
-    public boolean acquire() {
-      return available.compareAndSet(true, false);
+    public boolean acquire(final int count) {
+      return count == 1 && available.compareAndSet(true, false);
     }
 
     @Override
-    public int release() {
+    public int release(final int count) {
       reset();
       return available();
     }
@@ -59,16 +92,16 @@ public interface NonBlockingSemaphore {
     }
 
     @Override
-    public boolean acquire() {
+    public boolean acquire(final int count) {
       if (available.get() == 0) {
         return false;
       }
-      return available.getAndUpdate(x -> x > 0 ? x - 1 : x) > 0;
+      return available.getAndUpdate(x -> x >= count ? x - count : x) >= count;
     }
 
     @Override
-    public int release() {
-      return available.updateAndGet(x -> x < permits ? x + 1 : x);
+    public int release(final int count) {
+      return available.updateAndGet(x -> (x + count) <= permits ? x + count : x);
     }
 
     @Override

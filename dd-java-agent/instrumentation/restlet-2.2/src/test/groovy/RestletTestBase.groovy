@@ -77,6 +77,11 @@ abstract class RestletTestBase extends HttpServerTest<Component> {
 
   @Override
   String expectedOperationName() {
+    return operation()
+  }
+
+  @Override
+  String operation() {
     return "restlet-http.request"
   }
 
@@ -101,6 +106,11 @@ abstract class RestletTestBase extends HttpServerTest<Component> {
   @Override
   boolean hasDecodedResource() {
     return false
+  }
+
+  @Override
+  boolean testBadUrl() {
+    false
   }
 
   @Override

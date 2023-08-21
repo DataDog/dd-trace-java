@@ -168,7 +168,7 @@ class IastMetricHandlerTest extends Specification {
     final value = 5
     final iastMetric = IastMetric.EXECUTED_PROPAGATION
     final delegate = Mock(IastTelemetryCollector)
-    final handler = new IastMetricHandler.DelegatingHandler(iastMetric, delegate)
+    final handler = IastMetricHandler.delegating(iastMetric, delegate)
 
     when:
     testHandler(handler, times, value)

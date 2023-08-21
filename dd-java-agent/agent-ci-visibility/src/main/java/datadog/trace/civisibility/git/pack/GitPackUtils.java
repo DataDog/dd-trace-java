@@ -38,7 +38,8 @@ public final class GitPackUtils {
 
   public static byte[] readBytes(final RandomAccessFile file, final int numBytes)
       throws IOException {
-    final byte[] buff = new byte[numBytes];
+    long remainingBytes = file.length() - file.getFilePointer();
+    final byte[] buff = new byte[Math.min(numBytes, (int) remainingBytes)];
     file.readFully(buff);
     return buff;
   }

@@ -15,11 +15,7 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest
-}
+addTestSuiteForDir('latestDepTest', 'latestDepTest')
 
 dependencies {
   compileOnly group: 'org.elasticsearch', name: 'elasticsearch', version: '2.0.0'

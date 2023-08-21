@@ -1,5 +1,10 @@
-import datadog.trace.agent.test.AgentTestRunner
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
+
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -33,12 +38,7 @@ import java.util.concurrent.Future
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
-
-abstract class KafkaClientTestBase extends AgentTestRunner {
+abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   static final SHARED_TOPIC = "shared.topic"
 
   @Rule
@@ -61,7 +61,27 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     PRODUCER_PATHWAY_EDGE_TAGS.put("type", "kafka")
   }
 
-  abstract String expectedServiceName()
+  @Override
+  int version() {
+    0
+  }
+
+  @Override
+  String operation() {
+    return null
+  }
+
+  String operationForProducer() {
+    "kafka.produce"
+  }
+
+  String operationForConsumer() {
+    "kafka.consume"
+  }
+
+  String serviceForTimeInQueue() {
+    "kafka"
+  }
 
   abstract boolean hasQueueSpan()
 
@@ -136,7 +156,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
       trace(3) {
         basicSpan(it, "parent")
         basicSpan(it, "producer callback", span(0))
-        producerSpan(it, span(0), false)
+        producerSpan(it, senderProps, span(0), false)
       }
       if (hasQueueSpan()) {
         trace(2) {
@@ -167,11 +187,10 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
         edgeTags == [
           "direction:in",
           "group:sender",
-          "partition:" + received.partition(),
           "topic:$SHARED_TOPIC".toString(),
           "type:kafka"
         ]
-        edgeTags.size() == 5
+        edgeTags.size() == 4
       }
       List<String> produce = ["partition:"+received.partition(), "topic:"+SHARED_TOPIC, "type:kafka_produce"]
       List<String> commit = [
@@ -271,7 +290,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
       trace(3) {
         basicSpan(it, "parent")
         basicSpan(it, "producer callback", span(0))
-        producerSpan(it, span(0), false)
+        producerSpan(it, senderProps, span(0), false)
       }
       if (hasQueueSpan()) {
         trace(2) {
@@ -302,11 +321,10 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
         edgeTags == [
           "direction:in",
           "group:sender",
-          "partition:" + received.partition(),
           "topic:$SHARED_TOPIC".toString(),
           "type:kafka"
         ]
-        edgeTags.size() == 5
+        edgeTags.size() == 4
       }
       List<String> produce = ["partition:"+received.partition(), "topic:"+SHARED_TOPIC, "type:kafka_produce"]
       List<String> commit = [
@@ -373,7 +391,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
 
     assertTraces(2, SORT_TRACES_BY_ID) {
       trace(1) {
-        producerSpan(it, null, false, true)
+        producerSpan(it, senderProps, null, false, true)
       }
       if (hasQueueSpan()) {
         trace(2) {
@@ -427,7 +445,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
 
     assertTraces(2, SORT_TRACES_BY_ID) {
       trace(1) {
-        producerSpan(it)
+        producerSpan(it, senderProps)
       }
       if (hasQueueSpan()) {
         trace(2) {
@@ -483,7 +501,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
 
     assertTraces(2, SORT_TRACES_BY_ID) {
       trace(1) {
-        producerSpan(it)
+        producerSpan(it, senderProps)
       }
       if (hasQueueSpan()) {
         trace(2) {
@@ -539,7 +557,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
 
     assertTraces(2, SORT_TRACES_BY_ID) {
       trace(1) {
-        producerSpan(it)
+        producerSpan(it, senderProps)
       }
       if (hasQueueSpan()) {
         trace(2) {
@@ -600,13 +618,13 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
 
       // producing traces
       trace(1) {
-        producerSpan(it)
+        producerSpan(it, senderProps)
       }
       trace(1) {
-        producerSpan(it)
+        producerSpan(it, senderProps)
       }
       trace(1) {
-        producerSpan(it)
+        producerSpan(it, senderProps)
       }
 
       // iterating to the end of ListIterator:
@@ -713,7 +731,6 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     }
 
     then:
-    int partition = records.first().partition()
     def receivedSet = greetings.toSet()
     greetings.eachWithIndex { g, i ->
       def received = records.poll(5, TimeUnit.SECONDS)
@@ -730,11 +747,11 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
       trace(7) {
         basicSpan(it, "parent")
         basicSpan(it, "producer callback", span(0))
-        producerSpan(it, span(0), false)
+        producerSpan(it, senderProps, span(0), false)
         basicSpan(it, "producer callback", span(0))
-        producerSpan(it, span(0), false)
+        producerSpan(it, senderProps, span(0), false)
         basicSpan(it, "producer callback", span(0))
-        producerSpan(it, span(0), false)
+        producerSpan(it, senderProps, span(0), false)
       }
 
       if (hasQueueSpan()) {
@@ -772,8 +789,8 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["group:sender", "partition:" + partition, "topic:$SHARED_TOPIC".toString(), "type:kafka"]
-        edgeTags.size() == 4
+        edgeTags == ["group:sender", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
+        edgeTags.size() == 3
       }
     }
 
@@ -851,13 +868,14 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
 
   def producerSpan(
     TraceAssert trace,
+    Map<String,?> config,
     DDSpan parentSpan = null,
     boolean partitioned = true,
     boolean tombstone = false
   ) {
     trace.span {
-      serviceName hasQueueSpan() ? expectedServiceName() : "kafka"
-      operationName "kafka.produce"
+      serviceName service()
+      operationName operationForProducer()
       resourceName "Produce Topic $SHARED_TOPIC"
       spanType "queue"
       errored false
@@ -870,6 +888,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
       tags {
         "$Tags.COMPONENT" "java-kafka"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+        "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" config.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG)
         if (partitioned) {
           "$InstrumentationTags.PARTITION" { it >= 0 }
         }
@@ -879,6 +898,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
         if ({isDataStreamsEnabled()}) {
           "$DDTags.PATHWAY_HASH" { String }
         }
+        peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
         defaultTags()
       }
     }
@@ -889,7 +909,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     DDSpan parentSpan = null
   ) {
     trace.span {
-      serviceName splitByDestination() ? "$SHARED_TOPIC" : "kafka"
+      serviceName splitByDestination() ? "$SHARED_TOPIC" :  serviceForTimeInQueue()
       operationName "kafka.deliver"
       resourceName "$SHARED_TOPIC"
       spanType "queue"
@@ -916,8 +936,8 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     boolean distributedRootSpan = !hasQueueSpan()
   ) {
     trace.span {
-      serviceName hasQueueSpan() ? expectedServiceName() : "kafka"
-      operationName "kafka.consume"
+      serviceName service()
+      operationName operationForConsumer()
       resourceName "Consume Topic $SHARED_TOPIC"
       spanType "queue"
       errored false
@@ -947,17 +967,12 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
   }
 }
 
-class KafkaClientForkedTest extends KafkaClientTestBase {
+abstract class KafkaClientForkedTest extends KafkaClientTestBase {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-    injectSysConfig("dd.service", "KafkaClientTest")
     injectSysConfig("dd.kafka.legacy.tracing.enabled", "false")
-  }
-
-  @Override
-  String expectedServiceName() {
-    return "KafkaClientTest"
+    injectSysConfig("dd.service", "KafkaClientTest")
   }
 
   @Override
@@ -971,6 +986,45 @@ class KafkaClientForkedTest extends KafkaClientTestBase {
   }
 }
 
+class KafkaClientV0ForkedTest extends KafkaClientForkedTest {
+  @Override
+  String service() {
+    return "KafkaClientTest"
+  }
+}
+
+class KafkaClientV1ForkedTest extends KafkaClientForkedTest {
+  @Override
+  int version() {
+    1
+  }
+
+  @Override
+  String service() {
+    return "KafkaClientTest"
+  }
+
+  @Override
+  String operationForProducer() {
+    "kafka.send"
+  }
+
+  @Override
+  String operationForConsumer() {
+    return "kafka.process"
+  }
+
+  @Override
+  String serviceForTimeInQueue() {
+    "kafka-queue"
+  }
+
+  @Override
+  boolean hasQueueSpan() {
+    false
+  }
+}
+
 class KafkaClientSplitByDestinationForkedTest extends KafkaClientTestBase {
   @Override
   void configurePreAgent() {
@@ -981,7 +1035,7 @@ class KafkaClientSplitByDestinationForkedTest extends KafkaClientTestBase {
   }
 
   @Override
-  String expectedServiceName() {
+  String service() {
     return "KafkaClientTest"
   }
 
@@ -996,15 +1050,16 @@ class KafkaClientSplitByDestinationForkedTest extends KafkaClientTestBase {
   }
 }
 
-class KafkaClientLegacyTracingForkedTest extends KafkaClientTestBase {
+abstract class KafkaClientLegacyTracingForkedTest extends KafkaClientTestBase {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
+    injectSysConfig("dd.service", "KafkaClientLegacyTest")
     injectSysConfig("dd.kafka.legacy.tracing.enabled", "true")
   }
 
   @Override
-  String expectedServiceName() {
+  String service() {
     return "kafka"
   }
 
@@ -1019,6 +1074,34 @@ class KafkaClientLegacyTracingForkedTest extends KafkaClientTestBase {
   }
 }
 
+class KafkaClientLegacyTracingV0ForkedTest extends KafkaClientLegacyTracingForkedTest{
+
+
+}
+
+class KafkaClientLegacyTracingV1ForkedTest extends KafkaClientLegacyTracingForkedTest{
+
+  @Override
+  int version() {
+    1
+  }
+
+  @Override
+  String operationForProducer() {
+    "kafka.send"
+  }
+
+  @Override
+  String operationForConsumer() {
+    return "kafka.process"
+  }
+
+  @Override
+  String serviceForTimeInQueue() {
+    "kafka-queue"
+  }
+}
+
 class KafkaClientDataStreamsDisabledForkedTest extends KafkaClientTestBase {
   @Override
   void configurePreAgent() {
@@ -1029,8 +1112,8 @@ class KafkaClientDataStreamsDisabledForkedTest extends KafkaClientTestBase {
   }
 
   @Override
-  String expectedServiceName() {
-    return "KafkaClientDataStreamsDisabledForkedTest"
+  String service() {
+    return "kafka"
   }
 
   @Override

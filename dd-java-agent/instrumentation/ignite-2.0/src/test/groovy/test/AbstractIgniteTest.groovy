@@ -15,7 +15,7 @@ import spock.lang.Shared
 
 abstract class AbstractIgniteTest extends VersionedNamingTestBase {
   static final String V0_SERVICE = "ignite"
-  static final String V1_SERVICE = Config.get().getServiceName() + "-ignite"
+  static final String V1_SERVICE = Config.get().getServiceName()
   static final String V0_OPERATION = "ignite.cache"
   static final String V1_OPERATION = "ignite.command"
 
@@ -79,7 +79,7 @@ abstract class AbstractIgniteTest extends VersionedNamingTestBase {
           "ignite.instance" igniteClient.name()
         }
         "ignite.version" igniteClient.version().toString()
-        defaultTags()
+        defaultTagsNoPeerService()
       }
     }
   }

@@ -6,7 +6,6 @@ import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.ToJson;
-import datadog.common.container.ContainerInfo;
 import datadog.communication.ddagent.TracerVersion;
 import datadog.telemetry.api.ApiVersion;
 import datadog.telemetry.api.Application;
@@ -71,7 +70,6 @@ public class RequestBuilder {
             .runtimeVersion(Platform.getRuntimeVersion())
             .runtimePatches(Platform.getRuntimePatches());
 
-    ContainerInfo containerInfo = ContainerInfo.get();
     this.host =
         new Host()
             .hostname(HostInfo.getHostname())
@@ -80,7 +78,7 @@ public class RequestBuilder {
             .kernelName(HostInfo.getKernelName())
             .kernelRelease(HostInfo.getKernelRelease())
             .kernelVersion(HostInfo.getKernelVersion())
-            .containerId(containerInfo.getContainerId());
+            .architecture(HostInfo.getArchitecture());
 
     this.debug = debug;
   }
@@ -110,6 +108,8 @@ public class RequestBuilder {
         .addHeader("Content-Type", JSON.toString())
         .addHeader("DD-Telemetry-API-Version", API_VERSION.toString())
         .addHeader("DD-Telemetry-Request-Type", requestType.toString())
+        .addHeader("DD-Client-Library-Language", "jvm")
+        .addHeader("DD-Client-Library-Version", TracerVersion.TRACER_VERSION)
         .post(body)
         .build();
   }

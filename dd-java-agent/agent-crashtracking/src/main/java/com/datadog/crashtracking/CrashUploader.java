@@ -328,8 +328,8 @@ public final class CrashUploader {
   }
 
   private void handleCall(final Call call) {
-    try {
-      handleSuccess(call, call.execute());
+    try (Response response = call.execute()) {
+      handleSuccess(call, response);
     } catch (IOException e) {
       handleFailure(call, e);
     }

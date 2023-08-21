@@ -1,27 +1,34 @@
 package com.datadog.iast.overhead;
 
+import static datadog.trace.api.iast.IastDetectionMode.UNLIMITED;
+
+import com.datadog.iast.util.NonBlockingSemaphore;
 import datadog.trace.api.Config;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class OverheadContext {
 
-  private static final int VULNERABILITIES_PER_REQUEST =
-      Config.get().getIastVulnerabilitiesPerRequest();
+  private final NonBlockingSemaphore availableVulnerabilities;
 
-  private final AtomicInteger availableVulnerabilities =
-      new AtomicInteger(VULNERABILITIES_PER_REQUEST);
+  public OverheadContext() {
+    this(Config.get().getIastVulnerabilitiesPerRequest());
+  }
+
+  OverheadContext(final int vulnerabilitiesPerRequest) {
+    availableVulnerabilities =
+        vulnerabilitiesPerRequest == UNLIMITED
+            ? NonBlockingSemaphore.unlimited()
+            : NonBlockingSemaphore.withPermitCount(vulnerabilitiesPerRequest);
+  }
 
   public int getAvailableQuota() {
-    return availableVulnerabilities.get();
+    return availableVulnerabilities.available();
   }
 
   public boolean consumeQuota(final int delta) {
-    final int beforeUpdate =
-        availableVulnerabilities.getAndAccumulate(delta, (v, d) -> (v < d) ? v : v - d);
-    return beforeUpdate >= delta;
+    return availableVulnerabilities.acquire(delta);
   }
 
   public void reset() {
-    availableVulnerabilities.set(VULNERABILITIES_PER_REQUEST);
+    availableVulnerabilities.reset();
   }
 }

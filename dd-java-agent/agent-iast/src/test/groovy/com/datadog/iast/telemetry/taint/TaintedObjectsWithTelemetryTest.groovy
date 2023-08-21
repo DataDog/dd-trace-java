@@ -2,11 +2,11 @@ package com.datadog.iast.telemetry.taint
 
 import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
-import com.datadog.iast.model.SourceType
 import com.datadog.iast.taint.TaintedObjects
 import com.datadog.iast.telemetry.RequestContextWithTelemetry
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.telemetry.IastMetric
 import datadog.trace.api.iast.telemetry.IastTelemetryCollector
 import datadog.trace.api.iast.telemetry.Verbosity
@@ -70,8 +70,8 @@ class TaintedObjectsWithTelemetryTest extends DDSpecification {
     final taintedObjects = TaintedObjectsWithTelemetry.build(verbosity, Mock(TaintedObjects))
 
     when:
-    taintedObjects.taintInputString('test', new Source(SourceType.REQUEST_PARAMETER_VALUE, 'name', 'value'))
-    taintedObjects.taintInputObject(new Date(), new Source(SourceType.REQUEST_HEADER_VALUE, 'name', 'value'))
+    taintedObjects.taintInputString('test', new Source(SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value'))
+    taintedObjects.taintInputObject(new Date(), new Source(SourceTypes.REQUEST_HEADER_VALUE, 'name', 'value'))
     taintedObjects.taint('test', new Range[0])
 
     then:

@@ -2,8 +2,8 @@ package datadog.trace.agent.jmxfetch;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
+import datadog.trace.api.interceptor.AbstractTraceInterceptor;
 import datadog.trace.api.interceptor.MutableSpan;
-import datadog.trace.api.interceptor.TraceInterceptor;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
@@ -12,8 +12,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.datadog.jmxfetch.service.ServiceNameProvider;
 
-public class ServiceNameCollectingTraceInterceptor
-    implements TraceInterceptor, ServiceNameProvider {
+public class ServiceNameCollectingTraceInterceptor extends AbstractTraceInterceptor
+    implements ServiceNameProvider {
+
+  public static final ServiceNameCollectingTraceInterceptor INSTANCE =
+      new ServiceNameCollectingTraceInterceptor(Priority.SERVICE_NAME_COLLECTING);
+
   /*
    * The other span types all set their own service names, so we ignore them. They should not have JVM
    * runtime metrics applied to their service names.
@@ -30,6 +34,10 @@ public class ServiceNameCollectingTraceInterceptor
   private volatile int serviceNamesSize = 0;
   private final ConcurrentHashMap<String, Boolean> serviceNames = new ConcurrentHashMap<>();
 
+  protected ServiceNameCollectingTraceInterceptor(Priority priority) {
+    super(priority);
+  }
+
   @Override
   public Collection<? extends MutableSpan> onTraceComplete(
       Collection<? extends MutableSpan> trace) {
@@ -45,11 +53,6 @@ public class ServiceNameCollectingTraceInterceptor
       }
     }
     return trace;
-  }
-
-  @Override
-  public int priority() {
-    return Integer.MAX_VALUE;
   }
 
   @Override

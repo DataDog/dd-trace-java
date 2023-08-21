@@ -38,6 +38,9 @@ public class Application {
   @com.squareup.moshi.Json(name = "tracer_version")
   private String tracerVersion;
 
+  @com.squareup.moshi.Json(name = "products")
+  private Products products;
+
   /**
    * Get env
    *
@@ -209,6 +212,14 @@ public class Application {
     return this;
   }
 
+  public Products getProducts() {
+    return products;
+  }
+
+  public void setProducts(Products products) {
+    this.products = products;
+  }
+
   /** Create a string representation of this pojo. */
   @Override
   public String toString() {
@@ -224,6 +235,7 @@ public class Application {
     sb.append("    serviceName: ").append(serviceName).append("\n");
     sb.append("    serviceVersion: ").append(serviceVersion).append("\n");
     sb.append("    tracerVersion: ").append(tracerVersion).append("\n");
+    sb.append("    products: ").append(products).append("\n");
     sb.append("}");
     return sb.toString();
   }

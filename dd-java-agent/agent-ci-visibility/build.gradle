@@ -1,5 +1,6 @@
 plugins {
   id 'com.github.johnrengelman.shadow'
+  id 'java-test-fixtures'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -9,13 +10,21 @@ minimumBranchCoverage = 0.7
 minimumInstructionCoverage = 0.8
 
 excludedClassesCoverage += [
-  "datadog.trace.civisibility.CIInfo",
   "datadog.trace.civisibility.CiVisibilitySystem",
-  "datadog.trace.civisibility.git.GitInfo",
-  "datadog.trace.civisibility.git.CommitInfo",
-  "datadog.trace.civisibility.git.PersonInfo",
+  "datadog.trace.civisibility.DDTestModuleImpl",
+  "datadog.trace.civisibility.DDTestSessionImpl",
+  "datadog.trace.civisibility.DDTestSuiteImpl",
+  "datadog.trace.civisibility.DDTestImpl",
+  "datadog.trace.civisibility.context.AbstractTestContext",
+  "datadog.trace.civisibility.context.EmptyTestContext",
+  "datadog.trace.civisibility.context.ParentProcessTestContext",
+  "datadog.trace.civisibility.context.SpanTestContext",
+  "datadog.trace.civisibility.events.BuildEventsHandlerImpl",
+  "datadog.trace.civisibility.events.TestEventsHandlerImpl",
+  "datadog.trace.civisibility.events.TestDescriptor",
+  "datadog.trace.civisibility.events.TestModuleDescriptor",
+  "datadog.trace.civisibility.events.TestSuiteDescriptor",
   "datadog.trace.civisibility.git.GitObject",
-  "datadog.trace.civisibility.source.*"
 ]
 
 dependencies {
@@ -29,6 +38,9 @@ dependencies {
 
   testImplementation project(":utils:test-utils")
   testImplementation("com.google.jimfs:jimfs:1.1") // an in-memory file system for testing code that works with files
+
+  testFixturesApi project(':dd-java-agent:testing')
+  testFixturesApi project(':utils:test-utils')
 }
 
 shadowJar {

@@ -10,6 +10,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import java.util.Collections;
+import java.util.Map;
 
 @AutoService(Instrumenter.class)
 public final class LettuceClientInstrumentation extends Instrumenter.Tracing
@@ -25,11 +27,18 @@ public final class LettuceClientInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public Map<String, String> contextStore() {
+    return Collections.singletonMap(
+        "io.lettuce.core.api.StatefulConnection", "io.lettuce.core.RedisURI");
+  }
+
+  @Override
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".LettuceClientDecorator",
       packageName + ".LettuceInstrumentationUtil",
-      packageName + ".LettuceAsyncBiFunction"
+      packageName + ".LettuceAsyncBiConsumer",
+      packageName + ".ConnectionContextBiConsumer"
     };
   }
 

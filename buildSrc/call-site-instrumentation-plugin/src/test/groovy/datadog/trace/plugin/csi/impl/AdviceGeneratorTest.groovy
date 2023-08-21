@@ -108,9 +108,9 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
 
   @CallSite
   class AfterAdvice {
-    @CallSite.After('void java.net.URL.<init>(java.lang.String)')
-    static URL after(@CallSite.This final URL url, @CallSite.Argument final String spec) {
-      return url;
+    @CallSite.After('java.lang.String java.lang.String.concat(java.lang.String)')
+    static String after(@CallSite.This final String self, @CallSite.Argument final String param, @CallSite.Return final String result) {
+      return result
     }
   }
 
@@ -136,16 +136,57 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
     interfaces.containsAll(['CallSiteAdvice', 'Pointcut', 'InvokeAdvice', 'HasFlags', 'HasHelpers'])
     final methods = groupMethods(adviceClass)
     getStatements(methods['pointcut']) == ['return this;']
-    getStatements(methods['type']) == ['return "java/net/URL";']
-    getStatements(methods['method']) == ['return "<init>";']
-    getStatements(methods['descriptor']) == ['return "(Ljava/lang/String;)V";']
+    getStatements(methods['type']) == ['return "java/lang/String";']
+    getStatements(methods['method']) == ['return "concat";']
+    getStatements(methods['descriptor']) == ['return "(Ljava/lang/String;)Ljava/lang/String;";']
     getStatements(methods['helperClassNames']) == ['return new String[] { "' + AfterAdvice.name + '" };']
     getStatements(methods['flags']) == ['return COMPUTE_MAX_STACK;']
     getStatements(methods['apply']) == [
       'handler.dupInvoke(owner, descriptor, StackDupMode.COPY);',
       'handler.method(opcode, owner, name, descriptor, isInterface);',
-      'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/AdviceGeneratorTest$AfterAdvice", "after", "(Ljava/net/URL;Ljava/lang/String;)Ljava/net/URL;", false);',
-      'handler.instruction(Opcodes.POP);'
+      'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/AdviceGeneratorTest$AfterAdvice", "after", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;", false);',
+    ]
+  }
+
+  @CallSite
+  class AfterAdviceCtor {
+    @CallSite.After('void java.net.URL.<init>(java.lang.String)')
+    static URL after(@CallSite.AllArguments final Object[] args, @CallSite.Return final URL url) {
+      return url
+    }
+  }
+
+  void 'test after advice ctor'() {
+    setup:
+    final spec = buildClassSpecification(AfterAdviceCtor)
+    final generator = buildAdviceGenerator(buildDir)
+
+    when:
+    final result = generator.generate(spec)
+
+    then:
+    assertNoErrors(result)
+    final advice = findAdvice(result, 'after')
+    assertNoErrors(advice)
+    final javaFile = new JavaParser().parse(advice.file).getResult().get()
+    assert javaFile.parsed == Node.Parsedness.PARSED
+    final packageDcl = javaFile.getPackageDeclaration().get()
+    packageDcl.name.asString() == AfterAdvice.package.name
+    final adviceClass = javaFile.getType(0)
+    adviceClass.name.asString().endsWith(AfterAdviceCtor.simpleName + 'After')
+    final interfaces = getImplementedTypes(adviceClass)
+    interfaces.containsAll(['CallSiteAdvice', 'Pointcut', 'InvokeAdvice', 'HasFlags', 'HasHelpers'])
+    final methods = groupMethods(adviceClass)
+    getStatements(methods['pointcut']) == ['return this;']
+    getStatements(methods['type']) == ['return "java/net/URL";']
+    getStatements(methods['method']) == ['return "<init>";']
+    getStatements(methods['descriptor']) == ['return "(Ljava/lang/String;)V";']
+    getStatements(methods['helperClassNames']) == ['return new String[] { "' + AfterAdviceCtor.name + '" };']
+    getStatements(methods['flags']) == ['return COMPUTE_MAX_STACK;']
+    getStatements(methods['apply']) == [
+      'handler.dupParameters(descriptor, StackDupMode.PREPEND_ARRAY_CTOR);',
+      'handler.method(opcode, owner, name, descriptor, isInterface);',
+      'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/AdviceGeneratorTest$AfterAdviceCtor", "after", "([Ljava/lang/Object;Ljava/net/URL;)Ljava/net/URL;", false);',
     ]
   }
 
@@ -374,9 +415,9 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
 
   @CallSite(minJavaVersion = 9)
   class MinJavaVersionAdvice {
-    @CallSite.After('void java.net.URL.<init>(java.lang.String)')
-    static URL after(@CallSite.This final URL url, @CallSite.Argument final String spec) {
-      return url;
+    @CallSite.After('java.lang.String java.lang.String.concat(java.lang.String)')
+    static String after(@CallSite.This final String self, @CallSite.Argument final String param, @CallSite.Return final String result) {
+      return result
     }
   }
 
@@ -476,6 +517,42 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
       'handler.dupInvoke(owner, descriptor, parameterIndices);',
       'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/AdviceGeneratorTest$PartialArgumentsBeforeAdvice", "before", "(Ljava/lang/String;I)V", false);',
       'handler.method(opcode, owner, name, descriptor, isInterface);',
+    ]
+  }
+
+  @CallSite
+  class SuperTypeReturnAdvice {
+    @CallSite.After("void java.lang.StringBuilder.<init>(java.lang.String)")
+    static Object after(@CallSite.AllArguments Object[] args, @CallSite.Return Object result) {
+      return result
+    }
+  }
+
+  void 'test returning super type'() {
+    setup:
+    final spec = buildClassSpecification(SuperTypeReturnAdvice)
+    final generator = buildAdviceGenerator(buildDir)
+
+    when:
+    final result = generator.generate(spec)
+
+    then:
+    assertNoErrors(result)
+    final advice = findAdvice(result, 'after')
+    assertNoErrors(advice)
+    final javaFile = new JavaParser().parse(advice.file).getResult().get()
+    assert javaFile.parsed == Node.Parsedness.PARSED
+    final adviceClass = javaFile.getType(0)
+    final methods = groupMethods(adviceClass)
+    getStatements(methods['pointcut']) == ['return this;']
+    getStatements(methods['type']) == ['return "java/lang/StringBuilder";']
+    getStatements(methods['method']) == ['return "<init>";']
+    getStatements(methods['descriptor']) == ['return "(Ljava/lang/String;)V";']
+    getStatements(methods['apply']) == [
+      'handler.dupParameters(descriptor, StackDupMode.PREPEND_ARRAY_CTOR);',
+      'handler.method(opcode, owner, name, descriptor, isInterface);',
+      'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/AdviceGeneratorTest$SuperTypeReturnAdvice", "after", "([Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;", false);',
+      'handler.instruction(Opcodes.CHECKCAST, "java/lang/StringBuilder");'
     ]
   }
 

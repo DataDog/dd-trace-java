@@ -2,18 +2,21 @@ package com.datadog.iast;
 
 import com.datadog.iast.HasDependencies.Dependencies;
 import com.datadog.iast.overhead.OverheadController;
+import com.datadog.iast.propagation.FastCodecModule;
 import com.datadog.iast.propagation.PropagationModuleImpl;
 import com.datadog.iast.propagation.StringModuleImpl;
-import com.datadog.iast.propagation.UrlModuleImpl;
 import com.datadog.iast.sink.CommandInjectionModuleImpl;
+import com.datadog.iast.sink.InsecureCookieModuleImpl;
 import com.datadog.iast.sink.LdapInjectionModuleImpl;
 import com.datadog.iast.sink.PathTraversalModuleImpl;
 import com.datadog.iast.sink.SqlInjectionModuleImpl;
+import com.datadog.iast.sink.SsrfModuleImpl;
 import com.datadog.iast.sink.WeakCipherModuleImpl;
 import com.datadog.iast.sink.WeakHashModuleImpl;
 import com.datadog.iast.source.WebModuleImpl;
 import com.datadog.iast.telemetry.IastTelemetry;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.api.gateway.EventType;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
@@ -45,13 +48,13 @@ public class IastSystem {
       OverheadController overheadController,
       IastTelemetry telemetry) {
     final Config config = Config.get();
-    if (!config.isIastEnabled()) {
+    if (config.getIastActivation() != ProductActivation.FULLY_ENABLED) {
       LOGGER.debug("IAST is disabled");
       return;
     }
     DEBUG = config.isIastDebugEnabled();
     LOGGER.debug("IAST is starting: debug={}", DEBUG);
-    final Reporter reporter = new Reporter(config);
+    final Reporter reporter = new Reporter(config, AgentTaskScheduler.INSTANCE);
     if (overheadController == null) {
       overheadController = OverheadController.build(config, AgentTaskScheduler.INSTANCE);
     }
@@ -80,14 +83,16 @@ public class IastSystem {
     return Stream.of(
         new WebModuleImpl(),
         new StringModuleImpl(),
-        new UrlModuleImpl(),
+        new FastCodecModule(),
         new SqlInjectionModuleImpl(),
         new PathTraversalModuleImpl(),
         new CommandInjectionModuleImpl(),
         new WeakCipherModuleImpl(),
         new WeakHashModuleImpl(),
         new LdapInjectionModuleImpl(),
-        new PropagationModuleImpl());
+        new PropagationModuleImpl(),
+        new InsecureCookieModuleImpl(),
+        new SsrfModuleImpl());
   }
 
   private static void registerRequestStartedCallback(

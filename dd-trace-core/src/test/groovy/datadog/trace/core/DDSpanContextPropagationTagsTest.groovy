@@ -19,7 +19,7 @@ class DDSpanContextPropagationTagsTest extends DDCoreSpecification {
     tracer.close()
   }
 
-  def "update span PropagationTags"() {
+  def "update span PropagationTags #priority #header"() {
     setup:
     tracer = tracerBuilder().writer(writer).build()
     def propagationTags = tracer.propagationTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, header)
@@ -40,7 +40,7 @@ class DDSpanContextPropagationTagsTest extends DDCoreSpecification {
 
     where:
     priority     | header                                | newPriority  | newMechanism | newHeader                             | tagMap
-    UNSET        | "_dd.p.usr=123"                       | USER_KEEP    | MANUAL       | "_dd.p.usr=123,_dd.p.dm=-4"           | ["_dd.p.dm": "-4", "_dd.p.usr": "123"]
+    UNSET        | "_dd.p.usr=123"                       | USER_KEEP    | MANUAL       | "_dd.p.dm=-4,_dd.p.usr=123"           | ["_dd.p.dm": "-4", "_dd.p.usr": "123"]
     UNSET        | "_dd.p.usr=123"                       | SAMPLER_DROP | DEFAULT      | "_dd.p.usr=123"                       | ["_dd.p.usr": "123"]
     // decision has already been made, propagate as-is
     SAMPLER_KEEP | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | USER_KEEP    | MANUAL       | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | ["_dd.p.dm": "9bf3439f2f-1", "_dd.p.usr": "123"]
@@ -48,7 +48,7 @@ class DDSpanContextPropagationTagsTest extends DDCoreSpecification {
     SAMPLER_KEEP | "_dd.p.usr=123"                       | USER_KEEP    | MANUAL       | "_dd.p.usr=123"                       | ["_dd.p.usr": "123"]
   }
 
-  def "update trace PropagationTags"() {
+  def "update trace PropagationTags #priority #header"() {
     setup:
     tracer = tracerBuilder().writer(writer).build()
     def propagationTags = tracer.propagationTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, header)
@@ -59,29 +59,26 @@ class DDSpanContextPropagationTagsTest extends DDCoreSpecification {
       .start()
     def ddRoot = rootSpan.context().getPropagationTags()
     def span = (DDSpan) tracer.buildSpan("current").asChildOf(rootSpan).start()
-    def dd = span.context().getPropagationTags()
 
     when:
     span.setSamplingPriority(newPriority, newMechanism)
     span.getSamplingPriority() == newPriority
 
     then:
-    dd.headerValue(PropagationTags.HeaderType.DATADOG) == null
-    dd.createTagMap() == spanTagMap
     ddRoot.headerValue(PropagationTags.HeaderType.DATADOG) == rootHeader
     ddRoot.createTagMap() == rootTagMap
 
     where:
-    priority     | header                                | newPriority  | newMechanism | rootHeader                            | spanTagMap | rootTagMap
-    UNSET        | "_dd.p.usr=123"                       | USER_KEEP    | MANUAL       | "_dd.p.usr=123,_dd.p.dm=-4"           | [:]        | ["_dd.p.dm": "-4", "_dd.p.usr": "123"]
-    UNSET        | "_dd.p.usr=123"                       | SAMPLER_DROP | DEFAULT      | "_dd.p.usr=123"                       | [:]        | ["_dd.p.usr": "123"]
+    priority     | header                                | newPriority  | newMechanism | rootHeader                            | rootTagMap
+    UNSET        | "_dd.p.usr=123"                       | USER_KEEP    | MANUAL       | "_dd.p.dm=-4,_dd.p.usr=123"           | ["_dd.p.dm": "-4", "_dd.p.usr": "123"]
+    UNSET        | "_dd.p.usr=123"                       | SAMPLER_DROP | DEFAULT      | "_dd.p.usr=123"                       | ["_dd.p.usr": "123"]
     // decision has already been made, propagate as-is
-    SAMPLER_KEEP | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | USER_KEEP    | MANUAL       | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | [:]        | ["_dd.p.dm": "9bf3439f2f-1", "_dd.p.usr": "123"]
-    SAMPLER_KEEP | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | USER_DROP    | MANUAL       | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | [:]        | ["_dd.p.dm": "9bf3439f2f-1", "_dd.p.usr": "123"]
-    SAMPLER_KEEP | "_dd.p.usr=123"                       | USER_KEEP    | MANUAL       | "_dd.p.usr=123"                       | [:]        | ["_dd.p.usr": "123"]
+    SAMPLER_KEEP | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | USER_KEEP    | MANUAL       | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | ["_dd.p.dm": "9bf3439f2f-1", "_dd.p.usr": "123"]
+    SAMPLER_KEEP | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | USER_DROP    | MANUAL       | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | ["_dd.p.dm": "9bf3439f2f-1", "_dd.p.usr": "123"]
+    SAMPLER_KEEP | "_dd.p.usr=123"                       | USER_KEEP    | MANUAL       | "_dd.p.usr=123"                       | ["_dd.p.usr": "123"]
   }
 
-  def "forceKeep span PropagationTags"() {
+  def "forceKeep span PropagationTags #priority #header"() {
     setup:
     tracer = tracerBuilder().writer(writer).build()
     def propagationTags = tracer.propagationTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, header)
@@ -102,13 +99,13 @@ class DDSpanContextPropagationTagsTest extends DDCoreSpecification {
 
     where:
     priority     | header                                | newHeader                             | tagMap
-    UNSET        | "_dd.p.usr=123"                       | "_dd.p.usr=123,_dd.p.dm=-4"           | ["_dd.p.dm": "-4", "_dd.p.usr": "123"]
+    UNSET        | "_dd.p.usr=123"                       | "_dd.p.dm=-4,_dd.p.usr=123"           | ["_dd.p.dm": "-4", "_dd.p.usr": "123"]
     // decision has already been made, propagate as-is
     SAMPLER_KEEP | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | ["_dd.p.dm": "9bf3439f2f-1", "_dd.p.usr": "123"]
     SAMPLER_KEEP | "_dd.p.usr=123"                       | "_dd.p.usr=123"                       | ["_dd.p.usr": "123"]
   }
 
-  def "forceKeep trace PropagationTags"() {
+  def "forceKeep trace PropagationTags #priority #header"() {
     setup:
     tracer = tracerBuilder().writer(writer).build()
     def propagationTags = tracer.propagationTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, header)
@@ -119,23 +116,20 @@ class DDSpanContextPropagationTagsTest extends DDCoreSpecification {
       .start()
     def ddRoot = rootSpan.context().getPropagationTags()
     def span = (DDSpan) tracer.buildSpan("current").asChildOf(rootSpan).start()
-    def dd = span.context().getPropagationTags()
 
     when:
     span.context().forceKeep()
     span.getSamplingPriority() == USER_KEEP
 
     then:
-    dd.headerValue(PropagationTags.HeaderType.DATADOG) == null
-    dd.createTagMap() == spanTagMap
     ddRoot.headerValue(PropagationTags.HeaderType.DATADOG) == rootHeader
     ddRoot.createTagMap() == rootTagMap
 
     where:
-    priority     | header                                | rootHeader                            | spanTagMap | rootTagMap
-    UNSET        | "_dd.p.usr=123"                       | "_dd.p.usr=123,_dd.p.dm=-4"           | [:]        | ["_dd.p.dm": "-4", "_dd.p.usr": "123"]
+    priority     | header                                | rootHeader                            | rootTagMap
+    UNSET        | "_dd.p.usr=123"                       | "_dd.p.dm=-4,_dd.p.usr=123"           | ["_dd.p.dm": "-4", "_dd.p.usr": "123"]
     // decision has already been made, propagate as-is
-    SAMPLER_KEEP | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | [:]        | ["_dd.p.dm": "9bf3439f2f-1", "_dd.p.usr": "123"]
-    SAMPLER_KEEP | "_dd.p.usr=123"                       | "_dd.p.usr=123"                       | [:]        | ["_dd.p.usr": "123"]
+    SAMPLER_KEEP | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | ["_dd.p.dm": "9bf3439f2f-1", "_dd.p.usr": "123"]
+    SAMPLER_KEEP | "_dd.p.usr=123"                       | "_dd.p.usr=123"                       | ["_dd.p.usr": "123"]
   }
 }

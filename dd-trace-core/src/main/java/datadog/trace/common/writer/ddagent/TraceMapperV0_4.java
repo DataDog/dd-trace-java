@@ -185,13 +185,13 @@ public final class TraceMapperV0_4 implements TraceMapper {
       writable.writeObject(span.getResourceName(), null);
       /* 4  */
       writable.writeUTF8(TRACE_ID);
-      writable.writeLong(span.getTraceId().toLong());
+      writable.writeUnsignedLong(span.getTraceId().toLong());
       /* 5  */
       writable.writeUTF8(SPAN_ID);
-      writable.writeLong(span.getSpanId());
+      writable.writeUnsignedLong(span.getSpanId());
       /* 6  */
       writable.writeUTF8(PARENT_ID);
-      writable.writeLong(span.getParentId());
+      writable.writeUnsignedLong(span.getParentId());
       /* 7  */
       writable.writeUTF8(START);
       writable.writeLong(span.getStartTime());

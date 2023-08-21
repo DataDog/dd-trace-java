@@ -24,16 +24,17 @@ import datadog.trace.api.internal.TraceSegment
 import datadog.appsec.api.blocking.BlockingContentType
 import datadog.trace.api.gateway.Flow
 import datadog.trace.test.util.DDSpecification
+import io.sqreen.powerwaf.Additive
 import io.sqreen.powerwaf.Powerwaf
 import io.sqreen.powerwaf.PowerwafContext
 import io.sqreen.powerwaf.PowerwafMetrics
-import spock.lang.Ignore
 import spock.lang.Unroll
 
 import java.util.concurrent.CountDownLatch
 
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP
+import static org.hamcrest.Matchers.hasSize
 
 class PowerWAFModuleSpecification extends DDSpecification {
   private static final DataBundle ATTACK_BUNDLE = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
@@ -46,11 +47,20 @@ class PowerWAFModuleSpecification extends DDSpecification {
   DataListener dataListener
   EventListener eventListener
 
-  def pwafAdditive
+  Additive pwafAdditive
   PowerwafMetrics metrics
 
-  private void setupWithStubConfigService() {
-    service = new StubAppSecConfigService()
+  void cleanup() {
+    pwafAdditive?.close()
+    release pwafModule
+  }
+
+  private static void release(PowerWAFModule pwafModule) {
+    pwafModule?.ctxAndAddresses?.get()?.ctx?.close()
+  }
+
+  private void setupWithStubConfigService(String location = "test_multi_config.json") {
+    service = new StubAppSecConfigService(location)
     service.init()
     pwafModule.config(service)
     dataListener = pwafModule.dataSubscriptions.first()
@@ -59,15 +69,12 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
   void 'use default actions if none defined in config'() {
     when:
-    PowerWAFModule powerWAFModule = new PowerWAFModule()
-    StubAppSecConfigService confService = new StubAppSecConfigService("no_actions_config.json")
-    confService.init()
-    powerWAFModule.config(confService)
+    setupWithStubConfigService'no_actions_config.json'
 
     then:
-    powerWAFModule.ctxAndAddresses.get().actionInfoMap.size() == 1
-    powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('block') != null
-    powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('block').parameters == [
+    pwafModule.ctxAndAddresses.get().actionInfoMap.size() == 1
+    pwafModule.ctxAndAddresses.get().actionInfoMap.get('block') != null
+    pwafModule.ctxAndAddresses.get().actionInfoMap.get('block').parameters == [
       status_code: 403,
       type:'auto',
       grpc_status_code: 10
@@ -76,15 +83,12 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
   void 'override default actions by config'() {
     when:
-    PowerWAFModule powerWAFModule = new PowerWAFModule()
-    StubAppSecConfigService confService = new StubAppSecConfigService("override_actions_config.json")
-    confService.init()
-    powerWAFModule.config(confService)
+    setupWithStubConfigService('override_actions_config.json')
 
     then:
-    powerWAFModule.ctxAndAddresses.get().actionInfoMap.size() == 1
-    powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('block') != null
-    powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('block').parameters == [
+    pwafModule.ctxAndAddresses.get().actionInfoMap.size() == 1
+    pwafModule.ctxAndAddresses.get().actionInfoMap.get('block') != null
+    pwafModule.ctxAndAddresses.get().actionInfoMap.get('block').parameters == [
       status_code: 500,
       type:'html',
     ]
@@ -92,10 +96,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
   void 'override actions through reconfiguration'() {
     when:
-    PowerWAFModule powerWAFModule = new PowerWAFModule()
-    StubAppSecConfigService confService = new StubAppSecConfigService("override_actions_config.json")
-    confService.init()
-    powerWAFModule.config(confService)
+    setupWithStubConfigService('override_actions_config.json')
 
     def actions = [
       [
@@ -108,36 +109,32 @@ class PowerWAFModuleSpecification extends DDSpecification {
       ]
     ]
     AppSecModuleConfigurer.Reconfiguration reconf = Mock()
-    confService.currentAppSecConfig.with {
+    service.currentAppSecConfig.with {
       def dirtyStatus = userConfigs.addConfig(
         new AppSecUserConfig('b', [], actions, [], []))
       it.dirtyStatus.mergeFrom(dirtyStatus)
 
-      confService.listeners['waf'].onNewSubconfig(it, reconf)
+      service.listeners['waf'].onNewSubconfig(it, reconf)
       it.dirtyStatus.clearDirty()
     }
 
     then:
-    powerWAFModule.ctxAndAddresses.get().actionInfoMap.size() == 1
-    powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('block') != null
-    powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('block').parameters == [
+    pwafModule.ctxAndAddresses.get().actionInfoMap.size() == 1
+    pwafModule.ctxAndAddresses.get().actionInfoMap.get('block') != null
+    pwafModule.ctxAndAddresses.get().actionInfoMap.get('block').parameters == [
       status_code: 501,
       type: 'json',
     ]
   }
-
 
   void 'override on_match through reconfiguration'() {
     ChangeableFlow flow = Mock()
     AppSecModuleConfigurer.Reconfiguration reconf = Mock()
 
     when:
-    PowerWAFModule powerWAFModule = new PowerWAFModule()
-    StubAppSecConfigService confService = new StubAppSecConfigService('override_actions_config.json')
-    confService.init()
-    powerWAFModule.config(confService)
-    dataListener = powerWAFModule.dataSubscriptions.first()
-    eventListener = powerWAFModule.eventSubscriptions.first()
+    setupWithStubConfigService('override_actions_config.json')
+    dataListener = pwafModule.dataSubscriptions.first()
+    eventListener = pwafModule.eventSubscriptions.first()
 
     def actions = [
       [
@@ -167,14 +164,14 @@ class PowerWAFModuleSpecification extends DDSpecification {
           ]]
       ]
     ]
-    confService.currentAppSecConfig.with {
+    service.currentAppSecConfig.with {
       def dirtyStatus = userConfigs.addConfig(
         new AppSecUserConfig('b', ruleOverrides, actions, [], []))
       mergedAsmData.addConfig('c', ipData)
       it.dirtyStatus.data = true
       it.dirtyStatus.mergeFrom(dirtyStatus)
 
-      confService.listeners['waf'].onNewSubconfig(it, reconf)
+      service.listeners['waf'].onNewSubconfig(it, reconf)
       it.dirtyStatus.clearDirty()
     }
     def newBundle = MapDataBundle.of(
@@ -190,8 +187,171 @@ class PowerWAFModuleSpecification extends DDSpecification {
       rba.statusCode == 501 &&
         rba.blockingContentType == BlockingContentType.JSON
     })
-    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true) >> {
+      pwafAdditive = it[0].openAdditive()
+    }
     1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    1 * ctx.getWafMetrics()
+    1 * ctx.closeAdditive()
+    1 * flow.isBlocking()
+    0 * _
+  }
+
+  void 'provide data through the initial config'() {
+    ChangeableFlow flow = Mock()
+    AppSecModuleConfigurer.Reconfiguration reconf = Mock()
+
+    when:
+    setupWithStubConfigService('rules_with_data_config.json')
+    dataListener = pwafModule.dataSubscriptions.first()
+    eventListener = pwafModule.eventSubscriptions.first()
+
+    def bundle = MapDataBundle.of(
+      KnownAddresses.USER_ID,
+      'user-to-block-1'
+      )
+    dataListener.onDataAvailable(flow, ctx, bundle, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
+      rba.statusCode == 403 &&
+        rba.blockingContentType == BlockingContentType.AUTO
+    })
+    1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true) >> {
+      pwafAdditive = it[0].openAdditive()
+    }
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    1 * ctx.getWafMetrics()
+    1 * ctx.closeAdditive()
+    1 * flow.isBlocking()
+    0 * _
+
+    when: 'merges new waf data with the one in the rules config'
+    def newData = [
+      [
+        id  : 'blocked_users',
+        type: 'data_with_expiration',
+        data: [[
+            value     : 'user-to-block-2',
+            expiration: '0',
+          ]]
+      ]
+    ]
+    service.currentAppSecConfig.with {
+      mergedAsmData.addConfig('c', newData)
+      it.dirtyStatus.data = true
+
+      service.listeners['waf'].onNewSubconfig(it, reconf)
+      it.dirtyStatus.clearDirty()
+    }
+
+    dataListener.onDataAvailable(flow, ctx, bundle, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    1 * reconf.reloadSubscriptions()
+    1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
+      rba.statusCode == 403 &&
+        rba.blockingContentType == BlockingContentType.AUTO
+    })
+    1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true) >> {
+      pwafAdditive = it[0].openAdditive()
+    }
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    1 * ctx.getWafMetrics()
+    1 * ctx.closeAdditive()
+    1 * flow.isBlocking()
+    0 * _
+
+    when:
+    bundle = MapDataBundle.of(
+      KnownAddresses.USER_ID,
+      'user-to-block-2'
+      )
+    dataListener.onDataAvailable(flow, ctx, bundle, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
+      rba.statusCode == 403 &&
+        rba.blockingContentType == BlockingContentType.AUTO
+    })
+    1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true) >> {
+      pwafAdditive = it[0].openAdditive()
+    }
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    1 * ctx.getWafMetrics()
+    1 * ctx.closeAdditive()
+    1 * flow.isBlocking()
+    0 * _
+
+    when: 'changes the rules config'
+    def newCfg = [
+      version: '2.1',
+      rules: [
+        [
+          id: 'block-users',
+          name: 'Block User Addresses',
+          tags: [
+            type: 'block_user',
+            category: 'security_response'
+          ],
+          conditions: [
+            [
+              parameters: [
+                inputs: [[ address: 'usr.id' ]],
+                data: 'blocked_users'
+              ],
+              operator: 'exact_match'
+            ]
+          ],
+          on_match: ['block'] ]
+      ], ]
+
+    service.currentAppSecConfig.with {
+      setDdConfig(AppSecConfig.valueOf(newCfg))
+      dirtyStatus.markAllDirty()
+
+      service.listeners['waf'].onNewSubconfig(it, reconf)
+      dirtyStatus.clearDirty()
+    }
+
+    and:
+    bundle = MapDataBundle.of(
+      KnownAddresses.USER_ID,
+      'user-to-block-2'
+      )
+    dataListener.onDataAvailable(flow, ctx, bundle, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    1 * reconf.reloadSubscriptions()
+    1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
+      rba.statusCode == 403 &&
+        rba.blockingContentType == BlockingContentType.AUTO
+    })
+    1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true) >> {
+      pwafAdditive = it[0].openAdditive()
+    }
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    1 * ctx.getWafMetrics()
+    1 * ctx.closeAdditive()
+    1 * flow.isBlocking()
+    0 * _
+
+    when:
+    bundle = MapDataBundle.of(
+      KnownAddresses.USER_ID,
+      'user-to-block-1'
+      )
+    dataListener.onDataAvailable(flow, ctx, bundle, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true) >> {
+      pwafAdditive = it[0].openAdditive()
+    }
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive()
     0 * _
@@ -245,10 +405,12 @@ class PowerWAFModuleSpecification extends DDSpecification {
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
-    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.getOrCreateAdditive(_, true) >> {
+      pwafAdditive = it[0].openAdditive()
+    }
     1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
     1 * ctx.getWafMetrics()
-    1 * ctx.closeAdditive()
+    1 * ctx.closeAdditive() >> { pwafAdditive.close() }
     0 * _
 
     when:
@@ -262,7 +424,9 @@ class PowerWAFModuleSpecification extends DDSpecification {
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
-    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.getOrCreateAdditive(_, true) >> {
+      pwafAdditive = it[0].openAdditive()
+    }
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive()
     0 * _
@@ -277,11 +441,11 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     def customRules = [
       [
-        id: 'ua0-600-12x',
+        id: 'ua0-600-12x-copy',
         name: 'Arachni',
         tags: [
           category: 'attack_attempt',
-          type: 'security_scanner'
+          type: 'security_scanner2'
         ],
         conditions: [
           [
@@ -293,10 +457,11 @@ class PowerWAFModuleSpecification extends DDSpecification {
                   key_path:['user-agent']
                 ]
               ],
-              regex: '^Arachni2/v'
+              regex: '^Arachni/v'
             ]
           ]
-        ]
+        ],
+        on_match: ['block']
       ]
     ]
 
@@ -317,23 +482,11 @@ class PowerWAFModuleSpecification extends DDSpecification {
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
-    // original rule is replaced; no attack
-    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
-    1 * ctx.getWafMetrics()
-    1 * ctx.closeAdditive()
-    0 * _
-
-    when:
-    def newBundle = MapDataBundle.of(
-      KnownAddresses.HEADERS_NO_COOKIES,
-      new CaseInsensitiveMap<List<String>>(['user-agent': 'Arachni2/v0']),
-      )
-    dataListener.onDataAvailable(flow, ctx, newBundle, false)
-    eventListener.onEvent(ctx, EventType.REQUEST_END)
-
-    then:
-    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
-    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    1 * ctx.getOrCreateAdditive(_, true) >> {
+      pwafAdditive = it[0].openAdditive()
+    }
+    // we get two events: one for origin rule, and one for the custom one
+    1 * ctx.reportEvents(hasSize(2), _)
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive()
     0 * _
@@ -359,6 +512,9 @@ class PowerWAFModuleSpecification extends DDSpecification {
       status_code: 302,
       type:'xxx'
     ]
+
+    cleanup:
+    release powerWAFModule
   }
 
   void 'replace actions through runtime configuration'() {
@@ -406,7 +562,42 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive()
+    1 * flow.isBlocking()
     0 * _
+  }
+
+  void 'redirect actions are correctly processed expected variant redirect#variant'(int variant, int statusCode) {
+    when:
+    setupWithStubConfigService('redirect_actions.json')
+    DataBundle bundle = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
+      new CaseInsensitiveMap<List<String>>(['user-agent': 'redirect' + variant]))
+    def flow = new ChangeableFlow()
+    dataListener.onDataAvailable(flow, ctx, bundle, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    1 * ctx.getOrCreateAdditive(_, true) >> {
+      PowerwafContext pwCtx = it[0] as PowerwafContext
+      pwafAdditive = pwCtx.openAdditive()
+      metrics = pwCtx.createMetrics()
+      pwafAdditive
+    }
+    1 * ctx.getWafMetrics() >> metrics
+    1 * ctx.closeAdditive()
+    1 * ctx.reportEvents(_, _)
+    0 * ctx._(*_)
+    flow.blocking == true
+    flow.action instanceof Flow.Action.RequestBlockingAction
+    with(flow.action as Flow.Action.RequestBlockingAction) {
+      assert it.statusCode == statusCode
+      assert it.extraHeaders == [Location: "https://example${variant}.com/"]
+    }
+
+    where:
+    variant | statusCode
+    1       | 303
+    2       | 301
+    3       | 303
   }
 
   void 'is named powerwaf'() {
@@ -475,7 +666,9 @@ class PowerWAFModuleSpecification extends DDSpecification {
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
-    1 * ctx.getOrCreateAdditive(_, false) >> { it[0].openAdditive() }
+    1 * ctx.getOrCreateAdditive(_, false) >> {
+      pwafAdditive = it[0].openAdditive()
+    }
     1 * ctx.getWafMetrics() >> null
     1 * ctx.closeAdditive()
     1 * ctx.reportEvents(_, _)
@@ -542,7 +735,9 @@ class PowerWAFModuleSpecification extends DDSpecification {
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
-    ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    ctx.getOrCreateAdditive(_, true) >> {
+      pwafAdditive = it[0].openAdditive()
+    }
     ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
 
     event.rule.id == 'ua0-600-12x'
@@ -575,7 +770,9 @@ class PowerWAFModuleSpecification extends DDSpecification {
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
-    ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    ctx.getOrCreateAdditive(_, true) >> {
+      pwafAdditive = it[0].openAdditive()
+    }
     ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
 
     event.ruleMatches[0].parameters == [
@@ -600,7 +797,9 @@ class PowerWAFModuleSpecification extends DDSpecification {
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
-    ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    ctx.getOrCreateAdditive(_, true) >> {
+      pwafAdditive = it[0].openAdditive()
+    }
     ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
 
     event.ruleMatches[0].parameters == [
@@ -624,7 +823,9 @@ class PowerWAFModuleSpecification extends DDSpecification {
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
-    ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    ctx.getOrCreateAdditive(_, true) >> {
+      pwafAdditive = it[0].openAdditive()
+    }
     ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
 
     event.ruleMatches[0].parameters == [
@@ -647,7 +848,9 @@ class PowerWAFModuleSpecification extends DDSpecification {
     dataListener.onDataAvailable(flow, ctx, db, false)
 
     then:
-    ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    ctx.getOrCreateAdditive(_, true) >> {
+      pwafAdditive = it[0].openAdditive()
+    }
     flow.blocking == false
   }
 
@@ -660,7 +863,9 @@ class PowerWAFModuleSpecification extends DDSpecification {
     dataListener.onDataAvailable(flow, ctx, db, false)
 
     then:
-    ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    ctx.getOrCreateAdditive(_, true) >> {
+      pwafAdditive = it[0].openAdditive()
+    }
     assert !flow.blocking
   }
 
@@ -676,7 +881,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     dataListener.onDataAvailable(flow, ctx, db, false)
 
     then:
-    ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    ctx.getOrCreateAdditive(_, true) >> {
+      pwafAdditive = it[0].openAdditive() }
     assert !flow.blocking
 
     cleanup:
@@ -709,7 +915,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
-    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.getOrCreateAdditive(_, true) >> {
+      pwafAdditive = it[0].openAdditive() }
     1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
     1 * reconf.reloadSubscriptions()
   }
@@ -745,11 +952,12 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then:
     1 * reconf.reloadSubscriptions()
-    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.getOrCreateAdditive(_, true) >> { pwafAdditive = it[0].openAdditive() }
     1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
     1 * ctx.getWafMetrics()
     1 * flow.setAction({ it.blocking })
     1 * ctx.closeAdditive()
+    1 * flow.isBlocking()
     0 * _
   }
 
@@ -799,9 +1007,10 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then: 'no match; rule is disabled'
     1 * reconf.reloadSubscriptions()
-    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.getOrCreateAdditive(_, true) >> {
+      pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
-    1 * ctx.closeAdditive()
+    1 * ctx.closeAdditive() >> { pwafAdditive.close() }
     0 * _
 
     when: 'removing data and override config'
@@ -819,9 +1028,10 @@ class PowerWAFModuleSpecification extends DDSpecification {
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then: 'no match; data was cleared (though rule is no longer disabled)'
-    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.getOrCreateAdditive(_, true) >> {
+      pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
-    1 * ctx.closeAdditive()
+    1 * ctx.closeAdditive() >> {pwafAdditive.close()}
     1 * reconf.reloadSubscriptions()
     0 * _
 
@@ -838,11 +1048,13 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then: 'now we have match'
     1 * reconf.reloadSubscriptions()
-    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.getOrCreateAdditive(_, true) >> {
+      pwafAdditive = it[0].openAdditive() }
     1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
     1 * ctx.getWafMetrics()
     1 * flow.setAction({ it.blocking })
-    1 * ctx.closeAdditive()
+    1 * ctx.closeAdditive() >> {pwafAdditive.close()}
+    1 * flow.isBlocking()
     0 * _
 
     when: 'toggling the rule off'
@@ -860,13 +1072,12 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then: 'nothing again; we disabled the rule'
     1 * reconf.reloadSubscriptions()
-    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.getOrCreateAdditive(_, true) >> { pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive()
     0 * _
   }
 
-  @Ignore('bug in libddwaf 1.8.0')
   void 'rule toggling data given through configuration'() {
     setupWithStubConfigService()
     AppSecModuleConfigurer.Reconfiguration reconf = Mock()
@@ -890,9 +1101,9 @@ class PowerWAFModuleSpecification extends DDSpecification {
     then:
     1 * reconf.reloadSubscriptions()
     // no attack
-    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.getOrCreateAdditive(_, true) >> { pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
-    1 * ctx.closeAdditive()
+    1 * ctx.closeAdditive() >> {pwafAdditive.close()}
     0 * _
 
     when:
@@ -911,16 +1122,17 @@ class PowerWAFModuleSpecification extends DDSpecification {
     then:
     1 * reconf.reloadSubscriptions()
     // no attack
-    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.getOrCreateAdditive(_, true) >> {
+      pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
-    1 * ctx.closeAdditive()
+    1 * ctx.closeAdditive() >> {pwafAdditive.close()}
     0 * _
 
     when:
     // later configurations have precedence (c > a)
     service.currentAppSecConfig.with {
       def dirtyStatus = userConfigs.addConfig(
-        new AppSecUserConfig('c', overrides, [:], [], [], []))
+        new AppSecUserConfig('c', [], [], [], []))
       it.dirtyStatus.mergeFrom(dirtyStatus)
 
       service.listeners['waf'].onNewSubconfig(it, reconf)
@@ -932,11 +1144,12 @@ class PowerWAFModuleSpecification extends DDSpecification {
     then:
     1 * reconf.reloadSubscriptions()
     // attack found
-    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.getOrCreateAdditive(_, true) >> {
+      pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
     1 * flow.setAction({ it.blocking })
     1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
-    1 * ctx.closeAdditive()
+    1 * ctx.closeAdditive() >> {pwafAdditive.close()}
     0 * _
 
     when:
@@ -953,7 +1166,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     then:
     1 * reconf.reloadSubscriptions()
     // no attack
-    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.getOrCreateAdditive(_, true) >> {
+      pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive()
     0 * _
@@ -1029,7 +1243,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     Collection ret
 
     when:
-    ret = waf.buildEvents(rwd, [:])
+    ret = waf.buildEvents(rwd)
 
     then:
     ret.isEmpty()
@@ -1041,7 +1255,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     Collection ret
 
     when:
-    ret = waf.buildEvents(rwd, [:])
+    ret = waf.buildEvents(rwd)
 
     then:
     ret.isEmpty()

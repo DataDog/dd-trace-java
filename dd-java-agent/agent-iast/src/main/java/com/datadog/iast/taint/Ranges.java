@@ -69,6 +69,7 @@ public final class Ranges {
     return ranges;
   }
 
+  @SuppressWarnings("unchecked")
   public static <E> RangesProvider<E> rangesProviderFor(
       @Nonnull final TaintedObjects to, @Nullable final E[] items) {
     if (items == null || items.length == 0) {
@@ -77,6 +78,16 @@ public final class Ranges {
     return new ArrayProvider<>(items, to);
   }
 
+  @SuppressWarnings("unchecked")
+  public static <E> RangesProvider<E> rangesProviderFor(
+      @Nonnull final TaintedObjects to, @Nullable final E item) {
+    if (item == null) {
+      return (RangesProvider<E>) EMPTY_PROVIDER;
+    }
+    return new SingleProvider<>(item, to);
+  }
+
+  @SuppressWarnings("unchecked")
   public static <E> RangesProvider<E> rangesProviderFor(
       @Nonnull final TaintedObjects to, @Nullable final List<E> items) {
     if (items == null || items.isEmpty()) {
@@ -145,6 +156,11 @@ public final class Ranges {
     return new int[] {start, end};
   }
 
+  public static Range highestPriorityRange(@Nonnull final Range[] ranges) {
+    // TODO without marks and only request sources all ranges are of equals priority
+    return ranges[0];
+  }
+
   public interface RangesProvider<E> {
     int rangeCount();
 
@@ -206,6 +222,36 @@ public final class Ranges {
     protected abstract int size(@Nonnull final LIST items);
 
     protected abstract E item(@Nonnull final LIST items, final int index);
+  }
+
+  private static class SingleProvider<E> implements RangesProvider<E> {
+    private final E value;
+    private final TaintedObject tainted;
+
+    private SingleProvider(@Nonnull final E value, @Nonnull final TaintedObjects to) {
+      this.value = value;
+      this.tainted = to.get(value);
+    }
+
+    @Override
+    public int rangeCount() {
+      return tainted == null ? 0 : tainted.getRanges().length;
+    }
+
+    @Override
+    public int size() {
+      return 1;
+    }
+
+    @Override
+    public E value(int index) {
+      return index == 0 ? value : null;
+    }
+
+    @Override
+    public Range[] ranges(E value) {
+      return value == this.value && tainted != null ? tainted.getRanges() : null;
+    }
   }
 
   private static class ArrayProvider<E> extends IterableProvider<E, E[]> {

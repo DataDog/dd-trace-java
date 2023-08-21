@@ -24,8 +24,8 @@ import org.jboss.vfs.TempFileProvider;
 import org.jboss.vfs.VFS;
 import org.jboss.vfs.VirtualFile;
 import org.jboss.vfs.VirtualFileAssembly;
-import org.junit.After;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
 public class DependencyServiceImplTests {
 
@@ -33,7 +33,7 @@ public class DependencyServiceImplTests {
   Closeable assemblyHandle;
   TempFileProvider tempFileProvider;
 
-  @After
+  @AfterEach
   public void teardown() throws IOException {
     if (assemblyHandle != null) {
       assemblyHandle.close();

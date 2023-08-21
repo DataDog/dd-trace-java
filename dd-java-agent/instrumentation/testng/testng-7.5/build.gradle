@@ -1,0 +1,31 @@
+plugins {
+  id 'java-test-fixtures'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  /**
+   * TestNG 7.6+ passes if muzzle is run with Java 11 but fails otherwise because it
+   * is compiled with Java 11, so we can't validate with muzzle which uses Java 8.
+   */
+  pass {
+    group = 'org.testng'
+    module = 'testng'
+    versions = '[7.5,7.6)'
+  }
+}
+
+dependencies {
+  compileOnly group: 'org.testng', name: 'testng', version: '7.5'
+
+  implementation project(':dd-java-agent:instrumentation:testng')
+
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:testng'))
+
+  testImplementation(group: 'org.testng', name: 'testng') {
+    version {
+      strictly '7.5'
+    }
+  }
+}

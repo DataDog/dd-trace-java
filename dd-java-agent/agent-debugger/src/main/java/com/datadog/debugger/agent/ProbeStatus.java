@@ -7,6 +7,7 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.util.TagsHelper;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -104,19 +105,24 @@ public class ProbeStatus {
 
   /** Stores status information for a probe */
   public static class Diagnostics {
+
     private final String probeId;
+
+    private final int probeVersion;
+
     private final Status status;
 
     private final ProbeException exception;
 
-    public Diagnostics(String probeId, Status status, ProbeException exception) {
-      this.probeId = probeId;
+    public Diagnostics(ProbeId probeId, Status status, ProbeException exception) {
+      this.probeId = probeId != null ? probeId.getId() : null;
+      this.probeVersion = probeId != null ? probeId.getVersion() : 0;
       this.status = status;
       this.exception = exception;
     }
 
-    public String getProbeId() {
-      return probeId;
+    public ProbeId getProbeId() {
+      return new ProbeId(probeId, probeVersion);
     }
 
     public Status getStatus() {
@@ -233,28 +239,28 @@ public class ProbeStatus {
       this.serviceName = TagsHelper.sanitize(config.getServiceName());
     }
 
-    public ProbeStatus receivedMessage(String probeId) {
+    public ProbeStatus receivedMessage(ProbeId probeId) {
       return new ProbeStatus(
           this.serviceName,
           "Received probe " + probeId + ".",
           new Diagnostics(probeId, Status.RECEIVED, null));
     }
 
-    public ProbeStatus installedMessage(String probeId) {
+    public ProbeStatus installedMessage(ProbeId probeId) {
       return new ProbeStatus(
           this.serviceName,
           "Installed probe " + probeId + ".",
           new Diagnostics(probeId, Status.INSTALLED, null));
     }
 
-    public ProbeStatus blockedMessage(String probeId) {
+    public ProbeStatus blockedMessage(ProbeId probeId) {
       return new ProbeStatus(
           this.serviceName,
           "Blocked probe " + probeId + ".",
           new Diagnostics(probeId, Status.BLOCKED, null));
     }
 
-    public ProbeStatus errorMessage(String probeId, Throwable ex) {
+    public ProbeStatus errorMessage(ProbeId probeId, Throwable ex) {
       return new ProbeStatus(
           this.serviceName,
           "Error installing probe " + probeId + ".",
@@ -269,7 +275,7 @@ public class ProbeStatus {
                       .collect(Collectors.toList()))));
     }
 
-    public ProbeStatus errorMessage(String probeId, String message) {
+    public ProbeStatus errorMessage(ProbeId probeId, String message) {
       return new ProbeStatus(
           this.serviceName,
           "Error installing probe " + probeId + ".",

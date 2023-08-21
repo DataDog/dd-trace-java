@@ -16,6 +16,9 @@ public enum TracePropagationStyle {
   // Amazon X-Ray context propagation style
   // https://docs.aws.amazon.com/xray/latest/devguide/xray-concepts.html#xray-concepts-tracingheader
   XRAY,
+  // W3C trace context propagation style
+  // https://www.w3.org/TR/trace-context-1/
+  TRACECONTEXT,
   // None does not extract or inject
   NONE;
 

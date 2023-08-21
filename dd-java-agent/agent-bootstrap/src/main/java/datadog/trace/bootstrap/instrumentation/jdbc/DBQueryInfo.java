@@ -47,16 +47,39 @@ public final class DBQueryInfo {
       return null;
     }
     int start = 0;
+    boolean insideComment = false;
     for (int i = 0; i < sql.length(); ++i) {
-      if (Character.isAlphabetic(sql.charAt(i))) {
+      char c = sql.charAt(i);
+      if (c == '/' && i + 1 < sql.length() && sql.charAt(i + 1) == '*') {
+        insideComment = true;
+        i++;
+        continue;
+      }
+      if (c == '*' && i + 1 < sql.length() && sql.charAt(i + 1) == '/') {
+        insideComment = false;
+        i++;
+        continue;
+      }
+      if (!insideComment && Character.isAlphabetic(c)) {
         start = i;
         break;
       }
     }
+
     int firstWhitespace = -1;
     for (int i = start; i < sql.length(); ++i) {
       char c = sql.charAt(i);
-      if (Character.isWhitespace(c)) {
+      if (c == '/' && i + 1 < sql.length() && sql.charAt(i + 1) == '*') {
+        insideComment = true;
+        i++;
+        continue;
+      }
+      if (c == '*' && i + 1 < sql.length() && sql.charAt(i + 1) == '/') {
+        insideComment = false;
+        i++;
+        continue;
+      }
+      if (!insideComment && Character.isWhitespace(c)) {
         firstWhitespace = i;
         break;
       }

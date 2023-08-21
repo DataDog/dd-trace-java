@@ -1,5 +1,6 @@
 plugins {
   id 'java-test-fixtures'
+  id 'me.champeau.jmh'
 }
 
 muzzle {
@@ -10,27 +11,12 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'org.unbroken-dome.test-sets'
 apply plugin: 'call-site-instrumentation'
 
-testSets {
-  oldH2Test {
-    dirName = 'test'
-  }
-
-  latestDepTest {
-    dirName = 'test'
-  }
-
-  oldPostgresTest {
-    dirName = 'test'
-  }
-
-  latestDepJava11Test {
-    extendsFrom latestDepTest
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('oldH2Test', 'test')
+addTestSuiteForDir('oldPostgresTest', 'test')
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepJava11Test', 'latestDepTest', 'test')
 
 dependencies {
   testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
@@ -91,4 +77,9 @@ tasks.named("latestDepJava11Test").configure {
 
 tasks.withType(Test).configureEach {
   usesService(testcontainersLimit)
+}
+
+jmh {
+  jmhVersion = '1.28'
+  duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
 }

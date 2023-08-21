@@ -62,11 +62,11 @@ public final class TraceMapperV0_5 implements TraceMapper {
       /* 3  */
       writeDictionaryEncoded(writable, span.getResourceName());
       /* 4  */
-      writable.writeLong(span.getTraceId().toLong());
+      writable.writeUnsignedLong(span.getTraceId().toLong());
       /* 5  */
-      writable.writeLong(span.getSpanId());
+      writable.writeUnsignedLong(span.getSpanId());
       /* 6  */
-      writable.writeLong(span.getParentId());
+      writable.writeUnsignedLong(span.getParentId());
       /* 7  */
       writable.writeLong(span.getStartTime());
       /* 8  */

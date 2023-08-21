@@ -7,6 +7,7 @@ import datadog.trace.api.Functions.Join;
 import datadog.trace.api.Functions.PrefixJoin;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -27,12 +28,20 @@ public final class JMSDecorator extends MessagingClientDecorator {
   private static final Logger log = LoggerFactory.getLogger(JMSDecorator.class);
 
   public static final CharSequence JMS = UTF8BytesString.create("jms");
-  public static final CharSequence JMS_CONSUME = UTF8BytesString.create("jms.consume");
-  public static final CharSequence JMS_PRODUCE = UTF8BytesString.create("jms.produce");
+  public static final CharSequence JMS_CONSUME =
+      UTF8BytesString.create(
+          SpanNaming.instance().namingSchema().messaging().inboundOperation(JMS.toString()));
+  public static final CharSequence JMS_PRODUCE =
+      UTF8BytesString.create(
+          SpanNaming.instance().namingSchema().messaging().outboundOperation(JMS.toString()));
   public static final CharSequence JMS_DELIVER = UTF8BytesString.create("jms.deliver");
 
-  public static final boolean JMS_LEGACY_TRACING = Config.get().isLegacyTracingEnabled(true, "jms");
+  public static final boolean JMS_LEGACY_TRACING =
+      Config.get().isLegacyTracingEnabled(SpanNaming.instance().version() == 0, "jms");
 
+  public static final boolean TIME_IN_QUEUE_ENABLED =
+      Config.get()
+          .isTimeInQueueEnabled(!JMS_LEGACY_TRACING && SpanNaming.instance().version() == 0, "jms");
   public static final String JMS_PRODUCED_KEY = "x_datadog_jms_produced";
   public static final String JMS_BATCH_ID_KEY = "x_datadog_jms_batch_id";
 
@@ -76,7 +85,7 @@ public final class JMSDecorator extends MessagingClientDecorator {
           "",
           Tags.SPAN_KIND_BROKER,
           InternalSpanTypes.MESSAGE_BROKER,
-          null /* service name will be set later on */);
+          SpanNaming.instance().namingSchema().messaging().timeInQueueService(JMS.toString()));
 
   public JMSDecorator(
       String resourcePrefix, String spanKind, CharSequence spanType, String serviceName) {

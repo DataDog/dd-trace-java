@@ -32,9 +32,11 @@ public final class InstrumentationPoints {
 
   public static final String AGENT_CRASHING_COMMAND_PREFIX = "COMMAND-NAME:";
 
-  public static AgentScope beforeCommand(final RedisCommand<?, ?, ?> command) {
+  public static AgentScope beforeCommand(
+      final RedisCommand<?, ?, ?> command, final RedisURI redisURI) {
     final AgentSpan span = startSpan(LettuceClientDecorator.OPERATION_NAME);
     DECORATE.afterStart(span);
+    DECORATE.onConnection(span, redisURI);
     DECORATE.onCommand(span, command);
     return activateSpan(span);
   }
@@ -74,6 +76,7 @@ public final class InstrumentationPoints {
     final AgentSpan span = startSpan(LettuceClientDecorator.OPERATION_NAME);
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, redisURI);
+    span.setResourceName(DECORATE.resourceNameForConnection(redisURI));
     return activateSpan(span);
   }
 

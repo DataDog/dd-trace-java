@@ -22,17 +22,17 @@ class DefaultLogHandlerTest extends DDSpecification {
     final DDSpan span = tracer.buildSpan("op name").withServiceName("foo").start()
     final String errorMessage = "errorMessage"
     final String differentMessage = "differentMessage"
-    final Throwable throwable = new Throwable(errorMessage)
+    final Throwable error = new Throwable(errorMessage)
     final Map<String, ?> fields = new HashMap<>()
-    fields.put(Fields.ERROR_OBJECT, throwable)
+    fields.put(Fields.ERROR_OBJECT, error)
     fields.put(Fields.MESSAGE, differentMessage)
 
     when:
     underTest.log(fields, span)
 
     then:
-    span.getTags().get(DDTags.ERROR_MSG) == throwable.getMessage()
-    span.getTags().get(DDTags.ERROR_TYPE) == throwable.getClass().getName()
+    span.getTags().get(DDTags.ERROR_MSG) == error.getMessage()
+    span.getTags().get(DDTags.ERROR_TYPE) == error.getClass().getName()
   }
 
   def "handles correctly the error passed in the fields when called with timestamp"() {
@@ -41,17 +41,17 @@ class DefaultLogHandlerTest extends DDSpecification {
     final DDSpan span = tracer.buildSpan("op name").withServiceName("foo").start()
     final String errorMessage = "errorMessage"
     final String differentMessage = "differentMessage"
-    final Throwable throwable = new Throwable(errorMessage)
+    final Throwable error = new Throwable(errorMessage)
     final Map<String, ?> fields = new HashMap<>()
-    fields.put(Fields.ERROR_OBJECT, throwable)
+    fields.put(Fields.ERROR_OBJECT, error)
     fields.put(Fields.MESSAGE, differentMessage)
 
     when:
     underTest.log(System.currentTimeMillis(), fields, span)
 
     then:
-    span.getTags().get(DDTags.ERROR_MSG) == throwable.getMessage()
-    span.getTags().get(DDTags.ERROR_TYPE) == throwable.getClass().getName()
+    span.getTags().get(DDTags.ERROR_MSG) == error.getMessage()
+    span.getTags().get(DDTags.ERROR_TYPE) == error.getClass().getName()
   }
 
   def "handles correctly the message passed in the fields but the span is not an error"() {

@@ -71,7 +71,4 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
     }
     return span;
   }
-
-  @Override
-  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
 }

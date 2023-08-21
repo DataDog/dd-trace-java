@@ -27,7 +27,13 @@ public enum RequestType {
   APP_CLOSING("app-closing"),
 
   @com.squareup.moshi.Json(name = "generate-metrics")
-  GENERATE_METRICS("generate-metrics");
+  GENERATE_METRICS("generate-metrics"),
+
+  @com.squareup.moshi.Json(name = "logs")
+  LOGS("logs"),
+
+  @com.squareup.moshi.Json(name = "distributions")
+  DISTRIBUTIONS("distributions");
 
   private final String value;
 

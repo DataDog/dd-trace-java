@@ -2,9 +2,11 @@ package com.datadog.debugger.el.expressions;
 
 import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.el.DSL;
+import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.RefResolverHelper;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.Values;
@@ -38,7 +40,8 @@ public class SubStringExpressionTest {
   @Test
   void stringOutOfBoundsExpression() {
     SubStringExpression expression = new SubStringExpression(DSL.value("abc"), 0, 10);
-    assertTrue(expression.evaluate(resolver).isUndefined());
-    assertEquals("substring(\"abc\", 0, 10)", print(expression));
+    EvaluationException evaluationException =
+        assertThrows(EvaluationException.class, () -> expression.evaluate(resolver));
+    assertEquals("substring(\"abc\", 0, 10)", evaluationException.getExpr());
   }
 }

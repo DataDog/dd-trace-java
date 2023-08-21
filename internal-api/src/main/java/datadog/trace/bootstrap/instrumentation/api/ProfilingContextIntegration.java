@@ -1,8 +1,10 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import datadog.trace.api.experimental.ProfilingContext;
+import datadog.trace.api.experimental.Profiling;
+import datadog.trace.api.experimental.ProfilingContextSetter;
+import datadog.trace.api.experimental.ProfilingScope;
 
-public interface ProfilingContextIntegration extends ProfilingContext {
+public interface ProfilingContextIntegration extends Profiling {
   /** Invoked when a trace first propagates to a thread */
   void onAttach();
 
@@ -29,10 +31,14 @@ public interface ProfilingContextIntegration extends ProfilingContext {
         new ProfilingContextIntegration.NoOp();
 
     @Override
-    public void setContextValue(String attribute, String value) {}
+    public ProfilingContextSetter createContextSetter(String attribute) {
+      return ProfilingContextSetter.NoOp.INSTANCE;
+    }
 
     @Override
-    public void clearContextValue(String attribute) {}
+    public ProfilingScope newScope() {
+      return ProfilingScope.NO_OP;
+    }
 
     @Override
     public void onAttach() {}

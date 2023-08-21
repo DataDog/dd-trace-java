@@ -1,0 +1,23 @@
+muzzle {
+  pass {
+    group = 'org.apache.maven'
+    module = 'maven-embedder'
+    versions = '[3.2.1,)'
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly 'org.apache.maven:maven-embedder:3.2.1'
+
+  testImplementation testFixtures(project(':dd-java-agent:agent-ci-visibility'))
+
+  // this is not the earliest version of Maven that we support,
+  // but using the earliest one is not possible here because of dependency conflicts
+  testImplementation 'org.apache.maven:maven-embedder:3.2.5'
+  testImplementation 'org.eclipse.aether:aether-connector-basic:1.0.0.v20140518'
+  testImplementation 'org.eclipse.aether:aether-transport-wagon:1.0.0.v20140518'
+  testImplementation 'org.apache.maven.wagon:wagon-http:2.8'
+}

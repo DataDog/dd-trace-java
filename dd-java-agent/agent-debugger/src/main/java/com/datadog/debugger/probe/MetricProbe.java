@@ -2,8 +2,10 @@ package com.datadog.debugger.probe;
 
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.el.ValueScript;
+import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.MetricInstrumentor;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
+import datadog.trace.bootstrap.debugger.MethodLocation;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -26,20 +28,19 @@ public class MetricProbe extends ProbeDefinition {
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
   public MetricProbe() {
-    this(LANGUAGE, null, true, null, null, MethodLocation.DEFAULT, MetricKind.COUNT, null, null);
+    this(LANGUAGE, null, null, null, MethodLocation.DEFAULT, MetricKind.COUNT, null, null);
   }
 
   public MetricProbe(
       String language,
-      String probeId,
-      boolean active,
+      ProbeId probeId,
       String[] tagStrs,
       Where where,
       MethodLocation evaluateAt,
       MetricKind kind,
       String metricName,
       ValueScript value) {
-    super(language, probeId, active, tagStrs, where, evaluateAt);
+    super(language, probeId, tagStrs, where, evaluateAt);
     this.kind = kind;
     this.metricName = metricName;
     this.value = value;
@@ -62,8 +63,10 @@ public class MetricProbe extends ProbeDefinition {
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics) {
-    new MetricInstrumentor(this, classLoader, classNode, methodNode, diagnostics).instrument();
+      List<DiagnosticMessage> diagnostics,
+      List<String> probeIds) {
+    new MetricInstrumentor(this, classLoader, classNode, methodNode, diagnostics, probeIds)
+        .instrument();
   }
 
   public static Builder builder() {
@@ -92,7 +95,7 @@ public class MetricProbe extends ProbeDefinition {
 
     public MetricProbe build() {
       return new MetricProbe(
-          language, probeId, active, tagStrs, where, evaluateAt, kind, metricName, valueScript);
+          language, probeId, tagStrs, where, evaluateAt, kind, metricName, valueScript);
     }
   }
 
@@ -102,9 +105,9 @@ public class MetricProbe extends ProbeDefinition {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     MetricProbe that = (MetricProbe) o;
-    return active == that.active
-        && Objects.equals(language, that.language)
+    return Objects.equals(language, that.language)
         && Objects.equals(id, that.id)
+        && version == that.version
         && Arrays.equals(tags, that.tags)
         && Objects.equals(tagMap, that.tagMap)
         && Objects.equals(where, that.where)
@@ -118,7 +121,7 @@ public class MetricProbe extends ProbeDefinition {
   @Override
   public int hashCode() {
     int result =
-        Objects.hash(language, id, active, tagMap, where, evaluateAt, kind, metricName, value);
+        Objects.hash(language, id, version, tagMap, where, evaluateAt, kind, metricName, value);
     result = 31 * result + Arrays.hashCode(tags);
     return result;
   }
@@ -133,8 +136,8 @@ public class MetricProbe extends ProbeDefinition {
         + ", id='"
         + id
         + '\''
-        + ", active="
-        + active
+        + ", version="
+        + version
         + ", tags="
         + Arrays.toString(tags)
         + ", tagMap="

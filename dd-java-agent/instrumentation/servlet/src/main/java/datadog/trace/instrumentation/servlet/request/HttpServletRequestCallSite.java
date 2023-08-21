@@ -5,8 +5,8 @@ import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.IastAdvice.Propagation;
 import datadog.trace.api.iast.IastAdvice.Source;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.model.PropagationTypes;
-import datadog.trace.api.iast.model.SourceTypes;
+import datadog.trace.api.iast.SourceTypes;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.source.WebModule;
 import datadog.trace.util.stacktrace.StackUtils;
 import java.util.ArrayList;
@@ -19,7 +19,7 @@ import javax.servlet.http.HttpServletRequest;
 @CallSite(spi = IastAdvice.class)
 public class HttpServletRequestCallSite {
 
-  @Source(SourceTypes.REQUEST_HEADER_VALUE)
+  @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
   @CallSite.After(
       "java.lang.String javax.servlet.http.HttpServletRequest.getHeader(java.lang.String)")
   @CallSite.After(
@@ -39,15 +39,15 @@ public class HttpServletRequestCallSite {
     return headerValue;
   }
 
-  @Source(SourceTypes.REQUEST_HEADER_VALUE)
+  @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
   @CallSite.After(
       "java.util.Enumeration javax.servlet.http.HttpServletRequest.getHeaders(java.lang.String)")
   @CallSite.After(
       "java.util.Enumeration javax.servlet.http.HttpServletRequestWrapper.getHeaders(java.lang.String)")
-  public static Enumeration<?> afterGetHeaders(
+  public static Enumeration<String> afterGetHeaders(
       @CallSite.This final HttpServletRequest self,
       @CallSite.Argument final String headerName,
-      @CallSite.Return final Enumeration<?> enumeration)
+      @CallSite.Return final Enumeration<String> enumeration)
       throws Throwable {
     if (enumeration == null) {
       return null;
@@ -57,15 +57,15 @@ public class HttpServletRequestCallSite {
       return enumeration;
     }
     try {
-      final List<Object> headerValues = new ArrayList<>();
+      final List<String> headerValues = new ArrayList<>();
       while (enumeration.hasMoreElements()) {
-        final Object headerValue = enumeration.nextElement();
+        final String headerValue = enumeration.nextElement();
         headerValues.add(headerValue);
-        try {
-          module.onHeaderValue(headerName, (String) headerValue);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("afterGetHeaders threw", e);
-        }
+      }
+      try {
+        module.onHeaderValues(headerName, headerValues);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterGetHeaders threw", e);
       }
       return Collections.enumeration(headerValues);
     } catch (final Throwable e) {
@@ -74,13 +74,13 @@ public class HttpServletRequestCallSite {
     }
   }
 
-  @Source(SourceTypes.REQUEST_HEADER_NAME)
+  @Source(SourceTypes.REQUEST_HEADER_NAME_STRING)
   @CallSite.After("java.util.Enumeration javax.servlet.http.HttpServletRequest.getHeaderNames()")
   @CallSite.After(
       "java.util.Enumeration javax.servlet.http.HttpServletRequestWrapper.getHeaderNames()")
-  public static Enumeration<?> afterGetHeaderNames(
+  public static Enumeration<String> afterGetHeaderNames(
       @CallSite.This final HttpServletRequest self,
-      @CallSite.Return final Enumeration<?> enumeration)
+      @CallSite.Return final Enumeration<String> enumeration)
       throws Throwable {
     if (enumeration == null) {
       return null;
@@ -90,15 +90,15 @@ public class HttpServletRequestCallSite {
       return enumeration;
     }
     try {
-      final List<Object> headerNames = new ArrayList<>();
+      final List<String> headerNames = new ArrayList<>();
       while (enumeration.hasMoreElements()) {
-        final Object headerName = enumeration.nextElement();
+        final String headerName = enumeration.nextElement();
         headerNames.add(headerName);
-        try {
-          module.onHeaderName((String) headerName);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("afterGetHeaderNames threw", e);
-        }
+      }
+      try {
+        module.onHeaderNames(headerNames);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterGetHeaderNames threw", e);
       }
       return Collections.enumeration(headerNames);
     } catch (final Throwable e) {
@@ -107,22 +107,38 @@ public class HttpServletRequestCallSite {
     }
   }
 
-  @Propagation(PropagationTypes.COOKIE)
+  @Propagation
   @CallSite.After("javax.servlet.http.Cookie[] javax.servlet.http.HttpServletRequest.getCookies()")
   @CallSite.After(
       "javax.servlet.http.Cookie[] javax.servlet.http.HttpServletRequestWrapper.getCookies()")
   public static Cookie[] afterGetCookies(
       @CallSite.This final HttpServletRequest self, @CallSite.Return final Cookie[] cookies) {
     if (null != cookies && cookies.length > 0) {
-      final WebModule module = InstrumentationBridge.WEB;
+      final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.onCookies(cookies);
+          module.taint(SourceTypes.REQUEST_COOKIE_VALUE, (Object[]) cookies);
         } catch (final Throwable e) {
           module.onUnexpectedException("afterGetCookies threw", e);
         }
       }
     }
     return cookies;
+  }
+
+  @Source(SourceTypes.REQUEST_QUERY_STRING)
+  @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequest.getQueryString()")
+  @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequestWrapper.getQueryString()")
+  public static String afterGetQueryString(
+      @CallSite.This final HttpServletRequest self, @CallSite.Return final String queryString) {
+    final WebModule module = InstrumentationBridge.WEB;
+    if (module != null) {
+      try {
+        module.onQueryString(queryString);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterGetQueryString threw", e);
+      }
+    }
+    return queryString;
   }
 }

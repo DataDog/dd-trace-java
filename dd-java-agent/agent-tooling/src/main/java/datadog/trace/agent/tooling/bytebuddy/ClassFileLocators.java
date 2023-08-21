@@ -4,9 +4,9 @@ import static datadog.trace.bootstrap.AgentClassLoading.LOCATING_CLASS;
 import static datadog.trace.util.Strings.getResourceName;
 
 import datadog.trace.agent.tooling.Utils;
-import datadog.trace.agent.tooling.WeakCaches;
 import datadog.trace.api.InstrumenterConfig;
-import datadog.trace.bootstrap.WeakCache;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
@@ -22,8 +22,8 @@ import net.bytebuddy.utility.StreamDrainer;
  * cannot find the desired resource, check up the classloader hierarchy until a resource is found.
  */
 public final class ClassFileLocators {
-  private static final WeakCache<ClassLoader, DDClassFileLocator> classFileLocators =
-      WeakCaches.newWeakCache(64);
+  private static final DDCache<ClassLoader, DDClassFileLocator> classFileLocators =
+      DDCaches.newFixedSizeWeakKeyCache(64);
 
   private static final ClassFileLocator bootClassFileLocator =
       new ClassFileLocator() {

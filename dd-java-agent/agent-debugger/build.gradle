@@ -2,11 +2,6 @@ plugins {
   id "com.github.johnrengelman.shadow"
 }
 
-// Set properties before any plugins get loaded
-ext {
-  enableJunitPlatform = true
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 // We do not publish separate jar, but having version file is useful
 apply from: "$rootDir/gradle/version.gradle"
@@ -57,6 +52,7 @@ dependencies {
   testImplementation group: 'org.jetbrains.kotlin', name: 'kotlin-compiler-embeddable', version: "1.5.21"
   testImplementation project(':dd-trace-core')
   testImplementation project(':dd-java-agent:agent-builder')
+  testImplementation project(':utils:test-utils')
   testRuntimeOnly group: 'org.scala-lang', name: 'scala-compiler', version: '2.13.3'
   testRuntimeOnly group: 'antlr', name: 'antlr', version: '2.7.7'
 }
@@ -69,16 +65,11 @@ shadowJar {
 }
 
 jar {
-  classifier = 'unbundled'
+  archiveClassifier = 'unbundled'
   from sourceSets.main.output
 }
 
 tasks.withType(Test).configureEach {
-  options {
-    // special property to skip some  parametrized DebuggerTransformerTest tests
-    // that generates a lot of tests
-    systemProperty "fast-tests", project.findProperty("fast-tests") ?: "false"
-  }
   // DebuggerTransformerTest made some Reflective calls on java.lang package
   // needs to open it since jdk16
   def matcher = it.name =~ /testJava(\d+)Generated/

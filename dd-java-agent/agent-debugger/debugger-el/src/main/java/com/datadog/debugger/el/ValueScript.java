@@ -30,6 +30,10 @@ public class ValueScript implements DebuggerScript<Value<?>> {
     return dsl;
   }
 
+  public ValueExpression<?> getExpr() {
+    return expr;
+  }
+
   @Override
   public Value<?> execute(ValueReferenceResolver valueRefResolver) {
     return expr.evaluate(valueRefResolver);

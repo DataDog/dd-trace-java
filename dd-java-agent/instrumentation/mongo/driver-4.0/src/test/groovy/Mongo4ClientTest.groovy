@@ -232,7 +232,7 @@ abstract class Mongo4ClientTest extends MongoBaseTest {
   }
 }
 
-class Mongo4ClientV0ForkedTest extends Mongo4ClientTest {
+class Mongo4ClientV0Test extends Mongo4ClientTest {
 
   @Override
   int version() {
@@ -247,6 +247,11 @@ class Mongo4ClientV0ForkedTest extends Mongo4ClientTest {
   @Override
   String operation() {
     return V0_OPERATION
+  }
+
+  @Override
+  String dbType() {
+    return V0_DB_TYPE
   }
 }
 
@@ -265,5 +270,10 @@ class Mongo4ClientV1ForkedTest extends Mongo4ClientTest {
   @Override
   String operation() {
     return V1_OPERATION
+  }
+
+  @Override
+  String dbType() {
+    return V1_DB_TYPE
   }
 }

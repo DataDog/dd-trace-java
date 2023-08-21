@@ -28,11 +28,7 @@ excludedClassesCoverage += [
   'datadog.trace.core.tagprocessor.QueryObfuscator.1'
 ]
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  traceAgentTest
-}
+addTestSuite('traceAgentTest')
 
 tasks.withType(Test).findByName('forkedTest').configure {
   // Needed for FootprintForkedTest on Java 17

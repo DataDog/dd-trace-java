@@ -392,8 +392,10 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
         if (isLatestDepTest && extraTags != null) {
           tag('db.system','couchbase')
           addTags(extraTags)
+          peerServiceFrom(Tags.PEER_HOSTNAME)
         }
-        defaultTags()
+        //fixme: check peer service from seed nodes when the info will be available
+        defaultTags(false, isLatestDepTest && extraTags != null)
       }
     }
   }
@@ -441,7 +443,7 @@ class CouchbaseClient31V1ForkedTest extends CouchbaseClient31Test {
 
   @Override
   String service() {
-    return Config.get().getServiceName() + "-couchbase"
+    return Config.get().getServiceName()
   }
 
   @Override

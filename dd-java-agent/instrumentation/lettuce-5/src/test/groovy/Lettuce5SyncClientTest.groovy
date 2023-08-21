@@ -109,6 +109,7 @@ abstract class Lettuce5SyncClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -146,6 +147,7 @@ abstract class Lettuce5SyncClientTest extends VersionedNamingTestBase {
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
             errorTags CompletionException, String
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -171,7 +173,11 @@ abstract class Lettuce5SyncClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
+            "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -197,7 +203,11 @@ abstract class Lettuce5SyncClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
+            "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -224,6 +234,7 @@ abstract class Lettuce5SyncClientTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -249,7 +260,11 @@ abstract class Lettuce5SyncClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
+            "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -275,7 +290,11 @@ abstract class Lettuce5SyncClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
+            "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -301,7 +320,11 @@ abstract class Lettuce5SyncClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
+            "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -327,7 +350,11 @@ abstract class Lettuce5SyncClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
+            "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -352,7 +379,11 @@ abstract class Lettuce5SyncClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
+            "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -377,7 +408,11 @@ abstract class Lettuce5SyncClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
+            "db.redis.dbIndex" 0
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -385,7 +420,7 @@ abstract class Lettuce5SyncClientTest extends VersionedNamingTestBase {
     }
   }
 }
-class Lettuce5AsyncClientV0ForkedTest extends Lettuce5AsyncClientTest {
+class Lettuce5AsyncClientV0Test extends Lettuce5AsyncClientTest {
 
   @Override
   int version() {
@@ -412,7 +447,7 @@ class Lettuce5AsyncClientV1ForkedTest extends Lettuce5AsyncClientTest {
 
   @Override
   String service() {
-    return Config.get().getServiceName() + "-redis"
+    return Config.get().getServiceName()
   }
 
   @Override

@@ -207,6 +207,46 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
     }
   }
 
+  void 'dupInvoke with owner argument'() {
+    // case where there is a @This annotation and we're instrumenting an instance method
+    // (that is, the advice is interested in the object whose method is being called)
+    setup:
+    Type source = Type.getType(CallSiteWithArraysExample)
+    Type target = renameType(source, 'Test')
+    Type helperType = Type.getType(InstrumentationHelper)
+    Type helperMethod = Type.getType(InstrumentationHelper.getDeclaredMethod('onInsertSelfAndPartialArgs', StringBuilder, int, char[]))
+    Pointcut pointcut = stringBuilderInsertPointcut()
+    InvokeAdvice callSite = mockInvokeAdvice(pointcut, COMPUTE_MAX_STACK, helperType.className)
+    Advices advices = mockAdvices([callSite])
+    CallSiteTransformer callSiteTransformer = new CallSiteTransformer(advices)
+    def callbackArg
+    InstrumentationHelper.callback = { arg -> callbackArg = arg }
+
+    when:
+    byte[] transformedClass = transformType(source, target, callSiteTransformer)
+    def insert = loadType(target, transformedClass) as TriFunction<String, Integer, Integer, String>
+    insert.apply('Hello World!', 6, 5)
+
+    then:
+    callbackArg.size() == 3
+    callbackArg[0] instanceof StringBuilder
+    callbackArg[1] == 0
+    callbackArg[2] == 'Hello World!'.toCharArray()
+    1 * callSite.apply(_ as MethodHandler, Opcodes.INVOKEVIRTUAL, pointcut.type(), pointcut.method(), pointcut.descriptor(), false) >> { params ->
+      MethodHandler handler = params[0]
+      int opcode = params[1]
+      String owner = params[2]
+      String name = params[3]
+      String descriptor = params[4]
+      boolean isInterface = params[5]
+
+      int[] parameterIndices = [0, 1] as int[]
+      handler.dupInvoke(owner, descriptor, parameterIndices)
+      handler.method(Opcodes.INVOKESTATIC, helperType.internalName, 'onInsertSelfAndPartialArgs', helperMethod.descriptor, false)
+      handler.method(opcode, owner, name, descriptor, isInterface)
+    }
+  }
+
   static class InstrumentationHelper {
 
     private static Consumer<Object[]> callback = null // codenarc forces the lowercase name
@@ -225,6 +265,10 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
 
     static void onInsertPartialArgs(int index, char[] str, int offset) {
       callback?.accept([index, str, offset])
+    }
+
+    static void onInsertSelfAndPartialArgs(final StringBuilder self, int index, char[] str) {
+      callback?.accept([self, index, str])
     }
   }
 }

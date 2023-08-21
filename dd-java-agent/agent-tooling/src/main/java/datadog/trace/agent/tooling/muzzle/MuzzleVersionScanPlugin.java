@@ -44,7 +44,7 @@ public class MuzzleVersionScanPlugin {
       final List<Reference.Mismatch> mismatches =
           muzzle.getMismatchedReferenceSources(testApplicationLoader);
 
-      ClassLoaderMatchers.reset();
+      ClassLoaderMatchers.resetState();
 
       final boolean classLoaderMatch =
           instrumenter.classLoaderMatcher().matches(testApplicationLoader);

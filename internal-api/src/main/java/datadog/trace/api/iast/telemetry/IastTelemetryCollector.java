@@ -57,7 +57,13 @@ public interface IastTelemetryCollector {
 
     /** One point per trace for request scoped metrics and single point for global metrics */
     private static IastMetricHandler globalHandlerFor(final IastMetric metric) {
-      return metric.getScope() == REQUEST ? aggregated(metric) : conflated(metric);
+      switch (metric) {
+        case TAINTED_FLAT_MODE:
+        case REQUEST_TAINTED:
+          return aggregated(metric);
+        default:
+          return conflated(metric);
+      }
     }
   }
 
@@ -83,7 +89,10 @@ public interface IastTelemetryCollector {
       @Nullable final RequestContext ctx) {
     try {
       final IastTelemetryCollector instance = Holder.get(metric, ctx);
-      instance.addMetric(metric, value, tag);
+      final boolean added = instance.addMetric(metric, value, tag);
+      if (!added) {
+        LOGGER.debug("Failed to add metric {}", metric);
+      }
     } catch (final Throwable e) {
       LOGGER.warn("Failed to add metric {}", metric, e);
     }
@@ -93,9 +102,9 @@ public interface IastTelemetryCollector {
     return Holder.GLOBAL.drainMetrics();
   }
 
-  void addMetric(final IastMetric metric, final long value, final String tag);
+  boolean addMetric(final IastMetric metric, final long value, final String tag);
 
-  void merge(final Collection<MetricData> metrics);
+  boolean merge(final Collection<MetricData> metrics);
 
   Collection<MetricData> drainMetrics();
 

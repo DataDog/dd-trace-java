@@ -1,0 +1,7 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'org.glassfish.jersey.core', name: 'jersey-common', version: '3.0.0'
+  testImplementation group: 'jakarta.ws.rs', name: 'jakarta.ws.rs-api', version: '3.0.0'
+  testImplementation group: 'org.glassfish.jersey.core', name: 'jersey-common', version: '3.0.0'
+}

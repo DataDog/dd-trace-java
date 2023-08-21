@@ -17,6 +17,7 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
+import java.util.Map;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -27,9 +28,10 @@ public class LibertyDecorator
     extends HttpServerDecorator<
         HttpServletRequest, HttpServletRequest, HttpServletResponse, HttpServletRequest> {
 
-  public static final CharSequence SERVLET_REQUEST = UTF8BytesString.create("servlet.request");
   public static final CharSequence LIBERTY_SERVER = UTF8BytesString.create("liberty-server");
   public static final LibertyDecorator DECORATE = new LibertyDecorator();
+  public static final CharSequence SERVLET_REQUEST =
+      UTF8BytesString.create(DECORATE.operationName());
   public static final String DD_EXTRACTED_CONTEXT_ATTRIBUTE = "datadog.extracted-context";
   public static final String DD_CONTEXT_PATH_ATTRIBUTE = "datadog.context.path";
   public static final String DD_SERVLET_PATH_ATTRIBUTE = "datadog.servlet.path";
@@ -149,7 +151,8 @@ public class LibertyDecorator
     }
 
     @Override
-    public boolean tryCommitBlockingResponse(int statusCode, BlockingContentType bct) {
+    public boolean tryCommitBlockingResponse(
+        int statusCode, BlockingContentType bct, Map<String, String> extraHeaders) {
       if (!(request instanceof SRTServletRequest)) {
         log.warn("Can't block; request not of type SRTServletRequest");
         return false;
@@ -160,7 +163,7 @@ public class LibertyDecorator
         return false;
       }
       ServletBlockingHelper.commitBlockingResponse(
-          request, (HttpServletResponse) response, statusCode, bct);
+          request, (HttpServletResponse) response, statusCode, bct, extraHeaders);
 
       return true;
     }

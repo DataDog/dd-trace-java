@@ -2,7 +2,7 @@ package com.datadog.iast.taint
 
 import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
-import com.datadog.iast.model.SourceType
+import datadog.trace.api.iast.SourceTypes
 import datadog.trace.test.util.DDSpecification
 
 import static com.datadog.iast.taint.Ranges.rangesProviderFor
@@ -11,7 +11,7 @@ class RangesTest extends DDSpecification {
 
   def 'forString'() {
     given:
-    final source = new Source(SourceType.NONE, null, null)
+    final source = new Source(SourceTypes.NONE, null, null)
 
     when:
     final result = Ranges.forString(s, source)
@@ -159,7 +159,7 @@ class RangesTest extends DDSpecification {
 
   def 'forObject'() {
     given:
-    final source = new Source(SourceType.NONE, null, null)
+    final source = new Source(SourceTypes.NONE, null, null)
 
     when:
     final result = Ranges.forObject(source)
@@ -182,7 +182,7 @@ class RangesTest extends DDSpecification {
       ranges[i] = new Range(
         spec[i][0] as int,
         spec[i][1] as int,
-        new Source(SourceType.NONE, String.valueOf(j), null))
+        new Source(SourceTypes.NONE, String.valueOf(j), null))
       j++
     }
     ranges

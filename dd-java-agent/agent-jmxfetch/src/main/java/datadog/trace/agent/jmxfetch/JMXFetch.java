@@ -108,7 +108,7 @@ public class JMXFetch {
 
     if (config.isJmxFetchMultipleRuntimeServicesEnabled()) {
       ServiceNameCollectingTraceInterceptor serviceNameProvider =
-          new ServiceNameCollectingTraceInterceptor();
+          ServiceNameCollectingTraceInterceptor.INSTANCE;
       GlobalTracer.get().addTraceInterceptor(serviceNameProvider);
 
       configBuilder.serviceNameProvider(serviceNameProvider);

@@ -9,12 +9,14 @@ import static utils.InstrumentationTestHelper.compileAndLoadClass;
 
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ValueScript;
+import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.probe.MetricProbe;
-import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.sink.Sink;
+import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.MethodLocation;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
@@ -26,15 +28,16 @@ import java.util.List;
 import java.util.Map;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import org.joor.Reflect;
-import org.junit.Assert;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 public class MetricProbesInstrumentationTest {
   private static final String LANGUAGE = "java";
-  private static final String METRIC_ID = "beae1807-f3b0-4ea8-a74f-826790c5e6f8";
-  private static final String METRIC_ID1 = "beae1807-f3b0-4ea8-a74f-826790c5e6f6";
-  private static final String METRIC_ID2 = "beae1807-f3b0-4ea8-a74f-826790c5e6f7";
+  private static final ProbeId METRIC_ID = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 0);
+  private static final ProbeId METRIC_ID1 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f6", 0);
+  private static final ProbeId METRIC_ID2 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f7", 0);
+  private static final ProbeId METRIC_ID3 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f9", 0);
   private static final String SERVICE_NAME = "service-name";
   private static final String METRIC_PROBEID_TAG =
       "debugger.probeid:beae1807-f3b0-4ea8-a74f-826790c5e6f8";
@@ -58,10 +61,10 @@ public class MetricProbesInstrumentationTest {
         installSingleMetric(METRIC_NAME, COUNT, CLASS_NAME, "main", "int (java.lang.String)", null);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
-    Assert.assertEquals(3, result);
-    Assert.assertTrue(listener.counters.containsKey(METRIC_NAME));
-    Assert.assertEquals(1, listener.counters.get(METRIC_NAME).longValue());
-    Assert.assertArrayEquals(new String[] {METRIC_PROBEID_TAG}, listener.lastTags);
+    Assertions.assertEquals(3, result);
+    Assertions.assertTrue(listener.counters.containsKey(METRIC_NAME));
+    Assertions.assertEquals(1, listener.counters.get(METRIC_NAME).longValue());
+    Assertions.assertArrayEquals(new String[] {METRIC_PROBEID_TAG}, listener.lastTags);
   }
 
   @Test
@@ -79,10 +82,10 @@ public class MetricProbesInstrumentationTest {
             new String[] {"tag1:foo1", "tag2:foo2"});
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
-    Assert.assertEquals(3, result);
-    Assert.assertTrue(listener.counters.containsKey(METRIC_NAME));
-    Assert.assertEquals(1, listener.counters.get(METRIC_NAME).longValue());
-    Assert.assertArrayEquals(
+    Assertions.assertEquals(3, result);
+    Assertions.assertTrue(listener.counters.containsKey(METRIC_NAME));
+    Assertions.assertEquals(1, listener.counters.get(METRIC_NAME).longValue());
+    Assertions.assertArrayEquals(
         new String[] {"tag1:foo1", "tag2:foo2", METRIC_PROBEID_TAG}, listener.lastTags);
   }
 
@@ -100,9 +103,9 @@ public class MetricProbesInstrumentationTest {
             new ValueScript(DSL.value(42L), "42"));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
-    Assert.assertEquals(3, result);
-    Assert.assertTrue(listener.counters.containsKey(METRIC_NAME));
-    Assert.assertEquals(42, listener.counters.get(METRIC_NAME).longValue());
+    Assertions.assertEquals(3, result);
+    Assertions.assertTrue(listener.counters.containsKey(METRIC_NAME));
+    Assertions.assertEquals(42, listener.counters.get(METRIC_NAME).longValue());
   }
 
   @Test
@@ -119,10 +122,10 @@ public class MetricProbesInstrumentationTest {
             new ValueScript(DSL.value(42.0), "42.0"));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
-    Assert.assertEquals(3, result);
-    Assert.assertFalse(listener.counters.containsKey(METRIC_NAME));
-    Assert.assertEquals(
-        "Unsupported literal: 42.0 type: java.lang.Double, expect integral type (int, long).",
+    Assertions.assertEquals(3, result);
+    Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME));
+    Assertions.assertEquals(
+        "Unsupported constant value: 42.0 type: java.lang.Double",
         mockSink.getCurrentDiagnostics().get(0).getMessage());
   }
 
@@ -140,10 +143,42 @@ public class MetricProbesInstrumentationTest {
             new ValueScript(DSL.ref("value"), "value"));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
-    Assert.assertEquals(3, result);
-    Assert.assertFalse(listener.counters.containsKey(METRIC_NAME));
-    Assert.assertEquals(
+    Assertions.assertEquals(3, result);
+    Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME));
+    Assertions.assertEquals(
         "Cannot resolve symbol value", mockSink.getCurrentDiagnostics().get(0).getMessage());
+  }
+
+  @Test
+  public void multiInvalidValueMetric() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    String METRIC_NAME = "call_count";
+    MetricProbe metric1 =
+        MetricProbe.builder()
+            .probeId(METRIC_ID1)
+            .metricName(METRIC_NAME)
+            .kind(COUNT)
+            .where(CLASS_NAME, "main", "int (java.lang.String)")
+            .valueScript(new ValueScript(DSL.ref("value"), "value"))
+            .build();
+    MetricProbe metric2 =
+        MetricProbe.builder()
+            .probeId(METRIC_ID2)
+            .metricName(METRIC_NAME)
+            .kind(COUNT)
+            .where(CLASS_NAME, "main", "int (java.lang.String)")
+            .valueScript(new ValueScript(DSL.ref("invalid"), "invalid"))
+            .build();
+    MetricForwarderListener listener = installMetricProbes(metric1, metric2);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    Assertions.assertEquals(3, result);
+    Assertions.assertEquals(0, listener.counters.size());
+    Assertions.assertEquals(2, mockSink.getCurrentDiagnostics().size());
+    Assertions.assertEquals(
+        "Cannot resolve symbol value", mockSink.getCurrentDiagnostics().get(0).getMessage());
+    Assertions.assertEquals(
+        "Cannot resolve symbol invalid", mockSink.getCurrentDiagnostics().get(1).getMessage());
   }
 
   @Test
@@ -160,9 +195,9 @@ public class MetricProbesInstrumentationTest {
             new ValueScript(DSL.ref("value"), "value"));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
-    Assert.assertEquals(48, result);
-    Assert.assertTrue(listener.counters.containsKey(METRIC_NAME));
-    Assert.assertEquals(31, listener.counters.get(METRIC_NAME).longValue());
+    Assertions.assertEquals(48, result);
+    Assertions.assertTrue(listener.counters.containsKey(METRIC_NAME));
+    Assertions.assertEquals(31, listener.counters.get(METRIC_NAME).longValue());
   }
 
   @Test
@@ -179,10 +214,10 @@ public class MetricProbesInstrumentationTest {
             new ValueScript(DSL.ref("value"), "value"));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
-    Assert.assertEquals(48, result);
-    Assert.assertTrue(listener.counters.containsKey(METRIC_NAME));
-    Assert.assertEquals(31, listener.counters.get(METRIC_NAME).longValue());
-    Assert.assertArrayEquals(new String[] {METRIC_PROBEID_TAG}, listener.lastTags);
+    Assertions.assertEquals(48, result);
+    Assertions.assertTrue(listener.gauges.containsKey(METRIC_NAME));
+    Assertions.assertEquals(31, listener.gauges.get(METRIC_NAME).longValue());
+    Assertions.assertArrayEquals(new String[] {METRIC_PROBEID_TAG}, listener.lastTags);
   }
 
   @Test
@@ -200,7 +235,7 @@ public class MetricProbesInstrumentationTest {
             new String[] {"tag1:foo1"});
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
-    Assert.assertArrayEquals(new String[] {"tag1:foo1", METRIC_PROBEID_TAG}, listener.lastTags);
+    Assertions.assertArrayEquals(new String[] {"tag1:foo1", METRIC_PROBEID_TAG}, listener.lastTags);
   }
 
   @Test
@@ -217,10 +252,10 @@ public class MetricProbesInstrumentationTest {
             new ValueScript(DSL.ref("value"), "value"));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
-    Assert.assertEquals(48, result);
-    Assert.assertTrue(listener.counters.containsKey(METRIC_NAME));
-    Assert.assertEquals(31, listener.counters.get(METRIC_NAME).longValue());
-    Assert.assertArrayEquals(new String[] {METRIC_PROBEID_TAG}, listener.lastTags);
+    Assertions.assertEquals(48, result);
+    Assertions.assertTrue(listener.histrograms.containsKey(METRIC_NAME));
+    Assertions.assertEquals(31, listener.histrograms.get(METRIC_NAME).longValue());
+    Assertions.assertArrayEquals(new String[] {METRIC_PROBEID_TAG}, listener.lastTags);
   }
 
   @Test
@@ -239,10 +274,10 @@ public class MetricProbesInstrumentationTest {
             new String[] {"tag1:foo1"});
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
-    Assert.assertEquals(48, result);
-    Assert.assertTrue(listener.counters.containsKey(METRIC_NAME));
-    Assert.assertEquals(31, listener.counters.get(METRIC_NAME).longValue());
-    Assert.assertArrayEquals(new String[] {"tag1:foo1", METRIC_PROBEID_TAG}, listener.lastTags);
+    Assertions.assertEquals(48, result);
+    Assertions.assertTrue(listener.histrograms.containsKey(METRIC_NAME));
+    Assertions.assertEquals(31, listener.histrograms.get(METRIC_NAME).longValue());
+    Assertions.assertArrayEquals(new String[] {"tag1:foo1", METRIC_PROBEID_TAG}, listener.lastTags);
   }
 
   @Test
@@ -260,9 +295,9 @@ public class MetricProbesInstrumentationTest {
     MetricForwarderListener listener = installMetricProbes(metricProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
-    Assert.assertEquals(48, result);
-    Assert.assertTrue(listener.counters.containsKey(METRIC_NAME));
-    Assert.assertEquals(31, listener.counters.get(METRIC_NAME).longValue());
+    Assertions.assertEquals(48, result);
+    Assertions.assertTrue(listener.counters.containsKey(METRIC_NAME));
+    Assertions.assertEquals(31, listener.counters.get(METRIC_NAME).longValue());
   }
 
   @Test
@@ -279,9 +314,9 @@ public class MetricProbesInstrumentationTest {
             new ValueScript(DSL.ref("foo"), "foo"));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
-    Assert.assertEquals(48, result);
-    Assert.assertFalse(listener.counters.containsKey(METRIC_NAME));
-    Assert.assertEquals(
+    Assertions.assertEquals(48, result);
+    Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME));
+    Assertions.assertEquals(
         "Cannot resolve symbol foo", mockSink.getCurrentDiagnostics().get(0).getMessage());
   }
 
@@ -299,9 +334,9 @@ public class MetricProbesInstrumentationTest {
             new ValueScript(DSL.ref("arg"), "arg"));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
-    Assert.assertEquals(48, result);
-    Assert.assertFalse(listener.counters.containsKey(METRIC_NAME));
-    Assert.assertEquals(
+    Assertions.assertEquals(48, result);
+    Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME));
+    Assertions.assertEquals(
         "Incompatible type for expression: java.lang.String with expected type: long",
         mockSink.getCurrentDiagnostics().get(0).getMessage());
   }
@@ -316,9 +351,9 @@ public class MetricProbesInstrumentationTest {
     MetricForwarderListener listener = installMetricProbes(metricProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
-    Assert.assertEquals(3, result);
-    Assert.assertTrue(listener.counters.containsKey(METRIC_NAME));
-    Assert.assertEquals(3, listener.counters.get(METRIC_NAME).longValue());
+    Assertions.assertEquals(3, result);
+    Assertions.assertTrue(listener.counters.containsKey(METRIC_NAME));
+    Assertions.assertEquals(3, listener.counters.get(METRIC_NAME).longValue());
   }
 
   @Test
@@ -331,9 +366,9 @@ public class MetricProbesInstrumentationTest {
     MetricForwarderListener listener = installMetricProbes(metricProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
-    Assert.assertEquals(3, result);
-    Assert.assertFalse(listener.counters.containsKey(METRIC_NAME));
-    Assert.assertEquals(
+    Assertions.assertEquals(3, result);
+    Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME));
+    Assertions.assertEquals(
         "Cannot resolve symbol foo", mockSink.getCurrentDiagnostics().get(0).getMessage());
   }
 
@@ -347,9 +382,9 @@ public class MetricProbesInstrumentationTest {
     MetricForwarderListener listener = installMetricProbes(metricProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
-    Assert.assertEquals(3, result);
-    Assert.assertFalse(listener.counters.containsKey(METRIC_NAME));
-    Assert.assertEquals(
+    Assertions.assertEquals(3, result);
+    Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME));
+    Assertions.assertEquals(
         "Incompatible type for expression: java.lang.String with expected type: long",
         mockSink.getCurrentDiagnostics().get(0).getMessage());
   }
@@ -369,9 +404,9 @@ public class MetricProbesInstrumentationTest {
 
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "f").get();
-    Assert.assertEquals(42, result);
-    Assert.assertTrue(listener.counters.containsKey(METRIC_NAME));
-    Assert.assertEquals(24, listener.counters.get(METRIC_NAME).longValue());
+    Assertions.assertEquals(42, result);
+    Assertions.assertTrue(listener.counters.containsKey(METRIC_NAME));
+    Assertions.assertEquals(24, listener.counters.get(METRIC_NAME).longValue());
   }
 
   @Test
@@ -389,9 +424,9 @@ public class MetricProbesInstrumentationTest {
 
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "f").get();
-    Assert.assertEquals(42, result);
-    Assert.assertTrue(listener.counters.containsKey(METRIC_NAME));
-    Assert.assertEquals(24, listener.counters.get(METRIC_NAME).longValue());
+    Assertions.assertEquals(42, result);
+    Assertions.assertTrue(listener.counters.containsKey(METRIC_NAME));
+    Assertions.assertEquals(24, listener.counters.get(METRIC_NAME).longValue());
   }
 
   @Test
@@ -409,9 +444,9 @@ public class MetricProbesInstrumentationTest {
     MetricForwarderListener listener = installMetricProbes(metricProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "f").get();
-    Assert.assertEquals(42, result);
-    Assert.assertTrue(listener.counters.containsKey(METRIC_NAME));
-    Assert.assertEquals(48, listener.counters.get(METRIC_NAME).longValue());
+    Assertions.assertEquals(42, result);
+    Assertions.assertTrue(listener.counters.containsKey(METRIC_NAME));
+    Assertions.assertEquals(48, listener.counters.get(METRIC_NAME).longValue());
   }
 
   @Test
@@ -440,11 +475,11 @@ public class MetricProbesInstrumentationTest {
     MetricForwarderListener listener = installMetricProbes(metricProbe1, metricProbe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "").get();
-    Assert.assertEquals(143, result);
-    Assert.assertTrue(listener.counters.containsKey(METRIC_NAME1));
-    Assert.assertTrue(listener.counters.containsKey(METRIC_NAME2));
-    Assert.assertEquals(42, listener.counters.get(METRIC_NAME1).longValue());
-    Assert.assertEquals(101, listener.counters.get(METRIC_NAME2).longValue());
+    Assertions.assertEquals(143, result);
+    Assertions.assertTrue(listener.counters.containsKey(METRIC_NAME1));
+    Assertions.assertTrue(listener.counters.containsKey(METRIC_NAME2));
+    Assertions.assertEquals(42, listener.counters.get(METRIC_NAME1).longValue());
+    Assertions.assertEquals(101, listener.counters.get(METRIC_NAME2).longValue());
   }
 
   @Test
@@ -474,10 +509,10 @@ public class MetricProbesInstrumentationTest {
     MetricForwarderListener listener = installMetricProbes(metricProbe1, metricProbe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "").get();
-    Assert.assertEquals(143, result);
-    Assert.assertFalse(listener.counters.containsKey(METRIC_NAME1));
-    Assert.assertFalse(listener.counters.containsKey(METRIC_NAME2));
-    Assert.assertTrue(mockSink.getCurrentDiagnostics().isEmpty());
+    Assertions.assertEquals(143, result);
+    Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME1));
+    Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME2));
+    Assertions.assertTrue(mockSink.getCurrentDiagnostics().isEmpty());
   }
 
   @Test
@@ -506,12 +541,12 @@ public class MetricProbesInstrumentationTest {
     MetricForwarderListener listener = installMetricProbes(metricProbe1, metricProbe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "").get();
-    Assert.assertEquals(143, result);
-    Assert.assertFalse(listener.counters.containsKey(METRIC_NAME1));
-    Assert.assertFalse(listener.counters.containsKey(METRIC_NAME2));
-    Assert.assertEquals(
+    Assertions.assertEquals(143, result);
+    Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME1));
+    Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME2));
+    Assertions.assertEquals(
         "Cannot resolve field foovalue", mockSink.getCurrentDiagnostics().get(0).getMessage());
-    Assert.assertEquals(
+    Assertions.assertEquals(
         "Cannot resolve field foovalue", mockSink.getCurrentDiagnostics().get(1).getMessage());
   }
 
@@ -541,13 +576,13 @@ public class MetricProbesInstrumentationTest {
     MetricForwarderListener listener = installMetricProbes(metricProbe1, metricProbe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "").get();
-    Assert.assertEquals(143, result);
-    Assert.assertFalse(listener.counters.containsKey(METRIC_NAME1));
-    Assert.assertFalse(listener.counters.containsKey(METRIC_NAME2));
-    Assert.assertEquals(
+    Assertions.assertEquals(143, result);
+    Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME1));
+    Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME2));
+    Assertions.assertEquals(
         "Incompatible type for expression: java.lang.String with expected type: long",
         mockSink.getCurrentDiagnostics().get(0).getMessage());
-    Assert.assertEquals(
+    Assertions.assertEquals(
         "Incompatible type for expression: java.lang.String with expected type: long",
         mockSink.getCurrentDiagnostics().get(1).getMessage());
   }
@@ -567,9 +602,9 @@ public class MetricProbesInstrumentationTest {
 
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "f").get();
-    Assert.assertEquals(42, result);
-    Assert.assertFalse(listener.counters.containsKey(METRIC_NAME));
-    Assert.assertEquals(
+    Assertions.assertEquals(42, result);
+    Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME));
+    Assertions.assertEquals(
         "Cannot resolve symbol fooValue", mockSink.getCurrentDiagnostics().get(0).getMessage());
   }
 
@@ -585,14 +620,32 @@ public class MetricProbesInstrumentationTest {
             "f",
             "()",
             new ValueScript(DSL.ref("strValue"), "strValue"));
-
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "f").get();
-    Assert.assertEquals(42, result);
-    Assert.assertFalse(listener.counters.containsKey(METRIC_NAME));
-    Assert.assertEquals(
+    Assertions.assertEquals(42, result);
+    Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME));
+    Assertions.assertEquals(
         "Incompatible type for expression: java.lang.String with expected type: long",
         mockSink.getCurrentDiagnostics().get(0).getMessage());
+  }
+
+  @Test
+  public void metricThrows() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot06";
+    ValueScript valueScript =
+        new ValueScript(DSL.getMember(DSL.ref("this"), "intValue"), "intValue");
+    MetricProbe countProbe =
+        createMetric(METRIC_ID1, "field_count", COUNT, CLASS_NAME, "f", "()", valueScript, null);
+    MetricProbe gaugeProbe =
+        createMetric(METRIC_ID2, "field_gauge", GAUGE, CLASS_NAME, "f", "()", valueScript, null);
+    MetricProbe histogramProbe =
+        createMetric(
+            METRIC_ID3, "field_histo", HISTOGRAM, CLASS_NAME, "f", "()", valueScript, null);
+    MetricForwarderListener listener = installMetricProbes(countProbe, gaugeProbe, histogramProbe);
+    listener.setThrowing(true);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assertions.assertEquals(42, result);
   }
 
   @Test
@@ -604,9 +657,9 @@ public class MetricProbesInstrumentationTest {
             METRIC_NAME, COUNT, CLASS_NAME, "main", "int (java.lang.String)", null, null, "8");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
-    Assert.assertEquals(3, result);
-    Assert.assertTrue(listener.counters.containsKey(METRIC_NAME));
-    Assert.assertEquals(1, listener.counters.get(METRIC_NAME).longValue());
+    Assertions.assertEquals(3, result);
+    Assertions.assertTrue(listener.counters.containsKey(METRIC_NAME));
+    Assertions.assertEquals(1, listener.counters.get(METRIC_NAME).longValue());
   }
 
   @Test
@@ -618,11 +671,11 @@ public class MetricProbesInstrumentationTest {
             METRIC_NAME, COUNT, CLASS_NAME, "main", "int (java.lang.String)", null, null, "4-8");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
-    Assert.assertEquals(3, result);
-    Assert.assertTrue(listener.counters.containsKey(METRIC_NAME));
-    Assert.assertEquals(2, listener.counters.get(METRIC_NAME).longValue());
+    Assertions.assertEquals(3, result);
+    Assertions.assertTrue(listener.counters.containsKey(METRIC_NAME));
+    Assertions.assertEquals(2, listener.counters.get(METRIC_NAME).longValue());
     result = Reflect.on(testClass).call("main", "2").get();
-    Assert.assertEquals(3, listener.counters.get(METRIC_NAME).longValue());
+    Assertions.assertEquals(3, listener.counters.get(METRIC_NAME).longValue());
   }
 
   @Test
@@ -633,14 +686,14 @@ public class MetricProbesInstrumentationTest {
         createMetricBuilder(METRIC_ID, METRIC_NAME, COUNT)
             .where(CLASS_NAME, "f", "()")
             .valueScript(new ValueScript(DSL.ref("intValue"), "intValue"))
-            .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
+            .evaluateAt(MethodLocation.ENTRY)
             .build();
     MetricForwarderListener listener = installMetricProbes(metricProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "f").get();
-    Assert.assertEquals(42, result);
-    Assert.assertTrue(listener.counters.containsKey(METRIC_NAME));
-    Assert.assertEquals(24, listener.counters.get(METRIC_NAME).longValue());
+    Assertions.assertEquals(42, result);
+    Assertions.assertTrue(listener.counters.containsKey(METRIC_NAME));
+    Assertions.assertEquals(24, listener.counters.get(METRIC_NAME).longValue());
   }
 
   @Test
@@ -651,14 +704,129 @@ public class MetricProbesInstrumentationTest {
         createMetricBuilder(METRIC_ID, METRIC_NAME, COUNT)
             .where(CLASS_NAME, "f", "()")
             .valueScript(new ValueScript(DSL.ref("intValue"), "intValue"))
-            .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
+            .evaluateAt(MethodLocation.EXIT)
             .build();
     MetricForwarderListener listener = installMetricProbes(metricProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "f").get();
-    Assert.assertEquals(42, result);
-    Assert.assertTrue(listener.counters.containsKey(METRIC_NAME));
-    Assert.assertEquals(48, listener.counters.get(METRIC_NAME).longValue());
+    Assertions.assertEquals(42, result);
+    Assertions.assertTrue(listener.counters.containsKey(METRIC_NAME));
+    Assertions.assertEquals(48, listener.counters.get(METRIC_NAME).longValue());
+  }
+
+  @Test
+  public void lenExpression() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot06";
+    String STRLEN_METRIC = "strlen";
+    String LISTSIZE_METRIC = "listsize";
+    String MAPSIZE_METRIC = "mapsize";
+    MetricProbe metricProbe1 =
+        createMetricBuilder(METRIC_ID, STRLEN_METRIC, GAUGE)
+            .where(CLASS_NAME, "f", "()")
+            .valueScript(new ValueScript(DSL.len(DSL.ref("strValue")), "len(strValue)"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricProbe metricProbe2 =
+        createMetricBuilder(METRIC_ID, LISTSIZE_METRIC, GAUGE)
+            .where(CLASS_NAME, "f", "()")
+            .valueScript(new ValueScript(DSL.len(DSL.ref("strList")), "len(strList)"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricProbe metricProbe3 =
+        createMetricBuilder(METRIC_ID, MAPSIZE_METRIC, GAUGE)
+            .where(CLASS_NAME, "f", "()")
+            .valueScript(new ValueScript(DSL.len(DSL.ref("strMap")), "len(strMap)"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricForwarderListener listener =
+        installMetricProbes(metricProbe1, metricProbe2, metricProbe3);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assertions.assertEquals(42, result);
+    Assertions.assertTrue(listener.gauges.containsKey(STRLEN_METRIC));
+    Assertions.assertEquals(
+        4, listener.gauges.get(STRLEN_METRIC).longValue()); // <=> "done".length()
+    Assertions.assertTrue(listener.gauges.containsKey(LISTSIZE_METRIC));
+    Assertions.assertEquals(
+        3, listener.gauges.get(LISTSIZE_METRIC).longValue()); // <=> strList.size()
+    Assertions.assertTrue(listener.gauges.containsKey(MAPSIZE_METRIC));
+    Assertions.assertEquals(
+        1, listener.gauges.get(MAPSIZE_METRIC).longValue()); // <=> strMap.size()
+  }
+
+  @Test
+  public void indexExpression() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot22";
+    String ARRAYIDX_METRIC = "arrayindex";
+    String LISTIDX_METRIC = "listindex";
+    String MAPIDX_METRIC = "mapindex";
+    MetricProbe metricProbe1 =
+        createMetricBuilder(METRIC_ID, ARRAYIDX_METRIC, GAUGE)
+            .where(CLASS_NAME, "doit", "(String)")
+            .valueScript(
+                new ValueScript(DSL.index(DSL.ref("intArray"), DSL.value(4)), "intArray[4]"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricProbe metricProbe2 =
+        createMetricBuilder(METRIC_ID, LISTIDX_METRIC, GAUGE)
+            .where(CLASS_NAME, "doit", "(String)")
+            .valueScript(
+                new ValueScript(
+                    DSL.len(DSL.index(DSL.ref("strList"), DSL.value(1))), "len(strList[1])"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricProbe metricProbe3 =
+        createMetricBuilder(METRIC_ID, MAPIDX_METRIC, GAUGE)
+            .where(CLASS_NAME, "doit", "(String)")
+            .valueScript(
+                new ValueScript(
+                    DSL.len(DSL.index(DSL.ref("strMap"), DSL.value("foo1"))),
+                    "len(strMap['foo1'])"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricForwarderListener listener =
+        installMetricProbes(metricProbe1, metricProbe2, metricProbe3);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assertions.assertEquals(42, result);
+    Assertions.assertTrue(listener.gauges.containsKey(ARRAYIDX_METRIC));
+    Assertions.assertEquals(4, listener.gauges.get(ARRAYIDX_METRIC).longValue());
+    Assertions.assertTrue(listener.gauges.containsKey(LISTIDX_METRIC));
+    Assertions.assertEquals(3, listener.gauges.get(LISTIDX_METRIC).longValue());
+    Assertions.assertTrue(listener.gauges.containsKey(MAPIDX_METRIC));
+    Assertions.assertEquals(4, listener.gauges.get(MAPIDX_METRIC).longValue());
+  }
+
+  @Test
+  public void indexInvalidKeyTypeExpression() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot22";
+    String ARRAYSTRIDX_METRIC = "arrayStrIndex";
+    String ARRAYOOBIDX_METRIC = "arrayOutOfBoundsIndex";
+    MetricProbe metricProbe1 =
+        createMetricBuilder(METRIC_ID, ARRAYSTRIDX_METRIC, GAUGE)
+            .where(CLASS_NAME, "doit", "(String)")
+            .valueScript(
+                new ValueScript(
+                    DSL.index(DSL.ref("intArray"), DSL.value("foo")), "intArray['foo']"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricProbe metricProbe2 =
+        createMetricBuilder(METRIC_ID, ARRAYOOBIDX_METRIC, GAUGE)
+            .where(CLASS_NAME, "doit", "(String)")
+            // generates ArrayOutOfBoundsException
+            .valueScript(
+                new ValueScript(DSL.index(DSL.ref("intArray"), DSL.value(42)), "intArray[42]"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricForwarderListener listener = installMetricProbes(metricProbe1, metricProbe2);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assertions.assertEquals(42, result);
+    Assertions.assertFalse(listener.gauges.containsKey(ARRAYSTRIDX_METRIC));
+    Assertions.assertFalse(listener.gauges.containsKey(ARRAYOOBIDX_METRIC));
+    Assertions.assertEquals(
+        "Incompatible type for key: Type{mainType=Ljava/lang/String;, genericTypes=[]}, expected int or long",
+        mockSink.getCurrentDiagnostics().get(0).getMessage());
   }
 
   private MetricForwarderListener installSingleMetric(
@@ -698,7 +866,7 @@ public class MetricProbesInstrumentationTest {
   }
 
   private static MetricProbe createMetric(
-      String id,
+      ProbeId id,
       String metricName,
       MetricProbe.MetricKind metricKind,
       String typeName,
@@ -709,14 +877,13 @@ public class MetricProbesInstrumentationTest {
       String... lines) {
     return createMetricBuilder(id, metricName, metricKind)
         .where(typeName, methodName, signature, lines)
-        .kind(COUNT)
         .valueScript(valueScript)
         .tags(tags)
         .build();
   }
 
   private static MetricProbe createMetric(
-      String id,
+      ProbeId id,
       String metricName,
       MetricProbe.MetricKind metricKind,
       String sourceFile,
@@ -724,13 +891,12 @@ public class MetricProbesInstrumentationTest {
       int line) {
     return createMetricBuilder(id, metricName, metricKind)
         .where(sourceFile, line)
-        .kind(COUNT)
         .valueScript(valueScript)
         .build();
   }
 
   private static MetricProbe.Builder createMetricBuilder(
-      String id, String metricName, MetricProbe.MetricKind metricKind) {
+      ProbeId id, String metricName, MetricProbe.MetricKind metricKind) {
     return MetricProbe.builder()
         .language(LANGUAGE)
         .probeId(id)
@@ -746,7 +912,8 @@ public class MetricProbesInstrumentationTest {
     instr.addTransformer(currentTransformer);
     MetricForwarderListener listener = new MetricForwarderListener();
     mockSink = new MockSink();
-    DebuggerContext.init(mockSink, null, listener);
+    DebuggerAgentHelper.injectSink(mockSink);
+    DebuggerContext.init(null, listener);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     return listener;
   }
@@ -761,26 +928,44 @@ public class MetricProbesInstrumentationTest {
 
   private static class MetricForwarderListener implements DebuggerContext.MetricForwarder {
     Map<String, Long> counters = new HashMap<>();
+    Map<String, Long> gauges = new HashMap<>();
+    Map<String, Long> histrograms = new HashMap<>();
     String[] lastTags = null;
+    boolean throwing;
 
     @Override
     public void count(String name, long delta, String[] tags) {
+      if (throwing) {
+        throw new IllegalArgumentException("oops");
+      }
       counters.compute(name, (key, value) -> value != null ? value + delta : delta);
       lastTags = tags;
     }
 
     @Override
     public void gauge(String name, long value, String[] tags) {
+      if (throwing) {
+        throw new IllegalArgumentException("oops");
+      }
+      gauges.put(name, value);
       lastTags = tags;
     }
 
     @Override
     public void histogram(String name, long value, String[] tags) {
+      if (throwing) {
+        throw new IllegalArgumentException("oops");
+      }
+      histrograms.put(name, value);
       lastTags = tags;
+    }
+
+    public void setThrowing(boolean value) {
+      this.throwing = value;
     }
   }
 
-  private static class MockSink implements DebuggerContext.Sink {
+  private static class MockSink implements Sink {
 
     private final List<DiagnosticMessage> currentDiagnostics = new ArrayList<>();
 
@@ -788,7 +973,10 @@ public class MetricProbesInstrumentationTest {
     public void addSnapshot(Snapshot snapshot) {}
 
     @Override
-    public void addDiagnostics(String probeId, List<DiagnosticMessage> messages) {
+    public void skipSnapshot(String probeId, DebuggerContext.SkipCause cause) {}
+
+    @Override
+    public void addDiagnostics(ProbeId probeId, List<DiagnosticMessage> messages) {
       for (DiagnosticMessage msg : messages) {
         System.out.println(msg);
       }

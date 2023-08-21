@@ -6,9 +6,11 @@ import static com.datadog.debugger.util.MoshiSnapshotHelper.ELEMENTS;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.ENTRIES;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.ENTRY;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.FIELDS;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.ID;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.IS_NULL;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.LINES;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.LOCALS;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.LOCATION;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.RETURN;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.SIZE;
@@ -16,13 +18,18 @@ import static com.datadog.debugger.util.MoshiSnapshotHelper.THROWABLE;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TRUNCATED;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TYPE;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.VALUE;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.VERSION;
 
 import com.datadog.debugger.el.ProbeCondition;
+import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.bootstrap.debugger.ProbeImplementation;
+import datadog.trace.bootstrap.debugger.ProbeLocation;
 import datadog.trace.bootstrap.debugger.el.DebuggerScript;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -43,12 +50,15 @@ public class MoshiSnapshotTestHelper {
         return new MoshiSnapshotTestHelper.CapturesAdapter(
             moshi, new CapturedContextAdapter(moshi, new CapturedValueAdapter()));
       }
-      if (Types.equals(type, Snapshot.CapturedValue.class)) {
+      if (Types.equals(type, CapturedContext.CapturedValue.class)) {
         return new MoshiSnapshotTestHelper.CapturedValueAdapter();
       }
-      if (Types.equals(type, Snapshot.CapturedContext.class)) {
+      if (Types.equals(type, CapturedContext.class)) {
         return new MoshiSnapshotTestHelper.CapturedContextAdapter(
             moshi, new CapturedValueAdapter());
+      }
+      if (Types.equals(type, ProbeImplementation.class)) {
+        return new MoshiSnapshotTestHelper.ProbeDetailsAdapter(moshi);
       }
       return null;
     }
@@ -65,8 +75,7 @@ public class MoshiSnapshotTestHelper {
 
   private static class CapturesAdapter extends MoshiSnapshotHelper.CapturesAdapter {
 
-    public CapturesAdapter(
-        Moshi moshi, JsonAdapter<Snapshot.CapturedContext> capturedContextAdapter) {
+    public CapturesAdapter(Moshi moshi, JsonAdapter<CapturedContext> capturedContextAdapter) {
       super(moshi, capturedContextAdapter);
     }
 
@@ -84,13 +93,13 @@ public class MoshiSnapshotTestHelper {
             captures.setReturn(capturedContextAdapter.fromJson(jsonReader));
             break;
           case LINES:
-            Map<Integer, Snapshot.CapturedContext> map = linesAdapter.fromJson(jsonReader);
+            Map<Integer, CapturedContext> map = linesAdapter.fromJson(jsonReader);
             if (map != null) {
               map.forEach(captures::addLine);
             }
             break;
           case CAUGHT_EXCEPTIONS:
-            List<Snapshot.CapturedThrowable> capturedThrowables =
+            List<CapturedContext.CapturedThrowable> capturedThrowables =
                 caughtExceptionsAdapter.fromJson(jsonReader);
             capturedThrowables.forEach(captures::addCaughtException);
             break;
@@ -104,23 +113,24 @@ public class MoshiSnapshotTestHelper {
   }
 
   public static class CapturedContextAdapter extends MoshiSnapshotHelper.CapturedContextAdapter {
-    private static final Snapshot.CapturedValue[] EMPTY_VALUES_ARRAY =
-        new Snapshot.CapturedValue[0];
+    private static final CapturedContext.CapturedValue[] EMPTY_VALUES_ARRAY =
+        new CapturedContext.CapturedValue[0];
 
-    public CapturedContextAdapter(Moshi moshi, JsonAdapter<Snapshot.CapturedValue> valueAdapter) {
+    public CapturedContextAdapter(
+        Moshi moshi, JsonAdapter<CapturedContext.CapturedValue> valueAdapter) {
       super(moshi, valueAdapter);
     }
 
     @Override
-    public Snapshot.CapturedContext fromJson(JsonReader jsonReader) throws IOException {
+    public CapturedContext fromJson(JsonReader jsonReader) throws IOException {
       jsonReader.beginObject();
-      Snapshot.CapturedContext capturedContext = new Snapshot.CapturedContext();
+      CapturedContext capturedContext = new CapturedContext();
       while (jsonReader.hasNext()) {
         String name = jsonReader.nextName();
         switch (name) {
           case ARGUMENTS:
             jsonReader.beginObject();
-            List<Snapshot.CapturedValue> argValues = new ArrayList<>();
+            List<CapturedContext.CapturedValue> argValues = new ArrayList<>();
             while (jsonReader.hasNext()) {
               String argName = jsonReader.peekJson().nextName();
               if ("this".equals(argName)) {
@@ -129,7 +139,7 @@ public class MoshiSnapshotTestHelper {
                 continue;
               }
               argName = jsonReader.nextName();
-              Snapshot.CapturedValue capturedValue = valueAdapter.fromJson(jsonReader);
+              CapturedContext.CapturedValue capturedValue = valueAdapter.fromJson(jsonReader);
               if (capturedValue != null) {
                 capturedValue.setName(argName);
                 argValues.add(capturedValue);
@@ -152,7 +162,7 @@ public class MoshiSnapshotTestHelper {
       return capturedContext;
     }
 
-    private void fromJsonFields(JsonReader jsonReader, Snapshot.CapturedContext capturedContext)
+    private void fromJsonFields(JsonReader jsonReader, CapturedContext capturedContext)
         throws IOException {
       jsonReader.beginObject();
       while (jsonReader.hasNext()) {
@@ -175,17 +185,17 @@ public class MoshiSnapshotTestHelper {
       jsonReader.endObject();
     }
 
-    private Snapshot.CapturedValue[] fromJsonCapturedValues(JsonReader jsonReader)
+    private CapturedContext.CapturedValue[] fromJsonCapturedValues(JsonReader jsonReader)
         throws IOException {
       jsonReader.beginObject();
-      List<Snapshot.CapturedValue> values = new ArrayList<>();
+      List<CapturedContext.CapturedValue> values = new ArrayList<>();
       while (jsonReader.hasNext()) {
         String name = jsonReader.nextName();
         if (NOT_CAPTURED_REASON.equals(name)) {
           jsonReader.nextString();
           continue;
         }
-        Snapshot.CapturedValue capturedValue = valueAdapter.fromJson(jsonReader);
+        CapturedContext.CapturedValue capturedValue = valueAdapter.fromJson(jsonReader);
         if (capturedValue != null) {
           capturedValue.setName(name);
           values.add(capturedValue);
@@ -198,7 +208,7 @@ public class MoshiSnapshotTestHelper {
 
   public static class CapturedValueAdapter extends MoshiSnapshotHelper.CapturedValueAdapter {
     @Override
-    public Snapshot.CapturedValue fromJson(JsonReader jsonReader) throws IOException {
+    public CapturedContext.CapturedValue fromJson(JsonReader jsonReader) throws IOException {
       jsonReader.beginObject();
       String type = null;
       Object value = null;
@@ -215,14 +225,14 @@ public class MoshiSnapshotTestHelper {
             break;
           case FIELDS:
             jsonReader.beginObject();
-            Map<String, Snapshot.CapturedValue> fields = new HashMap<>();
+            Map<String, CapturedContext.CapturedValue> fields = new HashMap<>();
             while (jsonReader.hasNext()) {
               String fieldName = jsonReader.nextName();
               if (NOT_CAPTURED_REASON.equals(fieldName)) {
                 notCapturedReason = jsonReader.nextString();
                 continue;
               }
-              Snapshot.CapturedValue fieldValue = fromJson(jsonReader);
+              CapturedContext.CapturedValue fieldValue = fromJson(jsonReader);
               fields.put(fieldName, fieldValue);
             }
             jsonReader.endObject();
@@ -234,9 +244,9 @@ public class MoshiSnapshotTestHelper {
                 throw new RuntimeException("type is null");
               }
               jsonReader.beginArray();
-              List<Snapshot.CapturedValue> values = new ArrayList<>();
+              List<CapturedContext.CapturedValue> values = new ArrayList<>();
               while (jsonReader.hasNext()) {
-                Snapshot.CapturedValue elementValue = fromJson(jsonReader);
+                CapturedContext.CapturedValue elementValue = fromJson(jsonReader);
                 values.add(elementValue);
               }
               jsonReader.endArray();
@@ -244,7 +254,7 @@ public class MoshiSnapshotTestHelper {
                   || type.equals(ArrayList.class.getTypeName())
                   || type.equals("java.util.Collections$UnmodifiableRandomAccessList")) {
                 List<Object> list = new ArrayList<>();
-                for (Snapshot.CapturedValue cValue : values) {
+                for (CapturedContext.CapturedValue cValue : values) {
                   list.add(cValue.getValue());
                 }
                 value = list;
@@ -253,7 +263,7 @@ public class MoshiSnapshotTestHelper {
                 if (SerializerWithLimits.isPrimitive(componentType)) {
                   value = createPrimitiveArray(componentType, values);
                 } else {
-                  value = values.stream().map(Snapshot.CapturedValue::getValue).toArray();
+                  value = values.stream().map(CapturedContext.CapturedValue::getValue).toArray();
                 }
               } else if (type.equals("java.util.Collections$EmptyList")) {
                 value = Collections.emptyList();
@@ -265,10 +275,10 @@ public class MoshiSnapshotTestHelper {
           case ENTRIES:
             {
               jsonReader.beginArray();
-              List<Snapshot.CapturedValue> values = new ArrayList<>();
+              List<CapturedContext.CapturedValue> values = new ArrayList<>();
               while (jsonReader.hasNext()) {
                 jsonReader.beginArray();
-                Snapshot.CapturedValue elementValue = fromJson(jsonReader);
+                CapturedContext.CapturedValue elementValue = fromJson(jsonReader);
                 values.add(elementValue);
                 elementValue = fromJson(jsonReader);
                 values.add(elementValue);
@@ -308,16 +318,17 @@ public class MoshiSnapshotTestHelper {
         }
       }
       jsonReader.endObject();
-      return Snapshot.CapturedValue.raw(type, value, notCapturedReason);
+      return CapturedContext.CapturedValue.raw(type, value, notCapturedReason);
     }
 
-    private Object createPrimitiveArray(String componentType, List<Snapshot.CapturedValue> values) {
+    private Object createPrimitiveArray(
+        String componentType, List<CapturedContext.CapturedValue> values) {
       switch (componentType) {
         case "byte":
           {
             byte[] bytes = new byte[values.size()];
             int i = 0;
-            for (Snapshot.CapturedValue capturedValue : values) {
+            for (CapturedContext.CapturedValue capturedValue : values) {
               bytes[i++] = (Byte) capturedValue.getValue();
             }
             return bytes;
@@ -326,7 +337,7 @@ public class MoshiSnapshotTestHelper {
           {
             boolean[] booleans = new boolean[values.size()];
             int i = 0;
-            for (Snapshot.CapturedValue capturedValue : values) {
+            for (CapturedContext.CapturedValue capturedValue : values) {
               booleans[i++] = (Boolean) capturedValue.getValue();
             }
             return booleans;
@@ -335,7 +346,7 @@ public class MoshiSnapshotTestHelper {
           {
             short[] shorts = new short[values.size()];
             int i = 0;
-            for (Snapshot.CapturedValue capturedValue : values) {
+            for (CapturedContext.CapturedValue capturedValue : values) {
               shorts[i++] = (Short) capturedValue.getValue();
             }
             return shorts;
@@ -344,7 +355,7 @@ public class MoshiSnapshotTestHelper {
           {
             char[] chars = new char[values.size()];
             int i = 0;
-            for (Snapshot.CapturedValue capturedValue : values) {
+            for (CapturedContext.CapturedValue capturedValue : values) {
               chars[i++] = (Character) capturedValue.getValue();
             }
             return chars;
@@ -353,7 +364,7 @@ public class MoshiSnapshotTestHelper {
           {
             int[] ints = new int[values.size()];
             int i = 0;
-            for (Snapshot.CapturedValue capturedValue : values) {
+            for (CapturedContext.CapturedValue capturedValue : values) {
               ints[i++] = (Integer) capturedValue.getValue();
             }
             return ints;
@@ -362,7 +373,7 @@ public class MoshiSnapshotTestHelper {
           {
             long[] longs = new long[values.size()];
             int i = 0;
-            for (Snapshot.CapturedValue capturedValue : values) {
+            for (CapturedContext.CapturedValue capturedValue : values) {
               longs[i++] = (Long) capturedValue.getValue();
             }
             return longs;
@@ -371,7 +382,7 @@ public class MoshiSnapshotTestHelper {
           {
             float[] floats = new float[values.size()];
             int i = 0;
-            for (Snapshot.CapturedValue capturedValue : values) {
+            for (CapturedContext.CapturedValue capturedValue : values) {
               floats[i++] = (Float) capturedValue.getValue();
             }
             return floats;
@@ -380,7 +391,7 @@ public class MoshiSnapshotTestHelper {
           {
             double[] doubles = new double[values.size()];
             int i = 0;
-            for (Snapshot.CapturedValue capturedValue : values) {
+            for (CapturedContext.CapturedValue capturedValue : values) {
               doubles[i++] = (Double) capturedValue.getValue();
             }
             return doubles;
@@ -389,7 +400,7 @@ public class MoshiSnapshotTestHelper {
           {
             String[] strings = new String[values.size()];
             int i = 0;
-            for (Snapshot.CapturedValue capturedValue : values) {
+            for (CapturedContext.CapturedValue capturedValue : values) {
               strings[i++] = (String) capturedValue.getValue();
             }
             return strings;
@@ -433,6 +444,38 @@ public class MoshiSnapshotTestHelper {
           return strValue;
       }
       return null;
+    }
+  }
+
+  public static class ProbeDetailsAdapter extends MoshiSnapshotHelper.ProbeDetailsAdapter {
+    public ProbeDetailsAdapter(Moshi moshi) {
+      super(moshi);
+    }
+
+    @Override
+    public ProbeImplementation fromJson(JsonReader jsonReader) throws IOException {
+      String id = null;
+      int version = 0;
+      ProbeLocation location = null;
+      jsonReader.beginObject();
+      while (jsonReader.hasNext()) {
+        String name = jsonReader.nextName();
+        switch (name) {
+          case ID:
+            id = jsonReader.nextString();
+            break;
+          case VERSION:
+            version = jsonReader.nextInt();
+            break;
+          case LOCATION:
+            location = probeLocationAdapter.fromJson(jsonReader);
+            break;
+          default:
+            throw new RuntimeException("Unknown attribute: " + name);
+        }
+      }
+      jsonReader.endObject();
+      return new ProbeImplementation.NoopProbeImplementation(new ProbeId(id, version), location);
     }
   }
 }

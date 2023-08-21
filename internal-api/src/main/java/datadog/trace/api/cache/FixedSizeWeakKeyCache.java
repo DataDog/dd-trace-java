@@ -64,7 +64,7 @@ final class FixedSizeWeakKeyCache<K, V> implements DDCache<K, V> {
 
     int hash = System.identityHashCode(key);
 
-    int h = hash;
+    int h = hash - (hash << 7); // multiply by -127 to improve identityHashCode spread
     int firstPos = h & mask;
     V value;
 

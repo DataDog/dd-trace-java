@@ -7,6 +7,7 @@ import com.datadog.debugger.util.ExceptionHelper;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -40,23 +41,23 @@ public class ProbeStatusSink {
     this.isInstrumentTheWorld = config.isDebuggerInstrumentTheWorld();
   }
 
-  public void addReceived(String probeId) {
+  public void addReceived(ProbeId probeId) {
     addDiagnostics(messageBuilder.receivedMessage(probeId));
   }
 
-  public void addInstalled(String probeId) {
+  public void addInstalled(ProbeId probeId) {
     addDiagnostics(messageBuilder.installedMessage(probeId));
   }
 
-  public void addBlocked(String probeId) {
+  public void addBlocked(ProbeId probeId) {
     addDiagnostics(messageBuilder.blockedMessage(probeId));
   }
 
-  public void addError(String probeId, Throwable ex) {
+  public void addError(ProbeId probeId, Throwable ex) {
     addDiagnostics(messageBuilder.errorMessage(probeId, ex));
   }
 
-  public void addError(String probeId, String message) {
+  public void addError(ProbeId probeId, String message) {
     addDiagnostics(messageBuilder.errorMessage(probeId, message));
   }
 
@@ -104,8 +105,8 @@ public class ProbeStatusSink {
     return missingCapacity;
   }
 
-  public void removeDiagnostics(String probeId) {
-    probeStatuses.remove(probeId);
+  public void removeDiagnostics(ProbeId probeId) {
+    probeStatuses.remove(probeId.getId());
   }
 
   private void addDiagnostics(ProbeStatus message) {
@@ -113,11 +114,11 @@ public class ProbeStatusSink {
       // drop diagnostic messages in Instrument-The-World mode
       return;
     }
-    String probeId = message.getDiagnostics().getProbeId();
-    TimedMessage current = probeStatuses.get(probeId);
+    ProbeId probeId = message.getDiagnostics().getProbeId();
+    TimedMessage current = probeStatuses.get(probeId.getId());
     if (current == null || shouldOverwrite(current.getMessage(), message)) {
       TimedMessage newMessage = new TimedMessage(message);
-      probeStatuses.put(probeId, newMessage);
+      probeStatuses.put(probeId.getId(), newMessage);
       enqueueTimedMessage(newMessage, Instant.now(Clock.systemDefaultZone()));
     }
   }
@@ -138,7 +139,9 @@ public class ProbeStatusSink {
 
   private boolean shouldOverwrite(ProbeStatus current, ProbeStatus next) {
     return next.getDiagnostics().getStatus() == Status.ERROR
-        || (current.getDiagnostics().getStatus() != next.getDiagnostics().getStatus());
+        || (current.getDiagnostics().getStatus() != next.getDiagnostics().getStatus())
+        || (current.getDiagnostics().getProbeId().getVersion()
+            < next.getDiagnostics().getProbeId().getVersion());
   }
 
   private boolean shouldEmitAgain(Instant now, Instant lastEmit) {

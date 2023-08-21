@@ -6,16 +6,19 @@ public final class Location {
 
   private final int line;
 
+  private final String method;
+
   private Long spanId;
 
-  private Location(final long spanId, final String path, final int line) {
+  private Location(final long spanId, final String path, final int line, final String method) {
     this.spanId = spanId == 0 ? null : spanId;
     this.path = path;
     this.line = line;
+    this.method = method;
   }
 
   public static Location forSpanAndStack(final long spanId, final StackTraceElement stack) {
-    return new Location(spanId, stack.getClassName(), stack.getLineNumber());
+    return new Location(spanId, stack.getClassName(), stack.getLineNumber(), stack.getMethodName());
   }
 
   public long getSpanId() {
@@ -28,6 +31,10 @@ public final class Location {
 
   public int getLine() {
     return line;
+  }
+
+  public String getMethod() {
+    return method;
   }
 
   public void updateSpan(final long spanId) {

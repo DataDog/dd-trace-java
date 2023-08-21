@@ -7,12 +7,16 @@ import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDOutlinePoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
+import datadog.trace.agent.tooling.bytebuddy.memoize.MemoizedMatchers;
+import datadog.trace.agent.tooling.usm.UsmExtractorImpl;
+import datadog.trace.agent.tooling.usm.UsmMessageFactoryImpl;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.IntegrationsCollector;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.util.AgentTaskScheduler;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.util.Collections;
@@ -41,9 +45,19 @@ public class AgentInstaller {
 
   static {
     addByteBuddyRawSetting();
-    // register weak map/cache suppliers as early as possible
+    // register weak map supplier as early as possible
     WeakMaps.registerAsSupplier();
-    WeakCaches.registerAsSupplier();
+    circularityErrorWorkaround();
+  }
+
+  @SuppressForbidden
+  private static void circularityErrorWorkaround() {
+    // these classes have been involved in intermittent ClassCircularityErrors during startup
+    // they don't need context storage, so it's safe to load them before installing the agent
+    try {
+      Class.forName("java.util.concurrent.ThreadLocalRandom");
+    } catch (Throwable ignore) {
+    }
   }
 
   public static void installBytebuddyAgent(final Instrumentation inst) {
@@ -88,7 +102,16 @@ public class AgentInstaller {
       DDCachingPoolStrategy.registerAsSupplier();
     }
 
-    DDElementMatchers.registerAsSupplier();
+    if (InstrumenterConfig.get().isResolverMemoizingEnabled()) {
+      MemoizedMatchers.registerAsSupplier();
+    } else {
+      DDElementMatchers.registerAsSupplier();
+    }
+
+    if (enabledSystems.contains(Instrumenter.TargetSystem.USM)) {
+      UsmMessageFactoryImpl.registerAsSupplier();
+      UsmExtractorImpl.registerAsSupplier();
+    }
 
     // By default ByteBuddy will skip all methods that are synthetic or default finalizer
     // but we need to instrument some synthetic methods in Scala, so change the ignore matcher
@@ -208,11 +231,14 @@ public class AgentInstaller {
     if (cfg.getAppSecActivation() != ProductActivation.FULLY_DISABLED) {
       enabledSystems.add(Instrumenter.TargetSystem.APPSEC);
     }
-    if (cfg.isIastEnabled()) {
+    if (cfg.getIastActivation() != ProductActivation.FULLY_DISABLED) {
       enabledSystems.add(Instrumenter.TargetSystem.IAST);
     }
     if (cfg.isCiVisibilityEnabled()) {
       enabledSystems.add(Instrumenter.TargetSystem.CIVISIBILITY);
+    }
+    if (cfg.isUsmEnabled()) {
+      enabledSystems.add(Instrumenter.TargetSystem.USM);
     }
     return enabledSystems;
   }

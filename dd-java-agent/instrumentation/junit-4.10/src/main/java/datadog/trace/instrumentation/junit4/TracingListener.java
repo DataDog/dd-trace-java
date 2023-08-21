@@ -1,9 +1,10 @@
 package datadog.trace.instrumentation.junit4;
 
-import static datadog.trace.instrumentation.junit4.JUnit4Decorator.DECORATE;
-
-import datadog.trace.bootstrap.instrumentation.civisibility.TestEventsHandler;
+import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.events.TestEventsHandler;
 import java.lang.reflect.Method;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import junit.runner.Version;
 import org.junit.Ignore;
@@ -18,16 +19,16 @@ public class TracingListener extends RunListener {
 
   private final TestEventsHandler testEventsHandler;
 
-  private final String version;
-
   public TracingListener() {
-    version = Version.id();
-    testEventsHandler = new TestEventsHandler(DECORATE);
+    String version = Version.id();
+    Path currentPath = Paths.get("").toAbsolutePath();
+    testEventsHandler =
+        InstrumentationBridge.createTestEventsHandler("junit", "junit4", version, currentPath);
   }
 
   @Override
   public void testRunStarted(Description description) {
-    testEventsHandler.onTestModuleStart(version);
+    testEventsHandler.onTestModuleStart();
   }
 
   @Override
@@ -47,7 +48,7 @@ public class TracingListener extends RunListener {
     String testSuiteName = junitTestClass.getName();
     Class<?> testClass = junitTestClass.getJavaClass();
     List<String> categories = JUnit4Utils.getCategories(testClass, null);
-    testEventsHandler.onTestSuiteStart(testSuiteName, testClass, version, categories);
+    testEventsHandler.onTestSuiteStart(testSuiteName, null, null, testClass, categories);
   }
 
   public void testSuiteFinished(final TestClass junitTestClass) {
@@ -75,20 +76,36 @@ public class TracingListener extends RunListener {
     List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);
 
     testEventsHandler.onTestStart(
-        testSuiteName, testName, testParameters, categories, version, testClass, testMethod);
+        testSuiteName, testName, null, null, testParameters, categories, testClass, testMethod);
   }
 
   @Override
   public void testFinished(final Description description) {
     String testSuiteName = description.getClassName();
     Class<?> testClass = description.getTestClass();
-    testEventsHandler.onTestFinish(testSuiteName, testClass);
+    Method testMethod = JUnit4Utils.getTestMethod(description);
+    String testName = JUnit4Utils.getTestName(description, testMethod);
+    String testParameters = JUnit4Utils.getParameters(description);
+    testEventsHandler.onTestFinish(testSuiteName, testClass, testName, testParameters);
   }
 
   // same callback is executed both for test cases and test suites (for setup/teardown errors)
   @Override
   public void testFailure(final Failure failure) {
-    testEventsHandler.onFailure(failure.getException());
+    Description description = failure.getDescription();
+    String testSuiteName = description.getClassName();
+    Class<?> testClass = description.getTestClass();
+    if (JUnit4Utils.isTestSuiteDescription(description)) {
+      Throwable throwable = failure.getException();
+      testEventsHandler.onTestSuiteFailure(testSuiteName, testClass, throwable);
+    } else {
+      Method testMethod = JUnit4Utils.getTestMethod(description);
+      String testName = JUnit4Utils.getTestName(description, testMethod);
+      String testParameters = JUnit4Utils.getParameters(description);
+      Throwable throwable = failure.getException();
+      testEventsHandler.onTestFailure(
+          testSuiteName, testClass, testName, testParameters, throwable);
+    }
   }
 
   @Override
@@ -101,14 +118,23 @@ public class TracingListener extends RunListener {
       reason = null;
     }
 
-    testEventsHandler.onSkip(reason);
-
     Description description = failure.getDescription();
+    String testSuiteName = description.getClassName();
+    Class<?> testClass = description.getTestClass();
+
     if (JUnit4Utils.isTestSuiteDescription(description)) {
+      testEventsHandler.onTestSuiteSkip(testSuiteName, testClass, reason);
+
       List<Method> testMethods = JUnit4Utils.getTestMethods(description.getTestClass());
       for (Method testMethod : testMethods) {
         testIgnored(description, testMethod, reason);
       }
+    } else {
+      Method testMethod = JUnit4Utils.getTestMethod(description);
+      String testName = JUnit4Utils.getTestName(description, testMethod);
+      String testParameters = JUnit4Utils.getParameters(description);
+
+      testEventsHandler.onTestSkip(testSuiteName, testClass, testName, testParameters, reason);
     }
   }
 
@@ -123,31 +149,20 @@ public class TracingListener extends RunListener {
 
     } else if (JUnit4Utils.isTestSuiteDescription(description)) {
 
-      if (testEventsHandler.isTestSuiteInProgress()) {
-        // if assumption fails during suite setup,
-        // JUnit will call testIgnored instead of testAssumptionFailure
+      Class<?> testClass = description.getTestClass();
+      String testSuiteName = testClass.getName();
 
-        testEventsHandler.onSkip(reason);
-        List<Method> testMethods = JUnit4Utils.getTestMethods(description.getTestClass());
-        for (Method testMethod : testMethods) {
-          testIgnored(description, testMethod, reason);
-        }
+      List<String> categories = JUnit4Utils.getCategories(testClass, null);
 
-      } else {
-        Class<?> testClass = description.getTestClass();
-        String testSuiteName = testClass.getName();
-        List<String> categories = JUnit4Utils.getCategories(testClass, null);
+      testEventsHandler.onTestSuiteStart(testSuiteName, null, null, testClass, categories);
+      testEventsHandler.onTestSuiteSkip(testSuiteName, testClass, reason);
 
-        testEventsHandler.onTestSuiteStart(testSuiteName, testClass, version, categories);
-        testEventsHandler.onSkip(reason);
-
-        List<Method> testMethods = JUnit4Utils.getTestMethods(testClass);
-        for (Method testMethod : testMethods) {
-          testIgnored(description, testMethod, reason);
-        }
-
-        testEventsHandler.onTestSuiteFinish(testSuiteName, testClass);
+      List<Method> testMethods = JUnit4Utils.getTestMethods(testClass);
+      for (Method testMethod : testMethods) {
+        testIgnored(description, testMethod, reason);
       }
+
+      testEventsHandler.onTestSuiteFinish(testSuiteName, testClass);
     }
   }
 
@@ -162,9 +177,10 @@ public class TracingListener extends RunListener {
     testEventsHandler.onTestIgnore(
         testSuiteName,
         testName,
+        null,
+        null,
         testParameters,
         categories,
-        version,
         testClass,
         testMethod,
         reason);

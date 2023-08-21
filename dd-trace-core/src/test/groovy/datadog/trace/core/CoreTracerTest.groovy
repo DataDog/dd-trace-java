@@ -169,11 +169,11 @@ class CoreTracerTest extends DDCoreSpecification {
     when:
     def tracer = tracerBuilder().build()
     // Datadog extractor gets placed first
-    def taggedHeaders = tracer.extractor.extractors[0].taggedHeaders
+    def taggedHeaders = tracer.extractor.extractors[0].traceConfigSupplier.get().taggedHeaders
 
     then:
     tracer.defaultSpanTags == map
-    tracer.serviceNameMappings == map
+    tracer.captureTraceConfig().serviceMapping == map
     taggedHeaders == map
 
     cleanup:
@@ -192,7 +192,7 @@ class CoreTracerTest extends DDCoreSpecification {
     when:
     def tracer = tracerBuilder().build()
     // Datadog extractor gets placed first
-    def baggageMapping = tracer.extractor.extractors[0].baggageMapping
+    def baggageMapping = tracer.extractor.extractors[0].traceConfigSupplier.get().baggageMapping
     def invertedBaggageMapping = tracer.injector.injectors[0].invertedBaggageMapping
 
     then:

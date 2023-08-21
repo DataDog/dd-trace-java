@@ -22,12 +22,8 @@ excludedClassesCoverage += [
   "datadog.opentracing.DDTracer.DDTracerBuilder"
 ]
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  ot31CompatabilityTest
-  ot33CompatabilityTest
-}
+addTestSuite('ot31CompatabilityTest')
+addTestSuite('ot33CompatabilityTest')
 
 dependencies {
   annotationProcessor deps.autoserviceProcessor
@@ -50,32 +46,38 @@ dependencies {
 
   testImplementation project(":dd-java-agent:testing")
 
-  ot31CompatabilityTestImplementation('io.opentracing:opentracing-api:0.31.0') {
-    force = true
+  ot33CompatabilityTestImplementation('io.opentracing:opentracing-api') {
+    version {
+      strictly '0.33.0'
+    }
   }
-  ot31CompatabilityTestImplementation('io.opentracing:opentracing-util:0.31.0')  {
-    force = true
+  ot33CompatabilityTestImplementation('io.opentracing:opentracing-util')  {
+    version {
+      strictly '0.33.0'
+    }
   }
-  ot31CompatabilityTestImplementation('io.opentracing:opentracing-noop:0.31.0')  {
-    force = true
-  }
-
-  ot33CompatabilityTestImplementation('io.opentracing:opentracing-api:0.33.0') {
-    force = true
-  }
-  ot33CompatabilityTestImplementation('io.opentracing:opentracing-util:0.33.0')  {
-    force = true
-  }
-  ot33CompatabilityTestImplementation('io.opentracing:opentracing-noop:0.33.0')  {
-    force = true
+  ot33CompatabilityTestImplementation('io.opentracing:opentracing-noop')  {
+    version {
+      strictly '0.33.0'
+    }
   }
 }
+
+// gradle can't downgrade the opentracing dependencies with `strictly`
+configurations.matching({ it.name.startsWith('ot31') }).each({
+  it.resolutionStrategy {
+    force group: 'io.opentracing', name: 'opentracing-api', version: '0.31.0'
+    force group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
+    force group: 'io.opentracing', name: 'opentracing-noop', version: '0.31.0'
+  }
+})
 
 tasks.named("test").configure {
   finalizedBy "ot31CompatabilityTest", "ot33CompatabilityTest"
 }
 
 jar {
+  destinationDirectory.set(file("$buildDir/libs-unbundled"))
   archiveClassifier = 'unbundled'
 }
 

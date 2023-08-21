@@ -30,6 +30,18 @@
     ]
   },
   {
+    "name" : "datadog.trace.agent.common.sampling.SpanSamplingRules$RuleAdapter",
+    "methods": [
+      {"name": "fromJson"}
+    ]
+  },
+  {
+    "name" : "datadog.trace.agent.common.sampling.TraceSamplingRules$RuleAdapter",
+    "methods": [
+      {"name": "fromJson"}
+    ]
+  },
+  {
     "name" : "datadog.trace.instrumentation.springweb.HandlerMappingResourceNameFilter",
     "methods": [
       {"name": "<init>", "parameterTypes": []}

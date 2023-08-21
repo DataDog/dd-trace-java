@@ -2,7 +2,6 @@ package datadog.trace.api.iast.telemetry;
 
 import static datadog.trace.api.iast.telemetry.IastMetric.Scope.GLOBAL;
 import static datadog.trace.api.iast.telemetry.IastMetric.Scope.REQUEST;
-import static datadog.trace.api.iast.telemetry.IastMetric.Tags.PROPAGATION_TYPE;
 import static datadog.trace.api.iast.telemetry.IastMetric.Tags.SOURCE_TYPE;
 import static datadog.trace.api.iast.telemetry.IastMetric.Tags.VULNERABILITY_TYPE;
 import static datadog.trace.api.iast.telemetry.Verbosity.DEBUG;
@@ -10,10 +9,10 @@ import static datadog.trace.api.iast.telemetry.Verbosity.INFORMATION;
 import static datadog.trace.api.iast.telemetry.Verbosity.MANDATORY;
 
 public enum IastMetric {
-  INSTRUMENTED_PROPAGATION("instrumented.propagation", true, GLOBAL, MANDATORY, PROPAGATION_TYPE),
+  INSTRUMENTED_PROPAGATION("instrumented.propagation", true, GLOBAL, MANDATORY),
   INSTRUMENTED_SOURCE("instrumented.source", true, GLOBAL, MANDATORY, SOURCE_TYPE),
   INSTRUMENTED_SINK("instrumented.sink", true, GLOBAL, MANDATORY, VULNERABILITY_TYPE),
-  EXECUTED_PROPAGATION("executed.propagation", true, REQUEST, DEBUG, PROPAGATION_TYPE),
+  EXECUTED_PROPAGATION("executed.propagation", true, REQUEST, DEBUG),
   EXECUTED_SOURCE("executed.source", true, REQUEST, INFORMATION, SOURCE_TYPE),
   EXECUTED_SINK("executed.sink", true, REQUEST, INFORMATION, VULNERABILITY_TYPE),
   EXECUTED_TAINTED("executed.tainted", true, REQUEST, DEBUG),
@@ -75,8 +74,6 @@ public enum IastMetric {
 
     public static final String VULNERABILITY_TYPE = "vulnerability_type";
     public static final String SOURCE_TYPE = "source_type";
-
-    public static final String PROPAGATION_TYPE = "propagation_type";
   }
 
   public enum Scope {

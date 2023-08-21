@@ -1,6 +1,13 @@
+include:
+  - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
+  - remote: https://gitlab-templates.ddbuild.io/apm/packaging.yml
+  - local: ".gitlab/benchmarks.yml"
+
 stages:
   - build
+  - package
   - deploy
+  - benchmarks
   - generate-signing-key
 
 variables:
@@ -12,9 +19,6 @@ variables:
   FORCE_TRIGGER:
     value: "false"
     description: "Set to true to override rules in the reliability-env pipeline (e.g. override 'only deploy master')"
-
-include:
-  remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
 
 .common: &common
   tags: [ "runner:main", "size:large" ]
@@ -35,7 +39,7 @@ cache: &default_cache
 
 .gradle_build: &gradle_build
   <<: *common
-  image: datadog/dd-trace-java-docker-build:latest
+  image: ghcr.io/datadog/dd-trace-java-docker-build:base
   before_script:
     - export GRADLE_USER_HOME=`pwd`/.gradle
 
@@ -65,12 +69,29 @@ build_with_cache:
     <<: *default_cache
     policy: push
 
+package:
+  extends: .package
+  needs: [ build ]
+  script:
+    - source ../upstream.env
+    - export VERSION=$UPSTREAM_TRACER_VERSION$CI_VERSION_SUFFIX
+    - echo -n $VERSION > auto_inject-java.version
+    - cp ../workspace/dd-java-agent/build/libs/*.jar dd-java-agent.jar
+    - source common_build_functions.sh
+    - fpm_wrapper "datadog-apm-library-java" "$VERSION" --input-type dir dd-java-agent.jar="$LIBRARIES_INSTALL_BASE/java/dd-java-agent.jar" auto_inject-java.version="$LIBRARIES_INSTALL_BASE/java/version"
+
+.release-package:
+  stage: deploy
+  variables:
+    PRODUCT_NAME: auto_inject-java
+
 deploy_to_reliability_env:
   stage: deploy
   rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - when: on_success
+    - if: $CI_PIPELINE_SOURCE == "scheduled"
+      when: on_success
+    - when: manual
+      allow_failure: true
   trigger:
     project: DataDog/apm-reliability/datadog-reliability-env
     branch: $DOWNSTREAM_BRANCH
@@ -112,6 +133,8 @@ deploy_to_di_backend:automatic:
     - if: '$POPULATE_CACHE'
       when: never
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: on_success
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
       when: on_success
   trigger:
     project: DataDog/debugger-backend
@@ -217,7 +240,7 @@ tracer-base-image-release:
   rules:
     - if: '$POPULATE_CACHE'
       when: never
-    - if: '$CI_COMMIT_BRANCH == "master" && $CI_COMMIT_TAG =~ /^v1\..*/'
+    - if: '$CI_COMMIT_TAG =~ /^v1\..*/'
       when: on_success
   dependencies:
   - build

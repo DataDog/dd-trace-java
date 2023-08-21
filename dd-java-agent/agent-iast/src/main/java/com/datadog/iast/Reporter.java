@@ -10,8 +10,10 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.*;
+import datadog.trace.util.AgentTaskScheduler;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -24,11 +26,14 @@ public class Reporter {
   private final Predicate<Vulnerability> duplicated;
 
   Reporter() {
-    this(Config.get());
+    this(Config.get(), null);
   }
 
-  public Reporter(final Config config) {
-    this(config.isIastDeduplicationEnabled() ? new HashBasedDeduplication() : v -> false);
+  public Reporter(final Config config, final AgentTaskScheduler taskScheduler) {
+    this(
+        config.isIastDeduplicationEnabled()
+            ? new HashBasedDeduplication(taskScheduler)
+            : v -> false);
   }
 
   Reporter(final Predicate<Vulnerability> duplicate) {
@@ -101,13 +106,19 @@ public class Reporter {
 
     private final Set<Long> hashes;
 
-    public HashBasedDeduplication() {
-      this(DEFAULT_MAX_SIZE);
+    public HashBasedDeduplication(final AgentTaskScheduler taskScheduler) {
+      this(DEFAULT_MAX_SIZE, taskScheduler);
     }
 
-    HashBasedDeduplication(final int size) {
+    HashBasedDeduplication(final int size, final AgentTaskScheduler taskScheduler) {
       maxSize = size;
       hashes = ConcurrentHashMap.newKeySet(size);
+      if (taskScheduler != null) {
+        // Reset deduplication cache every hour. This helps the backend when calculating exposure
+        // windows, by sending
+        // the same vulnerabilities from time to time.
+        taskScheduler.scheduleAtFixedRate(hashes::clear, 1, 1, TimeUnit.HOURS);
+      }
     }
 
     @Override

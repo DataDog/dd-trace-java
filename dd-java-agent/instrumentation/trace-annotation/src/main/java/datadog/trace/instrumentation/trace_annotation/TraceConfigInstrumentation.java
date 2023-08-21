@@ -16,11 +16,10 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.bootstrap.instrumentation.traceannotation.TraceAnnotationConfigParser;
 import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import net.bytebuddy.description.method.MethodDescription;
@@ -77,99 +76,7 @@ public class TraceConfigInstrumentation implements Instrumenter {
   @SuppressForbidden
   public TraceConfigInstrumentation() {
     final String configString = Strings.trim(InstrumenterConfig.get().getTraceMethods());
-    if (configString.isEmpty()) {
-      classMethodsToTrace = Collections.emptyMap();
-    } else {
-      Map<String, Set<String>> toTrace = new HashMap<>();
-      int start = 0;
-      do {
-        int next = configString.indexOf(';', start + 1);
-        int end = next == -1 ? configString.length() : next;
-        if (end > start + 1) {
-          int methodsStart = configString.indexOf('[', start);
-          if (methodsStart == -1) {
-            if (!configString.substring(start).trim().isEmpty()) {
-              // this had other things than trailing whitespace after the ';' which is illegal
-              toTrace = logWarn("with incomplete definition", start, end, configString);
-            }
-            break;
-          } else if (methodsStart >= end) {
-            // this part didn't contain a '[' or ended in a '[' which is illegal
-            toTrace = logWarn("with incomplete method definition", start, end, configString);
-            break;
-          }
-          int methodsEnd = configString.indexOf(']', methodsStart);
-          if (methodsEnd == -1 || methodsEnd > end) {
-            // this part didn't contain a ']' which is illegal
-            toTrace = logWarn("does not contain a ']'", start, end, configString);
-            break;
-          } else if (methodsEnd < end
-              && !configString.substring(methodsEnd + 1, end).trim().isEmpty()) {
-            // this had other things than trailing whitespace after the ']'
-            toTrace = logWarn("with extra characters after ']'", start, end, configString);
-            break;
-          }
-          String className = configString.substring(start, methodsStart).trim();
-          if (className.isEmpty() || isIllegalClassName(className)) {
-            toTrace = logWarn("with illegal class name", start, end, configString);
-            break;
-          }
-          Set<String> methodNames = toTrace.get(className);
-          if (null == methodNames) {
-            methodNames = new HashSet<>();
-            toTrace.put(className, methodNames);
-          }
-          int methods = 0;
-          int emptyMethods = 0;
-          boolean hasStar = false;
-          for (int methodStart = methodsStart + 1; methodStart < methodsEnd; ) {
-            int nextComma = configString.indexOf(',', methodStart);
-            int methodEnd = nextComma == -1 || nextComma >= methodsEnd ? methodsEnd : nextComma;
-            String method = configString.substring(methodStart, methodEnd).trim();
-            if (isIllegalMethodName(method)) {
-              toTrace = logWarn("with illegal method name", start, end, configString);
-              methods++; // don't log empty method warning at end
-              next = -1;
-              break;
-            } else if (method.isEmpty()) {
-              emptyMethods++;
-              if (emptyMethods > 1) {
-                // we can't have multiple empty methods
-                toTrace = logWarn("with multiple emtpy method names", start, end, configString);
-                methods++; // don't log empty method warning at end
-                next = -1;
-                break;
-              }
-            } else {
-              methods++;
-              if (emptyMethods > 0) {
-                // the empty method name was not the last one, which makes it illegal
-                toTrace =
-                    logWarn("with method name and emtpy method name", start, end, configString);
-                next = -1;
-                break;
-              }
-              hasStar |= method.indexOf('*') != -1;
-              if (hasStar && methods > 1) {
-                // having both a method and a '*' is illegal
-                toTrace = logWarn("with both method name and '*'", start, end, configString);
-                next = -1;
-                break;
-              }
-              methodNames.add(method);
-            }
-            methodStart = methodEnd + 1;
-          }
-          if (methods == 0) {
-            // empty method description is illegal
-            toTrace = logWarn("with empty method definition", start, end, configString);
-            break;
-          }
-        }
-        start = next + 1;
-      } while (start != 0);
-      classMethodsToTrace = Collections.unmodifiableMap(toTrace);
-    }
+    classMethodsToTrace = TraceAnnotationConfigParser.parse(configString);
   }
 
   @Override

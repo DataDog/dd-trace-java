@@ -321,7 +321,7 @@ class FixedSizeCacheTest extends DDSpecification {
     }
 
     @Override
-    String apply(TKeyB key, int m, int n) {
+    String apply(TKeyB key, int hash, int m, int n) {
       count.incrementAndGet()
       return "${key.string}_${m}_${n}"
     }

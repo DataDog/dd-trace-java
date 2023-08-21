@@ -4,11 +4,21 @@ import datadog.smoketest.springboot.TestBean;
 import ddtest.client.sources.Hasher;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
+import java.net.HttpCookie;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
+import java.security.Principal;
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.websocket.server.PathParam;
+import org.springframework.http.HttpStatus;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.MatrixVariable;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -35,6 +45,32 @@ public class IastWebController {
   public String weakhash() {
     hasher.md5().digest("Message body".getBytes(StandardCharsets.UTF_8));
     return "Weak Hash page";
+  }
+
+  @GetMapping("/insecure_cookie")
+  public String insecureCookie(HttpServletResponse response) {
+    Cookie cookie = new Cookie("user-id", "7");
+    response.addCookie(cookie);
+    response.setStatus(HttpStatus.OK.value());
+    return "Insecure cookie page";
+  }
+
+  @GetMapping("/secure_cookie")
+  public String secureCookie(HttpServletResponse response) {
+    Cookie cookie = new Cookie("user-id", "7");
+    cookie.setSecure(true);
+    response.addCookie(cookie);
+    response.setStatus(HttpStatus.OK.value());
+    return "Insecure cookie page";
+  }
+
+  @GetMapping("/insecure_cookie_from_header")
+  public String insecureCookieFromHeader(HttpServletResponse response) {
+    HttpCookie cookie = new HttpCookie("user-id", "7");
+
+    response.addHeader("Set-Cookie", cookie.toString());
+    response.setStatus(HttpStatus.OK.value());
+    return "Insecure cookie page";
   }
 
   @RequestMapping("/async_weakhash")
@@ -102,12 +138,48 @@ public class IastWebController {
     return "PathParam is: " + param;
   }
 
+  @GetMapping("/matrix/{var1}/{var2}")
+  public String matrixAndPathVariables(
+      @PathVariable String var1,
+      @MatrixVariable(pathVar = "var1") MultiValueMap<String, String> m1,
+      @MatrixVariable(pathVar = "var2") MultiValueMap<String, String> m2) {
+    return "{var1=" + var1 + ", m1=" + m1 + ", m2=" + m2 + "}";
+  }
+
   @PostMapping("/request_body/test")
   public String jsonRequestBody(@RequestBody TestBean testBean) {
     return "@RequestBody to Test bean -> name: "
         + testBean.getName()
         + ", value: "
         + testBean.getValue();
+  }
+
+  @GetMapping("/query_string")
+  public String queryString(final HttpServletRequest request) {
+    return "QueryString is: " + request.getQueryString();
+  }
+
+  @GetMapping("/cookie")
+  public String cookie(final HttpServletRequest request) {
+    final Cookie cookie = request.getCookies()[0];
+    return "Cookie is: " + cookie.getName() + "=" + cookie.getValue();
+  }
+
+  @GetMapping("/jwt")
+  public String jwt(Principal userPrincipal) {
+    return "ok User Principal name: " + userPrincipal.getName();
+  }
+
+  @SuppressWarnings("CatchMayIgnoreException")
+  @PostMapping("/ssrf")
+  public String ssrf(@RequestParam("url") final String url) {
+    try {
+      final URL target = new URL(url);
+      final HttpURLConnection conn = (HttpURLConnection) target.openConnection();
+      conn.disconnect();
+    } catch (final Exception e) {
+    }
+    return "Url is: " + url;
   }
 
   private void withProcess(final Operation<Process> op) {

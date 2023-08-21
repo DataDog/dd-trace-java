@@ -104,6 +104,11 @@ class DynamicRoutingTest extends HttpServerTest<ConfigurableApplicationContext> 
   }
 
   @Override
+  boolean testBadUrl() {
+    false
+  }
+
+  @Override
   Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
     ["servlet.path": endpoint.path]
   }

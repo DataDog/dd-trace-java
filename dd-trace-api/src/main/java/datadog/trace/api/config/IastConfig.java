@@ -12,6 +12,10 @@ public final class IastConfig {
   public static final String IAST_REQUEST_SAMPLING = "iast.request-sampling";
   public static final String IAST_DEDUPLICATION_ENABLED = "iast.deduplication.enabled";
   public static final String IAST_TELEMETRY_VERBOSITY = "iast.telemetry.verbosity";
+  public static final String IAST_DETECTION_MODE = "iast.detection.mode";
+  public static final String IAST_REDACTION_ENABLED = "iast.redaction.enabled";
+  public static final String IAST_REDACTION_NAME_PATTERN = "iast.redaction.name.pattern";
+  public static final String IAST_REDACTION_VALUE_PATTERN = "iast.redaction.value.pattern";
 
   private IastConfig() {}
 }

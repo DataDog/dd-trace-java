@@ -14,10 +14,11 @@ public class TagContext implements AgentSpan.Context.Extracted {
 
   private static final HttpHeaders EMPTY_HTTP_HEADERS = new HttpHeaders();
 
-  private final String origin;
+  private final CharSequence origin;
   private final Map<String, String> tags;
   private Object requestContextDataAppSec;
   private Object requestContextDataIast;
+  private Object ciVisibilityContextData;
   private final HttpHeaders httpHeaders;
   private final Map<String, String> baggage;
 
@@ -32,7 +33,7 @@ public class TagContext implements AgentSpan.Context.Extracted {
   }
 
   public TagContext(
-      final String origin,
+      final CharSequence origin,
       final Map<String, String> tags,
       HttpHeaders httpHeaders,
       final Map<String, String> baggage,
@@ -44,13 +45,28 @@ public class TagContext implements AgentSpan.Context.Extracted {
     this.samplingPriority = samplingPriority;
   }
 
-  public final String getOrigin() {
+  public final CharSequence getOrigin() {
     return origin;
   }
 
   @Override
   public String getForwarded() {
     return httpHeaders.forwarded;
+  }
+
+  @Override
+  public String getFastlyClientIp() {
+    return httpHeaders.fastlyClientIp;
+  }
+
+  @Override
+  public String getCfConnectingIp() {
+    return httpHeaders.cfConnectingIp;
+  }
+
+  @Override
+  public String getCfConnectingIpv6() {
+    return httpHeaders.cfConnectingIpv6;
   }
 
   @Override
@@ -94,18 +110,13 @@ public class TagContext implements AgentSpan.Context.Extracted {
   }
 
   @Override
-  public String getClientIp() {
-    return httpHeaders.clientIp;
+  public String getXClientIp() {
+    return httpHeaders.xClientIp;
   }
 
   @Override
   public String getUserAgent() {
     return httpHeaders.userAgent;
-  }
-
-  @Override
-  public String getVia() {
-    return httpHeaders.via;
   }
 
   @Override
@@ -122,6 +133,7 @@ public class TagContext implements AgentSpan.Context.Extracted {
     return tags;
   }
 
+  @Override
   public final int getSamplingPriority() {
     return samplingPriority;
   }
@@ -168,24 +180,35 @@ public class TagContext implements AgentSpan.Context.Extracted {
     return this;
   }
 
+  public Object getCiVisibilityContextData() {
+    return ciVisibilityContextData;
+  }
+
+  public TagContext withCiVisibilityContextData(Object ciVisibilityContextData) {
+    this.ciVisibilityContextData = ciVisibilityContextData;
+    return this;
+  }
+
   @Override
   public PathwayContext getPathwayContext() {
     return null;
   }
 
   public static class HttpHeaders {
-    public String forwardedFor;
+    public String fastlyClientIp;
+    public String cfConnectingIp;
+    public String cfConnectingIpv6;
     public String xForwarded;
     public String forwarded;
     public String xForwardedProto;
     public String xForwardedHost;
     public String xForwardedPort;
     public String xForwardedFor;
+    public String forwardedFor;
     public String xClusterClientIp;
     public String xRealIp;
-    public String clientIp;
+    public String xClientIp;
     public String userAgent;
-    public String via;
     public String trueClientIp;
     public String customIpHeader;
   }

@@ -12,7 +12,7 @@ import com.datadog.debugger.util.MoshiHelper;
 import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.CapturedContext;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -238,8 +238,8 @@ public abstract class BaseIntegrationTest {
   }
 
   protected void assertCaptureArgs(
-      Snapshot.CapturedContext context, String name, String typeName, String value) {
-    Snapshot.CapturedValue capturedValue = context.getArguments().get(name);
+      CapturedContext context, String name, String typeName, String value) {
+    CapturedContext.CapturedValue capturedValue = context.getArguments().get(name);
     assertEquals(typeName, capturedValue.getType());
     Object objValue = capturedValue.getValue();
     if (objValue.getClass().isArray()) {
@@ -250,21 +250,20 @@ public abstract class BaseIntegrationTest {
   }
 
   protected void assertCaptureLocals(
-      Snapshot.CapturedContext context, String name, String typeName, String value) {
-    Snapshot.CapturedValue localVar = context.getLocals().get(name);
+      CapturedContext context, String name, String typeName, String value) {
+    CapturedContext.CapturedValue localVar = context.getLocals().get(name);
     assertEquals(typeName, localVar.getType());
     assertEquals(value, localVar.getValue());
   }
 
-  protected void assertCaptureReturnValue(
-      Snapshot.CapturedContext context, String typeName, String value) {
-    Snapshot.CapturedValue returnValue = context.getLocals().get("@return");
+  protected void assertCaptureReturnValue(CapturedContext context, String typeName, String value) {
+    CapturedContext.CapturedValue returnValue = context.getLocals().get("@return");
     assertEquals(typeName, returnValue.getType());
     assertEquals(value, returnValue.getValue());
   }
 
   protected void assertCaptureThrowable(
-      Snapshot.CapturedThrowable throwable, String typeName, String message) {
+      CapturedContext.CapturedThrowable throwable, String typeName, String message) {
     assertNotNull(throwable);
     assertEquals(typeName, throwable.getType());
     assertEquals(message, throwable.getMessage());

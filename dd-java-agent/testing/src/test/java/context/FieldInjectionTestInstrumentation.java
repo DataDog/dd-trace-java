@@ -38,6 +38,8 @@ public class FieldInjectionTestInstrumentation extends Instrumenter.Tracing
         named("incrementContextCount"), StoreAndIncrementApiUsageAdvice.class.getName());
     transformation.applyAdvice(named("getContextCount"), GetApiUsageAdvice.class.getName());
     transformation.applyAdvice(named("putContextCount"), PutApiUsageAdvice.class.getName());
+    transformation.applyAdvice(named("getContextCount2"), GetApiUsageAdvice2.class.getName());
+    transformation.applyAdvice(named("putContextCount2"), PutApiUsageAdvice2.class.getName());
     transformation.applyAdvice(
         named("incorrectKeyClassUsage"), IncorrectKeyClassContextApiUsageAdvice.class.getName());
     transformation.applyAdvice(
@@ -117,6 +119,32 @@ public class FieldInjectionTestInstrumentation extends Instrumenter.Tracing
     }
   }
 
+  public static class GetApiUsageAdvice2 {
+    @Advice.OnMethodExit
+    public static void methodExit(
+        @Advice.This final Object thiz, @Advice.Return(readOnly = false) int contextCount) {
+      final ContextStore<Object, Context> contextStore =
+          InstrumentationContext.get(
+              "context.FieldInjectionTestInstrumentation$KeyClass",
+              "context.FieldInjectionTestInstrumentation$Context");
+      contextCount = contextStore.get(thiz).count;
+    }
+  }
+
+  public static class PutApiUsageAdvice2 {
+    @Advice.OnMethodExit
+    public static void methodExit(
+        @Advice.This final Object thiz, @Advice.Argument(0) final int value) {
+      final ContextStore<Object, Context> contextStore =
+          InstrumentationContext.get(
+              "context.FieldInjectionTestInstrumentation$KeyClass",
+              "context.FieldInjectionTestInstrumentation$Context");
+      final Context context = new Context();
+      context.count = value;
+      contextStore.put(thiz, context);
+    }
+  }
+
   public static class IncorrectKeyClassContextApiUsageAdvice {
     @Advice.OnMethodExit
     public static void methodExit() {
@@ -167,6 +195,15 @@ public class FieldInjectionTestInstrumentation extends Instrumenter.Tracing
     }
 
     public void putContextCount(final int value) {
+      // implementation replaced with test instrumentation
+    }
+
+    public int getContextCount2() {
+      // implementation replaced with test instrumentation
+      return -1;
+    }
+
+    public void putContextCount2(final int value) {
       // implementation replaced with test instrumentation
     }
   }

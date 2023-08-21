@@ -7,6 +7,7 @@ import datadog.telemetry.dependency.DependencyService;
 import datadog.telemetry.dependency.DependencyServiceImpl;
 import datadog.telemetry.iast.IastTelemetryPeriodicAction;
 import datadog.telemetry.integration.IntegrationPeriodicAction;
+import datadog.telemetry.metric.WafMetricPeriodicAction;
 import datadog.trace.api.Config;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.api.time.SystemTimeSource;
@@ -44,6 +45,7 @@ public class TelemetrySystem {
 
     List<TelemetryPeriodicAction> actions = new ArrayList<>();
     actions.add(new IntegrationPeriodicAction());
+    actions.add(new WafMetricPeriodicAction());
     if (Verbosity.OFF != Config.get().getIastTelemetryVerbosity()) {
       actions.add(new IastTelemetryPeriodicAction());
     }
@@ -60,12 +62,12 @@ public class TelemetrySystem {
   public static void startTelemetry(
       Instrumentation instrumentation, SharedCommunicationObjects sco) {
     DependencyService dependencyService = createDependencyService(instrumentation);
-    RequestBuilder requestBuilder = new RequestBuilder(sco.agentUrl);
     TelemetryService telemetryService =
         new TelemetryServiceImpl(
             new RequestBuilderSupplier(sco.agentUrl),
             SystemTimeSource.INSTANCE,
-            Config.get().getTelemetryHeartbeatInterval());
+            Config.get().getTelemetryHeartbeatInterval(),
+            Config.get().getTelemetryMetricsInterval());
     TELEMETRY_THREAD =
         createTelemetryRunnable(telemetryService, sco.okHttpClient, dependencyService);
     TELEMETRY_THREAD.start();

@@ -82,7 +82,7 @@ public class OTTracer implements Tracer {
 
   @Override
   public void close() {
-    tracer.close();
+    tracer.flush(); // keep wrapped tracer open
   }
 
   public class OTSpanBuilder implements Tracer.SpanBuilder {

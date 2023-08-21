@@ -38,7 +38,7 @@ public class MethodLinesResolverImpl implements MethodLinesResolver {
     }
   }
 
-  private static final class ClassMethodLines {
+  static final class ClassMethodLines {
     private final Map<String, MethodLinesRecorder> recordersByMethodFingerprint = new HashMap<>();
 
     public MethodLinesRecorder createRecorder(String methodFingerprint) {

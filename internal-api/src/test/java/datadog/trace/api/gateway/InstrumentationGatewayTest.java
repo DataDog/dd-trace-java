@@ -10,13 +10,14 @@ import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.assertj.core.api.ThrowableAssert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class InstrumentationGatewayTest {
 
@@ -28,7 +29,7 @@ public class InstrumentationGatewayTest {
   private Callback callback;
   private Events<Object> events;
 
-  @Before
+  @BeforeEach
   public void setUp() {
     gateway = new InstrumentationGateway();
     ss = gateway.getSubscriptionService(RequestContextSlot.APPSEC);
@@ -136,6 +137,22 @@ public class InstrumentationGatewayTest {
     assertThat(rba.isBlocking()).isTrue();
     assertThat(rba.getStatusCode()).isEqualTo(400);
     assertThat(rba.getBlockingContentType()).isEqualTo(BlockingContentType.HTML);
+
+    rba =
+        new Flow.Action.RequestBlockingAction(
+            400,
+            BlockingContentType.HTML,
+            Collections.singletonMap("Location", "https://www.google.com/"));
+    assertThat(rba.isBlocking()).isTrue();
+    assertThat(rba.getStatusCode()).isEqualTo(400);
+    assertThat(rba.getBlockingContentType()).isEqualTo(BlockingContentType.HTML);
+    assertThat(rba.getExtraHeaders().get("Location")).isEqualTo("https://www.google.com/");
+
+    rba = Flow.Action.RequestBlockingAction.forRedirect(301, "https://www.google.com/");
+    assertThat(rba.isBlocking()).isTrue();
+    assertThat(rba.getStatusCode()).isEqualTo(301);
+    assertThat(rba.getBlockingContentType()).isEqualTo(BlockingContentType.NONE);
+    assertThat(rba.getExtraHeaders().get("Location")).isEqualTo("https://www.google.com/");
   }
 
   @Test
@@ -177,7 +194,7 @@ public class InstrumentationGatewayTest {
     cbp.getCallback(events.responseHeader()).accept(null, null, null);
     ss.registerCallback(events.responseHeaderDone(), callback.function);
     cbp.getCallback(events.responseHeaderDone()).apply(null);
-    assertThat(this.callback.count).isEqualTo(Events.MAX_EVENTS);
+    assertThat(callback.count).isEqualTo(Events.MAX_EVENTS);
   }
 
   @Test
@@ -381,9 +398,9 @@ public class InstrumentationGatewayTest {
     public Callback(RequestContext ctxt, Flow<Void> flow) {
       this.ctxt = ctxt;
       this.flow = flow;
-      this.function =
+      function =
           input -> {
-            this.count++;
+            count++;
             return flow;
           };
     }
@@ -449,7 +466,7 @@ public class InstrumentationGatewayTest {
 
     private final Function<RequestContext, Flow<Void>> function =
         input -> {
-          this.count++;
+          count++;
           throw new IllegalArgumentException();
         };
 

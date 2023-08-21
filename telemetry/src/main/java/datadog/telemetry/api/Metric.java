@@ -14,8 +14,8 @@ import java.util.List;
 
 public class Metric {
 
-  /** Non-serializable field with the namespace of the current metric */
-  private transient String namespace = "appsec";
+  @com.squareup.moshi.Json(name = "namespace")
+  private String namespace;
 
   @com.squareup.moshi.Json(name = "common")
   private Boolean common;

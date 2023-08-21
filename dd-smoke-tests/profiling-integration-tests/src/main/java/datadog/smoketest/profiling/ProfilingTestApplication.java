@@ -1,7 +1,8 @@
 package datadog.smoketest.profiling;
 
 import datadog.trace.api.Trace;
-import datadog.trace.api.experimental.ProfilingContext;
+import datadog.trace.api.experimental.Profiling;
+import datadog.trace.api.experimental.ProfilingContextSetter;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
@@ -14,7 +15,7 @@ public class ProfilingTestApplication {
   private static final ThreadMXBean THREAD_MX_BEAN = ManagementFactory.getThreadMXBean();
 
   public static void main(final String[] args) throws InterruptedException {
-    ProfilingContext context = ProfilingContext.get();
+    ProfilingContextSetter foo = Profiling.get().createContextSetter("foo");
     long duration = -1;
     if (args.length > 0) {
       duration = TimeUnit.SECONDS.toMillis(Long.parseLong(args[0]));
@@ -23,7 +24,7 @@ public class ProfilingTestApplication {
     final long startTime = System.currentTimeMillis();
     int counter = 0;
     while (true) {
-      context.setContextValue("foo", "context" + counter % 10);
+      foo.set("context" + counter % 10);
       tracedMethod();
       if (duration > 0 && duration + startTime < System.currentTimeMillis()) {
         break;
@@ -48,6 +49,7 @@ public class ProfilingTestApplication {
   }
 
   @Trace
+  @SuppressFBWarnings("DMI_RANDOM_USED_ONLY_ONCE")
   private static void tracedBusyMethod() {
     long startTime = THREAD_MX_BEAN.getCurrentThreadCpuTime();
     Random random = new Random();

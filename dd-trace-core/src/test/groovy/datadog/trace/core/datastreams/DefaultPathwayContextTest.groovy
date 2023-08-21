@@ -328,6 +328,25 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     }
   }
 
+  def "Legacy binary encoding"() {
+    given:
+    def timeSource = new ControllableTimeSource()
+    def context = new DefaultPathwayContext(timeSource, wellKnownTags)
+    def contextVisitor = new BinaryMapContextVisitor()
+
+    when:
+    timeSource.advance(MILLISECONDS.toNanos(50))
+    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
+
+    def encoded = java.util.Base64.getDecoder().decode(context.encode())
+    Map<String, byte[]> carrier = [(PathwayContext.PROPAGATION_KEY): encoded]
+    timeSource.advance(MILLISECONDS.toNanos(1))
+    def decodedContext = DefaultPathwayContext.extractBinary(carrier, contextVisitor, timeSource, wellKnownTags)
+
+    then:
+    decodedContext.strEncode() == context.strEncode()
+  }
+
   def "Encoding and decoding (binary) with injects and extracts"() {
     // Timesource needs to be advanced in milliseconds because encoding truncates to millis
     given:
@@ -340,7 +359,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
 
     def encoded = context.encode()
-    Map<String, byte[]> carrier = [(PathwayContext.PROPAGATION_KEY): encoded, "someotherkey": new byte[0]]
+    Map<String, byte[]> carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): encoded, "someotherkey": new byte[0]]
     timeSource.advance(MILLISECONDS.toNanos(1))
     def decodedContext = DefaultPathwayContext.extractBinary(carrier, contextVisitor, timeSource, wellKnownTags)
     timeSource.advance(MILLISECONDS.toNanos(25))
@@ -360,7 +379,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     def secondEncode = decodedContext.encode()
-    carrier = [(PathwayContext.PROPAGATION_KEY): secondEncode]
+    carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): secondEncode]
     timeSource.advance(MILLISECONDS.toNanos(2))
     def secondDecode = DefaultPathwayContext.extractBinary(carrier, contextVisitor, timeSource, wellKnownTags)
     timeSource.advance(MILLISECONDS.toNanos(30))

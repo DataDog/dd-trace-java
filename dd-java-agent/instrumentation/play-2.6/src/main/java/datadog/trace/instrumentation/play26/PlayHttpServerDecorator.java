@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.play26;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -30,6 +32,8 @@ public class PlayHttpServerDecorator
   public static final PlayHttpServerDecorator DECORATE = new PlayHttpServerDecorator();
 
   private static final MethodHandle TYPED_KEY_GET_UNDERLYING;
+
+  private static final DDCache<String, CharSequence> PATH_CACHE = DDCaches.newFixedSizeCache(32);
 
   static {
     MethodHandles.Lookup lookup = MethodHandles.publicLookup();
@@ -127,11 +131,37 @@ public class PlayHttpServerDecorator
         }
       }
       if (!defOption.isEmpty()) {
-        final String path = defOption.get().path();
+        CharSequence path =
+            PATH_CACHE.computeIfAbsent(
+                defOption.get().path(), p -> addMissingSlash(p, request.path()));
         HTTP_RESOURCE_DECORATOR.withRoute(span, request.method(), path);
       }
     }
     return span;
+  }
+
+  /*
+     This is a workaround to add a `/` if it is missing when using split routes.
+
+     https://www.playframework.com/documentation/2.8.x/sbtSubProjects#Splitting-the-route-file
+     PlayFramework routes compiler generates play.api.routing.HandlerDef.path without a `/`.
+
+     https://github.com/playframework/playframework/blob/main/dev-mode/routes-compiler/src/main/twirl/play/routes/compiler/inject/forwardsRouter.scala.twirl#L70
+  */
+  private CharSequence addMissingSlash(String routePath, String rawPath) {
+    int i = 0;
+    int m = Math.min(routePath.length(), rawPath.length());
+    while (i < m && routePath.charAt(i) == rawPath.charAt(i)) {
+      i++;
+    }
+    if (i < routePath.length() && routePath.charAt(i) != '/' && rawPath.charAt(i) == '/') {
+      StringBuilder sb = new StringBuilder(routePath.length() + 1);
+      sb.append(routePath, 0, i);
+      sb.append('/');
+      sb.append(routePath, i, routePath.length());
+      return sb;
+    }
+    return routePath;
   }
 
   @Override

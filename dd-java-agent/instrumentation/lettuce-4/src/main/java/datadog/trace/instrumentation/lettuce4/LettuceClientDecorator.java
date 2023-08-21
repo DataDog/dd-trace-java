@@ -8,7 +8,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 
@@ -65,16 +64,11 @@ public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecora
   @Override
   public AgentSpan onConnection(final AgentSpan span, final RedisURI connection) {
     if (connection != null) {
-      span.setTag(Tags.PEER_HOSTNAME, connection.getHost());
       setPeerPort(span, connection.getPort());
       span.setTag("db.redis.dbIndex", connection.getDatabase());
-      span.setResourceName(resourceName(connection));
     }
     return super.onConnection(span, connection);
   }
-
-  @Override
-  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
 
   public AgentSpan onCommand(final AgentSpan span, final RedisCommand<?, ?, ?> command) {
     span.setResourceName(
@@ -82,12 +76,12 @@ public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecora
     return span;
   }
 
-  private static String resourceName(final RedisURI connection) {
+  public String resourceNameForConnection(final RedisURI redisURI) {
     return "CONNECT:"
-        + connection.getHost()
+        + redisURI.getHost()
         + ":"
-        + connection.getPort()
+        + redisURI.getPort()
         + "/"
-        + connection.getDatabase();
+        + redisURI.getDatabase();
   }
 }

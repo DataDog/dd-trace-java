@@ -1,11 +1,13 @@
 package datadog.trace.core.propagation;
 
-import static datadog.trace.core.propagation.HttpCodec.CLIENT_IP_KEY;
+import static datadog.trace.core.propagation.HttpCodec.CF_CONNECTING_IP_KEY;
+import static datadog.trace.core.propagation.HttpCodec.CF_CONNECTING_IP_V6_KEY;
+import static datadog.trace.core.propagation.HttpCodec.FASTLY_CLIENT_IP_KEY;
 import static datadog.trace.core.propagation.HttpCodec.FORWARDED_FOR_KEY;
 import static datadog.trace.core.propagation.HttpCodec.FORWARDED_KEY;
 import static datadog.trace.core.propagation.HttpCodec.TRUE_CLIENT_IP_KEY;
 import static datadog.trace.core.propagation.HttpCodec.USER_AGENT_KEY;
-import static datadog.trace.core.propagation.HttpCodec.VIA_KEY;
+import static datadog.trace.core.propagation.HttpCodec.X_CLIENT_IP_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_CLUSTER_CLIENT_IP_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_FOR_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_HOST_KEY;
@@ -18,6 +20,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -25,14 +28,13 @@ import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
 public abstract class ContextInterpreter implements AgentPropagation.KeyClassifier {
 
-  protected final Map<String, String> taggedHeaders;
-  protected final Map<String, String> baggageMapping;
+  protected Map<String, String> taggedHeaders;
+  protected Map<String, String> baggageMapping;
 
   protected DDTraceId traceId;
   protected long spanId;
@@ -40,9 +42,10 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected Map<String, String> tags;
   protected Map<String, String> baggage;
 
-  protected String origin;
+  protected CharSequence origin;
   protected long endToEndStartTime;
   protected boolean valid;
+  protected boolean fullContext;
   protected PropagationTags propagationTags;
 
   private TagContext.HttpHeaders httpHeaders;
@@ -58,42 +61,14 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     return CACHE.computeIfAbsent(key, Functions.LowerCase.INSTANCE);
   }
 
-  protected ContextInterpreter(
-      Map<String, String> taggedHeaders, Map<String, String> baggageMapping, Config config) {
-    this.taggedHeaders = taggedHeaders;
-    this.baggageMapping = baggageMapping;
+  protected ContextInterpreter(Config config) {
     this.customIpHeaderName = config.getTraceClientIpHeader();
     this.clientIpResolutionEnabled = config.isTraceClientIpResolverEnabled();
     this.clientIpWithoutAppSec = config.isClientIpEnabled();
-    reset();
   }
 
-  public abstract static class Factory {
-
-    public ContextInterpreter create(
-        Map<String, String> tagsMapping, Map<String, String> baggageMapping) {
-      return construct(cleanMapping(tagsMapping), cleanMapping(baggageMapping, false));
-    }
-
-    protected abstract ContextInterpreter construct(
-        Map<String, String> tagsMapping, Map<String, String> baggageMapping);
-
-    protected Map<String, String> cleanMapping(
-        Map<String, String> mapping, boolean lowerCaseValues) {
-      final Map<String, String> cleanedMapping = new HashMap<>(mapping.size() * 4 / 3);
-      for (Map.Entry<String, String> association : mapping.entrySet()) {
-        String value = association.getValue().trim();
-        if (lowerCaseValues) {
-          value = value.toLowerCase();
-        }
-        cleanedMapping.put(association.getKey().trim().toLowerCase(), value);
-      }
-      return cleanedMapping;
-    }
-
-    protected Map<String, String> cleanMapping(Map<String, String> mapping) {
-      return cleanMapping(mapping, true);
-    }
+  public interface Factory {
+    ContextInterpreter create();
   }
 
   protected final boolean handledForwarding(String key, String value) {
@@ -174,20 +149,27 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
         getHeaders().xRealIp = value;
         return true;
       }
-      if (CLIENT_IP_KEY.equalsIgnoreCase(key)) {
-        getHeaders().clientIp = value;
+      if (X_CLIENT_IP_KEY.equalsIgnoreCase(key)) {
+        getHeaders().xClientIp = value;
         return true;
       }
       if (TRUE_CLIENT_IP_KEY.equalsIgnoreCase(key)) {
         getHeaders().trueClientIp = value;
         return true;
       }
-    }
-
-    if (VIA_KEY.equalsIgnoreCase(key)) {
-      getHeaders().via = value;
+      if (FASTLY_CLIENT_IP_KEY.equalsIgnoreCase(key)) {
+        getHeaders().fastlyClientIp = value;
+        return true;
+      }
+      if (CF_CONNECTING_IP_KEY.equalsIgnoreCase(key)) {
+        getHeaders().cfConnectingIp = value;
+        return true;
+      }
+    } else if (CF_CONNECTING_IP_V6_KEY.equalsIgnoreCase(key)) {
+      getHeaders().cfConnectingIpv6 = value;
       return true;
     }
+
     return false;
   }
 
@@ -223,7 +205,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     return false;
   }
 
-  public ContextInterpreter reset() {
+  public ContextInterpreter reset(TraceConfig traceConfig) {
     traceId = DDTraceId.ZERO;
     spanId = DDSpanId.ZERO;
     samplingPriority = PrioritySampling.UNSET;
@@ -232,16 +214,19 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     tags = Collections.emptyMap();
     baggage = Collections.emptyMap();
     valid = true;
+    fullContext = true;
     httpHeaders = null;
     collectIpHeaders =
         this.clientIpWithoutAppSec
             || this.clientIpResolutionEnabled && ActiveSubsystems.APPSEC_ACTIVE;
+    taggedHeaders = traceConfig.getTaggedHeaders();
+    baggageMapping = traceConfig.getBaggageMapping();
     return this;
   }
 
-  TagContext build() {
+  protected TagContext build() {
     if (valid) {
-      if (!DDTraceId.ZERO.equals(traceId)) {
+      if (fullContext && !DDTraceId.ZERO.equals(traceId)) {
         final ExtractedContext context;
         context =
             new ExtractedContext(
@@ -269,6 +254,10 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
 
   protected void invalidateContext() {
     this.valid = false;
+  }
+
+  protected void onlyTagContext() {
+    this.fullContext = false;
   }
 
   protected int defaultSamplingPriority() {

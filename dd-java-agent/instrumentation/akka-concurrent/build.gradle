@@ -15,14 +15,8 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/test-with-scala.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  akka23Test
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuite('akka23Test')
+addTestSuiteForDir('latestDepTest', 'test')
 
 tasks.named("compileAkka23TestGroovy").configure {
   classpath += files(sourceSets.akka23Test.scala.classesDirectory)
@@ -62,14 +56,16 @@ dependencies {
 
   latestDepTestImplementation group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: '+'
   latestDepTestImplementation group: 'com.typesafe.akka', name: "akka-testkit_$scalaVersion", version: '+'
-
-  akka23TestImplementation("com.typesafe.akka:akka-actor_$scalaVersion:2.3.16") {
-    force = true
-  }
-  akka23TestImplementation("com.typesafe.akka:akka-testkit_$scalaVersion:2.3.16") {
-    force = true
-  }
 }
+
+// gradle can't downgrade the akka dependencies with `strictly`
+configurations.matching({ it.name.startsWith('akka23') }).each({
+  it.resolutionStrategy {
+    force group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version :'2.3.16'
+    force group: 'com.typesafe.akka', name: "akka-testkit_$scalaVersion", version :'2.3.16'
+  }
+})
+
 
 // Run 2.3 tests along with the rest of unit tests
 tasks.named("test").configure {

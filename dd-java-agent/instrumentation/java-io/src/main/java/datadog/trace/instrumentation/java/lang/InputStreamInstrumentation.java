@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.java.lang;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -38,7 +37,7 @@ public class InputStreamInstrumentation extends Instrumenter.Iast
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        isConstructor().and(isPublic()).and(takesArgument(0, InputStream.class)),
+        isConstructor().and(takesArgument(0, InputStream.class)),
         InputStreamInstrumentation.class.getName() + "$InputStreamAdvice");
   }
 

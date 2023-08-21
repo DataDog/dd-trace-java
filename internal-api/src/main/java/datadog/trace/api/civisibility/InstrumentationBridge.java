@@ -1,64 +1,41 @@
 package datadog.trace.api.civisibility;
 
-import datadog.trace.api.civisibility.codeowners.Codeowners;
-import datadog.trace.api.civisibility.source.MethodLinesResolver;
-import datadog.trace.api.civisibility.source.SourcePathResolver;
-import java.util.Map;
+import datadog.trace.api.civisibility.decorator.TestDecorator;
+import datadog.trace.api.civisibility.events.BuildEventsHandler;
+import datadog.trace.api.civisibility.events.TestEventsHandler;
+import java.nio.file.Path;
 
 public abstract class InstrumentationBridge {
 
-  private static volatile boolean CI;
-  private static volatile Map<String, String> CI_TAGS;
-  private static volatile Codeowners CODEOWNERS;
-  private static volatile MethodLinesResolver METHOD_LINES_RESOLVER;
-  private static volatile SourcePathResolver SOURCE_PATH_RESOLVER;
-  private static volatile String MODULE;
+  private static volatile TestDecorator.Factory TEST_DECORATOR_FACTORY;
+  private static volatile TestEventsHandler.Factory TEST_EVENTS_HANDLER_FACTORY;
+  private static volatile BuildEventsHandler.Factory BUILD_EVENTS_HANDLER_FACTORY;
 
-  public static boolean isCi() {
-    return CI;
+  public static void registerTestDecoratorFactory(TestDecorator.Factory testDecoratorFactory) {
+    TEST_DECORATOR_FACTORY = testDecoratorFactory;
   }
 
-  public static void setCi(boolean ci) {
-    CI = ci;
+  public static TestDecorator createTestDecorator(
+      String component, String testFramework, String testFrameworkVersion, Path path) {
+    return TEST_DECORATOR_FACTORY.create(component, testFramework, testFrameworkVersion, path);
   }
 
-  public static Map<String, String> getCiTags() {
-    return CI_TAGS;
+  public static void registerTestEventsHandlerFactory(
+      TestEventsHandler.Factory testEventsHandlerFactory) {
+    TEST_EVENTS_HANDLER_FACTORY = testEventsHandlerFactory;
   }
 
-  public static void setCiTags(Map<String, String> ciTags) {
-    CI_TAGS = ciTags;
+  public static TestEventsHandler createTestEventsHandler(
+      String component, String testFramework, String testFrameworkVersion, Path path) {
+    return TEST_EVENTS_HANDLER_FACTORY.create(component, testFramework, testFrameworkVersion, path);
   }
 
-  public static Codeowners getCodeowners() {
-    return CODEOWNERS;
+  public static void registerBuildEventsHandlerFactory(
+      BuildEventsHandler.Factory buildEventsHandlerFactory) {
+    BUILD_EVENTS_HANDLER_FACTORY = buildEventsHandlerFactory;
   }
 
-  public static void setCodeowners(Codeowners codeowners) {
-    InstrumentationBridge.CODEOWNERS = codeowners;
-  }
-
-  public static MethodLinesResolver getMethodLinesResolver() {
-    return METHOD_LINES_RESOLVER;
-  }
-
-  public static void setMethodLinesResolver(MethodLinesResolver methodLinesResolver) {
-    METHOD_LINES_RESOLVER = methodLinesResolver;
-  }
-
-  public static SourcePathResolver getSourcePathResolver() {
-    return SOURCE_PATH_RESOLVER;
-  }
-
-  public static void setSourcePathResolver(SourcePathResolver sourcePathResolver) {
-    SOURCE_PATH_RESOLVER = sourcePathResolver;
-  }
-
-  public static String getModule() {
-    return MODULE;
-  }
-
-  public static void setModule(String MODULE) {
-    InstrumentationBridge.MODULE = MODULE;
+  public static <U> BuildEventsHandler<U> createBuildEventsHandler() {
+    return BUILD_EVENTS_HANDLER_FACTORY.create();
   }
 }

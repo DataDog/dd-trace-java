@@ -77,6 +77,20 @@ public final class ConfigProvider {
     return defaultValue;
   }
 
+  /**
+   * Like {@link #getString(String, String, String...)} but falls back to next source if a value is
+   * an empty or blank string.
+   */
+  public String getStringNotEmpty(String key, String defaultValue, String... aliases) {
+    for (ConfigProvider.Source source : sources) {
+      String value = source.get(key, aliases);
+      if (value != null && !value.trim().isEmpty()) {
+        return value;
+      }
+    }
+    return defaultValue;
+  }
+
   public String getStringExcludingSource(
       String key,
       String defaultValue,

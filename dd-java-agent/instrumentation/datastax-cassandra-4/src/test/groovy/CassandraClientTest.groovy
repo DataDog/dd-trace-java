@@ -233,6 +233,7 @@ abstract class CassandraClientTest extends VersionedNamingTestBase {
         if (throwable != null) {
           errorTags(throwable)
         }
+        peerServiceFrom(Tags.PEER_HOSTNAME)
         defaultTags()
       }
     }
@@ -266,7 +267,7 @@ class CassandraClientV1ForkedTest extends CassandraClientTest {
 
   @Override
   String service() {
-    return Config.get().getServiceName() + "-cassandra"
+    return Config.get().getServiceName()
   }
 
   @Override

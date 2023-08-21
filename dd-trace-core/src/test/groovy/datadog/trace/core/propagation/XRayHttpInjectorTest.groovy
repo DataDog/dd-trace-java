@@ -1,7 +1,9 @@
 package datadog.trace.core.propagation
 
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.DynamicConfig
 import datadog.trace.api.time.TimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 
@@ -78,7 +80,11 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
     def headers = [
       'X-Amzn-Trace-Id' : "Root=1-00000000-00000000${traceId.padLeft(16, '0')};Parent=${spanId.padLeft(16, '0')}"
     ]
-    HttpCodec.Extractor extractor = XRayHttpCodec.newExtractor(Collections.emptyMap(), Collections.emptyMap())
+    DynamicConfig dynamicConfig = DynamicConfig.create()
+      .setTaggedHeaders([:])
+      .setBaggageMapping([:])
+      .apply()
+    HttpCodec.Extractor extractor = XRayHttpCodec.newExtractor(Config.get(), { dynamicConfig.captureTraceConfig() })
     final TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
     final DDSpanContext mockedContext =
       new DDSpanContext(

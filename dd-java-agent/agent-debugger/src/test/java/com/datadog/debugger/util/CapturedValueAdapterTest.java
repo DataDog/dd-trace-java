@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.CapturedContext;
 import java.io.IOException;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -18,18 +18,19 @@ public class CapturedValueAdapterTest {
       "{\"type\": \"%s\", \"elements\": [%s]}";
   private static final String CAPTURED_VALUE_MAP_TEMPLATE = "{\"type\": \"%s\", \"entries\": [%s]}";
   Moshi moshi = MoshiSnapshotTestHelper.createMoshiSnapshot();
-  JsonAdapter<Snapshot.CapturedValue> adapter = moshi.adapter(Snapshot.CapturedValue.class);
+  JsonAdapter<CapturedContext.CapturedValue> adapter =
+      moshi.adapter(CapturedContext.CapturedValue.class);
 
   @Test
   void nullValue() throws IOException {
-    Snapshot.CapturedValue capturedValue =
+    CapturedContext.CapturedValue capturedValue =
         adapter.fromJson("{\"type\": \"String\", \"isNull\": true}");
     assertNull(capturedValue.getValue());
   }
 
   @Test
   void primitives() throws IOException {
-    Snapshot.CapturedValue value = getSimpleValue(Integer.TYPE.getTypeName(), "42");
+    CapturedContext.CapturedValue value = getSimpleValue(Integer.TYPE.getTypeName(), "42");
     assertEquals(42, value.getValue());
     value = getSimpleValue(String.class.getTypeName(), "foobar");
     assertEquals("foobar", value.getValue());
@@ -58,7 +59,8 @@ public class CapturedValueAdapterTest {
       }
       sb.append(String.format(CAPTURED_VALUE_SIMPLE_TEMPLATE, int.class.getTypeName(), i));
     }
-    Snapshot.CapturedValue value = getCollectionValue(int[].class.getTypeName(), sb.toString());
+    CapturedContext.CapturedValue value =
+        getCollectionValue(int[].class.getTypeName(), sb.toString());
     assertArrayEquals(new int[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, (int[]) value.getValue());
 
     sb = new StringBuilder();
@@ -81,22 +83,24 @@ public class CapturedValueAdapterTest {
   void map() throws IOException {
     String key = String.format(CAPTURED_VALUE_SIMPLE_TEMPLATE, String.class.getTypeName(), "foo");
     String value = String.format(CAPTURED_VALUE_SIMPLE_TEMPLATE, String.class.getTypeName(), "bar");
-    Snapshot.CapturedValue capturedValue =
+    CapturedContext.CapturedValue capturedValue =
         getMapValue(int[].class.getTypeName(), "[" + key + "," + value + "]");
     Map<String, String> stringMap = (Map<String, String>) capturedValue.getValue();
     assertEquals("bar", stringMap.get("foo"));
   }
 
-  private Snapshot.CapturedValue getSimpleValue(String type, Object value) throws IOException {
+  private CapturedContext.CapturedValue getSimpleValue(String type, Object value)
+      throws IOException {
     return adapter.fromJson(String.format(CAPTURED_VALUE_SIMPLE_TEMPLATE, type, value));
   }
 
-  private Snapshot.CapturedValue getCollectionValue(String type, String elements)
+  private CapturedContext.CapturedValue getCollectionValue(String type, String elements)
       throws IOException {
     return adapter.fromJson(String.format(CAPTURED_VALUE_COLLECTION_TEMPLATE, type, elements));
   }
 
-  private Snapshot.CapturedValue getMapValue(String type, String entries) throws IOException {
+  private CapturedContext.CapturedValue getMapValue(String type, String entries)
+      throws IOException {
     return adapter.fromJson(String.format(CAPTURED_VALUE_MAP_TEMPLATE, type, entries));
   }
 }

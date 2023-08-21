@@ -163,7 +163,4 @@ public class IgniteCacheDecorator extends DBTypeProcessingDatabaseClientDecorato
   public AgentSpan onResult(AgentSpan span, Object result) {
     return span;
   }
-
-  @Override
-  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
 }

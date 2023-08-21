@@ -1,18 +1,22 @@
 import datadog.smoketest.controller.TestHttpServletRequestCallSiteSuite
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.source.WebModule
 import datadog.trace.instrumentation.servlet.request.HttpServletRequestCallSite
+import groovy.transform.CompileDynamic
 
 import javax.servlet.http.Cookie
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletRequestWrapper
 
+@CompileDynamic
 class HttpServletRequestCallSiteTest extends AgentTestRunner {
 
   @Override
   protected void configurePreAgent() {
-    injectSysConfig("dd.iast.enabled", "true")
+    injectSysConfig('dd.iast.enabled', 'true')
   }
 
   def 'test getHeader'(final Class<? extends HttpServletRequest> clazz) {
@@ -36,7 +40,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
     HttpServletRequestWrapper | _
   }
 
-  def 'test getHeaders'(final Class<? extends HttpServletRequest> clazz) {
+  void 'test getHeaders'() {
     setup:
     final iastModule = Mock(WebModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -49,8 +53,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
 
     then:
     result == ['value1', 'value2']
-    1 * iastModule.onHeaderValue('headers', 'value1')
-    1 * iastModule.onHeaderValue('headers', 'value2')
+    1 * iastModule.onHeaderValues('headers', ['value1', 'value2'])
 
     where:
     clazz                     | _
@@ -58,20 +61,21 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
     HttpServletRequestWrapper | _
   }
 
-  def 'test getHeaderNames'(final Class<? extends HttpServletRequest> clazz) {
+  void 'test getHeaderNames'() {
     setup:
     final iastModule = Mock(WebModule)
     InstrumentationBridge.registerIastModule(iastModule)
+    final headers = ['header1', 'header2']
     final testSuite = new TestHttpServletRequestCallSiteSuite(Mock(clazz) {
-      getHeaderNames() >> Collections.enumeration(['header'])
+      getHeaderNames() >> Collections.enumeration(headers)
     })
 
     when:
     final result = testSuite.getHeaderNames()?.toList()
 
     then:
-    result == ['header']
-    1 * iastModule.onHeaderName('header')
+    result == headers
+    1 * iastModule.onHeaderNames(headers)
 
     where:
     clazz                     | _
@@ -79,11 +83,11 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
     HttpServletRequestWrapper | _
   }
 
-  def 'test getCookies'(final Class<? extends HttpServletRequest> clazz) {
+  void 'test getCookies'(final Class<? extends HttpServletRequest> clazz) {
     setup:
-    WebModule iastModule = Mock(WebModule)
+    final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
-    final cookies = [new Cookie('name1', 'value1'), new Cookie('name2', 'value2')]
+    final cookies = [new Cookie('name1', 'value1'), new Cookie('name2', 'value2')] as Cookie[]
     final testSuite = new TestHttpServletRequestCallSiteSuite(Mock(clazz) {
       getCookies() >> cookies
     })
@@ -94,7 +98,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
     then:
     result == cookies
 
-    1 * iastModule.onCookies(cookies)
+    1 * iastModule.taint(SourceTypes.REQUEST_COOKIE_VALUE, cookies)
 
     where:
     clazz                     | _
@@ -143,6 +147,27 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
     then:
     final bomb = thrown(NuclearBomb)
     bomb.stackTrace.find { it.className == HttpServletRequestCallSite.name } == null
+
+    where:
+    clazz                     | _
+    HttpServletRequest        | _
+    HttpServletRequestWrapper | _
+  }
+
+  void 'test get query string'() {
+    setup:
+    final iastModule = Mock(WebModule)
+    InstrumentationBridge.registerIastModule(iastModule)
+    final testSuite = new TestHttpServletRequestCallSiteSuite(Mock(clazz) {
+      getQueryString() >> 'paramName=paramValue'
+    })
+
+    when:
+    testSuite.getQueryString()
+
+    then:
+
+    1 * iastModule.onQueryString('paramName=paramValue')
 
     where:
     clazz                     | _

@@ -8,6 +8,8 @@ import javax.annotation.Nonnull;
 
 public interface IastTelemetry {
 
+  String TRACE_METRIC_PATTERN = "_dd.iast.telemetry.%s";
+
   IastRequestContext onRequestStarted();
 
   void onRequestEnded(IastRequestContext context, TraceSegment trace);

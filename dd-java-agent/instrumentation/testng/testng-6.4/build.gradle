@@ -1,0 +1,29 @@
+plugins {
+  id 'java-test-fixtures'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    group = 'org.testng'
+    module = 'testng'
+    versions = '[6.4,7.5)'
+    skipVersions += "6.13" // depends on non-existent jcommander-1.66
+    skipVersions += "7.1.0" //  depends on non-existent guice-4.1.0-no_aop
+  }
+}
+
+dependencies {
+  compileOnly group: 'org.testng', name: 'testng', version: '6.4'
+
+  implementation project(':dd-java-agent:instrumentation:testng')
+
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:testng'))
+
+  testImplementation(group: 'org.testng', name: 'testng') {
+    version {
+      strictly '6.4'
+    }
+  }
+}

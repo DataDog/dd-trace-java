@@ -97,7 +97,7 @@ abstract class GrpcStreamingTest extends VersionedNamingTestBase {
     GreeterGrpc.GreeterStub client = GreeterGrpc.newStub(channel).withWaitForReady()
 
     when:
-    def observer = client.conversation(new StreamObserver<Helloworld.Response>() {
+    def streamObserver = client.conversation(new StreamObserver<Helloworld.Response>() {
         @Override
         void onNext(Helloworld.Response value) {
           if (TEST_TRACER.activeScope().isAsyncPropagating()) {
@@ -126,9 +126,9 @@ abstract class GrpcStreamingTest extends VersionedNamingTestBase {
 
     clientRange.each {
       def message = Helloworld.Response.newBuilder().setMessage("call $it").build()
-      observer.onNext(message)
+      streamObserver.onNext(message)
     }
-    observer.onCompleted()
+    streamObserver.onCompleted()
 
     then:
     error.get() == null
@@ -152,9 +152,11 @@ abstract class GrpcStreamingTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.RPC_SERVICE" "example.Greeter"
             "status.code" "OK"
             "request.type" "example.Helloworld\$Response"
             "response.type" "example.Helloworld\$Response"
+            peerServiceFrom(Tags.RPC_SERVICE)
             defaultTags()
           }
         }
@@ -169,7 +171,7 @@ abstract class GrpcStreamingTest extends VersionedNamingTestBase {
               "$Tags.COMPONENT" "grpc-client"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
               "message.type" "example.Helloworld\$Response"
-              defaultTags()
+              defaultTagsNoPeerService()
             }
           }
         }

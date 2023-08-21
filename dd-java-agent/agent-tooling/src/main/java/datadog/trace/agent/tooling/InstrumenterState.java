@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling;
 
-import datadog.trace.bootstrap.WeakCache;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.util.Strings;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLongArray;
@@ -32,8 +33,8 @@ public final class InstrumenterState {
   private static long[] defaultState = {};
 
   /** Tracks which instrumentations were applied (per-class-loader) and which were blocked. */
-  private static final WeakCache<ClassLoader, AtomicLongArray> classLoaderStates =
-      WeakCaches.newWeakCache(64);
+  private static final DDCache<ClassLoader, AtomicLongArray> classLoaderStates =
+      DDCaches.newFixedSizeWeakKeyCache(512);
 
   private static Observer observer;
 

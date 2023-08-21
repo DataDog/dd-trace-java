@@ -7,7 +7,6 @@ import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.IastAdvice.Propagation;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.model.PropagationTypes;
 import datadog.trace.api.iast.propagation.StringModule;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.invoke.ConstantCallSite;
@@ -22,7 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @SuppressForbidden
-@Propagation(PropagationTypes.STRING)
+@Propagation
 @CallSite(spi = IastAdvice.class, minJavaVersion = 9)
 public class StringConcatFactoryCallSite {
 

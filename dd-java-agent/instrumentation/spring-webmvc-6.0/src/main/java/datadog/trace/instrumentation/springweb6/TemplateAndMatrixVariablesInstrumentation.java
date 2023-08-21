@@ -9,14 +9,21 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import java.util.Set;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /** Obtain template and matrix variables for RequestMappingInfoHandlerMapping. */
 @AutoService(Instrumenter.class)
-public class TemplateAndMatrixVariablesInstrumentation extends Instrumenter.AppSec
+public class TemplateAndMatrixVariablesInstrumentation extends Instrumenter.Default
     implements Instrumenter.ForSingleType {
   public TemplateAndMatrixVariablesInstrumentation() {
     super("spring-web");
+  }
+
+  @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    return enabledSystems.contains(TargetSystem.APPSEC)
+        || enabledSystems.contains(TargetSystem.IAST);
   }
 
   @Override

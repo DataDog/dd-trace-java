@@ -9,7 +9,8 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.sink.SqlInjectionModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
-import static com.datadog.iast.IastAgentTestRunner.EMPTY_SOURCE
+import static com.datadog.iast.test.IastAgentTestRunner.EMPTY_SOURCE
+import static datadog.trace.api.iast.sink.SqlInjectionModule.DATABASE_PARAMETER
 
 class SqlInjectionModuleTest extends IastModuleImplTestBase {
 
@@ -19,7 +20,7 @@ class SqlInjectionModuleTest extends IastModuleImplTestBase {
     module = registerDependencies(new SqlInjectionModuleImpl())
   }
 
-  void 'jdbc report a vulnerability iff the string is tainted'() {
+  void 'jdbc report a vulnerability if the string is tainted'() {
     given:
     Vulnerability savedVul
     def iastRC = new IastRequestContext()
@@ -28,11 +29,14 @@ class SqlInjectionModuleTest extends IastModuleImplTestBase {
         getData(RequestContextSlot.IAST) >> iastRC
       }
     }
-    String queryString = 'dummy query'
 
     when:
     iastRC.taintedObjects.taintInputString(queryString, EMPTY_SOURCE)
-    module.onJdbcQuery(queryString)
+    if (database) {
+      module.onJdbcQuery(queryString, database)
+    } else {
+      module.onJdbcQuery(queryString)
+    }
 
     then:
     1 * tracer.activeSpan() >> span
@@ -42,8 +46,9 @@ class SqlInjectionModuleTest extends IastModuleImplTestBase {
       type == VulnerabilityType.SQL_INJECTION
       location != null
       with(evidence) {
-        value == 'dummy query'
+        value == queryString
         ranges.length == 1
+        context.get(DATABASE_PARAMETER) == database
         with(ranges[0]) {
           start == 0
           length == 11
@@ -51,6 +56,11 @@ class SqlInjectionModuleTest extends IastModuleImplTestBase {
         }
       }
     }
+
+    where:
+    queryString   | database
+    'dummy query' | null
+    'dummy query' | 'h2'
   }
 
   void 'nothing is reported if the query is not tainted'(final String queryString) {
@@ -63,7 +73,11 @@ class SqlInjectionModuleTest extends IastModuleImplTestBase {
     }
 
     when:
-    module.onJdbcQuery(queryString)
+    if (database) {
+      module.onJdbcQuery(queryString, database)
+    } else {
+      module.onJdbcQuery(queryString)
+    }
 
     then:
     if (queryString) {
@@ -75,8 +89,10 @@ class SqlInjectionModuleTest extends IastModuleImplTestBase {
     0 * reporter._
 
     where:
-    queryString   | _
-    null          | _
-    'dummy query' | _
+    queryString   | database
+    null          | null
+    'dummy query' | null
+    null          | 'h2'
+    'dummy query' | 'h2'
   }
 }

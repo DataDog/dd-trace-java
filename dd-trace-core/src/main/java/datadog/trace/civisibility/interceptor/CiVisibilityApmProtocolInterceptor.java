@@ -1,8 +1,8 @@
 package datadog.trace.civisibility.interceptor;
 
 import datadog.trace.api.DDSpanTypes;
+import datadog.trace.api.interceptor.AbstractTraceInterceptor;
 import datadog.trace.api.interceptor.MutableSpan;
-import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.Collection;
 import java.util.List;
@@ -13,10 +13,14 @@ import java.util.stream.Collectors;
  * and tags related to certain CI Visibility features, e.g. Test Suite Level Visibility, can only be
  * written with CI Test Cycle protocol)
  */
-public class CiVisibilityApmProtocolInterceptor implements TraceInterceptor {
+public class CiVisibilityApmProtocolInterceptor extends AbstractTraceInterceptor {
 
   public static final CiVisibilityApmProtocolInterceptor INSTANCE =
-      new CiVisibilityApmProtocolInterceptor();
+      new CiVisibilityApmProtocolInterceptor(Priority.CI_VISIBILITY_APM);
+
+  protected CiVisibilityApmProtocolInterceptor(Priority priority) {
+    super(priority);
+  }
 
   @Override
   public Collection<? extends MutableSpan> onTraceComplete(
@@ -34,12 +38,8 @@ public class CiVisibilityApmProtocolInterceptor implements TraceInterceptor {
 
   private boolean isSupportedByApmProtocol(MutableSpan span) {
     String spanType = span.getSpanType();
-    return !DDSpanTypes.TEST_MODULE_END.equals(spanType)
+    return !DDSpanTypes.TEST_SESSION_END.equals(spanType)
+        && !DDSpanTypes.TEST_MODULE_END.equals(spanType)
         && !DDSpanTypes.TEST_SUITE_END.equals(spanType);
-  }
-
-  @Override
-  public int priority() {
-    return 1;
   }
 }

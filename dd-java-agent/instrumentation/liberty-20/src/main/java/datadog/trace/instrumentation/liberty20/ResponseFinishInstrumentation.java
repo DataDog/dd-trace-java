@@ -10,6 +10,7 @@ import com.ibm.ws.webcontainer.srt.SRTServletResponse;
 import com.ibm.wsspi.webcontainer.servlet.IExtendedRequest;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
@@ -44,6 +45,7 @@ public class ResponseFinishInstrumentation extends Instrumenter.Tracing
         ResponseFinishInstrumentation.class.getName() + "$ResponseFinishAdvice");
   }
 
+  @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
   public static class ResponseFinishAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static AgentSpan onEnter(@Advice.This SRTServletResponse resp) {

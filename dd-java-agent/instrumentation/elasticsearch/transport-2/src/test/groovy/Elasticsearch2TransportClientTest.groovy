@@ -97,6 +97,7 @@ abstract class Elasticsearch2TransportClientTest extends VersionedNamingTestBase
             "$Tags.DB_TYPE" "elasticsearch"
             "elasticsearch.action" "ClusterHealthAction"
             "elasticsearch.request" "ClusterHealthRequest"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -132,6 +133,7 @@ abstract class Elasticsearch2TransportClientTest extends VersionedNamingTestBase
             "elasticsearch.action" "ClusterStatsAction"
             "elasticsearch.request" "ClusterStatsRequest"
             "elasticsearch.node.cluster.name" clusterName
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -163,7 +165,7 @@ abstract class Elasticsearch2TransportClientTest extends VersionedNamingTestBase
             "elasticsearch.request" "GetRequest"
             "elasticsearch.request.indices" indexName
             errorTags RemoteTransportException, String
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -230,6 +232,7 @@ abstract class Elasticsearch2TransportClientTest extends VersionedNamingTestBase
             "elasticsearch.action" "CreateIndexAction"
             "elasticsearch.request" "CreateIndexRequest"
             "elasticsearch.request.indices" indexName
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -249,6 +252,7 @@ abstract class Elasticsearch2TransportClientTest extends VersionedNamingTestBase
             "$Tags.DB_TYPE" "elasticsearch"
             "elasticsearch.action" "ClusterHealthAction"
             "elasticsearch.request" "ClusterHealthRequest"
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -272,6 +276,7 @@ abstract class Elasticsearch2TransportClientTest extends VersionedNamingTestBase
             "elasticsearch.type" indexType
             "elasticsearch.id" "1"
             "elasticsearch.version"(-1)
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -293,6 +298,7 @@ abstract class Elasticsearch2TransportClientTest extends VersionedNamingTestBase
             "elasticsearch.request" "IndexRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.write.type" indexType
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -310,7 +316,7 @@ abstract class Elasticsearch2TransportClientTest extends VersionedNamingTestBase
             "elasticsearch.action" "PutMappingAction"
             "elasticsearch.request" "PutMappingRequest"
             "elasticsearch.request.indices" indexName
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -333,6 +339,7 @@ abstract class Elasticsearch2TransportClientTest extends VersionedNamingTestBase
             "elasticsearch.type" indexType
             "elasticsearch.id" "1"
             "elasticsearch.version" 1
+            peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
         }
@@ -349,7 +356,7 @@ abstract class Elasticsearch2TransportClientTest extends VersionedNamingTestBase
   }
 }
 
-class Elasticsearch2TransportClientV0ForkedTest extends Elasticsearch2TransportClientTest {
+class Elasticsearch2TransportClientV0Test extends Elasticsearch2TransportClientTest {
 
   @Override
   int version() {
@@ -376,7 +383,7 @@ class Elasticsearch2TransportClientV1ForkedTest extends Elasticsearch2TransportC
 
   @Override
   String service() {
-    return Config.get().getServiceName() + "-elasticsearch"
+    return Config.get().getServiceName()
   }
 
   @Override

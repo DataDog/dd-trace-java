@@ -18,8 +18,6 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
 dependencies {
   compileOnly group: 'org.elasticsearch.client', name: 'transport', version: '7.3.0'
 }

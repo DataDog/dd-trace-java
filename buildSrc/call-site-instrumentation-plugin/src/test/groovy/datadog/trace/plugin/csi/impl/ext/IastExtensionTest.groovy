@@ -78,7 +78,8 @@ class IastExtensionTest extends BaseCsiPluginTest {
 
     then:
     final String callSiteWithTelemetryClass = IastExtensionCallSite.name + IastExtension.WITH_TELEMETRY_SUFFIX
-    final resultFile = targetFolder.resolve("${callSiteWithTelemetryClass.replaceAll('\\.', File.separator)}.java")
+    final fileSeparatorPattern = File.separator == "\\" ? "\\\\" : File.separator
+    final resultFile = targetFolder.resolve("${callSiteWithTelemetryClass.replaceAll('\\.', fileSeparatorPattern)}.java")
     assert Files.exists(resultFile)
     final callSiteType = parse(resultFile.toFile())
     validateMethod(callSiteType, 'afterGetHeader') { List<String> statements ->
@@ -101,9 +102,9 @@ class IastExtensionTest extends BaseCsiPluginTest {
       }
       validateMethod(adviceType, 'apply') { List<String> statements ->
         assert statements == [
-          '''if (this.telemetry) {
-    IastTelemetryCollector.add(IastMetric.INSTRUMENTED_SOURCE, 1, SourceTypes.REQUEST_HEADER_VALUE);
-}''',
+          'if (this.telemetry) {' + System.lineSeparator() +
+          '    IastTelemetryCollector.add(IastMetric.INSTRUMENTED_SOURCE, 1, SourceTypes.REQUEST_HEADER_VALUE);' + System.lineSeparator() +
+          '}',
           'handler.dupInvoke(owner, descriptor, StackDupMode.COPY);',
           'handler.method(opcode, owner, name, descriptor, isInterface);',
           'handler.method(Opcodes.INVOKESTATIC, this.callSite, "afterGetHeader", "(Ljavax/servlet/http/HttpServletRequest;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;", false);'
@@ -118,10 +119,10 @@ class IastExtensionTest extends BaseCsiPluginTest {
       validateMethod(adviceType, 'enableTelemetry') { List<String> statements ->
         assert statements == [
           'this.telemetry = true;',
-          """if (enableRuntime) {
-    this.callSite = "${type.internalName}WithTelemetry";
-    this.helperClassNames = new String[] { "${type.className}WithTelemetry" };
-}""",
+          'if (enableRuntime) {' + System.lineSeparator() +
+          '    this.callSite = "' + type.internalName + 'WithTelemetry";' + System.lineSeparator() +
+          '    this.helperClassNames = new String[] { "' + type.className + 'WithTelemetry" };' + System.lineSeparator() +
+          '}',
         ]
       }
     }

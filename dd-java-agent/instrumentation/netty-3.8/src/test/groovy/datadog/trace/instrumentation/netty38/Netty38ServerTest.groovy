@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.netty38
 import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.naming.TestingNettyHttpNamingConventions
 import datadog.trace.instrumentation.netty38.server.NettyHttpServerDecorator
 import org.jboss.netty.bootstrap.ServerBootstrap
 import org.jboss.netty.buffer.ChannelBuffer
@@ -45,7 +46,7 @@ import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE
 import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.LOCATION
 import static org.jboss.netty.handler.codec.http.HttpVersion.HTTP_1_1
 
-class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
+abstract class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
 
   static final LoggingHandler LOGGING_HANDLER
   static {
@@ -180,11 +181,17 @@ class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
 
   @Override
   String expectedOperationName() {
-    "netty.request"
+    component()
   }
 
   @Override
   boolean testBlocking() {
     true
   }
+}
+
+class Netty38ServerV0ForkedTest extends Netty38ServerTest implements TestingNettyHttpNamingConventions.ServerV0 {
+}
+
+class Netty38ServerV1ForkedTest extends Netty38ServerTest implements TestingNettyHttpNamingConventions.ServerV1 {
 }

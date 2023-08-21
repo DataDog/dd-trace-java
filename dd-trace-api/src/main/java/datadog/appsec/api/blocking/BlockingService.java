@@ -1,5 +1,6 @@
 package datadog.appsec.api.blocking;
 
+import java.util.Map;
 import javax.annotation.Nonnull;
 
 public interface BlockingService {
@@ -7,7 +8,8 @@ public interface BlockingService {
 
   BlockingDetails shouldBlockUser(@Nonnull String userId);
 
-  boolean tryCommitBlockingResponse(int statusCode, @Nonnull BlockingContentType type);
+  boolean tryCommitBlockingResponse(
+      int statusCode, @Nonnull BlockingContentType type, @Nonnull Map<String, String> extraHeaders);
 
   class BlockingServiceNoop implements BlockingService {
     private BlockingServiceNoop() {}
@@ -18,7 +20,10 @@ public interface BlockingService {
     }
 
     @Override
-    public boolean tryCommitBlockingResponse(int statusCode, @Nonnull BlockingContentType type) {
+    public boolean tryCommitBlockingResponse(
+        int statusCode,
+        @Nonnull BlockingContentType type,
+        @Nonnull Map<String, String> extraHeaders) {
       return false;
     }
   }

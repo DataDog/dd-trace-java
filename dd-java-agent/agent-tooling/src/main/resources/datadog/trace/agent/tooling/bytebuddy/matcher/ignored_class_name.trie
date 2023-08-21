@@ -39,11 +39,13 @@
 1 datadog.trace.core.*
 1 io.micrometer.*
 1 io.micronaut.tracing.*
+1 io.opentelemetry.javaagent.*
 1 java.*
 # allow exception profiling instrumentation
 0 java.lang.Throwable
 # allow ProcessImpl instrumentation
 0 java.lang.ProcessImpl
+0 java.net.http.*
 0 java.net.HttpURLConnection
 0 java.net.URL
 0 java.nio.DirectByteBuffer
@@ -61,6 +63,7 @@
 # Need for IAST
 0 java.io.PushbackInputStream
 1 jdk.*
+0 jdk.internal.net.http.*
 1 net.bytebuddy.*
 1 org.apache.felix.framework.URLHandlers*
 1 org.apache.groovy.*
@@ -87,9 +90,14 @@
 0 sun.rmi.server.*
 0 sun.rmi.transport.*
 0 sun.nio.ch.FileChannelImpl
+# USM needs it
+0 sun.security.ssl.*
+0 javax.net.ssl.SSLSocket
+
 # Prevent IllegalAccessError in OpenJDK 17.0.4
 1 javax.management.*
 1 javax.swing.*
+
 
 # -------- ADDITIONAL IGNORES --------
 
@@ -119,6 +127,30 @@
 0 akka.stream.impl.fusing.ActorGraphInterpreter$*
 0 akka.stream.stage.GraphStageLogic$*
 0 akka.stream.stage.TimerGraphStageLogic$*
+# needed for IAST
+0 akka.http.javadsl.model.HttpHeader
+0 akka.http.scaladsl.model.HttpRequest
+0 akka.http.scaladsl.model.headers.*
+0 akka.http.scaladsl.unmarshalling.*
+0 akka.http.scaladsl.server.PathMatcher$Matched
+0 akka.http.scaladsl.server.directives.ParameterDirectives$class
+0 akka.http.scaladsl.server.directives.ParameterDirectives
+0 akka.http.scaladsl.server.directives.BasicDirectives$class
+0 akka.http.scaladsl.server.directives.BasicDirectives
+0 akka.http.scaladsl.server.directives.FormFieldDirectives$class
+0 akka.http.scaladsl.server.directives.FormFieldDirectives
+0 akka.http.scaladsl.model.Uri
+0 akka.http.scaladsl.model.FormData
+0 akka.http.scaladsl.server.RequestContextImpl
+0 akka.http.scaladsl.server.directives.CookieDirectives$class
+0 akka.http.scaladsl.server.directives.CookieDirectives
+0 akka.http.scaladsl.server.directives.MarshallingDirectives$class
+0 akka.http.scaladsl.server.directives.MarshallingDirectives
+0 akka.http.scaladsl.server.directives.ParameterDirectives$Impl$
+0 akka.http.scaladsl.server.directives.FormFieldDirectives$Impl$
+0 akka.http.scaladsl.model.HttpEntity$Strict
+0 akka.http.scaladsl.model.HttpEntity$Default
+0 akka.http.scaladsl.model.HttpEntity$Chunked
 2 ch.qos.logback.*
 0 ch.qos.logback.classic.Logger
 0 ch.qos.logback.classic.spi.LoggingEvent*
@@ -139,6 +171,9 @@
 2 com.fasterxml.jackson.*
 # Included for IAST
 0 com.fasterxml.jackson.core.*
+0 com.fasterxml.jackson.databind.node.TreeTraversingParser
+0 com.fasterxml.jackson.databind.util.TokenBuffer
+0 com.fasterxml.jackson.databind.util.TokenBuffer$Parser
 0 com.fasterxml.jackson.databind.ObjectMapper
 0 com.fasterxml.jackson.module.afterburner.util.MyClassLoader
 2 com.github.mustachejava.*
@@ -240,13 +275,23 @@
 2 org.springframework.expression.*
 2 org.springframework.format.*
 2 org.springframework.http.*
-# Need for IAST
+# Need for IAST: calls ServletRequest methods instrumented at callsite
 0 org.springframework.http.server.ServletServerHttpRequest
+# Need for IAST: we instrument these classes
+0 org.springframework.http.HttpHeaders
+0 org.springframework.http.ReadOnlyHttpHeaders
+0 org.springframework.http.codec.json.Jackson2Tokenizer
+0 org.springframework.http.server.reactive.UndertowServerHttpRequest$UndertowDataBuffer
+0 org.springframework.core.io.buffer.DataBuffer
+0 org.springframework.core.io.buffer.DefaultDataBuffer
+0 org.springframework.core.io.buffer.NettyDataBuffer
 # There are some Mono implementation that get instrumented
 0 org.springframework.http.server.reactive.*
 2 org.springframework.instrument.*
 2 org.springframework.jca.*
 2 org.springframework.jdbc.*
+# Need for IAST (Update when JdbcTemplate call sites are ready)
+0 org.springframework.jdbc.core.JdbcTemplate$*
 2 org.springframework.jms.*
 0 org.springframework.jms.listener.*
 2 org.springframework.jmx.*
@@ -256,6 +301,7 @@
 2 org.springframework.objenesis.*
 2 org.springframework.orm.*
 2 org.springframework.remoting.*
+0 org.springframework.samples.*
 2 org.springframework.scripting.*
 2 org.springframework.stereotype.*
 2 org.springframework.transaction.*

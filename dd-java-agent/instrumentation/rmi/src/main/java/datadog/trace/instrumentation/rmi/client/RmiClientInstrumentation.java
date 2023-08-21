@@ -54,9 +54,8 @@ public final class RmiClientInstrumentation extends Instrumenter.Tracing
         return null;
       }
       final AgentSpan span = startSpan(RMI_INVOKE);
-      span.setResourceName(DECORATE.spanNameForMethod(method));
-
       DECORATE.afterStart(span);
+      DECORATE.onMethodInvocation(span, method);
       return activateSpan(span);
     }
 

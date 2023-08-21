@@ -28,5 +28,5 @@ tasks.withType(Test).configureEach {
 
   Task shadowJarTask = project(':dd-smoke-tests:springboot-grpc').tasks['shadowJar']
 
-  jvmArgs "-Ddatadog.smoketest.appsec.springboot-grpc.shadowJar.path=${shadowJarTask.archivePath}"
+  jvmArgs "-Ddatadog.smoketest.appsec.springboot-grpc.shadowJar.path=${shadowJarTask.archiveFile.get()}"
 }

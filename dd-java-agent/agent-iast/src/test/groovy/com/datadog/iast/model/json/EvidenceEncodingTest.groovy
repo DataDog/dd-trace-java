@@ -5,8 +5,9 @@ import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
+import datadog.trace.api.config.IastConfig
 import datadog.trace.test.util.DDSpecification
-import groovy.json.JsonSlurper
+import org.skyscreamer.jsonassert.JSONAssert
 import spock.lang.Shared
 
 class EvidenceEncodingTest extends DDSpecification {
@@ -16,28 +17,25 @@ class EvidenceEncodingTest extends DDSpecification {
   @Shared
   private JsonAdapter<Evidence> evidenceAdapter
 
-  @Shared
-  private JsonSlurper slurper
-
+  @Override
   void setup() {
+    injectSysConfig(IastConfig.IAST_REDACTION_ENABLED, 'false')
     final context = new AdapterFactory.Context()
     SOURCES_SUITE.eachWithIndex { source, index ->
       context.sources.add(source)
       context.sourceIndexMap.put(source, index)
     }
-    AdapterFactory.CONTEXT_THREAD_LOCAL.set(context)
+    AdapterFactory.Context.set(context)
 
     evidenceAdapter = new Moshi.Builder()
       .add(new SourceTypeAdapter())
       .add(new AdapterFactory())
       .build()
       .adapter(Evidence)
-
-    slurper = new JsonSlurper()
   }
 
   void cleanup() {
-    AdapterFactory.CONTEXT_THREAD_LOCAL.remove()
+    AdapterFactory.Context.remove()
   }
 
   void 'test build tainted evidence'(final String value, final List<Range> ranges, final String expected) {
@@ -46,9 +44,11 @@ class EvidenceEncodingTest extends DDSpecification {
     final json = evidenceAdapter.toJson(evidence)
 
     then:
-    final jsonObject = slurper.parseText(json)
-    final expectedObject = expected == null ? null : slurper.parseText(expected)
-    jsonObject == expectedObject
+    if (expected == null) {
+      json == null
+    } else {
+      JSONAssert.assertEquals(expected, json, true)
+    }
 
     where:
     value                       | ranges                                           | expected

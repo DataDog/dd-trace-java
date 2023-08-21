@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.netty38.client;
 
 import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.HOST;
 
+import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
@@ -42,12 +43,11 @@ public class NettyHttpClientDecorator extends HttpClientDecorator<HttpRequest, H
 
   @Override
   protected URI url(final HttpRequest request) throws URISyntaxException {
-    final URI uri = new URI(request.getUri());
+    final URI uri = URIUtils.safeParse(request.getUri());
     if ((uri.getHost() == null || uri.getHost().equals("")) && request.headers().contains(HOST)) {
-      return new URI(uriPrefix + request.headers().get(HOST) + request.getUri());
-    } else {
-      return uri;
+      return URIUtils.safeParse(uriPrefix + request.headers().get(HOST) + request.getUri());
     }
+    return uri;
   }
 
   @Override

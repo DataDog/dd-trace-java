@@ -81,7 +81,9 @@ public class IastExtension implements Extension {
   private void addTelemetry(final Configuration configuration, final CallSiteResult result)
       throws Exception {
     final Type callSiteClass = result.getSpecification().getClazz();
-    final String callSiteFile = callSiteClass.getClassName().replaceAll("\\.", File.separator);
+    final String fileSeparatorPattern = File.separator.equals("\\") ? "\\\\" : File.separator;
+    final String callSiteFile =
+        callSiteClass.getClassName().replaceAll("\\.", fileSeparatorPattern);
     final TypeResolver resolver = getTypeResolver(configuration);
 
     // new call site with telemetry embedded

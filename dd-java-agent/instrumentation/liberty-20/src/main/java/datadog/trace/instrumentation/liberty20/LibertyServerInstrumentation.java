@@ -18,6 +18,7 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.EnumSet;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -63,6 +64,7 @@ public final class LibertyServerInstrumentation extends Instrumenter.Tracing
         LibertyServerInstrumentation.class.getName() + "$HandleRequestAdvice");
   }
 
+  @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
   public static class HandleRequestAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)

@@ -113,7 +113,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
                 "AppSec config given by remote config was pulled. Restoring default WAF config");
             newConfig = DEFAULT_WAF_CONFIG;
           }
-          this.currentAppSecConfig.ddConfig = newConfig;
+          this.currentAppSecConfig.setDdConfig(newConfig);
           // base rules can contain all rules/data/exclusions/etc
           this.currentAppSecConfig.dirtyStatus.markAllDirty();
         });
@@ -210,7 +210,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       hasUserWafConfig = true;
     }
     this.currentAppSecConfig = new CurrentAppSecConfig();
-    this.currentAppSecConfig.ddConfig = wafConfig;
+    this.currentAppSecConfig.setDdConfig(wafConfig);
     this.lastConfig.put("waf", this.currentAppSecConfig);
     this.initialized = true;
   }
@@ -312,7 +312,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   }
 
   private static int countRules(AppSecConfig config) {
-    return config.getRules().size();
+    return config.getNumberOfRules();
   }
 
   @Override

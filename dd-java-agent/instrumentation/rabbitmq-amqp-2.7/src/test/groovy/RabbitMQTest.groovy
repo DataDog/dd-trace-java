@@ -1,3 +1,8 @@
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES
+import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES
+
 import com.rabbitmq.client.AMQP
 import com.rabbitmq.client.AlreadyClosedException
 import com.rabbitmq.client.Channel
@@ -6,8 +11,8 @@ import com.rabbitmq.client.Consumer
 import com.rabbitmq.client.DefaultConsumer
 import com.rabbitmq.client.Envelope
 import com.rabbitmq.client.GetResponse
-import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
@@ -29,12 +34,7 @@ import java.util.concurrent.Phaser
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES
-import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES
-
-abstract class RabbitMQTestBase extends AgentTestRunner {
+abstract class RabbitMQTestBase extends VersionedNamingTestBase {
   @Shared
   def rabbitMQContainer
   @Shared
@@ -92,8 +92,6 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     }
   }
 
-  abstract String expectedServiceName()
-
   abstract boolean hasQueueSpan()
 
   abstract boolean splitByDestination()
@@ -102,6 +100,29 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     false
   }
 
+  String operationForProducer() {
+    "amqp.command"
+  }
+
+  String operationForConsumer() {
+    "amqp.command"
+  }
+
+  String serviceForTimeInQueue() {
+    "rabbitmq"
+  }
+
+
+  @Override
+  int version() {
+    return 0
+  }
+
+
+  @Override
+  String operation() {
+    return "amqp.command"
+  }
 
   def "test rabbit publish/get"() {
     setup:
@@ -123,23 +144,23 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     and:
     assertTraces(2, SORT_TRACES_BY_ID) {
       def publishSpan = null
-      trace(5, true) {
-        publishSpan = span(0)
-        def parentSpan = span(4)
-        rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, parentSpan)
-        rabbitSpan(it, "exchange.declare", false, parentSpan)
+      trace(5) {
+        publishSpan = span(1)
+        def parentSpan = span(0)
+        basicSpan(it, "parent")
+        rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, parentSpan, operationForProducer())
         rabbitSpan(it, "queue.bind", false, parentSpan)
         rabbitSpan(it, "queue.declare", false, parentSpan)
-        basicSpan(it, "parent")
+        rabbitSpan(it, "exchange.declare", false, parentSpan)
       }
       if (hasQueueSpan()) {
-        trace(2, true) {
-          rabbitSpan(it, "basic.get <generated>", false, span(1))
+        trace(2) {
+          rabbitSpan(it, "basic.get <generated>", false, span(1), operationForConsumer())
           rabbitQueueSpan(it, "amqp.deliver <generated>", true, publishSpan)
         }
       } else {
         trace(1) {
-          rabbitSpan(it, "basic.get <generated>", true, publishSpan)
+          rabbitSpan(it, "basic.get <generated>", true, publishSpan, operationForConsumer())
         }
       }
     }
@@ -184,16 +205,16 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       }
       trace(1) {
         publishSpan = span(0)
-        rabbitSpan(it, "basic.publish <default> -> <generated>")
+        rabbitSpan(it, "basic.publish <default> -> <generated>", false, null, operationForProducer())
       }
       if (hasQueueSpan()) {
-        trace(2, true) {
-          rabbitSpan(it, "basic.get <generated>", false, span(1))
+        trace(2) {
+          rabbitSpan(it, "basic.get <generated>", false, span(1), operationForConsumer())
           rabbitQueueSpan(it, "amqp.deliver <generated>", true, publishSpan)
         }
       } else {
         trace(1) {
-          rabbitSpan(it, "basic.get <generated>", true, publishSpan)
+          rabbitSpan(it, "basic.get <generated>", true, publishSpan, operationForConsumer())
         }
       }
     }
@@ -272,11 +293,11 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
         def deliverParentSpan = null
         trace(1) {
           deliverParentSpan = span(0)
-          rabbitSpan(it, "basic.publish $exchangeName -> <all>")
+          rabbitSpan(it, "basic.publish $exchangeName -> <all>", false, null, operationForProducer())
         }
         if (hasQueueSpan()) {
-          trace(2, true) {
-            rabbitSpan(it, "basic.deliver $resourceQueueName", false, span(1),
+          trace(2) {
+            rabbitSpan(it, "basic.deliver $resourceQueueName", false, span(1), operationForConsumer(),
               null, null, setTimestamp)
             rabbitQueueSpan(it, "amqp.deliver $resourceQueueName", true, deliverParentSpan)
           }
@@ -284,7 +305,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
           trace(1) {
             // TODO - test with and without feature enabled once Config is easier to control
             rabbitSpan(it, "basic.deliver $resourceQueueName", true, deliverParentSpan,
-              null, null, setTimestamp)
+              operationForConsumer(), null, null, setTimestamp)
           }
         }
       }
@@ -370,19 +391,19 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       def deliverParentSpan = null
       trace(1) {
         deliverParentSpan = span(0)
-        rabbitSpan(it, "basic.publish $exchangeName -> <all>")
+        rabbitSpan(it, "basic.publish $exchangeName -> <all>", false, null, operationForProducer())
       }
       if (hasQueueSpan()) {
-        trace(2, true) {
-          rabbitSpan(it, "basic.deliver <generated>", false, span(1), error,
-            error.message, false)
+        trace(2) {
+          rabbitSpan(it, "basic.deliver <generated>", false, span(1), operationForConsumer(),
+            error, error.message, false)
           rabbitQueueSpan(it, "amqp.deliver <generated>", true, deliverParentSpan)
         }
       } else {
         trace(1) {
           // TODO - test with and without feature enabled once Config is easier to control
-          rabbitSpan(it, "basic.deliver <generated>", true, deliverParentSpan, error,
-            error.message, false)
+          rabbitSpan(it, "basic.deliver <generated>", true, deliverParentSpan, operationForConsumer(),
+            error, error.message, false)
         }
       }
     }
@@ -417,19 +438,19 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
 
     assertTraces(1, SORT_TRACES_BY_ID) {
       trace(1) {
-        rabbitSpan(it, command, false, null, throwable, errorMsg)
+        rabbitSpan(it, command, false, null, exptectedOperation, throwable, errorMsg)
       }
     }
 
     where:
-    command                 | exception             | errorMsg                                           | closure
-    "exchange.declare"      | IOException           | null                                               | {
+    command                 | exception             | exptectedOperation     | errorMsg                                           | closure
+    "exchange.declare"      | IOException           | operation()            | null                                               | {
       it.exchangeDeclare("some-exchange", "invalid-type", true)
     }
-    "Channel.basicConsume"  | IllegalStateException | "Invalid configuration: 'queue' must be non-null." | {
+    "Channel.basicConsume"  | IllegalStateException | operation()            | "Invalid configuration: 'queue' must be non-null." | {
       it.basicConsume(null, null)
     }
-    "basic.get <generated>" | IOException           | null                                               | {
+    "basic.get <generated>" | IOException           | operationForConsumer() | null                                               | {
       it.basicGet("amq.gen-invalid-channel", true)
     }
   }
@@ -458,16 +479,16 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       def publishSpan = null
       trace(1) {
         publishSpan = span(0)
-        rabbitSpan(it, "basic.publish <default> -> some-routing-queue")
+        rabbitSpan(it, "basic.publish <default> -> some-routing-queue", false, null, operationForProducer())
       }
       if (hasQueueSpan()) {
-        trace(2, true) {
-          rabbitSpan(it, "basic.get ${queue.name}", false, span(1))
+        trace(2) {
+          rabbitSpan(it, "basic.get ${queue.name}", false, span(1), operationForConsumer())
           rabbitQueueSpan(it, "amqp.deliver ${queue.name}", true, publishSpan)
         }
       } else {
         trace(1) {
-          rabbitSpan(it, "basic.get ${queue.name}", true, publishSpan)
+          rabbitSpan(it, "basic.get ${queue.name}", true, publishSpan, operationForConsumer())
         }
       }
     }
@@ -530,7 +551,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       trace(5) {
         publishSpan = span(1)
         basicSpan(it, "parent")
-        rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, span(0))
+        rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, span(0), operationForProducer())
         rabbitSpan(it, "queue.bind", false, span(0))
         rabbitSpan(it, "exchange.declare", false, span(0))
         rabbitSpan(it, "queue.declare", false, span(0))
@@ -542,15 +563,15 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       }
       if (hasQueueSpan() && !noParent) {
         trace(2) {
-          rabbitSpan(it, "basic.$type $queueName", false, span(1))
+          rabbitSpan(it, "basic.$type $queueName", false, span(1), operationForConsumer())
           rabbitQueueSpan(it, "amqp.deliver $queueName", true, publishSpan)
         }
       } else {
         trace(1) {
           if (noParent) {
-            rabbitSpan(it, "basic.$type $queueName")
+            rabbitSpan(it, "basic.$type $queueName", false, null, operationForConsumer())
           } else {
-            rabbitSpan(it, "basic.$type $queueName", true, publishSpan)
+            rabbitSpan(it, "basic.$type $queueName", true, publishSpan, operationForConsumer())
           }
         }
       }
@@ -623,7 +644,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       trace(5) {
         publishSpan = span(1)
         basicSpan(it, "parent")
-        rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, span(0))
+        rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, span(0), operationForProducer())
         rabbitSpan(it, "queue.bind", false, span(0))
         rabbitSpan(it, "exchange.declare", false, span(0))
         rabbitSpan(it, "queue.declare", false, span(0))
@@ -634,16 +655,16 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
         }
       }
       if (hasQueueSpan() && !noParent) {
-        trace(2, true) {
-          rabbitSpan(it, "basic.$type $queueName", false, span(1))
+        trace(2) {
+          rabbitSpan(it, "basic.$type $queueName", false, span(1), operationForConsumer())
           rabbitQueueSpan(it, "amqp.deliver $queueName", true, publishSpan)
         }
       } else {
         trace(1) {
           if (noParent) {
-            rabbitSpan(it, "basic.$type $queueName")
+            rabbitSpan(it, "basic.$type $queueName", false, null, operationForConsumer())
           } else {
-            rabbitSpan(it, "basic.$type $queueName", true, publishSpan)
+            rabbitSpan(it, "basic.$type $queueName", true, publishSpan, operationForConsumer())
           }
         }
       }
@@ -679,14 +700,15 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     String resource,
     Boolean distributedRootSpan = false,
     DDSpan parentSpan = null,
+    String operation = operation(),
     Throwable exception = null,
     String errorMsg = null,
     Boolean expectTimestamp = false
   ) {
     internalRabbitSpan(
       trace,
-      expectedServiceName(),
-      "amqp.command",
+      service(),
+      operation,
       excludesRoutingKeyFromResource() ? resource.replaceAll(" -> .*", "") : resource,
       distributedRootSpan,
       parentSpan,
@@ -707,7 +729,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
   ) {
     internalRabbitSpan(
       trace,
-      splitByDestination() ? resource.replace("amqp.deliver ", "") : "rabbitmq",
+      splitByDestination() ? resource.replace("amqp.deliver ", "") : serviceForTimeInQueue(),
       "amqp.deliver",
       resource,
       distributedRootSpan,
@@ -810,10 +832,15 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
         if (exception) {
           errorTags(exception.class, errorMsg)
         }
-        if ({ isDataStreamsEnabled() }){
+        if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
         }
-        defaultTags(distributedRootSpan)
+        if ([Tags.SPAN_KIND_PRODUCER, Tags.SPAN_KIND_CLIENT].any({ it == tag(Tags.SPAN_KIND) })) {
+          peerServiceFrom(Tags.PEER_HOSTNAME)
+          defaultTags(distributedRootSpan)
+        } else {
+          defaultTagsNoPeerService(distributedRootSpan)
+        }
       }
     }
   }
@@ -840,7 +867,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
   }
 }
 
-class RabbitMQForkedTest extends RabbitMQTestBase {
+abstract class RabbitMQForkedTest extends RabbitMQTestBase {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
@@ -849,7 +876,7 @@ class RabbitMQForkedTest extends RabbitMQTestBase {
   }
 
   @Override
-  String expectedServiceName()  {
+  String service() {
     return "RabbitMQTest"
   }
 
@@ -864,6 +891,37 @@ class RabbitMQForkedTest extends RabbitMQTestBase {
   }
 }
 
+class RabbitMQNamingV0Test extends RabbitMQForkedTest {
+
+}
+
+class RabbitMQNamingV1ForkedTest extends RabbitMQForkedTest {
+  @Override
+  String operationForProducer() {
+    "amqp.send"
+  }
+
+  @Override
+  String operationForConsumer() {
+    "amqp.process"
+  }
+
+  @Override
+  String serviceForTimeInQueue() {
+    "rabbitmq-queue"
+  }
+
+  @Override
+  int version() {
+    1
+  }
+
+  @Override
+  boolean hasQueueSpan() {
+    false
+  }
+}
+
 class RabbitMQDatastreamsDisabledForkedTest extends RabbitMQTestBase {
   @Override
   void configurePreAgent() {
@@ -873,7 +931,7 @@ class RabbitMQDatastreamsDisabledForkedTest extends RabbitMQTestBase {
   }
 
   @Override
-  String expectedServiceName()  {
+  String service() {
     return "RabbitMQDatastreamsDisabledForkedTest"
   }
 
@@ -903,7 +961,7 @@ class RabbitMQSplitByDestinationForkedTest extends RabbitMQTestBase {
   }
 
   @Override
-  String expectedServiceName()  {
+  String service() {
     return "RabbitMQTest"
   }
 
@@ -918,7 +976,7 @@ class RabbitMQSplitByDestinationForkedTest extends RabbitMQTestBase {
   }
 }
 
-class RabbitMQLegacyTracingForkedTest extends RabbitMQTestBase {
+class RabbitMQLegacyTracingV0ForkedTest extends RabbitMQTestBase {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
@@ -926,7 +984,7 @@ class RabbitMQLegacyTracingForkedTest extends RabbitMQTestBase {
   }
 
   @Override
-  String expectedServiceName() {
+  String service() {
     return "rabbitmq"
   }
 
@@ -941,6 +999,23 @@ class RabbitMQLegacyTracingForkedTest extends RabbitMQTestBase {
   }
 }
 
+class RabbitMQLegacyTracingV1ForkedTest extends RabbitMQLegacyTracingV0ForkedTest {
+  @Override
+  String operationForProducer() {
+    "amqp.send"
+  }
+
+  @Override
+  String operationForConsumer() {
+    "amqp.process"
+  }
+
+  @Override
+  int version() {
+    1
+  }
+}
+
 class RabbitMQRoutingKeyExcludedForkedTest extends RabbitMQTestBase {
   @Override
   void configurePreAgent() {
@@ -951,7 +1026,7 @@ class RabbitMQRoutingKeyExcludedForkedTest extends RabbitMQTestBase {
   }
 
   @Override
-  String expectedServiceName() {
+  String service() {
     return "RabbitMQRoutingKeyExcludedForkedTest"
   }
 

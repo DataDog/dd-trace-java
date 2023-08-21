@@ -17,17 +17,12 @@ repositories {
   }
 }
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  // Header classes have moved around versions, so we need to split out parts of the test code
-  baseTest
-
-  latestDepTest
-}
+// Header classes have moved around versions, so we need to split out parts of the test code
+addTestSuiteForDir('baseForkedTest', 'baseTest')
+addTestSuite('latestDepTest')
 
 tasks.named("test").configure {
-  dependsOn "baseTest"
+  dependsOn "baseForkedTest"
 }
 
 dependencies {
@@ -35,7 +30,7 @@ dependencies {
 
   testImplementation group: 'org.restlet.jse', name: 'org.restlet', version: '2.2.0'
 
-  baseTestImplementation sourceSets.test.output
+  baseForkedTestImplementation sourceSets.test.output
 
   latestDepTestImplementation group: 'org.restlet.jse', name: 'org.restlet', version: '2.4+'
   latestDepTestImplementation sourceSets.test.output

@@ -6,11 +6,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
-import redis.RedisCommand;
-import redis.protocol.RedisReply;
 
 public class RediscalaClientDecorator
-    extends DBTypeProcessingDatabaseClientDecorator<RedisCommand<? extends RedisReply, ?>> {
+    extends DBTypeProcessingDatabaseClientDecorator<RedisConnectionInfo> {
 
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("redis-command");
 
@@ -47,20 +45,26 @@ public class RediscalaClientDecorator
   }
 
   @Override
-  protected String dbUser(final RedisCommand<? extends RedisReply, ?> session) {
+  protected String dbUser(final RedisConnectionInfo redisConnectionInfo) {
     return null;
   }
 
   @Override
-  protected String dbInstance(final RedisCommand<? extends RedisReply, ?> session) {
+  protected String dbInstance(final RedisConnectionInfo redisConnectionInfo) {
     return null;
   }
 
   @Override
-  protected String dbHostname(RedisCommand<? extends RedisReply, ?> redisCommand) {
-    return null;
+  protected String dbHostname(final RedisConnectionInfo redisConnectionInfo) {
+    return redisConnectionInfo.host;
   }
 
   @Override
-  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
+  public AgentSpan onConnection(final AgentSpan span, final RedisConnectionInfo connection) {
+    if (connection != null) {
+      setPeerPort(span, connection.port);
+      span.setTag("db.redis.dbIndex", connection.dbIndex);
+    }
+    return super.onConnection(span, connection);
+  }
 }

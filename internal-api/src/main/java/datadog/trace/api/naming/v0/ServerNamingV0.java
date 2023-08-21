@@ -24,11 +24,19 @@ public class ServerNamingV0 implements NamingSchema.ForServer {
       case "akka-http-server":
         prefix = "akka-http";
         break;
+      case "netty":
       case "finatra":
-        prefix = "finatra";
+      case "axway-http":
+        prefix = component;
         break;
       case "spray-http-server":
         prefix = "spray-http";
+        break;
+      case "restlet-http-server":
+        prefix = "restlet-http";
+        break;
+      case "synapse-server":
+        prefix = "synapse";
         break;
       default:
         prefix = "servlet";

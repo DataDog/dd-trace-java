@@ -10,13 +10,7 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+addTestSuiteForDir('latestDepForkedTest', 'test')
 
 dependencies {
   compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '7.6.0.v20120127'

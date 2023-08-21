@@ -3,7 +3,7 @@ package datadog.trace.api.iast.telemetry
 import datadog.trace.api.config.IastConfig
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
-import datadog.trace.api.iast.model.VulnerabilityTypes
+import datadog.trace.api.iast.VulnerabilityTypes
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.test.util.DDSpecification

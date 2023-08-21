@@ -2,6 +2,7 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.undertow.Undertow
 import io.undertow.UndertowOptions
 import io.undertow.server.handlers.PathHandler
@@ -36,10 +37,10 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
         .addServlet(new ServletInfo("ErrorServlet", ErrorServlet).addMapping(ERROR.getPath()))
         .addServlet(new ServletInfo("ExceptionServlet", ExceptionServlet).addMapping(EXCEPTION.getPath()))
         .addServlet(new ServletInfo("UserBlockServlet", UserBlockServlet).addMapping(USER_BLOCK.path))
+        .addServlet(new ServletInfo("NotHereServlet", NotHereServlet).addMapping(NOT_HERE.path))
 
       DeploymentManager manager = container.addDeployment(builder)
       manager.deploy()
-      System.out.println(">>> builder.getContextPath(): " + builder.getContextPath())
       root.addPrefixPath(builder.getContextPath(), manager.start())
 
       undertowServer = Undertow.builder()
@@ -102,6 +103,17 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
   }
 
   @Override
+  String expectedResourceName(ServerEndpoint endpoint, String method, URI address) {
+    if (endpoint.status == 404 && endpoint.path == "/not-found") {
+      return "404"
+    } else if (endpoint.hasPathParam) {
+      return "$method ${testPathParam()}"
+    }
+    def base = endpoint == LOGIN ? address : address.resolve("/")
+    return "$method ${endpoint.resolve(base).path}"
+  }
+
+  @Override
   Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
     ["servlet.path": endpoint.path, "servlet.context": "/$CONTEXT"]
   }
@@ -130,6 +142,64 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
       }
     } else {
       throw new UnsupportedOperationException("responseSpan not implemented for " + endpoint)
+    }
+  }
+
+  @Override
+  Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
+    switch (endpoint) {
+      case LOGIN:
+      case NOT_FOUND:
+        return null
+      case PATH_PARAM:
+        return testPathParam()
+      default:
+        return endpoint.path
+    }
+  }
+
+  def "test not-here"() {
+    setup:
+    def request = request(NOT_HERE, method, body).build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.code() == NOT_HERE.status
+
+    and:
+    assertTraces(1) {
+      trace(3) {
+        sortSpansByStart()
+        serverSpan(it, null, null, method, NOT_HERE)
+        controllerSpan(it)
+        handlerSpan(it, NOT_HERE)
+      }
+    }
+
+    where:
+    method = "GET"
+    body = null
+  }
+
+  @Override
+  void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
+    trace.span {
+      serviceName expectedServiceName()
+      operationName "servlet.response"
+      resourceName "HttpServletResponse.sendError"
+      spanType null
+      errored endpoint == EXCEPTION
+      if (endpoint != REDIRECT) {
+        childOfPrevious()
+      }
+      tags {
+        "$Tags.COMPONENT" "java-web-servlet-response"
+        "$Tags.SPAN_KIND" null
+        if (endpoint == EXCEPTION) {
+          errorTags(Exception, EXCEPTION.body)
+        }
+        defaultTags()
+      }
     }
   }
 }

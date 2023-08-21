@@ -100,7 +100,7 @@ public final class ControllerFactory {
     }
 
     try {
-      log.debug("Trying to load " + impl.className());
+      log.debug("Trying to load {}", impl.className());
       return Class.forName(impl.className())
           .asSubclass(Controller.class)
           .getDeclaredConstructor(ConfigProvider.class)

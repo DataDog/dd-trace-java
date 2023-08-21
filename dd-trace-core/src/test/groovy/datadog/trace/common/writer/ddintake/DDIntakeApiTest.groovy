@@ -55,9 +55,9 @@ class DDIntakeApiTest extends DDCoreSpecification {
     def payload = prepareTraces(trackType, [])
 
     expect:
-    def response = client.sendSerializedTraces(payload)
-    response.success()
-    response.status() == 200
+    def clientResponse = client.sendSerializedTraces(payload)
+    clientResponse.success()
+    clientResponse.status() == 200
     intake.getLastRequest().path == path
 
     cleanup:
@@ -89,9 +89,9 @@ class DDIntakeApiTest extends DDCoreSpecification {
     def payload = prepareTraces(trackType, [])
 
     expect:
-    def response = client.sendSerializedTraces(payload)
-    response.success()
-    response.status() == 200
+    def clientResponse = client.sendSerializedTraces(payload)
+    clientResponse.success()
+    clientResponse.status() == 200
     intake.getLastRequest().path == path
 
     cleanup:
@@ -123,9 +123,9 @@ class DDIntakeApiTest extends DDCoreSpecification {
     def payload = prepareTraces(trackType, [])
 
     expect:
-    def response = client.sendSerializedTraces(payload)
-    response.success()
-    response.status() == 200
+    def clientResponse = client.sendSerializedTraces(payload)
+    clientResponse.success()
+    clientResponse.status() == 200
     intake.getLastRequest().path == path
 
     cleanup:

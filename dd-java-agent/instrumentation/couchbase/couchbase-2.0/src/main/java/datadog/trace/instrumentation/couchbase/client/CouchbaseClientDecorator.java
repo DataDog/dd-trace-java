@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.couchbase.client;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
@@ -61,7 +60,4 @@ class CouchbaseClientDecorator extends DBTypeProcessingDatabaseClientDecorator {
   protected String dbHostname(Object o) {
     return null;
   }
-
-  @Override
-  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
 }

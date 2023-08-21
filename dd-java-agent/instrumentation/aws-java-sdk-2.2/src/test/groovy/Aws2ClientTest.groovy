@@ -1,4 +1,7 @@
-import datadog.trace.agent.test.AgentTestRunner
+import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
+
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
@@ -42,9 +45,7 @@ import java.time.Duration
 import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicReference
 
-import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
-
-class Aws2ClientTest extends AgentTestRunner {
+abstract class Aws2ClientTest extends VersionedNamingTestBase {
 
   private static final StaticCredentialsProvider CREDENTIALS_PROVIDER = StaticCredentialsProvider
   .create(AwsBasicCredentials.create("my-access-key", "my-secret-key"))
@@ -61,6 +62,20 @@ class Aws2ClientTest extends AgentTestRunner {
       }
     }
   }
+
+  @Override
+  String operation() {
+    null
+  }
+
+  @Override
+  String service() {
+    null
+  }
+
+  abstract String expectedOperation(String awsService, String awsOperation)
+
+  abstract String expectedService(String awsService, String awsOperation)
 
   def watch(builder, callback) {
     builder.addExecutionInterceptor(new ExecutionInterceptor() {
@@ -98,8 +113,8 @@ class Aws2ClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "$ddService"
-          operationName "aws.http"
+          serviceName expectedService(service, operation)
+          operationName expectedOperation(service, operation)
           resourceName "$service.$operation"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
@@ -114,24 +129,30 @@ class Aws2ClientTest extends AgentTestRunner {
             "$Tags.HTTP_METHOD" "$method"
             "$Tags.HTTP_STATUS" 200
             "aws.service" "$service"
+            "aws_service" "$service"
             "aws.operation" "${operation}"
             "aws.agent" "java-aws-sdk"
             "aws.requestId" "$requestId"
             if (service == "S3") {
               "aws.bucket.name" "somebucket"
+              "bucketname" "somebucket"
               if (operation == "PutObject") {
                 "aws.storage.class" "GLACIER"
               }
             } else if (service == "Sqs" && operation == "CreateQueue") {
               "aws.queue.name" "somequeue"
+              "queuename" "somequeue"
             } else if (service == "Sqs" && operation == "SendMessage") {
               "aws.queue.url" "someurl"
             } else if (service == "Sns" && operation == "Publish") {
               "aws.topic.name" "some-topic"
+              "topicname" "some-topic"
             } else if (service == "DynamoDb") {
               "aws.table.name" "sometable"
+              "tablename" "sometable"
             } else if (service == "Kinesis") {
               "aws.stream.name" "somestream"
+              "streamname" "somestream"
             }
             defaultTags()
           }
@@ -142,19 +163,19 @@ class Aws2ClientTest extends AgentTestRunner {
     server.lastRequest.headers.get("x-datadog-parent-id") == null
 
     where:
-    service    | operation           | ddService      | method | path                  | requestId                              | builder                  | call                                                                                                                                                            | body
-    "S3"       | "CreateBucket"      | "java-aws-sdk" | "PUT"  | "/somebucket"         | "UNKNOWN"                              | S3Client.builder()       | { c -> c.createBucket(CreateBucketRequest.builder().bucket("somebucket").build()) }                                                                             | ""
-    "S3"       | "GetObject"         | "java-aws-sdk" | "GET"  | "/somebucket/somekey" | "UNKNOWN"                              | S3Client.builder()       | { c -> c.getObject(GetObjectRequest.builder().bucket("somebucket").key("somekey").build()) }                                                                    | ""
-    "S3"       | "PutObject"         | "java-aws-sdk" | "PUT"  | "/somebucket/somekey" | "UNKNOWN"                              | S3Client.builder()       | { c -> c.putObject(PutObjectRequest.builder().bucket("somebucket").key("somekey").storageClass(StorageClass.GLACIER).build(), RequestBody.fromString("body")) } | "body"
-    "DynamoDb" | "CreateTable"       | "java-aws-sdk" | "POST" | "/"                   | "UNKNOWN"                              | DynamoDbClient.builder() | { c -> c.createTable(CreateTableRequest.builder().tableName("sometable").build()) }                                                                             | ""
-    "Kinesis"  | "DeleteStream"      | "java-aws-sdk" | "POST" | "/"                   | "UNKNOWN"                              | KinesisClient.builder()  | { c -> c.deleteStream(DeleteStreamRequest.builder().streamName("somestream").build()) }                                                                         | ""
-    "Sqs"      | "CreateQueue"       | "java-aws-sdk" | "POST" | "/"                   | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SqsClient.builder()      | { c -> c.createQueue(CreateQueueRequest.builder().queueName("somequeue").build()) }                                                                             | """
+    service    | operation           | method | path                  | requestId                              | builder                  | call                                                                                                                                                            | body
+    "S3"       | "CreateBucket"      | "PUT"  | "/somebucket"         | "UNKNOWN"                              | S3Client.builder()       | { c -> c.createBucket(CreateBucketRequest.builder().bucket("somebucket").build()) }                                                                             | ""
+    "S3"       | "GetObject"         | "GET"  | "/somebucket/somekey" | "UNKNOWN"                              | S3Client.builder()       | { c -> c.getObject(GetObjectRequest.builder().bucket("somebucket").key("somekey").build()) }                                                                    | ""
+    "S3"       | "PutObject"         | "PUT"  | "/somebucket/somekey" | "UNKNOWN"                              | S3Client.builder()       | { c -> c.putObject(PutObjectRequest.builder().bucket("somebucket").key("somekey").storageClass(StorageClass.GLACIER).build(), RequestBody.fromString("body")) } | "body"
+    "DynamoDb" | "CreateTable"       | "POST" | "/"                   | "UNKNOWN"                              | DynamoDbClient.builder() | { c -> c.createTable(CreateTableRequest.builder().tableName("sometable").build()) }                                                                             | ""
+    "Kinesis"  | "DeleteStream"      | "POST" | "/"                   | "UNKNOWN"                              | KinesisClient.builder()  | { c -> c.deleteStream(DeleteStreamRequest.builder().streamName("somestream").build()) }                                                                         | ""
+    "Sqs"      | "CreateQueue"       | "POST" | "/"                   | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SqsClient.builder()      | { c -> c.createQueue(CreateQueueRequest.builder().queueName("somequeue").build()) }                                                                             | """
         <CreateQueueResponse>
             <CreateQueueResult><QueueUrl>https://queue.amazonaws.com/123456789012/MyQueue</QueueUrl></CreateQueueResult>
             <ResponseMetadata><RequestId>7a62c49f-347e-4fc4-9331-6e8e7a96aa73</RequestId></ResponseMetadata>
         </CreateQueueResponse>
         """
-    "Sqs"      | "SendMessage"       | "sqs"          | "POST" | "/"                   | "27daac76-34dd-47df-bd01-1f6e873584a0" | SqsClient.builder()      | { c -> c.sendMessage(SendMessageRequest.builder().queueUrl("someurl").messageBody("").build()) }                                                                | """
+    "Sqs"      | "SendMessage"       | "POST" | "/"                   | "27daac76-34dd-47df-bd01-1f6e873584a0" | SqsClient.builder()      | { c -> c.sendMessage(SendMessageRequest.builder().queueUrl("someurl").messageBody("").build()) }                                                                | """
         <SendMessageResponse>
             <SendMessageResult>
                 <MD5OfMessageBody>d41d8cd98f00b204e9800998ecf8427e</MD5OfMessageBody>
@@ -164,7 +185,7 @@ class Aws2ClientTest extends AgentTestRunner {
             <ResponseMetadata><RequestId>27daac76-34dd-47df-bd01-1f6e873584a0</RequestId></ResponseMetadata>
         </SendMessageResponse>
         """
-    "Sns"      | "Publish"           | "sns"          | "POST" | "/"                   | "d74b8436-ae13-5ab4-a9ff-ce54dfea72a0" | SnsClient.builder()      | { c -> c.publish(PublishRequest.builder().topicArn("arn:aws:sns::123:some-topic").message("").build()) }                                                        | """
+    "Sns"      | "Publish"           | "POST" | "/"                   | "d74b8436-ae13-5ab4-a9ff-ce54dfea72a0" | SnsClient.builder()      | { c -> c.publish(PublishRequest.builder().topicArn("arn:aws:sns::123:some-topic").message("").build()) }                                                        | """
         <PublishResponse xmlns="https://sns.amazonaws.com/doc/2010-03-31/">
             <PublishResult>
                 <MessageId>567910cd-659e-55d4-8ccb-5aaf14679dc0</MessageId>
@@ -172,14 +193,14 @@ class Aws2ClientTest extends AgentTestRunner {
             <ResponseMetadata><RequestId>d74b8436-ae13-5ab4-a9ff-ce54dfea72a0</RequestId></ResponseMetadata>
         </PublishResponse>
         """
-    "Ec2"      | "AllocateAddress"   | "java-aws-sdk" | "POST" | "/"                   | "59dbff89-35bd-4eac-99ed-be587EXAMPLE" | Ec2Client.builder()      | { c -> c.allocateAddress() }                                                                                                                                    | """
+    "Ec2"      | "AllocateAddress"   | "POST" | "/"                   | "59dbff89-35bd-4eac-99ed-be587EXAMPLE" | Ec2Client.builder()      | { c -> c.allocateAddress() }                                                                                                                                    | """
         <AllocateAddressResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
            <requestId>59dbff89-35bd-4eac-99ed-be587EXAMPLE</requestId> 
            <publicIp>192.0.2.1</publicIp>
            <domain>standard</domain>
         </AllocateAddressResponse>
         """
-    "Rds"      | "DeleteOptionGroup" | "java-aws-sdk" | "POST" | "/"                   | "0ac9cda2-bbf4-11d3-f92b-31fa5e8dbc99" | RdsClient.builder()      | { c -> c.deleteOptionGroup(DeleteOptionGroupRequest.builder().build()) }                                                                                        | """
+    "Rds"      | "DeleteOptionGroup" | "POST" | "/"                   | "0ac9cda2-bbf4-11d3-f92b-31fa5e8dbc99" | RdsClient.builder()      | { c -> c.deleteOptionGroup(DeleteOptionGroupRequest.builder().build()) }                                                                                        | """
         <DeleteOptionGroupResponse xmlns="http://rds.amazonaws.com/doc/2014-09-01/">
           <ResponseMetadata><RequestId>0ac9cda2-bbf4-11d3-f92b-31fa5e8dbc99</RequestId></ResponseMetadata>
         </DeleteOptionGroupResponse>
@@ -212,8 +233,8 @@ class Aws2ClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "$ddService"
-          operationName "aws.http"
+          serviceName expectedService(service, operation)
+          operationName expectedOperation(service, operation)
           resourceName "$service.$operation"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
@@ -228,21 +249,27 @@ class Aws2ClientTest extends AgentTestRunner {
             "$Tags.HTTP_METHOD" "$method"
             "$Tags.HTTP_STATUS" 200
             "aws.service" "$service"
+            "aws_service" "$service"
             "aws.operation" "${operation}"
             "aws.agent" "java-aws-sdk"
             "aws.requestId" "$requestId"
             if (service == "S3") {
               "aws.bucket.name" "somebucket"
+              "bucketname" "somebucket"
             } else if (service == "Sqs" && operation == "CreateQueue") {
               "aws.queue.name" "somequeue"
+              "queuename" "somequeue"
             } else if (service == "Sqs" && operation == "SendMessage") {
               "aws.queue.url" "someurl"
             } else if (service == "Sns" && operation == "Publish") {
               "aws.topic.name" "some-topic"
+              "topicname" "some-topic"
             } else if (service == "DynamoDb") {
               "aws.table.name" "sometable"
+              "tablename" "sometable"
             } else if (service == "Kinesis") {
               "aws.stream.name" "somestream"
+              "streamname" "somestream"
             }
             defaultTags()
           }
@@ -253,19 +280,19 @@ class Aws2ClientTest extends AgentTestRunner {
     server.lastRequest.headers.get("x-datadog-parent-id") == null
 
     where:
-    service    | operation           | ddService      | method | path                  | requestId                              | builder                       | call                                                                                                                             | body
-    "S3"       | "CreateBucket"      | "java-aws-sdk" | "PUT"  | "/somebucket"         | "UNKNOWN"                              | S3AsyncClient.builder()       | { c -> c.createBucket(CreateBucketRequest.builder().bucket("somebucket").build()) }                                              | ""
-    "S3"       | "GetObject"         | "java-aws-sdk" | "GET"  | "/somebucket/somekey" | "UNKNOWN"                              | S3AsyncClient.builder()       | { c -> c.getObject(GetObjectRequest.builder().bucket("somebucket").key("somekey").build(), AsyncResponseTransformer.toBytes()) } | "1234567890"
-    "DynamoDb" | "CreateTable"       | "java-aws-sdk" | "POST" | "/"                   | "UNKNOWN"                              | DynamoDbAsyncClient.builder() | { c -> c.createTable(CreateTableRequest.builder().tableName("sometable").build()) }                                              | ""
+    service    | operation           | method | path                  | requestId                              | builder                       | call                                                                                                                             | body
+    "S3"       | "CreateBucket"      | "PUT"  | "/somebucket"         | "UNKNOWN"                              | S3AsyncClient.builder()       | { c -> c.createBucket(CreateBucketRequest.builder().bucket("somebucket").build()) }                                              | ""
+    "S3"       | "GetObject"         | "GET"  | "/somebucket/somekey" | "UNKNOWN"                              | S3AsyncClient.builder()       | { c -> c.getObject(GetObjectRequest.builder().bucket("somebucket").key("somekey").build(), AsyncResponseTransformer.toBytes()) } | "1234567890"
+    "DynamoDb" | "CreateTable"       | "POST" | "/"                   | "UNKNOWN"                              | DynamoDbAsyncClient.builder() | { c -> c.createTable(CreateTableRequest.builder().tableName("sometable").build()) }                                              | ""
     // Kinesis seems to expect an http2 response which is incompatible with our test server.
     // "Kinesis"  | "DeleteStream"      | "java-aws-sdk" | "POST" | "/"                   | "UNKNOWN"                              | KinesisAsyncClient.builder()  | { c -> c.deleteStream(DeleteStreamRequest.builder().streamName("somestream").build()) }                                          | ""
-    "Sqs"      | "CreateQueue"       | "java-aws-sdk" | "POST" | "/"                   | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SqsAsyncClient.builder()      | { c -> c.createQueue(CreateQueueRequest.builder().queueName("somequeue").build()) }                                              | """
+    "Sqs"      | "CreateQueue"       | "POST" | "/"                   | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SqsAsyncClient.builder()      | { c -> c.createQueue(CreateQueueRequest.builder().queueName("somequeue").build()) }                                              | """
         <CreateQueueResponse>
             <CreateQueueResult><QueueUrl>https://queue.amazonaws.com/123456789012/MyQueue</QueueUrl></CreateQueueResult>
             <ResponseMetadata><RequestId>7a62c49f-347e-4fc4-9331-6e8e7a96aa73</RequestId></ResponseMetadata>
         </CreateQueueResponse>
         """
-    "Sqs"      | "SendMessage"       | "sqs"          | "POST" | "/"                   | "27daac76-34dd-47df-bd01-1f6e873584a0" | SqsAsyncClient.builder()      | { c -> c.sendMessage(SendMessageRequest.builder().queueUrl("someurl").messageBody("").build()) }                                 | """
+    "Sqs"      | "SendMessage"       | "POST" | "/"                   | "27daac76-34dd-47df-bd01-1f6e873584a0" | SqsAsyncClient.builder()      | { c -> c.sendMessage(SendMessageRequest.builder().queueUrl("someurl").messageBody("").build()) }                                 | """
         <SendMessageResponse>
             <SendMessageResult>
                 <MD5OfMessageBody>d41d8cd98f00b204e9800998ecf8427e</MD5OfMessageBody>
@@ -275,7 +302,7 @@ class Aws2ClientTest extends AgentTestRunner {
             <ResponseMetadata><RequestId>27daac76-34dd-47df-bd01-1f6e873584a0</RequestId></ResponseMetadata>
         </SendMessageResponse>
         """
-    "Sns"      | "Publish"           | "sns"          | "POST" | "/"                   | "d74b8436-ae13-5ab4-a9ff-ce54dfea72a0" | SnsAsyncClient.builder()      | { c -> c.publish(PublishRequest.builder().topicArn("arn:aws:sns::123:some-topic").message("").build()) } | """
+    "Sns"      | "Publish"           | "POST" | "/"                   | "d74b8436-ae13-5ab4-a9ff-ce54dfea72a0" | SnsAsyncClient.builder()      | { c -> c.publish(PublishRequest.builder().topicArn("arn:aws:sns::123:some-topic").message("").build()) }                         | """
         <PublishResponse xmlns="https://sns.amazonaws.com/doc/2010-03-31/">
             <PublishResult>
                 <MessageId>567910cd-659e-55d4-8ccb-5aaf14679dc0</MessageId>
@@ -283,14 +310,14 @@ class Aws2ClientTest extends AgentTestRunner {
             <ResponseMetadata><RequestId>d74b8436-ae13-5ab4-a9ff-ce54dfea72a0</RequestId></ResponseMetadata>
         </PublishResponse>
         """
-    "Ec2"      | "AllocateAddress"   | "java-aws-sdk" | "POST" | "/"                   | "59dbff89-35bd-4eac-99ed-be587EXAMPLE" | Ec2AsyncClient.builder()      | { c -> c.allocateAddress() }                                                                                                     | """
+    "Ec2"      | "AllocateAddress"   | "POST" | "/"                   | "59dbff89-35bd-4eac-99ed-be587EXAMPLE" | Ec2AsyncClient.builder()      | { c -> c.allocateAddress() }                                                                                                     | """
         <AllocateAddressResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
            <requestId>59dbff89-35bd-4eac-99ed-be587EXAMPLE</requestId> 
            <publicIp>192.0.2.1</publicIp>
            <domain>standard</domain>
         </AllocateAddressResponse>
         """
-    "Rds"      | "DeleteOptionGroup" | "java-aws-sdk" | "POST" | "/"                   | "0ac9cda2-bbf4-11d3-f92b-31fa5e8dbc99" | RdsAsyncClient.builder()      | { c -> c.deleteOptionGroup(DeleteOptionGroupRequest.builder().build()) }                                                         | """
+    "Rds"      | "DeleteOptionGroup" | "POST" | "/"                   | "0ac9cda2-bbf4-11d3-f92b-31fa5e8dbc99" | RdsAsyncClient.builder()      | { c -> c.deleteOptionGroup(DeleteOptionGroupRequest.builder().build()) }                                                         | """
         <DeleteOptionGroupResponse xmlns="http://rds.amazonaws.com/doc/2014-09-01/">
           <ResponseMetadata><RequestId>0ac9cda2-bbf4-11d3-f92b-31fa5e8dbc99</RequestId></ResponseMetadata>
         </DeleteOptionGroupResponse>
@@ -323,8 +350,8 @@ class Aws2ClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "java-aws-sdk"
-          operationName "aws.http"
+          serviceName expectedService("S3", "GetObject")
+          operationName expectedOperation("S3", "GetObject")
           resourceName "S3.GetObject"
           spanType DDSpanTypes.HTTP_CLIENT
           errored true
@@ -337,9 +364,11 @@ class Aws2ClientTest extends AgentTestRunner {
             "$Tags.HTTP_URL" "$server.address/somebucket/somekey"
             "$Tags.HTTP_METHOD" "GET"
             "aws.service" "S3"
+            "aws_service" "S3"
             "aws.operation" "GetObject"
             "aws.agent" "java-aws-sdk"
             "aws.bucket.name" "somebucket"
+            "bucketname" "somebucket"
             errorTags SdkClientException, "Unable to execute HTTP request: Read timed out"
             defaultTags()
           }
@@ -349,5 +378,53 @@ class Aws2ClientTest extends AgentTestRunner {
 
     cleanup:
     server.close()
+  }
+}
+
+class Aws2ClientV0Test extends Aws2ClientTest {
+
+  @Override
+  String expectedOperation(String awsService, String awsOperation) {
+    "aws.http"
+  }
+
+  @Override
+  String expectedService(String awsService, String awsOperation) {
+    if ("Sns" == awsService && "Publish" == awsOperation) {
+      return "sns"
+    }
+    if ("Sqs" == awsService && "SendMessage" == awsOperation) {
+      return "sqs"
+    }
+    return "java-aws-sdk"
+  }
+
+  @Override
+  int version() {
+    0
+  }
+}
+
+class Aws2ClientV1ForkedTest extends Aws2ClientTest {
+
+  @Override
+  String expectedOperation(String awsService, String awsOperation) {
+    if (awsService == "Sqs" && awsOperation == "SendMessage") {
+      return "aws.sqs.send"
+    }
+    if (awsService == "Sns" && awsOperation == "Publish") {
+      return "aws.sns.send"
+    }
+    return "aws.${awsService.toLowerCase()}.request"
+  }
+
+  @Override
+  String expectedService(String awsService, String awsOperation) {
+    Config.get().getServiceName()
+  }
+
+  @Override
+  int version() {
+    1
   }
 }

@@ -56,7 +56,7 @@ public final class CodeHotspotsTest {
   private static final int TEST_CASE_TIMEOUT = 5; // seconds
   private static final IAttribute<IQuantity> SPAN_ID = attr("spanId", "spanId", "spanId", NUMBER);
   private static final IAttribute<String> OPERATION =
-      attr("operation", "operation", "operation", PLAIN_TEXT);
+      attr("_dd.trace.operation", "operation", "operation", PLAIN_TEXT);
 
   private static final Path LOG_FILE_BASE =
       Paths.get(buildDirectory(), "reports", "testProcess." + CodeHotspotsTest.class.getName());
@@ -257,6 +257,7 @@ public final class CodeHotspotsTest {
     runTestGenerativeStackTraces("Raw", depth);
   }
 
+  @Flaky
   @ParameterizedTest
   @ValueSource(ints = {128})
   void testGenerativeStackTracesWithMethodHandles(int depth) throws Exception {

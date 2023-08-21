@@ -28,11 +28,13 @@ import java.nio.file.StandardOpenOption
  */
 @Flaky("Fails sometimes with java.io.IOException https://github.com/DataDog/dd-trace-java/issues/3884")
 abstract class MongoBaseTest extends VersionedNamingTestBase {
-
+  public static final String V0_DB_TYPE = "mongo"
   public static final String V0_SERVICE = "mongo"
   public static final String V0_OPERATION = "mongo.query"
-  public static final String V1_SERVICE = Config.get().getServiceName() + "-mongodb"
+  public static final String V1_SERVICE = Config.get().getServiceName()
   public static final String V1_OPERATION = "mongodb.query"
+  public static final String V1_DB_TYPE = "mongodb"
+
 
   @Shared
   def databaseName = "database"
@@ -44,6 +46,8 @@ abstract class MongoBaseTest extends VersionedNamingTestBase {
   int port
   @Shared
   RunningMongodProcess mongodProcess
+
+  abstract String dbType()
 
   def setupSpec() throws Exception {
     // The embedded MongoDB library will fail if it starts preparing the
@@ -101,6 +105,7 @@ abstract class MongoBaseTest extends VersionedNamingTestBase {
   }
 
   def mongoSpan(TraceAssert trace, int index, String mongoOp, String statement, boolean renameService = false, String instance = "some-description", Object parentSpan = null, Throwable exception = null) {
+    def dbType = dbType()
     trace.span(index) {
       serviceName renameService ? instance : service()
       operationName operation()
@@ -111,15 +116,16 @@ abstract class MongoBaseTest extends VersionedNamingTestBase {
       } else {
         childOf((DDSpan) parentSpan)
       }
-      topLevel true
+      measured true
       tags {
         "$Tags.COMPONENT" "java-mongo"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
         "$Tags.PEER_HOSTNAME" "localhost"
         "$Tags.PEER_PORT" port
-        "$Tags.DB_TYPE" "mongo"
+        "$Tags.DB_TYPE" dbType
         "$Tags.DB_INSTANCE" instance
         "$Tags.DB_OPERATION" mongoOp
+        peerServiceFrom(Tags.DB_INSTANCE)
         defaultTags()
       }
     }

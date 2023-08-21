@@ -1,6 +1,7 @@
 package datadog.trace.core
 
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.TraceConfig
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.time.TimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -66,8 +67,11 @@ class PendingTraceTest extends PendingTraceTestBase {
   def "verify healthmetrics called"() {
     setup:
     def tracer = Mock(CoreTracer)
+    def traceConfig = Mock(TraceConfig)
     def buffer = Mock(PendingTraceBuffer)
     def healthMetrics = Mock(HealthMetrics)
+    tracer.captureTraceConfig() >> traceConfig
+    traceConfig.getServiceMapping() >> [:]
     PendingTrace trace = new PendingTrace(tracer,DDTraceId.from(0),buffer,Mock(TimeSource),false,healthMetrics)
     when:
     rootSpan = createSimpleSpan(trace)
