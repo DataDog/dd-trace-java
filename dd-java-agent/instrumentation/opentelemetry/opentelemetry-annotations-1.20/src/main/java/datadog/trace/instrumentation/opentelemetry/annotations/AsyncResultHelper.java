@@ -19,7 +19,7 @@ public class AsyncResultHelper {
   public static Object handleAsyncResult(Object result, AgentSpan span) {
     if (result instanceof CompletableFuture<?>) {
       CompletableFuture<?> completableFuture = (CompletableFuture<?>) result;
-      if (!((CompletableFuture<?>) result).isDone()) {
+      if (!completableFuture.isDone() && !completableFuture.isCancelled()) {
         return completableFuture.whenComplete(finishSpan(span));
       }
     } else if (result instanceof CompletionStage<?>) {
