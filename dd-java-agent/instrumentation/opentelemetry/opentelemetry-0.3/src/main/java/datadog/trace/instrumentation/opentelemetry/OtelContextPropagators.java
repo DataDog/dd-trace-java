@@ -39,12 +39,13 @@ public class OtelContextPropagators implements ContextPropagators {
       if (span == null || !span.getContext().isValid()) {
         return;
       }
-      tracer.inject(converter.toAgentSpan(span), carrier, new OtelSetter<>(setter));
+      tracer.propagate().inject(converter.toAgentSpan(span), carrier, new OtelSetter<>(setter));
     }
 
     @Override
     public <C> Context extract(final Context context, final C carrier, final Getter<C> getter) {
-      final AgentSpan.Context agentContext = tracer.extract(carrier, new OtelGetter<>(getter));
+      final AgentSpan.Context agentContext =
+          tracer.propagate().extract(carrier, new OtelGetter<>(getter));
       return TracingContextUtils.withSpan(
           DefaultSpan.create(converter.toSpanContext(agentContext)), context);
     }

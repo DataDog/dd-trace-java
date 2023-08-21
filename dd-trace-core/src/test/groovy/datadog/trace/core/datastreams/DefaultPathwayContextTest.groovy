@@ -550,7 +550,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     Map<String, String> carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     def contextVisitor = new Base64MapContextVisitor()
     def extractor = new FakeExtractor()
-    def decorated = dataStreams.decorate(extractor)
+    def decorated = dataStreams.extractor(extractor)
 
     when:
     def extracted = decorated.extract(carrier, contextVisitor)
@@ -578,7 +578,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     Map<String, String> carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     def contextVisitor = new Base64MapContextVisitor()
     def extractor = new NullExtractor()
-    def decorated = dataStreams.decorate(extractor)
+    def decorated = dataStreams.extractor(extractor)
 
     when:
     def extracted = decorated.extract(carrier, contextVisitor)
@@ -602,7 +602,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     Map<String, String> carrier = ["someotherkey": "someothervalue"]
     def contextVisitor = new Base64MapContextVisitor()
     def extractor = new NullExtractor()
-    def decorated = dataStreams.decorate(extractor)
+    def decorated = dataStreams.extractor(extractor)
 
     when:
     def extracted = decorated.extract(carrier, contextVisitor)
