@@ -55,7 +55,7 @@ public class TemplateAndMatrixVariablesInstrumentation extends Instrumenter.Defa
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.springweb.PairList",
+      packageName + ".PairList",
     };
   }
 }

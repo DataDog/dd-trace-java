@@ -2,6 +2,16 @@ ext {
   minJavaVersionForTests = JavaVersion.VERSION_17
 }
 
+muzzle {
+  pass {
+    group = 'org.springframework'
+    module = 'spring-webmvc'
+    versions = "[6,)"
+    javaVersion = "17"
+    extraDependency "jakarta.servlet:jakarta.servlet-api:5.0.0"
+  }
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 
 [compileMain_java17Java, compileTestJava].each {
@@ -12,10 +22,6 @@ apply from: "$rootDir/gradle/java.gradle"
   }
 }
 
-tasks.named('muzzle').configure {
-  enabled = false
-}
-
 compileTestGroovy {
   javaLauncher = getJavaLauncherFor(17)
 }
@@ -23,9 +29,6 @@ compileTestGroovy {
 dependencies {
   main_java17CompileOnly(group: 'org.springframework', name: 'spring-webmvc', version: '6.0.0')
   main_java17CompileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
-
-  main_java17CompileOnly project(':dd-java-agent:instrumentation:spring-webmvc-3.1')
-  main_java17CompileOnly project(':dd-java-agent:instrumentation:spring-webmvc-5.3')
 
   testImplementation(project(':dd-java-agent:testing')) {
     exclude(module: 'jetty-server') // incompatible servlet api
