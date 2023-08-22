@@ -90,7 +90,6 @@ public class VertxSqlClientDecorator extends DatabaseClientDecorator<DBInfo> {
       processDatabaseType(span, dbInfo.getType());
     }
     super.onConnection(span, dbInfo);
-    //    span.setServiceName("akshay");
     if (null != dbQueryInfo) {
       span.setResourceName(dbQueryInfo.getSql());
       span.setTag(DB_OPERATION, dbQueryInfo.getOperation());
