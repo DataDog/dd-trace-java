@@ -219,7 +219,7 @@ class VertxSqlClientForkedTest extends AgentTestRunner {
     setup:
     def pool = pool()
     def connection = connection(pool)
-    def statement = prepare(connection, "SELECT ?")
+    def statement = prepare(connection, "SELECT 7")
     def result = new AtomicReference<Row>()
     def latch = new CountDownLatch(1)
 
