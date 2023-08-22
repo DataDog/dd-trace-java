@@ -10,6 +10,7 @@ import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.agent.test.utils.PortUtils;
+import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.util.TagsHelper;
 import java.io.IOException;
@@ -73,6 +74,7 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
                 "doService",
                 "(HttpServletRequest, HttpServletResponse)")
             .captureSnapshot(false)
+            .evaluateAt(MethodLocation.EXIT)
             .build();
     JsonSnapshotSerializer.IntakeRequest request = doTestTracer(logProbe);
     Snapshot snapshot = request.getDebugger().getSnapshot();
