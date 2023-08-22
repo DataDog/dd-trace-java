@@ -3,7 +3,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 
-import java.time.Duration
+import static annotatedsample.TracedMethods.DELAY
 
 class WithSpanAnnotationTest extends AgentTestRunner {
   @Override
@@ -148,7 +148,7 @@ class WithSpanAnnotationTest extends AgentTestRunner {
         span {
           resourceName "TracedMethods.traceAsyncCompletableFuture"
           operationName "TracedMethods.traceAsyncCompletableFuture"
-          duration { it > Duration.ofSeconds(2).toNanos() }
+          duration { it > DELAY.toNanos() }
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
@@ -171,7 +171,7 @@ class WithSpanAnnotationTest extends AgentTestRunner {
         span {
           resourceName "TracedMethods.traceAsyncCompletionStage"
           operationName "TracedMethods.traceAsyncCompletionStage"
-          duration { it > Duration.ofSeconds(2).toNanos() }
+          duration { it > DELAY.toNanos() }
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"

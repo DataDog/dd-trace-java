@@ -10,12 +10,15 @@ import static io.opentelemetry.api.trace.SpanKind.SERVER;
 
 import io.opentelemetry.instrumentation.annotations.SpanAttribute;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 public class TracedMethods {
+  public static final Duration DELAY = Duration.ofMillis(250);
+
   @WithSpan
   public static String sayHello() {
     activeSpan().setTag(SERVICE_NAME, "custom-service-name");
@@ -113,7 +116,7 @@ public class TracedMethods {
 
   private static void sleep() {
     try {
-      Thread.sleep(2_000); // Wait enough time to prevent test flakiness
+      Thread.sleep(DELAY.toMillis()); // Wait enough time to prevent test flakiness
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
