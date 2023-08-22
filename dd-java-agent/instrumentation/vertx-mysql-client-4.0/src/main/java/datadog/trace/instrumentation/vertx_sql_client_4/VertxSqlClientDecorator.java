@@ -12,13 +12,10 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class VertxSqlClientDecorator extends DatabaseClientDecorator<DBInfo> {
 
   public static final VertxSqlClientDecorator DECORATE = new VertxSqlClientDecorator();
-  private static final Logger log = LoggerFactory.getLogger(VertxSqlClientDecorator.class);
 
   private static final CharSequence VERTX_SQL = UTF8BytesString.create("vertx-sql");
   private static final CharSequence DATABASE_QUERY = UTF8BytesString.create("database.query");
@@ -83,20 +80,17 @@ public class VertxSqlClientDecorator extends DatabaseClientDecorator<DBInfo> {
 
     DBInfo dbInfo = null;
     DBQueryInfo dbQueryInfo = null;
-    log.info("AKSHAY");
     Pair<DBInfo, DBQueryInfo> queryInfo = contextStore.get(query);
     if (queryInfo != null) {
       dbInfo = queryInfo.getLeft();
       dbQueryInfo = queryInfo.getRight();
-      log.info("AKSHAY dbinfo:{}", dbInfo);
-      log.info("AKSHAY dbQueryInfo:{}", dbQueryInfo);
     }
 
     if (dbInfo != null) {
       processDatabaseType(span, dbInfo.getType());
     }
     super.onConnection(span, dbInfo);
-//    span.setServiceName("akshay");
+    //    span.setServiceName("akshay");
     if (null != dbQueryInfo) {
       span.setResourceName(dbQueryInfo.getSql());
       span.setTag(DB_OPERATION, dbQueryInfo.getOperation());

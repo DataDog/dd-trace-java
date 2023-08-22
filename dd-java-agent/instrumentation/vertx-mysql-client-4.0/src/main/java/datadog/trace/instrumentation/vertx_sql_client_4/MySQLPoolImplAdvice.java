@@ -11,8 +11,7 @@ public class MySQLPoolImplAdvice {
 
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void afterCreate(
-      @Advice.Return final SqlClient zis,
-      @Advice.Argument(2) MySQLConnectOptions options) {
+      @Advice.Return final SqlClient zis, @Advice.Argument(2) MySQLConnectOptions options) {
     DBInfo.Builder builder = DBInfo.DEFAULT.toBuilder();
     DBInfo info =
         builder

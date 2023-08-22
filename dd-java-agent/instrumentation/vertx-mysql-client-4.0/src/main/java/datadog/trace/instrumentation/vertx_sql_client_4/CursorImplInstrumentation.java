@@ -1,13 +1,12 @@
 package datadog.trace.instrumentation.vertx_sql_client_4;
 
-import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.Instrumenter;
-
-import java.util.Map;
-
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.*;
+
+import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.Instrumenter;
+import java.util.Map;
 
 @AutoService(Instrumenter.class)
 public class CursorImplInstrumentation extends Instrumenter.Tracing

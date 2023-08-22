@@ -5,8 +5,6 @@ import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import io.vertx.mysqlclient.MySQLConnectOptions;
 import io.vertx.mysqlclient.MySQLConnection;
 import io.vertx.mysqlclient.impl.MySQLConnectionFactory;
-import io.vertx.sqlclient.Query;
-import io.vertx.sqlclient.SqlConnection;
 import net.bytebuddy.asm.Advice;
 
 public class MySQLConnectionFactoryConstructorAdvice {

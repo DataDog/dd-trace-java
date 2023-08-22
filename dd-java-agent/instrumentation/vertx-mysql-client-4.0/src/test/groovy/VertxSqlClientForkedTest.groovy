@@ -8,6 +8,7 @@ import io.vertx.core.Vertx
 import io.vertx.core.VertxOptions
 import io.vertx.mysqlclient.MySQLConnectOptions
 import io.vertx.mysqlclient.MySQLPool
+import io.vertx.sqlclient.Cursor
 import io.vertx.sqlclient.Pool
 import io.vertx.sqlclient.PoolOptions
 import io.vertx.sqlclient.PreparedQuery
@@ -183,6 +184,37 @@ class VertxSqlClientForkedTest extends AgentTestRunner {
     'prepared statement' | pool() | prepare(connection(pool), "SELECT ?").query() | true
   }
 
+  def "test cursor"() {
+    setup:
+    def pool = pool()
+    def cursor = prepare(connection(pool), "SELECT 7").cursor()
+
+    when:
+    def asyncResult = runUnderTrace("parent") {
+      queryCursorWithHandler(cursor)
+    }
+
+    then:
+    asyncResult.succeeded()
+
+    when:
+    def result = asyncResult.result()
+
+    then:
+    result.size() == 1
+    result[0].getInteger(0) == 7
+    assertTraces(1) {
+      trace(3, true) {
+        basicSpan(it, "handler", span(2))
+        checkDBSpan(it, span(2), "SELECT ?", "SELECT", dbs.DBInfos.mysql, true)
+        basicSpan(it, "parent")
+      }
+    }
+
+    cleanup:
+    pool.close()
+  }
+
   def "test row stream"() {
     setup:
     def pool = pool()
@@ -248,6 +280,19 @@ class VertxSqlClientForkedTest extends AgentTestRunner {
         }
         latch.countDown()
       }
+    }
+    assert latch.await(10, TimeUnit.SECONDS)
+    return result
+  }
+
+  AsyncResult<RowSet<Row>> queryCursorWithHandler(Cursor cursor) {
+    def latch = new CountDownLatch(1)
+    AsyncResult<RowSet<Row>> result = null
+    cursor.read(0) { rowSetAR ->
+      runUnderTrace("handler") {
+        result = rowSetAR
+      }
+      latch.countDown()
     }
     assert latch.await(10, TimeUnit.SECONDS)
     return result
