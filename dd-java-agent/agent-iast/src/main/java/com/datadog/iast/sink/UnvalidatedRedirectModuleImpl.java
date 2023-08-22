@@ -99,7 +99,7 @@ public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
   private boolean isRefererHeader(Range[] ranges) {
     for (Range range : ranges) {
       if (range.getSource().getOrigin() != SourceTypes.REQUEST_HEADER_VALUE
-          || !range.getSource().getName().equalsIgnoreCase(REFERER)) {
+          || !REFERER.equalsIgnoreCase(range.getSource().getName())) {
         return false;
       }
     }
