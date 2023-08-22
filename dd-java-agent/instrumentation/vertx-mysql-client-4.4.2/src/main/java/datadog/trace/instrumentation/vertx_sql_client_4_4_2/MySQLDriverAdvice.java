@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.vertx_sql_client_4;
+package datadog.trace.instrumentation.vertx_sql_client_4_4_2;
 
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;

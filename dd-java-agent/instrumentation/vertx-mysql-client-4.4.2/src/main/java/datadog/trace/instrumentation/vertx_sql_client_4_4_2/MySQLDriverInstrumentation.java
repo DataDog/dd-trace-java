@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.vertx_sql_client_4;
+package datadog.trace.instrumentation.vertx_sql_client_4_4_2;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
