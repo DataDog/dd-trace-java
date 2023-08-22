@@ -63,6 +63,27 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
   }
 
   @Test
+  @DisplayName("testTracerDynamicLog")
+  void testTracerDynamicLog() throws Exception {
+    LogProbe logProbe =
+        LogProbe.builder()
+            .probeId(PROBE_ID)
+            .where(
+                "org.springframework.web.servlet.DispatcherServlet",
+                "doService",
+                "(HttpServletRequest, HttpServletResponse)")
+            .captureSnapshot(false)
+            .build();
+    JsonSnapshotSerializer.IntakeRequest request = doTestTracer(logProbe);
+    Snapshot snapshot = request.getDebugger().getSnapshot();
+    assertEquals("123356536", snapshot.getProbe().getId());
+    assertTrue(Pattern.matches("[0-9a-f]+", request.getTraceId()));
+    assertTrue(Pattern.matches("\\d+", request.getSpanId()));
+    assertFalse(
+        logHasErrors(logFilePath, it -> it.contains("TypePool$Resolution$NoSuchTypeException")));
+  }
+
+  @Test
   @DisplayName("testTracerSameMethod")
   void testTracerSameMethod() throws Exception {
     LogProbe logProbe =

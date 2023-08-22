@@ -26,8 +26,8 @@ public class Snapshot {
   private final ProbeImplementation probe;
   private final String language;
   private final transient CapturedThread thread;
-  private String traceId; // trace_id
-  private String spanId; // span_id
+  private transient String traceId;
+  private transient String spanId;
   private List<EvaluationError> evaluationErrors;
   private transient String message;
   private final transient int maxDepth;
@@ -174,6 +174,14 @@ public class Snapshot {
       }
       stack.add(CapturedStackFrame.from(ste));
     }
+  }
+
+  public void setTraceId(String traceId) {
+    this.traceId = traceId;
+  }
+
+  public void setSpanId(String spanId) {
+    this.spanId = spanId;
   }
 
   public enum Kind {

@@ -420,6 +420,8 @@ public class LogProbe extends ProbeDefinition {
           return;
         }
       }
+      snapshot.setTraceId(entryContext.getTraceId());
+      snapshot.setSpanId(entryContext.getSpanId());
       if (isCaptureSnapshot()) {
         snapshot.setEntry(entryContext);
         snapshot.setExit(exitContext);
@@ -494,6 +496,8 @@ public class LogProbe extends ProbeDefinition {
           return;
         }
       }
+      snapshot.setTraceId(lineContext.getTraceId());
+      snapshot.setSpanId(lineContext.getSpanId());
       if (isCaptureSnapshot()) {
         snapshot.addLine(lineContext, line);
       }

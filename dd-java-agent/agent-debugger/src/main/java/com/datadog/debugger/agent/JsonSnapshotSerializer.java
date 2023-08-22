@@ -45,14 +45,14 @@ public class JsonSnapshotSerializer implements DebuggerContext.ValueSerializer {
   }
 
   private void handleCorrelationFields(Snapshot snapshot, IntakeRequest request) {
+    request.traceId = snapshot.getTraceId();
+    request.spanId = snapshot.getSpanId();
     CapturedContext entry = snapshot.getCaptures().getEntry();
     if (entry != null) {
-      addTraceSpanId(entry, request);
       removeTraceSpanId(entry);
     }
     if (snapshot.getCaptures().getLines() != null) {
       for (CapturedContext context : snapshot.getCaptures().getLines().values()) {
-        addTraceSpanId(context, request);
         removeTraceSpanId(context);
       }
     }
@@ -69,11 +69,6 @@ public class JsonSnapshotSerializer implements DebuggerContext.ValueSerializer {
     }
     fields.remove(DD_TRACE_ID);
     fields.remove(DD_SPAN_ID);
-  }
-
-  private void addTraceSpanId(CapturedContext context, IntakeRequest request) {
-    request.traceId = context.getTraceId();
-    request.spanId = context.getSpanId();
   }
 
   public static class IntakeRequest {
