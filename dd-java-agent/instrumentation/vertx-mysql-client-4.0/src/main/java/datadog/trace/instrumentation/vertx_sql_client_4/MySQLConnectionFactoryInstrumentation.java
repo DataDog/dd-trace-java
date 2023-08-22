@@ -30,9 +30,8 @@ public class MySQLConnectionFactoryInstrumentation extends Instrumenter.Tracing
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         isConstructor()
-            .and(
-                takesArguments(2)
-                    .and(takesArgument(1, named("io.vertx.mysqlclient.MySQLConnectOptions")))),
+            .and(takesArguments(2))
+            .and(takesArgument(1, named("io.vertx.mysqlclient.MySQLConnectOptions"))),
         packageName + ".MySQLConnectionFactoryConstructorAdvice");
   }
 }

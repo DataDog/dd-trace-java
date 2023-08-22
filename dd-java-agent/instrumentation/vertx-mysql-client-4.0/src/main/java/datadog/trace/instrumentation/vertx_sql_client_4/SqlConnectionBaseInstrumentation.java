@@ -26,9 +26,7 @@ public class SqlConnectionBaseInstrumentation extends Instrumenter.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".PrepareHandlerWrapper",
-    };
+    return new String[] {packageName + ".PrepareHandlerWrapper"};
   }
 
   @Override
