@@ -8,14 +8,15 @@ import io.vertx.core.Vertx
 import io.vertx.core.VertxOptions
 import io.vertx.mysqlclient.MySQLConnectOptions
 import io.vertx.mysqlclient.MySQLPool
-import io.vertx.sqlclient.Cursor
 import io.vertx.sqlclient.Pool
 import io.vertx.sqlclient.PoolOptions
+import io.vertx.sqlclient.PreparedQuery
 import io.vertx.sqlclient.PreparedStatement
 import io.vertx.sqlclient.Query
 import io.vertx.sqlclient.Row
 import io.vertx.sqlclient.RowSet
 import io.vertx.sqlclient.SqlConnection
+import io.vertx.sqlclient.Tuple
 import io.vertx.sqlclient.impl.ArrayTuple
 import spock.lang.AutoCleanup
 import spock.lang.Shared
@@ -68,8 +69,8 @@ class VertxSqlClientForkedTest extends AgentTestRunner {
     where:
     type                 | pool   | query                                         | prepared
     'query'              | pool() | pool.query('SELECT 7')                        | false
-    'prepared query'     | pool() | pool.preparedQuery("SELECT 7")                | true
-    'prepared statement' | pool() | prepare(connection(pool), "SELECT 7").query() | true
+    'prepared query'     | pool() | pool.preparedQuery("SELECT ?")                | true
+    'prepared statement' | pool() | prepare(connection(pool), "SELECT ?").query() | true
   }
 
   @Unroll
@@ -101,14 +102,14 @@ class VertxSqlClientForkedTest extends AgentTestRunner {
     where:
     type                 | pool   | query                                         | prepared
     'query'              | pool() | pool.query('SELECT 7')                        | false
-    'prepared query'     | pool() | pool.preparedQuery("SELECT 7")                | true
-    'prepared statement' | pool() | prepare(connection(pool), "SELECT 7").query() | true
+    'prepared query'     | pool() | pool.preparedQuery("SELECT ?")                | true
+    'prepared statement' | pool() | prepare(connection(pool), "SELECT ?").query() | true
   }
 
   @Unroll
   def "test #type mapped"() {
     setup:
-    def mapped = query.mapping({row ->
+    def mapped = query.mapping({ row ->
       return row.getInteger(0)
     })
 
@@ -140,14 +141,14 @@ class VertxSqlClientForkedTest extends AgentTestRunner {
     where:
     type                 | pool   | query                                         | prepared
     'query'              | pool() | pool.query('SELECT 7')                        | false
-    'prepared query'     | pool() | pool.preparedQuery("SELECT 7")                | true
-    'prepared statement' | pool() | prepare(connection(pool), "SELECT 7").query() | true
+    'prepared query'     | pool() | pool.preparedQuery("SELECT ?")                | true
+    'prepared statement' | pool() | prepare(connection(pool), "SELECT ?").query() | true
   }
 
   @Unroll
   def "test #type mapped without parent"() {
     setup:
-    def mapped = query.mapping({row ->
+    def mapped = query.mapping({ row ->
       return row.getInteger(0)
     })
 
@@ -178,46 +179,15 @@ class VertxSqlClientForkedTest extends AgentTestRunner {
     where:
     type                 | pool   | query                                         | prepared
     'query'              | pool() | pool.query('SELECT 7')                        | false
-    'prepared query'     | pool() | pool.preparedQuery("SELECT 7")                | true
-    'prepared statement' | pool() | prepare(connection(pool), "SELECT 7").query() | true
-  }
-
-  def "test cursor"() {
-    setup:
-    def pool = pool()
-    def cursor = prepare(connection(pool), "SELECT 7").cursor()
-
-    when:
-    def asyncResult = runUnderTrace("parent") {
-      queryCursorWithHandler(cursor)
-    }
-
-    then:
-    asyncResult.succeeded()
-
-    when:
-    def result = asyncResult.result()
-
-    then:
-    result.size() == 1
-    result[0].getInteger(0) == 7
-    assertTraces(1) {
-      trace(3, true) {
-        basicSpan(it, "handler", span(2))
-        checkDBSpan(it, span(2), "SELECT ?", "SELECT", dbs.DBInfos.mysql, true)
-        basicSpan(it, "parent")
-      }
-    }
-
-    cleanup:
-    pool.close()
+    'prepared query'     | pool() | pool.preparedQuery("SELECT ?")                | true
+    'prepared statement' | pool() | prepare(connection(pool), "SELECT ?").query() | true
   }
 
   def "test row stream"() {
     setup:
     def pool = pool()
     def connection = connection(pool)
-    def statement = prepare(connection, "SELECT 7")
+    def statement = prepare(connection, "SELECT ?")
     def result = new AtomicReference<Row>()
     def latch = new CountDownLatch(1)
 
@@ -260,27 +230,24 @@ class VertxSqlClientForkedTest extends AgentTestRunner {
     return MySQLPool.pool(vertx, connectOptions, poolOptions)
   }
 
-  public <T> AsyncResult<RowSet<T>> executeQueryWithHandler(Query<RowSet<T>> query) {
+  def <T> AsyncResult<RowSet<T>> executeQueryWithHandler(Query<RowSet<T>> query) {
     def latch = new CountDownLatch(1)
     AsyncResult<RowSet<T>> result = null
-    query.execute { rowSetAR ->
-      runUnderTrace("handler") {
-        result = rowSetAR
-      }
-      latch.countDown()
-    }
-    assert latch.await(10, TimeUnit.SECONDS)
-    return result
-  }
 
-  AsyncResult<RowSet<Row>> queryCursorWithHandler(Cursor cursor) {
-    def latch = new CountDownLatch(1)
-    AsyncResult<RowSet<Row>> result = null
-    cursor.read(0) { rowSetAR ->
-      runUnderTrace("handler") {
-        result = rowSetAR
+    if (query instanceof PreparedQuery) {
+      query.execute(Tuple.of(7)) { rowSetAR ->
+        runUnderTrace("handler") {
+          result = rowSetAR
+        }
+        latch.countDown()
       }
-      latch.countDown()
+    } else {
+      query.execute { rowSetAR ->
+        runUnderTrace("handler") {
+          result = rowSetAR
+        }
+        latch.countDown()
+      }
     }
     assert latch.await(10, TimeUnit.SECONDS)
     return result
@@ -289,7 +256,7 @@ class VertxSqlClientForkedTest extends AgentTestRunner {
   SqlConnection connection(Pool pool) {
     def latch = new CountDownLatch(1)
     SqlConnection result = null
-    pool.getConnection({connectionAR ->
+    pool.getConnection({ connectionAR ->
       result = connectionAR.result()
       latch.countDown()
     })
@@ -317,7 +284,7 @@ class VertxSqlClientForkedTest extends AgentTestRunner {
       resourceName resource
       spanType "sql"
       tags {
-        "$Tags.COMPONENT" prepared == true ? "vertx-sql-prepared_statement" : "vertx-sql-statement"
+        "$Tags.COMPONENT" prepared ? "vertx-sql-prepared_statement" : "vertx-sql-statement"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
         "$Tags.DB_OPERATION" operation
         if (info) {

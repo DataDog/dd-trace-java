@@ -4,15 +4,16 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import io.vertx.mysqlclient.MySQLConnectOptions;
 import io.vertx.mysqlclient.MySQLConnection;
-import io.vertx.sqlclient.SqlClient;
+import io.vertx.mysqlclient.impl.MySQLConnectionFactory;
+import io.vertx.sqlclient.Query;
+import io.vertx.sqlclient.SqlConnection;
 import net.bytebuddy.asm.Advice;
 
-public class MySQLPoolImplAdvice {
-
+public class MySQLConnectionFactoryConstructorAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
-  public static void afterCreate(
-      @Advice.Return final SqlClient zis,
-      @Advice.Argument(2) MySQLConnectOptions options) {
+  public static void afterConstructor(
+      @Advice.This final MySQLConnectionFactory zis,
+      @Advice.Argument(1) final MySQLConnectOptions options) {
     DBInfo.Builder builder = DBInfo.DEFAULT.toBuilder();
     DBInfo info =
         builder
@@ -22,7 +23,7 @@ public class MySQLPoolImplAdvice {
             .user(options.getUser())
             .type("mysql")
             .build();
-    InstrumentationContext.get(SqlClient.class, DBInfo.class).put(zis, info);
+    InstrumentationContext.get(MySQLConnectionFactory.class, DBInfo.class).put(zis, info);
   }
 
   // Limit ourselves to 4.x by checking for the ping() method that was added in 4.x
