@@ -12,7 +12,7 @@ public final class Payload implements Encodable {
   // HTTPS request
   // should be equal to:
   // https://github.com/DataDog/datadog-agent/blob/main/pkg/network/ebpf/c/protocols/http-types.h#L7
-  static final int MAX_HTTPS_BUFFER_SIZE = 8 * 20;
+  public static final int MAX_HTTPS_BUFFER_SIZE = 8 * 20;
   private final byte[] payload;
   private final int offset;
   private final int length;
