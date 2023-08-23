@@ -157,6 +157,10 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
       new Range(0, 2, new Source(SourceTypes.REQUEST_HEADER_VALUE, 'referer', 'value'), NOT_MARKED),
       new Range(4, 1, new Source(SourceTypes.REQUEST_PARAMETER_NAME, 'referer', 'value'), NOT_MARKED)
     ]
+    'test03' | [
+      new Range(0, 2, new Source(SourceTypes.REQUEST_HEADER_VALUE, null, null), NOT_MARKED),
+      new Range(4, 1, new Source(SourceTypes.REQUEST_PARAMETER_NAME, 'referer', 'value'), NOT_MARKED)
+    ]
   }
 
   void 'If all ranges from tainted element have unvalidated redirect mark vulnerability is not reported'() {
