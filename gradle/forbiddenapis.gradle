@@ -17,6 +17,7 @@ forbiddenApis {
   signaturesFiles = mainFilterFile
   ignoreSignaturesOfMissingClasses = true
   ignoreFailures = false
+  failOnMissingClasses = false
 }
 
 // disable forbiddenApis for all test tasks

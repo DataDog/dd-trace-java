@@ -48,7 +48,7 @@ parameters:
 
   docker_image_tag:
     type: string
-    default: base
+    default: 69_merge-base
 
 commands:
   check_for_leftover_files:
@@ -297,6 +297,7 @@ jobs:
       - run:
           name: Build Project
           command: >-
+            JAVA_HOME="$JAVA_11_HOME"
             MAVEN_OPTS="-Xms64M -Xmx256M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew clean
@@ -389,6 +390,7 @@ jobs:
       - run:
           name: Check Project
           command: >-
+            JAVA_HOME="$JAVA_11_HOME"
             MAVEN_OPTS="-Xms64M -Xmx256M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew
@@ -437,6 +439,7 @@ jobs:
       - run:
           name: Build Project
           command: >-
+            JAVA_HOME="$JAVA_11_HOME"
             MAVEN_OPTS="-Xms64M -Xmx256M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew clean
@@ -469,7 +472,7 @@ jobs:
     resource_class: large
 
     docker:
-      - image: << pipeline.parameters.docker_image >>:<< parameters.testJvm >>
+      - image: << pipeline.parameters.docker_image >>:69_merge-<< parameters.testJvm >>
 
     parameters:
       testJvm:
@@ -534,6 +537,7 @@ jobs:
               PROFILER_COMMAND="-XX:StartFlightRecording=settings=profile,filename=/tmp/<< parameters.stage >>-<< parameters.testJvm >>.jfr,dumponexit=true"
             fi
             
+            JAVA_HOME="$JAVA_11_HOME"
             MAVEN_OPTS="-Xms64M -Xmx512M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms<< parameters.maxDaemonHeapSize >> -Xmx<< parameters.maxDaemonHeapSize >> $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
             ./gradlew
@@ -621,7 +625,7 @@ jobs:
     <<: *tests
 
     docker:
-      - image: << pipeline.parameters.docker_image >>:<< parameters.testJvm >>
+      - image: << pipeline.parameters.docker_image >>:69_merge-<< parameters.testJvm >>
         environment:
           - CI_USE_TEST_AGENT=true
       - image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.11.0
@@ -662,7 +666,7 @@ jobs:
     resource_class: medium
 
     docker:
-      - image: << pipeline.parameters.docker_image >>:7
+      - image: << pipeline.parameters.docker_image >>:69_merge-7
       - image: datadog/agent:7.34.0
         environment:
           - DD_APM_ENABLED=true
@@ -673,7 +677,7 @@ jobs:
     <<: *defaults
     resource_class: medium
     docker:
-      - image: << pipeline.parameters.docker_image >>:7
+      - image: << pipeline.parameters.docker_image >>:69_merge-7
 
     steps:
       - setup_code
@@ -687,6 +691,7 @@ jobs:
           command: |
             mvn_local_repo=$(./mvnw help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
             rm -rf "${mvn_local_repo}/com/datadoghq"
+            export JAVA_HOME="$JAVA_11_HOME"
             export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew publishToMavenLocal << pipeline.parameters.gradle_flags >> --max-workers=3
 

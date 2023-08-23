@@ -22,10 +22,6 @@ compileTestGroovy {
   javaLauncher = getJavaLauncherFor(11)
 }
 
-forbiddenApisMain_java11 {
-  failOnMissingClasses = false
-}
-
 idea {
   module {
     jdkName = '11'

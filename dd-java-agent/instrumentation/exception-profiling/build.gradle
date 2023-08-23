@@ -25,10 +25,6 @@ dependencies {
   it.options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'])
 }
 
-forbiddenApisMain_java11 {
-  failOnMissingClasses = false
-}
-
 idea {
   module {
     jdkName = '11'

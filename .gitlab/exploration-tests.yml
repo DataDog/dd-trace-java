@@ -14,7 +14,7 @@ build-exploration-tests-image:
 .common-exploration-tests: &common-exploration-tests
   before_script:
     - source $HOME/.sdkman/bin/sdkman-init.sh
-    - export JAVA_HOME=$JAVA_8_HOME
+    - export JAVA_HOME=$JAVA_11_HOME
     - ./gradlew :dd-java-agent:shadowJar --no-scan
     - cp workspace/dd-java-agent/build/libs/*.jar /exploration-tests/dd-java-agent.jar
     - cp dd-java-agent/agent-debugger/exploration-tests/run-exploration-tests.sh /exploration-tests

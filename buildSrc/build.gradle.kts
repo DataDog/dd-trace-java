@@ -4,6 +4,12 @@ plugins {
   id("com.diffplug.spotless") version "6.11.0"
 }
 
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(8))
+    }
+}
+
 gradlePlugin {
   plugins {
     create("instrument-plugin") {

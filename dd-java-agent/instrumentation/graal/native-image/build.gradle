@@ -32,10 +32,6 @@ dependencies {
   main_java11CompileOnly group: 'org.graalvm.nativeimage', name: 'svm', version: '20.0.0'
 }
 
-forbiddenApisMain_java11 {
-  failOnMissingClasses = false
-}
-
 idea {
   module {
     jdkName = '11'

@@ -49,10 +49,6 @@ jar {
   from sourceSets.main_java11.output
 }
 
-forbiddenApisMain_java11 {
-  failOnMissingClasses = false
-}
-
 idea {
   module {
     jdkName = '11'

@@ -73,12 +73,6 @@ forbiddenApisJmh {
   ignoreFailures = true
 }
 
-forbiddenApisTest_java11 {
-  // it will fail due to missing JDK >= 9 classes
-  // java.lang.ClassNotFoundException: java.lang.invoke.StringConcatFactory
-  failOnMissingClasses = false
-}
-
 project.tasks.compileTestJava.dependsOn(project.tasks.generateTestClassNameTries)
 project.tasks.compileTestGroovy.dependsOn(project.tasks.compileTest_java11Java)
 project.tasks.compileTest_java11Java.configure {
