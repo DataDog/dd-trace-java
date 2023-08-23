@@ -71,7 +71,7 @@ public final class SslEngineInstrumentation extends Instrumenter.Usm
         ByteBuffer dstBuffer =
             ByteBuffer.allocate(Math.min(result.bytesConsumed(), MAX_HTTPS_BUFFER_SIZE));
         int consumed = 0;
-        // we iterate over all src buffers (might be more than 1 if the response is big
+        // we iterate over all src buffers (might be more than 1 if the response is big)
         // we copy up to MAX_HTTPS_BUFFER_SIZE bytes in total into the destination buffer that would
         // be sent to kernel via eRPC
         for (int i = 0; i < srcs.length && consumed <= dstBuffer.limit(); i++) {
