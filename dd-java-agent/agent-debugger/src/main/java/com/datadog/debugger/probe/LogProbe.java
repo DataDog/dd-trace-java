@@ -399,13 +399,19 @@ public class LogProbe extends ProbeDefinition {
     LogStatus entryStatus = convertStatus(entryContext.getStatus(id));
     LogStatus exitStatus = convertStatus(exitContext.getStatus(id));
     String message = null;
+    String traceId = null;
+    String spanId = null;
     switch (evaluateAt) {
       case ENTRY:
       case DEFAULT:
         message = entryStatus.getMessage();
+        traceId = entryContext.getTraceId();
+        spanId = entryContext.getSpanId();
         break;
       case EXIT:
         message = exitStatus.getMessage();
+        traceId = exitContext.getTraceId();
+        spanId = exitContext.getSpanId();
         break;
     }
     Sink sink = DebuggerAgent.getSink();
@@ -420,6 +426,8 @@ public class LogProbe extends ProbeDefinition {
           return;
         }
       }
+      snapshot.setTraceId(traceId);
+      snapshot.setSpanId(spanId);
       if (isCaptureSnapshot()) {
         snapshot.setEntry(entryContext);
         snapshot.setExit(exitContext);
@@ -494,6 +502,8 @@ public class LogProbe extends ProbeDefinition {
           return;
         }
       }
+      snapshot.setTraceId(lineContext.getTraceId());
+      snapshot.setSpanId(lineContext.getSpanId());
       if (isCaptureSnapshot()) {
         snapshot.addLine(lineContext, line);
       }
