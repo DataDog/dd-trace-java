@@ -98,7 +98,7 @@ public final class SslEngineInstrumentation extends Instrumenter.Usm
           // update number of total copied bytes so far
           consumed += oldPos;
         }
-        dstBuffer.flip();
+
         Peer peer = new Peer(thiz.getPeerHost(), thiz.getPeerPort());
         Payload payload = new Payload(dstBuffer.array(), 0, dstBuffer.limit());
         Buffer message = MessageEncoder.encode(MessageEncoder.ASYNC_PAYLOAD, peer, payload);
