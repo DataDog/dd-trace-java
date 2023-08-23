@@ -624,6 +624,7 @@ jobs:
       - image: << pipeline.parameters.docker_image >>:<< parameters.testJvm >>
         environment:
           - CI_USE_TEST_AGENT=true
+          - DD_INSTRUMENTATION_TELEMETRY_ENABLED=true
       - image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.11.0
         environment:
           - LOG_LEVEL=DEBUG
