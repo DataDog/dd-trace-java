@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.springsecurity5;
 
+import datadog.trace.bootstrap.ActiveSubsystems;
 import net.bytebuddy.asm.Advice;
 import org.springframework.security.core.AuthenticationException;
 
@@ -9,9 +10,11 @@ public class AbstractUserDetailsAuthenticationProviderAdvice {
   public static boolean onEnter(
       @Advice.FieldValue(value = "hideUserNotFoundExceptions", readOnly = false)
           boolean hideUserNotFoundExceptions) {
-    // Ensure we are not hiding exception
     boolean originalValue = hideUserNotFoundExceptions;
-    hideUserNotFoundExceptions = false;
+    if (ActiveSubsystems.APPSEC_ACTIVE) {
+      // Ensure we are not hiding exception
+      hideUserNotFoundExceptions = false;
+    }
     return originalValue;
   }
 
