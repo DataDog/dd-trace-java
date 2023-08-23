@@ -158,6 +158,33 @@ class WithSpanAnnotationTest extends AgentTestRunner {
     }
   }
 
+  def "test WithSpan annotated async method (failing CompletableFuture)"() {
+    setup:
+    def expectedException = new RuntimeException("Test exception")
+    def completableFuture = TracedMethods.traceAsyncFailingCompletableFuture(expectedException)
+
+    when:
+    completableFuture.join()
+
+    then:
+    thrown(RuntimeException)
+    assertTraces(1) {
+      trace(1) {
+        span {
+          resourceName "TracedMethods.traceAsyncFailingCompletableFuture"
+          operationName "TracedMethods.traceAsyncFailingCompletableFuture"
+          duration { it > DELAY.toNanos() }
+          errored true
+          tags {
+            defaultTags()
+            "$Tags.COMPONENT" "opentelemetry"
+            errorTags(expectedException)
+          }
+        }
+      }
+    }
+  }
+
   def "test WithSpan annotated async method (CompletionStage)"() {
     setup:
     def completionStage = TracedMethods.traceAsyncCompletionStage()
@@ -175,6 +202,33 @@ class WithSpanAnnotationTest extends AgentTestRunner {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+          }
+        }
+      }
+    }
+  }
+
+  def "test WithSpan annotated async method (failing CompletionStage)"() {
+    setup:
+    def expectedException = new RuntimeException("Test exception")
+    def completionStage = TracedMethods.traceAsyncFailingCompletionStage(expectedException)
+
+    when:
+    completionStage.toCompletableFuture().join()
+
+    then:
+    thrown(RuntimeException)
+    assertTraces(1) {
+      trace(1) {
+        span {
+          resourceName "TracedMethods.traceAsyncFailingCompletionStage"
+          operationName "TracedMethods.traceAsyncFailingCompletionStage"
+          duration { it > DELAY.toNanos() }
+          errored true
+          tags {
+            defaultTags()
+            "$Tags.COMPONENT" "opentelemetry"
+            errorTags(expectedException)
           }
         }
       }

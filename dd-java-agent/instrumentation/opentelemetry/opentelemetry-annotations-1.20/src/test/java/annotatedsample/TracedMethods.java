@@ -101,11 +101,31 @@ public class TracedMethods {
   }
 
   @WithSpan
+  public static CompletableFuture<String> traceAsyncFailingCompletableFuture(
+      RuntimeException exception) {
+    return CompletableFuture.supplyAsync(
+        () -> {
+          sleep();
+          throw exception;
+        });
+  }
+
+  @WithSpan
   public static CompletionStage<String> traceAsyncCompletionStage() {
     return CompletableFuture.supplyAsync(
         () -> {
           sleep();
           return "hello!";
+        });
+  }
+
+  @WithSpan
+  public static CompletionStage<String> traceAsyncFailingCompletionStage(
+      RuntimeException exception) {
+    return CompletableFuture.supplyAsync(
+        () -> {
+          sleep();
+          throw exception;
         });
   }
 

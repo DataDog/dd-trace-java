@@ -4,6 +4,7 @@ import static datadog.trace.instrumentation.opentelemetry.annotations.WithSpanDe
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.function.BiConsumer;
 
@@ -31,7 +32,12 @@ public class AsyncResultHelper {
 
   private static BiConsumer<Object, Throwable> finishSpan(AgentSpan span) {
     return (o, throwable) -> {
-      DECORATE.onError(span, throwable);
+      if (throwable != null) {
+        if (throwable instanceof CompletionException) {
+          throwable = throwable.getCause();
+        }
+        DECORATE.onError(span, throwable);
+      }
       span.finish();
     };
   }
