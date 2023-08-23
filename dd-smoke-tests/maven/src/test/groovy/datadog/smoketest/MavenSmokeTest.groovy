@@ -167,12 +167,12 @@ class MavenSmokeTest extends Specification {
     verifyAll(moduleEndEvent) {
       verifyAll(content) {
         name == "maven.test_module"
-        resource == "Maven Smoke Tests Project test" // project name + execution goal
+        resource == "Maven Smoke Tests Project maven-surefire-plugin default-test" // project name + plugin name + execution ID
         test_session_id == sessionEndEvent.content.test_session_id
         test_module_id > 0
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
-          it["test.module"] == "Maven Smoke Tests Project test" // project name + execution goal
+          it["test.module"] == "Maven Smoke Tests Project maven-surefire-plugin default-test" // project name + plugin name + execution ID
           it["test.status"] == "pass"
           it["test.code_coverage.enabled"] == "true"
           it["test.itr.tests_skipping.enabled"] == "true"
