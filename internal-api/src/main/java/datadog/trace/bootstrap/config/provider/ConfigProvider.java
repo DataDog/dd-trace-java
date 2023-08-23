@@ -188,6 +188,15 @@ public final class ConfigProvider {
     return ConfigConverter.parseList(getString(key));
   }
 
+  public List<String> getList(String key, List<String> defaultValue) {
+    String list = getString(key);
+    if (null == list) {
+      return defaultValue;
+    } else {
+      return ConfigConverter.parseList(getString(key));
+    }
+  }
+
   public Set<String> getSet(String key, Set<String> defaultValue) {
     String list = getString(key);
     if (null == list) {

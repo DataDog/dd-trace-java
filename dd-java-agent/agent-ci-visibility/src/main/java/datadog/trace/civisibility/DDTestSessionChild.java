@@ -2,13 +2,16 @@ package datadog.trace.civisibility;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
+import datadog.trace.api.civisibility.coverage.CoverageDataSupplier;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
+import java.io.File;
 import java.net.InetSocketAddress;
+import java.util.Collection;
 import javax.annotation.Nullable;
 
 public class DDTestSessionChild extends DDTestSessionImpl {
@@ -21,6 +24,7 @@ public class DDTestSessionChild extends DDTestSessionImpl {
   private final Codeowners codeowners;
   private final MethodLinesResolver methodLinesResolver;
   private final CoverageProbeStoreFactory coverageProbeStoreFactory;
+  private final CoverageDataSupplier coverageDataSupplier;
   @Nullable private final InetSocketAddress signalServerAddress;
 
   public DDTestSessionChild(
@@ -32,6 +36,7 @@ public class DDTestSessionChild extends DDTestSessionImpl {
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
       CoverageProbeStoreFactory coverageProbeStoreFactory,
+      CoverageDataSupplier coverageDataSupplier,
       @Nullable InetSocketAddress signalServerAddress) {
     this.parentProcessSessionId = parentProcessSessionId;
     this.parentProcessModuleId = parentProcessModuleId;
@@ -41,6 +46,7 @@ public class DDTestSessionChild extends DDTestSessionImpl {
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
     this.coverageProbeStoreFactory = coverageProbeStoreFactory;
+    this.coverageDataSupplier = coverageDataSupplier;
     this.signalServerAddress = signalServerAddress;
   }
 
@@ -65,7 +71,8 @@ public class DDTestSessionChild extends DDTestSessionImpl {
   }
 
   @Override
-  public DDTestModuleImpl testModuleStart(String moduleName, @Nullable Long startTime) {
+  public DDTestModuleImpl testModuleStart(
+      String moduleName, @Nullable Long startTime, Collection<File> outputClassesDirs) {
     return new DDTestModuleChild(
         parentProcessSessionId,
         parentProcessModuleId,
@@ -76,6 +83,7 @@ public class DDTestSessionChild extends DDTestSessionImpl {
         codeowners,
         methodLinesResolver,
         coverageProbeStoreFactory,
+        coverageDataSupplier,
         signalServerAddress);
   }
 

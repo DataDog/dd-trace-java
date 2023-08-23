@@ -4,6 +4,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIVisibility;
 import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.coverage.CoverageDataSupplier;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.config.CiVisibilityConfig;
@@ -214,6 +215,7 @@ public class CiVisibilitySystem {
         signalServerAddress = new InetSocketAddress(host, Integer.parseInt(port));
       }
 
+      CoverageDataSupplier coverageDataSupplier = InstrumentationBridge::getCoverageData;
       return new DDTestSessionChild(
           parentProcessSessionId,
           parentProcessModuleId,
@@ -223,6 +225,7 @@ public class CiVisibilitySystem {
           codeowners,
           methodLinesResolver,
           coverageProbeStoreFactory,
+          coverageDataSupplier,
           signalServerAddress);
     };
   }

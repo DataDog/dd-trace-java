@@ -141,6 +141,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UNSHA
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_GRADLE_SOURCE_SETS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION;
@@ -648,6 +649,7 @@ public class Config {
   private final List<String> ciVisibilityJacocoPluginIncludes;
   private final List<String> ciVisibilityJacocoPluginExcludes;
   private final String[] ciVisibilityJacocoPluginExcludedClassnames;
+  private final List<String> ciVisibilityJacocoGradleSourceSets;
   private final Integer ciVisibilityDebugPort;
   private final boolean ciVisibilityGitUploadEnabled;
   private final boolean ciVisibilityGitUnshallowEnabled;
@@ -1508,6 +1510,9 @@ public class Config {
                     DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES)));
     ciVisibilityJacocoPluginExcludedClassnames =
         computeCiVisibilityJacocoPluginExcludedClassnames(ciVisibilityJacocoPluginExcludes);
+    ciVisibilityJacocoGradleSourceSets =
+        configProvider.getList(
+            CIVISIBILITY_JACOCO_GRADLE_SOURCE_SETS, Collections.singletonList("main"));
     ciVisibilityDebugPort = configProvider.getInteger(CIVISIBILITY_DEBUG_PORT);
     ciVisibilityGitUploadEnabled =
         configProvider.getBoolean(
@@ -2484,6 +2489,10 @@ public class Config {
 
   public String[] getCiVisibilityJacocoPluginExcludedClassnames() {
     return ciVisibilityJacocoPluginExcludedClassnames;
+  }
+
+  public List<String> getCiVisibilityJacocoGradleSourceSets() {
+    return ciVisibilityJacocoGradleSourceSets;
   }
 
   public Integer getCiVisibilityDebugPort() {

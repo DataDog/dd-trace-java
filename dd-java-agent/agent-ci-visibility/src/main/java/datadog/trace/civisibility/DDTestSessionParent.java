@@ -16,6 +16,7 @@ import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory;
 import datadog.trace.civisibility.context.SpanTestContext;
 import datadog.trace.civisibility.context.TestContext;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
+import datadog.trace.civisibility.coverage.CoverageUtils;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.ipc.ErrorResponse;
 import datadog.trace.civisibility.ipc.ModuleExecutionResult;
@@ -30,9 +31,13 @@ import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.index.RepoIndex;
 import datadog.trace.civisibility.source.index.RepoIndexBuilder;
+import java.io.File;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.concurrent.atomic.LongAdder;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
+import org.jacoco.core.data.ExecutionDataStore;
 
 public class DDTestSessionParent extends DDTestSessionImpl {
 
@@ -51,6 +56,13 @@ public class DDTestSessionParent extends DDTestSessionImpl {
   protected final LongAdder testsSkipped = new LongAdder();
   private volatile boolean codeCoverageEnabled;
   private volatile boolean itrEnabled;
+  private final Object coverageDataLock = new Object();
+
+  @GuardedBy("coverageDataLock")
+  private final ExecutionDataStore coverageData = new ExecutionDataStore();
+
+  @GuardedBy("coverageDataLock")
+  private final Collection<File> outputClassesDirs = new HashSet<>();
 
   public DDTestSessionParent(
       String projectName,
@@ -118,7 +130,16 @@ public class DDTestSessionParent extends DDTestSessionImpl {
     }
 
     testsSkipped.add(result.getTestsSkippedTotal());
-    return testModuleRegistry.onModuleExecutionResultReceived(result);
+
+    ExecutionDataStore moduleCoverageData = CoverageUtils.parse(result.getCoverageData());
+    if (moduleCoverageData != null) {
+      synchronized (coverageDataLock) {
+        // add module coverage data to session coverage data
+        moduleCoverageData.accept(coverageData);
+      }
+    }
+
+    return testModuleRegistry.onModuleExecutionResultReceived(result, moduleCoverageData);
   }
 
   private SignalResponse onRepoIndexRequestReceived(RepoIndexRequest request) {
@@ -175,6 +196,7 @@ public class DDTestSessionParent extends DDTestSessionImpl {
     if (codeCoverageEnabled) {
       setTag(Tags.TEST_CODE_COVERAGE_ENABLED, true);
     }
+
     if (itrEnabled) {
       setTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, true);
       setTag(Tags.TEST_ITR_TESTS_SKIPPING_TYPE, "test");
@@ -186,6 +208,18 @@ public class DDTestSessionParent extends DDTestSessionImpl {
       }
     }
 
+    // FIXME nikita: debug dumping of module/session coverage data?
+    // FIXME nikita: disabling data aggregation with config?
+    synchronized (coverageDataLock) {
+      if (!coverageData.getContents().isEmpty()) {
+        long coveragePercentage =
+            CoverageUtils.calculateCoveragePercentage(coverageData, outputClassesDirs);
+        if (coveragePercentage >= 0) {
+          setTag(Tags.TEST_CODE_COVERAGE_LINES_PERCENTAGE, coveragePercentage);
+        }
+      }
+    }
+
     if (endTime != null) {
       span.finish(endTime);
     } else {
@@ -194,14 +228,21 @@ public class DDTestSessionParent extends DDTestSessionImpl {
   }
 
   @Override
-  public DDTestModuleImpl testModuleStart(String moduleName, @Nullable Long startTime) {
+  public DDTestModuleImpl testModuleStart(
+      String moduleName, @Nullable Long startTime, Collection<File> outputClassesDirs) {
+    synchronized (coverageDataLock) {
+      this.outputClassesDirs.addAll(outputClassesDirs);
+    }
+
+    String startCommand = (String) span.getTag(Tags.TEST_COMMAND);
     DDTestModuleParent module =
         new DDTestModuleParent(
             context,
             moduleName,
+            startCommand,
             startTime,
+            outputClassesDirs,
             config,
-            testModuleRegistry,
             testDecorator,
             sourcePathResolver,
             codeowners,
