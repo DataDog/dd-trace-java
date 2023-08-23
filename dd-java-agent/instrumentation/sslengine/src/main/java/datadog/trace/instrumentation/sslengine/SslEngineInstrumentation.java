@@ -121,7 +121,7 @@ public final class SslEngineInstrumentation extends Instrumenter.Usm
         return;
       }
       if (result.bytesProduced() > 0 && dst.limit() >= result.bytesProduced()) {
-        int bufferSize = Math.min(result.bytesProduced(),MAX_HTTPS_BUFFER_SIZE);
+        int bufferSize = Math.min(result.bytesProduced(), MAX_HTTPS_BUFFER_SIZE);
         byte[] b = new byte[bufferSize];
         int oldPos = dst.position();
         dst.position(dst.arrayOffset());
