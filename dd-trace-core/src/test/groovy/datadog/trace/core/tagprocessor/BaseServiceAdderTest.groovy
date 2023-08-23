@@ -24,5 +24,6 @@ class BaseServiceAdderTest extends DDSpecification {
     serviceName     | expectedTags
     "anotherOne"    | ["_dd.base_service": UTF8BytesString.create("test")]
     "test"          | [:]
+    "TeSt"          | [:]
   }
 }
