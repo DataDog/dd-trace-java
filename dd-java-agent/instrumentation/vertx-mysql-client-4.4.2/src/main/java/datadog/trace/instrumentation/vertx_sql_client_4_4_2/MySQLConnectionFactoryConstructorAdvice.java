@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.vertx_sql_client_4_4_2;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import io.vertx.core.Future;
+import io.vertx.mysqlclient.MySQLConnectOptions;
 import io.vertx.mysqlclient.MySQLConnection;
 import io.vertx.mysqlclient.impl.MySQLConnectionFactory;
 import io.vertx.sqlclient.SqlConnectOptions;
@@ -30,8 +31,10 @@ public class MySQLConnectionFactoryConstructorAdvice {
     }
   }
 
-  // Limit ourselves to 4.x by checking for the ping() method that was added in 4.x
+  // Limit ourselves to 4.4.2+ by using SingletonSupplier which was added in 4.4.2
   private static void muzzleCheck(MySQLConnection connection) {
     connection.ping();
+    Supplier<Future<MySQLConnectOptions>> supplier =
+        SingletonSupplier.wrap(new MySQLConnectOptions());
   }
 }
