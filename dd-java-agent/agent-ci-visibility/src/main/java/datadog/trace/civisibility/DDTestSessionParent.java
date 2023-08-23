@@ -32,19 +32,23 @@ import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.index.RepoIndex;
 import datadog.trace.civisibility.source.index.RepoIndexBuilder;
 import java.io.File;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.concurrent.atomic.LongAdder;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
+import org.jacoco.core.analysis.IBundleCoverage;
+import org.jacoco.core.analysis.ICounter;
 import org.jacoco.core.data.ExecutionDataStore;
 
 public class DDTestSessionParent extends DDTestSessionImpl {
 
   private final AgentSpan span;
   private final TestContext context;
-  private final TestModuleRegistry testModuleRegistry;
+  private final String repoRoot;
   private final Config config;
+  private final TestModuleRegistry testModuleRegistry;
   private final TestDecorator testDecorator;
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
@@ -66,6 +70,7 @@ public class DDTestSessionParent extends DDTestSessionImpl {
 
   public DDTestSessionParent(
       String projectName,
+      String repoRoot,
       @Nullable Long startTime,
       Config config,
       TestModuleRegistry testModuleRegistry,
@@ -77,6 +82,7 @@ public class DDTestSessionParent extends DDTestSessionImpl {
       CoverageProbeStoreFactory coverageProbeStoreFactory,
       SignalServer signalServer,
       RepoIndexBuilder repoIndexBuilder) {
+    this.repoRoot = repoRoot;
     this.config = config;
     this.testModuleRegistry = testModuleRegistry;
     this.testDecorator = testDecorator;
@@ -208,15 +214,9 @@ public class DDTestSessionParent extends DDTestSessionImpl {
       }
     }
 
-    // FIXME nikita: debug dumping of module/session coverage data?
-    // FIXME nikita: disabling data aggregation with config?
     synchronized (coverageDataLock) {
       if (!coverageData.getContents().isEmpty()) {
-        long coveragePercentage =
-            CoverageUtils.calculateCoveragePercentage(coverageData, outputClassesDirs);
-        if (coveragePercentage >= 0) {
-          setTag(Tags.TEST_CODE_COVERAGE_LINES_PERCENTAGE, coveragePercentage);
-        }
+        processCoverageData(coverageData);
       }
     }
 
@@ -224,6 +224,39 @@ public class DDTestSessionParent extends DDTestSessionImpl {
       span.finish(endTime);
     } else {
       span.finish();
+    }
+  }
+
+  private void processCoverageData(ExecutionDataStore coverageData) {
+    IBundleCoverage coverageBundle =
+        CoverageUtils.createCoverageBundle(coverageData, outputClassesDirs);
+    if (coverageBundle == null) {
+      return;
+    }
+
+    long coveragePercentage = getCoveragePercentage(coverageBundle);
+    span.setTag(Tags.TEST_CODE_COVERAGE_LINES_PERCENTAGE, coveragePercentage);
+
+    File coverageReportFolder = getCoverageReportFolder();
+    if (coverageReportFolder != null) {
+      CoverageUtils.dumpCoverageReport(
+          coverageBundle, repoIndexBuilder.getIndex(), repoRoot, coverageReportFolder);
+    }
+  }
+
+  private static long getCoveragePercentage(IBundleCoverage coverageBundle) {
+    ICounter instructionCounter = coverageBundle.getInstructionCounter();
+    int totalInstructionsCount = instructionCounter.getTotalCount();
+    int coveredInstructionsCount = instructionCounter.getCoveredCount();
+    return Math.round((100d * coveredInstructionsCount) / totalInstructionsCount);
+  }
+
+  private File getCoverageReportFolder() {
+    String coverageReportDumpDir = config.getCiVisibilityCodeCoverageReportDumpDir();
+    if (coverageReportDumpDir != null) {
+      return Paths.get(coverageReportDumpDir, "session-" + context.getId(), "aggregated").toFile();
+    } else {
+      return null;
     }
   }
 
@@ -239,6 +272,7 @@ public class DDTestSessionParent extends DDTestSessionImpl {
         new DDTestModuleParent(
             context,
             moduleName,
+            repoRoot,
             startCommand,
             startTime,
             outputClassesDirs,
@@ -248,6 +282,7 @@ public class DDTestSessionParent extends DDTestSessionImpl {
             codeowners,
             methodLinesResolver,
             moduleExecutionSettingsFactory,
+            repoIndexBuilder,
             coverageProbeStoreFactory,
             signalServer.getAddress());
     testModuleRegistry.addModule(module);

@@ -22,6 +22,10 @@ public final class CiVisibilityConfig {
       "civisibility.compiler.plugin.auto.configuration.enabled";
   public static final String CIVISIBILITY_CODE_COVERAGE_ENABLED =
       "civisibility.code.coverage.enabled";
+  public static final String CIVISIBILITY_CODE_COVERAGE_PERCENTAGE_CALCULATION_ENABLED =
+      "civisibility.code.coverage.percentage.calculation.enabled";
+  public static final String CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR =
+      "civisibility.code.coverage.report.dump.dir";
   public static final String CIVISIBILITY_COMPILER_PLUGIN_VERSION =
       "civisibility.compiler.plugin.version";
   public static final String CIVISIBILITY_JACOCO_PLUGIN_VERSION =

@@ -66,6 +66,16 @@ public class RepoIndex {
     }
   }
 
+  @Nullable
+  public String getSourcePath(String pathRelativeToSourceRoot) {
+    int sourceRootIdx = trie.apply(pathRelativeToSourceRoot);
+    if (sourceRootIdx >= 0) {
+      return sourceRoots.get(sourceRootIdx) + File.separator + pathRelativeToSourceRoot;
+    } else {
+      return null;
+    }
+  }
+
   private SourceType detectSourceType(Class<?> c) {
     Class<?>[] interfaces = c.getInterfaces();
     for (Class<?> anInterface : interfaces) {

@@ -79,6 +79,7 @@ abstract class CiVisibilityTest extends AgentTestRunner {
       RepoIndexBuilder repoIndexBuilder = Stub(RepoIndexBuilder)
       return new DDTestSessionParent(
       projectName,
+      rootPath.toString(),
       startTime,
       Config.get(),
       testModuleRegistry,

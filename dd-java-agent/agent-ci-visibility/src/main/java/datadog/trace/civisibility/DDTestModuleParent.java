@@ -22,12 +22,16 @@ import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.ipc.ModuleExecutionResult;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
+import datadog.trace.civisibility.source.index.RepoIndexProvider;
 import java.io.File;
 import java.net.InetSocketAddress;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.jacoco.core.analysis.IBundleCoverage;
+import org.jacoco.core.analysis.ICounter;
 import org.jacoco.core.data.ExecutionDataStore;
 
 /**
@@ -43,14 +47,17 @@ public class DDTestModuleParent extends DDTestModuleImpl {
   private final AgentSpan span;
   private final SpanTestContext context;
   private final TestContext sessionContext;
+  private final String repoRoot;
   private final Collection<File> outputClassesDirs;
   private final ModuleExecutionSettingsFactory moduleExecutionSettingsFactory;
+  private final RepoIndexProvider repoIndexProvider;
   private volatile boolean codeCoverageEnabled;
   private volatile boolean itrEnabled;
 
   public DDTestModuleParent(
       TestContext sessionContext,
       String moduleName,
+      String repoRoot,
       @Nullable String startCommand,
       @Nullable Long startTime,
       Collection<File> outputClassesDirs,
@@ -60,6 +67,7 @@ public class DDTestModuleParent extends DDTestModuleImpl {
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
       ModuleExecutionSettingsFactory moduleExecutionSettingsFactory,
+      RepoIndexProvider repoIndexProvider,
       CoverageProbeStoreFactory coverageProbeStoreFactory,
       @Nullable InetSocketAddress signalServerAddress) {
     super(
@@ -72,8 +80,10 @@ public class DDTestModuleParent extends DDTestModuleImpl {
         coverageProbeStoreFactory,
         signalServerAddress);
     this.sessionContext = sessionContext;
+    this.repoRoot = repoRoot;
     this.outputClassesDirs = outputClassesDirs;
     this.moduleExecutionSettingsFactory = moduleExecutionSettingsFactory;
+    this.repoIndexProvider = repoIndexProvider;
 
     AgentSpan sessionSpan = sessionContext.getSpan();
     AgentSpan.Context sessionSpanContext = sessionSpan != null ? sessionSpan.context() : null;
@@ -187,12 +197,43 @@ public class DDTestModuleParent extends DDTestModuleImpl {
       span.setTag(Tags.TEST_FRAMEWORK_VERSION, testFrameworkVersion);
     }
 
-    if (coverageData != null) {
-      long coveragePercentage =
-          CoverageUtils.calculateCoveragePercentage(coverageData, outputClassesDirs);
-      if (coveragePercentage >= 0) {
-        setTag(Tags.TEST_CODE_COVERAGE_LINES_PERCENTAGE, coveragePercentage);
-      }
+    processCoverageData(coverageData);
+  }
+
+  private void processCoverageData(ExecutionDataStore coverageData) {
+    if (coverageData == null) {
+      return;
+    }
+    IBundleCoverage coverageBundle =
+        CoverageUtils.createCoverageBundle(coverageData, outputClassesDirs);
+    if (coverageBundle == null) {
+      return;
+    }
+
+    long coveragePercentage = getCoveragePercentage(coverageBundle);
+    span.setTag(Tags.TEST_CODE_COVERAGE_LINES_PERCENTAGE, coveragePercentage);
+
+    File coverageReportFolder = getCoverageReportFolder();
+    if (coverageReportFolder != null) {
+      CoverageUtils.dumpCoverageReport(
+          coverageBundle, repoIndexProvider.getIndex(), repoRoot, coverageReportFolder);
+    }
+  }
+
+  private static long getCoveragePercentage(IBundleCoverage coverageBundle) {
+    ICounter instructionCounter = coverageBundle.getInstructionCounter();
+    int totalInstructionsCount = instructionCounter.getTotalCount();
+    int coveredInstructionsCount = instructionCounter.getCoveredCount();
+    return Math.round((100d * coveredInstructionsCount) / totalInstructionsCount);
+  }
+
+  private File getCoverageReportFolder() {
+    String coverageReportDumpDir = config.getCiVisibilityCodeCoverageReportDumpDir();
+    if (coverageReportDumpDir != null) {
+      return Paths.get(coverageReportDumpDir, "session-" + context.getParentId(), moduleName)
+          .toFile();
+    } else {
+      return null;
     }
   }
 }

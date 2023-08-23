@@ -189,6 +189,7 @@ public class CiVisibilitySystem {
         RepoIndexBuilder indexBuilder = new RepoIndexBuilder(repoRoot, FileSystems.getDefault());
         return new DDTestSessionParent(
             projectName,
+            repoRoot,
             startTime,
             config,
             testModuleRegistry,
