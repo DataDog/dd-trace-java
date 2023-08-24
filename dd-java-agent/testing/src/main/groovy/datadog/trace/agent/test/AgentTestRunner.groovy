@@ -56,6 +56,7 @@ import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.function.Supplier
 
 import static datadog.communication.http.OkHttpUtils.buildHttpClient
 import static datadog.trace.api.ConfigDefaults.*
@@ -165,6 +166,55 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @Shared
   TestTimer TEST_TIMER = Spy(new TestTimer())
 
+  @SuppressWarnings('PropertyName')
+  @Shared
+  TraceConfig DUMMY_TRACE_CONFIG = new TraceConfig() {
+    @Override
+    boolean isDebugEnabled() {
+      return true
+    }
+
+    @Override
+    boolean isRuntimeMetricsEnabled() {
+      return true
+    }
+
+    @Override
+    boolean isLogsInjectionEnabled() {
+      return true
+    }
+
+    @Override
+    boolean isDataStreamsEnabled() {
+      return true
+    }
+
+    @Override
+    Map<String, String> getServiceMapping() {
+      return null
+    }
+
+    @Override
+    Map<String, String> getRequestHeaderTags() {
+      return null
+    }
+
+    @Override
+    Map<String, String> getResponseHeaderTags() {
+      return null
+    }
+
+    @Override
+    Map<String, String> getBaggageMapping() {
+      return null
+    }
+
+    @Override
+    Double getTraceSampleRate() {
+      return null
+    }
+  }
+
   @Shared
   ClassFileTransformer activeTransformer
 
@@ -226,7 +276,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       // Fast enough so tests don't take forever
       long bucketDuration = TimeUnit.MILLISECONDS.toNanos(50)
       WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
-      TEST_DATA_STREAMS_MONITORING = new DefaultDataStreamsMonitoring(sink, features, SystemTimeSource.INSTANCE, wellKnownTags, TEST_DATA_STREAMS_WRITER, bucketDuration)
+      TEST_DATA_STREAMS_MONITORING = new DefaultDataStreamsMonitoring(sink, features, SystemTimeSource.INSTANCE, { DUMMY_TRACE_CONFIG } as Supplier, wellKnownTags, TEST_DATA_STREAMS_WRITER, bucketDuration)
     }
     TEST_WRITER = new ListWriter()
 

@@ -4,6 +4,7 @@ import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.communication.http.OkHttpUtils
 import datadog.trace.api.Config
+import datadog.trace.api.TraceConfig
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint
@@ -18,6 +19,8 @@ import org.msgpack.core.MessageUnpacker
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
+
+import java.util.function.Supplier
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static DefaultDataStreamsMonitoring.DEFAULT_BUCKET_DURATION_NANOS
@@ -71,8 +74,12 @@ class DataStreamsWritingTest extends DDCoreSpecification {
 
     def timeSource = new ControllableTimeSource()
 
+    def traceConfig = Mock(TraceConfig) {
+      isDataStreamsEnabled() >> true
+    }
+
     when:
-    def dataStreams = new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource)
+    def dataStreams = new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource, { traceConfig })
     dataStreams.start()
     dataStreams.add(new StatsPoint([], 9, 0, timeSource.currentTimeNanos, 0, 0))
     dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))

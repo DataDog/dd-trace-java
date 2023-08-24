@@ -68,7 +68,6 @@ import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
 import datadog.trace.core.datastreams.DataStreamContextInjector;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
-import datadog.trace.core.datastreams.NoopDataStreamsMonitoring;
 import datadog.trace.core.histogram.Histograms;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.MonitoringImpl;
@@ -602,7 +601,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         MetricsAggregator::start, metricsAggregator, 1, SECONDS);
 
     if (dataStreamsMonitoring == null) {
-      this.dataStreamsMonitoring = new DefaultDataStreamsMonitoring(config, sharedCommunicationObjects, timeSource);
+      this.dataStreamsMonitoring = new DefaultDataStreamsMonitoring(config, sharedCommunicationObjects, this.timeSource, this::captureTraceConfig);
     } else {
       this.dataStreamsMonitoring = dataStreamsMonitoring;
     }

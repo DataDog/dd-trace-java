@@ -10,6 +10,7 @@ import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.core.CoreTracer
 import datadog.trace.test.util.DDSpecification
+import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.testcontainers.containers.FixedHostPortGenericContainer
@@ -49,8 +50,11 @@ class TracerConnectionReliabilityTest extends DDSpecification {
     def properties = new Properties()
     properties.put("trace.agent.port", Integer.toString(agentContainerPort))
     def sharedCommunicationObjects = new SharedCommunicationObjects()
+    sharedCommunicationObjects.agentUrl = HttpUrl.get("http://localhost:" + agentContainerPort)
+    sharedCommunicationObjects.okHttpClient = client
     def fixedFeaturesDiscovery = new FixedTraceEndpointFeaturesDiscovery(sharedCommunicationObjects)
     sharedCommunicationObjects.setFeaturesDiscovery(fixedFeaturesDiscovery)
+
     tracer = CoreTracer.builder()
       .idGenerationStrategy(IdGenerationStrategy.fromName("SEQUENTIAL"))
       .withProperties(properties)
