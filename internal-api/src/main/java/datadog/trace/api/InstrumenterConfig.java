@@ -11,6 +11,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_IN
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANNOTATIONS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANNOTATION_ASYNC;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXECUTORS_ALL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_METHODS;
@@ -39,6 +40,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEX
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATIONS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATION_ASYNC;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE_FILE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSLOADERS_EXCLUDE;
@@ -100,6 +102,7 @@ public class InstrumenterConfig {
   private final boolean serialVersionUIDFieldInjection;
 
   private final String traceAnnotations;
+  private final boolean traceAnnotationAsync;
   private final Map<String, Set<String>> traceMethods;
   private final Map<String, Set<String>> measureMethods;
 
@@ -182,6 +185,8 @@ public class InstrumenterConfig {
             SERIALVERSIONUID_FIELD_INJECTION, DEFAULT_SERIALVERSIONUID_FIELD_INJECTION);
 
     traceAnnotations = configProvider.getString(TRACE_ANNOTATIONS, DEFAULT_TRACE_ANNOTATIONS);
+    traceAnnotationAsync =
+        configProvider.getBoolean(TRACE_ANNOTATION_ASYNC, DEFAULT_TRACE_ANNOTATION_ASYNC);
     traceMethods =
         MethodFilterConfigParser.parse(
             configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS));
@@ -336,6 +341,15 @@ public class InstrumenterConfig {
     return traceAnnotations;
   }
 
+  /**
+   * Check whether asynchronous result types are supported with @Trace annotation.
+   *
+   * @return {@code true} if supported, {@code false} otherwise.
+   */
+  public boolean isTraceAnnotationAsync() {
+    return traceAnnotationAsync;
+  }
+
   public Map<String, Set<String>> getTraceMethods() {
     return traceMethods;
   }
@@ -433,6 +447,8 @@ public class InstrumenterConfig {
         + ", traceAnnotations='"
         + traceAnnotations
         + '\''
+        + ", traceAnnotationAsync="
+        + traceAnnotationAsync
         + ", traceMethods='"
         + traceMethods
         + '\''
