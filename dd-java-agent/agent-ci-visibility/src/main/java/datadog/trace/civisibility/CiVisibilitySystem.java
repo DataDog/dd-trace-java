@@ -40,10 +40,12 @@ import datadog.trace.civisibility.git.tree.GitDataUploader;
 import datadog.trace.civisibility.git.tree.GitDataUploaderImpl;
 import datadog.trace.civisibility.ipc.SignalClient;
 import datadog.trace.civisibility.ipc.SignalServer;
-import datadog.trace.civisibility.source.BestEfforSourcePathResolver;
+import datadog.trace.civisibility.source.BestEffortMethodLinesResolver;
+import datadog.trace.civisibility.source.BestEffortSourcePathResolver;
+import datadog.trace.civisibility.source.ByteCodeMethodLinesResolver;
+import datadog.trace.civisibility.source.CompilerAidedMethodLinesResolver;
 import datadog.trace.civisibility.source.CompilerAidedSourcePathResolver;
 import datadog.trace.civisibility.source.MethodLinesResolver;
-import datadog.trace.civisibility.source.MethodLinesResolverImpl;
 import datadog.trace.civisibility.source.index.RepoIndexBuilder;
 import datadog.trace.civisibility.source.index.RepoIndexFetcher;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
@@ -133,7 +135,11 @@ public class CiVisibilitySystem {
       RepoIndexProvider indexProvider = getRepoIndexProvider(config, repoRoot);
       SourcePathResolver sourcePathResolver = getSourcePathResolver(repoRoot, indexProvider);
       Codeowners codeowners = getCodeowners(repoRoot);
-      MethodLinesResolver methodLinesResolver = new MethodLinesResolverImpl();
+
+      MethodLinesResolver methodLinesResolver =
+          new BestEffortMethodLinesResolver(
+              new CompilerAidedMethodLinesResolver(), new ByteCodeMethodLinesResolver());
+
       Map<String, String> ciTags = new CITagsProvider().getCiTags(ciInfo);
       TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags);
       TestModuleRegistry testModuleRegistry = new TestModuleRegistry();
@@ -294,7 +300,7 @@ public class CiVisibilitySystem {
     if (repoRoot != null) {
       RepoIndexSourcePathResolver indexSourcePathResolver =
           new RepoIndexSourcePathResolver(repoRoot, indexProvider);
-      return new BestEfforSourcePathResolver(
+      return new BestEffortSourcePathResolver(
           new CompilerAidedSourcePathResolver(repoRoot), indexSourcePathResolver);
     } else {
       return clazz -> null;

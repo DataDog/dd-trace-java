@@ -19,6 +19,7 @@ import datadog.trace.instrumentation.netty41.client.HttpClientTracingHandler;
 import datadog.trace.instrumentation.netty41.server.HttpServerRequestTracingHandler;
 import datadog.trace.instrumentation.netty41.server.HttpServerResponseTracingHandler;
 import datadog.trace.instrumentation.netty41.server.HttpServerTracingHandler;
+import datadog.trace.instrumentation.netty41.server.MaybeBlockResponseHandler;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
@@ -72,7 +73,8 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing
       packageName + ".server.BlockingResponseHandler$IgnoreAllWritesHandler",
       packageName + ".server.HttpServerRequestTracingHandler",
       packageName + ".server.HttpServerResponseTracingHandler",
-      packageName + ".server.HttpServerTracingHandler"
+      packageName + ".server.HttpServerTracingHandler",
+      packageName + ".server.MaybeBlockResponseHandler",
     };
   }
 
@@ -133,13 +135,16 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing
 
       try {
         ChannelHandler toAdd = null;
+        ChannelHandler toAdd2 = null;
         // Server pipeline handlers
         if (handler instanceof HttpServerCodec) {
           toAdd = new HttpServerTracingHandler();
+          toAdd2 = MaybeBlockResponseHandler.INSTANCE;
         } else if (handler instanceof HttpRequestDecoder) {
           toAdd = HttpServerRequestTracingHandler.INSTANCE;
         } else if (handler instanceof HttpResponseEncoder) {
           toAdd = HttpServerResponseTracingHandler.INSTANCE;
+          toAdd2 = MaybeBlockResponseHandler.INSTANCE;
         } else
         // Client pipeline handlers
         if (handler instanceof HttpClientCodec) {
@@ -159,6 +164,13 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing
               pipeline.remove(existing);
             }
             pipeline.addAfter(handlerName, null, toAdd);
+            if (toAdd2 != null) {
+              ChannelHandler existing2 = pipeline.get(toAdd2.getClass());
+              if (existing2 != null) {
+                pipeline.remove(existing2);
+              }
+              pipeline.addAfter(pipeline.context(toAdd).name(), null, toAdd2);
+            }
           }
         }
       } catch (final IllegalArgumentException e) {

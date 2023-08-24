@@ -11,8 +11,6 @@ dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentat
 dd-java-agent/agent-bootstrap/src/main/java11/datadog/trace/bootstrap/instrumentation/jfr/ @DataDog/profiling-java
 dd-smoke-tests/profiling-integration-tests/                                                @DataDog/profiling-java
 
-dd-java-agent/appsec/  @DataDog/appsec-java
-
 # @DataDog/ci-app-libraries-java
 dd-java-agent/agent-ci-visibility/         @DataDog/ci-app-libraries-java
 dd-java-agent/instrumentation/cucumber/    @DataDog/ci-app-libraries-java
@@ -32,9 +30,10 @@ dd-smoke-tests/maven/                      @DataDog/ci-app-libraries-java
 dd-java-agent/agent-debugger/ @DataDog/debugger-java
 dd-smoke-tests/debugger-integration-tests/ @DataDog/debugger-java
 
-# @DataDog/iast-java
-dd-java-agent/agent-iast/   @DataDog/iast-java
-dd-java-agent/instrumentation/iast-instrumenter @DataDog/iast-java
-**/iast/                    @DataDog/iast-java
-**/Iast*.java               @DataDog/iast-java
-**/Iast*.groovy             @DataDog/iast-java
+# @DataDog/asm-java
+dd-java-agent/appsec/       @DataDog/asm-java
+dd-java-agent/agent-iast/   @DataDog/asm-java
+dd-java-agent/instrumentation/iast-instrumenter @DataDog/asm-java
+**/iast/                    @DataDog/asm-java
+**/Iast*.java               @DataDog/asm-java
+**/Iast*.groovy             @DataDog/asm-java

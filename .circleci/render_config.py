@@ -71,7 +71,16 @@ else:
     all_jdks = ALWAYS_ON_JDKS | (MASTER_ONLY_JDKS & labels)
 nocov_jdks = [j for j in all_jdks if j != "8"]
 
+# Is this a nightly or weekly build? These environment variables are set in
+# config.yml based on pipeline parameters.
+is_nightly = os.environ.get("CIRCLE_IS_NIGHTLY", "false") == "true"
+is_weekly = os.environ.get("CIRCLE_IS_WEEKLY", "false") == "true"
+is_regular = not is_nightly and not is_weekly
+
 vars = {
+    "is_nightly": is_nightly,
+    "is_weekly": is_weekly,
+    "is_regular": is_regular,
     "all_jdks": all_jdks,
     "nocov_jdks": nocov_jdks,
     "flaky": branch == "master" or "flaky" in labels or "all" in labels,

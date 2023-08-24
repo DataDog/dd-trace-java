@@ -154,8 +154,8 @@ dependencies {
   api project(":utils:time-utils")
 
   // has to be loaded by system classloader:
-  // it contains annotation that is also present in the instrumented application classes
-  api "com.datadoghq:dd-javac-plugin-client:0.1.6"
+  // it contains annotations that are also present in the instrumented application classes
+  api "com.datadoghq:dd-javac-plugin-client:0.1.7"
 
   testImplementation project(":utils:test-utils")
   testImplementation("org.assertj:assertj-core:3.20.2")

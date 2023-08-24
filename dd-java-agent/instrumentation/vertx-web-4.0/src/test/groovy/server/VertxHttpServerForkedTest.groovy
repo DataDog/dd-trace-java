@@ -83,6 +83,11 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
   }
 
   @Override
+  boolean testBlockingOnResponse() {
+    true
+  }
+
+  @Override
   boolean isRequestBodyNoStreaming() {
     true
   }
