@@ -203,6 +203,11 @@ abstract class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
     true
   }
 
+  @Override
+  boolean testBlockingOnResponse() {
+    true
+  }
+
   //@Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")
   @Override
   boolean testBadUrl() {

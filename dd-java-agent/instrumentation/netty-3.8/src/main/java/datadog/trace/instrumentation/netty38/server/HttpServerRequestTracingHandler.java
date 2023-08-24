@@ -26,8 +26,7 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
   }
 
   @Override
-  public void messageReceived(final ChannelHandlerContext ctx, final MessageEvent msg)
-      throws Exception {
+  public void messageReceived(final ChannelHandlerContext ctx, final MessageEvent msg) {
     final ChannelTraceContext channelTraceContext =
         contextStore.putIfAbsent(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
 
@@ -48,6 +47,9 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
     final HttpHeaders headers = request.headers();
     final Context.Extracted context = DECORATE.extract(headers);
     final AgentSpan span = DECORATE.startSpan(headers, context);
+
+    channelTraceContext.reset();
+    channelTraceContext.setRequestHeaders(headers);
 
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);

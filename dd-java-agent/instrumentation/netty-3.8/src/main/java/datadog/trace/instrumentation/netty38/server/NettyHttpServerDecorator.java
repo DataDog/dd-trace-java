@@ -107,6 +107,11 @@ public class NettyHttpServerDecorator
   }
 
   @Override
+  protected boolean isAppSecOnResponseSeparate() {
+    return true;
+  }
+
+  @Override
   protected BlockResponseFunction createBlockResponseFunction(
       HttpRequest httpRequest, Channel channel) {
     return new NettyBlockResponseFunction(channel.getPipeline(), httpRequest);
