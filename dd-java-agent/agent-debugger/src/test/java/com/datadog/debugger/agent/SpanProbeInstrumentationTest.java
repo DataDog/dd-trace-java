@@ -81,6 +81,17 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
   }
 
   @Test
+  public void lineRangeErrorSimpleSpan() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    MockTracer tracer = installSingleSpan(CLASS_NAME + ".java", 5, 9, null);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    assertEquals(3, result);
+    // instrumentation cannot happen, so no span generated
+    assertEquals(0, tracer.spans.size());
+  }
+
+  @Test
   public void invalidLineSimpleSpan() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     MockTracer tracer = installSingleSpan(CLASS_NAME + ".java", 4, 10, null);
@@ -128,6 +139,7 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
     Config config = mock(Config.class);
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
+    when(config.isDebuggerVerifyByteCode()).thenReturn(true);
     currentTransformer = new DebuggerTransformer(config, configuration);
     instr.addTransformer(currentTransformer);
     mockSink = new MockSink();

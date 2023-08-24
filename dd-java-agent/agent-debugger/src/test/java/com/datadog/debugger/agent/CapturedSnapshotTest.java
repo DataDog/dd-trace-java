@@ -1599,7 +1599,6 @@ public class CapturedSnapshotTest {
     Config config = mock(Config.class);
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
-    when(config.isDebuggerVerifyByteCode()).thenReturn(true);
     Collection<LogProbe> logProbes = configuration.getLogProbes();
     currentTransformer = new DebuggerTransformer(config, configuration, null);
     instr.addTransformer(currentTransformer);
