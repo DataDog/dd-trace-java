@@ -333,7 +333,7 @@ class CoreTracerTest extends DDCoreSpecification {
       agentUrl: HttpUrl.get('https://example.com'),
       featuresDiscovery: Mock(DDAgentFeaturesDiscovery),
       configurationPoller: poller
-    )
+      )
 
     def updater
 

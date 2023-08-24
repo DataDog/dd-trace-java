@@ -26,7 +26,8 @@ public class DataStreamContextInjector {
       LinkedHashMap<String, String> sortedTags) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
 
-    if (pathwayContext == null || (span.traceConfig() != null && !span.traceConfig().isDataStreamsEnabled())) {
+    if (pathwayContext == null
+        || (span.traceConfig() != null && !span.traceConfig().isDataStreamsEnabled())) {
       return;
     }
     pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring::add);

@@ -15,7 +15,10 @@ public class DataStreamContextExtractor implements HttpCodec.Extractor {
   private final WellKnownTags wellKnownTags;
 
   public DataStreamContextExtractor(
-      HttpCodec.Extractor delegate, TimeSource timeSource, Supplier<TraceConfig> traceConfigSupplier, WellKnownTags wellKnownTags) {
+      HttpCodec.Extractor delegate,
+      TimeSource timeSource,
+      Supplier<TraceConfig> traceConfigSupplier,
+      WellKnownTags wellKnownTags) {
     this.delegate = delegate;
     this.timeSource = timeSource;
     this.traceConfigSupplier = traceConfigSupplier;
@@ -28,8 +31,10 @@ public class DataStreamContextExtractor implements HttpCodec.Extractor {
     TagContext extracted = this.delegate.extract(carrier, getter);
 
     if (extracted != null) {
-      boolean shouldExtractPathwayContext = extracted.getTraceConfig() == null ? traceConfigSupplier.get().isDataStreamsEnabled()
-          : extracted.getTraceConfig().isDataStreamsEnabled();
+      boolean shouldExtractPathwayContext =
+          extracted.getTraceConfig() == null
+              ? traceConfigSupplier.get().isDataStreamsEnabled()
+              : extracted.getTraceConfig().isDataStreamsEnabled();
 
       if (shouldExtractPathwayContext) {
         DefaultPathwayContext pathwayContext =
@@ -39,7 +44,7 @@ public class DataStreamContextExtractor implements HttpCodec.Extractor {
       }
 
       return extracted;
-    } else if (traceConfigSupplier.get().isDataStreamsEnabled() ) {
+    } else if (traceConfigSupplier.get().isDataStreamsEnabled()) {
       DefaultPathwayContext pathwayContext =
           DefaultPathwayContext.extract(carrier, getter, this.timeSource, this.wellKnownTags);
 

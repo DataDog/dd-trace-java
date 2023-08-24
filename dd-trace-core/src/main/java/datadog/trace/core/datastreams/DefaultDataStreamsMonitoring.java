@@ -73,7 +73,10 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private volatile boolean configSupportsDataStreams = false;
 
   public DefaultDataStreamsMonitoring(
-      Config config, SharedCommunicationObjects sharedCommunicationObjects, TimeSource timeSource, Supplier<TraceConfig> traceConfigSupplier) {
+      Config config,
+      SharedCommunicationObjects sharedCommunicationObjects,
+      TimeSource timeSource,
+      Supplier<TraceConfig> traceConfigSupplier) {
     this(
         new OkHttpSink(
             sharedCommunicationObjects.okHttpClient,
@@ -89,7 +92,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   public DefaultDataStreamsMonitoring(
-      Sink sink, DDAgentFeaturesDiscovery features, TimeSource timeSource, Supplier<TraceConfig> traceConfigSupplier, Config config) {
+      Sink sink,
+      DDAgentFeaturesDiscovery features,
+      TimeSource timeSource,
+      Supplier<TraceConfig> traceConfigSupplier,
+      Config config) {
     this(
         sink,
         features,
@@ -379,7 +386,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     } else if (!oldValue && agentSupportsDataStreams && configSupportsDataStreams) {
       log.info("Agent upgrade detected. Enabling data streams because it is now supported");
     } else if (!oldValue && agentSupportsDataStreams && !configSupportsDataStreams) {
-      log.info("Agent upgrade detected. Not enabling data streams because it is disabled by config");
+      log.info(
+          "Agent upgrade detected. Not enabling data streams because it is disabled by config");
     }
 
     supportsDataStreams = agentSupportsDataStreams && configSupportsDataStreams;

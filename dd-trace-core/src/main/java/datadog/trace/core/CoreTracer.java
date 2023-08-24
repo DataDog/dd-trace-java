@@ -82,7 +82,6 @@ import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.lambda.LambdaHandler;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.math.BigInteger;
@@ -601,7 +600,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         MetricsAggregator::start, metricsAggregator, 1, SECONDS);
 
     if (dataStreamsMonitoring == null) {
-      this.dataStreamsMonitoring = new DefaultDataStreamsMonitoring(config, sharedCommunicationObjects, this.timeSource, this::captureTraceConfig);
+      this.dataStreamsMonitoring =
+          new DefaultDataStreamsMonitoring(
+              config, sharedCommunicationObjects, this.timeSource, this::captureTraceConfig);
     } else {
       this.dataStreamsMonitoring = dataStreamsMonitoring;
     }
