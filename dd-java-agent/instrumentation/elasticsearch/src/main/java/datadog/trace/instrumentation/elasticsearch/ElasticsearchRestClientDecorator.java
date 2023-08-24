@@ -97,7 +97,9 @@ public class ElasticsearchRestClientDecorator extends DBTypeProcessingDatabaseCl
       final Map<String, String> parameters) {
     span.setTag(Tags.HTTP_METHOD, method);
     span.setTag(Tags.HTTP_URL, endpoint);
-    if (Config.get().isElasticsearchBodyAndParamsEnabled()) {
+
+    final Config config = Config.get();
+    if (config.isElasticsearchBodyEnabled() || config.isElasticsearchBodyAndParamsEnabled()) {
       if (entity != null) {
         long contentLength = entity.getContentLength();
         if (contentLength <= MAX_ELASTICSEARCH_BODY_CONTENT_LENGTH) {
@@ -112,6 +114,9 @@ public class ElasticsearchRestClientDecorator extends DBTypeProcessingDatabaseCl
                   + ">");
         }
       }
+    }
+
+    if (config.isElasticsearchParamsEnabled() || config.isElasticsearchBodyAndParamsEnabled()) {
       if (parameters != null) {
         StringBuilder queryParametersStringBuilder = new StringBuilder();
         for (Map.Entry<String, String> parameter : parameters.entrySet()) {
