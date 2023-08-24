@@ -22,17 +22,6 @@ public class ErrorReportValueInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "java.lang.StringBuilder",
-      "java.io.Writer",
-      "java.io.IOException",
-      "java.lang.IllegalStateException",
-      "datadog.trace.bootstrap.blocking.BlockingActionHelper"
-    };
-  }
-
-  @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         isMethod()
