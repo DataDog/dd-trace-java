@@ -2,7 +2,6 @@ package com.datadog.iast.taint;
 
 import static com.datadog.iast.model.Range.NOT_MARKED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_CONCURRENT_REQUESTS;
-import static java.util.Collections.emptyIterator;
 
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.IastSystem;
@@ -11,7 +10,6 @@ import com.datadog.iast.model.Source;
 import com.datadog.iast.model.json.TaintedObjectEncoding;
 import datadog.trace.api.Config;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -19,7 +17,7 @@ import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public interface TaintedObjects extends Iterable<TaintedObject> {
+public interface TaintedObjects {
 
   TaintedObject taintInputString(@Nonnull String obj, @Nonnull Source source, int mark);
 
@@ -29,11 +27,7 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
 
   TaintedObject get(@Nonnull Object obj);
 
-  void release();
-
-  int count();
-
-  int getEstimatedSize();
+  int release();
 
   boolean isFlat();
 
@@ -117,29 +111,15 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     }
 
     @Override
-    public void release() {
-      map.clear();
+    public int release() {
+      final int result = map.clear();
       pool.offer(this);
-    }
-
-    @Override
-    public int count() {
-      return map.count();
-    }
-
-    @Override
-    public int getEstimatedSize() {
-      return map.getEstimatedSize();
+      return result;
     }
 
     @Override
     public boolean isFlat() {
       return map.isFlat();
-    }
-
-    @Override
-    public Iterator<TaintedObject> iterator() {
-      return map.iterator();
     }
   }
 
@@ -184,7 +164,7 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     }
 
     @Override
-    public void release() {
+    public int release() {
       if (IastSystem.DEBUG && LOGGER.isDebugEnabled()) {
         try {
           final List<TaintedObject> entries = new ArrayList<>();
@@ -196,27 +176,12 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
           LOGGER.error("Failed to debug tainted objects release", e);
         }
       }
-      delegated.release();
-    }
-
-    @Override
-    public int count() {
-      return delegated.count();
-    }
-
-    @Override
-    public int getEstimatedSize() {
-      return delegated.getEstimatedSize();
+      return delegated.release();
     }
 
     @Override
     public boolean isFlat() {
       return delegated.isFlat();
-    }
-
-    @Override
-    public Iterator<TaintedObject> iterator() {
-      return delegated.iterator();
     }
 
     private void logTainted(final TaintedObject tainted) {
@@ -261,23 +226,9 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     }
 
     @Override
-    public void release() {
+    public int release() {
       final TaintedObjects to = getTaintedObjects();
-      if (to != null) {
-        to.release();
-      }
-    }
-
-    @Override
-    public Iterator<TaintedObject> iterator() {
-      final TaintedObjects to = getTaintedObjects();
-      return to != null ? to.iterator() : emptyIterator();
-    }
-
-    @Override
-    public int getEstimatedSize() {
-      final TaintedObjects to = getTaintedObjects();
-      return to != null ? to.getEstimatedSize() : 0;
+      return to != null ? to.release() : 0;
     }
 
     @Override
@@ -286,18 +237,48 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
       return to != null && to.isFlat();
     }
 
-    @Override
-    public int count() {
-      final TaintedObjects to = getTaintedObjects();
-      return to != null ? to.count() : 0;
-    }
-
     private TaintedObjects getTaintedObjects() {
       if (!fetched) {
         fetched = true;
         taintedObjects = activeTaintedObjects();
       }
       return taintedObjects;
+    }
+  }
+
+  enum NoOp implements TaintedObjects {
+    INSTANCE;
+
+    @Override
+    public TaintedObject taintInputString(
+        @Nonnull final String obj, @Nonnull final Source source, final int mark) {
+      return null;
+    }
+
+    @Override
+    public TaintedObject taintInputObject(
+        @Nonnull final Object obj, @Nonnull final Source source, final int mark) {
+      return null;
+    }
+
+    @Override
+    public TaintedObject taint(@Nonnull final Object obj, @Nonnull final Range[] ranges) {
+      return null;
+    }
+
+    @Override
+    public TaintedObject get(@Nonnull final Object obj) {
+      return null;
+    }
+
+    @Override
+    public int release() {
+      return 0;
+    }
+
+    @Override
+    public boolean isFlat() {
+      return false;
     }
   }
 }

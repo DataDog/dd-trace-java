@@ -52,7 +52,7 @@ class TaintedObjectsWithTelemetryTest extends DDSpecification {
     final tainteds = [tainted(), tainted()]
     final taintedObjects = TaintedObjectsWithTelemetry.build(verbosity, Mock(TaintedObjects) {
       iterator() >> tainteds.iterator()
-      count() >> tainteds.size()
+      release() >> tainteds.size()
     })
 
     when:

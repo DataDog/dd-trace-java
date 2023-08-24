@@ -3,7 +3,6 @@ package com.datadog.iast.taint;
 import com.datadog.iast.util.NonBlockingSemaphore;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -233,11 +232,21 @@ public final class TaintedMap implements Iterable<TaintedObject> {
     return 0;
   }
 
-  public void clear() {
+  /** Amortize the calculation of the size here while cleaning the array */
+  public int clear() {
     isFlat = false;
     estimatedSize.set(0);
-    Arrays.fill(table, null);
+    int count = 0;
+    for (int i = 0; i < table.length; i++) {
+      TaintedObject entry = table[i];
+      while (entry != null) {
+        count++;
+        entry = entry.next;
+      }
+      table[i] = null;
+    }
     referenceQueue = new ReferenceQueue<>();
+    return count;
   }
 
   public ReferenceQueue<Object> getReferenceQueue() {
@@ -294,20 +303,9 @@ public final class TaintedMap implements Iterable<TaintedObject> {
     };
   }
 
+  @Nonnull
   public Iterator<TaintedObject> iterator() {
     return iterator(0, table.length);
-  }
-
-  public int count() {
-    int size = 0;
-    for (int i = 0; i < table.length; i++) {
-      TaintedObject entry = table[i];
-      while (entry != null) {
-        entry = entry.next;
-        size++;
-      }
-    }
-    return size;
   }
 
   public int getEstimatedSize() {

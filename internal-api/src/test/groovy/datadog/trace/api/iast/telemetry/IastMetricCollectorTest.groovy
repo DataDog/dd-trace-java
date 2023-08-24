@@ -163,7 +163,7 @@ class IastMetricCollectorTest extends DDSpecification {
 
     then:
     withTag.tags == ["${metric.tag.name}:${tag}"]
-    withTag.spanTag == "${metric.name}.${tag.toLowerCase().replaceAll('\\.', '_')}"
+    withTag.spanTag == "${metric.name}.${tag.toLowerCase().replace('.' as char, '_' as char)}"
   }
 
   void 'test metrics with multiple tags'() {
