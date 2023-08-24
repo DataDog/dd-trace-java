@@ -1,3 +1,5 @@
+package datadog.trace.instrumentation.jetty9
+
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
@@ -23,6 +25,12 @@ abstract class Jetty9Test extends HttpServerTest<Server> {
   @Override
   String expectedOperationName() {
     operation()
+  }
+
+
+  @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
   }
 
   @Override

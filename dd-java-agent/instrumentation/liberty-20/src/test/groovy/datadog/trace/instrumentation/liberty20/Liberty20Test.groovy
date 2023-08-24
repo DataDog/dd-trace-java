@@ -78,6 +78,11 @@ abstract class Liberty20Test extends HttpServerTest<Server> {
   }
 
   @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
+  }
+
+  @Override
   boolean testExceptionBody() {
     false
   }

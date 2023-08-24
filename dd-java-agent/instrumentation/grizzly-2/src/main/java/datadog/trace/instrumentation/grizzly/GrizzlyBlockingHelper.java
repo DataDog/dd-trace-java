@@ -77,6 +77,7 @@ public class GrizzlyBlockingHelper {
       os.close();
       response.finish();
 
+      scope.span().getRequestContext().getTraceSegment().effectivelyBlocked();
       SpanClosingListener.LISTENER.onAfterService(request);
     } catch (Throwable e) {
       log.info("Error committing blocking response", e);

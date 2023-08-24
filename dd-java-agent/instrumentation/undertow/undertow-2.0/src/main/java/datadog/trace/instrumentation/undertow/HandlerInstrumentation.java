@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.undertow;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.undertow.UndertowBlockingHandler.REQUEST_BLOCKING_DATA;
+import static datadog.trace.instrumentation.undertow.UndertowBlockingHandler.TRACE_SEGMENT;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DD_UNDERTOW_CONTINUATION;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -109,6 +110,7 @@ public final class HandlerInstrumentation extends Instrumenter.Tracing
       RequestBlockingAction rab = span.getRequestBlockingAction();
       if (rab != null) {
         exchange.putAttachment(REQUEST_BLOCKING_DATA, rab);
+        exchange.putAttachment(TRACE_SEGMENT, span.getRequestContext().getTraceSegment());
         handler = UndertowBlockingHandler.INSTANCE;
       }
     }

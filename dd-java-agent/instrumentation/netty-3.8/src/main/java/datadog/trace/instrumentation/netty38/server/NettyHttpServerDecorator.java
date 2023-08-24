@@ -5,6 +5,7 @@ import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.HOST;
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.gateway.BlockResponseFunction;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -129,7 +130,10 @@ public class NettyHttpServerDecorator
 
     @Override
     public boolean tryCommitBlockingResponse(
-        int statusCode, BlockingContentType templateType, Map<String, String> extraHeaders) {
+        TraceSegment segment,
+        int statusCode,
+        BlockingContentType templateType,
+        Map<String, String> extraHeaders) {
       ChannelHandler handlerBefore = pipeline.get(HttpServerTracingHandler.class);
       if (handlerBefore == null) {
         handlerBefore = pipeline.get(HttpServerRequestTracingHandler.class);
@@ -144,7 +148,7 @@ public class NettyHttpServerDecorator
         pipeline.addAfter(
             handlerBefore.getClass().getName(),
             "blocking_handler",
-            new BlockingResponseHandler(statusCode, templateType, extraHeaders));
+            new BlockingResponseHandler(segment, statusCode, templateType, extraHeaders));
         pipeline.addBefore(
             "blocking_handler", "before_blocking_handler", new SimpleChannelUpstreamHandler());
       } catch (RuntimeException rte) {

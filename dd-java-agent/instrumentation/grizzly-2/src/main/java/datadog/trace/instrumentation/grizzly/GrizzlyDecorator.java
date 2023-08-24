@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.grizzly;
 
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.BlockResponseFunction;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -85,7 +86,10 @@ public class GrizzlyDecorator extends HttpServerDecorator<Request, Request, Resp
 
     @Override
     public boolean tryCommitBlockingResponse(
-        int statusCode, BlockingContentType templateType, Map<String, String> extraHeaders) {
+        TraceSegment segment,
+        int statusCode,
+        BlockingContentType templateType,
+        Map<String, String> extraHeaders) {
       AgentScope agentScope = AgentTracer.get().activeScope();
       if (agentScope == null) {
         log.warn("Can't block: no active scope");

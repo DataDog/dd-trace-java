@@ -200,6 +200,11 @@ abstract class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
   }
 
   @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
+  }
+
+  @Override
   boolean testBlocking() {
     true
   }

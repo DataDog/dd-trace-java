@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jetty
 
 import datadog.trace.api.gateway.Flow
+import datadog.trace.api.internal.TraceSegment
 import datadog.trace.test.util.DDSpecification
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Response
@@ -15,9 +16,10 @@ class JettyBlockingHelperSpecification extends DDSpecification {
     Request req = Mock()
     Response resp = Mock()
     ServletOutputStream os = Mock()
+    TraceSegment seg = Mock()
 
     when:
-    JettyBlockingHelper.block(req, resp, new Flow.Action.RequestBlockingAction(402, AUTO))
+    JettyBlockingHelper.block(seg, req, resp, new Flow.Action.RequestBlockingAction(402, AUTO))
 
     then:
     1 * resp.isCommitted() >> false
@@ -33,5 +35,6 @@ class JettyBlockingHelperSpecification extends DDSpecification {
     } else {
       1 * resp.closeOutput()
     }
+    1 * seg.effectivelyBlocked()
   }
 }
