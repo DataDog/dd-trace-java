@@ -56,7 +56,6 @@ import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.function.Supplier
 
 import static datadog.communication.http.OkHttpUtils.buildHttpClient
 import static datadog.trace.api.ConfigDefaults.*
@@ -276,7 +275,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       // Fast enough so tests don't take forever
       long bucketDuration = TimeUnit.MILLISECONDS.toNanos(50)
       WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
-      TEST_DATA_STREAMS_MONITORING = new DefaultDataStreamsMonitoring(sink, features, SystemTimeSource.INSTANCE, { DUMMY_TRACE_CONFIG } as Supplier, wellKnownTags, TEST_DATA_STREAMS_WRITER, bucketDuration)
+      TEST_DATA_STREAMS_MONITORING = new DefaultDataStreamsMonitoring(sink, features, SystemTimeSource.INSTANCE, { DUMMY_TRACE_CONFIG }, wellKnownTags, TEST_DATA_STREAMS_WRITER, bucketDuration)
     }
     TEST_WRITER = new ListWriter()
 

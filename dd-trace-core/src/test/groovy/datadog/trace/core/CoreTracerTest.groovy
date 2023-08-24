@@ -19,7 +19,6 @@ import datadog.trace.common.writer.DDAgentWriter
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.core.datastreams.DataStreamContextExtractor
-import datadog.trace.core.datastreams.DataStreamContextInjector
 import datadog.trace.core.propagation.HttpCodec
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl

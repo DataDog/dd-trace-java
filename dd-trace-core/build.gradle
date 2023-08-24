@@ -29,6 +29,9 @@ excludedClassesCoverage += [
   'datadog.trace.core.DDSpan.1',
   'datadog.trace.core.tagprocessor.QueryObfuscator.1',
   'datadog.trace.common.writer.TraceProcessingWorker.NonDaemonTraceSerializingHandler',
+  // FIXME(DSM): test coverage needed
+  'datadog.trace.core.datastreams.NoopDataStreamsMonitoring',
+  'datadog.trace.core.datastreams.DataStreamContextInjector'
 ]
 
 addTestSuite('traceAgentTest')

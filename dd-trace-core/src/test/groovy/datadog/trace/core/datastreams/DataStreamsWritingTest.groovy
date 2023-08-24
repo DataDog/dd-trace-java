@@ -20,8 +20,6 @@ import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
 
-import java.util.function.Supplier
-
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static DefaultDataStreamsMonitoring.DEFAULT_BUCKET_DURATION_NANOS
 import static java.util.concurrent.TimeUnit.SECONDS

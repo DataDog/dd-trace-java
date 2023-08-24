@@ -13,7 +13,6 @@ import datadog.trace.core.test.DDCoreSpecification
 import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.TimeUnit
-import java.util.function.Supplier
 
 import static DefaultDataStreamsMonitoring.DEFAULT_BUCKET_DURATION_NANOS
 import static DefaultDataStreamsMonitoring.FEATURE_CHECK_INTERVAL_NANOS

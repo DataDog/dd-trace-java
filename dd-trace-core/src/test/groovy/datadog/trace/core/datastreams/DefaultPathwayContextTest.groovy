@@ -15,7 +15,6 @@ import datadog.trace.core.propagation.HttpCodec
 import datadog.trace.core.test.DDCoreSpecification
 
 import java.util.function.Consumer
-import java.util.function.Supplier
 
 import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG
 import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoring.DEFAULT_BUCKET_DURATION_NANOS
