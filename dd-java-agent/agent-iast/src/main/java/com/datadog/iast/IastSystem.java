@@ -102,7 +102,7 @@ public class IastSystem {
         new XPathInjectionModuleImpl(dependencies),
         new TrustBoundaryViolationModuleImpl(dependencies),
         new XssModuleImpl(dependencies),
-        new StacktraceLeakModuleImpl());
+        new StacktraceLeakModuleImpl(dependencies));
   }
 
   private static void registerRequestStartedCallback(

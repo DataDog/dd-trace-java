@@ -11,7 +11,7 @@ class StacktraceLeakModuleTest extends IastModuleImplTestBase {
   private StacktraceLeakModule module
 
   def setup() {
-    module = registerDependencies(new StacktraceLeakModuleImpl())
+    module = new StacktraceLeakModuleImpl(dependencies)
   }
 
   void 'iast stacktrace leak module'() {

@@ -4,5 +4,6 @@ import datadog.trace.api.iast.IastModule;
 import javax.annotation.Nullable;
 
 public interface StacktraceLeakModule extends IastModule {
-  void onStacktraceLeak(@Nullable final Throwable expression);
+  void onStacktraceLeak(
+      @Nullable final Throwable expression, String moduleName, String className, String methodName);
 }

@@ -17,6 +17,11 @@ public class ErrorReportValueInstrumentation extends Instrumenter.Iast
   }
 
   @Override
+  public String muzzleDirective() {
+    return "from7";
+  }
+
+  @Override
   public String instrumentedType() {
     return "org.apache.catalina.valves.ErrorReportValve";
   }

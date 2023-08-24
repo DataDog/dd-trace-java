@@ -19,7 +19,9 @@ public class ErrorReportValueAdvice {
   @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class)
   public static boolean onEnter(
       @Advice.Argument(value = 1) Response response,
-      @Advice.Argument(value = 2) Throwable throwable) {
+      @Advice.Argument(value = 2) Throwable throwable,
+      @Advice.Origin("#t") String className,
+      @Advice.Origin("#m") String methodName) {
     int statusCode = response.getStatus();
 
     // Do nothing on a 1xx, 2xx, 3xx and 404 status
@@ -35,7 +37,7 @@ public class ErrorReportValueAdvice {
       final StacktraceLeakModule module = InstrumentationBridge.STACKTRACE_LEAK_MODULE;
       if (module != null) {
         try {
-          module.onStacktraceLeak(throwable);
+          module.onStacktraceLeak(throwable, "Tomcat 7+", className, methodName);
         } catch (final Throwable e) {
           module.onUnexpectedException("onResponseException threw", e);
         }
