@@ -65,6 +65,7 @@ public class DatadogSparkListener extends SparkListener {
   private final HashMap<String, SparkListenerExecutorAdded> liveExecutors = new HashMap<>();
 
   private final boolean isRunningOnDatabricks;
+  private final String databricksClusterName;
 
   private boolean lastJobFailed = false;
   private String lastJobFailedMessage;
@@ -84,6 +85,7 @@ public class DatadogSparkListener extends SparkListener {
     this.sparkVersion = sparkVersion;
 
     isRunningOnDatabricks = sparkConf.contains("spark.databricks.sparkContextId");
+    databricksClusterName = sparkConf.get("spark.databricks.clusterUsageTags.clusterName", null);
   }
 
   @Override
@@ -205,7 +207,7 @@ public class DatadogSparkListener extends SparkListener {
 
       if (jobStart.properties() != null) {
         String databricksJobId = (String) jobStart.properties().get("spark.databricks.job.id");
-        String databricksJobRunId = getDatabricksJobRunId(jobStart.properties());
+        String databricksJobRunId = getDatabricksJobRunId(databricksClusterName);
 
         // spark.databricks.job.runId is the runId of the task, not of the Job
         String databricksTaskRunId =
@@ -652,15 +654,13 @@ public class DatadogSparkListener extends SparkListener {
   }
 
   @SuppressForbidden // split with one-char String use a fast-path without regex usage
-  private static String getDatabricksJobRunId(Properties jobProperties) {
-    String clusterName =
-        (String) jobProperties.get("spark.databricks.clusterUsageTags.clusterName");
-    if (clusterName == null) {
+  private static String getDatabricksJobRunId(String databricksClusterName) {
+    if (databricksClusterName == null) {
       return null;
     }
 
     // For job cluster, the cluster name has a pattern job-<job_id>-run-<job_run_id>
-    String[] parts = clusterName.split("-");
+    String[] parts = databricksClusterName.split("-");
     if (parts.length > 3) {
       return parts[3];
     }
