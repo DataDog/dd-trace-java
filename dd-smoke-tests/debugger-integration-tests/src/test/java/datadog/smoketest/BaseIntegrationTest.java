@@ -8,12 +8,16 @@ import com.datadog.debugger.agent.Configuration;
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.util.MoshiHelper;
 import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.SocketException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -23,6 +27,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import okhttp3.HttpUrl;
@@ -44,7 +50,9 @@ public abstract class BaseIntegrationTest {
   protected static final int REQUEST_WAIT_TIMEOUT = 10;
   private static final Path LOG_FILE_BASE =
       Paths.get(
-          buildDirectory(), "reports", "testProcess." + DebuggerIntegrationTest.class.getName());
+          buildDirectory(),
+          "reports",
+          "testProcess." + SimpleAppDebuggerIntegrationTest.class.getName());
   private static final String INFO_CONTENT =
       "{\"endpoints\": [\"v0.4/traces\", \"debugger/v1/input\", \"v0.7/config\"]}";
   private static final MockResponse AGENT_INFO_RESPONSE =
@@ -54,7 +62,7 @@ public abstract class BaseIntegrationTest {
 
   protected MockWebServer datadogAgentServer;
   private MockDispatcher probeMockDispatcher;
-
+  private StatsDServer statsDServer;
   private HttpUrl probeUrl;
   private HttpUrl snapshotUrl;
   protected Path logFilePath;
@@ -77,6 +85,9 @@ public abstract class BaseIntegrationTest {
     probeUrl = datadogAgentServer.url(PROBE_URL_PATH);
     LOG.info("DatadogAgentServer on {}", datadogAgentServer.getPort());
     snapshotUrl = datadogAgentServer.url(SNAPSHOT_URL_PATH);
+    statsDServer = new StatsDServer();
+    statsDServer.start();
+    LOG.info("statsDServer on {}", statsDServer.getPort());
     logFilePath = LOG_FILE_BASE.resolve(testInfo.getDisplayName() + ".log");
   }
 
@@ -86,6 +97,7 @@ public abstract class BaseIntegrationTest {
       targetProcess.destroyForcibly();
     }
     datadogAgentServer.shutdown();
+    statsDServer.close();
   }
 
   protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
@@ -109,16 +121,10 @@ public abstract class BaseIntegrationTest {
             "-Ddd.jmxfetch.start-delay=0",
             "-Ddd.jmxfetch.enabled=false",
             "-Ddd.dynamic.instrumentation.enabled=true",
-            // "-Ddd.remote_config.enabled=true", // default
             "-Ddd.remote_config.poll_interval.seconds=1",
-            /*"-Ddd.remote_config.integrity_check.enabled=false",
-            "-Ddd.dynamic.instrumentation.probe.url=http://localhost:"
-                + probeServer.getPort()
-                + PROBE_URL_PATH,
-            "-Ddd.dynamic.instrumentation.snapshot.url=http://localhost:"
-                + snapshotServer.getPort()
-                + SNAPSHOT_URL_PATH,*/
             "-Ddd.trace.agent.url=http://localhost:" + datadogAgentServer.getPort(),
+            "-Ddd.jmxfetch.statsd.port=" + statsDServer.getPort(),
+            "-Ddd.dynamic.instrumentation.classfile.dump.enabled=true",
             // to verify each snapshot upload one by one
             "-Ddd.dynamic.instrumentation.upload.batch.size=1",
             // flush uploads every 100ms to have quick tests
@@ -154,6 +160,10 @@ public abstract class BaseIntegrationTest {
     List<ProbeStatus> probeStatuses = adapter.fromJson(bodyStr);
     assertEquals(1, probeStatuses.size());
     return probeStatuses.get(0);
+  }
+
+  protected String retrieveStatsdMessage(String str) {
+    return statsDServer.waitForMessage(str);
   }
 
   private MockResponse datadogAgentDispatch(RecordedRequest request) {
@@ -219,6 +229,13 @@ public abstract class BaseIntegrationTest {
 
   protected Configuration createConfig(LogProbe logProbe) {
     return createConfig(Arrays.asList(logProbe));
+  }
+
+  protected Configuration createMetricConfig(MetricProbe metricProbe) {
+    return Configuration.builder()
+        .setService(getAppId())
+        .addMetricProbes(Collections.singletonList(metricProbe))
+        .build();
   }
 
   protected Configuration createConfig(Collection<LogProbe> logProbes) {
@@ -299,6 +316,62 @@ public abstract class BaseIntegrationTest {
 
     public void setDispatcher(Function<RecordedRequest, MockResponse> dispatcher) {
       this.dispatcher = dispatcher;
+    }
+  }
+
+  private static class StatsDServer extends Thread {
+    private final DatagramSocket socket;
+    private final BlockingQueue<String> msgQueue = new ArrayBlockingQueue<>(32);
+    private volatile String lastMessage;
+    private volatile boolean running = true;
+
+    StatsDServer() throws SocketException {
+      socket = new DatagramSocket();
+    }
+
+    @Override
+    public void run() {
+      byte[] buf = new byte[1024];
+      DatagramPacket packet = new DatagramPacket(buf, buf.length);
+      while (running) {
+        try {
+          socket.receive(packet);
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+        lastMessage = new String(packet.getData(), 0, packet.getLength());
+        System.out.println("received statsd: " + lastMessage);
+        try {
+          msgQueue.offer(lastMessage, 30, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+          throw new RuntimeException(e);
+        }
+      }
+      socket.close();
+    }
+
+    String lastMessage() {
+      return lastMessage;
+    }
+
+    String waitForMessage(String str) {
+      String msg;
+      do {
+        try {
+          msg = msgQueue.poll(30, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+          throw new RuntimeException(e);
+        }
+      } while (msg != null && !msg.contains(str));
+      return msg;
+    }
+
+    void close() {
+      running = false;
+    }
+
+    int getPort() {
+      return socket.getLocalPort();
     }
   }
 }
