@@ -37,6 +37,8 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".SkippedByItr",
+      packageName + ".JUnit4Utils$Cucumber",
+      packageName + ".JUnit4Utils$Munit",
       packageName + ".JUnit4Utils",
       packageName + ".TestEventsHandlerHolder",
       packageName + ".TracingListener",

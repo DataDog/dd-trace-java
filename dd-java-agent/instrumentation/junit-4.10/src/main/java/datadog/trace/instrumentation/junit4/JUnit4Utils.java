@@ -7,6 +7,7 @@ import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -38,14 +39,13 @@ public abstract class JUnit4Utils {
   private static final Pattern METHOD_AND_CLASS_NAME_PATTERN =
       Pattern.compile("([\\s\\S]*)\\((.*)\\)");
 
+  public static final String JUNIT_4_FRAMEWORK = "junit4";
+  private static final String JUNIT_VERSION = Version.id();
   private static final MethodHandle PARENT_RUNNER_DESCRIBE_CHILD;
   private static final MethodHandle RUN_NOTIFIER_LISTENERS;
   private static final MethodHandle INNER_SYNCHRONIZED_LISTENER;
   private static final MethodHandle DESCRIPTION_UNIQUE_ID;
   private static final MethodHandle CREATE_DESCRIPTION_WITH_UNIQUE_ID;
-  public static final String JUNIT_4_FRAMEWORK = "junit4";
-  public static final String CUCUMBER_FRAMEWORK = "cucumber";
-  public static final String MUNIT_FRAMEWORK = "munit";
   public static final boolean NATIVE_SUITE_EVENTS_SUPPORTED;
 
   static {
@@ -316,9 +316,16 @@ public abstract class JUnit4Utils {
     return "{\"metadata\":{\"test_name\":\"" + Strings.escapeToJson(methodName) + "\"}}";
   }
 
-  public static List<String> getCategories(Class<?> testClass, @Nullable Method testMethod) {
-    List<String> categories = new ArrayList<>();
+  public static List<String> getCategories(
+      String testFramework,
+      Description description,
+      Class<?> testClass,
+      @Nullable Method testMethod) {
+    if (Munit.FRAMEWORK.equals(testFramework)) {
+      return Munit.getCategories(description);
+    }
 
+    List<String> categories = new ArrayList<>();
     while (testClass != null) {
       Category categoryAnnotation = testClass.getAnnotation(Category.class);
       if (categoryAnnotation != null) {
@@ -460,14 +467,14 @@ public abstract class JUnit4Utils {
     Class<?> testClass = description.getTestClass();
     while (testClass != null) {
       if (testClass.getName().startsWith("munit.")) {
-        return MUNIT_FRAMEWORK;
+        return Munit.FRAMEWORK;
       }
       testClass = testClass.getSuperclass();
     }
 
     Object uniqueId = JUnit4Utils.getUniqueId(description);
     if (uniqueId != null && uniqueId.getClass().getName().startsWith("io.cucumber.")) {
-      return CUCUMBER_FRAMEWORK;
+      return Cucumber.FRAMEWORK;
     } else {
       return JUNIT_4_FRAMEWORK;
     }
@@ -475,54 +482,114 @@ public abstract class JUnit4Utils {
 
   public static String getTestFrameworkVersion(String testFramework, Description description) {
     switch (testFramework) {
-      case CUCUMBER_FRAMEWORK:
-        return getCucumberVersion(description);
-      case MUNIT_FRAMEWORK:
-        return getMunitVersion(description);
+      case Cucumber.FRAMEWORK:
+        return Cucumber.getVersion(description);
+      case Munit.FRAMEWORK:
+        return Munit.getFrameworkVersion(description);
       default:
         return JUNIT_VERSION;
     }
   }
 
-  private static volatile String JUNIT_VERSION = Version.id();
-  private static volatile String CUCUMBER_VERSION;
+  public static final class Cucumber {
+    public static final String FRAMEWORK = "cucumber";
+    private static volatile String VERSION;
 
-  private static String getCucumberVersion(Description description) {
-    if (CUCUMBER_VERSION == null) {
-      String version = null;
-      Object cucumberId = JUnit4Utils.getUniqueId(description);
-      try (InputStream cucumberPropsStream =
-          cucumberId
-              .getClass()
-              .getClassLoader()
-              .getResourceAsStream("META-INF/maven/io.cucumber/cucumber-junit/pom.properties")) {
-        Properties cucumberProps = new Properties();
-        cucumberProps.load(cucumberPropsStream);
-        version = cucumberProps.getProperty("version");
-      } catch (Exception e) {
-        // fallback below
+    private static String getVersion(Description description) {
+      if (VERSION == null) {
+        String version = null;
+        Object cucumberId = JUnit4Utils.getUniqueId(description);
+        try (InputStream cucumberPropsStream =
+            cucumberId
+                .getClass()
+                .getClassLoader()
+                .getResourceAsStream("META-INF/maven/io.cucumber/cucumber-junit/pom.properties")) {
+          Properties cucumberProps = new Properties();
+          cucumberProps.load(cucumberPropsStream);
+          version = cucumberProps.getProperty("version");
+        } catch (Exception e) {
+          // fallback below
+        }
+        if (version != null) {
+          VERSION = version;
+        } else {
+          // Shouldn't happen normally.
+          // Put here as a guard against running the code above for every test case
+          // if version cannot be determined for whatever reason
+          VERSION = "unknown";
+        }
       }
-      if (version != null) {
-        CUCUMBER_VERSION = version;
-      } else {
-        // Shouldn't happen normally.
-        // Put here as a guard against running the code above for every test case
-        // if version cannot be determined for whatever reason
-        CUCUMBER_VERSION = "unknown";
-      }
+      return VERSION;
     }
-    return CUCUMBER_VERSION;
   }
 
-  private static String getMunitVersion(Description description) {
-    Class<?> testClass = description.getTestClass();
-    while (testClass != null) {
-      if (testClass.getName().startsWith("munit.")) {
-        Package munitPackage = testClass.getPackage();
-        return munitPackage.getImplementationVersion();
-      }
-      testClass = testClass.getSuperclass();
+  public static final class Munit {
+
+    public static final String FRAMEWORK = "munit";
+    private static volatile String VERSION;
+    private static final Class<Annotation> MUNIT_TAG_ANNOTATION;
+    private static final MethodHandle MUNIT_TAG;
+
+    static {
+      /*
+       * Spock's classes are accessed via reflection and method handles
+       * since they are loaded by a different classloader in some envs
+       */
+      MethodHandles.Lookup lookup = MethodHandles.publicLookup();
+      MUNIT_TAG_ANNOTATION = accessMunitTagAnnotation();
+      MUNIT_TAG = accessMunitTag(lookup, MUNIT_TAG_ANNOTATION);
     }
-    return null;
+
+    private static Class<Annotation> accessMunitTagAnnotation() {
+      try {
+        return (Class<Annotation>) ClassLoader.getSystemClassLoader().loadClass("munit.Tag");
+      } catch (Throwable e) {
+        return null;
+      }
+    }
+
+    private static MethodHandle accessMunitTag(
+        MethodHandles.Lookup lookup, Class<Annotation> munitTagAnnotation) {
+      if (munitTagAnnotation == null) {
+        return null;
+      }
+      try {
+        MethodType returnsString = MethodType.methodType(String.class);
+        return lookup.findVirtual(munitTagAnnotation, "value", returnsString);
+      } catch (Throwable e) {
+        return null;
+      }
+    }
+
+    public static String getFrameworkVersion(Description description) {
+      if (VERSION == null) {
+        Class<?> testClass = description.getTestClass();
+        while (testClass != null) {
+          if (testClass.getName().startsWith("munit.")) {
+            Package munitPackage = testClass.getPackage();
+            VERSION = munitPackage.getImplementationVersion();
+            break;
+          }
+          testClass = testClass.getSuperclass();
+        }
+      }
+      return VERSION;
+    }
+
+    private static List<String> getCategories(Description description) {
+      List<String> categories = new ArrayList<>();
+      try {
+        for (Annotation annotation : description.getAnnotations()) {
+          Class<? extends Annotation> annotationType = annotation.annotationType();
+          if ("munit.Tag".equals(annotationType.getName())) {
+            String category = (String) MUNIT_TAG.invoke(annotation);
+            categories.add(category);
+          }
+        }
+      } catch (Throwable e) {
+        // ignore
+      }
+      return categories;
+    }
   }
 }
