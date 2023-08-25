@@ -50,7 +50,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     super.configurePreAgent()
 
     injectSysConfig("dd.kafka.e2e.duration.enabled", "true")
-    injectSysConfig("dd.data.streams.enabled", "true")
   }
 
   public static final LinkedHashMap<String, String> PRODUCER_PATHWAY_EDGE_TAGS
@@ -1109,7 +1108,6 @@ class KafkaClientDataStreamsDisabledForkedTest extends KafkaClientTestBase {
     super.configurePreAgent()
     injectSysConfig("dd.service", "KafkaClientDataStreamsDisabledForkedTest")
     injectSysConfig("dd.kafka.legacy.tracing.enabled", "true")
-    injectSysConfig("dd.data.streams.enabled", "false")
   }
 
   @Override
