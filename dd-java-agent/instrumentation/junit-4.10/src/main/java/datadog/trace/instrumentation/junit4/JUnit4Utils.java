@@ -16,13 +16,13 @@ import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import junit.runner.Version;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.Description;
 import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.ParentRunner;
-import org.junit.runners.model.TestClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,6 +45,7 @@ public abstract class JUnit4Utils {
   private static final MethodHandle CREATE_DESCRIPTION_WITH_UNIQUE_ID;
   public static final String JUNIT_4_FRAMEWORK = "junit4";
   public static final String CUCUMBER_FRAMEWORK = "cucumber";
+  public static final String MUNIT_FRAMEWORK = "munit";
 
   static {
     MethodHandles.Lookup lookup = MethodHandles.lookup();
@@ -337,11 +338,25 @@ public abstract class JUnit4Utils {
     return description.getTestClass() != null && !isTestCaseDescription(description);
   }
 
-  public static boolean isSuiteContainingChildren(
-      final TestClass testClass, final Description description) {
-    if (!testClass.getAnnotatedMethods(Test.class).isEmpty()) {
-      return true;
+  public static boolean isSuiteContainingChildren(final Description description) {
+    Class<?> testClass = description.getTestClass();
+    if (testClass != null) {
+      for (Description child : description.getChildren()) {
+        if (isTestCaseDescription(child)) {
+          return true;
+        }
+      }
+
+      // this is needed to handle parameterized tests,
+      // as they have an extra level of descriptions
+      // between the suite and the test cases
+      for (Method method : testClass.getMethods()) {
+        if (method.getAnnotation(Test.class) != null) {
+          return true;
+        }
+      }
     }
+
     // check if this is a Cucumber feature
     Object uniqueId = getUniqueId(description);
     return uniqueId != null && uniqueId.toString().endsWith(".feature");
@@ -430,6 +445,14 @@ public abstract class JUnit4Utils {
   }
 
   public static String getTestFramework(final Description description) {
+    Class<?> testClass = description.getTestClass();
+    while (testClass != null) {
+      if (testClass.getName().startsWith("munit.")) {
+        return MUNIT_FRAMEWORK;
+      }
+      testClass = testClass.getSuperclass();
+    }
+
     Object uniqueId = JUnit4Utils.getUniqueId(description);
     if (uniqueId != null && uniqueId.getClass().getName().startsWith("io.cucumber.")) {
       return CUCUMBER_FRAMEWORK;
@@ -438,9 +461,21 @@ public abstract class JUnit4Utils {
     }
   }
 
+  public static String getTestFrameworkVersion(String testFramework, Description description) {
+    switch (testFramework) {
+      case CUCUMBER_FRAMEWORK:
+        return getCucumberVersion(description);
+      case MUNIT_FRAMEWORK:
+        return getMunitVersion(description);
+      default:
+        return JUNIT_VERSION;
+    }
+  }
+
+  private static volatile String JUNIT_VERSION = Version.id();
   private static volatile String CUCUMBER_VERSION;
 
-  public static String getCucumberVersion(Description description) {
+  private static String getCucumberVersion(Description description) {
     if (CUCUMBER_VERSION == null) {
       String version = null;
       Object cucumberId = JUnit4Utils.getUniqueId(description);
@@ -465,5 +500,17 @@ public abstract class JUnit4Utils {
       }
     }
     return CUCUMBER_VERSION;
+  }
+
+  private static String getMunitVersion(Description description) {
+    Class<?> testClass = description.getTestClass();
+    while (testClass != null) {
+      if (testClass.getName().startsWith("munit.")) {
+        Package munitPackage = testClass.getPackage();
+        return munitPackage.getImplementationVersion();
+      }
+      testClass = testClass.getSuperclass();
+    }
+    return null;
   }
 }

@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.junit4;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -34,6 +36,13 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    // Avoid matching versions >= 4.13
+    // where proper support for suite events was added
+    return not(hasClassNamed("org.junit.runner.OrderWith"));
+  }
+
+  @Override
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".SkippedByItr",
@@ -63,7 +72,7 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
       for (final RunListener listener : runListeners) {
         TracingListener tracingListener = JUnit4Utils.toTracingListener(listener);
         if (tracingListener != null) {
-          tracingListener.testSuiteStarted(runner.getTestClass(), runner.getDescription());
+          tracingListener.testSuiteStarted(runner.getDescription());
         }
       }
     }
@@ -80,7 +89,7 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
       for (final RunListener listener : runListeners) {
         TracingListener tracingListener = JUnit4Utils.toTracingListener(listener);
         if (tracingListener != null) {
-          tracingListener.testSuiteFinished(runner.getTestClass(), runner.getDescription());
+          tracingListener.testSuiteFinished(runner.getDescription());
         }
       }
     }

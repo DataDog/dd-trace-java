@@ -2,21 +2,13 @@ package datadog.trace.instrumentation.junit4;
 
 import java.lang.reflect.Method;
 import java.util.List;
-import junit.runner.Version;
 import org.junit.Ignore;
 import org.junit.runner.Description;
 import org.junit.runner.Result;
 import org.junit.runner.notification.Failure;
 import org.junit.runner.notification.RunListener;
-import org.junit.runners.model.TestClass;
 
 public class TracingListener extends RunListener {
-
-  private final String version;
-
-  public TracingListener() {
-    version = Version.id();
-  }
 
   @Override
   public void testRunStarted(Description description) {
@@ -28,37 +20,34 @@ public class TracingListener extends RunListener {
     // on op
   }
 
-  public void testSuiteStarted(final TestClass junitTestClass, final Description description) {
-    if (!JUnit4Utils.isSuiteContainingChildren(junitTestClass, description)) {
+  public void testSuiteStarted(final Description description) {
+    if (!JUnit4Utils.isSuiteContainingChildren(description)) {
       // Not all test suites contain tests.
       // Given that test suites can be nested in other test suites,
       // we are only interested in the innermost ones where the actual test cases reside
       return;
     }
 
-    Class<?> testClass = junitTestClass.getJavaClass();
+    Class<?> testClass = description.getTestClass();
     String testSuiteName = JUnit4Utils.getSuiteName(testClass, description);
 
     String testFramework = JUnit4Utils.getTestFramework(description);
-    String testFrameworkVersion =
-        !JUnit4Utils.CUCUMBER_FRAMEWORK.equals(testFramework)
-            ? version
-            : JUnit4Utils.getCucumberVersion(description);
+    String testFrameworkVersion = JUnit4Utils.getTestFrameworkVersion(testFramework, description);
 
     List<String> categories = JUnit4Utils.getCategories(testClass, null);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
         testSuiteName, testFramework, testFrameworkVersion, testClass, categories, false);
   }
 
-  public void testSuiteFinished(final TestClass junitTestClass, final Description description) {
-    if (!JUnit4Utils.isSuiteContainingChildren(junitTestClass, description)) {
+  public void testSuiteFinished(final Description description) {
+    if (!JUnit4Utils.isSuiteContainingChildren(description)) {
       // Not all test suites contain tests.
       // Given that test suites can be nested in other test suites,
       // we are only interested in the innermost ones where the actual test cases reside
       return;
     }
 
-    Class<?> testClass = junitTestClass.getJavaClass();
+    Class<?> testClass = description.getTestClass();
     String testSuiteName = JUnit4Utils.getSuiteName(testClass, description);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(testSuiteName, testClass);
   }
@@ -73,10 +62,7 @@ public class TracingListener extends RunListener {
     String testName = JUnit4Utils.getTestName(description, testMethod);
 
     String testFramework = JUnit4Utils.getTestFramework(description);
-    String testFrameworkVersion =
-        !JUnit4Utils.CUCUMBER_FRAMEWORK.equals(testFramework)
-            ? version
-            : JUnit4Utils.getCucumberVersion(description);
+    String testFrameworkVersion = JUnit4Utils.getTestFrameworkVersion(testFramework, description);
 
     String testParameters = JUnit4Utils.getParameters(description);
     List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);
@@ -171,10 +157,7 @@ public class TracingListener extends RunListener {
       String testSuiteName = JUnit4Utils.getSuiteName(testClass, description);
 
       String testFramework = JUnit4Utils.getTestFramework(description);
-      String testFrameworkVersion =
-          !JUnit4Utils.CUCUMBER_FRAMEWORK.equals(testFramework)
-              ? version
-              : JUnit4Utils.getCucumberVersion(description);
+      String testFrameworkVersion = JUnit4Utils.getTestFrameworkVersion(testFramework, description);
 
       List<String> categories = JUnit4Utils.getCategories(testClass, null);
 
@@ -199,10 +182,7 @@ public class TracingListener extends RunListener {
     String testName = JUnit4Utils.getTestName(description, testMethod);
 
     String testFramework = JUnit4Utils.getTestFramework(description);
-    String testFrameworkVersion =
-        !JUnit4Utils.CUCUMBER_FRAMEWORK.equals(testFramework)
-            ? version
-            : JUnit4Utils.getCucumberVersion(description);
+    String testFrameworkVersion = JUnit4Utils.getTestFrameworkVersion(testFramework, description);
 
     String testParameters = JUnit4Utils.getParameters(description);
     List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);

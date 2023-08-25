@@ -21,6 +21,7 @@ import org.example.TestSkippedClass
 import org.example.TestSucceed
 import org.example.TestSucceedAndSkipped
 import org.example.TestSucceedWithCategories
+import org.example.TestSuite
 import org.example.TestSuiteSetUpAssumption
 import org.junit.runner.JUnitCore
 
@@ -531,6 +532,31 @@ class JUnit4Test extends CiVisibilityTest {
       (Tags.TEST_SKIPPED_BY_ITR): true
     ]
     testTags_1 = [(Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"parameterized_test_succeed[1]"}}']
+  }
+
+  def "test suite runner"() {
+    setup:
+    runTests(TestSuite)
+
+    expect:
+    ListWriterAssert.assertTraces(TEST_WRITER, 3, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testSessionId
+      long testModuleId
+      long firstSuiteId
+      long secondSuiteId
+      trace(4, true) {
+        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
+        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS)
+        firstSuiteId = testSuiteSpan(it, 2, testSessionId, testModuleId, "org.example.TestSuite\$FirstTest", CIConstants.TEST_PASS)
+        secondSuiteId = testSuiteSpan(it, 3, testSessionId, testModuleId, "org.example.TestSuite\$SecondTest", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testSessionId, testModuleId, firstSuiteId, "org.example.TestSuite\$FirstTest", "testAddition", "testAddition()V", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testSessionId, testModuleId, secondSuiteId, "org.example.TestSuite\$SecondTest", "testSubtraction", "testSubtraction()V", CIConstants.TEST_PASS)
+      }
+    })
   }
 
   private void runTests(Class<?>... tests) {
