@@ -1,58 +1,83 @@
 package annotatedsample;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
+
 import io.opentelemetry.instrumentation.annotations.WithSpan;
-import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
 public class ReactiveStreamsTracedMethods {
-  public static final Duration DELAY = Duration.ofMillis(500);
-
   @WithSpan
-  public static Publisher<String> traceAsyncPublisher() {
-    return new SlowStringPublisher();
+  public static Publisher<String> traceAsyncPublisher(CountDownLatch latch) {
+    return TestPublisher.ofComplete(latch, "hello");
   }
 
   @WithSpan
-  public static Publisher<String> traceAsyncFailingPublisher(Throwable throwable) {
-    return new SlowFailingPublisher(throwable);
+  public static Publisher<String> traceAsyncFailingPublisher(
+      CountDownLatch latch, Throwable throwable) {
+    return TestPublisher.ofFailing(latch, throwable);
   }
 
-  private static class SlowStringPublisher implements Publisher<String> {
+  private static class TestPublisher implements Publisher<String> {
+    private final CountDownLatch latch;
+    private final String element;
+    private final Throwable error;
+
+    private TestPublisher(CountDownLatch latch, String element, Throwable error) {
+      this.latch = latch;
+      this.element = element;
+      this.error = error;
+    }
+
+    private static TestPublisher ofComplete(CountDownLatch latch, String element) {
+      return new TestPublisher(latch, element, null);
+    }
+
+    private static TestPublisher ofFailing(CountDownLatch latch, Throwable error) {
+      return new TestPublisher(latch, null, error);
+    }
+
     @Override
     public void subscribe(Subscriber<? super String> s) {
-      sleep();
-      s.onNext("hello");
-      s.onComplete();
+      try {
+        if (!this.latch.await(5, SECONDS)) {
+          throw new IllegalStateException("Latch still locked");
+        }
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+      if (this.error != null) {
+        s.onError(this.error);
+      } else {
+        s.onNext(this.element);
+        s.onComplete();
+      }
     }
   }
 
-  private static class SlowFailingPublisher implements Publisher<String> {
-    private final Throwable throwable;
-
-    private SlowFailingPublisher(Throwable throwable) {
-      this.throwable = throwable;
+  public static class ConsummerSubscriber<T> implements Subscriber<T> {
+    @Override
+    public void onSubscribe(Subscription s) {
+      s.request(1);
     }
 
     @Override
-    public void subscribe(Subscriber<? super String> s) {
-      sleep();
-      s.onError(throwable);
-    }
-  }
+    public void onNext(T t) {}
 
-  private static void sleep() {
-    try {
-      Thread.sleep(DELAY.toMillis()); // Wait enough time to prevent test flakiness
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  public static class StubSubscriber<T> implements Subscriber<T> {
     @Override
-    public void onSubscribe(Subscription s) {}
+    public void onError(Throwable t) {}
+
+    @Override
+    public void onComplete() {}
+  }
+
+  public static class CancellerSubscriber<T> implements Subscriber<T> {
+    @Override
+    public void onSubscribe(Subscription s) {
+      s.cancel();
+    }
 
     @Override
     public void onNext(T t) {}

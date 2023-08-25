@@ -3,7 +3,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 
-import static annotatedsample.TracedMethods.DELAY
+import java.util.concurrent.CountDownLatch
 
 class WithSpanAnnotationTest extends AgentTestRunner {
   @Override
@@ -137,9 +137,14 @@ class WithSpanAnnotationTest extends AgentTestRunner {
 
   def "test WithSpan annotated async method (CompletableFuture)"() {
     setup:
-    def completableFuture = TracedMethods.traceAsyncCompletableFuture()
+    def latch = new CountDownLatch(1)
+    def completableFuture = TracedMethods.traceAsyncCompletableFuture(latch)
+
+    expect:
+    TEST_WRITER.size() == 0
 
     when:
+    latch.countDown()
     completableFuture.join()
 
     then:
@@ -148,7 +153,6 @@ class WithSpanAnnotationTest extends AgentTestRunner {
         span {
           resourceName "TracedMethods.traceAsyncCompletableFuture"
           operationName "TracedMethods.traceAsyncCompletableFuture"
-          duration { it > DELAY.toNanos() }
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
@@ -160,10 +164,15 @@ class WithSpanAnnotationTest extends AgentTestRunner {
 
   def "test WithSpan annotated async method (failing CompletableFuture)"() {
     setup:
+    def latch = new CountDownLatch(1)
     def expectedException = new RuntimeException("Test exception")
-    def completableFuture = TracedMethods.traceAsyncFailingCompletableFuture(expectedException)
+    def completableFuture = TracedMethods.traceAsyncFailingCompletableFuture(latch, expectedException)
+
+    expect:
+    TEST_WRITER.size() == 0
 
     when:
+    latch.countDown()
     completableFuture.join()
 
     then:
@@ -173,7 +182,6 @@ class WithSpanAnnotationTest extends AgentTestRunner {
         span {
           resourceName "TracedMethods.traceAsyncFailingCompletableFuture"
           operationName "TracedMethods.traceAsyncFailingCompletableFuture"
-          duration { it > DELAY.toNanos() }
           errored true
           tags {
             defaultTags()
@@ -187,9 +195,14 @@ class WithSpanAnnotationTest extends AgentTestRunner {
 
   def "test WithSpan annotated async method (CompletionStage)"() {
     setup:
-    def completionStage = TracedMethods.traceAsyncCompletionStage()
+    def latch = new CountDownLatch(1)
+    def completionStage = TracedMethods.traceAsyncCompletionStage(latch)
+
+    expect:
+    TEST_WRITER.size() == 0
 
     when:
+    latch.countDown()
     completionStage.toCompletableFuture().join()
 
     then:
@@ -198,7 +211,6 @@ class WithSpanAnnotationTest extends AgentTestRunner {
         span {
           resourceName "TracedMethods.traceAsyncCompletionStage"
           operationName "TracedMethods.traceAsyncCompletionStage"
-          duration { it > DELAY.toNanos() }
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
@@ -210,10 +222,15 @@ class WithSpanAnnotationTest extends AgentTestRunner {
 
   def "test WithSpan annotated async method (failing CompletionStage)"() {
     setup:
+    def latch = new CountDownLatch(1)
     def expectedException = new RuntimeException("Test exception")
-    def completionStage = TracedMethods.traceAsyncFailingCompletionStage(expectedException)
+    def completionStage = TracedMethods.traceAsyncFailingCompletionStage(latch, expectedException)
+
+    expect:
+    TEST_WRITER.size() == 0
 
     when:
+    latch.countDown()
     completionStage.toCompletableFuture().join()
 
     then:
@@ -223,7 +240,6 @@ class WithSpanAnnotationTest extends AgentTestRunner {
         span {
           resourceName "TracedMethods.traceAsyncFailingCompletionStage"
           operationName "TracedMethods.traceAsyncFailingCompletionStage"
-          duration { it > DELAY.toNanos() }
           errored true
           tags {
             defaultTags()
