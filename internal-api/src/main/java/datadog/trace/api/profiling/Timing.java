@@ -11,7 +11,7 @@ public interface Timing extends AutoCloseable {
     public void close() {}
 
     @Override
-    public void setTask(Class<?> task) {}
+    public void setTask(Object task) {}
 
     @Override
     public void setScheduler(Class<?> scheduler) {}
