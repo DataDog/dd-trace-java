@@ -27,13 +27,6 @@ public class ClassInstrumenterInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".CoverageDataInjector",
-    };
-  }
-
-  @Override
   public String hierarchyMarkerType() {
     return "org.jacoco.agent.rt.IAgent";
   }
@@ -58,20 +51,6 @@ public class ClassInstrumenterInstrumentation extends Instrumenter.CiVisibility
     static void enter(
         @Advice.FieldValue(value = "className") final String className,
         @Advice.Argument(0) int count) {
-      // Jacoco initialization runs inside preMain of their agent which,
-      // depending on how a specific project is set up,
-      // can happen either after or _before_ our preMain.
-
-      // It means we cannot hook into Jacoco's init methods:
-      // even if we redefine them it will not help,
-      // as it is possible that they have already been executed
-      // by the time we do it.
-
-      // Therefore, we have to repeatedly call this "init" method here:
-      // when it is called the first time its class will be initialized,
-      // and our "should-run-once" logic will be triggered
-      CoverageDataInjector.init();
-
       InstrumentationBridge.getCoverageProbeStoreRegistry().setTotalProbeCount(className, count);
     }
   }
