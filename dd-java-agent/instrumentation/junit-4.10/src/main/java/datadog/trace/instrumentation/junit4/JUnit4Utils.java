@@ -46,6 +46,7 @@ public abstract class JUnit4Utils {
   public static final String JUNIT_4_FRAMEWORK = "junit4";
   public static final String CUCUMBER_FRAMEWORK = "cucumber";
   public static final String MUNIT_FRAMEWORK = "munit";
+  public static final boolean NATIVE_SUITE_EVENTS_SUPPORTED;
 
   static {
     MethodHandles.Lookup lookup = MethodHandles.lookup();
@@ -54,6 +55,17 @@ public abstract class JUnit4Utils {
     INNER_SYNCHRONIZED_LISTENER = accessListenerFieldInSynchronizedListener(lookup);
     DESCRIPTION_UNIQUE_ID = accessUniqueIdInDescription(lookup);
     CREATE_DESCRIPTION_WITH_UNIQUE_ID = accessCreateDescriptionWithUniqueId(lookup);
+    NATIVE_SUITE_EVENTS_SUPPORTED = nativeSuiteEventsSupported();
+  }
+
+  /** JUnit 4 support test suite started/finished events in versions 4.13 and later */
+  private static boolean nativeSuiteEventsSupported() {
+    try {
+      RunListener.class.getDeclaredMethod("testSuiteStarted", Description.class);
+      return true;
+    } catch (NoSuchMethodException e) {
+      return false;
+    }
   }
 
   private static MethodHandle accessDescribeChildMethodInParentRunner(MethodHandles.Lookup lookup) {

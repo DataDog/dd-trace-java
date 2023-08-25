@@ -8,8 +8,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
 @RunWith(Suite.class)
-@Suite.SuiteClasses({TestSuite.FirstTest.class, TestSuite.SecondTest.class})
-public class TestSuite {
+@Suite.SuiteClasses({TestSucceedSuite.FirstTest.class, TestSucceedSuite.SecondTest.class})
+public class TestSucceedSuite {
   public static class FirstTest {
     @Test
     public void testAddition() {

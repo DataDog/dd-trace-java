@@ -21,8 +21,8 @@ import org.example.TestSkippedClass
 import org.example.TestSucceed
 import org.example.TestSucceedAndSkipped
 import org.example.TestSucceedWithCategories
-import org.example.TestSuite
-import org.example.TestSuiteSetUpAssumption
+import org.example.TestSucceedSuite
+import org.example.TestFailedSuiteSetUpAssumption
 import org.junit.runner.JUnitCore
 
 @DisableTestTrace(reason = "avoid self-tracing")
@@ -320,7 +320,7 @@ class JUnit4Test extends CiVisibilityTest {
 
   def "test assumption failure during suite setup"() {
     setup:
-    runTests(TestSuiteSetUpAssumption)
+    runTests(TestFailedSuiteSetUpAssumption)
 
     expect:
     ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
@@ -330,10 +330,10 @@ class JUnit4Test extends CiVisibilityTest {
       trace(3, true) {
         testSessionId = testSessionSpan(it, 1, CIConstants.TEST_SKIP)
         testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_SKIP)
-        testSuiteId = testSuiteSpan(it, 2, testSessionId, testModuleId, "org.example.TestSuiteSetUpAssumption", CIConstants.TEST_SKIP, testTags)
+        testSuiteId = testSuiteSpan(it, 2, testSessionId, testModuleId, "org.example.TestFailedSuiteSetUpAssumption", CIConstants.TEST_SKIP, testTags)
       }
       trace(1) {
-        testSpan(it, 0, testSessionId, testModuleId, testSuiteId, "org.example.TestSuiteSetUpAssumption", "test_succeed", "test_succeed()V", CIConstants.TEST_SKIP, testTags, null)
+        testSpan(it, 0, testSessionId, testModuleId, testSuiteId, "org.example.TestFailedSuiteSetUpAssumption", "test_succeed", "test_succeed()V", CIConstants.TEST_SKIP, testTags, null)
       }
     })
 
@@ -536,7 +536,7 @@ class JUnit4Test extends CiVisibilityTest {
 
   def "test suite runner"() {
     setup:
-    runTests(TestSuite)
+    runTests(TestSucceedSuite)
 
     expect:
     ListWriterAssert.assertTraces(TEST_WRITER, 3, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
@@ -547,14 +547,14 @@ class JUnit4Test extends CiVisibilityTest {
       trace(4, true) {
         testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
         testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS)
-        firstSuiteId = testSuiteSpan(it, 2, testSessionId, testModuleId, "org.example.TestSuite\$FirstTest", CIConstants.TEST_PASS)
-        secondSuiteId = testSuiteSpan(it, 3, testSessionId, testModuleId, "org.example.TestSuite\$SecondTest", CIConstants.TEST_PASS)
+        firstSuiteId = testSuiteSpan(it, 2, testSessionId, testModuleId, "org.example.TestSucceedSuite\$FirstTest", CIConstants.TEST_PASS)
+        secondSuiteId = testSuiteSpan(it, 3, testSessionId, testModuleId, "org.example.TestSucceedSuite\$SecondTest", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testSessionId, testModuleId, firstSuiteId, "org.example.TestSuite\$FirstTest", "testAddition", "testAddition()V", CIConstants.TEST_PASS)
+        testSpan(it, 0, testSessionId, testModuleId, firstSuiteId, "org.example.TestSucceedSuite\$FirstTest", "testAddition", "testAddition()V", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, testSessionId, testModuleId, secondSuiteId, "org.example.TestSuite\$SecondTest", "testSubtraction", "testSubtraction()V", CIConstants.TEST_PASS)
+        testSpan(it, 0, testSessionId, testModuleId, secondSuiteId, "org.example.TestSucceedSuite\$SecondTest", "testSubtraction", "testSubtraction()V", CIConstants.TEST_PASS)
       }
     })
   }

@@ -1,9 +1,7 @@
 package datadog.trace.instrumentation.junit4;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -36,13 +34,6 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Avoid matching versions >= 4.13
-    // where proper support for suite events was added
-    return not(hasClassNamed("org.junit.runner.OrderWith"));
-  }
-
-  @Override
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".SkippedByItr",
@@ -64,6 +55,10 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
     public static void fireSuiteStartedEvent(
         @Advice.Argument(0) final RunNotifier runNotifier,
         @Advice.This final ParentRunner<?> runner) {
+      if (JUnit4Utils.NATIVE_SUITE_EVENTS_SUPPORTED) {
+        return;
+      }
+
       final List<RunListener> runListeners = JUnit4Utils.runListenersFromRunNotifier(runNotifier);
       if (runListeners == null) {
         return;
@@ -81,6 +76,10 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
     public static void fireSuiteFinishedEvent(
         @Advice.Argument(0) final RunNotifier runNotifier,
         @Advice.This final ParentRunner<?> runner) {
+      if (JUnit4Utils.NATIVE_SUITE_EVENTS_SUPPORTED) {
+        return;
+      }
+
       final List<RunListener> runListeners = JUnit4Utils.runListenersFromRunNotifier(runNotifier);
       if (runListeners == null) {
         return;
