@@ -337,7 +337,7 @@ public class CiVisibilitySystem {
   }
 
   private static BuildEventsHandler.Factory buildEventsHandlerFactory(
-      DDTestSessionImpl.SessionImplFactory sessionFactory) {
+      DDBuildSystemSession.Factory sessionFactory) {
     return new BuildEventsHandler.Factory() {
       @Override
       public <U> BuildEventsHandler<U> create() {

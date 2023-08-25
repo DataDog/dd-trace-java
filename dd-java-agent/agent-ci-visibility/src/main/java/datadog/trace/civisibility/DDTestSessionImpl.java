@@ -10,7 +10,8 @@ import java.util.Collection;
 import java.util.Collections;
 import javax.annotation.Nullable;
 
-public abstract class DDTestSessionImpl implements DDTestSession {
+public abstract class DDTestSessionImpl
+    implements DDTestSession, DDTestFrameworkSession, DDBuildSystemSession {
 
   public DDTestModuleImpl testModuleStart(String moduleName, @Nullable Long startTime) {
     return testModuleStart(moduleName, startTime, Collections.emptyList());
@@ -21,7 +22,8 @@ public abstract class DDTestSessionImpl implements DDTestSession {
 
   public abstract ModuleExecutionSettings getModuleExecutionSettings(JvmInfo jvmInfo);
 
-  public interface SessionImplFactory extends CIVisibility.SessionFactory {
+  public interface SessionImplFactory
+      extends CIVisibility.SessionFactory, DDBuildSystemSession.Factory {
     DDTestSessionImpl startSession(
         String projectName, Path projectRoot, String component, Long startTime);
   }

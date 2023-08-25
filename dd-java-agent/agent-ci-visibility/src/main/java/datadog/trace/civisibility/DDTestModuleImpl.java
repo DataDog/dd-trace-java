@@ -15,7 +15,8 @@ import java.util.Collection;
 import java.util.concurrent.atomic.LongAdder;
 import javax.annotation.Nullable;
 
-public abstract class DDTestModuleImpl implements DDTestModule {
+public abstract class DDTestModuleImpl
+    implements DDTestModule, DDTestFrameworkModule, DDBuildSystemModule {
 
   protected final String moduleName;
   protected final Config config;
