@@ -181,8 +181,10 @@ public class RequestGetPartsInstrumentation extends Instrumenter.AppSec
         BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
         if (blockResponseFunction != null) {
           blockResponseFunction.tryCommitBlockingResponse(
-              rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
-          reqCtx.getTraceSegment().effectivelyBlocked();
+              reqCtx.getTraceSegment(),
+              rba.getStatusCode(),
+              rba.getBlockingContentType(),
+              rba.getExtraHeaders());
           if (t == null) {
             t = new BlockingException("Blocked request (for Request/parsePart(s))");
           }

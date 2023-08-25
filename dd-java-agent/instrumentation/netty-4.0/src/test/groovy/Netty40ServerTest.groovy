@@ -165,6 +165,11 @@ abstract class Netty40ServerTest extends HttpServerTest<EventLoopGroup> {
   }
 
   @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
+  }
+
+  @Override
   boolean testBlocking() {
     true
   }

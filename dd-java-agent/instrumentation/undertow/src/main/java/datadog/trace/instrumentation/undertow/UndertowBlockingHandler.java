@@ -4,6 +4,7 @@ import static datadog.trace.instrumentation.undertow.UndertowDecorator.DD_UNDERT
 
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import io.undertow.server.HttpHandler;
@@ -28,6 +29,8 @@ public class UndertowBlockingHandler implements HttpHandler {
 
   public static final AttachmentKey<Flow.Action.RequestBlockingAction> REQUEST_BLOCKING_DATA =
       AttachmentKey.create(Flow.Action.RequestBlockingAction.class);
+  public static final AttachmentKey<TraceSegment> TRACE_SEGMENT =
+      AttachmentKey.create(TraceSegment.class);
 
   private UndertowBlockingHandler() {}
 
@@ -44,6 +47,7 @@ public class UndertowBlockingHandler implements HttpHandler {
       return;
     }
 
+    TraceSegment segment = xchg.getAttachment(TRACE_SEGMENT);
     xchg.putAttachment(IgnoreSendAttribute.IGNORE_SEND_KEY, IgnoreSendAttribute.INSTANCE);
 
     try {
@@ -69,6 +73,8 @@ public class UndertowBlockingHandler implements HttpHandler {
       } else {
         buffer = EMPTY_BB;
       }
+
+      segment.effectivelyBlocked();
 
       // blocking response to avoid having the intercepted caller and its callers interfere
       // even if this is an IO thread...

@@ -1,3 +1,5 @@
+package datadog.trace.instrumentation.jetty9
+
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.instrumentation.servlet3.TestServlet3
 import groovy.transform.CompileStatic

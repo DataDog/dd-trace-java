@@ -49,7 +49,7 @@ import org.slf4j.LoggerFactory;
  *       Request req = getRequest(); // actually on the stack only
  *       Response resp = getResponse(); // idem
  *       dispatch(DispatcherType.REQUEST, () -> {
- *         JettyBlockingHelper.blockAndMarkBlockedThrowOnFailure(
+ *         JettyBlockingHelper.blockAndThrowOnFailure(
  *             request, response, span.getBlockingAction(), span);
  *       });
  *     } else {
@@ -149,7 +149,7 @@ public class HandleVisitor extends MethodVisitor {
       super.visitMethodInsn(
           Opcodes.INVOKESTATIC,
           Type.getInternalName(JettyBlockingHelper.class),
-          "blockAndMarkBlocked",
+          "block",
           "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;"
               + Type.getDescriptor(Flow.Action.RequestBlockingAction.class)
               + Type.getDescriptor(AgentSpan.class)
@@ -267,7 +267,7 @@ public class HandleVisitor extends MethodVisitor {
             new Handle(
                 Opcodes.H_INVOKESTATIC,
                 Type.getInternalName(JettyBlockingHelper.class),
-                "blockAndMarkBlockedThrowOnFailure",
+                "blockAndThrowOnFailure",
                 "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;"
                     + Type.getDescriptor(Flow.Action.RequestBlockingAction.class)
                     + Type.getDescriptor(AgentSpan.class)

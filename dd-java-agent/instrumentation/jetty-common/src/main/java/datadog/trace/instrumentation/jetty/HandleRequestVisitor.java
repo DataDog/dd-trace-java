@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>
  * if (span != null && span.getRequestBlockingAction() &&
- *     JettyBlockingHelper.blockAndMarkBlocked(
+ *     JettyBlockingHelper.block(
  *         this.getRequest(), this.getResponse(),
  *         span.getRequestBlockingAction(), span) {
  *   // nothing
@@ -116,7 +116,7 @@ public class HandleRequestVisitor extends MethodVisitor {
       super.visitMethodInsn(
           Opcodes.INVOKESTATIC,
           Type.getInternalName(JettyBlockingHelper.class),
-          "blockAndMarkBlocked",
+          "block",
           "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;"
               + Type.getDescriptor(Flow.Action.RequestBlockingAction.class)
               + Type.getDescriptor(AgentSpan.class)

@@ -42,6 +42,11 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
   }
 
   @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
+  }
+
+  @Override
   String testPathParam() {
     routerBasePath() + "path/:id/param"
   }
