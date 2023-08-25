@@ -32,7 +32,6 @@ import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring
-import datadog.trace.core.datastreams.NoopDataStreamsMonitoring
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.Strings
 import de.thetaphi.forbiddenapis.SuppressForbidden
@@ -172,22 +171,9 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @Shared
   boolean isLatestDepTest = Boolean.getBoolean('test.dd.latestDepTest')
 
-  boolean originalAppSecRuntimeValue
-
-  protected boolean isDataStreamsEnabled() {
-    return false
-  }
-
-  protected boolean isTestAgentEnabled() {
-    return System.getenv("CI_USE_TEST_AGENT").equals("true")
-  }
-
-  protected boolean isForceAppSecActive() {
-    true
-  }
-
   @SuppressWarnings('PropertyName')
-  private TraceConfig MOCK_DSM_TRACE_CONFIG = new TraceConfig() {
+  @Shared
+  TraceConfig MOCK_DSM_TRACE_CONFIG = new TraceConfig() {
     @Override
     boolean isDebugEnabled() {
       return true
@@ -232,6 +218,20 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     Double getTraceSampleRate() {
       return null
     }
+  }
+
+  boolean originalAppSecRuntimeValue
+
+  protected boolean isDataStreamsEnabled() {
+    return false
+  }
+
+  protected boolean isTestAgentEnabled() {
+    return System.getenv("CI_USE_TEST_AGENT").equals("true")
+  }
+
+  protected boolean isForceAppSecActive() {
+    true
   }
 
   private static void configureLoggingLevels() {
