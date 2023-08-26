@@ -23,6 +23,11 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
   }
 
   @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
+  }
+
+  @Override
   boolean testRequestBody() {
     true
   }

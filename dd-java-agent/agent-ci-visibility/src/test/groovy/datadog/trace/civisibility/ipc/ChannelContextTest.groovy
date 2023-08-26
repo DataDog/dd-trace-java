@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.ipc
 
+import datadog.trace.api.Platform
 import spock.lang.IgnoreIf
 import spock.lang.Specification
 
@@ -7,8 +8,8 @@ import java.nio.ByteBuffer
 import java.nio.channels.ByteChannel
 import java.util.concurrent.ThreadLocalRandom
 
-@IgnoreIf(reason = "JVM crash with IBM JDK", value = {
-  System.getProperty("java.vendor").contains("IBM") && System.getProperty("java.version").contains("1.8.")
+@IgnoreIf(reason = "JVM crash with OpenJ9", value = {
+  Platform.isJ9()
 })
 class ChannelContextTest extends Specification {
 

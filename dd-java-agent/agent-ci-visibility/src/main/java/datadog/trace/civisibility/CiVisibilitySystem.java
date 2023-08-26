@@ -33,16 +33,19 @@ import datadog.trace.civisibility.events.BuildEventsHandlerImpl;
 import datadog.trace.civisibility.events.TestEventsHandlerImpl;
 import datadog.trace.civisibility.git.CILocalGitInfoBuilder;
 import datadog.trace.civisibility.git.CIProviderGitInfoBuilder;
+import datadog.trace.civisibility.git.GitClientGitInfoBuilder;
 import datadog.trace.civisibility.git.tree.GitClient;
 import datadog.trace.civisibility.git.tree.GitDataApi;
 import datadog.trace.civisibility.git.tree.GitDataUploader;
 import datadog.trace.civisibility.git.tree.GitDataUploaderImpl;
 import datadog.trace.civisibility.ipc.SignalClient;
 import datadog.trace.civisibility.ipc.SignalServer;
-import datadog.trace.civisibility.source.BestEfforSourcePathResolver;
+import datadog.trace.civisibility.source.BestEffortMethodLinesResolver;
+import datadog.trace.civisibility.source.BestEffortSourcePathResolver;
+import datadog.trace.civisibility.source.ByteCodeMethodLinesResolver;
+import datadog.trace.civisibility.source.CompilerAidedMethodLinesResolver;
 import datadog.trace.civisibility.source.CompilerAidedSourcePathResolver;
 import datadog.trace.civisibility.source.MethodLinesResolver;
-import datadog.trace.civisibility.source.MethodLinesResolverImpl;
 import datadog.trace.civisibility.source.index.RepoIndexBuilder;
 import datadog.trace.civisibility.source.index.RepoIndexFetcher;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
@@ -55,6 +58,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,10 +76,16 @@ public class CiVisibilitySystem {
       return;
     }
 
-    GitInfoProvider.INSTANCE.registerGitInfoBuilder(new CIProviderGitInfoBuilder());
-    GitInfoProvider.INSTANCE.registerGitInfoBuilder(new CILocalGitInfoBuilder(GIT_FOLDER_NAME));
+    Function<String, GitClient> gitClientFactory = buildGitClientFactory(config);
 
-    DDTestSessionImpl.SessionImplFactory sessionFactory = sessionFactory(config, sco);
+    GitInfoProvider gitInfoProvider = GitInfoProvider.INSTANCE;
+    gitInfoProvider.registerGitInfoBuilder(new CIProviderGitInfoBuilder());
+    gitInfoProvider.registerGitInfoBuilder(
+        new CILocalGitInfoBuilder(gitClientFactory, GIT_FOLDER_NAME));
+    gitInfoProvider.registerGitInfoBuilder(new GitClientGitInfoBuilder(config, gitClientFactory));
+
+    DDTestSessionImpl.SessionImplFactory sessionFactory =
+        sessionFactory(config, sco, gitInfoProvider, gitClientFactory);
     CIVisibility.registerSessionFactory(sessionFactory);
 
     InstrumentationBridge.registerTestEventsHandlerFactory(
@@ -83,6 +93,13 @@ public class CiVisibilitySystem {
     InstrumentationBridge.registerBuildEventsHandlerFactory(
         buildEventsHandlerFactory(sessionFactory));
     InstrumentationBridge.registerCoverageProbeStoreFactory(buildTestProbesFactory(config));
+  }
+
+  private static Function<String, GitClient> buildGitClientFactory(Config config) {
+    return (String repoRoot) -> {
+      long commandTimeoutMillis = config.getCiVisibilityGitCommandTimeoutMillis();
+      return new GitClient(repoRoot, "1 month ago", 1000, commandTimeoutMillis);
+    };
   }
 
   private static CoverageProbeStore.Factory buildTestProbesFactory(Config config) {
@@ -96,11 +113,20 @@ public class CiVisibilitySystem {
   }
 
   private static DDTestSessionImpl.SessionImplFactory sessionFactory(
-      Config config, SharedCommunicationObjects sco) {
+      Config config,
+      SharedCommunicationObjects sco,
+      GitInfoProvider gitInfoProvider,
+      Function<String, GitClient> gitClientFactory) {
     BackendApiFactory backendApiFactory = new BackendApiFactory(config, sco);
     BackendApi backendApi = backendApiFactory.createBackendApi();
 
     return (String projectName, Path projectRoot, String component, Long startTime) -> {
+      // Session needs to see the most recent commit in a repo.
+      // Cache shouldn't be a problem normally,
+      // but it can get stale if we're inside a long-running Gradle daemon
+      // and repo that we're using gets updated
+      gitInfoProvider.invalidateCache();
+
       CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(config);
       CIProviderInfo ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(projectRoot);
       CIInfo ciInfo = ciProviderInfo.buildCIInfo();
@@ -109,12 +135,17 @@ public class CiVisibilitySystem {
       RepoIndexProvider indexProvider = getRepoIndexProvider(config, repoRoot);
       SourcePathResolver sourcePathResolver = getSourcePathResolver(repoRoot, indexProvider);
       Codeowners codeowners = getCodeowners(repoRoot);
-      MethodLinesResolver methodLinesResolver = new MethodLinesResolverImpl();
+
+      MethodLinesResolver methodLinesResolver =
+          new BestEffortMethodLinesResolver(
+              new CompilerAidedMethodLinesResolver(), new ByteCodeMethodLinesResolver());
+
       Map<String, String> ciTags = new CITagsProvider().getCiTags(ciInfo);
       TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags);
       TestModuleRegistry testModuleRegistry = new TestModuleRegistry();
 
-      GitDataUploader gitDataUploader = buildGitDataUploader(config, backendApi, repoRoot);
+      GitDataUploader gitDataUploader =
+          buildGitDataUploader(config, gitInfoProvider, gitClientFactory, backendApi, repoRoot);
       ModuleExecutionSettingsFactory moduleExecutionSettingsFactory =
           buildModuleExecutionSettingsFactory(config, backendApi, gitDataUploader, repoRoot);
 
@@ -197,7 +228,11 @@ public class CiVisibilitySystem {
   }
 
   private static GitDataUploader buildGitDataUploader(
-      Config config, BackendApi backendApi, String repoRoot) {
+      Config config,
+      GitInfoProvider gitInfoProvider,
+      Function<String, GitClient> gitClientFactory,
+      BackendApi backendApi,
+      String repoRoot) {
     if (!config.isCiVisibilityGitUploadEnabled()) {
       return () -> CompletableFuture.completedFuture(null);
     }
@@ -214,12 +249,11 @@ public class CiVisibilitySystem {
       return () -> CompletableFuture.completedFuture(null);
     }
 
-    long commandTimeoutMillis = config.getCiVisibilityGitCommandTimeoutMillis();
     String remoteName = config.getCiVisibilityGitRemoteName();
-
     GitDataApi gitDataApi = new GitDataApi(backendApi);
-    GitClient gitClient = new GitClient(repoRoot, "1 month ago", 1000, commandTimeoutMillis);
-    return new GitDataUploaderImpl(config, gitDataApi, gitClient, remoteName);
+    GitClient gitClient = gitClientFactory.apply(repoRoot);
+    return new GitDataUploaderImpl(
+        config, gitDataApi, gitClient, gitInfoProvider, repoRoot, remoteName);
   }
 
   private static ModuleExecutionSettingsFactory buildModuleExecutionSettingsFactory(
@@ -266,7 +300,7 @@ public class CiVisibilitySystem {
     if (repoRoot != null) {
       RepoIndexSourcePathResolver indexSourcePathResolver =
           new RepoIndexSourcePathResolver(repoRoot, indexProvider);
-      return new BestEfforSourcePathResolver(
+      return new BestEffortSourcePathResolver(
           new CompilerAidedSourcePathResolver(repoRoot), indexSourcePathResolver);
     } else {
       return clazz -> null;

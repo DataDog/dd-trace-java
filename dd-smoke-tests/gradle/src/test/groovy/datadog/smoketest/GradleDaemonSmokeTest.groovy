@@ -281,8 +281,8 @@ class GradleDaemonSmokeTest extends Specification {
     "7.6.1" | "success"
     "8.0.2" | "success"
     "8.1.1" | "success"
-    "8.2.1" | "success"
-    "8.2.1" | "successJunit5"
+    "8.3" | "success"
+    "8.3" | "successJunit5"
   }
 
   // this is a separate test case since older Gradle versions need to declare dependencies differently
@@ -591,7 +591,7 @@ class GradleDaemonSmokeTest extends Specification {
 
     where:
     //
-    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.2.1"]
+    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.3"]
   }
 
   def "Failed build emits session and module spans: Gradle v#gradleVersion"() {
@@ -695,7 +695,7 @@ class GradleDaemonSmokeTest extends Specification {
     }
 
     where:
-    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.2.1"]
+    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.3"]
   }
 
   def "Build without tests emits session and module spans: Gradle v#gradleVersion"() {
@@ -748,7 +748,7 @@ class GradleDaemonSmokeTest extends Specification {
     }
 
     where:
-    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.2.1"]
+    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.3"]
   }
 
   def "Corrupted build emits session span: Gradle v#gradleVersion"() {
@@ -785,7 +785,7 @@ class GradleDaemonSmokeTest extends Specification {
     }
 
     where:
-    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.2.1"]
+    gradleVersion << ["4.0", "5.0", "6.0", "7.0", "7.6.1", "8.0.2", "8.1.1", "8.3"]
   }
 
   private void givenGradleProperties() {

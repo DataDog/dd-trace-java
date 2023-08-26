@@ -108,6 +108,31 @@ class MavenSmokeTest extends Specification {
     then:
     exitCode == 0
 
+    verifyEventsAndCoverages(mavenVersion)
+
+    where:
+    mavenVersion << ["3.2.1", "3.2.5", "3.3.9", "3.5.4", "3.6.3", "3.8.8", "3.9.4", "4.0.0-alpha-7"]
+  }
+
+  def "test maven run with jacoco and argLine, v#mavenVersion"() {
+    given:
+    givenWrapperPropertiesFile(mavenVersion)
+    givenMavenProjectFiles("test_successful_maven_run_with_jacoco_and_argline")
+    givenMavenDependenciesAreLoaded()
+
+    when:
+    def exitCode = whenRunningMavenBuild()
+
+    then:
+    exitCode == 0
+
+    verifyEventsAndCoverages(mavenVersion)
+
+    where:
+    mavenVersion << ["3.9.4"]
+  }
+
+  private verifyEventsAndCoverages(String mavenVersion) {
     def events = waitForEvents(5)
     assert events.size() == 5
 
@@ -142,12 +167,12 @@ class MavenSmokeTest extends Specification {
     verifyAll(moduleEndEvent) {
       verifyAll(content) {
         name == "maven.test_module"
-        resource == "Maven Smoke Tests Project test" // project name + execution goal
+        resource == "Maven Smoke Tests Project maven-surefire-plugin default-test" // project name + plugin name + execution ID
         test_session_id == sessionEndEvent.content.test_session_id
         test_module_id > 0
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
-          it["test.module"] == "Maven Smoke Tests Project test" // project name + execution goal
+          it["test.module"] == "Maven Smoke Tests Project maven-surefire-plugin default-test" // project name + plugin name + execution ID
           it["test.status"] == "pass"
           it["test.code_coverage.enabled"] == "true"
           it["test.itr.tests_skipping.enabled"] == "true"
@@ -249,9 +274,6 @@ class MavenSmokeTest extends Specification {
         ]
       ]
     ]
-
-    where:
-    mavenVersion << ["3.2.1", "3.2.5", "3.3.9", "3.5.4", "3.6.3", "3.8.8", "3.9.3", "4.0.0-alpha-7"]
   }
 
   private void givenWrapperPropertiesFile(String mavenVersion) {

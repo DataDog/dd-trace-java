@@ -33,8 +33,9 @@ final class CachedData {
     testcontainers: '1.17.3',
     jmc           : "8.1.0",
     autoservice   : "1.0-rc7",
-    ddprof        : "0.70.0",
-    asm           : "9.5"
+    ddprof        : "0.70.1",
+    asm           : "9.5",
+    cafe_crypto   : "0.1.0"
   ]
 
   static deps = [
@@ -55,6 +56,11 @@ final class CachedData {
     asm                  : "org.ow2.asm:asm:${versions.asm}",
     asmcommons           : "org.ow2.asm:asm-commons:${versions.asm}",
     dogstatsd            : "com.datadoghq:java-dogstatsd-client:${versions.dogstatsd}",
+
+    cafe_crypto          : [
+      "cafe.cryptography:ed25519-elisabeth:${versions.cafe_crypto}",
+      "cafe.cryptography:curve25519-elisabeth:${versions.cafe_crypto}"
+    ],
 
     // Testing
 
@@ -139,6 +145,9 @@ final class CachedData {
 
       // jctools and its transitives
       exclude(dependency('org.jctools::'))
+
+      // cafe_crypto and its transitives
+      exclude(dependency('cafe.cryptography::'))
     }
   ]
 }

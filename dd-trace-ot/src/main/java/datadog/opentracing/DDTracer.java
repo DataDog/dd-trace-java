@@ -468,7 +468,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
     if (carrier instanceof TextMap) {
       final AgentSpan.Context context = converter.toContext(spanContext);
 
-      tracer.inject(context, (TextMap) carrier, TextMapSetter.INSTANCE);
+      tracer.propagate().inject(context, (TextMap) carrier, TextMapSetter.INSTANCE);
     } else {
       log.debug("Unsupported format for propagation - {}", format.getClass().getName());
     }
@@ -478,7 +478,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   public <C> SpanContext extract(final Format<C> format, final C carrier) {
     if (carrier instanceof TextMap) {
       final AgentSpan.Context tagContext =
-          tracer.extract((TextMap) carrier, new TextMapGetter((TextMap) carrier));
+          tracer.propagate().extract((TextMap) carrier, new TextMapGetter((TextMap) carrier));
 
       return converter.toSpanContext(tagContext);
     } else {

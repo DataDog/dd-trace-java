@@ -90,7 +90,9 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           sortedTags.put(TOPIC_TAG, val.topic());
           sortedTags.put(TYPE_TAG, "kafka");
 
-          AgentTracer.get().setDataStreamCheckpoint(span, sortedTags, val.timestamp());
+          AgentTracer.get()
+              .getDataStreamsMonitoring()
+              .setCheckpoint(span, sortedTags, val.timestamp());
         } else {
           span = startSpan(operationName, null);
         }

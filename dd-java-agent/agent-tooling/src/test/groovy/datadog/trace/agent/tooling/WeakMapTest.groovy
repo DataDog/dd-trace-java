@@ -1,8 +1,8 @@
 package datadog.trace.agent.tooling
 
-import datadog.trace.test.util.Flaky
 import datadog.trace.test.util.GCUtils
 import datadog.trace.test.util.DDSpecification
+import spock.lang.IgnoreIf
 
 import java.lang.ref.WeakReference
 import java.util.concurrent.TimeUnit
@@ -36,6 +36,7 @@ class WeakMapTest extends DDSpecification {
   }
 
   //@Flaky("awaitGC usage is flaky")
+  @IgnoreIf(reason="Often fails in Semeru runtime", value = { System.getProperty("java.runtime.name").contains("Semeru") })
   def "Unreferenced map gets cleaned up"() {
     setup:
     def map = WeakMaps.newWeakMap()
@@ -51,6 +52,7 @@ class WeakMapTest extends DDSpecification {
   }
 
   //@Flaky("awaitGC usage is flaky")
+  @IgnoreIf(reason="Often fails in Semeru runtime", value = { System.getProperty("java.runtime.name").contains("Semeru") })
   def "Unreferenced keys get cleaned up"() {
     setup:
     def key = new Object()

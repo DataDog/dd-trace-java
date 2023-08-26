@@ -303,16 +303,35 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     hasVulnerability { vul -> vul.type == 'TRUST_BOUNDARY_VIOLATION' }
   }
 
-  void 'xss is present when write String'() {
+  void 'xss is present'() {
     setup:
-    final url = "http://localhost:${httpPort}/xss/write?string=test"
+    final url = "http://localhost:${httpPort}/xss/${method}?string=${param}"
     final request = new Request.Builder().url(url).get().build()
 
     when:
     client.newCall(request).execute()
 
     then:
-    hasVulnerability { vul -> vul.type == 'XSS' && vul.location.method == 'xssWrite' }
+    hasVulnerability { vul -> vul.type == 'XSS' && vul.location.method == method }
+
+    where:
+    method     | param
+    'write'    | 'test'
+    'write2'   | 'test'
+    'write3'   | 'test'
+    'write4'   | 'test'
+    'print'    | 'test'
+    'print2'   | 'test'
+    'println'  | 'test'
+    'println2' | 'test'
+    'printf'   | 'Formatted%20like%3A%20%251%24s%20and%20%252%24s.'
+    'printf2'  | 'test'
+    'printf3'  | 'Formatted%20like%3A%20%251%24s%20and%20%252%24s.'
+    'printf4'  | 'test'
+    'format'   | 'Formatted%20like%3A%20%251%24s%20and%20%252%24s.'
+    'format2'  | 'test'
+    'format3'  | 'Formatted%20like%3A%20%251%24s%20and%20%252%24s.'
+    'format4'  | 'test'
   }
 
   void 'trust boundary violation with cookie propagation'() {

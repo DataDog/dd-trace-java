@@ -46,6 +46,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_UPLOAD_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_VERIFY_BYTECODE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_START_DELAY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_BODY_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_PARAMS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HEALTH_METRICS_ENABLED;
@@ -275,6 +277,8 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_BODY_AND_PARAMS_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_BODY_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_PARAMS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_INBOUND_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_OUTBOUND_METHODS;
@@ -291,6 +295,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_MEASUR
 import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.IGNITE_CACHE_INCLUDE_KEYS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JAX_RS_EXCEPTION_AS_ERROR_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_UNACKNOWLEDGED_MAX_AGE;
@@ -767,8 +772,11 @@ public class Config {
 
   private final boolean longRunningTraceEnabled;
   private final long longRunningTraceFlushInterval;
+  private final boolean elasticsearchBodyEnabled;
+  private final boolean elasticsearchParamsEnabled;
   private final boolean elasticsearchBodyAndParamsEnabled;
   private final boolean sparkTaskHistogramEnabled;
+  private final boolean jaxRsExceptionAsErrorsEnabled;
 
   private final float traceFlushIntervalSeconds;
 
@@ -847,6 +855,11 @@ public class Config {
     } else {
       secureRandom = configProvider.getBoolean(SECURE_RANDOM, DEFAULT_SECURE_RANDOM);
     }
+    elasticsearchBodyEnabled =
+        configProvider.getBoolean(ELASTICSEARCH_BODY_ENABLED, DEFAULT_ELASTICSEARCH_BODY_ENABLED);
+    elasticsearchParamsEnabled =
+        configProvider.getBoolean(
+            ELASTICSEARCH_PARAMS_ENABLED, DEFAULT_ELASTICSEARCH_PARAMS_ENABLED);
     elasticsearchBodyAndParamsEnabled =
         configProvider.getBoolean(
             ELASTICSEARCH_BODY_AND_PARAMS_ENABLED, DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED);
@@ -1702,6 +1715,11 @@ public class Config {
     this.sparkTaskHistogramEnabled =
         configProvider.getBoolean(
             SPARK_TASK_HISTOGRAM_ENABLED, ConfigDefaults.DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED);
+
+    this.jaxRsExceptionAsErrorsEnabled =
+        configProvider.getBoolean(
+            JAX_RS_EXCEPTION_AS_ERROR_ENABLED,
+            ConfigDefaults.DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED);
 
     this.traceFlushIntervalSeconds =
         configProvider.getFloat(
@@ -2784,12 +2802,24 @@ public class Config {
     return grpcClientErrorStatuses;
   }
 
+  public boolean isElasticsearchBodyEnabled() {
+    return elasticsearchBodyEnabled;
+  }
+
+  public boolean isElasticsearchParamsEnabled() {
+    return elasticsearchParamsEnabled;
+  }
+
   public boolean isElasticsearchBodyAndParamsEnabled() {
     return elasticsearchBodyAndParamsEnabled;
   }
 
   public boolean isSparkTaskHistogramEnabled() {
     return sparkTaskHistogramEnabled;
+  }
+
+  public boolean isJaxRsExceptionAsErrorEnabled() {
+    return jaxRsExceptionAsErrorsEnabled;
   }
 
   /** @return A map of tags to be applied only to the local application root span. */
@@ -3796,6 +3826,10 @@ public class Config {
         + longRunningTraceEnabled
         + ", longRunningTraceFlushInterval="
         + longRunningTraceFlushInterval
+        + ", elasticsearchBodyEnabled="
+        + elasticsearchBodyEnabled
+        + ", elasticsearchParamsEnabled="
+        + elasticsearchParamsEnabled
         + ", elasticsearchBodyAndParamsEnabled="
         + elasticsearchBodyAndParamsEnabled
         + ", traceFlushInterval="
@@ -3806,6 +3840,8 @@ public class Config {
         + logsInjectionEnabled
         + ", sparkTaskHistogramEnabled="
         + sparkTaskHistogramEnabled
+        + ", jaxRsExceptionAsErrorsEnabled="
+        + jaxRsExceptionAsErrorsEnabled
         + '}';
   }
 }

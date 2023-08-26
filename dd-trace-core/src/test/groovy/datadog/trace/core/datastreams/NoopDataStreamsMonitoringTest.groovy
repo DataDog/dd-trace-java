@@ -10,6 +10,6 @@ class NoopDataStreamsMonitoringTest extends DDCoreSpecification {
     def extractor = Mock(HttpCodec.Extractor)
 
     then:
-    checkpointer.decorate(extractor) == extractor
+    checkpointer.extractor(extractor) == extractor
   }
 }

@@ -14,7 +14,6 @@ import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.instrumentation.springweb.PairList;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.Map;
@@ -98,9 +97,11 @@ public class HandleMatchAdvice {
               BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
               if (brf != null) {
                 brf.tryCommitBlockingResponse(
-                    rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+                    reqCtx.getTraceSegment(),
+                    rba.getStatusCode(),
+                    rba.getBlockingContentType(),
+                    rba.getExtraHeaders());
               }
-              reqCtx.getTraceSegment().effectivelyBlocked();
               t =
                   new BlockingException(
                       "Blocked request (for RequestMappingInfoHandlerMapping/handleMatch)");

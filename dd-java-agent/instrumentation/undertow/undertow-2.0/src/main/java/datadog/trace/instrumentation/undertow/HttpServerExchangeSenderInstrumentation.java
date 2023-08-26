@@ -80,6 +80,8 @@ public class HttpServerExchangeSenderInstrumentation extends Instrumenter.AppSec
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
 
       xchg.putAttachment(UndertowBlockingHandler.REQUEST_BLOCKING_DATA, rba);
+      xchg.putAttachment(
+          UndertowBlockingHandler.TRACE_SEGMENT, span.getRequestContext().getTraceSegment());
       UndertowBlockingHandler.INSTANCE.handleRequest(xchg);
       return true;
     }

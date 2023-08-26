@@ -11,8 +11,10 @@ import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.gateway.BlockResponseFunction;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
@@ -86,6 +88,18 @@ public class LibertyDecorator
     return response.getStatus();
   }
 
+  @Override
+  public AgentSpan onResponseStatus(AgentSpan span, int status) {
+    Integer currentStatus = (Integer) span.getTag(Tags.HTTP_STATUS);
+    // do not set status if the tag is already there and it's an error span
+    // we may have the status during response blocking, but in that case
+    // the status code is not propagated to the servlet layer
+    if (currentStatus == null || !span.isError()) {
+      span.setHttpStatusCode(status);
+    }
+    return span;
+  }
+
   public AgentSpan getPath(AgentSpan span, HttpServletRequest request) {
     if (request != null) {
       String contextPath = request.getContextPath();
@@ -104,6 +118,11 @@ public class LibertyDecorator
     return span;
   }
 
+  @Override
+  protected boolean isAppSecOnResponseSeparate() {
+    return true;
+  }
+
   public AgentSpan onResponse(AgentSpan span, SRTServletResponse response) {
     HttpServletRequest req = response.getRequest();
 
@@ -113,7 +132,8 @@ public class LibertyDecorator
     super.onResponse(span, response);
 
     Object ex = req.getAttribute("javax.servlet.error.exception");
-    Object report = req.getAttribute("ErrorReport");
+    Object report;
+    Object errorMessage;
     Throwable throwable = null;
     if (ex instanceof Throwable) {
       throwable = (Throwable) ex;
@@ -121,12 +141,13 @@ public class LibertyDecorator
         throwable = ((ServletException) throwable).getRootCause();
       }
       onError(span, throwable);
-    }
-
-    // overwrite the HTTP status codes, and if a custom error report is provided by liberty server
-    if (report instanceof WebAppErrorReport) {
+    } else if ((report = req.getAttribute("ErrorReport")) instanceof WebAppErrorReport) {
+      // overwrite the HTTP status codes, and if a custom error report is provided by liberty server
       WebAppErrorReport errReport = (WebAppErrorReport) report;
       onError(span, errReport, throwable);
+    } else if ((errorMessage = req.getAttribute("javax.servlet.error.message")) instanceof String) {
+      span.setError(true);
+      span.setTag(DDTags.ERROR_MSG, (String) errorMessage);
     }
     return span;
   }
@@ -152,7 +173,10 @@ public class LibertyDecorator
 
     @Override
     public boolean tryCommitBlockingResponse(
-        int statusCode, BlockingContentType bct, Map<String, String> extraHeaders) {
+        TraceSegment segment,
+        int statusCode,
+        BlockingContentType bct,
+        Map<String, String> extraHeaders) {
       if (!(request instanceof SRTServletRequest)) {
         log.warn("Can't block; request not of type SRTServletRequest");
         return false;
@@ -163,7 +187,7 @@ public class LibertyDecorator
         return false;
       }
       ServletBlockingHelper.commitBlockingResponse(
-          request, (HttpServletResponse) response, statusCode, bct, extraHeaders);
+          segment, request, (HttpServletResponse) response, statusCode, bct, extraHeaders);
 
       return true;
     }

@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.tomcat;
 
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper.TemplateType;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
@@ -34,12 +35,18 @@ public class TomcatBlockingHelper {
   }
 
   public static void commitBlockingResponse(
-      Request request, Response resp, Flow.Action.RequestBlockingAction rba) {
+      TraceSegment segment, Request request, Response resp, Flow.Action.RequestBlockingAction rba) {
     commitBlockingResponse(
-        request, resp, rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+        segment,
+        request,
+        resp,
+        rba.getStatusCode(),
+        rba.getBlockingContentType(),
+        rba.getExtraHeaders());
   }
 
   public static boolean commitBlockingResponse(
+      TraceSegment segment,
       Request request,
       Response resp,
       int statusCode,
@@ -67,6 +74,7 @@ public class TomcatBlockingHelper {
       } catch (IllegalStateException ise) {
         tryWriteWithWriter(request, resp, templateType);
       }
+      segment.effectivelyBlocked();
     } catch (Throwable e) {
       log.info("Error sending error page", e);
     }

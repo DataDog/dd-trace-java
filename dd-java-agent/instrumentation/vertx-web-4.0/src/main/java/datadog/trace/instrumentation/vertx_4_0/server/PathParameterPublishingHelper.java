@@ -47,9 +47,11 @@ public class PathParameterPublishingHelper {
           } else {
             Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
             brf.tryCommitBlockingResponse(
-                rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+                requestContext.getTraceSegment(),
+                rba.getStatusCode(),
+                rba.getBlockingContentType(),
+                rba.getExtraHeaders());
 
-            requestContext.getTraceSegment().effectivelyBlocked();
             return new BlockingException("Blocked request (for route/matches)");
           }
         }

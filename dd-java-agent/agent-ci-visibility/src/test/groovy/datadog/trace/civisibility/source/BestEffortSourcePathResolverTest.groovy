@@ -10,7 +10,7 @@ class BestEffortSourcePathResolverTest extends Specification {
     def expectedPath = "source/path/TestClass.java"
     def delegate = Stub(SourcePathResolver)
     def secondDelegate = Stub(SourcePathResolver)
-    def resolver = new BestEfforSourcePathResolver(delegate, secondDelegate)
+    def resolver = new BestEffortSourcePathResolver(delegate, secondDelegate)
 
     delegate.getSourcePath(TestClass) >> expectedPath
     secondDelegate.getSourcePath(TestClass) >> null
@@ -27,7 +27,7 @@ class BestEffortSourcePathResolverTest extends Specification {
     def expectedPath = "source/path/TestClass.java"
     def delegate = Stub(SourcePathResolver)
     def secondDelegate = Stub(SourcePathResolver)
-    def resolver = new BestEfforSourcePathResolver(delegate, secondDelegate)
+    def resolver = new BestEffortSourcePathResolver(delegate, secondDelegate)
 
     delegate.getSourcePath(TestClass) >> null
     secondDelegate.getSourcePath(TestClass) >> expectedPath
@@ -43,7 +43,7 @@ class BestEffortSourcePathResolverTest extends Specification {
     setup:
     def delegate = Stub(SourcePathResolver)
     def secondDelegate = Stub(SourcePathResolver)
-    def resolver = new BestEfforSourcePathResolver(delegate, secondDelegate)
+    def resolver = new BestEffortSourcePathResolver(delegate, secondDelegate)
 
     delegate.getSourcePath(TestClass) >> null
     secondDelegate.getSourcePath(TestClass) >> null

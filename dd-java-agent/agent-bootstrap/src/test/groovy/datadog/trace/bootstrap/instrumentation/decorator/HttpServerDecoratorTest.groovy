@@ -18,6 +18,7 @@ import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter
+import datadog.trace.core.datastreams.NoopDataStreamsMonitoring
 
 import java.util.function.Function
 import java.util.function.Supplier
@@ -422,6 +423,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       startSpan(_, _, _) >> mSpan
       getCallbackProvider(RequestContextSlot.APPSEC) >> cbpAppSec
       getCallbackProvider(RequestContextSlot.IAST) >> CallbackProvider.CallbackProviderNoop.INSTANCE
+      getDataStreamsMonitoring() >> new NoopDataStreamsMonitoring()
     }
     def decorator = newDecorator(mTracer)
 

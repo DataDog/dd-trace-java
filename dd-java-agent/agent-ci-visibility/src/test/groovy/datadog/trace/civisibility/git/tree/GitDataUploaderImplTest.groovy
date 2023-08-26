@@ -1,6 +1,8 @@
 package datadog.trace.civisibility.git.tree
 
 import datadog.trace.api.Config
+import datadog.trace.api.git.GitInfo
+import datadog.trace.api.git.GitInfoProvider
 import datadog.trace.civisibility.utils.IOUtils
 import org.hamcrest.Description
 import org.hamcrest.Matcher
@@ -24,19 +26,25 @@ class GitDataUploaderImplTest extends Specification {
     given:
     givenGitRepo()
 
+    def repoRoot = tempDir.toString()
+    def repoUrl = "<mockRepositoryUrl>"
+
     def config = Stub(Config) {
       getCiVisibilityGitUploadTimeoutMillis() >> 15_000
     }
     def api = Mock(GitDataApi)
-    def gitClient = new GitClient(tempDir.toString(), "25 years ago", 3, TIMEOUT_MILLIS)
-    def uploader = new GitDataUploaderImpl(config, api, gitClient, "origin")
+    def gitInfoProvider = Stub(GitInfoProvider)
+    gitInfoProvider.getGitInfo(repoRoot) >> new GitInfo(repoUrl, null, null, null)
+
+    def gitClient = new GitClient(repoRoot, "25 years ago", 3, TIMEOUT_MILLIS)
+    def uploader = new GitDataUploaderImpl(config, api, gitClient, gitInfoProvider, repoRoot, "origin")
 
     when:
     def future = uploader.startOrObserveGitDataUpload()
     future.get(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
 
     then:
-    1 * api.searchCommits("git@github.com:DataDog/dd-trace-dotnet.git", [
+    1 * api.searchCommits(repoUrl, [
       "5b6f3a6dab5972d73a56dff737bd08d995255c08",
       "98cd7c8e9cf71e02dc28bd9b13928bee0f85b74c",
       "31ca182c0474f6265e660498c4fbcf775e23bba0",
@@ -46,7 +54,7 @@ class GitDataUploaderImplTest extends Specification {
     ]
 
     1 * api.uploadPackFile(
-      "git@github.com:DataDog/dd-trace-dotnet.git",
+      repoUrl,
       "5b6f3a6dab5972d73a56dff737bd08d995255c08",
       fileWithContents(Paths.get(getClass().getClassLoader().getResource("ci/git/uploadedPackFile.pack").toURI())))
     0 * _

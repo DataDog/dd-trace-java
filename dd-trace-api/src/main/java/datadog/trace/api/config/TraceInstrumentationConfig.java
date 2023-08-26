@@ -29,6 +29,8 @@ public final class TraceInstrumentationConfig {
   public static final String TRACE_CLASSES_EXCLUDE_FILE = "trace.classes.exclude.file";
   public static final String TRACE_CLASSLOADERS_EXCLUDE = "trace.classloaders.exclude";
   public static final String TRACE_CODESOURCES_EXCLUDE = "trace.codesources.exclude";
+
+  @SuppressWarnings("unused")
   public static final String TRACE_TESTS_ENABLED = "trace.tests.enabled";
 
   public static final String TRACE_THREAD_POOL_EXECUTORS_EXCLUDE =
@@ -111,10 +113,15 @@ public final class TraceInstrumentationConfig {
   public static final String RESOLVER_USE_LOADCLASS = "resolver.use.loadclass";
   public static final String RESOLVER_RESET_INTERVAL = "resolver.reset.interval";
   public static final String RESOLVER_NAMES_ARE_UNIQUE = "resolver.names.are.unique";
+  public static final String ELASTICSEARCH_BODY_ENABLED = "trace.elasticsearch.body.enabled";
+  public static final String ELASTICSEARCH_PARAMS_ENABLED = "trace.elasticsearch.params.enabled";
   public static final String ELASTICSEARCH_BODY_AND_PARAMS_ENABLED =
       "trace.elasticsearch.body-and-params.enabled";
 
   public static final String SPARK_TASK_HISTOGRAM_ENABLED = "spark.task-histogram.enabled";
+
+  public static final String JAX_RS_EXCEPTION_AS_ERROR_ENABLED =
+      "trace.jax-rs.exception-as-error.enabled";
 
   private TraceInstrumentationConfig() {}
 }

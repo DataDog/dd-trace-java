@@ -41,6 +41,9 @@ public class Reporter {
   }
 
   public void report(@Nullable final AgentSpan span, @Nonnull final Vulnerability vulnerability) {
+    if (duplicated.test(vulnerability)) {
+      return;
+    }
     if (span == null) {
       final AgentSpan newSpan = startNewSpan();
       try (final AgentScope autoClosed = tracer().activateSpan(newSpan, ScopeSource.MANUAL)) {
@@ -62,9 +65,6 @@ public class Reporter {
     }
     final IastRequestContext ctx = reqCtx.getData(RequestContextSlot.IAST);
     if (ctx == null) {
-      return;
-    }
-    if (duplicated.test(vulnerability)) {
       return;
     }
     final VulnerabilityBatch batch = ctx.getVulnerabilityBatch();

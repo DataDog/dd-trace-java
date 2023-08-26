@@ -24,6 +24,11 @@ class Jersey3JettyTest extends HttpServerTest<JettyServer> {
   }
 
   @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
+  }
+
+  @Override
   boolean testBlocking() {
     true
   }

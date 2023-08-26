@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.Platform
 import datadog.trace.instrumentation.spark.DatabricksParentContext
 import datadog.trace.instrumentation.spark.DatadogSparkListener
 import datadog.trace.test.util.Flaky
@@ -11,7 +12,11 @@ import org.apache.spark.deploy.yarn.ApplicationMaster
 import org.apache.spark.deploy.yarn.ApplicationMasterArguments
 import org.apache.spark.sql.SparkSession
 import scala.reflect.ClassTag$
+import spock.lang.IgnoreIf
 
+@IgnoreIf(reason="https://issues.apache.org/jira/browse/HADOOP-18174", value = {
+  Platform.isJ9()
+})
 class SparkTest extends AgentTestRunner {
 
   @Override
