@@ -3,11 +3,10 @@ package datadog.trace.agent.tooling;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher.globalIgnoresMatcher;
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
-import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
-import datadog.trace.agent.tooling.bytebuddy.DDOutlinePoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
 import datadog.trace.agent.tooling.bytebuddy.memoize.MemoizedMatchers;
+import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade;
 import datadog.trace.agent.tooling.usm.UsmExtractorImpl;
 import datadog.trace.agent.tooling.usm.UsmMessageFactoryImpl;
 import datadog.trace.api.InstrumenterConfig;
@@ -96,11 +95,7 @@ public class AgentInstaller {
       final AgentBuilder.Listener... listeners) {
     Utils.setInstrumentation(inst);
 
-    if (InstrumenterConfig.get().isResolverOutliningEnabled()) {
-      DDOutlinePoolStrategy.registerTypePoolFacade();
-    } else {
-      DDCachingPoolStrategy.registerAsSupplier();
-    }
+    TypePoolFacade.registerAsSupplier();
 
     if (InstrumenterConfig.get().isResolverMemoizingEnabled()) {
       MemoizedMatchers.registerAsSupplier();
