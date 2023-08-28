@@ -16,7 +16,7 @@ public class HttpHeader {
   }
 
   public boolean matches(final String name) {
-    return name != null && name.equalsIgnoreCase(this.name);
+    return this.name.equalsIgnoreCase(name);
   }
 
   public static HttpHeader from(final String name) {
