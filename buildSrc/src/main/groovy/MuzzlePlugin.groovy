@@ -210,7 +210,7 @@ class MuzzlePlugin implements Plugin<Project> {
    * Convert a muzzle directive to a list of artifacts
    */
   private static Set<Artifact> muzzleDirectiveToArtifacts(MuzzleDirective muzzleDirective, RepositorySystem system, RepositorySystemSession session) {
-    final Artifact directiveArtifact = new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, "jar", muzzleDirective.versions)
+    final Artifact directiveArtifact = new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, muzzleDirective.classifier ?: "", "jar", muzzleDirective.versions)
 
     final VersionRangeRequest rangeRequest = new VersionRangeRequest()
     rangeRequest.setRepositories(muzzleDirective.getRepositories(MUZZLE_REPOS))
@@ -226,7 +226,7 @@ class MuzzlePlugin implements Plugin<Project> {
     }.toSet()
 
     if (allVersionArtifacts.isEmpty()) {
-      throw new GradleException("No muzzle artifacts found for $muzzleDirective.group:$muzzleDirective.module $muzzleDirective.versions")
+      throw new GradleException("No muzzle artifacts found for $muzzleDirective.group:$muzzleDirective.module $muzzleDirective.versions $muzzleDirective.classifier")
     }
 
     return allVersionArtifacts
@@ -317,7 +317,11 @@ class MuzzlePlugin implements Plugin<Project> {
     def config = instrumentationProject.configurations.create(taskName)
 
     if (!muzzleDirective.coreJdk) {
-      def dep = instrumentationProject.dependencies.create("$versionArtifact.groupId:$versionArtifact.artifactId:$versionArtifact.version") {
+      def depId = "$versionArtifact.groupId:$versionArtifact.artifactId:$versionArtifact.version"
+      if (versionArtifact.classifier) {
+        depId += ":" + versionArtifact.classifier
+      }
+      def dep = instrumentationProject.dependencies.create(depId) {
         transitive = true
       }
       // The following optional transitive dependencies are brought in by some legacy module such as log4j 1.x but are no
