@@ -6,7 +6,7 @@ import static org.junit.Assume.assumeTrue;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-public class TestSuiteSetUpAssumption {
+public class TestFailedSuiteSetUpAssumption {
 
   @BeforeClass
   public static void suiteSetup() {

@@ -3,7 +3,10 @@ package datadog.trace.civisibility.source.index;
 enum SourceType {
   JAVA(".java"),
   GROOVY(".groovy"),
-  KOTLIN(".kt");
+  KOTLIN(".kt"),
+  SCALA(".scala");
+
+  private static final SourceType[] UNIVERSE = SourceType.values();
 
   private final String extension;
 
@@ -16,7 +19,7 @@ enum SourceType {
   }
 
   static SourceType getByFileName(String fileName) {
-    for (SourceType sourceType : values()) {
+    for (SourceType sourceType : UNIVERSE) {
       if (fileName.endsWith(sourceType.extension)) {
         return sourceType;
       }

@@ -81,6 +81,9 @@ public class RepoIndex {
       if ("kotlin.Metadata".equals(annotationType.getName())) {
         return SourceType.KOTLIN;
       }
+      if ("scala.reflect.ScalaSignature".equals(annotationType.getName())) {
+        return SourceType.SCALA;
+      }
     }
 
     // assuming Java

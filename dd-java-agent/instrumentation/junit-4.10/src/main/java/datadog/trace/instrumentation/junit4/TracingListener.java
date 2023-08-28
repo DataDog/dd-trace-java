@@ -2,21 +2,13 @@ package datadog.trace.instrumentation.junit4;
 
 import java.lang.reflect.Method;
 import java.util.List;
-import junit.runner.Version;
 import org.junit.Ignore;
 import org.junit.runner.Description;
 import org.junit.runner.Result;
 import org.junit.runner.notification.Failure;
 import org.junit.runner.notification.RunListener;
-import org.junit.runners.model.TestClass;
 
 public class TracingListener extends RunListener {
-
-  private final String version;
-
-  public TracingListener() {
-    version = Version.id();
-  }
 
   @Override
   public void testRunStarted(Description description) {
@@ -28,37 +20,35 @@ public class TracingListener extends RunListener {
     // on op
   }
 
-  public void testSuiteStarted(final TestClass junitTestClass, final Description description) {
-    if (!JUnit4Utils.isSuiteContainingChildren(junitTestClass, description)) {
+  public void testSuiteStarted(final Description description) {
+    if (!JUnit4Utils.isSuiteContainingChildren(description)) {
       // Not all test suites contain tests.
       // Given that test suites can be nested in other test suites,
       // we are only interested in the innermost ones where the actual test cases reside
       return;
     }
 
-    Class<?> testClass = junitTestClass.getJavaClass();
+    Class<?> testClass = description.getTestClass();
     String testSuiteName = JUnit4Utils.getSuiteName(testClass, description);
 
     String testFramework = JUnit4Utils.getTestFramework(description);
-    String testFrameworkVersion =
-        !JUnit4Utils.CUCUMBER_FRAMEWORK.equals(testFramework)
-            ? version
-            : JUnit4Utils.getCucumberVersion(description);
+    String testFrameworkVersion = JUnit4Utils.getTestFrameworkVersion(testFramework, description);
 
-    List<String> categories = JUnit4Utils.getCategories(testClass, null);
+    List<String> categories =
+        JUnit4Utils.getCategories(testFramework, description, testClass, null);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
         testSuiteName, testFramework, testFrameworkVersion, testClass, categories, false);
   }
 
-  public void testSuiteFinished(final TestClass junitTestClass, final Description description) {
-    if (!JUnit4Utils.isSuiteContainingChildren(junitTestClass, description)) {
+  public void testSuiteFinished(final Description description) {
+    if (!JUnit4Utils.isSuiteContainingChildren(description)) {
       // Not all test suites contain tests.
       // Given that test suites can be nested in other test suites,
       // we are only interested in the innermost ones where the actual test cases reside
       return;
     }
 
-    Class<?> testClass = junitTestClass.getJavaClass();
+    Class<?> testClass = description.getTestClass();
     String testSuiteName = JUnit4Utils.getSuiteName(testClass, description);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(testSuiteName, testClass);
   }
@@ -73,13 +63,11 @@ public class TracingListener extends RunListener {
     String testName = JUnit4Utils.getTestName(description, testMethod);
 
     String testFramework = JUnit4Utils.getTestFramework(description);
-    String testFrameworkVersion =
-        !JUnit4Utils.CUCUMBER_FRAMEWORK.equals(testFramework)
-            ? version
-            : JUnit4Utils.getCucumberVersion(description);
+    String testFrameworkVersion = JUnit4Utils.getTestFrameworkVersion(testFramework, description);
 
     String testParameters = JUnit4Utils.getParameters(description);
-    List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);
+    List<String> categories =
+        JUnit4Utils.getCategories(testFramework, description, testClass, testMethod);
 
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         testSuiteName,
@@ -161,6 +149,14 @@ public class TracingListener extends RunListener {
     final Ignore ignore = description.getAnnotation(Ignore.class);
     final String reason = ignore != null ? ignore.value() : null;
 
+    if (JUnit4Utils.Munit.FRAMEWORK.equals(JUnit4Utils.getTestFramework(description))) {
+      // MUnit has some inconsistencies
+      // when it comes to sending events for ignored tests.
+      // Handling it in a separate method to avoid polluting common logic
+      testIgnoredMunit(description);
+      return;
+    }
+
     if (JUnit4Utils.isTestCaseDescription(description)) {
       Method testMethod = JUnit4Utils.getTestMethod(description);
       testIgnored(description, testMethod, reason);
@@ -171,12 +167,10 @@ public class TracingListener extends RunListener {
       String testSuiteName = JUnit4Utils.getSuiteName(testClass, description);
 
       String testFramework = JUnit4Utils.getTestFramework(description);
-      String testFrameworkVersion =
-          !JUnit4Utils.CUCUMBER_FRAMEWORK.equals(testFramework)
-              ? version
-              : JUnit4Utils.getCucumberVersion(description);
+      String testFrameworkVersion = JUnit4Utils.getTestFrameworkVersion(testFramework, description);
 
-      List<String> categories = JUnit4Utils.getCategories(testClass, null);
+      List<String> categories =
+          JUnit4Utils.getCategories(testFramework, description, testClass, null);
 
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
           testSuiteName, testFramework, testFrameworkVersion, testClass, categories, false);
@@ -199,13 +193,11 @@ public class TracingListener extends RunListener {
     String testName = JUnit4Utils.getTestName(description, testMethod);
 
     String testFramework = JUnit4Utils.getTestFramework(description);
-    String testFrameworkVersion =
-        !JUnit4Utils.CUCUMBER_FRAMEWORK.equals(testFramework)
-            ? version
-            : JUnit4Utils.getCucumberVersion(description);
+    String testFrameworkVersion = JUnit4Utils.getTestFrameworkVersion(testFramework, description);
 
     String testParameters = JUnit4Utils.getParameters(description);
-    List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);
+    List<String> categories =
+        JUnit4Utils.getCategories(testFramework, description, testClass, testMethod);
 
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
         testSuiteName,
@@ -219,5 +211,24 @@ public class TracingListener extends RunListener {
         testMethodName,
         testMethod,
         reason);
+  }
+
+  private void testIgnoredMunit(final Description description) {
+    Class<?> testClass = description.getTestClass();
+    String testSuiteName = JUnit4Utils.getSuiteName(testClass, description);
+
+    if (JUnit4Utils.isTestCaseDescription(description)) {
+      String testName = JUnit4Utils.getTestName(description, null);
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(
+          testSuiteName, testClass, testName, null, null, null);
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
+          testSuiteName, testClass, testName, null, null);
+
+    } else if (JUnit4Utils.isTestSuiteDescription(description)) {
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(testSuiteName, testClass, null);
+      for (Description child : description.getChildren()) {
+        testIgnored(child, null, null);
+      }
+    }
   }
 }
