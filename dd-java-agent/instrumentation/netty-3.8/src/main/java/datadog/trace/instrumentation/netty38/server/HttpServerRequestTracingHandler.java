@@ -26,8 +26,7 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
   }
 
   @Override
-  public void messageReceived(final ChannelHandlerContext ctx, final MessageEvent msg)
-      throws Exception {
+  public void messageReceived(final ChannelHandlerContext ctx, final MessageEvent msg) {
     final ChannelTraceContext channelTraceContext =
         contextStore.putIfAbsent(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
 
@@ -49,6 +48,9 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
     final Context.Extracted context = DECORATE.extract(headers);
     final AgentSpan span = DECORATE.startSpan(headers, context);
 
+    channelTraceContext.reset();
+    channelTraceContext.setRequestHeaders(headers);
+
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, ctx.getChannel(), request, context);
@@ -59,9 +61,11 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
 
       Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
       if (rba != null) {
-        span.getRequestContext().getTraceSegment().effectivelyBlocked();
         ctx.getPipeline()
-            .addAfter(ctx.getName(), "blocking_handler", new BlockingResponseHandler(rba));
+            .addAfter(
+                ctx.getName(),
+                "blocking_handler",
+                new BlockingResponseHandler(span.getRequestContext().getTraceSegment(), rba));
       }
 
       try {

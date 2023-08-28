@@ -300,4 +300,54 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
       return taintedObjects;
     }
   }
+
+  enum NoOp implements TaintedObjects {
+    INSTANCE;
+
+    @Override
+    public TaintedObject taintInputString(
+        @Nonnull final String obj, @Nonnull final Source source, final int mark) {
+      return null;
+    }
+
+    @Override
+    public TaintedObject taintInputObject(
+        @Nonnull final Object obj, @Nonnull final Source source, final int mark) {
+      return null;
+    }
+
+    @Override
+    public TaintedObject taint(@Nonnull final Object obj, @Nonnull final Range[] ranges) {
+      return null;
+    }
+
+    @Override
+    public TaintedObject get(@Nonnull final Object obj) {
+      return null;
+    }
+
+    @Override
+    public void release() {}
+
+    @Override
+    public boolean isFlat() {
+      return false;
+    }
+
+    @Override
+    public int count() {
+      return 0;
+    }
+
+    @Override
+    public int getEstimatedSize() {
+      return 0;
+    }
+
+    @Override
+    @Nonnull
+    public Iterator<TaintedObject> iterator() {
+      return emptyIterator();
+    }
+  }
 }

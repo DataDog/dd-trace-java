@@ -80,7 +80,10 @@ public class MessageBodyReaderInvocationInstrumentation extends Instrumenter.App
         BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
         if (blockResponseFunction != null) {
           blockResponseFunction.tryCommitBlockingResponse(
-              rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+              reqCtx.getTraceSegment(),
+              rba.getStatusCode(),
+              rba.getBlockingContentType(),
+              rba.getExtraHeaders());
           t =
               new BlockingException(
                   "Blocked request (for AbstractReaderInterceptorContext/readFrom)");

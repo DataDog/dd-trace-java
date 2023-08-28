@@ -113,7 +113,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED = true;
-  static final String DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION = "0.1.6";
+  static final String DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION = "0.1.7";
   static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES =
       "datadog.trace.*:org.apache.commons.*:org.mockito.*";
   static final boolean DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED = true;
@@ -182,6 +182,8 @@ public final class ConfigDefaults {
 
   static final float DEFAULT_TRACE_FLUSH_INTERVAL = 1;
 
+  static final boolean DEFAULT_ELASTICSEARCH_BODY_ENABLED = false;
+  static final boolean DEFAULT_ELASTICSEARCH_PARAMS_ENABLED = true;
   static final boolean DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED = false;
 
   static final boolean DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED = true;

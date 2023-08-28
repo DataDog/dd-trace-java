@@ -4,11 +4,11 @@ import datadog.trace.api.civisibility.source.SourcePathResolver;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public class BestEfforSourcePathResolver implements SourcePathResolver {
+public class BestEffortSourcePathResolver implements SourcePathResolver {
 
   private final SourcePathResolver[] delegates;
 
-  public BestEfforSourcePathResolver(SourcePathResolver... delegates) {
+  public BestEffortSourcePathResolver(SourcePathResolver... delegates) {
     this.delegates = delegates;
   }
 

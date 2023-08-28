@@ -646,7 +646,7 @@ public class AgentTracer {
 
     @Override
     public RequestContext getRequestContext() {
-      return null;
+      return RequestContext.Noop.INSTANCE;
     }
 
     @Override

@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.util.AttributeKey;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -22,6 +23,15 @@ public final class AttributeKeys {
   public static final AttributeKey<AgentScope.Continuation>
       CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY =
           attributeKey("datadog.connect.parent.continuation");
+
+  public static final AttributeKey<HttpHeaders> REQUEST_HEADERS_ATTRIBUTE_KEY =
+      attributeKey("datadog.server.request.headers");
+
+  public static final AttributeKey<Boolean> ANALYZED_RESPONSE_KEY =
+      new AttributeKey<>("datadog.server.analyzed_response");
+
+  public static final AttributeKey<Boolean> BLOCKED_RESPONSE_KEY =
+      new AttributeKey<>("datadog.server.blocked_response");
 
   /**
    * Generate an attribute key or reuse the one existing in the global app map. This implementation

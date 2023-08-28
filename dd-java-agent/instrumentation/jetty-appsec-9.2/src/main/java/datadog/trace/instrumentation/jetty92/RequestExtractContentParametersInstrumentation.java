@@ -84,7 +84,10 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
         if (blockResponseFunction != null) {
           blockResponseFunction.tryCommitBlockingResponse(
-              rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+              reqCtx.getTraceSegment(),
+              rba.getStatusCode(),
+              rba.getBlockingContentType(),
+              rba.getExtraHeaders());
           t = new BlockingException("Blocked request (for Request/extractContentParameters)");
           reqCtx.getTraceSegment().effectivelyBlocked();
         }
@@ -127,7 +130,10 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
         if (blockResponseFunction != null) {
           blockResponseFunction.tryCommitBlockingResponse(
-              rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+              reqCtx.getTraceSegment(),
+              rba.getStatusCode(),
+              rba.getBlockingContentType(),
+              rba.getExtraHeaders());
           if (t == null) {
             t = new BlockingException("Blocked request (for Request/getParts)");
             reqCtx.getTraceSegment().effectivelyBlocked();

@@ -7,6 +7,9 @@ import static org.mockito.Mockito.when;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SpanProbe;
+import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.Sink;
 import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.api.Config;
@@ -38,6 +41,10 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.VarInsnNode;
 
 public class DebuggerTransformerTest {
   private static final String LANGUAGE = "java";
@@ -288,5 +295,57 @@ public class DebuggerTransformerTest {
     Assertions.assertFalse(lastResult.get().isBlocked());
     Assertions.assertTrue(lastResult.get().isInstalled());
     Assertions.assertEquals("java.util.ArrayList", lastResult.get().getTypeName());
+  }
+
+  @Test
+  public void classGenerationFailed() {
+    Config config = mock(Config.class);
+    DebuggerAgentHelper.injectSink(new TestSnapshotListener());
+    MockProbe mockProbe = MockProbe.builder(PROBE_ID).where("java.util.ArrayList", "add").build();
+    Configuration configuration =
+        Configuration.builder()
+            .setService(SERVICE_NAME)
+            .addSpanProbes(Collections.singletonList(mockProbe))
+            .build();
+    AtomicReference<InstrumentationResult> lastResult = new AtomicReference<>(null);
+    DebuggerTransformer debuggerTransformer =
+        new DebuggerTransformer(
+            config, configuration, ((definition, result) -> lastResult.set(result)));
+    byte[] newClassBuffer =
+        debuggerTransformer.transform(
+            ClassLoader.getSystemClassLoader(),
+            "java.util.ArrayList",
+            null,
+            null,
+            getClassFileBytes(ArrayList.class));
+    Assertions.assertNull(newClassBuffer);
+  }
+
+  private static class MockProbe extends SpanProbe {
+
+    public MockProbe(ProbeId probeId, Where where) {
+      super(LANGUAGE, probeId, null, where);
+    }
+
+    @Override
+    public void instrument(
+        ClassLoader classLoader,
+        ClassNode classNode,
+        MethodNode methodNode,
+        List<DiagnosticMessage> diagnostics,
+        List<String> probeIds) {
+      methodNode.instructions.insert(
+          new VarInsnNode(Opcodes.ASTORE, methodNode.localVariables.size()));
+    }
+
+    public static MockProbe.Builder builder(ProbeId probeId) {
+      return new MockProbe.Builder().probeId(probeId);
+    }
+
+    public static class Builder extends ProbeDefinition.Builder<MockProbe.Builder> {
+      public MockProbe build() {
+        return new MockProbe(probeId, where);
+      }
+    }
   }
 }

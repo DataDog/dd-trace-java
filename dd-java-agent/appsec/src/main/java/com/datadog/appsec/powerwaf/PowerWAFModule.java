@@ -37,6 +37,7 @@ import io.sqreen.powerwaf.PowerwafMetrics;
 import io.sqreen.powerwaf.RuleSetInfo;
 import io.sqreen.powerwaf.exception.AbstractPowerwafException;
 import io.sqreen.powerwaf.exception.InvalidRuleSetException;
+import io.sqreen.powerwaf.exception.TimeoutPowerwafException;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationHandler;
@@ -410,23 +411,26 @@ public class PowerWAFModule implements AppSecModule {
         log.debug("Skipped; the WAF is not configured");
         return;
       }
+
+      StandardizedLogging.executingWAF(log);
+      long start = 0L;
+      if (log.isDebugEnabled()) {
+        start = System.currentTimeMillis();
+      }
+
       try {
-        StandardizedLogging.executingWAF(log);
-        long start = 0L;
-        if (log.isDebugEnabled()) {
-          start = System.currentTimeMillis();
-        }
-
         resultWithData = doRunPowerwaf(reqCtx, newData, ctxAndAddr, isTransient);
-
+      } catch (TimeoutPowerwafException tpe) {
+        log.debug("Timeout calling the WAF", tpe);
+        return;
+      } catch (AbstractPowerwafException e) {
+        log.error("Error calling WAF", e);
+        return;
+      } finally {
         if (log.isDebugEnabled()) {
           long elapsed = System.currentTimeMillis() - start;
           StandardizedLogging.finishedExecutionWAF(log, elapsed);
         }
-
-      } catch (AbstractPowerwafException e) {
-        log.error("Error calling WAF", e);
-        return;
       }
 
       StandardizedLogging.inAppWafReturn(log, resultWithData);

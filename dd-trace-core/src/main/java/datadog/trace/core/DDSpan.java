@@ -148,7 +148,7 @@ public class DDSpan
   }
 
   @Override
-  public final void finish() {
+  public void finish() {
     if (!externalClock) {
       // no external clock was used, so we can rely on nano time
       finishAndAddToTrace(context.getTrace().getCurrentTimeNano() - startTimeNano);
@@ -158,7 +158,7 @@ public class DDSpan
   }
 
   @Override
-  public final void finish(final long stopTimeMicros) {
+  public void finish(final long stopTimeMicros) {
     long durationNano;
     if (!externalClock) {
       // first capture wall-clock offset from 'now' to external stop time
@@ -791,5 +791,10 @@ public class DDSpan
   @Override
   public TraceConfig traceConfig() {
     return context.getTrace().getTraceConfig();
+  }
+
+  // to be accessible in Spock spies, which the field wouldn't otherwise be
+  public long getStartTimeNano() {
+    return startTimeNano;
   }
 }

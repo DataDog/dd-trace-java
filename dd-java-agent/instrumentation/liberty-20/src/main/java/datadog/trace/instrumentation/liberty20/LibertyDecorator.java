@@ -11,6 +11,7 @@ import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.gateway.BlockResponseFunction;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -172,7 +173,10 @@ public class LibertyDecorator
 
     @Override
     public boolean tryCommitBlockingResponse(
-        int statusCode, BlockingContentType bct, Map<String, String> extraHeaders) {
+        TraceSegment segment,
+        int statusCode,
+        BlockingContentType bct,
+        Map<String, String> extraHeaders) {
       if (!(request instanceof SRTServletRequest)) {
         log.warn("Can't block; request not of type SRTServletRequest");
         return false;
@@ -183,7 +187,7 @@ public class LibertyDecorator
         return false;
       }
       ServletBlockingHelper.commitBlockingResponse(
-          request, (HttpServletResponse) response, statusCode, bct, extraHeaders);
+          segment, request, (HttpServletResponse) response, statusCode, bct, extraHeaders);
 
       return true;
     }

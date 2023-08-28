@@ -32,6 +32,13 @@ profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 default_system_tests_commit: &default_system_tests_commit 9659a5e409cf8bacabd739b6af07c5f03c9bcbd6
 
 parameters:
+  nightly:
+    type: boolean
+    default: false
+  weekly:
+    type: boolean
+    default: false
+
   gradle_flags:
     # Using no-daemon is important for the caches to be in a consistent state
     type: string
@@ -242,7 +249,7 @@ commands:
           paths:
             # Gradle version specific cache for incremental builds. Needs to match version in
             # gradle/wrapper/gradle-wrapper.properties
-            - ~/.gradle/caches/8.2
+            - ~/.gradle/caches/8.3
             # Workspace
             - ~/dd-trace-java/.gradle
             - ~/dd-trace-java/workspace
@@ -1248,32 +1255,18 @@ build_test_jobs: &build_test_jobs
       stage: required
 
 workflows:
+{% if is_regular %}
   build_test:
     jobs:
       *build_test_jobs
-
+{% endif %}
+{% if is_nightly %}
   nightly:
-    triggers:
-      - schedule:
-          # Run this job at 00:35 UTC every day
-          # The 30 minutes will allow weekly to finish before nightly is triggered on Mondays
-          cron: "35 0 * * *"
-          filters:
-            branches:
-              only:
-                - master
     jobs:
       *build_test_jobs
-
+{% endif %}
+{% if is_weekly %}
   weekly:
-    triggers:
-      - schedule:
-          # Run this job at 00:05 UTC every Monday
-          cron: "5 0 * * 1"
-          filters:
-            branches:
-              only:
-                - master
     jobs:
       # This will rebuild a main caches with a new timestamp from a clean slate
       - build_clean_cache:
@@ -1301,3 +1294,4 @@ workflows:
           name: build_cache_profiling
           gradleTarget: :profilingTest
           cacheType: profiling
+{% endif %}
