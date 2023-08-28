@@ -1,30 +1,110 @@
 package datadog.trace.civisibility;
 
-import datadog.trace.api.civisibility.CIVisibility;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+
+import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTestSession;
-import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
-import datadog.trace.civisibility.config.JvmInfo;
-import java.io.File;
-import java.nio.file.Path;
-import java.util.Collection;
-import java.util.Collections;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.civisibility.codeowners.Codeowners;
+import datadog.trace.civisibility.context.SpanTestContext;
+import datadog.trace.civisibility.context.TestContext;
+import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
+import datadog.trace.civisibility.decorator.TestDecorator;
+import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.SourcePathResolver;
 import javax.annotation.Nullable;
 
-public abstract class DDTestSessionImpl
-    implements DDTestSession, DDTestFrameworkSession, DDBuildSystemSession {
+public class DDTestSessionImpl implements DDTestSession {
+  private final AgentSpan span;
+  protected final TestContext context;
+  protected final Config config;
+  protected final TestDecorator testDecorator;
+  protected final SourcePathResolver sourcePathResolver;
+  protected final Codeowners codeowners;
+  protected final MethodLinesResolver methodLinesResolver;
+  protected final CoverageProbeStoreFactory coverageProbeStoreFactory;
 
-  public DDTestModuleImpl testModuleStart(String moduleName, @Nullable Long startTime) {
-    return testModuleStart(moduleName, startTime, Collections.emptyList());
+  public DDTestSessionImpl(
+      String projectName,
+      @Nullable Long startTime,
+      Config config,
+      TestDecorator testDecorator,
+      SourcePathResolver sourcePathResolver,
+      Codeowners codeowners,
+      MethodLinesResolver methodLinesResolver,
+      CoverageProbeStoreFactory coverageProbeStoreFactory) {
+    this.config = config;
+    this.testDecorator = testDecorator;
+    this.sourcePathResolver = sourcePathResolver;
+    this.codeowners = codeowners;
+    this.methodLinesResolver = methodLinesResolver;
+    this.coverageProbeStoreFactory = coverageProbeStoreFactory;
+
+    if (startTime != null) {
+      span = startSpan(testDecorator.component() + ".test_session", startTime);
+    } else {
+      span = startSpan(testDecorator.component() + ".test_session");
+    }
+
+    context = new SpanTestContext(span, null);
+
+    span.setSpanType(InternalSpanTypes.TEST_SESSION_END);
+    span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST_SESSION);
+    span.setTag(Tags.TEST_SESSION_ID, context.getId());
+
+    span.setResourceName(projectName);
+
+    testDecorator.afterStart(span);
   }
 
-  public abstract DDTestModuleImpl testModuleStart(
-      String moduleName, @Nullable Long startTime, Collection<File> outputClassesDirs);
+  @Override
+  public void setTag(String key, Object value) {
+    span.setTag(key, value);
+  }
 
-  public abstract ModuleExecutionSettings getModuleExecutionSettings(JvmInfo jvmInfo);
+  @Override
+  public void setErrorInfo(Throwable error) {
+    span.setError(true);
+    span.addThrowable(error);
+    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_FAIL);
+  }
 
-  public interface SessionImplFactory
-      extends CIVisibility.SessionFactory, DDBuildSystemSession.Factory {
-    DDTestSessionImpl startSession(
-        String projectName, Path projectRoot, String component, Long startTime);
+  @Override
+  public void setSkipReason(String skipReason) {
+    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
+    if (skipReason != null) {
+      span.setTag(Tags.TEST_SKIP_REASON, skipReason);
+    }
+  }
+
+  @Override
+  public void end(@Nullable Long endTime) {
+    String status = context.getStatus();
+    span.setTag(Tags.TEST_STATUS, status != null ? status : CIConstants.TEST_SKIP);
+
+    testDecorator.beforeFinish(span);
+
+    if (endTime != null) {
+      span.finish(endTime);
+    } else {
+      span.finish();
+    }
+  }
+
+  @Override
+  public DDTestModuleImpl testModuleStart(String moduleName, @Nullable Long startTime) {
+    return new DDTestModuleImpl(
+        context,
+        moduleName,
+        startTime,
+        config,
+        testDecorator,
+        sourcePathResolver,
+        codeowners,
+        methodLinesResolver,
+        coverageProbeStoreFactory);
   }
 }

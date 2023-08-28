@@ -42,8 +42,7 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
       final String buildSystemName,
       final String buildSystemVersion) {
     DDBuildSystemSession testSession =
-        sessionFactory.startSession(projectName, projectRoot, buildSystemName, null);
-    testSession.setTag(Tags.TEST_COMMAND, startCommand);
+        sessionFactory.startSession(projectName, projectRoot, startCommand, buildSystemName, null);
     testSession.setTag(Tags.TEST_TOOLCHAIN, buildSystemName + ":" + buildSystemVersion);
     inProgressTestSessions.put(sessionKey, testSession);
   }

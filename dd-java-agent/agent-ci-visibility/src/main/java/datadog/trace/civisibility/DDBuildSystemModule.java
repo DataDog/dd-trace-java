@@ -1,16 +1,16 @@
 package datadog.trace.civisibility;
 
+import datadog.trace.api.civisibility.DDTestModule;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
-import javax.annotation.Nullable;
+import datadog.trace.civisibility.ipc.ModuleExecutionResult;
+import org.jacoco.core.data.ExecutionDataStore;
 
-public interface DDBuildSystemModule {
-  void setTag(String key, Object value);
-
-  void setSkipReason(String skipReason);
-
-  void setErrorInfo(Throwable error);
+/** Test module abstraction that is used by build system instrumentations (e.g. Maven, Gradle) */
+public interface DDBuildSystemModule extends DDTestModule {
+  long getId();
 
   BuildEventsHandler.ModuleInfo getModuleInfo();
 
-  void end(@Nullable Long endTime);
+  void onModuleExecutionResultReceived(
+      ModuleExecutionResult result, ExecutionDataStore coverageData);
 }

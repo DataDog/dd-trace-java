@@ -52,14 +52,12 @@ import datadog.trace.civisibility.source.index.RepoIndexFetcher;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
 import datadog.trace.civisibility.source.index.RepoIndexSourcePathResolver;
 import datadog.trace.util.Strings;
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,15 +83,15 @@ public class CiVisibilitySystem {
         new CILocalGitInfoBuilder(gitClientFactory, GIT_FOLDER_NAME));
     gitInfoProvider.registerGitInfoBuilder(new GitClientGitInfoBuilder(config, gitClientFactory));
 
-    DDTestSessionImpl.SessionImplFactory sessionFactory =
-        sessionFactory(config, sco, gitInfoProvider, coverageProbeStoreFactory, gitClientFactory);
-    CIVisibility.registerSessionFactory(sessionFactory);
-
-    InstrumentationBridge.registerTestEventsHandlerFactory(
-        testEventsHandlerFactory(config, sessionFactory));
     InstrumentationBridge.registerBuildEventsHandlerFactory(
-        buildEventsHandlerFactory(sessionFactory));
+        buildEventsHandlerFactory(
+            config, sco, gitInfoProvider, coverageProbeStoreFactory, gitClientFactory));
+    InstrumentationBridge.registerTestEventsHandlerFactory(
+        testEventsHandlerFactory(
+            config, sco, gitInfoProvider, coverageProbeStoreFactory, gitClientFactory));
     InstrumentationBridge.registerCoverageProbeStoreRegistry(coverageProbeStoreFactory);
+
+    CIVisibility.registerSessionFactory(apiSessionFactory(config, coverageProbeStoreFactory));
   }
 
   private static GitClient.Factory buildGitClientFactory(Config config) {
@@ -110,7 +108,24 @@ public class CiVisibilitySystem {
     return new TestProbes.TestProbesFactory();
   }
 
-  private static DDTestSessionImpl.SessionImplFactory sessionFactory(
+  private static BuildEventsHandler.Factory buildEventsHandlerFactory(
+      Config config,
+      SharedCommunicationObjects sco,
+      GitInfoProvider gitInfoProvider,
+      CoverageProbeStoreFactory coverageProbeStoreFactory,
+      GitClient.Factory gitClientFactory) {
+    DDBuildSystemSession.Factory sessionFactory =
+        buildSystemSessionFactory(
+            config, sco, gitInfoProvider, coverageProbeStoreFactory, gitClientFactory);
+    return new BuildEventsHandler.Factory() {
+      @Override
+      public <U> BuildEventsHandler<U> create() {
+        return new BuildEventsHandlerImpl<>(sessionFactory, new JvmInfoFactory());
+      }
+    };
+  }
+
+  private static DDBuildSystemSession.Factory buildSystemSessionFactory(
       Config config,
       SharedCommunicationObjects sco,
       GitInfoProvider gitInfoProvider,
@@ -119,7 +134,11 @@ public class CiVisibilitySystem {
     BackendApiFactory backendApiFactory = new BackendApiFactory(config, sco);
     BackendApi backendApi = backendApiFactory.createBackendApi();
 
-    return (String projectName, Path projectRoot, String component, Long startTime) -> {
+    return (String projectName,
+        Path projectRoot,
+        String startCommand,
+        String buildSystemName,
+        Long startTime) -> {
       // Session needs to see the most recent commit in a repo.
       // Cache shouldn't be a problem normally,
       // but it can get stale if we're inside a long-running Gradle daemon
@@ -131,7 +150,7 @@ public class CiVisibilitySystem {
       CIInfo ciInfo = ciProviderInfo.buildCIInfo();
       String repoRoot = ciInfo.getCiWorkspace();
 
-      RepoIndexProvider indexProvider = getRepoIndexProvider(config, repoRoot);
+      RepoIndexProvider indexProvider = new RepoIndexBuilder(repoRoot, FileSystems.getDefault());
       SourcePathResolver sourcePathResolver = getSourcePathResolver(repoRoot, indexProvider);
       Codeowners codeowners = getCodeowners(repoRoot);
 
@@ -140,7 +159,7 @@ public class CiVisibilitySystem {
               new CompilerAidedMethodLinesResolver(), new ByteCodeMethodLinesResolver());
 
       Map<String, String> ciTags = new CITagsProvider().getCiTags(ciInfo);
-      TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags);
+      TestDecorator testDecorator = new TestDecoratorImpl(buildSystemName, ciTags);
       TestModuleRegistry testModuleRegistry = new TestModuleRegistry();
 
       GitDataUploader gitDataUploader =
@@ -151,6 +170,75 @@ public class CiVisibilitySystem {
       String signalServerHost = config.getCiVisibilitySignalServerHost();
       int signalServerPort = config.getCiVisibilitySignalServerPort();
       SignalServer signalServer = new SignalServer(signalServerHost, signalServerPort);
+
+      // only start Git data upload in parent process
+      gitDataUploader.startOrObserveGitDataUpload();
+
+      RepoIndexBuilder indexBuilder = new RepoIndexBuilder(repoRoot, FileSystems.getDefault());
+      return new DDBuildSystemSessionImpl(
+          projectName,
+          repoRoot,
+          startCommand,
+          startTime,
+          config,
+          testModuleRegistry,
+          testDecorator,
+          sourcePathResolver,
+          codeowners,
+          methodLinesResolver,
+          moduleExecutionSettingsFactory,
+          coverageProbeStoreFactory,
+          signalServer,
+          indexBuilder);
+    };
+  }
+
+  private static TestEventsHandler.Factory testEventsHandlerFactory(
+      Config config,
+      SharedCommunicationObjects sco,
+      GitInfoProvider gitInfoProvider,
+      CoverageProbeStoreFactory coverageProbeStoreFactory,
+      GitClient.Factory gitClientFactory) {
+    DDTestFrameworkSession.Factory sessionFactory =
+        testFrameworkSessionFactory(
+            config, sco, gitInfoProvider, coverageProbeStoreFactory, gitClientFactory);
+    return (String component, Path path) -> {
+      CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(config);
+      CIProviderInfo ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(path);
+      CIInfo ciInfo = ciProviderInfo.buildCIInfo();
+      String repoRoot = ciInfo.getCiWorkspace();
+      String moduleName =
+          (repoRoot != null) ? Paths.get(repoRoot).relativize(path).toString() : path.toString();
+
+      DDTestFrameworkSession testSession =
+          sessionFactory.startSession(moduleName, path, component, null);
+      DDTestFrameworkModule testModule = testSession.testModuleStart(moduleName, null);
+      return new TestEventsHandlerImpl(testSession, testModule);
+    };
+  }
+
+  private static DDTestFrameworkSession.Factory testFrameworkSessionFactory(
+      Config config,
+      SharedCommunicationObjects sco,
+      GitInfoProvider gitInfoProvider,
+      CoverageProbeStoreFactory coverageProbeStoreFactory,
+      GitClient.Factory gitClientFactory) {
+    BackendApiFactory backendApiFactory = new BackendApiFactory(config, sco);
+    BackendApi backendApi = backendApiFactory.createBackendApi();
+
+    return (String projectName, Path projectRoot, String component, Long startTime) -> {
+      CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(config);
+      CIProviderInfo ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(projectRoot);
+      CIInfo ciInfo = ciProviderInfo.buildCIInfo();
+      String repoRoot = ciInfo.getCiWorkspace();
+
+      Codeowners codeowners = getCodeowners(repoRoot);
+      MethodLinesResolver methodLinesResolver =
+          new BestEffortMethodLinesResolver(
+              new CompilerAidedMethodLinesResolver(), new ByteCodeMethodLinesResolver());
+
+      Map<String, String> ciTags = new CITagsProvider().getCiTags(ciInfo);
+      TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags);
 
       // fallbacks to System.getProperty below are needed for cases when
       // system variables are set after config was initialized
@@ -183,41 +271,34 @@ public class CiVisibilitySystem {
       // either we are in the build system
       // or we are in the tests JVM and the build system is not instrumented
       if (parentProcessSessionId == null || parentProcessModuleId == null) {
+        GitDataUploader gitDataUploader =
+            buildGitDataUploader(config, gitInfoProvider, gitClientFactory, backendApi, repoRoot);
+        ModuleExecutionSettingsFactory moduleExecutionSettingsFactory =
+            buildModuleExecutionSettingsFactory(config, backendApi, gitDataUploader, repoRoot);
+        RepoIndexProvider indexProvider = new RepoIndexBuilder(repoRoot, FileSystems.getDefault());
+        SourcePathResolver sourcePathResolver = getSourcePathResolver(repoRoot, indexProvider);
+
         // only start Git data upload in parent process
         gitDataUploader.startOrObserveGitDataUpload();
 
-        RepoIndexBuilder indexBuilder = new RepoIndexBuilder(repoRoot, FileSystems.getDefault());
-        return new DDTestSessionParent(
+        return new DDTestFrameworkSessionImpl(
             projectName,
-            repoRoot,
             startTime,
             config,
-            testModuleRegistry,
             testDecorator,
             sourcePathResolver,
             codeowners,
             methodLinesResolver,
-            moduleExecutionSettingsFactory,
             coverageProbeStoreFactory,
-            signalServer,
-            indexBuilder);
+            moduleExecutionSettingsFactory);
       }
 
-      InetSocketAddress signalServerAddress = null;
-      String host =
-          System.getProperty(
-              Strings.propertyNameToSystemPropertyName(
-                  CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST));
-      String port =
-          System.getProperty(
-              Strings.propertyNameToSystemPropertyName(
-                  CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT));
-      if (host != null && port != null) {
-        signalServerAddress = new InetSocketAddress(host, Integer.parseInt(port));
-      }
-
+      InetSocketAddress signalServerAddress = getSignalServerAddress();
+      SignalClient.Factory signalClientFactory = new SignalClient.Factory(signalServerAddress);
+      RepoIndexProvider indexProvider = new RepoIndexFetcher(signalClientFactory);
+      SourcePathResolver sourcePathResolver = getSourcePathResolver(repoRoot, indexProvider);
       CoverageDataSupplier coverageDataSupplier = InstrumentationBridge::getCoverageData;
-      return new DDTestSessionChild(
+      return new DDTestFrameworkSessionProxy(
           parentProcessSessionId,
           parentProcessModuleId,
           config,
@@ -228,6 +309,52 @@ public class CiVisibilitySystem {
           coverageProbeStoreFactory,
           coverageDataSupplier,
           signalServerAddress);
+    };
+  }
+
+  private static InetSocketAddress getSignalServerAddress() {
+    String host =
+        System.getProperty(
+            Strings.propertyNameToSystemPropertyName(
+                CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST));
+    String port =
+        System.getProperty(
+            Strings.propertyNameToSystemPropertyName(
+                CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT));
+    if (host != null && port != null) {
+      return new InetSocketAddress(host, Integer.parseInt(port));
+    } else {
+      return null;
+    }
+  }
+
+  private static CIVisibility.SessionFactory apiSessionFactory(
+      Config config, CoverageProbeStoreFactory coverageProbeStoreFactory) {
+    return (String projectName, Path projectRoot, String component, Long startTime) -> {
+      CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(config);
+      CIProviderInfo ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(projectRoot);
+      CIInfo ciInfo = ciProviderInfo.buildCIInfo();
+      String repoRoot = ciInfo.getCiWorkspace();
+
+      Codeowners codeowners = getCodeowners(repoRoot);
+      MethodLinesResolver methodLinesResolver =
+          new BestEffortMethodLinesResolver(
+              new CompilerAidedMethodLinesResolver(), new ByteCodeMethodLinesResolver());
+
+      Map<String, String> ciTags = new CITagsProvider().getCiTags(ciInfo);
+      TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags);
+      RepoIndexProvider indexProvider = new RepoIndexBuilder(repoRoot, FileSystems.getDefault());
+      SourcePathResolver sourcePathResolver = getSourcePathResolver(repoRoot, indexProvider);
+
+      return new DDTestSessionImpl(
+          projectName,
+          startTime,
+          config,
+          testDecorator,
+          sourcePathResolver,
+          codeowners,
+          methodLinesResolver,
+          coverageProbeStoreFactory);
     };
   }
 
@@ -279,26 +406,6 @@ public class CiVisibilitySystem {
             config, configurationApi, gitDataUploader, repositoryRoot));
   }
 
-  private static RepoIndexProvider getRepoIndexProvider(Config config, String repoRoot) {
-    String host = config.getCiVisibilitySignalServerHost();
-    int port = config.getCiVisibilitySignalServerPort();
-    if (host != null && port > 0 && config.isCiVisibilityRepoIndexSharingEnabled()) {
-      InetSocketAddress serverAddress = new InetSocketAddress(host, port);
-      Supplier<SignalClient> signalClientFactory =
-          () -> {
-            try {
-              return new SignalClient(serverAddress);
-            } catch (IOException e) {
-              throw new RuntimeException(
-                  "Could not instantiate signal client. " + "Host: " + host + ", port: " + port, e);
-            }
-          };
-      return new RepoIndexFetcher(signalClientFactory);
-    } else {
-      return new RepoIndexBuilder(repoRoot, FileSystems.getDefault());
-    }
-  }
-
   private static SourcePathResolver getSourcePathResolver(
       String repoRoot, RepoIndexProvider indexProvider) {
     if (repoRoot != null) {
@@ -317,32 +424,5 @@ public class CiVisibilitySystem {
     } else {
       return path -> null;
     }
-  }
-
-  private static TestEventsHandler.Factory testEventsHandlerFactory(
-      Config config, DDTestSessionImpl.SessionImplFactory sessionFactory) {
-    return (String component, Path path) -> {
-      CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(config);
-      CIProviderInfo ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(path);
-      CIInfo ciInfo = ciProviderInfo.buildCIInfo();
-      String repoRoot = ciInfo.getCiWorkspace();
-      String moduleName =
-          (repoRoot != null) ? Paths.get(repoRoot).relativize(path).toString() : path.toString();
-
-      DDTestSessionImpl testSession =
-          sessionFactory.startSession(moduleName, path, component, null);
-      DDTestModuleImpl testModule = testSession.testModuleStart(moduleName, null);
-      return new TestEventsHandlerImpl(testSession, testModule);
-    };
-  }
-
-  private static BuildEventsHandler.Factory buildEventsHandlerFactory(
-      DDBuildSystemSession.Factory sessionFactory) {
-    return new BuildEventsHandler.Factory() {
-      @Override
-      public <U> BuildEventsHandler<U> create() {
-        return new BuildEventsHandlerImpl<>(sessionFactory, new JvmInfoFactory());
-      }
-    };
   }
 }
