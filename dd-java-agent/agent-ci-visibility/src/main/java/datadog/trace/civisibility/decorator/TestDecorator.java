@@ -8,6 +8,4 @@ public interface TestDecorator {
   AgentSpan afterStart(final AgentSpan span);
 
   CharSequence component();
-
-  AgentSpan beforeFinish(final AgentSpan span);
 }

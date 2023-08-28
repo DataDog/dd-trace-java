@@ -7,6 +7,7 @@ import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
+import datadog.trace.civisibility.utils.SpanUtils;
 import javax.annotation.Nullable;
 
 /**
@@ -44,7 +45,8 @@ public class DDTestFrameworkSessionImpl extends DDTestSessionImpl
   @Override
   public DDTestFrameworkModuleImpl testModuleStart(String moduleName, @Nullable Long startTime) {
     return new DDTestFrameworkModuleImpl(
-        context,
+        span.context(),
+        span.getSpanId(),
         moduleName,
         startTime,
         config,
@@ -53,6 +55,7 @@ public class DDTestFrameworkSessionImpl extends DDTestSessionImpl
         codeowners,
         methodLinesResolver,
         coverageProbeStoreFactory,
-        moduleExecutionSettingsFactory);
+        moduleExecutionSettingsFactory,
+        SpanUtils.propagateCiVisibilityTagsTo(span));
   }
 }

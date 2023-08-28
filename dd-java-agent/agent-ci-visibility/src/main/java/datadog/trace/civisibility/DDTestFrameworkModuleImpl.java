@@ -5,11 +5,11 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.config.SkippableTest;
 import datadog.trace.api.config.CiVisibilityConfig;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory;
-import datadog.trace.civisibility.context.TestContext;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
@@ -18,6 +18,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.function.Consumer;
 import javax.annotation.Nullable;
 
 /**
@@ -35,7 +36,8 @@ public class DDTestFrameworkModuleImpl extends DDTestModuleImpl implements DDTes
   private volatile boolean itrEnabled;
 
   public DDTestFrameworkModuleImpl(
-      TestContext sessionContext,
+      AgentSpan.Context sessionSpanContext,
+      long sessionId,
       String moduleName,
       @Nullable Long startTime,
       Config config,
@@ -44,9 +46,11 @@ public class DDTestFrameworkModuleImpl extends DDTestModuleImpl implements DDTes
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
       CoverageProbeStoreFactory coverageProbeStoreFactory,
-      ModuleExecutionSettingsFactory moduleExecutionSettingsFactory) {
+      ModuleExecutionSettingsFactory moduleExecutionSettingsFactory,
+      Consumer<AgentSpan> onSpanFinish) {
     super(
-        sessionContext,
+        sessionSpanContext,
+        sessionId,
         moduleName,
         startTime,
         config,
@@ -54,7 +58,8 @@ public class DDTestFrameworkModuleImpl extends DDTestModuleImpl implements DDTes
         sourcePathResolver,
         codeowners,
         methodLinesResolver,
-        coverageProbeStoreFactory);
+        coverageProbeStoreFactory,
+        onSpanFinish);
     this.moduleExecutionSettingsFactory = moduleExecutionSettingsFactory;
   }
 
