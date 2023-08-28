@@ -8,16 +8,13 @@ import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.iast.sink.HstsMissingHeaderModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nullable;
-
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
+import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class HstsMissingHeaderModuleImpl extends SinkModuleBase implements HstsMissingHeaderModule {
   private static final Pattern MAX_AGE =
@@ -66,7 +63,7 @@ public class HstsMissingHeaderModuleImpl extends SinkModuleBase implements HstsM
     return Integer.parseInt(matcher.group(1)) > 0;
   }
 
-  static boolean isHttps(@Nullable final String urlString, @Nullable final String forwardedFor){
+  static boolean isHttps(@Nullable final String urlString, @Nullable final String forwardedFor) {
     if (urlString == null) {
       return false;
     }
@@ -78,5 +75,4 @@ public class HstsMissingHeaderModuleImpl extends SinkModuleBase implements HstsM
     }
     return forwardedFor.toLowerCase(Locale.ROOT).contains("https");
   }
-  
 }
