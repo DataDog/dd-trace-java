@@ -1,14 +1,14 @@
 package datadog.smoketest
 
-import datadog.armeria.grpc.Hello.HelloRequest
 import datadog.armeria.grpc.Hello.HelloReply
+import datadog.armeria.grpc.Hello.HelloRequest
 import datadog.armeria.grpc.HelloServiceGrpc
 import io.grpc.ManagedChannelBuilder
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 class ArmeriaGrpcClient {
-  private static final Logger log = LoggerFactory.getLogger(ArmeriaGrpcClient.class)
+  private static final Logger LOG = LoggerFactory.getLogger(ArmeriaGrpcClient)
 
   HelloServiceGrpc.HelloServiceBlockingStub blockingStub
   HelloServiceGrpc.HelloServiceFutureStub futureStub
@@ -16,10 +16,10 @@ class ArmeriaGrpcClient {
 
   ArmeriaGrpcClient(String host, int port) {
     this(ManagedChannelBuilder.forAddress(host, port).usePlaintext())
-    log.error("Connecting to {}:{}", host, port)
+    LOG.error("Connecting to {}:{}", host, port)
   }
 
-/** Construct client for accessing RouteGuide server using the existing channel. */
+  /** Construct client for accessing RouteGuide server using the existing channel. */
   ArmeriaGrpcClient(ManagedChannelBuilder<?> channelBuilder) {
     def channel = channelBuilder.build()
     blockingStub = HelloServiceGrpc.newBlockingStub(channel)

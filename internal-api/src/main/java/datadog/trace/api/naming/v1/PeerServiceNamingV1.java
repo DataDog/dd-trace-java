@@ -32,6 +32,7 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
     // rpc
     final String[] rpcPrecursors = {Tags.RPC_SERVICE, Tags.PEER_HOSTNAME};
     ret.put("grpc-client", rpcPrecursors);
+    ret.put("armeria-grpc-client", rpcPrecursors);
     ret.put("rmi-client", rpcPrecursors);
 
     // for aws sdk we calculate eagerly to avoid doing too much complex lookups
