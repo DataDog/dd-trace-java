@@ -6,6 +6,7 @@ import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -169,12 +170,15 @@ public class GrizzlyDecorator
 
     @Override
     public boolean tryCommitBlockingResponse(
-        int statusCode, BlockingContentType templateType, Map<String, String> extraHeaders) {
+        TraceSegment segment,
+        int statusCode,
+        BlockingContentType templateType,
+        Map<String, String> extraHeaders) {
       if (ctx == null) {
         return false;
       }
       return GrizzlyHttpBlockingHelper.block(
-          ctx, acceptHeader, statusCode, templateType, extraHeaders);
+          ctx, acceptHeader, statusCode, templateType, extraHeaders, segment);
     }
   }
 }

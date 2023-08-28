@@ -95,8 +95,10 @@ public class OpensearchRestClientDecorator extends DBTypeProcessingDatabaseClien
       final Map<String, String> parameters) {
     span.setTag(Tags.HTTP_METHOD, method);
     span.setTag(Tags.HTTP_URL, endpoint);
-    if (Config.get()
-        .isElasticsearchBodyAndParamsEnabled()) { // Elasticsearch also controls Opensearch
+
+    final Config config = Config.get();
+    // Elasticsearch also controls OpenSearch
+    if (config.isElasticsearchBodyEnabled() || config.isElasticsearchBodyAndParamsEnabled()) {
       if (entity != null) {
         long contentLength = entity.getContentLength();
         if (contentLength <= MAX_OPENSEARCH_BODY_CONTENT_LENGTH) {
@@ -111,6 +113,9 @@ public class OpensearchRestClientDecorator extends DBTypeProcessingDatabaseClien
                   + ">");
         }
       }
+    }
+
+    if (config.isElasticsearchParamsEnabled() || config.isElasticsearchBodyAndParamsEnabled()) {
       if (parameters != null) {
         StringBuilder queryParametersStringBuilder = new StringBuilder();
         for (Map.Entry<String, String> parameter : parameters.entrySet()) {

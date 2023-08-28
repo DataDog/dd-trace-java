@@ -5,6 +5,7 @@ import java.util.Collections;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.web.servlet.config.annotation.PathMatchConfigurer;
@@ -18,6 +19,7 @@ import org.springframework.web.util.UrlPathHelper;
 public class SpringbootApplication {
 
   @Configuration
+  @ComponentScan(basePackages = {"datadog.smoketest.springboot.controller"})
   public static class WebConfig extends WebMvcConfigurerAdapter {
 
     @Override

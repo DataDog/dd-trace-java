@@ -1,5 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.bootstrap.TaskWrapper
+import datadog.trace.bootstrap.instrumentation.api.TaskWrapper
 
 import java.util.concurrent.Callable
 import java.util.concurrent.ForkJoinTask

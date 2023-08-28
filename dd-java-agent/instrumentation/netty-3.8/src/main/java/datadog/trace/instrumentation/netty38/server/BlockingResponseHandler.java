@@ -4,6 +4,7 @@ import static org.jboss.netty.handler.codec.http.HttpHeaders.setContentLength;
 
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import java.util.Map;
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -20,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class BlockingResponseHandler extends SimpleChannelUpstreamHandler {
+  private final TraceSegment segment;
   private final int statusCode;
   private final BlockingContentType bct;
   private final Map<String, String> extraHeaders;
@@ -30,14 +32,18 @@ public class BlockingResponseHandler extends SimpleChannelUpstreamHandler {
   private boolean hasBlockedAlready;
 
   public BlockingResponseHandler(
-      int statusCode, BlockingContentType bct, Map<String, String> extraHeaders) {
+      TraceSegment segment,
+      int statusCode,
+      BlockingContentType bct,
+      Map<String, String> extraHeaders) {
+    this.segment = segment;
     this.statusCode = statusCode;
     this.bct = bct;
     this.extraHeaders = extraHeaders;
   }
 
-  public BlockingResponseHandler(Flow.Action.RequestBlockingAction rba) {
-    this(rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+  public BlockingResponseHandler(TraceSegment segment, Flow.Action.RequestBlockingAction rba) {
+    this(segment, rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
   }
 
   @Override
@@ -102,6 +108,7 @@ public class BlockingResponseHandler extends SimpleChannelUpstreamHandler {
     }
 
     this.hasBlockedAlready = true;
+    segment.effectivelyBlocked();
 
     Channels.write(ctxForDownstream.getChannel(), response)
         .addListener(

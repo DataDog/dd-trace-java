@@ -4,14 +4,14 @@ package datadog.trace.civisibility.source
 import org.spockframework.util.IoUtil
 import spock.lang.Specification
 
-class MethodLinesResolverImplTest extends Specification {
+class ByteCodeMethodLinesResolverTest extends Specification {
 
   def "test method lines resolution"() {
     setup:
     def aTestMethod = NestedClass.getDeclaredMethod("aTestMethod")
 
     when:
-    def methodLinesResolver = new MethodLinesResolverImpl()
+    def methodLinesResolver = new ByteCodeMethodLinesResolver()
     def methodLines = methodLinesResolver.getLines(aTestMethod)
 
     then:
@@ -25,7 +25,7 @@ class MethodLinesResolverImplTest extends Specification {
     def aTestMethod = NestedClass.getDeclaredMethod("abstractMethod")
 
     when:
-    def methodLinesResolver = new MethodLinesResolverImpl()
+    def methodLinesResolver = new ByteCodeMethodLinesResolver()
     def methodLines = methodLinesResolver.getLines(aTestMethod)
 
     then:
@@ -46,7 +46,7 @@ class MethodLinesResolverImplTest extends Specification {
     def misbehavingMethod = misbehavingClass.getDeclaredMethod("aTestMethod")
 
     when:
-    def methodLinesResolver = new MethodLinesResolverImpl()
+    def methodLinesResolver = new ByteCodeMethodLinesResolver()
     def methodLines = methodLinesResolver.getLines(misbehavingMethod)
 
     then:
@@ -56,7 +56,7 @@ class MethodLinesResolverImplTest extends Specification {
   def "test returns empty method lines when unknown method is attempted to be resolved"() {
     setup:
     def aTestMethod = NestedClass.getDeclaredMethod("abstractMethod")
-    def classMethodLines = new MethodLinesResolverImpl.ClassMethodLines()
+    def classMethodLines = new ByteCodeMethodLinesResolver.ClassMethodLines()
 
     when:
     def methodLines = classMethodLines.get(aTestMethod)
