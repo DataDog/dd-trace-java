@@ -1,6 +1,6 @@
 package datadog.smoketest.springboot;
 
-import datadog.smoketest.springboot.controllers.SimpleIastController;
+import datadog.smoketest.springboot.controller.SimpleIastController;
 import java.lang.management.ManagementFactory;
 import java.util.Collections;
 import org.springframework.boot.SpringApplication;
@@ -20,7 +20,7 @@ import org.springframework.web.util.UrlPathHelper;
 public class SpringbootApplication {
 
   @Configuration
-  @ComponentScan(basePackages = {"datadog.smoketest.springboot.controllers"})
+  @ComponentScan(basePackages = {"datadog.smoketest.springboot.controller"})
   public static class WebConfig extends WebMvcConfigurerAdapter {
 
     @Override

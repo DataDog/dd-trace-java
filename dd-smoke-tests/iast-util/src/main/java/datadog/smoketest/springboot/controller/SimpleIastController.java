@@ -1,4 +1,4 @@
-package datadog.smoketest.springboot.controllers;
+package datadog.smoketest.springboot.controller;
 
 import java.io.PrintWriter;
 import java.util.Map;
