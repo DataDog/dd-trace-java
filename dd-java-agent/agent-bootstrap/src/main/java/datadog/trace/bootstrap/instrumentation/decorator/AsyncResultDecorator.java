@@ -20,6 +20,17 @@ public abstract class AsyncResultDecorator extends BaseDecorator {
       new CopyOnWriteArrayList<>(
           singletonList(new JavaUtilConcurrentAsyncResultSupportExtension()));
 
+  private static final ClassValue<AsyncResultSupportExtension> EXTENSION_CLASS_VALUE =
+      new ClassValue<AsyncResultSupportExtension>() {
+        @Override
+        protected AsyncResultSupportExtension computeValue(Class<?> type) {
+          return EXTENSIONS.stream()
+              .filter(extension -> extension.supports(type))
+              .findFirst()
+              .orElse(null);
+        }
+      };
+
   /**
    * Registers an extension to add supported async types.
    *
@@ -41,14 +52,11 @@ public abstract class AsyncResultDecorator extends BaseDecorator {
    *     original result otherwise.
    */
   public Object wrapAsyncResultOrFinishSpan(final Object result, final AgentSpan span) {
-    if (result != null) {
-      for (AsyncResultSupportExtension extension : EXTENSIONS) {
-        if (extension.supports(result.getClass())) {
-          Object applied = extension.apply(result, span);
-          if (applied != null) {
-            return applied;
-          }
-        }
+    AsyncResultSupportExtension extension;
+    if (result != null && (extension = EXTENSION_CLASS_VALUE.get(result.getClass())) != null) {
+      Object applied = extension.apply(result, span);
+      if (applied != null) {
+        return applied;
       }
     }
     // If no extension was applied, immediately finish the span and return the original result
