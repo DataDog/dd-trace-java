@@ -46,6 +46,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_UPLOAD_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_VERIFY_BYTECODE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_START_DELAY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_BODY_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_PARAMS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HEALTH_METRICS_ENABLED;
@@ -275,6 +277,8 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_BODY_AND_PARAMS_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_BODY_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_PARAMS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_INBOUND_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_OUTBOUND_METHODS;
@@ -768,6 +772,8 @@ public class Config {
 
   private final boolean longRunningTraceEnabled;
   private final long longRunningTraceFlushInterval;
+  private final boolean elasticsearchBodyEnabled;
+  private final boolean elasticsearchParamsEnabled;
   private final boolean elasticsearchBodyAndParamsEnabled;
   private final boolean sparkTaskHistogramEnabled;
   private final boolean jaxRsExceptionAsErrorsEnabled;
@@ -849,6 +855,11 @@ public class Config {
     } else {
       secureRandom = configProvider.getBoolean(SECURE_RANDOM, DEFAULT_SECURE_RANDOM);
     }
+    elasticsearchBodyEnabled =
+        configProvider.getBoolean(ELASTICSEARCH_BODY_ENABLED, DEFAULT_ELASTICSEARCH_BODY_ENABLED);
+    elasticsearchParamsEnabled =
+        configProvider.getBoolean(
+            ELASTICSEARCH_PARAMS_ENABLED, DEFAULT_ELASTICSEARCH_PARAMS_ENABLED);
     elasticsearchBodyAndParamsEnabled =
         configProvider.getBoolean(
             ELASTICSEARCH_BODY_AND_PARAMS_ENABLED, DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED);
@@ -2791,6 +2802,14 @@ public class Config {
     return grpcClientErrorStatuses;
   }
 
+  public boolean isElasticsearchBodyEnabled() {
+    return elasticsearchBodyEnabled;
+  }
+
+  public boolean isElasticsearchParamsEnabled() {
+    return elasticsearchParamsEnabled;
+  }
+
   public boolean isElasticsearchBodyAndParamsEnabled() {
     return elasticsearchBodyAndParamsEnabled;
   }
@@ -3807,6 +3826,10 @@ public class Config {
         + longRunningTraceEnabled
         + ", longRunningTraceFlushInterval="
         + longRunningTraceFlushInterval
+        + ", elasticsearchBodyEnabled="
+        + elasticsearchBodyEnabled
+        + ", elasticsearchParamsEnabled="
+        + elasticsearchParamsEnabled
         + ", elasticsearchBodyAndParamsEnabled="
         + elasticsearchBodyAndParamsEnabled
         + ", traceFlushInterval="

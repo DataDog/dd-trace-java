@@ -1,3 +1,5 @@
+package datadog.trace.instrumentation.jetty9
+
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.bootstrap.instrumentation.api.Tags

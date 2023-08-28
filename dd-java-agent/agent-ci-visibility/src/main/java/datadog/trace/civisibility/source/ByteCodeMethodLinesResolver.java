@@ -16,9 +16,9 @@ import org.objectweb.asm.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class MethodLinesResolverImpl implements MethodLinesResolver {
+public class ByteCodeMethodLinesResolver implements MethodLinesResolver {
 
-  private static final Logger log = LoggerFactory.getLogger(MethodLinesResolverImpl.class);
+  private static final Logger log = LoggerFactory.getLogger(ByteCodeMethodLinesResolver.class);
 
   private final DDCache<Class<?>, ClassMethodLines> methodLinesCache =
       DDCaches.newFixedSizeIdentityCache(16);

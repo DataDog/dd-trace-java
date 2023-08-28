@@ -1,4 +1,5 @@
-package datadog.trace.bootstrap
+package datadog.trace.bootstrap.instrumentation.api
+
 
 import datadog.trace.test.util.DDSpecification
 

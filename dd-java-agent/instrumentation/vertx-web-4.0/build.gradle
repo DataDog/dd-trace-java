@@ -27,6 +27,8 @@ artifacts {
 }
 
 dependencies {
+  api project(':dd-java-agent:instrumentation:netty-4.1-shared')
+
   compileOnly group: 'io.vertx', name: 'vertx-web', version: '4.2.7'
 
   testImplementation project(':dd-java-agent:instrumentation:netty-4.1')

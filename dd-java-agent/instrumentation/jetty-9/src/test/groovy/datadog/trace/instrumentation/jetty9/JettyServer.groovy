@@ -1,3 +1,5 @@
+package datadog.trace.instrumentation.jetty9
+
 import datadog.trace.agent.test.base.HttpServer
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.AbstractHandler

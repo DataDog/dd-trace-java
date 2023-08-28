@@ -89,6 +89,11 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
   }
 
   @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
+  }
+
+  @Override
   boolean testException() {
     // generates extra trace for the error handling invocation
     false

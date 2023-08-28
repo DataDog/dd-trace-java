@@ -1,6 +1,7 @@
 package com.datadog.iast.sink
 
 import com.datadog.iast.IastModuleImplTestBase
+import com.datadog.iast.overhead.Operations
 import datadog.trace.api.iast.sink.WeakRandomnessModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
@@ -28,6 +29,7 @@ class WeakRandomnessModuleTest extends IastModuleImplTestBase {
       0 * _
     } else {
       tracer.activeSpan() >> span
+      1 * overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span) >> true
       1 * reporter.report(span, _)
     }
 
@@ -39,6 +41,7 @@ class WeakRandomnessModuleTest extends IastModuleImplTestBase {
       0 * _
     } else {
       tracer.activeSpan() >> null
+      1 * overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, null) >> true
       1 * reporter.report(_, _)
     }
 
@@ -46,5 +49,15 @@ class WeakRandomnessModuleTest extends IastModuleImplTestBase {
     evidence     | secure
     Random       | false
     SecureRandom | true
+  }
+
+  void 'test nothing is reported if no quota available'() {
+    when:
+    module.onWeakRandom(Random)
+
+    then:
+    tracer.activeSpan() >> span
+    1 * overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span) >> false
+    0 * _
   }
 }

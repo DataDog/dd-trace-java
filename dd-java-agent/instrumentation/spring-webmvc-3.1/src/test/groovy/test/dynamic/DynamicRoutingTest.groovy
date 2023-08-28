@@ -77,6 +77,11 @@ class DynamicRoutingTest extends HttpServerTest<ConfigurableApplicationContext> 
   }
 
   @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
+  }
+
+  @Override
   boolean testExceptionBody() {
     false
   }

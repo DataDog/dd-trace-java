@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.jetty9;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_DISPATCH_SPAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_FIN_DISP_LIST_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty9.JettyDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -15,6 +16,16 @@ import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.Request;
 
+/**
+ * Deals with dispatch spans created in the Servlet instrumentation but that further down the line
+ * are not handled by servlets (see AsyncContextInstrumentation).
+ *
+ * <p>This does not create new dispatch spans. Not all dispatches in jetty involve AsyncContext.
+ * There are, for instance, internal error dispatches that won't be detected.
+ *
+ * <p>One possibility for detecting these is using HttpChannel.Listener's onBeforeDispatch/
+ * onDispatchFailure/onAfterDispatch. These are only available starting in 9.4 though.
+ */
 @AutoService(Instrumenter.class)
 public class ServerHandleInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForSingleType {
@@ -58,15 +69,22 @@ public class ServerHandleInstrumentation extends Instrumenter.Tracing
   static class HandleAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static AgentScope onEnter(
-        @Advice.Argument(0) HttpChannel<?> channel, @Advice.Local("agentSpan") AgentSpan span) {
-      Request req = channel.getRequest();
+        @Advice.Argument(0) HttpChannel<?> channel,
+        @Advice.Local("agentSpan") AgentSpan span,
+        @Advice.Local("request") Request req) {
+      req = channel.getRequest();
 
       // same logic as in Servlet3Advice. We need to activate/finish the dispatch span here
       // because we don't know if a servlet is going to be called and therefore whether
       // Servlet3Advice will have an opportunity to run.
       // If there is no servlet involved, the span would not be finished.
+
       Object dispatchSpan;
       synchronized (req) {
+        // see AsyncContextInstrumentation on the servlet instrumentation for the creation
+        // of this dispatch span.
+        // Unfortunately, not all jetty dispatches are detected by the servlet
+        // instrumentation, like internal error dispatches
         dispatchSpan = req.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
       }
       if (dispatchSpan instanceof AgentSpan) {
@@ -86,17 +104,35 @@ public class ServerHandleInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void onExit(
         @Advice.Enter final AgentScope scope,
+        @Advice.Local("request") Request req,
         @Advice.Local("agentSpan") AgentSpan span,
         @Advice.Thrown Throwable t) {
       if (scope == null) {
         return;
       }
 
+      boolean registeredFinishListener;
+      synchronized (req) {
+        req.removeAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
+        // the async finish listener may not have been registered. The listener
+        // is not registered upon dispatch to avoid ConcurrentModificationException
+        // (see AsyncContextInstrumentation), only when the dispatch is handled
+        // (see Servlet3Advice).
+        // However, it's possible that the dispatch never passes through servlets,
+        // so the listener is never registered. In that case, we handle the dispatch
+        // finish here (the reason we cannot handle dispatch finish solely here is
+        // because we can't detect async timeouts here)
+        registeredFinishListener = req.getAttribute(DD_FIN_DISP_LIST_SPAN_ATTRIBUTE) != null;
+      }
+
       if (t != null) {
         DECORATE.onError(span, t);
       }
-      DECORATE.beforeFinish(span);
-      span.finish();
+      if (!(req.isAsyncStarted() && registeredFinishListener)) {
+        // finish will be handled by the async listener
+        DECORATE.beforeFinish(span);
+        span.finish();
+      }
       scope.close();
     }
   }

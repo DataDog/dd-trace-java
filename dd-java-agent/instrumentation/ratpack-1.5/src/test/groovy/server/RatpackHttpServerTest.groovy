@@ -48,6 +48,11 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
   }
 
   @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
+  }
+
+  @Override
   boolean hasHandlerSpan() {
     true
   }
@@ -85,6 +90,11 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
 
   @Override
   boolean testBlocking() {
+    true
+  }
+
+  @Override
+  boolean testBlockingOnResponse() {
     true
   }
 
