@@ -749,6 +749,21 @@ public enum JDBCConnectionUrlParser {
 
       return builder;
     }
+  },
+
+  REDSHIFT("redshift") {
+    @Override
+    DBInfo.Builder doParse(String jdbcUrl, DBInfo.Builder builder) {
+      builder = GENERIC_URL_LIKE.doParse(jdbcUrl, builder);
+      final DBInfo dbInfo = builder.build();
+      if (dbInfo.getHost() != null) {
+        int firstDotLoc = dbInfo.getHost().indexOf('.');
+        if (firstDotLoc > 0) {
+          builder.instance(dbInfo.getHost().substring(0, firstDotLoc));
+        }
+      }
+      return builder;
+    }
   };
 
   private static final Map<String, JDBCConnectionUrlParser> typeParsers = new HashMap<>();
