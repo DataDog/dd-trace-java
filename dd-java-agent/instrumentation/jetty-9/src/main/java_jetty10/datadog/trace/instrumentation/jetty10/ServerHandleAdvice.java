@@ -13,8 +13,10 @@ import org.eclipse.jetty.server.Request;
 class ServerHandleAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   static AgentScope onEnter(
-      @Advice.Argument(0) HttpChannel channel, @Advice.Local("agentSpan") AgentSpan span) {
-    Request req = channel.getRequest();
+      @Advice.Argument(0) HttpChannel channel,
+      @Advice.Local("request") Request req,
+      @Advice.Local("agentSpan") AgentSpan span) {
+    req = channel.getRequest();
 
     // same logic as in Servlet3Advice. We need to activate/finish the dispatch span here
     // because we don't know if a servlet is going to be called and therefore whether
@@ -41,6 +43,7 @@ class ServerHandleAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
   public static void onExit(
       @Advice.Enter final AgentScope scope,
+      @Advice.Local("request") Request req,
       @Advice.Local("agentSpan") AgentSpan span,
       @Advice.Thrown Throwable t) {
     if (scope == null) {
@@ -50,8 +53,15 @@ class ServerHandleAdvice {
     if (t != null) {
       DECORATE.onError(span, t);
     }
-    DECORATE.beforeFinish(span);
-    span.finish();
+    if (!req.isAsyncStarted()) {
+      // finish will be handled by the async listener
+      DECORATE.beforeFinish(span);
+      span.finish();
+    }
     scope.close();
+
+    synchronized (req) {
+      req.removeAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
+    }
   }
 }

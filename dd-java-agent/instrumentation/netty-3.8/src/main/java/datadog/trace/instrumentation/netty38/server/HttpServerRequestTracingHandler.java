@@ -61,9 +61,11 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
 
       Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
       if (rba != null) {
-        span.getRequestContext().getTraceSegment().effectivelyBlocked();
         ctx.getPipeline()
-            .addAfter(ctx.getName(), "blocking_handler", new BlockingResponseHandler(rba));
+            .addAfter(
+                ctx.getName(),
+                "blocking_handler",
+                new BlockingResponseHandler(span.getRequestContext().getTraceSegment(), rba));
       }
 
       try {

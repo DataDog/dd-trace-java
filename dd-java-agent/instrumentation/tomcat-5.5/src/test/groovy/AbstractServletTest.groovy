@@ -22,6 +22,11 @@ abstract class AbstractServletTest<SERVER, CONTEXT> extends HttpServerTest<SERVE
   }
 
   @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
+  }
+
+  @Override
   String expectedServiceName() {
     context
   }

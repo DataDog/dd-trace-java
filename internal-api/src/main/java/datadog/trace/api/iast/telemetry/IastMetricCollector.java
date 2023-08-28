@@ -8,7 +8,6 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.telemetry.MetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -38,18 +37,20 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
     return INSTANCE;
   }
 
-  private static IastMetricCollector get(@Nullable final RequestContext requestContext) {
+  private static IastMetricCollector get(@Nullable Object ctx) {
     if (VERBOSITY == Verbosity.OFF) {
       return INSTANCE;
     }
-    final RequestContext ctx = requestContext == null ? activeRequestContext() : requestContext;
-    if (ctx != null) {
-      final Object iastCtx = ctx.getData(RequestContextSlot.IAST);
-      if (iastCtx instanceof HasMetricCollector) {
-        final IastMetricCollector collector = ((HasMetricCollector) iastCtx).getMetricCollector();
-        if (collector != null) {
-          return collector;
-        }
+    if (ctx == null) {
+      ctx = activeRequestContext();
+    }
+    if (ctx instanceof RequestContext) {
+      ctx = ((RequestContext) ctx).getData(RequestContextSlot.IAST);
+    }
+    if (ctx instanceof HasMetricCollector) {
+      final IastMetricCollector collector = ((HasMetricCollector) ctx).getMetricCollector();
+      if (collector != null) {
+        return collector;
       }
     }
     // if no active request then forward to the global collector
@@ -70,18 +71,18 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
     this.counters = counters;
   }
 
-  /** Prefer using {@link #add(IastMetric, int, RequestContext)} if possible */
+  /** Prefer using {@link #add(IastMetric, int, Object)} if possible */
   public static void add(@Nonnull final IastMetric metric, final int value) {
     add(metric, value, null);
   }
 
-  /** Prefer using {@link #add(IastMetric, String, int, RequestContext)} if possible */
+  /** Prefer using {@link #add(IastMetric, String, int, Object)} if possible */
   public static void add(@Nonnull final IastMetric metric, final String tagValue, final int value) {
     add(metric, tagValue, value, null);
   }
 
   public static void add(
-      @Nonnull final IastMetric metric, final int value, @Nullable final RequestContext ctx) {
+      @Nonnull final IastMetric metric, final int value, @Nullable final Object ctx) {
     add(metric, null, value, ctx);
   }
 
@@ -89,7 +90,7 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
       @Nonnull final IastMetric metric,
       @Nullable final String tagValue,
       final int value,
-      @Nullable final RequestContext ctx) {
+      @Nullable final Object ctx) {
     try {
       final IastMetricCollector instance = metric.getScope() == REQUEST ? get(ctx) : INSTANCE;
       instance.addMetric(metric, tagValue, value);
@@ -183,9 +184,8 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
           : String.format("%s.%s", metric.getName(), processSpanTagValue(tagValue));
     }
 
-    @SuppressForbidden
     private static String processSpanTagValue(final String tagValue) {
-      return tagValue.toLowerCase(Locale.ROOT).replaceAll("\\.", "_");
+      return tagValue.toLowerCase(Locale.ROOT).replace('.', '_');
     }
 
     public static String computeTag(final IastMetric metric, final String tagValue) {

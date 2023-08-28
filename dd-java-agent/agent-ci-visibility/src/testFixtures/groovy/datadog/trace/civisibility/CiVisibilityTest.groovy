@@ -344,7 +344,8 @@ abstract class CiVisibilityTest extends AgentTestRunner {
   final Throwable exception = null,
   final boolean emptyDuration = false,
   final Collection<String> categories = null,
-  final boolean sourceFilePresent = true) {
+  final boolean sourceFilePresent = true,
+  final boolean sourceMethodPresent = true) {
     def testFramework = expectedTestFramework()
     def testFrameworkVersion = expectedTestFrameworkVersion()
 
@@ -378,10 +379,13 @@ abstract class CiVisibilityTest extends AgentTestRunner {
 
         if (sourceFilePresent) {
           "$Tags.TEST_SOURCE_FILE" DUMMY_SOURCE_PATH
+          "$Tags.TEST_CODEOWNERS" Strings.toJson(DUMMY_CODE_OWNERS)
+        }
+
+        if (sourceMethodPresent) {
           "$Tags.TEST_SOURCE_METHOD" testMethod
           "$Tags.TEST_SOURCE_START" DUMMY_TEST_METHOD_START
           "$Tags.TEST_SOURCE_END" DUMMY_TEST_METHOD_END
-          "$Tags.TEST_CODEOWNERS" Strings.toJson(DUMMY_CODE_OWNERS)
         }
 
         if (exception) {

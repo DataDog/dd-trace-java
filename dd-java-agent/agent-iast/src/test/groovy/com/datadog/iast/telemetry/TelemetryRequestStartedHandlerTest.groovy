@@ -3,11 +3,13 @@ package com.datadog.iast.telemetry
 import com.datadog.iast.IastRequestContext
 import com.datadog.iast.telemetry.taint.TaintedObjectsWithTelemetry
 import datadog.trace.api.gateway.Flow
+import datadog.trace.api.iast.telemetry.Verbosity
 
 class TelemetryRequestStartedHandlerTest extends AbstractTelemetryCallbackTest {
 
   void 'request started add the required collector'() {
     given:
+    injectSysConfig('dd.iast.telemetry.verbosity', verbosity.name())
     final handler = new TelemetryRequestStartedHandler(dependencies)
 
     when:
@@ -18,7 +20,14 @@ class TelemetryRequestStartedHandlerTest extends AbstractTelemetryCallbackTest {
     flow.getResult() instanceof IastRequestContext
     final iastCtx = flow.getResult() as IastRequestContext
     iastCtx.metricCollector != null
-    iastCtx.taintedObjects instanceof TaintedObjectsWithTelemetry
+    final withTelemetry = iastCtx.taintedObjects instanceof TaintedObjectsWithTelemetry
+    withTelemetry == taintedObjectsWithTelemetry
     1 * dependencies.overheadController.acquireRequest() >> true
+
+    where:
+    verbosity             | taintedObjectsWithTelemetry
+    Verbosity.MANDATORY   | false
+    Verbosity.INFORMATION | true
+    Verbosity.DEBUG       | true
   }
 }

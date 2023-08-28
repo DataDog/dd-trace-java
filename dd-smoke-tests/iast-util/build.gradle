@@ -8,4 +8,5 @@ description = 'iast-smoke-tests-utils'
 
 dependencies {
   api project(':dd-smoke-tests')
+  compileOnly group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.18.RELEASE'
 }

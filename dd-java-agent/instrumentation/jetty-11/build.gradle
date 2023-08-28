@@ -57,6 +57,10 @@ dependencies {
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '11.+',  {
     exclude group: 'org.slf4j', module: 'slf4j-api'
   }
+
+  // just to mix things up, see if there's no conflict
+  latestDepTestRuntimeOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '4.0.1'
+  latestDepTestRuntimeOnly project(':dd-java-agent:instrumentation:jetty-9')
 }
 
 idea {

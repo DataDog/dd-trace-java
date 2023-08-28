@@ -66,9 +66,11 @@ public class InterceptorPreHandleAdvice {
             BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
             if (brf != null) {
               brf.tryCommitBlockingResponse(
-                  rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+                  reqCtx.getTraceSegment(),
+                  rba.getStatusCode(),
+                  rba.getBlockingContentType(),
+                  rba.getExtraHeaders());
             }
-            reqCtx.getTraceSegment().effectivelyBlocked();
             t =
                 new BlockingException(
                     "Blocked request (for UriTemplateVariablesHandlerInterceptor/preHandle)");
