@@ -41,4 +41,8 @@ public class HandleAdvice {
   public static void closeScope(@Advice.Enter final AgentScope scope) {
     scope.close();
   }
+
+  private void muzzleCheck(Request r) {
+    r.getAsyncContext(); // there must be a getAsyncContext returning a javax AsyncContext
+  }
 }
