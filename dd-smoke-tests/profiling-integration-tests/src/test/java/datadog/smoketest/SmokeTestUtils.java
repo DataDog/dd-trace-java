@@ -35,10 +35,6 @@ final class SmokeTestUtils {
                 "-Ddd.profiling.ddprof.enabled=true",
                 "-Ddd." + ProfilingConfig.PROFILING_AUXILIARY_TYPE + "=async",
                 "-Ddd."
-                    + ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH
-                    + "="
-                    + System.getenv("TEST_LIBASYNC"),
-                "-Ddd."
                     + ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_INTERVAL
                     + "="
                     + cpuSamplerIntervalMs
@@ -67,6 +63,13 @@ final class SmokeTestUtils {
                 "-cp",
                 profilingShadowJar(),
                 targetClass));
+    if (System.getenv("TEST_LIBASYNC") != null) {
+      command.add(
+          "-Ddd."
+              + ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH
+              + "="
+              + System.getenv("TEST_LIBASYNC"));
+    }
     command.addAll(Arrays.asList(args));
     final ProcessBuilder processBuilder = new ProcessBuilder(command);
     processBuilder.directory(new File(buildDirectory()));
