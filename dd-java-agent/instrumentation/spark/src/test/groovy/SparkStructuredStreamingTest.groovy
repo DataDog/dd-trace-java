@@ -127,6 +127,20 @@ class SparkStructuredStreamingTest extends AgentTestRunner {
             "spark.task_failed_count" Long
             "spark.task_retried_count" Long
             "spark.task_with_output_count" Long
+
+            // Config tags
+            "config.spark_app_id" String
+            "config.spark_app_name" String
+            "config.spark_jobGroup_id" String
+            "config.spark_job_description" String
+            "config.spark_master" String
+            "config.spark_sql_execution_id" String
+            "config.spark_sql_shuffle_partitions" String
+            "config.sql_streaming_queryId" String
+            "config.streaming_sql_batchId" String
+            if (TestSparkComputation.sparkVersion >= '3') {
+              "config.spark_app_startTime" String
+            }
           }
         }
         span {
