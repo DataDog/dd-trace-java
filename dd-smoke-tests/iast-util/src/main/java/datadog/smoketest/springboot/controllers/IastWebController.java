@@ -1,4 +1,4 @@
-package datadog.smoketest.springboot.controller;
+package datadog.smoketest.springboot.controllers;
 
 import datadog.smoketest.springboot.TestBean;
 import ddtest.client.sources.Hasher;

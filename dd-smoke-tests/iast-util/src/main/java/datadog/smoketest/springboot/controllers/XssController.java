@@ -1,4 +1,4 @@
-package datadog.smoketest.springboot.controller;
+package datadog.smoketest.springboot.controllers;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
