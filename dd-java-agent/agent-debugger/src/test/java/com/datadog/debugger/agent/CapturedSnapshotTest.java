@@ -210,6 +210,18 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  public void oldJavacBug() throws Exception {
+    final String CLASS_NAME = "com.datadog.debugger.classfiles.JavacBug"; // compiled with jdk 1.6
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installSingleProbe(CLASS_NAME, "main", null);
+    Class<?> testClass = Class.forName(CLASS_NAME);
+    Assertions.assertNotNull(testClass);
+    int result = Reflect.on(testClass).call("main", "").get();
+    assertEquals(45, result);
+    assertEquals(0, listener.snapshots.size());
+  }
+
+  @Test
   public void nestedConstructor() throws Exception {
     final String CLASS_NAME = "CapturedSnapshot02";
     DebuggerTransformerTest.TestSnapshotListener listener =
@@ -1599,6 +1611,7 @@ public class CapturedSnapshotTest {
     Config config = mock(Config.class);
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
+    when(config.isDebuggerVerifyByteCode()).thenReturn(true);
     Collection<LogProbe> logProbes = configuration.getLogProbes();
     currentTransformer = new DebuggerTransformer(config, configuration, null);
     instr.addTransformer(currentTransformer);
