@@ -134,15 +134,14 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       features.discoverIfOutdated();
     }
 
-    checkDynamicConfig();
     agentSupportsDataStreams = features.supportsDataStreams();
+    checkDynamicConfig();
 
     if (!configSupportsDataStreams) {
       log.debug("Data streams is disabled");
     } else if (!agentSupportsDataStreams) {
       log.debug("Data streams is disabled or not supported by agent");
     }
-    supportsDataStreams = configSupportsDataStreams && agentSupportsDataStreams;
 
     nextFeatureCheck = timeSource.getCurrentTimeNanos() + FEATURE_CHECK_INTERVAL_NANOS;
 
