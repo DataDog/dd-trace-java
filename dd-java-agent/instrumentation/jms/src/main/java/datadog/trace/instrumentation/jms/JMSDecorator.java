@@ -125,7 +125,8 @@ public final class JMSDecorator extends MessagingClientDecorator {
     return spanKind;
   }
 
-  public void onConsume(AgentSpan span, Message message, CharSequence resourceName) {
+  public void onConsume(
+      AgentSpan span, Message message, CharSequence resourceName, boolean onMessage) {
     if (null != resourceName) {
       span.setResourceName(resourceName);
     }
@@ -138,6 +139,16 @@ public final class JMSDecorator extends MessagingClientDecorator {
       }
     } catch (Exception e) {
       log.debug("Unable to get jms timestamp", e);
+    }
+
+    span.setTag("jms.onMessage", onMessage);
+    try {
+      span.setTag("record.redelivered", message.getJMSRedelivered());
+    } catch (Exception ignore) {
+    }
+    try {
+      span.setTag("record.message_id", message.getJMSMessageID());
+    } catch (Exception ignore) {
     }
   }
 

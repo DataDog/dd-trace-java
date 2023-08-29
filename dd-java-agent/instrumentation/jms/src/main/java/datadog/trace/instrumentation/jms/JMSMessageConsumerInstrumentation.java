@@ -145,7 +145,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
       }
 
       CONSUMER_DECORATE.afterStart(span);
-      CONSUMER_DECORATE.onConsume(span, message, consumerState.getConsumerResourceName());
+      CONSUMER_DECORATE.onConsume(span, message, consumerState.getConsumerResourceName(), false);
       CONSUMER_DECORATE.onError(span, throwable);
 
       activateNext(span); // scope is left open until next message or it times out

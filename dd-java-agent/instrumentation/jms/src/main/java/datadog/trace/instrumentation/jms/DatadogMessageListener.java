@@ -59,7 +59,7 @@ public class DatadogMessageListener implements MessageListener {
       span = startSpan(JMS_CONSUME, timeInQueue.context());
     }
     CONSUMER_DECORATE.afterStart(span);
-    CONSUMER_DECORATE.onConsume(span, message, consumerState.getConsumerResourceName());
+    CONSUMER_DECORATE.onConsume(span, message, consumerState.getConsumerResourceName(), true);
     SessionState sessionState = consumerState.getSessionState();
     if (sessionState.isClientAcknowledge()) {
       // consumed spans will be finished by a call to Message.acknowledge
