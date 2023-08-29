@@ -192,6 +192,8 @@ class JDBCConnectionUrlParserTest extends AgentTestRunner {
     "jdbc:jtds:sqlserver://dbhostname.com"                                                                                                                                                                                                      | null     | "jtds"       | "sqlserver"   | null          | "dbhostname.com"                                                    | 1433  | null                               | null
     "jdbc:jtds:sybase://dbhostname.com"                                                                                                                                                                                                         | null     | "jtds"       | "sybase"      | null          | "dbhostname.com"                                                    | 7100  | null                               | null
 
+    // redshift
+    "jdbc:redshift://redshift-cluster-1.c7arcolffyvk.us-east-2.redshift.amazonaws.com:5439/dev"                                                                                                                                                 | null     | "redshift"   | null          | null          | "redshift-cluster-1.c7arcolffyvk.us-east-2.redshift.amazonaws.com"  | 5439  | "redshift-cluster-1"               | "dev"
 
     expected = new DBInfo.Builder().type(type).subtype(subtype).user(user).instance(instance).db(db).host(host).port(port).build()
   }
