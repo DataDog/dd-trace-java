@@ -89,5 +89,11 @@
     "fields": [
       {"name": "producerIndex", "allowUnsafeAccess": true}
     ]
+  },
+  {
+    "name" : "org.jctools.queues.SpscArrayQueueConsumerIndexField",
+    "fields": [
+      {"name": "consumerIndex", "allowUnsafeAccess": true}
+    ]
   }
 ]
