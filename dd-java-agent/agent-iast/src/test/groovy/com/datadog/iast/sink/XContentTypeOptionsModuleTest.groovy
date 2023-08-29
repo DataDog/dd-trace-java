@@ -17,19 +17,19 @@ import datadog.trace.api.internal.TraceSegment
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.util.stacktrace.StackWalker
 
-public class HstsMissingHeaderModuleTest extends IastModuleImplTestBase {
+public class XContentTypeOptionsModuleTest extends IastModuleImplTestBase {
 
   private List<Object> objectHolder
 
   private IastRequestContext ctx
 
-  private HstsMissingHeaderModuleImpl module
+  private XContentTypeModuleImpl module
 
   private AgentSpan span
 
   def setup() {
     InstrumentationBridge.clearIastModules()
-    module = registerDependencies(new HstsMissingHeaderModuleImpl())
+    module = registerDependencies(new XContentTypeModuleImpl())
     InstrumentationBridge.registerIastModule(module)
     objectHolder = []
     ctx = new IastRequestContext()
@@ -43,12 +43,11 @@ public class HstsMissingHeaderModuleTest extends IastModuleImplTestBase {
   }
 
 
-  void 'hsts vulnerability'() {
+  void 'x content options sniffing vulnerability'() {
     given:
     Vulnerability savedVul1
     final OverheadController overheadController = Mock(OverheadController)
     final iastCtx = Mock(IastRequestContext)
-    iastCtx.getxForwardedProto() >> 'https'
     iastCtx.getContentType() >> "text/html"
     final StackWalker stackWalker = Mock(StackWalker)
     final dependencies = new HasDependencies.Dependencies(
@@ -60,7 +59,6 @@ public class HstsMissingHeaderModuleTest extends IastModuleImplTestBase {
     reqCtx.getTraceSegment() >> traceSegment
     reqCtx.getData(RequestContextSlot.IAST) >> iastCtx
     final tags = Mock(Map<String, Object>)
-    tags.get("http.url") >> "https://localhost/a"
     tags.get("http.status_code") >> 200i
     final spanInfo = Mock(IGSpanInfo)
     spanInfo.getTags() >> tags
@@ -79,9 +77,8 @@ public class HstsMissingHeaderModuleTest extends IastModuleImplTestBase {
     1 * iastCtx.getTaintedObjects() >> null
     1 * overheadController.releaseRequest()
     1 * spanInfo.getTags() >> tags
-    1 * tags.get('http.url') >> "https://localhost/a"
     1 * tags.get('http.status_code') >> 200i
-    1 * iastCtx.getStrictTransportSecurity()
+    1 * iastCtx.getxContentTypeOptions() >> null
     1 * tracer.activeSpan() >> span
     1 * iastCtx.getContentType() >> "text/html"
     1 * reporter.report(_, _ as Vulnerability) >> {
@@ -89,12 +86,12 @@ public class HstsMissingHeaderModuleTest extends IastModuleImplTestBase {
     }
 
     with(savedVul1) {
-      type == VulnerabilityType.HSTS_HEADER_MISSING
+      type == VulnerabilityType.XCONTENTTYPE_HEADER_MISSING
     }
   }
 
 
-  void 'no hsts vulnerability reported'() {
+  void 'no x content options sniffing reported'() {
     given:
     Vulnerability savedVul1
     final OverheadController overheadController = Mock(OverheadController)
@@ -130,9 +127,9 @@ public class HstsMissingHeaderModuleTest extends IastModuleImplTestBase {
     1 * iastCtx.getTaintedObjects() >> null
     1 * overheadController.releaseRequest()
     1 * spanInfo.getTags() >> tags
-    1 * tags.get('http.url') >> url
+    1 * iastCtx.getContentType() >> "text/html"
     1 * tags.get('http.status_code') >> status
-    1 * iastCtx.getStrictTransportSecurity()
+    1 * iastCtx.getxContentTypeOptions()
     0 * _
 
     where:
@@ -153,33 +150,6 @@ public class HstsMissingHeaderModuleTest extends IastModuleImplTestBase {
     module.onRequestEnd(null, null)
 
     then:
-    thrown(NullPointerException)
-  }
-
-  void 'exception not thrown if igSpanInfo is null'(){
-    when:
-    module.onRequestEnd(ctx, null)
-
-    then:
     noExceptionThrown()
-  }
-
-  void 'test max age'(){
-    when:
-    final result = HstsMissingHeaderModuleImpl.isValidMaxAge(value)
-
-    then:
-    result == expected
-
-    where:
-    value               | expected
-    "max-age=0"         | false
-    "max-age=-1"        | false
-    null                | false
-    ""                  | false
-    "max-age-3"         | false
-    "ramdom"            | false
-    "max-age=10"        | true
-    "max-age=0122344"   | true
   }
 }

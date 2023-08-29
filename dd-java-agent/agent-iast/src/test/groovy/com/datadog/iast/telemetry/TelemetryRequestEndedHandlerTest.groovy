@@ -6,6 +6,7 @@ import com.datadog.iast.model.Source
 import com.datadog.iast.taint.TaintedObjects
 import com.datadog.iast.telemetry.taint.TaintedObjectsWithTelemetry
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.VulnerabilityTypes
 import datadog.trace.api.iast.telemetry.IastMetric
@@ -25,6 +26,7 @@ class TelemetryRequestEndedHandlerTest extends AbstractTelemetryCallbackTest {
   protected IastMetricCollector globalCollector
 
   void setup() {
+    InstrumentationBridge.clearIastModules()
     delegate = Spy(new RequestEndedHandler(dependencies))
     final TaintedObjects to = TaintedObjectsWithTelemetry.build(Verbosity.DEBUG, TaintedObjects.acquire())
     iastCtx = new IastRequestContext(to, new IastMetricCollector())
