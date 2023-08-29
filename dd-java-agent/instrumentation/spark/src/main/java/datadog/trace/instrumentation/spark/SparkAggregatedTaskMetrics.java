@@ -197,41 +197,41 @@ class SparkAggregatedTaskMetrics {
     }
   }
 
-  public void setSpanMetrics(AgentSpan span, String prefix) {
-    span.setMetric(prefix + ".executor_deserialize_time", executorDeserializeTime);
-    span.setMetric(prefix + ".executor_deserialize_cpu_time", executorDeserializeCpuTime);
-    span.setMetric(prefix + ".executor_run_time", executorRunTime);
-    span.setMetric(prefix + ".executor_cpu_time", executorCpuTime);
-    span.setMetric(prefix + ".result_size", resultSize);
-    span.setMetric(prefix + ".jvm_gc_time", jvmGCTime);
-    span.setMetric(prefix + ".result_serialization_time", resultSerializationTime);
-    span.setMetric(prefix + ".memory_bytes_spilled", memoryBytesSpilled);
-    span.setMetric(prefix + ".disk_bytes_spilled", diskBytesSpilled);
-    span.setMetric(prefix + ".peak_execution_memory", peakExecutionMemory);
+  public void setSpanMetrics(AgentSpan span) {
+    span.setMetric("spark.executor_deserialize_time", executorDeserializeTime);
+    span.setMetric("spark.executor_deserialize_cpu_time", executorDeserializeCpuTime);
+    span.setMetric("spark.executor_run_time", executorRunTime);
+    span.setMetric("spark.executor_cpu_time", executorCpuTime);
+    span.setMetric("spark.result_size", resultSize);
+    span.setMetric("spark.jvm_gc_time", jvmGCTime);
+    span.setMetric("spark.result_serialization_time", resultSerializationTime);
+    span.setMetric("spark.memory_bytes_spilled", memoryBytesSpilled);
+    span.setMetric("spark.disk_bytes_spilled", diskBytesSpilled);
+    span.setMetric("spark.peak_execution_memory", peakExecutionMemory);
 
-    span.setMetric(prefix + ".input_bytes", inputBytesRead);
-    span.setMetric(prefix + ".input_records", inputRecordsRead);
-    span.setMetric(prefix + ".output_bytes", outputBytesWritten);
-    span.setMetric(prefix + ".output_records", outputRecordsWritten);
+    span.setMetric("spark.input_bytes", inputBytesRead);
+    span.setMetric("spark.input_records", inputRecordsRead);
+    span.setMetric("spark.output_bytes", outputBytesWritten);
+    span.setMetric("spark.output_records", outputRecordsWritten);
 
-    span.setMetric(prefix + ".shuffle_read_bytes", shuffleReadBytes);
-    span.setMetric(prefix + ".shuffle_read_bytes_local", shuffleReadBytesLocal);
-    span.setMetric(prefix + ".shuffle_read_bytes_remote", shuffleReadBytesRemote);
-    span.setMetric(prefix + ".shuffle_read_bytes_remote_to_disk", shuffleReadBytesRemoteToDisk);
-    span.setMetric(prefix + ".shuffle_read_fetch_wait_time", shuffleReadFetchWaitTime);
-    span.setMetric(prefix + ".shuffle_read_records", shuffleReadRecords);
+    span.setMetric("spark.shuffle_read_bytes", shuffleReadBytes);
+    span.setMetric("spark.shuffle_read_bytes_local", shuffleReadBytesLocal);
+    span.setMetric("spark.shuffle_read_bytes_remote", shuffleReadBytesRemote);
+    span.setMetric("spark.shuffle_read_bytes_remote_to_disk", shuffleReadBytesRemoteToDisk);
+    span.setMetric("spark.shuffle_read_fetch_wait_time", shuffleReadFetchWaitTime);
+    span.setMetric("spark.shuffle_read_records", shuffleReadRecords);
 
-    span.setMetric(prefix + ".shuffle_write_bytes", shuffleWriteBytes);
-    span.setMetric(prefix + ".shuffle_write_records", shuffleWriteRecords);
-    span.setMetric(prefix + ".shuffle_write_time", shuffleWriteTime);
+    span.setMetric("spark.shuffle_write_bytes", shuffleWriteBytes);
+    span.setMetric("spark.shuffle_write_records", shuffleWriteRecords);
+    span.setMetric("spark.shuffle_write_time", shuffleWriteTime);
 
-    span.setMetric(prefix + ".task_completed_count", taskCompletedCount);
-    span.setMetric(prefix + ".task_failed_count", taskFailedCount);
-    span.setMetric(prefix + ".task_retried_count", taskRetriedCount);
-    span.setMetric(prefix + ".task_with_output_count", taskWithOutputCount);
+    span.setMetric("spark.task_completed_count", taskCompletedCount);
+    span.setMetric("spark.task_failed_count", taskFailedCount);
+    span.setMetric("spark.task_retried_count", taskRetriedCount);
+    span.setMetric("spark.task_with_output_count", taskWithOutputCount);
 
-    span.setMetric(prefix + ".available_executor_time", attributedAvailableExecutorTime);
-    span.setMetric(prefix + ".skew_time", skewTime);
+    span.setMetric("spark.available_executor_time", attributedAvailableExecutorTime);
+    span.setMetric("spark.skew_time", skewTime);
 
     if (taskRunTimeHistogram != null && taskRunTimeHistogram.getCount() > 0) {
       span.setTag("_dd.spark.task_run_time", histogramToBase64(taskRunTimeHistogram));

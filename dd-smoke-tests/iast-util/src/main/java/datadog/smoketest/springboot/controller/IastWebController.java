@@ -70,6 +70,18 @@ public class IastWebController {
     return "Weak Hash page";
   }
 
+  @RequestMapping("/weak_key_generator")
+  public String weakKeyGenerator() {
+    hasher.generateKey();
+    return "Weak Key generator page";
+  }
+
+  @RequestMapping("/weak_key_generator_with_provider")
+  public String weakKeyGeneratorWithProvider() {
+    hasher.generateKeyWithProvider();
+    return "Weak Key generator page";
+  }
+
   @GetMapping("/insecure_cookie")
   public String insecureCookie(HttpServletResponse response) {
     Cookie cookie = new Cookie("user-id", "7");

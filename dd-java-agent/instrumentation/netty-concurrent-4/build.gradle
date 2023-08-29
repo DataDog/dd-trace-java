@@ -24,3 +24,12 @@ dependencies {
 tasks.named("latestDepTest").configure {
   dependsOn "latestDep4Test"
 }
+
+configurations.configureEach {
+  resolutionStrategy.componentSelection.all { ComponentSelection selection ->
+    def version = selection.candidate.version.toLowerCase()
+    if (version.contains('alpha') || version.contains('beta')) {
+      reject("Early Access Version: ${selection.candidate.version}")
+    }
+  }
+}
