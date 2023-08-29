@@ -1,12 +1,10 @@
 package datadog.trace.civisibility
 
-
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.IdGenerationStrategy
-import datadog.trace.api.civisibility.InstrumentationBridge
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.civisibility.codeowners.CodeownersImpl
 import datadog.trace.civisibility.context.ParentProcessTestContext
@@ -42,8 +40,6 @@ class DDTestImplTest extends DDSpecification {
       def agentSpan = callRealMethod()
       agentSpan
     }
-
-    InstrumentationBridge.registerCoverageProbeStoreFactory(new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory())
   }
 
   void cleanupSpec() {
@@ -117,7 +113,7 @@ class DDTestImplTest extends DDSpecification {
     def sourcePathResolver = { it -> null }
     def methodLinesResolver = { it -> MethodLinesResolver.MethodLines.EMPTY }
     def codeowners = CodeownersImpl.EMPTY
-
+    def coverageProbeStoreFactory = new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory()
     new DDTestImpl(
       suiteContext,
       moduleContext,
@@ -132,7 +128,8 @@ class DDTestImplTest extends DDSpecification {
       testDecorator,
       sourcePathResolver,
       methodLinesResolver,
-      codeowners
+      codeowners,
+      coverageProbeStoreFactory
       )
   }
 

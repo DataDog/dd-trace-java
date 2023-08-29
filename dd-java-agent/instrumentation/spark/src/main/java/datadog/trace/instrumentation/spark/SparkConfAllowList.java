@@ -74,7 +74,8 @@ class SparkConfAllowList {
               "user"));
 
   public static boolean canCaptureApplicationParameter(String parameterName) {
-    return allowedApplicationParams.contains(parameterName);
+    return allowedApplicationParams.contains(parameterName)
+        || allowedJobParams.contains(parameterName);
   }
 
   public static boolean canCaptureJobParameter(String parameterName) {

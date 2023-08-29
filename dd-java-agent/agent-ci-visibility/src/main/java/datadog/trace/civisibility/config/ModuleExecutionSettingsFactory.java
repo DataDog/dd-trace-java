@@ -1,6 +1,5 @@
 package datadog.trace.civisibility.config;
 
-import datadog.trace.api.civisibility.config.JvmInfo;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import javax.annotation.Nullable;
 

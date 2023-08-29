@@ -1,6 +1,6 @@
 package datadog.trace.civisibility.source
 
-import datadog.trace.api.civisibility.source.SourcePathResolver
+
 import spock.lang.Specification
 
 class BestEffortSourcePathResolverTest extends Specification {

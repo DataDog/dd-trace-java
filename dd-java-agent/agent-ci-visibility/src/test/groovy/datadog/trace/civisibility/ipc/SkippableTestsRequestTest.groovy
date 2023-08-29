@@ -1,6 +1,6 @@
 package datadog.trace.civisibility.ipc
 
-import datadog.trace.api.civisibility.config.JvmInfo
+import datadog.trace.civisibility.config.JvmInfo
 import spock.lang.Specification
 
 import java.nio.file.Paths

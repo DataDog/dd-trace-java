@@ -87,15 +87,7 @@ public class SingleThreadEventExecutorInstrumentation extends Instrumenter.Profi
         }
         EventExecutorGroup parent = executor.parent();
         Class<?> schedulerClass = parent == null ? executor.getClass() : parent.getClass();
-        Class<?> unwrappedTaskClass = QueueTimerHelper.unwrap(task);
-        // best effort attempt to filter out chore tasks
-        if (unwrappedTaskClass != null
-            && !unwrappedTaskClass.getName().endsWith(".AbstractScheduledEventExecutor$1")
-            && !unwrappedTaskClass.getName().endsWith(".SingleThreadEventExecutor$5")
-            && !unwrappedTaskClass.getName().endsWith(".SingleThreadEventExecutor$PurgeTask")) {
-          QueueTimerHelper.startQueuingTimer(
-              state, schedulerClass, unwrappedTaskClass, (RunnableFuture<?>) task);
-        }
+        QueueTimerHelper.startQueuingTimer(state, schedulerClass, task);
       }
     }
   }

@@ -3,7 +3,6 @@ package datadog.trace.civisibility.config;
 import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.api.civisibility.config.JvmInfo;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import java.util.Objects;
 import javax.annotation.Nullable;

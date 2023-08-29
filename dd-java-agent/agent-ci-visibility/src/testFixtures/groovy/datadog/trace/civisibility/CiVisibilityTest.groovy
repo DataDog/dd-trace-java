@@ -9,7 +9,7 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.civisibility.InstrumentationBridge
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings
 import datadog.trace.api.civisibility.config.SkippableTest
-import datadog.trace.api.civisibility.source.SourcePathResolver
+import datadog.trace.civisibility.source.SourcePathResolver
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -70,6 +70,7 @@ abstract class CiVisibilityTest extends AgentTestRunner {
       return new ModuleExecutionSettings(properties, Collections.singletonMap(dummyModule, skippableTests))
     }
 
+    def coverageProbeStoreFactory = new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory()
     DDTestSessionImpl.SessionImplFactory sessionFactory = (String projectName, Path projectRoot, String component, Long startTime) -> {
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
       TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags)
@@ -86,6 +87,7 @@ abstract class CiVisibilityTest extends AgentTestRunner {
       codeowners,
       methodLinesResolver,
       moduleExecutionSettingsFactory,
+      coverageProbeStoreFactory,
       signalServer,
       repoIndexBuilder
       )
@@ -102,7 +104,7 @@ abstract class CiVisibilityTest extends AgentTestRunner {
       decorator -> new BuildEventsHandlerImpl<>(sessionFactory, new JvmInfoFactory())
     }
 
-    InstrumentationBridge.registerCoverageProbeStoreFactory(new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory())
+    InstrumentationBridge.registerCoverageProbeStoreRegistry(coverageProbeStoreFactory)
   }
 
   @Override
@@ -342,7 +344,8 @@ abstract class CiVisibilityTest extends AgentTestRunner {
   final Throwable exception = null,
   final boolean emptyDuration = false,
   final Collection<String> categories = null,
-  final boolean sourceFilePresent = true) {
+  final boolean sourceFilePresent = true,
+  final boolean sourceMethodPresent = true) {
     def testFramework = expectedTestFramework()
     def testFrameworkVersion = expectedTestFrameworkVersion()
 
@@ -376,10 +379,13 @@ abstract class CiVisibilityTest extends AgentTestRunner {
 
         if (sourceFilePresent) {
           "$Tags.TEST_SOURCE_FILE" DUMMY_SOURCE_PATH
+          "$Tags.TEST_CODEOWNERS" Strings.toJson(DUMMY_CODE_OWNERS)
+        }
+
+        if (sourceMethodPresent) {
           "$Tags.TEST_SOURCE_METHOD" testMethod
           "$Tags.TEST_SOURCE_START" DUMMY_TEST_METHOD_START
           "$Tags.TEST_SOURCE_END" DUMMY_TEST_METHOD_END
-          "$Tags.TEST_CODEOWNERS" Strings.toJson(DUMMY_CODE_OWNERS)
         }
 
         if (exception) {

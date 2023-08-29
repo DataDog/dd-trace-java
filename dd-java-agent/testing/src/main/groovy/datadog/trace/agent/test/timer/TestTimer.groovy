@@ -1,5 +1,6 @@
 package datadog.trace.agent.test.timer
 
+import datadog.trace.bootstrap.instrumentation.api.TaskWrapper
 import datadog.trace.api.profiling.QueueTiming
 import datadog.trace.api.profiling.Timer
 import datadog.trace.api.profiling.Timing
@@ -47,8 +48,8 @@ class TestTimer implements Timer {
     }
 
     @Override
-    void setTask(Class<?> task) {
-      this.task = task
+    void setTask(Object task) {
+      this.task = TaskWrapper.getUnwrappedType(task)
     }
 
     @Override

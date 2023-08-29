@@ -219,16 +219,15 @@ class SparkTest extends AgentTestRunner {
       .config("spark.default.parallelism", "2") // Small parallelism to speed up tests
       .config("spark.sql.shuffle.partitions", "2")
       .config("spark.databricks.sparkContextId", "some_id")
+      .config("spark.databricks.clusterUsageTags.clusterName", "job-1234-run-5678-Job_cluster")
       .getOrCreate()
 
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.id", "1234")
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.runId", "9012")
-    sparkSession.sparkContext().setLocalProperty("spark.databricks.clusterUsageTags.clusterName", "job-1234-run-5678-Job_cluster")
     TestSparkComputation.generateTestSparkComputation(sparkSession)
 
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.id", null)
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.runId", null)
-    sparkSession.sparkContext().setLocalProperty("spark.databricks.clusterUsageTags.clusterName", null)
     TestSparkComputation.generateTestSparkComputation(sparkSession)
 
     expect:

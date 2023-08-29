@@ -1,12 +1,12 @@
 package datadog.trace.civisibility.events;
 
 import datadog.trace.api.civisibility.CIConstants;
-import datadog.trace.api.civisibility.config.JvmInfo;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.DDTestModuleImpl;
 import datadog.trace.civisibility.DDTestSessionImpl;
+import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.config.JvmInfoFactory;
 import java.nio.file.Path;
 import java.util.Map;
