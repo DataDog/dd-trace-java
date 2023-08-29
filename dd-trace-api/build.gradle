@@ -18,6 +18,7 @@ excludedClassesCoverage += [
   'datadog.trace.api.internal.TraceSegment',
   'datadog.trace.api.internal.TraceSegment.NoOp',
   'datadog.trace.api.civisibility.CIVisibility',
+  'datadog.trace.api.civisibility.DDTestModule',
   'datadog.trace.api.config.ProfilingConfig',
   'datadog.trace.api.interceptor.MutableSpan',
   'datadog.trace.api.experimental.Profiling',
