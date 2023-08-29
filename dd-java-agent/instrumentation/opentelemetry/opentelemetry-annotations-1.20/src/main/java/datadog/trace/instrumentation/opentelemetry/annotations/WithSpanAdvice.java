@@ -26,14 +26,6 @@ public class WithSpanAdvice {
     DECORATE.onError(scope, throwable);
     DECORATE.beforeFinish(scope);
     scope.close();
-    // Check asynchronous result
-    Object asyncResult = AsyncResultHelper.handleAsyncResult(result, scope.span());
-    if (asyncResult != null) {
-      // Update result with the original result chained by a span finisher
-      result = asyncResult;
-    } else {
-      // Otherwise, finish span synchronously
-      scope.span().finish();
-    }
+    result = DECORATE.wrapAsyncResultOrFinishSpan(result, scope.span());
   }
 }

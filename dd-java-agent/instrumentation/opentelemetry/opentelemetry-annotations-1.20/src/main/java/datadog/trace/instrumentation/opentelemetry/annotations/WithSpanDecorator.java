@@ -10,14 +10,14 @@ import static java.lang.Math.min;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.AsyncResultDecorator;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.instrumentation.annotations.SpanAttribute;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 
-public class WithSpanDecorator extends BaseDecorator {
+public class WithSpanDecorator extends AsyncResultDecorator {
   public static final WithSpanDecorator DECORATE = new WithSpanDecorator();
   private static final String INSTRUMENTATION_NAME = "opentelemetry-annotations";
   private static final CharSequence OPENTELEMETRY = UTF8BytesString.create("opentelemetry");
