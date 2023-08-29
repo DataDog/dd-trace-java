@@ -1,12 +1,14 @@
 
 muzzle {
   pass {
+    integrationName = 'mongo'
     group = "org.mongodb"
     module = "mongodb-driver-sync"
     versions = "[4.0,)"
     assertInverse = true
   }
   pass {
+    integrationName = 'mongo'
     group = "org.mongodb"
     module = "mongodb-driver-reactivestreams"
     versions = "[4.0,)"

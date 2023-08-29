@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'spring-webflux'
     name = "webflux_5.0.0+_with_netty_0.8.0"
     group = "org.springframework"
     module = "spring-webflux"
@@ -9,6 +10,7 @@ muzzle {
   }
 
   pass {
+    integrationName = 'spring-webflux'
     name = "webflux_5.0.0_with_ipc_0.7.0"
     group = "org.springframework"
     module = "spring-webflux"
@@ -18,6 +20,7 @@ muzzle {
   }
 
   pass {
+    integrationName = 'reactor-netty'
     name = "netty_0.8.0+_with_spring-webflux:5.1.0"
     group = "io.projectreactor.netty"
     module = "reactor-netty"
@@ -26,6 +29,7 @@ muzzle {
   }
 
   pass {
+    integrationName = 'reactor-netty'
     name = "ipc_0.7.0+_with_spring-webflux:5.0.0"
     group = "io.projectreactor.ipc"
     module = "reactor-netty"
@@ -34,6 +38,7 @@ muzzle {
   }
 
   pass {
+    integrationName = 'spring-webflux'
     name = "webflux_with_jackson"
     group = "org.springframework"
     module = "spring-webflux"
@@ -43,6 +48,7 @@ muzzle {
   }
 
   pass {
+    integrationName = 'spring-webflux'
     name = "read_only_headers"
     group = "org.springframework"
     module = "spring-webflux"

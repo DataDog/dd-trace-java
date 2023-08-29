@@ -2,6 +2,7 @@ muzzle {
   // Cant assert fails because muzzle assumes all instrumentations will fail
   // Instrumentations in jax-rs-annotations-2 will pass
   pass {
+    integrationName = 'jax-rs'
     group = "org.glassfish.jersey.core"
     module = "jersey-server"
     versions = "[2.0, 3.0.0)" // javax.ws -> jakarta.ws at 3.0.0

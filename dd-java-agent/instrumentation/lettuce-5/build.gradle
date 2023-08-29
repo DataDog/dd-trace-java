@@ -1,6 +1,7 @@
 
 muzzle {
   pass {
+    integrationName = 'lettuce'
     group = "io.lettuce"
     module = "lettuce-core"
     versions = "[5.0.0.RELEASE,)"

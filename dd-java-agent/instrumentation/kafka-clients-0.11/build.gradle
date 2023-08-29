@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'kafka'
     group = "org.apache.kafka"
     module = "kafka-clients"
     versions = "[0.11.0.0,)"

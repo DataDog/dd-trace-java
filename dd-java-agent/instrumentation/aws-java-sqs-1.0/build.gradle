@@ -1,6 +1,7 @@
 
 muzzle {
   pass {
+    integrationName = 'aws-java-sqs'
     group = "com.amazonaws"
     module = "aws-java-sdk-sqs"
     versions = "[1.0.0,)"

@@ -4,6 +4,7 @@ ext {
 
 muzzle {
   pass {
+    integrationName = 'glassfish'
     group = 'org.glassfish.main.extras'
     module = 'glassfish-embedded-all'
     versions = "[3.0,)"

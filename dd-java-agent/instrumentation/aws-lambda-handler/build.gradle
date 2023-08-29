@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'aws-lambda-handler'
     group = 'com.amazonaws'
     module = 'aws-lambda-java-core'
     versions = '[1.2.1,)'

@@ -1,6 +1,7 @@
 
 muzzle {
   pass {
+    integrationName = 'apache-httpasyncclient'
     group = "org.apache.httpcomponents"
     module = "httpasyncclient"
     versions = "[4.0,)"

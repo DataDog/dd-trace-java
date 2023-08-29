@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'guava'
     group = "com.google.guava"
     module = "guava"
     versions = "[10.0,]"

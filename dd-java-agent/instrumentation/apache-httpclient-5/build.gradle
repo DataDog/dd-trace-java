@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'apache-httpclient'
     group = "org.apache.httpcomponents.client5"
     module = "httpclient5"
     versions = "[5.0,)"

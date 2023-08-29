@@ -3,6 +3,7 @@ def otelVersion = '0.3.0'
 
 muzzle {
   pass {
+    integrationName = 'opentelemetry'
     module = 'opentelemetry-api'
     group = 'io.opentelemetry'
     versions = "[$otelVersion,0.8.0)"

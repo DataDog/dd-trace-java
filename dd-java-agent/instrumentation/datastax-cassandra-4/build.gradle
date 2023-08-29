@@ -6,6 +6,7 @@ ext {
 
 muzzle {
   pass {
+    integrationName = 'datastax-cassandra'
     group = "com.datastax.oss"
     module = "java-driver-core"
     versions = "[4.0,]"

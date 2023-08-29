@@ -2,6 +2,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   pass {
+    integrationName = 'logback'
     group = 'ch.qos.logback'
     module = 'logback-classic'
     versions = '[1.0.0,]'

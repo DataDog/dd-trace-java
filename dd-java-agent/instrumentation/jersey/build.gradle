@@ -6,6 +6,7 @@ if (project.hasProperty('testJvm')) {
 
 muzzle {
   pass {
+    integrationName = 'jersey'
     group = 'org.glassfish.jersey.core'
     module = 'jersey-common'
     versions = '[2,4)'

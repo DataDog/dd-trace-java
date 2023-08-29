@@ -10,6 +10,7 @@ muzzle {
    * is compiled with Java 11, so we can't validate with muzzle which uses Java 8.
    */
   pass {
+    integrationName = 'testing'
     group = 'org.testng'
     module = 'testng'
     versions = '[7.5,7.6)'

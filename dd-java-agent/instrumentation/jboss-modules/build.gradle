@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'jboss-modules'
     group = 'org.jboss.modules'
     module = 'jboss-modules'
     versions = '[1.3,)'

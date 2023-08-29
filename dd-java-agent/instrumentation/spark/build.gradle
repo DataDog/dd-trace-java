@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'spark'
     group = "org.apache.spark"
     module = "spark-sql_2.12"
     versions = "[2.4.0,)"

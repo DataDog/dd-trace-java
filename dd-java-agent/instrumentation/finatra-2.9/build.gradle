@@ -9,12 +9,14 @@ addTestSuite('latestDepTest')
 muzzle {
   // There are some weird library issues below 2.9 so can't assert inverse
   pass {
+    integrationName = 'finatra'
     group = 'com.twitter'
     module = 'finatra-http_2.11'
     versions = '[2.9.0,]'
   }
 
   pass {
+    integrationName = 'finatra'
     group = 'com.twitter'
     module = 'finatra-http_2.12'
     versions = '[2.9.0,]'

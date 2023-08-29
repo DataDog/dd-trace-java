@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'jax-rs'
     group = "org.jboss.resteasy"
     module = "resteasy-client"
     versions = "[2.0,)"

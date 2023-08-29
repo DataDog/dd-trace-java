@@ -3,6 +3,7 @@ evaluationDependsOn ':dd-java-agent:instrumentation:tomcat-5.5'
 muzzle {
   // despite the name of module, this also applies to tomcat < 6.0.35 or 7.0-7.0.22
   pass {
+    integrationName = 'tomcat'
     name = 'until6035_7022'
     group = 'org.apache.tomcat'
     module = 'tomcat-coyote'
@@ -10,6 +11,7 @@ muzzle {
     assertInverse = true
   }
   pass {
+    integrationName = 'tomcat'
     name = 'until6035_7022'
     group = 'org.apache.tomcat'
     module = 'coyote'
@@ -17,6 +19,7 @@ muzzle {
     assertInverse = true
   }
   pass {
+    integrationName = 'tomcat'
     name = 'until6035_7022'
     group = 'tomcat'
     module = 'tomcat-util'
@@ -24,6 +27,7 @@ muzzle {
     assertInverse = true
   }
   pass {
+    integrationName = 'tomcat'
     name = 'until703'
     group = 'tomcat'
     module = 'tomcat-coyote'
@@ -32,6 +36,7 @@ muzzle {
     assertInverse = true
   }
   pass {
+    integrationName = 'tomcat'
     name = 'until703'
     group = 'org.apache.tomcat'
     module = 'coyote'
@@ -39,6 +44,7 @@ muzzle {
     extraDependency 'org.apache.tomcat:catalina:6.0.13'
   }
   pass {
+    integrationName = 'tomcat'
     name = 'until703'
     group = 'org.apache.tomcat'
     module = 'tomcat-coyote'

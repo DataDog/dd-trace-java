@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'grizzly-http'
     group = "org.glassfish.grizzly"
     module = 'grizzly-http'
     if (JavaVersion.current().isJava11Compatible()) {

@@ -7,26 +7,31 @@ muzzle {
   // Version 2.7.5 and 2.7.8 were not released properly and muzzle cannot test against it causing failure.
   // So we have to skip them resulting in this verbose setup.
   fail {
+    integrationName = 'couchbase'
     group = 'com.couchbase.client'
     module = 'java-client'
     versions = "[,2.6.0)"
   }
   pass {
+    integrationName = 'couchbase'
     group = 'com.couchbase.client'
     module = 'java-client'
     versions = "[2.6.0,2.7.5)"
   }
   pass {
+    integrationName = 'couchbase'
     group = 'com.couchbase.client'
     module = 'java-client'
     versions = "[2.7.6,2.7.8)"
   }
   pass {
+    integrationName = 'couchbase'
     group = 'com.couchbase.client'
     module = 'java-client'
     versions = "[2.7.9,3.0.0)"
   }
   fail {
+    integrationName = 'couchbase'
     group = 'com.couchbase.client'
     module = 'couchbase-client'
     versions = "[,]"

@@ -1,5 +1,6 @@
 muzzle {
   fail {
+    integrationName = 'jedis'
     group = "redis.clients"
     module = "jedis"
     versions = "[,3.0.0)"
@@ -7,6 +8,7 @@ muzzle {
   }
 
   pass {
+    integrationName = 'jedis'
     group = "redis.clients"
     module = "jedis"
     versions = "[3.0.0,4.0.0)"

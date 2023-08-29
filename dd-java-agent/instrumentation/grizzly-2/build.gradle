@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'grizzly'
     group = "org.glassfish.grizzly"
     module = 'grizzly-http-server'
     // Limit range, since Muzzle is failing on helper class injection

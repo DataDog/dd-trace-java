@@ -1,6 +1,7 @@
 muzzle {
   // old coordinates
   pass {
+    integrationName = 'osgi'
     group = 'org.osgi'
     module = 'org.osgi.core'
     versions = '[4.3,]'
@@ -8,6 +9,7 @@ muzzle {
 
   // new coordinates
   pass {
+    integrationName = 'osgi'
     group = 'org.osgi'
     module = 'osgi.core'
     versions = '[4.3.1,]'

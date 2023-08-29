@@ -2,12 +2,14 @@ evaluationDependsOn ':dd-java-agent:instrumentation:tomcat-5.5'
 
 muzzle {
   pass {
+    integrationName = 'tomcat'
     name = 'from7'
     group = 'org.apache.tomcat'
     module = 'tomcat-catalina'
     versions = '[7.0.0,]'
   }
   pass {
+    integrationName = 'tomcat'
     name = 'from703'
     group = 'org.apache.tomcat'
     module = 'tomcat-coyote'

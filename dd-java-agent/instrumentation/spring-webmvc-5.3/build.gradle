@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'spring-web'
     group = 'org.springframework'
     module = 'spring-webmvc'
     versions = "[5.3.0,6)"

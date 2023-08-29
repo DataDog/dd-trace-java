@@ -1,6 +1,7 @@
 
 muzzle {
   pass {
+    integrationName = 'spring-rabbit'
     group = 'org.springframework.boot'
     module = 'spring-boot-starter-amqp'
     versions = '[1.5.0.RELEASE,3)'

@@ -1,12 +1,14 @@
 muzzle {
   // Catalina doesn't reliably depend on coyote, so we use a different dependency that does.
   pass {
+    integrationName = 'tomcat'
     group = "org.apache.tomcat"
     module = 'tomcat-catalina-ha' // includes catalina and coyote (to simplify muzzle check)
     versions = "[7,]"
     assertInverse = true
   }
   pass {
+    integrationName = 'tomcat'
     group = "org.apache.tomcat"
     module = 'catalina-ha' // includes catalina and coyote (to simplify muzzle check)
     versions = "[6,7)" // not all versions are on maven central.
@@ -14,6 +16,7 @@ muzzle {
   }
   // Older versions are sparse on maven central, so test what we can.
   pass {
+    integrationName = 'tomcat'
     group = "tomcat"
     module = 'catalina'
     versions = "[5.5,6)"
@@ -21,6 +24,7 @@ muzzle {
     assertInverse = true
   }
   pass {
+    integrationName = 'tomcat'
     group = "tomcat"
     module = 'tomcat-coyote'
     versions = "[5.5,6)"

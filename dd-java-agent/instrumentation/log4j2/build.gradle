@@ -13,6 +13,7 @@ configurations {
 
 muzzle {
   pass {
+    integrationName = 'log4j'
     group = 'org.apache.logging.log4j'
     module = 'log4j-core'
     versions = '[,2.7)'
@@ -20,6 +21,7 @@ muzzle {
   }
 
   pass {
+    integrationName = 'log4j'
     group = 'org.apache.logging.log4j'
     module = 'log4j-api'
     versions = '[,2.7)'

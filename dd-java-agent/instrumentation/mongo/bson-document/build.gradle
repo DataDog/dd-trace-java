@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'mongo'
     group = "org.mongodb"
     module = "mongo-java-driver"
     versions = "[3.1,)"

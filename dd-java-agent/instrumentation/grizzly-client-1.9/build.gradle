@@ -1,12 +1,14 @@
 
 muzzle {
   pass {
+    integrationName = 'grizzly-client'
     group = "org.glassfish.grizzly"
     module = "grizzly-http-client"
     versions = "[1.9,1.16]"
     assertInverse = true
   }
   pass {
+    integrationName = 'grizzly-client'
     group = "com.ning"
     module = "async-http-client"
     versions = "[1.9.0,)"

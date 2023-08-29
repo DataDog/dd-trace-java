@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'okhttp'
     group = "com.squareup.okhttp3"
     module = "okhttp"
     versions = "[3.0,)"

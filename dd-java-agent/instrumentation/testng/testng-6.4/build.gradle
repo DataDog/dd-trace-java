@@ -6,6 +6,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   pass {
+    integrationName = 'testing'
     group = 'org.testng'
     module = 'testng'
     versions = '[6.4,7.5)'

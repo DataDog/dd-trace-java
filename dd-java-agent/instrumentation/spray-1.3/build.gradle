@@ -3,6 +3,7 @@ def scalaVersion = '2.11'
 
 muzzle {
   pass {
+    integrationName = 'spray'
     group = 'io.spray'
     module = "spray-routing_$scalaVersion"
     versions = "[1.3.1,)"

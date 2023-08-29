@@ -4,6 +4,7 @@ plugins {
 
 muzzle {
   pass {
+    integrationName = 'grpc'
     group = "io.grpc"
     module = "grpc-core"
     versions = "[1.5.0,)"

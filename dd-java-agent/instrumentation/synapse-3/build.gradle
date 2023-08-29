@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'synapse'
     group = "org.apache.synapse"
     module = "synapse-nhttp-transport"
     versions = "[3,)"

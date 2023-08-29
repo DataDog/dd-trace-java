@@ -2,6 +2,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   pass {
+    integrationName = 'jsp'
     group = "org.apache.tomcat"
     module = "tomcat-jasper"
     // range [7.0.0,7.0.19) and version 8.0.9 missing from maven

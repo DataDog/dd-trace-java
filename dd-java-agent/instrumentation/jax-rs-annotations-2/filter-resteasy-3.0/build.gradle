@@ -4,12 +4,14 @@ muzzle {
 
   // Resteasy changes a class's package in 3.1.0 then moves it back in 3.5.0
   pass {
+    integrationName = 'jax-rs'
     group = "org.jboss.resteasy"
     module = "resteasy-jaxrs"
     versions = "[3.0.0.Final,3.1.0.Final)"
   }
 
   pass {
+    integrationName = 'jax-rs'
     group = "org.jboss.resteasy"
     module = "resteasy-jaxrs"
     versions = "[3.5.0.Final,)"

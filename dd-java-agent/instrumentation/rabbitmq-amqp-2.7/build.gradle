@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'amqp'
     group = "com.rabbitmq"
     module = 'amqp-client'
     versions = "[2.7.0,)"

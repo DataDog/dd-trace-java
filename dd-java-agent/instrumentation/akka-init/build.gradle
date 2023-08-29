@@ -4,6 +4,7 @@ def scalaVersion = '2.11'
 
 muzzle {
   pass {
+    integrationName = 'akka-init'
     group = 'com.typesafe.akka'
     module = "akka-actor_$scalaVersion"
     versions = "[$akkaVersion,]"

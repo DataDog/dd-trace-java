@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'axis'
     group = "org.apache.axis2"
     module = "axis2-kernel"
     versions = "[1.3,)"

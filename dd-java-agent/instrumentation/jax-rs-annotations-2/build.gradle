@@ -1,11 +1,13 @@
 
 muzzle {
   fail {
+    integrationName = 'jax-rs'
     group = "javax.ws.rs"
     module = "jsr311-api"
     versions = "[,]"
   }
   pass {
+    integrationName = 'jax-rs'
     group = "javax.ws.rs"
     module = "javax.ws.rs-api"
     versions = "[,]"

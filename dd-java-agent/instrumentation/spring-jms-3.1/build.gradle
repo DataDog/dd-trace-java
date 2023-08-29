@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'spring-jms'
     group = 'org.springframework'
     module = 'spring-jms'
     versions = "[3.1.0.RELEASE,]"

@@ -1,6 +1,7 @@
 
 muzzle {
   pass {
+    integrationName = 'aws-java-sdk'
     group = "software.amazon.awssdk"
     module = "aws-core"
     versions = "[2.2.0,)"

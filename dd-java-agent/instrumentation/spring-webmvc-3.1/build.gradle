@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'spring-webmvc'
     group = 'org.springframework'
     module = 'spring-webmvc'
     versions = "[3.1.0.RELEASE,6)"
@@ -15,6 +16,7 @@ muzzle {
 
   // FIXME: webmvc depends on web, so we need a separate integration for spring-web specifically.
   fail {
+    integrationName = 'spring-web'
     group = 'org.springframework'
     module = 'spring-web'
     versions = "[,]"
@@ -27,6 +29,7 @@ muzzle {
   }
 
   pass {
+    integrationName = 'spring-web'
     group = 'org.jboss.resteasy'
     module = 'resteasy-spring'
     versions = "[2.3,]"

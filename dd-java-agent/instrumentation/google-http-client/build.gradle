@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'google-http-client'
     group = "com.google.http-client"
     module = "google-http-client"
 

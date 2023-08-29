@@ -4,6 +4,7 @@ ext {
 
 muzzle {
   pass {
+    integrationName = 'jetty'
     group = "org.eclipse.jetty"
     module = 'jetty-server'
     versions = "[11,12)"

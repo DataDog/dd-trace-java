@@ -1,6 +1,7 @@
 
 muzzle {
   pass {
+    integrationName = 'spring-scheduling'
     group = 'org.springframework'
     module = 'spring-context'
     versions = "[3.1.0.RELEASE,6)"

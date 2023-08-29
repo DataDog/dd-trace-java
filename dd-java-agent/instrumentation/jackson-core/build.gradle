@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'jackson'
     group = 'com.fasterxml.jackson.core'
     module = 'jackson-core'
     versions = "[2.0.0,3)"
@@ -7,6 +8,7 @@ muzzle {
   }
 
   pass {
+    integrationName = 'jackson'
     name = 'jackson-databind'
     group = 'com.fasterxml.jackson.core'
     module = 'jackson-databind'

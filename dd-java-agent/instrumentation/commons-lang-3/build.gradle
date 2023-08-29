@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'commons-lang'
     group = 'org.apache.commons'
     module = 'commons-lang3'
     versions = '[3.5,]'

@@ -1,6 +1,7 @@
 
 muzzle {
   pass {
+    integrationName = 'rediscala'
     group = "com.github.etaty"
     module = "rediscala_2.11"
     versions = "[1.5.0,)"
@@ -8,6 +9,7 @@ muzzle {
   }
 
   pass {
+    integrationName = 'rediscala'
     group = "com.github.etaty"
     module = "rediscala_2.12"
     versions = "[1.8.0,)"
@@ -15,6 +17,7 @@ muzzle {
   }
 
   pass {
+    integrationName = 'rediscala'
     group = "com.github.etaty"
     module = "rediscala_2.13"
     versions = "[1.9.0,)"
@@ -22,6 +25,7 @@ muzzle {
   }
 
   pass {
+    integrationName = 'rediscala'
     group = "com.github.Ma27"
     module = "rediscala_2.11"
     versions = "[1.8.1,)"
@@ -29,6 +33,7 @@ muzzle {
   }
 
   pass {
+    integrationName = 'rediscala'
     group = "com.github.Ma27"
     module = "rediscala_2.12"
     versions = "[1.8.1,)"
@@ -36,6 +41,7 @@ muzzle {
   }
 
   pass {
+    integrationName = 'rediscala'
     group = "com.github.Ma27"
     module = "rediscala_2.13"
     versions = "[1.9.0,)"

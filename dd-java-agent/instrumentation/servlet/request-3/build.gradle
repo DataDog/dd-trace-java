@@ -4,6 +4,7 @@ plugins {
 
 muzzle {
   pass {
+    integrationName = 'servlet'
     name = 'servlet-3.x'
     group = "javax.servlet"
     module = 'javax.servlet-api'
@@ -11,11 +12,13 @@ muzzle {
     assertInverse = true
   }
   fail {
+    integrationName = 'servlet'
     group = "javax.servlet"
     module = 'servlet-api'
     versions = "[,]"
   }
   pass {
+    integrationName = 'servlet'
     name = 'servlet-3.1.x' // for Servlet3RequestBodyInstrumentation
     group = "javax.servlet"
     module = 'javax.servlet-api'

@@ -8,18 +8,21 @@ def playVersion = '2.6.0'
 
 muzzle {
   pass {
+    integrationName = 'play'
     group = 'com.typesafe.play'
     module = "play_$scalaVersion"
     versions = "[$playVersion,)"
     assertInverse = true
   }
   pass {
+    integrationName = 'play'
     group = 'com.typesafe.play'
     module = 'play_2.12'
     versions = "[$playVersion,)"
     assertInverse = true
   }
   pass {
+    integrationName = 'play'
     group = 'com.typesafe.play'
     module = 'play_2.13'
     versions = "[$playVersion,)"

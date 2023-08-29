@@ -5,17 +5,20 @@ ext {
 
 muzzle {
   pass {
+    integrationName = 'play'
     group = 'com.typesafe.play'
     module = 'play_2.11'
     versions = '[2.4.0,2.6)'
     assertInverse = true
   }
   fail {
+    integrationName = 'play'
     group = 'com.typesafe.play'
     module = 'play_2.12'
     versions = '[,]'
   }
   fail {
+    integrationName = 'play'
     group = 'com.typesafe.play'
     module = 'play_2.13'
     versions = '[,]'

@@ -1,6 +1,7 @@
 
 muzzle {
   pass {
+    integrationName = 'scala_concurrent'
     group = 'org.scala-lang'
     module = "scala-library"
     versions = "[2.8,2.12)"

@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'commons-text'
     group = 'org.apache.commons'
     module = 'commons-text'
     versions = '[1.0,]'

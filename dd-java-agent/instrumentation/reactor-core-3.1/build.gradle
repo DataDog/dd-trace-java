@@ -1,6 +1,7 @@
 
 muzzle {
   pass {
+    integrationName = 'reactor-core'
     group = "io.projectreactor"
     module = "reactor-core"
     versions = "[3.1.0.RELEASE,)"

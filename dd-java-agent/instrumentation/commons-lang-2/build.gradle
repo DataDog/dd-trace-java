@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'commons-lang'
     group = 'commons-lang'
     module = 'commons-lang'
     versions = '[2.1,]'

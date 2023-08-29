@@ -1,6 +1,7 @@
 
 muzzle {
   pass {
+    integrationName = 'elasticsearch'
     group = "org.elasticsearch.client"
     module = "elasticsearch-rest-client"
     versions = "[6.4,)"
@@ -9,6 +10,7 @@ muzzle {
   }
 
   fail {
+    integrationName = 'elasticsearch'
     group = "org.elasticsearch.client"
     module = "rest"
     versions = "[,]"

@@ -1,12 +1,14 @@
 
 muzzle {
   pass {
+    integrationName = 'graphql'
     group = "com.graphql-java"
     module = 'graphql-java'
     versions = '[14.0,21)'
     // earlier versions are missing some classes and will require separate instrumentation
   }
   fail {
+    integrationName = 'graphql'
     group = "com.graphql-java"
     module = 'graphql-java'
     versions = '[1.2,14.0)'

@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'jax-rs'
     group = "com.sun.jersey"
     module = "jersey-client"
     versions = "[1.1,]"

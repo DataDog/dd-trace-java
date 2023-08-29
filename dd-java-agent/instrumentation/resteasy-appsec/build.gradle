@@ -1,11 +1,13 @@
 muzzle {
   pass {
+    integrationName = 'resteasy'
     name = 'jaxrs'
     group = "org.jboss.resteasy"
     module = "resteasy-jaxrs"
     versions = "[3.0.0.Final,]"
   }
   pass {
+    integrationName = 'resteasy'
     name = 'multipart'
     group = "org.jboss.resteasy"
     module = "resteasy-multipart-provider"

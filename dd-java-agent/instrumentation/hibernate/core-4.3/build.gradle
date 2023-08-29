@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'hibernate'
     group = "org.hibernate"
     module = "hibernate-core"
     versions = "[4.3.0.Final,)"

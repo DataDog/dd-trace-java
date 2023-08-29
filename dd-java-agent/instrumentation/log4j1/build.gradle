@@ -2,6 +2,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   pass {
+    integrationName = 'log4j'
     group = 'log4j'
     module = 'log4j'
     versions = '[1.2.4,]'

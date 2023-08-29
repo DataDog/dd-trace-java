@@ -8,6 +8,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   pass {
+    integrationName = 'vertx'
     group = 'io.vertx'
     module = "vertx-web"
     versions = "[3.4.0,4)"

@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'spring-security'
     group = 'org.springframework.security'
     module = 'spring-security-core'
     versions = "[5.5.0,)"

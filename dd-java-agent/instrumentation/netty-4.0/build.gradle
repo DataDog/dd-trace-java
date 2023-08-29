@@ -8,12 +8,14 @@ apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   pass {
+    integrationName = 'netty'
     group = "io.netty"
     module = "netty-codec-http"
     versions = "[4.0.0.Final,4.1.0.Final)"
     assertInverse = true
   }
   pass {
+    integrationName = 'netty'
     group = "io.netty"
     module = "netty-all"
     versions = "[4.0.0.Final,4.1.0.Final)"
@@ -21,11 +23,13 @@ muzzle {
     excludeDependency 'io.netty:netty-tcnative'
   }
   fail {
+    integrationName = 'netty'
     group = "io.netty"
     module = "netty"
     versions = "[,]"
   }
   pass {
+    integrationName = 'netty'
     group = "io.vertx"
     module = "vertx-core"
     versions = "[2.0.0,3.3.0)"

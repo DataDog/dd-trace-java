@@ -1,6 +1,7 @@
 
 muzzle {
   pass {
+    integrationName = 'jakarta'
     group = "jakarta.ws.rs"
     module = "jakarta.ws.rs-api"
     versions = "[3.0.0,]"

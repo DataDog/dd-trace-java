@@ -8,6 +8,7 @@ ext {
 muzzle {
   // We have two independent covariants, so we have to test them independently.
   pass {
+    integrationName = 'spring-data'
     group = 'org.springframework.data'
     module = 'spring-data-commons'
     versions = "[1.8.0.RELEASE,3)"
@@ -15,6 +16,7 @@ muzzle {
     assertInverse = true
   }
   pass {
+    integrationName = 'spring-data'
     group = 'org.springframework'
     module = 'spring-aop'
     versions = "[1.2,6)"

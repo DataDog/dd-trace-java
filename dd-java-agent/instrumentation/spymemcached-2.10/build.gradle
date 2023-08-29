@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'spymemcached'
     group = "net.spy"
     module = 'spymemcached'
     versions = "[2.10.4,)"

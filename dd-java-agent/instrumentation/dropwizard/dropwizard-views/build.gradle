@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'dropwizard'
     group = 'io.dropwizard'
     module = 'dropwizard-views'
     versions = "[,3)"

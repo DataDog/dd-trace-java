@@ -1,18 +1,21 @@
 muzzle {
   // despite the name of module, this doesn't apply to tomcat < 6.0.35 or 7.0-7.0.22
   pass {
+    integrationName = 'tomcat'
     group = 'org.apache.tomcat'
     module = 'tomcat-coyote'
     versions = '[7.0.23,]'
     assertInverse = true
   }
   pass {
+    integrationName = 'tomcat'
     group = 'org.apache.tomcat'
     module = 'coyote'
     versions = '[6.0.35,]'
     assertInverse = true
   }
   fail {
+    integrationName = 'tomcat'
     group = 'tomcat'
     module = 'tomcat-util'
     versions = '[,5.5.23]'

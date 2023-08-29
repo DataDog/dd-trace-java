@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'opentracing'
     module = 'opentracing-util'
     group = 'io.opentracing'
     versions = '[0.31.0,0.31.0]'

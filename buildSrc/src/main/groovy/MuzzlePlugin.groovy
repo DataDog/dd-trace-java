@@ -14,12 +14,7 @@ import org.eclipse.aether.spi.connector.RepositoryConnectorFactory
 import org.eclipse.aether.spi.connector.transport.TransporterFactory
 import org.eclipse.aether.transport.http.HttpTransporterFactory
 import org.eclipse.aether.version.Version
-import org.gradle.api.Action
-import org.gradle.api.DefaultTask
-import org.gradle.api.GradleException
-import org.gradle.api.Plugin
-import org.gradle.api.Project
-import org.gradle.api.Task
+import org.gradle.api.*
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.FileCollection
@@ -61,11 +56,13 @@ class MuzzlePlugin implements Plugin<Project> {
 
   static class TestedArtifact implements Comparable<TestedArtifact> {
     private final String name
+    private final String integrationName
     private final Version low
     private final Version high
 
-    TestedArtifact(@Nonnull String name, @Nonnull Version low, @Nonnull Version high) {
+    TestedArtifact(@Nonnull String name, @Nonnull String integrationName, @Nonnull Version low, @Nonnull Version high) {
       this.name = name
+      this.integrationName = integrationName
       this.low = low
       this.high = high
     }
@@ -165,7 +162,7 @@ class MuzzlePlugin implements Plugin<Project> {
         } else {
           def range = resolveVersionRange(muzzleDirective, system, session)
           if (!range.versions.empty) {
-            testedArtifacts.add(new TestedArtifact(muzzleDirective.group + ":" + muzzleDirective.module, range.lowestVersion, range.highestVersion))
+            testedArtifacts.add(new TestedArtifact(muzzleDirective.group + ":" + muzzleDirective.module, muzzleDirective.integrationName, range.lowestVersion, range.highestVersion))
           }
           runLast = muzzleDirectiveToArtifacts(muzzleDirective, range).inject(runLast) { last, Artifact singleVersion ->
             runAfter = addMuzzleTask(muzzleDirective, singleVersion, project, runAfter, muzzleBootstrap, muzzleTooling)
@@ -195,7 +192,7 @@ class MuzzlePlugin implements Plugin<Project> {
     def dir = project.file("${project.rootProject.buildDir}/muzzle-deps-results")
     dir.mkdirs()
     def file = project.file("${dir}/${filename}.csv")
-    file.text = versions.collect {[it.name, it.low.toString(), it.high.toString()].join(",")}.join("\n")
+    file.text = versions.collect {[it.name, it.integrationName, it.low.toString(), it.high.toString()].join(",")}.join("\n")
   }
 
   private static void generateResultsXML(Project project, long millis) {
@@ -454,7 +451,7 @@ class MuzzleDirective {
    * same config. This property can be used to differentiate those config names for different directives.
    */
   String name
-
+  String integrationName
   String group
   String module
   String classifier

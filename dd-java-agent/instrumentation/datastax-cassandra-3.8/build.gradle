@@ -9,6 +9,7 @@ ext {
 muzzle {
 
   pass {
+    integrationName = 'datastax-cassandra'
     group = "com.datastax.cassandra"
     module = "cassandra-driver-core"
     versions = cassandraDriverTestVersions

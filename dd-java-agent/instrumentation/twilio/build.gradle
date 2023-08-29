@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'twilio'
     group = 'com.twilio.sdk'
     module = 'twilio'
     versions = "(,8.0.0)"

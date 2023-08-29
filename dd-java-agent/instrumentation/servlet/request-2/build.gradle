@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'servlet'
     name = 'servlet-2.x'
     group = "javax.servlet"
     module = "servlet-api"
@@ -7,17 +8,20 @@ muzzle {
     assertInverse = true
   }
   fail {
+    integrationName = 'servlet'
     group = "javax.servlet"
     module = 'javax.servlet-api'
     versions = "[3.0,)"
   }
   pass{
+    integrationName = 'servlet'
     name = 'servlet-common'
     group = "javax.servlet"
     module = 'javax.servlet-api'
     versions = "[2.0,)"
   }
   pass {
+    integrationName = 'servlet'
     name = 'servlet-2.x-and-3.0.x' // for Servlet2RequestBodyInstrumentation
     group = "javax.servlet"
     module = "servlet-api"

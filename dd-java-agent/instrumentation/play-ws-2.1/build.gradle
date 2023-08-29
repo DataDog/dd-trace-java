@@ -6,12 +6,14 @@ addTestSuiteForDir('latestDepTest', 'test')
 muzzle {
 
   fail {
+    integrationName = 'play-ws'
     group = 'com.typesafe.play'
     module = 'play-ahc-ws-standalone_2.11'
     versions = '[,]'
   }
 
   pass {
+    integrationName = 'play-ws'
     group = 'com.typesafe.play'
     module = 'play-ahc-ws-standalone_2.12'
     versions = '[2.1.0,]'
@@ -20,6 +22,7 @@ muzzle {
   }
 
   pass {
+    integrationName = 'play-ws'
     group = 'com.typesafe.play'
     module = 'play-ahc-ws-standalone_2.13'
     versions = '[2.1.0,]'

@@ -1,6 +1,7 @@
 
 muzzle {
   pass {
+    integrationName = 'ratpack'
     group = "io.ratpack"
     module = 'ratpack-core'
     versions = "[1.5.0,)"

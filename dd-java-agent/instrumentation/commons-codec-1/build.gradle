@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'commons-codec'
     group = 'commons-codec'
     module = 'commons-codec'
     versions = '[1.1,]'

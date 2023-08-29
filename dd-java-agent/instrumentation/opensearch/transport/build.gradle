@@ -1,6 +1,7 @@
 
 muzzle {
   pass {
+    integrationName = 'opensearch'
     group = "org.opensearch.client"
     module = "transport"
     versions = "[1.0,2)"
@@ -8,6 +9,7 @@ muzzle {
     assertInverse = false
   }
   pass {
+    integrationName = 'opensearch'
     group = "org.opensearch"
     module = "opensearch"
     versions = "[1.0,2)"

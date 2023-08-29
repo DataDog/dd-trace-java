@@ -3,6 +3,7 @@ apply plugin: 'scala'
 
 muzzle {
   pass {
+    integrationName = 'akka-http'
     group = 'com.typesafe.akka'
     module = 'akka-http_2.13'
     versions = "[10.2.0,)"

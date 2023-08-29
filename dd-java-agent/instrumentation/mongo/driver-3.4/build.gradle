@@ -1,23 +1,27 @@
 muzzle {
   pass {
+    integrationName = 'mongo'
     group = "org.mongodb"
     module = "mongodb-driver-core"
     versions = "[3.4,)"
     assertInverse = true
   }
   pass {
+    integrationName = 'mongo'
     group = "org.mongodb"
     module = "mongodb-driver-async"
     versions = "[3.4,)"
     assertInverse = true
   }
   pass {
+    integrationName = 'mongo'
     group = "org.mongodb"
     module = "mongodb-driver-sync"
     versions = "[3.4,)"
     assertInverse = true
   }
   pass {
+    integrationName = 'mongo'
     group = "org.mongodb"
     module = "mongo-java-driver"
     versions = "[3.4,)"

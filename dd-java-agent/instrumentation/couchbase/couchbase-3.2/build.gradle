@@ -1,6 +1,7 @@
 
 muzzle {
   pass {
+    integrationName = 'couchbase'
     group = 'com.couchbase.client'
     module = 'java-client'
     versions = '[3.2,)'

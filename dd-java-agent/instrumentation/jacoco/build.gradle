@@ -2,6 +2,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   pass {
+    integrationName = 'jacoco'
     group = 'org.jacoco'
     module = 'org.jacoco.agent'
     classifier = 'runtime'

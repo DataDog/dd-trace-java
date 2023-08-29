@@ -9,6 +9,7 @@ ext {
 muzzle {
 
   pass {
+    integrationName = 'datastax-cassandra'
     group = "com.datastax.cassandra"
     module = "cassandra-driver-core"
     versions = cassandraDriverTestVersions
@@ -25,6 +26,7 @@ muzzle {
   // Making sure that instrumentation works with recent versions of Guava which removed method
   // Futures::transform(input, function) in favor of Futures::transform(input, function, executor)
   pass {
+    integrationName = 'datastax-cassandra'
     name = "Newest versions of Guava"
     group = "com.datastax.cassandra"
     module = "cassandra-driver-core"
@@ -33,6 +35,7 @@ muzzle {
     extraDependency "com.google.guava:guava:27.0-jre"
   }
   pass {
+    integrationName = 'datastax-cassandra-3'
     name = "cluster"
     group = "com.datastax.cassandra"
     module = "cassandra-driver-core"

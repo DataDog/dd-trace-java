@@ -4,12 +4,14 @@
  */
 muzzle {
   pass {
+    integrationName = 'okhttp'
     group = "com.squareup.okhttp"
     module = "okhttp"
     versions = "[2.2,3)"
     assertInverse = true
   }
   pass {
+    integrationName = 'okhttp'
     name = 'okhttp-2.4' // for IastHttpUrlInstrumentation
     group = "com.squareup.okhttp"
     module = "okhttp"

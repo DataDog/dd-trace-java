@@ -1,6 +1,7 @@
 
 muzzle {
   pass {
+    integrationName = 'rxjava'
     group = "io.reactivex.rxjava2"
     module = "rxjava"
     versions = "[2.0.0,)"

@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'restlet-http'
     group = "org.restlet.jse"
     module = "org.restlet"
     versions = "[2.2.0,)"

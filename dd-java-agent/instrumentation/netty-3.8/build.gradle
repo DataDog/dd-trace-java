@@ -7,12 +7,14 @@ apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   pass {
+    integrationName = 'netty'
     group = "io.netty"
     module = "netty"
     versions = "[3.8.0.Final,4)"
     assertInverse = true
   }
   fail {
+    integrationName = 'netty'
     group = "io.netty"
     module = "netty-all"
     versions = "[,]"

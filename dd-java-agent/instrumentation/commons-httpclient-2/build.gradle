@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'commons-httpclient'
     group = "commons-httpclient"
     module = "commons-httpclient"
     versions = "[2.0,]"
@@ -8,6 +9,7 @@ muzzle {
     assertInverse = true
   }
   pass {
+    integrationName = 'commons-httpclient'
     name = 'commons-http-client-x' // for IAST instrumenters valid for 1.x
     group = "commons-httpclient"
     module = "commons-httpclient"

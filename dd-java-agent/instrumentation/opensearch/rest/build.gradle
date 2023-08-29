@@ -1,6 +1,7 @@
 
 muzzle {
   pass {
+    integrationName = 'opensearch'
     group = "org.opensearch.client"
     module = "opensearch-rest-client"
     versions = "[1,)"

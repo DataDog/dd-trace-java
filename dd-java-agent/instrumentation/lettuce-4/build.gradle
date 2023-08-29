@@ -1,6 +1,7 @@
 
 muzzle {
   pass {
+    integrationName = 'lettuce'
     group = "biz.paluch.redis"
     module = "lettuce"
     versions = "[4.0.Final,)"

@@ -4,6 +4,7 @@ ext {
 
 muzzle {
   pass {
+    integrationName = 'graal-native-image'
     group = "org.graalvm.nativeimage"
     module = "svm"
     versions = "[20,)"

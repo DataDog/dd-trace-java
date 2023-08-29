@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'micronaut'
     group = "io.micronaut"
     module = "micronaut-http-server-netty"
     versions = "[2,3)"

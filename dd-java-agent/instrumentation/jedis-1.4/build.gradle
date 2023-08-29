@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'jedis'
     group = "redis.clients"
     module = "jedis"
     versions = "[1.4.0,3.0.0)"

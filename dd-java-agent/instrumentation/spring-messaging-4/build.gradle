@@ -1,6 +1,7 @@
 
 muzzle {
   pass {
+    integrationName = 'spring-messaging'
     group = 'org.springframework'
     module = 'spring-messaging'
     versions = "[4.0.0.RELEASE,)"

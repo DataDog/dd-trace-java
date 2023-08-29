@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'jetty'
     group = "org.eclipse.jetty"
     module = 'jetty-server'
     // Includes 7.0-7.5, plus 8.0.x (7.6 required separate instrumentation)

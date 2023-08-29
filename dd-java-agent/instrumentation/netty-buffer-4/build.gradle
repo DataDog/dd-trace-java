@@ -2,6 +2,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   pass {
+    integrationName = 'netty'
     group = "io.netty"
     module = "netty-buffer"
     versions = "[4.0.0.Final,)"

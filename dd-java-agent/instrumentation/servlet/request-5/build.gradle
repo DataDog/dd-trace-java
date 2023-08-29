@@ -6,6 +6,7 @@ plugins {
 
 muzzle {
   pass {
+    integrationName = 'servlet'
     group = "jakarta.servlet"
     module = 'jakarta.servlet-api'
     versions = "[5.0.0,)"

@@ -1,6 +1,7 @@
 
 muzzle {
   pass {
+    integrationName = 'redisson'
     group = "org.redisson"
     module = "redisson"
     versions = "[2.0.0,)"

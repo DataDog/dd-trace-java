@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'hystrix'
     group = "com.netflix.hystrix"
     module = 'hystrix-core'
     versions = "[1.4.0,)"

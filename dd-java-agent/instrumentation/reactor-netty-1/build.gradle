@@ -1,11 +1,13 @@
 
 muzzle {
   fail {
+    integrationName = 'reactor-netty'
     group = "io.projectreactor.netty"
     module = "reactor-netty"
     versions = "[,1.0.0)"
   }
   pass {
+    integrationName = 'reactor-netty'
     group = "io.projectreactor.netty"
     module = "reactor-netty-http"
     versions = "[1.0.0,)"

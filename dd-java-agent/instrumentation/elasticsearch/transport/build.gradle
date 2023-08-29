@@ -1,6 +1,7 @@
 
 muzzle {
   pass {
+    integrationName = 'elasticsearch'
     group = "org.elasticsearch.client"
     module = "transport"
     versions = "[2.0,)"
@@ -8,6 +9,7 @@ muzzle {
     skipVersions = ["7.11.0", "7.17.8"]
   }
   pass {
+    integrationName = 'elasticsearch'
     group = "org.elasticsearch"
     module = "elasticsearch"
     versions = "[2.0,)"

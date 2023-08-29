@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'jax-rs'
     group = "org.glassfish.jersey.core"
     module = "jersey-client"
     versions = "[2.0,3.0.0)"

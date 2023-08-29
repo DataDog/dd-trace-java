@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'jetty'
     name = '9_full_series'
     group = "org.eclipse.jetty"
     module = 'jetty-server'
@@ -7,6 +8,7 @@ muzzle {
     assertInverse = true
   }
   pass {
+    integrationName = 'jetty'
     name = 'before_904'
     group = "org.eclipse.jetty"
     module = 'jetty-server'
@@ -14,6 +16,7 @@ muzzle {
     assertInverse = true
   }
   pass {
+    integrationName = 'jetty'
     name = 'between_904_and_930'
     group = "org.eclipse.jetty"
     module = 'jetty-server'
@@ -21,6 +24,7 @@ muzzle {
     assertInverse = true
   }
   pass {
+    integrationName = 'jetty'
     name = 'between_930_and_9421'
     group = "org.eclipse.jetty"
     module = 'jetty-server'
@@ -28,6 +32,7 @@ muzzle {
     assertInverse = true
   }
   pass {
+    integrationName = 'jetty'
     name = 'between_9421_and_10'
     group = "org.eclipse.jetty"
     module = 'jetty-server'
@@ -35,6 +40,7 @@ muzzle {
     assertInverse = true
   }
   pass {
+    integrationName = 'jetty'
     name = '10_series'
     group = "org.eclipse.jetty"
     module = 'jetty-server'
@@ -43,6 +49,7 @@ muzzle {
     javaVersion = 11
   }
   pass {
+    integrationName = 'jetty'
     name = 'between_10_and_12'
     group = "org.eclipse.jetty"
     module = 'jetty-server'

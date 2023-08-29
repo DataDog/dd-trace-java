@@ -17,6 +17,7 @@ muzzle {
   // Muzzle is tested by keeping one version fixed and modifying the other
   // Ideally, muzzle would handle this directly and keep both versions in lockstep
   pass {
+    integrationName = 'datanucleus'
     group = "org.datanucleus"
     module = "datanucleus-core"
     versions = "[4.0.5,]"
@@ -25,6 +26,7 @@ muzzle {
   }
 
   pass {
+    integrationName = 'datanucleus'
     group = "org.datanucleus"
     module = "datanucleus-api-jdo"
     versions = "[4.0.5,]"

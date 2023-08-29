@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'maven'
     group = 'org.apache.maven'
     module = 'maven-embedder'
     versions = '[3.2.1,)'

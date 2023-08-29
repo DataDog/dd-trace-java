@@ -3,6 +3,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   pass {
+    integrationName = 'vertx'
     group = 'io.vertx'
     module = 'vertx-mysql-client'
     versions = '[3.9.0,4)'

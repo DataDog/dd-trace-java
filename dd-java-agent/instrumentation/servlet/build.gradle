@@ -1,10 +1,12 @@
 muzzle {
   pass {
+    integrationName = 'servlet'
     group = "javax.servlet"
     module = 'javax.servlet-api'
     versions = "[,]"
   }
   pass {
+    integrationName = 'servlet'
     group = "javax.servlet"
     module = 'servlet-api'
     versions = "[,]"

@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'undertow'
     group = "io.undertow"
     module = "undertow-servlet"
     versions = "[2.0.0.Final,2.3)"

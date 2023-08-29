@@ -1,5 +1,6 @@
 muzzle {
   fail {
+    integrationName = 'apache-httpclient'
     group = "commons-httpclient"
     module = "commons-httpclient"
     versions = "[,4.0)"
@@ -7,6 +8,7 @@ muzzle {
     skipVersions += '2.0-final' // broken metadata on maven central
   }
   pass {
+    integrationName = 'apache-httpclient'
     group = "org.apache.httpcomponents"
     module = "httpclient"
     versions = "[4.0,5)"
@@ -14,6 +16,7 @@ muzzle {
   }
   pass {
     // We want to support the dropwizard clients too.
+    integrationName = 'apache-httpclient'
     group = 'io.dropwizard'
     module = 'dropwizard-client'
     versions = "[,3)" // dropwizard-client 3+ uses httpclient5

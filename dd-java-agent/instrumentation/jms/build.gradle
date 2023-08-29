@@ -1,10 +1,12 @@
 muzzle {
   pass {
+    integrationName = 'jms'
     group = "javax.jms"
     module = "jms-api"
     versions = "[,]"
   }
   pass {
+    integrationName = 'jms'
     group = "javax.jms"
     module = "javax.jms-api"
     versions = "[,]"

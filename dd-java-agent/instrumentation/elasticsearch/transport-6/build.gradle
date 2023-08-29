@@ -1,6 +1,7 @@
 
 muzzle {
   pass {
+    integrationName = 'elasticsearch'
     group = "org.elasticsearch.client"
     module = "transport"
     versions = "[6.0.0,8.0.0)"
@@ -8,6 +9,7 @@ muzzle {
     assertInverse = true
   }
   pass {
+    integrationName = 'elasticsearch'
     group = "org.elasticsearch"
     module = "elasticsearch"
     versions = "[6.0.0,8.0.0)"

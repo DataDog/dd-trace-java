@@ -5,6 +5,7 @@ ext {
 
 muzzle {
   pass {
+    integrationName = 'elasticsearch'
     group = "org.elasticsearch"
     module = "elasticsearch"
     versions = "[2.0,3)"

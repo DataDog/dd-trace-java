@@ -1,6 +1,7 @@
 
 muzzle {
   pass {
+    integrationName = 'spring-cloud-zuul'
     group = 'org.springframework.cloud'
     module = 'spring-cloud-netflix-zuul'
     versions = "[,]"

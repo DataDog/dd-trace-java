@@ -4,12 +4,14 @@ plugins {
 
 muzzle {
   pass {
+    integrationName = 'kotlin'
     group = 'org.jetbrains.kotlin'
     module = 'kotlin-stdlib'
     versions = "[1.6.21,)"
     extraDependency "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.0"
   }
   pass {
+    integrationName = 'kotlin'
     group = 'org.jetbrains.kotlinx'
     module = 'kotlinx-coroutines-core-jvm'
     versions = "[1.5.0,)"

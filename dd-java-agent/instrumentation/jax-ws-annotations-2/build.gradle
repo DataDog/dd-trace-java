@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'jax-ws'
     group = "javax.xml.ws"
     module = "jaxws-api"
     versions = "[2.0,)"

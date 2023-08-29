@@ -8,6 +8,7 @@ def platformVersion = '1.3.0'
 
 muzzle {
   pass {
+    integrationName = 'junit'
     group = 'org.junit.platform'
     module = 'junit-platform-launcher'
     versions = "[$platformVersion,)"

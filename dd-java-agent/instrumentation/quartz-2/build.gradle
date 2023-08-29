@@ -1,6 +1,7 @@
 
 muzzle {
   pass {
+    integrationName = 'quartz'
     group = 'org.quartz-scheduler'
     module = 'quartz'
     versions = "[2.0.0,2.4.0)"

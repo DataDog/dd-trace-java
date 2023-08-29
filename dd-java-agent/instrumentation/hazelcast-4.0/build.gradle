@@ -1,6 +1,7 @@
 
 muzzle {
   pass {
+    integrationName = 'hazelcast'
     group = "com.hazelcast"
     module = "hazelcast-all"
     versions = "[4.0,)"

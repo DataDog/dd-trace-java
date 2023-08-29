@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'ognl'
     group = 'ognl'
     module = 'ognl'
     versions = '[2.1.4,)'

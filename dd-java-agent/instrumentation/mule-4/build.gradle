@@ -9,6 +9,7 @@ muzzle {
   extraRepository('mulesoft-public', 'https://repository.mulesoft.org/nexus/content/repositories/public')
 
   pass {
+    integrationName = 'mule'
     group = 'org.mule.runtime'
     module = 'mule-core'
     versions = '[,]'
@@ -16,6 +17,7 @@ muzzle {
   }
 
   fail {
+    integrationName = 'mule'
     group = 'org.mule'
     module = 'mule-core'
     versions = '[3.2.0,)' // First version where muzzle can resolve all dependencies

@@ -3,18 +3,21 @@ def scalaVersion = '2.12'
 
 muzzle {
   pass {
+    integrationName = 'zio'
     group = 'dev.zio'
     module = "zio_2.12"
     versions = "[$zioVersion,)"
     assertInverse = true
   }
   pass {
+    integrationName = 'zio'
     group = 'dev.zio'
     module = "zio_2.13"
     versions = "[$zioVersion,)"
     assertInverse = true
   }
   pass {
+    integrationName = 'zio'
     group = 'dev.zio'
     module = "zio_3"
     versions = "[$zioVersion,)"

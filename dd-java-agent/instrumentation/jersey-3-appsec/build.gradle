@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    integrationName = 'jersey'
     name = 'common'
     group = 'org.glassfish.jersey.core'
     module = 'jersey-common'
@@ -7,6 +8,7 @@ muzzle {
     assertInverse = true
   }
   pass {
+    integrationName = 'jersey'
     name = 'common'
     group = 'org.glassfish.jersey.core'
     module = 'jersey-server'
@@ -14,6 +16,7 @@ muzzle {
     assertInverse = true
   }
   pass {
+    integrationName = 'jersey'
     name = 'multipart'
     group = 'org.glassfish.jersey.media'
     module = 'jersey-media-multipart'
