@@ -7,7 +7,6 @@ import datadog.trace.util.Strings;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,10 +15,10 @@ public class CILocalGitInfoBuilder implements GitInfoBuilder {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(CILocalGitInfoBuilder.class);
 
-  private final Function<String, GitClient> gitClientFactory;
+  private final GitClient.Factory gitClientFactory;
   private final String gitFolderName;
 
-  public CILocalGitInfoBuilder(Function<String, GitClient> gitClientFactory, String gitFolderName) {
+  public CILocalGitInfoBuilder(GitClient.Factory gitClientFactory, String gitFolderName) {
     this.gitClientFactory = gitClientFactory;
     this.gitFolderName = gitFolderName;
   }
@@ -36,7 +35,7 @@ public class CILocalGitInfoBuilder implements GitInfoBuilder {
 
   private Path getGitPath(String repositoryPath) {
     try {
-      GitClient gitClient = gitClientFactory.apply(repositoryPath);
+      GitClient gitClient = gitClientFactory.create(repositoryPath);
       String gitFolder = gitClient.getGitFolder();
       if (Strings.isNotBlank(gitFolder)) {
         Path gitFolderPath = Paths.get(gitFolder);
