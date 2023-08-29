@@ -1,12 +1,10 @@
 package datadog.trace.agent.tooling;
 
-import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDClassFileTransformer;
 import datadog.trace.agent.tooling.bytebuddy.DDLocationStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDOutlinePoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDOutlineTypeStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDRediscoveryStrategy;
-import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Platform;
 import net.bytebuddy.agent.builder.AgentBuilder.ClassFileBufferStrategy;
 import net.bytebuddy.agent.builder.AgentBuilder.LocationStrategy;
@@ -45,21 +43,9 @@ public class AgentStrategies {
   private static final DiscoveryStrategy REDISCOVERY_STRATEGY = new DDRediscoveryStrategy();
   private static final LocationStrategy LOCATION_STRATEGY = new DDLocationStrategy();
 
-  private static final PoolStrategy POOL_STRATEGY;
-  private static final ClassFileBufferStrategy BUFFER_STRATEGY;
-  private static final TypeStrategy TYPE_STRATEGY;
-
-  static {
-    if (InstrumenterConfig.get().isResolverOutliningEnabled()) {
-      POOL_STRATEGY = DDOutlinePoolStrategy.INSTANCE;
-      BUFFER_STRATEGY = DDOutlineTypeStrategy.INSTANCE;
-      TYPE_STRATEGY = DDOutlineTypeStrategy.INSTANCE;
-    } else {
-      POOL_STRATEGY = DDCachingPoolStrategy.INSTANCE;
-      BUFFER_STRATEGY = ClassFileBufferStrategy.Default.RETAINING;
-      TYPE_STRATEGY = TypeStrategy.Default.REDEFINE_FROZEN;
-    }
-  }
+  private static final PoolStrategy POOL_STRATEGY = DDOutlinePoolStrategy.INSTANCE;
+  private static final ClassFileBufferStrategy BUFFER_STRATEGY = DDOutlineTypeStrategy.INSTANCE;
+  private static final TypeStrategy TYPE_STRATEGY = DDOutlineTypeStrategy.INSTANCE;
 
   public static TransformerDecorator transformerDecorator() {
     return TRANSFORMER_DECORATOR;

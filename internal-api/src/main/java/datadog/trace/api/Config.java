@@ -2249,7 +2249,9 @@ public class Config {
 
   public static boolean isDatadogProfilerEnablementOverridden() {
     // old non-LTS versions without important backports
-    return Platform.isJavaVersion(18)
+    // also, we have no windows binaries
+    return Platform.isWindows()
+        || Platform.isJavaVersion(18)
         || Platform.isJavaVersion(16)
         || Platform.isJavaVersion(15)
         || Platform.isJavaVersion(14)

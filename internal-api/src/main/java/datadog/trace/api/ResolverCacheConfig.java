@@ -95,7 +95,7 @@ public enum ResolverCacheConfig {
     }
   },
 
-  /** The old {@code DDCachingPoolStrategy} behaviour. */
+  /** No outlining or memoizing. */
   LEGACY {
     @Override
     public int noMatchesSize() {

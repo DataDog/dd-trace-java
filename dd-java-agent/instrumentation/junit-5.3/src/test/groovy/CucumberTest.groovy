@@ -225,7 +225,7 @@ class CucumberTest extends CiVisibilityTest {
     final Throwable exception = null,
     final boolean emptyDuration = false,
     final Collection<String> categories = null) {
-    testSpan(trace, index, testSessionId, testModuleId, testSuiteId, testSuite, testName, null, testStatus, testTags, exception, emptyDuration, categories, false)
+    testSpan(trace, index, testSessionId, testModuleId, testSuiteId, testSuite, testName, null, testStatus, testTags, exception, emptyDuration, categories, false, false)
   }
 
   @Override
