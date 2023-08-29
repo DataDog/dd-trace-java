@@ -3,7 +3,7 @@ package datadog.trace.core;
 import static datadog.communication.monitor.DDAgentStatsDClientManager.statsDClientManager;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.api.DDTags.SPAN_LINKS;
-import static datadog.trace.api.TracePropagationStyle.PATHWAY_CONTEXT;
+import static datadog.trace.api.TracePropagationStyle.DSM_PATHWAY_CONTEXT;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
@@ -620,7 +620,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         HttpCodec.allInjectorsFor(config, invertMap(baggageMapping));
     Map<TracePropagationStyle, HttpCodec.ContextInjector> contextInjectors =
         new HashMap<>(httpInjectors);
-    contextInjectors.put(PATHWAY_CONTEXT, this.dataStreamsMonitoring.injector());
+    contextInjectors.put(DSM_PATHWAY_CONTEXT, this.dataStreamsMonitoring.injector());
     // Store all propagators to propagation
     this.propagation = new CorePropagation(builtExtractor, injector, contextInjectors);
 

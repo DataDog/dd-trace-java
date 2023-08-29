@@ -1,6 +1,6 @@
 package datadog.trace.core.propagation;
 
-import static datadog.trace.api.TracePropagationStyle.PATHWAY_CONTEXT;
+import static datadog.trace.api.TracePropagationStyle.DSM_PATHWAY_CONTEXT;
 import static datadog.trace.core.datastreams.DefaultPathwayContext.TAGS_CONTEXT_KEY;
 
 import datadog.trace.api.TracePropagationStyle;
@@ -54,7 +54,7 @@ public class CorePropagation implements AgentPropagation {
   public <C> void injectPathwayContext(
       AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags) {
     AgentScopeContext context = ScopeContext.fromSpan(span).with(TAGS_CONTEXT_KEY, sortedTags);
-    inject(context, carrier, setter, PATHWAY_CONTEXT);
+    inject(context, carrier, setter, DSM_PATHWAY_CONTEXT);
   }
 
   @Override

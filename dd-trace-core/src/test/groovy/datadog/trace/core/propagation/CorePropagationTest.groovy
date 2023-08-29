@@ -9,7 +9,7 @@ import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.TracePropagationStyle.B3MULTI
 import static datadog.trace.api.TracePropagationStyle.DATADOG
-import static datadog.trace.api.TracePropagationStyle.PATHWAY_CONTEXT
+import static datadog.trace.api.TracePropagationStyle.DSM_PATHWAY_CONTEXT
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
 
@@ -29,10 +29,10 @@ class CorePropagationTest extends DDCoreSpecification {
     traceContextInjector = Mock(HttpCodec.Injector)
     dataStreamContextInjector = Mock(HttpCodec.ContextInjector)
     allInjectors = [
-      (DATADOG)     : datadogInjector,
-      (B3MULTI)     : b3Injector,
-      (TRACECONTEXT): traceContextInjector,
-      (PATHWAY_CONTEXT): dataStreamContextInjector
+      (DATADOG)            : datadogInjector,
+      (B3MULTI)            : b3Injector,
+      (TRACECONTEXT)       : traceContextInjector,
+      (DSM_PATHWAY_CONTEXT): dataStreamContextInjector
     ]
     propagation = new CorePropagation(extractor, datadogInjector, allInjectors)
   }
@@ -110,7 +110,7 @@ class CorePropagationTest extends DDCoreSpecification {
     tracer.close()
 
     where:
-    style << [DATADOG, B3MULTI, TRACECONTEXT, PATHWAY_CONTEXT, null]
+    style << [DATADOG, B3MULTI, TRACECONTEXT, DSM_PATHWAY_CONTEXT, null]
   }
 
   def 'test context extractor'() {
