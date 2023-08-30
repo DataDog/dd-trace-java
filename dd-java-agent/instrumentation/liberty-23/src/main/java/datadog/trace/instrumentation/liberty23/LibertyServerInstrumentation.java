@@ -102,7 +102,8 @@ public final class LibertyServerInstrumentation extends Instrumenter.Tracing
 
       Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
       if (rba != null) {
-        JakartaServletBlockingHelper.commitBlockingResponse(request, (SRTServletResponse) resp, rba);
+        JakartaServletBlockingHelper.commitBlockingResponse(
+            request, (SRTServletResponse) resp, rba);
         // prevent caching of the handler
         req.setAttribute(
             "javax.servlet.error.status_code", ((SRTServletResponse) resp).getStatusCode());

@@ -2,8 +2,6 @@ package datadog.trace.instrumentation.liberty23;
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART;
 
-import java.io.IOException;
-import java.util.Enumeration;
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
@@ -13,6 +11,8 @@ import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
+import java.io.IOException;
+import java.util.Enumeration;
 
 @WebServlet(
     urlPatterns = {
