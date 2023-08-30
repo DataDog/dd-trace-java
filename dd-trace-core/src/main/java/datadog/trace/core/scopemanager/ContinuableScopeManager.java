@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.SPAN_CONTEXT
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan;
 import static datadog.trace.bootstrap.instrumentation.api.ScopeSource.INSTRUMENTATION;
 import static datadog.trace.bootstrap.instrumentation.api.ScopeSource.ITERATION;
-import static datadog.trace.core.scopemanager.ScopeContext.fromSpan;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -97,22 +96,29 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
   @Override
   public AgentScope activate(final AgentSpan span, final ScopeSource source) {
-    return activate(fromSpan(span), source.id(), false, /* ignored */ false);
+    return activate(activeContextWithSpan(span), source.id(), false, /* ignored */ false);
   }
 
   @Override
   public AgentScope activate(
       final AgentSpan span, final ScopeSource source, boolean isAsyncPropagating) {
-    return activate(fromSpan(span), source.id(), true, isAsyncPropagating);
+    return activate(activeContextWithSpan(span), source.id(), true, isAsyncPropagating);
   }
 
   @Override
   public AgentScope.Continuation captureSpan(final AgentSpan span) {
-    SingleContinuation continuation =
-        new SingleContinuation(this, fromSpan(span), INSTRUMENTATION.id());
+    AgentScopeContext context = activeContextWithSpan(span);
+    SingleContinuation continuation = new SingleContinuation(this, context, INSTRUMENTATION.id());
     continuation.register();
     healthMetrics.onCaptureContinuation();
     return continuation;
+  }
+
+  private AgentScopeContext activeContextWithSpan(final AgentSpan span) {
+    AgentScope activeScope = active();
+    return activeScope == null
+        ? ScopeContext.fromSpan(span)
+        : activeScope.context().with(SPAN_CONTEXT_KEY, span);
   }
 
   private AgentScope activate(
