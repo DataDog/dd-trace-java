@@ -186,11 +186,11 @@ public class DatadogSparkListener extends SparkListener {
     captureApplicationParameters(builder);
 
     if (properties != null) {
-      String databricksJobId = (String) properties.get("spark.databricks.job.id");
+      String databricksJobId = properties.getProperty("spark.databricks.job.id");
       String databricksJobRunId = getDatabricksJobRunId(properties, databricksClusterName);
 
       // spark.databricks.job.runId is the runId of the task, not of the Job
-      String databricksTaskRunId = (String) properties.get("spark.databricks.job.runId");
+      String databricksTaskRunId = properties.getProperty("spark.databricks.job.runId");
 
       // ids to link those spans to databricks job/task traces
       builder.withTag("databricks_job_id", databricksJobId);
