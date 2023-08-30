@@ -13,6 +13,7 @@ import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
+import datadog.trace.util.Strings;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -59,6 +60,7 @@ import org.slf4j.LoggerFactory;
 public class DebuggerTransformer implements ClassFileTransformer {
   private static final Logger log = LoggerFactory.getLogger(DebuggerTransformer.class);
   private static final String CANNOT_FIND_METHOD = "Cannot find method %s::%s";
+  private static final String INSTRUMENTATION_FAILS = "Instrumentation fails for %s";
   private static final String CANNOT_FIND_LINE = "No executable code was found at %s:L%s";
   private static final Pattern COMMA_PATTERN = Pattern.compile(",");
 
@@ -140,9 +142,10 @@ public class DebuggerTransformer implements ClassFileTransformer {
     if (skipInstrumentation(loader, classFilePath)) {
       return null;
     }
+    List<ProbeDefinition> definitions = Collections.emptyList();
+    String fullyQualifiedClassName = classFilePath.replace('/', '.');
     try {
-      String fullyQualifiedClassName = classFilePath.replace('/', '.');
-      List<ProbeDefinition> definitions =
+      definitions =
           definitonMatcher.match(
               classBeingRedefined, classFilePath, fullyQualifiedClassName, classfileBuffer);
       if (definitions.isEmpty()) {
@@ -157,7 +160,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       boolean transformed =
           performInstrumentation(loader, fullyQualifiedClassName, defByLocation, classNode);
       if (transformed) {
-        return writeClassFile(loader, classFilePath, classNode);
+        return writeClassFile(definitions, loader, classFilePath, classNode);
       }
       // This is an info log because in case of SourceFile definition and multiple top-level
       // classes, type may match, but there is one classfile per top-level class so source file
@@ -167,6 +170,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
           "type {} matched but no transformation for definitions: {}", classFilePath, definitions);
     } catch (Throwable ex) {
       log.warn("Cannot transform: ", ex);
+      reportInstrumentationFails(definitions, fullyQualifiedClassName);
     }
     return null;
   }
@@ -246,7 +250,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       Map<Where, List<ProbeDefinition>> defByLocation = mergeLocations(probes);
       boolean transformed = performInstrumentation(loader, classFilePath, defByLocation, classNode);
       if (transformed) {
-        return writeClassFile(loader, classFilePath, classNode);
+        return writeClassFile(probes, loader, classFilePath, classNode);
       }
     } catch (Throwable ex) {
       log.warn("Cannot transform: ", ex);
@@ -318,17 +322,23 @@ public class DebuggerTransformer implements ClassFileTransformer {
     return classNode;
   }
 
-  private byte[] writeClassFile(ClassLoader loader, String classFilePath, ClassNode classNode) {
+  private byte[] writeClassFile(
+      List<ProbeDefinition> definitions,
+      ClassLoader loader,
+      String classFilePath,
+      ClassNode classNode) {
     if (classNode.version < Opcodes.V1_8) {
       // Class file version must be at least 1.8 (52)
       classNode.version = Opcodes.V1_8;
     }
     ClassWriter writer = new SafeClassWriter(loader);
-    log.debug("Generating bytecode for class: {}", classFilePath.replace('/', '.'));
+
+    log.debug("Generating bytecode for class: {}", Strings.getClassName(classFilePath));
     try {
       classNode.accept(writer);
     } catch (Throwable t) {
       log.error("Cannot write classfile for class: {} Exception: ", classFilePath, t);
+      reportInstrumentationFails(definitions, Strings.getClassName(classFilePath));
       return null;
     }
     byte[] data = writer.toByteArray();
@@ -423,16 +433,20 @@ public class DebuggerTransformer implements ClassFileTransformer {
 
   private void reportLocationNotFound(
       List<ProbeDefinition> definitions, String className, String methodName) {
-    String format;
-    String location;
     if (methodName != null) {
-      format = CANNOT_FIND_METHOD;
-      location = methodName;
-    } else {
-      // This is a line probe, so we don't report line not found because the line may be found later
-      // on a separate class files because probe was set on an inner/top-level class
+      reportError(definitions, CANNOT_FIND_METHOD, className, methodName);
       return;
     }
+    // This is a line probe, so we don't report line not found because the line may be found later
+    // on a separate class files because probe was set on an inner/top-level class
+  }
+
+  private void reportInstrumentationFails(List<ProbeDefinition> definitions, String className) {
+    reportError(definitions, INSTRUMENTATION_FAILS, className, null);
+  }
+
+  private static void reportError(
+      List<ProbeDefinition> definitions, String format, String className, String location) {
     String msg = String.format(format, className, location);
     DiagnosticMessage diagnosticMessage = new DiagnosticMessage(DiagnosticMessage.Kind.ERROR, msg);
     for (ProbeDefinition definition : definitions) {

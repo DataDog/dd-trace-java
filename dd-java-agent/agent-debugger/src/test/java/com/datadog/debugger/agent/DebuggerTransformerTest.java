@@ -300,12 +300,20 @@ public class DebuggerTransformerTest {
   @Test
   public void classGenerationFailed() {
     Config config = mock(Config.class);
-    DebuggerAgentHelper.injectSink(new TestSnapshotListener());
-    MockProbe mockProbe = MockProbe.builder(PROBE_ID).where("java.util.ArrayList", "add").build();
+    TestSnapshotListener listener = new TestSnapshotListener();
+    DebuggerAgentHelper.injectSink(listener);
+    final String CLASS_NAME = DebuggerAgent.class.getTypeName();
+    final String METHOD_NAME = "run";
+    MockProbe mockProbe = MockProbe.builder(PROBE_ID).where(CLASS_NAME, METHOD_NAME).build();
+    LogProbe logProbe1 =
+        LogProbe.builder().probeId("logprobe1", 0).where(CLASS_NAME, METHOD_NAME).build();
+    LogProbe logProbe2 =
+        LogProbe.builder().probeId("logprobe2", 0).where(CLASS_NAME, METHOD_NAME).build();
     Configuration configuration =
         Configuration.builder()
             .setService(SERVICE_NAME)
             .addSpanProbes(Collections.singletonList(mockProbe))
+            .addLogProbes(Arrays.asList(logProbe1, logProbe2))
             .build();
     AtomicReference<InstrumentationResult> lastResult = new AtomicReference<>(null);
     DebuggerTransformer debuggerTransformer =
@@ -314,11 +322,20 @@ public class DebuggerTransformerTest {
     byte[] newClassBuffer =
         debuggerTransformer.transform(
             ClassLoader.getSystemClassLoader(),
-            "java.util.ArrayList",
+            "com/datadog/debugger/agent/DebuggerAgent",
             null,
             null,
-            getClassFileBytes(ArrayList.class));
+            getClassFileBytes(DebuggerAgent.class));
     Assertions.assertNull(newClassBuffer);
+    Assertions.assertEquals(
+        "Instrumentation fails for " + CLASS_NAME,
+        listener.errors.get(PROBE_ID.getId()).get(0).getMessage());
+    Assertions.assertEquals(
+        "Instrumentation fails for " + CLASS_NAME,
+        listener.errors.get("logprobe1").get(0).getMessage());
+    Assertions.assertEquals(
+        "Instrumentation fails for " + CLASS_NAME,
+        listener.errors.get("logprobe2").get(0).getMessage());
   }
 
   private static class MockProbe extends SpanProbe {
