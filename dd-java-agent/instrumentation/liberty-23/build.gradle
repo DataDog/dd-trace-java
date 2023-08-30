@@ -38,7 +38,7 @@ dependencies {
   implementation project(':dd-java-agent:instrumentation:servlet:request-5')
 
   testImplementation files({ tasks.installOpenLibertyDeps.wsServerJar })
-  testRuntimeOnly files({ tasks.installOpenLibertyDeps.serverJar })
+  testRuntimeOnly files({ tasks.installOpenLibertyDeps.extractedJars })
   testImplementation testFixtures(project(':dd-java-agent:appsec'))
   testRuntimeOnly project(':dd-java-agent:instrumentation:osgi-4.3')
   testRuntimeOnly files({ tasks.filterLogbackClassic.filteredLogbackDir })
