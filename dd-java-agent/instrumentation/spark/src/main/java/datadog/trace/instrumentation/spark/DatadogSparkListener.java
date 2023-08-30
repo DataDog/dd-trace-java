@@ -111,11 +111,7 @@ public class DatadogSparkListener extends SparkListener {
       }
     }
 
-    for (Tuple2<String, String> conf : sparkConf.getAll()) {
-      if (SparkConfAllowList.canCaptureApplicationParameter(conf._1)) {
-        builder.withTag("config." + conf._1.replace(".", "_"), conf._2);
-      }
-    }
+    captureApplicationParameters(builder);
     builder.withTag("config.spark_version", sparkVersion);
 
     applicationSpan = builder.start();
@@ -168,6 +164,50 @@ public class DatadogSparkListener extends SparkListener {
     applicationSpan.finish(time * 1000);
   }
 
+  private AgentSpan createStreamingBatchSpan(SparkListenerJobStart jobStart) {
+    AgentTracer.SpanBuilder builder =
+        buildSparkSpan("spark.batch").withStartTimestamp(jobStart.time() * 1000);
+
+    // Streaming spans will always be the root span, capturing all parameters on those
+    captureApplicationParameters(builder);
+    captureJobParameters(builder, jobStart.properties());
+
+    if (isRunningOnDatabricks) {
+      addDatabricksSpecificTags(builder, jobStart.properties(), false);
+    }
+
+    return builder.start();
+  }
+
+  private void addDatabricksSpecificTags(
+      AgentTracer.SpanBuilder builder, Properties properties, boolean withParentContext) {
+    // In databricks, there is no application span. Adding the spark conf parameters to the top
+    // level spark span
+    captureApplicationParameters(builder);
+
+    if (properties != null) {
+      String databricksJobId = properties.getProperty("spark.databricks.job.id");
+      String databricksJobRunId = getDatabricksJobRunId(properties, databricksClusterName);
+
+      // spark.databricks.job.runId is the runId of the task, not of the Job
+      String databricksTaskRunId = properties.getProperty("spark.databricks.job.runId");
+
+      // ids to link those spans to databricks job/task traces
+      builder.withTag("databricks_job_id", databricksJobId);
+      builder.withTag("databricks_job_run_id", databricksJobRunId);
+      builder.withTag("databricks_task_run_id", databricksTaskRunId);
+
+      if (withParentContext) {
+        AgentSpan.Context parentContext =
+            new DatabricksParentContext(databricksJobId, databricksJobRunId, databricksTaskRunId);
+
+        if (parentContext.getTraceId() != DDTraceId.ZERO) {
+          builder.asChildOf(parentContext);
+        }
+      }
+    }
+  }
+
   @Override
   public synchronized void onJobStart(SparkListenerJobStart jobStart) {
     jobCount++;
@@ -187,44 +227,14 @@ public class DatadogSparkListener extends SparkListener {
       AgentSpan batchSpan = streamingBatchSpans.get(batchKey);
 
       if (batchSpan == null) {
-        batchSpan =
-            buildSparkSpan("spark.batch").withStartTimestamp(jobStart.time() * 1000).start();
-
+        batchSpan = createStreamingBatchSpan(jobStart);
         streamingBatchSpans.put(batchKey, batchSpan);
       }
 
       // In streaming mode, the batch spans are the local root spans
       jobSpanBuilder.asChildOf(batchSpan.context());
     } else if (isRunningOnDatabricks) {
-      // In databricks, the spark jobs are the local root spans so adding the spark conf parameters
-      // to the job spans
-      for (Tuple2<String, String> conf : sparkConf.getAll()) {
-        if (SparkConfAllowList.canCaptureApplicationParameter(conf._1)) {
-          jobSpanBuilder.withTag("config." + conf._1.replace(".", "_"), conf._2);
-        }
-      }
-
-      if (jobStart.properties() != null) {
-        String databricksJobId = (String) jobStart.properties().get("spark.databricks.job.id");
-        String databricksJobRunId =
-            getDatabricksJobRunId(jobStart.properties(), databricksClusterName);
-
-        // spark.databricks.job.runId is the runId of the task, not of the Job
-        String databricksTaskRunId =
-            (String) jobStart.properties().get("spark.databricks.job.runId");
-
-        // ids to link those spans to databricks job/task traces
-        jobSpanBuilder.withTag("databricks_job_id", databricksJobId);
-        jobSpanBuilder.withTag("databricks_job_run_id", databricksJobRunId);
-        jobSpanBuilder.withTag("databricks_task_run_id", databricksTaskRunId);
-
-        AgentSpan.Context parentContext =
-            new DatabricksParentContext(databricksJobId, databricksJobRunId, databricksTaskRunId);
-
-        if (parentContext.getTraceId() != DDTraceId.ZERO) {
-          jobSpanBuilder.asChildOf(parentContext);
-        }
-      }
+      addDatabricksSpecificTags(jobSpanBuilder, jobStart.properties(), true);
     } else {
       // In non-databricks, non-streaming env, the spark application is the local root span
       initApplicationSpanIfNotInitialized();
@@ -236,17 +246,11 @@ public class DatadogSparkListener extends SparkListener {
       jobSpanBuilder.withTag(DDTags.RESOURCE_NAME, jobStart.stageInfos().last().name());
     }
 
+    // Some properties can change at runtime, so capturing properties of all jobs
+    captureJobParameters(jobSpanBuilder, jobStart.properties());
+
     AgentSpan jobSpan = jobSpanBuilder.start();
     jobSpan.setMeasured(true);
-
-    // Some properties can change at runtime, so capturing properties of all jobs
-    if (jobStart.properties() != null) {
-      for (final Map.Entry<Object, Object> entry : jobStart.properties().entrySet()) {
-        if (SparkConfAllowList.canCaptureJobParameter(entry.getKey().toString())) {
-          jobSpan.setTag("config." + entry.getKey().toString().replace('.', '_'), entry.getValue());
-        }
-      }
-    }
     jobSpan.setTag("config.spark_version", sparkVersion);
 
     jobStart.stageInfos().foreach(stage -> stageToJob.put(stage.stageId(), jobStart.jobId()));
@@ -703,6 +707,25 @@ public class DatadogSparkListener extends SparkListener {
     }
 
     return currentAvailableExecutorTime;
+  }
+
+  private void captureApplicationParameters(AgentTracer.SpanBuilder builder) {
+    for (Tuple2<String, String> conf : sparkConf.getAll()) {
+      if (SparkConfAllowList.canCaptureApplicationParameter(conf._1)) {
+        builder.withTag("config." + conf._1.replace(".", "_"), conf._2);
+      }
+    }
+  }
+
+  private static void captureJobParameters(AgentTracer.SpanBuilder builder, Properties properties) {
+    if (properties != null) {
+      for (final Map.Entry<Object, Object> entry : properties.entrySet()) {
+        if (SparkConfAllowList.canCaptureJobParameter(entry.getKey().toString())) {
+          builder.withTag(
+              "config." + entry.getKey().toString().replace('.', '_'), entry.getValue());
+        }
+      }
+    }
   }
 
   private static Long convertStringDateToMillis(String isoUtcDateStr) {
