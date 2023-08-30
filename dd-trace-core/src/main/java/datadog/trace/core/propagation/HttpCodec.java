@@ -55,8 +55,10 @@ public class HttpCodec {
     default <C> void inject(
         final AgentScopeContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
       DDSpanContext spanContext = getSpanContext(context);
-      spanContext.getTrace().setSamplingPriorityIfNecessary();
-      inject(spanContext, carrier, setter);
+      if (spanContext != null) {
+        spanContext.getTrace().setSamplingPriorityIfNecessary();
+        inject(spanContext, carrier, setter);
+      }
     }
 
     <C> void inject(
