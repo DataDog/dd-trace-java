@@ -34,8 +34,6 @@ excludedClassesCoverage += [
   // FIXME(DSM): test coverage needed
   'datadog.trace.core.datastreams.DefaultDataStreamsMonitoring',
   'datadog.trace.core.datastreams.DataStreamContextInjector',
-  // TODO R&D Week
-  'datadog.trace.core.propagation.CorePropagation'
 ]
 
 addTestSuite('traceAgentTest')
