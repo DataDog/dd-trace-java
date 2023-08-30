@@ -477,11 +477,11 @@ public class DebuggerTransformer implements ClassFileTransformer {
         if (capturedContextProbes.size() > 0) {
           List<String> probesIds =
               capturedContextProbes.stream().map(ProbeDefinition::getId).collect(toList());
+          ProbeDefinition referenceDefinition = selectReferenceDefinition(capturedContextProbes);
           List<DiagnosticMessage> probeDiagnostics =
-              diagnostics.get(capturedContextProbes.get(0).getProbeId());
-          capturedContextProbes
-              .get(0)
-              .instrument(classLoader, classNode, methodNode, probeDiagnostics, probesIds);
+              diagnostics.get(referenceDefinition.getProbeId());
+          referenceDefinition.instrument(
+              classLoader, classNode, methodNode, probeDiagnostics, probesIds);
         }
       } catch (Throwable t) {
         log.warn("Exception during instrumentation: ", t);
@@ -491,6 +491,20 @@ public class DebuggerTransformer implements ClassFileTransformer {
       }
     }
     return new InstrumentationResult(status, diagnostics, classNode, methodNode);
+  }
+
+  // Log & Span Decoration probes share the same instrumentor so only one definition should be
+  // selected to
+  // generate the instrumentation. Log probes needs capture limits provided by the configuration
+  // so if the list of definition contains at least 1 log probe this is the log probe that need to
+  // be picked.
+  // TODO: handle the conflicting limits for log probes + mixing CaptureSnapshot or not
+  private ProbeDefinition selectReferenceDefinition(List<ProbeDefinition> capturedContextProbes) {
+    ProbeDefinition first = capturedContextProbes.get(0);
+    return capturedContextProbes.stream()
+        .filter(it -> it instanceof LogProbe)
+        .findFirst()
+        .orElse(first);
   }
 
   private InstrumentationResult.Status preCheckInstrumentation(
