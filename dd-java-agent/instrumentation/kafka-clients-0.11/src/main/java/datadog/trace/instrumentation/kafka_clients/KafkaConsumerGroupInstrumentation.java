@@ -76,7 +76,9 @@ public final class KafkaConsumerGroupInstrumentation extends Instrumenter.Tracin
         @Advice.FieldValue("coordinator") ConsumerCoordinator coordinator,
         @Advice.Argument(0) ConsumerConfig consumerConfig) {
       String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
+      String servers = ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG;
 
+      // todo[piochelepiotr] Add servers to config
       if (consumerGroup != null && !consumerGroup.isEmpty()) {
         InstrumentationContext.get(KafkaConsumer.class, String.class).put(consumer, consumerGroup);
         InstrumentationContext.get(ConsumerCoordinator.class, String.class)

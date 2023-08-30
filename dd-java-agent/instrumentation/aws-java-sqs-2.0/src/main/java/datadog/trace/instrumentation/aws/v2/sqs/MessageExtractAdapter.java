@@ -18,7 +18,11 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
 
   @Override
   public void forEachKey(Message carrier, AgentPropagation.KeyClassifier classifier) {
+<<<<<<< Updated upstream
 
+=======
+    System.out.println(carrier.attributesAsStrings().entrySet());
+>>>>>>> Stashed changes
     for (Map.Entry<String, String> entry : carrier.attributesAsStrings().entrySet()) {
       String key = entry.getKey();
       if ("AWSTraceHeader".equalsIgnoreCase(key)) {
