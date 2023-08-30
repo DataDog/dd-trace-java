@@ -50,7 +50,8 @@ class TelemetryRunnableSpecification extends Specification {
     t.start()
     sleeper.sleeped.await(10, TimeUnit.SECONDS)
 
-    then:
+    then: 'three unsuccessful attempts to send app-started with the following successful attempt'
+    4 * telemetryService.sendAppStartedEvent() >>> [false, false, false, true]
     1 * timeSource.getCurrentTimeMillis() >> 60 * 1000
     _ * telemetryService.addConfiguration(_)
 
@@ -61,8 +62,8 @@ class TelemetryRunnableSpecification extends Specification {
     1 * metricCollector.drain() >> []
     1 * periodicAction.doIteration(telemetryService)
 
-    then:
-    1 * telemetryService.sendTelemetryEvents()
+    then: 'two partial and one final telemetry data requests'
+    3 * telemetryService.sendTelemetryEvents() >>> [true, true, false]
     1 * timeSource.getCurrentTimeMillis() >> 60 * 1000 + 1
     1 * sleeperMock.sleep(9999)
     0 * _

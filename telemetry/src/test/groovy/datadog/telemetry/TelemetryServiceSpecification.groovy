@@ -29,7 +29,7 @@ class TelemetryServiceSpecification extends Specification {
 
     when: 'first iteration'
     testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
-    telemetryService.sendTelemetryEvents()
+    telemetryService.sendAppStartedEvent()
 
     then: 'app-started'
     testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products()
@@ -66,13 +66,19 @@ class TelemetryServiceSpecification extends Specification {
     telemetryService.addLogMessage(logMessage)
 
     and: 'send messages'
-    testHttpClient.expectRequests(2, HttpClient.Result.SUCCESS)
-    telemetryService.sendTelemetryEvents()
+    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    telemetryService.sendAppStartedEvent()
 
     then:
     testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload()
       .products()
       .configuration([confKeyValue])
+
+    when:
+    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    telemetryService.sendTelemetryEvents()
+
+    then:
     testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
       .assertBatch(6)
       .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
@@ -114,7 +120,7 @@ class TelemetryServiceSpecification extends Specification {
 
     when: 'send messages'
     testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
-    telemetryService.sendTelemetryEvents()
+    telemetryService.sendAppStartedEvent()
 
     then:
     testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products()
@@ -146,41 +152,42 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertNoMoreRequests()
   }
 
-  void 'no message before app-started'() {
+  void 'do not discard data for app-started event until it has been successfully sent'() {
     setup:
     TestHttpClient testHttpClient = new TestHttpClient()
     TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 10000)
+    telemetryService.addConfiguration(configuration)
 
     when: 'attempt with 404 error'
     testHttpClient.expectRequest(HttpClient.Result.NOT_FOUND)
-    telemetryService.sendTelemetryEvents()
+    !telemetryService.sendAppStartedEvent()
 
     then: 'app-started is attempted'
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products()
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products().configuration([confKeyValue])
     testHttpClient.assertNoMoreRequests()
 
     when: 'attempt with 500 error'
     testHttpClient.expectRequest(HttpClient.Result.FAILURE)
-    telemetryService.sendTelemetryEvents()
+    !telemetryService.sendAppStartedEvent()
 
     then: 'app-started is attempted'
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products()
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products().configuration([confKeyValue])
     testHttpClient.assertNoMoreRequests()
 
     when: 'attempt with unexpected FAILURE (not valid)'
     testHttpClient.expectRequest(HttpClient.Result.FAILURE)
-    telemetryService.sendTelemetryEvents()
+    !telemetryService.sendAppStartedEvent()
 
     then: 'app-started is attempted'
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products()
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products().configuration([confKeyValue])
     testHttpClient.assertNoMoreRequests()
 
     when: 'attempt with success'
     testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
-    telemetryService.sendTelemetryEvents()
+    telemetryService.sendAppStartedEvent()
 
     then: 'app-started is attempted'
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products()
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products().configuration([confKeyValue])
     testHttpClient.assertNoMoreRequests()
   }
 
@@ -198,18 +205,24 @@ class TelemetryServiceSpecification extends Specification {
 
     when: 'attempt with NOT_FOUND error'
     testHttpClient.expectRequest(HttpClient.Result.NOT_FOUND)
-    telemetryService.sendTelemetryEvents()
+    !telemetryService.sendAppStartedEvent()
 
     then: 'app-started attempted with config'
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().configuration([confKeyValue])
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products().configuration([confKeyValue])
     testHttpClient.assertNoMoreRequests()
 
-    when: 'successful attempt'
-    testHttpClient.expectRequests(2, HttpClient.Result.SUCCESS)
+    when: 'successful app-started attempt'
+    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    telemetryService.sendAppStartedEvent()
+
+    then: 'attempt app-started  with SUCCESS'
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products().configuration([confKeyValue])
+
+    when: 'successful batch attempt'
+    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
     telemetryService.sendTelemetryEvents()
 
-    then: 'attempt with SUCCESS'
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().configuration([confKeyValue])
+    then: 'attempt batch with SUCCESS'
     testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
       .assertBatch(6)
       .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
@@ -223,7 +236,7 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertNoMoreRequests()
 
     when: 'attempt with NOT_FOUND error'
-    testHttpClient.expectRequest(HttpClient.Result.FAILURE)
+    testHttpClient.expectRequest(HttpClient.Result.NOT_FOUND)
     telemetryService.sendTelemetryEvents()
 
     then: 'message-batch attempted with heartbeat'
@@ -231,7 +244,7 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertNoMoreRequests()
   }
 
-  void 'Send closing event request'() {
+  void 'send closing event request'() {
     setup:
     TestHttpClient testHttpClient = new TestHttpClient()
     TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 10000)
@@ -275,7 +288,8 @@ class TelemetryServiceSpecification extends Specification {
   void 'split telemetry requests if the size above the limit'() {
     setup:
     TestHttpClient testHttpClient = new TestHttpClient()
-    TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 1000)
+    def limitInBytes = 1000
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), limitInBytes)
 
     telemetryService.addConfiguration(configuration)
     telemetryService.addIntegration(integration)
@@ -284,25 +298,29 @@ class TelemetryServiceSpecification extends Specification {
     telemetryService.addDistributionSeries(distribution)
     telemetryService.addLogMessage(logMessage)
 
-    when: 'successful attempt'
-    testHttpClient.expectRequests(3, HttpClient.Result.SUCCESS)
+    when: 'first successful partial attempt'
+    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
     telemetryService.sendTelemetryEvents()
 
     then: 'attempt with SUCCESS'
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().configuration([confKeyValue])
     testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
       .assertBatch(4)
-      //TODO should a heartbeat be included in the batch request?
       .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
-      // no configuration here as it has already been sent with the app-started event
+      .assertNextMessage(RequestType.APP_CLIENT_CONFIGURATION_CHANGE).hasPayload().configuration([confKeyValue])
       .assertNextMessage(RequestType.APP_INTEGRATIONS_CHANGE).hasPayload().integrations([integration])
       .assertNextMessage(RequestType.APP_DEPENDENCIES_LOADED).hasPayload().dependencies([dependency])
-      .assertNextMessage(RequestType.GENERATE_METRICS).hasPayload().namespace("tracers").metrics([metric])
-      // no distributions or logs as they didn't fit because of the request size limit
+      // no more data fit this message is sent in the next message
       .assertNoMoreMessages()
+
+    when: 'second successful partial attempt'
+    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    !telemetryService.sendTelemetryEvents()
+
+    then:
     testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
-      .assertBatch(3)
+      .assertBatch(4)
       .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
+      .assertNextMessage(RequestType.GENERATE_METRICS).hasPayload().namespace("tracers").metrics([metric])
       .assertNextMessage(RequestType.DISTRIBUTIONS).hasPayload().namespace("tracers").distributionSeries([distribution])
       .assertNextMessage(RequestType.LOGS).hasPayload().logs([logMessage])
       .assertNoMoreMessages()

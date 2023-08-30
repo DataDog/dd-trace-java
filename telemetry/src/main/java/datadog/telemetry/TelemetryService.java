@@ -43,8 +43,6 @@ public class TelemetryService {
   private final HttpUrl httpUrl;
   private final long messageBytesSoftLimit;
 
-  private boolean sentAppStarted;
-
   /*
    * Keep track of Open Tracing and Open Telemetry integrations activation as they are mutually exclusive.
    */
@@ -59,7 +57,6 @@ public class TelemetryService {
   TelemetryService(
       final HttpClient httpClient, final HttpUrl agentUrl, final long messageBytesSoftLimit) {
     this.httpClient = httpClient;
-    this.sentAppStarted = false;
     this.openTracingIntegrationEnabled = false;
     this.openTelemetryIntegrationEnabled = false;
     this.httpUrl = agentUrl.newBuilder().addPathSegments(API_ENDPOINT).build();
@@ -119,7 +116,45 @@ public class TelemetryService {
   // keeps track of unsent events from the previous attempt
   private BufferedEvents bufferedEvents;
 
-  public void sendTelemetryEvents() {
+  /** @return true - if an app-started event has been successfully sent, false - otherwise */
+  public boolean sendAppStartedEvent() {
+    EventSource eventSource;
+    EventSink eventSink;
+    if (bufferedEvents == null) {
+      eventSource = this.eventSource;
+    } else {
+      log.debug(
+          "Sending buffered telemetry events that couldn't have been sent on previous attempt");
+      eventSource = bufferedEvents;
+    }
+    // use a buffer as a sink, so we can retry on the next attempt in case of a request failure
+    bufferedEvents = new BufferedEvents();
+    eventSink = bufferedEvents;
+
+    BatchRequestBuilder batchRequestBuilder =
+        new BatchRequestBuilder(eventSource, eventSink, messageBytesSoftLimit);
+
+    log.debug("Preparing app-started request");
+    batchRequestBuilder.beginRequest(RequestType.APP_STARTED, httpUrl);
+    batchRequestBuilder.beginSinglePayload();
+    batchRequestBuilder.writeProducts();
+    batchRequestBuilder.writeConfigurations();
+    batchRequestBuilder.endSinglePayload();
+    Request request = batchRequestBuilder.endRequest();
+
+    if (httpClient.sendRequest(request) == HttpClient.Result.SUCCESS) {
+      // discard already sent buffered event on the successful attempt
+      bufferedEvents = null;
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * @return true - only part of data has been sent because of the message limitation per request
+   *     false - all data has been sent, or it has failed to send a request
+   */
+  public boolean sendTelemetryEvents() {
     EventSource eventSource;
     EventSink eventSink;
     if (bufferedEvents == null) {
@@ -138,18 +173,10 @@ public class TelemetryService {
         new BatchRequestBuilder(eventSource, eventSink, messageBytesSoftLimit);
 
     Request request;
-    if (!sentAppStarted) {
-      log.debug("Preparing app-started request");
-      batchRequestBuilder.beginRequest(RequestType.APP_STARTED, httpUrl);
-      batchRequestBuilder.beginSinglePayload();
-      batchRequestBuilder.writeProducts();
-      batchRequestBuilder.writeConfigurations();
-      batchRequestBuilder.endSinglePayload();
-      request = batchRequestBuilder.endRequest();
-    } else if (eventSource.isEmpty()) {
+    boolean isMoreDataAvailable = false;
+    if (eventSource.isEmpty()) {
       log.debug("Preparing app-heartbeat request");
       batchRequestBuilder.beginRequest(RequestType.APP_HEARTBEAT, httpUrl);
-      request = batchRequestBuilder.endRequest();
     } else {
       log.debug("Preparing message-batch request");
       batchRequestBuilder.beginRequest(RequestType.MESSAGE_BATCH, httpUrl);
@@ -162,23 +189,25 @@ public class TelemetryService {
       batchRequestBuilder.writeDistributionsMessage();
       batchRequestBuilder.writeLogsMessage();
       batchRequestBuilder.endMultiplePayloads();
-      request = batchRequestBuilder.endRequest();
+      isMoreDataAvailable = !eventSource.isEmpty();
     }
+    request = batchRequestBuilder.endRequest();
 
     HttpClient.Result result = httpClient.sendRequest(request);
     if (result == HttpClient.Result.SUCCESS) {
       log.debug("Telemetry request has been sent successfully.");
-      sentAppStarted = true;
       bufferedEvents = null;
-      if (!this.eventSource.isEmpty()) {
-        sendTelemetryEvents();
+      if (isMoreDataAvailable) {
+        return true;
       }
     } else {
       log.debug("Telemetry request has failed: {}", result);
       if (eventSource == bufferedEvents) {
         // TODO report metrics for discarded events
+        bufferedEvents = null;
       }
     }
+    return false;
   }
 
   void warnAboutExclusiveIntegrations() {

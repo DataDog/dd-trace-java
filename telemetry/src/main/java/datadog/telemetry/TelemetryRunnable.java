@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 public class TelemetryRunnable implements Runnable {
 
   private static final Logger log = LoggerFactory.getLogger(TelemetryRunnable.class);
+  private static final int MAX_CONSECUTIVE_REQUESTS = 3;
 
   private final TelemetryService telemetryService;
   private final List<TelemetryPeriodicAction> actions;
@@ -56,6 +57,19 @@ public class TelemetryRunnable implements Runnable {
 
     scheduler.init();
 
+    for (int attempt = 1; attempt <= MAX_CONSECUTIVE_REQUESTS; attempt++) {
+      if (!Thread.interrupted()) {
+        break;
+      }
+      if (!telemetryService.sendAppStartedEvent()) {
+        log.debug("Couldn't send an app-started event on {} attempt.", attempt);
+      }
+    }
+
+    while (!telemetryService.sendAppStartedEvent() && !Thread.interrupted()) {
+      log.debug("Couldn't send an app-started event. Reattempting to send it again.");
+    }
+
     while (!Thread.interrupted()) {
       try {
         mainLoopIteration();
@@ -87,7 +101,12 @@ public class TelemetryRunnable implements Runnable {
       for (final TelemetryPeriodicAction action : this.actions) {
         action.doIteration(this.telemetryService);
       }
-      telemetryService.sendTelemetryEvents();
+      for (int i = 0; i < MAX_CONSECUTIVE_REQUESTS; i++) {
+        if (!telemetryService.sendTelemetryEvents()) {
+          // stop if there is no more data to be sent, or it failed to send a request
+          break;
+        }
+      }
     }
   }
 
