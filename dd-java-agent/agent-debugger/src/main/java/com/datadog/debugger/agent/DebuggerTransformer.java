@@ -7,6 +7,7 @@ import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.agent.tooling.AgentStrategies;
@@ -462,19 +463,23 @@ public class DebuggerTransformer implements ClassFileTransformer {
         preCheckInstrumentation(diagnostics, classLoader, methodNode);
     if (status != InstrumentationResult.Status.ERROR) {
       try {
-        List<ProbeDefinition> logProbes = new ArrayList<>();
+        List<ProbeDefinition> capturedContextProbes = new ArrayList<>();
         for (ProbeDefinition definition : definitions) {
-          if (definition instanceof LogProbe) {
-            logProbes.add(definition);
+          // Log and span decoration probe shared the same instrumentor: CaptureContextInstrumentor
+          // and therefore need to be instrumented once
+          if (definition instanceof LogProbe || definition instanceof SpanDecorationProbe) {
+            capturedContextProbes.add(definition);
           } else {
             List<DiagnosticMessage> probeDiagnostics = diagnostics.get(definition.getProbeId());
             definition.instrument(classLoader, classNode, methodNode, probeDiagnostics);
           }
         }
-        if (logProbes.size() > 0) {
-          List<String> probesIds = logProbes.stream().map(ProbeDefinition::getId).collect(toList());
-          List<DiagnosticMessage> probeDiagnostics = diagnostics.get(logProbes.get(0).getProbeId());
-          logProbes
+        if (capturedContextProbes.size() > 0) {
+          List<String> probesIds =
+              capturedContextProbes.stream().map(ProbeDefinition::getId).collect(toList());
+          List<DiagnosticMessage> probeDiagnostics =
+              diagnostics.get(capturedContextProbes.get(0).getProbeId());
+          capturedContextProbes
               .get(0)
               .instrument(classLoader, classNode, methodNode, probeDiagnostics, probesIds);
         }

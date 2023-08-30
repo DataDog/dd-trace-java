@@ -34,6 +34,7 @@ public class CapturedSnapshot20 {
   }
 
   private int process(String arg) {
-    return intField;
+    int intLocal = intField + 42;
+    return intLocal;
   }
 }
