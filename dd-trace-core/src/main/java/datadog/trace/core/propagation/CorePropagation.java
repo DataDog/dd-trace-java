@@ -49,6 +49,17 @@ public class CorePropagation implements AgentPropagation {
     this.injectors.get(style).inject(context, carrier, setter);
   }
 
+  /**
+   * Injects the pathway context into the carrier using the given setter.
+   *
+   * @param span The span containing the context to inject.
+   * @param carrier The carrier to inject the context into.
+   * @param setter The setter used to inject the context.
+   * @param sortedTags The sorted tags associated with the context.
+   * @param <C> The type of the carrier.
+   * @deprecated Use {@link #inject(AgentScopeContext, Object, Setter, TracePropagationStyle)} with
+   *     {@link TracePropagationStyle#DSM_PATHWAY_CONTEXT} instead.
+   */
   @Override
   @Deprecated
   public <C> void injectPathwayContext(
