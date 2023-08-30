@@ -21,6 +21,8 @@ public enum TracePropagationStyle {
   // W3C trace context propagation style
   // https://www.w3.org/TR/trace-context-1/
   TRACECONTEXT,
+  // Datadog Data Streams Monitoring pathway context
+  DSM_PATHWAY_CONTEXT,
   // None does not extract or inject
   NONE;
 

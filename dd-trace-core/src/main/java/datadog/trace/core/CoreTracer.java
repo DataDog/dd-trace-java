@@ -3,6 +3,7 @@ package datadog.trace.core;
 import static datadog.communication.monitor.DDAgentStatsDClientManager.statsDClientManager;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.api.DDTags.SPAN_LINKS;
+import static datadog.trace.api.TracePropagationStyle.DSM_PATHWAY_CONTEXT;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
@@ -46,6 +47,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring;
 import datadog.trace.bootstrap.instrumentation.api.AgentHistogram;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
@@ -65,7 +67,6 @@ import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
-import datadog.trace.core.datastreams.DataStreamContextInjector;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
 import datadog.trace.core.datastreams.NoopDataStreamsMonitoring;
@@ -78,6 +79,7 @@ import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
+import datadog.trace.core.scopemanager.ScopeContext;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.lambda.LambdaHandler;
@@ -614,12 +616,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         extractor == null ? HttpCodec.createExtractor(config, this::captureTraceConfig) : extractor;
     builtExtractor = this.dataStreamsMonitoring.extractor(builtExtractor);
     // Create all HTTP injectors plus the DSM one
-    Map<TracePropagationStyle, HttpCodec.Injector> injectors =
+    Map<TracePropagationStyle, HttpCodec.Injector> httpInjectors =
         HttpCodec.allInjectorsFor(config, invertMap(baggageMapping));
-    DataStreamContextInjector dataStreamContextInjector = this.dataStreamsMonitoring.injector();
+    Map<TracePropagationStyle, HttpCodec.ContextInjector> contextInjectors =
+        new HashMap<>(httpInjectors);
+    contextInjectors.put(DSM_PATHWAY_CONTEXT, this.dataStreamsMonitoring.injector());
     // Store all propagators to propagation
-    this.propagation =
-        new CorePropagation(builtExtractor, injector, injectors, dataStreamContextInjector);
+    this.propagation = new CorePropagation(builtExtractor, injector, contextInjectors);
 
     this.tagInterceptor =
         null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;
@@ -811,6 +814,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return scopeManager.activateNext(span);
   }
 
+  @Override
+  public AgentScope activateContext(AgentScopeContext context) {
+    return scopeManager.activateContext(context);
+  }
+
   public TagInterceptor getTagInterceptor() {
     return tagInterceptor;
   }
@@ -827,6 +835,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public AgentScope activeScope() {
     return scopeManager.active();
+  }
+
+  @Override
+  public AgentScopeContext activeContext() {
+    AgentScope activeScope = this.scopeManager.active();
+    return activeScope == null ? ScopeContext.empty() : activeScope.context();
   }
 
   @Override

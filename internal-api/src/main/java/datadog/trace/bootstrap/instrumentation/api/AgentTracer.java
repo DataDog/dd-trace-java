@@ -133,6 +133,25 @@ public class AgentTracer {
     return get().activeScope();
   }
 
+  /**
+   * Actives a context.
+   *
+   * @param context The context to activate.
+   * @return The scope of the newly activated context.
+   */
+  public static AgentScope activateContext(AgentScopeContext context) {
+    return get().activateContext(context);
+  }
+
+  /**
+   * Gets the active context.
+   *
+   * @return The active context, or an empty context if no active scope.
+   */
+  public static AgentScopeContext activeContext() {
+    return get().activeContext();
+  }
+
   public static AgentScope.Continuation capture() {
     final AgentScope activeScope = activeScope();
     return activeScope == null ? null : activeScope.capture();
@@ -229,9 +248,18 @@ public class AgentTracer {
 
     AgentScope activateNext(AgentSpan span);
 
+    AgentScope activateContext(AgentScopeContext context);
+
     AgentSpan activeSpan();
 
     AgentScope activeScope();
+
+    /**
+     * Gets the active context.
+     *
+     * @return The active context, or an empty context if no active scope.
+     */
+    AgentScopeContext activeContext();
 
     AgentPropagation propagate();
 
@@ -373,6 +401,11 @@ public class AgentTracer {
     }
 
     @Override
+    public AgentScope activateContext(AgentScopeContext context) {
+      return NoopAgentScope.INSTANCE;
+    }
+
+    @Override
     public AgentSpan activeSpan() {
       return NoopAgentSpan.INSTANCE;
     }
@@ -380,6 +413,11 @@ public class AgentTracer {
     @Override
     public AgentScope activeScope() {
       return null;
+    }
+
+    @Override
+    public AgentScopeContext activeContext() {
+      return NoopAgentScopeContext.INSTANCE;
     }
 
     @Override
@@ -516,7 +554,7 @@ public class AgentTracer {
     }
   }
 
-  public static final class NoopAgentSpan implements AgentSpan {
+  public static class NoopAgentSpan implements AgentSpan {
     public static final NoopAgentSpan INSTANCE = new NoopAgentSpan();
 
     protected NoopAgentSpan() {}
@@ -814,6 +852,11 @@ public class AgentTracer {
     private NoopAgentScope() {}
 
     @Override
+    public AgentScopeContext context() {
+      return NoopAgentScopeContext.INSTANCE;
+    }
+
+    @Override
     public AgentSpan span() {
       return NoopAgentSpan.INSTANCE;
     }
@@ -845,6 +888,30 @@ public class AgentTracer {
     }
   }
 
+  public static final class NoopAgentScopeContext implements AgentScopeContext {
+    public static final NoopAgentScopeContext INSTANCE = new NoopAgentScopeContext();
+
+    @Override
+    public AgentSpan span() {
+      return null;
+    }
+
+    @Override
+    public Baggage baggage() {
+      return null;
+    }
+
+    @Override
+    public <T> T get(ContextKey<T> key) {
+      return null;
+    }
+
+    @Override
+    public <T> AgentScopeContext with(ContextKey<T> key, T value) {
+      return INSTANCE;
+    }
+  }
+
   static class NoopAgentPropagation implements AgentPropagation {
     static final NoopAgentPropagation INSTANCE = new NoopAgentPropagation();
 
@@ -852,11 +919,12 @@ public class AgentTracer {
     public <C> void inject(final AgentSpan span, final C carrier, final Setter<C> setter) {}
 
     @Override
-    public <C> void inject(final Context context, final C carrier, final Setter<C> setter) {}
+    public <C> void inject(
+        AgentSpan span, C carrier, Setter<C> setter, TracePropagationStyle style) {}
 
     @Override
     public <C> void inject(
-        AgentSpan span, C carrier, Setter<C> setter, TracePropagationStyle style) {}
+        AgentScopeContext context, C carrier, Setter<C> setter, TracePropagationStyle style) {}
 
     @Override
     public <C> void injectPathwayContext(

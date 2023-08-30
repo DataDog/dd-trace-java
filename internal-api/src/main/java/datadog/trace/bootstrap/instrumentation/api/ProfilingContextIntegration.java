@@ -27,7 +27,7 @@ public interface ProfilingContextIntegration extends Profiling {
 
   final class NoOp implements ProfilingContextIntegration {
 
-    public static final ProfilingContextIntegration INSTANCE =
+    public static final ProfilingContextIntegration.NoOp INSTANCE =
         new ProfilingContextIntegration.NoOp();
 
     @Override

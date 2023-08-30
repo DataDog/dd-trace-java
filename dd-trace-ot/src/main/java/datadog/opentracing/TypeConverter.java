@@ -1,6 +1,7 @@
 package datadog.opentracing;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
@@ -115,6 +116,24 @@ class TypeConverter {
     }
   }
 
+  public AgentSpan wrapContext(final AgentSpan.Context context) {
+    return new WrappedContext(context);
+  }
+
+  static final class WrappedContext extends AgentTracer.NoopAgentSpan {
+    private final Context context;
+
+    WrappedContext(Context context) {
+      super();
+      this.context = context;
+    }
+
+    @Override
+    public Context context() {
+      return this.context;
+    }
+  }
+
   /**
    * Wraps an internal {@link AgentScope} to automatically finish its span when the scope is closed.
    */
@@ -123,6 +142,11 @@ class TypeConverter {
 
     private FinishingScope(final AgentScope delegate) {
       this.delegate = delegate;
+    }
+
+    @Override
+    public AgentScopeContext context() {
+      return delegate.context();
     }
 
     @Override
@@ -193,6 +217,11 @@ class TypeConverter {
       if (scope != null) {
         scope.close();
       }
+    }
+
+    @Override
+    public AgentScopeContext context() {
+      return null;
     }
 
     @Override

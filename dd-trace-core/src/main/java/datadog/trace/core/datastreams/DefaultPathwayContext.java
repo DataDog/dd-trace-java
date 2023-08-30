@@ -1,5 +1,6 @@
 package datadog.trace.core.datastreams;
 
+import static datadog.trace.bootstrap.instrumentation.api.ContextKey.named;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -11,6 +12,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.ContextKey;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.util.FNV64Hash;
@@ -31,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DefaultPathwayContext implements PathwayContext {
+  public static ContextKey<LinkedHashMap<String, String>> TAGS_CONTEXT_KEY = named("dd-dsm-tags");
   private static final Logger log = LoggerFactory.getLogger(DefaultPathwayContext.class);
   private final Lock lock = new ReentrantLock();
   private final WellKnownTags wellKnownTags;

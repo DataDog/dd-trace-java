@@ -33,7 +33,7 @@ excludedClassesCoverage += [
   'datadog.trace.common.writer.TraceProcessingWorker.NonDaemonTraceSerializingHandler',
   // FIXME(DSM): test coverage needed
   'datadog.trace.core.datastreams.DefaultDataStreamsMonitoring',
-  'datadog.trace.core.datastreams.DataStreamContextInjector'
+  'datadog.trace.core.datastreams.DataStreamContextInjector',
 ]
 
 addTestSuite('traceAgentTest')

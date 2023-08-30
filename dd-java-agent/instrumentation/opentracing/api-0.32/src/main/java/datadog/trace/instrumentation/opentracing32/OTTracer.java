@@ -60,8 +60,8 @@ public class OTTracer implements Tracer {
   public <C> void inject(final SpanContext spanContext, final Format<C> format, final C carrier) {
     if (carrier instanceof TextMapInject) {
       final AgentSpan.Context context = converter.toContext(spanContext);
-
-      tracer.propagate().inject(context, (TextMapInject) carrier, OTTextMapInjectSetter.INSTANCE);
+      final AgentSpan span = converter.wrapContext(context);
+      tracer.propagate().inject(span, (TextMapInject) carrier, OTTextMapInjectSetter.INSTANCE);
     } else {
       log.debug("Unsupported format for propagation - {}", format.getClass().getName());
     }

@@ -467,8 +467,8 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   public <C> void inject(final SpanContext spanContext, final Format<C> format, final C carrier) {
     if (carrier instanceof TextMap) {
       final AgentSpan.Context context = converter.toContext(spanContext);
-
-      tracer.propagate().inject(context, (TextMap) carrier, TextMapSetter.INSTANCE);
+      final AgentSpan span = converter.wrapContext(context);
+      tracer.propagate().inject(span, (TextMap) carrier, TextMapSetter.INSTANCE);
     } else {
       log.debug("Unsupported format for propagation - {}", format.getClass().getName());
     }

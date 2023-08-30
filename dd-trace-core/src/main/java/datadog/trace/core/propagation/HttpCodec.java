@@ -1,9 +1,13 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.SPAN_CONTEXT_KEY;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
 import java.io.UnsupportedEncodingException;
@@ -41,9 +45,32 @@ public class HttpCodec {
   static final String CF_CONNECTING_IP_KEY = "cf-connecting-ip";
   static final String CF_CONNECTING_IP_V6_KEY = "cf-connecting-ipv6";
 
-  public interface Injector {
+  public interface ContextInjector {
+    <C> void inject(
+        final AgentScopeContext context, final C carrier, final AgentPropagation.Setter<C> setter);
+  }
+
+  public interface Injector extends ContextInjector {
+    @Override
+    default <C> void inject(
+        final AgentScopeContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
+      DDSpanContext spanContext = getSpanContext(context);
+      if (spanContext != null) {
+        spanContext.getTrace().setSamplingPriorityIfNecessary();
+        inject(spanContext, carrier, setter);
+      }
+    }
+
     <C> void inject(
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter);
+
+    default DDSpanContext getSpanContext(AgentScopeContext context) {
+      AgentSpan agentSpan = context.get(SPAN_CONTEXT_KEY);
+      if (agentSpan != null && agentSpan.context() instanceof DDSpanContext) {
+        return (DDSpanContext) agentSpan.context();
+      }
+      return null;
+    }
   }
 
   public interface Extractor {
@@ -96,6 +123,9 @@ public class HttpCodec {
           break;
         case TRACECONTEXT:
           result.put(style, W3CHttpCodec.newInjector(reverseBaggageMapping));
+          break;
+        case DSM_PATHWAY_CONTEXT:
+          // Skip pathway context as not able to inject a trace
           break;
         default:
           log.debug("No implementation found to inject propagation style: {}", style);

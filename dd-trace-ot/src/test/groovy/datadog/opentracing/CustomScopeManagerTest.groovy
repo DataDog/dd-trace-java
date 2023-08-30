@@ -2,6 +2,7 @@ package datadog.opentracing
 
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.common.writer.ListWriter
@@ -293,6 +294,11 @@ class TestScopeManager implements ScopeManager {
             span.finish()
           }
         } as AgentSpan
+    }
+
+    @Override
+    AgentScopeContext context() {
+      return null
     }
 
     @Override

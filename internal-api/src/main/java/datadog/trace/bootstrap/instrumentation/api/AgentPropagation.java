@@ -6,11 +6,13 @@ import java.util.LinkedHashMap;
 public interface AgentPropagation {
   <C> void inject(AgentSpan span, C carrier, Setter<C> setter);
 
-  <C> void inject(AgentSpan.Context context, C carrier, Setter<C> setter);
-
   <C> void inject(AgentSpan span, C carrier, Setter<C> setter, TracePropagationStyle style);
 
+  <C> void inject(
+      AgentScopeContext context, C carrier, Setter<C> setter, TracePropagationStyle style);
+
   // The input tags should be sorted.
+  @Deprecated
   <C> void injectPathwayContext(
       AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags);
 

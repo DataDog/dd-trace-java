@@ -3,6 +3,7 @@ package datadog.trace.core.datastreams;
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT;
 import static datadog.trace.api.DDTags.PATHWAY_HASH;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.core.datastreams.DefaultPathwayContext.TAGS_CONTEXT_KEY;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
@@ -18,6 +19,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.time.TimeSource;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Backlog;
 import datadog.trace.bootstrap.instrumentation.api.InboxItem;
@@ -29,6 +31,7 @@ import datadog.trace.common.metrics.Sink;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.core.propagation.HttpCodec;
+import datadog.trace.core.scopemanager.ScopeContext;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -150,7 +153,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
-  public DataStreamContextInjector injector() {
+  public HttpCodec.ContextInjector injector() {
     return this.injector;
   }
 
@@ -231,8 +234,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     sortedTags.put(TOPIC_TAG, target);
     sortedTags.put(TYPE_TAG, type);
 
-    this.injector.injectPathwayContext(
-        span, carrier, DataStreamsContextCarrierAdapter.INSTANCE, sortedTags);
+    AgentScopeContext context = ScopeContext.fromSpan(span).with(TAGS_CONTEXT_KEY, sortedTags);
+    this.injector.inject(context, carrier, DataStreamsContextCarrierAdapter.INSTANCE);
   }
 
   @Override
