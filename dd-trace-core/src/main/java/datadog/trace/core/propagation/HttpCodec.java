@@ -124,6 +124,9 @@ public class HttpCodec {
         case TRACECONTEXT:
           result.put(style, W3CHttpCodec.newInjector(reverseBaggageMapping));
           break;
+        case DSM_PATHWAY_CONTEXT:
+          // Skip pathway context as not able to inject a trace
+          break;
         default:
           log.debug("No implementation found to inject propagation style: {}", style);
           break;
