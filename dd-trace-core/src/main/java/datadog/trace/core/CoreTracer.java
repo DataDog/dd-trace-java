@@ -1105,7 +1105,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               host,
               port,
               config.getDogStatsDNamedPipe(),
-              "datadog.tracer",
+              // use replace to stop string being changed to 'ddtrot.dd.tracer' in dd-trace-ot
+              "datadog:tracer".replace(':', '.'),
               generateConstantTags(config));
     }
   }
