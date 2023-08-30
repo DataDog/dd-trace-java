@@ -38,6 +38,7 @@ dependencies {
   implementation project(':dd-java-agent:instrumentation:servlet:request-5')
 
   testImplementation files({ tasks.installOpenLibertyDeps.wsServerJar })
+  testRuntimeOnly files({ tasks.installOpenLibertyDeps.serverJar })
   testImplementation testFixtures(project(':dd-java-agent:appsec'))
   testRuntimeOnly project(':dd-java-agent:instrumentation:osgi-4.3')
   testRuntimeOnly files({ tasks.filterLogbackClassic.filteredLogbackDir })
@@ -54,7 +55,7 @@ dependencies {
     .getTasksByName('testFixturesJar', false).archiveFile
     )
   // use the above instead of:
-  //  webappImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-3'))
+  //  webappImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-5'))
   // because using testFixtures() causes some early evaluation of dependencies
   webappRuntimeOnly deps.groovy
 }
@@ -67,17 +68,14 @@ configurations.testRuntimeOnly {
 configurations.webappRuntimeClasspath {
   exclude group: 'ch.qos.logback', module: 'logback-classic'
 }
-
 //unzips the dependencies from the 'zipped' configuration so 'compileOnly' can reference it
 tasks.register('installOpenLibertyDeps', Copy) {
   def extractDir = "${buildDir}/openliberty-jars"
   ext.extractedJars = fileTree(extractDir) {
     include "wlp/lib/com.ibm.ws.kernel.boot_1.0.79.jar"
-    include "wlp/lib/com.ibm.ws.logging_1.0.79.jar"
     include "wlp/lib/org.eclipse.osgi_3.18.300.jar"
     include "wlp/lib/com.ibm.ws.kernel.equinox.module_1.0.79.jar"
     include "wlp/lib/com.ibm.ws.org.eclipse.equinox.region_1.0.79.jar"
-    include "wlp/lib/com.ibm.ws.logging.osgi_1.0.79.jar"
     include "wlp/lib/com.ibm.ws.kernel.service_1.3.79.jar"
     include "wlp/lib/com.ibm.ws.org.eclipse.equinox.metatype_1.0.79.jar"
     include "wlp/lib/com.ibm.ws.config_1.0.79.jar"
@@ -188,7 +186,6 @@ tasks.register('installOpenLibertyDeps', Copy) {
     include "wlp/lib/com.ibm.ws.beanvalidation.jakarta_1.0.79.jar"
     include "wlp/lib/com.ibm.ws.beanvalidation.v20.jakarta_1.0.79.jar"
     include "wlp/lib/../dev/api/spec/io.openliberty.jakarta.validation.3.0_1.0.79.jar"
-    include "wlp/lib/io.openliberty.org.jboss.logging35_1.0.79.jar"
     include "wlp/lib/io.openliberty.org.jboss.resteasy.cdi.ee10_1.0.79.jar"
     include "wlp/lib/../dev/api/spec/io.openliberty.jakarta.restfulWS.3.1_1.0.79.jar"
     include "wlp/lib/io.openliberty.org.jboss.resteasy.common.ee10_1.0.79.jar"
@@ -287,7 +284,6 @@ tasks.register('installOpenLibertyDeps', Copy) {
     include "wlp/lib/com.ibm.ws.org.apache.cxf.cxf.rt.bindings.xml.3.2.jakarta_1.0.79.jar"
     include "wlp/lib/com.ibm.ws.org.apache.cxf.cxf.rt.frontend.simple.3.2.jakarta_1.0.79.jar"
     include "wlp/lib/com.ibm.ws.org.apache.cxf.cxf.rt.databinding.jaxb.3.2.jakarta_1.0.79.jar"
-    include "wlp/lib/com.ibm.ws.org.apache.cxf.cxf.rt.features.logging.3.2_1.0.79.jar"
     include "wlp/lib/../dev/api/spec/io.openliberty.jakarta.xmlWS.4.0_1.0.79.jar"
     include "wlp/lib/com.ibm.ws.clientcontainer.remote.server_1.0.79.jar"
     include "wlp/lib/com.ibm.ws.org.apache.cxf.cxf.rt.management.3.2.jakarta_1.0.79.jar"
@@ -359,6 +355,10 @@ tasks.register('installOpenLibertyDeps', Copy) {
     include "wlp/lib/io.openliberty.restfulWS30.appSecurity_1.0.79.jar"
     include "wlp/lib/com.ibm.ws.ejbcontainer.timer.persistent.jakarta_1.0.79.jar"
     include "wlp/lib/com.ibm.ws.concurrent.persistent.jakarta_1.0.79.jar"
+    include "wlp/lib/com.ibm.ws.org.apache.cxf.cxf.rt.features.logging.3.2_1.0.79.jar"
+    include "wlp/lib/com.ibm.ws.logging_1.0.79.jar"
+    include "wlp/lib/com.ibm.ws.logging.osgi_1.0.79.jar"
+    include "wlp/lib/io.openliberty.org.jboss.logging35_1.0.79.jar"
     builtBy "installOpenLibertyDeps"
   }
   ext.wsServerJar = fileTree("$extractDir") {
