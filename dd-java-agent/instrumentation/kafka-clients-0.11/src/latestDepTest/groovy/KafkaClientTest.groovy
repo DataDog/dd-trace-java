@@ -58,7 +58,6 @@ class KafkaClientTest extends AgentTestRunner {
     super.configurePreAgent()
 
     injectSysConfig("dd.kafka.e2e.duration.enabled", "true")
-    injectSysConfig("dd.data.streams.enabled", "true")
   }
 
   def "test kafka produce and consume"() {

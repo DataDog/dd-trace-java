@@ -620,12 +620,6 @@ abstract class GrpcTest extends VersionedNamingTestBase {
 
 abstract class GrpcDataStreamsEnabledForkedTest extends GrpcTest {
   @Override
-  protected void configurePreAgent() {
-    super.configurePreAgent()
-    injectSysConfig("dd.data.streams.enabled", "true")
-  }
-
-  @Override
   protected boolean isDataStreamsEnabled() {
     return true
   }
@@ -668,12 +662,6 @@ class GrpcDataStreamsEnabledV1ForkedTest extends GrpcDataStreamsEnabledForkedTes
 }
 
 class GrpcDataStreamsDisabledForkedTest extends GrpcTest {
-  @Override
-  protected void configurePreAgent() {
-    super.configurePreAgent()
-    injectSysConfig("dd.data.streams.enabled", "false")
-  }
-
   @Override
   protected boolean isDataStreamsEnabled() {
     return false

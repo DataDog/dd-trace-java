@@ -16,6 +16,7 @@ import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
 import datadog.trace.api.*
+import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.internal.TraceSegment
@@ -34,7 +35,6 @@ import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring
-import datadog.trace.core.datastreams.NoopDataStreamsMonitoring
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.Strings
 import de.thetaphi.forbiddenapis.SuppressForbidden
@@ -176,6 +176,55 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @Shared
   boolean isLatestDepTest = Boolean.getBoolean('test.dd.latestDepTest')
 
+  @SuppressWarnings('PropertyName')
+  @Shared
+  TraceConfig MOCK_DSM_TRACE_CONFIG = new TraceConfig() {
+    @Override
+    boolean isDebugEnabled() {
+      return true
+    }
+
+    @Override
+    boolean isRuntimeMetricsEnabled() {
+      return true
+    }
+
+    @Override
+    boolean isLogsInjectionEnabled() {
+      return true
+    }
+
+    @Override
+    boolean isDataStreamsEnabled() {
+      return AgentTestRunner.this.isDataStreamsEnabled()
+    }
+
+    @Override
+    Map<String, String> getServiceMapping() {
+      return null
+    }
+
+    @Override
+    Map<String, String> getRequestHeaderTags() {
+      return null
+    }
+
+    @Override
+    Map<String, String> getResponseHeaderTags() {
+      return null
+    }
+
+    @Override
+    Map<String, String> getBaggageMapping() {
+      return null
+    }
+
+    @Override
+    Double getTraceSampleRate() {
+      return null
+    }
+  }
+
   boolean originalAppSecRuntimeValue
 
   @Shared
@@ -235,13 +284,12 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
         void register(EventListener listener) {}
       }
-    TEST_DATA_STREAMS_MONITORING = new NoopDataStreamsMonitoring()
-    if (isDataStreamsEnabled()) {
-      // Fast enough so tests don't take forever
-      long bucketDuration = TimeUnit.MILLISECONDS.toNanos(50)
-      WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
-      TEST_DATA_STREAMS_MONITORING = new DefaultDataStreamsMonitoring(sink, features, SystemTimeSource.INSTANCE, wellKnownTags, TEST_DATA_STREAMS_WRITER, bucketDuration)
-    }
+
+    // Fast enough so tests don't take forever
+    long bucketDuration = TimeUnit.MILLISECONDS.toNanos(50)
+    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
+    TEST_DATA_STREAMS_MONITORING = new DefaultDataStreamsMonitoring(sink, features, SystemTimeSource.INSTANCE, { MOCK_DSM_TRACE_CONFIG }, wellKnownTags, TEST_DATA_STREAMS_WRITER, bucketDuration)
+
     TEST_WRITER = new ListWriter()
 
     if (isTestAgentEnabled()) {
@@ -343,6 +391,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   /** Override to set config before the agent is installed */
   protected void configurePreAgent() {
     injectSysConfig(TracerConfig.SCOPE_ITERATION_KEEP_ALIVE, "1") // don't let iteration spans linger
+    injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, String.valueOf(isDataStreamsEnabled()))
   }
 
   void setup() {
