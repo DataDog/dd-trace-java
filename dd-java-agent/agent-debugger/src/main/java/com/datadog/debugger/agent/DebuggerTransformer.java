@@ -432,17 +432,12 @@ public class DebuggerTransformer implements ClassFileTransformer {
 
   private void reportLocationNotFound(
       List<ProbeDefinition> definitions, String className, String methodName) {
-    String format;
-    String location;
     if (methodName != null) {
-      format = CANNOT_FIND_METHOD;
-      location = methodName;
-    } else {
-      // This is a line probe, so we don't report line not found because the line may be found later
-      // on a separate class files because probe was set on an inner/top-level class
+      reportError(definitions, CANNOT_FIND_METHOD, className, methodName);
       return;
     }
-    reportError(definitions, format, className, location);
+    // This is a line probe, so we don't report line not found because the line may be found later
+    // on a separate class files because probe was set on an inner/top-level class
   }
 
   private void reportInstrumentationFails(List<ProbeDefinition> definitions, String className) {
