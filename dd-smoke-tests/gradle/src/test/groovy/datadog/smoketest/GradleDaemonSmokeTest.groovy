@@ -148,6 +148,8 @@ class GradleDaemonSmokeTest extends Specification {
         resource == "gradle-instrumentation-test-project" // project name
         verifyAll(metrics) {
           process_id > 0 // only applied to root spans
+          it["test.itr.tests_skipping.count"] == 1
+          it["test.code_coverage.lines_pct"] == 57
         }
         verifyAll(meta) {
           it["span.kind"] == "test_session_end"
@@ -157,9 +159,6 @@ class GradleDaemonSmokeTest extends Specification {
           it["test.itr.tests_skipping.enabled"] == "true"
           it["test.itr.tests_skipping.type"] == "test"
           it["_dd.ci.itr.tests_skipped"] == "true"
-        }
-        verifyAll(metrics) {
-          it["test.itr.tests_skipping.count"] == 1
         }
       }
     }
@@ -172,6 +171,10 @@ class GradleDaemonSmokeTest extends Specification {
         name == "gradle.test_module"
         resource == ":test" // task path
         test_module_id > 0
+        verifyAll(metrics) {
+          it["test.itr.tests_skipping.count"] == 1
+          it["test.code_coverage.lines_pct"] == 57
+        }
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
           it["test.module"] == ":test" // task path
@@ -179,9 +182,6 @@ class GradleDaemonSmokeTest extends Specification {
           it["test.itr.tests_skipping.enabled"] == "true"
           it["test.itr.tests_skipping.type"] == "test"
           it["_dd.ci.itr.tests_skipped"] == "true"
-        }
-        verifyAll(metrics) {
-          it["test.itr.tests_skipping.count"] == 1
         }
       }
     }
@@ -268,6 +268,10 @@ class GradleDaemonSmokeTest extends Specification {
         [
           filename: "src/test/java/datadog/smoke/TestSucceed.java",
           segments: [[11, -1, 12, -1, -1]]
+        ],
+        [
+          filename: "src/main/java/datadog/smoke/Calculator.java",
+          segments: [[5, -1, 5, -1, -1]]
         ]
       ]
     ]

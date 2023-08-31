@@ -2,6 +2,7 @@ package datadog.trace.api.civisibility;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
+import datadog.trace.api.civisibility.coverage.CoverageDataSupplier;
 import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
@@ -17,6 +18,7 @@ public abstract class InstrumentationBridge {
   private static volatile TestEventsHandler.Factory TEST_EVENTS_HANDLER_FACTORY;
   private static volatile BuildEventsHandler.Factory BUILD_EVENTS_HANDLER_FACTORY;
   private static volatile CoverageProbeStore.Registry COVERAGE_PROBE_STORE_REGISTRY;
+  private static volatile CoverageDataSupplier COVERAGE_DATA_SUPPLIER;
 
   public static void registerTestEventsHandlerFactory(
       TestEventsHandler.Factory testEventsHandlerFactory) {
@@ -43,6 +45,14 @@ public abstract class InstrumentationBridge {
 
   public static CoverageProbeStore.Registry getCoverageProbeStoreRegistry() {
     return COVERAGE_PROBE_STORE_REGISTRY;
+  }
+
+  public static void registerCoverageDataSupplier(CoverageDataSupplier coverageDataSupplier) {
+    COVERAGE_DATA_SUPPLIER = coverageDataSupplier;
+  }
+
+  public static byte[] getCoverageData() {
+    return COVERAGE_DATA_SUPPLIER != null ? COVERAGE_DATA_SUPPLIER.get() : null;
   }
 
   /* This method is referenced by name in bytecode added in the jacoco module */

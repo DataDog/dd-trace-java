@@ -67,6 +67,7 @@ public class Tags {
   public static final String TEST_MODULE_ID = "test_module_id";
   public static final String TEST_SUITE_ID = "test_suite_id";
   public static final String TEST_CODE_COVERAGE_ENABLED = "test.code_coverage.enabled";
+  public static final String TEST_CODE_COVERAGE_LINES_PERCENTAGE = "test.code_coverage.lines_pct";
   public static final String TEST_ITR_TESTS_SKIPPING_ENABLED = "test.itr.tests_skipping.enabled";
   public static final String TEST_ITR_TESTS_SKIPPING_TYPE = "test.itr.tests_skipping.type";
   public static final String TEST_ITR_TESTS_SKIPPING_COUNT = "test.itr.tests_skipping.count";

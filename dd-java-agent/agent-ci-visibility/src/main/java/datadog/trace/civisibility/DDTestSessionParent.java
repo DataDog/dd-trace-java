@@ -16,6 +16,7 @@ import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory;
 import datadog.trace.civisibility.context.SpanTestContext;
 import datadog.trace.civisibility.context.TestContext;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
+import datadog.trace.civisibility.coverage.CoverageUtils;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.ipc.ErrorResponse;
 import datadog.trace.civisibility.ipc.ModuleExecutionResult;
@@ -30,16 +31,24 @@ import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.index.RepoIndex;
 import datadog.trace.civisibility.source.index.RepoIndexBuilder;
+import java.io.File;
+import java.nio.file.Paths;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.concurrent.atomic.LongAdder;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
+import org.jacoco.core.analysis.IBundleCoverage;
+import org.jacoco.core.analysis.ICounter;
+import org.jacoco.core.data.ExecutionDataStore;
 
 public class DDTestSessionParent extends DDTestSessionImpl {
 
   private final AgentSpan span;
   private final TestContext context;
-  private final TestModuleRegistry testModuleRegistry;
+  private final String repoRoot;
   private final Config config;
+  private final TestModuleRegistry testModuleRegistry;
   private final TestDecorator testDecorator;
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
@@ -51,9 +60,17 @@ public class DDTestSessionParent extends DDTestSessionImpl {
   protected final LongAdder testsSkipped = new LongAdder();
   private volatile boolean codeCoverageEnabled;
   private volatile boolean itrEnabled;
+  private final Object coverageDataLock = new Object();
+
+  @GuardedBy("coverageDataLock")
+  private final ExecutionDataStore coverageData = new ExecutionDataStore();
+
+  @GuardedBy("coverageDataLock")
+  private final Collection<File> outputClassesDirs = new HashSet<>();
 
   public DDTestSessionParent(
       String projectName,
+      String repoRoot,
       @Nullable Long startTime,
       Config config,
       TestModuleRegistry testModuleRegistry,
@@ -65,6 +82,7 @@ public class DDTestSessionParent extends DDTestSessionImpl {
       CoverageProbeStoreFactory coverageProbeStoreFactory,
       SignalServer signalServer,
       RepoIndexBuilder repoIndexBuilder) {
+    this.repoRoot = repoRoot;
     this.config = config;
     this.testModuleRegistry = testModuleRegistry;
     this.testDecorator = testDecorator;
@@ -118,7 +136,16 @@ public class DDTestSessionParent extends DDTestSessionImpl {
     }
 
     testsSkipped.add(result.getTestsSkippedTotal());
-    return testModuleRegistry.onModuleExecutionResultReceived(result);
+
+    ExecutionDataStore moduleCoverageData = CoverageUtils.parse(result.getCoverageData());
+    if (moduleCoverageData != null) {
+      synchronized (coverageDataLock) {
+        // add module coverage data to session coverage data
+        moduleCoverageData.accept(coverageData);
+      }
+    }
+
+    return testModuleRegistry.onModuleExecutionResultReceived(result, moduleCoverageData);
   }
 
   private SignalResponse onRepoIndexRequestReceived(RepoIndexRequest request) {
@@ -175,6 +202,7 @@ public class DDTestSessionParent extends DDTestSessionImpl {
     if (codeCoverageEnabled) {
       setTag(Tags.TEST_CODE_COVERAGE_ENABLED, true);
     }
+
     if (itrEnabled) {
       setTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, true);
       setTag(Tags.TEST_ITR_TESTS_SKIPPING_TYPE, "test");
@@ -186,6 +214,12 @@ public class DDTestSessionParent extends DDTestSessionImpl {
       }
     }
 
+    synchronized (coverageDataLock) {
+      if (!coverageData.getContents().isEmpty()) {
+        processCoverageData(coverageData);
+      }
+    }
+
     if (endTime != null) {
       span.finish(endTime);
     } else {
@@ -193,20 +227,62 @@ public class DDTestSessionParent extends DDTestSessionImpl {
     }
   }
 
+  private void processCoverageData(ExecutionDataStore coverageData) {
+    IBundleCoverage coverageBundle =
+        CoverageUtils.createCoverageBundle(coverageData, outputClassesDirs);
+    if (coverageBundle == null) {
+      return;
+    }
+
+    long coveragePercentage = getCoveragePercentage(coverageBundle);
+    span.setTag(Tags.TEST_CODE_COVERAGE_LINES_PERCENTAGE, coveragePercentage);
+
+    File coverageReportFolder = getCoverageReportFolder();
+    if (coverageReportFolder != null) {
+      CoverageUtils.dumpCoverageReport(
+          coverageBundle, repoIndexBuilder.getIndex(), repoRoot, coverageReportFolder);
+    }
+  }
+
+  private static long getCoveragePercentage(IBundleCoverage coverageBundle) {
+    ICounter instructionCounter = coverageBundle.getInstructionCounter();
+    int totalInstructionsCount = instructionCounter.getTotalCount();
+    int coveredInstructionsCount = instructionCounter.getCoveredCount();
+    return Math.round((100d * coveredInstructionsCount) / totalInstructionsCount);
+  }
+
+  private File getCoverageReportFolder() {
+    String coverageReportDumpDir = config.getCiVisibilityCodeCoverageReportDumpDir();
+    if (coverageReportDumpDir != null) {
+      return Paths.get(coverageReportDumpDir, "session-" + context.getId(), "aggregated").toFile();
+    } else {
+      return null;
+    }
+  }
+
   @Override
-  public DDTestModuleImpl testModuleStart(String moduleName, @Nullable Long startTime) {
+  public DDTestModuleImpl testModuleStart(
+      String moduleName, @Nullable Long startTime, Collection<File> outputClassesDirs) {
+    synchronized (coverageDataLock) {
+      this.outputClassesDirs.addAll(outputClassesDirs);
+    }
+
+    String startCommand = (String) span.getTag(Tags.TEST_COMMAND);
     DDTestModuleParent module =
         new DDTestModuleParent(
             context,
             moduleName,
+            repoRoot,
+            startCommand,
             startTime,
+            outputClassesDirs,
             config,
-            testModuleRegistry,
             testDecorator,
             sourcePathResolver,
             codeowners,
             methodLinesResolver,
             moduleExecutionSettingsFactory,
+            repoIndexBuilder,
             coverageProbeStoreFactory,
             signalServer.getAddress());
     testModuleRegistry.addModule(module);

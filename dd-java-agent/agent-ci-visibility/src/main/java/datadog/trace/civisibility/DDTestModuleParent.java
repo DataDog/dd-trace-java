@@ -17,15 +17,22 @@ import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory;
 import datadog.trace.civisibility.context.SpanTestContext;
 import datadog.trace.civisibility.context.TestContext;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
+import datadog.trace.civisibility.coverage.CoverageUtils;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.ipc.ModuleExecutionResult;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
+import datadog.trace.civisibility.source.index.RepoIndexProvider;
+import java.io.File;
 import java.net.InetSocketAddress;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.jacoco.core.analysis.IBundleCoverage;
+import org.jacoco.core.analysis.ICounter;
+import org.jacoco.core.data.ExecutionDataStore;
 
 /**
  * Representation of a test module in a parent process:
@@ -40,22 +47,27 @@ public class DDTestModuleParent extends DDTestModuleImpl {
   private final AgentSpan span;
   private final SpanTestContext context;
   private final TestContext sessionContext;
-  private final TestModuleRegistry testModuleRegistry;
+  private final String repoRoot;
+  private final Collection<File> outputClassesDirs;
   private final ModuleExecutionSettingsFactory moduleExecutionSettingsFactory;
+  private final RepoIndexProvider repoIndexProvider;
   private volatile boolean codeCoverageEnabled;
   private volatile boolean itrEnabled;
 
   public DDTestModuleParent(
       TestContext sessionContext,
       String moduleName,
+      String repoRoot,
+      @Nullable String startCommand,
       @Nullable Long startTime,
+      Collection<File> outputClassesDirs,
       Config config,
-      TestModuleRegistry testModuleRegistry,
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
       ModuleExecutionSettingsFactory moduleExecutionSettingsFactory,
+      RepoIndexProvider repoIndexProvider,
       CoverageProbeStoreFactory coverageProbeStoreFactory,
       @Nullable InetSocketAddress signalServerAddress) {
     super(
@@ -68,8 +80,10 @@ public class DDTestModuleParent extends DDTestModuleImpl {
         coverageProbeStoreFactory,
         signalServerAddress);
     this.sessionContext = sessionContext;
-    this.testModuleRegistry = testModuleRegistry;
+    this.repoRoot = repoRoot;
+    this.outputClassesDirs = outputClassesDirs;
     this.moduleExecutionSettingsFactory = moduleExecutionSettingsFactory;
+    this.repoIndexProvider = repoIndexProvider;
 
     AgentSpan sessionSpan = sessionContext.getSpan();
     AgentSpan.Context sessionSpanContext = sessionSpan != null ? sessionSpan.context() : null;
@@ -90,6 +104,10 @@ public class DDTestModuleParent extends DDTestModuleImpl {
 
     span.setTag(Tags.TEST_MODULE_ID, context.getId());
     span.setTag(Tags.TEST_SESSION_ID, sessionContext.getId());
+
+    if (startCommand != null) {
+      span.setTag(Tags.TEST_COMMAND, startCommand);
+    }
 
     testDecorator.afterStart(span);
   }
@@ -121,8 +139,6 @@ public class DDTestModuleParent extends DDTestModuleImpl {
 
   @Override
   public void end(@Nullable Long endTime) {
-    testModuleRegistry.removeModule(this);
-
     span.setTag(Tags.TEST_STATUS, context.getStatus());
     sessionContext.reportChildStatus(context.getStatus());
 
@@ -165,7 +181,8 @@ public class DDTestModuleParent extends DDTestModuleImpl {
     return Boolean.parseBoolean(property);
   }
 
-  public void onModuleExecutionResultReceived(ModuleExecutionResult result) {
+  public void onModuleExecutionResultReceived(
+      ModuleExecutionResult result, ExecutionDataStore coverageData) {
     codeCoverageEnabled = result.isCoverageEnabled();
     itrEnabled = result.isItrEnabled();
     testsSkipped.add(result.getTestsSkippedTotal());
@@ -178,6 +195,45 @@ public class DDTestModuleParent extends DDTestModuleImpl {
     String testFrameworkVersion = result.getTestFrameworkVersion();
     if (testFrameworkVersion != null) {
       span.setTag(Tags.TEST_FRAMEWORK_VERSION, testFrameworkVersion);
+    }
+
+    processCoverageData(coverageData);
+  }
+
+  private void processCoverageData(ExecutionDataStore coverageData) {
+    if (coverageData == null) {
+      return;
+    }
+    IBundleCoverage coverageBundle =
+        CoverageUtils.createCoverageBundle(coverageData, outputClassesDirs);
+    if (coverageBundle == null) {
+      return;
+    }
+
+    long coveragePercentage = getCoveragePercentage(coverageBundle);
+    span.setTag(Tags.TEST_CODE_COVERAGE_LINES_PERCENTAGE, coveragePercentage);
+
+    File coverageReportFolder = getCoverageReportFolder();
+    if (coverageReportFolder != null) {
+      CoverageUtils.dumpCoverageReport(
+          coverageBundle, repoIndexProvider.getIndex(), repoRoot, coverageReportFolder);
+    }
+  }
+
+  private static long getCoveragePercentage(IBundleCoverage coverageBundle) {
+    ICounter instructionCounter = coverageBundle.getInstructionCounter();
+    int totalInstructionsCount = instructionCounter.getTotalCount();
+    int coveredInstructionsCount = instructionCounter.getCoveredCount();
+    return Math.round((100d * coveredInstructionsCount) / totalInstructionsCount);
+  }
+
+  private File getCoverageReportFolder() {
+    String coverageReportDumpDir = config.getCiVisibilityCodeCoverageReportDumpDir();
+    if (coverageReportDumpDir != null) {
+      return Paths.get(coverageReportDumpDir, "session-" + context.getParentId(), moduleName)
+          .toFile();
+    } else {
+      return null;
     }
   }
 }

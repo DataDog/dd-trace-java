@@ -7,6 +7,8 @@ apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
 
 minimumBranchCoverage = 0.7
+minimumInstructionCoverage = 0.8
+
 excludedClassesCoverage += [
   "datadog.trace.civisibility.CiVisibilitySystem",
   "datadog.trace.civisibility.CiVisibilitySystem.1",
@@ -38,7 +40,8 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.context.EmptyTestContext",
   "datadog.trace.civisibility.context.ParentProcessTestContext",
   "datadog.trace.civisibility.context.SpanTestContext",
-  "datadog.trace.civisibility.coverage.TestProbes.TestProbesFactory",
+  "datadog.trace.civisibility.coverage.CoverageUtils",
+  "datadog.trace.civisibility.coverage.CoverageUtils.RepoIndexFileLocator",
   "datadog.trace.civisibility.coverage.ExecutionDataAdapter",
   "datadog.trace.civisibility.coverage.NoopCoverageProbeStore",
   "datadog.trace.civisibility.coverage.NoopCoverageProbeStore.NoopCoverageProbeStoreFactory",
@@ -46,6 +49,7 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.coverage.SegmentlessTestProbes.SegmentlessTestProbesFactory",
   "datadog.trace.civisibility.coverage.SourceAnalyzer",
   "datadog.trace.civisibility.coverage.TestProbes",
+  "datadog.trace.civisibility.coverage.TestProbes.TestProbesFactory",
   "datadog.trace.civisibility.events.BuildEventsHandlerImpl",
   "datadog.trace.civisibility.events.TestEventsHandlerImpl",
   "datadog.trace.civisibility.events.TestDescriptor",
@@ -69,8 +73,6 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.utils.ShellCommandExecutor",
   "datadog.trace.civisibility.utils.ShellCommandExecutor.OutputParser",
 ]
-minimumInstructionCoverage = 0.8
-
 
 dependencies {
   api deps.slf4j
@@ -78,6 +80,7 @@ dependencies {
   implementation deps.asm
   implementation deps.asmcommons
   implementation group: 'org.jacoco', name: 'org.jacoco.core', version: '0.8.9'
+  implementation group: 'org.jacoco', name: 'org.jacoco.report', version: '0.8.9'
 
   implementation project(':communication')
   implementation project(':internal-api')

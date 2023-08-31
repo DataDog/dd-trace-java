@@ -2,6 +2,7 @@ package datadog.trace.civisibility;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.coverage.CoverageDataSupplier;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.JvmInfo;
@@ -30,6 +31,7 @@ public class DDTestModuleChild extends DDTestModuleImpl {
   private static final Logger log = LoggerFactory.getLogger(DDTestModuleChild.class);
 
   private final ParentProcessTestContext context;
+  private final CoverageDataSupplier coverageDataSupplier;
 
   public DDTestModuleChild(
       Long parentProcessSessionId,
@@ -41,6 +43,7 @@ public class DDTestModuleChild extends DDTestModuleImpl {
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
       CoverageProbeStoreFactory coverageProbeStoreFactory,
+      CoverageDataSupplier coverageDataSupplier,
       @Nullable InetSocketAddress signalServerAddress) {
     super(
         moduleName,
@@ -52,6 +55,7 @@ public class DDTestModuleChild extends DDTestModuleImpl {
         coverageProbeStoreFactory,
         signalServerAddress);
     context = new ParentProcessTestContext(parentProcessSessionId, parentProcessModuleId);
+    this.coverageDataSupplier = coverageDataSupplier;
   }
 
   @Override
@@ -89,6 +93,7 @@ public class DDTestModuleChild extends DDTestModuleImpl {
     long testsSkippedTotal = testsSkipped.sum();
     String testFramework = String.valueOf(context.getChildTag(Tags.TEST_FRAMEWORK));
     String testFrameworkVersion = String.valueOf(context.getChildTag(Tags.TEST_FRAMEWORK_VERSION));
+    byte[] coverageData = coverageDataSupplier.get();
 
     ModuleExecutionResult moduleExecutionResult =
         new ModuleExecutionResult(
@@ -98,7 +103,8 @@ public class DDTestModuleChild extends DDTestModuleImpl {
             itrEnabled,
             testsSkippedTotal,
             testFramework,
-            testFrameworkVersion);
+            testFrameworkVersion,
+            coverageData);
 
     try (SignalClient signalClient = new SignalClient(signalServerAddress)) {
       signalClient.send(moduleExecutionResult);

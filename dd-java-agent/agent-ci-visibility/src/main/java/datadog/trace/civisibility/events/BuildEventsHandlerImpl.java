@@ -8,10 +8,13 @@ import datadog.trace.civisibility.DDTestModuleImpl;
 import datadog.trace.civisibility.DDTestSessionImpl;
 import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.config.JvmInfoFactory;
+import java.io.File;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import javax.annotation.Nullable;
 
 public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
 
@@ -69,13 +72,12 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
   public ModuleInfo onTestModuleStart(
       final T sessionKey,
       final String moduleName,
-      String startCommand,
-      Map<String, Object> additionalTags) {
+      Collection<File> outputClassesDirs,
+      @Nullable Map<String, Object> additionalTags) {
 
     DDTestSessionImpl testSession = inProgressTestSessions.get(sessionKey);
-    DDTestModuleImpl testModule = testSession.testModuleStart(moduleName, null);
+    DDTestModuleImpl testModule = testSession.testModuleStart(moduleName, null, outputClassesDirs);
     testModule.setTag(Tags.TEST_STATUS, CIConstants.TEST_PASS);
-    testModule.setTag(Tags.TEST_COMMAND, startCommand);
 
     if (additionalTags != null) {
       for (Map.Entry<String, Object> e : additionalTags.entrySet()) {
