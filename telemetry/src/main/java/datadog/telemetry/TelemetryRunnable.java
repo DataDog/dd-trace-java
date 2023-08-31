@@ -58,14 +58,18 @@ public class TelemetryRunnable implements Runnable {
 
     scheduler.init();
 
-    for (int attempt = 1; attempt <= MAX_APP_STARTED_RETRIES; attempt++) {
-      if (Thread.interrupted() || telemetryService.sendAppStartedEvent()) {
-        break;
-      }
+    int attempt = 0;
+    while (!Thread.interrupted()
+        && !telemetryService.sendAppStartedEvent()
+        && attempt < MAX_APP_STARTED_RETRIES) {
+      attempt += 1;
       log.debug(
           "Couldn't send an app-started event on {} attempt out of {}.",
           attempt,
           MAX_APP_STARTED_RETRIES);
+    }
+    if (attempt == MAX_APP_STARTED_RETRIES) {
+      log.error("Couldn't send an app-started event!");
     }
 
     while (!Thread.interrupted()) {

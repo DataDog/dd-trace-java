@@ -159,8 +159,8 @@ public class TelemetryService {
   }
 
   /**
-   * @return true - only part of data has been sent because of the message limitation per request
-   *     false - all data has been sent, or it has failed to send a request
+   * @return true - only part of data has been sent because of the request size limit false - all
+   *     data has been sent, or it has failed sending a request
    */
   public boolean sendTelemetryEvents() {
     EventSource eventSource;
@@ -214,9 +214,7 @@ public class TelemetryService {
     if (result == HttpClient.Result.SUCCESS) {
       log.debug("Telemetry request has been sent successfully.");
       bufferedEvents = null;
-      if (isMoreDataAvailable) {
-        return true;
-      }
+      return isMoreDataAvailable;
     } else {
       log.debug("Telemetry request has failed: {}", result);
       if (eventSource == bufferedEvents) {
