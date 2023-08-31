@@ -96,15 +96,22 @@ class TestHttpClient extends HttpClient {
       this.request.body().writeTo(buf)
       byte[] bytes = new byte[buf.size()]
       buf.read(bytes)
-      return new BodyAssertions(SLURPER.parse(bytes) as Map<String, Object>)
+      def parsed = SLURPER.parse(bytes) as Map<String, Object>
+      return new BodyAssertions(parsed, bytes)
     }
   }
 
   static class BodyAssertions {
-    private Map<String, Object> body
+    private final Map<String, Object> body
+    private final byte[] bodyBytes
 
-    BodyAssertions(Map<String, Object> body) {
+    BodyAssertions(Map<String, Object> body, byte[] bodyBytes) {
       this.body = body
+      this.bodyBytes = bodyBytes
+    }
+
+    int bodySize() {
+      return this.bodyBytes.length
     }
 
     BodyAssertions commonParts(RequestType requestType) {

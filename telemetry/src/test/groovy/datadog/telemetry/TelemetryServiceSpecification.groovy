@@ -288,8 +288,18 @@ class TelemetryServiceSpecification extends Specification {
   void 'split telemetry requests if the size above the limit'() {
     setup:
     TestHttpClient testHttpClient = new TestHttpClient()
-    def limitInBytes = 1000
-    TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), limitInBytes)
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 5000)
+
+    when: 'send a heartbeat request without telemetry data to measure body size to set stable request size limit'
+    testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
+    telemetryService.sendTelemetryEvents()
+
+    then: 'get body size'
+    def bodySize = testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT).bodySize()
+    bodySize > 0
+
+    when: 'sending first part of data'
+    telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), bodySize + 500)
 
     telemetryService.addConfiguration(configuration)
     telemetryService.addIntegration(integration)
@@ -298,29 +308,28 @@ class TelemetryServiceSpecification extends Specification {
     telemetryService.addDistributionSeries(distribution)
     telemetryService.addLogMessage(logMessage)
 
-    when: 'first successful partial attempt'
     testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
     telemetryService.sendTelemetryEvents()
 
     then: 'attempt with SUCCESS'
     testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
-      .assertBatch(4)
+      .assertBatch(5)
       .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
       .assertNextMessage(RequestType.APP_CLIENT_CONFIGURATION_CHANGE).hasPayload().configuration([confKeyValue])
       .assertNextMessage(RequestType.APP_INTEGRATIONS_CHANGE).hasPayload().integrations([integration])
       .assertNextMessage(RequestType.APP_DEPENDENCIES_LOADED).hasPayload().dependencies([dependency])
+      .assertNextMessage(RequestType.GENERATE_METRICS).hasPayload().namespace("tracers").metrics([metric])
       // no more data fit this message is sent in the next message
       .assertNoMoreMessages()
 
-    when: 'second successful partial attempt'
+    when: 'sending second part of data'
     testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
     !telemetryService.sendTelemetryEvents()
 
     then:
     testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
-      .assertBatch(4)
+      .assertBatch(3)
       .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
-      .assertNextMessage(RequestType.GENERATE_METRICS).hasPayload().namespace("tracers").metrics([metric])
       .assertNextMessage(RequestType.DISTRIBUTIONS).hasPayload().namespace("tracers").distributionSeries([distribution])
       .assertNextMessage(RequestType.LOGS).hasPayload().logs([logMessage])
       .assertNoMoreMessages()
