@@ -32,8 +32,7 @@ class TelemetryServiceSpecification extends Specification {
     telemetryService.sendTelemetryEvents()
 
     then: 'app-started'
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED)
-      .assertNoPayload()
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products()
     testHttpClient.assertNoMoreRequests()
 
     when: 'second iteration'
@@ -71,7 +70,9 @@ class TelemetryServiceSpecification extends Specification {
     telemetryService.sendTelemetryEvents()
 
     then:
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED).hasPayload().configuration([confKeyValue])
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload()
+      .products()
+      .configuration([confKeyValue])
     testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
       .assertBatch(6)
       .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
@@ -116,7 +117,7 @@ class TelemetryServiceSpecification extends Specification {
     telemetryService.sendTelemetryEvents()
 
     then:
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertNoPayload()
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products()
     testHttpClient.assertNoMoreRequests()
 
     when: 'add data after first iteration'
@@ -155,7 +156,7 @@ class TelemetryServiceSpecification extends Specification {
     telemetryService.sendTelemetryEvents()
 
     then: 'app-started is attempted'
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertNoPayload()
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products()
     testHttpClient.assertNoMoreRequests()
 
     when: 'attempt with 500 error'
@@ -163,7 +164,7 @@ class TelemetryServiceSpecification extends Specification {
     telemetryService.sendTelemetryEvents()
 
     then: 'app-started is attempted'
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertNoPayload()
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products()
     testHttpClient.assertNoMoreRequests()
 
     when: 'attempt with unexpected FAILURE (not valid)'
@@ -171,7 +172,7 @@ class TelemetryServiceSpecification extends Specification {
     telemetryService.sendTelemetryEvents()
 
     then: 'app-started is attempted'
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertNoPayload()
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products()
     testHttpClient.assertNoMoreRequests()
 
     when: 'attempt with success'
@@ -179,7 +180,7 @@ class TelemetryServiceSpecification extends Specification {
     telemetryService.sendTelemetryEvents()
 
     then: 'app-started is attempted'
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertNoPayload()
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products()
     testHttpClient.assertNoMoreRequests()
   }
 
@@ -200,7 +201,7 @@ class TelemetryServiceSpecification extends Specification {
     telemetryService.sendTelemetryEvents()
 
     then: 'app-started attempted with config'
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED).hasPayload().configuration([confKeyValue])
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().configuration([confKeyValue])
     testHttpClient.assertNoMoreRequests()
 
     when: 'successful attempt'
@@ -208,7 +209,7 @@ class TelemetryServiceSpecification extends Specification {
     telemetryService.sendTelemetryEvents()
 
     then: 'attempt with SUCCESS'
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED).hasPayload().configuration([confKeyValue])
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().configuration([confKeyValue])
     testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
       .assertBatch(6)
       .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
@@ -288,7 +289,7 @@ class TelemetryServiceSpecification extends Specification {
     telemetryService.sendTelemetryEvents()
 
     then: 'attempt with SUCCESS'
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED).hasPayload().configuration([confKeyValue])
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().configuration([confKeyValue])
     testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
       .assertBatch(4)
       //TODO should a heartbeat be included in the batch request?

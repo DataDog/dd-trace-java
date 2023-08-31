@@ -7,6 +7,8 @@ import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
+import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.ProductActivation;
 import java.io.IOException;
 import okhttp3.HttpUrl;
 import okhttp3.Request;
@@ -46,27 +48,45 @@ public class BatchRequestBuilder {
     if (!isWithinSizeLimits()) {
       return;
     }
-    ConfigChange event = eventSource.nextConfigChangeEvent();
-    if (event == null) {
+    if (!eventSource.hasConfigChangeEvent()) {
+      return;
+    }
+    requestBuilder.beginMessage(RequestType.APP_CLIENT_CONFIGURATION_CHANGE);
+    requestBuilder.beginSinglePayload();
+    writeConfigurations();
+    requestBuilder.endSinglePayload();
+    requestBuilder.endMessage();
+  }
+
+  public void writeConfigurations() {
+    if (!eventSource.hasConfigChangeEvent()) {
       return;
     }
     try {
-      requestBuilder.beginMessage(RequestType.APP_CLIENT_CONFIGURATION_CHANGE);
-      requestBuilder.beginPayload();
       requestBuilder.beginConfiguration();
-      while (event != null) {
+      while (eventSource.hasConfigChangeEvent()) {
+        ConfigChange event = eventSource.nextConfigChangeEvent();
         requestBuilder.writeConfiguration(event);
         eventSink.addConfigChangeEvent(event);
         if (!isWithinSizeLimits()) {
           break;
         }
-        event = eventSource.nextConfigChangeEvent();
       }
       requestBuilder.endConfiguration();
-      requestBuilder.endPayload();
-      requestBuilder.endMessage();
     } catch (IOException e) {
-      throw new RequestBuilder.SerializationException("configuration-message", e);
+      throw new RequestBuilder.SerializationException("configuration-object", e);
+    }
+  }
+
+  public void writeProducts() {
+    InstrumenterConfig instrumenterConfig = InstrumenterConfig.get();
+    try {
+      boolean appsecEnabled =
+          instrumenterConfig.getAppSecActivation() != ProductActivation.FULLY_DISABLED;
+      boolean profilerEnabled = instrumenterConfig.isProfilingEnabled();
+      requestBuilder.writeProducts(appsecEnabled, profilerEnabled);
+    } catch (IOException e) {
+      throw new RequestBuilder.SerializationException("products", e);
     }
   }
 
@@ -196,5 +216,21 @@ public class BatchRequestBuilder {
 
   public void writeHeartbeatEvent() {
     requestBuilder.writeHeartbeatEvent();
+  }
+
+  public void beginSinglePayload() {
+    requestBuilder.beginSinglePayload();
+  }
+
+  public void endSinglePayload() {
+    requestBuilder.endSinglePayload();
+  }
+
+  public void beginMultiplePayloads() {
+    requestBuilder.beginMultiplePayload();
+  }
+
+  public void endMultiplePayloads() {
+    requestBuilder.endMultiplePayload();
   }
 }

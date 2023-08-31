@@ -134,7 +134,7 @@ class TestHttpClient extends HttpClient {
       return this
     }
 
-    PayloadAssertions hasPayload() {
+    PayloadAssertions assertPayload() {
       def payload = body['payload'] as Map<String, Object>
       assert payload != null
       return new PayloadAssertions(payload)
@@ -228,6 +228,12 @@ class TestHttpClient extends HttpClient {
         }
       }
       assert this.payload['configuration'] == expected
+      return this
+    }
+
+    PayloadAssertions products(boolean appsecEnabled = true, boolean profilerEnabled = false) {
+      def expected = [appsec: [enabled: appsecEnabled], profiler: [enabled: profilerEnabled]]
+      assert this.payload['products'] == expected
       return this
     }
 

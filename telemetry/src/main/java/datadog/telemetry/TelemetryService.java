@@ -141,7 +141,10 @@ public class TelemetryService {
     if (!sentAppStarted) {
       log.debug("Preparing app-started request");
       batchRequestBuilder.beginRequest(RequestType.APP_STARTED, httpUrl);
-      batchRequestBuilder.writeConfigurationMessage();
+      batchRequestBuilder.beginSinglePayload();
+      batchRequestBuilder.writeProducts();
+      batchRequestBuilder.writeConfigurations();
+      batchRequestBuilder.endSinglePayload();
       request = batchRequestBuilder.endRequest();
     } else if (eventSource.isEmpty()) {
       log.debug("Preparing app-heartbeat request");
@@ -150,6 +153,7 @@ public class TelemetryService {
     } else {
       log.debug("Preparing message-batch request");
       batchRequestBuilder.beginRequest(RequestType.MESSAGE_BATCH, httpUrl);
+      batchRequestBuilder.beginMultiplePayloads();
       batchRequestBuilder.writeHeartbeatEvent();
       batchRequestBuilder.writeConfigurationMessage();
       batchRequestBuilder.writeIntegrationsMessage();
@@ -157,6 +161,7 @@ public class TelemetryService {
       batchRequestBuilder.writeMetricsMessage();
       batchRequestBuilder.writeDistributionsMessage();
       batchRequestBuilder.writeLogsMessage();
+      batchRequestBuilder.endMultiplePayloads();
       request = batchRequestBuilder.endRequest();
     }
 

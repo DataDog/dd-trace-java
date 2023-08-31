@@ -13,6 +13,8 @@ interface EventSource {
 
   ConfigChange nextConfigChangeEvent();
 
+  boolean hasConfigChangeEvent();
+
   Integration nextIntegrationEvent();
 
   Dependency nextDependencyEvent();
@@ -38,6 +40,11 @@ interface EventSource {
     @Override
     public ConfigChange nextConfigChangeEvent() {
       return null;
+    }
+
+    @Override
+    public boolean hasConfigChangeEvent() {
+      return false;
     }
 
     @Override
@@ -91,7 +98,7 @@ interface EventSource {
 
     @Override
     public boolean isEmpty() {
-      return configChangeQueue.isEmpty()
+      return !hasConfigChangeEvent()
           && integrationQueue.isEmpty()
           && dependencyQueue.isEmpty()
           && metricQueue.isEmpty()
@@ -102,6 +109,11 @@ interface EventSource {
     @Override
     public ConfigChange nextConfigChangeEvent() {
       return configChangeQueue.poll();
+    }
+
+    @Override
+    public boolean hasConfigChangeEvent() {
+      return !configChangeQueue.isEmpty();
     }
 
     @Override

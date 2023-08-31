@@ -13,7 +13,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Platform;
 import java.io.IOException;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
@@ -122,10 +121,6 @@ public class RequestBuilder extends RequestBody {
       bodyWriter.endObject();
 
       bodyWriter.name("request_type").value(requestType.toString());
-      if (requestType == RequestType.MESSAGE_BATCH) {
-        bodyWriter.name("payload");
-        bodyWriter.beginArray();
-      }
     } catch (Exception ex) {
       throw new SerializationException("begin-request", ex);
     }
@@ -133,11 +128,7 @@ public class RequestBuilder extends RequestBody {
 
   public void endRequest() {
     try {
-      if (requestType == RequestType.MESSAGE_BATCH) {
-        bodyWriter.endArray(); // payload
-      }
       bodyWriter.endObject(); // request
-
       requestBuilder.addHeader("Content-Length", String.valueOf(body.size()));
     } catch (Exception ex) {
       throw new SerializationException("end-request", ex);
@@ -165,20 +156,37 @@ public class RequestBuilder extends RequestBody {
     }
   }
 
-  public void beginPayload() {
+  public void beginSinglePayload() {
     try {
       bodyWriter.name("payload");
       bodyWriter.beginObject();
     } catch (Exception ex) {
-      throw new SerializationException("begin-batch", ex);
+      throw new SerializationException("begin-single-payload", ex);
     }
   }
 
-  public void endPayload() {
+  public void endSinglePayload() {
     try {
-      bodyWriter.endObject(); // payload
+      bodyWriter.endObject();
     } catch (Exception ex) {
-      throw new SerializationException("end-batch", ex);
+      throw new SerializationException("end-single-payload", ex);
+    }
+  }
+
+  public void beginMultiplePayload() {
+    try {
+      bodyWriter.name("payload");
+      bodyWriter.beginArray();
+    } catch (Exception ex) {
+      throw new SerializationException("begin-multiple-payload", ex);
+    }
+  }
+
+  public void endMultiplePayload() {
+    try {
+      bodyWriter.endArray();
+    } catch (Exception ex) {
+      throw new SerializationException("end-multiple-payload", ex);
     }
   }
 
@@ -189,7 +197,7 @@ public class RequestBuilder extends RequestBody {
 
   public void beginMetrics() throws IOException {
     beginMessage(RequestType.GENERATE_METRICS);
-    beginPayload();
+    beginSinglePayload();
     bodyWriter.name("namespace").value(TELEMETRY_NAMESPACE_TAG_TRACER);
     bodyWriter.name("series");
     bodyWriter.beginArray();
@@ -197,7 +205,7 @@ public class RequestBuilder extends RequestBody {
 
   public void endMetrics() throws IOException {
     bodyWriter.endArray();
-    endPayload();
+    endSinglePayload();
     endMessage();
   }
 
@@ -228,7 +236,7 @@ public class RequestBuilder extends RequestBody {
 
   public void beginDistributions() throws IOException {
     beginMessage(RequestType.DISTRIBUTIONS);
-    beginPayload();
+    beginSinglePayload();
     bodyWriter.name("namespace").value(TELEMETRY_NAMESPACE_TAG_TRACER);
     bodyWriter.name("series");
     bodyWriter.beginArray();
@@ -236,19 +244,19 @@ public class RequestBuilder extends RequestBody {
 
   public void endDistributions() throws IOException {
     bodyWriter.endArray();
-    endPayload();
+    endSinglePayload();
     endMessage();
   }
 
   public void beginLogs() throws IOException {
     beginMessage(RequestType.LOGS);
-    beginPayload();
+    beginSinglePayload();
     bodyWriter.name("logs").beginArray();
   }
 
   public void endLogs() throws IOException {
     bodyWriter.endArray();
-    endPayload();
+    endSinglePayload();
     endMessage();
   }
 
@@ -263,31 +271,6 @@ public class RequestBuilder extends RequestBody {
     bodyWriter.name("stack_trace").value(m.getStackTrace()); // optional
     bodyWriter.name("tracer_time").value(m.getTracerTime()); // optional
     bodyWriter.endObject();
-  }
-
-  public void writeConfigChangeEvent(List<ConfigChange> configChanges) {
-    if (!configChanges.isEmpty()) {
-      beginMessage(RequestType.APP_CLIENT_CONFIGURATION_CHANGE);
-      beginPayload();
-      writeConfigurationChanges(configChanges);
-      endPayload();
-      endMessage();
-    }
-  }
-
-  public void writeConfigurationChanges(List<ConfigChange> configChanges) {
-    if (configChanges.isEmpty()) {
-      return;
-    }
-    try {
-      beginConfiguration();
-      for (ConfigChange cc : configChanges) {
-        writeConfiguration(cc);
-      }
-      endConfiguration();
-    } catch (Exception ex) {
-      throw new SerializationException("config changes payload", ex);
-    }
   }
 
   public void beginConfiguration() throws IOException {
@@ -311,14 +294,14 @@ public class RequestBuilder extends RequestBody {
 
   public void beginIntegrations() throws IOException {
     beginMessage(RequestType.APP_INTEGRATIONS_CHANGE);
-    beginPayload();
+    beginSinglePayload();
     bodyWriter.name("integrations");
     bodyWriter.beginArray();
   }
 
   public void endIntegrations() throws IOException {
     bodyWriter.endArray();
-    endPayload();
+    endSinglePayload();
     endMessage();
   }
 
@@ -338,14 +321,14 @@ public class RequestBuilder extends RequestBody {
 
   public void beginDependencies() throws IOException {
     beginMessage(RequestType.APP_DEPENDENCIES_LOADED);
-    beginPayload();
+    beginSinglePayload();
     bodyWriter.name("dependencies");
     bodyWriter.beginArray();
   }
 
   public void endDependencies() throws IOException {
     bodyWriter.endArray();
-    endPayload();
+    endSinglePayload();
     endMessage();
   }
 
@@ -363,11 +346,21 @@ public class RequestBuilder extends RequestBody {
   /**
    * https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/SchemaDocumentation/Schemas/products.md
    */
-  public void writeProductChangeEvent() {
-    // TODO
-    // appsec - optional
-    // profiler - optional
-    // dynamic_instrumentation - optional
+  public void writeProducts(boolean appsecEnabled, boolean profilerEnabled) throws IOException {
+    bodyWriter.name("products");
+    bodyWriter.beginObject();
+
+    bodyWriter.name("appsec");
+    bodyWriter.beginObject();
+    bodyWriter.name("enabled").value(appsecEnabled);
+    bodyWriter.endObject();
+
+    bodyWriter.name("profiler");
+    bodyWriter.beginObject();
+    bodyWriter.name("enabled").value(profilerEnabled);
+    bodyWriter.endObject();
+
+    bodyWriter.endObject();
   }
 
   /**

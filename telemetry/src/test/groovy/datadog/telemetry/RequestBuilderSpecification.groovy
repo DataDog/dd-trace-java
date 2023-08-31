@@ -57,15 +57,17 @@ class RequestBuilderSpecification extends Specification {
     drainToString(rb.request())
 
     then:
-    rb.writeConfigChangeEvent([
+    rb.beginConfiguration()
+    [
       new ConfigChange("string", "bar"),
       new ConfigChange("int", 2342),
       new ConfigChange("double", Double.valueOf("123.456")),
       new ConfigChange("map", map)
-    ])
+    ].forEach { cc -> rb.writeConfiguration(cc) }
+    rb.endConfiguration()
 
     then:
-    drainToString(rb.request()) == ',"payload":{"configuration":[{"name":"string","value":"bar","origin":"unknown"},{"name":"int","value":2342,"origin":"unknown"},{"name":"double","value":123.456,"origin":"unknown"},{"name":"map","value":{"key1":"value1","key2":432.32,"key3":324},"origin":"unknown"}]}'
+    drainToString(rb.request()) == ',"configuration":[{"name":"string","value":"bar","origin":"unknown"},{"name":"int","value":2342,"origin":"unknown"},{"name":"double","value":123.456,"origin":"unknown"},{"name":"map","value":{"key1":"value1","key2":432.32,"key3":324},"origin":"unknown"}]'
   }
 
   String drainToString(Request req) {

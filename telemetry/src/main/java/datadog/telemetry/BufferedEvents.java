@@ -92,6 +92,11 @@ public final class BufferedEvents implements EventSource, EventSink {
     return configChangeEvents.get(configChangeIndex++);
   }
 
+  @Override
+  public boolean hasConfigChangeEvent() {
+    return !isConfigEventsEmpty();
+  }
+
   private boolean isConfigEventsEmpty() {
     return configChangeEvents == null || configChangeIndex == configChangeEvents.size();
   }
