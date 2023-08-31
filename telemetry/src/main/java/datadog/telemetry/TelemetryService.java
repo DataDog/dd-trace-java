@@ -189,7 +189,7 @@ public class TelemetryService {
       batchRequestBuilder.writeDistributionsMessage();
       batchRequestBuilder.writeLogsMessage();
       batchRequestBuilder.endMultiplePayloads();
-      isMoreDataAvailable = !eventSource.isEmpty();
+      isMoreDataAvailable = !this.eventSource.isEmpty();
     }
     request = batchRequestBuilder.endRequest();
 

@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 public class TelemetryRunnable implements Runnable {
 
   private static final Logger log = LoggerFactory.getLogger(TelemetryRunnable.class);
+  private static final int MAX_APP_STARTED_RETRIES = 3;
   private static final int MAX_CONSECUTIVE_REQUESTS = 3;
 
   private final TelemetryService telemetryService;
@@ -57,17 +58,14 @@ public class TelemetryRunnable implements Runnable {
 
     scheduler.init();
 
-    for (int attempt = 1; attempt <= MAX_CONSECUTIVE_REQUESTS; attempt++) {
-      if (!Thread.interrupted()) {
+    for (int attempt = 1; attempt <= MAX_APP_STARTED_RETRIES; attempt++) {
+      if (Thread.interrupted() || telemetryService.sendAppStartedEvent()) {
         break;
       }
-      if (!telemetryService.sendAppStartedEvent()) {
-        log.debug("Couldn't send an app-started event on {} attempt.", attempt);
-      }
-    }
-
-    while (!telemetryService.sendAppStartedEvent() && !Thread.interrupted()) {
-      log.debug("Couldn't send an app-started event. Reattempting to send it again.");
+      log.debug(
+          "Couldn't send an app-started event on {} attempt out of {}.",
+          attempt,
+          MAX_APP_STARTED_RETRIES);
     }
 
     while (!Thread.interrupted()) {

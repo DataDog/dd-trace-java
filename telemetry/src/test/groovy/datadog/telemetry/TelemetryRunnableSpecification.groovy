@@ -51,7 +51,7 @@ class TelemetryRunnableSpecification extends Specification {
     sleeper.sleeped.await(10, TimeUnit.SECONDS)
 
     then: 'three unsuccessful attempts to send app-started with the following successful attempt'
-    4 * telemetryService.sendAppStartedEvent() >>> [false, false, false, true]
+    3 * telemetryService.sendAppStartedEvent() >>> [false, false, true]
     1 * timeSource.getCurrentTimeMillis() >> 60 * 1000
     _ * telemetryService.addConfiguration(_)
 
