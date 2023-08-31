@@ -10,26 +10,26 @@ import spock.lang.Specification
 /**
  * This test only verifies non-functional specifics that are not covered in TelemetryServiceSpecification
  */
-class RequestBuilderSpecification extends Specification {
+class TelemetryRequestStateSpecification extends Specification {
   final HttpUrl httpUrl = HttpUrl.get("https://example.com")
 
   def 'throw SerializationException in case of JSON nesting problem'() {
     setup:
-    def b = new RequestBuilder(RequestType.APP_STARTED, httpUrl)
+    def b = new TelemetryRequestState(RequestType.APP_STARTED, httpUrl)
 
     when:
     b.beginRequest()
     b.beginRequest()
 
     then:
-    RequestBuilder.SerializationException ex = thrown()
+    TelemetryRequestState.SerializationException ex = thrown()
     ex.message == "Failed serializing Telemetry begin-request part!"
     ex.cause != null
   }
 
   def 'throw SerializationException in case of more than one top-level JSON value'() {
     setup:
-    def b = new RequestBuilder(RequestType.APP_STARTED, httpUrl)
+    def b = new TelemetryRequestState(RequestType.APP_STARTED, httpUrl)
 
     when:
     b.beginRequest()
@@ -37,14 +37,14 @@ class RequestBuilderSpecification extends Specification {
     b.beginRequest()
 
     then:
-    RequestBuilder.SerializationException ex = thrown()
+    TelemetryRequestState.SerializationException ex = thrown()
     ex.message == "Failed serializing Telemetry begin-request part!"
     ex.cause != null
   }
 
   def 'writeConfig must support values of Boolean, String, Integer, Double, Map<String, Object>'() {
     setup:
-    RequestBuilder rb = new RequestBuilder(RequestType.APP_CLIENT_CONFIGURATION_CHANGE, httpUrl)
+    TelemetryRequestState rb = new TelemetryRequestState(RequestType.APP_CLIENT_CONFIGURATION_CHANGE, httpUrl)
     Map<String, Object> map = new HashMap<>()
     map.put("key1", "value1")
     map.put("key2", Double.parseDouble("432.32"))
@@ -53,7 +53,7 @@ class RequestBuilderSpecification extends Specification {
     when:
     rb.beginRequest()
     // exclude request header to simplify assertion
-    drainToString(rb.buildRequest())
+    drainToString(rb.request())
 
     then:
     rb.beginConfiguration()
@@ -71,7 +71,7 @@ class RequestBuilderSpecification extends Specification {
 
   def 'add debug flag'() {
     setup:
-    RequestBuilder rb = new RequestBuilder(RequestType.APP_STARTED, httpUrl, true)
+    TelemetryRequestState rb = new TelemetryRequestState(RequestType.APP_STARTED, httpUrl, true)
 
     when:
     rb.beginRequest()

@@ -13,46 +13,39 @@ import java.io.IOException;
 import okhttp3.HttpUrl;
 import okhttp3.Request;
 
-public class BatchRequestBuilder {
+public class TelemetryRequest {
   private final EventSource eventSource;
   private final EventSink eventSink;
   private final long messageBytesSoftLimit;
-  private RequestBuilder requestBuilder;
+  private final TelemetryRequestState telemetryRequestState;
 
-  public BatchRequestBuilder(
-      EventSource eventSource, EventSink eventSink, long messageBytesSoftLimit) {
+  public TelemetryRequest(
+      EventSource eventSource,
+      EventSink eventSink,
+      long messageBytesSoftLimit,
+      RequestType requestType,
+      HttpUrl httpUrl,
+      boolean debug) {
     this.eventSource = eventSource;
     this.eventSink = eventSink;
     this.messageBytesSoftLimit = messageBytesSoftLimit;
+    this.telemetryRequestState = new TelemetryRequestState(requestType, httpUrl, debug);
+    this.telemetryRequestState.beginRequest();
   }
 
-  public void beginRequest(RequestType requestType, HttpUrl httpUrl) {
-    if (requestBuilder != null) {
-      throw new IllegalStateException("Request already started!");
-    }
-    requestBuilder = new RequestBuilder(requestType, httpUrl);
-    requestBuilder.beginRequest();
-  }
-
-  public Request endRequest() {
-    if (requestBuilder == null) {
-      throw new IllegalStateException("Request not started!");
-    }
-    return requestBuilder.endRequest();
+  public Request httpRequest() {
+    return telemetryRequestState.endRequest();
   }
 
   public void writeConfigurationMessage() {
-    if (!isWithinSizeLimits()) {
+    if (!isWithinSizeLimits() || !eventSource.hasConfigChangeEvent()) {
       return;
     }
-    if (!eventSource.hasConfigChangeEvent()) {
-      return;
-    }
-    requestBuilder.beginMessage(RequestType.APP_CLIENT_CONFIGURATION_CHANGE);
-    requestBuilder.beginSinglePayload();
+    telemetryRequestState.beginMessage(RequestType.APP_CLIENT_CONFIGURATION_CHANGE);
+    telemetryRequestState.beginSinglePayload();
     writeConfigurations();
-    requestBuilder.endSinglePayload();
-    requestBuilder.endMessage();
+    telemetryRequestState.endSinglePayload();
+    telemetryRequestState.endMessage();
   }
 
   public void writeConfigurations() {
@@ -60,18 +53,18 @@ public class BatchRequestBuilder {
       return;
     }
     try {
-      requestBuilder.beginConfiguration();
+      telemetryRequestState.beginConfiguration();
       while (eventSource.hasConfigChangeEvent()) {
         ConfigChange event = eventSource.nextConfigChangeEvent();
-        requestBuilder.writeConfiguration(event);
+        telemetryRequestState.writeConfiguration(event);
         eventSink.addConfigChangeEvent(event);
         if (!isWithinSizeLimits()) {
           break;
         }
       }
-      requestBuilder.endConfiguration();
+      telemetryRequestState.endConfiguration();
     } catch (IOException e) {
-      throw new RequestBuilder.SerializationException("configuration-object", e);
+      throw new TelemetryRequestState.SerializationException("configuration-object", e);
     }
   }
 
@@ -81,9 +74,9 @@ public class BatchRequestBuilder {
       boolean appsecEnabled =
           instrumenterConfig.getAppSecActivation() != ProductActivation.FULLY_DISABLED;
       boolean profilerEnabled = instrumenterConfig.isProfilingEnabled();
-      requestBuilder.writeProducts(appsecEnabled, profilerEnabled);
+      telemetryRequestState.writeProducts(appsecEnabled, profilerEnabled);
     } catch (IOException e) {
-      throw new RequestBuilder.SerializationException("products", e);
+      throw new TelemetryRequestState.SerializationException("products", e);
     }
   }
 
@@ -96,18 +89,18 @@ public class BatchRequestBuilder {
       return;
     }
     try {
-      requestBuilder.beginIntegrations();
+      telemetryRequestState.beginIntegrations();
       while (event != null) {
-        requestBuilder.writeIntegration(event);
+        telemetryRequestState.writeIntegration(event);
         eventSink.addIntegrationEvent(event);
         if (!isWithinSizeLimits()) {
           break;
         }
         event = eventSource.nextIntegrationEvent();
       }
-      requestBuilder.endIntegrations();
+      telemetryRequestState.endIntegrations();
     } catch (IOException e) {
-      throw new RequestBuilder.SerializationException("integrations-message", e);
+      throw new TelemetryRequestState.SerializationException("integrations-message", e);
     }
   }
 
@@ -120,18 +113,18 @@ public class BatchRequestBuilder {
       return;
     }
     try {
-      requestBuilder.beginDependencies();
+      telemetryRequestState.beginDependencies();
       while (event != null) {
-        requestBuilder.writeDependency(event);
+        telemetryRequestState.writeDependency(event);
         eventSink.addDependencyEvent(event);
         if (!isWithinSizeLimits()) {
           break;
         }
         event = eventSource.nextDependencyEvent();
       }
-      requestBuilder.endDependencies();
+      telemetryRequestState.endDependencies();
     } catch (IOException e) {
-      throw new RequestBuilder.SerializationException("dependencies-message", e);
+      throw new TelemetryRequestState.SerializationException("dependencies-message", e);
     }
   }
 
@@ -144,18 +137,18 @@ public class BatchRequestBuilder {
       return;
     }
     try {
-      requestBuilder.beginMetrics();
+      telemetryRequestState.beginMetrics();
       while (event != null) {
-        requestBuilder.writeMetric(event);
+        telemetryRequestState.writeMetric(event);
         eventSink.addMetricEvent(event);
         if (!isWithinSizeLimits()) {
           break;
         }
         event = eventSource.nextMetricEvent();
       }
-      requestBuilder.endMetrics();
+      telemetryRequestState.endMetrics();
     } catch (IOException e) {
-      throw new RequestBuilder.SerializationException("metrics-message", e);
+      throw new TelemetryRequestState.SerializationException("metrics-message", e);
     }
   }
 
@@ -168,18 +161,18 @@ public class BatchRequestBuilder {
       return;
     }
     try {
-      requestBuilder.beginDistributions();
+      telemetryRequestState.beginDistributions();
       while (event != null) {
-        requestBuilder.writeDistribution(event);
+        telemetryRequestState.writeDistribution(event);
         eventSink.addDistributionSeriesEvent(event);
         if (!isWithinSizeLimits()) {
           break;
         }
         event = eventSource.nextDistributionSeriesEvent();
       }
-      requestBuilder.endDistributions();
+      telemetryRequestState.endDistributions();
     } catch (IOException e) {
-      throw new RequestBuilder.SerializationException("distributions-message", e);
+      throw new TelemetryRequestState.SerializationException("distributions-message", e);
     }
   }
 
@@ -192,26 +185,26 @@ public class BatchRequestBuilder {
       return;
     }
     try {
-      requestBuilder.beginLogs();
+      telemetryRequestState.beginLogs();
       while (event != null) {
-        requestBuilder.writeLog(event);
+        telemetryRequestState.writeLog(event);
         eventSink.addLogMessageEvent(event);
         if (!isWithinSizeLimits()) {
           break;
         }
         event = eventSource.nextLogMessageEvent();
       }
-      requestBuilder.endLogs();
+      telemetryRequestState.endLogs();
     } catch (IOException e) {
-      throw new RequestBuilder.SerializationException("logs-message", e);
+      throw new TelemetryRequestState.SerializationException("logs-message", e);
     }
   }
 
   private boolean isWithinSizeLimits() {
-    return requestBuilder.size() < messageBytesSoftLimit;
+    return telemetryRequestState.size() < messageBytesSoftLimit;
   }
 
   public void writeHeartbeatEvent() {
-    requestBuilder.writeHeartbeatEvent();
+    telemetryRequestState.writeHeartbeatEvent();
   }
 }

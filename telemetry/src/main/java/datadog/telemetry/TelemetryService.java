@@ -42,6 +42,7 @@ public class TelemetryService {
 
   private final HttpUrl httpUrl;
   private final long messageBytesSoftLimit;
+  private final boolean debug;
 
   /*
    * Keep track of Open Tracing and Open Telemetry integrations activation as they are mutually exclusive.
@@ -49,18 +50,23 @@ public class TelemetryService {
   private boolean openTracingIntegrationEnabled;
   private boolean openTelemetryIntegrationEnabled;
 
-  public TelemetryService(final OkHttpClient okHttpClient, final HttpUrl httpUrl) {
-    this(new HttpClient(okHttpClient), httpUrl, DEFAULT_MESSAGE_BYTES_SOFT_LIMIT);
+  public TelemetryService(
+      final OkHttpClient okHttpClient, final HttpUrl httpUrl, final boolean debug) {
+    this(new HttpClient(okHttpClient), httpUrl, DEFAULT_MESSAGE_BYTES_SOFT_LIMIT, debug);
   }
 
   // For testing purposes
   TelemetryService(
-      final HttpClient httpClient, final HttpUrl agentUrl, final long messageBytesSoftLimit) {
+      final HttpClient httpClient,
+      final HttpUrl agentUrl,
+      final long messageBytesSoftLimit,
+      final boolean debug) {
     this.httpClient = httpClient;
     this.openTracingIntegrationEnabled = false;
     this.openTelemetryIntegrationEnabled = false;
     this.httpUrl = agentUrl.newBuilder().addPathSegments(API_ENDPOINT).build();
     this.messageBytesSoftLimit = messageBytesSoftLimit;
+    this.debug = debug;
   }
 
   public boolean addConfiguration(Map<String, Object> configuration) {
@@ -104,10 +110,15 @@ public class TelemetryService {
   }
 
   public void sendAppClosingEvent() {
-    BatchRequestBuilder batchRequestBuilder =
-        new BatchRequestBuilder(EventSource.noop(), EventSink.noop(), messageBytesSoftLimit);
-    batchRequestBuilder.beginRequest(RequestType.APP_CLOSING, httpUrl);
-    Request request = batchRequestBuilder.endRequest();
+    TelemetryRequest telemetryRequest =
+        new TelemetryRequest(
+            EventSource.noop(),
+            EventSink.noop(),
+            messageBytesSoftLimit,
+            RequestType.APP_CLOSING,
+            httpUrl,
+            debug);
+    Request request = telemetryRequest.httpRequest();
     if (httpClient.sendRequest(request) != HttpClient.Result.SUCCESS) {
       log.error("Couldn't send app-closing event!");
     }
@@ -131,14 +142,13 @@ public class TelemetryService {
     bufferedEvents = new BufferedEvents();
     eventSink = bufferedEvents;
 
-    BatchRequestBuilder batchRequestBuilder =
-        new BatchRequestBuilder(eventSource, eventSink, messageBytesSoftLimit);
-
     log.debug("Preparing app-started request");
-    batchRequestBuilder.beginRequest(RequestType.APP_STARTED, httpUrl);
-    batchRequestBuilder.writeProducts();
-    batchRequestBuilder.writeConfigurations();
-    Request request = batchRequestBuilder.endRequest();
+    TelemetryRequest telemetryRequest =
+        new TelemetryRequest(
+            eventSource, eventSink, messageBytesSoftLimit, RequestType.APP_STARTED, httpUrl, debug);
+    telemetryRequest.writeProducts();
+    telemetryRequest.writeConfigurations();
+    Request request = telemetryRequest.httpRequest();
 
     if (httpClient.sendRequest(request) == HttpClient.Result.SUCCESS) {
       // discard already sent buffered event on the successful attempt
@@ -167,27 +177,38 @@ public class TelemetryService {
       eventSource = bufferedEvents;
       eventSink = EventSink.noop(); // TODO collect metrics for unsent events
     }
-    BatchRequestBuilder batchRequestBuilder =
-        new BatchRequestBuilder(eventSource, eventSink, messageBytesSoftLimit);
-
-    Request request;
+    TelemetryRequest telemetryRequest;
     boolean isMoreDataAvailable = false;
     if (eventSource.isEmpty()) {
       log.debug("Preparing app-heartbeat request");
-      batchRequestBuilder.beginRequest(RequestType.APP_HEARTBEAT, httpUrl);
+      telemetryRequest =
+          new TelemetryRequest(
+              eventSource,
+              eventSink,
+              messageBytesSoftLimit,
+              RequestType.APP_HEARTBEAT,
+              httpUrl,
+              debug);
     } else {
       log.debug("Preparing message-batch request");
-      batchRequestBuilder.beginRequest(RequestType.MESSAGE_BATCH, httpUrl);
-      batchRequestBuilder.writeHeartbeatEvent();
-      batchRequestBuilder.writeConfigurationMessage();
-      batchRequestBuilder.writeIntegrationsMessage();
-      batchRequestBuilder.writeDependenciesMessage();
-      batchRequestBuilder.writeMetricsMessage();
-      batchRequestBuilder.writeDistributionsMessage();
-      batchRequestBuilder.writeLogsMessage();
+      telemetryRequest =
+          new TelemetryRequest(
+              eventSource,
+              eventSink,
+              messageBytesSoftLimit,
+              RequestType.MESSAGE_BATCH,
+              httpUrl,
+              debug);
+      telemetryRequest.writeHeartbeatEvent();
+      telemetryRequest.writeConfigurationMessage();
+      telemetryRequest.writeIntegrationsMessage();
+      telemetryRequest.writeDependenciesMessage();
+      telemetryRequest.writeMetricsMessage();
+      telemetryRequest.writeDistributionsMessage();
+      telemetryRequest.writeLogsMessage();
       isMoreDataAvailable = !this.eventSource.isEmpty();
     }
-    request = batchRequestBuilder.endRequest();
+    Request request = telemetryRequest.httpRequest();
 
     HttpClient.Result result = httpClient.sendRequest(request);
     if (result == HttpClient.Result.SUCCESS) {

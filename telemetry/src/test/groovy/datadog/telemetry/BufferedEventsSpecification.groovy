@@ -15,7 +15,7 @@ class BufferedEventsSpecification extends DDSpecification {
 
     expect:
     events.isEmpty()
-    events.nextConfigChangeEvent() == null
+    !events.hasConfigChangeEvent()
     events.nextDependencyEvent() == null
     events.nextDistributionSeriesEvent() == null
     events.nextIntegrationEvent() == null
@@ -42,8 +42,9 @@ class BufferedEventsSpecification extends DDSpecification {
 
     then:
     !events.isEmpty()
+    events.hasConfigChangeEvent()
     events.nextConfigChangeEvent() == configChangeEvent
-    events.nextConfigChangeEvent() == null
+    !events.hasConfigChangeEvent()
     !events.isEmpty()
     events.nextDependencyEvent() == dependency
     events.nextDependencyEvent() == null

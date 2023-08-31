@@ -25,7 +25,7 @@ class TelemetryServiceSpecification extends Specification {
   void 'happy path without data'() {
     setup:
     TestHttpClient testHttpClient = new TestHttpClient()
-    TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 10000)
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 10000, false)
 
     when: 'first iteration'
     testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
@@ -55,7 +55,7 @@ class TelemetryServiceSpecification extends Specification {
   void 'happy path with data'() {
     setup:
     TestHttpClient testHttpClient = new TestHttpClient()
-    TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 10000)
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 10000, false)
 
     when: 'add data before first iteration'
     telemetryService.addConfiguration(configuration)
@@ -116,7 +116,7 @@ class TelemetryServiceSpecification extends Specification {
   void 'happy path with data after app-started'() {
     setup:
     TestHttpClient testHttpClient = new TestHttpClient()
-    TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 10000)
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 10000, false)
 
     when: 'send messages'
     testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
@@ -155,7 +155,7 @@ class TelemetryServiceSpecification extends Specification {
   void 'do not discard data for app-started event until it has been successfully sent'() {
     setup:
     TestHttpClient testHttpClient = new TestHttpClient()
-    TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 10000)
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 10000, false)
     telemetryService.addConfiguration(configuration)
 
     when: 'attempt with 404 error'
@@ -194,7 +194,7 @@ class TelemetryServiceSpecification extends Specification {
   def 'resend data on successful attempt after a failure'() {
     setup:
     TestHttpClient testHttpClient = new TestHttpClient()
-    TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 10000)
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 10000, false)
 
     telemetryService.addConfiguration(configuration)
     telemetryService.addIntegration(integration)
@@ -247,7 +247,7 @@ class TelemetryServiceSpecification extends Specification {
   void 'send closing event request'() {
     setup:
     TestHttpClient testHttpClient = new TestHttpClient()
-    TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 10000)
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 10000, false)
 
     when:
     testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
@@ -261,7 +261,7 @@ class TelemetryServiceSpecification extends Specification {
   void 'report when both OTel and OT are enabled'() {
     setup:
     TestHttpClient testHttpClient = new TestHttpClient()
-    TelemetryService telemetryService = Spy(new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 1000))
+    TelemetryService telemetryService = Spy(new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 1000, false))
     def otel = new Integration("opentelemetry-1", otelEnabled)
     def ot = new Integration("opentracing", otEnabled)
 
@@ -288,7 +288,7 @@ class TelemetryServiceSpecification extends Specification {
   void 'split telemetry requests if the size above the limit'() {
     setup:
     TestHttpClient testHttpClient = new TestHttpClient()
-    TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 5000)
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), 5000, false)
 
     when: 'send a heartbeat request without telemetry data to measure body size to set stable request size limit'
     testHttpClient.expectRequest(HttpClient.Result.SUCCESS)
@@ -299,7 +299,7 @@ class TelemetryServiceSpecification extends Specification {
     bodySize > 0
 
     when: 'sending first part of data'
-    telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), bodySize + 500)
+    telemetryService = new TelemetryService(testHttpClient, HttpUrl.get("https://example.com"), bodySize + 500, false)
 
     telemetryService.addConfiguration(configuration)
     telemetryService.addIntegration(integration)

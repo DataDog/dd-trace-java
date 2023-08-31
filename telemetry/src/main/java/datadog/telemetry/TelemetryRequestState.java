@@ -22,7 +22,7 @@ import okhttp3.RequestBody;
 import okio.Buffer;
 import okio.BufferedSink;
 
-public class RequestBuilder extends RequestBody {
+public class TelemetryRequestState extends RequestBody {
 
   public static class SerializationException extends RuntimeException {
 
@@ -64,11 +64,11 @@ public class RequestBuilder extends RequestBody {
     final String osVersion = HostInfo.getOsVersion();
   }
 
-  RequestBuilder(RequestType requestType, HttpUrl httpUrl) {
+  TelemetryRequestState(RequestType requestType, HttpUrl httpUrl) {
     this(requestType, httpUrl, false);
   }
 
-  RequestBuilder(RequestType requestType, HttpUrl httpUrl, boolean debug) {
+  TelemetryRequestState(RequestType requestType, HttpUrl httpUrl, boolean debug) {
     this.requestType = requestType;
     this.requestBuilder =
         new Request.Builder()
@@ -141,7 +141,7 @@ public class RequestBuilder extends RequestBody {
       }
       bodyWriter.endObject(); // request
       requestBuilder.addHeader("Content-Length", String.valueOf(body.size()));
-      return buildRequest();
+      return request();
     } catch (Exception ex) {
       throw new SerializationException("end-request", ex);
     }
@@ -389,7 +389,7 @@ public class RequestBuilder extends RequestBody {
     // integrations - optional
   }
 
-  Request buildRequest() {
+  Request request() {
     return requestBuilder.build();
   }
 

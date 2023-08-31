@@ -13,7 +13,7 @@ import java.util.ArrayList;
  * telemetry request attempt.
  */
 public final class BufferedEvents implements EventSource, EventSink {
-  private static final int INITIAL_CAPACITY = 36;
+  private static final int INITIAL_CAPACITY = 32;
   private ArrayList<ConfigChange> configChangeEvents;
   private int configChangeIndex;
   private ArrayList<Integration> integrationEvents;
@@ -87,7 +87,7 @@ public final class BufferedEvents implements EventSource, EventSink {
   @Override
   public ConfigChange nextConfigChangeEvent() {
     if (isConfigEventsEmpty()) {
-      return null;
+      throw new IllegalStateException("No config-change event available");
     }
     return configChangeEvents.get(configChangeIndex++);
   }
