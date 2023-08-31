@@ -38,10 +38,7 @@ public class BatchRequestBuilder {
     if (requestBuilder == null) {
       throw new IllegalStateException("Request not started!");
     }
-    requestBuilder.endRequest();
-    Request request = requestBuilder.request();
-    requestBuilder = null;
-    return request;
+    return requestBuilder.endRequest();
   }
 
   public void writeConfigurationMessage() {
@@ -216,21 +213,5 @@ public class BatchRequestBuilder {
 
   public void writeHeartbeatEvent() {
     requestBuilder.writeHeartbeatEvent();
-  }
-
-  public void beginSinglePayload() {
-    requestBuilder.beginSinglePayload();
-  }
-
-  public void endSinglePayload() {
-    requestBuilder.endSinglePayload();
-  }
-
-  public void beginMultiplePayloads() {
-    requestBuilder.beginMultiplePayload();
-  }
-
-  public void endMultiplePayloads() {
-    requestBuilder.endMultiplePayload();
   }
 }

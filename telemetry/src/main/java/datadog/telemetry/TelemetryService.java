@@ -136,10 +136,8 @@ public class TelemetryService {
 
     log.debug("Preparing app-started request");
     batchRequestBuilder.beginRequest(RequestType.APP_STARTED, httpUrl);
-    batchRequestBuilder.beginSinglePayload();
     batchRequestBuilder.writeProducts();
     batchRequestBuilder.writeConfigurations();
-    batchRequestBuilder.endSinglePayload();
     Request request = batchRequestBuilder.endRequest();
 
     if (httpClient.sendRequest(request) == HttpClient.Result.SUCCESS) {
@@ -180,7 +178,6 @@ public class TelemetryService {
     } else {
       log.debug("Preparing message-batch request");
       batchRequestBuilder.beginRequest(RequestType.MESSAGE_BATCH, httpUrl);
-      batchRequestBuilder.beginMultiplePayloads();
       batchRequestBuilder.writeHeartbeatEvent();
       batchRequestBuilder.writeConfigurationMessage();
       batchRequestBuilder.writeIntegrationsMessage();
@@ -188,7 +185,6 @@ public class TelemetryService {
       batchRequestBuilder.writeMetricsMessage();
       batchRequestBuilder.writeDistributionsMessage();
       batchRequestBuilder.writeLogsMessage();
-      batchRequestBuilder.endMultiplePayloads();
       isMoreDataAvailable = !this.eventSource.isEmpty();
     }
     request = batchRequestBuilder.endRequest();

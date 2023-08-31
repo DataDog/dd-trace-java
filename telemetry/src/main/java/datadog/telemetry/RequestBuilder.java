@@ -46,22 +46,22 @@ public class RequestBuilder extends RequestBody {
   private enum CommonData {
     INSTANCE;
 
-    Config config = Config.get();
-    String env = config.getEnv();
-    String langVersion = Platform.getLangVersion();
-    String runtimeName = Platform.getRuntimeVendor();
-    String runtimePatches = Platform.getRuntimePatches();
-    String runtimeVersion = Platform.getRuntimeVersion();
-    String serviceName = config.getServiceName();
-    String serviceVersion = config.getVersion();
-    String runtimeId = config.getRuntimeId();
-    String architecture = HostInfo.getArchitecture();
-    String hostname = HostInfo.getHostname();
-    String kernelName = HostInfo.getKernelName();
-    String kernelRelease = HostInfo.getKernelRelease();
-    String kernelVersion = HostInfo.getKernelVersion();
-    String osName = HostInfo.getOsName();
-    String osVersion = HostInfo.getOsVersion();
+    final Config config = Config.get();
+    final String env = config.getEnv();
+    final String langVersion = Platform.getLangVersion();
+    final String runtimeName = Platform.getRuntimeVendor();
+    final String runtimePatches = Platform.getRuntimePatches();
+    final String runtimeVersion = Platform.getRuntimeVersion();
+    final String serviceName = config.getServiceName();
+    final String serviceVersion = config.getVersion();
+    final String runtimeId = config.getRuntimeId();
+    final String architecture = HostInfo.getArchitecture();
+    final String hostname = HostInfo.getHostname();
+    final String kernelName = HostInfo.getKernelName();
+    final String kernelRelease = HostInfo.getKernelRelease();
+    final String kernelVersion = HostInfo.getKernelVersion();
+    final String osName = HostInfo.getOsName();
+    final String osVersion = HostInfo.getOsVersion();
   }
 
   RequestBuilder(RequestType requestType, HttpUrl httpUrl) {
@@ -75,7 +75,7 @@ public class RequestBuilder extends RequestBody {
             .url(httpUrl)
             .addHeader("Content-Type", String.valueOf(JSON))
             .addHeader("DD-Telemetry-API-Version", API_VERSION)
-            .addHeader("DD-Telemetry-Request-Type", String.valueOf(requestType))
+            .addHeader("DD-Telemetry-Request-Type", String.valueOf(this.requestType))
             .addHeader("DD-Client-Library-Language", "jvm")
             .addHeader("DD-Client-Library-Version", TracerVersion.TRACER_VERSION)
             .post(this);
@@ -120,37 +120,53 @@ public class RequestBuilder extends RequestBody {
       bodyWriter.name("kernel_version").value(commonData.kernelVersion);
       bodyWriter.endObject();
 
-      bodyWriter.name("request_type").value(requestType.toString());
+      bodyWriter.name("request_type").value(this.requestType.toString());
+
+      if (this.requestType == RequestType.APP_STARTED) {
+        beginSinglePayload();
+      } else if (this.requestType == RequestType.MESSAGE_BATCH) {
+        beginMultiplePayload();
+      }
     } catch (Exception ex) {
       throw new SerializationException("begin-request", ex);
     }
   }
 
-  public void endRequest() {
+  public Request endRequest() {
     try {
+      if (requestType == RequestType.APP_STARTED) {
+        endSinglePayload();
+      } else if (requestType == RequestType.MESSAGE_BATCH) {
+        endMultiplePayload();
+      }
       bodyWriter.endObject(); // request
       requestBuilder.addHeader("Content-Length", String.valueOf(body.size()));
+      return buildRequest();
     } catch (Exception ex) {
       throw new SerializationException("end-request", ex);
     }
   }
 
   public void beginMessage(RequestType payloadType) {
+    if (requestType != RequestType.MESSAGE_BATCH) {
+      throw new IllegalStateException(
+          "Serializing begin-message is only allowed within a message-batch request");
+    }
     try {
-      if (requestType == RequestType.MESSAGE_BATCH) {
-        bodyWriter.beginObject();
-        bodyWriter.name("request_type").value(String.valueOf(payloadType));
-      }
+      bodyWriter.beginObject();
+      bodyWriter.name("request_type").value(String.valueOf(payloadType));
     } catch (Exception ex) {
       throw new SerializationException("begin-message", ex);
     }
   }
 
   public void endMessage() {
+    if (requestType != RequestType.MESSAGE_BATCH) {
+      throw new IllegalStateException(
+          "Serializing end-message is only allowed within a message-batch request");
+    }
     try {
-      if (requestType == RequestType.MESSAGE_BATCH) {
-        bodyWriter.endObject(); // event
-      }
+      bodyWriter.endObject(); // message
     } catch (Exception ex) {
       throw new SerializationException("end-message", ex);
     }
@@ -373,14 +389,7 @@ public class RequestBuilder extends RequestBody {
     // integrations - optional
   }
 
-  /**
-   * @return associated request. <br>
-   *     NOTE: Its body can still be extended with write methods until it's been sent. That's
-   *     because the request body is lazily evaluated and backed with a buffer that can still be
-   *     extended until the request is sent. <br>
-   *     TODO: see if there is a better way to express this peculiarity in the code.
-   */
-  public Request request() {
+  Request buildRequest() {
     return requestBuilder.build();
   }
 

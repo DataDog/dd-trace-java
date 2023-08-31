@@ -51,10 +51,9 @@ class RequestBuilderSpecification extends Specification {
     map.put("key3", 324)
 
     when:
-    // header needed for a proper JSON
     rb.beginRequest()
-    // but not needed for verification
-    drainToString(rb.request())
+    // exclude request header to simplify assertion
+    drainToString(rb.buildRequest())
 
     then:
     rb.beginConfiguration()
@@ -67,7 +66,19 @@ class RequestBuilderSpecification extends Specification {
     rb.endConfiguration()
 
     then:
-    drainToString(rb.request()) == ',"configuration":[{"name":"string","value":"bar","origin":"unknown"},{"name":"int","value":2342,"origin":"unknown"},{"name":"double","value":123.456,"origin":"unknown"},{"name":"map","value":{"key1":"value1","key2":432.32,"key3":324},"origin":"unknown"}]'
+    drainToString(rb.endRequest()) == ',"configuration":[{"name":"string","value":"bar","origin":"unknown"},{"name":"int","value":2342,"origin":"unknown"},{"name":"double","value":123.456,"origin":"unknown"},{"name":"map","value":{"key1":"value1","key2":432.32,"key3":324},"origin":"unknown"}]}'
+  }
+
+  def 'add debug flag'() {
+    setup:
+    RequestBuilder rb = new RequestBuilder(RequestType.APP_STARTED, httpUrl, true)
+
+    when:
+    rb.beginRequest()
+    def request = rb.endRequest()
+
+    then:
+    drainToString(request).contains("\"debug\":true")
   }
 
   String drainToString(Request req) {
