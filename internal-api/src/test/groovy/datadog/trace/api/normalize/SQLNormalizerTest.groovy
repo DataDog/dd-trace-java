@@ -106,6 +106,19 @@ ORDER BY calls DESC, country.id ASC;"""
 WHERE id = 8;"""                                                                                          | """UPDATE v_country_all SET
   country_name = ?
 WHERE id = ?"""
+    """UPDATE v_country_all /* 1. in-line comment */ SET
+  /*
+   * 2. multi-line comment
+   */
+  country_name = 'Nova1'
+  -- 3. single-line comment
+WHERE id = 8;"""                                                                                          | """UPDATE v_country_all /* ? in-line comment */ SET
+  /*
+   * ? multi-line comment
+   */
+  country_name = ?
+  -- ? single-line comment
+WHERE id = ?"""
     """INSERT INTO country (country_name, country_name_eng, country_code) VALUES ('Deutschland', 'Germany', 'DEU');
 INSERT INTO country (country_name, country_name_eng, country_code) VALUES ('Srbija', 'Serbia', 'SRB');
 INSERT INTO country (country_name, country_name_eng, country_code) VALUES ('Hrvatska', 'Croatia', 'HRV');
