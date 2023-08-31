@@ -182,6 +182,9 @@ public class ConfigurationUpdater
 
   private void recordInstrumentationProgress(
       ProbeDefinition definition, InstrumentationResult instrumentationResult) {
+    if (instrumentationResult.isError()) {
+      return;
+    }
     instrumentationResults.put(definition.getId(), instrumentationResult);
     if (instrumentationResult.isInstalled()) {
       sink.addInstalled(definition.getProbeId());

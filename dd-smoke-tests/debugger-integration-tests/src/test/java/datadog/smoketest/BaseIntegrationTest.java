@@ -9,6 +9,7 @@ import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
+import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.util.MoshiHelper;
 import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.squareup.moshi.JsonAdapter;
@@ -31,6 +32,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import okhttp3.HttpUrl;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -45,7 +47,8 @@ import org.slf4j.LoggerFactory;
 
 public abstract class BaseIntegrationTest {
   protected static final Logger LOG = LoggerFactory.getLogger(BaseIntegrationTest.class);
-  protected static final String PROBE_URL_PATH = "/v0.7/config";
+  protected static final String TRACE_URL_PATH = "/v0.4/traces";
+  protected static final String CONFIG_URL_PATH = "/v0.7/config";
   protected static final String SNAPSHOT_URL_PATH = "/debugger/v1/input";
   protected static final int REQUEST_WAIT_TIMEOUT = 10;
   private static final Path LOG_FILE_BASE =
@@ -54,7 +57,13 @@ public abstract class BaseIntegrationTest {
           "reports",
           "testProcess." + SimpleAppDebuggerIntegrationTest.class.getName());
   private static final String INFO_CONTENT =
-      "{\"endpoints\": [\"v0.4/traces\", \"debugger/v1/input\", \"v0.7/config\"]}";
+      "{\"endpoints\": [\""
+          + TRACE_URL_PATH
+          + "\", \""
+          + SNAPSHOT_URL_PATH
+          + "\", \""
+          + CONFIG_URL_PATH
+          + "\"]}";
   private static final MockResponse AGENT_INFO_RESPONSE =
       new MockResponse().setResponseCode(200).setBody(INFO_CONTENT);
   private static final MockResponse TELEMETRY_RESPONSE = new MockResponse().setResponseCode(202);
@@ -82,7 +91,7 @@ public abstract class BaseIntegrationTest {
     probeMockDispatcher = new MockDispatcher();
     probeMockDispatcher.setDispatcher(this::datadogAgentDispatch);
     datadogAgentServer.setDispatcher(probeMockDispatcher);
-    probeUrl = datadogAgentServer.url(PROBE_URL_PATH);
+    probeUrl = datadogAgentServer.url(CONFIG_URL_PATH);
     LOG.info("DatadogAgentServer on {}", datadogAgentServer.getPort());
     snapshotUrl = datadogAgentServer.url(SNAPSHOT_URL_PATH);
     statsDServer = new StatsDServer();
@@ -132,14 +141,28 @@ public abstract class BaseIntegrationTest {
   }
 
   protected RecordedRequest retrieveSnapshotRequest() throws Exception {
+    return retrieveRequest(
+        request -> {
+          try {
+            return request.getPath().startsWith(SNAPSHOT_URL_PATH)
+                && request.getBody().indexOf(ByteString.encodeUtf8("diagnostics")) == -1;
+          } catch (IOException ex) {
+            throw new RuntimeException(ex);
+          }
+        });
+  }
+
+  protected RecordedRequest retrieveSpanRequest() throws Exception {
+    return retrieveRequest(request -> request.getPath().equals(TRACE_URL_PATH));
+  }
+
+  protected RecordedRequest retrieveRequest(Predicate<RecordedRequest> filterRequest)
+      throws InterruptedException {
     long ts = System.nanoTime();
     RecordedRequest request;
-
     do {
       request = datadogAgentServer.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS);
-    } while (request != null
-        && (!request.getPath().startsWith(SNAPSHOT_URL_PATH)
-            || request.getBody().indexOf(ByteString.encodeUtf8("diagnostics")) > -1));
+    } while (request != null && !filterRequest.test(request));
     long dur = System.nanoTime() - ts;
     LOG.info(
         "request retrieved in {} seconds", TimeUnit.SECONDS.convert(dur, TimeUnit.NANOSECONDS));
@@ -179,27 +202,31 @@ public abstract class BaseIntegrationTest {
       return new MockResponse().setResponseCode(200);
     }
     if (request.getPath().equals("/v0.7/config")) {
-      Configuration configuration;
-      synchronized (configLock) {
-        configuration = getCurrentConfiguration();
-        configProvided = true;
-        configLock.notifyAll();
-      }
-      if (configuration == null) {
-        configuration = createConfig(Collections.emptyList());
-      }
-      try {
-        JsonAdapter<Configuration> adapter =
-            MoshiConfigTestHelper.createMoshiConfig().adapter(Configuration.class);
-        String json = adapter.toJson(configuration);
-        System.out.println("Sending json config: " + json);
-        String remoteConfigJson = RemoteConfigHelper.encode(json, UUID.randomUUID().toString());
-        return new MockResponse().setResponseCode(200).setBody(remoteConfigJson);
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
+      return handleConfigRequests();
     }
     return EMPTY_200_RESPONSE;
+  }
+
+  private MockResponse handleConfigRequests() {
+    Configuration configuration;
+    synchronized (configLock) {
+      configuration = getCurrentConfiguration();
+      configProvided = true;
+      configLock.notifyAll();
+    }
+    if (configuration == null) {
+      configuration = createConfig(Collections.emptyList());
+    }
+    try {
+      JsonAdapter<Configuration> adapter =
+          MoshiConfigTestHelper.createMoshiConfig().adapter(Configuration.class);
+      String json = adapter.toJson(configuration);
+      System.out.println("Sending json config: " + json);
+      String remoteConfigJson = RemoteConfigHelper.encode(json, UUID.randomUUID().toString());
+      return new MockResponse().setResponseCode(200).setBody(remoteConfigJson);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private Configuration getCurrentConfiguration() {
@@ -235,6 +262,13 @@ public abstract class BaseIntegrationTest {
     return Configuration.builder()
         .setService(getAppId())
         .addMetricProbes(Collections.singletonList(metricProbe))
+        .build();
+  }
+
+  protected Configuration createSpanConfig(SpanProbe spanProbe) {
+    return Configuration.builder()
+        .setService(getAppId())
+        .addSpanProbes(Collections.singletonList(spanProbe))
         .build();
   }
 
