@@ -54,13 +54,10 @@ public class TelemetryRequest {
     }
     try {
       telemetryRequestState.beginConfiguration();
-      while (eventSource.hasConfigChangeEvent()) {
+      while (eventSource.hasConfigChangeEvent() && isWithinSizeLimits()) {
         ConfigChange event = eventSource.nextConfigChangeEvent();
         telemetryRequestState.writeConfiguration(event);
         eventSink.addConfigChangeEvent(event);
-        if (!isWithinSizeLimits()) {
-          break;
-        }
       }
       telemetryRequestState.endConfiguration();
     } catch (IOException e) {
@@ -81,22 +78,15 @@ public class TelemetryRequest {
   }
 
   public void writeIntegrationsMessage() {
-    if (!isWithinSizeLimits()) {
-      return;
-    }
-    Integration event = eventSource.nextIntegrationEvent();
-    if (event == null) {
+    if (!isWithinSizeLimits() || !eventSource.hasIntegrationEvent()) {
       return;
     }
     try {
       telemetryRequestState.beginIntegrations();
-      while (event != null) {
+      while (eventSource.hasIntegrationEvent() && isWithinSizeLimits()) {
+        Integration event = eventSource.nextIntegrationEvent();
         telemetryRequestState.writeIntegration(event);
         eventSink.addIntegrationEvent(event);
-        if (!isWithinSizeLimits()) {
-          break;
-        }
-        event = eventSource.nextIntegrationEvent();
       }
       telemetryRequestState.endIntegrations();
     } catch (IOException e) {
@@ -105,22 +95,15 @@ public class TelemetryRequest {
   }
 
   public void writeDependenciesMessage() {
-    if (!isWithinSizeLimits()) {
-      return;
-    }
-    Dependency event = eventSource.nextDependencyEvent();
-    if (event == null) {
+    if (!isWithinSizeLimits() || !eventSource.hasDependencyEvent()) {
       return;
     }
     try {
       telemetryRequestState.beginDependencies();
-      while (event != null) {
+      while (eventSource.hasDependencyEvent() && isWithinSizeLimits()) {
+        Dependency event = eventSource.nextDependencyEvent();
         telemetryRequestState.writeDependency(event);
         eventSink.addDependencyEvent(event);
-        if (!isWithinSizeLimits()) {
-          break;
-        }
-        event = eventSource.nextDependencyEvent();
       }
       telemetryRequestState.endDependencies();
     } catch (IOException e) {
@@ -129,22 +112,15 @@ public class TelemetryRequest {
   }
 
   public void writeMetricsMessage() {
-    if (!isWithinSizeLimits()) {
-      return;
-    }
-    Metric event = eventSource.nextMetricEvent();
-    if (event == null) {
+    if (!isWithinSizeLimits() || !eventSource.hasMetricEvent()) {
       return;
     }
     try {
       telemetryRequestState.beginMetrics();
-      while (event != null) {
+      while (eventSource.hasMetricEvent() && isWithinSizeLimits()) {
+        Metric event = eventSource.nextMetricEvent();
         telemetryRequestState.writeMetric(event);
         eventSink.addMetricEvent(event);
-        if (!isWithinSizeLimits()) {
-          break;
-        }
-        event = eventSource.nextMetricEvent();
       }
       telemetryRequestState.endMetrics();
     } catch (IOException e) {
@@ -153,22 +129,15 @@ public class TelemetryRequest {
   }
 
   public void writeDistributionsMessage() {
-    if (!isWithinSizeLimits()) {
-      return;
-    }
-    DistributionSeries event = eventSource.nextDistributionSeriesEvent();
-    if (event == null) {
+    if (!isWithinSizeLimits() || !eventSource.hasDistributionSeriesEvent()) {
       return;
     }
     try {
       telemetryRequestState.beginDistributions();
-      while (event != null) {
+      while (eventSource.hasDistributionSeriesEvent() && isWithinSizeLimits()) {
+        DistributionSeries event = eventSource.nextDistributionSeriesEvent();
         telemetryRequestState.writeDistribution(event);
         eventSink.addDistributionSeriesEvent(event);
-        if (!isWithinSizeLimits()) {
-          break;
-        }
-        event = eventSource.nextDistributionSeriesEvent();
       }
       telemetryRequestState.endDistributions();
     } catch (IOException e) {
@@ -177,22 +146,15 @@ public class TelemetryRequest {
   }
 
   public void writeLogsMessage() {
-    if (!isWithinSizeLimits()) {
-      return;
-    }
-    LogMessage event = eventSource.nextLogMessageEvent();
-    if (event == null) {
+    if (!isWithinSizeLimits() || !eventSource.hasLogMessageEvent()) {
       return;
     }
     try {
       telemetryRequestState.beginLogs();
-      while (event != null) {
+      while (eventSource.hasLogMessageEvent() && isWithinSizeLimits()) {
+        LogMessage event = eventSource.nextLogMessageEvent();
         telemetryRequestState.writeLog(event);
         eventSink.addLogMessageEvent(event);
-        if (!isWithinSizeLimits()) {
-          break;
-        }
-        event = eventSource.nextLogMessageEvent();
       }
       telemetryRequestState.endLogs();
     } catch (IOException e) {

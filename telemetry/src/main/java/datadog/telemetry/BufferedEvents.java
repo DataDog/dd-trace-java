@@ -10,7 +10,7 @@ import java.util.ArrayList;
 
 /**
  * Keeps track of attempted to send telemetry events that can be used as a source for the next
- * telemetry request attempt.
+ * telemetry request attempt or telemetry metric calculation.
  */
 public final class BufferedEvents implements EventSource, EventSink {
   private static final int INITIAL_CAPACITY = 32;
@@ -29,12 +29,12 @@ public final class BufferedEvents implements EventSource, EventSink {
 
   @Override
   public boolean isEmpty() {
-    return isConfigEventsEmpty()
-        && isIntegrationEventsEmpty()
-        && isDependencyEventsEmpty()
-        && isMetricEventsEmpty()
-        && isDistributionSeriesEmpty()
-        && isLogMessageEventsEmpty();
+    return !hasConfigChangeEvent()
+        && !hasIntegrationEvent()
+        && !hasDependencyEvent()
+        && !hasMetricEvent()
+        && !hasDistributionSeriesEvent()
+        && !hasLogMessageEvent();
   }
 
   public void addConfigChangeEvent(ConfigChange event) {
@@ -85,80 +85,63 @@ public final class BufferedEvents implements EventSource, EventSink {
   }
 
   @Override
+  public boolean hasConfigChangeEvent() {
+    return configChangeEvents != null && configChangeIndex < configChangeEvents.size();
+  }
+
+  @Override
   public ConfigChange nextConfigChangeEvent() {
-    if (isConfigEventsEmpty()) {
-      throw new IllegalStateException("No config-change event available");
-    }
     return configChangeEvents.get(configChangeIndex++);
   }
 
   @Override
-  public boolean hasConfigChangeEvent() {
-    return !isConfigEventsEmpty();
-  }
-
-  private boolean isConfigEventsEmpty() {
-    return configChangeEvents == null || configChangeIndex == configChangeEvents.size();
+  public boolean hasIntegrationEvent() {
+    return integrationEvents != null && integrationIndex < integrationEvents.size();
   }
 
   @Override
   public Integration nextIntegrationEvent() {
-    if (isIntegrationEventsEmpty()) {
-      return null;
-    }
     return integrationEvents.get(integrationIndex++);
   }
 
-  private boolean isIntegrationEventsEmpty() {
-    return integrationEvents == null || integrationIndex == integrationEvents.size();
+  @Override
+  public boolean hasDependencyEvent() {
+    return dependencyEvents != null && dependencyIndex < dependencyEvents.size();
   }
 
   @Override
   public Dependency nextDependencyEvent() {
-    if (isDependencyEventsEmpty()) {
-      return null;
-    }
     return dependencyEvents.get(dependencyIndex++);
   }
 
-  private boolean isDependencyEventsEmpty() {
-    return dependencyEvents == null || dependencyIndex == dependencyEvents.size();
+  @Override
+  public boolean hasMetricEvent() {
+    return dependencyEvents != null && metricIndex < dependencyEvents.size();
   }
 
   @Override
   public Metric nextMetricEvent() {
-    if (isMetricEventsEmpty()) {
-      return null;
-    }
     return metricEvents.get(metricIndex++);
   }
 
-  private boolean isMetricEventsEmpty() {
-    return metricEvents == null || metricIndex == metricEvents.size();
+  @Override
+  public boolean hasDistributionSeriesEvent() {
+    return distributionSeriesEvents != null
+        && distributionSeriesIndex < distributionSeriesEvents.size();
   }
 
   @Override
   public DistributionSeries nextDistributionSeriesEvent() {
-    if (isDistributionSeriesEmpty()) {
-      return null;
-    }
     return distributionSeriesEvents.get(distributionSeriesIndex++);
   }
 
-  private boolean isDistributionSeriesEmpty() {
-    return distributionSeriesEvents == null
-        || distributionSeriesIndex == distributionSeriesEvents.size();
+  @Override
+  public boolean hasLogMessageEvent() {
+    return logMessageEvents != null && logMessageIndex < logMessageEvents.size();
   }
 
   @Override
   public LogMessage nextLogMessageEvent() {
-    if (isLogMessageEventsEmpty()) {
-      return null;
-    }
     return logMessageEvents.get(logMessageIndex++);
-  }
-
-  private boolean isLogMessageEventsEmpty() {
-    return logMessageEvents == null || logMessageIndex == logMessageEvents.size();
   }
 }

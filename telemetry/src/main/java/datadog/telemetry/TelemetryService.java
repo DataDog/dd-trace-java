@@ -112,7 +112,7 @@ public class TelemetryService {
   public void sendAppClosingEvent() {
     TelemetryRequest telemetryRequest =
         new TelemetryRequest(
-            EventSource.noop(),
+            this.eventSource,
             EventSink.noop(),
             messageBytesSoftLimit,
             RequestType.APP_CLOSING,

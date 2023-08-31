@@ -16,11 +16,11 @@ class BufferedEventsSpecification extends DDSpecification {
     expect:
     events.isEmpty()
     !events.hasConfigChangeEvent()
-    events.nextDependencyEvent() == null
-    events.nextDistributionSeriesEvent() == null
-    events.nextIntegrationEvent() == null
-    events.nextLogMessageEvent() == null
-    events.nextMetricEvent() == null
+    !events.hasDependencyEvent()
+    !events.hasDistributionSeriesEvent()
+    !events.hasIntegrationEvent()
+    !events.hasLogMessageEvent()
+    !events.hasMetricEvent()
   }
 
   def 'return added events'() {
@@ -42,38 +42,42 @@ class BufferedEventsSpecification extends DDSpecification {
 
     then:
     !events.isEmpty()
+
     events.hasConfigChangeEvent()
     events.nextConfigChangeEvent() == configChangeEvent
     !events.hasConfigChangeEvent()
+
     !events.isEmpty()
+
+    events.hasDependencyEvent()
     events.nextDependencyEvent() == dependency
-    events.nextDependencyEvent() == null
+    !events.hasDependencyEvent()
+
     !events.isEmpty()
+
+    events.hasDistributionSeriesEvent()
     events.nextDistributionSeriesEvent() == series
-    events.nextDistributionSeriesEvent() == null
+    !events.hasDistributionSeriesEvent()
+
     !events.isEmpty()
+
+    events.hasIntegrationEvent()
     events.nextIntegrationEvent() == integration
-    events.nextIntegrationEvent() == null
+    !events.hasIntegrationEvent()
+
     !events.isEmpty()
+
+    events.hasLogMessageEvent()
     events.nextLogMessageEvent() == logMessage
-    events.nextLogMessageEvent() == null
+    !events.hasLogMessageEvent()
+
     !events.isEmpty()
+
+    events.hasMetricEvent()
     events.nextMetricEvent() == metric
-    events.nextMetricEvent() == null
+    !events.hasMetricEvent()
+
     events.isEmpty()
-  }
-
-  def 'noop source'() {
-    def src = EventSource.noop()
-
-    expect:
-    src.isEmpty()
-    src.nextMetricEvent() == null
-    src.nextLogMessageEvent() == null
-    src.nextIntegrationEvent() == null
-    src.nextDistributionSeriesEvent() == null
-    src.nextDependencyEvent() == null
-    src.nextConfigChangeEvent() == null
   }
 
   def 'noop sink'() {

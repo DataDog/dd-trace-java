@@ -11,67 +11,29 @@ import java.util.Queue;
 interface EventSource {
   boolean isEmpty();
 
+  boolean hasConfigChangeEvent();
+
   ConfigChange nextConfigChangeEvent();
 
-  boolean hasConfigChangeEvent();
+  boolean hasIntegrationEvent();
 
   Integration nextIntegrationEvent();
 
+  boolean hasDependencyEvent();
+
   Dependency nextDependencyEvent();
+
+  boolean hasMetricEvent();
 
   Metric nextMetricEvent();
 
+  boolean hasDistributionSeriesEvent();
+
   DistributionSeries nextDistributionSeriesEvent();
 
+  boolean hasLogMessageEvent();
+
   LogMessage nextLogMessageEvent();
-
-  static EventSource noop() {
-    return EventSource.Noop.INSTANCE;
-  }
-
-  enum Noop implements EventSource {
-    INSTANCE;
-
-    @Override
-    public boolean isEmpty() {
-      return true;
-    }
-
-    @Override
-    public ConfigChange nextConfigChangeEvent() {
-      return null;
-    }
-
-    @Override
-    public boolean hasConfigChangeEvent() {
-      return false;
-    }
-
-    @Override
-    public Integration nextIntegrationEvent() {
-      return null;
-    }
-
-    @Override
-    public Dependency nextDependencyEvent() {
-      return null;
-    }
-
-    @Override
-    public Metric nextMetricEvent() {
-      return null;
-    }
-
-    @Override
-    public DistributionSeries nextDistributionSeriesEvent() {
-      return null;
-    }
-
-    @Override
-    public LogMessage nextLogMessageEvent() {
-      return null;
-    }
-  }
 
   final class Queued implements EventSource {
     private final Queue<ConfigChange> configChangeQueue;
@@ -107,13 +69,18 @@ interface EventSource {
     }
 
     @Override
+    public boolean hasConfigChangeEvent() {
+      return !configChangeQueue.isEmpty();
+    }
+
+    @Override
     public ConfigChange nextConfigChangeEvent() {
       return configChangeQueue.poll();
     }
 
     @Override
-    public boolean hasConfigChangeEvent() {
-      return !configChangeQueue.isEmpty();
+    public boolean hasIntegrationEvent() {
+      return !integrationQueue.isEmpty();
     }
 
     @Override
@@ -122,8 +89,18 @@ interface EventSource {
     }
 
     @Override
+    public boolean hasDependencyEvent() {
+      return !dependencyQueue.isEmpty();
+    }
+
+    @Override
     public Dependency nextDependencyEvent() {
       return dependencyQueue.poll();
+    }
+
+    @Override
+    public boolean hasMetricEvent() {
+      return !metricQueue.isEmpty();
     }
 
     @Override
@@ -132,8 +109,18 @@ interface EventSource {
     }
 
     @Override
+    public boolean hasDistributionSeriesEvent() {
+      return !distributionSeriesQueue.isEmpty();
+    }
+
+    @Override
     public DistributionSeries nextDistributionSeriesEvent() {
       return distributionSeriesQueue.poll();
+    }
+
+    @Override
+    public boolean hasLogMessageEvent() {
+      return !logMessageQueue.isEmpty();
     }
 
     @Override
