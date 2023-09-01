@@ -56,7 +56,7 @@ public class TelemetryRunnable implements Runnable {
     // Ensure that Config has been initialized, so ConfigCollector can collect all settings first.
     Config.get();
 
-    scheduler.init();
+    collectConfigChanges();
 
     int attempt = 0;
     while (!Thread.interrupted()
@@ -71,6 +71,8 @@ public class TelemetryRunnable implements Runnable {
     if (attempt == MAX_APP_STARTED_RETRIES) {
       log.error("Couldn't send an app-started event!");
     }
+
+    scheduler.init();
 
     while (!Thread.interrupted()) {
       try {
@@ -87,10 +89,7 @@ public class TelemetryRunnable implements Runnable {
   }
 
   private void mainLoopIteration() throws InterruptedException {
-    Map<String, Object> collectedConfig = ConfigCollector.get().collect();
-    if (!collectedConfig.isEmpty()) {
-      telemetryService.addConfiguration(collectedConfig);
-    }
+    collectConfigChanges();
 
     // Collect request metrics every N seconds (default 10s)
     if (scheduler.shouldRunMetrics()) {
@@ -109,6 +108,13 @@ public class TelemetryRunnable implements Runnable {
           break;
         }
       }
+    }
+  }
+
+  private void collectConfigChanges() {
+    Map<String, Object> collectedConfig = ConfigCollector.get().collect();
+    if (!collectedConfig.isEmpty()) {
+      telemetryService.addConfiguration(collectedConfig);
     }
   }
 
