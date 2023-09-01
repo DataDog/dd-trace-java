@@ -192,7 +192,12 @@ public final class ConfigProvider {
       }
     }
     // Report all accessed default settings as it's required by Telemetry V2
-    ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
+    if (collectConfig) {
+      // TODO: this line causes next issue when building system-test weblog:
+      // datadog.trace.api.ConfigCollector was unintentionally initialized at build time.
+      // ./build.sh java --weblog-variant spring-boot-3-native
+      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
+    }
     return defaultValue;
   }
 
