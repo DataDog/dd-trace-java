@@ -1,9 +1,11 @@
 package com.datadog.debugger.el;
 
 import com.datadog.debugger.el.expressions.GetMemberExpression;
+import com.datadog.debugger.el.expressions.IndexExpression;
 import com.datadog.debugger.el.expressions.LenExpression;
 import com.datadog.debugger.el.expressions.ValueExpression;
 import com.datadog.debugger.el.expressions.ValueRefExpression;
+import com.datadog.debugger.el.values.StringValue;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
@@ -131,6 +133,14 @@ public class ValueScript implements DebuggerScript<Value<?>> {
 
     private void writeValueExpression(JsonWriter jsonWriter, ValueExpression<?> expr)
         throws IOException {
+      if (expr instanceof Value) {
+        if (expr instanceof StringValue) {
+          jsonWriter.value(((StringValue) expr).getValue());
+        } else {
+          throw new IOException("Unsupported operation: " + expr.getClass().getTypeName());
+        }
+        return;
+      }
       jsonWriter.beginObject();
       if (expr instanceof ValueRefExpression) {
         ValueRefExpression valueRefExpr = (ValueRefExpression) expr;
@@ -146,6 +156,13 @@ public class ValueScript implements DebuggerScript<Value<?>> {
       } else if (expr instanceof LenExpression) {
         jsonWriter.name("count");
         writeValueExpression(jsonWriter, ((LenExpression) expr).getSource());
+      } else if (expr instanceof IndexExpression) {
+        IndexExpression idxExpr = (IndexExpression) expr;
+        jsonWriter.name("index");
+        jsonWriter.beginArray();
+        writeValueExpression(jsonWriter, idxExpr.getTarget());
+        writeValueExpression(jsonWriter, idxExpr.getKey());
+        jsonWriter.endArray();
       } else {
         throw new IOException("Unsupported operation: " + expr.getClass().getTypeName());
       }
