@@ -3510,10 +3510,7 @@ public class Config {
   private static String getProp(String name, String def) {
     String value = System.getProperty(name, def);
     if (value != null) {
-      // TODO there is no value for props in the spec
-      // https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/SchemaDocumentation/Schemas/conf_key_value.md#conf_key_value\
-      // maybe another value is needed similar to app.config that only applies to .NET
-      ConfigCollector.get().put(name, value, ConfigOrigin.ENV);
+      ConfigCollector.get().put(name, value, ConfigOrigin.JVM_PROP);
     }
     return value;
   }

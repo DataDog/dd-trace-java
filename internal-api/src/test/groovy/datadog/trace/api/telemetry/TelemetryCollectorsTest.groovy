@@ -40,11 +40,13 @@ class TelemetryCollectorsTest extends DDSpecification {
     ConfigCollector.get().put('key1', 'value1', ConfigOrigin.DEFAULT)
     ConfigCollector.get().put('key2', 'value2', ConfigOrigin.ENV)
     ConfigCollector.get().put('key1', 'replaced', ConfigOrigin.REMOTE)
+    ConfigCollector.get().put('key3', 'value3', ConfigOrigin.JVM_PROP)
 
     then:
     ConfigCollector.get().collect().values().toSet() == [
       new ConfigSetting('key1', 'replaced', ConfigOrigin.REMOTE),
-      new ConfigSetting('key2', 'value2', ConfigOrigin.ENV)
+      new ConfigSetting('key2', 'value2', ConfigOrigin.ENV),
+      new ConfigSetting('key3', 'value3', ConfigOrigin.JVM_PROP)
     ] as Set
   }
 
