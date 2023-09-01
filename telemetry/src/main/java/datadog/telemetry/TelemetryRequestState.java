@@ -298,7 +298,9 @@ public class TelemetryRequestState extends RequestBody {
   public void writeConfiguration(ConfigSetting configSetting) throws IOException {
     bodyWriter.beginObject();
     bodyWriter.name("name").value(configSetting.key);
+    bodyWriter.setSerializeNulls(true);
     bodyWriter.name("value").jsonValue(configSetting.value);
+    bodyWriter.setSerializeNulls(false);
     bodyWriter.name("origin").jsonValue(configSetting.origin.value);
     // error - optional
     // seq_id - optional
