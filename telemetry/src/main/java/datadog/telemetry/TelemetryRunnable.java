@@ -69,7 +69,7 @@ public class TelemetryRunnable implements Runnable {
           MAX_APP_STARTED_RETRIES);
     }
     if (attempt == MAX_APP_STARTED_RETRIES) {
-      log.error("Couldn't send an app-started event!");
+      log.warn("Couldn't send an app-started event!");
     }
 
     scheduler.init();
