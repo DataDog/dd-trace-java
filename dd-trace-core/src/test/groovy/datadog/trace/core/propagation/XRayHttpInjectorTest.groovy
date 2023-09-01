@@ -5,16 +5,25 @@ import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.DynamicConfig
 import datadog.trace.api.time.TimeSource
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
-
-import static datadog.trace.api.sampling.PrioritySampling.*
-import static datadog.trace.api.sampling.SamplingMechanism.*
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpanContext
+import datadog.trace.core.scopemanager.ScopeContext
 import datadog.trace.core.test.DDCoreSpecification
 
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
+import static datadog.trace.api.sampling.PrioritySampling.UNSET
+import static datadog.trace.api.sampling.PrioritySampling.USER_DROP
+import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
+import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT
+import static datadog.trace.api.sampling.SamplingMechanism.MANUAL
+import static datadog.trace.api.sampling.SamplingMechanism.UNKNOWN
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context.Extracted.SPAN_CONTEXT
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 
 class XRayHttpInjectorTest extends DDCoreSpecification {
@@ -51,7 +60,7 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
     final Map<String, String> carrier = Mock()
 
     when:
-    injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
+    injector.inject(wrap(mockedContext), carrier, MapSetter.INSTANCE)
 
     then:
     1 * timeSource.getCurrentTimeMillis() >> 1_664_906_869_196
@@ -85,7 +94,9 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       .setBaggageMapping([:])
       .apply()
     HttpCodec.Extractor extractor = XRayHttpCodec.newExtractor(Config.get(), { dynamicConfig.captureTraceConfig() })
-    final TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    HttpCodec.ScopeContextBuilder builder = new HttpCodec.ScopeContextAppender()
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    TagContext context = builder.build().get(SPAN_CONTEXT)
     final DDSpanContext mockedContext =
       new DDSpanContext(
       context.traceId,
@@ -110,7 +121,7 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
     final Map<String, String> carrier = Mock()
 
     when:
-    injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
+    injector.inject(wrap(mockedContext), carrier, MapSetter.INSTANCE)
 
     then:
     1 * timeSource.getCurrentTimeMillis() >> 1_664_906_869_196
@@ -162,7 +173,7 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
 
     when:
     mockedContext.beginEndToEnd()
-    injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
+    injector.inject(wrap(mockedContext), carrier, MapSetter.INSTANCE)
 
     then:
     1 * timeSource.getCurrentTimeNanos() >> 1_664_906_869_196_787_813
@@ -172,5 +183,12 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
 
     cleanup:
     tracer.close()
+  }
+
+  AgentScopeContext wrap(final DDSpanContext spanContext) {
+    AgentSpan span = Stub(AgentSpan) {
+      context() >> spanContext
+    }
+    return ScopeContext.fromSpan(span)
   }
 }

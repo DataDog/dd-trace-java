@@ -2,7 +2,9 @@ package datadog.trace.core.propagation;
 
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.SPAN_CONTEXT_KEY;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
+import static java.util.Collections.singleton;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
@@ -16,7 +18,7 @@ import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.core.DDSpanContext;
 import java.util.Map;
 import java.util.TreeMap;
@@ -60,7 +62,13 @@ class W3CHttpCodec {
 
     @Override
     public <C> void inject(
-        final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
+        final AgentScopeContext scopeContext,
+        final C carrier,
+        final AgentPropagation.Setter<C> setter) {
+      final DDSpanContext context = getSpanContextToInject(scopeContext);
+      if (context == null) {
+        return;
+      }
       StringBuilder sb = new StringBuilder(TRACE_PARENT_LENGTH);
       sb.append("00-");
       sb.append(context.getTraceId().toHexString());
@@ -88,7 +96,8 @@ class W3CHttpCodec {
 
   public static HttpCodec.Extractor newExtractor(
       Config config, Supplier<TraceConfig> traceConfigSupplier) {
-    return new TagContextExtractor(traceConfigSupplier, () -> new W3CContextInterpreter(config));
+    return new TagContextExtractor(
+        traceConfigSupplier, singleton(SPAN_CONTEXT_KEY), () -> new W3CContextInterpreter(config));
   }
 
   private static class W3CContextInterpreter extends ContextInterpreter {
@@ -240,7 +249,7 @@ class W3CHttpCodec {
      * concatenated before processed, and only if there is a single valid traceparent header present
      */
     @Override
-    protected TagContext build() {
+    protected void build(HttpCodec.ScopeContextBuilder builder) {
       // If there is neither a traceparent or a tracestate header, then ignore this
       if (traceparentHeader == null && tracestateHeader == null) {
         onlyTagContext();
@@ -259,7 +268,7 @@ class W3CHttpCodec {
           log.debug("Exception when building context", e);
         }
       }
-      return super.build();
+      super.build(builder);
     }
 
     static void parseTraceParentHeader(String tp, ContextInterpreter context) {

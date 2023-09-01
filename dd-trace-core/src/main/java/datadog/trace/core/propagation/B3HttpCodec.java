@@ -1,6 +1,8 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.SPAN_CONTEXT_KEY;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
+import static java.util.Collections.singleton;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
@@ -9,6 +11,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.core.DDSpanContext;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,8 +45,8 @@ class B3HttpCodec {
         Arrays.asList(newSingleInjector(paddingEnabled), newMultiInjector(paddingEnabled)));
   }
 
-  public static HttpCodec.Injector newMultiInjector(boolean paddingEnalbed) {
-    return new B3MultiInjector(paddingEnalbed);
+  public static HttpCodec.Injector newMultiInjector(boolean paddingEnabled) {
+    return new B3MultiInjector(paddingEnabled);
   }
 
   public static HttpCodec.Injector newSingleInjector(boolean paddingEnabled) {
@@ -109,7 +112,13 @@ class B3HttpCodec {
 
     @Override
     public <C> void inject(
-        final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
+        final AgentScopeContext scopeContext,
+        final C carrier,
+        final AgentPropagation.Setter<C> setter) {
+      final DDSpanContext context = getSpanContextToInject(scopeContext);
+      if (context == null) {
+        return;
+      }
       final String injectedTraceId = getInjectedTraceId(context);
       final String injectedSpanId = getInjectedSpanId(context);
       setter.set(carrier, TRACE_ID_KEY, injectedTraceId);
@@ -134,7 +143,13 @@ class B3HttpCodec {
 
     @Override
     public <C> void inject(
-        final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
+        final AgentScopeContext scopeContext,
+        final C carrier,
+        final AgentPropagation.Setter<C> setter) {
+      final DDSpanContext context = getSpanContextToInject(scopeContext);
+      if (context == null) {
+        return;
+      }
       final String injectedTraceId = getInjectedTraceId(context);
       final String injectedSpanId = getInjectedSpanId(context);
       final StringBuilder injectedB3IdBuilder = new StringBuilder(100);
@@ -167,13 +182,17 @@ class B3HttpCodec {
   public static HttpCodec.Extractor newMultiExtractor(
       Config config, Supplier<TraceConfig> traceConfigSupplier) {
     return new TagContextExtractor(
-        traceConfigSupplier, () -> new B3MultiContextInterpreter(config));
+        traceConfigSupplier,
+        singleton(SPAN_CONTEXT_KEY),
+        () -> new B3MultiContextInterpreter(config));
   }
 
   public static HttpCodec.Extractor newSingleExtractor(
       Config config, Supplier<TraceConfig> traceConfigSupplier) {
     return new TagContextExtractor(
-        traceConfigSupplier, () -> new B3SingleContextInterpreter(config));
+        traceConfigSupplier,
+        singleton(SPAN_CONTEXT_KEY),
+        () -> new B3SingleContextInterpreter(config));
   }
 
   private abstract static class B3BaseContextInterpreter extends ContextInterpreter {

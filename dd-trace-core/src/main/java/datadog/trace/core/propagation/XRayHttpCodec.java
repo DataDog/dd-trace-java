@@ -3,6 +3,8 @@ package datadog.trace.core.propagation;
 import static datadog.trace.api.DDTags.ORIGIN_KEY;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.SPAN_CONTEXT_KEY;
+import static java.util.Collections.singleton;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
@@ -14,6 +16,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.core.DDSpanContext;
 import java.util.Map;
 import java.util.TreeMap;
@@ -66,7 +69,12 @@ class XRayHttpCodec {
     }
 
     @Override
-    public <C> void inject(DDSpanContext context, C carrier, AgentPropagation.Setter<C> setter) {
+    public <C> void inject(
+        AgentScopeContext scopeContext, C carrier, AgentPropagation.Setter<C> setter) {
+      final DDSpanContext context = getSpanContextToInject(scopeContext);
+      if (context == null) {
+        return;
+      }
       long e2eStart = context.getEndToEndStartTime();
 
       StringBuilder buf =
@@ -127,7 +135,8 @@ class XRayHttpCodec {
 
   public static HttpCodec.Extractor newExtractor(
       Config config, Supplier<TraceConfig> traceConfigSupplier) {
-    return new TagContextExtractor(traceConfigSupplier, () -> new XRayContextInterpreter(config));
+    return new TagContextExtractor(
+        traceConfigSupplier, singleton(SPAN_CONTEXT_KEY), () -> new XRayContextInterpreter(config));
   }
 
   static class XRayContextInterpreter extends ContextInterpreter {

@@ -1,8 +1,10 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.SPAN_CONTEXT_KEY;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 import static datadog.trace.core.propagation.XRayHttpCodec.XRayContextInterpreter.handleXRayTraceHeader;
 import static datadog.trace.core.propagation.XRayHttpCodec.X_AMZN_TRACE_ID;
+import static datadog.trace.core.scopemanager.ScopeContext.BAGGAGE;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
@@ -13,9 +15,13 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
+import datadog.trace.bootstrap.instrumentation.api.Baggage;
+import datadog.trace.bootstrap.instrumentation.api.ContextKey;
 import datadog.trace.core.DDSpanContext;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -26,6 +32,7 @@ class DatadogHttpCodec {
   private static final Logger log = LoggerFactory.getLogger(DatadogHttpCodec.class);
 
   static final String OT_BAGGAGE_PREFIX = "ot-baggage-";
+  static final String BAGGAGE_PREFIX = "x-datadog-baggage-";
   static final String TRACE_ID_KEY = "x-datadog-trace-id";
   static final String SPAN_ID_KEY = "x-datadog-parent-id";
   static final String SAMPLING_PRIORITY_KEY = "x-datadog-sampling-priority";
@@ -52,6 +59,18 @@ class DatadogHttpCodec {
 
     @Override
     public <C> void inject(
+        AgentScopeContext context, C carrier, AgentPropagation.Setter<C> setter) {
+      final DDSpanContext spanContext = getSpanContextToInject(context);
+      if (spanContext != null) {
+        injectSpanContext(spanContext, carrier, setter);
+      }
+      final Baggage baggage = context.get(BAGGAGE);
+      if (baggage != null) {
+        injectBaggage(baggage.asMap(), BAGGAGE_PREFIX, carrier, setter);
+      }
+    }
+
+    private <C> void injectSpanContext(
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
 
       setter.set(carrier, TRACE_ID_KEY, context.getTraceId().toString());
@@ -68,11 +87,8 @@ class DatadogHttpCodec {
         setter.set(carrier, E2E_START_KEY, Long.toString(NANOSECONDS.toMillis(e2eStart)));
       }
 
-      for (final Map.Entry<String, String> entry : context.baggageItems()) {
-        String header = invertedBaggageMapping.get(entry.getKey());
-        header = header != null ? header : OT_BAGGAGE_PREFIX + entry.getKey();
-        setter.set(carrier, header, HttpCodec.encode(entry.getValue()));
-      }
+      // Inject span baggage
+      injectBaggage(context.getBaggageItems(), OT_BAGGAGE_PREFIX, carrier, setter);
 
       // inject x-datadog-tags
       String datadogTags =
@@ -81,12 +97,27 @@ class DatadogHttpCodec {
         setter.set(carrier, DATADOG_TAGS_KEY, datadogTags);
       }
     }
+
+    private <C> void injectBaggage(
+        final Map<String, String> baggage,
+        String prefix,
+        final C carrier,
+        final AgentPropagation.Setter<C> setter) {
+      for (final Map.Entry<String, String> entry : baggage.entrySet()) {
+        String header = invertedBaggageMapping.get(entry.getKey());
+        header = header != null ? header : prefix + entry.getKey();
+        setter.set(carrier, header, HttpCodec.encode(entry.getValue()));
+      }
+    }
   }
 
   public static HttpCodec.Extractor newExtractor(
       Config config, Supplier<TraceConfig> traceConfigSupplier) {
+    Set<ContextKey<?>> supportedContent = new HashSet<>();
+    supportedContent.add(SPAN_CONTEXT_KEY);
+    supportedContent.add(BAGGAGE);
     return new TagContextExtractor(
-        traceConfigSupplier, () -> new DatadogContextInterpreter(config));
+        traceConfigSupplier, supportedContent, () -> new DatadogContextInterpreter(config));
   }
 
   private static class DatadogContextInterpreter extends ContextInterpreter {
@@ -137,6 +168,13 @@ class DatadogHttpCodec {
             return true;
           } else if (DATADOG_TAGS_KEY.equalsIgnoreCase(key)) {
             classification = DD_TAGS;
+          } else {
+            // TODO TEST BAGGAGE IMPLEMENTATION
+            lowerCaseKey = toLowerCase(key);
+            if (lowerCaseKey.startsWith(BAGGAGE_PREFIX)) {
+              baggageBuilder.put(
+                  lowerCaseKey.substring(BAGGAGE_PREFIX.length()), HttpCodec.decode(value));
+            }
           }
           break;
         case 'f':
@@ -213,9 +251,9 @@ class DatadogHttpCodec {
     }
 
     @Override
-    protected TagContext build() {
+    protected void build(HttpCodec.ScopeContextBuilder builder) {
       restore128bTraceId();
-      return super.build();
+      super.build(builder);
     }
 
     private long extractEndToEndStartTime(String value) {

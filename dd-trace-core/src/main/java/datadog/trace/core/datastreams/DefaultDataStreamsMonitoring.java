@@ -148,12 +148,12 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
-  public HttpCodec.Extractor extractor(HttpCodec.Extractor delegate) {
-    return new DataStreamContextExtractor(delegate, timeSource, wellKnownTags);
+  public HttpCodec.Extractor extractor() {
+    return new DataStreamContextExtractor(this.timeSource, this.wellKnownTags);
   }
 
   @Override
-  public HttpCodec.ContextInjector injector() {
+  public HttpCodec.Injector injector() {
     return this.injector;
   }
 

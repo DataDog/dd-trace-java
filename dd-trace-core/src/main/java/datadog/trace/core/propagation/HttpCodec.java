@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.SPAN_CONTEXT_KEY;
+import static java.util.Collections.unmodifiableSet;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.TraceConfig;
@@ -8,14 +9,19 @@ import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ContextKey;
+import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.scopemanager.ScopeContext;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -45,36 +51,105 @@ public class HttpCodec {
   static final String CF_CONNECTING_IP_KEY = "cf-connecting-ip";
   static final String CF_CONNECTING_IP_V6_KEY = "cf-connecting-ipv6";
 
-  public interface ContextInjector {
+  public interface Injector {
     <C> void inject(
         final AgentScopeContext context, final C carrier, final AgentPropagation.Setter<C> setter);
-  }
 
-  public interface Injector extends ContextInjector {
-    @Override
-    default <C> void inject(
-        final AgentScopeContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
-      DDSpanContext spanContext = getSpanContext(context);
-      if (spanContext != null) {
-        spanContext.getTrace().setSamplingPriorityIfNecessary();
-        inject(spanContext, carrier, setter);
-      }
-    }
-
-    <C> void inject(
-        final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter);
-
-    default DDSpanContext getSpanContext(AgentScopeContext context) {
+    /**
+     * Gets the span context to inject.
+     *
+     * @param context The context to inject.
+     * @return The span context to inject if existing, with a sampling decision, {@code null} if no
+     *     span context.
+     */
+    default DDSpanContext getSpanContextToInject(AgentScopeContext context) {
       AgentSpan agentSpan = context.get(SPAN_CONTEXT_KEY);
       if (agentSpan != null && agentSpan.context() instanceof DDSpanContext) {
-        return (DDSpanContext) agentSpan.context();
+        DDSpanContext spanContext = (DDSpanContext) agentSpan.context();
+        spanContext.getTrace().setSamplingPriorityIfNecessary();
+        return spanContext;
       }
       return null;
     }
   }
 
   public interface Extractor {
-    <C> TagContext extract(final C carrier, final AgentPropagation.ContextVisitor<C> getter);
+    <C> void extract(
+        final ScopeContextBuilder builder,
+        final C carrier,
+        final AgentPropagation.ContextVisitor<C> getter);
+
+    Set<ContextKey<?>> supportedContent();
+  }
+
+  public interface ScopeContextBuilder {
+    <T> void append(ContextKey<T> key, T value);
+
+    ScopeContext build();
+  }
+
+  public abstract static class AbstractScopeContextBuilder implements ScopeContextBuilder {
+    private final Map<ContextKey<?>, Object> content;
+
+    protected AbstractScopeContextBuilder() {
+      this.content = new HashMap<>();
+    }
+
+    @Override
+    public <T> void append(ContextKey<T> key, T value) {
+      Object originalValue = this.content.get(key);
+      if (originalValue != null) {
+        //noinspection unchecked
+        this.content.put(key, merge(key, (T) originalValue, value));
+      } else {
+        this.content.put(key, value);
+      }
+    }
+
+    protected abstract <T> T merge(ContextKey<T> key, T originalValue, T newValue);
+
+    @Override
+    public ScopeContext build() {
+      ScopeContext context = ScopeContext.fromMap(this.content);
+      this.content.clear();
+      return context;
+    }
+  }
+
+  public static class ScopeContextAppender extends AbstractScopeContextBuilder {
+    @Override
+    protected <T> T merge(ContextKey<T> key, T originalValue, T newValue) {
+      return newValue;
+    }
+  }
+
+  public static class ScopeContextMerger extends AbstractScopeContextBuilder {
+    @Override
+    protected <T> T merge(ContextKey<T> key, T originalValue, T newValue) {
+      /*
+       * Handle span context case:
+       * - Prioritize full span context (ExtractedContext) over partial (TagContext)
+       * - Keep original full span context rather than new to keep extractor priority
+       * - Move DSM pathway context to any updated span context
+       */
+      if (originalValue instanceof TagContext && newValue instanceof TagContext) {
+        TagContext originalTagContext = (TagContext) originalValue;
+        TagContext newTagContext = (TagContext) newValue;
+        // Prioritize full span context
+        if (!(originalValue instanceof ExtractedContext) && newValue instanceof ExtractedContext) {
+          PathwayContext originalPathwayContext = originalTagContext.getPathwayContext();
+          if (newTagContext.getPathwayContext() == null) {
+            // Restore DSM pathway context if present
+            newTagContext.withPathwayContext(originalPathwayContext);
+          }
+          return newValue;
+        } else if (newTagContext.getPathwayContext() != null) {
+          // Apply DSM pathway context to original span context
+          originalTagContext.withPathwayContext(newTagContext.getPathwayContext());
+        }
+      }
+      return originalValue;
+    }
   }
 
   public static Injector createInjector(
@@ -125,7 +200,7 @@ public class HttpCodec {
           result.put(style, W3CHttpCodec.newInjector(reverseBaggageMapping));
           break;
         case DSM_PATHWAY_CONTEXT:
-          // Skip pathway context as not able to inject a trace
+          // Skip DSM injector as DSM is needed for creation
           break;
         default:
           log.debug("No implementation found to inject propagation style: {}", style);
@@ -136,7 +211,9 @@ public class HttpCodec {
   }
 
   public static Extractor createExtractor(
-      Config config, Supplier<TraceConfig> traceConfigSupplier) {
+      Config config,
+      Supplier<TraceConfig> traceConfigSupplier,
+      List<Extractor> additionalExtractors) {
     final List<Extractor> extractors = new ArrayList<>();
     for (final TracePropagationStyle style : config.getTracePropagationStylesToExtract()) {
       switch (style) {
@@ -166,6 +243,7 @@ public class HttpCodec {
           break;
       }
     }
+    extractors.addAll(additionalExtractors);
     return new CompoundExtractor(extractors);
   }
 
@@ -179,7 +257,7 @@ public class HttpCodec {
 
     @Override
     public <C> void inject(
-        final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
+        final AgentScopeContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
       log.debug("Inject context {}", context);
       for (final Injector injector : injectors) {
         injector.inject(context, carrier, setter);
@@ -189,27 +267,38 @@ public class HttpCodec {
 
   public static class CompoundExtractor implements Extractor {
     private final List<Extractor> extractors;
+    private final Set<ContextKey<?>> supportedContent;
 
     public CompoundExtractor(final List<Extractor> extractors) {
       this.extractors = extractors;
+      Set<ContextKey<?>> mergedSupportedContent = new HashSet<>();
+      for (Extractor extractor : this.extractors) {
+        mergedSupportedContent.addAll(extractor.supportedContent());
+      }
+      this.supportedContent = unmodifiableSet(mergedSupportedContent);
     }
 
     @Override
-    public <C> TagContext extract(
-        final C carrier, final AgentPropagation.ContextVisitor<C> getter) {
-      TagContext context = null;
+    public Set<ContextKey<?>> supportedContent() {
+      return this.supportedContent;
+    }
 
-      for (final Extractor extractor : extractors) {
-        context = extractor.extract(carrier, getter);
-        // Use incomplete TagContext only as last resort
-        if (context instanceof ExtractedContext) {
-          log.debug("Extract complete context {}", context);
-          return context;
-        }
+    @Override
+    public <C> void extract(
+        final ScopeContextBuilder builder,
+        final C carrier,
+        final AgentPropagation.ContextVisitor<C> getter) {
+      boolean spanContextComplete = false;
+
+      // TODO IMPLEMENT FAST STOP
+      // Stop trying to extract if all supported content
+      // were already extracted.
+      // Special case for SCOPE_CONTEXT that can accept
+      // multiple TagContext until first ExtractedContext
+
+      for (final Extractor extractor : this.extractors) {
+        extractor.extract(builder, carrier, getter);
       }
-
-      log.debug("Extract incomplete context {}", context);
-      return context;
     }
   }
 

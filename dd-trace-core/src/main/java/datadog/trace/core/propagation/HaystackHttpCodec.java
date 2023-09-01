@@ -1,6 +1,8 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.SPAN_CONTEXT_KEY;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
+import static java.util.Collections.singleton;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DD64bTraceId;
@@ -9,6 +11,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.core.DDSpanContext;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Map;
@@ -61,7 +64,13 @@ class HaystackHttpCodec {
 
     @Override
     public <C> void inject(
-        final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
+        final AgentScopeContext scopeContext,
+        final C carrier,
+        final AgentPropagation.Setter<C> setter) {
+      final DDSpanContext context = getSpanContextToInject(scopeContext);
+      if (context == null) {
+        return;
+      }
       try {
         // Given that Haystack uses a 128-bit UUID/GUID for all ID representations, need to convert
         // from 64-bit BigInteger
@@ -122,7 +131,9 @@ class HaystackHttpCodec {
   public static HttpCodec.Extractor newExtractor(
       Config config, Supplier<TraceConfig> traceConfigSupplier) {
     return new TagContextExtractor(
-        traceConfigSupplier, () -> new HaystackContextInterpreter(config));
+        traceConfigSupplier,
+        singleton(SPAN_CONTEXT_KEY),
+        () -> new HaystackContextInterpreter(config));
   }
 
   private static class HaystackContextInterpreter extends ContextInterpreter {

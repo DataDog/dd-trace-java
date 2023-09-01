@@ -4,8 +4,12 @@ import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.DynamicConfig
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.core.CoreTracer
+import datadog.trace.core.propagation.HttpCodec.ScopeContextMerger
+import datadog.trace.core.scopemanager.ScopeContext
 import datadog.trace.test.util.StringUtils
 
 import static datadog.trace.api.sampling.PrioritySampling.*
@@ -15,6 +19,7 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.test.DDCoreSpecification
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context.Extracted.SPAN_CONTEXT
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 import static datadog.trace.core.propagation.B3HttpCodec.B3_KEY
 import static datadog.trace.core.propagation.B3HttpCodec.SAMPLING_PRIORITY_KEY
@@ -44,7 +49,7 @@ class B3HttpInjectorTest extends DDCoreSpecification {
     HttpCodec.Injector injector = B3HttpCodec.newCombinedInjector(tracePropagationB3Padding())
     def writer = new ListWriter()
     def tracer = tracerBuilder().writer(writer).build()
-    final DDSpanContext mockedContext = mockedContext(tracer, DDTraceId.from("$traceId"), DDSpanId.from("$spanId"), samplingPriority)
+    final AgentScopeContext mockedContext = mockedContext(tracer, DDTraceId.from("$traceId"), DDSpanId.from("$spanId"), samplingPriority)
     final Map<String, String> carrier = Mock()
 
     when:
@@ -92,8 +97,10 @@ class B3HttpInjectorTest extends DDCoreSpecification {
       .setBaggageMapping([:])
       .apply()
     HttpCodec.Extractor extractor = B3HttpCodec.newExtractor(Config.get(), { dynamicConfig.captureTraceConfig() })
-    final TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
-    final DDSpanContext mockedContext = mockedContext(tracer, context)
+    final ScopeContextMerger builder = new ScopeContextMerger()
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    final TagContext context = builder.build().get(SPAN_CONTEXT)
+    final AgentScopeContext mockedContext = mockedContext(tracer, context)
     final Map<String, String> carrier = Mock()
 
     when:
@@ -122,12 +129,12 @@ class B3HttpInjectorTest extends DDCoreSpecification {
     spanIdHex = idOrPadded(trimHex(spanId), 16)
   }
 
-  static DDSpanContext mockedContext(CoreTracer tracer, TagContext context) {
+  AgentScopeContext mockedContext(CoreTracer tracer, TagContext context) {
     return mockedContext(tracer, context.traceId, context.spanId, UNSET)
   }
 
-  static DDSpanContext mockedContext(CoreTracer tracer, DDTraceId traceId, long spanId, int samplingPriority) {
-    return new DDSpanContext(
+  AgentScopeContext mockedContext(CoreTracer tracer, DDTraceId traceId, long spanId, int samplingPriority) {
+    def spanContext = new DDSpanContext(
       traceId,
       spanId,
       DDSpanId.ZERO,
@@ -147,6 +154,10 @@ class B3HttpInjectorTest extends DDCoreSpecification {
       NoopPathwayContext.INSTANCE,
       false,
       PropagationTags.factory().empty())
+    AgentSpan span = Stub(AgentSpan) {
+      context() >> spanContext
+    }
+    return ScopeContext.fromSpan(span)
   }
 }
 

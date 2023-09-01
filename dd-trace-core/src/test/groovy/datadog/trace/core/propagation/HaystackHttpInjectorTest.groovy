@@ -2,6 +2,9 @@ package datadog.trace.core.propagation
 
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.core.scopemanager.ScopeContext
 
 import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
@@ -46,7 +49,7 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
     final Map<String, String> carrier = Mock()
 
     when:
-    injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
+    injector.inject(wrap(mockedContext), carrier, MapSetter.INSTANCE)
 
     then:
     1 * carrier.put(TRACE_ID_KEY, traceUuid)
@@ -100,7 +103,7 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
     final Map<String, String> carrier = Mock()
 
     when:
-    injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
+    injector.inject(wrap(mockedContext), carrier, MapSetter.INSTANCE)
 
     then:
     1 * carrier.put(TRACE_ID_KEY, traceUuid)
@@ -119,5 +122,12 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
     "1"                   | "2"                   | SAMPLER_KEEP     | DEFAULT           | null   | "54617461-646f-6721-0000-000000000001" | "44617461-646f-6721-0000-000000000002"
     "$TRACE_ID_MAX"       | "${TRACE_ID_MAX - 1}" | SAMPLER_KEEP     | DEFAULT           | null   | "54617461-646f-6721-ffff-ffffffffffff" | "44617461-646f-6721-ffff-fffffffffffe"
     "${TRACE_ID_MAX - 1}" | "$TRACE_ID_MAX"       | SAMPLER_KEEP     | DEFAULT           | null   | "54617461-646f-6721-ffff-fffffffffffe" | "44617461-646f-6721-ffff-ffffffffffff"
+  }
+
+  AgentScopeContext wrap(final DDSpanContext spanContext) {
+    AgentSpan span = Stub(AgentSpan) {
+      context() >> spanContext
+    }
+    return ScopeContext.fromSpan(span)
   }
 }

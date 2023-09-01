@@ -16,17 +16,16 @@ public interface DataStreamsMonitoring extends AgentDataStreamsMonitoring, AutoC
   /**
    * Get a context extractor that support {@link PathwayContext} extraction.
    *
-   * @param delegate The extractor to delegate the common trace context extraction.
-   * @return An extractor with DSM context extraction.
+   * @return An extractor with DSM context extraction if DSM is enabled, {@code null} otherwise.
    */
-  HttpCodec.Extractor extractor(HttpCodec.Extractor delegate);
+  HttpCodec.Extractor extractor();
 
   /**
    * Gets a context injector to propagate {@link PathwayContext}.
    *
    * @return A context injector if supported, {@code null} otherwise.
    */
-  HttpCodec.ContextInjector injector();
+  HttpCodec.Injector injector();
 
   /**
    * Injects DSM {@link PathwayContext} into a span {@link Context}.

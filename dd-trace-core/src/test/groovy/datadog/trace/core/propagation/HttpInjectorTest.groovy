@@ -3,18 +3,21 @@ package datadog.trace.core.propagation
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
-import datadog.trace.core.CoreTracer
-import datadog.trace.test.util.StringUtils
-
-import static datadog.trace.api.sampling.PrioritySampling.*
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.common.writer.ListWriter
+import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpanContext
+import datadog.trace.core.scopemanager.ScopeContext
 import datadog.trace.core.test.DDCoreSpecification
+import datadog.trace.test.util.StringUtils
 
-import static datadog.trace.api.TracePropagationStyle.B3SINGLE
 import static datadog.trace.api.TracePropagationStyle.B3MULTI
+import static datadog.trace.api.TracePropagationStyle.B3SINGLE
 import static datadog.trace.api.TracePropagationStyle.DATADOG
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
+import static datadog.trace.api.sampling.PrioritySampling.UNSET
 import static datadog.trace.core.propagation.B3HttpCodec.B3_KEY
 
 class HttpInjectorTest extends DDCoreSpecification {
@@ -52,7 +55,7 @@ class HttpInjectorTest extends DDCoreSpecification {
     def spanId = 2
     def writer = new ListWriter()
     def tracer = tracerBuilder().writer(writer).build()
-    final DDSpanContext mockedContext = mockedContext(tracer, traceId, spanId, samplingPriority, origin, ["k1": "v1", "k2": "v2"])
+    final AgentScopeContext mockedContext = mockedContext(tracer, traceId, spanId, samplingPriority, origin, ["k1": "v1", "k2": "v2"])
     final Map<String, String> carrier = Mock()
     def b3TraceIdHex = idOrPadded(traceId)
     def b3SpanIdHex = idOrPadded(spanId)
@@ -123,7 +126,7 @@ class HttpInjectorTest extends DDCoreSpecification {
     def spanId = 2
     def writer = new ListWriter()
     def tracer = tracerBuilder().writer(writer).build()
-    final DDSpanContext mockedContext = mockedContext(tracer, traceId, spanId, samplingPriority, origin, ["k1": "v1", "k2": "v2","some-baggage-item":"some-baggage-value"])
+    final AgentScopeContext mockedContext = mockedContext(tracer, traceId, spanId, samplingPriority, origin, ["k1": "v1", "k2": "v2","some-baggage-item":"some-baggage-value"])
     final Map<String, String> carrier = Mock()
     def b3TraceIdHex = idOrPadded(traceId)
     def b3SpanIdHex = idOrPadded(spanId)
@@ -178,8 +181,8 @@ class HttpInjectorTest extends DDCoreSpecification {
     // spotless:on
   }
 
-  static DDSpanContext mockedContext(CoreTracer tracer, DDTraceId traceId, long spanId, int samplingPriority, String origin, Map<String, String> baggage) {
-    return new DDSpanContext(
+  AgentScopeContext mockedContext(CoreTracer tracer, DDTraceId traceId, long spanId, int samplingPriority, String origin, Map<String, String> baggage) {
+    final DDSpanContext spanContext = new DDSpanContext(
       traceId,
       spanId,
       DDSpanId.ZERO,
@@ -199,6 +202,10 @@ class HttpInjectorTest extends DDCoreSpecification {
       NoopPathwayContext.INSTANCE,
       false,
       PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.usr=123"))
+    AgentSpan span = Stub(AgentSpan) {
+      context() >> spanContext
+    }
+    return ScopeContext.fromSpan(span)
   }
 }
 

@@ -1,8 +1,11 @@
 package datadog.trace.core.propagation;
 
+import static java.util.Collections.emptySet;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.api.TagContext;
-import datadog.trace.core.DDSpanContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
+import datadog.trace.bootstrap.instrumentation.api.ContextKey;
+import java.util.Set;
 
 public class NoneCodec {
 
@@ -10,14 +13,20 @@ public class NoneCodec {
       new HttpCodec.Injector() {
         @Override
         public <C> void inject(
-            DDSpanContext context, C carrier, AgentPropagation.Setter<C> setter) {}
+            AgentScopeContext context, C carrier, AgentPropagation.Setter<C> setter) {}
       };
 
   public static final HttpCodec.Extractor EXTRACTOR =
       new HttpCodec.Extractor() {
         @Override
-        public <C> TagContext extract(C carrier, AgentPropagation.ContextVisitor<C> getter) {
-          return null;
+        public Set<ContextKey<?>> supportedContent() {
+          return emptySet();
         }
+
+        @Override
+        public <C> void extract(
+            HttpCodec.ScopeContextBuilder builder,
+            C carrier,
+            AgentPropagation.ContextVisitor<C> getter) {}
       };
 }

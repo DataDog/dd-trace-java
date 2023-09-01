@@ -17,6 +17,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.common.sampling.RateByServiceTraceSampler
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
+import datadog.trace.core.propagation.HttpCodec
 import datadog.trace.core.propagation.W3CHttpCodec
 import datadog.trace.core.test.DDCoreSpecification
 import groovy.json.JsonSlurper
@@ -26,6 +27,7 @@ import java.util.concurrent.TimeUnit
 
 import static datadog.trace.api.sampling.PrioritySampling.UNSET
 import static datadog.trace.api.sampling.SamplingMechanism.SPAN_SAMPLING_RATE
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context.Extracted.SPAN_CONTEXT
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MAX_PER_SECOND_TAG
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MECHANISM_TAG
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_RULE_RATE_TAG
@@ -479,9 +481,11 @@ class DDSpanTest extends DDCoreSpecification {
       (TRACE_STATE_KEY.toUpperCase()) : "$traceState"
     ]
     def extractor = W3CHttpCodec.newExtractor(Config.get(), { DynamicConfig.create().apply().captureTraceConfig() })
+    def builder = new HttpCodec.ScopeContextAppender()
 
     when:
-    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    ExtractedContext context = builder.build().get(SPAN_CONTEXT)
     def link = DDSpanLink.from(context)
 
     then:

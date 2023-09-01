@@ -18,8 +18,8 @@ class CorePropagationTest extends DDCoreSpecification {
   HttpCodec.Injector datadogInjector
   HttpCodec.Injector b3Injector
   HttpCodec.Injector traceContextInjector
-  HttpCodec.ContextInjector dataStreamContextInjector
-  Map<TracePropagationStyle, HttpCodec.ContextInjector> allInjectors
+  HttpCodec.Injector dataStreamContextInjector
+  Map<TracePropagationStyle, HttpCodec.Injector> allInjectors
   AgentPropagation propagation
 
   def setup() {
@@ -27,7 +27,7 @@ class CorePropagationTest extends DDCoreSpecification {
     datadogInjector = Mock(HttpCodec.Injector)
     b3Injector = Mock(HttpCodec.Injector)
     traceContextInjector = Mock(HttpCodec.Injector)
-    dataStreamContextInjector = Mock(HttpCodec.ContextInjector)
+    dataStreamContextInjector = Mock(HttpCodec.Injector)
     allInjectors = [
       (DATADOG)            : datadogInjector,
       (B3MULTI)            : b3Injector,
@@ -122,7 +122,7 @@ class CorePropagationTest extends DDCoreSpecification {
     propagation.extract(carrier, getter)
 
     then:
-    1 * extractor.extract(carrier, getter)
+    1 * extractor.extract(_, carrier, getter)
   }
 
   def 'span priority set when injecting'() {

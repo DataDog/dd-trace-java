@@ -4,9 +4,12 @@ import datadog.trace.api.DD128bTraceId
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.internal.util.LongStringUtils
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpanContext
+import datadog.trace.core.scopemanager.ScopeContext
 import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.sampling.PrioritySampling.*
@@ -48,7 +51,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     final Map<String, String> carrier = Mock()
 
     when:
-    injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
+    injector.inject(wrap(mockedContext), carrier, MapSetter.INSTANCE)
 
     then:
     1 * carrier.put(TRACE_ID_KEY, traceId.toString())
@@ -107,7 +110,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     final Map<String, String> carrier = Mock()
 
     when:
-    injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
+    injector.inject(wrap(mockedContext), carrier, MapSetter.INSTANCE)
 
     then:
     1 * carrier.put(TRACE_ID_KEY, "1")
@@ -154,7 +157,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     final Map<String, String> carrier = Mock()
 
     when:
-    injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
+    injector.inject(wrap(mockedContext), carrier, MapSetter.INSTANCE)
 
     then:
     1 * carrier.put(TRACE_ID_KEY, "1")
@@ -202,7 +205,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     final Map<String, String> carrier = Mock()
 
     when:
-    injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
+    injector.inject(wrap(mockedContext), carrier, MapSetter.INSTANCE)
 
     then:
     1 * carrier.put(TRACE_ID_KEY, traceId.toString())
@@ -229,5 +232,12 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       "64184f2400000000123456789abcdef0",
       "f" * 32
     ]
+  }
+
+  AgentScopeContext wrap(final DDSpanContext spanContext) {
+    AgentSpan span = Stub(AgentSpan) {
+      context() >> spanContext
+    }
+    return ScopeContext.fromSpan(span)
   }
 }

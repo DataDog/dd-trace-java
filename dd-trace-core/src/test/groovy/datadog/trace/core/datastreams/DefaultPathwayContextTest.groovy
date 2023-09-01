@@ -5,17 +5,19 @@ import datadog.trace.api.DDTraceId
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
+import datadog.trace.bootstrap.instrumentation.api.ContextKey
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint
-import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.common.metrics.Sink
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.propagation.HttpCodec
+import datadog.trace.core.scopemanager.ScopeContext
 import datadog.trace.core.test.DDCoreSpecification
 
 import java.util.function.Consumer
 
 import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context.Extracted.SPAN_CONTEXT
 import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoring.DEFAULT_BUCKET_DURATION_NANOS
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
@@ -533,7 +535,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     pointConsumer.points[0].hash != pointConsumer.points[1].hash
   }
 
-  def "Check context extractor decorator behavior"() {
+  def "Check context extractor behavior"() {
     given:
     def sink = Mock(Sink)
     def features = Stub(DDAgentFeaturesDiscovery) {
@@ -549,11 +551,15 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     def encoded = context.strEncode()
     Map<String, String> carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     def contextVisitor = new Base64MapContextVisitor()
-    def extractor = new FakeExtractor()
-    def decorated = dataStreams.extractor(extractor)
+    def fakeExtractor = new FakeExtractor()
+    def dsmExtractor = dataStreams.extractor()
+    def extractor = new HttpCodec.CompoundExtractor([fakeExtractor, dsmExtractor])
+    def builder = new HttpCodec.ScopeContextAppender()
 
     when:
-    def extracted = decorated.extract(carrier, contextVisitor)
+    extractor.extract(builder, carrier, contextVisitor)
+    def extracted = builder.build().get(SPAN_CONTEXT)
+
 
     then:
     extracted != null
@@ -577,11 +583,14 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     def encoded = context.strEncode()
     Map<String, String> carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     def contextVisitor = new Base64MapContextVisitor()
-    def extractor = new NullExtractor()
-    def decorated = dataStreams.extractor(extractor)
+    def emptyExtractor = new EmptyExtractor()
+    def dsmExtractor = dataStreams.extractor()
+    def extractor = new HttpCodec.CompoundExtractor([emptyExtractor, dsmExtractor])
+    def builder = new HttpCodec.ScopeContextAppender()
 
     when:
-    def extracted = decorated.extract(carrier, contextVisitor)
+    extractor.extract(builder, carrier, contextVisitor)
+    def extracted = builder.build().get(SPAN_CONTEXT)
 
     then:
     extracted != null
@@ -601,28 +610,41 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     Map<String, String> carrier = ["someotherkey": "someothervalue"]
     def contextVisitor = new Base64MapContextVisitor()
-    def extractor = new NullExtractor()
-    def decorated = dataStreams.extractor(extractor)
+    def emptyExtractor = new EmptyExtractor()
+    def dsmExtractor = dataStreams.extractor()
+    def extractor = new HttpCodec.CompoundExtractor([emptyExtractor, dsmExtractor])
+    def builder = new HttpCodec.ScopeContextAppender()
+
 
     when:
-    def extracted = decorated.extract(carrier, contextVisitor)
+    extractor.extract(builder, carrier, contextVisitor)
+    def extracted = builder.build()
 
     then:
-    extracted == null
+    extracted == ScopeContext.empty()
   }
 
   class FakeExtractor implements HttpCodec.Extractor {
     @Override
-    <C> TagContext extract(C carrier, AgentPropagation.ContextVisitor<C> getter) {
-      return new ExtractedContext(DDTraceId.ONE, 1, 0, null, null)
+    Set<ContextKey<?>> supportedContent() {
+      return [SPAN_CONTEXT]
+    }
+
+    @Override
+    <C> void extract(HttpCodec.ScopeContextBuilder builder, C carrier, AgentPropagation.ContextVisitor<C> getter) {
+      def extractedContext = new ExtractedContext(DDTraceId.ONE, 1, 0, null, null)
+      builder.append(SPAN_CONTEXT, extractedContext)
     }
   }
 
-  class NullExtractor implements HttpCodec.Extractor {
+  class EmptyExtractor implements HttpCodec.Extractor {
     @Override
-    <C> TagContext extract(C carrier, AgentPropagation.ContextVisitor<C> getter) {
-      return null
+    Set<ContextKey<?>> supportedContent() {
+      return []
     }
+
+    @Override
+    <C> void extract(HttpCodec.ScopeContextBuilder builder, C carrier, AgentPropagation.ContextVisitor<C> getter) {}
   }
 
   class Base64MapContextVisitor implements AgentPropagation.ContextVisitor<Map<String, String>> {

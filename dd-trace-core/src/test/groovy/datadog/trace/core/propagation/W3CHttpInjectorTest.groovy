@@ -2,9 +2,12 @@ package datadog.trace.core.propagation
 
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpanContext
+import datadog.trace.core.scopemanager.ScopeContext
 import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
@@ -60,7 +63,7 @@ class W3CHttpInjectorTest extends DDCoreSpecification {
     }
 
     when:
-    injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
+    injector.inject(wrap(mockedContext), carrier, MapSetter.INSTANCE)
 
     then:
     carrier == expected
@@ -108,7 +111,7 @@ class W3CHttpInjectorTest extends DDCoreSpecification {
     final Map<String, String> carrier = [:]
 
     when:
-    injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
+    injector.inject(wrap(mockedContext), carrier, MapSetter.INSTANCE)
 
     then:
     carrier == [
@@ -154,7 +157,7 @@ class W3CHttpInjectorTest extends DDCoreSpecification {
     final Map<String, String> carrier = [:]
 
     when:
-    injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
+    injector.inject(wrap(mockedContext), carrier, MapSetter.INSTANCE)
 
     then:
     carrier == [
@@ -166,6 +169,13 @@ class W3CHttpInjectorTest extends DDCoreSpecification {
 
     cleanup:
     tracer.close()
+  }
+
+  AgentScopeContext wrap(final DDSpanContext spanContext) {
+    AgentSpan span = Stub(AgentSpan) {
+      context() >> spanContext
+    }
+    return ScopeContext.fromSpan(span)
   }
 
   static String buildTraceParent(String traceId, String spanId, int samplingPriority) {

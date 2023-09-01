@@ -1,5 +1,7 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context.Extracted.SPAN_CONTEXT;
+import static java.util.Collections.emptyList;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -9,7 +11,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.core.scopemanager.ScopeContext;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -42,6 +44,7 @@ public class ExtractorBenchmark {
 
   List<Pair<String, String>> headers;
   HttpCodec.Extractor extractor;
+  HttpCodec.ScopeContextBuilder builder;
   DDTraceId traceId;
   long spanId;
 
@@ -90,7 +93,9 @@ public class ExtractorBenchmark {
             .setHeaderTags(Collections.emptyMap())
             .setBaggageMapping(Collections.emptyMap())
             .apply();
-    extractor = HttpCodec.createExtractor(Config.get(), dynamicConfig::captureTraceConfig);
+    extractor =
+        HttpCodec.createExtractor(Config.get(), dynamicConfig::captureTraceConfig, emptyList());
+    builder = new HttpCodec.ScopeContextMerger();
 
     if (extractPropagationStyles.startsWith("datadog")) {
       traceId = DDTraceId.from("12345");
@@ -104,8 +109,9 @@ public class ExtractorBenchmark {
   @Benchmark
   public void extractContext(Blackhole blackhole) {
     List<Pair<String, String>> list = resetList(headers);
-    TagContext context = extractor.extract(list, LIST_VISITOR);
-    ExtractedContext extractedContext = (ExtractedContext) context;
+    extractor.extract(builder, list, LIST_VISITOR);
+    ScopeContext context = builder.build();
+    ExtractedContext extractedContext = (ExtractedContext) context.get(SPAN_CONTEXT);
     blackhole.consume(context);
     blackhole.consume(list);
     assert extractedContext.getTraceId().equals(traceId);

@@ -7,7 +7,7 @@ import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.SPAN_CONTEXT_KEY
-import static datadog.trace.core.scopemanager.ScopeContext.BAGGAGE_CONTEXT_KEY
+import static datadog.trace.core.scopemanager.ScopeContext.BAGGAGE
 
 class ScopeContextTest extends DDSpecification {
   @Shared
@@ -29,7 +29,7 @@ class ScopeContextTest extends DDSpecification {
 
     when:
 
-    def context1 = empty.with(BAGGAGE_CONTEXT_KEY, baggage)
+    def context1 = empty.with(BAGGAGE, baggage)
     def context2 = context1.with(SPAN_CONTEXT_KEY, span)
 
     then:
@@ -54,7 +54,7 @@ class ScopeContextTest extends DDSpecification {
     span       | null                | null
     span       | SPAN_CONTEXT_KEY    | span
     null       | SPAN_CONTEXT_KEY    | null
-    baggage    | BAGGAGE_CONTEXT_KEY | baggage
+    baggage    | BAGGAGE             | baggage
     someObject | someObjectKey       | someObject
   }
 

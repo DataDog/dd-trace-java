@@ -177,6 +177,8 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
     PathwayContext getPathwayContext();
 
     interface Extracted extends Context {
+      ContextKey<Extracted> SPAN_CONTEXT = named("dd-span-context-key");
+
       String getForwarded();
 
       String getFastlyClientIp();

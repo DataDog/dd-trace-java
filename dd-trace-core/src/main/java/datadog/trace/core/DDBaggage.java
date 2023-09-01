@@ -77,6 +77,9 @@ public class DDBaggage implements Baggage {
 
     @Override
     public Baggage build() {
+      if (this.items.isEmpty()) {
+        return EMPTY;
+      }
       return new DDBaggage(new HashMap<>(this.items));
     }
   }

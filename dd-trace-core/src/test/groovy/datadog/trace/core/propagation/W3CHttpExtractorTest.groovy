@@ -10,6 +10,8 @@ import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
 import datadog.trace.bootstrap.instrumentation.api.TagContext
+import datadog.trace.core.propagation.HttpCodec.ScopeContextBuilder
+import datadog.trace.core.scopemanager.ScopeContext
 import datadog.trace.test.util.DDSpecification
 
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED
@@ -17,6 +19,7 @@ import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context.Extracted.SPAN_CONTEXT
 import static datadog.trace.core.propagation.W3CHttpCodec.OT_BAGGAGE_PREFIX
 import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_PARENT_KEY
 import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_STATE_KEY
@@ -32,6 +35,7 @@ class W3CHttpExtractorTest extends DDSpecification {
 
   private DynamicConfig dynamicConfig
   private HttpCodec.Extractor _extractor
+  private ScopeContextBuilder builder
 
   private HttpCodec.Extractor getExtractor() {
     _extractor ?: (_extractor = W3CHttpCodec.newExtractor(Config.get(), { dynamicConfig.captureTraceConfig() }))
@@ -44,6 +48,7 @@ class W3CHttpExtractorTest extends DDSpecification {
       .setHeaderTags(["SOME_HEADER": "some-tag"])
       .setBaggageMapping(["SOME_CUSTOM_BAGGAGE_HEADER": "some-baggage", "SOME_CUSTOM_BAGGAGE_HEADER_2": "some-CaseSensitive-baggage"])
       .apply()
+    builder = new HttpCodec.ScopeContextAppender()
     origAppSecActive = ActiveSubsystems.APPSEC_ACTIVE
     ActiveSubsystems.APPSEC_ACTIVE = true
 
@@ -62,7 +67,8 @@ class W3CHttpExtractorTest extends DDSpecification {
     }
 
     when:
-    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    final ExtractedContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     if (tpValid) {
@@ -127,7 +133,8 @@ class W3CHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    final ExtractedContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     context.traceId == TRACE_ID_ONE
@@ -161,7 +168,8 @@ class W3CHttpExtractorTest extends DDSpecification {
 
   def "extract header tags with no propagation"() {
     when:
-    TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    TagContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     !(context instanceof ExtractedContext)
@@ -173,7 +181,8 @@ class W3CHttpExtractorTest extends DDSpecification {
 
   def "extract headers with forwarding"() {
     when:
-    TagContext context = extractor.extract(tagOnlyCtx, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, tagOnlyCtx, ContextVisitors.stringValuesMap())
+    TagContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     context != null
@@ -181,7 +190,8 @@ class W3CHttpExtractorTest extends DDSpecification {
     context.forwarded == "for=$forwardedIp:$forwardedPort"
 
     when:
-    context = extractor.extract(fullCtx, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, fullCtx, ContextVisitors.stringValuesMap())
+    context = builder.build().get(SPAN_CONTEXT)
 
     then:
     context instanceof ExtractedContext
@@ -216,7 +226,8 @@ class W3CHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    TagContext context = extractor.extract(tagOnlyCtx, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, tagOnlyCtx, ContextVisitors.stringValuesMap())
+    TagContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     context != null
@@ -225,7 +236,8 @@ class W3CHttpExtractorTest extends DDSpecification {
     context.XForwardedPort == forwardedPort
 
     when:
-    context = extractor.extract(fullCtx, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, fullCtx, ContextVisitors.stringValuesMap())
+    context = builder.build().get(SPAN_CONTEXT)
 
     then:
     context instanceof ExtractedContext
@@ -236,8 +248,11 @@ class W3CHttpExtractorTest extends DDSpecification {
   }
 
   def "extract empty headers returns null"() {
-    expect:
-    extractor.extract(["ignored-header": "ignored-value"], ContextVisitors.stringValuesMap()) == null
+    when:
+    extractor.extract(builder, ["ignored-header": "ignored-value"], ContextVisitors.stringValuesMap())
+
+    then:
+    builder.build() == ScopeContext.empty()
   }
 
   void 'extract headers with ip resolution disabled'() {
@@ -250,7 +265,8 @@ class W3CHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    TagContext ctx = extractor.extract(tagOnlyCtx, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, tagOnlyCtx, ContextVisitors.stringValuesMap())
+    TagContext ctx = builder.build().get(SPAN_CONTEXT)
 
     then:
     ctx != null
@@ -269,7 +285,8 @@ class W3CHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    TagContext ctx = extractor.extract(tagOnlyCtx, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, tagOnlyCtx, ContextVisitors.stringValuesMap())
+    TagContext ctx = builder.build().get(SPAN_CONTEXT)
 
     then:
     ctx != null
@@ -286,7 +303,8 @@ class W3CHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    def ctx = extractor.extract(tagOnlyCtx, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, tagOnlyCtx, ContextVisitors.stringValuesMap())
+    def ctx = builder.build().get(SPAN_CONTEXT)
 
     then:
     ctx != null
@@ -308,7 +326,8 @@ class W3CHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    final ExtractedContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     context.traceId == TRACE_ID_ONE
@@ -335,7 +354,8 @@ class W3CHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    final TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    final TagContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     assert context != null
@@ -372,7 +392,8 @@ class W3CHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    final TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    final TagContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     assert context.userAgent == 'some-user-agent'
@@ -395,7 +416,8 @@ class W3CHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(builder,headers, ContextVisitors.stringValuesMap())
+    final ExtractedContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     context.getPropagationTags().createTagMap() == expectedTags

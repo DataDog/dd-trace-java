@@ -4,12 +4,15 @@ import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DynamicConfig
 import datadog.trace.bootstrap.ActiveSubsystems
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
+import datadog.trace.core.scopemanager.ScopeContext
 import datadog.trace.test.util.DDSpecification
 
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context.Extracted.SPAN_CONTEXT
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 import static datadog.trace.core.propagation.B3HttpCodec.B3_KEY
 import static datadog.trace.core.propagation.B3HttpCodec.SAMPLING_PRIORITY_KEY
@@ -19,6 +22,7 @@ import static datadog.trace.core.propagation.B3HttpCodec.TRACE_ID_KEY
 class B3HttpExtractorTest extends DDSpecification {
 
   DynamicConfig dynamicConfig
+  HttpCodec.ScopeContextBuilder contextBuilder
   HttpCodec.Extractor extractor
   boolean origAppSecActive
 
@@ -27,6 +31,7 @@ class B3HttpExtractorTest extends DDSpecification {
       .setHeaderTags(["SOME_HEADER": "some-tag"])
       .setBaggageMapping([:])
       .apply()
+    contextBuilder = new HttpCodec.ScopeContextMerger()
     extractor = B3HttpCodec.newExtractor(Config.get(), { dynamicConfig.captureTraceConfig() })
     origAppSecActive = ActiveSubsystems.APPSEC_ACTIVE
     ActiveSubsystems.APPSEC_ACTIVE = true
@@ -53,7 +58,9 @@ class B3HttpExtractorTest extends DDSpecification {
     }
 
     when:
-    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(contextBuilder, headers, ContextVisitors.stringValuesMap())
+    final AgentScopeContext scopeContext = contextBuilder.build()
+    final ExtractedContext context = scopeContext.get(SPAN_CONTEXT)
 
     then:
     context.traceId == B3TraceId.fromHex(traceIdHex)
@@ -91,7 +98,9 @@ class B3HttpExtractorTest extends DDSpecification {
     }
 
     when:
-    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(contextBuilder, headers, ContextVisitors.stringValuesMap())
+    final AgentScopeContext scopeContext = contextBuilder.build()
+    final ExtractedContext context = scopeContext.get(SPAN_CONTEXT)
 
     then:
     context.traceId == B3TraceId.fromHex(expectedTraceIdHex)
@@ -133,7 +142,9 @@ class B3HttpExtractorTest extends DDSpecification {
     }
 
     when:
-    final TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(contextBuilder, headers, ContextVisitors.stringValuesMap())
+    final AgentScopeContext scopeContext = contextBuilder.build()
+    final TagContext context = scopeContext.get(SPAN_CONTEXT)
 
     then:
     context.traceId == B3TraceId.fromHex(expectedTraceIdHex)
@@ -168,7 +179,9 @@ class B3HttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    def context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(contextBuilder, headers, ContextVisitors.stringValuesMap())
+    def scopeContext = contextBuilder.build()
+    def context = scopeContext.get(SPAN_CONTEXT)
 
     then:
     if (expectedTraceId) {
@@ -199,7 +212,9 @@ class B3HttpExtractorTest extends DDSpecification {
 
   def "extract header tags with no propagation"() {
     when:
-    TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(contextBuilder, headers, ContextVisitors.stringValuesMap())
+    AgentScopeContext scopeContext = contextBuilder.build()
+    TagContext context = scopeContext.get(SPAN_CONTEXT)
 
     then:
     !(context instanceof ExtractedContext)
@@ -212,7 +227,9 @@ class B3HttpExtractorTest extends DDSpecification {
 
   def "extract headers with forwarding"() {
     when:
-    TagContext context = extractor.extract(tagOnlyCtx, ContextVisitors.stringValuesMap())
+    extractor.extract(contextBuilder, tagOnlyCtx, ContextVisitors.stringValuesMap())
+    AgentScopeContext scopeContext = contextBuilder.build()
+    TagContext context = scopeContext.get(SPAN_CONTEXT)
 
     then:
     context != null
@@ -220,7 +237,9 @@ class B3HttpExtractorTest extends DDSpecification {
     context.forwarded == "for=$forwardedIp:$forwardedPort"
 
     when:
-    context = extractor.extract(fullCtx, ContextVisitors.stringValuesMap())
+    extractor.extract(contextBuilder, fullCtx, ContextVisitors.stringValuesMap())
+    scopeContext = contextBuilder.build()
+    context = scopeContext.get(SPAN_CONTEXT)
 
     then:
     context instanceof ExtractedContext
@@ -243,7 +262,9 @@ class B3HttpExtractorTest extends DDSpecification {
 
   def "extract headers with x-forwarding"() {
     when:
-    TagContext context = extractor.extract(tagOnlyCtx, ContextVisitors.stringValuesMap())
+    extractor.extract(contextBuilder, tagOnlyCtx, ContextVisitors.stringValuesMap())
+    AgentScopeContext scopeContext = contextBuilder.build()
+    TagContext context = scopeContext.get(SPAN_CONTEXT)
 
     then:
     context != null
@@ -252,7 +273,9 @@ class B3HttpExtractorTest extends DDSpecification {
     context.XForwardedPort == forwardedPort
 
     when:
-    context = extractor.extract(fullCtx, ContextVisitors.stringValuesMap())
+    extractor.extract(contextBuilder, fullCtx, ContextVisitors.stringValuesMap())
+    scopeContext = contextBuilder.build()
+    context = scopeContext.get(SPAN_CONTEXT)
 
     then:
     context instanceof ExtractedContext
@@ -276,9 +299,12 @@ class B3HttpExtractorTest extends DDSpecification {
     ]
   }
 
-  def "extract empty headers returns null"() {
-    expect:
-    extractor.extract(["ignored-header": "ignored-value"], ContextVisitors.stringValuesMap()) == null
+  def "extract empty headers returns empty context"() {
+    when:
+    extractor.extract(contextBuilder, ["ignored-header": "ignored-value"], ContextVisitors.stringValuesMap())
+
+    then:
+    contextBuilder.build() == ScopeContext.empty()
   }
 
   def "extract http headers with invalid non-numeric ID"() {
@@ -290,10 +316,11 @@ class B3HttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(contextBuilder, headers, ContextVisitors.stringValuesMap())
+    AgentScopeContext context = contextBuilder.build()
 
     then:
-    context == null
+    context == ScopeContext.empty()
   }
 
   def "extract http headers with out of range span ID"() {
@@ -306,10 +333,11 @@ class B3HttpExtractorTest extends DDSpecification {
 
 
     when:
-    TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(contextBuilder, headers, ContextVisitors.stringValuesMap())
+    AgentScopeContext context = contextBuilder.build()
 
     then:
-    context == null
+    context == ScopeContext.empty()
   }
 
   def "extract ids while retaining the original string"() {
@@ -320,7 +348,9 @@ class B3HttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(contextBuilder, headers, ContextVisitors.stringValuesMap())
+    final AgentScopeContext scopeContext = contextBuilder.build()
+    final ExtractedContext context = scopeContext.get(SPAN_CONTEXT)
 
     then:
     if (expectedTraceId) {
@@ -329,6 +359,7 @@ class B3HttpExtractorTest extends DDSpecification {
       assert context.spanId == expectedSpanId
       assert DDSpanId.toHexString(context.spanId) == trimmed(spanId)
     } else {
+      assert scopeContext == ScopeContext.empty()
       assert context == null
     }
 
@@ -373,7 +404,9 @@ class B3HttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    final TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(contextBuilder, headers, ContextVisitors.stringValuesMap())
+    final AgentScopeContext scopeContext = contextBuilder.build()
+    final TagContext context = scopeContext.get(SPAN_CONTEXT)
 
     then:
     assert context.userAgent == 'some-user-agent'

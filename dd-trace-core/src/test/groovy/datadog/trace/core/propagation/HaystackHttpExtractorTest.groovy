@@ -3,8 +3,10 @@ package datadog.trace.core.propagation
 import datadog.trace.api.Config
 import datadog.trace.api.DD64bTraceId
 import datadog.trace.api.DynamicConfig
+import datadog.trace.core.scopemanager.ScopeContext
 
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context.Extracted.SPAN_CONTEXT
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 import static datadog.trace.core.propagation.HaystackHttpCodec.OT_BAGGAGE_PREFIX
 import static datadog.trace.core.propagation.HaystackHttpCodec.SPAN_ID_KEY
@@ -22,6 +24,7 @@ class HaystackHttpExtractorTest extends DDSpecification {
 
   DynamicConfig dynamicConfig
   HttpCodec.Extractor extractor
+  HttpCodec.ScopeContextBuilder builder
 
   boolean origAppSecActive
 
@@ -31,6 +34,7 @@ class HaystackHttpExtractorTest extends DDSpecification {
       .setBaggageMapping(["SOME_CUSTOM_BAGGAGE_HEADER": "some-baggage", "SOME_CUSTOM_BAGGAGE_HEADER_2": "some-CaseSensitive-baggage"])
       .apply()
     extractor = HaystackHttpCodec.newExtractor(Config.get(), { dynamicConfig.captureTraceConfig() })
+    builder = new HttpCodec.ScopeContextAppender()
     origAppSecActive = ActiveSubsystems.APPSEC_ACTIVE
     ActiveSubsystems.APPSEC_ACTIVE = true
 
@@ -56,7 +60,8 @@ class HaystackHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    final ExtractedContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     context.traceId == DDTraceId.from(traceId)
@@ -80,7 +85,8 @@ class HaystackHttpExtractorTest extends DDSpecification {
 
   def "extract header tags with no propagation"() {
     when:
-    TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    TagContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     !(context instanceof ExtractedContext)
@@ -94,7 +100,8 @@ class HaystackHttpExtractorTest extends DDSpecification {
 
   def "extract headers with forwarding"() {
     when:
-    TagContext context = extractor.extract(tagOnlyCtx, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, tagOnlyCtx, ContextVisitors.stringValuesMap())
+    TagContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     context != null
@@ -102,7 +109,8 @@ class HaystackHttpExtractorTest extends DDSpecification {
     context.forwarded == "for=$forwardedIp:$forwardedPort"
 
     when:
-    context = extractor.extract(fullCtx, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, fullCtx, ContextVisitors.stringValuesMap())
+    context = builder.build().get(SPAN_CONTEXT)
 
     then:
     context instanceof ExtractedContext
@@ -125,7 +133,8 @@ class HaystackHttpExtractorTest extends DDSpecification {
 
   def "extract headers with x-forwarding"() {
     when:
-    TagContext context = extractor.extract(tagOnlyCtx, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, tagOnlyCtx, ContextVisitors.stringValuesMap())
+    TagContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     context != null
@@ -134,7 +143,8 @@ class HaystackHttpExtractorTest extends DDSpecification {
     context.XForwardedPort == forwardedPort
 
     when:
-    context = extractor.extract(fullCtx, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, fullCtx, ContextVisitors.stringValuesMap())
+    context = builder.build().get(SPAN_CONTEXT)
 
     then:
     context instanceof ExtractedContext
@@ -159,8 +169,11 @@ class HaystackHttpExtractorTest extends DDSpecification {
   }
 
   def "extract empty headers returns null"() {
-    expect:
-    extractor.extract(["ignored-header": "ignored-value"], ContextVisitors.stringValuesMap()) == null
+    when:
+    extractor.extract(builder, ["ignored-header": "ignored-value"], ContextVisitors.stringValuesMap())
+
+    then:
+    builder.build() == ScopeContext.empty()
   }
 
   def "extract http headers with invalid non-numeric ID"() {
@@ -174,7 +187,8 @@ class HaystackHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    TagContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     context == null
@@ -192,7 +206,8 @@ class HaystackHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    TagContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     context == null
@@ -209,7 +224,8 @@ class HaystackHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    TagContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     context == null
@@ -227,7 +243,8 @@ class HaystackHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    final TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    final TagContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     if (ctxCreated) {
@@ -259,7 +276,8 @@ class HaystackHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    final TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    final TagContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     if (expectedTraceId) {
@@ -307,7 +325,8 @@ class HaystackHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    final TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    final TagContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     assert context.userAgent == 'some-user-agent'

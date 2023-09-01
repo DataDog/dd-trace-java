@@ -8,13 +8,16 @@ import datadog.trace.api.DDTraceId
 import datadog.trace.api.DynamicConfig
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.internal.util.LongStringUtils
-import datadog.trace.bootstrap.ActiveSubsystems
-import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
+import datadog.trace.bootstrap.instrumentation.api.TagContext
+import datadog.trace.core.propagation.HttpCodec.ScopeContextBuilder
+import datadog.trace.core.scopemanager.ScopeContext
 import datadog.trace.test.util.DDSpecification
 
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context.Extracted.SPAN_CONTEXT
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 import static datadog.trace.core.propagation.DatadogHttpCodec.DATADOG_TAGS_KEY
 import static datadog.trace.core.propagation.DatadogHttpCodec.ORIGIN_KEY
@@ -27,6 +30,7 @@ class DatadogHttpExtractorTest extends DDSpecification {
 
   private DynamicConfig dynamicConfig
   private HttpCodec.Extractor _extractor
+  private ScopeContextBuilder builder
 
   private HttpCodec.Extractor getExtractor() {
     _extractor ?: (_extractor = DatadogHttpCodec.newExtractor(Config.get(), { dynamicConfig.captureTraceConfig() }))
@@ -39,6 +43,7 @@ class DatadogHttpExtractorTest extends DDSpecification {
       .setHeaderTags(["SOME_HEADER": "some-tag"])
       .setBaggageMapping(["SOME_CUSTOM_BAGGAGE_HEADER": "some-baggage", "SOME_CUSTOM_BAGGAGE_HEADER_2": "some-CaseSensitive-baggage"])
       .apply()
+    builder = new HttpCodec.ScopeContextAppender()
     origAppSecActive = ActiveSubsystems.APPSEC_ACTIVE
     ActiveSubsystems.APPSEC_ACTIVE = true
 
@@ -71,7 +76,8 @@ class DatadogHttpExtractorTest extends DDSpecification {
     }
 
     when:
-    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    final ExtractedContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     context.traceId == DDTraceId.from(traceId)
@@ -94,7 +100,8 @@ class DatadogHttpExtractorTest extends DDSpecification {
 
   def "extract header tags with no propagation"() {
     when:
-    TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    TagContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     !(context instanceof ExtractedContext)
@@ -112,7 +119,8 @@ class DatadogHttpExtractorTest extends DDSpecification {
 
   def "extract headers with forwarding"() {
     when:
-    TagContext context = extractor.extract(tagOnlyCtx, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, tagOnlyCtx, ContextVisitors.stringValuesMap())
+    TagContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     context != null
@@ -120,7 +128,8 @@ class DatadogHttpExtractorTest extends DDSpecification {
     context.forwarded == "for=$forwardedIp:$forwardedPort"
 
     when:
-    context = extractor.extract(fullCtx, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, fullCtx, ContextVisitors.stringValuesMap())
+    context = builder.build().get(SPAN_CONTEXT)
 
     then:
     context instanceof ExtractedContext
@@ -157,7 +166,8 @@ class DatadogHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    TagContext context = extractor.extract(tagOnlyCtx, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, tagOnlyCtx, ContextVisitors.stringValuesMap())
+    TagContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     context != null
@@ -166,7 +176,8 @@ class DatadogHttpExtractorTest extends DDSpecification {
     context.XForwardedPort == forwardedPort
 
     when:
-    context = extractor.extract(fullCtx, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, fullCtx, ContextVisitors.stringValuesMap())
+    context = builder.build().get(SPAN_CONTEXT)
 
     then:
     context instanceof ExtractedContext
@@ -177,8 +188,11 @@ class DatadogHttpExtractorTest extends DDSpecification {
   }
 
   def "extract empty headers returns null"() {
-    expect:
-    extractor.extract(["ignored-header": "ignored-value"], ContextVisitors.stringValuesMap()) == null
+    when:
+    extractor.extract(builder, ["ignored-header": "ignored-value"], ContextVisitors.stringValuesMap())
+
+    then:
+    builder.build() == ScopeContext.empty()
   }
 
   void 'extract headers with ip resolution disabled'() {
@@ -191,7 +205,8 @@ class DatadogHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    TagContext ctx = extractor.extract(tagOnlyCtx, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, tagOnlyCtx, ContextVisitors.stringValuesMap())
+    TagContext ctx = builder.build().get(SPAN_CONTEXT)
 
     then:
     ctx != null
@@ -210,7 +225,8 @@ class DatadogHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    TagContext ctx = extractor.extract(tagOnlyCtx, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, tagOnlyCtx, ContextVisitors.stringValuesMap())
+    TagContext ctx = builder.build().get(SPAN_CONTEXT)
 
     then:
     ctx != null
@@ -227,7 +243,8 @@ class DatadogHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    def ctx = extractor.extract(tagOnlyCtx, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, tagOnlyCtx, ContextVisitors.stringValuesMap())
+    def ctx = builder.build().get(SPAN_CONTEXT)
 
     then:
     ctx != null
@@ -246,7 +263,8 @@ class DatadogHttpExtractorTest extends DDSpecification {
     ] + additionalHeader
 
     when:
-    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    final ExtractedContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     context.traceId == expectedTraceId
@@ -280,7 +298,8 @@ class DatadogHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    TagContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     context == null
@@ -298,7 +317,8 @@ class DatadogHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    TagContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     context == null
@@ -315,7 +335,8 @@ class DatadogHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    TagContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     context == null
@@ -329,7 +350,8 @@ class DatadogHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    final ExtractedContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     if (expectedTraceId) {
@@ -366,7 +388,8 @@ class DatadogHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    final ExtractedContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     context.traceId == DDTraceId.from(traceId)
@@ -396,7 +419,8 @@ class DatadogHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    final TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    final TagContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     if (ctxCreated) {
@@ -434,7 +458,8 @@ class DatadogHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    final TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, headers, ContextVisitors.stringValuesMap())
+    final TagContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     assert context.userAgent == 'some-user-agent'

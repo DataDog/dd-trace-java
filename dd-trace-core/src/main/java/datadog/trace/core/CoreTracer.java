@@ -77,6 +77,7 @@ import datadog.trace.core.monitor.TracerHealthMetrics;
 import datadog.trace.core.propagation.CorePropagation;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
+import datadog.trace.core.propagation.HttpCodec.Extractor;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.scopemanager.ScopeContext;
@@ -249,7 +250,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private Sampler sampler;
     private SingleSpanSampler singleSpanSampler;
     private HttpCodec.Injector injector;
-    private HttpCodec.Extractor extractor;
+    private Extractor extractor;
     private AgentScopeManager scopeManager;
     private Map<String, ?> localRootSpanTags;
     private Map<String, ?> defaultSpanTags;
@@ -304,7 +305,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
-    public CoreTracerBuilder extractor(HttpCodec.Extractor extractor) {
+    public CoreTracerBuilder extractor(Extractor extractor) {
       this.extractor = extractor;
       return this;
     }
@@ -468,7 +469,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final Sampler sampler,
       final SingleSpanSampler singleSpanSampler,
       final HttpCodec.Injector injector,
-      final HttpCodec.Extractor extractor,
+      final Extractor extractor,
       final AgentScopeManager scopeManager,
       final Map<String, ?> localRootSpanTags,
       final Map<String, ?> defaultSpanTags,
@@ -611,18 +612,22 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
     this.dataStreamsMonitoring.start();
 
-    // Create default extractor from config if not provided and decorate it with DSM extractor
-    HttpCodec.Extractor builtExtractor =
-        extractor == null ? HttpCodec.createExtractor(config, this::captureTraceConfig) : extractor;
-    builtExtractor = this.dataStreamsMonitoring.extractor(builtExtractor);
+    // Create default extractor from config if not provided
+    Extractor extractors = extractor;
+    if (extractors == null) {
+      List<Extractor> additionalExtractors = new ArrayList<>();
+      if (config.isDataStreamsEnabled()) {
+        additionalExtractors.add(this.dataStreamsMonitoring.extractor());
+      }
+      extractors =
+          HttpCodec.createExtractor(config, this::captureTraceConfig, additionalExtractors);
+    }
     // Create all HTTP injectors plus the DSM one
-    Map<TracePropagationStyle, HttpCodec.Injector> httpInjectors =
+    Map<TracePropagationStyle, HttpCodec.Injector> injectors =
         HttpCodec.allInjectorsFor(config, invertMap(baggageMapping));
-    Map<TracePropagationStyle, HttpCodec.ContextInjector> contextInjectors =
-        new HashMap<>(httpInjectors);
-    contextInjectors.put(DSM_PATHWAY_CONTEXT, this.dataStreamsMonitoring.injector());
+    injectors.put(DSM_PATHWAY_CONTEXT, this.dataStreamsMonitoring.injector());
     // Store all propagators to propagation
-    this.propagation = new CorePropagation(builtExtractor, injector, contextInjectors);
+    this.propagation = new CorePropagation(extractors, injector, injectors);
 
     this.tagInterceptor =
         null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;

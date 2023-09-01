@@ -16,7 +16,7 @@ import java.util.LinkedHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DataStreamContextInjector implements HttpCodec.ContextInjector {
+public class DataStreamContextInjector implements HttpCodec.Injector {
   private static final Logger LOGGER = LoggerFactory.getLogger(DataStreamContextInjector.class);
   private static final LinkedHashMap<String, String> EMPTY = new LinkedHashMap<>();
   private final DataStreamsMonitoring dataStreamsMonitoring;

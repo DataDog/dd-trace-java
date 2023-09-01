@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context.Extracted.SPAN_CONTEXT;
 import static datadog.trace.core.propagation.HttpCodec.CF_CONNECTING_IP_KEY;
 import static datadog.trace.core.propagation.HttpCodec.CF_CONNECTING_IP_V6_KEY;
 import static datadog.trace.core.propagation.HttpCodec.FASTLY_CLIENT_IP_KEY;
@@ -15,6 +16,7 @@ import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_PORT_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_PROTO_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_REAL_IP_KEY;
+import static datadog.trace.core.scopemanager.ScopeContext.BAGGAGE;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
@@ -26,7 +28,9 @@ import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.core.DDBaggage;
 import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
@@ -42,6 +46,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected int samplingPriority;
   protected Map<String, String> tags;
   protected Map<String, String> baggage;
+  protected Baggage.BaggageBuilder baggageBuilder;
 
   protected CharSequence origin;
   protected long endToEndStartTime;
@@ -215,6 +220,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     endToEndStartTime = 0;
     tags = Collections.emptyMap();
     baggage = Collections.emptyMap();
+    baggageBuilder = DDBaggage.builder();
     valid = true;
     fullContext = true;
     httpHeaders = null;
@@ -226,11 +232,11 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     return this;
   }
 
-  protected TagContext build() {
+  protected void build(HttpCodec.ScopeContextBuilder builder) {
+    // Span context
     if (valid) {
       if (fullContext && !DDTraceId.ZERO.equals(traceId)) {
-        final ExtractedContext context;
-        context =
+        final ExtractedContext context =
             new ExtractedContext(
                 traceId,
                 spanId,
@@ -242,22 +248,28 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
                 httpHeaders,
                 propagationTags,
                 traceConfig);
-        return context;
+        builder.append(SPAN_CONTEXT, context);
       } else if (origin != null
           || !tags.isEmpty()
           || httpHeaders != null
           || !baggage.isEmpty()
           || samplingPriority != PrioritySampling.UNSET) {
-        return new TagContext(
-            origin,
-            tags,
-            httpHeaders,
-            baggage,
-            samplingPriorityOrDefault(traceId, samplingPriority),
-            traceConfig);
+        final TagContext context =
+            new TagContext(
+                origin,
+                tags,
+                httpHeaders,
+                baggage,
+                samplingPriorityOrDefault(traceId, samplingPriority),
+                traceConfig);
+        builder.append(SPAN_CONTEXT, context);
       }
     }
-    return null;
+    // Baggage
+    Baggage extractedBaggage = baggageBuilder.build();
+    if (!extractedBaggage.isEmpty()) {
+      builder.append(BAGGAGE, extractedBaggage);
+    }
   }
 
   protected void invalidateContext() {

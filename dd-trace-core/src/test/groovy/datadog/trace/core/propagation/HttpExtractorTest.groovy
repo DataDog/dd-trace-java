@@ -11,6 +11,7 @@ import spock.lang.Shared
 
 import static datadog.trace.api.TracePropagationStyle.B3MULTI
 import static datadog.trace.api.TracePropagationStyle.DATADOG
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context.Extracted.SPAN_CONTEXT
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 
 class HttpExtractorTest extends DDSpecification {
@@ -27,7 +28,8 @@ class HttpExtractorTest extends DDSpecification {
       .setHeaderTags(["SOME_HEADER": "some-tag"])
       .setBaggageMapping([:])
       .apply()
-    HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, { dynamicConfig.captureTraceConfig() })
+    HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, { dynamicConfig.captureTraceConfig() }, [])
+    HttpCodec.ScopeContextBuilder builder = new HttpCodec.ScopeContextMerger()
 
     final Map<String, String> actual = [:]
     if (datadogTraceId != null) {
@@ -48,7 +50,8 @@ class HttpExtractorTest extends DDSpecification {
     }
 
     when:
-    final TagContext context = extractor.extract(actual, ContextVisitors.stringValuesMap())
+    extractor.extract(builder, actual, ContextVisitors.stringValuesMap())
+    final TagContext context = builder.build().get(SPAN_CONTEXT)
 
     then:
     if (tagContext) {
