@@ -4,7 +4,6 @@ import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.gateway.AppSecRequestContext;
 import datadog.trace.api.gateway.Flow;
-import java.util.Collection;
 
 public class ReplaceableEventProducerService implements EventProducerService {
   private volatile EventProducerService cur;
@@ -26,10 +25,5 @@ public class ReplaceableEventProducerService implements EventProducerService {
       boolean isTransient)
       throws ExpiredSubscriberInfoException {
     return cur.publishDataEvent(subscribers, ctx, newData, isTransient);
-  }
-
-  @Override
-  public Collection<Address<?>> allSubscribedDataAddresses() {
-    return cur.allSubscribedDataAddresses();
   }
 }

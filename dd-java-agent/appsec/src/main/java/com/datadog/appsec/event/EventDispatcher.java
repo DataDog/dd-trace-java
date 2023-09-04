@@ -26,7 +26,6 @@ public class EventDispatcher implements EventProducerService {
   private List<DataListener> dataListenersIdx;
   // index: address.serial; values: ordered array of listener idx
   private List<char[]> dataListenerSubs;
-  private Set<Address<?>> allSubscribedAddresses;
 
   public EventDispatcher() {
     KnownAddresses.HEADERS_NO_COOKIES.getKey(); // force class initialization
@@ -95,7 +94,6 @@ public class EventDispatcher implements EventProducerService {
 
     dataListenersIdx = newDataListenersIdx;
     dataListenerSubs = newDataListenerSubs;
-    allSubscribedAddresses = subSet.allAddresses;
   }
 
   @Override
@@ -154,11 +152,6 @@ public class EventDispatcher implements EventProducerService {
     }
 
     return flow;
-  }
-
-  @Override
-  public Collection<Address<?>> allSubscribedDataAddresses() {
-    return allSubscribedAddresses;
   }
 
   private class DataSubscriberInfoImpl implements DataSubscriberInfo {

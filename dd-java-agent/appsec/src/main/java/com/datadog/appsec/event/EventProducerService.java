@@ -4,7 +4,6 @@ import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.gateway.AppSecRequestContext;
 import datadog.trace.api.gateway.Flow;
-import java.util.Collection;
 
 public interface EventProducerService {
 
@@ -41,6 +40,4 @@ public interface EventProducerService {
   interface DataSubscriberInfo {
     boolean isEmpty();
   }
-
-  Collection<Address<?>> allSubscribedDataAddresses();
 }

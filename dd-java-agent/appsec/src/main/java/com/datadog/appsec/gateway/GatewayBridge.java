@@ -7,7 +7,6 @@ import com.datadog.appsec.config.TraceSegmentPostProcessor;
 import com.datadog.appsec.event.EventProducerService;
 import com.datadog.appsec.event.EventProducerService.DataSubscriberInfo;
 import com.datadog.appsec.event.ExpiredSubscriberInfoException;
-import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.event.data.MapDataBundle;
@@ -34,14 +33,11 @@ import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
@@ -83,9 +79,6 @@ public class GatewayBridge {
 
   public void init() {
     Events<AppSecRequestContext> events = Events.get();
-    Collection<datadog.trace.api.gateway.EventType<?>> additionalIGEvents =
-        IGAppSecEventDependencies.additionalIGEventTypes(
-            producerService.allSubscribedDataAddresses());
 
     subscriptionService.registerCallback(
         events.requestStarted(),
@@ -189,40 +182,37 @@ public class GatewayBridge {
           return null;
         });
 
-    if (additionalIGEvents.contains(EVENTS.requestPathParams())) {
-      subscriptionService.registerCallback(
-          EVENTS.requestPathParams(),
-          (ctx_, data) -> {
-            AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-            if (ctx == null) {
+    subscriptionService.registerCallback(
+        EVENTS.requestPathParams(),
+        (ctx_, data) -> {
+          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+          if (ctx == null) {
+            return NoopFlow.INSTANCE;
+          }
+
+          if (ctx.isPathParamsPublished()) {
+            log.debug("Second or subsequent publication of request params");
+            return NoopFlow.INSTANCE;
+          }
+
+          while (true) {
+            DataSubscriberInfo subInfo = pathParamsSubInfo;
+            if (subInfo == null) {
+              subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_PATH_PARAMS);
+              pathParamsSubInfo = subInfo;
+            }
+            if (subInfo == null || subInfo.isEmpty()) {
               return NoopFlow.INSTANCE;
             }
-
-            if (ctx.isPathParamsPublished()) {
-              log.debug("Second or subsequent publication of request params");
-              return NoopFlow.INSTANCE;
+            DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.REQUEST_PATH_PARAMS, data);
+            try {
+              Flow<Void> flow = producerService.publishDataEvent(subInfo, ctx, bundle, false);
+              return flow;
+            } catch (ExpiredSubscriberInfoException e) {
+              pathParamsSubInfo = null;
             }
-
-            while (true) {
-              DataSubscriberInfo subInfo = pathParamsSubInfo;
-              if (subInfo == null) {
-                subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_PATH_PARAMS);
-                pathParamsSubInfo = subInfo;
-              }
-              if (subInfo == null || subInfo.isEmpty()) {
-                return NoopFlow.INSTANCE;
-              }
-              DataBundle bundle =
-                  new SingletonDataBundle<>(KnownAddresses.REQUEST_PATH_PARAMS, data);
-              try {
-                Flow<Void> flow = producerService.publishDataEvent(subInfo, ctx, bundle, false);
-                return flow;
-              } catch (ExpiredSubscriberInfoException e) {
-                pathParamsSubInfo = null;
-              }
-            }
-          });
-    }
+          }
+        });
 
     subscriptionService.registerCallback(
         EVENTS.requestBodyDone(),
@@ -257,43 +247,40 @@ public class GatewayBridge {
           }
         });
 
-    if (additionalIGEvents.contains(EVENTS.requestBodyProcessed())) {
-      subscriptionService.registerCallback(
-          EVENTS.requestBodyProcessed(),
-          (RequestContext ctx_, Object obj) -> {
-            AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-            if (ctx == null) {
+    subscriptionService.registerCallback(
+        EVENTS.requestBodyProcessed(),
+        (RequestContext ctx_, Object obj) -> {
+          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+          if (ctx == null) {
+            return NoopFlow.INSTANCE;
+          }
+
+          if (ctx.isConvertedReqBodyPublished()) {
+            log.debug(
+                "Request body already published; will ignore new value of type {}", obj.getClass());
+            return NoopFlow.INSTANCE;
+          }
+          ctx.setConvertedReqBodyPublished(true);
+
+          while (true) {
+            DataSubscriberInfo subInfo = requestBodySubInfo;
+            if (subInfo == null) {
+              subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_OBJECT);
+              requestBodySubInfo = subInfo;
+            }
+            if (subInfo == null || subInfo.isEmpty()) {
               return NoopFlow.INSTANCE;
             }
-
-            if (ctx.isConvertedReqBodyPublished()) {
-              log.debug(
-                  "Request body already published; will ignore new value of type {}",
-                  obj.getClass());
-              return NoopFlow.INSTANCE;
+            DataBundle bundle =
+                new SingletonDataBundle<>(
+                    KnownAddresses.REQUEST_BODY_OBJECT, ObjectIntrospection.convert(obj));
+            try {
+              return producerService.publishDataEvent(subInfo, ctx, bundle, false);
+            } catch (ExpiredSubscriberInfoException e) {
+              requestBodySubInfo = null;
             }
-            ctx.setConvertedReqBodyPublished(true);
-
-            while (true) {
-              DataSubscriberInfo subInfo = requestBodySubInfo;
-              if (subInfo == null) {
-                subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_OBJECT);
-                requestBodySubInfo = subInfo;
-              }
-              if (subInfo == null || subInfo.isEmpty()) {
-                return NoopFlow.INSTANCE;
-              }
-              DataBundle bundle =
-                  new SingletonDataBundle<>(
-                      KnownAddresses.REQUEST_BODY_OBJECT, ObjectIntrospection.convert(obj));
-              try {
-                return producerService.publishDataEvent(subInfo, ctx, bundle, false);
-              } catch (ExpiredSubscriberInfoException e) {
-                requestBodySubInfo = null;
-              }
-            }
-          });
-    }
+          }
+        });
 
     subscriptionService.registerCallback(
         EVENTS.requestClientSocketAddress(),
@@ -625,35 +612,5 @@ public class GatewayBridge {
       return 10 + (b - 0x61);
     }
     return -1;
-  }
-
-  private static class IGAppSecEventDependencies {
-
-    private static final Map<Address<?>, Collection<datadog.trace.api.gateway.EventType<?>>>
-        DATA_DEPENDENCIES = new HashMap<>(4);
-
-    static {
-      DATA_DEPENDENCIES.put(
-          KnownAddresses.REQUEST_BODY_RAW, l(EVENTS.requestBodyStart(), EVENTS.requestBodyDone()));
-      DATA_DEPENDENCIES.put(KnownAddresses.REQUEST_PATH_PARAMS, l(EVENTS.requestPathParams()));
-      DATA_DEPENDENCIES.put(KnownAddresses.REQUEST_BODY_OBJECT, l(EVENTS.requestBodyProcessed()));
-    }
-
-    private static Collection<datadog.trace.api.gateway.EventType<?>> l(
-        datadog.trace.api.gateway.EventType<?>... events) {
-      return Arrays.asList(events);
-    }
-
-    static Collection<datadog.trace.api.gateway.EventType<?>> additionalIGEventTypes(
-        Collection<Address<?>> addresses) {
-      Set<datadog.trace.api.gateway.EventType<?>> res = new HashSet<>();
-      for (Address<?> address : addresses) {
-        Collection<datadog.trace.api.gateway.EventType<?>> c = DATA_DEPENDENCIES.get(address);
-        if (c != null) {
-          res.addAll(c);
-        }
-      }
-      return res;
-    }
   }
 }
