@@ -53,7 +53,6 @@ public class GatewayBridge {
   private volatile DataSubscriberInfo initialReqDataSubInfo;
   private volatile DataSubscriberInfo rawRequestBodySubInfo;
   private volatile DataSubscriberInfo requestBodySubInfo;
-  private volatile DataSubscriberInfo pathParamsSubInfo;
   private volatile DataSubscriberInfo respDataSubInfo;
   private volatile DataSubscriberInfo grpcServerRequestMsgSubInfo;
 
@@ -99,37 +98,7 @@ public class GatewayBridge {
 
     if (additionalIGEvents.contains(EVENTS.requestPathParams())) {
       subscriptionService.registerCallback(
-          EVENTS.requestPathParams(),
-          (ctx_, data) -> {
-            AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-            if (ctx == null) {
-              return NoopFlow.INSTANCE;
-            }
-
-            if (ctx.isPathParamsPublished()) {
-              log.debug("Second or subsequent publication of request params");
-              return NoopFlow.INSTANCE;
-            }
-
-            while (true) {
-              DataSubscriberInfo subInfo = pathParamsSubInfo;
-              if (subInfo == null) {
-                subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_PATH_PARAMS);
-                pathParamsSubInfo = subInfo;
-              }
-              if (subInfo == null || subInfo.isEmpty()) {
-                return NoopFlow.INSTANCE;
-              }
-              DataBundle bundle =
-                  new SingletonDataBundle<>(KnownAddresses.REQUEST_PATH_PARAMS, data);
-              try {
-                Flow<Void> flow = producerService.publishDataEvent(subInfo, ctx, bundle, false);
-                return flow;
-              } catch (ExpiredSubscriberInfoException e) {
-                pathParamsSubInfo = null;
-              }
-            }
-          });
+          EVENTS.requestPathParams(), new RequestPathParamsCallback(producerService));
     }
 
     if (additionalIGEvents.contains(EVENTS.requestBodyDone())) {
