@@ -1,11 +1,10 @@
-package datadog.trace.api.experimental;
+package datadog.trace.api.profiling;
 
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.Tracer;
 import datadog.trace.api.internal.InternalTracer;
 
-/** This class is experimental and is subject to change and may be removed. */
-public interface Profiling extends ProfilingContext {
+public interface Profiling {
 
   static Profiling get() {
     Tracer tracer = GlobalTracer.get();
@@ -16,14 +15,6 @@ public interface Profiling extends ProfilingContext {
   }
 
   /**
-   * Creates a setter for the attribute, slightly more efficient than calling setContextValue
-   *
-   * @param attribute the name of the attribute
-   * @return a setter which can be used to set and clear profiling context
-   */
-  ProfilingContextSetter createContextSetter(String attribute);
-
-  /**
    * Stateful API which restores the previous context when closed. This requires more memory so has
    * higher overhead than the stateless API.
    *
@@ -31,13 +22,22 @@ public interface Profiling extends ProfilingContext {
    */
   ProfilingScope newScope();
 
+  /**
+   * Creates a decorator for the attribute, which can be used to set and clear contexts slightly
+   * more efficiently than with string attributes.
+   *
+   * @param attribute the name of the attribute
+   * @return a setter which can be used to set and clear profiling context
+   */
+  ProfilingContextAttribute createContextAttribute(String attribute);
+
   final class NoOp implements Profiling {
 
     public static final NoOp INSTANCE = new NoOp();
 
     @Override
-    public ProfilingContextSetter createContextSetter(String attribute) {
-      return ProfilingContextSetter.NoOp.INSTANCE;
+    public ProfilingContextAttribute createContextAttribute(String attribute) {
+      return ProfilingContextAttribute.NoOp.INSTANCE;
     }
 
     @Override

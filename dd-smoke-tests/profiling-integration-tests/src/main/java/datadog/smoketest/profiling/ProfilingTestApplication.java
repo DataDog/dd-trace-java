@@ -1,8 +1,9 @@
 package datadog.smoketest.profiling;
 
 import datadog.trace.api.Trace;
-import datadog.trace.api.experimental.Profiling;
-import datadog.trace.api.experimental.ProfilingContextSetter;
+import datadog.trace.api.profiling.Profiling;
+import datadog.trace.api.profiling.ProfilingContextAttribute;
+import datadog.trace.api.profiling.ProfilingScope;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
@@ -27,8 +28,9 @@ public class ProfilingTestApplication {
   private static final ExecutorService EXECUTOR_SERVICE = Executors.newSingleThreadExecutor();
   private static final ExecutorService FJP = new ForkJoinPool(4);
 
+  @SuppressWarnings("try")
   public static void main(final String[] args) throws Exception {
-    ProfilingContextSetter foo = Profiling.get().createContextSetter("foo");
+    ProfilingContextAttribute foo = Profiling.get().createContextAttribute("foo");
     long duration = -1;
     if (args.length > 0) {
       duration = TimeUnit.SECONDS.toMillis(Long.parseLong(args[0]));
@@ -39,12 +41,14 @@ public class ProfilingTestApplication {
     final long startTime = System.currentTimeMillis();
     int counter = 0;
     while (true) {
-      foo.set("context" + counter % 10);
-      tracedMethod();
-      if (duration > 0 && duration + startTime < System.currentTimeMillis()) {
-        break;
+      try (ProfilingScope scope = Profiling.get().newScope()) {
+        scope.setContextValue(foo, "context" + counter % 10);
+        tracedMethod();
+        if (duration > 0 && duration + startTime < System.currentTimeMillis()) {
+          break;
+        }
+        counter++;
       }
-      counter++;
     }
     System.out.println("Exiting (" + duration + ")");
   }

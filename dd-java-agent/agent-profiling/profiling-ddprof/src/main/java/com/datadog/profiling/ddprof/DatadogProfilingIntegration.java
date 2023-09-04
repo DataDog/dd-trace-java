@@ -1,7 +1,7 @@
 package com.datadog.profiling.ddprof;
 
-import datadog.trace.api.experimental.ProfilingContextSetter;
-import datadog.trace.api.experimental.ProfilingScope;
+import datadog.trace.api.profiling.ProfilingContextAttribute;
+import datadog.trace.api.profiling.ProfilingScope;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 
@@ -51,22 +51,12 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   }
 
   @Override
-  public void setContextValue(String attribute, String value) {
-    DDPROF.setContextValue(attribute, value);
-  }
-
-  @Override
-  public void clearContextValue(String attribute) {
-    DDPROF.clearContextValue(attribute);
-  }
-
-  @Override
   public void setContext(long rootSpanId, long spanId) {
     DDPROF.setSpanContext(spanId, rootSpanId);
   }
 
   @Override
-  public ProfilingContextSetter createContextSetter(String attribute) {
+  public ProfilingContextAttribute createContextAttribute(String attribute) {
     return new DatadogProfilerContextSetter(attribute, DDPROF);
   }
 
