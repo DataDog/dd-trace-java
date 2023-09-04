@@ -318,7 +318,7 @@ public class CapturedContext implements ValueReferenceResolver {
     if (methodLocation == MethodLocation.EXIT) {
       duration = System.nanoTime() - startTimestamp;
       addExtension(
-          ValueReferences.DURATION_EXTENSION_NAME, duration / 1000 / 1000); // convert to ms
+          ValueReferences.DURATION_EXTENSION_NAME, duration / 1_000_000.0); // convert to ms
     }
     this.thisClassName = thisClassName;
     boolean shouldEvaluate = resolveEvaluateAt(probeImplementation, methodLocation);
