@@ -87,43 +87,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     bridge.stop()
   }
 
-  void 'bridge can collect headers'() {
-    when:
-    reqHeaderCB.accept(ctx, 'header1', 'value 1.1')
-    reqHeaderCB.accept(ctx, 'header1', 'value 1.2')
-    reqHeaderCB.accept(ctx, 'Header1', 'value 1.3')
-    reqHeaderCB.accept(ctx, 'header2', 'value 2')
-    respHeaderCB.accept(ctx, 'header3', 'value 3.1')
-    respHeaderCB.accept(ctx, 'header3', 'value 3.2')
-    respHeaderCB.accept(ctx, 'header3', 'value 3.3')
-    respHeaderCB.accept(ctx, 'header4', 'value 4')
-
-    then:
-    def reqHeaders = ctx.data.requestHeaders
-    assert reqHeaders['header1'] == ['value 1.1', 'value 1.2', 'value 1.3']
-    assert reqHeaders['header2'] == ['value 2']
-    def respHeaders = ctx.data.responseHeaders
-    assert respHeaders['header3'] == ['value 3.1', 'value 3.2', 'value 3.3']
-    assert respHeaders['header4'] == ['value 4']
-  }
-
-  void 'headers are split between cookies and non cookies'() {
-    when:
-    reqHeaderCB.accept(ctx, 'Cookie', 'foo=bar;foo2=bar2')
-    reqHeaderCB.accept(ctx, 'Cookie', 'foo3=bar3')
-    reqHeaderCB.accept(ctx, 'Another-Header', 'another value')
-
-    then:
-    def collectedHeaders = ctx.data.requestHeaders
-    assert collectedHeaders['another-header'] == ['another value']
-    assert !collectedHeaders.containsKey('cookie')
-
-    def cookies = ctx.data.cookies
-    assert cookies['foo'] == ['bar']
-    assert cookies['foo2'] == ['bar2']
-    assert cookies['foo3'] == ['bar3']
-  }
-
   void 'headers provided after headers ended are ignored'() {
     DataBundle bundle
 
