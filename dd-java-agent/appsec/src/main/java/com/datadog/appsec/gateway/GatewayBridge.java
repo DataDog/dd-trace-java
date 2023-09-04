@@ -15,7 +15,6 @@ import com.datadog.appsec.event.data.ObjectIntrospection;
 import com.datadog.appsec.event.data.SingletonDataBundle;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
-import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import java.nio.charset.Charset;
@@ -30,15 +29,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Bridges the instrumentation gateway and the reactive engine. */
 public class GatewayBridge {
   private static final Events<AppSecRequestContext> EVENTS = Events.get();
-
-  private static final Logger log = LoggerFactory.getLogger(GatewayBridge.class);
-
   private static final Pattern QUERY_PARAM_VALUE_SPLITTER = Pattern.compile("=");
   private static final Pattern QUERY_PARAM_SPLITTER = Pattern.compile("&");
   private static final Map<String, List<String>> EMPTY_QUERY_PARAMS = Collections.emptyMap();
@@ -50,7 +44,6 @@ public class GatewayBridge {
 
   // subscriber cache
   private volatile DataSubscriberInfo initialReqDataSubInfo;
-  private volatile DataSubscriberInfo requestBodySubInfo;
   private volatile DataSubscriberInfo respDataSubInfo;
   private volatile DataSubscriberInfo grpcServerRequestMsgSubInfo;
 
@@ -106,40 +99,7 @@ public class GatewayBridge {
 
     if (additionalIGEvents.contains(EVENTS.requestBodyProcessed())) {
       subscriptionService.registerCallback(
-          EVENTS.requestBodyProcessed(),
-          (RequestContext ctx_, Object obj) -> {
-            AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-            if (ctx == null) {
-              return NoopFlow.INSTANCE;
-            }
-
-            if (ctx.isConvertedReqBodyPublished()) {
-              log.debug(
-                  "Request body already published; will ignore new value of type {}",
-                  obj.getClass());
-              return NoopFlow.INSTANCE;
-            }
-            ctx.setConvertedReqBodyPublished(true);
-
-            while (true) {
-              DataSubscriberInfo subInfo = requestBodySubInfo;
-              if (subInfo == null) {
-                subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_OBJECT);
-                requestBodySubInfo = subInfo;
-              }
-              if (subInfo == null || subInfo.isEmpty()) {
-                return NoopFlow.INSTANCE;
-              }
-              DataBundle bundle =
-                  new SingletonDataBundle<>(
-                      KnownAddresses.REQUEST_BODY_OBJECT, ObjectIntrospection.convert(obj));
-              try {
-                return producerService.publishDataEvent(subInfo, ctx, bundle, false);
-              } catch (ExpiredSubscriberInfoException e) {
-                requestBodySubInfo = null;
-              }
-            }
-          });
+          EVENTS.requestBodyProcessed(), new RequestBodyProcessedCallback(producerService));
     }
 
     subscriptionService.registerCallback(
