@@ -35,7 +35,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,6 +79,9 @@ public class GatewayBridge {
         IGAppSecEventDependencies.additionalIGEventTypes(
             producerService.allSubscribedEvents(), producerService.allSubscribedDataAddresses());
 
+    final MaybePublishRequestDataCallback maybePublishRequestDataCallback =
+        new MaybePublishRequestDataCallback(producerService);
+
     subscriptionService.registerCallback(
         events.requestStarted(), new RequestStartedCallback(producerService));
 
@@ -89,7 +91,8 @@ public class GatewayBridge {
 
     subscriptionService.registerCallback(EVENTS.requestHeader(), new NewRequestHeaderCallback());
     subscriptionService.registerCallback(
-        EVENTS.requestHeaderDone(), new RequestHeadersDoneCallback());
+        EVENTS.requestHeaderDone(),
+        new RequestHeadersDoneCallback(maybePublishRequestDataCallback));
 
     subscriptionService.registerCallback(
         EVENTS.requestMethodUriRaw(), new MethodAndRawURICallback());
@@ -320,17 +323,6 @@ public class GatewayBridge {
       } else {
         ctx.addRequestHeader(name, value);
       }
-    }
-  }
-
-  private class RequestHeadersDoneCallback implements Function<RequestContext, Flow<Void>> {
-    public Flow<Void> apply(RequestContext ctx_) {
-      AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-      if (ctx == null || ctx.isReqDataPublished()) {
-        return NoopFlow.INSTANCE;
-      }
-      ctx.finishRequestHeaders();
-      return maybePublishRequestData(ctx);
     }
   }
 
