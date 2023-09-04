@@ -110,15 +110,7 @@ public class GatewayBridge {
         EVENTS.requestInferredClientAddress(), new RequestInferredClientAddressCallback());
 
     subscriptionService.registerCallback(
-        EVENTS.responseStarted(),
-        (ctx_, status) -> {
-          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-          if (ctx == null || ctx.isRespDataPublished()) {
-            return NoopFlow.INSTANCE;
-          }
-          ctx.setResponseStatus(status);
-          return maybePublishResponseData(ctx);
-        });
+        EVENTS.responseStarted(), new ResponseStartedCallback(maybePublishRequestDataCallback));
 
     subscriptionService.registerCallback(
         EVENTS.responseHeader(),
