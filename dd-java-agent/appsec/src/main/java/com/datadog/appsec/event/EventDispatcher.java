@@ -124,6 +124,7 @@ public class EventDispatcher implements EventProducerService {
   @Override
   public void publishEvent(AppSecRequestContext ctx, EventType event) {
     final EventListener listener = this.eventListeners[event.ordinal()];
+    // TODO: add null check
     try {
       listener.onEvent(ctx, event);
     } catch (RuntimeException rte) {
