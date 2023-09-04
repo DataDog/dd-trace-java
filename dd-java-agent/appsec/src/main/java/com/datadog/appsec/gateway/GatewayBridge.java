@@ -18,7 +18,6 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
-import datadog.trace.api.http.StoredBodySupplier;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -51,7 +50,6 @@ public class GatewayBridge {
 
   // subscriber cache
   private volatile DataSubscriberInfo initialReqDataSubInfo;
-  private volatile DataSubscriberInfo rawRequestBodySubInfo;
   private volatile DataSubscriberInfo requestBodySubInfo;
   private volatile DataSubscriberInfo respDataSubInfo;
   private volatile DataSubscriberInfo grpcServerRequestMsgSubInfo;
@@ -103,39 +101,7 @@ public class GatewayBridge {
 
     if (additionalIGEvents.contains(EVENTS.requestBodyDone())) {
       subscriptionService.registerCallback(
-          EVENTS.requestBodyDone(),
-          (RequestContext ctx_, StoredBodySupplier supplier) -> {
-            AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-            if (ctx == null || ctx.isRawReqBodyPublished()) {
-              return NoopFlow.INSTANCE;
-            }
-            ctx.setRawReqBodyPublished(true);
-
-            producerService.publishEvent(ctx, EventType.REQUEST_BODY_END);
-
-            while (true) {
-              DataSubscriberInfo subInfo = rawRequestBodySubInfo;
-              if (subInfo == null) {
-                subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_RAW);
-                rawRequestBodySubInfo = subInfo;
-              }
-              if (subInfo == null || subInfo.isEmpty()) {
-                return NoopFlow.INSTANCE;
-              }
-
-              CharSequence bodyContent = supplier.get();
-              if (bodyContent == null || bodyContent.length() == 0) {
-                return NoopFlow.INSTANCE;
-              }
-              DataBundle bundle =
-                  new SingletonDataBundle<>(KnownAddresses.REQUEST_BODY_RAW, bodyContent);
-              try {
-                return producerService.publishDataEvent(subInfo, ctx, bundle, false);
-              } catch (ExpiredSubscriberInfoException e) {
-                rawRequestBodySubInfo = null;
-              }
-            }
-          });
+          EVENTS.requestBodyDone(), new RequestBodyDoneCallback(producerService));
     }
 
     if (additionalIGEvents.contains(EVENTS.requestBodyProcessed())) {
