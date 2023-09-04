@@ -20,7 +20,6 @@ import com.datadog.appsec.report.raw.events.Rule;
 import com.datadog.appsec.report.raw.events.RuleMatch;
 import com.datadog.appsec.report.raw.events.Tags;
 import com.datadog.appsec.util.StandardizedLogging;
-import com.google.auto.service.AutoService;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
@@ -65,7 +64,6 @@ import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@AutoService(AppSecModule.class)
 public class PowerWAFModule implements AppSecModule {
   private static final Logger log = LoggerFactory.getLogger(PowerWAFModule.class);
 
