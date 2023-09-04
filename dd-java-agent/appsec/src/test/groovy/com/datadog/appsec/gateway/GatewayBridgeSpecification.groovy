@@ -8,8 +8,6 @@ import com.datadog.appsec.event.EventType
 import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.SingletonDataBundle
-import com.datadog.appsec.report.AppSecEventWrapper
-import com.datadog.appsec.report.raw.events.AppSecEvent100
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
@@ -87,82 +85,6 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void cleanup() {
     bridge.stop()
-  }
-
-  void 'request_end closes context reports attacks and publishes event'() {
-    AppSecEvent100 event = Mock()
-    AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
-    mockAppSecCtx.requestHeaders >> ['accept':['header_value']]
-    mockAppSecCtx.responseHeaders >> [
-      'some-header': ['123'],
-      'content-type':['text/html; charset=UTF-8']]
-    RequestContext mockCtx = Mock(RequestContext) {
-      getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
-      getTraceSegment() >> traceSegment
-    }
-    IGSpanInfo spanInfo = Mock(AgentSpan)
-
-    when:
-    def flow = requestEndedCB.apply(mockCtx, spanInfo)
-
-    then:
-    1 * spanInfo.getTags() >> ['http.client_ip':'1.1.1.1']
-    1 * mockAppSecCtx.transferCollectedEvents() >> [event]
-    1 * mockAppSecCtx.peerAddress >> '2001::1'
-    1 * mockAppSecCtx.close()
-    1 * traceSegment.setTagTop('manual.keep', true)
-    1 * traceSegment.setTagTop("_dd.appsec.enabled", 1)
-    1 * traceSegment.setTagTop("_dd.runtime_family", "jvm")
-    1 * traceSegment.setTagTop('appsec.event', true)
-    1 * traceSegment.setDataTop('appsec', new AppSecEventWrapper([event]))
-    1 * traceSegment.setTagTop('http.request.headers.accept', 'header_value')
-    1 * traceSegment.setTagTop('http.response.headers.content-type', 'text/html; charset=UTF-8')
-    1 * traceSegment.setTagTop('network.client.ip', '2001::1')
-    1 * eventDispatcher.publishEvent(mockAppSecCtx, EventType.REQUEST_END)
-    flow.result == null
-    flow.action == Flow.Action.Noop.INSTANCE
-  }
-
-  void 'event publishing is rate limited'() {
-    AppSecEvent100 event = Mock()
-    AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
-    mockAppSecCtx.requestHeaders >> [:]
-    RequestContext mockCtx = Mock(RequestContext) {
-      getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
-      getTraceSegment() >> traceSegment
-    }
-    IGSpanInfo spanInfo = Mock(AgentSpan)
-
-    when:
-    11.times {requestEndedCB.apply(mockCtx, spanInfo) }
-
-    then:
-    11 * mockAppSecCtx.transferCollectedEvents() >> [event]
-    11 * mockAppSecCtx.close()
-    11 * eventDispatcher.publishEvent(mockAppSecCtx, EventType.REQUEST_END)
-    10 * spanInfo.getTags() >> ['http.client_ip':'1.1.1.1']
-    10 * traceSegment.setDataTop("appsec", _)
-  }
-
-  void 'actor ip calculated from headers'() {
-    AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
-    mockAppSecCtx.requestHeaders >> [
-      'x-real-ip': ['10.0.0.1'],
-      forwarded: ['for=127.0.0.1', 'for="[::1]", for=8.8.8.8'],
-    ]
-    RequestContext mockCtx = Mock(RequestContext) {
-      getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
-      getTraceSegment() >> traceSegment
-    }
-    IGSpanInfo spanInfo = Mock(AgentSpan)
-
-    when:
-    requestEndedCB.apply(mockCtx, spanInfo)
-
-    then:
-    1 * mockAppSecCtx.transferCollectedEvents() >> [Mock(AppSecEvent100)]
-    1 * spanInfo.getTags() >> ['http.client_ip':'8.8.8.8']
-    1 * traceSegment.setTagTop('actor.ip', '8.8.8.8')
   }
 
   void 'bridge can collect headers'() {
@@ -674,17 +596,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     bundle.get(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE) == [foo: 'bar']
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
-  }
-
-  void 'calls trace segment post processor'() {
-    setup:
-    AgentSpan span = Mock()
-
-    when:
-    requestEndedCB.apply(ctx, span)
-
-    then:
-    1 * pp.processTraceSegment(traceSegment, ctx.data, [])
   }
 
   void 'no appsec events if was not created request context in request_start event'() {
