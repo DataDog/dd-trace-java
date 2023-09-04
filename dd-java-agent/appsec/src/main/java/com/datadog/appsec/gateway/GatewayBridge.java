@@ -44,7 +44,6 @@ public class GatewayBridge {
 
   // subscriber cache
   private volatile DataSubscriberInfo initialReqDataSubInfo;
-  private volatile DataSubscriberInfo respDataSubInfo;
   private volatile DataSubscriberInfo grpcServerRequestMsgSubInfo;
 
   public GatewayBridge(
@@ -115,15 +114,7 @@ public class GatewayBridge {
     subscriptionService.registerCallback(EVENTS.responseHeader(), new ResponseHeaderCallback());
 
     subscriptionService.registerCallback(
-        EVENTS.responseHeaderDone(),
-        ctx_ -> {
-          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-          if (ctx == null || ctx.isRespDataPublished()) {
-            return NoopFlow.INSTANCE;
-          }
-          ctx.finishResponseHeaders();
-          return maybePublishResponseData(ctx);
-        });
+        EVENTS.responseHeaderDone(), new ResponseHeaderDoneCallback(producerService));
 
     subscriptionService.registerCallback(
         EVENTS.grpcServerRequestMessage(),
@@ -214,36 +205,6 @@ public class GatewayBridge {
         return producerService.publishDataEvent(initialReqDataSubInfo, ctx, bundle, false);
       } catch (ExpiredSubscriberInfoException e) {
         initialReqDataSubInfo = null;
-      }
-    }
-  }
-
-  private Flow<Void> maybePublishResponseData(AppSecRequestContext ctx) {
-
-    int status = ctx.getResponseStatus();
-
-    if (status == 0 || !ctx.isFinishedResponseHeaders()) {
-      return NoopFlow.INSTANCE;
-    }
-
-    ctx.setRespDataPublished(true);
-
-    MapDataBundle bundle =
-        MapDataBundle.of(
-            KnownAddresses.RESPONSE_STATUS, String.valueOf(ctx.getResponseStatus()),
-            KnownAddresses.RESPONSE_HEADERS_NO_COOKIES, ctx.getResponseHeaders());
-
-    while (true) {
-      if (respDataSubInfo == null) {
-        respDataSubInfo =
-            producerService.getDataSubscribers(
-                KnownAddresses.RESPONSE_STATUS, KnownAddresses.RESPONSE_HEADERS_NO_COOKIES);
-      }
-
-      try {
-        return producerService.publishDataEvent(respDataSubInfo, ctx, bundle, false);
-      } catch (ExpiredSubscriberInfoException e) {
-        respDataSubInfo = null;
       }
     }
   }
