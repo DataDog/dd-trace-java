@@ -41,6 +41,7 @@ public class AppSecSystem {
   private static ReplaceableEventProducerService REPLACEABLE_EVENT_PRODUCER; // testing
   private static Runnable RESET_SUBSCRIPTION_SERVICE;
 
+  // Outside tests, this is called at most once.
   public static void start(SubscriptionService gw, SharedCommunicationObjects sco) {
     try {
       doStart(gw, sco);
@@ -124,6 +125,7 @@ public class AppSecSystem {
     ActiveSubsystems.APPSEC_ACTIVE = status;
   }
 
+  // Test only.
   public static void stop() {
     if (!STARTED.getAndSet(false)) {
       return;
