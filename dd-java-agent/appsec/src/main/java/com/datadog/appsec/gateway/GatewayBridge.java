@@ -94,17 +94,7 @@ public class GatewayBridge {
 
     if (additionalIGEvents.contains(EVENTS.requestBodyStart())) {
       subscriptionService.registerCallback(
-          EVENTS.requestBodyStart(),
-          (RequestContext ctx_, StoredBodySupplier supplier) -> {
-            AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-            if (ctx == null) {
-              return null;
-            }
-
-            ctx.setStoredRequestBodySupplier(supplier);
-            producerService.publishEvent(ctx, EventType.REQUEST_BODY_START);
-            return null;
-          });
+          EVENTS.requestBodyStart(), new RequestBodyStartCallback(producerService));
     }
 
     if (additionalIGEvents.contains(EVENTS.requestPathParams())) {
