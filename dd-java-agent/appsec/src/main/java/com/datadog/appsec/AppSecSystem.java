@@ -156,7 +156,7 @@ public class AppSecSystem {
       }
 
       for (AppSecModule.EventSubscription sub : module.getEventSubscriptions()) {
-        eventSubscriptionSet.addSubscription(sub.eventType, sub);
+        eventSubscriptionSet.setSubscription(sub.eventType, sub);
       }
 
       for (AppSecModule.DataSubscription sub : module.getDataSubscriptions()) {
@@ -180,7 +180,7 @@ public class AppSecSystem {
     EventDispatcher newEd = new EventDispatcher();
     for (AppSecModule module : STARTED_MODULES_INFO.keySet()) {
       for (AppSecModule.EventSubscription sub : module.getEventSubscriptions()) {
-        eventSubscriptionSet.addSubscription(sub.eventType, sub);
+        eventSubscriptionSet.setSubscription(sub.eventType, sub);
       }
 
       for (AppSecModule.DataSubscription sub : module.getDataSubscriptions()) {
