@@ -395,4 +395,77 @@ class SparkTest extends AgentTestRunner {
       }
     }
   }
+
+  def "add custom tags to spark spans"() {
+    def sparkSession = SparkSession.builder()
+      .config("spark.master", "local[2]")
+      .config("spark.sql.shuffle.partitions", "2")
+      .getOrCreate()
+
+    def df = generateSampleDataframe(sparkSession)
+
+    sparkSession.sparkContext().setLocalProperty("spark.datadog.tags.tag_1", "value_1")
+    sparkSession.sparkContext().setLocalProperty("spark.datadog.tags.tag_2", "value_2")
+    df.coalesce(1).count()
+
+    sparkSession.sparkContext().setLocalProperty("spark.datadog.tags.tag_1", "value_11")
+    sparkSession.sparkContext().setLocalProperty("spark.datadog.tags.tag_2", null)
+    df.coalesce(1).count()
+    sparkSession.stop()
+
+    expect:
+    assertTraces(1) {
+      trace(7) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          assert span.tags["tag_1"] == null
+          assert span.tags["tag_2"] == null
+          parent()
+        }
+        span {
+          operationName "spark.sql"
+          spanType "spark"
+          assert span.tags["tag_1"] == "value_11"
+          assert span.tags["tag_2"] == null
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          assert span.tags["tag_1"] == "value_11"
+          assert span.tags["tag_2"] == null
+          childOf(span(1))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          assert span.tags["tag_1"] == "value_11"
+          assert span.tags["tag_2"] == null
+          childOf(span(2))
+        }
+        span {
+          operationName "spark.sql"
+          spanType "spark"
+          assert span.tags["tag_1"] == "value_1"
+          assert span.tags["tag_2"] == "value_2"
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          assert span.tags["tag_1"] == "value_1"
+          assert span.tags["tag_2"] == "value_2"
+          childOf(span(4))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          assert span.tags["tag_1"] == "value_1"
+          assert span.tags["tag_2"] == "value_2"
+          childOf(span(5))
+        }
+      }
+    }
+  }
 }
