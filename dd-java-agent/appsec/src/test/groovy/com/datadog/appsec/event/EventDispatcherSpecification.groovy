@@ -9,9 +9,6 @@ import datadog.appsec.api.blocking.BlockingContentType
 import datadog.trace.api.gateway.Flow
 import datadog.trace.test.util.DDSpecification
 
-import static org.hamcrest.Matchers.containsInAnyOrder
-import static spock.util.matcher.HamcrestSupport.expect
-
 class EventDispatcherSpecification extends DDSpecification {
   EventDispatcher dispatcher = new EventDispatcher()
   AppSecRequestContext ctx = Mock()

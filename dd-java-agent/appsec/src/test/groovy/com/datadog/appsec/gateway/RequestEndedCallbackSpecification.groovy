@@ -156,7 +156,7 @@ class RequestEndedCallbackSpecification extends DDSpecification {
     final cb = new RequestEndedCallback(eventProducer, rateLimiter, [pp])
 
     when:
-    def flow = cb.apply(ctx, spanInfo)
+    cb.apply(ctx, spanInfo)
 
     then:
     1 * ctx.getData(RequestContextSlot.APPSEC) >> appSecCtx
