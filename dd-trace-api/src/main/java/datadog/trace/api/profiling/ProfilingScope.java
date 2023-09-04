@@ -1,4 +1,4 @@
-package datadog.trace.api.experimental;
+package datadog.trace.api.profiling;
 
 public interface ProfilingScope extends AutoCloseable, ProfilingContext {
 
