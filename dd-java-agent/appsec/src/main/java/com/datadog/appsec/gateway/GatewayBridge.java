@@ -112,14 +112,8 @@ public class GatewayBridge {
     subscriptionService.registerCallback(
         EVENTS.responseStarted(), new ResponseStartedCallback(maybePublishRequestDataCallback));
 
-    subscriptionService.registerCallback(
-        EVENTS.responseHeader(),
-        (ctx_, name, value) -> {
-          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-          if (ctx != null) {
-            ctx.addResponseHeader(name, value);
-          }
-        });
+    subscriptionService.registerCallback(EVENTS.responseHeader(), new ResponseHeaderCallback());
+
     subscriptionService.registerCallback(
         EVENTS.responseHeaderDone(),
         ctx_ -> {
