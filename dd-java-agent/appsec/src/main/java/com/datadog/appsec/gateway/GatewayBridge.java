@@ -48,16 +48,16 @@ public class GatewayBridge {
         EVENTS.requestMethodUriRaw(), new MethodAndRawURICallback(maybePublishRequestDataCallback));
 
     subscriptionService.registerCallback(
-          EVENTS.requestBodyStart(), new RequestBodyStartCallback(producerService));
+        EVENTS.requestBodyStart(), new RequestBodyStartCallback(producerService));
 
-      subscriptionService.registerCallback(
-          EVENTS.requestPathParams(), new RequestPathParamsCallback(producerService));
+    subscriptionService.registerCallback(
+        EVENTS.requestPathParams(), new RequestPathParamsCallback(producerService));
 
-      subscriptionService.registerCallback(
-          EVENTS.requestBodyDone(), new RequestBodyDoneCallback(producerService));
+    subscriptionService.registerCallback(
+        EVENTS.requestBodyDone(), new RequestBodyDoneCallback(producerService));
 
-      subscriptionService.registerCallback(
-          EVENTS.requestBodyProcessed(), new RequestBodyProcessedCallback(producerService));
+    subscriptionService.registerCallback(
+        EVENTS.requestBodyProcessed(), new RequestBodyProcessedCallback(producerService));
 
     subscriptionService.registerCallback(
         EVENTS.requestClientSocketAddress(),
@@ -81,5 +81,4 @@ public class GatewayBridge {
   public void stop() {
     subscriptionService.reset();
   }
-
 }

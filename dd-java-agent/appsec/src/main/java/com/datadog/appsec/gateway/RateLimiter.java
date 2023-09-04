@@ -47,7 +47,7 @@ public class RateLimiter {
     this.throttledCb = cb;
   }
 
-  public final boolean isThrottled() {
+  public boolean isThrottled() {
     long curSec = this.timeSource.getNanoTicks();
     long storedState;
     long newState;

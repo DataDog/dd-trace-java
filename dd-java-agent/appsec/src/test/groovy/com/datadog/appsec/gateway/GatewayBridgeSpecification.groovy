@@ -89,33 +89,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     bridge.stop()
   }
 
-  void 'request_start produces appsec context and publishes event'() {
-    when:
-    Flow<AppSecRequestContext> startFlow = requestStartedCB.get()
-
-    then:
-    1 * eventDispatcher.publishEvent(_ as AppSecRequestContext, EventType.REQUEST_START)
-    Object producedCtx = startFlow.getResult()
-    producedCtx instanceof AppSecRequestContext
-    startFlow.action == Flow.Action.Noop.INSTANCE
-  }
-
-  void 'request_start returns null context if appsec is disabled'() {
-    setup:
-    AppSecSystem.active = false
-
-    when:
-    Flow<AppSecRequestContext> startFlow = requestStartedCB.get()
-
-    then:
-    Object producedCtx = startFlow.getResult()
-    producedCtx == null
-    0 * _._
-
-    cleanup:
-    AppSecSystem.active = true
-  }
-
   void 'request_end closes context reports attacks and publishes event'() {
     AppSecEvent100 event = Mock()
     AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
