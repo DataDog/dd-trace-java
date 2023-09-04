@@ -8,14 +8,10 @@ import com.datadog.appsec.event.EventProducerService.DataSubscriberInfo;
 import com.datadog.appsec.event.EventType;
 import com.datadog.appsec.event.ExpiredSubscriberInfoException;
 import com.datadog.appsec.event.data.Address;
-import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.event.data.MapDataBundle;
-import com.datadog.appsec.event.data.ObjectIntrospection;
-import com.datadog.appsec.event.data.SingletonDataBundle;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
-import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -117,33 +113,7 @@ public class GatewayBridge {
         EVENTS.responseHeaderDone(), new ResponseHeaderDoneCallback(producerService));
 
     subscriptionService.registerCallback(
-        EVENTS.grpcServerRequestMessage(),
-        (ctx_, obj) -> {
-          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-          if (ctx == null) {
-            return NoopFlow.INSTANCE;
-          }
-          while (true) {
-            DataSubscriberInfo subInfo = grpcServerRequestMsgSubInfo;
-            if (subInfo == null) {
-              subInfo =
-                  producerService.getDataSubscribers(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE);
-              grpcServerRequestMsgSubInfo = subInfo;
-            }
-            if (subInfo == null || subInfo.isEmpty()) {
-              return NoopFlow.INSTANCE;
-            }
-            Object convObj = ObjectIntrospection.convert(obj);
-            DataBundle bundle =
-                new SingletonDataBundle<>(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE, convObj);
-            try {
-              return producerService.publishDataEvent(
-                  grpcServerRequestMsgSubInfo, ctx, bundle, true);
-            } catch (ExpiredSubscriberInfoException e) {
-              grpcServerRequestMsgSubInfo = null;
-            }
-          }
-        });
+        EVENTS.grpcServerRequestMessage(), new GrpcServerRequestMessageCallback(producerService));
   }
 
   public void stop() {
