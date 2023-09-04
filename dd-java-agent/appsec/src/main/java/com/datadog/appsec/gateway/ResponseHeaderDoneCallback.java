@@ -29,7 +29,6 @@ class ResponseHeaderDoneCallback implements Function<RequestContext, Flow<Void>>
   }
 
   private Flow<Void> maybePublishResponseData(AppSecRequestContext ctx) {
-
     int status = ctx.getResponseStatus();
 
     if (status == 0 || !ctx.isFinishedResponseHeaders()) {

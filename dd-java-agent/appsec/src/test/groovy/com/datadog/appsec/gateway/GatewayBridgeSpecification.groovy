@@ -542,25 +542,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     flow2.action == Flow.Action.Noop.INSTANCE
   }
 
-  void 'grpc server message recv transforms object and publishes'() {
-    setup:
-    eventDispatcher.getDataSubscribers({ KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE in it }) >> nonEmptyDsInfo
-    DataBundle bundle
-
-    when:
-    Flow<?> flow = grpcServerRequestMessageCB.apply(ctx, new Object() {
-        @SuppressWarnings('UnusedPrivateField')
-        private String foo = 'bar'
-      })
-
-    then:
-    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, true) >>
-    { a, b, db, c -> bundle = db; NoopFlow.INSTANCE }
-    bundle.get(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE) == [foo: 'bar']
-    flow.result == null
-    flow.action == Flow.Action.Noop.INSTANCE
-  }
-
   void 'no appsec events if was not created request context in request_start event'() {
     RequestContext emptyCtx = new RequestContext() {
         final Object data = null

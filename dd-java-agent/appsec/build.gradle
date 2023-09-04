@@ -119,12 +119,12 @@ ext {
     'com.datadog.appsec.config.AppSecConfigServiceImpl.SubscribeFleetServiceRunnable.1',
     'com.datadog.appsec.util.StandardizedLogging',
     'com.datadog.appsec.util.AbortStartupException',
+    'com.datadog.appsec.util.AbortStartupException',
     'com.datadog.appsec.config.AppSecConfig.AppSecConfigV1',
     'com.datadog.appsec.config.AppSecConfig.AppSecConfigV2',
     'com.datadog.appsec.event.ReplaceableEventProducerService',
   ]
   excludedClassesBranchCoverage = [
-    'com.datadog.appsec.gateway.GatewayBridge',
     'com.datadog.appsec.event.data.Address',
     'com.datadog.appsec.config.CurrentAppSecConfig',
     // equals() / hashCode() are not well covered
