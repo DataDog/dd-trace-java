@@ -39,7 +39,7 @@ public class GatewayBridge {
         events.requestEnded(),
         new RequestEndedCallback(producerService, rateLimiter, traceSegmentPostProcessors));
 
-    subscriptionService.registerCallback(EVENTS.requestHeader(), new NewRequestHeaderCallback());
+    subscriptionService.registerCallback(EVENTS.requestHeader(), new RequestHeaderCallback());
     subscriptionService.registerCallback(
         EVENTS.requestHeaderDone(),
         new RequestHeadersDoneCallback(maybePublishRequestDataCallback));

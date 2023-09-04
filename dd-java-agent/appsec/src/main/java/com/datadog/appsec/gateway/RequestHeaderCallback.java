@@ -6,7 +6,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import java.util.List;
 import java.util.Map;
 
-class NewRequestHeaderCallback implements TriConsumer<RequestContext, String, String> {
+class RequestHeaderCallback implements TriConsumer<RequestContext, String, String> {
   @Override
   public void accept(RequestContext ctx_, String name, String value) {
     AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
