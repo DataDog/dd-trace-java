@@ -104,15 +104,7 @@ public class GatewayBridge {
 
     subscriptionService.registerCallback(
         EVENTS.requestClientSocketAddress(),
-        (ctx_, ip, port) -> {
-          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-          if (ctx == null || ctx.isReqDataPublished()) {
-            return NoopFlow.INSTANCE;
-          }
-          ctx.setPeerAddress(ip);
-          ctx.setPeerPort(port);
-          return maybePublishRequestData(ctx);
-        });
+        new RequestClientSocketAddressCallback(maybePublishRequestDataCallback));
 
     subscriptionService.registerCallback(
         EVENTS.requestInferredClientAddress(),
