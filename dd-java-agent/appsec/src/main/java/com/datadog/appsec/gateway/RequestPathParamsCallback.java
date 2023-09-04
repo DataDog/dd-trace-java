@@ -13,8 +13,7 @@ import java.util.function.BiFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class RequestPathParamsCallback
-    implements BiFunction<RequestContext, Map<String, ?>, Flow<Void>> {
+class RequestPathParamsCallback implements BiFunction<RequestContext, Map<String, ?>, Flow<Void>> {
   private static final Logger log = LoggerFactory.getLogger(RequestPathParamsCallback.class);
   private final EventProducerService producerService;
   // subscriber cache

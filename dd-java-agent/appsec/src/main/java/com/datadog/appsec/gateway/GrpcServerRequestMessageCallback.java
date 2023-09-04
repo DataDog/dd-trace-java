@@ -11,8 +11,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import java.util.function.BiFunction;
 
-public class GrpcServerRequestMessageCallback
-    implements BiFunction<RequestContext, Object, Flow<Void>> {
+class GrpcServerRequestMessageCallback implements BiFunction<RequestContext, Object, Flow<Void>> {
 
   private final EventProducerService producerService;
   // subscriber cache

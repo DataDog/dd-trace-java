@@ -5,7 +5,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import java.util.function.BiFunction;
 
-public class ResponseStartedCallback implements BiFunction<RequestContext, Integer, Flow<Void>> {
+class ResponseStartedCallback implements BiFunction<RequestContext, Integer, Flow<Void>> {
   private final MaybePublishRequestDataCallback maybePublishRequestDataCallback;
 
   public ResponseStartedCallback(

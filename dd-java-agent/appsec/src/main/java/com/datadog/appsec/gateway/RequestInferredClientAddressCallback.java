@@ -5,7 +5,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import java.util.function.BiFunction;
 
-public class RequestInferredClientAddressCallback
+class RequestInferredClientAddressCallback
     implements BiFunction<RequestContext, String, Flow<Void>> {
   @Override
   public Flow<Void> apply(final RequestContext ctx_, final String ip) {

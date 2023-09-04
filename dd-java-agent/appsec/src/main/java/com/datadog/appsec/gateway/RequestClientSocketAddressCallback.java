@@ -5,7 +5,7 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 
-public class RequestClientSocketAddressCallback
+class RequestClientSocketAddressCallback
     implements TriFunction<RequestContext, String, Integer, Flow<Void>> {
   private final MaybePublishRequestDataCallback maybePublishRequestDataCallback;
 

@@ -13,8 +13,7 @@ import java.util.function.BiFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class RequestBodyProcessedCallback
-    implements BiFunction<RequestContext, Object, Flow<Void>> {
+class RequestBodyProcessedCallback implements BiFunction<RequestContext, Object, Flow<Void>> {
   private static final Logger log = LoggerFactory.getLogger(RequestBodyProcessedCallback.class);
   private final EventProducerService producerService;
   // subscriber cache

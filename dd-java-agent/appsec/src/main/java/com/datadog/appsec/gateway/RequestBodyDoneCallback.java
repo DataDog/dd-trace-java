@@ -12,7 +12,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.http.StoredBodySupplier;
 import java.util.function.BiFunction;
 
-public class RequestBodyDoneCallback
+class RequestBodyDoneCallback
     implements BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> {
   private final EventProducerService producerService;
   // subscriber cache
