@@ -7,6 +7,7 @@ import com.datadog.appsec.event.EventDispatcher;
 import com.datadog.appsec.event.ReplaceableEventProducerService;
 import com.datadog.appsec.gateway.GatewayBridge;
 import com.datadog.appsec.gateway.RateLimiter;
+import com.datadog.appsec.powerwaf.PowerWAFModule;
 import com.datadog.appsec.util.AbortStartupException;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.appsec.api.blocking.Blocking;
@@ -23,8 +24,8 @@ import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.util.Strings;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -141,8 +142,7 @@ public class AppSecSystem {
     EventDispatcher.DataSubscriptionSet dataSubscriptionSet =
         new EventDispatcher.DataSubscriptionSet();
 
-    ServiceLoader<AppSecModule> modules =
-        ServiceLoader.load(AppSecModule.class, AppSecSystem.class.getClassLoader());
+    final List<AppSecModule> modules = Collections.singletonList(new PowerWAFModule());
     for (AppSecModule module : modules) {
       log.debug("Starting appsec module {}", module.getName());
       try {

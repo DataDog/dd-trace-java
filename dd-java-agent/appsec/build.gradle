@@ -21,9 +21,6 @@ dependencies {
   implementation group: 'io.sqreen', name: 'libsqreen', version: '7.1.0'
   implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
 
-  annotationProcessor deps.autoserviceProcessor
-  compileOnly deps.autoserviceAnnotation
-
   testImplementation deps.bytebuddy
   testImplementation project(':utils:test-utils')
   testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.2'
