@@ -10,7 +10,7 @@ class RequestHeadersDoneCallback implements Function<RequestContext, Flow<Void>>
   private final MaybePublishRequestDataCallback maybePublishRequestDataCallback;
 
   public RequestHeadersDoneCallback(
-      MaybePublishRequestDataCallback maybePublishRequestDataCallback) {
+      final MaybePublishRequestDataCallback maybePublishRequestDataCallback) {
     this.maybePublishRequestDataCallback = maybePublishRequestDataCallback;
   }
 

@@ -13,16 +13,12 @@ import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.event.data.MapDataBundle;
 import com.datadog.appsec.event.data.ObjectIntrospection;
 import com.datadog.appsec.event.data.SingletonDataBundle;
-import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.http.StoredBodySupplier;
-import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -94,7 +90,7 @@ public class GatewayBridge {
         new RequestHeadersDoneCallback(maybePublishRequestDataCallback));
 
     subscriptionService.registerCallback(
-        EVENTS.requestMethodUriRaw(), new MethodAndRawURICallback());
+        EVENTS.requestMethodUriRaw(), new MethodAndRawURICallback(maybePublishRequestDataCallback));
 
     if (additionalIGEvents.contains(EVENTS.requestBodyStart())) {
       subscriptionService.registerCallback(
@@ -305,42 +301,6 @@ public class GatewayBridge {
 
   public void stop() {
     subscriptionService.reset();
-  }
-
-  private class MethodAndRawURICallback
-      implements TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> {
-    @Override
-    public Flow<Void> apply(RequestContext ctx_, String method, URIDataAdapter uri) {
-      AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-      if (ctx == null) {
-        return NoopFlow.INSTANCE;
-      }
-
-      if (ctx.isReqDataPublished()) {
-        log.debug(
-            "Request method and URI already published; will ignore new values {}, {}", method, uri);
-        return NoopFlow.INSTANCE;
-      }
-      ctx.setMethod(method);
-      ctx.setScheme(uri.scheme());
-      if (uri.supportsRaw()) {
-        ctx.setRawURI(uri.raw());
-      } else {
-        try {
-          URI encodedUri = new URI(null, null, uri.path(), uri.query(), null);
-          String q = encodedUri.getRawQuery();
-          StringBuilder encoded = new StringBuilder();
-          encoded.append(encodedUri.getRawPath());
-          if (null != q && !q.isEmpty()) {
-            encoded.append('?').append(q);
-          }
-          ctx.setRawURI(encoded.toString());
-        } catch (URISyntaxException e) {
-          log.debug("Failed to encode URI '{}{}'", uri.path(), uri.query());
-        }
-      }
-      return maybePublishRequestData(ctx);
-    }
   }
 
   private Flow<Void> maybePublishRequestData(AppSecRequestContext ctx) {
