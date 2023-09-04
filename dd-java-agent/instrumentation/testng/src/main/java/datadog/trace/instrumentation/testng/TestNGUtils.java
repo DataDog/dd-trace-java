@@ -154,7 +154,8 @@ public abstract class TestNGUtils {
   }
 
   public static SkippableTest toSkippableTest(Method method, Object instance, Object[] parameters) {
-    String testSuiteName = instance.getClass().getName();
+    Class<?> testClass = instance != null ? instance.getClass() : method.getDeclaringClass();
+    String testSuiteName = testClass.getName();
     String testName = method.getName();
     String testParameters = TestNGUtils.getParameters(parameters);
     return new SkippableTest(testSuiteName, testName, testParameters, null);
