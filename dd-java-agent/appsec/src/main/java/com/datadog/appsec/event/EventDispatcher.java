@@ -10,7 +10,6 @@ import datadog.trace.api.gateway.Flow;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -23,7 +22,8 @@ public class EventDispatcher implements EventProducerService {
   private static final Logger log = LoggerFactory.getLogger(EventDispatcher.class);
   private static final char[] EMPTY_CHAR_ARRAY = new char[0];
 
-  private List<List<EventListener>> eventListeners; // index: eventType.serial
+  private EventListener[] eventListeners =
+      new EventListener[NUM_EVENT_TYPES]; // index: eventType.serial
 
   // indexes are the ids we successively attribute to listeners
   // we support up to 2^16 listeners in total
@@ -36,12 +36,6 @@ public class EventDispatcher implements EventProducerService {
   public EventDispatcher() {
     KnownAddresses.HEADERS_NO_COOKIES.getKey(); // force class initialization
 
-    // empty subscriptions
-    eventListeners = new ArrayList<>(NUM_EVENT_TYPES);
-    for (int i = 0; i < NUM_EVENT_TYPES; i++) {
-      eventListeners.add(Collections.emptyList());
-    }
-
     final int addressCount = Address.instanceCount();
     dataListenerSubs = new ArrayList<>(addressCount);
     for (int i = 0; i < addressCount; i++) {
@@ -50,27 +44,20 @@ public class EventDispatcher implements EventProducerService {
   }
 
   public static class EventSubscriptionSet {
-    private final List<List<EventListener>> eventListeners; // index: eventType.serial
+    private final EventListener[] eventListeners =
+        new EventListener[NUM_EVENT_TYPES]; // index: eventType.serial
 
     public EventSubscriptionSet() {
       KnownAddresses.HEADERS_NO_COOKIES.getKey(); // force class initialization
-
-      eventListeners = new ArrayList<>(NUM_EVENT_TYPES);
-      for (int i = 0; i < NUM_EVENT_TYPES; i++) {
-        eventListeners.add(new ArrayList<>(2));
-      }
     }
 
+    // TODO: setSubscription
     public void addSubscription(EventType event, EventListener listener) {
-      List<EventListener> eventListeners = this.eventListeners.get(event.ordinal());
-      eventListeners.add(listener);
+      this.eventListeners[event.ordinal()] = listener;
     }
   }
 
   public void subscribeEvents(EventSubscriptionSet subscriptionSet) {
-    for (List<EventListener> eventListener : subscriptionSet.eventListeners) {
-      eventListener.sort(OrderedCallback.CallbackPriorityComparator.INSTANCE);
-    }
     this.eventListeners = subscriptionSet.eventListeners;
   }
 
@@ -136,13 +123,11 @@ public class EventDispatcher implements EventProducerService {
 
   @Override
   public void publishEvent(AppSecRequestContext ctx, EventType event) {
-    List<EventListener> eventListeners = this.eventListeners.get(event.ordinal());
-    for (EventListener listener : eventListeners) {
-      try {
-        listener.onEvent(ctx, event);
-      } catch (RuntimeException rte) {
-        log.warn("AppSec callback exception", rte);
-      }
+    final EventListener listener = this.eventListeners[event.ordinal()];
+    try {
+      listener.onEvent(ctx, event);
+    } catch (RuntimeException rte) {
+      log.warn("AppSec callback exception", rte);
     }
   }
 
@@ -209,7 +194,7 @@ public class EventDispatcher implements EventProducerService {
     EventType[] values = EventType.values();
     List<EventType> res = new ArrayList<>(values.length);
     for (int i = 0; i < values.length; i++) {
-      if (!eventListeners.get(i).isEmpty()) {
+      if (eventListeners[i] != null) {
         res.add(values[i]);
       }
     }

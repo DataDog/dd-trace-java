@@ -16,28 +16,6 @@ class EventDispatcherSpecification extends DDSpecification {
   EventDispatcher dispatcher = new EventDispatcher()
   AppSecRequestContext ctx = Mock()
 
-  void 'notifies about events in order'() {
-    given:
-    EventListener eventListener1 = Mock()
-    EventListener eventListener2 = Mock()
-    eventListener1.priority >> OrderedCallback.Priority.DEFAULT
-    eventListener2.priority >> OrderedCallback.Priority.HIGH
-
-    def set = new EventDispatcher.EventSubscriptionSet()
-    set.addSubscription(EventType.REQUEST_END, eventListener1)
-    set.addSubscription(EventType.REQUEST_END, eventListener2)
-    dispatcher.subscribeEvents(set)
-
-    when:
-    dispatcher.publishEvent(ctx, EventType.REQUEST_END)
-
-    then:
-    1 * eventListener2.onEvent(ctx, EventType.REQUEST_END)
-
-    then:
-    1 * eventListener1.onEvent(ctx, EventType.REQUEST_END)
-  }
-
   void 'notifies about data in order with the same flow'() {
     Flow savedFlow1, savedFlow2, savedFlow3
 
