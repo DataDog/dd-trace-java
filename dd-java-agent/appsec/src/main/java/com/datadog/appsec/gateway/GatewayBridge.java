@@ -2,7 +2,6 @@ package com.datadog.appsec.gateway;
 
 import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_6_10;
 
-import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.config.TraceSegmentPostProcessor;
 import com.datadog.appsec.event.EventProducerService;
 import com.datadog.appsec.event.EventProducerService.DataSubscriberInfo;
@@ -89,18 +88,7 @@ public class GatewayBridge {
             producerService.allSubscribedEvents(), producerService.allSubscribedDataAddresses());
 
     subscriptionService.registerCallback(
-        events.requestStarted(),
-        () -> {
-          if (!AppSecSystem.isActive()) {
-            return RequestContextSupplier.EMPTY;
-          }
-
-          RequestContextSupplier requestContextSupplier = new RequestContextSupplier();
-          AppSecRequestContext ctx = requestContextSupplier.getResult();
-          producerService.publishEvent(ctx, EventType.REQUEST_START);
-
-          return requestContextSupplier;
-        });
+        events.requestStarted(), new RequestStartedCallback(producerService));
 
     subscriptionService.registerCallback(
         events.requestEnded(),
@@ -391,30 +379,6 @@ public class GatewayBridge {
 
   public void stop() {
     subscriptionService.reset();
-  }
-
-  private static class RequestContextSupplier implements Flow<AppSecRequestContext> {
-    private static final Flow<AppSecRequestContext> EMPTY = new RequestContextSupplier(null);
-
-    private final AppSecRequestContext appSecRequestContext;
-
-    public RequestContextSupplier() {
-      this(new AppSecRequestContext());
-    }
-
-    public RequestContextSupplier(AppSecRequestContext ctx) {
-      appSecRequestContext = ctx;
-    }
-
-    @Override
-    public Action getAction() {
-      return Action.Noop.INSTANCE;
-    }
-
-    @Override
-    public AppSecRequestContext getResult() {
-      return appSecRequestContext;
-    }
   }
 
   private static class NewRequestHeaderCallback
