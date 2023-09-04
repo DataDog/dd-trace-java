@@ -49,7 +49,4 @@ public interface EventProducerService {
     boolean isEmpty();
   }
 
-  Collection<EventType> allSubscribedEvents();
-
-  Collection<Address<?>> allSubscribedDataAddresses();
 }

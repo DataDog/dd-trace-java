@@ -33,13 +33,4 @@ public class ReplaceableEventProducerService implements EventProducerService {
     return cur.publishDataEvent(subscribers, ctx, newData, isTransient);
   }
 
-  @Override
-  public Collection<EventType> allSubscribedEvents() {
-    return cur.allSubscribedEvents();
-  }
-
-  @Override
-  public Collection<Address<?>> allSubscribedDataAddresses() {
-    return cur.allSubscribedDataAddresses();
-  }
 }

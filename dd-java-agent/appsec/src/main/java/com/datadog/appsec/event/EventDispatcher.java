@@ -190,23 +190,6 @@ public class EventDispatcher implements EventProducerService {
     return flow;
   }
 
-  @Override
-  public Collection<EventType> allSubscribedEvents() {
-    EventType[] values = EventType.values();
-    List<EventType> res = new ArrayList<>(values.length);
-    for (int i = 0; i < values.length; i++) {
-      if (eventListeners[i] != null) {
-        res.add(values[i]);
-      }
-    }
-    return res;
-  }
-
-  @Override
-  public Collection<Address<?>> allSubscribedDataAddresses() {
-    return allSubscribedAddresses;
-  }
-
   private class DataSubscriberInfoImpl implements DataSubscriberInfo {
     final char[] listenerIndices;
 

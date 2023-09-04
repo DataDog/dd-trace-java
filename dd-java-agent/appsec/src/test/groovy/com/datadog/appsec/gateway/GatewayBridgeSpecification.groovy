@@ -392,10 +392,6 @@ class GatewayBridgeSpecification extends DDSpecification {
   }
 
   void callInitAndCaptureCBs() {
-    // force all callbacks to be registered
-    _ * eventDispatcher.allSubscribedEvents() >> [EventType.REQUEST_BODY_START, EventType.REQUEST_BODY_END]
-    _ * eventDispatcher.allSubscribedDataAddresses() >> [KnownAddresses.REQUEST_PATH_PARAMS, KnownAddresses.REQUEST_BODY_OBJECT]
-
     1 * ig.registerCallback(EVENTS.requestStarted(), _) >> { requestStartedCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestEnded(), _) >> { requestEndedCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestMethodUriRaw(), _) >> { requestMethodURICB = it[1]; null }
