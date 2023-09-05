@@ -13,11 +13,6 @@ public class ReplaceableEventProducerService implements EventProducerService {
   }
 
   @Override
-  public void publishEvent(AppSecRequestContext ctx, EventType event) {
-    cur.publishEvent(ctx, event);
-  }
-
-  @Override
   public DataSubscriberInfo getDataSubscribers(Address<?>... newAddresses) {
     return cur.getDataSubscribers(newAddresses);
   }

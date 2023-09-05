@@ -9,6 +9,4 @@ public enum EventType {
   // After REQUEST_BODY_START, AppSecRequestContext::getStoredRequestBody() is avail
   REQUEST_BODY_START,
   REQUEST_BODY_END;
-
-  static int NUM_EVENT_TYPES = EventType.values().length;
 }

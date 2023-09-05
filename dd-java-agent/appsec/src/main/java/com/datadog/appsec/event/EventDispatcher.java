@@ -1,7 +1,5 @@
 package com.datadog.appsec.event;
 
-import static com.datadog.appsec.event.EventType.NUM_EVENT_TYPES;
-
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
@@ -22,9 +20,6 @@ public class EventDispatcher implements EventProducerService {
   private static final Logger log = LoggerFactory.getLogger(EventDispatcher.class);
   private static final char[] EMPTY_CHAR_ARRAY = new char[0];
 
-  private EventListener[] eventListeners =
-      new EventListener[NUM_EVENT_TYPES]; // index: eventType.serial
-
   // indexes are the ids we successively attribute to listeners
   // we support up to 2^16 listeners in total
   // The listeners are ordered by priority (from highest to lowest)
@@ -41,24 +36,6 @@ public class EventDispatcher implements EventProducerService {
     for (int i = 0; i < addressCount; i++) {
       dataListenerSubs.add(EMPTY_CHAR_ARRAY);
     }
-  }
-
-  public static class EventSubscriptionSet {
-    private final EventListener[] eventListeners =
-        new EventListener[NUM_EVENT_TYPES]; // index: eventType.serial
-
-    public EventSubscriptionSet() {
-      KnownAddresses.HEADERS_NO_COOKIES.getKey(); // force class initialization
-    }
-
-    // TODO: setSubscription
-    public void addSubscription(EventType event, EventListener listener) {
-      this.eventListeners[event.ordinal()] = listener;
-    }
-  }
-
-  public void subscribeEvents(EventSubscriptionSet subscriptionSet) {
-    this.eventListeners = subscriptionSet.eventListeners;
   }
 
   public static class DataSubscriptionSet {
@@ -119,17 +96,6 @@ public class EventDispatcher implements EventProducerService {
     dataListenersIdx = newDataListenersIdx;
     dataListenerSubs = newDataListenerSubs;
     allSubscribedAddresses = subSet.allAddresses;
-  }
-
-  @Override
-  public void publishEvent(AppSecRequestContext ctx, EventType event) {
-    final EventListener listener = this.eventListeners[event.ordinal()];
-    // TODO: add null check
-    try {
-      listener.onEvent(ctx, event);
-    } catch (RuntimeException rte) {
-      log.warn("AppSec callback exception", rte);
-    }
   }
 
   @Override

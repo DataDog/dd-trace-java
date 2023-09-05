@@ -2,8 +2,6 @@ package com.datadog.appsec.gateway
 
 import com.datadog.appsec.AppSecSystem
 import com.datadog.appsec.config.TraceSegmentPostProcessor
-import com.datadog.appsec.event.EventProducerService
-import com.datadog.appsec.event.EventType
 import com.datadog.appsec.report.AppSecEventWrapper
 import com.datadog.appsec.report.raw.events.AppSecEvent100
 import datadog.trace.api.gateway.Flow
@@ -32,9 +30,8 @@ class RequestEndedCallbackSpecification extends DDSpecification {
     RequestContext ctx = Mock()
     RateLimiter rateLimiter = Mock()
     IGSpanInfo spanInfo = Mock(AgentSpan)
-    EventProducerService eventProducer = Mock()
     TraceSegmentPostProcessor pp = Mock()
-    final cb = new RequestEndedCallback(eventProducer, rateLimiter, [pp])
+    final cb = new RequestEndedCallback(rateLimiter, [pp])
 
     when:
     def flow = cb.apply(ctx, spanInfo)
@@ -50,6 +47,7 @@ class RequestEndedCallbackSpecification extends DDSpecification {
       'content-type': ['text/html; charset=UTF-8']
     ]
     1 * appSecCtx.peerAddress >> '2001::1'
+    1 * appSecCtx.closeAdditive()
     1 * appSecCtx.close()
     1 * traceSegment.setTagTop('manual.keep', true)
     1 * traceSegment.setTagTop("_dd.appsec.enabled", 1)
@@ -60,7 +58,6 @@ class RequestEndedCallbackSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('http.request.headers.accept', 'header_value')
     1 * traceSegment.setTagTop('http.response.headers.content-type', 'text/html; charset=UTF-8')
     1 * traceSegment.setTagTop('network.client.ip', '2001::1')
-    1 * eventProducer.publishEvent(appSecCtx, EventType.REQUEST_END)
     1 * pp.processTraceSegment(traceSegment, appSecCtx, [event])
     1 * rateLimiter.isThrottled() >> false
     0 * _
@@ -73,9 +70,8 @@ class RequestEndedCallbackSpecification extends DDSpecification {
     RequestContext ctx = Mock()
     IGSpanInfo spanInfo = Mock(AgentSpan)
     RateLimiter rateLimiter = Mock()
-    EventProducerService eventProducer = Mock()
     TraceSegmentPostProcessor pp = Mock()
-    final cb = new RequestEndedCallback(eventProducer, rateLimiter, [pp])
+    final cb = new RequestEndedCallback(rateLimiter, [pp])
 
     when:
     def flow = cb.apply(ctx, spanInfo)
@@ -93,9 +89,8 @@ class RequestEndedCallbackSpecification extends DDSpecification {
     AppSecRequestContext appSecCtx = Mock()
     IGSpanInfo spanInfo = Mock(AgentSpan)
     RateLimiter rateLimiter = Mock()
-    EventProducerService eventProducer = Mock()
     TraceSegmentPostProcessor pp = Mock()
-    final cb = new RequestEndedCallback(eventProducer, rateLimiter, [pp])
+    final cb = new RequestEndedCallback(rateLimiter, [pp])
 
     when:
     def flow = cb.apply(ctx, spanInfo)
@@ -103,7 +98,7 @@ class RequestEndedCallbackSpecification extends DDSpecification {
     then:
     1 * ctx.getData(RequestContextSlot.APPSEC) >> appSecCtx
     1 * ctx.getTraceSegment() >> null
-    1 * eventProducer.publishEvent(appSecCtx, EventType.REQUEST_END)
+    1 * appSecCtx.closeAdditive()
     1 * appSecCtx.close()
     0 * _
     flow.result == null
@@ -118,9 +113,8 @@ class RequestEndedCallbackSpecification extends DDSpecification {
     RequestContext ctx = Mock()
     RateLimiter rateLimiter = new RateLimiter(10, { -> 0L } as TimeSource, RateLimiter.ThrottledCallback.NOOP)
     IGSpanInfo spanInfo = Mock(AgentSpan)
-    EventProducerService eventProducer = Mock()
     TraceSegmentPostProcessor pp = Mock()
-    final cb = new RequestEndedCallback(eventProducer, rateLimiter, [pp])
+    final cb = new RequestEndedCallback(rateLimiter, [pp])
 
     when:
     11.times { cb.apply(ctx, spanInfo) }
@@ -129,8 +123,8 @@ class RequestEndedCallbackSpecification extends DDSpecification {
     11 * ctx.getData(RequestContextSlot.APPSEC) >> appSecCtx
     11 * ctx.getTraceSegment() >> traceSegment
     11 * appSecCtx.transferCollectedEvents() >> [event]
+    11 * appSecCtx.closeAdditive()
     11 * appSecCtx.close()
-    11 * eventProducer.publishEvent(appSecCtx, EventType.REQUEST_END)
     11 * pp.processTraceSegment(traceSegment, appSecCtx, [event])
     10 * appSecCtx.getRequestHeaders() >> null
     10 * appSecCtx.getResponseHeaders() >> null
@@ -151,9 +145,8 @@ class RequestEndedCallbackSpecification extends DDSpecification {
     IGSpanInfo spanInfo = Mock(AgentSpan)
     TraceSegment traceSegment = Mock()
     RateLimiter rateLimiter = Mock()
-    EventProducerService eventProducer = Mock()
     TraceSegmentPostProcessor pp = Mock()
-    final cb = new RequestEndedCallback(eventProducer, rateLimiter, [pp])
+    final cb = new RequestEndedCallback(rateLimiter, [pp])
 
     when:
     cb.apply(ctx, spanInfo)

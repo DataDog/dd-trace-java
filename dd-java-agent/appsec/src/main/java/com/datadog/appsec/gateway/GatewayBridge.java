@@ -8,8 +8,6 @@ import java.util.List;
 
 /** Bridges the instrumentation gateway and the reactive engine. */
 public class GatewayBridge {
-  private static final Events<AppSecRequestContext> EVENTS = Events.get();
-
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
   private final RateLimiter rateLimiter;
@@ -32,50 +30,47 @@ public class GatewayBridge {
     final MaybePublishRequestDataCallback maybePublishRequestDataCallback =
         new MaybePublishRequestDataCallback(producerService);
 
-    subscriptionService.registerCallback(
-        events.requestStarted(), new RequestStartedCallback(producerService));
+    subscriptionService.registerCallback(events.requestStarted(), new RequestStartedCallback());
 
     subscriptionService.registerCallback(
-        events.requestEnded(),
-        new RequestEndedCallback(producerService, rateLimiter, traceSegmentPostProcessors));
+        events.requestEnded(), new RequestEndedCallback(rateLimiter, traceSegmentPostProcessors));
 
-    subscriptionService.registerCallback(EVENTS.requestHeader(), new RequestHeaderCallback());
+    subscriptionService.registerCallback(events.requestHeader(), new RequestHeaderCallback());
     subscriptionService.registerCallback(
-        EVENTS.requestHeaderDone(),
+        events.requestHeaderDone(),
         new RequestHeadersDoneCallback(maybePublishRequestDataCallback));
 
     subscriptionService.registerCallback(
-        EVENTS.requestMethodUriRaw(), new MethodAndRawURICallback(maybePublishRequestDataCallback));
+        events.requestMethodUriRaw(), new MethodAndRawURICallback(maybePublishRequestDataCallback));
+
+    subscriptionService.registerCallback(events.requestBodyStart(), new RequestBodyStartCallback());
 
     subscriptionService.registerCallback(
-        EVENTS.requestBodyStart(), new RequestBodyStartCallback(producerService));
+        events.requestPathParams(), new RequestPathParamsCallback(producerService));
 
     subscriptionService.registerCallback(
-        EVENTS.requestPathParams(), new RequestPathParamsCallback(producerService));
+        events.requestBodyDone(), new RequestBodyDoneCallback(producerService));
 
     subscriptionService.registerCallback(
-        EVENTS.requestBodyDone(), new RequestBodyDoneCallback(producerService));
+        events.requestBodyProcessed(), new RequestBodyProcessedCallback(producerService));
 
     subscriptionService.registerCallback(
-        EVENTS.requestBodyProcessed(), new RequestBodyProcessedCallback(producerService));
-
-    subscriptionService.registerCallback(
-        EVENTS.requestClientSocketAddress(),
+        events.requestClientSocketAddress(),
         new RequestClientSocketAddressCallback(maybePublishRequestDataCallback));
 
     subscriptionService.registerCallback(
-        EVENTS.requestInferredClientAddress(), new RequestInferredClientAddressCallback());
+        events.requestInferredClientAddress(), new RequestInferredClientAddressCallback());
 
     subscriptionService.registerCallback(
-        EVENTS.responseStarted(), new ResponseStartedCallback(maybePublishRequestDataCallback));
+        events.responseStarted(), new ResponseStartedCallback(maybePublishRequestDataCallback));
 
-    subscriptionService.registerCallback(EVENTS.responseHeader(), new ResponseHeaderCallback());
-
-    subscriptionService.registerCallback(
-        EVENTS.responseHeaderDone(), new ResponseHeaderDoneCallback(producerService));
+    subscriptionService.registerCallback(events.responseHeader(), new ResponseHeaderCallback());
 
     subscriptionService.registerCallback(
-        EVENTS.grpcServerRequestMessage(), new GrpcServerRequestMessageCallback(producerService));
+        events.responseHeaderDone(), new ResponseHeaderDoneCallback(producerService));
+
+    subscriptionService.registerCallback(
+        events.grpcServerRequestMessage(), new GrpcServerRequestMessageCallback(producerService));
   }
 
   public void stop() {

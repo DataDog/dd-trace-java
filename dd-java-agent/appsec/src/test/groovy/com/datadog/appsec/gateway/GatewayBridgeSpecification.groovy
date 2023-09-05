@@ -385,7 +385,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     requestBodyStartCB.apply(ctx, supplier)
 
     then:
-    1 * eventDispatcher.publishEvent(ctx.data, EventType.REQUEST_BODY_START)
     ctx.data.storedRequestBody == 'foobar'
   }
 
@@ -403,7 +402,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     requestBodyDoneCB.apply(ctx, supplier)
 
     then:
-    1 * eventDispatcher.publishEvent(ctx.data, EventType.REQUEST_BODY_END)
     bundle.get(KnownAddresses.REQUEST_BODY_RAW) == 'foobar'
   }
 

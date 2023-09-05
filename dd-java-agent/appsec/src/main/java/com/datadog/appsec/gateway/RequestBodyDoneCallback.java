@@ -1,7 +1,6 @@
 package com.datadog.appsec.gateway;
 
 import com.datadog.appsec.event.EventProducerService;
-import com.datadog.appsec.event.EventType;
 import com.datadog.appsec.event.ExpiredSubscriberInfoException;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
@@ -29,8 +28,6 @@ class RequestBodyDoneCallback
       return NoopFlow.INSTANCE;
     }
     ctx.setRawReqBodyPublished(true);
-
-    producerService.publishEvent(ctx, EventType.REQUEST_BODY_END);
 
     while (true) {
       EventProducerService.DataSubscriberInfo subInfo = rawRequestBodySubInfo;

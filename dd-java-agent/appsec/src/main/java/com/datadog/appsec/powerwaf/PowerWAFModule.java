@@ -48,7 +48,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -74,7 +73,6 @@ public class PowerWAFModule implements AppSecModule {
   private static final Class<?> PROXY_CLASS =
       Proxy.getProxyClass(PowerWAFModule.class.getClassLoader(), Set.class);
   private static final Constructor<?> PROXY_CLASS_CONSTRUCTOR;
-  private static final Set<EventType> EVENTS_OF_INTEREST;
 
   private static final JsonAdapter<List<PowerWAFResultData>> RES_JSON_ADAPTER;
 
@@ -115,10 +113,6 @@ public class PowerWAFModule implements AppSecModule {
     } catch (NoSuchMethodException e) {
       throw new UndeclaredThrowableException(e);
     }
-
-    EVENTS_OF_INTEREST = new HashSet<>();
-    EVENTS_OF_INTEREST.add(EventType.REQUEST_START);
-    EVENTS_OF_INTEREST.add(EventType.REQUEST_END);
 
     Moshi moshi = new Moshi.Builder().build();
     RES_JSON_ADAPTER =

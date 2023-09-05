@@ -1,8 +1,6 @@
 package com.datadog.appsec.gateway;
 
 import com.datadog.appsec.config.TraceSegmentPostProcessor;
-import com.datadog.appsec.event.EventProducerService;
-import com.datadog.appsec.event.EventType;
 import com.datadog.appsec.report.AppSecEventWrapper;
 import com.datadog.appsec.report.raw.events.AppSecEvent100;
 import datadog.trace.api.DDTags;
@@ -20,15 +18,12 @@ import java.util.function.BiFunction;
 
 class RequestEndedCallback implements BiFunction<RequestContext, IGSpanInfo, Flow<Void>> {
 
-  private final EventProducerService producerService;
   private final RateLimiter rateLimiter;
   private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors;
 
   public RequestEndedCallback(
-      final EventProducerService producerService,
       final RateLimiter rateLimiter,
       final List<TraceSegmentPostProcessor> traceSegmentPostProcessors) {
-    this.producerService = producerService;
     this.rateLimiter = rateLimiter;
     this.traceSegmentPostProcessors = traceSegmentPostProcessors;
   }
@@ -40,7 +35,8 @@ class RequestEndedCallback implements BiFunction<RequestContext, IGSpanInfo, Flo
       return NoopFlow.INSTANCE;
     }
 
-    producerService.publishEvent(ctx, EventType.REQUEST_END);
+    // WAF call
+    ctx.closeAdditive();
 
     TraceSegment traceSeg = ctx_.getTraceSegment();
 

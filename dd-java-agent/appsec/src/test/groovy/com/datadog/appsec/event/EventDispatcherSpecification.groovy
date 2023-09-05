@@ -141,14 +141,11 @@ class EventDispatcherSpecification extends DDSpecification {
     given:
     EventListener eventListener = Mock()
     eventListener.priority >> OrderedCallback.Priority.DEFAULT
-    def set = new EventDispatcher.EventSubscriptionSet()
-    set.addSubscription(EventType.REQUEST_END, eventListener)
     def addressSet = new EventDispatcher.DataSubscriptionSet()
     DataListener dataListener = Mock()
     dataListener.priority >> OrderedCallback.Priority.DEFAULT
 
     when:
-    dispatcher.subscribeEvents(set)
     addressSet.addSubscription([KnownAddresses.REQUEST_CLIENT_IP], dataListener)
 
     then:

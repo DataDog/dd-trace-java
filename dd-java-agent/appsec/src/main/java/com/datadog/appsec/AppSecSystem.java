@@ -139,8 +139,6 @@ public class AppSecSystem {
   }
 
   private static void loadModules(EventDispatcher eventDispatcher) {
-    EventDispatcher.EventSubscriptionSet eventSubscriptionSet =
-        new EventDispatcher.EventSubscriptionSet();
     EventDispatcher.DataSubscriptionSet dataSubscriptionSet =
         new EventDispatcher.DataSubscriptionSet();
 
@@ -157,10 +155,6 @@ public class AppSecSystem {
         continue;
       }
 
-      for (AppSecModule.EventSubscription sub : module.getEventSubscriptions()) {
-        eventSubscriptionSet.addSubscription(sub.eventType, sub);
-      }
-
       for (AppSecModule.DataSubscription sub : module.getDataSubscriptions()) {
         dataSubscriptionSet.addSubscription(sub.getSubscribedAddresses(), sub);
       }
@@ -168,29 +162,21 @@ public class AppSecSystem {
       STARTED_MODULES_INFO.put(module, module.getInfo());
     }
 
-    eventDispatcher.subscribeEvents(eventSubscriptionSet);
     eventDispatcher.subscribeDataAvailable(dataSubscriptionSet);
   }
 
   private static void reloadSubscriptions(
       ReplaceableEventProducerService replaceableEventProducerService) {
-    EventDispatcher.EventSubscriptionSet eventSubscriptionSet =
-        new EventDispatcher.EventSubscriptionSet();
     EventDispatcher.DataSubscriptionSet dataSubscriptionSet =
         new EventDispatcher.DataSubscriptionSet();
 
     EventDispatcher newEd = new EventDispatcher();
     for (AppSecModule module : STARTED_MODULES_INFO.keySet()) {
-      for (AppSecModule.EventSubscription sub : module.getEventSubscriptions()) {
-        eventSubscriptionSet.addSubscription(sub.eventType, sub);
-      }
-
       for (AppSecModule.DataSubscription sub : module.getDataSubscriptions()) {
         dataSubscriptionSet.addSubscription(sub.getSubscribedAddresses(), sub);
       }
     }
 
-    newEd.subscribeEvents(eventSubscriptionSet);
     newEd.subscribeDataAvailable(dataSubscriptionSet);
 
     replaceableEventProducerService.replaceEventProducerService(newEd);
