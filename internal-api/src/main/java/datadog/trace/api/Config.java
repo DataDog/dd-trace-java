@@ -3491,7 +3491,11 @@ public class Config {
   // This has to be placed after all other static fields to give them a chance to initialize
   @SuppressFBWarnings("SI_INSTANCE_BEFORE_FINALS_ASSIGNED")
   private static final Config INSTANCE =
-      new Config(ConfigProvider.getInstance(), InstrumenterConfig.get());
+      new Config(
+          Platform.isNativeImageBuilder()
+              ? ConfigProvider.withoutCollector()
+              : ConfigProvider.getInstance(),
+          InstrumenterConfig.get());
 
   public static Config get() {
     return INSTANCE;
