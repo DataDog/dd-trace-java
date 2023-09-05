@@ -261,8 +261,26 @@ class MavenProjectConfigurator {
 
   private static void configureJacocoPlugin(
       MavenProject project, ModuleExecutionSettings moduleExecutionSettings) {
-    if (project.getPlugin("org.jacoco:jacoco-maven-plugin") != null) {
-      return; // jacoco is already configured for this project
+    Plugin jacocoPlugin = getJacocoPlugin(project);
+    for (PluginExecution execution : jacocoPlugin.getExecutions()) {
+      if (execution.getGoals().contains("prepare-agent")) {
+        // prepare-agent goal is already configured
+        return;
+      }
+    }
+
+    PluginExecution prepareAgentExecution = new PluginExecution();
+    prepareAgentExecution.addGoal("prepare-agent");
+    jacocoPlugin.addExecution(prepareAgentExecution);
+
+    configureJacocoInstrumentedPackages(
+        prepareAgentExecution, moduleExecutionSettings.getCoverageEnabledPackages());
+  }
+
+  private static Plugin getJacocoPlugin(MavenProject project) {
+    Plugin existingPlugin = project.getPlugin("org.jacoco:jacoco-maven-plugin");
+    if (existingPlugin != null) {
+      return existingPlugin;
     }
 
     Config config = Config.get();
@@ -282,15 +300,10 @@ class MavenProjectConfigurator {
     InputLocation versionLocation = new InputLocation(0, 0, versionSource);
     jacocoPlugin.setLocation("version", versionLocation);
 
-    PluginExecution execution = new PluginExecution();
-    execution.addGoal("prepare-agent");
-    jacocoPlugin.addExecution(execution);
-
-    configureJacocoInstrumentedPackages(
-        execution, moduleExecutionSettings.getCoverageEnabledPackages());
-
     Build build = project.getBuild();
     build.addPlugin(jacocoPlugin);
+
+    return jacocoPlugin;
   }
 
   private static void configureJacocoInstrumentedPackages(
