@@ -75,14 +75,15 @@ public class RepoIndexBuilder implements RepoIndexProvider {
 
     long duration = System.currentTimeMillis() - startTime;
     RepoIndexingStats stats = repoIndexingFileVisitor.indexingStats;
+    RepoIndex index = repoIndexingFileVisitor.getIndex();
     log.info(
-        "Indexing took {} ms. Files visited: {}, source files visited: {}, source roots found: {}",
+        "Indexing took {} ms. Files visited: {}, source files visited: {}, source roots found: {}, root packages found: {}",
         duration,
         stats.filesVisited,
         stats.sourceFilesVisited,
-        repoIndexingFileVisitor.sourceRoots.size());
-
-    return repoIndexingFileVisitor.getIndex();
+        repoIndexingFileVisitor.sourceRoots.size(),
+        index.getRootPackages());
+    return index;
   }
 
   private static final class RepoIndexingFileVisitor implements FileVisitor<Path> {

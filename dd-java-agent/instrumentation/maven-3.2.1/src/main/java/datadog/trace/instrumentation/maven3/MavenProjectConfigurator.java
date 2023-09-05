@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.maven3;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.bootstrap.DatadogClassLoader;
 import datadog.trace.util.Strings;
 import java.io.File;
@@ -231,32 +232,45 @@ class MavenProjectConfigurator {
     return configuration;
   }
 
-  void configureJacoco(MavenProject project) {
+  void configureJacoco(
+      MavenTestExecution testExecution, ModuleExecutionSettings moduleExecutionSettings) {
+    MavenProject project = testExecution.getProject();
+    excludeDatadogClassLoaderFromJacocoInstrumentation(project);
+
+    if (!moduleExecutionSettings.isCodeCoverageEnabled() || testExecution.isRunsWithJacoco()) {
+      return;
+    }
+
+    configureJacocoPlugin(project, moduleExecutionSettings);
+  }
+
+  private static void excludeDatadogClassLoaderFromJacocoInstrumentation(MavenProject project) {
+    String datadogClassLoaderName = DatadogClassLoader.class.getName();
+
     Properties projectProperties = project.getProperties();
-
     String currentValue = projectProperties.getProperty(JACOCO_EXCL_CLASS_LOADERS_PROPERTY);
-    String updatedValue =
-        Strings.isNotBlank(currentValue)
-            ? currentValue + ":" + DatadogClassLoader.class.getName()
-            : DatadogClassLoader.class.getName();
-
-    projectProperties.setProperty(JACOCO_EXCL_CLASS_LOADERS_PROPERTY, updatedValue);
-
-    String jacocoPluginVersion = Config.get().getCiVisibilityJacocoPluginVersion();
-    if (jacocoPluginVersion != null) {
-      configureJacocoPlugin(project, jacocoPluginVersion);
+    if (Strings.isNotBlank(currentValue)) {
+      if (!currentValue.contains(datadogClassLoaderName)) {
+        projectProperties.setProperty(
+            JACOCO_EXCL_CLASS_LOADERS_PROPERTY, currentValue + ":" + datadogClassLoaderName);
+      }
+    } else {
+      projectProperties.setProperty(JACOCO_EXCL_CLASS_LOADERS_PROPERTY, datadogClassLoaderName);
     }
   }
 
-  private static void configureJacocoPlugin(MavenProject project, String jacocoPluginVersion) {
+  private static void configureJacocoPlugin(
+      MavenProject project, ModuleExecutionSettings moduleExecutionSettings) {
     if (project.getPlugin("org.jacoco:jacoco-maven-plugin") != null) {
       return; // jacoco is already configured for this project
     }
 
+    Config config = Config.get();
+
     Plugin jacocoPlugin = new Plugin();
     jacocoPlugin.setGroupId("org.jacoco");
     jacocoPlugin.setArtifactId("jacoco-maven-plugin");
-    jacocoPlugin.setVersion(jacocoPluginVersion);
+    jacocoPlugin.setVersion(config.getCiVisibilityJacocoPluginVersion());
 
     // a little trick to avoid triggering
     // Maven Enforcer Plugin's "Require Plugin Versions" rule:
@@ -272,15 +286,8 @@ class MavenProjectConfigurator {
     execution.addGoal("prepare-agent");
     jacocoPlugin.addExecution(execution);
 
-    List<String> instrumentedPackages = Config.get().getCiVisibilityJacocoPluginIncludes();
-    if (instrumentedPackages != null && !instrumentedPackages.isEmpty()) {
-      configureJacocoInstrumentedPackages(execution, instrumentedPackages);
-    } else {
-      List<String> excludedPackages = Config.get().getCiVisibilityJacocoPluginExcludes();
-      if (excludedPackages != null && !excludedPackages.isEmpty()) {
-        configureExcludedPackages(execution, excludedPackages);
-      }
-    }
+    configureJacocoInstrumentedPackages(
+        execution, moduleExecutionSettings.getCoverageEnabledPackages());
 
     Build build = project.getBuild();
     build.addPlugin(jacocoPlugin);
@@ -290,29 +297,17 @@ class MavenProjectConfigurator {
       PluginExecution execution, List<String> instrumentedPackages) {
     Xpp3Dom includes = new Xpp3Dom("includes");
     for (String instrumentedPackage : instrumentedPackages) {
-      Xpp3Dom include = new Xpp3Dom("include");
-      include.setValue(instrumentedPackage);
-      includes.addChild(include);
+      if (Strings.isNotBlank(instrumentedPackage)) {
+        Xpp3Dom include = new Xpp3Dom("include");
+        include.setValue(instrumentedPackage);
+        includes.addChild(include);
+      }
     }
 
-    Xpp3Dom configuration = new Xpp3Dom("configuration");
-    configuration.addChild(includes);
-
-    execution.setConfiguration(configuration);
-  }
-
-  private static void configureExcludedPackages(
-      PluginExecution execution, List<String> excludedPackages) {
-    Xpp3Dom excludes = new Xpp3Dom("excludes");
-    for (String excludedPackage : excludedPackages) {
-      Xpp3Dom exclude = new Xpp3Dom("exclude");
-      exclude.setValue(excludedPackage);
-      excludes.addChild(exclude);
+    if (includes.getChildCount() > 0) {
+      Xpp3Dom configuration = new Xpp3Dom("configuration");
+      configuration.addChild(includes);
+      execution.setConfiguration(configuration);
     }
-
-    Xpp3Dom configuration = new Xpp3Dom("configuration");
-    configuration.addChild(excludes);
-
-    execution.setConfiguration(configuration);
   }
 }
