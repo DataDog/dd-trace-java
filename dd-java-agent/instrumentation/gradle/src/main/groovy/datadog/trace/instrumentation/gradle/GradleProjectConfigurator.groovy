@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.gradle
 
 import datadog.trace.api.Config
+import datadog.trace.api.civisibility.config.ModuleExecutionSettings
 import datadog.trace.bootstrap.DatadogClassLoader
+import datadog.trace.util.Strings
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.internal.jvm.Jvm
@@ -42,6 +44,8 @@ class GradleProjectConfigurator {
    */
 
   public static final GradleProjectConfigurator INSTANCE = new GradleProjectConfigurator()
+
+  private static final String JACOCO_PLUGIN_ID = 'jacoco'
 
   void configureTracer(Task task, Map<String, String> propagatedSystemProperties) {
     List<String> jvmArgs = new ArrayList<>(task.jvmArgs != null ? task.jvmArgs : Collections.<String> emptyList())
@@ -140,15 +144,13 @@ class GradleProjectConfigurator {
     return null
   }
 
-  void configureJacoco(Project project) {
-    def config = Config.get()
-    String jacocoPluginVersion = config.getCiVisibilityJacocoPluginVersion()
-    if (jacocoPluginVersion == null) {
+  void configureJacoco(Project project, ModuleExecutionSettings moduleExecutionSettings) {
+    if (!moduleExecutionSettings.codeCoverageEnabled || project.plugins.hasPlugin(JACOCO_PLUGIN_ID)) {
       return
     }
 
-    project.apply("plugin": "jacoco")
-    project.jacoco.toolVersion = jacocoPluginVersion
+    project.apply("plugin": JACOCO_PLUGIN_ID)
+    project.jacoco.toolVersion = Config.get().ciVisibilityJacocoPluginVersion
 
     // if instrumented project does dependency verification,
     // we need to exclude configurations added by Jacoco
@@ -160,16 +162,13 @@ class GradleProjectConfigurator {
       }
     }
 
+    def coverageEnabledPackages = moduleExecutionSettings.getCoverageEnabledPackages()
     forEveryTestTask project, { task ->
       task.jacoco.excludeClassLoaders += [DatadogClassLoader.name]
 
-      Collection<String> instrumentedPackages = config.ciVisibilityJacocoPluginIncludes
-      if (instrumentedPackages != null && !instrumentedPackages.empty) {
-        task.jacoco.includes += instrumentedPackages
-      } else {
-        Collection<String> excludedPackages = config.ciVisibilityJacocoPluginExcludes
-        if (excludedPackages != null && !excludedPackages.empty) {
-          task.jacoco.excludes += excludedPackages
+      for (String coverageEnabledPackage : coverageEnabledPackages) {
+        if (Strings.isNotBlank(coverageEnabledPackage)) {
+          task.jacoco.includes += coverageEnabledPackage
         }
       }
     }
@@ -196,8 +195,6 @@ class GradleProjectConfigurator {
       String compilerPluginVersion = config.getCiVisibilityCompilerPluginVersion()
       configureCompilerPlugin(project, compilerPluginVersion)
     }
-
-    configureJacoco(project)
 
     Map<Path, Collection<Task>> testExecutions = new HashMap<>()
     for (Task task : project.tasks) {
