@@ -64,10 +64,12 @@ abstract class CiVisibilityTest extends AgentTestRunner {
 
     def moduleExecutionSettingsFactory = Stub(ModuleExecutionSettingsFactory)
     moduleExecutionSettingsFactory.create(_, _) >> {
+      def codeCoverageEnabled = false
+      def itrEnabled = !skippableTests.isEmpty()
       Map<String, String> properties = [
-        (CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED) : String.valueOf(!skippableTests.isEmpty())
+        (CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED) : String.valueOf(itrEnabled)
       ]
-      return new ModuleExecutionSettings(properties, Collections.singletonMap(dummyModule, skippableTests))
+      return new ModuleExecutionSettings(codeCoverageEnabled, itrEnabled, properties, Collections.singletonMap(dummyModule, skippableTests), Collections.emptyList())
     }
 
     def coverageProbeStoreFactory = new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory()

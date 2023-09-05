@@ -4,7 +4,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.config.SkippableTest;
-import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
@@ -88,10 +87,8 @@ public class DDTestFrameworkModuleImpl extends DDTestModuleImpl implements DDTes
   private Collection<SkippableTest> fetchSkippableTests() {
     ModuleExecutionSettings moduleExecutionSettings =
         moduleExecutionSettingsFactory.create(JvmInfo.CURRENT_JVM, moduleName);
-    Map<String, String> systemProperties = moduleExecutionSettings.getSystemProperties();
-    codeCoverageEnabled =
-        propertyEnabled(systemProperties, CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED);
-    itrEnabled = propertyEnabled(systemProperties, CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED);
+    codeCoverageEnabled = moduleExecutionSettings.isCodeCoverageEnabled();
+    itrEnabled = moduleExecutionSettings.isItrEnabled();
     return new HashSet<>(moduleExecutionSettings.getSkippableTests(moduleName));
   }
 

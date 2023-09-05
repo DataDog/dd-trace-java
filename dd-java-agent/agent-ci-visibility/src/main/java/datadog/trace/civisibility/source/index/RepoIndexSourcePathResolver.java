@@ -20,9 +20,9 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
   }
 
   RepoIndexSourcePathResolver(
-      String repoRoot, SourceRootResolver sourceRootResolver, FileSystem fileSystem) {
+      String repoRoot, PackageResolver packageResolver, FileSystem fileSystem) {
     this.repoRoot = repoRoot;
-    this.indexProvider = new RepoIndexBuilder(repoRoot, sourceRootResolver, fileSystem);
+    this.indexProvider = new RepoIndexBuilder(repoRoot, packageResolver, fileSystem);
   }
 
   @Nullable

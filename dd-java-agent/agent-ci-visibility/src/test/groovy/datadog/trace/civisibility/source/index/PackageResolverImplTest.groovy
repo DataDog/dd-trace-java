@@ -6,9 +6,9 @@ import spock.lang.Specification
 
 import java.nio.file.Files
 
-class SourceRootResolverImplTest extends Specification {
+class PackageResolverImplTest extends Specification {
 
-  def "test source root resolution"() {
+  def "test source root resolution: #path"() {
     setup:
     def fileSystem = Jimfs.newFileSystem(Configuration.unix())
     def javaFilePath = fileSystem.getPath(path)
@@ -17,22 +17,22 @@ class SourceRootResolverImplTest extends Specification {
     Files.write(javaFilePath, contents.getBytes())
 
     when:
-    def sourceRootResolver = new SourceRootResolverImpl(fileSystem)
-    def sourceRoot = sourceRootResolver.getSourceRoot(javaFilePath)
+    def packageResolver = new PackageResolverImpl(fileSystem)
+    def packagePath = packageResolver.getPackage(javaFilePath)
 
     then:
-    sourceRoot == fileSystem.getPath(expectedSourceRoot)
+    packagePath == fileSystem.getPath(expectedPackageName)
 
     where:
-    path                             | contents                                      | expectedSourceRoot
-    "/root/src/MyClass.java"         | CLASS_IN_DEFAULT_PACKAGE                      | "/root/src"
-    "/root/src/foo/bar/MyClass.java" | CLASS_IN_FOO_BAR_PACKAGE                      | "/root/src"
-    "/root/src/foo/bar/MyClass.java" | BLANK_LINES_BEFORE_PACKAGE                    | "/root/src"
-    "/root/src/foo/bar/MyClass.java" | SPACES_BEFORE_PACKAGE                         | "/root/src"
-    "/root/src/foo/bar/MyClass.java" | COMMENT_BEFORE_PACKAGE                        | "/root/src"
-    "/root/src/foo/bar/MyClass.java" | COMMENT_WITH_KEYWORD_BEFORE_PACKAGE           | "/root/src"
-    "/root/src/foo/bar/MyClass.java" | MULTILINE_COMMENT_BEFORE_PACKAGE              | "/root/src"
-    "/root/src/foo/bar/MyClass.java" | MULTILINE_COMMENT_WITH_KEYWORD_BEFORE_PACKAGE | "/root/src"
+    path                             | contents                                      | expectedPackageName
+    "/root/src/MyClass.java"         | CLASS_IN_DEFAULT_PACKAGE                      | ""
+    "/root/src/foo/bar/MyClass.java" | CLASS_IN_FOO_BAR_PACKAGE                      | "foo/bar"
+    "/root/src/foo/bar/MyClass.java" | BLANK_LINES_BEFORE_PACKAGE                    | "foo/bar"
+    "/root/src/foo/bar/MyClass.java" | SPACES_BEFORE_PACKAGE                         | "foo/bar"
+    "/root/src/foo/bar/MyClass.java" | COMMENT_BEFORE_PACKAGE                        | "foo/bar"
+    "/root/src/foo/bar/MyClass.java" | COMMENT_WITH_KEYWORD_BEFORE_PACKAGE           | "foo/bar"
+    "/root/src/foo/bar/MyClass.java" | MULTILINE_COMMENT_BEFORE_PACKAGE              | "foo/bar"
+    "/root/src/foo/bar/MyClass.java" | MULTILINE_COMMENT_WITH_KEYWORD_BEFORE_PACKAGE | "foo/bar"
   }
 
   private static final String CLASS_IN_DEFAULT_PACKAGE =
