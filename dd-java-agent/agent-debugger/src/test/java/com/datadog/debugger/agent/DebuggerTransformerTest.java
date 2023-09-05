@@ -345,7 +345,7 @@ public class DebuggerTransformerTest {
     }
 
     @Override
-    public void instrument(
+    public InstrumentationResult.Status instrument(
         ClassLoader classLoader,
         ClassNode classNode,
         MethodNode methodNode,
@@ -353,6 +353,7 @@ public class DebuggerTransformerTest {
         List<String> probeIds) {
       methodNode.instructions.insert(
           new VarInsnNode(Opcodes.ASTORE, methodNode.localVariables.size()));
+      return InstrumentationResult.Status.INSTALLED;
     }
 
     public static MockProbe.Builder builder(ProbeId probeId) {

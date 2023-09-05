@@ -10,6 +10,7 @@ import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.instrumentation.CapturedContextInstrumentor;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
+import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.sink.Sink;
 import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.Json;
@@ -343,13 +344,13 @@ public class LogProbe extends ProbeDefinition {
   }
 
   @Override
-  public void instrument(
+  public InstrumentationResult.Status instrument(
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics,
       List<String> probeIds) {
-    new CapturedContextInstrumentor(
+    return new CapturedContextInstrumentor(
             this,
             classLoader,
             classNode,

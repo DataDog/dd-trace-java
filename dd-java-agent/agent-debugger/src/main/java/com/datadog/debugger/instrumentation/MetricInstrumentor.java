@@ -89,29 +89,29 @@ public class MetricInstrumentor extends Instrumentor {
   }
 
   @Override
-  public void instrument() {
+  public InstrumentationResult.Status instrument() {
     if (isLineProbe) {
       fillLineMap();
-      addLineMetric(lineMap);
-    } else {
-      switch (definition.getEvaluateAt()) {
-        case ENTRY:
-        case DEFAULT:
-          {
-            InsnList insnList = wrapTryCatch(callMetric(metricProbe));
-            methodNode.instructions.insert(methodEnterLabel, insnList);
-            break;
-          }
-        case EXIT:
-          {
-            processInstructions();
-            break;
-          }
-        default:
-          throw new IllegalArgumentException(
-              "Invalid evaluateAt attribute: " + definition.getEvaluateAt());
-      }
+      return addLineMetric(lineMap);
     }
+    switch (definition.getEvaluateAt()) {
+      case ENTRY:
+      case DEFAULT:
+        {
+          InsnList insnList = wrapTryCatch(callMetric(metricProbe));
+          methodNode.instructions.insert(methodEnterLabel, insnList);
+          break;
+        }
+      case EXIT:
+        {
+          processInstructions();
+          break;
+        }
+      default:
+        throw new IllegalArgumentException(
+            "Invalid evaluateAt attribute: " + definition.getEvaluateAt());
+    }
+    return InstrumentationResult.Status.INSTALLED;
   }
 
   private InsnList wrapTryCatch(InsnList insnList) {
@@ -287,15 +287,15 @@ public class MetricInstrumentor extends Instrumentor {
     return null;
   }
 
-  private void addLineMetric(LineMap lineMap) {
+  private InstrumentationResult.Status addLineMetric(LineMap lineMap) {
     Where.SourceLine[] targetLines = metricProbe.getWhere().getSourceLines();
     if (targetLines == null) {
-      // no line capture to perform
-      return;
+      reportError("Missing line(s) in probe definition.");
+      return InstrumentationResult.Status.ERROR;
     }
     if (lineMap.isEmpty()) {
       reportError("Missing line debug information.");
-      return;
+      return InstrumentationResult.Status.ERROR;
     }
     for (Where.SourceLine sourceLine : targetLines) {
       int from = sourceLine.getFrom();
@@ -316,6 +316,7 @@ public class MetricInstrumentor extends Instrumentor {
         methodNode.instructions.insert(afterLabel, insnList);
       }
     }
+    return InstrumentationResult.Status.INSTALLED;
   }
 
   private static class VisitorResult {
