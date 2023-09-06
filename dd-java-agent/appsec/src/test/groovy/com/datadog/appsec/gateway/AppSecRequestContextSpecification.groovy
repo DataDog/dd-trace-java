@@ -98,7 +98,7 @@ class AppSecRequestContextSpecification extends DDSpecification {
 
   void 'can collect events'() {
     when:
-    ctx.reportEvents([new AppSecEvent100(), new AppSecEvent100()], null)
+    ctx.reportEvents([new AppSecEvent100(), new AppSecEvent100()])
     def events = ctx.transferCollectedEvents()
 
     then:
@@ -107,7 +107,7 @@ class AppSecRequestContextSpecification extends DDSpecification {
     events[1] != null
 
     when:
-    ctx.reportEvents([new AppSecEvent100()], null)
+    ctx.reportEvents([new AppSecEvent100()])
 
     then:
     thrown IllegalStateException
