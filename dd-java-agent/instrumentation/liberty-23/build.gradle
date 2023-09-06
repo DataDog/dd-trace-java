@@ -69,7 +69,7 @@ configurations {
 }
 compileWebappJava.dependsOn ':dd-java-agent:instrumentation:servlet:request-5:testFixturesJar'
 configurations.testRuntimeOnly {
-  //exclude group: 'ch.qos.logback', module: 'logback-classic'
+  exclude group: 'ch.qos.logback', module: 'logback-classic'
   exclude group: 'org.codehaus.groovy', module: 'groovy-servlet'
 }
 configurations.webappRuntimeClasspath {
