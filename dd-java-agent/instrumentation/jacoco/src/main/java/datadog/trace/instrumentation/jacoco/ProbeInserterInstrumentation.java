@@ -17,7 +17,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.field.FieldDescription;
@@ -39,7 +38,7 @@ public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".ReflectiveMethodVisitor"};
+    return new String[] {packageName + ".MethodVisitorWrapper"};
   }
 
   @SuppressForbidden
@@ -134,8 +133,7 @@ public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility
         @Advice.FieldValue(value = "mv") final Object mv,
         @Advice.FieldValue(value = "arrayStrategy") final Object arrayStrategy,
         @Advice.Argument(0) final int id)
-        throws NoSuchMethodException, InvocationTargetException, IllegalAccessException,
-            NoSuchFieldException, ClassNotFoundException {
+        throws Throwable {
       Field classNameField = arrayStrategy.getClass().getDeclaredField("className");
       classNameField.setAccessible(true);
       String className = (String) classNameField.get(arrayStrategy);
@@ -151,7 +149,7 @@ public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility
       classIdField.setAccessible(true);
       Long classId = classIdField.getLong(arrayStrategy);
 
-      ReflectiveMethodVisitor methodVisitor = ReflectiveMethodVisitor.wrap(mv);
+      MethodVisitorWrapper methodVisitor = MethodVisitorWrapper.wrap(mv);
 
       methodVisitor.visitLdcInsn(classId);
       methodVisitor.visitLdcInsn(className);
