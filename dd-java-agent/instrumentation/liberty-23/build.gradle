@@ -1,5 +1,6 @@
 plugins {
   id 'java-test-fixtures'
+  id 'com.github.johnrengelman.shadow' version '7.1.2'
 }
 muzzle {
   pass {
@@ -29,16 +30,18 @@ configurations {
 evaluationDependsOn ':dd-java-agent:instrumentation:servlet:request-5'
 
 dependencies {
+  // shadow group: 'io.openliberty', name: 'openliberty-runtime', version: '23.0.0.7', ext: 'zip'
   zipped group: 'io.openliberty', name: 'openliberty-runtime', version: '23.0.0.7', ext: 'zip'
   testLogging deps.testLogging
 
   compileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
-  //compileOnly group: 'io.openliberty', name: 'openliberty-runtime', version: '23.0.0.7'
   compileOnly files({ tasks.installOpenLibertyDeps.extractedJars })
+  //  compileOnly files({ tasks.shadowJar.archiveFile })
   implementation project(':dd-java-agent:instrumentation:servlet:request-5')
-
   testImplementation files({ tasks.installOpenLibertyDeps.wsServerJar })
+  //testRuntimeOnly files({ tasks.shadowJar.archiveFile })
   testRuntimeOnly files({ tasks.installOpenLibertyDeps.extractedJars })
+
   testImplementation testFixtures(project(':dd-java-agent:appsec'))
   testRuntimeOnly project(':dd-java-agent:instrumentation:osgi-4.3')
   testRuntimeOnly files({ tasks.filterLogbackClassic.filteredLogbackDir })
@@ -59,10 +62,14 @@ dependencies {
   // because using testFixtures() causes some early evaluation of dependencies
   webappRuntimeOnly deps.groovy
 }
+configurations {
+  testRuntimeOnly {
+    exclude group: 'org.slf4j', module: '**'
+  }
+}
 compileWebappJava.dependsOn ':dd-java-agent:instrumentation:servlet:request-5:testFixturesJar'
-
 configurations.testRuntimeOnly {
-  exclude group: 'ch.qos.logback', module: 'logback-classic'
+  //exclude group: 'ch.qos.logback', module: 'logback-classic'
   exclude group: 'org.codehaus.groovy', module: 'groovy-servlet'
 }
 configurations.webappRuntimeClasspath {
@@ -405,3 +412,27 @@ tasks.register('filterLogbackClassic', Sync) {
   into ext.filteredLogbackDir
 }
 [test, forkedTest]*.dependsOn filterLogbackClassic
+
+//shadowJar {
+//    zip64 true
+//    archiveFileName = 'openliberty-shadow.jar'
+//
+//    // Exclude DataDog packages, Byte Buddy packages, OkHttp3 packages
+//    exclude 'jnr/**'
+//    exclude 'datadog/**'
+//    exclude 'com/datadoghq/sketch/**'
+//    exclude 'com/squareup/moshi/**'
+//    exclude 'com/datadog/**'
+//    exclude 'net/bytebuddy/**'
+//    exclude 'okhttp3/**'
+//    // Exclude META-INF and WEB-INF directories
+//    exclude 'META-INF/**'
+//    exclude 'WEB-INF/**'
+//
+//    // Include JAR files from the 'lib' directory
+//    from("${buildDir}/openliberty-jars") {
+//        include "wlp/lib/*.jar"
+//        include "wlp/dev/*.jar"
+//    }
+//}
+//test.dependsOn shadowJar
