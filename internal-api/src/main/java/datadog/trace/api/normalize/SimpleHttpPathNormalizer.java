@@ -45,6 +45,9 @@ public final class SimpleHttpPathNormalizer extends HttpPathNormalizer {
             if (!numeric) {
               if (Character.isWhitespace(c)) {
                 sb = ensureStringBuilder(sb, path, j);
+                if (sb.length() > 0 && !encoded) {
+                  sb.append(c);
+                }
               } else if (sb != null) {
                 sb.append(c);
               }

@@ -10,6 +10,7 @@ import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
 import akka.http.scaladsl.model.ResponseEntity;
 import akka.http.scaladsl.model.StatusCode;
+import akka.http.scaladsl.model.StatusCodes;
 import akka.util.ByteString;
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -95,7 +96,12 @@ public class BlockingResponseHelper {
                         RawHeader.create(e.getKey(), e.getValue()))
             .collect(ScalaListCollector.toScalaList());
 
-    return HttpResponse.apply(
-        StatusCode.int2StatusCode(httpCode), headersList, entity, request.protocol());
+    StatusCode code;
+    try {
+      code = StatusCode.int2StatusCode(httpCode);
+    } catch (RuntimeException e) {
+      code = StatusCodes.custom(httpCode, "Request Blocked", "", false, true);
+    }
+    return HttpResponse.apply(code, headersList, entity, request.protocol());
   }
 }

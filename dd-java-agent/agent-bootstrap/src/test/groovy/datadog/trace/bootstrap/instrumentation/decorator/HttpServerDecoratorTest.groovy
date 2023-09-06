@@ -145,9 +145,9 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
     where:
     rawQuery | rawResource | url                             | expectedUrl           | expectedQuery | expectedResource
-    false    | false       | "http://host/p%20ath?query%3F?" | "http://host/p ath"   | "query??"     | "/path"
+    false    | false       | "http://host/p%20ath?query%3F?" | "http://host/p ath"   | "query??"     | "/p ath"
     false    | true        | "http://host/p%20ath?query%3F?" | "http://host/p%20ath" | "query??"     | "/p%20ath"
-    true     | false       | "http://host/p%20ath?query%3F?" | "http://host/p ath"   | "query%3F?"   | "/path"
+    true     | false       | "http://host/p%20ath?query%3F?" | "http://host/p ath"   | "query%3F?"   | "/p ath"
     true     | true        | "http://host/p%20ath?query%3F?" | "http://host/p%20ath" | "query%3F?"   | "/p%20ath"
 
     req = [url: url == null ? null : new URI(url)]
