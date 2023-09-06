@@ -122,6 +122,9 @@
 2 akka.http.scaladsl.*
 0 akka.http.scaladsl.Http2Ext
 0 akka.http.scaladsl.HttpExt
+0 akka.http.scaladsl.server.ExceptionHandler$
+0 akka.http.scaladsl.common.StrictForm$
+0 akka.http.impl.engine.server.HttpServerBluePrint$ControllerStage$$anon$*
 # saves ~0.1s skipping ~407 classes
 2 akka.stream.*
 0 akka.stream.impl.FanIn$SubInput
@@ -133,6 +136,8 @@
 0 akka.http.javadsl.model.HttpHeader
 0 akka.http.scaladsl.model.HttpRequest
 0 akka.http.scaladsl.model.headers.*
+0 akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+0 akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport$class
 0 akka.http.scaladsl.unmarshalling.*
 0 akka.http.scaladsl.server.PathMatcher$Matched
 0 akka.http.scaladsl.server.directives.ParameterDirectives$class
@@ -142,6 +147,7 @@
 0 akka.http.scaladsl.server.directives.FormFieldDirectives$class
 0 akka.http.scaladsl.server.directives.FormFieldDirectives
 0 akka.http.scaladsl.model.Uri
+0 akka.http.scaladsl.model.Multipart$FormData
 0 akka.http.scaladsl.model.FormData
 0 akka.http.scaladsl.server.RequestContextImpl
 0 akka.http.scaladsl.server.directives.CookieDirectives$class

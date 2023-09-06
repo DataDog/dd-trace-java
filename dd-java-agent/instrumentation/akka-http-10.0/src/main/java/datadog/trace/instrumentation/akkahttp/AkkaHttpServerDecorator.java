@@ -2,10 +2,12 @@ package datadog.trace.instrumentation.akkahttp;
 
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
+import datadog.trace.instrumentation.akkahttp.appsec.AkkaBlockResponseFunction;
 
 public class AkkaHttpServerDecorator
     extends HttpServerDecorator<HttpRequest, HttpRequest, HttpResponse, HttpRequest> {
@@ -63,5 +65,16 @@ public class AkkaHttpServerDecorator
   @Override
   protected int status(final HttpResponse httpResponse) {
     return httpResponse.status().intValue();
+  }
+
+  @Override
+  protected boolean isAppSecOnResponseSeparate() {
+    return true;
+  }
+
+  @Override
+  protected BlockResponseFunction createBlockResponseFunction(
+      HttpRequest httpRequest, HttpRequest httpRequest2) {
+    return new AkkaBlockResponseFunction(httpRequest);
   }
 }
