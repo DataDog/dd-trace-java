@@ -47,6 +47,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -364,7 +365,7 @@ public class PowerWAFModule implements AppSecModule {
 
   private static Collection<Address<?>> getUsedAddresses(PowerwafContext ctx) {
     String[] usedAddresses = ctx.getUsedAddresses();
-    List<Address<?>> addressList = new ArrayList<>(usedAddresses.length);
+    Set<Address<?>> addressList = new HashSet<>(usedAddresses.length);
     for (String addrKey : usedAddresses) {
       Address<?> address = KnownAddresses.forName(addrKey);
       if (address != null) {
@@ -373,6 +374,17 @@ public class PowerWAFModule implements AppSecModule {
         log.warn("WAF has rule against unknown address {}", addrKey);
       }
     }
+
+    // TODO: get addresses dynamically when will it be implemented in waf
+    addressList.add(KnownAddresses.WAF_CONTEXT_SETTINGS);
+    addressList.add(KnownAddresses.HEADERS_NO_COOKIES);
+    addressList.add(KnownAddresses.REQUEST_QUERY);
+    addressList.add(KnownAddresses.REQUEST_PATH_PARAMS);
+    addressList.add(KnownAddresses.REQUEST_COOKIES);
+    addressList.add(KnownAddresses.REQUEST_BODY_RAW);
+    addressList.add(KnownAddresses.RESPONSE_HEADERS_NO_COOKIES);
+    addressList.add(KnownAddresses.RESPONSE_BODY_OBJECT);
+
     return addressList;
   }
 
@@ -449,6 +461,10 @@ public class PowerWAFModule implements AppSecModule {
 
       } else {
         WafMetricCollector.get().wafRequest();
+      }
+
+      if (resultWithData != null && resultWithData.schemas != null) {
+        reqCtx.reportApiSchemas(resultWithData.schemas);
       }
     }
 

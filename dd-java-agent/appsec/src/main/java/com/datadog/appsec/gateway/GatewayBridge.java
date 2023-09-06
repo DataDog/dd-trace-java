@@ -15,6 +15,7 @@ import com.datadog.appsec.event.data.ObjectIntrospection;
 import com.datadog.appsec.event.data.SingletonDataBundle;
 import com.datadog.appsec.report.AppSecEventWrapper;
 import com.datadog.appsec.report.raw.events.AppSecEvent100;
+import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
@@ -164,6 +165,11 @@ public class GatewayBridge {
                     });
               }
             }
+
+            // If extracted any Api Schemas - commit them
+            if (ctx.commitApiSchemas(traceSeg)) {
+              log.warn("Unable to commit api schemas");
+            }
           }
 
           ctx.close();
@@ -215,8 +221,7 @@ public class GatewayBridge {
               DataBundle bundle =
                   new SingletonDataBundle<>(KnownAddresses.REQUEST_PATH_PARAMS, data);
               try {
-                Flow<Void> flow = producerService.publishDataEvent(subInfo, ctx, bundle, false);
-                return flow;
+                return producerService.publishDataEvent(subInfo, ctx, bundle, false);
               } catch (ExpiredSubscriberInfoException e) {
                 pathParamsSubInfo = null;
               }
@@ -543,7 +548,10 @@ public class GatewayBridge {
     MapDataBundle bundle =
         MapDataBundle.of(
             KnownAddresses.RESPONSE_STATUS, String.valueOf(ctx.getResponseStatus()),
-            KnownAddresses.RESPONSE_HEADERS_NO_COOKIES, ctx.getResponseHeaders());
+            KnownAddresses.RESPONSE_HEADERS_NO_COOKIES, ctx.getResponseHeaders(),
+            // Extract api schema on response stage
+            KnownAddresses.WAF_CONTEXT_SETTINGS,
+                Collections.singletonMap("extract-schema", Config.get().isApiSecurityEnabled()));
 
     while (true) {
       DataSubscriberInfo subInfo = respDataSubInfo;

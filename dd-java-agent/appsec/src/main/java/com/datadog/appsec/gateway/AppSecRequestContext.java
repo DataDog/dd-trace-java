@@ -6,6 +6,7 @@ import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.report.raw.events.AppSecEvent100;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.trace.api.http.StoredBodySupplier;
+import datadog.trace.api.internal.TraceSegment;
 import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.PowerwafContext;
 import io.sqreen.powerwaf.PowerwafMetrics;
@@ -72,6 +73,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean rawReqBodyPublished;
   private boolean convertedReqBodyPublished;
   private boolean respDataPublished;
+  private Map<String, String> apiSchemas;
 
   // should be guarded by this
   private Additive additive;
@@ -382,5 +384,23 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     } else {
       return Collections.emptyList();
     }
+  }
+
+  public void reportApiSchemas(Map<String, String> schemas) {
+    if (schemas == null || schemas.isEmpty()) return;
+
+    if (apiSchemas == null) {
+      apiSchemas = schemas;
+    } else {
+      apiSchemas.putAll(schemas);
+    }
+  }
+
+  boolean commitApiSchemas(TraceSegment traceSegment) {
+    if (traceSegment == null || apiSchemas == null || apiSchemas.isEmpty()) {
+      return false;
+    }
+    apiSchemas.forEach(traceSegment::setTagTop);
+    return true;
   }
 }
