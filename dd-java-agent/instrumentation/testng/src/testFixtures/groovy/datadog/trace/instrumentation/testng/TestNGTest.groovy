@@ -19,6 +19,7 @@ import org.example.TestSkippedClass
 import org.example.TestSkippedNested
 import org.example.TestSucceed
 import org.example.TestSucceedAndSkipped
+import org.example.TestSucceedDataProvider
 import org.example.TestSucceedGroups
 import org.example.TestSucceedMultiple
 import org.example.TestSucceedNested
@@ -485,6 +486,27 @@ abstract class TestNGTest extends CiVisibilityTest {
     testTags = testCaseTagsIfSuiteSetUpFailedOrSkipped("Ignore reason in class")
   }
 
+  def "test factory data provider tests"() {
+    setup:
+
+    runTests(TestSucceedDataProvider)
+
+    expect:
+    ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testSessionId
+      long testModuleId
+      long testSuiteId
+      trace(3, true) {
+        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
+        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS)
+        testSuiteId = testSuiteSpan(it, 2, testSessionId, testModuleId, "org.example.TestSucceedDataProvider", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testSessionId, testModuleId, testSuiteId, "org.example.TestSucceedDataProvider", "testMethod", "testMethod()V", CIConstants.TEST_PASS)
+      }
+    })
+  }
+
   def "test successful test cases executed in parallel"() {
     setup:
     runTests(new Class[] { TestSucceedMultiple }, "methods")
@@ -778,6 +800,41 @@ abstract class TestNGTest extends CiVisibilityTest {
       (Tags.TEST_SKIPPED_BY_ITR): true
     ]
     testTags_1 = [(Tags.TEST_PARAMETERS): '{"arguments":{"0":"\\\"goodbye\\\"","1":"false"}}']
+  }
+
+  def "test ITR skipping for factory data provider tests"() {
+    setup:
+    givenSkippableTests([
+      new SkippableTest("org.example.TestSucceedDataProvider", "testMethod", null, null),
+    ])
+
+    runTests(TestSucceedDataProvider)
+
+    expect:
+    ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testSessionId
+      long testModuleId
+      long testSuiteId
+      trace(3, true) {
+        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_SKIP)
+        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_SKIP, [
+          (DDTags.CI_ITR_TESTS_SKIPPED): true,
+          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
+          (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
+          (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 1,
+        ])
+        testSuiteId = testSuiteSpan(it, 2, testSessionId, testModuleId, "org.example.TestSucceedDataProvider", CIConstants.TEST_SKIP)
+      }
+      trace(1) {
+        testSpan(it, 0, testSessionId, testModuleId, testSuiteId, "org.example.TestSucceedDataProvider", "testMethod", "testMethod()V", CIConstants.TEST_SKIP, testTags_0)
+      }
+    })
+
+    where:
+    testTags_0 = [
+      (Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner",
+      (Tags.TEST_SKIPPED_BY_ITR): true
+    ]
   }
 
   private void runTests(Class[] testClasses, String parallelMode = null) {

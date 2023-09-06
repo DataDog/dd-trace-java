@@ -314,8 +314,9 @@ public interface Instrumenter {
 
     @Override
     public boolean isEnabled() {
-      return !ConfigProvider.getInstance()
-          .getBoolean(ProfilingConfig.PROFILING_ULTRA_MINIMAL, false);
+      return super.isEnabled()
+          && !ConfigProvider.getInstance()
+              .getBoolean(ProfilingConfig.PROFILING_ULTRA_MINIMAL, false);
     }
   }
 

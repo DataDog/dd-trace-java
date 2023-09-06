@@ -486,7 +486,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
             capturedContextProbes.add(definition);
           } else {
             List<DiagnosticMessage> probeDiagnostics = diagnostics.get(definition.getProbeId());
-            definition.instrument(classLoader, classNode, methodNode, probeDiagnostics);
+            status = definition.instrument(classLoader, classNode, methodNode, probeDiagnostics);
           }
         }
         if (capturedContextProbes.size() > 0) {
@@ -495,8 +495,9 @@ public class DebuggerTransformer implements ClassFileTransformer {
           ProbeDefinition referenceDefinition = selectReferenceDefinition(capturedContextProbes);
           List<DiagnosticMessage> probeDiagnostics =
               diagnostics.get(referenceDefinition.getProbeId());
-          referenceDefinition.instrument(
-              classLoader, classNode, methodNode, probeDiagnostics, probesIds);
+          status =
+              referenceDefinition.instrument(
+                  classLoader, classNode, methodNode, probeDiagnostics, probesIds);
         }
       } catch (Throwable t) {
         log.warn("Exception during instrumentation: ", t);

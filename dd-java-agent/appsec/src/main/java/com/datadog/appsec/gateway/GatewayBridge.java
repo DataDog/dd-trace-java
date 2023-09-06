@@ -380,8 +380,7 @@ public class GatewayBridge {
             DataBundle bundle =
                 new SingletonDataBundle<>(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE, convObj);
             try {
-              return producerService.publishDataEvent(
-                  grpcServerRequestMsgSubInfo, ctx, bundle, true);
+              return producerService.publishDataEvent(subInfo, ctx, bundle, true);
             } catch (ExpiredSubscriberInfoException e) {
               grpcServerRequestMsgSubInfo = null;
             }
@@ -519,8 +518,9 @@ public class GatewayBridge {
             .build();
 
     while (true) {
-      if (initialReqDataSubInfo == null) {
-        initialReqDataSubInfo =
+      DataSubscriberInfo subInfo = this.initialReqDataSubInfo;
+      if (subInfo == null) {
+        subInfo =
             producerService.getDataSubscribers(
                 KnownAddresses.HEADERS_NO_COOKIES,
                 KnownAddresses.REQUEST_COOKIES,
@@ -531,12 +531,13 @@ public class GatewayBridge {
                 KnownAddresses.REQUEST_CLIENT_IP,
                 KnownAddresses.REQUEST_CLIENT_PORT,
                 KnownAddresses.REQUEST_INFERRED_CLIENT_IP);
+        initialReqDataSubInfo = subInfo;
       }
 
       try {
-        return producerService.publishDataEvent(initialReqDataSubInfo, ctx, bundle, false);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, false);
       } catch (ExpiredSubscriberInfoException e) {
-        initialReqDataSubInfo = null;
+        this.initialReqDataSubInfo = null;
       }
     }
   }
@@ -557,14 +558,16 @@ public class GatewayBridge {
             KnownAddresses.RESPONSE_HEADERS_NO_COOKIES, ctx.getResponseHeaders());
 
     while (true) {
-      if (respDataSubInfo == null) {
-        respDataSubInfo =
+      DataSubscriberInfo subInfo = respDataSubInfo;
+      if (subInfo == null) {
+        subInfo =
             producerService.getDataSubscribers(
                 KnownAddresses.RESPONSE_STATUS, KnownAddresses.RESPONSE_HEADERS_NO_COOKIES);
+        respDataSubInfo = subInfo;
       }
 
       try {
-        return producerService.publishDataEvent(respDataSubInfo, ctx, bundle, false);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, false);
       } catch (ExpiredSubscriberInfoException e) {
         respDataSubInfo = null;
       }
