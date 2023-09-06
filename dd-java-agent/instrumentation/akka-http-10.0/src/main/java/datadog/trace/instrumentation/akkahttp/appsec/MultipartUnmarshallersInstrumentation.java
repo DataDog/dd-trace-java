@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.akkahttp.appsec;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.instrumentation.akkahttp.iast.TraitMethodMatchers.isTraitMethod;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ScalaTraitMatchers.isTraitMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import akka.http.scaladsl.unmarshalling.MultipartUnmarshallers;
