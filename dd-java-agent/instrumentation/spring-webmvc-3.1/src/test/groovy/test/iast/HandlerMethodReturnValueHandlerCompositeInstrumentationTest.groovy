@@ -13,6 +13,19 @@ import org.springframework.web.servlet.view.AbstractUrlBasedView
 
 class HandlerMethodReturnValueHandlerCompositeInstrumentationTest extends AgentTestRunner {
 
+  private static final TARGET_CLASS_NAME = 'org.springframework.web.method.support.HandlerMethodReturnValueHandlerComposite'
+
+  @Override
+  void setup() {
+    // Currently theres a failure during re-transforming that prevents our target class from being instrumented:
+    //
+    // d.t.a.t.AgentInstaller$RedefinitionLoggingListener - Exception while retransforming 233 classes:
+    // java.lang.UnsupportedOperationException: class redefinition failed: attempted to change superclass or interfaces
+    //
+    // Do a single re-transformation to ensure our target class is properly instrumented
+    INSTRUMENTATION.retransformClasses(Class.forName(TARGET_CLASS_NAME))
+  }
+
   @Override
   protected void configurePreAgent() {
     injectSysConfig("dd.iast.enabled", "true")
