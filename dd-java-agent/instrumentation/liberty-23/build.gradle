@@ -30,7 +30,7 @@ configurations {
 evaluationDependsOn ':dd-java-agent:instrumentation:servlet:request-5'
 
 dependencies {
-  // shadow group: 'io.openliberty', name: 'openliberty-runtime', version: '23.0.0.7', ext: 'zip'
+  //shadow group: 'io.openliberty', name: 'openliberty-runtime', version: '23.0.0.7', ext: 'zip'
   zipped group: 'io.openliberty', name: 'openliberty-runtime', version: '23.0.0.7', ext: 'zip'
   testLogging deps.testLogging
 
@@ -64,6 +64,9 @@ dependencies {
 }
 configurations {
   testRuntimeOnly {
+    exclude group: 'org.slf4j', module: '**'
+  }
+  testImplementation {
     exclude group: 'org.slf4j', module: '**'
   }
 }
@@ -413,26 +416,29 @@ tasks.register('filterLogbackClassic', Sync) {
 }
 [test, forkedTest]*.dependsOn filterLogbackClassic
 
-//shadowJar {
-//    zip64 true
-//    archiveFileName = 'openliberty-shadow.jar'
-//
-//    // Exclude DataDog packages, Byte Buddy packages, OkHttp3 packages
-//    exclude 'jnr/**'
-//    exclude 'datadog/**'
-//    exclude 'com/datadoghq/sketch/**'
-//    exclude 'com/squareup/moshi/**'
-//    exclude 'com/datadog/**'
-//    exclude 'net/bytebuddy/**'
-//    exclude 'okhttp3/**'
-//    // Exclude META-INF and WEB-INF directories
-//    exclude 'META-INF/**'
-//    exclude 'WEB-INF/**'
-//
-//    // Include JAR files from the 'lib' directory
-//    from("${buildDir}/openliberty-jars") {
-//        include "wlp/lib/*.jar"
-//        include "wlp/dev/*.jar"
-//    }
-//}
-//test.dependsOn shadowJar
+shadowJar {
+  configurations = [project.configurations.shadow]
+  zip64 true
+
+  archiveFileName = 'openliberty-shadow.jar'
+
+  // Exclude DataDog and other associated packages
+  exclude 'jnr/**'
+  exclude 'datadog/**'
+  exclude 'com/datadoghq/sketch/**'
+  exclude 'com/squareup/moshi/**'
+  exclude 'com/datadog/**'
+  exclude 'net/bytebuddy/**'
+  exclude 'okhttp3/**'
+  exclude 'org/slf4j/impl/JDK14LoggerAdapter.class'
+  // Exclude META-INF and WEB-INF directories
+  exclude 'META-INF/**'
+  exclude 'WEB-INF/**'
+
+  // Include JAR files from the 'wlp/lib' directory
+  from("${buildDir}/openliberty-jars") {
+    include "wlp/lib/*.jar"
+    include "wlp/dev/*.jar"
+  }
+}
+[test, forkedTest]*.dependsOn shadowJar
