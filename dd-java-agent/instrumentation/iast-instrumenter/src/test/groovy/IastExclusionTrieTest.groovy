@@ -1,17 +1,16 @@
 import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie
 import datadog.trace.test.util.DDSpecification
-import groovy.transform.CompileDynamic
-import spock.lang.Unroll
 
-@CompileDynamic
+import java.lang.reflect.Proxy
+
 class IastExclusionTrieTest extends DDSpecification {
 
+  private static final int STACK_FILTERED = 2
   private static final int EXCLUDED = 1
   private static final int BYPASSED = 0
   private static final int INCLUDED = -1
 
-  @Unroll
-  void 'Test that #name should be included? #expected'(final String name, final int expected) {
+  void 'Test that #name should be included? #expected'() {
     when:
     final result = IastExclusionTrie.apply(name)
 
@@ -31,5 +30,25 @@ class IastExclusionTrieTest extends DDSpecification {
     'com.test.Demo'                                     | INCLUDED
     'software.amazon.awssdk.core.checksums.Md5Checksum' | EXCLUDED
     'com.mongodb.internal.HexUtils'                     | EXCLUDED
+    'com.squareup.okhttp.Request'                       | STACK_FILTERED
+  }
+
+  void 'test with java proxies'() {
+    when:
+    final result = IastExclusionTrie.apply(proxy.class.name)
+
+    then:
+    result == EXCLUDED
+
+    where:
+    proxy                                         | _
+    createProxy(Comparable)                       | _
+    createProxy(Comparable, Cloneable, Closeable) | _
+  }
+
+  private static Object createProxy(final Class<?>... interfaces) {
+    return Proxy.newProxyInstance(Thread.currentThread().contextClassLoader, interfaces) { proxy, method, args ->
+      return null
+    }
   }
 }

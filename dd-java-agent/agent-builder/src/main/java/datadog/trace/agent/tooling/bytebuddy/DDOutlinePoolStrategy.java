@@ -18,10 +18,6 @@ import net.bytebuddy.pool.TypePool;
 public final class DDOutlinePoolStrategy implements AgentBuilder.PoolStrategy {
   public static final AgentBuilder.PoolStrategy INSTANCE = new DDOutlinePoolStrategy();
 
-  public static void registerTypePoolFacade() {
-    TypePoolFacade.registerAsSupplier();
-  }
-
   @Override
   public TypePool typePool(ClassFileLocator ignored, ClassLoader classLoader) {
     // it's safe to ignore this ClassFileLocator because we capture the target bytecode

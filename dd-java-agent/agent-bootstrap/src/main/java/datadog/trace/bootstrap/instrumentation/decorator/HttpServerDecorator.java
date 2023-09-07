@@ -33,6 +33,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.http.ClientIpAddressRes
 import java.net.InetAddress;
 import java.util.BitSet;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiFunction;
@@ -53,6 +54,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   public static final String DD_FIN_DISP_LIST_SPAN_ATTRIBUTE =
       "datadog.span.finish_dispatch_listener";
   public static final String DD_RESPONSE_ATTRIBUTE = "datadog.response";
+  public static final String DD_IGNORE_COMMIT_ATTRIBUTE = "datadog.commit.ignore";
 
   public static final LinkedHashMap<String, String> SERVER_PATHWAY_EDGE_TAGS;
 
@@ -123,15 +125,25 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return tracer().propagate().extract(carrier, getter);
   }
 
+  /** Deprecated. Use {@link #startSpan(String, Object, AgentSpan.Context.Extracted)} instead. */
+  @Deprecated
   public AgentSpan startSpan(REQUEST_CARRIER carrier, AgentSpan.Context.Extracted context) {
-    AgentSpan span = tracer().startSpan(spanName(), callIGCallbackStart(context)).setMeasured(true);
+    return startSpan("http-server", carrier, context);
+  }
+
+  public AgentSpan startSpan(
+      String instrumentationName, REQUEST_CARRIER carrier, AgentSpan.Context.Extracted context) {
+    AgentSpan span =
+        tracer()
+            .startSpan(instrumentationName, spanName(), callIGCallbackStart(context))
+            .setMeasured(true);
     Flow<Void> flow = callIGCallbackRequestHeaders(span, carrier);
     if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
       span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
     }
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (null != carrier && null != getter) {
-      tracer().setDataStreamCheckpoint(span, SERVER_PATHWAY_EDGE_TAGS);
+      tracer().getDataStreamsMonitoring().setCheckpoint(span, SERVER_PATHWAY_EDGE_TAGS, 0);
     }
     return span;
   }
@@ -193,16 +205,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       try {
         final URIDataAdapter url = url(request);
         if (url != null) {
-
           boolean supportsRaw = url.supportsRaw();
           boolean encoded = supportsRaw && config.isHttpServerRawResource();
           boolean valid = url.isValid();
           String path = encoded ? url.rawPath() : url.path();
           if (valid) {
             span.setTag(
-                Tags.HTTP_URL, URIUtils.buildURL(url.scheme(), url.host(), url.port(), path));
+                Tags.HTTP_URL, URIUtils.lazyValidURL(url.scheme(), url.host(), url.port(), path));
           } else if (supportsRaw) {
-            span.setTag(Tags.HTTP_URL, url.raw());
+            span.setTag(Tags.HTTP_URL, URIUtils.lazyInvalidUrl(url.raw()));
           }
           if (context != null && context.getXForwardedHost() != null) {
             span.setTag(Tags.HTTP_HOSTNAME, context.getXForwardedHost());
@@ -284,20 +295,35 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   public AgentSpan onResponseStatus(final AgentSpan span, final int status) {
     if (status > UNSET_STATUS) {
       span.setHttpStatusCode(status);
-    }
-    // explicitly set here because some other decorators might already set an error without
-    // looking at the status code
-    // XXX: the logic is questionable: span.error becomes equivalent to status 5xx,
-    // even if the server chooses not to respond with 5xx to an error.
-    // Anyway, we def don't want it applied to blocked requests
-    if (!BlockingException.class.getName().equals(span.getTag("error.type"))) {
-      span.setError(SERVER_ERROR_STATUSES.get(status), ErrorPriorities.HTTP_SERVER_DECORATOR);
+      // explicitly set here because some other decorators might already set an error without
+      // looking at the status code
+      // XXX: the logic is questionable: span.error becomes equivalent to status 5xx,
+      // even if the server chooses not to respond with 5xx to an error.
+      // Anyway, we def don't want it applied to blocked requests
+      if (!BlockingException.class.getName().equals(span.getTag("error.type"))) {
+        span.setError(SERVER_ERROR_STATUSES.get(status), ErrorPriorities.HTTP_SERVER_DECORATOR);
+      }
     }
 
     if (SHOULD_SET_404_RESOURCE_NAME && status == 404) {
       span.setResourceName(NOT_FOUND_RESOURCE_NAME, ResourceNamePriorities.HTTP_404);
     }
     return span;
+  }
+
+  /**
+   * Whether AppSec should NOT be called during onResponse() for analysis of the status code and
+   * headers.
+   *
+   * <p>{@link #onResponse(AgentSpan, Object)} is usually called too late for AppSec to be able to
+   * alter the response, so for those modules where we support blocking on response this is <code>
+   * true</code> and AppSec has its own (earlier) hook point for processing the response (just
+   * before commit).
+   *
+   * @return whether AppSec analysis of the response is run separately from onResponse
+   */
+  protected boolean isAppSecOnResponseSeparate() {
+    return false;
   }
 
   public AgentSpan onResponse(final AgentSpan span, final RESPONSE response) {
@@ -314,7 +340,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         }
       }
 
-      callIGCallbackResponseAndHeaders(span, response, status);
+      if (!isAppSecOnResponseSeparate()) {
+        callIGCallbackResponseAndHeaders(span, response, status);
+      }
     }
     return span;
   }
@@ -373,38 +401,60 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   private Flow<Void> callIGCallbackRequestHeaders(AgentSpan span, REQUEST_CARRIER carrier) {
-    CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
+    CallbackProvider cbpAppsec = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
+    CallbackProvider cbpIast = tracer().getCallbackProvider(RequestContextSlot.IAST);
     RequestContext requestContext = span.getRequestContext();
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
-    if (requestContext == null || cbp == null || getter == null) {
+    if (requestContext == null || getter == null) {
       return Flow.ResultFlow.empty();
     }
-    IGKeyClassifier igKeyClassifier =
-        IGKeyClassifier.create(
-            requestContext,
-            cbp.getCallback(EVENTS.requestHeader()),
-            cbp.getCallback(EVENTS.requestHeaderDone()));
-    if (null != igKeyClassifier) {
-      getter.forEachKey(carrier, igKeyClassifier);
-      return igKeyClassifier.done();
+    if (cbpIast != null) {
+      IGKeyClassifier igKeyClassifier =
+          IGKeyClassifier.create(
+              requestContext,
+              cbpIast.getCallback(EVENTS.requestHeader()),
+              cbpIast.getCallback(EVENTS.requestHeaderDone()));
+      if (null != igKeyClassifier) {
+        getter.forEachKey(carrier, igKeyClassifier);
+      }
+    }
+    if (cbpAppsec != null) {
+      IGKeyClassifier igKeyClassifier =
+          IGKeyClassifier.create(
+              requestContext,
+              cbpAppsec.getCallback(EVENTS.requestHeader()),
+              cbpAppsec.getCallback(EVENTS.requestHeaderDone()));
+      if (null != igKeyClassifier) {
+        getter.forEachKey(carrier, igKeyClassifier);
+        return igKeyClassifier.done();
+      }
     }
     return Flow.ResultFlow.empty();
   }
 
-  private void callIGCallbackResponseAndHeaders(AgentSpan span, RESPONSE carrier, int status) {
+  private Flow<Void> callIGCallbackResponseAndHeaders(
+      AgentSpan span, RESPONSE carrier, int status) {
+    return callIGCallbackResponseAndHeaders(span, carrier, status, responseGetter());
+  }
+
+  public <RESP> Flow<Void> callIGCallbackResponseAndHeaders(
+      AgentSpan span,
+      RESP carrier,
+      int status,
+      AgentPropagation.ContextVisitor<RESP> contextVisitor) {
     CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
     RequestContext requestContext = span.getRequestContext();
     if (cbp == null || requestContext == null) {
-      return;
+      return Flow.ResultFlow.empty();
     }
+
     BiFunction<RequestContext, Integer, Flow<Void>> addrCallback =
         cbp.getCallback(EVENTS.responseStarted());
     if (null != addrCallback) {
       addrCallback.apply(requestContext, status);
     }
-    AgentPropagation.ContextVisitor<RESPONSE> getter = responseGetter();
-    if (getter == null) {
-      return;
+    if (contextVisitor == null) {
+      return Flow.ResultFlow.empty();
     }
     IGKeyClassifier igKeyClassifier =
         IGKeyClassifier.create(
@@ -412,9 +462,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
             cbp.getCallback(EVENTS.responseHeader()),
             cbp.getCallback(EVENTS.responseHeaderDone()));
     if (null != igKeyClassifier) {
-      getter.forEachKey(carrier, igKeyClassifier);
-      igKeyClassifier.done();
+      contextVisitor.forEachKey(carrier, igKeyClassifier);
+      return igKeyClassifier.done();
     }
+    return Flow.ResultFlow.empty();
   }
 
   private Flow<Void> callIGCallbackURI(
@@ -488,9 +539,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   /** This passes the headers through to the InstrumentationGateway */
-  private static final class IGKeyClassifier implements AgentPropagation.KeyClassifier {
+  protected static final class IGKeyClassifier implements AgentPropagation.KeyClassifier {
 
-    private static IGKeyClassifier create(
+    public static IGKeyClassifier create(
         RequestContext requestContext,
         TriConsumer<RequestContext, String, String> headerCallback,
         Function<RequestContext, Flow<Void>> doneCallback) {
@@ -545,7 +596,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
     @Override
     public boolean accept(String key, String value) {
-      String mappedKey = headerTags.get(key.toLowerCase());
+      String mappedKey = headerTags.get(key.toLowerCase(Locale.ROOT));
       if (mappedKey != null) {
         span.setTag(mappedKey, value);
       }

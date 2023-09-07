@@ -17,9 +17,6 @@ class LocationsCollectingTransformer implements ClassFileTransformer {
   private final DDCache<ProtectionDomain, Boolean> seenDomains =
       DDCaches.newFixedSizeWeakKeyCache(MAX_CACHED_JARS);
 
-  private final ProtectionDomain tracerDomain =
-      LocationsCollectingTransformer.class.getProtectionDomain();
-
   public LocationsCollectingTransformer(DependencyService dependencyService) {
     this.dependencyService = dependencyService;
   }
@@ -31,7 +28,7 @@ class LocationsCollectingTransformer implements ClassFileTransformer {
       Class<?> classBeingRedefined,
       ProtectionDomain protectionDomain,
       byte[] classfileBuffer) {
-    if (protectionDomain != null && !protectionDomain.equals(tracerDomain)) {
+    if (protectionDomain != null) {
       seenDomains.computeIfAbsent(protectionDomain, this::addDependency);
     }
     // returning 'null' is the best way to indicate that no transformation has been done.

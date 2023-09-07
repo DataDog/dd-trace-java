@@ -1,16 +1,22 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.Platform
 import datadog.trace.instrumentation.spark.DatabricksParentContext
 import datadog.trace.instrumentation.spark.DatadogSparkListener
 import datadog.trace.test.util.Flaky
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus
 import org.apache.hadoop.yarn.conf.YarnConfiguration
+import org.apache.spark.deploy.SparkSubmit
 import org.apache.spark.deploy.yarn.ApplicationMaster
 import org.apache.spark.deploy.yarn.ApplicationMasterArguments
 import org.apache.spark.sql.SparkSession
 import scala.reflect.ClassTag$
+import spock.lang.IgnoreIf
 
+@IgnoreIf(reason="https://issues.apache.org/jira/browse/HADOOP-18174", value = {
+  Platform.isJ9()
+})
 class SparkTest extends AgentTestRunner {
 
   @Override
@@ -44,21 +50,21 @@ class SparkTest extends AgentTestRunner {
         }
         span {
           operationName "spark.job"
-          resourceName "count at TestSparkComputation.java:12"
+          resourceName "count at TestSparkComputation.java:17"
           spanType "spark"
           errored false
           childOf(span(0))
         }
         span {
           operationName "spark.stage"
-          resourceName "count at TestSparkComputation.java:12"
+          resourceName "count at TestSparkComputation.java:17"
           spanType "spark"
           errored false
           childOf(span(1))
         }
         span {
           operationName "spark.stage"
-          resourceName "distinct at TestSparkComputation.java:12"
+          resourceName "distinct at TestSparkComputation.java:17"
           spanType "spark"
           errored false
           childOf(span(1))
@@ -141,7 +147,7 @@ class SparkTest extends AgentTestRunner {
         }
         span {
           operationName "spark.job"
-          resourceName "collect at TestSparkComputation.java:21"
+          resourceName "collect at TestSparkComputation.java:26"
           spanType "spark"
           errored true
           childOf(span(0))
@@ -151,7 +157,7 @@ class SparkTest extends AgentTestRunner {
         }
         span {
           operationName "spark.stage"
-          resourceName "collect at TestSparkComputation.java:21"
+          resourceName "collect at TestSparkComputation.java:26"
           spanType "spark"
           errored true
           childOf(span(1))
@@ -172,6 +178,40 @@ class SparkTest extends AgentTestRunner {
     }
   }
 
+  def "capture SparkSubmit.runMain() errors"() {
+    setup:
+    def sparkSession = SparkSession.builder()
+      .config("spark.master", "local[2]")
+      .getOrCreate()
+
+    try {
+      // Generating a fake spark submit to trigger the runMain() method
+      // it will fail since TestClass and test-jar.jar don't exist
+      def sparkSubmit = new SparkSubmit()
+      sparkSubmit.doSubmit(["--class", "TestClass", "test-jar.jar"] as String[])
+    }
+    catch (Exception ignored) {}
+
+    expect:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "spark.application"
+          resourceName "spark.application"
+          spanType "spark"
+          errored true
+          assert span.tags["error.type"] == "org.apache.spark.SparkUserAppException"
+          assert span.tags["error.message"] == "User application exited with 101"
+          parent()
+        }
+      }
+    }
+
+    cleanup:
+    sparkSession.stop()
+    DatadogSparkListener.finishTraceOnApplicationEnd = true
+  }
+
   def "generate databricks spans"() {
     setup:
     def sparkSession = SparkSession.builder()
@@ -179,16 +219,15 @@ class SparkTest extends AgentTestRunner {
       .config("spark.default.parallelism", "2") // Small parallelism to speed up tests
       .config("spark.sql.shuffle.partitions", "2")
       .config("spark.databricks.sparkContextId", "some_id")
+      .config("spark.databricks.clusterUsageTags.clusterName", "job-1234-run-5678-Job_cluster")
       .getOrCreate()
 
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.id", "1234")
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.runId", "9012")
-    sparkSession.sparkContext().setLocalProperty("spark.databricks.clusterUsageTags.clusterName", "job-1234-run-5678-Job_cluster")
     TestSparkComputation.generateTestSparkComputation(sparkSession)
 
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.id", null)
     sparkSession.sparkContext().setLocalProperty("spark.databricks.job.runId", null)
-    sparkSession.sparkContext().setLocalProperty("spark.databricks.clusterUsageTags.clusterName", null)
     TestSparkComputation.generateTestSparkComputation(sparkSession)
 
     expect:
@@ -196,7 +235,7 @@ class SparkTest extends AgentTestRunner {
       trace(3) {
         span {
           operationName "spark.job"
-          resourceName "count at TestSparkComputation.java:12"
+          resourceName "count at TestSparkComputation.java:17"
           spanType "spark"
           errored false
           traceId 8944764253919609482G
@@ -204,14 +243,14 @@ class SparkTest extends AgentTestRunner {
         }
         span {
           operationName "spark.stage"
-          resourceName "count at TestSparkComputation.java:12"
+          resourceName "count at TestSparkComputation.java:17"
           spanType "spark"
           errored false
           childOf(span(0))
         }
         span {
           operationName "spark.stage"
-          resourceName "distinct at TestSparkComputation.java:12"
+          resourceName "distinct at TestSparkComputation.java:17"
           spanType "spark"
           errored false
           childOf(span(0))
@@ -220,21 +259,21 @@ class SparkTest extends AgentTestRunner {
       trace(3) {
         span {
           operationName "spark.job"
-          resourceName "count at TestSparkComputation.java:12"
+          resourceName "count at TestSparkComputation.java:17"
           spanType "spark"
           errored false
           parent()
         }
         span {
           operationName "spark.stage"
-          resourceName "count at TestSparkComputation.java:12"
+          resourceName "count at TestSparkComputation.java:17"
           spanType "spark"
           errored false
           childOf(span(0))
         }
         span {
           operationName "spark.stage"
-          resourceName "distinct at TestSparkComputation.java:12"
+          resourceName "distinct at TestSparkComputation.java:17"
           spanType "spark"
           errored false
           childOf(span(0))

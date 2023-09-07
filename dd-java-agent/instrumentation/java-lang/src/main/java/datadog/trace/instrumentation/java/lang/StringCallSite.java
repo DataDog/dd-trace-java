@@ -2,9 +2,10 @@ package datadog.trace.instrumentation.java.lang;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
-import datadog.trace.api.iast.IastCallSites.Propagation;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.CodecModule;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.propagation.StringModule;
 import datadog.trace.util.stacktrace.StackUtils;
 import java.nio.charset.Charset;
@@ -282,6 +283,87 @@ public class StringCallSite {
       }
     } catch (final Throwable e) {
       module.onUnexpectedException("afterGetBytes threw", e);
+    }
+    return result;
+  }
+
+  @CallSite.After("java.lang.String java.lang.String.format(java.lang.String, java.lang.Object[])")
+  public static String afterFormat(
+      @CallSite.Argument(0) @Nullable final String pattern,
+      @CallSite.Argument(1) @Nonnull final Object[] args,
+      @CallSite.Return @Nonnull final String result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    try {
+      if (module != null && pattern != null) {
+        module.onStringFormat(pattern, args, result);
+      }
+    } catch (final Throwable e) {
+      module.onUnexpectedException("afterFormat threw", e);
+    }
+    return result;
+  }
+
+  @CallSite.After(
+      "java.lang.String java.lang.String.format(java.util.Locale, java.lang.String, java.lang.Object[])")
+  public static String afterFormat(
+      @CallSite.Argument(0) @Nullable final Locale locale,
+      @CallSite.Argument(1) @Nullable final String pattern,
+      @CallSite.Argument(2) @Nonnull final Object[] args,
+      @CallSite.Return @Nonnull final String result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    try {
+      if (module != null && pattern != null) {
+        module.onStringFormat(locale, pattern, args, result);
+      }
+    } catch (final Throwable e) {
+      module.onUnexpectedException("afterFormat threw", e);
+    }
+    return result;
+  }
+
+  @CallSite.After("char[] java.lang.String.toCharArray()")
+  public static char[] afterToCharArray(
+      @CallSite.This @Nonnull final String self, @CallSite.Return @Nonnull final char[] result) {
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
+    if (module != null) {
+      try {
+        module.taintObjectIfInputIsTaintedKeepingRanges(result, self);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterToCharArray threw", e);
+      }
+    }
+    return result;
+  }
+
+  @CallSite.After("java.lang.String[] java.lang.String.split(java.lang.String)")
+  public static String[] afterSplit(
+      @CallSite.This @Nonnull final String self,
+      @CallSite.Argument(0) @Nonnull final String regex,
+      @CallSite.Return @Nonnull final String[] result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        module.onSplit(self, result);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterSplit threw", e);
+      }
+    }
+    return result;
+  }
+
+  @CallSite.After("java.lang.String[] java.lang.String.split(java.lang.String, int)")
+  public static String[] afterSplitWithLimit(
+      @CallSite.This @Nonnull final String self,
+      @CallSite.Argument(0) @Nonnull final String regex,
+      @CallSite.Argument(1) @Nonnull final int pos,
+      @CallSite.Return @Nonnull final String[] result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        module.onSplit(self, result);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterSplit threw", e);
+      }
     }
     return result;
   }

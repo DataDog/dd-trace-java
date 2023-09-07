@@ -8,6 +8,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Sink;
+import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.SsrfModule;
 import net.bytebuddy.asm.Advice;
 import org.apache.commons.httpclient.HttpMethod;
@@ -42,6 +44,7 @@ public class IastCommonsHttpClientInstrumentation extends Instrumenter.Iast
 
   public static class ExecAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Sink(VulnerabilityTypes.SSRF)
     public static void methodEnter(@Advice.Argument(1) final HttpMethod httpMethod) {
       final SsrfModule module = InstrumentationBridge.SSRF;
       if (module != null) {

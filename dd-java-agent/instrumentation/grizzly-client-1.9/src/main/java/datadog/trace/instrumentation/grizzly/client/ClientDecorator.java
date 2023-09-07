@@ -39,4 +39,14 @@ public class ClientDecorator extends HttpClientDecorator<Request, Response> {
   protected int status(final Response response) {
     return response.getStatusCode();
   }
+
+  @Override
+  protected String getRequestHeader(Request request, String headerName) {
+    return request.getHeaders().getFirstValue(headerName);
+  }
+
+  @Override
+  protected String getResponseHeader(Response response, String headerName) {
+    return response.getHeader(headerName);
+  }
 }

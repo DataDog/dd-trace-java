@@ -6,6 +6,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.util.Locale;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -132,7 +133,7 @@ public final class Functions {
 
     @Override
     public String apply(String key) {
-      return key.toLowerCase();
+      return key.toLowerCase(Locale.ROOT);
     }
   }
 

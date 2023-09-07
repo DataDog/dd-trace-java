@@ -22,6 +22,11 @@ import static org.junit.Assume.assumeTrue
 
 abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERVER> implements TestingGenericHttpNamingConventions.ServerV0 {
   @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
+  }
+
+  @Override
   boolean testRequestBody() {
     true
   }
@@ -33,6 +38,11 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
 
   @Override
   boolean testBlocking() {
+    true
+  }
+
+  @Override
+  boolean testBlockingOnResponse() {
     true
   }
 

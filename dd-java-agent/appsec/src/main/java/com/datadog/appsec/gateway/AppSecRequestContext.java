@@ -37,6 +37,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
               "via",
               "client-ip",
               "true-client-ip",
+              "fastly-client-ip",
+              "cf-connecting-ip",
+              "cf-connecting-ipv6",
               "content-length",
               "content-type",
               "content-encoding",
@@ -201,7 +204,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
 
     List<String> strings =
-        requestHeaders.computeIfAbsent(name.toLowerCase(), h -> new ArrayList<>(1));
+        requestHeaders.computeIfAbsent(name.toLowerCase(Locale.ROOT), h -> new ArrayList<>(1));
     strings.add(value);
   }
 
@@ -227,7 +230,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
 
     List<String> strings =
-        responseHeaders.computeIfAbsent(name.toLowerCase(), h -> new ArrayList<>(1));
+        responseHeaders.computeIfAbsent(name.toLowerCase(Locale.ROOT), h -> new ArrayList<>(1));
     strings.add(value);
   }
 

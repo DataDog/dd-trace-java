@@ -107,6 +107,11 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
   }
 
   @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
+  }
+
+  @Override
   boolean testExceptionBody() {
     false
   }
@@ -133,6 +138,11 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
 
   @Override
   boolean testBodyMultipart() {
+    true
+  }
+
+  @Override
+  boolean testBlockingOnResponse() {
     true
   }
 

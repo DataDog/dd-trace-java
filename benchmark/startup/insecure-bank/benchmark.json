@@ -1,0 +1,34 @@
+{
+  "name": "startup_insecure-bank",
+  "setup": "bash -c \"mkdir -p ${OUTPUT_DIR}/${VARIANT}\"",
+  "service": "bash -c \"${UTILS_DIR}/run-on-server-ready.sh http://localhost:8080/login 'pkill java'\"",
+  "run": "bash -c \"java ${JAVA_OPTS} -jar ${INSECURE_BANK} &> ${OUTPUT_DIR}/${VARIANT}/insecure-bank.log\"",
+  "iterations": 10,
+  "timeout": 60,
+  "variants": {
+    "tracing": {
+      "env": {
+        "VARIANT": "tracing",
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.benchmark.enabled=true -Ddd.benchmark.output.dir=${OUTPUT_DIR}/tracing"
+      }
+    },
+    "profiling": {
+      "env": {
+        "VARIANT": "profiling",
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.benchmark.enabled=true -Ddd.benchmark.output.dir=${OUTPUT_DIR}/profiling -Ddd.profiling.enabled=true"
+      }
+    },
+    "appsec": {
+      "env": {
+        "VARIANT": "appsec",
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.benchmark.enabled=true -Ddd.benchmark.output.dir=${OUTPUT_DIR}/appsec -Ddd.appsec.enabled=true"
+      }
+    },
+    "iast": {
+      "env": {
+        "VARIANT": "iast",
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.benchmark.enabled=true -Ddd.benchmark.output.dir=${OUTPUT_DIR}/iast -Ddd.iast.enabled=true"
+      }
+    }
+  }
+}

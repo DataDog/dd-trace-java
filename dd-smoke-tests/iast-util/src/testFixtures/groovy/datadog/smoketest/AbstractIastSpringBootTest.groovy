@@ -110,6 +110,37 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     }
   }
 
+  void 'weak cipher vulnerability is present when calling key generator'() {
+    setup:
+    String url = "http://localhost:${httpPort}/weak_key_generator"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul ->
+      vul.type == 'WEAK_CIPHER' &&
+        vul.evidence.value == 'DES'
+    }
+  }
+
+  void 'weak cipher vulnerability is present when calling key generator with provider'() {
+    setup:
+    String url = "http://localhost:${httpPort}/weak_key_generator_with_provider"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul ->
+      vul.type == 'WEAK_CIPHER' &&
+        vul.evidence.value == 'DES'
+    }
+  }
+
+
   void 'insecure cookie vulnerability is present'() {
     setup:
     String url = "http://localhost:${httpPort}/insecure_cookie"
@@ -123,6 +154,68 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     response.header('Set-Cookie').contains('user-id')
     hasVulnerability { vul ->
       vul.type == 'INSECURE_COOKIE' &&
+        vul.evidence.value == 'user-id'
+    }
+  }
+
+  void 'hsts header missing vulnerability is present'() {
+    setup:
+    String url = "http://localhost:${httpPort}/hstsmissing"
+    def request = new Request.Builder().url(url).header("X-Forwarded-Proto", "https").get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isSuccessful()
+    hasVulnerability { vul ->
+      vul.type == 'HSTS_HEADER_MISSING'
+    }
+  }
+
+  void 'X content type options missing header vulnerability is present'() {
+    setup:
+    String url = "http://localhost:${httpPort}/xcontenttypeoptionsmissing"
+    def request = new Request.Builder().url(url).get().build()
+    when:
+    def response = client.newCall(request).execute()
+    then:
+    response.isSuccessful()
+    hasVulnerability { vul ->
+      vul.type == 'XCONTENTTYPE_HEADER_MISSING'
+    }
+  }
+
+  void 'no HttpOnly cookie vulnerability is present'() {
+    setup:
+    String url = "http://localhost:${httpPort}/insecure_cookie"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isSuccessful()
+    response.header('Set-Cookie').contains('user-id')
+    hasVulnerability { vul ->
+      vul.type == 'NO_HTTPONLY_COOKIE' &&
+        vul.evidence.value == 'user-id'
+    }
+  }
+
+  void 'no SameSite cookie vulnerability is present'() {
+    setup:
+    String url = "http://localhost:${httpPort}/insecure_cookie"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.isSuccessful()
+    response.header('Set-Cookie').contains('user-id')
+    hasVulnerability { vul ->
+      vul.type == 'NO_SAMESITE_COOKIE' &&
         vul.evidence.value == 'user-id'
     }
   }
@@ -216,6 +309,95 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     then:
     hasVulnerability { vul -> vul.type == 'COMMAND_INJECTION' }
   }
+
+  void 'xpath injection is present when compile expression'() {
+    setup:
+    final url = "http://localhost:${httpPort}/xpathi/compile?expression=%2Fbookstore%2Fbook%2Ftitle"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'XPATH_INJECTION' }
+  }
+
+
+  void 'xpath injection is present when evaluate expression'() {
+    setup:
+    final url = "http://localhost:${httpPort}/xpathi/evaluate?expression=%2Fbookstore%2Fbook%2Ftitle"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'XPATH_INJECTION' }
+  }
+
+  void 'trust boundary violation is present'() {
+    setup:
+    final url = "http://localhost:${httpPort}/trust_boundary_violation?paramValue=test"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'TRUST_BOUNDARY_VIOLATION' }
+  }
+
+  void 'xss is present'() {
+    setup:
+    final url = "http://localhost:${httpPort}/xss/${method}?string=${param}"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'XSS' && vul.location.method == method }
+
+    where:
+    method     | param
+    'write'    | 'test'
+    'write2'   | 'test'
+    'write3'   | 'test'
+    'write4'   | 'test'
+    'print'    | 'test'
+    'print2'   | 'test'
+    'println'  | 'test'
+    'println2' | 'test'
+    'printf'   | 'Formatted%20like%3A%20%251%24s%20and%20%252%24s.'
+    'printf2'  | 'test'
+    'printf3'  | 'Formatted%20like%3A%20%251%24s%20and%20%252%24s.'
+    'printf4'  | 'test'
+    'format'   | 'Formatted%20like%3A%20%251%24s%20and%20%252%24s.'
+    'format2'  | 'test'
+    'format3'  | 'Formatted%20like%3A%20%251%24s%20and%20%252%24s.'
+    'format4'  | 'test'
+  }
+
+  void 'trust boundary violation with cookie propagation'() {
+    setup:
+    final url = "http://localhost:${httpPort}/trust_boundary_violation_for_cookie"
+    final request = new Request.Builder().url(url).get().addHeader("Cookie", "https%3A%2F%2Fuser-id2=https%3A%2F%2Fkkk").build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'TRUST_BOUNDARY_VIOLATION' }
+    hasTainted { tainted ->
+      tainted.value == 'https%3A%2F%2Fuser-id2' &&
+        tainted.ranges[0].source.origin == 'http.request.cookie.name'
+    }
+    hasTainted { tainted ->
+      tainted.value == 'https://kkk' &&
+        tainted.ranges[0].source.origin == 'http.request.cookie.value'
+    }
+  }
+
 
   void 'path traversal is present with file'() {
     setup:
@@ -568,4 +750,5 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     then:
     hasVulnerabilityInLogs { vul -> vul.type == 'UNVALIDATED_REDIRECT' && vul.location.method == 'getViewfromTaintedString' }
   }
+
 }

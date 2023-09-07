@@ -120,7 +120,10 @@ public class HttpPostRequestDecoderInstrumentation extends Instrumenter.AppSec
         BlockResponseFunction brf = requestContext.getBlockResponseFunction();
         if (brf != null) {
           brf.tryCommitBlockingResponse(
-              rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+              requestContext.getTraceSegment(),
+              rba.getStatusCode(),
+              rba.getBlockingContentType(),
+              rba.getExtraHeaders());
         }
         thr = new BlockingException("Blocked request (multipart/urlencoded post data)");
       }

@@ -13,6 +13,8 @@ import akka.http.scaladsl.model.headers.HttpCookiePair;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Source;
+import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.source.WebModule;
 import java.util.ArrayList;
@@ -51,6 +53,7 @@ public class CookieHeaderInstrumentation extends Instrumenter.Iast
 
   static class TaintAllCookiesAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_COOKIE_VALUE_STRING)
     static void after(
         @Advice.This HttpHeader cookie, @Advice.Return Seq<HttpCookiePair> cookiePairs) {
       WebModule mod = InstrumentationBridge.WEB;
@@ -67,7 +70,7 @@ public class CookieHeaderInstrumentation extends Instrumenter.Iast
       while (iterator.hasNext()) {
         HttpCookiePair pair = iterator.next();
         cookieNames.add(pair.name());
-        mod.onCookieValue(pair.name(), pair.value());
+        prop.taint(SourceTypes.REQUEST_COOKIE_VALUE, pair.name(), pair.value());
       }
       mod.onCookieNames(cookieNames);
     }

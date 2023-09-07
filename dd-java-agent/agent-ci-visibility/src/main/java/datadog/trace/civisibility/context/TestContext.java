@@ -14,7 +14,7 @@ public interface TestContext {
 
   String getStatus();
 
-  boolean isLocalToCurrentProcess();
+  void reportChildTag(String key, Object value);
 
   @Nullable
   AgentSpan getSpan();

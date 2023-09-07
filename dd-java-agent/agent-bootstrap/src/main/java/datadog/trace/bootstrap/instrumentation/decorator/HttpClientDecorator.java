@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.trace.api.Config;
@@ -15,6 +16,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.BitSet;
 import java.util.LinkedHashMap;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,11 +36,17 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
 
   private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
 
+  private static final boolean CLIENT_TAG_HEADERS = Config.get().isHttpClientTagHeaders();
+
   protected abstract String method(REQUEST request);
 
   protected abstract URI url(REQUEST request) throws URISyntaxException;
 
   protected abstract int status(RESPONSE response);
+
+  protected abstract String getRequestHeader(REQUEST request, String headerName);
+
+  protected abstract String getResponseHeader(RESPONSE response, String headerName);
 
   @Override
   protected CharSequence spanType() {
@@ -66,7 +74,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
           onURI(span, url);
           span.setTag(
               Tags.HTTP_URL,
-              URIUtils.buildURL(url.getScheme(), url.getHost(), url.getPort(), url.getPath()));
+              URIUtils.lazyValidURL(url.getScheme(), url.getHost(), url.getPort(), url.getPath()));
           if (Config.get().isHttpClientTagQueryString()) {
             span.setTag(DDTags.HTTP_QUERY, url.getQuery());
             span.setTag(DDTags.HTTP_FRAGMENT, url.getFragment());
@@ -80,6 +88,16 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
       } catch (final Exception e) {
         log.debug("Error tagging url", e);
       }
+
+      if (CLIENT_TAG_HEADERS) {
+        for (Map.Entry<String, String> headerTag :
+            traceConfig(span).getRequestHeaderTags().entrySet()) {
+          String headerValue = getRequestHeader(request, headerTag.getKey());
+          if (null != headerValue) {
+            span.setTag(headerTag.getValue(), headerValue);
+          }
+        }
+      }
     }
     return span;
   }
@@ -89,9 +107,19 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
       final int status = status(response);
       if (status > UNSET_STATUS) {
         span.setHttpStatusCode(status);
+        if (CLIENT_ERROR_STATUSES.get(status)) {
+          span.setError(true);
+        }
       }
-      if (CLIENT_ERROR_STATUSES.get(status)) {
-        span.setError(true);
+
+      if (CLIENT_TAG_HEADERS) {
+        for (Map.Entry<String, String> headerTag :
+            traceConfig(span).getResponseHeaderTags().entrySet()) {
+          String headerValue = getResponseHeader(response, headerTag.getKey());
+          if (null != headerValue) {
+            span.setTag(headerTag.getValue(), headerValue);
+          }
+        }
       }
     }
     return span;

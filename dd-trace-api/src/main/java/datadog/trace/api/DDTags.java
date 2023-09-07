@@ -39,8 +39,10 @@ public class DDTags {
   public static final String LANGUAGE_TAG_KEY = "language";
   public static final String LANGUAGE_TAG_VALUE = "jvm";
   public static final String ORIGIN_KEY = "_dd.origin";
+  public static final String SPAN_LINKS = "_dd.span_links";
   public static final String LIBRARY_VERSION_TAG_KEY = "library_version";
   public static final String CI_ENV_VARS = "_dd.ci.env_vars";
+  public static final String CI_ITR_TESTS_SKIPPED = "_dd.ci.itr.tests_skipped";
   public static final String MEASURED = "_dd.measured";
   public static final String PID_TAG = "process_id";
   public static final String SCHEMA_VERSION_TAG_KEY = "_dd.trace_span_attribute_schema";
@@ -50,4 +52,5 @@ public class DDTags {
   public static final String INTERNAL_GIT_COMMIT_SHA = "_dd.git.commit.sha";
 
   public static final String PROFILING_ENABLED = "_dd.profiling.enabled";
+  public static final String BASE_SERVICE = "_dd.base_service";
 }

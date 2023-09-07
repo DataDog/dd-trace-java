@@ -67,12 +67,11 @@ public class Servlet3Advice {
 
     final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(httpServletRequest);
     final AgentSpan span = DECORATE.startSpan(httpServletRequest, extractedContext);
+    scope = activateSpan(span);
+    scope.setAsyncPropagation(true);
 
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, httpServletRequest, httpServletRequest, extractedContext);
-
-    scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
 
     httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);
     httpServletRequest.setAttribute(
@@ -82,7 +81,9 @@ public class Servlet3Advice {
 
     Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
     if (rba != null) {
-      ServletBlockingHelper.commitBlockingResponse(httpServletRequest, httpServletResponse, rba);
+      ServletBlockingHelper.commitBlockingResponse(
+          span.getRequestContext().getTraceSegment(), httpServletRequest, httpServletResponse, rba);
+      span.getRequestContext().getTraceSegment().effectivelyBlocked();
       return true; // skip method body
     }
 

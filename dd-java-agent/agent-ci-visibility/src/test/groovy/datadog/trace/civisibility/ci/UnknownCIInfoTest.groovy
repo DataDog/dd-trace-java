@@ -1,16 +1,18 @@
 package datadog.trace.civisibility.ci
 
+import datadog.trace.api.Config
 import datadog.trace.api.git.GitInfoProvider
 import datadog.trace.api.git.UserSuppliedGitInfoBuilder
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.civisibility.git.CILocalGitInfoBuilder
 import datadog.trace.civisibility.git.CIProviderGitInfoBuilder
+import datadog.trace.civisibility.git.tree.GitClient
 
 import java.nio.file.Paths
 
-class UnknownCIInfoTest extends CITagsProviderImplTest {
+class UnknownCIInfoTest extends CITagsProviderTest {
 
-  def workspaceForTests = Paths.get(getClass().getClassLoader().getResource(CITagsProviderImplTest.CI_WORKSPACE_PATH_FOR_TESTS).toURI())
+  def workspaceForTests = Paths.get(getClass().getClassLoader().getResource(CI_WORKSPACE_PATH_FOR_TESTS).toURI())
 
   @Override
   String getProviderName() {
@@ -42,8 +44,11 @@ class UnknownCIInfoTest extends CITagsProviderImplTest {
     ]
 
     when:
+    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), GIT_FOLDER_FOR_TESTS)
+    def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(workspaceForTests)
+    def ciInfo = ciProviderInfo.buildCIInfo()
     def ciTagsProvider = ciTagsProvider()
-    def ciTags = ciTagsProvider.getCiTags(workspaceForTests)
+    def ciTags = ciTagsProvider.getCiTags(ciInfo)
 
     then:
     ciTags == expectedTags
@@ -51,14 +56,19 @@ class UnknownCIInfoTest extends CITagsProviderImplTest {
 
   def "test workspace is null if target folder does not exist"() {
     when:
+    def gitClientFactory = Stub(GitClient.Factory)
+    gitClientFactory.create(_) >> Stub(GitClient)
+
     GitInfoProvider gitInfoProvider = new GitInfoProvider()
     gitInfoProvider.registerGitInfoBuilder(new UserSuppliedGitInfoBuilder())
     gitInfoProvider.registerGitInfoBuilder(new CIProviderGitInfoBuilder())
-    gitInfoProvider.registerGitInfoBuilder(new CILocalGitInfoBuilder("this-target-folder-does-not-exist"))
-    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory("this-target-folder-does-not-exist")
-    def ciTagsProvider = new CITagsProviderImpl(gitInfoProvider, ciProviderInfoFactory)
+    gitInfoProvider.registerGitInfoBuilder(new CILocalGitInfoBuilder(gitClientFactory, "this-target-folder-does-not-exist"))
+    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), "this-target-folder-does-not-exist")
 
-    def ciTags = ciTagsProvider.getCiTags(workspaceForTests)
+    def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(workspaceForTests)
+    def ciInfo = ciProviderInfo.buildCIInfo()
+    def ciTagsProvider = new CITagsProvider(gitInfoProvider)
+    def ciTags = ciTagsProvider.getCiTags(ciInfo)
 
     then:
     ciTags.get("$Tags.CI_WORKSPACE_PATH") == null

@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
@@ -46,6 +47,7 @@ public class HttpServerRequestInstrumentation extends AbstractHttpServerRequestI
     }
 
     @Advice.OnMethodExit()
+    @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
     public static void onExit(
         @Advice.Local("beforeHeaders") final Object beforeHeaders,
         @Advice.Return final Object multiMap) {
@@ -54,7 +56,7 @@ public class HttpServerRequestInstrumentation extends AbstractHttpServerRequestI
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
           try {
-            module.taint(SourceTypes.REQUEST_HEADER_VALUE, multiMap);
+            module.taintObject(SourceTypes.REQUEST_HEADER_VALUE, multiMap);
           } catch (final Throwable e) {
             module.onUnexpectedException("headers threw", e);
           }

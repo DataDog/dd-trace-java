@@ -5,6 +5,7 @@
 package datadog.trace.instrumentation.log4j27;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
@@ -31,6 +32,12 @@ public final class SpanDecoratingContextDataInjector implements ContextDataInjec
   public StringMap injectContextData(List<Property> list, StringMap reusable) {
     StringMap contextData = delegate.injectContextData(list, reusable);
 
+    AgentSpan span = activeSpan();
+
+    if (!traceConfig(span).isLogsInjectionEnabled()) {
+      return contextData;
+    }
+
     // We're at most adding 5 tags
     StringMap newContextData = new SortedArrayStringMap(contextData.size() + 5);
 
@@ -46,8 +53,6 @@ public final class SpanDecoratingContextDataInjector implements ContextDataInjec
     if (null != version && !version.isEmpty()) {
       newContextData.putValue(Tags.DD_VERSION, version);
     }
-
-    AgentSpan span = activeSpan();
 
     if (span != null) {
       DDTraceId traceId = span.context().getTraceId();

@@ -2,19 +2,24 @@ package com.datadog.iast.taint
 
 import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
+import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.test.util.DDSpecification
 
+import static com.datadog.iast.model.Range.NOT_MARKED
 import static com.datadog.iast.taint.Ranges.rangesProviderFor
 
 class RangesTest extends DDSpecification {
 
-  def 'forString'() {
+  private static final int NEGATIVE_MARK = 1 << 31
+
+  void 'forString'() {
     given:
     final source = new Source(SourceTypes.NONE, null, null)
 
     when:
-    final result = Ranges.forString(s, source)
+    final result = Ranges.forString(s, source, VulnerabilityMarks.SQL_INJECTION_MARK)
 
     then:
     result != null
@@ -22,6 +27,7 @@ class RangesTest extends DDSpecification {
     result[0].start == 0
     result[0].length == s.length()
     result[0].source == source
+    result[0].marks == VulnerabilityMarks.SQL_INJECTION_MARK
 
     where:
     s    | _
@@ -30,7 +36,7 @@ class RangesTest extends DDSpecification {
     "xx" | _
   }
 
-  def 'copyShift'() {
+  void 'copyShift'() {
     given:
     def src = rangesFromSpec(srcSpec)
     def dst = new Range[dstLen] as Range[]
@@ -119,7 +125,7 @@ class RangesTest extends DDSpecification {
     []    | _
   }
 
-  def 'getIncludedRangesInterval'() {
+  void 'getIncludedRangesInterval'() {
     given:
     def src = rangesFromSpec(srcSpec)
 
@@ -157,12 +163,12 @@ class RangesTest extends DDSpecification {
     4      | 4      | [[2, 3], [6, 3], [15, 1]] | [0, 2]
   }
 
-  def 'forObject'() {
+  void 'forObject'() {
     given:
     final source = new Source(SourceTypes.NONE, null, null)
 
     when:
-    final result = Ranges.forObject(source)
+    final result = Ranges.forObject(source, VulnerabilityMarks.SQL_INJECTION_MARK)
 
     then:
     result != null
@@ -170,7 +176,110 @@ class RangesTest extends DDSpecification {
     result[0].start == 0
     result[0].length == Integer.MAX_VALUE
     result[0].source == source
+    result[0].marks == VulnerabilityMarks.SQL_INJECTION_MARK
   }
+
+  void 'highestPriorityRange'() {
+    given:
+    final range1 = new Range(0, 1, null, NOT_MARKED)
+    final range2 = new Range(0, 1, null, VulnerabilityMarks.SQL_INJECTION_MARK)
+    final range3 = new Range(0, 1, null, NOT_MARKED)
+    final range4 = new Range(0, 1, null, NEGATIVE_MARK)
+    final Range[] allNotMarked = [range1, range3]
+    final Range[] notAllMarked = [range1, range2, range3, range4]
+    final Range[] allMarked = [range2, range4]
+
+    when:
+    def result = Ranges.highestPriorityRange(allNotMarked)
+
+    then:
+    result == range1
+
+    when:
+    result = Ranges.highestPriorityRange(notAllMarked)
+
+    then:
+    result == range2
+
+    when:
+    result = Ranges.highestPriorityRange(allMarked)
+
+    then:
+    result == range2
+  }
+
+  void 'copyWithPosition'() {
+    given:
+    final source = new Source(SourceTypes.NONE, null, null)
+    final range = new Range(0, 1, source, VulnerabilityMarks.SQL_INJECTION_MARK)
+
+    when:
+    final result = Ranges.copyWithPosition(range, 2, 4)
+
+    then:
+    result != null
+    result.start == 2
+    result.length == 4
+    result.source == source
+    result.marks == VulnerabilityMarks.SQL_INJECTION_MARK
+  }
+
+  void 'getNotMarkedRanges'(final int mark) {
+    given:
+
+    final range1 = new Range(0, 1, null, NOT_MARKED)
+    final range2 = new Range(0, 1, null, mark)
+    final range3 = new Range(0, 1, null, NOT_MARKED)
+    final range4 = new Range(0, 1, null, mark)
+    final Range[] allNotMarked = [range1, range3]
+    final Range[] notAllMarked = [range1, range2, range3, range4]
+    final Range[] allMarked = [range2, range4]
+    final Range[] empty = new Range[0]
+
+    when:
+    Range[] result = Ranges.getNotMarkedRanges(null, NOT_MARKED)
+
+    then:
+    result == null
+
+    when:
+    result = Ranges.getNotMarkedRanges(empty, NOT_MARKED)
+
+    then:
+    result == empty
+
+    when:
+    result = Ranges.getNotMarkedRanges(allMarked, mark)
+
+    then:
+    result == null
+
+    when:
+    result = Ranges.getNotMarkedRanges(allNotMarked, NOT_MARKED)
+
+    then:
+    result == allNotMarked
+
+    when:
+    result = Ranges.getNotMarkedRanges(notAllMarked, mark)
+
+    then:
+    result.length == 2
+    result[0] == range1
+    result[1] == range3
+
+    where:
+    mark                                          | _
+    VulnerabilityType.XPATH_INJECTION.mark()      | _
+    VulnerabilityType.UNVALIDATED_REDIRECT.mark() | _
+    VulnerabilityType.LDAP_INJECTION.mark()       | _
+    VulnerabilityType.COMMAND_INJECTION.mark()    | _
+    VulnerabilityType.PATH_TRAVERSAL.mark()       | _
+    VulnerabilityType.SQL_INJECTION.mark()        | _
+    VulnerabilityType.SSRF.mark()                 | _
+    NEGATIVE_MARK                                 | _
+  }
+
 
   Range[] rangesFromSpec(List<List<Object>> spec) {
     def ranges = new Range[spec.size()]
@@ -182,7 +291,8 @@ class RangesTest extends DDSpecification {
       ranges[i] = new Range(
         spec[i][0] as int,
         spec[i][1] as int,
-        new Source(SourceTypes.NONE, String.valueOf(j), null))
+        new Source(SourceTypes.NONE, String.valueOf(j), null),
+        NOT_MARKED)
       j++
     }
     ranges

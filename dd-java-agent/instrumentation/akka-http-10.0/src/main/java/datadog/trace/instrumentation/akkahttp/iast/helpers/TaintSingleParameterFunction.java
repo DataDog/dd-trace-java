@@ -1,7 +1,8 @@
 package datadog.trace.instrumentation.akkahttp.iast.helpers;
 
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.source.WebModule;
+import datadog.trace.api.iast.SourceTypes;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import scala.Option;
@@ -24,7 +25,7 @@ public class TaintSingleParameterFunction<Magnet>
 
   @Override
   public Tuple1<Object> apply(Tuple1<Object> v1) {
-    WebModule mod = InstrumentationBridge.WEB;
+    PropagationModule mod = InstrumentationBridge.PROPAGATION;
     if (mod == null || v1 == null) {
       return v1;
     }
@@ -43,11 +44,11 @@ public class TaintSingleParameterFunction<Magnet>
       while (iterator.hasNext()) {
         Object o = iterator.next();
         if (o instanceof String) {
-          mod.onParameterValue(paramName, (String) o);
+          mod.taint(SourceTypes.REQUEST_PARAMETER_VALUE, paramName, (String) o);
         }
       }
     } else if (value instanceof String) {
-      mod.onParameterValue(paramName, (String) value);
+      mod.taint(SourceTypes.REQUEST_PARAMETER_VALUE, paramName, (String) value);
     }
 
     return v1;

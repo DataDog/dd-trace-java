@@ -162,6 +162,11 @@ class UndertowTest extends HttpServerTest<Undertow> {
   }
 
   @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
+  }
+
+  @Override
   boolean testExceptionBody() {
     false
   }
@@ -191,6 +196,11 @@ class UndertowTest extends HttpServerTest<Undertow> {
 
   @Override
   boolean testBlocking() {
+    true
+  }
+
+  @Override
+  boolean testBlockingOnResponse() {
     true
   }
 

@@ -1,21 +1,27 @@
 package com.datadog.debugger.instrumentation;
 
+import static com.datadog.debugger.instrumentation.Types.REFLECTIVE_FIELD_VALUE_RESOLVER_TYPE;
 import static org.objectweb.asm.Type.getMethodDescriptor;
 import static org.objectweb.asm.Type.getObjectType;
 
 import com.datadog.debugger.agent.Generated;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
 import org.objectweb.asm.signature.SignatureReader;
 import org.objectweb.asm.signature.SignatureVisitor;
+import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
+import org.objectweb.asm.tree.TypeInsnNode;
 
 /** Helper class for bytecode generation */
 public class ASMHelper {
@@ -62,6 +68,18 @@ public class ASMHelper {
     return (fieldNode.access & Opcodes.ACC_STATIC) != 0;
   }
 
+  public static boolean isStaticField(Field field) {
+    return Modifier.isStatic(field.getModifiers());
+  }
+
+  public static boolean isFinalField(FieldNode fieldNode) {
+    return (fieldNode.access & Opcodes.ACC_FINAL) != 0;
+  }
+
+  public static boolean isFinalField(Field field) {
+    return Modifier.isFinal(field.getModifiers());
+  }
+
   public static void invokeStatic(
       InsnList insnList,
       org.objectweb.asm.Type owner,
@@ -90,6 +108,12 @@ public class ASMHelper {
     insnList.add(val == null ? new InsnNode(Opcodes.ACONST_NULL) : new LdcInsnNode(val));
   }
 
+  public static void getStatic(InsnList insnList, org.objectweb.asm.Type owner, String fieldName) {
+    insnList.add(
+        new FieldInsnNode(
+            Opcodes.GETSTATIC, owner.getInternalName(), fieldName, owner.getDescriptor()));
+  }
+
   public static Type decodeSignature(String signature) {
     SignatureReader sigReader = new SignatureReader(signature);
     FieldSignatureVisitor fieldSignatureVisitor = new FieldSignatureVisitor();
@@ -101,6 +125,82 @@ public class ASMHelper {
             .map(Type::new)
             .collect(Collectors.toList());
     return new Type(mainType, genericTypes);
+  }
+
+  /**
+   * Makes sure that the class we want to load is not the one that we are currently transforming
+   * otherwise it will lead into a LinkageError
+   *
+   * @param className class name to load in '.' format (com.foo.bar.Class$InnerClass)
+   * @param currentClassTransformed in '.' format (com.foo.bar.Class$InnerClass)
+   * @param classLoader use for loading the class
+   * @return the loaded class
+   */
+  public static Class<?> ensureSafeClassLoad(
+      String className, String currentClassTransformed, ClassLoader classLoader) {
+    if (currentClassTransformed == null) {
+      // This is required to make sure we are not loading the class being transformed during
+      // transformation as it will generate a LinkageError with
+      // "attempted duplicate class definition"
+      throw new IllegalArgumentException(
+          "Cannot ensure loading class: "
+              + className
+              + " safely as current class being transformed is not provided (null)");
+    }
+    if (className.equals(currentClassTransformed)) {
+      throw new IllegalArgumentException(
+          "Cannot load class " + className + " as this is the class being currently transformed");
+    }
+    try {
+      return Class.forName(className, true, classLoader);
+    } catch (Throwable t) {
+      throw new RuntimeException("Cannot load class " + className, t);
+    }
+  }
+
+  public static void emitReflectiveCall(
+      InsnList insnList, Type fieldType, org.objectweb.asm.Type targetType) {
+    int sort = fieldType.getMainType().getSort();
+    String methodName = getReflectiveMethodName(sort);
+    // stack: [target_object, string]
+    org.objectweb.asm.Type returnType =
+        sort == org.objectweb.asm.Type.OBJECT ? Types.OBJECT_TYPE : fieldType.getMainType();
+    invokeStatic(
+        insnList,
+        REFLECTIVE_FIELD_VALUE_RESOLVER_TYPE,
+        methodName,
+        returnType,
+        targetType,
+        Types.STRING_TYPE);
+    if (sort == org.objectweb.asm.Type.OBJECT) {
+      insnList.add(new TypeInsnNode(Opcodes.CHECKCAST, fieldType.getMainType().getInternalName()));
+    }
+    // stack: [field_value]
+  }
+
+  private static String getReflectiveMethodName(int sort) {
+    switch (sort) {
+      case org.objectweb.asm.Type.LONG:
+        return "getFieldValueAsLong";
+      case org.objectweb.asm.Type.INT:
+        return "getFieldValueAsInt";
+      case org.objectweb.asm.Type.DOUBLE:
+        return "getFieldValueAsDouble";
+      case org.objectweb.asm.Type.FLOAT:
+        return "getFieldValueAsFloat";
+      case org.objectweb.asm.Type.SHORT:
+        return "getFieldValueAsShort";
+      case org.objectweb.asm.Type.CHAR:
+        return "getFieldValueAsChar";
+      case org.objectweb.asm.Type.BYTE:
+        return "getFieldValueAsByte";
+      case org.objectweb.asm.Type.BOOLEAN:
+        return "getFieldValueAsBoolean";
+      case org.objectweb.asm.Type.OBJECT:
+        return "getFieldValue";
+      default:
+        throw new IllegalArgumentException("Unsupported type sort:" + sort);
+    }
   }
 
   /** Wraps ASM's {@link org.objectweb.asm.Type} with associated generic types */

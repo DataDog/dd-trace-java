@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import spock.lang.Shared
@@ -27,13 +28,14 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     then:
     if (req) {
       1 * span.setTag(Tags.HTTP_METHOD, req.method)
-      1 * span.setTag(Tags.HTTP_URL, "$req.url")
+      1 * span.setTag(Tags.HTTP_URL, {it.toString() == "$req.url"})
       1 * span.setTag(Tags.PEER_HOSTNAME, req.url.host)
       1 * span.setTag(Tags.PEER_PORT, req.url.port)
       1 * span.setResourceName({ it as String == req.method.toUpperCase() + " " + req.path }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
       if (renameService) {
         1 * span.setServiceName(req.url.host)
       }
+      1 * span.traceConfig() >> AgentTracer.traceConfig()
     }
     0 * _
 
@@ -55,7 +57,7 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
 
     then:
     if (expectedUrl) {
-      1 * span.setTag(Tags.HTTP_URL, expectedUrl)
+      1 * span.setTag(Tags.HTTP_URL, {it.toString() == expectedUrl})
     }
     if (expectedUrl && tagQueryString) {
       1 * span.setTag(DDTags.HTTP_QUERY, expectedQuery)
@@ -72,6 +74,9 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
       1 * span.setResourceName({ it as String == expectedPath }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
     } else {
       1 * span.setResourceName({ it as String == expectedPath })
+    }
+    if (req) {
+      1 * span.traceConfig() >> AgentTracer.traceConfig()
     }
     0 * _
 
@@ -110,6 +115,9 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     } else {
       1 * span.setResourceName(_)
     }
+    if (req) {
+      1 * span.traceConfig() >> AgentTracer.traceConfig()
+    }
     _ * span.setTag(_, _)
     0 * _
 
@@ -141,6 +149,9 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     }
     if (error) {
       1 * span.setError(true)
+    }
+    if (resp) {
+      1 * span.traceConfig() >> AgentTracer.traceConfig()
     }
     0 * _
 
@@ -191,8 +202,19 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
           null == m.status ? 0 : m.status.intValue()
         }
 
+        @Override
         protected boolean traceAnalyticsDefault() {
           return true
+        }
+
+        @Override
+        protected String getRequestHeader(Map map, String headerName) {
+          return null
+        }
+
+        @Override
+        protected String getResponseHeader(Map map, String headerName) {
+          return null
         }
       }
   }

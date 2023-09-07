@@ -7,6 +7,7 @@ import com.squareup.moshi.Moshi;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
@@ -63,6 +64,8 @@ public class RemoteConfigResponse {
         }
         response.targetsJson = null;
         return Optional.of(response);
+      } catch (InterruptedIOException ignored) {
+        return Optional.empty();
       } catch (IOException | RuntimeException e) {
         throw new RuntimeException("Failed to parse fleet response: " + e.getMessage(), e);
       }

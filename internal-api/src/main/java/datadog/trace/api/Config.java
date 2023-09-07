@@ -10,14 +10,20 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_METRICS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_REMOTE_NAME;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_UNSHALLOW_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_PER_TEST_CODE_COVERAGE_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SIGNAL_SERVER_HOST;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SIGNAL_SERVER_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLIENT_IP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_ENABLED;
@@ -40,6 +46,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_UPLOAD_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_VERIFY_BYTECODE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_START_DELAY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_BODY_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_PARAMS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HEALTH_METRICS_ENABLED;
@@ -58,6 +66,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PERF_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_ENABLED;
@@ -75,6 +84,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SECURE_RANDOM;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_METRICS_INTERVAL;
@@ -88,6 +98,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESOLVER_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.DDTags.HOST_TAG;
 import static datadog.trace.api.DDTags.INTERNAL_HOST_NAME;
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY;
@@ -99,6 +110,8 @@ import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG;
 import static datadog.trace.api.DDTags.SCHEMA_VERSION_TAG_KEY;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
+import static datadog.trace.api.UserEventTrackingMode.SAFE;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
@@ -114,19 +127,35 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENT_JAR_URI;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AUTO_CONFIGURATION_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_PERCENTAGE_CALCULATION_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_REMOTE_NAME;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UNSHALLOW_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_GRADLE_SOURCE_SETS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_EXECUTION_SETTINGS_CACHE_SIZE;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_ID;
-import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_PER_TEST_CODE_COVERAGE_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_REPO_INDEX_SHARING_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SESSION_ID;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED;
-import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TRACE_SANITATION_ENABLED;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_TAGS;
@@ -136,7 +165,7 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CAPTURE_TIMEOUT;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED;
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCLUDE_FILE;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCLUDE_FILES;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_INSTRUMENT_THE_WORLD;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_PAYLOAD_SIZE;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_METRICS_ENABLED;
@@ -148,6 +177,8 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_VERIFY_BYTECODE;
 import static datadog.trace.api.config.GeneralConfig.API_KEY;
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
+import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY;
+import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.AZURE_APP_SERVICES;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_ARGS;
@@ -167,6 +198,7 @@ import static datadog.trace.api.config.GeneralConfig.RUNTIME_ID_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.SITE;
+import static datadog.trace.api.config.GeneralConfig.STARTUP_LOGS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL;
@@ -176,6 +208,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
+import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE;
@@ -247,12 +280,15 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_BODY_AND_PARAMS_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_BODY_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_PARAMS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_INBOUND_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_OUTBOUND_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_TRIM_PACKAGE_RESOURCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN;
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_HEADERS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE;
@@ -262,11 +298,13 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_MEASUR
 import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.IGNITE_CACHE_INCLUDE_KEYS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JAX_RS_EXCEPTION_AS_ERROR_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_UNACKNOWLEDGED_MAX_AGE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MESSAGE_BROKER_SPLIT_BY_DESTINATION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.OBFUSCATION_QUERY_STRING_REGEXP;
 import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HTTP_STATUS;
@@ -276,6 +314,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGA
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_CONTEXT_SERVICE_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.SPARK_TASK_HISTOGRAM_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME;
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST;
 import static datadog.trace.api.config.TracerConfig.AGENT_NAMED_PIPE;
@@ -290,6 +329,7 @@ import static datadog.trace.api.config.TracerConfig.HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.HTTP_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.config.TracerConfig.HTTP_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.config.TracerConfig.ID_GENERATION_STRATEGY;
+import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_ENABLED;
 import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_MIN_SPANS;
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING;
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING_FORCE;
@@ -337,12 +377,12 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES
 import static datadog.trace.api.config.TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA;
 import static datadog.trace.api.config.TracerConfig.TRACE_STRICT_WRITES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH;
+import static datadog.trace.api.config.TracerConfig.WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
 import static datadog.trace.api.iast.IastDetectionMode.DEFAULT;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
-import static datadog.trace.util.Strings.toEnvVar;
 
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TracerConfig;
@@ -429,9 +469,11 @@ public class Config {
   /** This is the version of the runtime, ex: 1.8.0_332, 11.0.15, 17.0.3 */
   private final String runtimeVersion;
 
+  private final String applicationKey;
   /**
    * Note: this has effect only on profiling site. Traces are sent to Datadog agent and are not
-   * affected by this setting.
+   * affected by this setting. If CI Visibility is used with agentless mode, api key is used when
+   * sending data (including traces) to backend
    */
   private final String apiKey;
   /**
@@ -445,6 +487,7 @@ public class Config {
   private final String rootContextServiceName;
   private final boolean integrationSynapseLegacyOperationName;
   private final String writerType;
+  private final boolean injectBaggageAsTagsEnabled;
   private final boolean agentConfiguredUsingDefault;
   private final String agentUrl;
   private final String agentHost;
@@ -477,6 +520,7 @@ public class Config {
   private final Map<String, String> httpClientPathResourceNameMapping;
   private final boolean httpResourceRemoveTrailingSlash;
   private final boolean httpClientTagQueryString;
+  private final boolean httpClientTagHeaders;
   private final boolean httpClientSplitByDomain;
   private final boolean dbClientSplitByInstance;
   private final boolean dbClientSplitByInstanceTypeSuffix;
@@ -494,10 +538,12 @@ public class Config {
   private final Set<TracePropagationStyle> tracePropagationStylesToExtract;
   private final Set<TracePropagationStyle> tracePropagationStylesToInject;
   private final int clockSyncPeriod;
+  private final boolean logsInjectionEnabled;
 
   private final String dogStatsDNamedPipe;
   private final int dogStatsDStartDelay;
 
+  private final boolean runtimeMetricsEnabled;
   private final boolean jmxFetchEnabled;
   private final String jmxFetchConfigDir;
   private final List<String> jmxFetchConfigs;
@@ -575,6 +621,7 @@ public class Config {
   private final String appSecObfuscationParameterValueRegexp;
   private final String appSecHttpBlockedTemplateHtml;
   private final String appSecHttpBlockedTemplateJson;
+  private final UserEventTrackingMode appSecUserEventsTracking;
 
   private final IastDetectionMode iastDetectionMode;
   private final int iastMaxConcurrentRequests;
@@ -586,6 +633,7 @@ public class Config {
   private final String iastRedactionNamePattern;
   private final String iastRedactionValuePattern;
 
+  private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
   private final String ciVisibilityAgentlessUrl;
 
@@ -597,14 +645,29 @@ public class Config {
   private final String ciVisibilityAgentJarUri;
   private final boolean ciVisibilityAutoConfigurationEnabled;
   private final boolean ciVisibilityCompilerPluginAutoConfigurationEnabled;
-  private final boolean ciVisibilityPerTestCodeCoverageEnabled;
+  private final boolean ciVisibilityCodeCoverageEnabled;
+  private final boolean ciVisibilityCodeCoveragePercentageCalculationEnabled;
+  private final String ciVisibilityCodeCoverageReportDumpDir;
   private final String ciVisibilityCompilerPluginVersion;
   private final String ciVisibilityJacocoPluginVersion;
   private final List<String> ciVisibilityJacocoPluginIncludes;
   private final List<String> ciVisibilityJacocoPluginExcludes;
   private final String[] ciVisibilityJacocoPluginExcludedClassnames;
+  private final List<String> ciVisibilityJacocoGradleSourceSets;
   private final Integer ciVisibilityDebugPort;
-  private final int ciVisibilityTestEventsHandlerCacheSize;
+  private final boolean ciVisibilityGitUploadEnabled;
+  private final boolean ciVisibilityGitUnshallowEnabled;
+  private final long ciVisibilityGitCommandTimeoutMillis;
+  private final String ciVisibilityGitRemoteName;
+  private final long ciVisibilityBackendApiTimeoutMillis;
+  private final long ciVisibilityGitUploadTimeoutMillis;
+  private final String ciVisibilitySignalServerHost;
+  private final int ciVisibilitySignalServerPort;
+  private final boolean ciVisibilityItrEnabled;
+  private final boolean ciVisibilityCiProviderIntegrationEnabled;
+  private final boolean ciVisibilityRepoIndexSharingEnabled;
+  private final int ciVisibilityModuleExecutionSettingsCacheSize;
+  private final boolean ciVisibilityCoverageSegmentsEnabled;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -628,7 +691,7 @@ public class Config {
   private final long debuggerMaxPayloadSize;
   private final boolean debuggerVerifyByteCode;
   private final boolean debuggerInstrumentTheWorld;
-  private final String debuggerExcludeFile;
+  private final String debuggerExcludeFiles;
   private final int debuggerCaptureTimeout;
 
   private final boolean awsPropagationEnabled;
@@ -671,6 +734,7 @@ public class Config {
   private final boolean traceAgentV05Enabled;
 
   private final boolean debugEnabled;
+  private final boolean startupLogsEnabled;
   private final String configFileStatus;
 
   private final IdGenerationStrategy idGenerationStrategy;
@@ -714,7 +778,13 @@ public class Config {
 
   private final boolean longRunningTraceEnabled;
   private final long longRunningTraceFlushInterval;
+  private final boolean elasticsearchBodyEnabled;
+  private final boolean elasticsearchParamsEnabled;
   private final boolean elasticsearchBodyAndParamsEnabled;
+  private final boolean sparkTaskHistogramEnabled;
+  private final boolean jaxRsExceptionAsErrorsEnabled;
+
+  private final float traceFlushIntervalSeconds;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -743,10 +813,26 @@ public class Config {
         tmpApiKey =
             new String(Files.readAllBytes(Paths.get(apiKeyFile)), StandardCharsets.UTF_8).trim();
       } catch (final IOException e) {
-        log.error("Cannot read API key from file {}, skipping", apiKeyFile, e);
+        log.error(
+            "Cannot read API key from file {}, skipping. Exception {}", apiKeyFile, e.getMessage());
       }
     }
     site = configProvider.getString(SITE, DEFAULT_SITE);
+
+    String tmpApplicationKey =
+        configProvider.getStringExcludingSource(
+            APPLICATION_KEY, null, SystemPropertiesConfigSource.class);
+    String applicationKeyFile = configProvider.getString(APPLICATION_KEY_FILE);
+    if (applicationKeyFile != null) {
+      try {
+        tmpApplicationKey =
+            new String(Files.readAllBytes(Paths.get(applicationKeyFile)), StandardCharsets.UTF_8)
+                .trim();
+      } catch (final IOException e) {
+        log.error("Cannot read API key from file {}, skipping", applicationKeyFile, e);
+      }
+    }
+    applicationKey = tmpApplicationKey;
 
     String userProvidedServiceName =
         configProvider.getStringExcludingSource(
@@ -767,13 +853,19 @@ public class Config {
     integrationSynapseLegacyOperationName =
         configProvider.getBoolean(INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME, false);
     writerType = configProvider.getString(WRITER_TYPE, DEFAULT_AGENT_WRITER_TYPE);
-
+    injectBaggageAsTagsEnabled =
+        configProvider.getBoolean(WRITER_BAGGAGE_INJECT, DEFAULT_WRITER_BAGGAGE_INJECT);
     String lambdaInitType = getEnv("AWS_LAMBDA_INITIALIZATION_TYPE");
     if (lambdaInitType != null && lambdaInitType.equals("snap-start")) {
       secureRandom = true;
     } else {
       secureRandom = configProvider.getBoolean(SECURE_RANDOM, DEFAULT_SECURE_RANDOM);
     }
+    elasticsearchBodyEnabled =
+        configProvider.getBoolean(ELASTICSEARCH_BODY_ENABLED, DEFAULT_ELASTICSEARCH_BODY_ENABLED);
+    elasticsearchParamsEnabled =
+        configProvider.getBoolean(
+            ELASTICSEARCH_PARAMS_ENABLED, DEFAULT_ELASTICSEARCH_PARAMS_ENABLED);
     elasticsearchBodyAndParamsEnabled =
         configProvider.getBoolean(
             ELASTICSEARCH_BODY_AND_PARAMS_ENABLED, DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED);
@@ -962,6 +1054,8 @@ public class Config {
         configProvider.getBoolean(
             HTTP_CLIENT_TAG_QUERY_STRING, DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING);
 
+    httpClientTagHeaders = configProvider.getBoolean(HTTP_CLIENT_TAG_HEADERS, true);
+
     httpClientSplitByDomain =
         configProvider.getBoolean(
             HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN);
@@ -993,8 +1087,11 @@ public class Config {
     scopeIterationKeepAlive =
         configProvider.getInteger(SCOPE_ITERATION_KEEP_ALIVE, DEFAULT_SCOPE_ITERATION_KEEP_ALIVE);
 
+    boolean partialFlushEnabled = configProvider.getBoolean(PARTIAL_FLUSH_ENABLED, true);
     partialFlushMinSpans =
-        configProvider.getInteger(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
+        !partialFlushEnabled
+            ? 0
+            : configProvider.getInteger(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
 
     traceStrictWritesEnabled = configProvider.getBoolean(TRACE_STRICT_WRITES_ENABLED, false);
 
@@ -1094,13 +1191,16 @@ public class Config {
 
     clockSyncPeriod = configProvider.getInteger(CLOCK_SYNC_PERIOD, DEFAULT_CLOCK_SYNC_PERIOD);
 
+    logsInjectionEnabled =
+        configProvider.getBoolean(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
+
     dogStatsDNamedPipe = configProvider.getString(DOGSTATSD_NAMED_PIPE);
 
     dogStatsDStartDelay =
         configProvider.getInteger(
             DOGSTATSD_START_DELAY, DEFAULT_DOGSTATSD_START_DELAY, JMX_FETCH_START_DELAY);
 
-    boolean runtimeMetricsEnabled = configProvider.getBoolean(RUNTIME_METRICS_ENABLED, true);
+    runtimeMetricsEnabled = configProvider.getBoolean(RUNTIME_METRICS_ENABLED, true);
 
     jmxFetchEnabled =
         runtimeMetricsEnabled
@@ -1181,8 +1281,9 @@ public class Config {
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, PROFILING_AGENTLESS_DEFAULT);
     isDatadogProfilerEnabled =
-        configProvider.getBoolean(
-            PROFILING_DATADOG_PROFILER_ENABLED, isDatadogProfilerSafeInCurrentEnvironment());
+        !isDatadogProfilerEnablementOverridden()
+            && configProvider.getBoolean(
+                PROFILING_DATADOG_PROFILER_ENABLED, isDatadogProfilerSafeInCurrentEnvironment());
     profilingUrl = configProvider.getString(PROFILING_URL);
 
     if (tmpApiKey == null) {
@@ -1316,6 +1417,10 @@ public class Config {
         configProvider.getString(APPSEC_HTTP_BLOCKED_TEMPLATE_HTML, null);
     appSecHttpBlockedTemplateJson =
         configProvider.getString(APPSEC_HTTP_BLOCKED_TEMPLATE_JSON, null);
+    appSecUserEventsTracking =
+        UserEventTrackingMode.fromString(
+            configProvider.getStringNotEmpty(
+                APPSEC_AUTOMATED_USER_EVENTS_TRACKING, SAFE.toString()));
 
     iastDebugEnabled = configProvider.getBoolean(IAST_DEBUG_ENABLED, DEFAULT_IAST_DEBUG_ENABLED);
 
@@ -1343,6 +1448,9 @@ public class Config {
         configProvider.getString(
             IAST_REDACTION_VALUE_PATTERN, DEFAULT_IAST_REDACTION_VALUE_PATTERN);
 
+    ciVisibilityTraceSanitationEnabled =
+        configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
+
     ciVisibilityAgentlessEnabled =
         configProvider.getBoolean(
             CIVISIBILITY_AGENTLESS_ENABLED, DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED);
@@ -1360,11 +1468,6 @@ public class Config {
         configProvider.getBoolean(
             CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED,
             DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED);
-
-    ciVisibilityTestEventsHandlerCacheSize =
-        configProvider.getInteger(
-            CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE,
-            DEFAULT_CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE);
 
     ciVisibilitySessionId = configProvider.getLong(CIVISIBILITY_SESSION_ID);
     ciVisibilityModuleId = configProvider.getLong(CIVISIBILITY_MODULE_ID);
@@ -1394,10 +1497,12 @@ public class Config {
         configProvider.getBoolean(
             CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED,
             DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED);
-    ciVisibilityPerTestCodeCoverageEnabled =
-        configProvider.getBoolean(
-            CIVISIBILITY_PER_TEST_CODE_COVERAGE_ENABLED,
-            DEFAULT_CIVISIBILITY_PER_TEST_CODE_COVERAGE_ENABLED);
+    ciVisibilityCodeCoverageEnabled =
+        configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_ENABLED, true);
+    ciVisibilityCodeCoveragePercentageCalculationEnabled =
+        configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_PERCENTAGE_CALCULATION_ENABLED, true);
+    ciVisibilityCodeCoverageReportDumpDir =
+        configProvider.getString(CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR);
     ciVisibilityCompilerPluginVersion =
         configProvider.getString(
             CIVISIBILITY_COMPILER_PLUGIN_VERSION, DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION);
@@ -1413,7 +1518,45 @@ public class Config {
                     DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES)));
     ciVisibilityJacocoPluginExcludedClassnames =
         computeCiVisibilityJacocoPluginExcludedClassnames(ciVisibilityJacocoPluginExcludes);
+    ciVisibilityJacocoGradleSourceSets =
+        configProvider.getList(
+            CIVISIBILITY_JACOCO_GRADLE_SOURCE_SETS, Collections.singletonList("main"));
     ciVisibilityDebugPort = configProvider.getInteger(CIVISIBILITY_DEBUG_PORT);
+    ciVisibilityGitUploadEnabled =
+        configProvider.getBoolean(
+            CIVISIBILITY_GIT_UPLOAD_ENABLED, DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED);
+    ciVisibilityGitUnshallowEnabled =
+        configProvider.getBoolean(
+            CIVISIBILITY_GIT_UNSHALLOW_ENABLED, DEFAULT_CIVISIBILITY_GIT_UNSHALLOW_ENABLED);
+    ciVisibilityGitCommandTimeoutMillis =
+        configProvider.getLong(
+            CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS,
+            DEFAULT_CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS);
+    ciVisibilityBackendApiTimeoutMillis =
+        configProvider.getLong(
+            CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS,
+            DEFAULT_CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS);
+    ciVisibilityGitUploadTimeoutMillis =
+        configProvider.getLong(
+            CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS, DEFAULT_CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS);
+    ciVisibilityGitRemoteName =
+        configProvider.getString(
+            CIVISIBILITY_GIT_REMOTE_NAME, DEFAULT_CIVISIBILITY_GIT_REMOTE_NAME);
+    ciVisibilitySignalServerHost =
+        configProvider.getString(
+            CIVISIBILITY_SIGNAL_SERVER_HOST, DEFAULT_CIVISIBILITY_SIGNAL_SERVER_HOST);
+    ciVisibilitySignalServerPort =
+        configProvider.getInteger(
+            CIVISIBILITY_SIGNAL_SERVER_PORT, DEFAULT_CIVISIBILITY_SIGNAL_SERVER_PORT);
+    ciVisibilityItrEnabled = configProvider.getBoolean(CIVISIBILITY_ITR_ENABLED, true);
+    ciVisibilityCiProviderIntegrationEnabled =
+        configProvider.getBoolean(CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED, true);
+    ciVisibilityRepoIndexSharingEnabled =
+        configProvider.getBoolean(CIVISIBILITY_REPO_INDEX_SHARING_ENABLED, true);
+    ciVisibilityModuleExecutionSettingsCacheSize =
+        configProvider.getInteger(CIVISIBILITY_MODULE_EXECUTION_SETTINGS_CACHE_SIZE, 16);
+    ciVisibilityCoverageSegmentsEnabled =
+        configProvider.getBoolean(CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED, false);
 
     remoteConfigEnabled =
         configProvider.getBoolean(REMOTE_CONFIG_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED);
@@ -1463,7 +1606,7 @@ public class Config {
     debuggerInstrumentTheWorld =
         configProvider.getBoolean(
             DEBUGGER_INSTRUMENT_THE_WORLD, DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD);
-    debuggerExcludeFile = configProvider.getString(DEBUGGER_EXCLUDE_FILE);
+    debuggerExcludeFiles = configProvider.getString(DEBUGGER_EXCLUDE_FILES);
     debuggerCaptureTimeout =
         configProvider.getInteger(DEBUGGER_CAPTURE_TIMEOUT, DEFAULT_DEBUGGER_CAPTURE_TIMEOUT);
 
@@ -1526,7 +1669,10 @@ public class Config {
 
     servletAsyncTimeoutError = configProvider.getBoolean(SERVLET_ASYNC_TIMEOUT_ERROR, true);
 
-    debugEnabled = isDebugMode();
+    debugEnabled = configProvider.getBoolean(TRACE_DEBUG, false);
+
+    startupLogsEnabled =
+        configProvider.getBoolean(STARTUP_LOGS_ENABLED, DEFAULT_STARTUP_LOGS_ENABLED);
 
     cwsEnabled = configProvider.getBoolean(CWS_ENABLED, DEFAULT_CWS_ENABLED);
     cwsTlsRefresh = configProvider.getInteger(CWS_TLS_REFRESH, DEFAULT_CWS_TLS_REFRESH);
@@ -1579,6 +1725,18 @@ public class Config {
     longRunningTraceEnabled = longRunningEnabled;
     this.longRunningTraceFlushInterval = longRunningTraceFlushInterval;
 
+    this.sparkTaskHistogramEnabled =
+        configProvider.getBoolean(
+            SPARK_TASK_HISTOGRAM_ENABLED, ConfigDefaults.DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED);
+
+    this.jaxRsExceptionAsErrorsEnabled =
+        configProvider.getBoolean(
+            JAX_RS_EXCEPTION_AS_ERROR_ENABLED,
+            ConfigDefaults.DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED);
+
+    this.traceFlushIntervalSeconds =
+        configProvider.getFloat(
+            TracerConfig.TRACE_FLUSH_INTERVAL, ConfigDefaults.DEFAULT_TRACE_FLUSH_INTERVAL);
     if (profilingAgentless && apiKey == null) {
       log.warn(
           "Agentless profiling activated but no api key provided. Profile uploading will likely fail");
@@ -1626,6 +1784,10 @@ public class Config {
     return apiKey;
   }
 
+  public String getApplicationKey() {
+    return applicationKey;
+  }
+
   public String getSite() {
     return site;
   }
@@ -1658,12 +1820,20 @@ public class Config {
     return longRunningTraceFlushInterval;
   }
 
+  public float getTraceFlushIntervalSeconds() {
+    return traceFlushIntervalSeconds;
+  }
+
   public boolean isIntegrationSynapseLegacyOperationName() {
     return integrationSynapseLegacyOperationName;
   }
 
   public String getWriterType() {
     return writerType;
+  }
+
+  public boolean isInjectBaggageAsTagsEnabled() {
+    return injectBaggageAsTagsEnabled;
   }
 
   public boolean isAgentConfiguredUsingDefault() {
@@ -1794,6 +1964,10 @@ public class Config {
     return httpClientTagQueryString;
   }
 
+  public boolean isHttpClientTagHeaders() {
+    return httpClientTagHeaders;
+  }
+
   public boolean isHttpClientSplitByDomain() {
     return httpClientSplitByDomain;
   }
@@ -1870,6 +2044,10 @@ public class Config {
 
   public int getDogStatsDStartDelay() {
     return dogStatsDStartDelay;
+  }
+
+  public boolean isRuntimeMetricsEnabled() {
+    return runtimeMetricsEnabled;
   }
 
   public boolean isJmxFetchEnabled() {
@@ -1949,7 +2127,7 @@ public class Config {
   }
 
   public boolean isLogsInjectionEnabled() {
-    return instrumenterConfig.isLogsInjectionEnabled();
+    return logsInjectionEnabled;
   }
 
   public boolean isReportHostName() {
@@ -2082,6 +2260,20 @@ public class Config {
     return isDatadogProfilerEnabled;
   }
 
+  public static boolean isDatadogProfilerEnablementOverridden() {
+    // old non-LTS versions without important backports
+    // also, we have no windows binaries
+    return Platform.isWindows()
+        || Platform.isJavaVersion(18)
+        || Platform.isJavaVersion(16)
+        || Platform.isJavaVersion(15)
+        || Platform.isJavaVersion(14)
+        || Platform.isJavaVersion(13)
+        || Platform.isJavaVersion(12)
+        || Platform.isJavaVersion(10)
+        || Platform.isJavaVersion(9);
+  }
+
   public static boolean isDatadogProfilerSafeInCurrentEnvironment() {
     // don't want to put this logic (which will evolve) in the public ProfilingConfig, and can't
     // access Platform there
@@ -2178,6 +2370,10 @@ public class Config {
     return appSecHttpBlockedTemplateJson;
   }
 
+  public UserEventTrackingMode getAppSecUserEventsTrackingMode() {
+    return appSecUserEventsTracking;
+  }
+
   public ProductActivation getIastActivation() {
     return instrumenterConfig.getIastActivation();
   }
@@ -2222,6 +2418,10 @@ public class Config {
     return instrumenterConfig.isUsmEnabled();
   }
 
+  public boolean isCiVisibilityTraceSanitationEnabled() {
+    return ciVisibilityTraceSanitationEnabled;
+  }
+
   public boolean isCiVisibilityAgentlessEnabled() {
     return ciVisibilityAgentlessEnabled;
   }
@@ -2240,10 +2440,6 @@ public class Config {
 
   public boolean isCiVisibilityBuildInstrumentationEnabled() {
     return ciVisibilityBuildInstrumentationEnabled;
-  }
-
-  public int getCiVisibilityTestEventsHandlerCacheSize() {
-    return ciVisibilityTestEventsHandlerCacheSize;
   }
 
   public Long getCiVisibilitySessionId() {
@@ -2279,8 +2475,16 @@ public class Config {
     return ciVisibilityCompilerPluginAutoConfigurationEnabled;
   }
 
-  public boolean isCiVisibilityPerTestCodeCoverageEnabled() {
-    return ciVisibilityPerTestCodeCoverageEnabled;
+  public boolean isCiVisibilityCodeCoverageEnabled() {
+    return ciVisibilityCodeCoverageEnabled;
+  }
+
+  public boolean isCiVisibilityCodeCoveragePercentageCalculationEnabled() {
+    return ciVisibilityCodeCoveragePercentageCalculationEnabled;
+  }
+
+  public String getCiVisibilityCodeCoverageReportDumpDir() {
+    return ciVisibilityCodeCoverageReportDumpDir;
   }
 
   public String getCiVisibilityCompilerPluginVersion() {
@@ -2303,8 +2507,64 @@ public class Config {
     return ciVisibilityJacocoPluginExcludedClassnames;
   }
 
+  public List<String> getCiVisibilityJacocoGradleSourceSets() {
+    return ciVisibilityJacocoGradleSourceSets;
+  }
+
   public Integer getCiVisibilityDebugPort() {
     return ciVisibilityDebugPort;
+  }
+
+  public boolean isCiVisibilityGitUploadEnabled() {
+    return ciVisibilityGitUploadEnabled;
+  }
+
+  public boolean isCiVisibilityGitUnshallowEnabled() {
+    return ciVisibilityGitUnshallowEnabled;
+  }
+
+  public long getCiVisibilityGitCommandTimeoutMillis() {
+    return ciVisibilityGitCommandTimeoutMillis;
+  }
+
+  public long getCiVisibilityBackendApiTimeoutMillis() {
+    return ciVisibilityBackendApiTimeoutMillis;
+  }
+
+  public long getCiVisibilityGitUploadTimeoutMillis() {
+    return ciVisibilityGitUploadTimeoutMillis;
+  }
+
+  public String getCiVisibilityGitRemoteName() {
+    return ciVisibilityGitRemoteName;
+  }
+
+  public int getCiVisibilitySignalServerPort() {
+    return ciVisibilitySignalServerPort;
+  }
+
+  public String getCiVisibilitySignalServerHost() {
+    return ciVisibilitySignalServerHost;
+  }
+
+  public boolean isCiVisibilityItrEnabled() {
+    return ciVisibilityItrEnabled;
+  }
+
+  public boolean isCiVisibilityCiProviderIntegrationEnabled() {
+    return ciVisibilityCiProviderIntegrationEnabled;
+  }
+
+  public boolean isCiVisibilityRepoIndexSharingEnabled() {
+    return ciVisibilityRepoIndexSharingEnabled;
+  }
+
+  public int getCiVisibilityModuleExecutionSettingsCacheSize() {
+    return ciVisibilityModuleExecutionSettingsCacheSize;
+  }
+
+  public boolean isCiVisibilityCoverageSegmentsEnabled() {
+    return ciVisibilityCoverageSegmentsEnabled;
   }
 
   public String getAppSecRulesFile() {
@@ -2383,8 +2643,8 @@ public class Config {
     return debuggerInstrumentTheWorld;
   }
 
-  public String getDebuggerExcludeFile() {
-    return debuggerExcludeFile;
+  public String getDebuggerExcludeFiles() {
+    return debuggerExcludeFiles;
   }
 
   public int getDebuggerCaptureTimeout() {
@@ -2501,6 +2761,10 @@ public class Config {
     return debugEnabled;
   }
 
+  public boolean isStartupLogsEnabled() {
+    return startupLogsEnabled;
+  }
+
   public boolean isCwsEnabled() {
     return cwsEnabled;
   }
@@ -2565,8 +2829,24 @@ public class Config {
     return grpcClientErrorStatuses;
   }
 
+  public boolean isElasticsearchBodyEnabled() {
+    return elasticsearchBodyEnabled;
+  }
+
+  public boolean isElasticsearchParamsEnabled() {
+    return elasticsearchParamsEnabled;
+  }
+
   public boolean isElasticsearchBodyAndParamsEnabled() {
     return elasticsearchBodyAndParamsEnabled;
+  }
+
+  public boolean isSparkTaskHistogramEnabled() {
+    return sparkTaskHistogramEnabled;
+  }
+
+  public boolean isJaxRsExceptionAsErrorEnabled() {
+    return jaxRsExceptionAsErrorsEnabled;
   }
 
   /** @return A map of tags to be applied only to the local application root span. */
@@ -2796,7 +3076,7 @@ public class Config {
               + resourceGroup
               + "/providers/microsoft.web/sites/"
               + siteName;
-      resourceId = resourceId.toLowerCase();
+      resourceId = resourceId.toLowerCase(Locale.ROOT);
       aasTags.put("aas.resource.id", resourceId);
     } else {
       log.warn(
@@ -2887,7 +3167,8 @@ public class Config {
   public boolean isRuleEnabled(final String name, boolean defaultEnabled) {
     boolean enabled = configProvider.getBoolean("trace." + name + ".enabled", defaultEnabled);
     boolean lowerEnabled =
-        configProvider.getBoolean("trace." + name.toLowerCase() + ".enabled", defaultEnabled);
+        configProvider.getBoolean(
+            "trace." + name.toLowerCase(Locale.ROOT) + ".enabled", defaultEnabled);
     return defaultEnabled ? enabled && lowerEnabled : enabled || lowerEnabled;
   }
 
@@ -2993,22 +3274,6 @@ public class Config {
   public <T extends Enum<T>> T getEnumValue(
       final String name, final Class<T> type, final T defaultValue) {
     return configProvider.getEnum(name, type, defaultValue);
-  }
-
-  private static boolean isDebugMode() {
-    final String tracerDebugLevelSysprop = "dd.trace.debug";
-    final String tracerDebugLevelProp = getProp(tracerDebugLevelSysprop);
-
-    if (tracerDebugLevelProp != null) {
-      return Boolean.parseBoolean(tracerDebugLevelProp);
-    }
-
-    final String tracerDebugLevelEnv = getEnv(toEnvVar(tracerDebugLevelSysprop));
-
-    if (tracerDebugLevelEnv != null) {
-      return Boolean.parseBoolean(tracerDebugLevelEnv);
-    }
-    return false;
   }
 
   /**
@@ -3226,7 +3491,11 @@ public class Config {
   // This has to be placed after all other static fields to give them a chance to initialize
   @SuppressFBWarnings("SI_INSTANCE_BEFORE_FINALS_ASSIGNED")
   private static final Config INSTANCE =
-      new Config(ConfigProvider.getInstance(), InstrumenterConfig.get());
+      new Config(
+          Platform.isNativeImageBuilder()
+              ? ConfigProvider.withoutCollector()
+              : ConfigProvider.getInstance(),
+          InstrumenterConfig.get());
 
   public static Config get() {
     return INSTANCE;
@@ -3509,7 +3778,7 @@ public class Config {
         + ", debuggerInstrumentTheWorld="
         + debuggerInstrumentTheWorld
         + ", debuggerExcludeFile="
-        + debuggerExcludeFile
+        + debuggerExcludeFiles
         + ", awsPropagationEnabled="
         + awsPropagationEnabled
         + ", sqsPropagationEnabled="
@@ -3550,6 +3819,8 @@ public class Config {
         + traceAgentV05Enabled
         + ", debugEnabled="
         + debugEnabled
+        + ", startLogsEnabled="
+        + startupLogsEnabled
         + ", configFile='"
         + configFileStatus
         + '\''
@@ -3586,8 +3857,22 @@ public class Config {
         + longRunningTraceEnabled
         + ", longRunningTraceFlushInterval="
         + longRunningTraceFlushInterval
+        + ", elasticsearchBodyEnabled="
+        + elasticsearchBodyEnabled
+        + ", elasticsearchParamsEnabled="
+        + elasticsearchParamsEnabled
         + ", elasticsearchBodyAndParamsEnabled="
         + elasticsearchBodyAndParamsEnabled
+        + ", traceFlushInterval="
+        + traceFlushIntervalSeconds
+        + ", injectBaggageAsTagsEnabled="
+        + injectBaggageAsTagsEnabled
+        + ", logsInjectionEnabled="
+        + logsInjectionEnabled
+        + ", sparkTaskHistogramEnabled="
+        + sparkTaskHistogramEnabled
+        + ", jaxRsExceptionAsErrorsEnabled="
+        + jaxRsExceptionAsErrorsEnabled
         + '}';
   }
 }

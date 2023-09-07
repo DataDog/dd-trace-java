@@ -20,15 +20,14 @@ import com.datadog.appsec.report.raw.events.Rule;
 import com.datadog.appsec.report.raw.events.RuleMatch;
 import com.datadog.appsec.report.raw.events.Tags;
 import com.datadog.appsec.util.StandardizedLogging;
-import com.google.auto.service.AutoService;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
-import datadog.trace.api.WafMetricCollector;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.telemetry.WafMetricCollector;
 import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.Powerwaf;
 import io.sqreen.powerwaf.PowerwafConfig;
@@ -37,6 +36,7 @@ import io.sqreen.powerwaf.PowerwafMetrics;
 import io.sqreen.powerwaf.RuleSetInfo;
 import io.sqreen.powerwaf.exception.AbstractPowerwafException;
 import io.sqreen.powerwaf.exception.InvalidRuleSetException;
+import io.sqreen.powerwaf.exception.TimeoutPowerwafException;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationHandler;
@@ -64,7 +64,6 @@ import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@AutoService(AppSecModule.class)
 public class PowerWAFModule implements AppSecModule {
   private static final Logger log = LoggerFactory.getLogger(PowerWAFModule.class);
 
@@ -410,23 +409,26 @@ public class PowerWAFModule implements AppSecModule {
         log.debug("Skipped; the WAF is not configured");
         return;
       }
+
+      StandardizedLogging.executingWAF(log);
+      long start = 0L;
+      if (log.isDebugEnabled()) {
+        start = System.currentTimeMillis();
+      }
+
       try {
-        StandardizedLogging.executingWAF(log);
-        long start = 0L;
-        if (log.isDebugEnabled()) {
-          start = System.currentTimeMillis();
-        }
-
         resultWithData = doRunPowerwaf(reqCtx, newData, ctxAndAddr, isTransient);
-
+      } catch (TimeoutPowerwafException tpe) {
+        log.debug("Timeout calling the WAF", tpe);
+        return;
+      } catch (AbstractPowerwafException e) {
+        log.error("Error calling WAF", e);
+        return;
+      } finally {
         if (log.isDebugEnabled()) {
           long elapsed = System.currentTimeMillis() - start;
           StandardizedLogging.finishedExecutionWAF(log, elapsed);
         }
-
-      } catch (AbstractPowerwafException e) {
-        log.error("Error calling WAF", e);
-        return;
       }
 
       StandardizedLogging.inAppWafReturn(log, resultWithData);

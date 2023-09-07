@@ -35,7 +35,14 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".TracingListener", packageName + ".JUnit4Utils"};
+    return new String[] {
+      packageName + ".SkippedByItr",
+      packageName + ".JUnit4Utils$Cucumber",
+      packageName + ".JUnit4Utils$Munit",
+      packageName + ".JUnit4Utils",
+      packageName + ".TestEventsHandlerHolder",
+      packageName + ".TracingListener",
+    };
   }
 
   @Override
@@ -50,6 +57,10 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
     public static void fireSuiteStartedEvent(
         @Advice.Argument(0) final RunNotifier runNotifier,
         @Advice.This final ParentRunner<?> runner) {
+      if (JUnit4Utils.NATIVE_SUITE_EVENTS_SUPPORTED) {
+        return;
+      }
+
       final List<RunListener> runListeners = JUnit4Utils.runListenersFromRunNotifier(runNotifier);
       if (runListeners == null) {
         return;
@@ -58,7 +69,7 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
       for (final RunListener listener : runListeners) {
         TracingListener tracingListener = JUnit4Utils.toTracingListener(listener);
         if (tracingListener != null) {
-          tracingListener.testSuiteStarted(runner.getTestClass());
+          tracingListener.testSuiteStarted(runner.getDescription());
         }
       }
     }
@@ -67,6 +78,10 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
     public static void fireSuiteFinishedEvent(
         @Advice.Argument(0) final RunNotifier runNotifier,
         @Advice.This final ParentRunner<?> runner) {
+      if (JUnit4Utils.NATIVE_SUITE_EVENTS_SUPPORTED) {
+        return;
+      }
+
       final List<RunListener> runListeners = JUnit4Utils.runListenersFromRunNotifier(runNotifier);
       if (runListeners == null) {
         return;
@@ -75,7 +90,7 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
       for (final RunListener listener : runListeners) {
         TracingListener tracingListener = JUnit4Utils.toTracingListener(listener);
         if (tracingListener != null) {
-          tracingListener.testSuiteFinished(runner.getTestClass());
+          tracingListener.testSuiteFinished(runner.getDescription());
         }
       }
     }

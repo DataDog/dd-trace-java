@@ -4,17 +4,23 @@ import datadog.trace.api.iast.propagation.CodecModule;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.propagation.StringModule;
 import datadog.trace.api.iast.sink.CommandInjectionModule;
+import datadog.trace.api.iast.sink.HstsMissingHeaderModule;
 import datadog.trace.api.iast.sink.HttpResponseHeaderModule;
 import datadog.trace.api.iast.sink.InsecureCookieModule;
 import datadog.trace.api.iast.sink.LdapInjectionModule;
 import datadog.trace.api.iast.sink.NoHttpOnlyCookieModule;
+import datadog.trace.api.iast.sink.NoSameSiteCookieModule;
 import datadog.trace.api.iast.sink.PathTraversalModule;
 import datadog.trace.api.iast.sink.SqlInjectionModule;
 import datadog.trace.api.iast.sink.SsrfModule;
+import datadog.trace.api.iast.sink.TrustBoundaryViolationModule;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
 import datadog.trace.api.iast.sink.WeakCipherModule;
 import datadog.trace.api.iast.sink.WeakHashModule;
 import datadog.trace.api.iast.sink.WeakRandomnessModule;
+import datadog.trace.api.iast.sink.XContentTypeModule;
+import datadog.trace.api.iast.sink.XPathInjectionModule;
+import datadog.trace.api.iast.sink.XssModule;
 import datadog.trace.api.iast.source.WebModule;
 
 /** Bridge between instrumentations and {@link IastModule} instances. */
@@ -30,13 +36,22 @@ public abstract class InstrumentationBridge {
   public static volatile WeakHashModule WEAK_HASH;
   public static volatile LdapInjectionModule LDAP_INJECTION;
   public static volatile PropagationModule PROPAGATION;
-  public static volatile InsecureCookieModule INSECURE_COOKIE;
-  public static volatile NoHttpOnlyCookieModule NO_HTTPONLY_COOKIE;
+  public static volatile InsecureCookieModule<?> INSECURE_COOKIE;
+  public static volatile NoHttpOnlyCookieModule<?> NO_HTTPONLY_COOKIE;
+  public static volatile NoSameSiteCookieModule<?> NO_SAMESITE_COOKIE;
   public static volatile SsrfModule SSRF;
   public static volatile UnvalidatedRedirectModule UNVALIDATED_REDIRECT;
   public static volatile WeakRandomnessModule WEAK_RANDOMNESS;
-  public static final HttpResponseHeaderModule.Delegated RESPONSE_HEADER_MODULE =
-      new HttpResponseHeaderModule.Delegated();
+  public static volatile HttpResponseHeaderModule RESPONSE_HEADER_MODULE;
+  public static volatile HstsMissingHeaderModule HSTS_MISSING_HEADER_MODULE;
+
+  public static volatile XContentTypeModule X_CONTENT_TYPE_HEADER_MODULE;
+
+  public static volatile TrustBoundaryViolationModule TRUST_BOUNDARY_VIOLATION;
+
+  public static volatile XPathInjectionModule XPATH_INJECTION;
+
+  public static volatile XssModule XSS;
 
   private InstrumentationBridge() {}
 
@@ -62,25 +77,35 @@ public abstract class InstrumentationBridge {
     } else if (module instanceof PropagationModule) {
       PROPAGATION = (PropagationModule) module;
     } else if (module instanceof InsecureCookieModule) {
-      INSECURE_COOKIE = (InsecureCookieModule) module;
+      INSECURE_COOKIE = (InsecureCookieModule<?>) module;
     } else if (module instanceof NoHttpOnlyCookieModule) {
-      NO_HTTPONLY_COOKIE = (NoHttpOnlyCookieModule) module;
+      NO_HTTPONLY_COOKIE = (NoHttpOnlyCookieModule<?>) module;
+    } else if (module instanceof NoSameSiteCookieModule) {
+      NO_SAMESITE_COOKIE = (NoSameSiteCookieModule<?>) module;
     } else if (module instanceof SsrfModule) {
       SSRF = (SsrfModule) module;
     } else if (module instanceof UnvalidatedRedirectModule) {
       UNVALIDATED_REDIRECT = (UnvalidatedRedirectModule) module;
     } else if (module instanceof WeakRandomnessModule) {
       WEAK_RANDOMNESS = (WeakRandomnessModule) module;
+    } else if (module instanceof HttpResponseHeaderModule) {
+      RESPONSE_HEADER_MODULE = (HttpResponseHeaderModule) module;
+    } else if (module instanceof HstsMissingHeaderModule) {
+      HSTS_MISSING_HEADER_MODULE = (HstsMissingHeaderModule) module;
+    } else if (module instanceof XContentTypeModule) {
+      X_CONTENT_TYPE_HEADER_MODULE = (XContentTypeModule) module;
+    } else if (module instanceof XPathInjectionModule) {
+      XPATH_INJECTION = (XPathInjectionModule) module;
+    } else if (module instanceof TrustBoundaryViolationModule) {
+      TRUST_BOUNDARY_VIOLATION = (TrustBoundaryViolationModule) module;
+    } else if (module instanceof XssModule) {
+      XSS = (XssModule) module;
     } else {
       throw new UnsupportedOperationException("Module not yet supported: " + module);
-    }
-    if (module instanceof HttpResponseHeaderModule) {
-      RESPONSE_HEADER_MODULE.addDelegate((HttpResponseHeaderModule) module);
     }
   }
 
   /** Mainly used for testing modules */
-  @SuppressWarnings("unchecked")
   public static <E extends IastModule> E getIastModule(final Class<E> type) {
     if (type == StringModule.class) {
       return (E) STRING;
@@ -118,6 +143,9 @@ public abstract class InstrumentationBridge {
     if (type == NoHttpOnlyCookieModule.class) {
       return (E) NO_HTTPONLY_COOKIE;
     }
+    if (type == NoSameSiteCookieModule.class) {
+      return (E) NO_SAMESITE_COOKIE;
+    }
     if (type == SsrfModule.class) {
       return (E) SSRF;
     }
@@ -126,6 +154,24 @@ public abstract class InstrumentationBridge {
     }
     if (type == WeakRandomnessModule.class) {
       return (E) WEAK_RANDOMNESS;
+    }
+    if (type == XPathInjectionModule.class) {
+      return (E) XPATH_INJECTION;
+    }
+    if (type == HttpResponseHeaderModule.class) {
+      return (E) RESPONSE_HEADER_MODULE;
+    }
+    if (type == HstsMissingHeaderModule.class) {
+      return (E) HSTS_MISSING_HEADER_MODULE;
+    }
+    if (type == XContentTypeModule.class) {
+      return (E) X_CONTENT_TYPE_HEADER_MODULE;
+    }
+    if (type == TrustBoundaryViolationModule.class) {
+      return (E) TRUST_BOUNDARY_VIOLATION;
+    }
+    if (type == XssModule.class) {
+      return (E) XSS;
     }
     throw new UnsupportedOperationException("Module not yet supported: " + type);
   }
@@ -144,9 +190,15 @@ public abstract class InstrumentationBridge {
     PROPAGATION = null;
     INSECURE_COOKIE = null;
     NO_HTTPONLY_COOKIE = null;
+    NO_SAMESITE_COOKIE = null;
     SSRF = null;
     UNVALIDATED_REDIRECT = null;
     WEAK_RANDOMNESS = null;
-    RESPONSE_HEADER_MODULE.clear();
+    RESPONSE_HEADER_MODULE = null;
+    HSTS_MISSING_HEADER_MODULE = null;
+    X_CONTENT_TYPE_HEADER_MODULE = null;
+    XPATH_INJECTION = null;
+    TRUST_BOUNDARY_VIOLATION = null;
+    XSS = null;
   }
 }

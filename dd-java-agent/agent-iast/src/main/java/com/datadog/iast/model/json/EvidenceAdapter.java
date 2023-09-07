@@ -6,6 +6,7 @@ import com.datadog.iast.model.Source;
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.model.json.AdapterFactory.Context;
+import com.datadog.iast.model.json.AdapterFactory.RedactionContext;
 import com.datadog.iast.sensitive.SensitiveHandler;
 import com.datadog.iast.sensitive.SensitiveHandler.Tokenizer;
 import com.datadog.iast.util.Ranged;
@@ -15,6 +16,17 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import datadog.trace.api.Config;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Queue;
+import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -44,27 +56,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
     }
   }
 
-  private void writeValuePart(@Nonnull final JsonWriter writer, @Nonnull final String value)
-      throws IOException {
-    if (!value.isEmpty()) {
-      writeValuePart(writer, value, null);
-    }
-  }
-
-  private void writeValuePart(
-      @Nonnull final JsonWriter writer, @Nonnull final String value, @Nullable final Range range)
-      throws IOException {
-    writer.beginObject();
-    writer.name("value");
-    writer.value(value);
-    if (range != null) {
-      writer.name("source");
-      sourceAdapter.toJson(writer, range.getSource());
-    }
-    writer.endObject();
-  }
-
-  private String substring(final String value, final Range range) {
+  private String substring(final String value, final Ranged range) {
     final int end = Math.min(range.getStart() + range.getLength(), value.length());
     return value.substring(range.getStart(), end);
   }
@@ -105,6 +97,26 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
       }
       writer.endArray();
     }
+
+    private void writeValuePart(@Nonnull final JsonWriter writer, @Nonnull final String value)
+        throws IOException {
+      if (!value.isEmpty()) {
+        writeValuePart(writer, value, null);
+      }
+    }
+
+    private void writeValuePart(
+        @Nonnull final JsonWriter writer, @Nonnull final String value, @Nullable final Range range)
+        throws IOException {
+      writer.beginObject();
+      writer.name("value");
+      writer.value(value);
+      if (range != null) {
+        writer.name("source");
+        sourceAdapter.toJson(writer, range.getSource());
+      }
+      writer.endObject();
+    }
   }
 
   private class RedactedEvidenceAdapter extends FormattingAdapter<Evidence> {
@@ -139,68 +151,11 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
         final RangedDeque<Ranged> sensitive)
         throws IOException {
       writer.beginArray();
-      int start = 0;
-      Range nextTainted = tainted.poll();
-      Ranged nextSensitive = sensitive.poll();
-      for (int i = 0; i < value.length(); i++) {
-        if (nextTainted != null && nextTainted.getStart() == i) {
-          writeValuePart(writer, value.substring(start, i));
-          // clean up contained sensitive ranges
-          while (nextSensitive != null && nextTainted.contains(nextSensitive)) {
-            ctx.markAsRedacted(nextTainted.getSource());
-            nextSensitive = sensitive.poll();
-          }
-          if (nextSensitive != null && nextSensitive.intersects(nextTainted)) {
-            ctx.markAsRedacted(nextTainted.getSource());
-            nextSensitive = nextSensitive.remove(nextTainted).get(0);
-          }
-          if (ctx.shouldRedact(nextTainted.getSource())) {
-            writeRedactedValuePart(writer, nextTainted);
-          } else {
-            writeValuePart(writer, substring(value, nextTainted), nextTainted);
-          }
-          start = i + nextTainted.getLength();
-          i = start - 1;
-          nextTainted = tainted.poll();
-        } else if (nextSensitive != null && nextSensitive.getStart() == i) {
-          writeValuePart(writer, value.substring(start, i));
-          if (nextTainted != null && nextSensitive.intersects(nextTainted)) {
-            ctx.markAsRedacted(nextTainted.getSource());
-            for (final Ranged entry : nextSensitive.remove(nextTainted)) {
-              if (entry.getStart() == i) {
-                nextSensitive = entry;
-              } else {
-                sensitive.addFirst(entry);
-              }
-            }
-          }
-          writeRedactedValuePart(writer);
-          start = i + nextSensitive.getLength();
-          i = start - 1;
-          nextSensitive = sensitive.poll();
-        }
-      }
-      if (start < value.length()) {
-        writeValuePart(writer, value.substring(start));
+      for (final Iterator<ValuePart> it = new ValuePartIterator(ctx, value, tainted, sensitive);
+          it.hasNext(); ) {
+        it.next().write(ctx, writer);
       }
       writer.endArray();
-    }
-
-    private void writeRedactedValuePart(final JsonWriter writer) throws IOException {
-      writer.beginObject();
-      writer.name("redacted");
-      writer.value(true);
-      writer.endObject();
-    }
-
-    private void writeRedactedValuePart(final JsonWriter writer, final Range range)
-        throws IOException {
-      writer.beginObject();
-      writer.name("redacted");
-      writer.value(true);
-      writer.name("source");
-      sourceAdapter.toJson(writer, range.getSource());
-      writer.endObject();
     }
 
     private RangedDeque<Range> taintedRanges(final Evidence evidence) {
@@ -212,6 +167,324 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
       final SensitiveHandler handler = SensitiveHandler.get();
       final Tokenizer tokenizer = handler.tokenizeEvidence(type, evidence);
       return RangedDeque.forTokenizer(tokenizer);
+    }
+  }
+
+  private class ValuePartIterator implements Iterator<ValuePart> {
+    private final Context ctx;
+    private final String value;
+    private final RangedDeque<Range> tainted;
+    private final RangedDeque<Ranged> sensitive;
+    private final Map<Range, List<Ranged>> intersections = new HashMap<>();
+    private final Queue<ValuePart> next = new LinkedList<>();
+    private int index;
+
+    private ValuePartIterator(
+        final Context ctx,
+        final String value,
+        final RangedDeque<Range> tainted,
+        final RangedDeque<Ranged> sensitive) {
+      this.ctx = ctx;
+      this.value = value;
+      this.tainted = tainted;
+      this.sensitive = sensitive;
+    }
+
+    @Override
+    public boolean hasNext() {
+      return !next.isEmpty() || index < value.length();
+    }
+
+    @Override
+    public ValuePart next() {
+      if (!hasNext()) {
+        throw new NoSuchElementException();
+      }
+      if (!next.isEmpty()) {
+        return next.poll();
+      }
+      if (tainted.isEmpty() && sensitive.isEmpty()) {
+        return nextStringValuePart(value.length()); // last string chunk
+      }
+      final Range nextTainted = this.tainted.poll();
+      Ranged nextSensitive = this.sensitive.poll();
+      if (nextTainted != null) {
+        if (nextTainted.isBefore(nextSensitive)) {
+          addNextStringValuePart(nextTainted.getStart(), next); // pending string chunk
+          nextSensitive = handleTaintedValue(nextTainted, nextSensitive);
+        } else {
+          tainted.addFirst(nextTainted);
+        }
+      }
+      if (nextSensitive != null) {
+        addNextStringValuePart(nextSensitive.getStart(), next); // pending string chunk
+        handleSensitiveValue(nextSensitive);
+      }
+      return next.poll();
+    }
+
+    private Ranged handleTaintedValue(
+        @Nonnull final Range nextTainted, @Nullable Ranged nextSensitive) {
+      final RedactionContext redactionCtx = ctx.getRedaction(nextTainted.getSource());
+      List<Ranged> intersections = this.intersections.remove(nextTainted);
+      intersections = intersections == null ? new LinkedList<>() : intersections;
+
+      // remove fully overlapped sensitive ranges
+      while (nextSensitive != null && nextTainted.contains(nextSensitive)) {
+        redactionCtx.markWithSensitiveRanges();
+        intersections.add(nextSensitive);
+        nextSensitive = sensitive.poll();
+      }
+
+      final Ranged intersection;
+      // truncate last sensitive range if intersects with the tainted one
+      if (nextSensitive != null
+          && (intersection = nextTainted.intersection(nextSensitive)) != null) {
+        redactionCtx.markWithSensitiveRanges();
+        intersections.add(intersection);
+        nextSensitive = removeTaintedRange(nextSensitive, nextTainted);
+      }
+
+      // finally add value part
+      final String taintedValue = substring(value, nextTainted);
+      next.add(
+          new RedactableTaintedValuePart(sourceAdapter, nextTainted, taintedValue, intersections));
+      index = nextTainted.getStart() + nextTainted.getLength();
+      return nextSensitive;
+    }
+
+    private void handleSensitiveValue(@Nonnull Ranged nextSensitive) {
+      // truncate sensitive part if intersects with the next tainted range
+      final Range nextTainted = tainted.peek();
+      final Ranged intersection;
+      if (nextTainted != null && (intersection = nextTainted.intersection(nextSensitive)) != null) {
+        final RedactionContext redactionCtx = ctx.getRedaction(nextTainted.getSource());
+        redactionCtx.markWithSensitiveRanges();
+        intersections.computeIfAbsent(nextTainted, r -> new LinkedList<>()).add(intersection);
+        nextSensitive = removeTaintedRange(nextSensitive, nextTainted);
+      }
+
+      // finally add value part
+      if (nextSensitive != null) {
+        final String sensitiveValue = substring(value, nextSensitive);
+        next.add(new RedactedValuePart(sensitiveValue));
+        index = nextSensitive.getStart() + nextSensitive.getLength();
+      }
+    }
+
+    /**
+     * Removes the tainted range from the sensitive one and returns whatever is before and enqueues
+     * the rest
+     */
+    private Ranged removeTaintedRange(final Ranged sensitive, final Range tainted) {
+      final List<Ranged> disjointRanges = sensitive.remove(tainted);
+      Ranged result = null;
+      for (final Ranged disjoint : disjointRanges) {
+        if (disjoint.isBefore(tainted)) {
+          result = disjoint;
+        } else {
+          this.sensitive.addFirst(disjoint);
+        }
+      }
+      return result;
+    }
+
+    private ValuePart nextStringValuePart(final int end) {
+      if (index < end) {
+        final String chunk = value.substring(index, end);
+        index = end;
+        return new StringValuePart(chunk);
+      }
+      return null;
+    }
+
+    private void addNextStringValuePart(final int end, final Collection<ValuePart> target) {
+      final ValuePart part = nextStringValuePart(end);
+      if (part != null) {
+        target.add(part);
+      }
+    }
+  }
+
+  interface ValuePart {
+    void write(final Context ctx, final JsonWriter writer) throws IOException;
+  }
+
+  static class StringValuePart implements ValuePart {
+    private final String value;
+
+    private StringValuePart(final String value) {
+      this.value = value;
+    }
+
+    @Override
+    public void write(final Context ctx, final JsonWriter writer) throws IOException {
+      if (value == null || value.isEmpty()) {
+        return;
+      }
+      writer.beginObject();
+      writer.name("value");
+      writer.value(value);
+      writer.endObject();
+    }
+  }
+
+  static class RedactedValuePart implements ValuePart {
+
+    private final String value;
+
+    private RedactedValuePart(final String value) {
+      this.value = value;
+    }
+
+    @Override
+    public void write(final Context ctx, final JsonWriter writer) throws IOException {
+      if (value == null) {
+        return;
+      }
+      writer.beginObject();
+      writer.name("redacted");
+      writer.value(true);
+      writer.endObject();
+    }
+  }
+
+  static class RedactableTaintedValuePart implements ValuePart {
+
+    private final JsonAdapter<Source> adapter;
+
+    private final Source source;
+
+    private final String value;
+
+    private final List<Ranged> sensitiveRanges;
+
+    private RedactableTaintedValuePart(
+        final JsonAdapter<Source> adapter,
+        final Range range,
+        final String value,
+        final List<Ranged> sensitive) {
+      this.adapter = adapter;
+      this.source = range.getSource();
+      this.value = value;
+      // shift ranges to the start of the tainted range and sort them
+      this.sensitiveRanges =
+          sensitive.stream()
+              .map(it -> shift(it, -range.getStart()))
+              .sorted(Comparator.comparing(Ranged::getStart))
+              .collect(Collectors.toList());
+    }
+
+    @Override
+    public void write(final Context ctx, final JsonWriter writer) throws IOException {
+      final RedactionContext redaction = ctx.getRedaction(source);
+      if (redaction.shouldRedact()) {
+        for (final ValuePart part : split(redaction)) {
+          part.write(ctx, writer);
+        }
+      } else {
+        writer.beginObject();
+        writer.name("value");
+        writer.value(value);
+        writer.name("source");
+        adapter.toJson(writer, source);
+        writer.endObject();
+      }
+    }
+
+    private List<ValuePart> split(final RedactionContext redaction) {
+      final List<ValuePart> parts = new ArrayList<>();
+      if (redaction.isSensitive()) {
+        // redact the full tainted value as the source is sensitive (password, certificate, ...)
+        addValuePart(0, value.length(), redaction, true, parts);
+      } else {
+        // redact only sensitive parts
+        int index = 0;
+        for (final Ranged sensitive : this.sensitiveRanges) {
+          final int start = sensitive.getStart();
+          final int end = sensitive.getStart() + sensitive.getLength();
+          // append previous tainted chunk (if any)
+          addValuePart(index, start, redaction, false, parts);
+          // append current sensitive tainted chunk
+          addValuePart(start, end, redaction, true, parts);
+          index = end;
+        }
+        // append last tainted chunk (if any)
+        addValuePart(index, value.length(), redaction, false, parts);
+      }
+      return parts;
+    }
+
+    private void addValuePart(
+        final int start,
+        final int end,
+        final RedactionContext ctx,
+        final boolean redact,
+        final List<ValuePart> valueParts) {
+      if (start < end) {
+        final Source source = ctx.getSource();
+        final String chunk = value.substring(start, end);
+        if (!redact) {
+          // append the value
+          valueParts.add(new TaintedValuePart(adapter, source, chunk, false));
+        } else {
+          final int length = chunk.length();
+          final int matching = source.getValue().indexOf(chunk);
+          final String pattern;
+          if (matching >= 0) {
+            // if matches append the matching part from the redacted value
+            pattern = ctx.getRedactedValue().substring(matching, matching + length);
+          } else {
+            // otherwise redact the string
+            pattern = SensitiveHandler.get().redactString(chunk);
+          }
+          valueParts.add(new TaintedValuePart(adapter, source, pattern, true));
+        }
+      }
+    }
+
+    private Ranged shift(final Ranged ranged, final int offset) {
+      return Ranged.build(ranged.getStart() + offset, ranged.getLength());
+    }
+  }
+
+  static class TaintedValuePart implements ValuePart {
+    private final JsonAdapter<Source> adapter;
+
+    private final Source source;
+
+    private final String value;
+
+    private final boolean redacted;
+
+    private TaintedValuePart(
+        final JsonAdapter<Source> adapter,
+        final Source source,
+        final String value,
+        final boolean redacted) {
+      this.adapter = adapter;
+      this.source = source;
+      this.value = value;
+      this.redacted = redacted;
+    }
+
+    @Override
+    public void write(final Context ctx, final JsonWriter writer) throws IOException {
+      if (value == null) {
+        return;
+      }
+      writer.beginObject();
+      writer.name("source");
+      adapter.toJson(writer, source);
+      if (redacted) {
+        writer.name("redacted");
+        writer.value(true);
+        writer.name("pattern");
+      } else {
+        writer.name("value");
+      }
+      writer.value(value);
+      writer.endObject();
     }
   }
 }

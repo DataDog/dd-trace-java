@@ -15,6 +15,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.Hashtable;
 import java.util.Map;
@@ -27,11 +28,6 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForSingleType {
   public LoggingEventInstrumentation() {
     super("log4j", "log4j-1");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isLogsInjectionEnabled();
   }
 
   @Override
@@ -62,10 +58,18 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
         @Advice.Argument(0) String key,
         @Advice.Return(readOnly = false) Object value) {
 
-      // The mdc has priority of our tags
+      // The mdc has priority over our tags
       // if the mdc had a value for the key, or the key is null (invalid for a switch)
       // just return
       if (value != null || key == null) {
+        return;
+      }
+
+      AgentSpan.Context context =
+          InstrumentationContext.get(LoggingEvent.class, AgentSpan.Context.class).get(event);
+
+      // Nothing to add so return early
+      if (context == null && !AgentTracer.traceConfig().isLogsInjectionEnabled()) {
         return;
       }
 
@@ -89,9 +93,7 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
           }
           break;
         case "dd.trace_id":
-          {
-            AgentSpan.Context context =
-                InstrumentationContext.get(LoggingEvent.class, AgentSpan.Context.class).get(event);
+          if (context != null) {
             DDTraceId traceId = context.getTraceId();
             if (traceId.toHighOrderLong() != 0
                 && InstrumenterConfig.get().isLogs128bTraceIdEnabled()) {
@@ -102,12 +104,8 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
           }
           break;
         case "dd.span_id":
-          {
-            AgentSpan.Context context =
-                InstrumentationContext.get(LoggingEvent.class, AgentSpan.Context.class).get(event);
-            if (context != null) {
-              value = DDSpanId.toString(context.getSpanId());
-            }
+          if (context != null) {
+            value = DDSpanId.toString(context.getSpanId());
           }
           break;
         default:
@@ -128,6 +126,14 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
 
         Hashtable mdc = new Hashtable();
 
+        AgentSpan.Context context =
+            InstrumentationContext.get(LoggingEvent.class, AgentSpan.Context.class).get(event);
+
+        // Nothing to add so return early
+        if (context == null && !AgentTracer.traceConfig().isLogsInjectionEnabled()) {
+          return;
+        }
+
         String serviceName = Config.get().getServiceName();
         if (null != serviceName && !serviceName.isEmpty()) {
           mdc.put(Tags.DD_SERVICE, serviceName);
@@ -141,8 +147,6 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
           mdc.put(Tags.DD_VERSION, version);
         }
 
-        AgentSpan.Context context =
-            InstrumentationContext.get(LoggingEvent.class, AgentSpan.Context.class).get(event);
         if (context != null) {
           DDTraceId traceId = context.getTraceId();
           String traceIdValue =

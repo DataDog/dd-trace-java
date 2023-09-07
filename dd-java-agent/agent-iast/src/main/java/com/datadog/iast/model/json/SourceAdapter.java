@@ -2,6 +2,7 @@ package com.datadog.iast.model.json;
 
 import com.datadog.iast.model.Source;
 import com.datadog.iast.model.json.AdapterFactory.Context;
+import com.datadog.iast.model.json.AdapterFactory.RedactionContext;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
@@ -42,15 +43,16 @@ public class SourceAdapter extends FormattingAdapter<Source> {
     @Override
     public void toJson(@Nonnull final JsonWriter writer, final @Nonnull Source source)
         throws IOException {
-      final Context ctx = Context.get();
-      if (!ctx.shouldRedact(source)) {
-        defaultAdapter.toJson(writer, source);
+      final RedactionContext ctx = Context.get().getRedaction(source);
+      if (ctx.shouldRedact()) {
+        toRedactedJson(writer, source, ctx.getRedactedValue());
       } else {
-        toRedactedJson(writer, source);
+        defaultAdapter.toJson(writer, source);
       }
     }
 
-    private void toRedactedJson(final JsonWriter writer, final Source source) throws IOException {
+    private void toRedactedJson(final JsonWriter writer, final Source source, final String value)
+        throws IOException {
       writer.beginObject();
       writer.name("origin");
       sourceAdapter.toJson(writer, source.getOrigin());
@@ -58,6 +60,8 @@ public class SourceAdapter extends FormattingAdapter<Source> {
       writer.value(source.getName());
       writer.name("redacted");
       writer.value(true);
+      writer.name("pattern");
+      writer.value(value);
       writer.endObject();
     }
   }

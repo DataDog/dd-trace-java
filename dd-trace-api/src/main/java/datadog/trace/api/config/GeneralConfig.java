@@ -15,7 +15,9 @@ public final class GeneralConfig {
 
   public static final String CONFIGURATION_FILE = "trace.config";
   public static final String API_KEY = "api-key";
+  public static final String APPLICATION_KEY = "application-key";
   public static final String API_KEY_FILE = "api-key-file";
+  public static final String APPLICATION_KEY_FILE = "application-key-file";
   public static final String SITE = "site";
 
   public static final String SERVICE_NAME = "service.name";
@@ -25,6 +27,10 @@ public final class GeneralConfig {
   public static final String TAGS = "tags";
   @Deprecated // Use dd.tags instead
   public static final String GLOBAL_TAGS = "trace.global.tags";
+
+  public static final String TRACE_DEBUG = "trace.debug";
+
+  public static final String STARTUP_LOGS_ENABLED = "trace.startup.logs";
 
   public static final String DOGSTATSD_START_DELAY = "dogstatsd.start-delay";
   public static final String DOGSTATSD_HOST = "dogstatsd.host";

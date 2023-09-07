@@ -23,8 +23,7 @@ public class ClassInstrumenterInstrumentation extends Instrumenter.CiVisibility
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems)
-        && Config.get().isCiVisibilityPerTestCodeCoverageEnabled();
+    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityCodeCoverageEnabled();
   }
 
   @Override
@@ -52,7 +51,7 @@ public class ClassInstrumenterInstrumentation extends Instrumenter.CiVisibility
     static void enter(
         @Advice.FieldValue(value = "className") final String className,
         @Advice.Argument(0) int count) {
-      InstrumentationBridge.getCoverageProbeStoreFactory().setTotalProbeCount(className, count);
+      InstrumentationBridge.getCoverageProbeStoreRegistry().setTotalProbeCount(className, count);
     }
   }
 }

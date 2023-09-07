@@ -71,6 +71,9 @@ class BaseCallSiteTest extends DDSpecification {
         final Object[] args = params as Object[]
         adviceFinder.call(args[0] as String, args[1] as String, args[2] as String)
       }
+      getHelpers() >> {
+        helpers as String[]
+      }
     }
   }
 

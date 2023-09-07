@@ -79,6 +79,11 @@ abstract class Jetty70Test extends HttpServerTest<Server> {
   }
 
   @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
+  }
+
+  @Override
   boolean testExceptionBody() {
     false
   }
@@ -110,6 +115,11 @@ abstract class Jetty70Test extends HttpServerTest<Server> {
 
   @Override
   boolean testUserBlocking() {
+    true
+  }
+
+  @Override
+  boolean testBlockingOnResponse() {
     true
   }
 

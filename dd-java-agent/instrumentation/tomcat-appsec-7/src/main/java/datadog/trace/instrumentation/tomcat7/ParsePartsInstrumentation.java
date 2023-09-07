@@ -40,6 +40,11 @@ public class ParsePartsInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
+  public String muzzleDirective() {
+    return "from7";
+  }
+
+  @Override
   public String instrumentedType() {
     return "org.apache.catalina.connector.Request";
   }
@@ -112,7 +117,10 @@ public class ParsePartsInstrumentation extends Instrumenter.AppSec
         BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
         if (blockResponseFunction != null) {
           blockResponseFunction.tryCommitBlockingResponse(
-              rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+              reqCtx.getTraceSegment(),
+              rba.getStatusCode(),
+              rba.getBlockingContentType(),
+              rba.getExtraHeaders());
           if (t == null) {
             t = new BlockingException("Blocked request (for Request/parseParts)");
           }

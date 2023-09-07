@@ -207,6 +207,24 @@ public class TagContext implements AgentSpan.Context.Extracted {
     return this;
   }
 
+  @Override
+  public String toString() {
+    StringBuilder builder = new StringBuilder("TagContext{");
+    if (origin != null) {
+      builder.append("origin=").append(origin).append(", ");
+    }
+    if (tags != null) {
+      builder.append("tags=").append(tags).append(", ");
+    }
+    if (baggage != null) {
+      builder.append("baggage=").append(baggage).append(", ");
+    }
+    if (samplingPriority != PrioritySampling.UNSET) {
+      builder.append("samplingPriority=").append(samplingPriority).append(", ");
+    }
+    return builder.append('}').toString();
+  }
+
   public static class HttpHeaders {
     public String fastlyClientIp;
     public String cfConnectingIp;

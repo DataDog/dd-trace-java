@@ -1,7 +1,6 @@
 package datadog.trace.core
 
 import datadog.trace.api.DDTraceId
-import datadog.trace.api.TraceConfig
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.time.TimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -23,7 +22,7 @@ class PendingTraceTest extends PendingTraceTestBase {
   }
 
   protected DDSpan createSimpleSpanWithID(PendingTrace trace, long id){
-    return new DDSpan((long)0,new DDSpanContext(
+    return new DDSpan("test", 0L, new DDSpanContext(
       DDTraceId.from(1),
       id,
       0,
@@ -71,12 +70,12 @@ class PendingTraceTest extends PendingTraceTestBase {
   def "verify healthmetrics called"() {
     setup:
     def tracer = Mock(CoreTracer)
-    def traceConfig = Mock(TraceConfig)
+    def traceConfig = Mock(CoreTracer.ConfigSnapshot)
     def buffer = Mock(PendingTraceBuffer)
     def healthMetrics = Mock(HealthMetrics)
     tracer.captureTraceConfig() >> traceConfig
     traceConfig.getServiceMapping() >> [:]
-    PendingTrace trace = new PendingTrace(tracer,DDTraceId.from(0),buffer,Mock(TimeSource),null,false,healthMetrics)
+    PendingTrace trace = new PendingTrace(tracer, DDTraceId.from(0), buffer, Mock(TimeSource), null, false, healthMetrics)
     when:
     rootSpan = createSimpleSpan(trace)
     trace.registerSpan(rootSpan)
@@ -92,12 +91,12 @@ class PendingTraceTest extends PendingTraceTestBase {
   def "write when writeRunningSpans is disabled: only completed spans are written"() {
     setup:
     def tracer = Mock(CoreTracer)
-    def traceConfig = Mock(TraceConfig)
+    def traceConfig = Mock(CoreTracer.ConfigSnapshot)
     def buffer = Mock(PendingTraceBuffer)
     def healthMetrics = Mock(HealthMetrics)
     tracer.captureTraceConfig() >> traceConfig
     traceConfig.getServiceMapping() >> [:]
-    PendingTrace trace = new PendingTrace(tracer,DDTraceId.from(0),buffer,Mock(TimeSource),null,false,healthMetrics)
+    PendingTrace trace = new PendingTrace(tracer, DDTraceId.from(0), buffer, Mock(TimeSource), null, false, healthMetrics)
     buffer.longRunningSpansEnabled() >> true
 
     def span1 = createSimpleSpanWithID(trace,39)
@@ -127,12 +126,12 @@ class PendingTraceTest extends PendingTraceTestBase {
   def "write when writeRunningSpans is enabled: complete and running spans are written"() {
     setup:
     def tracer = Mock(CoreTracer)
-    def traceConfig = Mock(TraceConfig)
+    def traceConfig = Mock(CoreTracer.ConfigSnapshot)
     def buffer = Mock(PendingTraceBuffer)
     def healthMetrics = Mock(HealthMetrics)
     tracer.captureTraceConfig() >> traceConfig
     traceConfig.getServiceMapping() >> [:]
-    PendingTrace trace = new PendingTrace(tracer,DDTraceId.from(0),buffer,Mock(TimeSource),null, false,healthMetrics)
+    PendingTrace trace = new PendingTrace(tracer, DDTraceId.from(0), buffer, Mock(TimeSource), null, false, healthMetrics)
     buffer.longRunningSpansEnabled() >> true
 
     def span1 = createSimpleSpanWithID(trace,39)

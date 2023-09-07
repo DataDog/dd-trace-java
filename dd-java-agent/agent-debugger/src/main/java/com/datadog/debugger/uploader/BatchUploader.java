@@ -4,12 +4,12 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.DEBUGGER_HTTP_DI
 
 import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.common.container.ContainerInfo;
+import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentThreadFactory;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Collections;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.SynchronousQueue;
@@ -19,7 +19,6 @@ import java.util.concurrent.TimeoutException;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.ConnectionPool;
-import okhttp3.ConnectionSpec;
 import okhttp3.Dispatcher;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
@@ -36,10 +35,10 @@ public class BatchUploader {
   private static final Logger log = LoggerFactory.getLogger(BatchUploader.class);
   private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
   private static final MediaType APPLICATION_JSON = MediaType.parse("application/json");
-  private static final String HEADER_DD_API_KEY = "DD-API-KEY";
   private static final String HEADER_DD_CONTAINER_ID = "Datadog-Container-ID";
   private final String containerId;
 
+  static final String HEADER_DD_API_KEY = "DD-API-KEY";
   static final int MAX_RUNNING_REQUESTS = 10;
   static final int MAX_ENQUEUED_REQUESTS = 20;
   static final int TERMINATION_TIMEOUT = 5;
@@ -88,26 +87,21 @@ public class BatchUploader {
     // Reusing connections causes non daemon threads to be created which causes agent to prevent app
     // from exiting. See https://github.com/square/okhttp/issues/4029 for some details.
     ConnectionPool connectionPool = new ConnectionPool(MAX_RUNNING_REQUESTS, 1, TimeUnit.SECONDS);
-    // Use same timeout everywhere for simplicity
-    Duration requestTimeout = Duration.ofSeconds(config.getDebuggerUploadTimeout());
-    OkHttpClient.Builder clientBuilder =
-        new OkHttpClient.Builder()
-            .connectTimeout(requestTimeout)
-            .writeTimeout(requestTimeout)
-            .readTimeout(requestTimeout)
-            .callTimeout(requestTimeout)
-            .dispatcher(new Dispatcher(okHttpExecutorService))
-            .connectionPool(connectionPool);
 
-    if ("http".equals(urlBase.scheme())) {
-      // force clear text when using http to avoid failures for JVMs without TLS
-      // see: https://github.com/DataDog/dd-trace-java/pull/1582
-      clientBuilder.connectionSpecs(Collections.singletonList(ConnectionSpec.CLEARTEXT));
-    }
-    client = clientBuilder.build();
-    client.dispatcher().setMaxRequests(MAX_RUNNING_REQUESTS);
-    // We are mainly talking to the same(ish) host so we need to raise this limit
-    client.dispatcher().setMaxRequestsPerHost(MAX_RUNNING_REQUESTS);
+    Duration requestTimeout = Duration.ofSeconds(config.getDebuggerUploadTimeout());
+    client =
+        OkHttpUtils.buildHttpClient(
+            config,
+            new Dispatcher(okHttpExecutorService),
+            urlBase,
+            true, /* retry */
+            MAX_RUNNING_REQUESTS,
+            null, /* proxyHost */
+            null, /* proxyPort */
+            null, /* proxyUsername */
+            null, /* proxyPassword */
+            requestTimeout.toMillis());
+
     debuggerMetrics = DebuggerMetrics.getInstance(config);
   }
 

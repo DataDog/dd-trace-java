@@ -1,13 +1,12 @@
 package datadog.trace.instrumentation.opentelemetry14;
 
-import static datadog.trace.bootstrap.instrumentation.api.ScopeSource.INSTRUMENTATION;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static io.opentelemetry.api.trace.StatusCode.ERROR;
 import static io.opentelemetry.api.trace.StatusCode.OK;
 import static io.opentelemetry.api.trace.StatusCode.UNSET;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
@@ -16,7 +15,6 @@ import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.TraceFlags;
 import io.opentelemetry.api.trace.TraceState;
-import io.opentelemetry.context.Scope;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.ParametersAreNonnullByDefault;
 
@@ -41,7 +39,9 @@ public class OtelSpan implements Span {
 
   @Override
   public <T> Span setAttribute(AttributeKey<T> key, T value) {
-    this.delegate.setAttribute(key.getKey(), value);
+    if (this.recording) {
+      this.delegate.setTag(key.getKey(), value);
+    }
     return this;
   }
 
@@ -59,13 +59,15 @@ public class OtelSpan implements Span {
 
   @Override
   public Span setStatus(StatusCode statusCode, String description) {
-    if (this.statusCode == UNSET) {
-      this.statusCode = statusCode;
-      this.delegate.setError(statusCode == ERROR);
-      this.delegate.setErrorMessage(statusCode == ERROR ? description : null);
-    } else if (this.statusCode == ERROR && statusCode == OK) {
-      this.delegate.setError(false);
-      this.delegate.setErrorMessage(null);
+    if (this.recording) {
+      if (this.statusCode == UNSET) {
+        this.statusCode = statusCode;
+        this.delegate.setError(statusCode == ERROR);
+        this.delegate.setErrorMessage(statusCode == ERROR ? description : null);
+      } else if (this.statusCode == ERROR && statusCode == OK) {
+        this.delegate.setError(false);
+        this.delegate.setErrorMessage(null);
+      }
     }
     return this;
   }
@@ -78,7 +80,9 @@ public class OtelSpan implements Span {
 
   @Override
   public Span updateName(String name) {
-    this.delegate.setOperationName(name);
+    if (this.recording) {
+      this.delegate.setOperationName(name);
+    }
     return this;
   }
 
@@ -104,11 +108,8 @@ public class OtelSpan implements Span {
     return this.recording;
   }
 
-  @Override
-  public Scope makeCurrent() {
-    Scope scope = Span.super.makeCurrent();
-    AgentScope agentScope = AgentTracer.get().activateSpan(this.delegate, INSTRUMENTATION);
-    return new OtelScope(scope, agentScope);
+  AgentScope activate() {
+    return activateSpan(this.delegate);
   }
 
   private static class NoopSpan implements Span {

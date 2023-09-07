@@ -29,9 +29,7 @@ public final class EmptyTestContext implements TestContext {
   }
 
   @Override
-  public boolean isLocalToCurrentProcess() {
-    return false;
-  }
+  public void reportChildTag(String key, Object value) {}
 
   @Nullable
   @Override

@@ -24,7 +24,7 @@ class DirectAllocationTrackingTest extends AgentTestRunner {
     super.configurePreAgent()
     injectSysConfig("dd.profiling.enabled", "true")
     injectSysConfig("dd.integration.mmap.enabled", "true")
-    injectSysConfig("dd.integration.allocatedirect.enabled", "true")
+    injectSysConfig("dd.profiling.directallocation.enabled", "true")
   }
 
   def "test track memory mapped file"() {

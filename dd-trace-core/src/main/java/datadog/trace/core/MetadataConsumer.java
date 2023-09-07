@@ -1,5 +1,11 @@
 package datadog.trace.core;
 
-public abstract class MetadataConsumer {
-  public abstract void accept(Metadata metadata);
+import java.util.function.Consumer;
+
+@FunctionalInterface
+public interface MetadataConsumer extends Consumer<Metadata> {
+
+  MetadataConsumer NO_OP = (md) -> {};
+
+  void accept(Metadata metadata);
 }

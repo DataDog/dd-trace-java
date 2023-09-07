@@ -1,6 +1,7 @@
 package com.datadog.profiling.ddprof;
 
 import static datadog.trace.api.Platform.isJ9;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES_SPAN_NAME_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_ENABLED;
@@ -19,6 +20,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_INTERVAL;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE_DEFAFULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LOG_LEVEL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LOG_LEVEL_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_MEMLEAK_CAPACITY;
@@ -35,11 +38,12 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_INTERVAL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_INTERVAL_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.lang.management.ManagementFactory;
@@ -99,10 +103,11 @@ public class DatadogProfilerConfig {
   }
 
   public static boolean isWallClockProfilerEnabled(ConfigProvider configProvider) {
+    boolean isUltraMinimal = getBoolean(configProvider, PROFILING_ULTRA_MINIMAL, false);
+    boolean isTracingEnabled = configProvider.getBoolean(TRACE_ENABLED, true);
+    boolean disableUnlessOptedIn = isUltraMinimal || !isTracingEnabled || isJ9();
     return getBoolean(
-        configProvider,
-        PROFILING_DATADOG_PROFILER_WALL_ENABLED,
-        !isJ9() && PROFILING_DATADOG_PROFILER_WALL_ENABLED_DEFAULT);
+        configProvider, PROFILING_DATADOG_PROFILER_WALL_ENABLED, disableUnlessOptedIn);
   }
 
   public static int getWallInterval(ConfigProvider configProvider) {
@@ -131,10 +136,13 @@ public class DatadogProfilerConfig {
   }
 
   public static boolean isAllocationProfilingEnabled(ConfigProvider configProvider) {
-    return getBoolean(
-        configProvider,
-        PROFILING_DATADOG_PROFILER_ALLOC_ENABLED,
-        PROFILING_DATADOG_PROFILER_ALLOC_ENABLED_DEFAULT);
+    boolean userOptedIn =
+        getBoolean(configProvider, PROFILING_DATADOG_PROFILER_ALLOC_ENABLED, false);
+    // once DD allocation profiling is GA use the longstanding allocation flag to toggle it
+    if (PROFILING_DATADOG_PROFILER_ALLOC_ENABLED_DEFAULT) {
+      return getBoolean(configProvider, PROFILING_ALLOCATION_ENABLED, userOptedIn);
+    }
+    return userOptedIn;
   }
 
   public static boolean isAllocationProfilingEnabled() {
@@ -162,6 +170,13 @@ public class DatadogProfilerConfig {
 
   public static boolean isMemoryLeakProfilingEnabled() {
     return isMemoryLeakProfilingEnabled(ConfigProvider.getInstance());
+  }
+
+  public static boolean isLiveHeapSizeTrackingEnabled(ConfigProvider configProvider) {
+    return getBoolean(
+        configProvider,
+        PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE,
+        PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE_DEFAFULT);
   }
 
   public static long getMemleakInterval(ConfigProvider configProvider) {

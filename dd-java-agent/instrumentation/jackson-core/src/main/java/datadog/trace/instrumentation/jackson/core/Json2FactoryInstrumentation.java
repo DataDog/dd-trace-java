@@ -6,6 +6,8 @@ import static net.bytebuddy.matcher.ElementMatchers.*;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Sink;
+import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.sink.SsrfModule;
 import java.io.InputStream;
@@ -44,6 +46,7 @@ public class Json2FactoryInstrumentation extends Instrumenter.Iast
   public static class InstrumenterAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Sink(VulnerabilityTypes.SSRF) // it's both propagation and Sink but Sink takes priority
     public static void onExit(
         @Advice.Argument(0) final Object input, @Advice.Return final Object parser) {
       if (input != null) {

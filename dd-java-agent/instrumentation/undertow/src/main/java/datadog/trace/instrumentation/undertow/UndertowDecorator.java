@@ -85,6 +85,11 @@ public class UndertowDecorator
   }
 
   @Override
+  protected boolean isAppSecOnResponseSeparate() {
+    return true;
+  }
+
+  @Override
   protected BlockResponseFunction createBlockResponseFunction(
       HttpServerExchange httpServerExchange, HttpServerExchange httpServerExchange1) {
     return new UndertowBlockResponseFunction(httpServerExchange);

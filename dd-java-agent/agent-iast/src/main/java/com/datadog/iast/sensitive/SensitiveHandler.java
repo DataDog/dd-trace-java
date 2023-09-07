@@ -18,6 +18,10 @@ public interface SensitiveHandler {
 
   boolean isSensitiveValue(@Nullable String value);
 
+  String redactSource(@Nonnull Source source);
+
+  String redactString(String value);
+
   Tokenizer tokenizeEvidence(@Nonnull VulnerabilityType type, @Nonnull final Evidence evidence);
 
   default boolean isSensitive(@Nullable final Source source) {

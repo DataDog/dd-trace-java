@@ -13,7 +13,7 @@ import net.bytebuddy.asm.Advice;
 
 // keep in sync with jersey2 (javax packages)
 @AutoService(Instrumenter.class)
-public class ReaderInterceptorExecutorInstrumentation extends Instrumenter.AppSec
+public class ReaderInterceptorExecutorInstrumentation extends Instrumenter.Iast
     implements Instrumenter.ForSingleType {
   public ReaderInterceptorExecutorInstrumentation() {
     super("jersey");
@@ -36,7 +36,7 @@ public class ReaderInterceptorExecutorInstrumentation extends Instrumenter.AppSe
     static void after(@Advice.Return final InputStream inputStream) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taint(SourceTypes.REQUEST_BODY, inputStream);
+        module.taintObject(SourceTypes.REQUEST_BODY, inputStream);
       }
     }
   }

@@ -1,3 +1,3 @@
 package datadog.trace.api.iast.sink;
 
-public interface InsecureCookieModule extends HttpResponseHeaderModule.ForCookie {}
+public interface InsecureCookieModule<T> extends HttpCookieModule<T> {}

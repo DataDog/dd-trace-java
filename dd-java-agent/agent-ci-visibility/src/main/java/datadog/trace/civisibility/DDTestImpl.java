@@ -7,23 +7,29 @@ import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.InstrumentationBridge;
-import datadog.trace.api.civisibility.codeowners.Codeowners;
 import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
-import datadog.trace.api.civisibility.decorator.TestDecorator;
-import datadog.trace.api.civisibility.source.MethodLinesResolver;
-import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.context.TestContext;
+import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
+import datadog.trace.civisibility.decorator.TestDecorator;
+import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.SourcePathResolver;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import javax.annotation.Nullable;
+import org.objectweb.asm.Type;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DDTestImpl implements DDTest {
+
+  private static final Logger log = LoggerFactory.getLogger(DDTestImpl.class);
 
   private final AgentSpan span;
   private final TestContext suiteContext;
@@ -38,12 +44,14 @@ public class DDTestImpl implements DDTest {
       String testName,
       @Nullable Long startTime,
       @Nullable Class<?> testClass,
+      @Nullable String testMethodName,
       @Nullable Method testMethod,
       Config config,
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       MethodLinesResolver methodLinesResolver,
-      Codeowners codeowners) {
+      Codeowners codeowners,
+      CoverageProbeStoreFactory coverageProbeStoreFactory) {
     this.suiteContext = suiteContext;
     this.moduleContext = moduleContext;
 
@@ -54,7 +62,7 @@ public class DDTestImpl implements DDTest {
             .asChildOf(null)
             .withRequestContextData(
                 RequestContextSlot.CI_VISIBILITY,
-                InstrumentationBridge.createCoverageProbeStore(sourcePathResolver));
+                coverageProbeStoreFactory.create(sourcePathResolver));
 
     if (startTime != null) {
       spanBuilder = spanBuilder.withStartTimestamp(startTime);
@@ -82,6 +90,13 @@ public class DDTestImpl implements DDTest {
     span.setTag(Tags.TEST_SESSION_ID, sessionId);
 
     span.setTag(Tags.TEST_STATUS, CIConstants.TEST_PASS);
+
+    if (testClass != null && !testClass.getName().equals(testSuiteName)) {
+      span.setTag(Tags.TEST_SOURCE_CLASS, testClass.getName());
+    }
+    if (testMethodName != null && testMethod != null) {
+      span.setTag(Tags.TEST_SOURCE_METHOD, testMethodName + Type.getMethodDescriptor(testMethod));
+    }
 
     if (config.isCiVisibilitySourceDataEnabled()) {
       populateSourceDataTags(
@@ -141,11 +156,16 @@ public class DDTestImpl implements DDTest {
     span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
     if (skipReason != null) {
       span.setTag(Tags.TEST_SKIP_REASON, skipReason);
+      if (skipReason.equals(InstrumentationBridge.ITR_SKIP_REASON)) {
+        span.setTag(Tags.TEST_SKIPPED_BY_ITR, true);
+      }
     }
   }
 
   @Override
   public void end(@Nullable Long endTime) {
+    closeOutstandingSpans();
+
     final AgentScope scope = AgentTracer.activeScope();
     if (scope == null) {
       throw new IllegalStateException(
@@ -178,6 +198,36 @@ public class DDTestImpl implements DDTest {
     if (endTime != null) {
       span.finish(endTime);
     } else {
+      span.finish();
+    }
+  }
+
+  /**
+   * Tests often perform operations that involve APM instrumentations: sending an HTTP request,
+   * executing a database query, etc. APM instrumentations create spans that correspond to those
+   * operations. Ideally, the instrumentations close these spans once their corresponding operations
+   * are finished.
+   *
+   * <p>However, this is not always the case, especially with tests: developers sometimes feel like
+   * proper resources disposal, such as closing a connection, is not obligatory in tests code. Not
+   * finalizing an operation properly usually results in its span remaining open. This is something
+   * that we have no control over, since this happens in the clients' codebase.
+   *
+   * <p>This method attempts to finalize such "dangling" spans: it closes whatever is on top of the
+   * spans stack until it encounters a CI Visibility span or the stack is empty.
+   */
+  private void closeOutstandingSpans() {
+    AgentScope scope;
+    while ((scope = AgentTracer.activeScope()) != null) {
+      AgentSpan span = scope.span();
+
+      if (TestDecorator.TEST_TYPE.equals(span.getTag(Tags.TEST_TYPE))) {
+        // encountered a CI Visibility span (test, suite, module, session)
+        break;
+      }
+
+      log.debug("Closing outstanding span: {}", span);
+      scope.close();
       span.finish();
     }
   }

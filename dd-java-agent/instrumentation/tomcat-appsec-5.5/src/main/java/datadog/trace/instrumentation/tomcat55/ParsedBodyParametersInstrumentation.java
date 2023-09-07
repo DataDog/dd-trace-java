@@ -34,6 +34,11 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
+  public String muzzleDirective() {
+    return "until6035_7022";
+  }
+
+  @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Avoid matching Tomcat 5.0.x which is not supported by this instrumentation.
     return hasClassNamed("org.apache.tomcat.util.buf.StringCache");
@@ -138,7 +143,10 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
           BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
           if (blockResponseFunction != null) {
             blockResponseFunction.tryCommitBlockingResponse(
-                rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+                reqCtx.getTraceSegment(),
+                rba.getStatusCode(),
+                rba.getBlockingContentType(),
+                rba.getExtraHeaders());
             if (t == null) {
               t = new BlockingException("Blocked request (for processParameters)");
             }

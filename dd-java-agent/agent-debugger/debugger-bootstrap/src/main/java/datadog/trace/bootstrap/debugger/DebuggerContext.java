@@ -4,6 +4,7 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,12 +31,27 @@ public class DebuggerContext {
     boolean isDenied(String fullyQualifiedClassName);
   }
 
+  public enum MetricKind {
+    COUNT,
+    GAUGE,
+    HISTOGRAM,
+    DISTRIBUTION;
+  }
+
   public interface MetricForwarder {
     void count(String name, long delta, String[] tags);
 
     void gauge(String name, long value, String[] tags);
 
+    void gauge(String name, double value, String[] tags);
+
     void histogram(String name, long value, String[] tags);
+
+    void histogram(String name, double value, String[] tags);
+
+    void distribution(String name, long value, String[] tags);
+
+    void distribution(String name, double value, String[] tags);
   }
 
   public interface Tracer {
@@ -94,42 +110,55 @@ public class DebuggerContext {
     return filter.isDenied(fullyQualifiedClassName);
   }
 
-  /** Increments the specified counter metric No-op if no implementation is available */
-  public static void count(String name, long delta, String[] tags) {
+  /** Increments or updates the specified metric No-op if no implementation is available */
+  public static void metric(MetricKind kind, String name, long value, String[] tags) {
     try {
       MetricForwarder forwarder = metricForwarder;
       if (forwarder == null) {
         return;
       }
-      forwarder.count(name, delta, tags);
+      switch (kind) {
+        case COUNT:
+          forwarder.count(name, value, tags);
+          break;
+        case GAUGE:
+          forwarder.gauge(name, value, tags);
+          break;
+        case HISTOGRAM:
+          forwarder.histogram(name, value, tags);
+          break;
+        case DISTRIBUTION:
+          forwarder.distribution(name, value, tags);
+        default:
+          throw new IllegalArgumentException("Unsupported metric kind: " + kind);
+      }
     } catch (Exception ex) {
-      LOGGER.debug("Error in count method: ", ex);
+      LOGGER.debug("Error in metric method: ", ex);
     }
   }
 
-  /** Updates the specified gauge metric No-op if no implementation is available */
-  public static void gauge(String name, long value, String[] tags) {
+  /** Updates the specified metric No-op if no implementation is available */
+  public static void metric(MetricKind kind, String name, double value, String[] tags) {
     try {
       MetricForwarder forwarder = metricForwarder;
       if (forwarder == null) {
         return;
       }
-      forwarder.gauge(name, value, tags);
-    } catch (Exception ex) {
-      LOGGER.debug("Error in gauge: ", ex);
-    }
-  }
-
-  /** Updates the specified histogram metric No-op if no implementation is available */
-  public static void histogram(String name, long value, String[] tags) {
-    try {
-      MetricForwarder forwarder = metricForwarder;
-      if (forwarder == null) {
-        return;
+      switch (kind) {
+        case GAUGE:
+          forwarder.gauge(name, value, tags);
+          break;
+        case HISTOGRAM:
+          forwarder.histogram(name, value, tags);
+          break;
+        case DISTRIBUTION:
+          forwarder.distribution(name, value, tags);
+          break;
+        default:
+          throw new IllegalArgumentException("Unsupported metric kind: " + kind);
       }
-      forwarder.histogram(name, value, tags);
     } catch (Exception ex) {
-      LOGGER.debug("Error in histogram: ", ex);
+      LOGGER.debug("Error in metric method: ", ex);
     }
   }
 
@@ -241,6 +270,7 @@ public class DebuggerContext {
   public static void evalContextAndCommit(
       CapturedContext context, Class<?> callingClass, int line, String... probeIds) {
     try {
+      List<ProbeImplementation> probeImplementations = new ArrayList<>();
       for (String probeId : probeIds) {
         ProbeImplementation probeImplementation = resolveProbe(probeId, callingClass);
         if (probeImplementation == null) {
@@ -248,6 +278,9 @@ public class DebuggerContext {
         }
         context.evaluate(
             probeId, probeImplementation, callingClass.getTypeName(), -1, MethodLocation.DEFAULT);
+        probeImplementations.add(probeImplementation);
+      }
+      for (ProbeImplementation probeImplementation : probeImplementations) {
         probeImplementation.commit(context, line);
       }
     } catch (Exception ex) {

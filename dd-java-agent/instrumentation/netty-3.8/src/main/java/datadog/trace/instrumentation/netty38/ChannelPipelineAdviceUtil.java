@@ -8,6 +8,7 @@ import datadog.trace.instrumentation.netty38.client.HttpClientTracingHandler;
 import datadog.trace.instrumentation.netty38.server.HttpServerRequestTracingHandler;
 import datadog.trace.instrumentation.netty38.server.HttpServerResponseTracingHandler;
 import datadog.trace.instrumentation.netty38.server.HttpServerTracingHandler;
+import datadog.trace.instrumentation.netty38.server.MaybeBlockResponseHandler;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandler;
 import org.jboss.netty.channel.ChannelPipeline;
@@ -33,6 +34,8 @@ public class ChannelPipelineAdviceUtil {
       if (handler instanceof HttpServerCodec) {
         pipeline.addLast(
             HttpServerTracingHandler.class.getName(), new HttpServerTracingHandler(contextStore));
+        pipeline.addLast(
+            MaybeBlockResponseHandler.class.getName(), new MaybeBlockResponseHandler(contextStore));
       } else if (handler instanceof HttpRequestDecoder) {
         pipeline.addLast(
             HttpServerRequestTracingHandler.class.getName(),
@@ -41,6 +44,8 @@ public class ChannelPipelineAdviceUtil {
         pipeline.addLast(
             HttpServerResponseTracingHandler.class.getName(),
             new HttpServerResponseTracingHandler(contextStore));
+        pipeline.addLast(
+            MaybeBlockResponseHandler.class.getName(), new MaybeBlockResponseHandler(contextStore));
       } else
       // Client pipeline handlers
       if (handler instanceof HttpClientCodec) {

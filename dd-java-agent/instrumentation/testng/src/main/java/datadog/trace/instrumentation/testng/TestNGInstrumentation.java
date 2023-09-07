@@ -35,6 +35,7 @@ public class TestNGInstrumentation extends Instrumenter.CiVisibility
       packageName + ".TestNGUtils",
       packageName + ".TestNGSuiteListener",
       packageName + ".TestNGClassListener",
+      packageName + ".TestEventsHandlerHolder",
       packageName + ".TracingListener"
     };
   }
@@ -48,11 +49,7 @@ public class TestNGInstrumentation extends Instrumenter.CiVisibility
         }
       }
 
-      final Package pkg = TestNG.class.getPackage();
-      final String version =
-          pkg.getImplementationVersion() != null
-              ? pkg.getImplementationVersion()
-              : pkg.getSpecificationVersion();
+      final String version = TestNGUtils.getTestNGVersion();
       final TracingListener tracingListener = new TracingListener(version);
       testNG.addListener((ITestNGListener) tracingListener);
 

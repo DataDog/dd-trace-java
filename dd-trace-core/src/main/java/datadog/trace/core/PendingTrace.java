@@ -3,9 +3,12 @@ package datadog.trace.core;
 import datadog.communication.monitor.Recording;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
+import datadog.trace.common.sampling.PrioritySampler;
+import datadog.trace.core.CoreTracer.ConfigSnapshot;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.ArrayList;
 import java.util.List;
@@ -69,7 +72,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
       return create(traceId, null);
     }
 
-    PendingTrace create(@Nonnull DDTraceId traceId, TraceConfig traceConfig) {
+    PendingTrace create(@Nonnull DDTraceId traceId, ConfigSnapshot traceConfig) {
       return new PendingTrace(
           tracer,
           traceId,
@@ -89,7 +92,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   private final TimeSource timeSource;
   private final boolean strictTraceWrites;
   private final HealthMetrics healthMetrics;
-  private final TraceConfig traceConfig;
+  private final ConfigSnapshot traceConfig;
 
   /**
    * Contains finished spans. If the long-running trace feature is enabled it also contains running
@@ -146,7 +149,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
       @Nonnull DDTraceId traceId,
       @Nonnull PendingTraceBuffer pendingTraceBuffer,
       @Nonnull TimeSource timeSource,
-      TraceConfig traceConfig,
+      ConfigSnapshot traceConfig,
       boolean strictTraceWrites,
       HealthMetrics healthMetrics) {
     this.tracer = tracer;
@@ -309,7 +312,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
       // Finished root with pending work ... delay write
       pendingTraceBuffer.enqueue(this);
       return PublishState.ROOT_BUFFERED;
-    } else if (0 < partialFlushMinSpans && partialFlushMinSpans < size()) {
+    } else if (partialFlushMinSpans > 0 && size() >= partialFlushMinSpans) {
       // Trace is getting too big, write anything completed.
       partialFlush();
       return PublishState.PARTIAL_FLUSH;
@@ -358,7 +361,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
           // the completedSpanCount has not yet been incremented. This means that eventually the
           // count(s) will be incremented, and any new spans added during the period that the count
           // was negative will be written by someone even if we don't write them right now.
-          if (size > 0 && (!isPartial || size > tracer.getPartialFlushMinSpans())) {
+          if (size > 0 && (!isPartial || size >= tracer.getPartialFlushMinSpans())) {
             trace = new ArrayList<>(size);
             completedSpans = enqueueSpansToWrite(trace, writeRunningSpans);
           } else {
@@ -476,5 +479,22 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     DDSpan ddSpan = (DDSpan) span;
     PendingTrace trace = ddSpan.context().getTrace();
     return trace.getLastWriteTime() - span.getStartTime();
+  }
+
+  public void setSamplingPriorityIfNecessary() {
+    // There's a race where multiple threads can see PrioritySampling.UNSET here
+    // This check skips potential complex sampling priority logic when we know its redundant
+    // Locks inside DDSpanContext ensure the correct behavior in the race case
+
+    if (traceConfig.sampler instanceof PrioritySampler
+        && rootSpan != null
+        && rootSpan.context().getSamplingPriority() == PrioritySampling.UNSET) {
+
+      ((PrioritySampler) traceConfig.sampler).setSamplingPriority(rootSpan);
+    }
+  }
+
+  public boolean sample(DDSpan spanToSample) {
+    return traceConfig.sampler.sample(spanToSample);
   }
 }

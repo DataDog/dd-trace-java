@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap;
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
 import static datadog.trace.api.Platform.getRuntimeVendor;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.Platform.isOracleJDK8;
@@ -80,14 +81,14 @@ public class Agent {
 
   private static final int DEFAULT_JMX_START_DELAY = 15; // seconds
 
-  private static final String STARTUP_LOGS_ENABLED = "trace.startup.logs";
-
   private static final Logger log;
 
   private enum AgentFeature {
     TRACING(propertyNameToSystemPropertyName(TraceInstrumentationConfig.TRACE_ENABLED), true),
     JMXFETCH(propertyNameToSystemPropertyName(JmxFetchConfig.JMX_FETCH_ENABLED), true),
-    STARTUP_LOGS(propertyNameToSystemPropertyName(STARTUP_LOGS_ENABLED), true),
+    STARTUP_LOGS(
+        propertyNameToSystemPropertyName(GeneralConfig.STARTUP_LOGS_ENABLED),
+        DEFAULT_STARTUP_LOGS_ENABLED),
     PROFILING(propertyNameToSystemPropertyName(ProfilingConfig.PROFILING_ENABLED), false),
     APPSEC(propertyNameToSystemPropertyName(AppSecConfig.APPSEC_ENABLED), false),
     IAST(propertyNameToSystemPropertyName(IastConfig.IAST_ENABLED), false),
@@ -639,7 +640,7 @@ public class Agent {
   private static synchronized void initializeJmxSystemAccessProvider(
       final ClassLoader classLoader) {
     if (log.isDebugEnabled()) {
-      log.debug("Initializing JMX system access provider for " + classLoader.toString());
+      log.debug("Initializing JMX system access provider for {}", classLoader);
     }
     try {
       final Class<?> tracerInstallerClass =
@@ -746,15 +747,16 @@ public class Agent {
     }
   }
 
-  private static void maybeStartCiVisibility(Class<?> scoClass, Object o) {
+  private static void maybeStartCiVisibility(Class<?> scoClass, Object sco) {
     if (ciVisibilityEnabled) {
       StaticEventLogger.begin("CI Visibility");
 
       try {
         final Class<?> ciVisibilitySysClass =
             AGENT_CLASSLOADER.loadClass("datadog.trace.civisibility.CiVisibilitySystem");
-        final Method ciVisibilityInstallerMethod = ciVisibilitySysClass.getMethod("start");
-        ciVisibilityInstallerMethod.invoke(null);
+        final Method ciVisibilityInstallerMethod =
+            ciVisibilitySysClass.getMethod("start", scoClass);
+        ciVisibilityInstallerMethod.invoke(null, sco);
       } catch (final Throwable e) {
         log.warn("Not starting CI Visibility subsystem", e);
       }
@@ -827,7 +829,7 @@ public class Agent {
    * on JFR.
    */
   private static ProfilingContextIntegration createProfilingContextIntegration() {
-    if (Config.get().isProfilingEnabled()) {
+    if (Config.get().isProfilingEnabled() && !Platform.isWindows()) {
       try {
         return (ProfilingContextIntegration)
             AGENT_CLASSLOADER
@@ -871,9 +873,9 @@ public class Agent {
                             ? null
                             : "com.datadog.profiling.controller.openjdk.JFRCheckpointer";
                 String timerClassName =
-                    Platform.isOracleJDK8() || Platform.isJ9()
-                        ? null
-                        : "com.datadog.profiling.controller.openjdk.JFRTimer";
+                    Config.get().isDatadogProfilerEnabled()
+                        ? "com.datadog.profiling.controller.ddprof.DatadogProfilerTimer"
+                        : null;
                 try {
                   if (checkpointerClassName != null) {
                     tracer.registerCheckpointer(
@@ -1034,7 +1036,7 @@ public class Agent {
     }
   }
 
-  /** @see datadog.trace.api.ProductActivationConfig#fromString(String) */
+  /** @see datadog.trace.api.ProductActivation#fromString(String) */
   private static boolean isAppSecFullyDisabled() {
     // must be kept in sync with logic from Config!
     final String featureEnabledSysprop = AgentFeature.APPSEC.systemProp;

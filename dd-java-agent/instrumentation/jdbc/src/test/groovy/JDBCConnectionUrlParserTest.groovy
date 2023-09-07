@@ -58,6 +58,8 @@ class JDBCConnectionUrlParserTest extends AgentTestRunner {
     "jdbc:postgresql://pg.host:11/pgdb?user=pguser&password=PW"                                                                                                                                                                                 | null     | "postgresql" | null          | "pguser"      | "pg.host"                                                           | 11    | null                               | "pgdb"
     "jdbc:postgresql://pg.host:11/pgdb?user=pguser&password=PW"                                                                                                                                                                                 | stdProps | "postgresql" | null          | "pguser"      | "pg.host"                                                           | 11    | null                               | "pgdb"
 
+    "jdbc:edb://pg3.host:123/db_name?user=pguser&password=PW"                                                                                                                                                                                   | null     | "edb"        | null          | "pguser"      | "pg3.host"                                                          | 123   | null                               | "db_name"
+
     // https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-jdbc-url-format.html
     // https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-configuration-properties.html
     "jdbc:mysql:///"                                                                                                                                                                                                                            | null     | "mysql"      | null          | null          | "localhost"                                                         | 3306  | null                               | null
@@ -190,6 +192,8 @@ class JDBCConnectionUrlParserTest extends AgentTestRunner {
     "jdbc:jtds:sqlserver://dbhostname.com"                                                                                                                                                                                                      | null     | "jtds"       | "sqlserver"   | null          | "dbhostname.com"                                                    | 1433  | null                               | null
     "jdbc:jtds:sybase://dbhostname.com"                                                                                                                                                                                                         | null     | "jtds"       | "sybase"      | null          | "dbhostname.com"                                                    | 7100  | null                               | null
 
+    // redshift
+    "jdbc:redshift://redshift-cluster-1.c7arcolffyvk.us-east-2.redshift.amazonaws.com:5439/dev"                                                                                                                                                 | null     | "redshift"   | null          | null          | "redshift-cluster-1.c7arcolffyvk.us-east-2.redshift.amazonaws.com"  | 5439  | "redshift-cluster-1"               | "dev"
 
     expected = new DBInfo.Builder().type(type).subtype(subtype).user(user).instance(instance).db(db).host(host).port(port).build()
   }

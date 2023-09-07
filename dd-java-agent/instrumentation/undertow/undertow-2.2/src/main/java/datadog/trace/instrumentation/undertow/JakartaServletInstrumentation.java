@@ -45,7 +45,8 @@ public final class JakartaServletInstrumentation extends Instrumenter.Tracing
       packageName + ".UndertowBlockResponseFunction",
       packageName + ".UndertowExtractAdapter",
       packageName + ".UndertowExtractAdapter$Request",
-      packageName + ".UndertowExtractAdapter$Response"
+      packageName + ".UndertowExtractAdapter$Response",
+      packageName + ".IgnoreSendAttribute",
     };
   }
 

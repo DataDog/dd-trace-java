@@ -3,8 +3,8 @@ package datadog.trace.instrumentation.akkahttp.iast;
 import akka.http.javadsl.model.HttpHeader;
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
-import datadog.trace.api.iast.IastCallSites.Source;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.Taintable;
 import datadog.trace.api.iast.source.WebModule;
@@ -15,7 +15,7 @@ import java.util.Collections;
  * because there are many calls to {@link HttpHeader#name()} inside akka-http code that we don't
  * care about.
  */
-@Source(value = SourceTypes.REQUEST_HEADER_NAME)
+@Source(value = SourceTypes.REQUEST_HEADER_NAME_STRING)
 @CallSite(spi = IastCallSites.class)
 public class HeaderNameCallSite {
 

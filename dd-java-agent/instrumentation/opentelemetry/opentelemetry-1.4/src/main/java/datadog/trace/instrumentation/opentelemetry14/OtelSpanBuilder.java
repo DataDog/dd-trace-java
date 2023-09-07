@@ -12,6 +12,7 @@ import io.opentelemetry.api.trace.SpanBuilder;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.context.Context;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.ParametersAreNonnullByDefault;
 
@@ -25,7 +26,10 @@ public class OtelSpanBuilder implements SpanBuilder {
 
   @Override
   public SpanBuilder setParent(Context context) {
-    this.delegate.asChildOf(extract(context));
+    AgentSpan.Context extractedContext = extract(context);
+    if (extractedContext != null) {
+      this.delegate.asChildOf(extractedContext);
+    }
     return this;
   }
 
@@ -50,7 +54,8 @@ public class OtelSpanBuilder implements SpanBuilder {
 
   @Override
   public SpanBuilder setAttribute(String key, String value) {
-    this.delegate.withTag(key, value);
+    // Store as object to prevent delegate to remove tag when value is empty
+    this.delegate.withTag(key, (Object) value);
     return this;
   }
 
@@ -96,7 +101,7 @@ public class OtelSpanBuilder implements SpanBuilder {
         return Tags.SPAN_KIND_CONSUMER;
       default:
       case INTERNAL:
-        return spanKind.toString().toLowerCase();
+        return spanKind.toString().toLowerCase(Locale.ROOT);
     }
   }
 

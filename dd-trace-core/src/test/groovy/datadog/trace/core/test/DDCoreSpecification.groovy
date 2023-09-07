@@ -12,6 +12,7 @@ import datadog.trace.core.CoreTracer.CoreTracerBuilder
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.propagation.PropagationTags
+import datadog.trace.core.tagprocessor.TagsPostProcessorFactory
 import datadog.trace.test.util.DDSpecification
 
 abstract class DDCoreSpecification extends DDSpecification {
@@ -22,6 +23,16 @@ abstract class DDCoreSpecification extends DDSpecification {
 
   protected boolean useStrictTraceWrites() {
     return true
+  }
+
+  @Override
+  void setupSpec() {
+    TagsPostProcessorFactory.withAddBaseService(false)
+  }
+
+  @Override
+  void cleanupSpec() {
+    TagsPostProcessorFactory.reset()
   }
 
   protected CoreTracerBuilder tracerBuilder() {
@@ -68,9 +79,10 @@ abstract class DDCoreSpecification extends DDSpecification {
       AgentTracer.NoopPathwayContext.INSTANCE,
       false,
       propagationTags,
-      ProfilingContextIntegration.NoOp.INSTANCE)
+      ProfilingContextIntegration.NoOp.INSTANCE,
+      true)
 
-    def span = DDSpan.create(timestamp, context)
+    def span = DDSpan.create("test", timestamp, context)
     for (Map.Entry<String, Object> e : tags.entrySet()) {
       span.setTag(e.key, e.value)
     }

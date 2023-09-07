@@ -11,6 +11,7 @@ import datadog.trace.api.Config;
 import datadog.trace.util.AgentProxySelector;
 import java.io.File;
 import java.io.IOException;
+import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.nio.ByteBuffer;
@@ -26,6 +27,7 @@ import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
+import okhttp3.Response;
 import okio.BufferedSink;
 import okio.GzipSink;
 import okio.Okio;
@@ -298,6 +300,43 @@ public final class OkHttpUtils {
       super.writeTo(gzipSink);
 
       gzipSink.close();
+    }
+  }
+
+  public static Response sendWithRetries(
+      OkHttpClient httpClient, HttpRetryPolicy retryPolicy, Request request) throws IOException {
+    while (true) {
+      try {
+        okhttp3.Response response = httpClient.newCall(request).execute();
+        if (response.isSuccessful()) {
+          return response;
+        }
+        if (!retryPolicy.shouldRetry(response)) {
+          return response;
+        } else {
+          closeQuietly(response);
+        }
+      } catch (ConnectException ex) {
+        if (!retryPolicy.shouldRetry(null)) {
+          throw ex;
+        }
+      }
+      // If we get here, there has been an error, and we still have retries left
+      long backoffMs = retryPolicy.backoff();
+      try {
+        Thread.sleep(backoffMs);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new IOException(e);
+      }
+    }
+  }
+
+  private static void closeQuietly(Response response) {
+    try {
+      response.close();
+    } catch (Exception e) {
+      // ignore
     }
   }
 }

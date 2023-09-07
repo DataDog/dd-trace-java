@@ -2,6 +2,7 @@ package datadog.trace.core.datastreams;
 
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import com.datadoghq.sketch.ddsketch.encoding.ByteArrayInput;
 import com.datadoghq.sketch.ddsketch.encoding.GrowingByteArrayOutput;
@@ -94,6 +95,14 @@ public class DefaultPathwayContext implements PathwayContext {
   @Override
   public void setCheckpoint(
       LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer) {
+    setCheckpoint(sortedTags, pointConsumer, 0);
+  }
+
+  @Override
+  public void setCheckpoint(
+      LinkedHashMap<String, String> sortedTags,
+      Consumer<StatsPoint> pointConsumer,
+      long defaultTimestamp) {
     long startNanos = timeSource.getCurrentTimeNanos();
     long nanoTicks = timeSource.getNanoTicks();
     lock.lock();
@@ -104,9 +113,18 @@ public class DefaultPathwayContext implements PathwayContext {
       PathwayHashBuilder pathwayHashBuilder = new PathwayHashBuilder(wellKnownTags);
 
       if (!started) {
-        pathwayStartNanos = startNanos;
-        pathwayStartNanoTicks = nanoTicks;
-        edgeStartNanoTicks = nanoTicks;
+        if (defaultTimestamp == 0) {
+          pathwayStartNanos = startNanos;
+          pathwayStartNanoTicks = nanoTicks;
+          edgeStartNanoTicks = nanoTicks;
+        } else {
+          pathwayStartNanos = MILLISECONDS.toNanos(defaultTimestamp);
+          pathwayStartNanoTicks =
+              nanoTicks
+                  - MILLISECONDS.toNanos(timeSource.getCurrentTimeMillis() - defaultTimestamp);
+          edgeStartNanoTicks = pathwayStartNanoTicks;
+        }
+
         hash = 0;
         started = true;
         log.debug("Started {}", this);
@@ -230,6 +248,22 @@ public class DefaultPathwayContext implements PathwayContext {
 
     @Override
     public boolean accept(String key, String value) {
+      if (PathwayContext.DATADOG_KEY.equalsIgnoreCase(key)) {
+        try {
+          int startIndex = value.indexOf("\"dd-pathway-ctx-base64\": ");
+          int startValueIndex =
+              value.indexOf("\"", startIndex + "\"dd-pathway-ctx-base64\": ".length());
+          int endValueIndex = value.indexOf("\"", startValueIndex + 1);
+          if (startIndex == -1 || startValueIndex == -1 || endValueIndex == -1) {
+            return false;
+          }
+          String ddPathwayCtxBase64Value = value.substring(startValueIndex + 1, endValueIndex);
+          ddPathwayCtxBase64Value = ddPathwayCtxBase64Value.trim();
+          extractedContext = strDecode(timeSource, wellKnownTags, ddPathwayCtxBase64Value);
+        } catch (IOException | IndexOutOfBoundsException e) {
+          return false;
+        }
+      }
       if (PathwayContext.PROPAGATION_KEY_BASE64.equalsIgnoreCase(key)) {
         try {
           extractedContext = strDecode(timeSource, wellKnownTags, value);

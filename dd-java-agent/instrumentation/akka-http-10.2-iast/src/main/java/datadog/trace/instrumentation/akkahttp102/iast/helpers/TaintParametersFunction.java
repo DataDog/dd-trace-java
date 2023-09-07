@@ -1,7 +1,8 @@
 package datadog.trace.instrumentation.akkahttp102.iast.helpers;
 
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.source.WebModule;
+import datadog.trace.api.iast.SourceTypes;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import scala.Function1;
 import scala.Option;
 import scala.Tuple1;
@@ -17,7 +18,7 @@ public class TaintParametersFunction<T> implements Function1<Tuple1<T>, Tuple1<T
 
   @Override
   public Tuple1<T> apply(Tuple1<T> v1) {
-    WebModule mod = InstrumentationBridge.WEB;
+    PropagationModule mod = InstrumentationBridge.PROPAGATION;
     if (mod == null) {
       return v1;
     }
@@ -36,11 +37,11 @@ public class TaintParametersFunction<T> implements Function1<Tuple1<T>, Tuple1<T
       while (iterator.hasNext()) {
         Object o = iterator.next();
         if (o instanceof String) {
-          mod.onParameterValue(paramName, (String) o);
+          mod.taint(SourceTypes.REQUEST_PARAMETER_VALUE, paramName, (String) o);
         }
       }
     } else if (value instanceof String) {
-      mod.onParameterValue(paramName, (String) value);
+      mod.taint(SourceTypes.REQUEST_PARAMETER_VALUE, paramName, (String) value);
     }
 
     return v1;

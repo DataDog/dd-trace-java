@@ -7,11 +7,11 @@ import datadog.trace.api.Trace;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
-import datadog.trace.bootstrap.instrumentation.traceannotation.MeasuredMethodFilter;
 import java.lang.reflect.Method;
 
 public class TraceDecorator extends BaseDecorator {
   public static TraceDecorator DECORATE = new TraceDecorator();
+  private static final String INSTRUMENTATION_NAME = "trace-annotation";
 
   private static final boolean useLegacyOperationName =
       InstrumenterConfig.get().isLegacyInstrumentationEnabled(true, "trace.annotations");
@@ -73,11 +73,11 @@ public class TraceDecorator extends BaseDecorator {
       resourceName = DECORATE.spanNameForMethod(method);
     }
 
-    AgentSpan span = startSpan(operationName);
+    AgentSpan span = startSpan(INSTRUMENTATION_NAME, operationName);
     DECORATE.afterStart(span);
     span.setResourceName(resourceName);
 
-    if (measured || MeasuredMethodFilter.filter(method)) {
+    if (measured || InstrumenterConfig.get().isMethodMeasured(method)) {
       span.setMeasured(true);
     }
 

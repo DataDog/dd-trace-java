@@ -22,7 +22,7 @@ class DDTracerAPITest extends DDSpecification {
 
     then:
     tracer.serviceName == DEFAULT_SERVICE_NAME
-    tracer.sampler == sampler
+    tracer.initialSampler == sampler
     tracer.writer == writer
     tracer.localRootSpanTags[RUNTIME_ID_TAG].size() > 0 // not null or empty
     tracer.localRootSpanTags[LANGUAGE_TAG_KEY] == LANGUAGE_TAG_VALUE

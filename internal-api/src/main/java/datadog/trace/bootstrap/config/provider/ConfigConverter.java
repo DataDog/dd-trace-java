@@ -249,7 +249,7 @@ final class ConfigConverter {
               }
             } else {
               if (Character.isLetter(key.charAt(0))) {
-                value = defaultPrefix + normalizedHeaderTag(key);
+                value = defaultPrefix + Strings.normalizedHeaderTag(key);
               } else {
                 // tags must start with a letter
                 throw new BadFormatException(
@@ -303,41 +303,11 @@ final class ConfigConverter {
   }
 
   @Nonnull
-  private static String normalizedHeaderTag(String str) {
-    if (str.isEmpty()) {
-      return "";
-    }
-    StringBuilder builder = new StringBuilder(str.length());
-    int firstNonWhiteSpace = -1;
-    int lastNonWhitespace = -1;
-    for (int i = 0; i < str.length(); i++) {
-      char c = str.charAt(i);
-      if (Character.isWhitespace(c)) {
-        builder.append('_');
-      } else {
-        firstNonWhiteSpace = firstNonWhiteSpace == -1 ? i : firstNonWhiteSpace;
-        lastNonWhitespace = i;
-        if (Character.isLetterOrDigit(c) || c == '_' || c == '-' || c == '/') {
-          builder.append(Character.toLowerCase(c));
-        } else {
-          builder.append('_');
-        }
-      }
-    }
-    if (firstNonWhiteSpace == -1) {
-      return "";
-    } else {
-      str = builder.substring(firstNonWhiteSpace, lastNonWhitespace + 1);
-      return str;
-    }
-  }
-
-  @Nonnull
   @SuppressForbidden
   static BitSet parseIntegerRangeSet(@Nonnull String str, final String settingName)
       throws NumberFormatException {
     str = str.replaceAll("\\s", "");
-    if (!str.matches("\\d{3}(?:-\\d{3})?(?:,\\d{3}(?:-\\d{3})?)*")) {
+    if (!str.matches("\\d{1,3}(?:-\\d{1,3})?(?:,\\d{1,3}(?:-\\d{1,3})?)*")) {
       log.warn(
           "Invalid config for {}: '{}'. Must be formatted like '400-403,405,410-499'.",
           settingName,

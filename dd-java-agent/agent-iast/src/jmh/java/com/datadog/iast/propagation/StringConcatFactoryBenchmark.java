@@ -13,7 +13,8 @@ public class StringConcatFactoryBenchmark
   protected StringConcatFactoryBenchmark.Context initializeContext() {
     final IastRequestContext context = new IastRequestContext();
     final String notTainted = notTainted("Nop, tainted");
-    final String tainted = tainted(context, "Yep, tainted", new Range(3, 5, source()));
+    final String tainted =
+        tainted(context, "Yep, tainted", new Range(3, 5, source(), Range.NOT_MARKED));
     return new StringConcatFactoryBenchmark.Context(context, notTainted, tainted);
   }
 

@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.Config.isDatadogProfilerEnablementOverridden;
 import static datadog.trace.api.Config.isDatadogProfilerSafeInCurrentEnvironment;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -139,6 +140,8 @@ public final class StatusLogger extends JsonAdapter<Config>
     writer.value(config.isDatadogProfilerEnabled());
     writer.name("datadog_profiler_safe");
     writer.value(isDatadogProfilerSafeInCurrentEnvironment());
+    writer.name("datadog_profiler_enabled_overridden");
+    writer.value(isDatadogProfilerEnablementOverridden());
     if (config.getIastActivation() != ProductActivation.FULLY_DISABLED) {
       writer.name("iast_enabled");
       writer.value(config.getIastActivation().toString());

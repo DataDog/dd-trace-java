@@ -124,11 +124,11 @@ public final class TomcatServerInstrumentation extends Instrumenter.Tracing
       req.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, extractedContext);
 
       final AgentSpan span = DECORATE.startSpan(req, extractedContext);
+      final AgentScope scope = activateSpan(span);
+      scope.setAsyncPropagation(true);
       // This span is finished when Request.recycle() is called by RequestInstrumentation.
       DECORATE.afterStart(span);
 
-      final AgentScope scope = activateSpan(span);
-      scope.setAsyncPropagation(true);
       req.setAttribute(DD_SPAN_ATTRIBUTE, span);
       req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
       req.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
@@ -172,7 +172,8 @@ public final class TomcatServerInstrumentation extends Instrumenter.Tracing
         DECORATE.onRequest(span, req, req, ctx);
         Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
         if (rba != null) {
-          TomcatBlockingHelper.commitBlockingResponse(req, resp, rba);
+          TomcatBlockingHelper.commitBlockingResponse(
+              span.getRequestContext().getTraceSegment(), req, resp, rba);
           ret = false; // skip pipeline
         }
       }

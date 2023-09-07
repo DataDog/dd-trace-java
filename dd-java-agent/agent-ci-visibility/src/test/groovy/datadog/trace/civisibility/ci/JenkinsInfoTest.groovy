@@ -1,6 +1,6 @@
 package datadog.trace.civisibility.ci
 
-class JenkinsInfoTest extends CITagsProviderImplTest {
+class JenkinsInfoTest extends CITagsProviderTest {
 
   @Override
   String getProviderName() {

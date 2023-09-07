@@ -4,6 +4,8 @@ package datadog.trace.api.config;
 public final class CiVisibilityConfig {
 
   public static final String CIVISIBILITY_ENABLED = "civisibility.enabled";
+  public static final String CIVISIBILITY_TRACE_SANITATION_ENABLED =
+      "civisibility.trace.sanitation.enabled";
   public static final String CIVISIBILITY_AGENTLESS_ENABLED = "civisibility.agentless.enabled";
   public static final String CIVISIBILITY_AGENTLESS_URL = "civisibility.agentless.url";
   public static final String CIVISIBILITY_SOURCE_DATA_ENABLED = "civisibility.source.data.enabled";
@@ -18,8 +20,12 @@ public final class CiVisibilityConfig {
       "civisibility.auto.configuration.enabled";
   public static final String CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED =
       "civisibility.compiler.plugin.auto.configuration.enabled";
-  public static final String CIVISIBILITY_PER_TEST_CODE_COVERAGE_ENABLED =
-      "civisibility.per.test.code.coverage.enabled";
+  public static final String CIVISIBILITY_CODE_COVERAGE_ENABLED =
+      "civisibility.code.coverage.enabled";
+  public static final String CIVISIBILITY_CODE_COVERAGE_PERCENTAGE_CALCULATION_ENABLED =
+      "civisibility.code.coverage.percentage.calculation.enabled";
+  public static final String CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR =
+      "civisibility.code.coverage.report.dump.dir";
   public static final String CIVISIBILITY_COMPILER_PLUGIN_VERSION =
       "civisibility.compiler.plugin.version";
   public static final String CIVISIBILITY_JACOCO_PLUGIN_VERSION =
@@ -28,9 +34,30 @@ public final class CiVisibilityConfig {
       "civisibility.jacoco.plugin.includes";
   public static final String CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES =
       "civisibility.jacoco.plugin.excludes";
+  public static final String CIVISIBILITY_JACOCO_GRADLE_SOURCE_SETS =
+      "civisibility.jacoco.gradle.sourcesets";
   public static final String CIVISIBILITY_DEBUG_PORT = "civisibility.debug.port";
-  public static final String CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE =
-      "civisibility.test.events.handler.cache.size";
+  public static final String CIVISIBILITY_GIT_UPLOAD_ENABLED = "civisibility.git.upload.enabled";
+  public static final String CIVISIBILITY_GIT_UNSHALLOW_ENABLED =
+      "civisibility.git.unshallow.enabled";
+  public static final String CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS =
+      "civisibility.git.upload.timeout.millis";
+  public static final String CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS =
+      "civisibility.git.command.timeout.millis";
+  public static final String CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS =
+      "civisibility.backend.api.timeout.millis";
+  public static final String CIVISIBILITY_GIT_REMOTE_NAME = "civisibility.git.remote.name";
+  public static final String CIVISIBILITY_SIGNAL_SERVER_HOST = "civisibility.signal.server.host";
+  public static final String CIVISIBILITY_SIGNAL_SERVER_PORT = "civisibility.signal.server.port";
+  public static final String CIVISIBILITY_ITR_ENABLED = "civisibility.itr.enabled";
+  public static final String CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED =
+      "civisibility.ciprovider.integration.enabled";
+  public static final String CIVISIBILITY_REPO_INDEX_SHARING_ENABLED =
+      "civisibility.repo.index.sharing.enabled";
+  public static final String CIVISIBILITY_MODULE_EXECUTION_SETTINGS_CACHE_SIZE =
+      "civisibility.module.execution.settings.cache.size";
+  public static final String CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED =
+      "civisibility.coverage.segments.enabled";
 
   private CiVisibilityConfig() {}
 }

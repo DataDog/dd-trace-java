@@ -6,6 +6,8 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Sink;
+import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
 import net.bytebuddy.asm.Advice;
 import org.springframework.web.method.support.InvocableHandlerMethod;
@@ -35,6 +37,7 @@ public final class InvocableHandlerMethodInstrumentation extends Instrumenter.Ia
   public static class ControllerAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Sink(VulnerabilityTypes.UNVALIDATED_REDIRECT)
     public static void checkReturnedObject(
         @Advice.Return Object returned, @Advice.This InvocableHandlerMethod self) {
       final UnvalidatedRedirectModule module = InstrumentationBridge.UNVALIDATED_REDIRECT;

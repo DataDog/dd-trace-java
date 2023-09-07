@@ -76,19 +76,25 @@ class MuzzlePlugin implements Plugin<Project> {
     project.dependencies.add('muzzleBootstrap', bootstrapProject)
     project.dependencies.add('muzzleTooling', toolingProject)
 
+    project.evaluationDependsOn ':dd-java-agent:agent-bootstrap'
+    project.evaluationDependsOn ':dd-java-agent:agent-tooling'
+
     // compileMuzzle compiles all projects required to run muzzle validation.
     // Not adding group and description to keep this task from showing in `gradle tasks`.
     def compileMuzzle = project.task('compileMuzzle')
-    toolingProject.afterEvaluate {
-      compileMuzzle.dependsOn(toolingProject.tasks.named("compileJava"))
-    }
+    compileMuzzle.dependsOn(toolingProject.tasks.named("compileJava"))
     project.afterEvaluate {
-      project.tasks.matching { it.name in ['instrumentJava', 'instrumentScala', 'instrumentKotlin'] }.all {
+      project.tasks.matching {
+        it.name =~ /\Ainstrument(Main)?(_.+)?(Java|Scala|Kotlin)/
+      }.all {
         compileMuzzle.dependsOn(it)
       }
     }
+    compileMuzzle.dependsOn bootstrapProject.tasks.compileJava
+    compileMuzzle.dependsOn bootstrapProject.tasks.compileMain_java11Java
+    compileMuzzle.dependsOn toolingProject.tasks.compileJava
 
-    def muzzle = project.task(['type': MuzzleTask], 'muzzle') {
+    project.task(['type': MuzzleTask], 'muzzle') {
       description = "Run instrumentation muzzle on compile time dependencies"
       doLast {
         if (!project.muzzle.directives.any { it.assertPass }) {
@@ -96,22 +102,16 @@ class MuzzlePlugin implements Plugin<Project> {
           assertMuzzle(muzzleBootstrap, muzzleTooling, project)
         }
       }
+      dependsOn compileMuzzle
     }
-    def printReferences = project.task(['type': MuzzleTask],'printReferences') {
+
+    project.task(['type': MuzzleTask],'printReferences') {
       description = "Print references created by instrumentation muzzle"
       doLast {
         printMuzzle(project)
       }
+      dependsOn compileMuzzle
     }
-    bootstrapProject.afterEvaluate {
-      compileMuzzle.dependsOn it.tasks.compileJava
-      compileMuzzle.dependsOn it.tasks.compileMain_java11Java
-    }
-    toolingProject.afterEvaluate {
-      compileMuzzle.dependsOn it.tasks.compileJava
-    }
-    muzzle.dependsOn(compileMuzzle)
-    printReferences.dependsOn(compileMuzzle)
 
     def hasRelevantTask = project.gradle.startParameter.taskNames.any { taskName ->
       // removing leading ':' if present
@@ -210,7 +210,7 @@ class MuzzlePlugin implements Plugin<Project> {
    * Convert a muzzle directive to a list of artifacts
    */
   private static Set<Artifact> muzzleDirectiveToArtifacts(MuzzleDirective muzzleDirective, RepositorySystem system, RepositorySystemSession session) {
-    final Artifact directiveArtifact = new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, "jar", muzzleDirective.versions)
+    final Artifact directiveArtifact = new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, muzzleDirective.classifier ?: "", "jar", muzzleDirective.versions)
 
     final VersionRangeRequest rangeRequest = new VersionRangeRequest()
     rangeRequest.setRepositories(muzzleDirective.getRepositories(MUZZLE_REPOS))
@@ -226,7 +226,7 @@ class MuzzlePlugin implements Plugin<Project> {
     }.toSet()
 
     if (allVersionArtifacts.isEmpty()) {
-      throw new GradleException("No muzzle artifacts found for $muzzleDirective.group:$muzzleDirective.module $muzzleDirective.versions")
+      throw new GradleException("No muzzle artifacts found for $muzzleDirective.group:$muzzleDirective.module $muzzleDirective.versions $muzzleDirective.classifier")
     }
 
     return allVersionArtifacts
@@ -317,7 +317,11 @@ class MuzzlePlugin implements Plugin<Project> {
     def config = instrumentationProject.configurations.create(taskName)
 
     if (!muzzleDirective.coreJdk) {
-      def dep = instrumentationProject.dependencies.create("$versionArtifact.groupId:$versionArtifact.artifactId:$versionArtifact.version") {
+      def depId = "$versionArtifact.groupId:$versionArtifact.artifactId:$versionArtifact.version"
+      if (versionArtifact.classifier) {
+        depId += ":" + versionArtifact.classifier
+      }
+      def dep = instrumentationProject.dependencies.create(depId) {
         transitive = true
       }
       // The following optional transitive dependencies are brought in by some legacy module such as log4j 1.x but are no
@@ -343,8 +347,9 @@ class MuzzlePlugin implements Plugin<Project> {
         assertMuzzle(muzzleBootstrap, muzzleTooling, instrumentationProject, muzzleDirective)
       }
     }
+
     runAfter.finalizedBy(muzzleTask)
-    return muzzleTask
+    muzzleTask
   }
 
   /**
@@ -380,7 +385,7 @@ class MuzzlePlugin implements Plugin<Project> {
    */
   private static filterVersion(Set<Version> list, Set<String> skipVersions) {
     list.removeIf {
-      def version = it.toString().toLowerCase()
+      def version = it.toString().toLowerCase(Locale.ROOT)
       return version.endsWith("-snapshot") ||
         version.contains("rc") ||
         version.contains(".cr") ||
@@ -550,7 +555,7 @@ class MuzzleExtension {
   private postConstruct(MuzzleDirective directive) {
     // Make skipVersions case insensitive.
     directive.skipVersions = directive.skipVersions.collect {
-      it.toLowerCase()
+      it.toLowerCase(Locale.ROOT)
     }
     // Add existing repositories
     directive.additionalRepositories.addAll(additionalRepositories)
@@ -648,7 +653,7 @@ abstract class MuzzleAction implements WorkAction<MuzzleWorkParameters> {
     boolean assertPass = parameters.assertPass.get()
     String muzzleDirective = parameters.muzzleDirective.getOrNull()
     Method assertionMethod = instCL.loadClass('datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin')
-      .getMethod('assertInstrumentationMuzzled', ClassLoader.class, ClassLoader.class, boolean.class, String.class)
+      .getMethod('assertInstrumentationMuzzled', ClassLoader, ClassLoader, boolean, String)
     assertionMethod.invoke(null, instCL, testCL, assertPass, muzzleDirective)
   }
 

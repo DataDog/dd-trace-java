@@ -8,6 +8,7 @@ import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Enumeration;
+import java.util.Locale;
 import java.util.function.Function;
 import javax.jms.JMSException;
 import javax.jms.Message;
@@ -21,7 +22,7 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
         @SuppressForbidden
         @Override
         public String apply(String key) {
-          return key.replace("__dash__", "-").replace('$', '-').toLowerCase();
+          return key.replace("__dash__", "-").replace('$', '-').toLowerCase(Locale.ROOT);
         }
       };
 

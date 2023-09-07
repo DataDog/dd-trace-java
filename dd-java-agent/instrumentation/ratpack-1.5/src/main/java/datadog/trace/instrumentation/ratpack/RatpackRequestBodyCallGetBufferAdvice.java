@@ -46,7 +46,10 @@ public class RatpackRequestBodyCallGetBufferAdvice {
       }
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
       blockResponseFunction.tryCommitBlockingResponse(
-          rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+          reqCtx.getTraceSegment(),
+          rba.getStatusCode(),
+          rba.getBlockingContentType(),
+          rba.getExtraHeaders());
       return new BlockingException("Blocked request (for ByteBufBackedTypedData/getBuffer)");
     }
 
@@ -55,7 +58,13 @@ public class RatpackRequestBodyCallGetBufferAdvice {
 
   @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
   static void after(
-      @Advice.Enter Throwable enterThr, @Advice.Thrown(readOnly = false) Throwable t) {
+      @Advice.Enter Throwable enterThr,
+      @Advice.Thrown(readOnly = false) Throwable t,
+      @ActiveRequestContext RequestContext reqCtx) {
+    if (enterThr == null) {
+      return;
+    }
+
     // it's questionable, but we don't replace existing exceptions with our BlockingException
     if (t == null) {
       t = enterThr;

@@ -73,6 +73,12 @@ abstract class Jetty76Test extends HttpServerTest<Server> {
     return "jetty-server"
   }
 
+
+  @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
+  }
+
   @Override
   String expectedOperationName() {
     return operation()
@@ -110,6 +116,11 @@ abstract class Jetty76Test extends HttpServerTest<Server> {
 
   @Override
   boolean testUserBlocking() {
+    true
+  }
+
+  @Override
+  boolean testBlockingOnResponse() {
     true
   }
 

@@ -135,4 +135,39 @@ public class TestStringSuite {
     LOGGER.debug("After string getBytes {}", result);
     return result;
   }
+
+  public static String format(final String pattern, final Object... args) {
+    LOGGER.debug("Before format {} {}", pattern, args);
+    final String result = String.format(pattern, args);
+    LOGGER.debug("After format {}", result);
+    return result;
+  }
+
+  public static String format(final Locale locale, final String pattern, final Object... args) {
+    LOGGER.debug("Before format {} {} {}", locale, pattern, args);
+    final String result = String.format(locale, pattern, args);
+    LOGGER.debug("After format {}", result);
+    return result;
+  }
+
+  public static char[] toCharArray(final String string) {
+    LOGGER.debug("Before toCharArray {}", string);
+    char[] result = string.toCharArray();
+    LOGGER.debug("After toCharArray {}", result);
+    return result;
+  }
+
+  public static String[] split(final String string, final String regex) {
+    LOGGER.debug("Before split {} {}", string, regex);
+    String[] result = string.split(regex);
+    LOGGER.debug("After split {}", result);
+    return result;
+  }
+
+  public static String[] split(final String string, final String regex, final int limit) {
+    LOGGER.debug("Before split {} {} {}", string, regex, limit);
+    String[] result = string.split(regex, limit);
+    LOGGER.debug("After split {}", result);
+    return result;
+  }
 }

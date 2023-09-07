@@ -5,6 +5,7 @@ import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_6_10;
 import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.config.TraceSegmentPostProcessor;
 import com.datadog.appsec.event.EventProducerService;
+import com.datadog.appsec.event.EventProducerService.DataSubscriberInfo;
 import com.datadog.appsec.event.EventType;
 import com.datadog.appsec.event.ExpiredSubscriberInfoException;
 import com.datadog.appsec.event.data.Address;
@@ -63,12 +64,12 @@ public class GatewayBridge {
   private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors;
 
   // subscriber cache
-  private volatile EventProducerService.DataSubscriberInfo initialReqDataSubInfo;
-  private volatile EventProducerService.DataSubscriberInfo rawRequestBodySubInfo;
-  private volatile EventProducerService.DataSubscriberInfo requestBodySubInfo;
-  private volatile EventProducerService.DataSubscriberInfo pathParamsSubInfo;
-  private volatile EventProducerService.DataSubscriberInfo respDataSubInfo;
-  private volatile EventProducerService.DataSubscriberInfo grpcServerRequestMsgSubInfo;
+  private volatile DataSubscriberInfo initialReqDataSubInfo;
+  private volatile DataSubscriberInfo rawRequestBodySubInfo;
+  private volatile DataSubscriberInfo requestBodySubInfo;
+  private volatile DataSubscriberInfo pathParamsSubInfo;
+  private volatile DataSubscriberInfo respDataSubInfo;
+  private volatile DataSubscriberInfo grpcServerRequestMsgSubInfo;
 
   public GatewayBridge(
       SubscriptionService subscriptionService,
@@ -117,9 +118,6 @@ public class GatewayBridge {
           if (traceSeg != null) {
             traceSeg.setTagTop("_dd.appsec.enabled", 1);
             traceSeg.setTagTop("_dd.runtime_family", "jvm");
-            if (spanInfo.getRequestBlockingAction() != null) {
-              traceSeg.setTagTop("appsec.blocked", "true");
-            }
 
             Collection<AppSecEvent100> collectedEvents = ctx.transferCollectedEvents();
 
@@ -214,14 +212,19 @@ public class GatewayBridge {
             }
 
             while (true) {
-              if (pathParamsSubInfo == null) {
-                pathParamsSubInfo =
-                    producerService.getDataSubscribers(KnownAddresses.REQUEST_PATH_PARAMS);
+              DataSubscriberInfo subInfo = pathParamsSubInfo;
+              if (subInfo == null) {
+                subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_PATH_PARAMS);
+                pathParamsSubInfo = subInfo;
+              }
+              if (subInfo == null || subInfo.isEmpty()) {
+                return NoopFlow.INSTANCE;
               }
               DataBundle bundle =
                   new SingletonDataBundle<>(KnownAddresses.REQUEST_PATH_PARAMS, data);
               try {
-                return producerService.publishDataEvent(pathParamsSubInfo, ctx, bundle, false);
+                Flow<Void> flow = producerService.publishDataEvent(subInfo, ctx, bundle, false);
+                return flow;
               } catch (ExpiredSubscriberInfoException e) {
                 pathParamsSubInfo = null;
               }
@@ -242,11 +245,12 @@ public class GatewayBridge {
             producerService.publishEvent(ctx, EventType.REQUEST_BODY_END);
 
             while (true) {
-              if (rawRequestBodySubInfo == null) {
-                rawRequestBodySubInfo =
-                    producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_RAW);
+              DataSubscriberInfo subInfo = rawRequestBodySubInfo;
+              if (subInfo == null) {
+                subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_RAW);
+                rawRequestBodySubInfo = subInfo;
               }
-              if (rawRequestBodySubInfo.isEmpty()) {
+              if (subInfo == null || subInfo.isEmpty()) {
                 return NoopFlow.INSTANCE;
               }
 
@@ -257,7 +261,7 @@ public class GatewayBridge {
               DataBundle bundle =
                   new SingletonDataBundle<>(KnownAddresses.REQUEST_BODY_RAW, bodyContent);
               try {
-                return producerService.publishDataEvent(rawRequestBodySubInfo, ctx, bundle, false);
+                return producerService.publishDataEvent(subInfo, ctx, bundle, false);
               } catch (ExpiredSubscriberInfoException e) {
                 rawRequestBodySubInfo = null;
               }
@@ -283,18 +287,19 @@ public class GatewayBridge {
             ctx.setConvertedReqBodyPublished(true);
 
             while (true) {
-              if (requestBodySubInfo == null) {
-                requestBodySubInfo =
-                    producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_OBJECT);
+              DataSubscriberInfo subInfo = requestBodySubInfo;
+              if (subInfo == null) {
+                subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_OBJECT);
+                requestBodySubInfo = subInfo;
               }
-              if (requestBodySubInfo.isEmpty()) {
+              if (subInfo == null || subInfo.isEmpty()) {
                 return NoopFlow.INSTANCE;
               }
               DataBundle bundle =
                   new SingletonDataBundle<>(
                       KnownAddresses.REQUEST_BODY_OBJECT, ObjectIntrospection.convert(obj));
               try {
-                return producerService.publishDataEvent(requestBodySubInfo, ctx, bundle, false);
+                return producerService.publishDataEvent(subInfo, ctx, bundle, false);
               } catch (ExpiredSubscriberInfoException e) {
                 requestBodySubInfo = null;
               }
@@ -362,19 +367,20 @@ public class GatewayBridge {
             return NoopFlow.INSTANCE;
           }
           while (true) {
-            if (grpcServerRequestMsgSubInfo == null) {
-              grpcServerRequestMsgSubInfo =
+            DataSubscriberInfo subInfo = grpcServerRequestMsgSubInfo;
+            if (subInfo == null) {
+              subInfo =
                   producerService.getDataSubscribers(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE);
+              grpcServerRequestMsgSubInfo = subInfo;
             }
-            if (grpcServerRequestMsgSubInfo.isEmpty()) {
-              return Flow.ResultFlow.empty();
+            if (subInfo == null || subInfo.isEmpty()) {
+              return NoopFlow.INSTANCE;
             }
             Object convObj = ObjectIntrospection.convert(obj);
             DataBundle bundle =
                 new SingletonDataBundle<>(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE, convObj);
             try {
-              return producerService.publishDataEvent(
-                  grpcServerRequestMsgSubInfo, ctx, bundle, true);
+              return producerService.publishDataEvent(subInfo, ctx, bundle, true);
             } catch (ExpiredSubscriberInfoException e) {
               grpcServerRequestMsgSubInfo = null;
             }
@@ -512,8 +518,9 @@ public class GatewayBridge {
             .build();
 
     while (true) {
-      if (initialReqDataSubInfo == null) {
-        initialReqDataSubInfo =
+      DataSubscriberInfo subInfo = this.initialReqDataSubInfo;
+      if (subInfo == null) {
+        subInfo =
             producerService.getDataSubscribers(
                 KnownAddresses.HEADERS_NO_COOKIES,
                 KnownAddresses.REQUEST_COOKIES,
@@ -524,12 +531,13 @@ public class GatewayBridge {
                 KnownAddresses.REQUEST_CLIENT_IP,
                 KnownAddresses.REQUEST_CLIENT_PORT,
                 KnownAddresses.REQUEST_INFERRED_CLIENT_IP);
+        initialReqDataSubInfo = subInfo;
       }
 
       try {
-        return producerService.publishDataEvent(initialReqDataSubInfo, ctx, bundle, false);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, false);
       } catch (ExpiredSubscriberInfoException e) {
-        initialReqDataSubInfo = null;
+        this.initialReqDataSubInfo = null;
       }
     }
   }
@@ -550,14 +558,16 @@ public class GatewayBridge {
             KnownAddresses.RESPONSE_HEADERS_NO_COOKIES, ctx.getResponseHeaders());
 
     while (true) {
-      if (respDataSubInfo == null) {
-        respDataSubInfo =
+      DataSubscriberInfo subInfo = respDataSubInfo;
+      if (subInfo == null) {
+        subInfo =
             producerService.getDataSubscribers(
                 KnownAddresses.RESPONSE_STATUS, KnownAddresses.RESPONSE_HEADERS_NO_COOKIES);
+        respDataSubInfo = subInfo;
       }
 
       try {
-        return producerService.publishDataEvent(respDataSubInfo, ctx, bundle, false);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, false);
       } catch (ExpiredSubscriberInfoException e) {
         respDataSubInfo = null;
       }

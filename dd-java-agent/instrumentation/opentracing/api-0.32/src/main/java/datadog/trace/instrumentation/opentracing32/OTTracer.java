@@ -19,7 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class OTTracer implements Tracer {
-
+  private static final String INSTRUMENTATION_NAME = "opentracing";
   private static final Logger log = LoggerFactory.getLogger(OTTracer.class);
 
   private final TypeConverter converter = new TypeConverter(new DefaultLogHandler());
@@ -53,7 +53,7 @@ public class OTTracer implements Tracer {
 
   @Override
   public SpanBuilder buildSpan(final String operationName) {
-    return new OTSpanBuilder(tracer.buildSpan(operationName));
+    return new OTSpanBuilder(tracer.buildSpan(INSTRUMENTATION_NAME, operationName));
   }
 
   @Override
@@ -61,7 +61,7 @@ public class OTTracer implements Tracer {
     if (carrier instanceof TextMapInject) {
       final AgentSpan.Context context = converter.toContext(spanContext);
 
-      tracer.inject(context, (TextMapInject) carrier, OTTextMapInjectSetter.INSTANCE);
+      tracer.propagate().inject(context, (TextMapInject) carrier, OTTextMapInjectSetter.INSTANCE);
     } else {
       log.debug("Unsupported format for propagation - {}", format.getClass().getName());
     }
@@ -71,7 +71,9 @@ public class OTTracer implements Tracer {
   public <C> SpanContext extract(final Format<C> format, final C carrier) {
     if (carrier instanceof TextMapExtract) {
       final AgentSpan.Context tagContext =
-          tracer.extract((TextMapExtract) carrier, ContextVisitors.stringValuesEntrySet());
+          tracer
+              .propagate()
+              .extract((TextMapExtract) carrier, ContextVisitors.stringValuesEntrySet());
 
       return converter.toSpanContext(tagContext);
     } else {

@@ -14,6 +14,7 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallContextF
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallInterval;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isAllocationProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isCpuProfilerEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isLiveHeapSizeTrackingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isMemoryLeakProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isSpanNameContextAttributeEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isWallClockProfilerEnabled;
@@ -21,6 +22,8 @@ import static com.datadog.profiling.utils.ProfilingMode.ALLOCATION;
 import static com.datadog.profiling.utils.ProfilingMode.CPU;
 import static com.datadog.profiling.utils.ProfilingMode.MEMLEAK;
 import static com.datadog.profiling.utils.ProfilingMode.WALL;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT;
 
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.controller.RecordingData;
@@ -115,6 +118,8 @@ public final class DatadogProfiler {
 
   private final List<String> orderedContextAttributes;
 
+  private final long queueTimeThreshold;
+
   private DatadogProfiler() throws UnsupportedEnvironmentException {
     this(ConfigProvider.getInstance());
   }
@@ -124,6 +129,7 @@ public final class DatadogProfiler {
     this.profiler = null;
     this.contextSetter = null;
     this.orderedContextAttributes = null;
+    this.queueTimeThreshold = Long.MAX_VALUE;
   }
 
   private DatadogProfiler(ConfigProvider configProvider) throws UnsupportedEnvironmentException {
@@ -137,6 +143,7 @@ public final class DatadogProfiler {
     try {
       profiler =
           JavaProfiler.getInstance(
+              configProvider.getString(ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH),
               configProvider.getString(
                   ProfilingConfig.PROFILING_DATADOG_PROFILER_SCRATCH,
                   ProfilingConfig.PROFILING_DATADOG_PROFILER_SCRATCH_DEFAULT));
@@ -166,6 +173,10 @@ public final class DatadogProfiler {
       orderedContextAttributes.add(OPERATION);
     }
     this.contextSetter = new ContextSetter(profiler, orderedContextAttributes);
+    this.queueTimeThreshold =
+        configProvider.getLong(
+            PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS,
+            PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT);
     try {
       // sanity test - force load Datadog profiler to catch it not being available early
       profiler.execute("status");
@@ -329,7 +340,7 @@ public final class DatadogProfiler {
         cmd.append('a');
       }
       if (profilingModes.contains(MEMLEAK)) {
-        cmd.append('l');
+        cmd.append(isLiveHeapSizeTrackingEnabled(configProvider) ? 'L' : 'l');
       }
     }
     String cmdString = cmd.toString();
@@ -436,5 +447,12 @@ public final class DatadogProfiler {
     if (profiler != null) {
       profiler.recordSetting(name, value, unit);
     }
+  }
+
+  public QueueTimeTracker newQueueTimeTracker() {
+    if (profiler != null) {
+      return new QueueTimeTracker(profiler, queueTimeThreshold);
+    }
+    return null;
   }
 }

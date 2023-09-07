@@ -5,8 +5,12 @@ import static java.lang.invoke.MethodHandles.lookup;
 import static java.lang.invoke.MethodType.methodType;
 
 import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.lang.invoke.MethodHandle;
@@ -150,6 +154,7 @@ public class JettyBlockingHelper {
   private JettyBlockingHelper() {}
 
   public static boolean block(
+      TraceSegment segment,
       Request request,
       Response response,
       int statusCode,
@@ -161,6 +166,8 @@ public class JettyBlockingHelper {
     if (response.isCommitted()) {
       return true;
     }
+
+    request.setAttribute(HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE, Boolean.TRUE);
 
     try {
       response.reset();
@@ -174,6 +181,7 @@ public class JettyBlockingHelper {
       if (bct != BlockingContentType.NONE) {
         BlockingActionHelper.TemplateType type =
             BlockingActionHelper.determineTemplateType(bct, acceptHeader);
+        response.setCharacterEncoding("utf-8");
         response.setHeader("Content-type", BlockingActionHelper.getContentType(type));
         byte[] template = BlockingActionHelper.getTemplate(type);
 
@@ -194,6 +202,7 @@ public class JettyBlockingHelper {
           writer.close();
         }
       }
+      segment.effectivelyBlocked();
       CLOSE_OUTPUT.invoke(response);
       if (ABORT != null) {
         // needed by jetty 9.0.0-9.1.3
@@ -216,13 +225,21 @@ public class JettyBlockingHelper {
     return true;
   }
 
-  public static void block(
-      Request request, Response response, Flow.Action.RequestBlockingAction rba) {
-    block(
+  public static boolean block(
+      Request request, Response response, Flow.Action.RequestBlockingAction rba, AgentSpan span) {
+    return block(
+        span.getRequestContext().getTraceSegment(),
         request,
         response,
         rba.getStatusCode(),
         rba.getBlockingContentType(),
         rba.getExtraHeaders());
+  }
+
+  public static void blockAndThrowOnFailure(
+      Request request, Response response, Flow.Action.RequestBlockingAction rba, AgentSpan span) {
+    if (!block(request, response, rba, span)) {
+      throw new BlockingException("Throwing after being unable to commit blocking response");
+    }
   }
 }

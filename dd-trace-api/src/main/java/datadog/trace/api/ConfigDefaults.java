@@ -37,7 +37,9 @@ public final class ConfigDefaults {
   public static final String DEFAULT_SERVICE_NAME = "unnamed-java-app";
   public static final String DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME = "root-servlet";
   public static final String DEFAULT_AGENT_WRITER_TYPE = "DDAgentWriter";
+  public static final boolean DEFAULT_STARTUP_LOGS_ENABLED = true;
 
+  static final boolean DEFAULT_WRITER_BAGGAGE_INJECT = true;
   static final String DEFAULT_SITE = "datadoghq.com";
 
   static final boolean DEFAULT_TRACE_ENABLED = true;
@@ -111,15 +113,21 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED = true;
-  static final boolean DEFAULT_CIVISIBILITY_PER_TEST_CODE_COVERAGE_ENABLED = false;
-  static final String DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION = "0.1.6";
-  static final int DEFAULT_CIVISIBILITY_TEST_EVENTS_HANDLER_CACHE_SIZE = 4;
+  static final String DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION = "0.1.7";
   static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES =
-      "datadog.trace.*:org.apache.commons.*";
+      "datadog.trace.*:org.apache.commons.*:org.mockito.*";
+  static final boolean DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED = true;
+  static final boolean DEFAULT_CIVISIBILITY_GIT_UNSHALLOW_ENABLED = true;
+  static final long DEFAULT_CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS = 30_000;
+  static final long DEFAULT_CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS = 30_000;
+  static final long DEFAULT_CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS = 60_000;
+  static final String DEFAULT_CIVISIBILITY_GIT_REMOTE_NAME = "origin";
+  static final String DEFAULT_CIVISIBILITY_SIGNAL_SERVER_HOST = "127.0.0.1";
+  static final int DEFAULT_CIVISIBILITY_SIGNAL_SERVER_PORT = 0;
 
   static final boolean DEFAULT_REMOTE_CONFIG_ENABLED = true;
   static final boolean DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED = false;
-  static final int DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE = 1024; // KiB
+  static final int DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE = 5120; // KiB
   static final int DEFAULT_REMOTE_CONFIG_POLL_INTERVAL_SECONDS = 5;
   static final String DEFAULT_REMOTE_CONFIG_TARGETS_KEY_ID =
       "5c4ece41241a1bb513f6e3e5df74ab7d5183dfffbd71bfd43127920d880569fd";
@@ -135,7 +143,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DEBUGGER_METRICS_ENABLED = true;
   static final int DEFAULT_DEBUGGER_UPLOAD_BATCH_SIZE = 100;
   static final int DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE = 1024; // KiB
-  static final boolean DEFAULT_DEBUGGER_VERIFY_BYTECODE = false;
+  static final boolean DEFAULT_DEBUGGER_VERIFY_BYTECODE = true;
   static final boolean DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD = false;
   static final int DEFAULT_DEBUGGER_CAPTURE_TIMEOUT = 100; // milliseconds
 
@@ -172,7 +180,15 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_TRACE_LONG_RUNNING_ENABLED = false;
   static final long DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL = 300; // seconds -> 5 minutes
 
-  static final boolean DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED = true;
+  static final float DEFAULT_TRACE_FLUSH_INTERVAL = 1;
+
+  static final boolean DEFAULT_ELASTICSEARCH_BODY_ENABLED = false;
+  static final boolean DEFAULT_ELASTICSEARCH_PARAMS_ENABLED = true;
+  static final boolean DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED = false;
+
+  static final boolean DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED = true;
+
+  static final boolean DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED = true;
 
   private ConfigDefaults() {}
 }

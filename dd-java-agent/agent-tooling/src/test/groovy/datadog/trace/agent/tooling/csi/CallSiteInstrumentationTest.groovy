@@ -38,20 +38,6 @@ class CallSiteInstrumentationTest extends BaseCallSiteTest {
     0 * mock._
   }
 
-  def 'test helper class names'() {
-    setup:
-    final advice1 = mockCallSites(Mock(InvokeAdvice), stringConcatPointcut(), 'foo.bar.Helper1')
-    final advice2 = mockCallSites(Mock(InvokeAdvice), messageDigestGetInstancePointcut(), 'foo.bar.Helper1', 'foo.bar.Helper2', 'foo.bar.Helper3')
-    final instrumentation = buildInstrumentation([advice1, advice2])
-
-    when:
-    final helpers = instrumentation.helperClassNames()
-
-    then:
-    helpers.length == 3
-    helpers.toList().containsAll('foo.bar.Helper1', 'foo.bar.Helper2', 'foo.bar.Helper3')
-  }
-
   def 'test fetch advices from spi with custom class'() {
     setup:
     final builder = Mock(DynamicType.Builder)

@@ -25,11 +25,11 @@ public class PathBindingPublishingHandler implements Handler {
 
   @Override
   public void handle(Context ctx) {
-    boolean delegate = true;
+    boolean doDelegation = true;
     try {
-      delegate = maybePublishTokens(ctx);
+      doDelegation = maybePublishTokens(ctx);
     } finally {
-      if (delegate) {
+      if (doDelegation) {
         ctx.next();
       } else {
         throw new BlockingException("Blocking request");
@@ -68,7 +68,10 @@ public class PathBindingPublishingHandler implements Handler {
       }
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
       blockResponseFunction.tryCommitBlockingResponse(
-          rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+          requestContext.getTraceSegment(),
+          rba.getStatusCode(),
+          rba.getBlockingContentType(),
+          rba.getExtraHeaders());
       return false;
     }
 

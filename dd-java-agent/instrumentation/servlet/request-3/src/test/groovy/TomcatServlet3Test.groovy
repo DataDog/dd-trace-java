@@ -36,6 +36,11 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
   @Shared
   TestAccessLogValve accessLogValue
 
+  @Override
+  boolean testBlockingOnResponse() {
+    true
+  }
+
   class TomcatServer implements HttpServer {
     def port = 0
     final Tomcat server

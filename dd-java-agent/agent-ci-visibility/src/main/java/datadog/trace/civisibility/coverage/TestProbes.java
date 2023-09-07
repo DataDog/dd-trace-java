@@ -3,7 +3,7 @@ package datadog.trace.civisibility.coverage;
 import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
 import datadog.trace.api.civisibility.coverage.TestReport;
 import datadog.trace.api.civisibility.coverage.TestReportFileEntry;
-import datadog.trace.api.civisibility.source.SourcePathResolver;
+import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.Utils;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -71,6 +71,8 @@ public class TestProbes implements CoverageProbeStore {
         ExecutionDataStore store = new ExecutionDataStore();
         store.put(executionDataAdapter.toExecutionData(totalProbeCount));
 
+        // TODO optimize this part to avoid parsing
+        //  the same class multiple times for different test cases
         Analyzer analyzer = new Analyzer(store, new SourceAnalyzer(segments));
         analyzer.analyzeClass(is, null);
 
@@ -126,7 +128,7 @@ public class TestProbes implements CoverageProbeStore {
     return testReport;
   }
 
-  public static class TestProbesFactory implements CoverageProbeStore.Factory {
+  public static class TestProbesFactory implements CoverageProbeStoreFactory {
 
     @Override
     public void setTotalProbeCount(String className, int totalProbeCount) {

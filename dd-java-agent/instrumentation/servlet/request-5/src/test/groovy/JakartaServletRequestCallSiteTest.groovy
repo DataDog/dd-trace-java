@@ -1,5 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
 import datadog.trace.api.iast.source.WebModule
 import foo.bar.smoketest.JakartaHttpServletRequestTestSuite
@@ -7,6 +9,7 @@ import foo.bar.smoketest.JakartaHttpServletRequestWrapperTestSuite
 import foo.bar.smoketest.JakartaServletRequestTestSuite
 import foo.bar.smoketest.JakartaServletRequestWrapperTestSuite
 import groovy.transform.CompileDynamic
+import jakarta.servlet.ServletInputStream
 
 @CompileDynamic
 class JakartaServletRequestCallSiteTest extends AgentTestRunner {
@@ -14,6 +17,10 @@ class JakartaServletRequestCallSiteTest extends AgentTestRunner {
   @Override
   protected void configurePreAgent() {
     injectSysConfig("dd.iast.enabled", "true")
+  }
+
+  void cleanup() {
+    InstrumentationBridge.clearIastModules()
   }
 
   void 'test getParameter map'() {
@@ -42,8 +49,10 @@ class JakartaServletRequestCallSiteTest extends AgentTestRunner {
 
   void 'test getParameterValues and getParameterNames'() {
     setup:
-    final iastModule = Mock(WebModule)
-    InstrumentationBridge.registerIastModule(iastModule)
+    final webMod = Mock(WebModule)
+    final propMod = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(webMod)
+    InstrumentationBridge.registerIastModule(propMod)
     final map = [param1: ['value1', 'value2'] as String[]]
     final servletRequest = Mock(clazz) {
       getParameter(_ as String) >> { map.get(it[0]).first() }
@@ -57,19 +66,19 @@ class JakartaServletRequestCallSiteTest extends AgentTestRunner {
     testSuite.getParameter('param1')
 
     then:
-    1 * iastModule.onParameterValue('param1', 'value1')
+    1 * propMod.taint(SourceTypes.REQUEST_PARAMETER_VALUE, 'param1', 'value1')
 
     when:
     testSuite.getParameterValues('param1')
 
     then:
-    1 * iastModule.onParameterValues('param1', ['value1', 'value2'])
+    1 * webMod.onParameterValues('param1', ['value1', 'value2'])
 
     when:
     testSuite.getParameterNames()
 
     then:
-    1 * iastModule.onParameterNames(['param1'])
+    1 * webMod.onParameterNames(['param1'])
 
     where:
     testSuite                                       | clazz
@@ -93,6 +102,30 @@ class JakartaServletRequestCallSiteTest extends AgentTestRunner {
     then:
     1 * servletRequest.getRequestDispatcher(path)
     1 * iastModule.onRedirect(path)
+
+    where:
+    testSuite                                       | clazz
+    new JakartaServletRequestTestSuite()            | jakarta.servlet.ServletRequest
+    new JakartaHttpServletRequestTestSuite()        | jakarta.servlet.http.HttpServletRequest
+    new JakartaServletRequestWrapperTestSuite()     | jakarta.servlet.ServletRequestWrapper
+    new JakartaHttpServletRequestWrapperTestSuite() | jakarta.servlet.http.HttpServletRequestWrapper
+  }
+
+  void 'test getInputStream'() {
+    setup:
+    final iastModule = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(iastModule)
+    final stream = Mock(ServletInputStream)
+    final servletRequest = Mock(clazz) {
+      getInputStream() >> stream
+    }
+    testSuite.init(servletRequest)
+
+    when:
+    testSuite.getInputStream()
+
+    then:
+    1 * iastModule.taintObject(SourceTypes.REQUEST_BODY, stream)
 
     where:
     testSuite                                       | clazz

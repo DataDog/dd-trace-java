@@ -14,6 +14,8 @@ package datadog.trace.api.config;
 public final class TracerConfig {
   public static final String ID_GENERATION_STRATEGY = "id.generation.strategy";
   public static final String WRITER_TYPE = "writer.type";
+  public static final String WRITER_BAGGAGE_INJECT = "writer.baggage.inject";
+
   public static final String PRIORITIZATION_TYPE = "prioritization.type";
   public static final String TRACE_AGENT_URL = "trace.agent.url";
   public static final String AGENT_HOST = "agent.host";
@@ -69,6 +71,7 @@ public final class TracerConfig {
   public static final String SCOPE_INHERIT_ASYNC_PROPAGATION =
       "trace.scope.inherit.async.propagation";
   public static final String SCOPE_ITERATION_KEEP_ALIVE = "trace.scope.iteration.keep.alive";
+  public static final String PARTIAL_FLUSH_ENABLED = "trace.partial.flush.enabled";
   public static final String PARTIAL_FLUSH_MIN_SPANS = "trace.partial.flush.min.spans";
   public static final String TRACE_STRICT_WRITES_ENABLED = "trace.strict.writes.enabled";
   public static final String PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED =
@@ -117,6 +120,8 @@ public final class TracerConfig {
       "trace.remove.integration-service-names.enabled";
 
   public static final String TRACE_PEER_SERVICE_MAPPING = "trace.peer.service.mapping";
+
+  public static final String TRACE_FLUSH_INTERVAL = "trace.flush.interval";
 
   private TracerConfig() {}
 }

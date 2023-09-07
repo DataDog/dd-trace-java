@@ -13,7 +13,8 @@ public class StringBuilderInitBenchmark
   protected Context initializeContext() {
     final IastRequestContext context = new IastRequestContext();
     final String notTainted = notTainted("I am not a tainted string");
-    final String tainted = tainted(context, "I am a tainted string", new Range(3, 6, source()));
+    final String tainted =
+        tainted(context, "I am a tainted string", new Range(3, 6, source(), Range.NOT_MARKED));
     return new Context(context, notTainted, tainted);
   }
 

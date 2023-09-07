@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
@@ -36,6 +37,7 @@ public class CookieInstrumentation extends Instrumenter.Iast implements Instrume
 
   public static class InstrumenterAdviceGetName {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_COOKIE_NAME_STRING)
     public static void onExit(@Advice.Return String cookieName, @Advice.This Object self) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
@@ -46,6 +48,7 @@ public class CookieInstrumentation extends Instrumenter.Iast implements Instrume
 
   public static class GetValueAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_COOKIE_VALUE_STRING)
     public static void onExit(
         @Advice.Return String cookieValue,
         @Advice.FieldValue("name") String name,

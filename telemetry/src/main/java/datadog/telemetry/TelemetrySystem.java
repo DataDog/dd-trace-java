@@ -5,6 +5,7 @@ import datadog.telemetry.TelemetryRunnable.TelemetryPeriodicAction;
 import datadog.telemetry.dependency.DependencyPeriodicAction;
 import datadog.telemetry.dependency.DependencyService;
 import datadog.telemetry.integration.IntegrationPeriodicAction;
+import datadog.telemetry.metric.CoreMetricsPeriodicAction;
 import datadog.telemetry.metric.IastMetricPeriodicAction;
 import datadog.telemetry.metric.WafMetricPeriodicAction;
 import datadog.trace.api.Config;
@@ -39,6 +40,7 @@ public class TelemetrySystem {
     DEPENDENCY_SERVICE = dependencyService;
 
     List<TelemetryPeriodicAction> actions = new ArrayList<>();
+    actions.add(new CoreMetricsPeriodicAction());
     actions.add(new IntegrationPeriodicAction());
     actions.add(new WafMetricPeriodicAction());
     if (Verbosity.OFF != Config.get().getIastTelemetryVerbosity()) {
@@ -53,17 +55,18 @@ public class TelemetrySystem {
         AgentThreadFactory.AgentThread.TELEMETRY, telemetryRunnable);
   }
 
+  /** Called by reflection (see Agent.startTelemetry) */
   public static void startTelemetry(
       Instrumentation instrumentation, SharedCommunicationObjects sco) {
     sco.createRemaining(Config.get());
     DependencyService dependencyService = createDependencyService(instrumentation);
-    TelemetryService telemetryService =
-        new TelemetryService(sco.okHttpClient, new RequestBuilderSupplier(sco.agentUrl));
+    TelemetryService telemetryService = new TelemetryService(sco.okHttpClient, sco.agentUrl);
     TELEMETRY_THREAD = createTelemetryRunnable(telemetryService, dependencyService);
     TELEMETRY_THREAD.start();
   }
 
   public static void stop() {
+    // TODO This is never called in the prod code. Should be part of Agent.shutdown?
     if (DEPENDENCY_SERVICE != null) {
       DEPENDENCY_SERVICE.stop();
     }

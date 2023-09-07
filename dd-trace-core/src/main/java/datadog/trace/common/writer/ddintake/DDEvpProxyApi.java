@@ -11,6 +11,7 @@ import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.RemoteApi;
 import java.io.IOException;
 import java.net.ConnectException;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -69,7 +70,8 @@ public class DDEvpProxyApi extends RemoteApi {
     }
 
     public DDEvpProxyApi build() {
-      final String trackName = (trackType != null ? trackType.name() : NOOP.name()).toLowerCase();
+      final String trackName =
+          (trackType != null ? trackType.name() : NOOP.name()).toLowerCase(Locale.ROOT);
       final String subdomain = String.format("%s-intake", trackName);
 
       final HttpUrl evpProxyUrl = agentUrl.resolve(evpProxyEndpoint);
@@ -83,7 +85,7 @@ public class DDEvpProxyApi extends RemoteApi {
 
       final HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0);
 
-      log.debug("proxiedApiUrl: " + proxiedApiUrl);
+      log.debug("proxiedApiUrl: {}", proxiedApiUrl);
       return new DDEvpProxyApi(client, proxiedApiUrl, subdomain, retryPolicyFactory);
     }
   }
@@ -108,44 +110,31 @@ public class DDEvpProxyApi extends RemoteApi {
   public Response sendSerializedTraces(Payload payload) {
     final int sizeInBytes = payload.sizeInBytes();
 
-    try {
-      final Request request =
-          new Request.Builder()
-              .url(proxiedApiUrl)
-              .addHeader(DD_EVP_SUBDOMAIN_HEADER, subdomain)
-              .post(payload.toRequest())
-              .build();
-      totalTraces += payload.traceCount();
-      receivedTraces += payload.traceCount();
+    final Request request =
+        new Request.Builder()
+            .url(proxiedApiUrl)
+            .addHeader(DD_EVP_SUBDOMAIN_HEADER, subdomain)
+            .post(payload.toRequest())
+            .build();
+    totalTraces += payload.traceCount();
+    receivedTraces += payload.traceCount();
 
-      HttpRetryPolicy retryPolicy = retryPolicyFactory.create();
-      while (true) {
-        try (final okhttp3.Response response = httpClient.newCall(request).execute()) {
-          if (response.isSuccessful()) {
-            countAndLogSuccessfulSend(payload.traceCount(), sizeInBytes);
-            return Response.success(response.code());
-          }
-          if (!retryPolicy.shouldRetry(response)) {
-            countAndLogFailedSend(payload.traceCount(), sizeInBytes, response, null);
-            return Response.failed(response.code());
-          }
-        } catch (ConnectException ex) {
-          boolean shouldRetry = retryPolicy.shouldRetry(null);
-          if (!shouldRetry) {
-            countAndLogFailedSend(payload.traceCount(), sizeInBytes, null, null);
-            return Response.failed(ex);
-          }
-        }
-        // If we get here, there has been an error, and we still have retries left
-        long backoffMs = retryPolicy.backoff();
-        try {
-          Thread.sleep(backoffMs);
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          throw new IOException(e);
-        }
+    HttpRetryPolicy retryPolicy = retryPolicyFactory.create();
+    try (okhttp3.Response response =
+        OkHttpUtils.sendWithRetries(httpClient, retryPolicy, request)) {
+      if (response.isSuccessful()) {
+        countAndLogSuccessfulSend(payload.traceCount(), sizeInBytes);
+        return Response.success(response.code());
+      } else {
+        countAndLogFailedSend(payload.traceCount(), sizeInBytes, response, null);
+        return Response.failed(response.code());
       }
-    } catch (final IOException e) {
+
+    } catch (ConnectException e) {
+      countAndLogFailedSend(payload.traceCount(), sizeInBytes, null, null);
+      return Response.failed(e);
+
+    } catch (IOException e) {
       countAndLogFailedSend(payload.traceCount(), sizeInBytes, null, e);
       return Response.failed(e);
     }

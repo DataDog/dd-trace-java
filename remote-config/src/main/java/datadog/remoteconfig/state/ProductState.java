@@ -7,6 +7,7 @@ import datadog.remoteconfig.tuf.MissingContentException;
 import datadog.remoteconfig.tuf.RemoteConfigRequest;
 import datadog.remoteconfig.tuf.RemoteConfigResponse;
 import datadog.trace.relocate.api.RatelimitedLogger;
+import java.io.InterruptedIOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -79,7 +80,7 @@ public class ProductState {
       try {
         callListenerCommit(hinter);
       } catch (Exception ex) {
-        log.error("Error committing changes for product" + product, ex);
+        log.error("Error committing changes for product {}", product, ex);
       }
     }
 
@@ -99,7 +100,10 @@ public class ProductState {
       recordError(e);
     } catch (Exception ex) {
       updateConfigState(fleetResponse, configKey, ex);
-      ratelimitedLogger.warn("Error processing config key {}: {}", configKey, ex.getMessage(), ex);
+      if (!(ex instanceof InterruptedIOException)) {
+        ratelimitedLogger.warn(
+            "Error processing config key {}: {}", configKey, ex.getMessage(), ex);
+      }
     }
   }
 

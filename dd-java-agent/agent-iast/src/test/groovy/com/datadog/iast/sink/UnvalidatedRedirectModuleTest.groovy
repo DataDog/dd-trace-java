@@ -2,6 +2,7 @@ package com.datadog.iast.sink
 
 import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.IastRequestContext
+import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
@@ -9,9 +10,11 @@ import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
+import static com.datadog.iast.model.Range.NOT_MARKED
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.taintFormat
 
@@ -120,8 +123,65 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
     "location" | 1
   }
 
+  void 'If all ranges from tainted element have referer header as source, is not an unvalidated redirect'() {
+    setup:
+    def value = 'test01'
+    def refererSource = new Source(SourceTypes.REQUEST_HEADER_VALUE, 'referer', 'value')
+    Range[] ranges = [new Range(0, 2, refererSource, NOT_MARKED), new Range(4, 1, refererSource, NOT_MARKED)]
+    ctx.getTaintedObjects().taint(value, ranges)
+
+    when:
+    module.onRedirect(value)
+
+    then:
+    0 * reporter.report(_, _)
+  }
+
+  void 'If not all ranges from tainted element have referer header as source, is an unvalidated redirect'(final String value, final Range[] ranges) {
+    setup:
+    ctx.getTaintedObjects().taint(value, ranges)
+
+    when:
+    module.onRedirect(value)
+
+    then:
+    1 * reporter.report(_, _)
+
+    where:
+    value    | ranges
+    'test01' | [
+      new Range(0, 2, new Source(SourceTypes.REQUEST_HEADER_VALUE, 'referer', 'value'), NOT_MARKED),
+      new Range(4, 1, new Source(SourceTypes.REQUEST_HEADER_VALUE, 'other', 'value'), NOT_MARKED)
+    ]
+    'test02' | [
+      new Range(0, 2, new Source(SourceTypes.REQUEST_HEADER_VALUE, 'referer', 'value'), NOT_MARKED),
+      new Range(4, 1, new Source(SourceTypes.REQUEST_PARAMETER_NAME, 'referer', 'value'), NOT_MARKED)
+    ]
+    'test03' | [
+      new Range(0, 2, new Source(SourceTypes.REQUEST_HEADER_VALUE, null, null), NOT_MARKED),
+      new Range(4, 1, new Source(SourceTypes.REQUEST_PARAMETER_NAME, 'referer', 'value'), NOT_MARKED)
+    ]
+  }
+
+  void 'If all ranges from tainted element have unvalidated redirect mark vulnerability is not reported'() {
+    given:
+    final value = 'test'
+    final Range[] ranges = [
+      new Range(0, 2, new Source(SourceTypes.REQUEST_HEADER_VALUE, 'referer', 'value'), VulnerabilityMarks.UNVALIDATED_REDIRECT_MARK),
+      new Range(4, 1, new Source(SourceTypes.REQUEST_PARAMETER_NAME, 'referer', 'value'), VulnerabilityMarks.UNVALIDATED_REDIRECT_MARK)
+    ]
+    ctx.getTaintedObjects().taint(value, ranges)
+
+    when:
+    module.onRedirect(value)
+
+    then:
+    0 * reporter.report(_, _)
+  }
+
+
   private String mapTainted(final String value) {
-    final result = addFromTaintFormat(ctx.taintedObjects, value)
+    final result = addFromTaintFormat(ctx.taintedObjects, value, NOT_MARKED)
     objectHolder.add(result)
     return result
   }

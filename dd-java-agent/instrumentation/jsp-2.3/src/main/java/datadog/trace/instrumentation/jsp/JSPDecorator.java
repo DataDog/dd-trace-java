@@ -72,7 +72,7 @@ public class JSPDecorator extends BaseDecorator {
           "jsp.requestURL", (new URI(req.getRequestURL().toString())).normalize().toString());
     } catch (final URISyntaxException uriSE) {
       LoggerFactory.getLogger(HttpJspPage.class)
-          .debug("Failed to get and normalize request URL: " + uriSE.getMessage());
+          .debug("Failed to get and normalize request URL: {}", uriSE.getMessage());
     }
   }
 }

@@ -1,3 +1,6 @@
+import com.datadoghq.sketch.ddsketch.DDSketchProtoBinding
+import com.datadoghq.sketch.ddsketch.proto.DDSketch
+import com.datadoghq.sketch.ddsketch.store.CollapsingLowestDenseStore
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.instrumentation.spark.DatadogSparkListener
 import org.apache.spark.SparkConf
@@ -117,7 +120,7 @@ class SparkListenerTest extends AgentTestRunner {
     return new SparkListenerStageCompleted(stageInfo)
   }
 
-  private taskEndEvent(Integer stageId, Long launchTime, Long executorTime, Long deserializeTime = 0L, Long resultSerializeTime = 0L) {
+  private taskEndEvent(Integer stageId, Long launchTime, Long executorTime, Long deserializeTime = 0L, Long resultSerializeTime = 0L, Long peakExecutionMemory = 0L) {
     def taskInfo = new TaskInfo(
       0,
       0,
@@ -133,6 +136,7 @@ class SparkListenerTest extends AgentTestRunner {
     taskMetrics.setExecutorRunTime(executorTime)
     taskMetrics.setExecutorDeserializeTime(deserializeTime)
     taskMetrics.setResultSerializationTime(resultSerializeTime)
+    taskMetrics.incPeakExecutionMemory(peakExecutionMemory)
 
     if (TestSparkComputation.getSparkVersion() < "3") {
       return new SparkListenerTaskEnd(
@@ -195,7 +199,7 @@ class SparkListenerTest extends AgentTestRunner {
         span {
           operationName "spark.application"
           spanType "spark"
-          assert span.tags["spark_application_metrics.available_executor_time"] == expectedExecutorTime
+          assert span.tags["spark.available_executor_time"] == expectedExecutorTime
         }
       }
     }
@@ -244,52 +248,215 @@ class SparkListenerTest extends AgentTestRunner {
       trace(5) {
         span {
           operationName "spark.application"
-          assert span.tags["spark_application_metrics.available_executor_time"] == 8000L
-          assert span.tags["spark_application_metrics.executor_run_time"] == 2900L
-          assert span.tags["spark_application_metrics.executor_deserialize_time"] == 100L
-          assert span.tags["spark_application_metrics.result_serialization_time"] == 100L
+          assert span.tags["spark.available_executor_time"] == 8000L
+          assert span.tags["spark.executor_run_time"] == 2900L
+          assert span.tags["spark.executor_deserialize_time"] == 100L
+          assert span.tags["spark.result_serialization_time"] == 100L
           spanType "spark"
         }
         span {
           operationName "spark.job"
-          assert span.tags["spark_job_metrics.available_executor_time"] == 4800L
-          assert span.tags["spark_job_metrics.executor_run_time"] == 2900L
-          assert span.tags["spark_job_metrics.executor_deserialize_time"] == 100L
-          assert span.tags["spark_job_metrics.result_serialization_time"] == 100L
+          assert span.tags["spark.available_executor_time"] == 4800L
+          assert span.tags["spark.executor_run_time"] == 2900L
+          assert span.tags["spark.executor_deserialize_time"] == 100L
+          assert span.tags["spark.result_serialization_time"] == 100L
           spanType "spark"
           childOf(span(0))
         }
         span {
           operationName "spark.stage"
           assert span.tags["stage_id"] == 3
-          assert span.tags["spark_stage_metrics.available_executor_time"] == 3000L
-          assert span.tags["spark_stage_metrics.executor_run_time"] == 1900L
-          assert span.tags["spark_stage_metrics.executor_deserialize_time"] == 0L
-          assert span.tags["spark_stage_metrics.result_serialization_time"] == 0L
+          assert span.tags["spark.available_executor_time"] == 3000L
+          assert span.tags["spark.executor_run_time"] == 1900L
+          assert span.tags["spark.executor_deserialize_time"] == 0L
+          assert span.tags["spark.result_serialization_time"] == 0L
           spanType "spark"
           childOf(span(1))
         }
         span {
           operationName "spark.stage"
           assert span.tags["stage_id"] == 2
-          assert span.tags["spark_stage_metrics.available_executor_time"] == 1000L
-          assert span.tags["spark_stage_metrics.executor_run_time"] == 900L
-          assert span.tags["spark_stage_metrics.executor_deserialize_time"] == 0L
-          assert span.tags["spark_stage_metrics.result_serialization_time"] == 100L
+          assert span.tags["spark.available_executor_time"] == 1000L
+          assert span.tags["spark.executor_run_time"] == 900L
+          assert span.tags["spark.executor_deserialize_time"] == 0L
+          assert span.tags["spark.result_serialization_time"] == 100L
           spanType "spark"
           childOf(span(1))
         }
         span {
           operationName "spark.stage"
           assert span.tags["stage_id"] == 1
-          assert span.tags["spark_stage_metrics.available_executor_time"] == 800L
-          assert span.tags["spark_stage_metrics.executor_run_time"] == 100L
-          assert span.tags["spark_stage_metrics.executor_deserialize_time"] == 100L
-          assert span.tags["spark_stage_metrics.result_serialization_time"] == 0L
+          assert span.tags["spark.available_executor_time"] == 800L
+          assert span.tags["spark.executor_run_time"] == 100L
+          assert span.tags["spark.executor_deserialize_time"] == 100L
+          assert span.tags["spark.result_serialization_time"] == 0L
           spanType "spark"
           childOf(span(1))
         }
       }
     }
+  }
+
+  def "compute peak execution memory using the max of all stages"() {
+    setup:
+    def listener = getTestDatadogSparkListener()
+    listener.onApplicationStart(applicationStartEvent(1000L))
+
+    listener.onJobStart(jobStartEvent(1, 1000L, [1, 2]))
+
+    listener.onStageSubmitted(stageSubmittedEvent(1, 1000L))
+    listener.onTaskEnd(taskEndEvent(1, 1000L, 100L, 0L, 0L, 1000L))
+    listener.onTaskEnd(taskEndEvent(1, 1000L, 100L, 0L, 0L, 1200L))
+    listener.onStageCompleted(stageCompletedEvent(1, 2000L))
+
+    listener.onStageSubmitted(stageSubmittedEvent(2, 2000L))
+    listener.onTaskEnd(taskEndEvent(2, 2000L, 100L, 0L, 0L, 1300L))
+    listener.onTaskEnd(taskEndEvent(2, 2000L, 100L, 0L, 0L, 1400L))
+    listener.onStageCompleted(stageCompletedEvent(2, 3000L))
+
+    listener.onJobEnd(jobEndEvent(1, 3000L))
+    listener.onApplicationEnd(new SparkListenerApplicationEnd(3000L))
+
+    expect:
+    assertTraces(1) {
+      trace(4) {
+        span {
+          operationName "spark.application"
+          assert span.tags["spark.peak_execution_memory"] == 1400L
+          spanType "spark"
+        }
+        span {
+          operationName "spark.job"
+          assert span.tags["spark.peak_execution_memory"] == 1400L
+          spanType "spark"
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.stage"
+          assert span.tags["stage_id"] == 2
+          assert span.tags["spark.peak_execution_memory"] == 1400L
+          spanType "spark"
+          childOf(span(1))
+        }
+        span {
+          operationName "spark.stage"
+          assert span.tags["stage_id"] == 1
+          assert span.tags["spark.peak_execution_memory"] == 1200L
+          spanType "spark"
+          childOf(span(1))
+        }
+      }
+    }
+  }
+
+  def "feature flag for task histograms"() {
+    setup:
+    injectSysConfig("spark.task-histogram.enabled", "false")
+    def listener = getTestDatadogSparkListener()
+
+    listener.onApplicationStart(applicationStartEvent(1000L))
+    listener.onJobStart(jobStartEvent(1, 1900L, [1]))
+    listener.onStageSubmitted(stageSubmittedEvent(1, 1900L))
+    listener.onTaskEnd(taskEndEvent(1,1900L, 300))
+    listener.onStageCompleted(stageCompletedEvent(1, 2200L))
+    listener.onJobEnd(jobEndEvent(1, 17200L))
+    listener.onApplicationEnd(new SparkListenerApplicationEnd(3100L))
+
+    assertTraces(1) {
+      trace(3) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.stage"
+          assert span.tags["_dd.spark.task_run_time"] == null
+          spanType "spark"
+          childOf(span(1))
+        }
+      }
+    }
+  }
+
+  def "compute task metrics histograms"() {
+    setup:
+    def listener = getTestDatadogSparkListener()
+
+    listener.onApplicationStart(applicationStartEvent(1000L))
+    listener.onJobStart(jobStartEvent(1, 1900L, [1, 2]))
+
+    listener.onStageSubmitted(stageSubmittedEvent(1, 1900L))
+    for(int i = 1; i <= 100; i++) {
+      listener.onTaskEnd(taskEndEvent(1,1900L, 0))
+    }
+    for(int i = 1; i <= 300; i++) {
+      listener.onTaskEnd(taskEndEvent(1,1900L, i))
+    }
+    listener.onStageCompleted(stageCompletedEvent(1, 2200L))
+
+    listener.onStageSubmitted(stageSubmittedEvent(2, 2200L))
+    for(int i = 1; i <= 15000; i++) {
+      listener.onTaskEnd(taskEndEvent(2, 2200L, i))
+    }
+
+    listener.onStageCompleted(stageCompletedEvent(2, 17200L))
+    listener.onJobEnd(jobEndEvent(1, 17200L))
+    listener.onApplicationEnd(new SparkListenerApplicationEnd(3100L))
+
+    expect:
+    def relativeAccuracy = 1/32D
+    assertTraces(1) {
+      trace(4) {
+        span {
+          operationName "spark.application"
+          validateRelativeError(span.tags["spark.skew_time"] as double, 7700, relativeAccuracy)
+          spanType "spark"
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          validateRelativeError(span.tags["spark.skew_time"] as double, 7700, relativeAccuracy)
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.stage"
+          assert span.tags["stage_id"] == 2
+          validateRelativeError(span.tags["spark.skew_time"] as double, 7500, relativeAccuracy)
+          validateSerializedHistogram(span.tags["_dd.spark.task_run_time"] as String, 7500, 11250, 15000, relativeAccuracy)
+          spanType "spark"
+          childOf(span(1))
+        }
+        span {
+          operationName "spark.stage"
+          assert span.tags["stage_id"] == 1
+          validateRelativeError(span.tags["spark.skew_time"] as double, 200, relativeAccuracy)
+          validateSerializedHistogram(span.tags["_dd.spark.task_run_time"] as String, 100, 200, 300, relativeAccuracy)
+          spanType "spark"
+          childOf(span(1))
+        }
+      }
+    }
+  }
+
+  private validateRelativeError(double value, double expected, double relativeAccuracy) {
+    double relativeError = Math.abs(value - expected) / expected
+    assert relativeError < relativeAccuracy
+  }
+
+  private validateSerializedHistogram(String base64Hist, double expectedP50, double expectedP75, double expectedMax, double relativeAccuracy) {
+    byte[] bytes = Base64.getDecoder().decode(base64Hist)
+
+    def sketch = DDSketchProtoBinding.fromProto({
+      new CollapsingLowestDenseStore(512)
+    }, DDSketch.parseFrom(bytes))
+
+    validateRelativeError(sketch.getValueAtQuantile(0.5), expectedP50, relativeAccuracy)
+    validateRelativeError(sketch.getValueAtQuantile(0.75), expectedP75, relativeAccuracy)
+    validateRelativeError(sketch.getMaxValue(), expectedMax, relativeAccuracy)
   }
 }

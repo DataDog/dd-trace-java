@@ -1,0 +1,41 @@
+muzzle {
+  pass {
+    group = 'org.springframework.security'
+    module = 'spring-security-core'
+    versions = "[5.5.0,)"
+    // assertInverse = true
+  }
+}
+
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_17
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+[compileMain_java17Java, compileTestJava].each {
+  it.configure {
+    setJavaVersion(it, 17)
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+  }
+}
+
+compileTestGroovy {
+  javaLauncher = getJavaLauncherFor(17)
+}
+
+dependencies {
+  main_java17CompileOnly group: 'org.springframework.security', name: 'spring-security-core', version: '5.5.0'
+  compileOnly group: 'org.springframework.security', name: 'spring-security-core', version: '5.5.0'
+
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '3.0.0'
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.0.0'
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '3.0.0'
+  testImplementation 'org.springframework.boot:spring-boot-starter-jdbc:3.0.0'
+
+  testImplementation testFixtures(project(':dd-java-agent:appsec'))
+  testImplementation project(':dd-java-agent:instrumentation:tomcat-appsec-6')
+  testImplementation project(':dd-java-agent:instrumentation:tomcat-5.5')
+  testImplementation 'com.h2database:h2:2.1.212'
+}

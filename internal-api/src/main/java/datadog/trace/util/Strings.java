@@ -7,6 +7,7 @@ import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nonnull;
 
 public final class Strings {
@@ -204,6 +205,36 @@ public final class Strings {
   }
 
   @Nonnull
+  public static String normalizedHeaderTag(String str) {
+    if (str.isEmpty()) {
+      return "";
+    }
+    StringBuilder builder = new StringBuilder(str.length());
+    int firstNonWhiteSpace = -1;
+    int lastNonWhitespace = -1;
+    for (int i = 0; i < str.length(); i++) {
+      char c = str.charAt(i);
+      if (Character.isWhitespace(c)) {
+        builder.append('_');
+      } else {
+        firstNonWhiteSpace = firstNonWhiteSpace == -1 ? i : firstNonWhiteSpace;
+        lastNonWhitespace = i;
+        if (Character.isLetterOrDigit(c) || c == '_' || c == '-' || c == '/') {
+          builder.append(Character.toLowerCase(c));
+        } else {
+          builder.append('_');
+        }
+      }
+    }
+    if (firstNonWhiteSpace == -1) {
+      return "";
+    } else {
+      str = builder.substring(firstNonWhiteSpace, lastNonWhitespace + 1);
+      return str;
+    }
+  }
+
+  @Nonnull
   public static String trim(final String string) {
     return null == string ? "" : string.trim();
   }
@@ -309,5 +340,19 @@ public final class Strings {
     }
 
     return false;
+  }
+
+  /**
+   * Generates a random string of the given length from lowercase characters a-z
+   *
+   * @param length length of the string
+   * @return random string containing lowercase latin characters
+   */
+  public static String random(int length) {
+    char[] c = new char[length];
+    for (int i = 0; i < length; i++) {
+      c[i] = (char) ('a' + ThreadLocalRandom.current().nextInt(26));
+    }
+    return new String(c);
   }
 }

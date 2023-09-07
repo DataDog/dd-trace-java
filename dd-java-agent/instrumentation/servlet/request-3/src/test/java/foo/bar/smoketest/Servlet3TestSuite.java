@@ -1,15 +1,12 @@
 package foo.bar.smoketest;
 
-import javax.servlet.http.HttpServletRequest;
+import java.util.Map;
+import javax.servlet.ServletRequest;
 
-public class Servlet3TestSuite {
-  HttpServletRequest request;
+public class Servlet3TestSuite implements ServletSuite<ServletRequest> {
 
-  public Servlet3TestSuite(HttpServletRequest request) {
-    this.request = request;
-  }
-
-  public java.util.Map<java.lang.String, java.lang.String[]> getParameterMap() {
+  @Override
+  public Map<String, String[]> getParameterMap(ServletRequest request) {
     return request.getParameterMap();
   }
 }

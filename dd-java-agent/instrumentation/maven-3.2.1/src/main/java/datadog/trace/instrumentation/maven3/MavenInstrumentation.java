@@ -36,11 +36,9 @@ public class MavenInstrumentation extends Instrumenter.CiVisibility
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".MavenUtils",
-      packageName + ".MavenUtils$TestFramework",
       packageName + ".MavenExecutionListener",
-      packageName + ".MavenDependencyVersion",
       packageName + ".MavenProjectConfigurator",
-      packageName + ".MavenLifecycleParticipant"
+      packageName + ".MavenLifecycleParticipant",
     };
   }
 

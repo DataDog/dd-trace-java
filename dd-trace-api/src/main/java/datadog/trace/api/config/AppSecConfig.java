@@ -19,6 +19,8 @@ public final class AppSecConfig {
       "appsec.http.blocked.template.html";
   public static final String APPSEC_HTTP_BLOCKED_TEMPLATE_JSON =
       "appsec.http.blocked.template.json";
+  public static final String APPSEC_AUTOMATED_USER_EVENTS_TRACKING =
+      "appsec.automated-user-events-tracking";
 
   private AppSecConfig() {}
 }

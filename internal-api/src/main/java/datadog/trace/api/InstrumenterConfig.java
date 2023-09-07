@@ -4,7 +4,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_MEASURE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_RESET_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
@@ -30,13 +29,13 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_E
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_INSTALLER_ENABLED;
-import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MEASURE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_CONFIG;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_DIR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_NAMES_ARE_UNIQUE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_RESET_INTERVAL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
@@ -57,8 +56,10 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class InstrumenterConfig {
@@ -68,7 +69,6 @@ public class InstrumenterConfig {
 
   private final boolean traceEnabled;
   private final boolean traceOtelEnabled;
-  private final boolean logsInjectionEnabled;
   private final boolean logs128bTraceIdEnabled;
   private final boolean profilingEnabled;
   private final boolean ciVisibilityEnabled;
@@ -95,14 +95,15 @@ public class InstrumenterConfig {
   private final String resolverCacheDir;
   private final boolean resolverNamesAreUnique;
   private final boolean resolverUseLoadClass;
+  private final Boolean resolverUseUrlCaches;
   private final int resolverResetInterval;
 
   private final boolean runtimeContextFieldInjection;
   private final boolean serialVersionUIDFieldInjection;
 
   private final String traceAnnotations;
-  private final String traceMethods;
-  private final String measureMethods;
+  private final Map<String, Set<String>> traceMethods;
+  private final Map<String, Set<String>> measureMethods;
 
   private final boolean internalExitOnFailure;
 
@@ -120,8 +121,6 @@ public class InstrumenterConfig {
 
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
-    logsInjectionEnabled =
-        configProvider.getBoolean(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
     logs128bTraceIdEnabled =
         configProvider.getBoolean(
             TRACE_128_BIT_TRACEID_LOGGING_ENABLED, DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED);
@@ -172,6 +171,7 @@ public class InstrumenterConfig {
     resolverCacheDir = configProvider.getString(RESOLVER_CACHE_DIR);
     resolverNamesAreUnique = configProvider.getBoolean(RESOLVER_NAMES_ARE_UNIQUE, false);
     resolverUseLoadClass = configProvider.getBoolean(RESOLVER_USE_LOADCLASS, true);
+    resolverUseUrlCaches = configProvider.getBoolean(RESOLVER_USE_URL_CACHES);
     resolverResetInterval =
         Platform.isNativeImageBuilder()
             ? 0
@@ -185,8 +185,12 @@ public class InstrumenterConfig {
             SERIALVERSIONUID_FIELD_INJECTION, DEFAULT_SERIALVERSIONUID_FIELD_INJECTION);
 
     traceAnnotations = configProvider.getString(TRACE_ANNOTATIONS, DEFAULT_TRACE_ANNOTATIONS);
-    traceMethods = configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS);
-    measureMethods = configProvider.getString(MEASURE_METHODS, DEFAULT_MEASURE_METHODS);
+    traceMethods =
+        MethodFilterConfigParser.parse(
+            configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS));
+    measureMethods =
+        MethodFilterConfigParser.parse(
+            configProvider.getString(MEASURE_METHODS, DEFAULT_MEASURE_METHODS));
     internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
 
     legacyInstallerEnabled = configProvider.getBoolean(LEGACY_INSTALLER_ENABLED, false);
@@ -213,10 +217,6 @@ public class InstrumenterConfig {
 
   public boolean isTraceOtelEnabled() {
     return traceOtelEnabled;
-  }
-
-  public boolean isLogsInjectionEnabled() {
-    return logsInjectionEnabled;
   }
 
   public boolean isLogs128bTraceIdEnabled() {
@@ -323,6 +323,10 @@ public class InstrumenterConfig {
     return resolverUseLoadClass;
   }
 
+  public Boolean isResolverUseUrlCaches() {
+    return resolverUseUrlCaches;
+  }
+
   public int getResolverResetInterval() {
     return resolverResetInterval;
   }
@@ -339,12 +343,17 @@ public class InstrumenterConfig {
     return traceAnnotations;
   }
 
-  public String getTraceMethods() {
+  public Map<String, Set<String>> getTraceMethods() {
     return traceMethods;
   }
 
-  public String getMeasureMethods() {
-    return measureMethods;
+  public boolean isMethodMeasured(Method method) {
+    if (this.measureMethods.isEmpty()) {
+      return false;
+    }
+    String clazz = method.getDeclaringClass().getName();
+    Set<String> methods = this.measureMethods.get(clazz);
+    return methods != null && (methods.contains(method.getName()) || methods.contains("*"));
   }
 
   public boolean isInternalExitOnFailure() {
@@ -382,8 +391,6 @@ public class InstrumenterConfig {
         + traceEnabled
         + ", traceOtelEnabled="
         + traceOtelEnabled
-        + ", logsInjectionEnabled="
-        + logsInjectionEnabled
         + ", logs128bTraceIdEnabled="
         + logs128bTraceIdEnabled
         + ", profilingEnabled="
@@ -424,6 +431,8 @@ public class InstrumenterConfig {
         + resolverNamesAreUnique
         + ", resolverUseLoadClass="
         + resolverUseLoadClass
+        + ", resolverUseUrlCaches="
+        + resolverUseUrlCaches
         + ", resolverResetInterval="
         + resolverResetInterval
         + ", runtimeContextFieldInjection="

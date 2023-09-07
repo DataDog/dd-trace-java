@@ -1,7 +1,10 @@
 package com.datadog.debugger.instrumentation;
 
+import static com.datadog.debugger.instrumentation.ASMHelper.emitReflectiveCall;
+import static com.datadog.debugger.instrumentation.ASMHelper.getStatic;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeStatic;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeVirtual;
+import static com.datadog.debugger.instrumentation.ASMHelper.isFinalField;
 import static com.datadog.debugger.instrumentation.ASMHelper.isStaticField;
 import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
 import static com.datadog.debugger.instrumentation.Types.CAPTURED_CONTEXT_TYPE;
@@ -22,12 +25,15 @@ import static org.objectweb.asm.Type.VOID_TYPE;
 import static org.objectweb.asm.Type.getType;
 
 import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
+import datadog.trace.util.Strings;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import org.objectweb.asm.Opcodes;
@@ -72,17 +78,21 @@ public class CapturedContextInstrumentor extends Instrumentor {
   }
 
   @Override
-  public void instrument() {
+  public InstrumentationResult.Status instrument() {
     if (isLineProbe) {
       fillLineMap();
-      addLineCaptures(lineMap);
-    } else {
-      instrumentMethodEnter();
-      instrumentTryCatchHandlers();
-      processInstructions();
-      addFinallyHandler(returnHandlerLabel);
+      if (!addLineCaptures(lineMap)) {
+        return InstrumentationResult.Status.ERROR;
+      }
+      installFinallyBlocks();
+      return InstrumentationResult.Status.INSTALLED;
     }
+    instrumentMethodEnter();
+    instrumentTryCatchHandlers();
+    processInstructions();
+    addFinallyHandler(returnHandlerLabel);
     installFinallyBlocks();
+    return InstrumentationResult.Status.INSTALLED;
   }
 
   private void installFinallyBlocks() {
@@ -93,15 +103,15 @@ public class CapturedContextInstrumentor extends Instrumentor {
     }
   }
 
-  private void addLineCaptures(LineMap lineMap) {
+  private boolean addLineCaptures(LineMap lineMap) {
     Where.SourceLine[] targetLines = definition.getWhere().getSourceLines();
     if (targetLines == null) {
-      // no line capture to perform
-      return;
+      reportError("Missing line(s) in probe definition.");
+      return false;
     }
     if (lineMap.isEmpty()) {
       reportError("Missing line debug information.");
-      return;
+      return false;
     }
     for (Where.SourceLine sourceLine : targetLines) {
       int from = sourceLine.getFrom();
@@ -161,6 +171,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
         methodNode.instructions.insert(afterLabel, insnList);
       }
     }
+    return true;
   }
 
   @Override
@@ -297,8 +308,9 @@ public class CapturedContextInstrumentor extends Instrumentor {
       throwableListVar = declareThrowableList(insnList);
     }
     insnList.add(contextInitLabel);
-    if (definition.getEvaluateAt() == MethodLocation.EXIT) {
-      // if evaluation is at exit, skip collecting data at enter
+    if (definition instanceof SpanDecorationProbe
+        && definition.getEvaluateAt() == MethodLocation.EXIT) {
+      // if evaluation is at exit for a span decoration probe, skip collecting data at enter
       methodNode.instructions.insert(methodEnterLabel, insnList);
       return;
     }
@@ -310,32 +322,38 @@ public class CapturedContextInstrumentor extends Instrumentor {
     LabelNode targetNode = new LabelNode();
     LabelNode gotoNode = new LabelNode();
     insnList.add(new JumpInsnNode(Opcodes.IFEQ, targetNode));
-    LabelNode inProbeStartLabel = new LabelNode();
-    insnList.add(inProbeStartLabel);
-    // stack []
-    insnList.add(collectCapturedContext(Snapshot.Kind.ENTER, null));
-    // stack [capturedcontext]
-    ldc(insnList, Type.getObjectType(classNode.name));
-    // stack [capturedcontext, class]
-    ldc(insnList, -1L);
-    // stack [capturedcontext, class, long]
-    getStatic(insnList, METHOD_LOCATION_TYPE, "ENTRY");
-    // stack [capturedcontext, class, long, methodlocation]
-    pushProbesIds(insnList);
-    // stack [capturedcontext, class, long, methodlocation, array]
-    invokeStatic(
-        insnList,
-        DEBUGGER_CONTEXT_TYPE,
-        "evalContext",
-        VOID_TYPE,
-        CAPTURED_CONTEXT_TYPE,
-        CLASS_TYPE,
-        LONG_TYPE,
-        METHOD_LOCATION_TYPE,
-        STRING_ARRAY_TYPE);
-    invokeStatic(insnList, DEBUGGER_CONTEXT_TYPE, "disableInProbe", VOID_TYPE);
-    LabelNode inProbeEndLabel = new LabelNode();
-    insnList.add(inProbeEndLabel);
+    // if evaluation is at exit, skip collecting data at enter
+    if (definition.getEvaluateAt() != MethodLocation.EXIT) {
+      LabelNode inProbeStartLabel = new LabelNode();
+      insnList.add(inProbeStartLabel);
+      // stack []
+      insnList.add(collectCapturedContext(Snapshot.Kind.ENTER, null));
+      // stack [capturedcontext]
+      ldc(insnList, Type.getObjectType(classNode.name));
+      // stack [capturedcontext, class]
+      ldc(insnList, -1L);
+      // stack [capturedcontext, class, long]
+      getStatic(insnList, METHOD_LOCATION_TYPE, "ENTRY");
+      // stack [capturedcontext, class, long, methodlocation]
+      pushProbesIds(insnList);
+      // stack [capturedcontext, class, long, methodlocation, array]
+      invokeStatic(
+          insnList,
+          DEBUGGER_CONTEXT_TYPE,
+          "evalContext",
+          VOID_TYPE,
+          CAPTURED_CONTEXT_TYPE,
+          CLASS_TYPE,
+          LONG_TYPE,
+          METHOD_LOCATION_TYPE,
+          STRING_ARRAY_TYPE);
+      invokeStatic(insnList, DEBUGGER_CONTEXT_TYPE, "disableInProbe", VOID_TYPE);
+      LabelNode inProbeEndLabel = new LabelNode();
+      insnList.add(inProbeEndLabel);
+      createInProbeFinallyHandler(inProbeStartLabel, inProbeEndLabel);
+    } else {
+      invokeStatic(insnList, DEBUGGER_CONTEXT_TYPE, "disableInProbe", VOID_TYPE);
+    }
     // stack []
     insnList.add(new JumpInsnNode(Opcodes.GOTO, gotoNode));
     insnList.add(targetNode);
@@ -345,7 +363,6 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack []
     insnList.add(gotoNode);
     methodNode.instructions.insert(methodEnterLabel, insnList);
-    createInProbeFinallyHandler(inProbeStartLabel, inProbeEndLabel);
   }
 
   private void createInProbeFinallyHandler(LabelNode inProbeStartLabel, LabelNode inProbeEndLabel) {
@@ -446,6 +463,8 @@ public class CapturedContextInstrumentor extends Instrumentor {
     }
     // stack: [capturedcontext]
     collectArguments(insnList, kind);
+    // stack: [capturedcontext]
+    collectStaticFields(insnList);
     // stack: [capturedcontext]
     collectFields(insnList);
     // stack: [capturedcontext]
@@ -675,9 +694,58 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack: [throwable, capturedcontext]
   }
 
+  private void collectStaticFields(InsnList insnList) {
+    List<FieldNode> fieldsToCapture = extractStaticFields(classNode, classLoader, limits);
+    if (fieldsToCapture.isEmpty()) {
+      // bail out if no fields
+      return;
+    }
+    insnList.add(new InsnNode(Opcodes.DUP));
+    // stack: [capturedcontext, capturedcontext]
+    ldc(insnList, fieldsToCapture.size());
+    // stack: [capturedcontext, capturedcontext, int]
+    insnList.add(new TypeInsnNode(Opcodes.ANEWARRAY, CAPTURED_VALUE.getInternalName()));
+    // stack: [capturedcontext, capturedcontext, array]
+    int counter = 0;
+    for (FieldNode fieldNode : fieldsToCapture) {
+      insnList.add(new InsnNode(Opcodes.DUP));
+      // stack: [capturedcontext, capturedcontext, array, array]
+      ldc(insnList, counter++);
+      // stack: [capturedcontext, capturedcontext, array, array, int]
+      ldc(insnList, fieldNode.name);
+      // stack: [capturedcontext, capturedcontext, array, array, int, string]
+      Type fieldType = Type.getType(fieldNode.desc);
+      ldc(insnList, fieldType.getClassName());
+      // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name]
+      if (isAccessible(fieldNode)) {
+        insnList.add(
+            new FieldInsnNode(Opcodes.GETSTATIC, classNode.name, fieldNode.name, fieldNode.desc));
+      } else {
+        ldc(insnList, Type.getObjectType(classNode.name));
+        ldc(insnList, fieldNode.name);
+        // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name, string]
+        emitReflectiveCall(insnList, new ASMHelper.Type(Type.getType(fieldNode.desc)), CLASS_TYPE);
+      }
+      // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
+      // field_value]
+      tryBox(fieldType, insnList);
+      // stack: [capturedcontext, capturedcontext, array, array, int, type_name, object]
+      addCapturedValueOf(insnList, limits);
+      // stack: [capturedcontext, capturedcontext, array, array, int, typed_value]
+      insnList.add(new InsnNode(Opcodes.AASTORE));
+      // stack: [capturedcontext, capturedcontext, array]
+    }
+    invokeVirtual(
+        insnList,
+        CAPTURED_CONTEXT_TYPE,
+        "addStaticFields",
+        Type.VOID_TYPE,
+        Types.asArray(CAPTURED_VALUE, 1));
+    // stack: [capturedcontext]
+  }
+
   private void collectFields(InsnList insnList) {
     // expected stack top: [capturedcontext]
-
     /*
      * We are cheating a bit with CorrelationAccess - utilizing the knowledge that it is a singleton loaded by the
      * bootstrap class loader we can assume that the availability will not change during the app life time.
@@ -688,40 +756,20 @@ public class CapturedContextInstrumentor extends Instrumentor {
       // static method and no correlation info, no need to capture fields
       return;
     }
-    // count instance fields
-    int fieldCount = correlationAvailable ? 2 : 0; // correlation will add 2 synthetic fields
-    if (!isStatic) {
-      for (FieldNode fieldNode : classNode.fields) {
-        if (isStaticField(fieldNode)) {
-          continue;
-        }
-        fieldCount++;
-      }
-    }
-    if (fieldCount == 0) {
+    List<FieldNode> fieldsToCapture =
+        extractInstanceField(classNode, isStatic, classLoader, limits);
+    if (fieldsToCapture.isEmpty()) {
       // bail out if no fields
       return;
     }
     insnList.add(new InsnNode(Opcodes.DUP));
     // stack: [capturedcontext, capturedcontext]
-    ldc(insnList, fieldCount);
+    ldc(insnList, fieldsToCapture.size());
     // stack: [capturedcontext, capturedcontext, int]
     insnList.add(new TypeInsnNode(Opcodes.ANEWARRAY, CAPTURED_VALUE.getInternalName()));
     // stack: [capturedcontext, capturedcontext, array]
     int counter = 0;
-    List<FieldNode> fieldList = isStatic ? new ArrayList<>() : new ArrayList<>(classNode.fields);
-    if (correlationAvailable) {
-      fieldList.add(
-          new FieldNode(
-              Opcodes.ACC_PRIVATE, "dd.trace_id", STRING_TYPE.getDescriptor(), null, null));
-      fieldList.add(
-          new FieldNode(
-              Opcodes.ACC_PRIVATE, "dd.span_id", STRING_TYPE.getDescriptor(), null, null));
-    }
-    for (FieldNode fieldNode : fieldList) {
-      if (isStaticField(fieldNode)) {
-        continue;
-      }
+    for (FieldNode fieldNode : fieldsToCapture) {
       insnList.add(new InsnNode(Opcodes.DUP));
       // stack: [capturedcontext, capturedcontext, array, array]
       ldc(insnList, counter++);
@@ -734,41 +782,37 @@ public class CapturedContextInstrumentor extends Instrumentor {
       switch (fieldNode.name) {
         case "dd.trace_id":
           {
-            invokeStatic(
-                insnList,
-                CORRELATION_ACCESS_TYPE,
-                "instance",
-                Type.getType(CorrelationAccess.class));
+            invokeStatic(insnList, CORRELATION_ACCESS_TYPE, "instance", CORRELATION_ACCESS_TYPE);
             // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
             // access]
             invokeVirtual(insnList, CORRELATION_ACCESS_TYPE, "getTraceId", STRING_TYPE);
-            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-            // field_value]
             break;
           }
         case "dd.span_id":
           {
-            invokeStatic(
-                insnList,
-                CORRELATION_ACCESS_TYPE,
-                "instance",
-                Type.getType(CorrelationAccess.class));
+            invokeStatic(insnList, CORRELATION_ACCESS_TYPE, "instance", CORRELATION_ACCESS_TYPE);
             // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
             // access]
             invokeVirtual(insnList, CORRELATION_ACCESS_TYPE, "getSpanId", STRING_TYPE);
-            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-            // field_value]
             break;
           }
         default:
           {
             insnList.add(new VarInsnNode(Opcodes.ALOAD, 0));
             // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name, this]
-            insnList.add(
-                new FieldInsnNode(
-                    Opcodes.GETFIELD, classNode.name, fieldNode.name, fieldNode.desc));
-            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-            // field_value]
+            if (isAccessible(fieldNode)) {
+              insnList.add(
+                  new FieldInsnNode(
+                      Opcodes.GETFIELD, classNode.name, fieldNode.name, fieldNode.desc));
+            } else {
+              ldc(insnList, fieldNode.name);
+              // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
+              // this, string]
+              ASMHelper.emitReflectiveCall(
+                  insnList, new ASMHelper.Type(Type.getType(fieldNode.desc)), OBJECT_TYPE);
+              // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
+              // this, string]
+            }
           }
       }
       // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
@@ -787,6 +831,123 @@ public class CapturedContextInstrumentor extends Instrumentor {
         Type.VOID_TYPE,
         Types.asArray(CAPTURED_VALUE, 1));
     // stack: [capturedcontext]
+  }
+
+  private static boolean isAccessible(FieldNode fieldNode) {
+    Object value = fieldNode.value;
+    if (value instanceof Field) {
+      return ((Field) value).isAccessible();
+    }
+    return true;
+  }
+
+  private static List<FieldNode> extractInstanceField(
+      ClassNode classNode, boolean isStatic, ClassLoader classLoader, Limits limits) {
+    List<FieldNode> results = new ArrayList<>();
+    if (CorrelationAccess.instance().isAvailable()) {
+      results.add(
+          new FieldNode(
+              Opcodes.ACC_PRIVATE, "dd.trace_id", STRING_TYPE.getDescriptor(), null, null));
+      results.add(
+          new FieldNode(
+              Opcodes.ACC_PRIVATE, "dd.span_id", STRING_TYPE.getDescriptor(), null, null));
+    }
+    if (isStatic) {
+      return results;
+    }
+    int fieldCount = 0;
+    for (FieldNode fieldNode : classNode.fields) {
+      if (isStaticField(fieldNode)) {
+        continue;
+      }
+      results.add(fieldNode);
+      fieldCount++;
+      if (fieldCount > limits.maxFieldCount) {
+        return results;
+      }
+    }
+    addInheritedFields(classNode, classLoader, limits, results, fieldCount);
+    return results;
+  }
+
+  private static void addInheritedFields(
+      ClassNode classNode,
+      ClassLoader classLoader,
+      Limits limits,
+      List<FieldNode> results,
+      int fieldCount) {
+    String superClassName = Strings.getClassName(classNode.superName);
+    while (!superClassName.equals(Object.class.getTypeName())) {
+      Class<?> clazz;
+      try {
+        clazz = Class.forName(superClassName, false, classLoader);
+      } catch (ClassNotFoundException ex) {
+        break;
+      }
+      for (Field field : clazz.getDeclaredFields()) {
+        if (isStaticField(field)) {
+          continue;
+        }
+        String desc = Type.getDescriptor(field.getType());
+        FieldNode fieldNode =
+            new FieldNode(field.getModifiers(), field.getName(), desc, null, field);
+        results.add(fieldNode);
+        fieldCount++;
+        if (fieldCount > limits.maxFieldCount) {
+          return;
+        }
+      }
+      clazz = clazz.getSuperclass();
+      superClassName = clazz.getTypeName();
+    }
+  }
+
+  private static List<FieldNode> extractStaticFields(
+      ClassNode classNode, ClassLoader classLoader, Limits limits) {
+    int fieldCount = 0;
+    List<FieldNode> results = new ArrayList<>();
+    for (FieldNode fieldNode : classNode.fields) {
+      if (isStaticField(fieldNode) && !isFinalField(fieldNode)) {
+        results.add(fieldNode);
+        fieldCount++;
+        if (fieldCount > limits.maxFieldCount) {
+          return results;
+        }
+      }
+    }
+    addInheritedStaticFields(classNode, classLoader, limits, results, fieldCount);
+    return results;
+  }
+
+  private static void addInheritedStaticFields(
+      ClassNode classNode,
+      ClassLoader classLoader,
+      Limits limits,
+      List<FieldNode> results,
+      int fieldCount) {
+    String superClassName = Strings.getClassName(classNode.superName);
+    while (!superClassName.equals(Object.class.getTypeName())) {
+      Class<?> clazz;
+      try {
+        clazz = Class.forName(superClassName, false, classLoader);
+      } catch (ClassNotFoundException ex) {
+        break;
+      }
+      for (Field field : clazz.getDeclaredFields()) {
+        if (isStaticField(field) && !isFinalField(field)) {
+          String desc = Type.getDescriptor(field.getType());
+          FieldNode fieldNode =
+              new FieldNode(field.getModifiers(), field.getName(), desc, null, field);
+          results.add(fieldNode);
+          fieldCount++;
+          if (fieldCount > limits.maxFieldCount) {
+            return;
+          }
+        }
+      }
+      clazz = clazz.getSuperclass();
+      superClassName = clazz.getTypeName();
+    }
   }
 
   private boolean isInScope(LocalVariableNode variableNode, AbstractInsnNode location) {
@@ -883,12 +1044,6 @@ public class CapturedContextInstrumentor extends Instrumentor {
             Type.getMethodDescriptor(Type.VOID_TYPE, argTypes),
             false));
     // stack: []
-  }
-
-  private static void getStatic(InsnList insnList, Type owner, String fieldName) {
-    insnList.add(
-        new FieldInsnNode(
-            Opcodes.GETSTATIC, owner.getInternalName(), fieldName, owner.getDescriptor()));
   }
 
   private static void newInstance(InsnList insnList, Type type) {

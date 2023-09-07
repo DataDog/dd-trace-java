@@ -1,4 +1,5 @@
 apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'scala'
 
 muzzle {
   pass {
@@ -21,4 +22,16 @@ dependencies {
       strictly '4.13.2'
     }
   }
+
+  testImplementation group: 'io.cucumber', name: 'cucumber-java', version: '5.4.0'
+  testImplementation group: 'io.cucumber', name: 'cucumber-junit', version: '5.4.0'
+  testImplementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.14.1'
+
+  testImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.13.10'
+  testImplementation group: 'org.scalameta', name: 'munit_2.13', version: '0.7.28'
+}
+
+compileTestGroovy {
+  dependsOn compileTestScala
+  classpath += files(sourceSets.test.scala.destinationDirectory)
 }

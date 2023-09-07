@@ -2,14 +2,12 @@ package datadog.trace.civisibility.ci;
 
 import static datadog.trace.civisibility.utils.CIUtils.findParentPathBackwards;
 
-import datadog.trace.api.civisibility.ci.CIInfo;
-import datadog.trace.api.civisibility.ci.CIProviderInfo;
 import datadog.trace.api.git.GitInfo;
 import java.nio.file.Path;
 
 /**
  * This class is the strategy to use when the CI provider used to execute the tests cannot be
- * recognized. See selectCI() method in {@code CIProviderInfo} class.
+ * recognized. See {@link CIProviderInfoFactory#createCIProviderInfo(Path)}.
  *
  * <p>In this case, the tests may be being executed either a local development or an unknown CI
  * provider, so we cannot collect the usual data like pipeline, stage, job, etc.

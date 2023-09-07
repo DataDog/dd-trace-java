@@ -1,3 +1,3 @@
 package datadog.trace.api.iast.sink;
 
-public interface NoHttpOnlyCookieModule extends HttpResponseHeaderModule.ForCookie {}
+public interface NoHttpOnlyCookieModule<T> extends HttpCookieModule<T> {}

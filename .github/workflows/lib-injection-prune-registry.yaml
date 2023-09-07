@@ -1,0 +1,48 @@
+name: Prune Lib Injection images
+on:
+  schedule:
+    - cron: '15 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  prune-init-images:
+    name: Prune dd-lib-java-init docker images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+    - name: Prune registry
+      uses: vlaurin/action-ghcr-prune@0a539594d122b915e71c59733a5b115bfaaf5d52 #v0.5.0
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        organization: Datadog
+        container: dd-trace-java/dd-lib-java-init
+        keep-younger-than: 7 # days
+        keep-last: 10
+        keep-tags: |
+          latest_snapshot
+        prune-tags-regexes: |
+          ^[a-z0-9]{40}$
+        prune-untagged: true
+
+  prune-init-test-app-images:
+    name: Prune dd-lib-java-init-test-app docker images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+    - name: Prune registry
+      uses: vlaurin/action-ghcr-prune@0a539594d122b915e71c59733a5b115bfaaf5d52 #v0.5.0
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        organization: Datadog
+        container: dd-trace-java/dd-lib-java-init-test-app
+        keep-younger-than: 15 # days
+        keep-last: 5
+        keep-tags: |
+          latest_snapshot
+        prune-tags-regexes: |
+          ^[a-z0-9]{40}$
+        prune-untagged: true

@@ -1,13 +1,16 @@
 package com.datadog.debugger.probe;
 
+import static com.datadog.debugger.probe.LogProbe.Capture.toLimits;
+
 import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.agent.LogMessageTemplateBuilder;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.ValueScript;
+import com.datadog.debugger.instrumentation.CapturedContextInstrumentor;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
-import com.datadog.debugger.instrumentation.LogInstrumentor;
+import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.sink.Sink;
 import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.Json;
@@ -183,7 +186,7 @@ public class LogProbe extends ProbeDefinition {
 
     public static Limits toLimits(Capture capture) {
       if (capture == null) {
-        return null;
+        return Limits.DEFAULT;
       }
       return new Limits(
           capture.maxReferenceDepth,
@@ -341,13 +344,21 @@ public class LogProbe extends ProbeDefinition {
   }
 
   @Override
-  public void instrument(
+  public InstrumentationResult.Status instrument(
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics,
       List<String> probeIds) {
-    new LogInstrumentor(this, classLoader, classNode, methodNode, diagnostics, probeIds)
+    return new CapturedContextInstrumentor(
+            this,
+            classLoader,
+            classNode,
+            methodNode,
+            diagnostics,
+            probeIds,
+            isCaptureSnapshot(),
+            toLimits(getCapture()))
         .instrument();
   }
 
@@ -399,18 +410,25 @@ public class LogProbe extends ProbeDefinition {
     LogStatus entryStatus = convertStatus(entryContext.getStatus(id));
     LogStatus exitStatus = convertStatus(exitContext.getStatus(id));
     String message = null;
+    String traceId = null;
+    String spanId = null;
     switch (evaluateAt) {
       case ENTRY:
       case DEFAULT:
         message = entryStatus.getMessage();
+        traceId = entryContext.getTraceId();
+        spanId = entryContext.getSpanId();
         break;
       case EXIT:
         message = exitStatus.getMessage();
+        traceId = exitContext.getTraceId();
+        spanId = exitContext.getSpanId();
         break;
     }
     Sink sink = DebuggerAgent.getSink();
     boolean shouldCommit = false;
-    Snapshot snapshot = new Snapshot(Thread.currentThread(), this);
+    int maxDepth = capture != null ? capture.maxReferenceDepth : -1;
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), this, maxDepth);
     if (entryStatus.shouldSend() && exitStatus.shouldSend()) {
       // only rate limit if a condition is defined
       if (probeCondition != null) {
@@ -419,6 +437,8 @@ public class LogProbe extends ProbeDefinition {
           return;
         }
       }
+      snapshot.setTraceId(traceId);
+      snapshot.setSpanId(spanId);
       if (isCaptureSnapshot()) {
         snapshot.setEntry(entryContext);
         snapshot.setExit(exitContext);
@@ -482,7 +502,8 @@ public class LogProbe extends ProbeDefinition {
       return;
     }
     Sink sink = DebuggerAgent.getSink();
-    Snapshot snapshot = new Snapshot(Thread.currentThread(), this);
+    int maxDepth = capture != null ? capture.maxReferenceDepth : -1;
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), this, maxDepth);
     boolean shouldCommit = false;
     if (status.shouldSend()) {
       // only rate limit if a condition is defined
@@ -492,6 +513,8 @@ public class LogProbe extends ProbeDefinition {
           return;
         }
       }
+      snapshot.setTraceId(lineContext.getTraceId());
+      snapshot.setSpanId(lineContext.getSpanId());
       if (isCaptureSnapshot()) {
         snapshot.addLine(lineContext, line);
       }

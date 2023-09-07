@@ -14,6 +14,7 @@ import akka.http.javadsl.unmarshalling.Unmarshaller;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.instrumentation.akkahttp.iast.helpers.TaintFutureHelper;
 import net.bytebuddy.asm.Advice;
@@ -71,6 +72,7 @@ public class UnmarshallerInstrumentation extends Instrumenter.Iast
 
   static class PropagateTaintOnApplyAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Propagation
     static void after(
         @Advice.Return(readOnly = false) Future<?> result,
         @Advice.Argument(0) Object input,

@@ -1,6 +1,5 @@
 package datadog.smoketest.springboot.rabbit;
 
-import datadog.trace.api.Trace;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -26,7 +25,6 @@ public class Receiver {
     }
   }
 
-  @Trace
   @RabbitListener(queues = "${rabbit.receiver.queue}")
   public void receiveMessage(String msg) {
     if (forwardMessage) {

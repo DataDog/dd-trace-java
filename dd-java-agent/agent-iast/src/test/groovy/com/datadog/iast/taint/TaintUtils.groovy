@@ -4,6 +4,8 @@ import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
 import datadog.trace.api.iast.SourceTypes
 
+import static com.datadog.iast.model.Range.NOT_MARKED
+
 class TaintUtils {
 
   static final String OPEN_MARK = "==>"
@@ -31,12 +33,16 @@ class TaintUtils {
       pos = cur.start + cur.length
     }
     if (pos < s.length()) {
-      res += s[pos..s.length()-1]
+      res += s[pos..s.length() - 1]
     }
     res
   }
 
   static Range[] fromTaintFormat(final String s) {
+    return fromTaintFormat(s, NOT_MARKED)
+  }
+
+  static Range[] fromTaintFormat(final String s, final int mark) {
     if (s == null || s.isEmpty()) {
       return null
     }
@@ -49,14 +55,14 @@ class TaintUtils {
         int start = pos
         int length = (upTo - i) - OPEN_MARK.length()
         assert length >= 0
-        ranges.add(new Range(start, length, new Source(SourceTypes.NONE, null, null)))
+        ranges.add(new Range(start, length, new Source(SourceTypes.NONE, null, null), mark))
         pos += length
         i += OPEN_MARK.length() + length + CLOSE_MARK.length() - 1
       } else {
         pos++
       }
     }
-    return (ranges.size() == 0)? null : ranges as Range[]
+    return (ranges.size() == 0) ? null : ranges as Range[]
   }
 
   static String getStringFromTaintFormat(final String s) {
@@ -66,8 +72,20 @@ class TaintUtils {
     new String(s.replace(OPEN_MARK, "").replace(CLOSE_MARK, ""))
   }
 
+  static <E> E taint(final TaintedObjects tos, final E value) {
+    if (value instanceof String) {
+      return addFromTaintFormat(tos, value as String)
+    }
+    tos.taintInputObject(value, new Source(SourceTypes.NONE, null, null))
+    return value
+  }
+
   static String addFromTaintFormat(final TaintedObjects tos, final String s) {
-    final ranges = fromTaintFormat(s)
+    return addFromTaintFormat(tos, s, NOT_MARKED)
+  }
+
+  static String addFromTaintFormat(final TaintedObjects tos, final String s, final int mark) {
+    final ranges = fromTaintFormat(s, mark)
     if (ranges == null || ranges.length == 0) {
       return s
     }
@@ -92,7 +110,7 @@ class TaintUtils {
   }
 
   static Range toRange(int start, int length) {
-    new Range(start, length, new Source(SourceTypes.NONE, null, null))
+    new Range(start, length, new Source(SourceTypes.NONE, null, null), NOT_MARKED)
   }
 
   static Range[] toRanges(List<List<Integer>> lst) {

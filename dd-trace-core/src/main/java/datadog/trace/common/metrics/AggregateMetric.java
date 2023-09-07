@@ -1,6 +1,6 @@
 package datadog.trace.common.metrics;
 
-import com.datadoghq.sketch.ddsketch.DDSketch;
+import datadog.trace.core.histogram.Histogram;
 import datadog.trace.core.histogram.Histograms;
 import java.util.concurrent.atomic.AtomicLongArray;
 
@@ -10,8 +10,8 @@ public final class AggregateMetric {
   static final long ERROR_TAG = 0x8000000000000000L;
   static final long TOP_LEVEL_TAG = 0x4000000000000000L;
 
-  private final DDSketch okLatencies;
-  private final DDSketch errorLatencies;
+  private final Histogram okLatencies;
+  private final Histogram errorLatencies;
   private int errorCount;
   private int hitCount;
   private int topLevelCount;
@@ -59,11 +59,11 @@ public final class AggregateMetric {
     return duration;
   }
 
-  public DDSketch getOkLatencies() {
+  public Histogram getOkLatencies() {
     return okLatencies;
   }
 
-  public DDSketch getErrorLatencies() {
+  public Histogram getErrorLatencies() {
     return errorLatencies;
   }
 

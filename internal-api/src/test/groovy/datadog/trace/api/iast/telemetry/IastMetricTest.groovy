@@ -1,6 +1,8 @@
 package datadog.trace.api.iast.telemetry
 
 import datadog.trace.api.Config
+import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.VulnerabilityTypes
 import spock.lang.Specification
 
 
@@ -17,18 +19,6 @@ class IastMetricTest extends Specification {
     name != null
 
     when:
-    final tag = metric.tag
-
-    then:
-    tag == metric.tagName == null ? null : "${metric.tagName}:${metric.tagValue}"
-
-    when:
-    final spanTag = metric.spanTag
-
-    then:
-    spanTag == metric.tagName == null ? null : "${metric.tagName}.${metric.tagValue}".toLowerCase().replaceAll('\\_', '.')
-
-    when:
     final enabled = metric.isEnabled(verbosity)
 
     then:
@@ -36,5 +26,19 @@ class IastMetricTest extends Specification {
 
     where:
     metric << (IastMetric.values() as List<IastMetric>)
+  }
+
+  void 'test parsing of tags'() {
+    when:
+    final result = metricTag.parse(tag)
+
+    then:
+    result == expected
+
+    where:
+    metricTag                         | tag                                        | expected
+    IastMetric.Tag.VULNERABILITY_TYPE | VulnerabilityTypes.RESPONSE_HEADER         | VulnerabilityTypes.RESPONSE_HEADER_TYPES
+    IastMetric.Tag.VULNERABILITY_TYPE | VulnerabilityTypes.SQL_INJECTION           | new String[0]
+    IastMetric.Tag.SOURCE_TYPE        | SourceTypes.REQUEST_PARAMETER_VALUE_STRING | new String[0]
   }
 }

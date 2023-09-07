@@ -37,7 +37,10 @@ public class RatpackRequestBodyGetTextCalledAdvice {
       }
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
       blockResponseFunction.tryCommitBlockingResponse(
-          rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+          reqCtx.getTraceSegment(),
+          rba.getStatusCode(),
+          rba.getBlockingContentType(),
+          rba.getExtraHeaders());
       if (throwable == null) {
         throwable = new BlockingException("Blocked request (for ByteBufBackedTypedData/getText)");
       }

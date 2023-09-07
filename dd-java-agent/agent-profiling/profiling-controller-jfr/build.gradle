@@ -6,6 +6,8 @@ ext {
 
   // need access to jdk.jfr package
   skipSettingCompilerRelease = true
+
+  excludeJdk = ['SEMERU11', 'SEMERU17']
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -20,7 +22,7 @@ dependencies {
   annotationProcessor deps.autoserviceProcessor
   compileOnly deps.autoserviceAnnotation
 
-  testImplementation group: 'org.openjdk.jmc', name: 'flightrecorder.writer', version: '8.1.0-SNAPSHOT'
+  testImplementation group: 'org.openjdk.jmc', name: 'flightrecorder.writer', version: '8.1.0'
   testImplementation deps.mockito
   testImplementation deps.junit5
 }

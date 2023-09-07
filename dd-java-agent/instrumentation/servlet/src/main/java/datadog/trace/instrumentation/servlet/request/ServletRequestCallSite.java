@@ -2,10 +2,9 @@ package datadog.trace.instrumentation.servlet.request;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
-import datadog.trace.api.iast.IastCallSites.Propagation;
-import datadog.trace.api.iast.IastCallSites.Sink;
-import datadog.trace.api.iast.IastCallSites.Source;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Sink;
+import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -23,34 +22,27 @@ import javax.servlet.ServletRequest;
 @CallSite(spi = IastCallSites.class)
 public class ServletRequestCallSite {
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
   @CallSite.After("java.lang.String javax.servlet.ServletRequest.getParameter(java.lang.String)")
-  @CallSite.After(
-      "java.lang.String javax.servlet.http.HttpServletRequest.getParameter(java.lang.String)")
-  @CallSite.After(
-      "java.lang.String javax.servlet.http.HttpServletRequestWrapper.getParameter(java.lang.String)")
   @CallSite.After(
       "java.lang.String javax.servlet.ServletRequestWrapper.getParameter(java.lang.String)")
   public static String afterGetParameter(
       @CallSite.This final ServletRequest self,
-      @CallSite.Argument final String paramName,
-      @CallSite.Return final String paramValue) {
-    final WebModule module = InstrumentationBridge.WEB;
+      @CallSite.Argument final String name,
+      @CallSite.Return final String value) {
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.onParameterValue(paramName, paramValue);
+        module.taint(SourceTypes.REQUEST_PARAMETER_VALUE, name, value);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetParameter threw", e);
       }
     }
-    return paramValue;
+    return value;
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_NAME)
+  @Source(SourceTypes.REQUEST_PARAMETER_NAME_STRING)
   @CallSite.After("java.util.Enumeration javax.servlet.ServletRequest.getParameterNames()")
-  @CallSite.After("java.util.Enumeration javax.servlet.http.HttpServletRequest.getParameterNames()")
-  @CallSite.After(
-      "java.util.Enumeration javax.servlet.http.HttpServletRequestWrapper.getParameterNames()")
   @CallSite.After("java.util.Enumeration javax.servlet.ServletRequestWrapper.getParameterNames()")
   public static Enumeration<String> afterGetParameterNames(
       @CallSite.This final ServletRequest self,
@@ -79,13 +71,9 @@ public class ServletRequestCallSite {
     }
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
   @CallSite.After(
       "java.lang.String[] javax.servlet.ServletRequest.getParameterValues(java.lang.String)")
-  @CallSite.After(
-      "java.lang.String[] javax.servlet.http.HttpServletRequest.getParameterValues(java.lang.String)")
-  @CallSite.After(
-      "java.lang.String[] javax.servlet.http.HttpServletRequestWrapper.getParameterValues(java.lang.String)")
   @CallSite.After(
       "java.lang.String[] javax.servlet.ServletRequestWrapper.getParameterValues(java.lang.String)")
   public static String[] afterGetParameterValues(
@@ -105,12 +93,8 @@ public class ServletRequestCallSite {
     return parameterValues;
   }
 
-  @Propagation
+  @Source(SourceTypes.REQUEST_BODY_STRING)
   @CallSite.After("javax.servlet.ServletInputStream javax.servlet.ServletRequest.getInputStream()")
-  @CallSite.After(
-      "javax.servlet.ServletInputStream javax.servlet.http.HttpServletRequest.getInputStream()")
-  @CallSite.After(
-      "javax.servlet.ServletInputStream javax.servlet.http.HttpServletRequestWrapper.getInputStream()")
   @CallSite.After(
       "javax.servlet.ServletInputStream javax.servlet.ServletRequestWrapper.getInputStream()")
   public static ServletInputStream afterGetInputStream(
@@ -119,7 +103,7 @@ public class ServletRequestCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taint(SourceTypes.REQUEST_BODY, inputStream);
+        module.taintObject(SourceTypes.REQUEST_BODY, inputStream);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetInputStream threw", e);
       }
@@ -127,10 +111,8 @@ public class ServletRequestCallSite {
     return inputStream;
   }
 
-  @Propagation
+  @Source(SourceTypes.REQUEST_BODY_STRING)
   @CallSite.After("java.io.BufferedReader javax.servlet.ServletRequest.getReader()")
-  @CallSite.After("java.io.BufferedReader javax.servlet.http.HttpServletRequest.getReader()")
-  @CallSite.After("java.io.BufferedReader javax.servlet.http.HttpServletRequestWrapper.getReader()")
   @CallSite.After("java.io.BufferedReader javax.servlet.ServletRequestWrapper.getReader()")
   public static BufferedReader afterGetReader(
       @CallSite.This final ServletRequest self,
@@ -138,7 +120,7 @@ public class ServletRequestCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taint(SourceTypes.REQUEST_BODY, bufferedReader);
+        module.taintObject(SourceTypes.REQUEST_BODY, bufferedReader);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetReader threw", e);
       }
@@ -149,10 +131,6 @@ public class ServletRequestCallSite {
   @Sink(VulnerabilityTypes.UNVALIDATED_REDIRECT)
   @CallSite.Before(
       "javax.servlet.RequestDispatcher javax.servlet.ServletRequest.getRequestDispatcher(java.lang.String)")
-  @CallSite.Before(
-      "javax.servlet.RequestDispatcher javax.servlet.http.HttpServletRequest.getRequestDispatcher(java.lang.String)")
-  @CallSite.Before(
-      "javax.servlet.RequestDispatcher javax.servlet.http.HttpServletRequestWrapper.getRequestDispatcher(java.lang.String)")
   @CallSite.Before(
       "javax.servlet.RequestDispatcher javax.servlet.ServletRequestWrapper.getRequestDispatcher(java.lang.String)")
   public static void beforeRequestDispatcher(@CallSite.Argument final String path) {

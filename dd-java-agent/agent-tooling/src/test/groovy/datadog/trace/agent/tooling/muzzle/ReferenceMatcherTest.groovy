@@ -7,6 +7,7 @@ import datadog.trace.agent.tooling.muzzle.TestAdviceClasses.MethodBodyAdvice
 import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.jar.asm.Type
 import net.bytebuddy.pool.TypePool
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 
 import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_INTERFACE
@@ -60,6 +61,7 @@ class ReferenceMatcherTest extends DDSpecification {
     getMismatchClassSet(refMatcher.getMismatchedReferenceSources(unsafeClasspath)) == new HashSet<>([MissingClass])
   }
 
+  @IgnoreIf(reason="Often fails in Semeru runtime", value = { System.getProperty("java.runtime.name").contains("Semeru") })
   def "matching does not hold a strong reference to classloaders"() {
     expect:
     MuzzleWeakReferenceTest.classLoaderRefIsGarbageCollected()

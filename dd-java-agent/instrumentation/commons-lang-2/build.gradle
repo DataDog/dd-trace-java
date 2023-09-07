@@ -1,0 +1,23 @@
+muzzle {
+  pass {
+    group = 'commons-lang'
+    module = 'commons-lang'
+    versions = '[2.1,]'
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'call-site-instrumentation'
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'commons-lang', name: 'commons-lang', version: '2.1'
+
+  testImplementation group: 'commons-lang', name: 'commons-lang', version: '2.1'
+
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+
+  latestDepTestImplementation group: 'commons-lang', name: 'commons-lang', version: '2.6'
+}

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html  lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="https://www.thymeleaf.org"
+       xmlns:sec="https://www.thymeleaf.org/thymeleaf-extras-springsecurity6">
+<head>
+    <meta charset="UTF-8">
+    <title>Spring Security Example</title>
+</head>
+<body>
+<h1>Account <span th:text="${username}"></span> successfully created!</h1>
+
+<div sec:authorize="isAnonymous()">Now you can <a th:href="@{/login}">login</a></div>
+
+</body>
+</html>

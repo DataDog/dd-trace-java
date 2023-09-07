@@ -55,6 +55,9 @@ public interface TraceSegment {
    */
   void setDataTop(String key, Object value);
 
+  /** Mark the request as effectively blocked, by setting the tag appsec.blocked */
+  void effectivelyBlocked();
+
   /**
    * Add data to the current span in this {@code TraceSegment}. The {@code toString} representation
    * of the {@code value} must be valid top level JSON, i.e. an {@code Object} or an {@code Array}.
@@ -77,6 +80,9 @@ public interface TraceSegment {
 
     @Override
     public void setDataTop(String key, Object value) {}
+
+    @Override
+    public void effectivelyBlocked() {}
 
     @Override
     public void setDataCurrent(String key, Object value) {}
