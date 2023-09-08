@@ -49,7 +49,7 @@ public class JMXFetch {
       // Reduce noisiness of jmxfetch logging.
       System.setProperty("org.slf4j.simpleLogger.log.org.datadog.jmxfetch", "warn");
     }
-
+    System.setProperty("dd.jmxfetch.jmx_metric_fetch.enabled", "true");
     final String jmxFetchConfigDir = config.getJmxFetchConfigDir();
     final List<String> jmxFetchConfigs = config.getJmxFetchConfigs();
     final List<String> internalMetricsConfigs = getInternalMetricFiles();

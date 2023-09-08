@@ -117,7 +117,11 @@ public final class PreparedStatementInstrumentation extends AbstractPreparedStat
     // IBM Informix
     "com.informix.jdbc.IfxPreparedStatement",
     // for testing purposes
-    "test.TestPreparedStatement"
+    "test.TestPreparedStatement",
+      // 达梦DB
+    "dm.jdbc.driver.DmdbPreparedStatement",
+    "dm.jdbc.driver.DmdbCallableStatement",
+    "dm.jdbc.driver.DmdbStatement"
   };
 
   @Override

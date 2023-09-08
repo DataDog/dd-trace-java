@@ -71,6 +71,8 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
     "software.aws.rds.jdbc.mysql.shading.com.mysql.cj.jdbc.ConnectionImpl",
     // IBM Informix
     "com.informix.jdbc.IfmxConnection",
+      // 达梦 DB
+      "dm.jdbc.driver.DmdbConnection"
   };
 
   @Override
