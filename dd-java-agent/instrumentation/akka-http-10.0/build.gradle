@@ -137,9 +137,10 @@ dependencies {
 
   // TODO: test with Scala 3
   latestDepIastTestImplementation deps.scala213
+  // Use akka-2.8.+ since latest akka-http release is still not compatible with akka-2.9.0-M1+.
   latestDepIastTestImplementation group: 'com.typesafe.akka', name: 'akka-http_2.13', version: '10.+'
-  latestDepIastTestImplementation group: 'com.typesafe.akka', name: 'akka-stream_2.13', version: '2.+'
-  latestDepIastTestImplementation group: 'com.typesafe.akka', name: 'akka-actor_2.13', version: '2.+'
+  latestDepIastTestImplementation group: 'com.typesafe.akka', name: 'akka-stream_2.13', version: '2.8.+'
+  latestDepIastTestImplementation group: 'com.typesafe.akka', name: 'akka-actor_2.13', version: '2.8.+'
   latestDepIastTestImplementation group: 'com.typesafe.akka', name: 'akka-http-jackson_2.13', version: '10.+'
   latestDepIastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
 
