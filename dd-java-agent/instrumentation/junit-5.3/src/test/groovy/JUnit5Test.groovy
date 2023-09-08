@@ -2,6 +2,7 @@ import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.DDTags
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.CIConstants
+import datadog.trace.api.civisibility.InstrumentationBridge
 import datadog.trace.api.civisibility.config.SkippableTest
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.civisibility.CiVisibilityTest
@@ -24,6 +25,8 @@ import org.example.TestSkippedNested
 import org.example.TestSucceed
 import org.example.TestSucceedAndSkipped
 import org.example.TestSucceedNested
+import org.example.TestSucceedUnskippable
+import org.example.TestSucceedUnskippableSuite
 import org.example.TestSucceedWithCategories
 import org.example.TestSuiteSetUpAssumption
 import org.example.TestTemplate
@@ -691,6 +694,59 @@ class JUnit5Test extends CiVisibilityTest {
       (Tags.TEST_SKIPPED_BY_ITR): true
     ]
     testTags_1 = [(Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"[2] 1, 1, 2, some:\\\"parameter\\\""}}']
+  }
+
+  def "test ITR unskippable"() {
+    setup:
+    givenSkippableTests([new SkippableTest("org.example.TestSucceedUnskippable", "test_succeed", null, null),])
+    runTestClasses(TestSucceedUnskippable)
+
+    expect:
+    ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testSessionId
+      long testModuleId
+      long testSuiteId
+      trace(3, true) {
+        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
+        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS)
+        testSuiteId = testSuiteSpan(it, 2, testSessionId, testModuleId, "org.example.TestSucceedUnskippable", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testSessionId, testModuleId, testSuiteId, "org.example.TestSucceedUnskippable", "test_succeed", "test_succeed()V", CIConstants.TEST_PASS,
+          null, null, false, [InstrumentationBridge.ITR_UNSKIPPABLE_TAG])
+      }
+    })
+
+    //    where:
+    //    testTags = [(Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner", (Tags.TEST_SKIPPED_BY_ITR): true]
+  }
+
+  def "test ITR unskippable suite"() {
+    setup:
+    givenSkippableTests([
+      new SkippableTest("org.example.TestSucceedUnskippableSuite", "test_succeed", null, null),
+    ])
+    runTestClasses(TestSucceedUnskippableSuite)
+
+    expect:
+    ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testSessionId
+      long testModuleId
+      long testSuiteId
+      trace(3, true) {
+        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
+        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS)
+        testSuiteId = testSuiteSpan(it, 2, testSessionId, testModuleId, "org.example.TestSucceedUnskippableSuite", CIConstants.TEST_PASS,
+          null, null, false, [InstrumentationBridge.ITR_UNSKIPPABLE_TAG])
+      }
+      trace(1) {
+        testSpan(it, 0, testSessionId, testModuleId, testSuiteId, "org.example.TestSucceedUnskippableSuite", "test_succeed", "test_succeed()V", CIConstants.TEST_PASS,
+          null, null, false, [InstrumentationBridge.ITR_UNSKIPPABLE_TAG])
+      }
+    })
+
+    //    where:
+    //    testTags = [(Tags.TEST_SKIP_REASON): "Skipped by Datadog Intelligent Test Runner", (Tags.TEST_SKIPPED_BY_ITR): true]
   }
 
   private static void runTestClasses(Class<?>... classes) {

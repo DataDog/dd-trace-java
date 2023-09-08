@@ -10,11 +10,13 @@ import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.SkippableTest;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.Collection;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.junit.platform.engine.TestDescriptor;
+import org.junit.platform.engine.TestTag;
 import org.junit.platform.engine.support.hierarchical.Node;
 import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService;
 
@@ -82,6 +84,13 @@ public class JUnit5ItrInstrumentation extends Instrumenter.CiVisibility
         // should only happen in integration tests
         // because we cannot avoid instrumenting ourselves
         return;
+      }
+
+      Collection<TestTag> tags = JUnitPlatformUtils.getTags(testDescriptor);
+      for (TestTag tag : tags) {
+        if (InstrumentationBridge.ITR_UNSKIPPABLE_TAG.equals(tag.getName())) {
+          return;
+        }
       }
 
       SkippableTest test = JUnitPlatformUtils.toSkippableTest(testDescriptor);
