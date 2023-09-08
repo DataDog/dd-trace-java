@@ -15,7 +15,7 @@ public class NamingSchemaV0 implements NamingSchema {
       new MessagingNamingV0(allowsFakeServices);
   private final NamingSchema.ForPeerService peerServiceNaming =
       Config.get().isPeerServiceDefaultsEnabled()
-          ? new PeerServiceNamingV1()
+          ? new PeerServiceNamingV1(Config.get().getPeerServiceComponentOverrides())
           : new PeerServiceNamingV0();
   private final NamingSchema.ForServer serverNaming = new ServerNamingV0();
 

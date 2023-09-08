@@ -361,6 +361,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_GIT_METADATA_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
+import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_COMPONENT_OVERRIDES;
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_DEFAULTS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE;
@@ -501,6 +502,7 @@ public class Config {
   private final boolean traceResolverEnabled;
   private final int spanAttributeSchemaVersion;
   private final boolean peerServiceDefaultsEnabled;
+  private final Map<String, String> peerServiceComponentOverrides;
   private final boolean removeIntegrationServiceNamesEnabled;
   private final Map<String, String> peerServiceMapping;
   private final Map<String, String> serviceMapping;
@@ -1013,6 +1015,8 @@ public class Config {
     // in v1+ defaults are always calculated regardless this feature flag
     peerServiceDefaultsEnabled =
         configProvider.getBoolean(TRACE_PEER_SERVICE_DEFAULTS_ENABLED, false);
+    peerServiceComponentOverrides =
+        configProvider.getMergedMap(TRACE_PEER_SERVICE_COMPONENT_OVERRIDES);
     // feature flag to remove fake services in v0
     removeIntegrationServiceNamesEnabled =
         configProvider.getBoolean(TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED, false);
@@ -1898,6 +1902,10 @@ public class Config {
 
   public boolean isPeerServiceDefaultsEnabled() {
     return peerServiceDefaultsEnabled;
+  }
+
+  public Map<String, String> getPeerServiceComponentOverrides() {
+    return peerServiceComponentOverrides;
   }
 
   public boolean isRemoveIntegrationServiceNamesEnabled() {
@@ -3873,6 +3881,14 @@ public class Config {
         + sparkTaskHistogramEnabled
         + ", jaxRsExceptionAsErrorsEnabled="
         + jaxRsExceptionAsErrorsEnabled
+        + ", peerServiceDefaultsEnabled="
+        + peerServiceDefaultsEnabled
+        + ", peerServiceComponentOverrides="
+        + peerServiceComponentOverrides
+        + ", removeIntegrationServiceNamesEnabled="
+        + removeIntegrationServiceNamesEnabled
+        + ", spanAttributeSchemaVersion="
+        + spanAttributeSchemaVersion
         + '}';
   }
 }
