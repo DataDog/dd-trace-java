@@ -2,12 +2,15 @@ import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.DDTags
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.CIConstants
+import datadog.trace.api.civisibility.InstrumentationBridge
 import datadog.trace.api.civisibility.config.SkippableTest
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.civisibility.CiVisibilityTest
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import org.example.TestParameterizedSpock
 import org.example.TestSucceedSpock
+import org.example.TestSucceedSpockUnskippable
+import org.example.TestSucceedSpockUnskippableSuite
 import org.junit.platform.engine.DiscoverySelector
 import org.junit.platform.launcher.core.LauncherConfig
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder
@@ -134,6 +137,50 @@ class SpockTest extends CiVisibilityTest {
     testTags_1 = [(Tags.TEST_PARAMETERS): '{"metadata":{"test_name":"test add 4 and 4"}}']
   }
 
+  def "test ITR unskippable"() {
+    setup:
+    givenSkippableTests([new SkippableTest("org.example.TestSucceedSpockUnskippable", "test success", null, null),])
+    runTestClasses(TestSucceedSpockUnskippable)
+
+    expect:
+    ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testSessionId
+      long testModuleId
+      long testSuiteId
+      trace(3, true) {
+        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
+        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS)
+        testSuiteId = testSuiteSpan(it, 2, testSessionId, testModuleId, "org.example.TestSucceedSpockUnskippable", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testSessionId, testModuleId, testSuiteId, "org.example.TestSucceedSpockUnskippable", "test success", "test success()V", CIConstants.TEST_PASS,
+          null, null, false, [InstrumentationBridge.ITR_UNSKIPPABLE_TAG])
+      }
+    })
+  }
+
+  def "test ITR unskippable suite"() {
+    setup:
+    givenSkippableTests([new SkippableTest("org.example.TestSucceedSpockUnskippableSuite", "test success", null, null),])
+    runTestClasses(TestSucceedSpockUnskippableSuite)
+
+    expect:
+    ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testSessionId
+      long testModuleId
+      long testSuiteId
+      trace(3, true) {
+        testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
+        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS)
+        testSuiteId = testSuiteSpan(it, 2, testSessionId, testModuleId, "org.example.TestSucceedSpockUnskippableSuite", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testSessionId, testModuleId, testSuiteId, "org.example.TestSucceedSpockUnskippableSuite", "test success", "test success()V", CIConstants.TEST_PASS,
+          null, null, false, [InstrumentationBridge.ITR_UNSKIPPABLE_TAG])
+      }
+    })
+  }
+
   private static void runTestClasses(Class<?>... classes) {
     TestEventsHandlerHolder.start()
 
@@ -170,7 +217,7 @@ class SpockTest extends CiVisibilityTest {
 
   @Override
   String expectedTestFrameworkVersion() {
-    return "2.1.0-groovy-3.0"
+    return "2.2.0-groovy-3.0"
   }
 
   @Override
