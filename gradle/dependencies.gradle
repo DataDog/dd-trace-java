@@ -10,7 +10,7 @@ final class CachedData {
     okhttp_legacy : "[3.0,3.12.12]", // 3.12.x is last version to support Java7)
     okio          : "1.17.6", // Datadog fork
 
-    spock         : "2.1-groovy-$spockGroovyVer",
+    spock         : "2.2-groovy-$spockGroovyVer",
     groovy        : groovyVer,
     junit5        : "5.9.2",
     logback       : "1.2.3",
