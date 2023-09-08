@@ -43,6 +43,14 @@ muzzle {
     javaVersion = 11
   }
   pass {
+    name = 'named_dispatches'
+    group = 'org.eclipse.jetty'
+    module = 'jetty-server'
+    versions = "[10.0.16,11),[11.0.16,12)"
+    assertInverse = true
+    javaVersion = 11
+  }
+  pass {
     name = 'between_10_and_12'
     group = "org.eclipse.jetty"
     module = 'jetty-server'
