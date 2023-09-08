@@ -52,7 +52,7 @@ class AgentBootstrapTest extends Specification {
     def logStream = new PrintStream(baos)
 
     when:
-    def isLowerThan8 = AgentBootstrap.checkAndLogIfLessThanJava8(version, logStream)
+    def isLowerThan8 = AgentBootstrap.lessThanJava8(version, logStream)
     logStream.flush()
     def logLines = Arrays.asList(baos.toString().split('\n'))
     // If the list only contains a single String and that is the empty String, then the set is empty
