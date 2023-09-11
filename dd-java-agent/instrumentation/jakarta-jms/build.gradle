@@ -5,12 +5,6 @@ ext {
 muzzle {
   pass {
     group = "jakarta.jms"
-    module = "jms-api"
-    versions = "[,]"
-    javaVersion = "17"
-  }
-  pass {
-    group = "jakarta.jms"
     module = "jakarta.jms-api"
     versions = "[,]"
     javaVersion = "17"
