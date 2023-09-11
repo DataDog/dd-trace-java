@@ -161,6 +161,8 @@
 1 nano.xml.*
 1 net.bytebuddy.*
 1 net.jcip.*
+# Amusing weak randomness false positive in XXHashFactory
+1 net.jpountz.xxhash.*
 1 net.logstash.*
 1 net.nicholaswilliams.*
 1 net.sf.beanlib.*

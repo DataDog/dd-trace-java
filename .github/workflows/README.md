@@ -76,7 +76,7 @@ _Action:_
 
 _Recovery:_ Check at the milestone for the related issues and update them manually.
 
-## Code Quality
+## Code Quality and Security
 
 ### codeql-analysis [🔗](codeql-analysis.yml)
 
@@ -84,11 +84,19 @@ _Trigger:_ When pushing commits to `master` or any pull request to `master`
 
 _Action:_ Run GitHub CodeQL action and upload result to GitHub security tab.
 
+### trivy-analysis [🔗](trivy-analysis.yml)
+
+_Trigger:_ When pushing commits to `master` or any pull request to `master`
+
+_Action:_ Run Trivy security scanner on built artifacts and upload result to GitHub security tab.
+
 ### gradle-wrapper-validation [🔗](gradle-wrapper-validation.yaml.disabled)
 
 **DISABLED** - GitHub provides a way to disable actions rather than changing their extensions.
 
 _Comment:_ To delete?
+
+## Lib Injection
 
 ### lib-injection [🔗](lib-injection.yaml)
 
