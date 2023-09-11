@@ -8,6 +8,7 @@ import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.source.WebModule;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -61,6 +62,16 @@ public class WebModuleImpl implements WebModule {
   @Override
   public void onCookieNames(@Nullable Iterable<String> cookieNames) {
     onNamed(cookieNames, SourceTypes.REQUEST_COOKIE_NAME);
+  }
+
+  @Override
+  public void onGetPathInfo(@Nullable String s) {
+    onNamed(Collections.singleton(s), SourceTypes.REQUEST_PATH);
+  }
+
+  @Override
+  public void onGetRequestURI(@Nullable String s) {
+    onNamed(Collections.singleton(s), SourceTypes.REQUEST_URI);
   }
 
   private static void onNamed(@Nullable final Iterable<String> names, final byte source) {

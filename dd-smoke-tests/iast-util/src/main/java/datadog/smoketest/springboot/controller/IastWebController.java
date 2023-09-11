@@ -337,6 +337,12 @@ public class IastWebController {
     return "ok";
   }
 
+  @GetMapping("/getrequesturi")
+  String pathInfo(HttpServletRequest request) {
+    String pathInfo = request.getRequestURI();
+    return String.format("Request.getRequestURI returns %s", pathInfo);
+  }
+
   private void withProcess(final Operation<Process> op) {
     Process process = null;
     try {

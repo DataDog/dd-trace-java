@@ -29,4 +29,8 @@ public interface WebModule extends IastModule {
 
   void onMultipartValues(
       @Nullable String headerName, @Nullable final Collection<String> headerValues);
+
+  void onGetPathInfo(@Nullable String s);
+
+  void onGetRequestURI(@Nullable String s);
 }
