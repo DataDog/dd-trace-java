@@ -189,13 +189,20 @@ class CucumberTest extends CiVisibilityTest {
       long testSuiteId
       trace(3, true) {
         testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
-        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS)
+        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS, [
+          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
+          (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
+          (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 0,
+        ])
         testSuiteId = testFeatureSpan(it, 2, testSessionId, testModuleId, "Basic Arithmetic", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic", "Addition", CIConstants.TEST_PASS, null, null, false, ["datadog_itr_unskippable"])
+        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic", "Addition", CIConstants.TEST_PASS, testTags, null, false, ["datadog_itr_unskippable"])
       }
     })
+
+    where:
+    testTags = [(Tags.TEST_ITR_UNSKIPPABLE): true, (Tags.TEST_ITR_FORCED_RUN): true]
   }
 
   def "test ITR test unskippable suite"() {
@@ -209,13 +216,20 @@ class CucumberTest extends CiVisibilityTest {
       long testSuiteId
       trace(3, true) {
         testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
-        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS)
+        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS, [
+          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
+          (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
+          (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 0,
+        ])
         testSuiteId = testFeatureSpan(it, 2, testSessionId, testModuleId, "Basic Arithmetic", CIConstants.TEST_PASS)
       }
       trace(1) {
-        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic", "Addition", CIConstants.TEST_PASS, null, null, false, ["datadog_itr_unskippable"])
+        testScenarioSpan(it, 0, testSessionId, testModuleId, testSuiteId, "Basic Arithmetic", "Addition", CIConstants.TEST_PASS, testTags, null, false, ["datadog_itr_unskippable"])
       }
     })
+
+    where:
+    testTags = [(Tags.TEST_ITR_UNSKIPPABLE): true, (Tags.TEST_ITR_FORCED_RUN): true]
   }
 
   private static void runTestClasses(Class<?>... classes) {

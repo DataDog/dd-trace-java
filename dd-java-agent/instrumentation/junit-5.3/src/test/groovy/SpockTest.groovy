@@ -149,14 +149,21 @@ class SpockTest extends CiVisibilityTest {
       long testSuiteId
       trace(3, true) {
         testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
-        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS)
+        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS, [
+          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
+          (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
+          (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 0,
+        ])
         testSuiteId = testSuiteSpan(it, 2, testSessionId, testModuleId, "org.example.TestSucceedSpockUnskippable", CIConstants.TEST_PASS)
       }
       trace(1) {
         testSpan(it, 0, testSessionId, testModuleId, testSuiteId, "org.example.TestSucceedSpockUnskippable", "test success", "test success()V", CIConstants.TEST_PASS,
-          null, null, false, [InstrumentationBridge.ITR_UNSKIPPABLE_TAG])
+          testTags, null, false, [InstrumentationBridge.ITR_UNSKIPPABLE_TAG])
       }
     })
+
+    where:
+    testTags = [(Tags.TEST_ITR_UNSKIPPABLE): true, (Tags.TEST_ITR_FORCED_RUN): true]
   }
 
   def "test ITR unskippable suite"() {
@@ -171,14 +178,21 @@ class SpockTest extends CiVisibilityTest {
       long testSuiteId
       trace(3, true) {
         testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS)
-        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS)
+        testModuleId = testModuleSpan(it, 0, testSessionId, CIConstants.TEST_PASS, [
+          (Tags.TEST_ITR_TESTS_SKIPPING_ENABLED): true,
+          (Tags.TEST_ITR_TESTS_SKIPPING_TYPE): "test",
+          (Tags.TEST_ITR_TESTS_SKIPPING_COUNT): 0,
+        ])
         testSuiteId = testSuiteSpan(it, 2, testSessionId, testModuleId, "org.example.TestSucceedSpockUnskippableSuite", CIConstants.TEST_PASS)
       }
       trace(1) {
         testSpan(it, 0, testSessionId, testModuleId, testSuiteId, "org.example.TestSucceedSpockUnskippableSuite", "test success", "test success()V", CIConstants.TEST_PASS,
-          null, null, false, [InstrumentationBridge.ITR_UNSKIPPABLE_TAG])
+          testTags, null, false, [InstrumentationBridge.ITR_UNSKIPPABLE_TAG])
       }
     })
+
+    where:
+    testTags = [(Tags.TEST_ITR_UNSKIPPABLE): true, (Tags.TEST_ITR_FORCED_RUN): true]
   }
 
   private static void runTestClasses(Class<?>... classes) {
