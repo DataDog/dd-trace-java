@@ -9,12 +9,7 @@ import org.testcontainers.containers.MySQLContainer;
 
 public class TestDatabases implements Closeable {
 
-  public static TestDatabases initialise(String dbName) {
-    return new TestDatabases(dbName);
-  }
-
   private final MySQLContainer mysql;
-
   private final Map<String, TestDBInfo> dbInfos;
 
   private TestDatabases(String dbName) {
@@ -38,6 +33,10 @@ public class TestDatabases implements Closeable {
     PortUtils.waitForPortToOpen(info.host, info.port, 5, TimeUnit.SECONDS);
     infos.put("mysql", info);
     dbInfos = Collections.unmodifiableMap(infos);
+  }
+
+  public static TestDatabases initialise(String dbName) {
+    return new TestDatabases(dbName);
   }
 
   @Override
