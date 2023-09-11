@@ -6,8 +6,9 @@ muzzle {
   pass {
     group = "jakarta.jms"
     module = "jakarta.jms-api"
-    versions = "[,]"
+    versions = "[3.0.0,4)"
     javaVersion = "17"
+    assertInverse = true
   }
 }
 
