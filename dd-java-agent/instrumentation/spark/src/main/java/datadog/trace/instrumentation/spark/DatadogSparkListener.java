@@ -18,8 +18,11 @@ import org.apache.spark.ExceptionFailure;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskFailedReason;
 import org.apache.spark.scheduler.*;
+import org.apache.spark.sql.execution.SQLExecution;
 import org.apache.spark.sql.execution.streaming.MicroBatchExecution;
 import org.apache.spark.sql.execution.streaming.StreamExecution;
+import org.apache.spark.sql.execution.ui.SparkListenerSQLExecutionEnd;
+import org.apache.spark.sql.execution.ui.SparkListenerSQLExecutionStart;
 import org.apache.spark.sql.streaming.SourceProgress;
 import org.apache.spark.sql.streaming.StateOperatorProgress;
 import org.apache.spark.sql.streaming.StreamingQueryListener;
@@ -49,6 +52,7 @@ public class DatadogSparkListener extends SparkListener {
   private AgentSpan applicationSpan;
   private SparkListenerApplicationStart applicationStart;
   private final HashMap<String, AgentSpan> streamingBatchSpans = new HashMap<>();
+  private final HashMap<Long, AgentSpan> sqlSpans = new HashMap<>();
   private final HashMap<Integer, AgentSpan> jobSpans = new HashMap<>();
   private final HashMap<Long, AgentSpan> stageSpans = new HashMap<>();
 
@@ -57,11 +61,13 @@ public class DatadogSparkListener extends SparkListener {
 
   private final SparkAggregatedTaskMetrics applicationMetrics = new SparkAggregatedTaskMetrics();
   private final HashMap<String, SparkAggregatedTaskMetrics> streamingBatchMetrics = new HashMap<>();
+  private final HashMap<Long, SparkAggregatedTaskMetrics> sqlMetrics = new HashMap<>();
   private final HashMap<Integer, SparkAggregatedTaskMetrics> jobMetrics = new HashMap<>();
   private final HashMap<Long, SparkAggregatedTaskMetrics> stageMetrics = new HashMap<>();
 
   private final HashMap<UUID, StreamingQueryListener.QueryStartedEvent> streamingQueries =
       new HashMap<>();
+  private final HashMap<Long, SparkListenerSQLExecutionStart> sqlQueries = new HashMap<>();
   private final HashMap<String, SparkListenerExecutorAdded> liveExecutors = new HashMap<>();
 
   private final boolean isRunningOnDatabricks;
@@ -112,7 +118,6 @@ public class DatadogSparkListener extends SparkListener {
     }
 
     captureApplicationParameters(builder);
-    builder.withTag("config.spark_version", sparkVersion);
 
     applicationSpan = builder.start();
     applicationSpan.setMeasured(true);
@@ -164,19 +169,27 @@ public class DatadogSparkListener extends SparkListener {
     applicationSpan.finish(time * 1000);
   }
 
-  private AgentSpan createStreamingBatchSpan(SparkListenerJobStart jobStart) {
+  private AgentSpan getOrCreateStreamingBatchSpan(
+      String batchKey, Long timeMs, Properties jobProperties) {
+    AgentSpan batchSpan = streamingBatchSpans.get(batchKey);
+    if (batchSpan != null) {
+      return batchSpan;
+    }
+
     AgentTracer.SpanBuilder builder =
-        buildSparkSpan("spark.batch").withStartTimestamp(jobStart.time() * 1000);
+        buildSparkSpan("spark.batch").withStartTimestamp(timeMs * 1000);
 
     // Streaming spans will always be the root span, capturing all parameters on those
     captureApplicationParameters(builder);
-    captureJobParameters(builder, jobStart.properties());
+    captureJobParameters(builder, jobProperties);
 
     if (isRunningOnDatabricks) {
-      addDatabricksSpecificTags(builder, jobStart.properties(), false);
+      addDatabricksSpecificTags(builder, jobProperties, false);
     }
 
-    return builder.start();
+    batchSpan = builder.start();
+    streamingBatchSpans.put(batchKey, batchSpan);
+    return batchSpan;
   }
 
   private void addDatabricksSpecificTags(
@@ -184,6 +197,7 @@ public class DatadogSparkListener extends SparkListener {
     // In databricks, there is no application span. Adding the spark conf parameters to the top
     // level spark span
     captureApplicationParameters(builder);
+    captureJobParameters(builder, properties);
 
     if (properties != null) {
       String databricksJobId = properties.getProperty("spark.databricks.job.id");
@@ -208,6 +222,42 @@ public class DatadogSparkListener extends SparkListener {
     }
   }
 
+  private AgentSpan getOrCreateSqlSpan(
+      long sqlExecutionId, String batchKey, Properties jobProperties) {
+    AgentSpan span = sqlSpans.get(sqlExecutionId);
+    if (span != null) {
+      return span;
+    }
+
+    SparkListenerSQLExecutionStart queryStart = sqlQueries.get(sqlExecutionId);
+    if (queryStart == null) {
+      return null;
+    }
+
+    AgentTracer.SpanBuilder spanBuilder =
+        buildSparkSpan("spark.sql")
+            .withStartTimestamp(queryStart.time() * 1000)
+            .withTag("query_id", sqlExecutionId)
+            .withTag("description", queryStart.description())
+            .withTag("details", queryStart.details())
+            .withTag(DDTags.RESOURCE_NAME, queryStart.description());
+
+    if (batchKey != null) {
+      AgentSpan batchSpan =
+          getOrCreateStreamingBatchSpan(batchKey, queryStart.time(), jobProperties);
+      spanBuilder.asChildOf(batchSpan.context());
+    } else if (isRunningOnDatabricks) {
+      addDatabricksSpecificTags(spanBuilder, jobProperties, true);
+    } else {
+      initApplicationSpanIfNotInitialized();
+      spanBuilder.asChildOf(applicationSpan.context());
+    }
+
+    AgentSpan sqlSpan = spanBuilder.start();
+    sqlSpans.put(sqlExecutionId, sqlSpan);
+    return sqlSpan;
+  }
+
   @Override
   public synchronized void onJobStart(SparkListenerJobStart jobStart) {
     jobCount++;
@@ -222,16 +272,27 @@ public class DatadogSparkListener extends SparkListener {
             .withTag("stage_count", jobStart.stageInfos().size());
 
     String batchKey = getStreamingBatchKey(jobStart.properties());
+    Long sqlExecutionId = getSqlExecutionId(jobStart.properties());
+    AgentSpan sqlSpan = null;
 
-    if (batchKey != null) {
-      AgentSpan batchSpan = streamingBatchSpans.get(batchKey);
+    if (sqlExecutionId != null) {
+      sqlSpan = getOrCreateSqlSpan(sqlExecutionId, batchKey, jobStart.properties());
+    }
 
-      if (batchSpan == null) {
-        batchSpan = createStreamingBatchSpan(jobStart);
-        streamingBatchSpans.put(batchKey, batchSpan);
-      }
-
-      // In streaming mode, the batch spans are the local root spans
+    /*-
+     * The spark.job span hierarchy depends on the setup:
+     *
+     * spark.application | spark.batch | databricks.task depending on the environment where spark is running
+     *               \          |         /
+     *                    [spark.sql] optional, only present if using spark-sql
+     *                          |
+     *                      spark.job
+     */
+    if (sqlSpan != null) {
+      jobSpanBuilder.asChildOf(sqlSpan.context());
+    } else if (batchKey != null) {
+      AgentSpan batchSpan =
+          getOrCreateStreamingBatchSpan(batchKey, jobStart.time(), jobStart.properties());
       jobSpanBuilder.asChildOf(batchSpan.context());
     } else if (isRunningOnDatabricks) {
       addDatabricksSpecificTags(jobSpanBuilder, jobStart.properties(), true);
@@ -251,7 +312,6 @@ public class DatadogSparkListener extends SparkListener {
 
     AgentSpan jobSpan = jobSpanBuilder.start();
     jobSpan.setMeasured(true);
-    jobSpan.setTag("config.spark_version", sparkVersion);
 
     jobStart.stageInfos().foreach(stage -> stageToJob.put(stage.stageId(), jobStart.jobId()));
 
@@ -395,6 +455,13 @@ public class DatadogSparkListener extends SparkListener {
             .computeIfAbsent(batchKey, k -> new SparkAggregatedTaskMetrics())
             .accumulateStageMetrics(stageMetric);
       }
+
+      Long sqlExecutionId = getSqlExecutionId(prop);
+      if (sqlExecutionId != null) {
+        sqlMetrics
+            .computeIfAbsent(sqlExecutionId, k -> new SparkAggregatedTaskMetrics())
+            .accumulateStageMetrics(stageMetric);
+      }
     }
 
     span.finish(completionTimeMs * 1000);
@@ -506,6 +573,28 @@ public class DatadogSparkListener extends SparkListener {
       onStreamingQueryProgressEvent((StreamingQueryListener.QueryProgressEvent) event);
     } else if (event instanceof StreamingQueryListener.QueryTerminatedEvent) {
       onStreamingQueryTerminatedEvent((StreamingQueryListener.QueryTerminatedEvent) event);
+    } else if (event instanceof SparkListenerSQLExecutionStart) {
+      onSQLExecutionStart((SparkListenerSQLExecutionStart) event);
+    } else if (event instanceof SparkListenerSQLExecutionEnd) {
+      onSQLExecutionEnd((SparkListenerSQLExecutionEnd) event);
+    }
+  }
+
+  private synchronized void onSQLExecutionStart(SparkListenerSQLExecutionStart sqlStart) {
+    sqlQueries.put(sqlStart.executionId(), sqlStart);
+  }
+
+  private synchronized void onSQLExecutionEnd(SparkListenerSQLExecutionEnd sqlEnd) {
+    AgentSpan span = sqlSpans.remove(sqlEnd.executionId());
+    SparkAggregatedTaskMetrics metrics = sqlMetrics.remove(sqlEnd.executionId());
+    sqlQueries.remove(sqlEnd.executionId());
+
+    if (span != null) {
+      if (metrics != null) {
+        metrics.setSpanMetrics(span);
+      }
+
+      span.finish(sqlEnd.time() * 1000);
     }
   }
 
@@ -715,9 +804,10 @@ public class DatadogSparkListener extends SparkListener {
         builder.withTag("config." + conf._1.replace(".", "_"), conf._2);
       }
     }
+    builder.withTag("config.spark_version", sparkVersion);
   }
 
-  private static void captureJobParameters(AgentTracer.SpanBuilder builder, Properties properties) {
+  private void captureJobParameters(AgentTracer.SpanBuilder builder, Properties properties) {
     if (properties != null) {
       for (final Map.Entry<Object, Object> entry : properties.entrySet()) {
         if (SparkConfAllowList.canCaptureJobParameter(entry.getKey().toString())) {
@@ -725,6 +815,24 @@ public class DatadogSparkListener extends SparkListener {
               "config." + entry.getKey().toString().replace('.', '_'), entry.getValue());
         }
       }
+    }
+    builder.withTag("config.spark_version", sparkVersion);
+  }
+
+  private static Long getSqlExecutionId(Properties properties) {
+    if (properties == null) {
+      return null;
+    }
+
+    String sqlExecutionId = properties.getProperty(SQLExecution.EXECUTION_ID_KEY());
+    if (sqlExecutionId == null) {
+      return null;
+    }
+
+    try {
+      return Long.parseLong(sqlExecutionId);
+    } catch (NumberFormatException e) {
+      return null;
     }
   }
 

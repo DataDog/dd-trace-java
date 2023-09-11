@@ -237,7 +237,7 @@ public class PowerWAFModule implements AppSecModule {
       initReport = newPwafCtx.getRuleSetInfo();
       Collection<Address<?>> addresses = getUsedAddresses(newPwafCtx);
 
-      // Update current rules' version if need
+      // Update current rules' version if you need
       if (initReport != null && initReport.rulesetVersion != null) {
         currentRulesVersion = initReport.rulesetVersion;
       }
@@ -248,12 +248,18 @@ public class PowerWAFModule implements AppSecModule {
         WafMetricCollector.get().wafUpdates(currentRulesVersion);
       }
 
-      log.info(
-          "Created {} WAF context with rules ({} OK, {} BAD), version {}",
-          prevContextAndAddresses == null ? "new" : "updated",
-          initReport.getNumRulesOK(),
-          initReport.getNumRulesError(),
-          initReport.rulesetVersion);
+      if (initReport != null) {
+        log.info(
+            "Created {} WAF context with rules ({} OK, {} BAD), version {}",
+            prevContextAndAddresses == null ? "new" : "updated",
+            initReport.getNumRulesOK(),
+            initReport.getNumRulesError(),
+            initReport.rulesetVersion);
+      } else {
+        log.warn(
+            "Created {} WAF context without rules",
+            prevContextAndAddresses == null ? "new" : "updated");
+      }
 
       Map<String, ActionInfo> actionInfoMap =
           calculateEffectiveActions(prevContextAndAddresses, ruleConfig);
@@ -413,29 +419,27 @@ public class PowerWAFModule implements AppSecModule {
           log.warn("WAF signalled result {}: {}", resultWithData.result, resultWithData.data);
         }
 
-        if (resultWithData.actions.length > 0) {
-          for (String action : resultWithData.actions) {
-            ActionInfo actionInfo = ctxAndAddr.actionInfoMap.get(action);
-            if (actionInfo == null) {
-              log.warn(
-                  "WAF indicated action {}, but such action id is unknown (not one from {})",
-                  action,
-                  ctxAndAddr.actionInfoMap.keySet());
-            } else if ("block_request".equals(actionInfo.type)) {
-              Flow.Action.RequestBlockingAction rba = createBlockRequestAction(actionInfo);
-              flow.setAction(rba);
-              break;
-            } else if ("redirect_request".equals(actionInfo.type)) {
-              Flow.Action.RequestBlockingAction rba = createRedirectRequestAction(actionInfo);
-              flow.setAction(rba);
-              break;
-            } else {
-              log.info("Ignoring action with type {}", actionInfo.type);
-            }
+        for (String action : resultWithData.actions) {
+          ActionInfo actionInfo = ctxAndAddr.actionInfoMap.get(action);
+          if (actionInfo == null) {
+            log.warn(
+                "WAF indicated action {}, but such action id is unknown (not one from {})",
+                action,
+                ctxAndAddr.actionInfoMap.keySet());
+          } else if ("block_request".equals(actionInfo.type)) {
+            Flow.Action.RequestBlockingAction rba = createBlockRequestAction(actionInfo);
+            flow.setAction(rba);
+            break;
+          } else if ("redirect_request".equals(actionInfo.type)) {
+            Flow.Action.RequestBlockingAction rba = createRedirectRequestAction(actionInfo);
+            flow.setAction(rba);
+            break;
+          } else {
+            log.info("Ignoring action with type {}", actionInfo.type);
           }
         }
         Collection<AppSecEvent100> events = buildEvents(resultWithData);
-        reqCtx.reportEvents(events, null);
+        reqCtx.reportEvents(events);
 
         if (flow.isBlocking()) {
           WafMetricCollector.get().wafRequestBlocked();
