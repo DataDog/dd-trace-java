@@ -39,7 +39,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
     implements Instrumenter.ForTypeHierarchy {
 
   public JMSMessageConsumerInstrumentation() {
-    super("jakarta-jms"); // "jms", "jms-1", "jms-2");
+    super("jakarta-jms");
   }
 
   @Override

@@ -102,7 +102,7 @@ public final class JMSDecorator extends MessagingClientDecorator {
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[] {"jakarta-jms"}; // "jms", "jms-1", "jms-2"};
+    return new String[] {"jakarta-jms"};
   }
 
   @Override

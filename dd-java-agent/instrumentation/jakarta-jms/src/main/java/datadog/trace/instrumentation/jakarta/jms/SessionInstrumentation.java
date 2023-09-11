@@ -35,7 +35,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class SessionInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public SessionInstrumentation() {
-    super("jakarta-jms"); // ""jms", "jms-1", "jms-2");
+    super("jakarta-jms");
   }
 
   @Override

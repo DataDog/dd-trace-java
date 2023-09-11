@@ -22,7 +22,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class MessageInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public MessageInstrumentation() {
-    super("jakarta-jms"); // ""jms", "jms-1", "jms-2");
+    super("jakarta-jms");
   }
 
   @Override
