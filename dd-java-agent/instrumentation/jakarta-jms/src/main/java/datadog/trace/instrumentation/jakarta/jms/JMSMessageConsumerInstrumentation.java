@@ -25,11 +25,11 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.jms.MessageConsumerState;
 import datadog.trace.bootstrap.instrumentation.jms.SessionState;
-import java.util.HashMap;
-import java.util.Map;
 import jakarta.jms.Message;
 import jakarta.jms.MessageConsumer;
 import jakarta.jms.MessageListener;
+import java.util.HashMap;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -39,7 +39,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
     implements Instrumenter.ForTypeHierarchy {
 
   public JMSMessageConsumerInstrumentation() {
-    super("jakarta-jms");  // "jms", "jms-1", "jms-2");
+    super("jakarta-jms"); // "jms", "jms-1", "jms-2");
   }
 
   @Override

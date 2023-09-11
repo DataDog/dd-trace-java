@@ -13,14 +13,14 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import jakarta.jms.Destination;
 import jakarta.jms.Message;
 import jakarta.jms.Queue;
 import jakarta.jms.TemporaryQueue;
 import jakarta.jms.TemporaryTopic;
 import jakarta.jms.Topic;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -102,7 +102,7 @@ public final class JMSDecorator extends MessagingClientDecorator {
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[] {"jakarta-jms"}; //"jms", "jms-1", "jms-2"};
+    return new String[] {"jakarta-jms"}; // "jms", "jms-1", "jms-2"};
   }
 
   @Override

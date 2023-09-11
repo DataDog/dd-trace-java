@@ -12,8 +12,8 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.jms.SessionState;
-import java.util.Map;
 import jakarta.jms.Message;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -22,7 +22,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class MessageInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public MessageInstrumentation() {
-    super("jakarta-jms");  //""jms", "jms-1", "jms-2");
+    super("jakarta-jms"); // ""jms", "jms-1", "jms-2");
   }
 
   @Override

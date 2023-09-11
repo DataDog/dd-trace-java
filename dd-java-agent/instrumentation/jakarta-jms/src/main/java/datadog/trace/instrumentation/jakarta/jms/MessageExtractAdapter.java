@@ -7,11 +7,11 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import jakarta.jms.JMSException;
+import jakarta.jms.Message;
 import java.util.Enumeration;
 import java.util.Locale;
 import java.util.function.Function;
-import jakarta.jms.JMSException;
-import jakarta.jms.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
