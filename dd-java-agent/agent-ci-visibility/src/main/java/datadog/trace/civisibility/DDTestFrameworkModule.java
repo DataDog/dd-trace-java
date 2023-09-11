@@ -17,6 +17,15 @@ public interface DDTestFrameworkModule {
    * @param test Test to be checked
    * @return {@code true} if the test can be skipped, {@code false} otherwise
    */
+  boolean isSkippable(SkippableTest test);
+
+  /**
+   * Checks if a given test can be skipped with Intelligent Test Runner or not. It the test is
+   * considered skippable, the count of skippable tests is incremented.
+   *
+   * @param test Test to be checked
+   * @return {@code true} if the test can be skipped, {@code false} otherwise
+   */
   boolean skip(SkippableTest test);
 
   void end(Long startTime);
