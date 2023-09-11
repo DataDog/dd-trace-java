@@ -185,7 +185,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true) >> {
       pwafAdditive = it[0].openAdditive()
     }
-    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>)
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive()
     1 * flow.isBlocking()
@@ -216,7 +216,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true) >> {
       pwafAdditive = it[0].openAdditive()
     }
-    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>)
     1 * ctx.getWafMetrics()
     2 * ctx.closeAdditive()
     1 * flow.isBlocking()
@@ -253,7 +253,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true) >> {
       pwafAdditive = it[0].openAdditive()
     }
-    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>)
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive()
     1 * flow.isBlocking()
@@ -275,7 +275,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true) >> {
       pwafAdditive = it[0].openAdditive()
     }
-    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>)
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive()
     1 * flow.isBlocking()
@@ -329,7 +329,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true) >> {
       pwafAdditive = it[0].openAdditive()
     }
-    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>)
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive()
     1 * flow.isBlocking()
@@ -403,7 +403,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getOrCreateAdditive(_, true) >> {
       pwafAdditive = it[0].openAdditive()
     }
-    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>)
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive() >> { pwafAdditive.close() }
     0 * _
@@ -481,7 +481,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       pwafAdditive = it[0].openAdditive()
     }
     // we get two events: one for origin rule, and one for the custom one
-    1 * ctx.reportEvents(hasSize(2), _)
+    1 * ctx.reportEvents(hasSize(2))
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive()
     0 * _
@@ -554,7 +554,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
         rba.blockingContentType == BlockingContentType.AUTO
     })
     1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
-    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>)
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive()
     1 * flow.isBlocking()
@@ -579,7 +579,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     }
     1 * ctx.getWafMetrics() >> metrics
     1 * ctx.closeAdditive()
-    1 * ctx.reportEvents(_, _)
+    1 * ctx.reportEvents(_)
     0 * ctx._(*_)
     flow.blocking == true
     flow.action instanceof Flow.Action.RequestBlockingAction
@@ -642,7 +642,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     }
     1 * ctx.getWafMetrics() >> metrics
     1 * ctx.closeAdditive()
-    1 * ctx.reportEvents(_, _)
+    1 * ctx.reportEvents(_)
     0 * ctx._(*_)
     flow.blocking == true
     flow.action.statusCode == 418
@@ -666,7 +666,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     }
     1 * ctx.getWafMetrics() >> null
     1 * ctx.closeAdditive()
-    1 * ctx.reportEvents(_, _)
+    1 * ctx.reportEvents(_)
     0 * ctx._(*_)
     metrics == null
   }
@@ -733,7 +733,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.getOrCreateAdditive(_, true) >> {
       pwafAdditive = it[0].openAdditive()
     }
-    ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
+    ctx.reportEvents(_ as Collection<AppSecEvent100>) >> { event = it[0].iterator().next() }
 
     event.rule.id == 'ua0-600-12x'
     event.rule.name == 'Arachni'
@@ -768,7 +768,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.getOrCreateAdditive(_, true) >> {
       pwafAdditive = it[0].openAdditive()
     }
-    ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
+    ctx.reportEvents(_ as Collection<AppSecEvent100>) >> { event = it[0].iterator().next() }
 
     event.ruleMatches[0].parameters == [
       new Parameter.ParameterBuilder()
@@ -795,7 +795,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.getOrCreateAdditive(_, true) >> {
       pwafAdditive = it[0].openAdditive()
     }
-    ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
+    ctx.reportEvents(_ as Collection<AppSecEvent100>) >> { event = it[0].iterator().next() }
 
     event.ruleMatches[0].parameters == [
       new Parameter.ParameterBuilder()
@@ -821,7 +821,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.getOrCreateAdditive(_, true) >> {
       pwafAdditive = it[0].openAdditive()
     }
-    ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
+    ctx.reportEvents(_ as Collection<AppSecEvent100>) >> { event = it[0].iterator().next() }
 
     event.ruleMatches[0].parameters == [
       new Parameter.ParameterBuilder()
@@ -905,7 +905,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     then:
     1 * ctx.getOrCreateAdditive(_, true) >> {
       pwafAdditive = it[0].openAdditive() }
-    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>)
     1 * reconf.reloadSubscriptions()
   }
 
@@ -940,7 +940,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     then:
     1 * reconf.reloadSubscriptions()
     1 * ctx.getOrCreateAdditive(_, true) >> { pwafAdditive = it[0].openAdditive() }
-    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>)
     1 * ctx.getWafMetrics()
     1 * flow.setAction({ it.blocking })
     1 * ctx.closeAdditive()
@@ -1036,7 +1036,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * reconf.reloadSubscriptions()
     1 * ctx.getOrCreateAdditive(_, true) >> {
       pwafAdditive = it[0].openAdditive() }
-    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>)
     1 * ctx.getWafMetrics()
     1 * flow.setAction({ it.blocking })
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
@@ -1134,7 +1134,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getWafMetrics()
     1 * flow.isBlocking()
     1 * flow.setAction({ it.blocking })
-    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>)
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
     0 * _
 
