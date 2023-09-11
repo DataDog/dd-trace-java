@@ -35,7 +35,7 @@ class JMS2Test extends AgentTestRunner {
   @Shared
   Session session
 
-//  HornetQTextMessage message = session.createTextMessage(messageText)
+  //  HornetQTextMessage message = session.createTextMessage(messageText)
   TextMessage message = session.createTextMessage(messageText)
 
   def setupSpec() {
