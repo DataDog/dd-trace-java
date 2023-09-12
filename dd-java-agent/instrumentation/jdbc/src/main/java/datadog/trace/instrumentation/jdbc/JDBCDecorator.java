@@ -214,7 +214,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       String originSlq = info.getOriginSql().toString();
       if (!originSlq.equals("")) {
         Map<Integer, String> map = info.getVals();
-        StringBuilder sb = new StringBuilder(256);
+        StringBuilder sb = new StringBuilder();
         int index = 0;
         for (int key : map.keySet()) {
           index++;
