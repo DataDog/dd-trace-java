@@ -397,7 +397,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   boolean commitApiSchemas(TraceSegment traceSegment) {
-    if (traceSegment == null || apiSchemas == null || apiSchemas.isEmpty()) {
+    if (traceSegment == null || apiSchemas == null) {
       return false;
     }
     apiSchemas.forEach(traceSegment::setTagTop);
