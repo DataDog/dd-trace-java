@@ -86,8 +86,17 @@ public class OpenTelemetryContextInstrumentation extends Instrumenter.Tracing
   public static class ContextCurrentAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void current(@Advice.Return(readOnly = false) Context result) {
-      // Get OTel current span
       AgentSpan agentCurrentSpan = AgentTracer.activeSpan();
+      if (null == agentCurrentSpan) {
+        if (result instanceof OtelContext) {
+          // context was ours, but is now out of scope, so invalidate it
+          result = new OtelContext(OtelSpan.invalid(), OtelSpan.invalid());
+        } else {
+          // otherwise leave non-Datadog context unchanged
+        }
+        return;
+      }
+      // Get OTel current span
       Span otelCurrentSpan = null;
       if (agentCurrentSpan instanceof AttachableWrapper) {
         Object wrapper = ((AttachableWrapper) agentCurrentSpan).getWrapper();
@@ -96,23 +105,19 @@ public class OpenTelemetryContextInstrumentation extends Instrumenter.Tracing
         }
       }
       if (otelCurrentSpan == null) {
-        otelCurrentSpan =
-            agentCurrentSpan == null ? OtelSpan.invalid() : new OtelSpan(agentCurrentSpan);
+        otelCurrentSpan = new OtelSpan(agentCurrentSpan);
       }
       // Get OTel root span
       Span otelRootSpan = null;
-      AgentSpan agentRootSpan = null;
-      if (agentCurrentSpan != null) {
-        agentRootSpan = agentCurrentSpan.getLocalRootSpan();
-        if (agentRootSpan instanceof AttachableWrapper) {
-          Object wrapper = ((AttachableWrapper) agentRootSpan).getWrapper();
-          if (wrapper instanceof OtelSpan) {
-            otelRootSpan = (OtelSpan) wrapper;
-          }
+      AgentSpan agentRootSpan = agentCurrentSpan.getLocalRootSpan();
+      if (agentRootSpan instanceof AttachableWrapper) {
+        Object wrapper = ((AttachableWrapper) agentRootSpan).getWrapper();
+        if (wrapper instanceof OtelSpan) {
+          otelRootSpan = (OtelSpan) wrapper;
         }
       }
       if (otelRootSpan == null) {
-        otelRootSpan = agentRootSpan == null ? OtelSpan.invalid() : new OtelSpan(agentRootSpan);
+        otelRootSpan = new OtelSpan(agentRootSpan);
       }
       result = new OtelContext(otelCurrentSpan, otelRootSpan);
     }

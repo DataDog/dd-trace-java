@@ -172,6 +172,15 @@ class OpenTelemetry14ContextTest extends AgentTestRunner {
     !currentSpan.spanContext.isValid()
   }
 
+  def "test setting non-Datadog context"() {
+    when:
+    def rootScope = Context.root().makeCurrent()
+    then:
+    Context.current() == Context.root()
+    cleanup:
+    rootScope.close()
+  }
+
   def "test mixing manual and OTel instrumentation"() {
     setup:
     def otelParentSpan = tracer.spanBuilder("some-name").startSpan()
