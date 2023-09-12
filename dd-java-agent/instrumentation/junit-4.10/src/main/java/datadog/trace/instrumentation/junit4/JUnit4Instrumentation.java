@@ -20,7 +20,7 @@ public class JUnit4Instrumentation extends Instrumenter.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
   public JUnit4Instrumentation() {
-    super("junit", "junit-4");
+    super("ci-visibility", "junit-4");
   }
 
   @Override
@@ -36,12 +36,11 @@ public class JUnit4Instrumentation extends Instrumenter.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SkippedByItr",
-      packageName + ".JUnit4Utils$Cucumber",
-      packageName + ".JUnit4Utils$Munit",
-      packageName + ".JUnit4Utils",
       packageName + ".TestEventsHandlerHolder",
+      packageName + ".SkippedByItr",
+      packageName + ".JUnit4Utils",
       packageName + ".TracingListener",
+      packageName + ".JUnit4TracingListener",
     };
   }
 
@@ -75,15 +74,9 @@ public class JUnit4Instrumentation extends Instrumenter.CiVisibility
         if (JUnit4Utils.isTracingListener(unwrappedListener)) {
           return;
         }
-        // prevents installing TracingListener if we're running in JUnit 5 vintage compatibility
-        // mode
-        // (in that case JUnit 5 instrumentation will install its own TracingListener)
-        if (JUnit4Utils.isJUnitVintageListener(unwrappedListener)) {
-          return;
-        }
       }
 
-      final TracingListener tracingListener = new TracingListener();
+      final TracingListener tracingListener = new JUnit4TracingListener();
       runNotifier.addListener(tracingListener);
     }
 

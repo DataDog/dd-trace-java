@@ -102,6 +102,7 @@ excludedClassesCoverage += [
   "datadog.trace.util.ClassNameTrie.Builder",
   "datadog.trace.util.ClassNameTrie.JavaGenerator",
   "datadog.trace.util.CollectionUtils",
+  "datadog.trace.util.MethodHandles",
   "datadog.trace.util.PidHelper",
   "datadog.trace.util.PidHelper.Fallback",
   "datadog.trace.util.ProcessUtils",
