@@ -17,7 +17,6 @@ import org.springframework.jms.core.JmsTemplate
 import spock.lang.Shared
 
 import jakarta.jms.Session
-//import jakarta.jms.TextMessage
 import jakarta.jms.Message
 
 import java.util.concurrent.TimeUnit

@@ -17,7 +17,6 @@ import org.hornetq.core.remoting.impl.invm.InVMConnectorFactory
 import org.hornetq.core.remoting.impl.netty.NettyAcceptorFactory
 import org.hornetq.core.server.HornetQServer
 import org.hornetq.core.server.HornetQServers
-// import org.hornetq.jms.client.HornetQTextMessage
 import spock.lang.Shared
 
 import jakarta.jms.Message
@@ -35,7 +34,6 @@ class JMS2Test extends AgentTestRunner {
   @Shared
   Session session
 
-  //  HornetQTextMessage message = session.createTextMessage(messageText)
   TextMessage message = session.createTextMessage(messageText)
 
   def setupSpec() {
