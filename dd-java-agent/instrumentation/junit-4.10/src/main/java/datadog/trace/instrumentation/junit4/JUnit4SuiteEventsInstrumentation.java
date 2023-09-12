@@ -20,7 +20,7 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
   public JUnit4SuiteEventsInstrumentation() {
-    super("junit-4-suite-events");
+    super("ci-visibility", "junit-4");
   }
 
   @Override
@@ -36,12 +36,11 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SkippedByItr",
-      packageName + ".JUnit4Utils$Cucumber",
-      packageName + ".JUnit4Utils$Munit",
-      packageName + ".JUnit4Utils",
       packageName + ".TestEventsHandlerHolder",
+      packageName + ".SkippedByItr",
+      packageName + ".JUnit4Utils",
       packageName + ".TracingListener",
+      packageName + ".JUnit4TracingListener",
     };
   }
 
