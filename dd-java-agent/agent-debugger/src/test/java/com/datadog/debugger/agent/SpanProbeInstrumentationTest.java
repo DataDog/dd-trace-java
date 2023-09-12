@@ -3,14 +3,19 @@ package com.datadog.debugger.agent;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 
 import com.datadog.debugger.probe.SpanProbe;
+import com.datadog.debugger.sink.DebuggerSink;
+import com.datadog.debugger.sink.ProbeStatusSink;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerSpan;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -20,7 +25,7 @@ import org.joor.Reflect;
 import org.junit.jupiter.api.Test;
 
 public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
-  private static final String SPAN_ID = "beae1807-f3b0-4ea8-a74f-826790c5e6f8";
+  private static final ProbeId SPAN_ID = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 0);
   private static final String SPAN_PROBEID_TAG =
       "debugger.probeid:beae1807-f3b0-4ea8-a74f-826790c5e6f8";
 
@@ -99,9 +104,7 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(3, result);
     assertEquals(0, tracer.spans.size());
-    assertEquals(1, mockSink.getCurrentDiagnostics().size());
-    assertEquals(
-        "No line info for range 4-10", mockSink.getCurrentDiagnostics().get(0).getMessage());
+    verify(probeStatusSink).addError(eq(SPAN_ID), eq("No line info for range 4-10"));
   }
 
   @Test
@@ -140,7 +143,12 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
     when(config.isDebuggerVerifyByteCode()).thenReturn(true);
-    currentTransformer = new DebuggerTransformer(config, configuration);
+    when(config.getFinalDebuggerSnapshotUrl())
+        .thenReturn("http://localhost:8126/debugger/v1/input");
+    probeStatusSink = mock(ProbeStatusSink.class);
+    currentTransformer =
+        new DebuggerTransformer(
+            config, configuration, null, new DebuggerSink(config, probeStatusSink));
     instr.addTransformer(currentTransformer);
     mockSink = new MockSink();
     DebuggerAgentHelper.injectSink(mockSink);
@@ -197,20 +205,16 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
   }
 
   private static SpanProbe createSpan(
-      String id, String typeName, String methodName, String signature, String[] tags) {
+      ProbeId id, String typeName, String methodName, String signature, String[] tags) {
     return SpanProbe.builder()
-        .probeId(id, 0)
+        .probeId(id)
         .where(typeName, methodName, signature)
         .tags(tags)
         .build();
   }
 
   private static SpanProbe createSpan(
-      String id, String sourceFile, int lineFrom, int lineTill, String[] tags) {
-    return SpanProbe.builder()
-        .probeId(id, 0)
-        .where(sourceFile, lineFrom, lineTill)
-        .tags(tags)
-        .build();
+      ProbeId id, String sourceFile, int lineFrom, int lineTill, String[] tags) {
+    return SpanProbe.builder().probeId(id).where(sourceFile, lineFrom, lineTill).tags(tags).build();
   }
 }
