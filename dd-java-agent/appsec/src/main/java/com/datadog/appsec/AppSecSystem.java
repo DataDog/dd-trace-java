@@ -1,5 +1,6 @@
 package com.datadog.appsec;
 
+import com.datadog.appsec.api.security.ApiSecurityRequestSampler;
 import com.datadog.appsec.blocking.BlockingServiceImpl;
 import com.datadog.appsec.config.AppSecConfigService;
 import com.datadog.appsec.config.AppSecConfigServiceImpl;
@@ -76,11 +77,14 @@ public class AppSecSystem {
     sco.createRemaining(config);
 
     RateLimiter rateLimiter = getRateLimiter(config, sco.monitoring);
+    ApiSecurityRequestSampler requestSampler = new ApiSecurityRequestSampler(config);
+
     GatewayBridge gatewayBridge =
         new GatewayBridge(
             gw,
             REPLACEABLE_EVENT_PRODUCER,
             rateLimiter,
+            requestSampler,
             APP_SEC_CONFIG_SERVICE.getTraceSegmentPostProcessors());
 
     loadModules(eventDispatcher);
