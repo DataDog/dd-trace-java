@@ -12,7 +12,7 @@ import net.bytebuddy.asm.Advice;
 @RequiresRequestContext(RequestContextSlot.IAST)
 class TaintHttpHeadersGetFirstAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
-  @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
+  @Source(SourceTypes.REQUEST_HEADER_VALUE)
   public static void after(@Advice.Argument(0) String arg, @Advice.Return String value) {
     PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module == null || arg == null || value == null) {

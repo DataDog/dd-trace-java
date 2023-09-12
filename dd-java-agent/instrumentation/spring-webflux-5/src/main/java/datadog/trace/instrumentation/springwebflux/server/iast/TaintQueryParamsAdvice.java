@@ -17,7 +17,7 @@ class TaintQueryParamsAdvice {
 
   @SuppressWarnings("Duplicates")
   @Advice.OnMethodExit(suppress = Throwable.class)
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
   public static void after(@Advice.Return MultiValueMap<String, String> queryParams) {
     final WebModule web = InstrumentationBridge.WEB;
     final PropagationModule prop = InstrumentationBridge.PROPAGATION;

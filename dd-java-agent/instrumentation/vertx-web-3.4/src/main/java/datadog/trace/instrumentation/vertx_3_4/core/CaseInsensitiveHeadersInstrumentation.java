@@ -74,7 +74,7 @@ public class CaseInsensitiveHeadersInstrumentation extends Instrumenter.Iast
 
   public static class GetAdvice {
     @Advice.OnMethodExit
-    @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     public static void afterGet(
         @Advice.This final Object self,
         @Advice.Argument(0) final String name,
@@ -93,7 +93,7 @@ public class CaseInsensitiveHeadersInstrumentation extends Instrumenter.Iast
 
   public static class GetAllAdvice {
     @Advice.OnMethodExit
-    @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     public static void afterGetAll(
         @Advice.This final Object self,
         @Advice.Argument(0) final String name,
@@ -112,7 +112,7 @@ public class CaseInsensitiveHeadersInstrumentation extends Instrumenter.Iast
 
   public static class EntriesAdvice {
     @Advice.OnMethodExit
-    @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
+    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     public static void afterEntries(
         @Advice.This final Object self,
         @Advice.Return final List<Map.Entry<String, String>> result) {
@@ -129,7 +129,7 @@ public class CaseInsensitiveHeadersInstrumentation extends Instrumenter.Iast
 
   public static class NamesAdvice {
     @Advice.OnMethodExit
-    @Source(SourceTypes.REQUEST_PARAMETER_NAME_STRING)
+    @Source(SourceTypes.REQUEST_PARAMETER_NAME)
     public static void afterNames(
         @Advice.This final Object self, @Advice.Return final Set<String> result) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;

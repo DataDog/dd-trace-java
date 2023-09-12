@@ -18,7 +18,7 @@ public class HandleMatchAdvice {
 
   @SuppressWarnings("Duplicates")
   @Advice.OnMethodExit(suppress = Throwable.class)
-  @Source(SourceTypes.REQUEST_PATH_PARAMETER_STRING)
+  @Source(SourceTypes.REQUEST_PATH_PARAMETER)
   public static void after(
       @Advice.Argument(2) ServerWebExchange xchg, @ActiveRequestContext RequestContext reqCtx) {
 

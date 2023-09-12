@@ -7,8 +7,7 @@ import static datadog.trace.api.iast.VulnerabilityTypes.SPRING_RESPONSE_TYPES;
 
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.VulnerabilityTypes;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.function.Function;
 import javax.annotation.Nonnull;
 
 public enum IastMetric {
@@ -30,13 +29,11 @@ public enum IastMetric {
   static {
     int count = 0;
     for (final IastMetric metric : values()) {
+      metric.index = count;
       if (metric.tag == null) {
-        metric.index = count++;
+        count++;
       } else {
-        metric.tagIndexes = new HashMap<>(metric.tag.getValues().length);
-        for (final String tagValue : metric.tag.getValues()) {
-          metric.tagIndexes.put(tagValue, count++);
-        }
+        count += metric.tag.getValues().length;
       }
     }
     COUNT = count;
@@ -52,7 +49,6 @@ public enum IastMetric {
   private final Tag tag;
   private final Verbosity verbosity;
   private int index;
-  private Map<String, Integer> tagIndexes;
 
   IastMetric(
       final String name, final boolean common, final Scope scope, final Verbosity verbosity) {
@@ -94,40 +90,53 @@ public enum IastMetric {
 
   /**
    * Returns the index for the particular tag to be used in the {@link
-   * java.util.concurrent.atomic.AtomicLongArray} of {@link IastMetricCollector}, returns -1 if the
-   * tag is not found
+   * java.util.concurrent.atomic.AtomicLongArray} of {@link IastMetricCollector}
    */
-  public int getIndex(final String value) {
+  public int getIndex(final byte tagValue) {
     if (tag == null) {
       return index;
     }
-    return tagIndexes.getOrDefault(value, -1);
+    if (tagValue < 0) {
+      return -1;
+    }
+    return index + tagValue;
   }
 
   public static class Tag {
 
-    private static final String[] EMPTY = new String[0];
+    private static final byte[] EMPTY = new byte[0];
 
     public static final Tag VULNERABILITY_TYPE =
-        new Tag("vulnerability_type", VulnerabilityTypes.values()) {
-          public String[] parse(final String tagValue) {
-            if (RESPONSE_HEADER.equals(tagValue)) {
-              return RESPONSE_HEADER_TYPES;
+        new Tag("vulnerability_type", VulnerabilityTypes.values(), VulnerabilityTypes::toString) {
+
+          @Override
+          public boolean isWrapped(byte tagValue) {
+            return RESPONSE_HEADER == tagValue;
+          }
+
+          public byte[] unwrap(final byte tagValue) {
+            switch (tagValue) {
+              case RESPONSE_HEADER:
+                return RESPONSE_HEADER_TYPES;
+              case SPRING_RESPONSE:
+                return SPRING_RESPONSE_TYPES;
+              default:
+                return EMPTY;
             }
-            if (SPRING_RESPONSE.equals(tagValue)) {
-              return SPRING_RESPONSE_TYPES;
-            }
-            return EMPTY;
           }
         };
 
-    public static final Tag SOURCE_TYPE = new Tag("source_type", SourceTypes.values());
+    public static final Tag SOURCE_TYPE =
+        new Tag("source_type", SourceTypes.values(), SourceTypes::toString);
 
     private final String name;
-    private final String[] values;
 
-    private Tag(final String name, final String... values) {
+    private final Function<Byte, String> toString;
+    private final byte[] values;
+
+    private Tag(final String name, final byte[] values, final Function<Byte, String> toString) {
       this.name = name;
+      this.toString = toString;
       this.values = values;
     }
 
@@ -135,12 +144,21 @@ public enum IastMetric {
       return name;
     }
 
-    public String[] getValues() {
+    public byte[] getValues() {
       return values;
     }
 
-    public String[] parse(final String tagValue) {
+    /** Wrapped tags are aggregation of other tags that should be incremented together */
+    public boolean isWrapped(final byte tagValue) {
+      return false;
+    }
+
+    public byte[] unwrap(final byte tagValue) {
       return EMPTY;
+    }
+
+    public String toString(final byte tagValue) {
+      return toString.apply(tagValue);
     }
   }
 
