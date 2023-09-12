@@ -1,0 +1,43 @@
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'SpringBoot Open Liberty Smoke Tests'
+
+dependencies {
+  testImplementation project(':dd-smoke-tests')
+}
+
+def appDir = "$projectDir/application"
+def jarName = "demo-open-liberty-app.jar"
+def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
+def mvnwCommand = isWindows ? 'mvnw.cmd' : 'mvnw'
+
+// compile the Open liberty spring boot server
+tasks.register('mvnStage', Exec) {
+  workingDir "$appDir"
+  commandLine "$rootDir/${mvnwCommand}", 'package'
+}
+
+tasks.named("compileTestGroovy").configure {
+  dependsOn 'mvnStage'
+  outputs.upToDateWhen {
+    !mvnStage.didWork
+  }
+}
+
+// compiled dir of the packaged spring boot app with embedded openliberty
+tasks.withType(Test).configureEach {
+  jvmArgs "-Ddatadog.smoketest.openliberty.jar.path=${appDir}/target/${jarName}"
+}
+
+
+spotless {
+  java {
+    target fileTree("$appDir") {
+      include "**/*.java"
+    }
+  }
+
+  groovyGradle {
+    target '*.gradle', "**/*.gradle"
+  }
+}
