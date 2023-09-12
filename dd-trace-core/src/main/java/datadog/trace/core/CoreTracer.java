@@ -682,13 +682,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   protected void finalize() {
-    try {
-      shutdownCallback.run();
-      Runtime.getRuntime().removeShutdownHook(shutdownCallback);
-    } catch (final IllegalStateException e) {
-      // Do nothing.  Already shutting down
-    } catch (final Exception e) {
-      log.error("Error while finalizing DDTracer.", e);
+    if (null != shutdownCallback) {
+      try {
+        shutdownCallback.run();
+        Runtime.getRuntime().removeShutdownHook(shutdownCallback);
+      } catch (final IllegalStateException e) {
+        // Do nothing.  Already shutting down
+      } catch (final Exception e) {
+        log.error("Error while finalizing DDTracer.", e);
+      }
     }
   }
 
