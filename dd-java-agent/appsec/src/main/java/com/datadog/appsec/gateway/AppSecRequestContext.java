@@ -5,9 +5,7 @@ import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.report.raw.events.AppSecEvent100;
 import com.datadog.appsec.util.StandardizedLogging;
-import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.http.StoredBodySupplier;
-import datadog.trace.api.internal.TraceSegment;
 import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.PowerwafContext;
 import io.sqreen.powerwaf.PowerwafMetrics;
@@ -74,7 +72,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean rawReqBodyPublished;
   private boolean convertedReqBodyPublished;
   private boolean respDataPublished;
-  private BlockResponseFunction blockResponseFunction;
 
   // should be guarded by this
   private Additive additive;
@@ -333,10 +330,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.respDataPublished = respDataPublished;
   }
 
-  public void setBlockResponseFunction(BlockResponseFunction blockResponseFunction) {
-    this.blockResponseFunction = blockResponseFunction;
-  }
-
   @Override
   public void close() {
     synchronized (this) {
@@ -362,7 +355,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return storedRequestBodySupplier.get();
   }
 
-  public void reportEvents(Collection<AppSecEvent100> events, TraceSegment traceSegment) {
+  public void reportEvents(Collection<AppSecEvent100> events) {
     for (AppSecEvent100 event : events) {
       StandardizedLogging.attackDetected(log, event);
     }

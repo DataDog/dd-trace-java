@@ -7,13 +7,6 @@ import datadog.trace.api.gateway.Flow;
 import java.util.Collection;
 
 public interface EventProducerService {
-  /**
-   * Runs the event callbacks for the given event type.
-   *
-   * <p>This method does not throw. If one of the callbacks throws, the exception is caught and the
-   * processing continues.
-   */
-  void publishEvent(AppSecRequestContext ctx, EventType event);
 
   /**
    * Determines the data callbacks for the given addresses. The return value can be cached if it's
@@ -48,8 +41,6 @@ public interface EventProducerService {
   interface DataSubscriberInfo {
     boolean isEmpty();
   }
-
-  Collection<EventType> allSubscribedEvents();
 
   Collection<Address<?>> allSubscribedDataAddresses();
 }

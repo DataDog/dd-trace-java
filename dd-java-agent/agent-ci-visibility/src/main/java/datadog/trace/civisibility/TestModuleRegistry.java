@@ -14,20 +14,20 @@ public class TestModuleRegistry {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TestModuleRegistry.class);
 
-  private final Map<Long, DDTestModuleParent> testModuleById;
+  private final Map<Long, DDBuildSystemModule> testModuleById;
 
   public TestModuleRegistry() {
     this.testModuleById = new ConcurrentHashMap<>();
   }
 
-  public void addModule(DDTestModuleParent module) {
+  public void addModule(DDBuildSystemModule module) {
     testModuleById.put(module.getId(), module);
   }
 
   public SignalResponse onModuleExecutionResultReceived(
       ModuleExecutionResult result, ExecutionDataStore coverageData) {
     long moduleId = result.getModuleId();
-    DDTestModuleParent module = testModuleById.remove(moduleId);
+    DDBuildSystemModule module = testModuleById.remove(moduleId);
     if (module == null) {
       String message =
           String.format(
