@@ -73,6 +73,7 @@
         <artifactId>liberty-maven-plugin</artifactId>
         <version>3.2.3</version>
         <configuration>
+          <libertyRuntimeVersion>22.0.0.13</libertyRuntimeVersion>
           <appsDirectory>apps</appsDirectory>
           <installAppPackages>spring-boot-project</installAppPackages>
           <include>minify,runnable</include>

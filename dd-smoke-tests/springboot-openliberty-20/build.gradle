@@ -1,6 +1,6 @@
 
 apply from: "$rootDir/gradle/java.gradle"
-description = 'SpringBoot Open Liberty Smoke Tests'
+description = 'SpringBoot Open Liberty 20-22 Smoke Tests'
 
 dependencies {
   testImplementation project(':dd-smoke-tests')
