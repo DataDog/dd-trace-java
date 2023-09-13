@@ -51,7 +51,8 @@ class MavenProjectConfigurator {
       modifiedArgLine.append("-D").append(e.getKey()).append('=').append(e.getValue()).append(" ");
     }
 
-    Integer ciVisibilityDebugPort = Config.get().getCiVisibilityDebugPort();
+    Config config = Config.get();
+    Integer ciVisibilityDebugPort = config.getCiVisibilityDebugPort();
     if (ciVisibilityDebugPort != null) {
       modifiedArgLine
           .append("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=")
@@ -59,7 +60,12 @@ class MavenProjectConfigurator {
           .append(" ");
     }
 
-    File agentJar = Config.get().getCiVisibilityAgentJarFile();
+    String additionalArgs = config.getCiVisibilityAdditionalChildProcessJvmArgs();
+    if (additionalArgs != null) {
+      modifiedArgLine.append(additionalArgs).append(" ");
+    }
+
+    File agentJar = config.getCiVisibilityAgentJarFile();
     modifiedArgLine.append("-javaagent:").append(agentJar.toPath());
 
     Plugin plugin = mojoExecution.getPlugin();
