@@ -57,6 +57,14 @@ public class DDTestSessionImpl implements DDTestSession {
 
     span.setResourceName(projectName);
 
+    // The backend requires all session spans to have the test command tag
+    // because it is used for session fingerprint calculation.
+    // We're setting it here to project name as a default that works
+    // reasonably well (although this is not the real command).
+    // In those cases where proper command can be determined,
+    // this tag will be overridden
+    span.setTag(Tags.TEST_COMMAND, projectName);
+
     testDecorator.afterStart(span);
   }
 
