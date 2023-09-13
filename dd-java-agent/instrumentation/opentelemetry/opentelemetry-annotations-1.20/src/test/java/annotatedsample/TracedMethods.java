@@ -7,18 +7,17 @@ import static io.opentelemetry.api.trace.SpanKind.CONSUMER;
 import static io.opentelemetry.api.trace.SpanKind.INTERNAL;
 import static io.opentelemetry.api.trace.SpanKind.PRODUCER;
 import static io.opentelemetry.api.trace.SpanKind.SERVER;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 import io.opentelemetry.instrumentation.annotations.SpanAttribute;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
-import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CountDownLatch;
 
 public class TracedMethods {
-  public static final Duration DELAY = Duration.ofMillis(250);
-
   @WithSpan
   public static String sayHello() {
     activeSpan().setTag(SERVICE_NAME, "custom-service-name");
@@ -92,39 +91,39 @@ public class TracedMethods {
   }
 
   @WithSpan
-  public static CompletableFuture<String> traceAsyncCompletableFuture() {
+  public static CompletableFuture<String> traceAsyncCompletableFuture(CountDownLatch latch) {
     return CompletableFuture.supplyAsync(
         () -> {
-          sleep();
+          await(latch);
           return "hello!";
         });
   }
 
   @WithSpan
   public static CompletableFuture<String> traceAsyncFailingCompletableFuture(
-      RuntimeException exception) {
+      CountDownLatch latch, RuntimeException exception) {
     return CompletableFuture.supplyAsync(
         () -> {
-          sleep();
+          await(latch);
           throw exception;
         });
   }
 
   @WithSpan
-  public static CompletionStage<String> traceAsyncCompletionStage() {
+  public static CompletionStage<String> traceAsyncCompletionStage(CountDownLatch latch) {
     return CompletableFuture.supplyAsync(
         () -> {
-          sleep();
+          await(latch);
           return "hello!";
         });
   }
 
   @WithSpan
   public static CompletionStage<String> traceAsyncFailingCompletionStage(
-      RuntimeException exception) {
+      CountDownLatch latch, RuntimeException exception) {
     return CompletableFuture.supplyAsync(
         () -> {
-          sleep();
+          await(latch);
           throw exception;
         });
   }
@@ -134,9 +133,11 @@ public class TracedMethods {
     return "hello!";
   }
 
-  private static void sleep() {
+  private static void await(CountDownLatch latch) {
     try {
-      Thread.sleep(DELAY.toMillis()); // Wait enough time to prevent test flakiness
+      if (!latch.await(5, SECONDS)) {
+        throw new IllegalStateException("Latch still locked");
+      }
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }

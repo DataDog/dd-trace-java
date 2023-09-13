@@ -15,10 +15,12 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Backlog;
 import datadog.trace.bootstrap.instrumentation.api.InboxItem;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
@@ -39,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,15 +62,21 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private final DDAgentFeaturesDiscovery features;
   private final TimeSource timeSource;
   private final WellKnownTags wellKnownTags;
+  private final Supplier<TraceConfig> traceConfigSupplier;
   private final long bucketDurationNanos;
   private final DataStreamContextInjector injector;
   private final Thread thread;
   private AgentTaskScheduler.Scheduled<DefaultDataStreamsMonitoring> cancellation;
   private volatile long nextFeatureCheck;
   private volatile boolean supportsDataStreams = false;
+  private volatile boolean agentSupportsDataStreams = false;
+  private volatile boolean configSupportsDataStreams = false;
 
   public DefaultDataStreamsMonitoring(
-      Config config, SharedCommunicationObjects sharedCommunicationObjects, TimeSource timeSource) {
+      Config config,
+      SharedCommunicationObjects sharedCommunicationObjects,
+      TimeSource timeSource,
+      Supplier<TraceConfig> traceConfigSupplier) {
     this(
         new OkHttpSink(
             sharedCommunicationObjects.okHttpClient,
@@ -78,15 +87,21 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
             Collections.<String, String>emptyMap()),
         sharedCommunicationObjects.featuresDiscovery(config),
         timeSource,
+        traceConfigSupplier,
         config);
   }
 
   public DefaultDataStreamsMonitoring(
-      Sink sink, DDAgentFeaturesDiscovery features, TimeSource timeSource, Config config) {
+      Sink sink,
+      DDAgentFeaturesDiscovery features,
+      TimeSource timeSource,
+      Supplier<TraceConfig> traceConfigSupplier,
+      Config config) {
     this(
         sink,
         features,
         timeSource,
+        traceConfigSupplier,
         config.getWellKnownTags(),
         new MsgPackDatastreamsPayloadWriter(
             sink, config.getWellKnownTags(), DDTraceCoreInfo.VERSION, config.getPrimaryTag()),
@@ -97,11 +112,13 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       Sink sink,
       DDAgentFeaturesDiscovery features,
       TimeSource timeSource,
+      Supplier<TraceConfig> traceConfigSupplier,
       WellKnownTags wellKnownTags,
       DatastreamsPayloadWriter payloadWriter,
       long bucketDurationNanos) {
     this.features = features;
     this.timeSource = timeSource;
+    this.traceConfigSupplier = traceConfigSupplier;
     this.wellKnownTags = wellKnownTags;
     this.payloadWriter = payloadWriter;
     this.bucketDurationNanos = bucketDurationNanos;
@@ -117,10 +134,12 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       features.discoverIfOutdated();
     }
 
-    if (features.supportsDataStreams()) {
-      supportsDataStreams = true;
-    } else {
-      supportsDataStreams = false;
+    agentSupportsDataStreams = features.supportsDataStreams();
+    checkDynamicConfig();
+
+    if (!configSupportsDataStreams) {
+      log.debug("Data streams is disabled");
+    } else if (!agentSupportsDataStreams) {
       log.debug("Data streams is disabled or not supported by agent");
     }
 
@@ -141,12 +160,16 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public PathwayContext newPathwayContext() {
-    return new DefaultPathwayContext(timeSource, wellKnownTags);
+    if (configSupportsDataStreams) {
+      return new DefaultPathwayContext(timeSource, wellKnownTags);
+    } else {
+      return AgentTracer.NoopPathwayContext.INSTANCE;
+    }
   }
 
   @Override
   public HttpCodec.Extractor extractor(HttpCodec.Extractor delegate) {
-    return new DataStreamContextExtractor(delegate, timeSource, wellKnownTags);
+    return new DataStreamContextExtractor(delegate, timeSource, traceConfigSupplier, wellKnownTags);
   }
 
   @Override
@@ -258,6 +281,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
           InboxItem payload = inbox.take();
 
           if (payload == REPORT) {
+            checkDynamicConfig();
+
             if (supportsDataStreams) {
               flush(timeSource.getCurrentTimeNanos());
             } else if (timeSource.getCurrentTimeNanos() >= nextFeatureCheck) {
@@ -345,16 +370,27 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     }
   }
 
+  private void checkDynamicConfig() {
+    configSupportsDataStreams = traceConfigSupplier.get().isDataStreamsEnabled();
+    supportsDataStreams = agentSupportsDataStreams && configSupportsDataStreams;
+  }
+
   private void checkFeatures() {
-    boolean oldValue = supportsDataStreams;
+    boolean oldValue = agentSupportsDataStreams;
 
     features.discoverIfOutdated();
-    supportsDataStreams = features.supportsDataStreams();
-    if (oldValue && !supportsDataStreams) {
+    agentSupportsDataStreams = features.supportsDataStreams();
+    if (oldValue && !agentSupportsDataStreams && configSupportsDataStreams) {
       log.info("Disabling data streams reporting because it is not supported by the agent");
-    } else if (!oldValue && supportsDataStreams) {
+    } else if (!oldValue && agentSupportsDataStreams && configSupportsDataStreams) {
       log.info("Agent upgrade detected. Enabling data streams because it is now supported");
+    } else if (!oldValue && agentSupportsDataStreams && !configSupportsDataStreams) {
+      log.info(
+          "Agent upgrade detected. Not enabling data streams because it is disabled by config");
     }
+
+    supportsDataStreams = agentSupportsDataStreams && configSupportsDataStreams;
+
     nextFeatureCheck = timeSource.getCurrentTimeNanos() + FEATURE_CHECK_INTERVAL_NANOS;
   }
 

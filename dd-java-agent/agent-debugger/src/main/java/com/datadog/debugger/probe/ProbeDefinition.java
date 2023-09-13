@@ -122,15 +122,15 @@ public abstract class ProbeDefinition implements ProbeImplementation {
     }
   }
 
-  public void instrument(
+  public InstrumentationResult.Status instrument(
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics) {
-    instrument(classLoader, classNode, methodNode, diagnostics, singletonList(getId()));
+    return instrument(classLoader, classNode, methodNode, diagnostics, singletonList(getId()));
   }
 
-  public abstract void instrument(
+  public abstract InstrumentationResult.Status instrument(
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,

@@ -3,6 +3,7 @@ package com.datadog.debugger.probe;
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
+import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MetricInstrumentor;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
@@ -135,13 +136,13 @@ public class MetricProbe extends ProbeDefinition {
   }
 
   @Override
-  public void instrument(
+  public InstrumentationResult.Status instrument(
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics,
       List<String> probeIds) {
-    new MetricInstrumentor(this, classLoader, classNode, methodNode, diagnostics, probeIds)
+    return new MetricInstrumentor(this, classLoader, classNode, methodNode, diagnostics, probeIds)
         .instrument();
   }
 

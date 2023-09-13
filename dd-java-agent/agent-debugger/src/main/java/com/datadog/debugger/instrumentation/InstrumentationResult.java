@@ -56,6 +56,10 @@ public class InstrumentationResult {
     this.methodName = methodName;
   }
 
+  public boolean isError() {
+    return status == Status.ERROR;
+  }
+
   public boolean isBlocked() {
     return status == Status.BLOCKED;
   }

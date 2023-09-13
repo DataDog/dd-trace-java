@@ -75,7 +75,7 @@ build_with_cache:
 
 package:
   extends: .package
-  needs: [ build ]
+  when: on_success # this can't use 'needs: [build]', since build is not available in the scheduled pipeline
   script:
     - ../.gitlab/build_java_package.sh
 

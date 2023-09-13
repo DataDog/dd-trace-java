@@ -47,9 +47,9 @@ class OverheadControllerTest extends DDSpecification {
     where:
     samplingPct              | requests | expectedSampledRequests
     DEFAULT_REQUEST_SAMPLING | 100      | 33
-    30                       | 100      | 33
-    30                       | 10       | 3
-    30                       | 9        | 3
+    33                       | 100      | 33
+    33                       | 10       | 3
+    33                       | 9        | 3
     50                       | 100      | 50
     50                       | 10       | 5
     100                      | 1        | 1
@@ -57,6 +57,8 @@ class OverheadControllerTest extends DDSpecification {
     200                      | 100      | 100
     1000                     | 100      | 100
     0                        | 100      | 100
+    51                       | 100      | 51
+    99                       | 100      | 99
   }
 
   void 'No more than two request can be acquired concurrently'() {

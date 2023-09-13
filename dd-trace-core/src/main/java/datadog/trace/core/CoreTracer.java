@@ -68,7 +68,6 @@ import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
 import datadog.trace.core.datastreams.DataStreamContextInjector;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
-import datadog.trace.core.datastreams.NoopDataStreamsMonitoring;
 import datadog.trace.core.histogram.Histograms;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.MonitoringImpl;
@@ -83,7 +82,6 @@ import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.lambda.LambdaHandler;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.math.BigInteger;
@@ -603,7 +601,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     if (dataStreamsMonitoring == null) {
       this.dataStreamsMonitoring =
-          createDataStreamsMonitoring(config, sharedCommunicationObjects, this.timeSource);
+          new DefaultDataStreamsMonitoring(
+              config, sharedCommunicationObjects, this.timeSource, this::captureTraceConfig);
     } else {
       this.dataStreamsMonitoring = dataStreamsMonitoring;
     }
@@ -683,13 +682,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   protected void finalize() {
-    try {
-      shutdownCallback.run();
-      Runtime.getRuntime().removeShutdownHook(shutdownCallback);
-    } catch (final IllegalStateException e) {
-      // Do nothing.  Already shutting down
-    } catch (final Exception e) {
-      log.error("Error while finalizing DDTracer.", e);
+    if (null != shutdownCallback) {
+      try {
+        shutdownCallback.run();
+        Runtime.getRuntime().removeShutdownHook(shutdownCallback);
+      } catch (final IllegalStateException e) {
+        // Do nothing.  Already shutting down
+      } catch (final Exception e) {
+        log.error("Error while finalizing DDTracer.", e);
+      }
     }
   }
 
@@ -1105,7 +1106,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               host,
               port,
               config.getDogStatsDNamedPipe(),
-              "datadog.tracer",
+              // use replace to stop string being changed to 'ddtrot.dd.tracer' in dd-trace-ot
+              "datadog:tracer".replace(':', '.'),
               generateConstantTags(config));
     }
   }
@@ -1132,17 +1134,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     return constantTags.toArray(new String[0]);
-  }
-
-  @SuppressForbidden
-  private static DataStreamsMonitoring createDataStreamsMonitoring(
-      Config config, SharedCommunicationObjects sharedCommunicationObjects, TimeSource timeSource) {
-    if (config.isDataStreamsEnabled()) {
-      return new DefaultDataStreamsMonitoring(config, sharedCommunicationObjects, timeSource);
-    } else {
-      log.debug("Data streams monitoring not enabled.");
-      return new NoopDataStreamsMonitoring();
-    }
   }
 
   Recording writeTimer() {

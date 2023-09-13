@@ -1,13 +1,16 @@
 package com.datadog.debugger.probe;
 
+import static com.datadog.debugger.probe.LogProbe.Capture.toLimits;
+
 import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.agent.LogMessageTemplateBuilder;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.ValueScript;
+import com.datadog.debugger.instrumentation.CapturedContextInstrumentor;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
-import com.datadog.debugger.instrumentation.LogInstrumentor;
+import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.sink.Sink;
 import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.Json;
@@ -341,13 +344,21 @@ public class LogProbe extends ProbeDefinition {
   }
 
   @Override
-  public void instrument(
+  public InstrumentationResult.Status instrument(
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics,
       List<String> probeIds) {
-    new LogInstrumentor(this, classLoader, classNode, methodNode, diagnostics, probeIds)
+    return new CapturedContextInstrumentor(
+            this,
+            classLoader,
+            classNode,
+            methodNode,
+            diagnostics,
+            probeIds,
+            isCaptureSnapshot(),
+            toLimits(getCapture()))
         .instrument();
   }
 

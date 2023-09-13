@@ -78,17 +78,21 @@ public class CapturedContextInstrumentor extends Instrumentor {
   }
 
   @Override
-  public void instrument() {
+  public InstrumentationResult.Status instrument() {
     if (isLineProbe) {
       fillLineMap();
-      addLineCaptures(lineMap);
-    } else {
-      instrumentMethodEnter();
-      instrumentTryCatchHandlers();
-      processInstructions();
-      addFinallyHandler(returnHandlerLabel);
+      if (!addLineCaptures(lineMap)) {
+        return InstrumentationResult.Status.ERROR;
+      }
+      installFinallyBlocks();
+      return InstrumentationResult.Status.INSTALLED;
     }
+    instrumentMethodEnter();
+    instrumentTryCatchHandlers();
+    processInstructions();
+    addFinallyHandler(returnHandlerLabel);
     installFinallyBlocks();
+    return InstrumentationResult.Status.INSTALLED;
   }
 
   private void installFinallyBlocks() {
@@ -99,15 +103,15 @@ public class CapturedContextInstrumentor extends Instrumentor {
     }
   }
 
-  private void addLineCaptures(LineMap lineMap) {
+  private boolean addLineCaptures(LineMap lineMap) {
     Where.SourceLine[] targetLines = definition.getWhere().getSourceLines();
     if (targetLines == null) {
-      // no line capture to perform
-      return;
+      reportError("Missing line(s) in probe definition.");
+      return false;
     }
     if (lineMap.isEmpty()) {
       reportError("Missing line debug information.");
-      return;
+      return false;
     }
     for (Where.SourceLine sourceLine : targetLines) {
       int from = sourceLine.getFrom();
@@ -167,6 +171,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
         methodNode.instructions.insert(afterLabel, insnList);
       }
     }
+    return true;
   }
 
   @Override

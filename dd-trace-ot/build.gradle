@@ -29,6 +29,12 @@ dependencies {
   annotationProcessor deps.autoserviceProcessor
   compileOnly deps.autoserviceAnnotation
 
+  modules {
+    module("com.squareup.okio:okio") {
+      replacedBy("com.datadoghq.okio:okio") // embed our patched fork
+    }
+  }
+
   api project(':dd-trace-api')
   implementation (project(':dd-trace-core')) {
     // why all communication pulls in remote config is beyond me...
@@ -114,6 +120,7 @@ shadowJar {
     exclude('datadog.trace.api.interceptor.*')
     exclude('datadog.trace.api.internal.*')
     exclude('datadog.trace.api.internal.util.*')
+    exclude('datadog.trace.api.profiling.*')
     exclude('datadog.trace.api.sampling.*')
     exclude('datadog.trace.context.*')
   }

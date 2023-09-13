@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.ipc;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
@@ -17,6 +18,7 @@ public class ModuleExecutionResult implements Signal {
   private final long testsSkippedTotal;
   @Nullable private final String testFramework;
   @Nullable private final String testFrameworkVersion;
+  @Nullable private final byte[] coverageData;
 
   public ModuleExecutionResult(
       long sessionId,
@@ -25,7 +27,8 @@ public class ModuleExecutionResult implements Signal {
       boolean itrEnabled,
       long testsSkippedTotal,
       @Nullable String testFramework,
-      @Nullable String testFrameworkVersion) {
+      @Nullable String testFrameworkVersion,
+      @Nullable byte[] coverageData) {
     this.sessionId = sessionId;
     this.moduleId = moduleId;
     this.coverageEnabled = coverageEnabled;
@@ -33,6 +36,7 @@ public class ModuleExecutionResult implements Signal {
     this.testsSkippedTotal = testsSkippedTotal;
     this.testFramework = testFramework;
     this.testFrameworkVersion = testFrameworkVersion;
+    this.coverageData = coverageData;
   }
 
   public long getSessionId() {
@@ -65,6 +69,11 @@ public class ModuleExecutionResult implements Signal {
     return testFrameworkVersion;
   }
 
+  @Nullable
+  public byte[] getCoverageData() {
+    return coverageData;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -80,7 +89,8 @@ public class ModuleExecutionResult implements Signal {
         && itrEnabled == that.itrEnabled
         && testsSkippedTotal == that.testsSkippedTotal
         && Objects.equals(testFramework, that.testFramework)
-        && Objects.equals(testFrameworkVersion, that.testFrameworkVersion);
+        && Objects.equals(testFrameworkVersion, that.testFrameworkVersion)
+        && Arrays.equals(coverageData, that.coverageData);
   }
 
   @Override
@@ -92,7 +102,8 @@ public class ModuleExecutionResult implements Signal {
         itrEnabled,
         testsSkippedTotal,
         testFramework,
-        testFrameworkVersion);
+        testFrameworkVersion,
+        Arrays.hashCode(coverageData));
   }
 
   @Override
@@ -125,7 +136,9 @@ public class ModuleExecutionResult implements Signal {
     int testFrameworkLength = testFrameworkBytes != null ? testFrameworkBytes.length : 0;
     int testFrameworkVersionLength =
         testFrameworkVersionBytes != null ? testFrameworkVersionBytes.length : 0;
-    int variableLength = Integer.BYTES * 2 + testFrameworkLength + testFrameworkVersionLength;
+    int coverageDataLength = coverageData != null ? coverageData.length : 0;
+    int variableLength =
+        Integer.BYTES * 3 + testFrameworkLength + testFrameworkVersionLength + coverageDataLength;
 
     ByteBuffer buffer = ByteBuffer.allocate(FIXED_LENGTH + variableLength);
     buffer.putLong(sessionId);
@@ -149,6 +162,11 @@ public class ModuleExecutionResult implements Signal {
     buffer.putInt(testFrameworkVersionLength);
     if (testFrameworkVersionLength != 0) {
       buffer.put(testFrameworkVersionBytes);
+    }
+
+    buffer.putInt(coverageDataLength);
+    if (coverageDataLength != 0) {
+      buffer.put(coverageData);
     }
 
     buffer.flip();
@@ -192,6 +210,15 @@ public class ModuleExecutionResult implements Signal {
       testFrameworkVersion = null;
     }
 
+    byte[] coverageData;
+    int coverageDataLength = buffer.getInt();
+    if (coverageDataLength != 0) {
+      coverageData = new byte[coverageDataLength];
+      buffer.get(coverageData);
+    } else {
+      coverageData = null;
+    }
+
     return new ModuleExecutionResult(
         sessionId,
         moduleId,
@@ -199,6 +226,7 @@ public class ModuleExecutionResult implements Signal {
         itrEnabled,
         testsSkippedTotal,
         testFramework,
-        testFrameworkVersion);
+        testFrameworkVersion,
+        coverageData);
   }
 }

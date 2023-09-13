@@ -2,26 +2,26 @@ package datadog.trace.civisibility
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.civisibility.coverage.NoopCoverageProbeStore
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.civisibility.InstrumentationBridge
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings
 import datadog.trace.api.civisibility.config.SkippableTest
-import datadog.trace.civisibility.source.SourcePathResolver
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.civisibility.codeowners.Codeowners
 import datadog.trace.civisibility.config.JvmInfoFactory
 import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory
+import datadog.trace.civisibility.coverage.NoopCoverageProbeStore
 import datadog.trace.civisibility.decorator.TestDecorator
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl
 import datadog.trace.civisibility.events.TestEventsHandlerImpl
 import datadog.trace.civisibility.ipc.SignalServer
 import datadog.trace.civisibility.source.MethodLinesResolver
+import datadog.trace.civisibility.source.SourcePathResolver
 import datadog.trace.civisibility.source.index.RepoIndexBuilder
 import datadog.trace.core.DDSpan
 import datadog.trace.util.Strings
@@ -71,14 +71,39 @@ abstract class CiVisibilityTest extends AgentTestRunner {
     }
 
     def coverageProbeStoreFactory = new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory()
-    DDTestSessionImpl.SessionImplFactory sessionFactory = (String projectName, Path projectRoot, String component, Long startTime) -> {
+    DDTestFrameworkSession.Factory testFrameworkSessionFactory = (String projectName, Path projectRoot, String component, Long startTime) -> {
+      def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
+      TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags)
+      return new DDTestFrameworkSessionImpl(
+      projectName,
+      startTime,
+      Config.get(),
+      testDecorator,
+      sourcePathResolver,
+      codeowners,
+      methodLinesResolver,
+      coverageProbeStoreFactory,
+      moduleExecutionSettingsFactory,
+      )
+    }
+
+    InstrumentationBridge.registerTestEventsHandlerFactory {
+      component, path ->
+      DDTestFrameworkSession testSession = testFrameworkSessionFactory.startSession(dummyModule, path, component, null)
+      DDTestFrameworkModule testModule = testSession.testModuleStart(dummyModule, null)
+      new TestEventsHandlerImpl(testSession, testModule)
+    }
+
+    DDBuildSystemSession.Factory buildSystemSessionFactory = (String projectName, Path projectRoot, String startCommand, String component, Long startTime) -> {
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
       TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags)
       TestModuleRegistry testModuleRegistry = new TestModuleRegistry()
       SignalServer signalServer = new SignalServer()
       RepoIndexBuilder repoIndexBuilder = Stub(RepoIndexBuilder)
-      return new DDTestSessionParent(
+      return new DDBuildSystemSessionImpl(
       projectName,
+      rootPath.toString(),
+      startCommand,
       startTime,
       Config.get(),
       testModuleRegistry,
@@ -93,15 +118,8 @@ abstract class CiVisibilityTest extends AgentTestRunner {
       )
     }
 
-    InstrumentationBridge.registerTestEventsHandlerFactory {
-      component, path ->
-      DDTestSessionImpl testSession = sessionFactory.startSession(dummyModule, path, component, null)
-      DDTestModuleImpl testModule = testSession.testModuleStart(dummyModule, null)
-      new TestEventsHandlerImpl(testSession, testModule)
-    }
-
     InstrumentationBridge.registerBuildEventsHandlerFactory {
-      decorator -> new BuildEventsHandlerImpl<>(sessionFactory, new JvmInfoFactory())
+      decorator -> new BuildEventsHandlerImpl<>(buildSystemSessionFactory, new JvmInfoFactory())
     }
 
     InstrumentationBridge.registerCoverageProbeStoreRegistry(coverageProbeStoreFactory)

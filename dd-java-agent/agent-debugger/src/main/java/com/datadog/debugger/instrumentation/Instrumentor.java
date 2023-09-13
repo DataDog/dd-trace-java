@@ -69,7 +69,7 @@ public abstract class Instrumentor {
     localVarsBySlot = extractLocalVariables(argTypes);
   }
 
-  public abstract void instrument();
+  public abstract InstrumentationResult.Status instrument();
 
   private LocalVariableNode[] extractLocalVariables(Type[] argTypes) {
     if (methodNode.localVariables == null || methodNode.localVariables.isEmpty()) {

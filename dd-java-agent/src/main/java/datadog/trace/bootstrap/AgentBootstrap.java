@@ -55,10 +55,7 @@ public final class AgentBootstrap {
   }
 
   public static void agentmain(final String agentArgs, final Instrumentation inst) {
-    if (checkAndLogIfInitializedTwice(System.out)) {
-      return;
-    }
-    if (checkAndLogIfLessThanJava8()) {
+    if (alreadyInitialized() || lessThanJava8() || isJdkTool()) {
       return;
     }
 
@@ -95,12 +92,12 @@ public final class AgentBootstrap {
     return false;
   }
 
-  private static boolean checkAndLogIfLessThanJava8() {
-    return checkAndLogIfLessThanJava8(System.getProperty("java.version"), System.out);
+  private static boolean lessThanJava8() {
+    return lessThanJava8(System.getProperty("java.version"), System.out);
   }
 
   // Reachable for testing
-  static boolean checkAndLogIfLessThanJava8(String version, PrintStream output) {
+  static boolean lessThanJava8(String version, PrintStream output) {
     if (parseJavaMajorVersion(version) < 8) {
       String agentVersion = "This version"; // If we can't find the agent version
       try {
@@ -121,14 +118,18 @@ public final class AgentBootstrap {
     return false;
   }
 
-  static boolean checkAndLogIfInitializedTwice(final PrintStream output) {
+  private static boolean alreadyInitialized() {
     if (initialized) {
-      output.println(
+      System.out.println(
           "Warning: dd-java-agent is being initialized more than once. Please, check that you are defining -javaagent:dd-java-agent.jar only once.");
       return true;
     }
     initialized = true;
     return false;
+  }
+
+  private static boolean isJdkTool() {
+    return System.getProperty("jdk.module.main", "").startsWith("jdk.");
   }
 
   // Reachable for testing
@@ -158,7 +159,7 @@ public final class AgentBootstrap {
   }
 
   public static void main(final String[] args) {
-    if (checkAndLogIfLessThanJava8()) {
+    if (lessThanJava8()) {
       return;
     }
     AgentJar.main(args);

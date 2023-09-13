@@ -14,6 +14,7 @@ import java.util.Map;
 
 public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
   private static final byte[] ENV = "Env".getBytes(ISO_8859_1);
+  private static final byte[] VERSION = "Version".getBytes(ISO_8859_1);
   private static final byte[] PRIMARY_TAG = "PrimaryTag".getBytes(ISO_8859_1);
   private static final byte[] LANG = "Lang".getBytes(ISO_8859_1);
   private static final byte[] TRACER_VERSION = "TracerVersion".getBytes(ISO_8859_1);
@@ -55,7 +56,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
   @Override
   public void writePayload(Collection<StatsBucket> data) {
-    writer.startMap(6);
+    writer.startMap(7);
     /* 1 */
     writer.writeUTF8(ENV);
     writer.writeUTF8(wellKnownTags.getEnv());
@@ -77,8 +78,13 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     writer.writeUTF8(tracerVersionValue);
 
     /* 6 */
+    writer.writeUTF8(VERSION);
+    writer.writeUTF8(wellKnownTags.getVersion());
+
+    /* 7 */
     writer.writeUTF8(STATS);
     writer.startArray(data.size());
+
     for (StatsBucket bucket : data) {
       boolean hasBacklogs = !bucket.getBacklogs().isEmpty();
       writer.startMap(3 + (hasBacklogs ? 1 : 0));
