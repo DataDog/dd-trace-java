@@ -71,6 +71,9 @@ public final class ConfigProvider {
     for (ConfigProvider.Source source : sources) {
       String value = source.get(key, aliases);
       if (value != null) {
+        if (collectConfig) {
+          ConfigCollector.get().put(key, value);
+        }
         return value;
       }
     }
@@ -85,6 +88,9 @@ public final class ConfigProvider {
     for (ConfigProvider.Source source : sources) {
       String value = source.get(key, aliases);
       if (value != null && !value.trim().isEmpty()) {
+        if (collectConfig) {
+          ConfigCollector.get().put(key, value);
+        }
         return value;
       }
     }
@@ -103,6 +109,9 @@ public final class ConfigProvider {
 
       String value = source.get(key, aliases);
       if (value != null) {
+        if (collectConfig) {
+          ConfigCollector.get().put(key, value);
+        }
         return value;
       }
     }
@@ -218,6 +227,9 @@ public final class ConfigProvider {
     // We reverse iterate to allow overrides
     for (int i = sources.length - 1; 0 <= i; i--) {
       String value = sources[i].get(key);
+      if (collectConfig && value != null) {
+        ConfigCollector.get().put(key, value);
+      }
       merged.putAll(ConfigConverter.parseMap(value, key));
     }
     return merged;
@@ -231,6 +243,9 @@ public final class ConfigProvider {
     // We reverse iterate to allow overrides
     for (int i = sources.length - 1; 0 <= i; i--) {
       String value = sources[i].get(key);
+      if (collectConfig && value != null) {
+        ConfigCollector.get().put(key, value);
+      }
       map.putAll(ConfigConverter.parseOrderedMap(value, key));
     }
     return map;
@@ -246,6 +261,9 @@ public final class ConfigProvider {
     for (String key : keys) {
       for (int i = sources.length - 1; 0 <= i; i--) {
         String value = sources[i].get(key);
+        if (collectConfig && value != null) {
+          ConfigCollector.get().put(key, value);
+        }
         merged.putAll(
             ConfigConverter.parseMapWithOptionalMappings(value, key, defaultPrefix, lowercaseKeys));
       }
