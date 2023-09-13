@@ -91,7 +91,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_IAST_DEBUG_ENABLED = false;
   public static final int DEFAULT_IAST_MAX_CONCURRENT_REQUESTS = 4;
   public static final int DEFAULT_IAST_VULNERABILITIES_PER_REQUEST = 2;
-  public static final int DEFAULT_IAST_REQUEST_SAMPLING = 30;
+  public static final int DEFAULT_IAST_REQUEST_SAMPLING = 33;
   static final Set<String> DEFAULT_IAST_WEAK_HASH_ALGORITHMS =
       new HashSet<>(Arrays.asList("SHA1", "SHA-1", "MD2", "MD5", "RIPEMD128", "MD4"));
   static final String DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS =
