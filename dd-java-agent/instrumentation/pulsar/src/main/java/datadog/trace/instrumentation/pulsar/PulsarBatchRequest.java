@@ -1,15 +1,14 @@
-package datadog.trace.instrumentation.pulsar.telemetry;
-
-import datadog.trace.instrumentation.pulsar.UrlParser;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.Messages;
+package datadog.trace.instrumentation.pulsar;
 
 import static datadog.trace.instrumentation.pulsar.UrlParser.parseUrl;
 
-public class PulsarBatchRequest extends BasePulsarRequest{
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Messages;
+
+public class PulsarBatchRequest extends BasePulsarRequest {
   private final Messages<?> messages;
 
-  private PulsarBatchRequest(Messages<?> messages, String destination, UrlParser.UrlData urlData) {
+  private PulsarBatchRequest(Messages<?> messages, String destination, UrlData urlData) {
     super(destination, urlData);
     this.messages = messages;
   }

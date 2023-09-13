@@ -1,6 +1,5 @@
-package datadog.trace.instrumentation.pulsar.telemetry;
+package datadog.trace.instrumentation.pulsar;
 
-import datadog.trace.instrumentation.pulsar.UrlParser.UrlData;
 
 public class BasePulsarRequest {
   private final String destination;

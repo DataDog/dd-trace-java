@@ -1,12 +1,12 @@
 package datadog.trace.instrumentation.pulsar;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.instrumentation.pulsar.ProducerData.create;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.hasSuperType;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
-import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -14,7 +14,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.instrumentation.pulsar.telemetry.PulsarRequest;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -61,6 +60,12 @@ public class ProducerImplInstrumentation extends Instrumenter.Tracing
         packageName + ".SendCallbackWrapper",
         packageName + ".ProducerData",
         packageName + ".UrlParser",
+        packageName + ".UrlData",
+        packageName + ".BasePulsarRequest",
+        packageName + ".MessageTextMapGetter",
+        packageName + ".MessageTextMapSetter",
+        packageName + ".PulsarBatchRequest",
+        packageName + ".PulsarRequest",
     };
   }
 
@@ -83,7 +88,7 @@ public class ProducerImplInstrumentation extends Instrumenter.Tracing
   public static class ProducerImplConstructorAdvice{
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void intercept(
-        @Advice.This ProducerImpl<?> producer, @Advice.Argument(value = 0) PulsarClient client) {
+        @Advice.This ProducerImpl<?> producer, @Advice.Argument( 0) PulsarClient client) {
       System.out.println("--- Producer ImplConstructorAdvice ");
       PulsarClientImpl pulsarClient = (PulsarClientImpl) client;
       String brokerUrl = pulsarClient.getLookup().getServiceUrl();
@@ -100,7 +105,7 @@ public class ProducerImplInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void before(
         @Advice.This ProducerImpl<?> producer,
-        @Advice.Argument(value = 0) Message<?> message,
+        @Advice.Argument( 0) Message<?> message,
         @Advice.Argument(value = 1, readOnly = false) SendCallback callback) {
 /*      Context parent = Context.current();
       PulsarRequest request = PulsarRequest.create(message, VirtualFieldStore.extract(producer));

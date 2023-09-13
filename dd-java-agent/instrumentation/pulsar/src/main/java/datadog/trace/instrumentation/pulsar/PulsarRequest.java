@@ -1,11 +1,8 @@
-package datadog.trace.instrumentation.pulsar.telemetry;
+package datadog.trace.instrumentation.pulsar;
 
-import datadog.trace.instrumentation.pulsar.ProducerData;
-import org.apache.pulsar.client.api.Message;
-import datadog.trace.instrumentation.pulsar.UrlParser.UrlData;
-import org.apache.pulsar.client.api.Messages;
 import static datadog.trace.instrumentation.pulsar.UrlParser.parseUrl;
-//import static io.opentelemetry.javaagent.instrumentation.pulsar.v2_8.UrlParser.parseUrl;
+
+import org.apache.pulsar.client.api.Message;
 
 public final class PulsarRequest extends BasePulsarRequest {
   private final Message<?> message;
@@ -14,6 +11,7 @@ public final class PulsarRequest extends BasePulsarRequest {
     super(destination, urlData);
     this.message = message;
   }
+  
 
   public static PulsarRequest create(Message<?> message) {
     return new PulsarRequest(message, message.getTopicName(), null);

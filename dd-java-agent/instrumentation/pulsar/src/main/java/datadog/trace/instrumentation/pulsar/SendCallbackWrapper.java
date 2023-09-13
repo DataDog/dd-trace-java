@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.pulsar;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.instrumentation.pulsar.telemetry.PulsarRequest;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageImpl;

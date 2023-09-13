@@ -3,13 +3,12 @@ package datadog.trace.instrumentation.pulsar;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.pulsar.telemetry.MessageTextMapSetter.SETTER;
+import static datadog.trace.instrumentation.pulsar.MessageTextMapSetter.SETTER;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
-import datadog.trace.instrumentation.pulsar.telemetry.PulsarRequest;
 
 public class ProducerDecorator extends BaseDecorator {
   public static final CharSequence ROCKETMQ_NAME = UTF8BytesString.create("pulsar");

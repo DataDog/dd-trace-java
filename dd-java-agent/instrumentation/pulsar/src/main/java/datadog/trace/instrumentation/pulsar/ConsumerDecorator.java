@@ -1,15 +1,13 @@
 package datadog.trace.instrumentation.pulsar;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
-import static datadog.trace.instrumentation.pulsar.telemetry.MessageTextMapGetter.GETTER;
-import static datadog.trace.instrumentation.pulsar.telemetry.PulsarRequest.*;
+import static datadog.trace.instrumentation.pulsar.MessageTextMapGetter.GETTER;
+import static datadog.trace.instrumentation.pulsar.PulsarRequest.*;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
-import datadog.trace.core.monitor.Timer;
-import datadog.trace.instrumentation.pulsar.telemetry.PulsarRequest;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -90,7 +88,7 @@ public class ConsumerDecorator extends BaseDecorator {
 
     return result;
   }
-  public CompletableFuture<Messages<?>> wrapBatch(CompletableFuture<Messages<?>> future, Timer timer, Consumer<?> consumer) {
+  public CompletableFuture<Messages<?>> wrapBatch(CompletableFuture<Messages<?>> future, Consumer<?> consumer) {
     CompletableFuture<Messages<?>> result = new CompletableFuture<>();
     future.whenComplete(
         (messages, throwable) -> {

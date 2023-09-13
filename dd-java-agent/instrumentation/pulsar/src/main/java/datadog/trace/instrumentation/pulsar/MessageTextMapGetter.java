@@ -1,7 +1,6 @@
-package datadog.trace.instrumentation.pulsar.telemetry;
+package datadog.trace.instrumentation.pulsar;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-
 import java.util.Map;
 
 public class MessageTextMapGetter implements AgentPropagation.ContextVisitor<PulsarRequest>{
