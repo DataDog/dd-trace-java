@@ -10,9 +10,11 @@ import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.coverage.CoverageUtils;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.ipc.ModuleExecutionResult;
+import datadog.trace.civisibility.ipc.TestFramework;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
+import datadog.trace.civisibility.utils.SpanUtils;
 import java.io.File;
 import java.net.InetSocketAddress;
 import java.nio.file.Paths;
@@ -20,6 +22,7 @@ import java.util.Collection;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 import org.jacoco.core.analysis.IBundleCoverage;
 import org.jacoco.core.analysis.ICounter;
 import org.jacoco.core.data.ExecutionDataStore;
@@ -30,9 +33,14 @@ public class DDBuildSystemModuleImpl extends DDTestModuleImpl implements DDBuild
   private final InetSocketAddress signalServerAddress;
   private final Collection<File> outputClassesDirs;
   private final RepoIndexProvider repoIndexProvider;
+  private final TestModuleRegistry testModuleRegistry;
   private final LongAdder testsSkipped = new LongAdder();
   private volatile boolean codeCoverageEnabled;
   private volatile boolean itrEnabled;
+  private final Object coverageDataLock = new Object();
+
+  @GuardedBy("coverageDataLock")
+  private final ExecutionDataStore coverageData = new ExecutionDataStore();
 
   public DDBuildSystemModuleImpl(
       AgentSpan.Context sessionSpanContext,
@@ -50,6 +58,7 @@ public class DDBuildSystemModuleImpl extends DDTestModuleImpl implements DDBuild
       MethodLinesResolver methodLinesResolver,
       CoverageProbeStoreFactory coverageProbeStoreFactory,
       RepoIndexProvider repoIndexProvider,
+      TestModuleRegistry testModuleRegistry,
       Consumer<AgentSpan> onSpanFinish) {
     super(
         sessionSpanContext,
@@ -67,6 +76,7 @@ public class DDBuildSystemModuleImpl extends DDTestModuleImpl implements DDBuild
     this.signalServerAddress = signalServerAddress;
     this.outputClassesDirs = outputClassesDirs;
     this.repoIndexProvider = repoIndexProvider;
+    this.testModuleRegistry = testModuleRegistry;
 
     setTag(Tags.TEST_COMMAND, startCommand);
   }
@@ -86,24 +96,74 @@ public class DDBuildSystemModuleImpl extends DDTestModuleImpl implements DDBuild
         moduleId, sessionId, signalServerHost, signalServerPort);
   }
 
+  /**
+   * Handles module execution results received from a forked JVM.
+   *
+   * <p>Depending on the build configuration it is possible to have multiple forks created for the
+   * same module: in Gradle this is achieved with {@code maxParallelForks} or {@code forkEvery}
+   * properties of the Test task, in Maven - with {@code forkCount>} property of the Surefire
+   * plugin. The forks can execute either concurrently or sequentially.
+   *
+   * <p>Taking this into account, the method should merge execution results rather than overwrite
+   * them.
+   *
+   * <p>This method is called by the {@link
+   * datadog.trace.util.AgentThreadFactory.AgentThread#CI_SIGNAL_SERVER} thread.
+   *
+   * @param result Module execution results received from a forked JVM.
+   * @param coverageData Coverage data received from a forked JVM.
+   */
   @Override
   public void onModuleExecutionResultReceived(
       ModuleExecutionResult result, ExecutionDataStore coverageData) {
-    codeCoverageEnabled = result.isCoverageEnabled();
-    itrEnabled = result.isItrEnabled();
+    if (result.isCoverageEnabled()) {
+      codeCoverageEnabled = true;
+    }
+    if (result.isItrEnabled()) {
+      itrEnabled = true;
+    }
+
     testsSkipped.add(result.getTestsSkippedTotal());
 
-    String testFramework = result.getTestFramework();
-    if (testFramework != null) {
-      setTag(Tags.TEST_FRAMEWORK, testFramework);
+    if (coverageData != null) {
+      synchronized (coverageDataLock) {
+        // add module coverage data to session coverage data
+        coverageData.accept(this.coverageData);
+      }
     }
 
-    String testFrameworkVersion = result.getTestFrameworkVersion();
-    if (testFrameworkVersion != null) {
-      setTag(Tags.TEST_FRAMEWORK_VERSION, testFrameworkVersion);
+    for (TestFramework testFramework : result.getTestFrameworks()) {
+      SpanUtils.mergeTag(span, Tags.TEST_FRAMEWORK, testFramework.getName());
+      SpanUtils.mergeTag(span, Tags.TEST_FRAMEWORK_VERSION, testFramework.getVersion());
+    }
+  }
+
+  @Override
+  public void end(@Nullable Long endTime) {
+    if (codeCoverageEnabled) {
+      setTag(Tags.TEST_CODE_COVERAGE_ENABLED, true);
     }
 
-    processCoverageData(coverageData);
+    if (itrEnabled) {
+      setTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, true);
+      setTag(Tags.TEST_ITR_TESTS_SKIPPING_TYPE, "test");
+
+      long testsSkippedTotal = testsSkipped.sum();
+      setTag(Tags.TEST_ITR_TESTS_SKIPPING_COUNT, testsSkippedTotal);
+      if (testsSkippedTotal > 0) {
+        setTag(DDTags.CI_ITR_TESTS_SKIPPED, true);
+      }
+    }
+
+    synchronized (coverageDataLock) {
+      if (!coverageData.getContents().isEmpty()) {
+        processCoverageData(coverageData);
+      }
+    }
+
+    testModuleRegistry.removeModule(this);
+
+    super.end(endTime);
   }
 
   private void processCoverageData(ExecutionDataStore coverageData) {
@@ -140,25 +200,5 @@ public class DDBuildSystemModuleImpl extends DDTestModuleImpl implements DDBuild
     } else {
       return null;
     }
-  }
-
-  @Override
-  public void end(@Nullable Long endTime) {
-    if (codeCoverageEnabled) {
-      setTag(Tags.TEST_CODE_COVERAGE_ENABLED, true);
-    }
-
-    if (itrEnabled) {
-      setTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, true);
-      setTag(Tags.TEST_ITR_TESTS_SKIPPING_TYPE, "test");
-
-      long testsSkippedTotal = testsSkipped.sum();
-      setTag(Tags.TEST_ITR_TESTS_SKIPPING_COUNT, testsSkippedTotal);
-      if (testsSkippedTotal > 0) {
-        setTag(DDTags.CI_ITR_TESTS_SKIPPED, true);
-      }
-    }
-
-    super.end(endTime);
   }
 }
