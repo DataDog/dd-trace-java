@@ -1,5 +1,6 @@
 package datadog.trace.util;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -19,6 +20,7 @@ public class MethodHandles {
     this.classLoader = classLoader;
   }
 
+  @SuppressFBWarnings("REFLF_REFLECTION_MAY_INCREASE_ACCESSIBILITY_OF_FIELD")
   public MethodHandle privateFieldGetter(String className, String fieldName) {
     try {
       Class<?> clazz = classLoader.loadClass(className);
