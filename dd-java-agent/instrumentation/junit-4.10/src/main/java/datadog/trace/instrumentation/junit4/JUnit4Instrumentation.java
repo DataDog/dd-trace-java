@@ -12,7 +12,6 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.junit.rules.RuleChain;
-import org.junit.runner.Runner;
 import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
 
@@ -57,8 +56,7 @@ public class JUnit4Instrumentation extends Instrumenter.CiVisibility
 
   public static class JUnit4Advice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void addTracingListener(
-        @Advice.This final Runner runner, @Advice.Argument(0) final RunNotifier runNotifier) {
+    public static void addTracingListener(@Advice.Argument(0) final RunNotifier runNotifier) {
       // No public accessor to get already installed listeners.
       // The installed RunListeners list are obtained using reflection.
       final List<RunListener> runListeners = JUnit4Utils.runListenersFromRunNotifier(runNotifier);

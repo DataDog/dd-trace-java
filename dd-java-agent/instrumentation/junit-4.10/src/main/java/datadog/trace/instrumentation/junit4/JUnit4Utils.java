@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.junit4;
 
 import datadog.trace.api.civisibility.config.SkippableTest;
 import datadog.trace.util.Strings;
-import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -39,7 +38,6 @@ public abstract class JUnit4Utils {
   private static final MethodHandle RUN_NOTIFIER_LISTENERS;
   private static final MethodHandle INNER_SYNCHRONIZED_LISTENER;
   private static final MethodHandle DESCRIPTION_UNIQUE_ID;
-  private static final MethodHandle CREATE_DESCRIPTION_WITH_UNIQUE_ID;
 
   static {
     MethodHandles.Lookup lookup = MethodHandles.lookup();
@@ -47,7 +45,6 @@ public abstract class JUnit4Utils {
     RUN_NOTIFIER_LISTENERS = accessListenersFieldInRunNotifier(lookup);
     INNER_SYNCHRONIZED_LISTENER = accessListenerFieldInSynchronizedListener(lookup);
     DESCRIPTION_UNIQUE_ID = accessUniqueIdInDescription(lookup);
-    CREATE_DESCRIPTION_WITH_UNIQUE_ID = accessCreateDescriptionWithUniqueId(lookup);
   }
 
   private static MethodHandle accessDescribeChildMethodInParentRunner(MethodHandles.Lookup lookup) {
@@ -108,17 +105,6 @@ public abstract class JUnit4Utils {
       final Field uniqueIdField = Description.class.getDeclaredField("fUniqueId");
       uniqueIdField.setAccessible(true);
       return lookup.unreflectGetter(uniqueIdField);
-    } catch (Throwable throwable) {
-      return null;
-    }
-  }
-
-  private static MethodHandle accessCreateDescriptionWithUniqueId(MethodHandles.Lookup lookup) {
-    try {
-      Method createDescription =
-          Description.class.getDeclaredMethod(
-              "createSuiteDescription", String.class, Serializable.class, Annotation[].class);
-      return lookup.unreflect(createDescription);
     } catch (Throwable throwable) {
       return null;
     }
@@ -363,30 +349,10 @@ public abstract class JUnit4Utils {
     updatedAnnotations[idx] = new SkippedByItr();
 
     String displayName = description.getDisplayName();
-
     Class<?> testClass = description.getTestClass();
-    if (testClass != null) {
-      Matcher matcher = METHOD_AND_CLASS_NAME_PATTERN.matcher(displayName);
-      String name = matcher.matches() ? matcher.group(1) : getTestName(description, null);
-      return Description.createTestDescription(testClass, name, updatedAnnotations);
-
-    } else {
-      // Cucumber
-      if (CREATE_DESCRIPTION_WITH_UNIQUE_ID != null) {
-        // Try to preserve unique ID
-        // since we use it to determine framework.
-        // The factory method that accepts unique ID
-        // is only available in JUnit 4.12+
-        try {
-          Object uniqueId = getUniqueId(description);
-          return (Description)
-              CREATE_DESCRIPTION_WITH_UNIQUE_ID.invoke(displayName, uniqueId, updatedAnnotations);
-        } catch (Throwable throwable) {
-          // ignored
-        }
-      }
-      return Description.createSuiteDescription(displayName, updatedAnnotations);
-    }
+    Matcher matcher = METHOD_AND_CLASS_NAME_PATTERN.matcher(displayName);
+    String name = matcher.matches() ? matcher.group(1) : getTestName(description, null);
+    return Description.createTestDescription(testClass, name, updatedAnnotations);
   }
 
   public static SkippableTest toSkippableTest(Description description) {
