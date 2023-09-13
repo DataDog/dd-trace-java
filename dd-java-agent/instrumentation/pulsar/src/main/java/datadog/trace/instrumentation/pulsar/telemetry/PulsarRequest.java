@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.pulsar.telemetry;
 import datadog.trace.instrumentation.pulsar.ProducerData;
 import org.apache.pulsar.client.api.Message;
 import datadog.trace.instrumentation.pulsar.UrlParser.UrlData;
-
+import org.apache.pulsar.client.api.Messages;
 import static datadog.trace.instrumentation.pulsar.UrlParser.parseUrl;
 //import static io.opentelemetry.javaagent.instrumentation.pulsar.v2_8.UrlParser.parseUrl;
 

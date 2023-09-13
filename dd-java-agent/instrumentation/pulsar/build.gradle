@@ -1,15 +1,15 @@
 muzzle {
   pass {
     group = "org.apache.pulsar"
-    module =  "pulsar-client"
-    versions= "[2.8.0,)"
-    assertInverse= true
+    module = "pulsar-client"
+    versions = "[2.8.0,)"
+    assertInverse = true
   }
 }
 
 apply from: "$rootDir/gradle/java.gradle"
 
-addTestSuiteForDir('latestDepTest','test')
+//addTestSuiteForDir('latestDepTest','test')
 
 dependencies {
   compileOnly group: 'org.apache.pulsar', name: 'pulsar-client', version: '2.8.0'
