@@ -6,9 +6,9 @@ import datadog.trace.api.DisableTestTrace;
 import datadog.trace.api.civisibility.config.SkippableTest;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.civisibility.DDTestFrameworkModule;
+import datadog.trace.civisibility.DDTestFrameworkSession;
 import datadog.trace.civisibility.DDTestImpl;
-import datadog.trace.civisibility.DDTestModuleImpl;
-import datadog.trace.civisibility.DDTestSessionImpl;
 import datadog.trace.civisibility.DDTestSuiteImpl;
 import java.lang.reflect.Method;
 import java.util.Collection;
@@ -24,8 +24,8 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
   private static final Logger log = LoggerFactory.getLogger(TestEventsHandlerImpl.class);
 
-  private final DDTestSessionImpl testSession;
-  private final DDTestModuleImpl testModule;
+  private final DDTestFrameworkSession testSession;
+  private final DDTestFrameworkModule testModule;
 
   private final ConcurrentMap<TestSuiteDescriptor, Integer> testSuiteNestedCallCounters =
       new ConcurrentHashMap<>();
@@ -36,7 +36,8 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   private final ConcurrentMap<TestDescriptor, DDTestImpl> inProgressTests =
       new ConcurrentHashMap<>();
 
-  public TestEventsHandlerImpl(DDTestSessionImpl testSession, DDTestModuleImpl testModule) {
+  public TestEventsHandlerImpl(
+      DDTestFrameworkSession testSession, DDTestFrameworkModule testModule) {
     this.testSession = testSession;
     this.testModule = testModule;
   }

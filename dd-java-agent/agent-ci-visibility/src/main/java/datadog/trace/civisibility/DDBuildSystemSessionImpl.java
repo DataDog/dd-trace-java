@@ -1,20 +1,13 @@
 package datadog.trace.civisibility;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.config.SkippableTest;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory;
-import datadog.trace.civisibility.context.SpanTestContext;
-import datadog.trace.civisibility.context.TestContext;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.coverage.CoverageUtils;
 import datadog.trace.civisibility.decorator.TestDecorator;
@@ -34,6 +27,7 @@ import datadog.trace.civisibility.source.index.RepoIndexBuilder;
 import java.io.File;
 import java.nio.file.Paths;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.concurrent.atomic.LongAdder;
 import javax.annotation.Nullable;
@@ -42,18 +36,10 @@ import org.jacoco.core.analysis.IBundleCoverage;
 import org.jacoco.core.analysis.ICounter;
 import org.jacoco.core.data.ExecutionDataStore;
 
-public class DDTestSessionParent extends DDTestSessionImpl {
-
-  private final AgentSpan span;
-  private final TestContext context;
+public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBuildSystemSession {
   private final String repoRoot;
-  private final Config config;
+  private final String startCommand;
   private final TestModuleRegistry testModuleRegistry;
-  private final TestDecorator testDecorator;
-  private final SourcePathResolver sourcePathResolver;
-  private final Codeowners codeowners;
-  private final MethodLinesResolver methodLinesResolver;
-  private final CoverageProbeStoreFactory coverageProbeStoreFactory;
   private final ModuleExecutionSettingsFactory moduleExecutionSettingsFactory;
   private final SignalServer signalServer;
   private final RepoIndexBuilder repoIndexBuilder;
@@ -68,9 +54,10 @@ public class DDTestSessionParent extends DDTestSessionImpl {
   @GuardedBy("coverageDataLock")
   private final Collection<File> outputClassesDirs = new HashSet<>();
 
-  public DDTestSessionParent(
+  public DDBuildSystemSessionImpl(
       String projectName,
       String repoRoot,
+      String startCommand,
       @Nullable Long startTime,
       Config config,
       TestModuleRegistry testModuleRegistry,
@@ -82,33 +69,21 @@ public class DDTestSessionParent extends DDTestSessionImpl {
       CoverageProbeStoreFactory coverageProbeStoreFactory,
       SignalServer signalServer,
       RepoIndexBuilder repoIndexBuilder) {
+    super(
+        projectName,
+        startTime,
+        config,
+        testDecorator,
+        sourcePathResolver,
+        codeowners,
+        methodLinesResolver,
+        coverageProbeStoreFactory);
     this.repoRoot = repoRoot;
-    this.config = config;
+    this.startCommand = startCommand;
     this.testModuleRegistry = testModuleRegistry;
-    this.testDecorator = testDecorator;
-    this.sourcePathResolver = sourcePathResolver;
-    this.codeowners = codeowners;
-    this.methodLinesResolver = methodLinesResolver;
     this.moduleExecutionSettingsFactory = moduleExecutionSettingsFactory;
-    this.coverageProbeStoreFactory = coverageProbeStoreFactory;
     this.signalServer = signalServer;
     this.repoIndexBuilder = repoIndexBuilder;
-
-    if (startTime != null) {
-      span = startSpan(testDecorator.component() + ".test_session", startTime);
-    } else {
-      span = startSpan(testDecorator.component() + ".test_session");
-    }
-
-    context = new SpanTestContext(span, null);
-
-    span.setSpanType(InternalSpanTypes.TEST_SESSION_END);
-    span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST_SESSION);
-    span.setTag(Tags.TEST_SESSION_ID, context.getId());
-
-    span.setResourceName(projectName);
-
-    testDecorator.afterStart(span);
 
     signalServer.registerSignalHandler(
         SignalType.MODULE_EXECUTION_RESULT, this::onModuleExecutionResultReceived);
@@ -117,6 +92,8 @@ public class DDTestSessionParent extends DDTestSessionImpl {
     signalServer.registerSignalHandler(
         SignalType.SKIPPABLE_TESTS_REQUEST, this::onSkippableTestsRequestReceived);
     signalServer.start();
+
+    setTag(Tags.TEST_COMMAND, startCommand);
   }
 
   private SignalResponse onModuleExecutionResultReceived(ModuleExecutionResult result) {
@@ -172,32 +149,8 @@ public class DDTestSessionParent extends DDTestSessionImpl {
   }
 
   @Override
-  public void setTag(String key, Object value) {
-    span.setTag(key, value);
-  }
-
-  @Override
-  public void setErrorInfo(Throwable error) {
-    span.setError(true);
-    span.addThrowable(error);
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_FAIL);
-  }
-
-  @Override
-  public void setSkipReason(String skipReason) {
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
-    if (skipReason != null) {
-      span.setTag(Tags.TEST_SKIP_REASON, skipReason);
-    }
-  }
-
-  @Override
   public void end(@Nullable Long endTime) {
     signalServer.stop();
-
-    String status = context.getStatus();
-    span.setTag(Tags.TEST_STATUS, status != null ? status : CIConstants.TEST_SKIP);
-    testDecorator.beforeFinish(span);
 
     if (codeCoverageEnabled) {
       setTag(Tags.TEST_CODE_COVERAGE_ENABLED, true);
@@ -220,11 +173,7 @@ public class DDTestSessionParent extends DDTestSessionImpl {
       }
     }
 
-    if (endTime != null) {
-      span.finish(endTime);
-    } else {
-      span.finish();
-    }
+    super.end(endTime);
   }
 
   private void processCoverageData(ExecutionDataStore coverageData) {
@@ -235,7 +184,7 @@ public class DDTestSessionParent extends DDTestSessionImpl {
     }
 
     long coveragePercentage = getCoveragePercentage(coverageBundle);
-    span.setTag(Tags.TEST_CODE_COVERAGE_LINES_PERCENTAGE, coveragePercentage);
+    setTag(Tags.TEST_CODE_COVERAGE_LINES_PERCENTAGE, coveragePercentage);
 
     File coverageReportFolder = getCoverageReportFolder();
     if (coverageReportFolder != null) {
@@ -261,30 +210,33 @@ public class DDTestSessionParent extends DDTestSessionImpl {
   }
 
   @Override
-  public DDTestModuleImpl testModuleStart(
+  public DDBuildSystemModuleImpl testModuleStart(String moduleName, @Nullable Long startTime) {
+    return testModuleStart(moduleName, startTime, Collections.emptySet());
+  }
+
+  @Override
+  public DDBuildSystemModuleImpl testModuleStart(
       String moduleName, @Nullable Long startTime, Collection<File> outputClassesDirs) {
     synchronized (coverageDataLock) {
       this.outputClassesDirs.addAll(outputClassesDirs);
     }
 
-    String startCommand = (String) span.getTag(Tags.TEST_COMMAND);
-    DDTestModuleParent module =
-        new DDTestModuleParent(
+    DDBuildSystemModuleImpl module =
+        new DDBuildSystemModuleImpl(
             context,
             moduleName,
             repoRoot,
             startCommand,
             startTime,
+            signalServer.getAddress(),
             outputClassesDirs,
             config,
             testDecorator,
             sourcePathResolver,
             codeowners,
             methodLinesResolver,
-            moduleExecutionSettingsFactory,
-            repoIndexBuilder,
             coverageProbeStoreFactory,
-            signalServer.getAddress());
+            repoIndexBuilder);
     testModuleRegistry.addModule(module);
     return module;
   }
