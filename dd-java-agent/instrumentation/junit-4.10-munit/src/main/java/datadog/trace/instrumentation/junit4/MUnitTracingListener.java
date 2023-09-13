@@ -1,5 +1,9 @@
 package datadog.trace.instrumentation.junit4;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.util.Strings;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
@@ -11,8 +15,8 @@ import org.junit.runner.notification.Failure;
 
 public class MUnitTracingListener extends TracingListener {
 
-  private static final String FRAMEWORK_NAME = "munit";
-  private static final String FRAMEWORK_VERSION = getVersion();
+  public static final String FRAMEWORK_NAME = "munit";
+  public static final String FRAMEWORK_VERSION = getVersion();
 
   public static String getVersion() {
     Package munitPackage = Suite.class.getPackage();
@@ -111,8 +115,6 @@ public class MUnitTracingListener extends TracingListener {
     if (Strings.isNotBlank(testName)) {
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(
           testSuiteName, testClass, testName, null, null, reason);
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
-          testSuiteName, testClass, testName, null, null);
 
     } else if (testClass != null) {
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(testSuiteName, testClass, reason);
@@ -129,6 +131,22 @@ public class MUnitTracingListener extends TracingListener {
     String testName = description.getMethodName();
 
     if (Strings.isNotBlank(testName)) {
+      if (!isTestInProgress()) {
+        // earlier versions of MUnit (e.g. 0.7.28) trigger "testStarted" event for ignored tests,
+        // while newer versions don't
+        List<String> categories = getCategories(description);
+        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
+            testSuiteName,
+            testName,
+            null,
+            FRAMEWORK_NAME,
+            FRAMEWORK_VERSION,
+            null,
+            categories,
+            testClass,
+            null,
+            null);
+      }
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(
           testSuiteName, testClass, testName, null, null, null);
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
@@ -140,6 +158,16 @@ public class MUnitTracingListener extends TracingListener {
         testCaseIgnored(child);
       }
     }
+  }
+
+  private boolean isTestInProgress() {
+    final AgentScope scope = AgentTracer.activeScope();
+    if (scope == null) {
+      return false;
+    }
+    AgentSpan scopeSpan = scope.span();
+    String spanType = scopeSpan.getSpanType();
+    return spanType != null && spanType.contentEquals(InternalSpanTypes.TEST);
   }
 
   private void testCaseIgnored(final Description description) {

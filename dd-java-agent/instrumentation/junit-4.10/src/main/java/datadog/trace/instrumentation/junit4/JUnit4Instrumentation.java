@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.junit4;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -30,7 +31,10 @@ public class JUnit4Instrumentation extends Instrumenter.CiVisibility
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named(hierarchyMarkerType()));
+    return extendsClass(named(hierarchyMarkerType()))
+        // do not instrument our internal runner
+        // that is used to run instrumentation integration tests
+        .and(not(extendsClass(named("datadog.trace.agent.test.SpockRunner"))));
   }
 
   @Override
@@ -55,12 +59,6 @@ public class JUnit4Instrumentation extends Instrumenter.CiVisibility
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void addTracingListener(
         @Advice.This final Runner runner, @Advice.Argument(0) final RunNotifier runNotifier) {
-      if (runner.getClass().getName().equals("datadog.trace.agent.test.SpockRunner")) {
-        // do not instrument our internal runner
-        // that is used to run instrumentation integration tests
-        return;
-      }
-
       // No public accessor to get already installed listeners.
       // The installed RunListeners list are obtained using reflection.
       final List<RunListener> runListeners = JUnit4Utils.runListenersFromRunNotifier(runNotifier);
@@ -69,9 +67,9 @@ public class JUnit4Instrumentation extends Instrumenter.CiVisibility
       }
 
       for (final RunListener listener : runListeners) {
-        RunListener unwrappedListener = JUnit4Utils.unwrapListener(listener);
-        // prevents installing TracingListener multiple times
-        if (JUnit4Utils.isTracingListener(unwrappedListener)) {
+        RunListener tracingListener = JUnit4Utils.toTracingListener(listener);
+        if (tracingListener != null) {
+          // prevents installing TracingListener multiple times
           return;
         }
       }

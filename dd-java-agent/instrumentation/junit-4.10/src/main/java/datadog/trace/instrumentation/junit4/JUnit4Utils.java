@@ -40,7 +40,6 @@ public abstract class JUnit4Utils {
   private static final MethodHandle INNER_SYNCHRONIZED_LISTENER;
   private static final MethodHandle DESCRIPTION_UNIQUE_ID;
   private static final MethodHandle CREATE_DESCRIPTION_WITH_UNIQUE_ID;
-  public static final boolean NATIVE_SUITE_EVENTS_SUPPORTED;
 
   static {
     MethodHandles.Lookup lookup = MethodHandles.lookup();
@@ -49,17 +48,6 @@ public abstract class JUnit4Utils {
     INNER_SYNCHRONIZED_LISTENER = accessListenerFieldInSynchronizedListener(lookup);
     DESCRIPTION_UNIQUE_ID = accessUniqueIdInDescription(lookup);
     CREATE_DESCRIPTION_WITH_UNIQUE_ID = accessCreateDescriptionWithUniqueId(lookup);
-    NATIVE_SUITE_EVENTS_SUPPORTED = nativeSuiteEventsSupported();
-  }
-
-  /** JUnit 4 support test suite started/finished events in versions 4.13 and later */
-  private static boolean nativeSuiteEventsSupported() {
-    try {
-      RunListener.class.getDeclaredMethod("testSuiteStarted", Description.class);
-      return true;
-    } catch (NoSuchMethodException e) {
-      return false;
-    }
   }
 
   private static MethodHandle accessDescribeChildMethodInParentRunner(MethodHandles.Lookup lookup) {
@@ -166,29 +154,6 @@ public abstract class JUnit4Utils {
       }
     }
     return null;
-  }
-
-  public static boolean isTracingListener(final RunListener listener) {
-    return listener instanceof TracingListener;
-  }
-
-  public static boolean isJUnitVintageListener(final RunListener listener) {
-    Class<? extends RunListener> listenerClass = listener.getClass();
-    String listenerClassName = listenerClass.getName();
-    return listenerClassName.startsWith("org.junit.vintage");
-  }
-
-  public static RunListener unwrapListener(final RunListener listener) {
-    if (SYNCHRONIZED_LISTENER.equals(listener.getClass().getName())) {
-      try {
-        if (INNER_SYNCHRONIZED_LISTENER != null) {
-          return (RunListener) INNER_SYNCHRONIZED_LISTENER.invoke(listener);
-        }
-      } catch (final Throwable e) {
-        log.debug("Could not get inner listener from SynchronizedRunListener", e);
-      }
-    }
-    return listener;
   }
 
   @Nullable
