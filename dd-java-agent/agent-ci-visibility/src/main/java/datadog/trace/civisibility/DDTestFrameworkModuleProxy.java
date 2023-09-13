@@ -13,11 +13,13 @@ import datadog.trace.civisibility.ipc.ModuleExecutionResult;
 import datadog.trace.civisibility.ipc.SignalClient;
 import datadog.trace.civisibility.ipc.SkippableTestsRequest;
 import datadog.trace.civisibility.ipc.SkippableTestsResponse;
+import datadog.trace.civisibility.ipc.TestFramework;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -46,7 +48,7 @@ public class DDTestFrameworkModuleProxy implements DDTestFrameworkModule {
   private final LongAdder testsSkipped = new LongAdder();
   private final Object skippableTestsInitLock = new Object();
   private volatile Collection<SkippableTest> skippableTests;
-  private volatile TestFrameworkData testFrameworkData = TestFrameworkData.NO_DATA;
+  private final Collection<TestFramework> testFrameworks = ConcurrentHashMap.newKeySet();
 
   public DDTestFrameworkModuleProxy(
       long parentProcessSessionId,
@@ -128,8 +130,7 @@ public class DDTestFrameworkModuleProxy implements DDTestFrameworkModule {
             coverageEnabled,
             itrEnabled,
             testsSkippedTotal,
-            testFrameworkData.name,
-            testFrameworkData.version,
+            testFrameworks,
             coverageData);
 
     try (SignalClient signalClient = new SignalClient(signalServerAddress)) {
@@ -164,21 +165,9 @@ public class DDTestFrameworkModuleProxy implements DDTestFrameworkModule {
   }
 
   private void propagateTestFrameworkData(AgentSpan childSpan) {
-    testFrameworkData =
-        new TestFrameworkData(
+    testFrameworks.add(
+        new TestFramework(
             (String) childSpan.getTag(Tags.TEST_FRAMEWORK),
-            (String) childSpan.getTag(Tags.TEST_FRAMEWORK_VERSION));
-  }
-
-  private static final class TestFrameworkData {
-    static final TestFrameworkData NO_DATA = new TestFrameworkData(null, null);
-
-    private final String name;
-    private final String version;
-
-    private TestFrameworkData(String name, String version) {
-      this.name = name;
-      this.version = version;
-    }
+            (String) childSpan.getTag(Tags.TEST_FRAMEWORK_VERSION)));
   }
 }
