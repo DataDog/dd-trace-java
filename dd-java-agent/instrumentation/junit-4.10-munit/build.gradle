@@ -9,6 +9,8 @@ muzzle {
   }
 }
 
+addTestSuiteForDir('latestDepTest', 'test')
+
 dependencies {
   implementation project(':dd-java-agent:instrumentation:junit-4.10')
   compileOnly group: 'org.scalameta', name: 'munit_2.13', version: '0.7.28'
@@ -25,9 +27,15 @@ dependencies {
 
   testImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.13.10'
   testImplementation group: 'org.scalameta', name: 'munit_2.13', version: '0.7.28'
+
+  latestDepTestImplementation group: 'org.scalameta', name: 'munit_2.13', version: '+'
 }
 
 compileTestGroovy {
   dependsOn compileTestScala
   classpath += files(sourceSets.test.scala.destinationDirectory)
+}
+compileLatestDepTestGroovy {
+  dependsOn compileLatestDepTestScala
+  classpath += files(sourceSets.latestDepTest.scala.destinationDirectory)
 }

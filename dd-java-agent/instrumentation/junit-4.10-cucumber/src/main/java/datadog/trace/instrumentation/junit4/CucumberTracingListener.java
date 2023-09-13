@@ -17,12 +17,13 @@ import org.junit.Ignore;
 import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
 import org.junit.runner.notification.RunListener;
+import org.junit.runners.ParentRunner;
 
 @RunListener.ThreadSafe
 public class CucumberTracingListener extends TracingListener {
 
-  private static final String FRAMEWORK_NAME = "cucumber";
-  private static final String FRAMEWORK_VERSION = getVersion();
+  public static final String FRAMEWORK_NAME = "cucumber";
+  public static final String FRAMEWORK_VERSION = getVersion();
 
   private static String getVersion() {
     ClassLoader cucumberClassLoader = ClassLoaders.getDefaultClassLoader();
@@ -43,15 +44,19 @@ public class CucumberTracingListener extends TracingListener {
 
   private static final MethodHandles REFLECTION =
       new MethodHandles(ClassLoaders.getDefaultClassLoader());
-  private static final MethodHandle PICKLE_ID =
+  private static final MethodHandle PICKLE_ID_CONSTRUCTOR =
       REFLECTION.constructor("io.cucumber.junit.PickleRunners$PickleId", Pickle.class);
+
+  private static final MethodHandle FEATURE_GETTER =
+      REFLECTION.privateFieldGetter("io.cucumber.junit.FeatureRunner", "feature");
 
   private final Map<Object, Pickle> pickleById = new HashMap<>();
 
-  public CucumberTracingListener(List<Feature> features) {
-    for (Feature feature : features) {
+  public CucumberTracingListener(List<ParentRunner<?>> featureRunners) {
+    for (ParentRunner<?> featureRunner : featureRunners) {
+      Feature feature = (Feature) REFLECTION.invoke(FEATURE_GETTER, featureRunner);
       for (Pickle pickle : feature.getPickles()) {
-        Object pickleId = REFLECTION.invoke(PICKLE_ID, pickle);
+        Object pickleId = REFLECTION.invoke(PICKLE_ID_CONSTRUCTOR, pickle);
         pickleById.put(pickleId, pickle);
       }
     }

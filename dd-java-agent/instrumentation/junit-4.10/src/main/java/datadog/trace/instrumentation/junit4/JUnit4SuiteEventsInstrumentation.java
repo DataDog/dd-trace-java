@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.junit4;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.declaresMethod;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -47,7 +49,12 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        named("run").and(takesArgument(0, named("org.junit.runner.notification.RunNotifier"))),
+        named("run")
+            .and(
+                takesArgument(
+                    0,
+                    named("org.junit.runner.notification.RunNotifier")
+                        .and(not(declaresMethod(named("fireTestSuiteStarted")))))),
         JUnit4SuiteEventsInstrumentation.class.getName() + "$JUnit4SuiteEventsAdvice");
   }
 
@@ -56,10 +63,6 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
     public static void fireSuiteStartedEvent(
         @Advice.Argument(0) final RunNotifier runNotifier,
         @Advice.This final ParentRunner<?> runner) {
-      if (JUnit4Utils.NATIVE_SUITE_EVENTS_SUPPORTED) {
-        return;
-      }
-
       final List<RunListener> runListeners = JUnit4Utils.runListenersFromRunNotifier(runNotifier);
       if (runListeners == null) {
         return;
@@ -77,10 +80,6 @@ public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
     public static void fireSuiteFinishedEvent(
         @Advice.Argument(0) final RunNotifier runNotifier,
         @Advice.This final ParentRunner<?> runner) {
-      if (JUnit4Utils.NATIVE_SUITE_EVENTS_SUPPORTED) {
-        return;
-      }
-
       final List<RunListener> runListeners = JUnit4Utils.runListenersFromRunNotifier(runNotifier);
       if (runListeners == null) {
         return;

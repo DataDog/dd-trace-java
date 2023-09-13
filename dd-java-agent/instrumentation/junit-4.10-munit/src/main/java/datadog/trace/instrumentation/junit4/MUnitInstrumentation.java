@@ -52,9 +52,9 @@ public class MUnitInstrumentation extends Instrumenter.CiVisibility
       List<RunListener> runListeners = JUnit4Utils.runListenersFromRunNotifier(runNotifier);
       if (runListeners != null) {
         for (RunListener listener : runListeners) {
-          RunListener unwrappedListener = JUnit4Utils.unwrapListener(listener);
+          RunListener tracingListener = JUnit4Utils.toTracingListener(listener);
           // skip JUnit 4 listener, we will install MUnit listener instead
-          if (!JUnit4Utils.isTracingListener(unwrappedListener)) {
+          if (tracingListener == null) {
             replacedNotifier.addListener(listener);
           }
         }
