@@ -113,7 +113,7 @@ public class TelemetryService {
     TelemetryRequest telemetryRequest =
         new TelemetryRequest(
             this.eventSource,
-            EventSink.noop(),
+            EventSink.NOOP,
             messageBytesSoftLimit,
             RequestType.APP_CLOSING,
             httpUrl,
@@ -175,7 +175,7 @@ public class TelemetryService {
       log.debug(
           "Sending buffered telemetry events that couldn't have been sent on previous attempt");
       eventSource = bufferedEvents;
-      eventSink = EventSink.noop(); // TODO collect metrics for unsent events
+      eventSink = EventSink.NOOP; // TODO collect metrics for unsent events
     }
     TelemetryRequest telemetryRequest;
     boolean isMoreDataAvailable = false;

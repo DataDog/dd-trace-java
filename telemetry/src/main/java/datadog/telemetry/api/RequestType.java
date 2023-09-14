@@ -8,7 +8,6 @@ public enum RequestType {
   // app-product-change
   APP_HEARTBEAT("app-heartbeat"),
   // app-extended-heartbeat
-  // message-batch
   APP_CLOSING("app-closing"),
   GENERATE_METRICS("generate-metrics"),
   LOGS("logs"),

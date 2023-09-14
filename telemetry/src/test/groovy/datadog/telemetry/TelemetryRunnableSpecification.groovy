@@ -50,7 +50,7 @@ class TelemetryRunnableSpecification extends Specification {
     t.start()
     sleeper.sleeped.await(10, TimeUnit.SECONDS)
 
-    then: 'three unsuccessful attempts to send app-started with the following successful attempt'
+    then: 'two unsuccessful attempts to send app-started with the following successful attempt'
     3 * telemetryService.sendAppStartedEvent() >>> [false, false, true]
     1 * timeSource.getCurrentTimeMillis() >> 60 * 1000
     _ * telemetryService.addConfiguration(_)
@@ -170,6 +170,33 @@ class TelemetryRunnableSpecification extends Specification {
     then:
     1 * telemetryService.sendAppClosingEvent()
     0 * _
+  }
+
+  void 'reattempt app-started event next cycle'() {
+    setup:
+    TelemetryRunnable.ThreadSleeper sleeperMock = Mock()
+    TickSleeper sleeper = new TickSleeper(delegate: sleeperMock)
+    TimeSource timeSource = Mock()
+    TelemetryService telemetryService = Mock(TelemetryService)
+    MetricCollector<MetricCollector.Metric> metricCollector = Mock(MetricCollector)
+    MetricPeriodicAction metricAction = Stub(MetricPeriodicAction) {
+      collector() >> metricCollector
+    }
+    TelemetryRunnable.TelemetryPeriodicAction periodicAction = Mock(TelemetryRunnable.TelemetryPeriodicAction)
+    TelemetryRunnable runnable = new TelemetryRunnable(telemetryService, [metricAction, periodicAction], sleeper, timeSource)
+    t = new Thread(runnable)
+
+    when: 'initial iteration before the first sleep (metrics and heartbeat)'
+    t.start()
+    sleeper.sleeped.await(10, TimeUnit.SECONDS)
+
+    then: 'three unsuccessful attempts to send app-started (TelemetryRunnable.MAX_APP_STARTED_RETRIES) with following successful attempt'
+    4 * telemetryService.sendAppStartedEvent() >>> [false, false, false, true]
+    3 * timeSource.getCurrentTimeMillis() >> 60 * 1000
+    _ * telemetryService.addConfiguration(_)
+    1 * metricCollector.prepareMetrics()
+    1 * metricCollector.drain() >> []
+    1 * periodicAction.doIteration(telemetryService)
   }
 
   void 'scheduler skips metrics intervals'() {

@@ -7,6 +7,11 @@ import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.dependency.Dependency;
 
+/**
+ * A unified interface for telemetry event sink. It is used to buffer events polled from the queues
+ * to reattempt next sending attempt. A NOOP implementation is used to discard event on the next
+ * failing attempt.
+ */
 interface EventSink {
   void addConfigChangeEvent(ConfigChange event);
 
@@ -20,12 +25,10 @@ interface EventSink {
 
   void addLogMessageEvent(LogMessage event);
 
-  static EventSink noop() {
-    return Noop.INSTANCE;
-  }
+  EventSink NOOP = new Noop();
 
-  enum Noop implements EventSink {
-    INSTANCE;
+  class Noop implements EventSink {
+    private Noop() {}
 
     @Override
     public void addConfigChangeEvent(ConfigChange event) {}

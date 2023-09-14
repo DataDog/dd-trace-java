@@ -8,6 +8,11 @@ import datadog.telemetry.api.Metric;
 import datadog.telemetry.dependency.Dependency;
 import java.util.Queue;
 
+/**
+ * A unified interface for telemetry event source. There are two types of event sources: - Queued -
+ * a primary telemetry event source - BufferedEvents - events taken from the primary source and
+ * buffered for a retry
+ */
 interface EventSource {
   boolean isEmpty();
 

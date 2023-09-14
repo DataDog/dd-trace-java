@@ -43,9 +43,8 @@ public class TelemetryRequestState extends RequestBody {
   private final Request.Builder requestBuilder;
   private final boolean debug;
 
-  private enum CommonData {
-    INSTANCE;
-
+  /** Exists in a separate class to avoid startup toll */
+  private static class CommonData {
     final Config config = Config.get();
     final String env = config.getEnv();
     final String langVersion = Platform.getLangVersion();
@@ -63,6 +62,8 @@ public class TelemetryRequestState extends RequestBody {
     final String osName = HostInfo.getOsName();
     final String osVersion = HostInfo.getOsVersion();
   }
+
+  private static final CommonData commonData = new CommonData();
 
   TelemetryRequestState(RequestType requestType, HttpUrl httpUrl) {
     this(requestType, httpUrl, false);
@@ -84,7 +85,6 @@ public class TelemetryRequestState extends RequestBody {
 
   public void beginRequest() {
     try {
-      CommonData commonData = CommonData.INSTANCE;
       bodyWriter.beginObject();
       bodyWriter.name("api_version").value(API_VERSION);
       // naming_schema_version - optional

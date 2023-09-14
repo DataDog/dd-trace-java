@@ -21,6 +21,7 @@ public class TelemetryRunnable implements Runnable {
   private final List<TelemetryPeriodicAction> actions;
   private final List<MetricPeriodicAction> actionsAtMetricsInterval;
   private final Scheduler scheduler;
+  private boolean startupEventSent;
 
   public TelemetryRunnable(
       final TelemetryService telemetryService, final List<TelemetryPeriodicAction> actions) {
@@ -58,25 +59,16 @@ public class TelemetryRunnable implements Runnable {
 
     collectConfigChanges();
 
-    int attempt = 0;
-    while (!Thread.interrupted()
-        && !telemetryService.sendAppStartedEvent()
-        && attempt < MAX_APP_STARTED_RETRIES) {
-      attempt += 1;
-      log.debug(
-          "Couldn't send an app-started event on {} attempt out of {}.",
-          attempt,
-          MAX_APP_STARTED_RETRIES);
-    }
-    if (attempt == MAX_APP_STARTED_RETRIES) {
-      log.warn("Couldn't send an app-started event!");
-    }
-
     scheduler.init();
 
     while (!Thread.interrupted()) {
       try {
-        mainLoopIteration();
+        if (!startupEventSent) {
+          startupEventSent = sendAppStartedEvent();
+        }
+        if (startupEventSent) {
+          mainLoopIteration();
+        }
         scheduler.sleepUntilNextIteration();
       } catch (InterruptedException e) {
         log.debug("Interrupted; finishing telemetry thread");
@@ -86,6 +78,29 @@ public class TelemetryRunnable implements Runnable {
 
     telemetryService.sendAppClosingEvent();
     log.debug("Telemetry thread finished");
+  }
+
+  /**
+   * Attempts to send an app-started event.
+   *
+   * @return `true` - if attempt was successful and `false` otherwise
+   */
+  private boolean sendAppStartedEvent() {
+    int attempt = 0;
+    while (!Thread.interrupted()
+        && attempt < MAX_APP_STARTED_RETRIES
+        && !telemetryService.sendAppStartedEvent()) {
+      attempt += 1;
+      log.debug(
+          "Couldn't send an app-started event on {} attempt out of {}.",
+          attempt,
+          MAX_APP_STARTED_RETRIES);
+    }
+    if (!Thread.interrupted() && attempt == MAX_APP_STARTED_RETRIES) {
+      log.warn("Couldn't send an app-started event!");
+      return false;
+    }
+    return true;
   }
 
   private void mainLoopIteration() throws InterruptedException {

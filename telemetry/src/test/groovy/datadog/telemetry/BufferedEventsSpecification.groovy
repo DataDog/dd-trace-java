@@ -81,7 +81,7 @@ class BufferedEventsSpecification extends DDSpecification {
   }
 
   def 'noop sink'() {
-    def sink = EventSink.noop()
+    def sink = EventSink.NOOP
 
     expect:
     sink.addMetricEvent(null)
