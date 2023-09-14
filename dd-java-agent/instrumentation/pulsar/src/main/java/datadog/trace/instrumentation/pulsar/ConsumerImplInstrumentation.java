@@ -122,7 +122,7 @@ public final class ConsumerImplInstrumentation extends Instrumenter.Tracing
         @Advice.Return Message<?> message,
         @Advice.Thrown Throwable throwable) {
       System.out.println("-------- init ----Consumer Internal-------");
-      startAndEnd(create(message), throwable);
+      startAndEnd(create(message), throwable,consumer);
     }
   }
 
@@ -135,7 +135,7 @@ public final class ConsumerImplInstrumentation extends Instrumenter.Tracing
         @Advice.Return Message<?> message,
         @Advice.Thrown Throwable throwable) {
       System.out.println("-------- init ----Consumer SyncReceive-------");
-      startAndEnd(create(message), throwable);
+      startAndEnd(create(message), throwable,consumer);
     }
   }
 
