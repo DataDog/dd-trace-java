@@ -84,9 +84,12 @@ public class ProfilingAgent {
   public static synchronized void run(final boolean isStartingFirst, ClassLoader agentClasLoader)
       throws IllegalArgumentException, IOException {
     if (profiler == null) {
+      if (isAwsLambdaRuntime()) {
+        log.debug("Profiling not supported in AWS Lambda runtimes");
+        return;
+      }
       final Config config = Config.get();
       final ConfigProvider configProvider = ConfigProvider.getInstance();
-
       boolean startForceFirst =
           configProvider.getBoolean(
               PROFILING_START_FORCE_FIRST, PROFILING_START_FORCE_FIRST_DEFAULT);
@@ -163,6 +166,11 @@ public class ProfilingAgent {
         log.debug("Failed to initialize profiling agent!", e);
       }
     }
+  }
+
+  private static boolean isAwsLambdaRuntime() {
+    String val = System.getenv("AWS_LAMBDA_FUNCTION_NAME");
+    return val != null && !val.isEmpty();
   }
 
   private static boolean isStartForceFirstSafe() {
