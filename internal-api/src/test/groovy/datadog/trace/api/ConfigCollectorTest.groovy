@@ -56,6 +56,24 @@ class ConfigCollectorTest extends DDSpecification {
     TracerConfig.HTTP_CLIENT_ERROR_STATUSES                    | "1:1"
   }
 
+  def "should collect merged data from multiple sources"() {
+    setup:
+    injectEnvConfig(Strings.toEnvVar(configKey), configValue1)
+    injectSysConfig(configKey, configValue2)
+
+    expect:
+    ConfigCollector.get().collect().get(configKey) == expectedValue
+
+    where:
+    configKey                                                 | configValue1                                   | configValue2              | expectedValue
+    // ConfigProvider.getMergedMap
+    TracerConfig.TRACE_PEER_SERVICE_MAPPING                   | "service1:best_service,userService:my_service" | "service2:backup_service" | "service2:backup_service,service1:best_service,userService:my_service"
+    // ConfigProvider.getOrderedMap
+    TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING | "/asdf/*:/test,/b:some"                        | "/a:prop"                 | "/asdf/*:/test,/b:some,/a:prop"
+    // ConfigProvider.getMergedMapWithOptionalMappings
+    TracerConfig.HEADER_TAGS                                  | "j:ten"                                        | "e:five,b:six"            | "e:five,j:ten,b:six"
+  }
+
   def "default config settings are NOT collected"() {
     expect:
     !ConfigCollector.get().collect().containsKey(configKey)
