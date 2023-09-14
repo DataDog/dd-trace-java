@@ -438,6 +438,7 @@ import org.slf4j.LoggerFactory;
  * <p>System properties are {@link Config#PREFIX}'ed. Environment variables are the same as the
  * system property, but uppercased and '.' is replaced with '_'.
  *
+ * @see ConfigProvider for details on how configs are processed
  * @see InstrumenterConfig for pre-instrumentation configurations
  * @see DynamicConfig for configuration that can be dynamically updated via remote-config
  */
