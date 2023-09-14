@@ -32,7 +32,6 @@ public class ProducerDecorator extends BaseDecorator {
   }
 
   public static AgentScope start(PulsarRequest request){
-    System.out.println("---------init  start span");
     UTF8BytesString spanName = UTF8BytesString.create(request.getDestination()+" send");
      final AgentSpan span = startSpan(spanName);
     span.setServiceName("pulsar");
@@ -48,7 +47,6 @@ public class ProducerDecorator extends BaseDecorator {
   } 
 
   public void end(AgentScope scope, PulsarRequest request, Exception e) {
-     System.out.println(" ------------init  end span");
      if (e != null){
        scope.span().setError(true);
        scope.span().setErrorMessage(e.getMessage());

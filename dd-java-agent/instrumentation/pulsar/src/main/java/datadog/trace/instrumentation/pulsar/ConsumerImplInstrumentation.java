@@ -69,7 +69,6 @@ public final class ConsumerImplInstrumentation extends Instrumenter.Tracing
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    System.out.println("--- add consumer  adviceTransformations-------------------------");
     String className = ConsumerImplInstrumentation.class.getName();
     transformation.applyAdvice(isConstructor(), className + "$ConsumerConstructorAdvice");
 
@@ -105,7 +104,6 @@ public final class ConsumerImplInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
         @Advice.This Consumer<?> consumer, @Advice.Argument(value = 0) PulsarClient client) {
-      System.out.println("---- init ----------");
       PulsarClientImpl pulsarClient = (PulsarClientImpl) client;
       String url = pulsarClient.getLookup().getServiceUrl();
       //  VirtualFieldStore.inject(consumer, url);
@@ -121,7 +119,6 @@ public final class ConsumerImplInstrumentation extends Instrumenter.Tracing
         @Advice.This Consumer<?> consumer,
         @Advice.Return Message<?> message,
         @Advice.Thrown Throwable throwable) {
-      System.out.println("-------- init ----Consumer Internal-------");
       startAndEnd(create(message), throwable,consumer);
     }
   }
@@ -134,7 +131,6 @@ public final class ConsumerImplInstrumentation extends Instrumenter.Tracing
         @Advice.This Consumer<?> consumer,
         @Advice.Return Message<?> message,
         @Advice.Thrown Throwable throwable) {
-      System.out.println("-------- init ----Consumer SyncReceive-------");
       startAndEnd(create(message), throwable,consumer);
     }
   }
@@ -145,8 +141,6 @@ public final class ConsumerImplInstrumentation extends Instrumenter.Tracing
     public static void onExit(
         @Advice.This Consumer<?> consumer,
         @Advice.Return(readOnly = false) CompletableFuture<Message<?>> future) {
-      System.out.println("-------- init ----Consumer AsyncReceive-------");
-
       future = wrap(future, consumer);
     }
   }
@@ -159,7 +153,6 @@ public final class ConsumerImplInstrumentation extends Instrumenter.Tracing
         @Advice.This Consumer<?> consumer,
         @Advice.Return(readOnly = false) CompletableFuture<Messages<?>> future) {
 
-      System.out.println("-------- init ----Consumer batch AsyncReceive-------");
       future = wrapBatch(future, consumer);
     }
   }

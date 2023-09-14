@@ -69,7 +69,6 @@ public final class ProducerImplInstrumentation extends Instrumenter.Tracing
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    System.out.println("--- add producer  adviceTransformations-------------------------");
     transformation.applyAdvice(
         isConstructor()
             .and(isPublic())
@@ -88,7 +87,6 @@ public final class ProducerImplInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
         @Advice.This ProducerImpl<?> producer, @Advice.Argument(0) PulsarClient client) {
-      System.out.println("--- Producer ImplConstructorAdvice ");
       PulsarClientImpl pulsarClient = (PulsarClientImpl) client;
       String brokerUrl = pulsarClient.getLookup().getServiceUrl();
       String topic = producer.getTopic();
@@ -106,17 +104,7 @@ public final class ProducerImplInstrumentation extends Instrumenter.Tracing
         @Advice.This ProducerImpl<?> producer,
         @Advice.Argument(0) Message<?> message,
         @Advice.Argument(value = 1, readOnly = false) SendCallback callback) {
-      /*      Context parent = Context.current();
-      PulsarRequest request = PulsarRequest.create(message, VirtualFieldStore.extract(producer));
 
-      if (!producerInstrumenter().shouldStart(parent, request)) {
-        return;
-      }
-
-      Context context = producerInstrumenter().start(parent, request);
-      callback = new SendCallbackWrapper(context, request, callback);
-      */
-      System.out.println("-------- init  Producer Send AsyncMethodAdvice-------");
       /*ContextStore<ProducerImpl, ProducerData> contextStore =
           InstrumentationContext.get(ProducerImpl.class, ProducerData.class);
       ProducerData producerData = contextStore.get(producer);
@@ -131,19 +119,13 @@ public final class ProducerImplInstrumentation extends Instrumenter.Tracing
       ContextStore<ProducerImpl, ProducerData> contextStore =
           InstrumentationContext.get(ProducerImpl.class, ProducerData.class);
       ProducerData producerData = contextStore.get(producer);
-
-      System.out.println("-----------------------");
-      System.out.println(producerData.url);
-      System.out.println(producerData.topic);
-
+      
       PulsarRequest request =
           PulsarRequest.create(message, ProducerData.create(producerData.url, producerData.topic));
-      System.out.println(request);
-      //System.out.println(new SendCallbackWrapper(null,null,null));
+
       AgentScope scope = ProducerDecorator.start(request);
-      System.out.println(scope);
+
       callback = new SendCallbackWrapper(scope, request, callback);
-      System.out.println("---------------out -------AsyncMethodAdvice---------------------");
     }
   }
 }
