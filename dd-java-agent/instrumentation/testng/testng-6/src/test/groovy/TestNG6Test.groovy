@@ -1,6 +1,6 @@
 import datadog.trace.instrumentation.testng.TestNGTest
 
-class TestNG64Test extends TestNGTest {
+class TestNG6Test extends TestNGTest {
 
   @Override
   String expectedTestFrameworkVersion() {
