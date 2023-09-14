@@ -3,11 +3,6 @@ import datadog.trace.instrumentation.testng.TestNGTest
 class TestNG6Test extends TestNGTest {
 
   @Override
-  String expectedTestFrameworkVersion() {
-    return "6.4.0"
-  }
-
-  @Override
   String assertionErrorMessage() {
     "expected:<true> but was:<false>"
   }

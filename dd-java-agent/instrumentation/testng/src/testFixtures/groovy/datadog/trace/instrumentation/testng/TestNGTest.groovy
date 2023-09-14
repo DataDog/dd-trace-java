@@ -837,7 +837,7 @@ abstract class TestNGTest extends CiVisibilityTest {
     ]
   }
 
-  private void runTests(Class[] testClasses, String parallelMode = null) {
+  protected void runTests(Class[] testClasses, String parallelMode = null) {
     TestEventsHandlerHolder.start()
 
     def testNG = new TestNG()
@@ -867,17 +867,22 @@ abstract class TestNGTest extends CiVisibilityTest {
 
   @Override
   String expectedOperationPrefix() {
-    return "testng"
+    "testng"
   }
 
   @Override
   String expectedTestFramework() {
-    return "testng"
+    TracingListener.FRAMEWORK_NAME
+  }
+
+  @Override
+  String expectedTestFrameworkVersion() {
+    TracingListener.FRAMEWORK_VERSION
   }
 
   @Override
   String component() {
-    return "testng"
+    "testng"
   }
 
   abstract String assertionErrorMessage()
