@@ -30,7 +30,7 @@ class HttpClientSpecification extends Specification {
 
   OkHttpClient okHttpClient = Mock()
 
-  def httpClient = new HttpClient(okHttpClient)
+  def httpClient = new HttpClient(okHttpClient, HttpUrl.get("https://example.com"))
 
   def 'map an http status code to the correct send result'() {
     when:

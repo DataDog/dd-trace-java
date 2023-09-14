@@ -2,14 +2,14 @@ package datadog.telemetry
 
 import datadog.communication.ddagent.TracerVersion
 import datadog.telemetry.dependency.Dependency
-import datadog.telemetry.api.Integration
-import datadog.telemetry.api.DistributionSeries
-
 import datadog.telemetry.api.ConfigChange
+import datadog.telemetry.api.DistributionSeries
+import datadog.telemetry.api.Integration
 import datadog.telemetry.api.LogMessage
 import datadog.telemetry.api.Metric
 import datadog.telemetry.api.RequestType
 import groovy.json.JsonSlurper
+import okhttp3.HttpUrl
 import okhttp3.Request
 import okio.Buffer
 
@@ -18,7 +18,7 @@ class TestHttpClient extends HttpClient {
   private Queue<RequestAssertions> requests = new LinkedList<>()
 
   TestHttpClient() {
-    super(null)
+    super(null, HttpUrl.get("https://example.com"))
   }
 
   @Override

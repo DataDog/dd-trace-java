@@ -20,8 +20,6 @@ public class TelemetryService {
 
   private static final Logger log = LoggerFactory.getLogger(TelemetryService.class);
 
-  private static final String API_ENDPOINT = "telemetry/proxy/api/v2/apmtelemetry";
-
   private static final long DEFAULT_MESSAGE_BYTES_SOFT_LIMIT = Math.round(5 * 1024 * 1024 * 0.75);
 
   private final HttpClient httpClient;
@@ -40,7 +38,6 @@ public class TelemetryService {
       new EventSource.Queued(
           configurations, integrations, dependencies, metrics, distributionSeries, logMessages);
 
-  private final HttpUrl httpUrl;
   private final long messageBytesSoftLimit;
   private final boolean debug;
 
@@ -57,20 +54,16 @@ public class TelemetryService {
    *     backend with verbose logging
    */
   public TelemetryService(
-      final OkHttpClient okHttpClient, final HttpUrl httpUrl, final boolean debug) {
-    this(new HttpClient(okHttpClient), httpUrl, DEFAULT_MESSAGE_BYTES_SOFT_LIMIT, debug);
+      final OkHttpClient okHttpClient, final HttpUrl agentUrl, final boolean debug) {
+    this(new HttpClient(okHttpClient, agentUrl), DEFAULT_MESSAGE_BYTES_SOFT_LIMIT, debug);
   }
 
   // For testing purposes
   TelemetryService(
-      final HttpClient httpClient,
-      final HttpUrl agentUrl,
-      final long messageBytesSoftLimit,
-      final boolean debug) {
+      final HttpClient httpClient, final long messageBytesSoftLimit, final boolean debug) {
     this.httpClient = httpClient;
     this.openTracingIntegrationEnabled = false;
     this.openTelemetryIntegrationEnabled = false;
-    this.httpUrl = agentUrl.newBuilder().addPathSegments(API_ENDPOINT).build();
     this.messageBytesSoftLimit = messageBytesSoftLimit;
     this.debug = debug;
   }
@@ -122,7 +115,7 @@ public class TelemetryService {
             EventSink.NOOP,
             messageBytesSoftLimit,
             RequestType.APP_CLOSING,
-            httpUrl,
+            httpClient.getUrl(),
             debug);
     Request request = telemetryRequest.httpRequest();
     if (httpClient.sendRequest(request) != HttpClient.Result.SUCCESS) {
@@ -151,7 +144,12 @@ public class TelemetryService {
     log.debug("Preparing app-started request");
     TelemetryRequest telemetryRequest =
         new TelemetryRequest(
-            eventSource, eventSink, messageBytesSoftLimit, RequestType.APP_STARTED, httpUrl, debug);
+            eventSource,
+            eventSink,
+            messageBytesSoftLimit,
+            RequestType.APP_STARTED,
+            httpClient.getUrl(),
+            debug);
     telemetryRequest.writeProducts();
     telemetryRequest.writeConfigurations();
     Request request = telemetryRequest.httpRequest();
@@ -193,7 +191,7 @@ public class TelemetryService {
               eventSink,
               messageBytesSoftLimit,
               RequestType.APP_HEARTBEAT,
-              httpUrl,
+              httpClient.getUrl(),
               debug);
     } else {
       log.debug("Preparing message-batch request");
@@ -203,7 +201,7 @@ public class TelemetryService {
               eventSink,
               messageBytesSoftLimit,
               RequestType.MESSAGE_BATCH,
-              httpUrl,
+              httpClient.getUrl(),
               debug);
       telemetryRequest.writeHeartbeatEvent();
       telemetryRequest.writeConfigurationMessage();
