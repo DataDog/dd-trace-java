@@ -20,6 +20,8 @@ muzzle {
   }
 }
 
+addTestSuiteForDir('latestDepTest', 'test')
+
 dependencies {
   compileOnly group: 'org.testng', name: 'testng', version: '7.0.0'
 
@@ -27,6 +29,8 @@ dependencies {
 
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:testng'))
   testImplementation group: 'org.testng', name: 'testng', version: '7.0.0'
+
+  latestDepTestImplementation group: 'org.testng', name: 'testng', version: '+'
 }
 
 // gradle can't downgrade the testng dependencies with `strictly`
@@ -34,5 +38,12 @@ dependencies {
 configurations.matching({ it.name.startsWith('test') }).each({
   it.resolutionStrategy {
     force group: 'org.testng', name: 'testng', version: '7.0.0'
+  }
+})
+
+configurations.matching({ it.name.startsWith('latestDepTest') }).each({
+  it.resolutionStrategy {
+    // TestNG 7.6+ is compiled with Java 11
+    force group: 'org.testng', name: 'testng', version: (JavaVersion.current().java11Compatible ? '+' : '7.5')
   }
 })

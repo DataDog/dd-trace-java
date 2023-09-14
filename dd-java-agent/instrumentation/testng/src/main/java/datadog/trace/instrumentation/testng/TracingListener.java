@@ -11,12 +11,8 @@ import org.testng.ITestResult;
 public class TracingListener extends TestNGClassListener
     implements ITestListener, IConfigurationListener {
 
-  private static final String TESTNG_FRAMEWORK = "testng";
-  private final String version;
-
-  public TracingListener(final String version) {
-    this.version = version;
-  }
+  public static final String FRAMEWORK_NAME = "testng";
+  public static final String FRAMEWORK_VERSION = TestNGUtils.getTestNGVersion();
 
   @Override
   public void onStart(final ITestContext context) {
@@ -34,7 +30,7 @@ public class TracingListener extends TestNGClassListener
     Class<?> testSuiteClass = testClass.getRealClass();
     List<String> groups = TestNGUtils.getGroups(testClass);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-        testSuiteName, TESTNG_FRAMEWORK, version, testSuiteClass, groups, parallelized);
+        testSuiteName, FRAMEWORK_NAME, FRAMEWORK_VERSION, testSuiteClass, groups, parallelized);
   }
 
   @Override
@@ -79,8 +75,8 @@ public class TracingListener extends TestNGClassListener
         testSuiteName,
         testName,
         result,
-        TESTNG_FRAMEWORK,
-        version,
+        FRAMEWORK_NAME,
+        FRAMEWORK_VERSION,
         testParameters,
         groups,
         testClass,
