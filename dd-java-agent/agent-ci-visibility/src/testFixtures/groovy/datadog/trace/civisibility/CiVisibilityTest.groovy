@@ -177,6 +177,9 @@ abstract class CiVisibilityTest extends AgentTestRunner {
         "$Tags.TEST_TYPE" TestDecorator.TEST_TYPE
         if (testCommand) {
           "$Tags.TEST_COMMAND" testCommand
+        } else {
+          // the default command for sessions that run without build system instrumentation
+          "$Tags.TEST_COMMAND" dummyModule
         }
         if (testToolchain) {
           "$Tags.TEST_TOOLCHAIN" testToolchain
