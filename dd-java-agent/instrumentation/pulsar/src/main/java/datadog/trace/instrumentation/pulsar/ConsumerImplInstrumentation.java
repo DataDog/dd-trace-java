@@ -1,6 +1,9 @@
 package datadog.trace.instrumentation.pulsar;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.instrumentation.pulsar.ConsumerDecorator.startAndEnd;
+import static datadog.trace.instrumentation.pulsar.ConsumerDecorator.wrap;
+import static datadog.trace.instrumentation.pulsar.ConsumerDecorator.wrapBatch;
 import static datadog.trace.instrumentation.pulsar.PulsarRequest.*;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -25,7 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @AutoService(Instrumenter.class)
-public class ConsumerImplInstrumentation extends Instrumenter.Tracing
+public final class ConsumerImplInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForKnownTypes {
 
   private static final Logger log = LoggerFactory.getLogger(ConsumerImplInstrumentation.class);
@@ -36,15 +39,16 @@ public class ConsumerImplInstrumentation extends Instrumenter.Tracing
 
   @Override
   public String[] knownMatchingTypes() {
-    return new String[]{"org.apache.pulsar.client.impl.ConsumerImpl",
-        "org.apache.pulsar.client.impl.MultiTopicsConsumerImpl"};
+    return new String[] {
+      "org.apache.pulsar.client.impl.ConsumerImpl",
+      "org.apache.pulsar.client.impl.MultiTopicsConsumerImpl"
+    };
   }
-  
 
   @Override
   public Map<String, String> contextStore() {
     Map<String, String> store = new HashMap<>(1);
-    store.put("org.apache.pulsar.client.api.Consumer",  String.class.getName());
+    store.put("org.apache.pulsar.client.api.Consumer", String.class.getName());
     return store;
   }
 
@@ -52,20 +56,20 @@ public class ConsumerImplInstrumentation extends Instrumenter.Tracing
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".ConsumerDecorator",
-        packageName + ".UrlParser",
-        packageName + ".UrlData",
-        packageName + ".ProducerData",
-        packageName + ".BasePulsarRequest",
-        packageName + ".MessageTextMapGetter",
-        packageName + ".MessageTextMapSetter",
-        packageName + ".PulsarBatchRequest",
-        packageName + ".PulsarRequest",
+      packageName + ".UrlParser",
+      packageName + ".UrlData",
+      packageName + ".ProducerData",
+      packageName + ".BasePulsarRequest",
+      packageName + ".MessageTextMapGetter",
+      packageName + ".MessageTextMapSetter",
+      packageName + ".PulsarBatchRequest",
+      packageName + ".PulsarRequest",
     };
   }
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    System.out.println("--- add adviceTransformations");
+    System.out.println("--- add consumer  adviceTransformations-------------------------");
     String className = ConsumerImplInstrumentation.class.getName();
     transformation.applyAdvice(isConstructor(), className + "$ConsumerConstructorAdvice");
 
@@ -97,7 +101,6 @@ public class ConsumerImplInstrumentation extends Instrumenter.Tracing
         className + "$ConsumerBatchAsyncReceiveAdvice");
   }
 
-
   public static class ConsumerConstructorAdvice { // 初始化
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
@@ -119,8 +122,7 @@ public class ConsumerImplInstrumentation extends Instrumenter.Tracing
         @Advice.Return Message<?> message,
         @Advice.Thrown Throwable throwable) {
       System.out.println("-------- init ----Consumer Internal-------");
-      ConsumerDecorator decorator = new ConsumerDecorator();
-      decorator.startAndEnd(create(message), throwable);
+      startAndEnd(create(message), throwable);
     }
   }
 
@@ -133,8 +135,7 @@ public class ConsumerImplInstrumentation extends Instrumenter.Tracing
         @Advice.Return Message<?> message,
         @Advice.Thrown Throwable throwable) {
       System.out.println("-------- init ----Consumer SyncReceive-------");
-      ConsumerDecorator decorator = new ConsumerDecorator();
-      decorator.startAndEnd(create(message), throwable);
+      startAndEnd(create(message), throwable);
     }
   }
 
@@ -145,8 +146,8 @@ public class ConsumerImplInstrumentation extends Instrumenter.Tracing
         @Advice.This Consumer<?> consumer,
         @Advice.Return(readOnly = false) CompletableFuture<Message<?>> future) {
       System.out.println("-------- init ----Consumer AsyncReceive-------");
-      ConsumerDecorator decorator = new ConsumerDecorator();
-      future = decorator.wrap(future, consumer);
+
+      future = wrap(future, consumer);
     }
   }
 
@@ -159,8 +160,7 @@ public class ConsumerImplInstrumentation extends Instrumenter.Tracing
         @Advice.Return(readOnly = false) CompletableFuture<Messages<?>> future) {
 
       System.out.println("-------- init ----Consumer batch AsyncReceive-------");
-      ConsumerDecorator decorator = new ConsumerDecorator();
-      future = decorator.wrapBatch(future, consumer);
+      future = wrapBatch(future, consumer);
     }
   }
 }

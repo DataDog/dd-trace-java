@@ -12,7 +12,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 
 public class ProducerDecorator extends BaseDecorator {
   public static final CharSequence ROCKETMQ_NAME = UTF8BytesString.create("pulsar");
-   ProducerDecorator(){}
+   public ProducerDecorator(){}
   @Override
   protected String[] instrumentationNames() {
     return new String[]{"pulsar"};
@@ -28,24 +28,26 @@ public class ProducerDecorator extends BaseDecorator {
     return null;
   }
 
-  public AgentScope start(PulsarRequest request){
+  public static AgentScope start(PulsarRequest request){
     UTF8BytesString spanName = UTF8BytesString.create(request.getDestination()+" send");
      final AgentSpan span = startSpan(spanName);
     span.setServiceName("pulsar");
     span.setResourceName(spanName);
     span.setTag("topic",request.getDestination());
     span.setTag("broker_url",request.getUrlData());
-    afterStart(span);
+    // afterStart(span);
+    span.setSpanType("pulsar");
     propagate().inject(span,request, SETTER);
     return  activateSpan(span);
   } 
 
-  public void end(AgentSpan scope, PulsarRequest request, Exception e) {
+  public void end(AgentScope scope, PulsarRequest request, Exception e) {
      if (e != null){
-       scope.setError(true);
-       scope.setErrorMessage(e.getMessage());
+       scope.span().setError(true);
+       scope.span().setErrorMessage(e.getMessage());
      }
      beforeFinish(scope);
-     scope.finish();
+     scope.span().finish();
+     scope.close();
   }
 }

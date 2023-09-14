@@ -40,7 +40,7 @@ public class ConsumerDecorator extends BaseDecorator {
     return null;
   }
 
-  public void startAndEnd(PulsarRequest pr,Throwable throwable) {
+  public static void startAndEnd(PulsarRequest pr,Throwable throwable) {
     AgentSpan.Context parentContext = propagate().extract(pr, GETTER);
 
     String topic  = pr.getMessage().getTopicName();
@@ -54,7 +54,7 @@ public class ConsumerDecorator extends BaseDecorator {
 
     span.setTag(MESSAGING_ID,pr.getMessage().getMessageId());
     span.setServiceName(LOCAL_SERVICE_NAME);
-    afterStart(span);
+ //   afterStart(span);
     if (throwable != null){
       span.setError(true);
       span.setErrorMessage(throwable.getMessage());
@@ -64,12 +64,12 @@ public class ConsumerDecorator extends BaseDecorator {
 
     System.out.println("consumer span start topic:{}"+pr.getMessage().getTopicName());
     
-    beforeFinish(scope);
+   // beforeFinish(scope);
     scope.span().finish();
     scope.close();
   }
 
-  public CompletableFuture<Message<?>> wrap(CompletableFuture<Message<?>> future, Consumer<?> consumer) {
+  public static CompletableFuture<Message<?>> wrap(CompletableFuture<Message<?>> future, Consumer<?> consumer) {
     CompletableFuture<Message<?>> result = new CompletableFuture<>();
     future.whenComplete(
         (message, throwable) -> {
@@ -88,7 +88,7 @@ public class ConsumerDecorator extends BaseDecorator {
 
     return result;
   }
-  public CompletableFuture<Messages<?>> wrapBatch(CompletableFuture<Messages<?>> future, Consumer<?> consumer) {
+  public static CompletableFuture<Messages<?>> wrapBatch(CompletableFuture<Messages<?>> future, Consumer<?> consumer) {
     CompletableFuture<Messages<?>> result = new CompletableFuture<>();
     future.whenComplete(
         (messages, throwable) -> {

@@ -1,18 +1,18 @@
 package datadog.trace.instrumentation.pulsar;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.SendCallback;
 
-public  class SendCallbackWrapper implements SendCallback {
+public class SendCallbackWrapper implements SendCallback {
 
-  private final AgentSpan scope;
+  private final AgentScope scope;
   private final PulsarRequest request;
   private final SendCallback delegate;
 
-  public SendCallbackWrapper(AgentSpan scope, PulsarRequest request, SendCallback callback) {
+  public  SendCallbackWrapper(AgentScope scope, PulsarRequest request, SendCallback callback) {
     this.scope = scope;
     this.request = request;
     this.delegate = callback;
@@ -25,10 +25,10 @@ public  class SendCallbackWrapper implements SendCallback {
       return;
     }
 
-    try   {
+    try {
       this.delegate.sendComplete(e);
     } finally {
-      new ProducerDecorator().end(scope, request,e);
+      new ProducerDecorator().end(scope, request, e);
     }
   }
 

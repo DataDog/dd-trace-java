@@ -1,8 +1,6 @@
 package datadog.trace.instrumentation.pulsar;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.instrumentation.pulsar.ProducerData.create;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.hasSuperType;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -14,6 +12,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -23,14 +22,10 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.SendCallback;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @AutoService(Instrumenter.class)
-public class ProducerImplInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForTypeHierarchy{
-
-  private static final Logger log = LoggerFactory.getLogger(ProducerImplInstrumentation.class);
+public final class ProducerImplInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public static final String CLASS_NAME = "org.apache.pulsar.client.impl.ProducerImpl";
 
@@ -39,7 +34,7 @@ public class ProducerImplInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public String hierarchyMarkerType() { 
+  public String hierarchyMarkerType() {
     return CLASS_NAME;
   }
 
@@ -50,27 +45,31 @@ public class ProducerImplInstrumentation extends Instrumenter.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("org.apache.pulsar.client.impl.ProducerImpl", ProducerData.class.getName());
+    Map<String, String> store = new HashMap<>(1);
+    store.put("org.apache.pulsar.client.impl.ProducerImpl", packageName+".ProducerData");
+    return store;
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-        packageName + ".ProducerDecorator",
-        packageName + ".SendCallbackWrapper",
-        packageName + ".ProducerData",
-        packageName + ".UrlParser",
-        packageName + ".UrlData",
-        packageName + ".BasePulsarRequest",
-        packageName + ".MessageTextMapGetter",
-        packageName + ".MessageTextMapSetter",
-        packageName + ".PulsarBatchRequest",
-        packageName + ".PulsarRequest",
+      packageName + ".ProducerDecorator",
+      packageName + ".ProducerData",
+      packageName + ".UrlParser",
+      packageName + ".SendCallbackWrapper",
+      packageName + ".UrlData",
+      packageName + ".BasePulsarRequest",
+      packageName + ".MessageTextMapGetter",
+      packageName + ".MessageTextMapSetter",
+      packageName + ".PulsarBatchRequest",
+      packageName + ".PulsarRequest",
+
     };
   }
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
+    System.out.println("--- add producer  adviceTransformations-------------------------");
     transformation.applyAdvice(
         isConstructor()
             .and(isPublic())
@@ -85,29 +84,29 @@ public class ProducerImplInstrumentation extends Instrumenter.Tracing
         ProducerImplInstrumentation.class.getName() + "$ProducerSendAsyncMethodAdvice");
   }
 
-  public static class ProducerImplConstructorAdvice{
+  public static class ProducerImplConstructorAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void intercept(
-        @Advice.This ProducerImpl<?> producer, @Advice.Argument( 0) PulsarClient client) {
+    public static void onExit(
+        @Advice.This ProducerImpl<?> producer, @Advice.Argument(0) PulsarClient client) {
       System.out.println("--- Producer ImplConstructorAdvice ");
       PulsarClientImpl pulsarClient = (PulsarClientImpl) client;
       String brokerUrl = pulsarClient.getLookup().getServiceUrl();
       String topic = producer.getTopic();
-    //  VirtualFieldStore.inject(producer, brokerUrl, topic); todo 存储
-      ContextStore<ProducerImpl, ProducerData> contextStore = InstrumentationContext.get(ProducerImpl.class, ProducerData.class);
-      contextStore.put(producer,create(brokerUrl,topic));
+      //  VirtualFieldStore.inject(producer, brokerUrl, topic); todo 存储
+      ContextStore<ProducerImpl, ProducerData> contextStore =
+          InstrumentationContext.get(ProducerImpl.class, ProducerData.class);
+      contextStore.put(producer, ProducerData.create(brokerUrl, topic));
     }
   }
 
   //  ------------------------------------- 发送消息 --------------------------
   public static class ProducerSendAsyncMethodAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void before(
+    public static void onEnter(
         @Advice.This ProducerImpl<?> producer,
-        @Advice.Argument( 0) Message<?> message,
+        @Advice.Argument(0) Message<?> message,
         @Advice.Argument(value = 1, readOnly = false) SendCallback callback) {
-/*      Context parent = Context.current();
+      /*      Context parent = Context.current();
       PulsarRequest request = PulsarRequest.create(message, VirtualFieldStore.extract(producer));
 
       if (!producerInstrumenter().shouldStart(parent, request)) {
@@ -118,16 +117,33 @@ public class ProducerImplInstrumentation extends Instrumenter.Tracing
       callback = new SendCallbackWrapper(context, request, callback);
       */
       System.out.println("-------- init  Producer Send AsyncMethodAdvice-------");
-      ContextStore<ProducerImpl, ProducerData> contextStore =InstrumentationContext.get(ProducerImpl.class, ProducerData.class);
+      /*ContextStore<ProducerImpl, ProducerData> contextStore =
+          InstrumentationContext.get(ProducerImpl.class, ProducerData.class);
       ProducerData producerData = contextStore.get(producer);
-      if (producerData==null){
+      if (producerData == null) {
         log.error("producerData is null");
         return;
       }
-      PulsarRequest request = PulsarRequest.create(message,ProducerData.create(producerData.url,producerData.topic));
-      AgentScope scope = new ProducerDecorator().start(request);
-      callback = new SendCallbackWrapper(scope.span(), request, callback);
+      PulsarRequest request =
+          PulsarRequest.create(message, create(producerData.url, producerData.topic));
+      AgentScope scope = start(request);
+      callback = new SendCallbackWrapper(scope.span(), request, callback);*/
+      ContextStore<ProducerImpl, ProducerData> contextStore =
+          InstrumentationContext.get(ProducerImpl.class, ProducerData.class);
+      ProducerData producerData = contextStore.get(producer);
+
+      System.out.println("-----------------------");
+      System.out.println(producerData.url);
+      System.out.println(producerData.topic);
+
+      PulsarRequest request =
+          PulsarRequest.create(message, ProducerData.create(producerData.url, producerData.topic));
+      System.out.println(request);
+      //System.out.println(new SendCallbackWrapper(null,null,null));
+      AgentScope scope = ProducerDecorator.start(request);
+      System.out.println(scope);
+      callback = new SendCallbackWrapper(scope, request, callback);
+      System.out.println("---------------out -------AsyncMethodAdvice---------------------");
     }
   }
-
 }
