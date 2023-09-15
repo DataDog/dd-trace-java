@@ -30,6 +30,7 @@ import spock.lang.Unroll
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.regex.Pattern
 
 @Unroll
 abstract class CiVisibilityTest extends AgentTestRunner {
@@ -43,6 +44,7 @@ abstract class CiVisibilityTest extends AgentTestRunner {
   static final int DUMMY_TEST_METHOD_START = 12
   static final int DUMMY_TEST_METHOD_END = 18
   static final Collection<String> DUMMY_CODE_OWNERS = ["owner1", "owner2"]
+  static final Pattern ANY_MESSAGE = Pattern.compile(".*")
 
   private static Path agentKeyFile
 
@@ -66,7 +68,7 @@ abstract class CiVisibilityTest extends AgentTestRunner {
     def moduleExecutionSettingsFactory = Stub(ModuleExecutionSettingsFactory)
     moduleExecutionSettingsFactory.create(_, _) >> {
       Map<String, String> properties = [
-        (CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED) : String.valueOf(itrEnabled)
+        (CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED): String.valueOf(itrEnabled)
       ]
       return new ModuleExecutionSettings(false, itrEnabled, properties, Collections.singletonMap(dummyModule, skippableTests), Collections.emptyList())
     }
@@ -160,7 +162,8 @@ abstract class CiVisibilityTest extends AgentTestRunner {
   final String resource = null,
   final String testCommand = null,
   final String testToolchain = null,
-  final Throwable exception = null) {
+  final Throwable exception = null,
+  final boolean verifyExceptionMessage = true) {
     def testFramework = expectedTestFramework()
     def testFrameworkVersion = expectedTestFrameworkVersion()
 
@@ -194,7 +197,11 @@ abstract class CiVisibilityTest extends AgentTestRunner {
         }
 
         if (exception) {
-          errorTags(exception.class, exception.message)
+          if (verifyExceptionMessage) {
+            errorTags(exception.class, exception.message)
+          } else {
+            errorTags(exception.class, ANY_MESSAGE)
+          }
         }
 
         "$DUMMY_CI_TAG" DUMMY_CI_TAG_VALUE
@@ -222,7 +229,8 @@ abstract class CiVisibilityTest extends AgentTestRunner {
   final String testStatus,
   final Map<String, Object> testTags = null,
   final Throwable exception = null,
-  final String resource = null) {
+  final String resource = null,
+  final boolean verifyExceptionMessage = true) {
     def testFramework = expectedTestFramework()
     def testFrameworkVersion = expectedTestFrameworkVersion()
 
@@ -251,7 +259,11 @@ abstract class CiVisibilityTest extends AgentTestRunner {
         }
 
         if (exception) {
-          errorTags(exception.class, exception.message)
+          if (verifyExceptionMessage) {
+            errorTags(exception.class, exception.message)
+          } else {
+            errorTags(exception.class, ANY_MESSAGE)
+          }
         }
 
         "$DUMMY_CI_TAG" DUMMY_CI_TAG_VALUE
