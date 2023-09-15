@@ -829,7 +829,7 @@ class JUnit5Test extends CiVisibilityTest {
 
   @Override
   String expectedTestFrameworkVersion() {
-    return "5.8.2"
+    return JupiterTestEngine.getPackage().getImplementationVersion()
   }
 
   @Override
