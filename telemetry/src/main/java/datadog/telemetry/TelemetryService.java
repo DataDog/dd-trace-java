@@ -50,6 +50,12 @@ public class TelemetryService {
   private boolean openTracingIntegrationEnabled;
   private boolean openTelemetryIntegrationEnabled;
 
+  /**
+   * @param okHttpClient - an instance to do http calls
+   * @param httpUrl - telemetry endpoint URL
+   * @param debug - when `true` it adds a debug flag to a telemetry request to handle it on the
+   *     backend with verbose logging
+   */
   public TelemetryService(
       final OkHttpClient okHttpClient, final HttpUrl httpUrl, final boolean debug) {
     this(new HttpClient(okHttpClient), httpUrl, DEFAULT_MESSAGE_BYTES_SOFT_LIMIT, debug);

@@ -14,8 +14,6 @@ import java.util.Queue;
  * buffered for a retry
  */
 interface EventSource {
-  boolean isEmpty();
-
   boolean hasConfigChangeEvent();
 
   ConfigChange nextConfigChangeEvent();
@@ -40,6 +38,15 @@ interface EventSource {
 
   LogMessage nextLogMessageEvent();
 
+  default boolean isEmpty() {
+    return !hasConfigChangeEvent()
+        && !hasIntegrationEvent()
+        && !hasDependencyEvent()
+        && !hasMetricEvent()
+        && !hasDistributionSeriesEvent()
+        && !hasLogMessageEvent();
+  }
+
   final class Queued implements EventSource {
     private final Queue<ConfigChange> configChangeQueue;
     private final Queue<Integration> integrationQueue;
@@ -61,16 +68,6 @@ interface EventSource {
       this.metricQueue = metricQueue;
       this.distributionSeriesQueue = distributionSeriesQueue;
       this.logMessageQueue = logMessageQueue;
-    }
-
-    @Override
-    public boolean isEmpty() {
-      return !hasConfigChangeEvent()
-          && integrationQueue.isEmpty()
-          && dependencyQueue.isEmpty()
-          && metricQueue.isEmpty()
-          && distributionSeriesQueue.isEmpty()
-          && logMessageQueue.isEmpty();
     }
 
     @Override

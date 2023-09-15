@@ -87,7 +87,7 @@ class TestHttpClient extends HttpClient {
       assert this.request.header('DD-Client-Library-Version') == TracerVersion.TRACER_VERSION
       assert this.request.header('DD-Telemetry-API-Version') == 'v2'
       assert this.request.header('DD-Telemetry-Request-Type') == requestType.toString()
-      //      assert this.request.header('Content-Length') ==
+      assert this.request.header('Content-Length').toInteger() > 0
       return this
     }
 

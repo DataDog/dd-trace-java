@@ -27,16 +27,6 @@ public final class BufferedEvents implements EventSource, EventSink {
   private ArrayList<LogMessage> logMessageEvents;
   private int logMessageIndex;
 
-  @Override
-  public boolean isEmpty() {
-    return !hasConfigChangeEvent()
-        && !hasIntegrationEvent()
-        && !hasDependencyEvent()
-        && !hasMetricEvent()
-        && !hasDistributionSeriesEvent()
-        && !hasLogMessageEvent();
-  }
-
   public void addConfigChangeEvent(ConfigChange event) {
     if (configChangeEvents == null) {
       configChangeEvents = new ArrayList<>(INITIAL_CAPACITY);
