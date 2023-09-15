@@ -2,12 +2,12 @@ package datadog.trace.instrumentation.springws2;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
@@ -43,14 +43,8 @@ public class MethodEndpointInstrumentation extends Instrumenter.Tracing
         if (rootSpan != null) {
           span = rootSpan;
         }
-        // Check if the span is already in error
-        boolean error = span.isError();
-        // Capture the exception
-        span.addThrowable(throwable);
-        // Restore the error state using UNSET priority to not override prior decision
-        if (!error) {
-          span.setError(false, ErrorPriorities.UNSET);
-        }
+        // Capture the exception without setting span as errored
+        span.addThrowable(throwable, UNSET);
       }
     }
   }
