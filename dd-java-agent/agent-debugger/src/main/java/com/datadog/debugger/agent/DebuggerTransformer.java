@@ -9,6 +9,7 @@ import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.Where;
+import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
@@ -66,10 +67,11 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private static final Pattern COMMA_PATTERN = Pattern.compile(",");
 
   private final Config config;
-  private final TransformerDefinitionMatcher definitonMatcher;
+  private final TransformerDefinitionMatcher definitionMatcher;
   private final AllowListHelper allowListHelper;
   private final DenyListHelper denyListHelper;
   private final InstrumentationListener listener;
+  private final DebuggerSink debuggerSink;
   private final boolean instrumentTheWorld;
   private final Set<String> excludeClasses = new HashSet<>();
   private final Trie excludeTrie = new Trie();
@@ -80,12 +82,16 @@ public class DebuggerTransformer implements ClassFileTransformer {
   }
 
   public DebuggerTransformer(
-      Config config, Configuration configuration, InstrumentationListener listener) {
+      Config config,
+      Configuration configuration,
+      InstrumentationListener listener,
+      DebuggerSink debuggerSink) {
     this.config = config;
-    this.definitonMatcher = new TransformerDefinitionMatcher(configuration);
+    this.definitionMatcher = new TransformerDefinitionMatcher(configuration);
     this.allowListHelper = new AllowListHelper(configuration.getAllowList());
     this.denyListHelper = new DenyListHelper(configuration.getDenyList());
     this.listener = listener;
+    this.debuggerSink = debuggerSink;
     this.instrumentTheWorld = config.isDebuggerInstrumentTheWorld();
     if (this.instrumentTheWorld) {
       instrumentTheWorldProbes = new ConcurrentHashMap<>();
@@ -95,8 +101,9 @@ public class DebuggerTransformer implements ClassFileTransformer {
     }
   }
 
-  public DebuggerTransformer(Config config, Configuration configuration) {
-    this(config, configuration, null);
+  // Used only for tests
+  DebuggerTransformer(Config config, Configuration configuration) {
+    this(config, configuration, null, new DebuggerSink(config));
   }
 
   private void readExcludeFiles(String commaSeparatedFileNames) {
@@ -147,7 +154,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     String fullyQualifiedClassName = classFilePath.replace('/', '.');
     try {
       definitions =
-          definitonMatcher.match(
+          definitionMatcher.match(
               classBeingRedefined, classFilePath, fullyQualifiedClassName, classfileBuffer);
       if (definitions.isEmpty()) {
         return null;
@@ -187,7 +194,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
   }
 
   private boolean skipInstrumentation(ClassLoader loader, String classFilePath) {
-    if (definitonMatcher.isEmpty()) {
+    if (definitionMatcher.isEmpty()) {
       log.warn("No debugger definitions present.");
       return true;
     }
@@ -416,26 +423,36 @@ public class DebuggerTransformer implements ClassFileTransformer {
         InstrumentationResult result =
             applyInstrumentation(loader, classNode, definitions, methodNode);
         transformed |= result.isInstalled();
-        for (ProbeDefinition definition : definitions) {
-          definition.buildLocation(result);
-          if (listener != null) {
-            listener.instrumentationResult(definition, result);
-          }
-          List<DiagnosticMessage> diagnosticMessages =
-              result.getDiagnostics().get(definition.getProbeId());
-          if (!result.getDiagnostics().isEmpty()) {
-            DebuggerAgent.getSink().addDiagnostics(definition.getProbeId(), diagnosticMessages);
-          }
-        }
+        handleInstrumentationResult(definitions, result);
       }
     }
     return transformed;
   }
 
+  private void handleInstrumentationResult(
+      List<ProbeDefinition> definitions, InstrumentationResult result) {
+    for (ProbeDefinition definition : definitions) {
+      definition.buildLocation(result);
+      if (listener != null) {
+        listener.instrumentationResult(definition, result);
+      }
+      List<DiagnosticMessage> diagnosticMessages =
+          result.getDiagnostics().get(definition.getProbeId());
+      if (!result.getDiagnostics().isEmpty()) {
+        addDiagnostics(definition, diagnosticMessages);
+      }
+      if (result.isInstalled()) {
+        debuggerSink.addInstalled(definition.getProbeId());
+      } else if (result.isBlocked()) {
+        debuggerSink.addBlocked(definition.getProbeId());
+      }
+    }
+  }
+
   private void reportLocationNotFound(
       List<ProbeDefinition> definitions, String className, String methodName) {
     if (methodName != null) {
-      reportError(definitions, CANNOT_FIND_METHOD, className, methodName);
+      reportErrorForAllProbes(definitions, CANNOT_FIND_METHOD, className, methodName);
       return;
     }
     // This is a line probe, so we don't report line not found because the line may be found later
@@ -443,18 +460,22 @@ public class DebuggerTransformer implements ClassFileTransformer {
   }
 
   private void reportInstrumentationFails(List<ProbeDefinition> definitions, String className) {
-    reportError(definitions, INSTRUMENTATION_FAILS, className, null);
+    reportErrorForAllProbes(definitions, INSTRUMENTATION_FAILS, className, null);
   }
 
-  private static void reportError(
+  private void reportErrorForAllProbes(
       List<ProbeDefinition> definitions, String format, String className, String location) {
     String msg = String.format(format, className, location);
     DiagnosticMessage diagnosticMessage = new DiagnosticMessage(DiagnosticMessage.Kind.ERROR, msg);
     for (ProbeDefinition definition : definitions) {
-      DebuggerAgent.getSink()
-          .addDiagnostics(definition.getProbeId(), singletonList(diagnosticMessage));
-      log.debug("{} for definition: {}", msg, definition);
+      addDiagnostics(definition, singletonList(diagnosticMessage));
     }
+  }
+
+  private void addDiagnostics(
+      ProbeDefinition definition, List<DiagnosticMessage> diagnosticMessages) {
+    debuggerSink.addDiagnostics(definition.getProbeId(), diagnosticMessages);
+    log.debug("Diagnostic messages for definition[{}]: {}", definition, diagnosticMessages);
   }
 
   private void notifyBlockedDefinitions(

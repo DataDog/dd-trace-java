@@ -40,7 +40,8 @@ public class ConfigurationUpdater
     DebuggerTransformer supply(
         Config tracerConfig,
         Configuration configuration,
-        DebuggerTransformer.InstrumentationListener listener);
+        DebuggerTransformer.InstrumentationListener listener,
+        DebuggerSink debuggerSink);
   }
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ConfigurationUpdater.class);
@@ -175,7 +176,7 @@ public class ConfigurationUpdater
     // install new probe definitions
     currentTransformer =
         transformerSupplier.supply(
-            Config.get(), currentConfiguration, this::recordInstrumentationProgress);
+            Config.get(), currentConfiguration, this::recordInstrumentationProgress, sink);
     instrumentation.addTransformer(currentTransformer, true);
     LOGGER.debug("New transformer installed");
   }

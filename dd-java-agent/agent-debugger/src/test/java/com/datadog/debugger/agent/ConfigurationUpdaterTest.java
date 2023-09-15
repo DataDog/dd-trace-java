@@ -376,7 +376,7 @@ public class ConfigurationUpdaterTest {
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
             inst,
-            (tracerConfig, configuration, listener) -> {
+            (tracerConfig, configuration, listener, debuggerSink) -> {
               assertEquals(expectedDefinitions.get(), configuration.getDefinitions().size());
               return transformer;
             },
@@ -698,7 +698,8 @@ public class ConfigurationUpdaterTest {
   private DebuggerTransformer createTransformer(
       Config tracerConfig,
       Configuration configuration,
-      DebuggerTransformer.InstrumentationListener listener) {
+      DebuggerTransformer.InstrumentationListener listener,
+      DebuggerSink debuggerSink) {
     return transformer;
   }
 }
