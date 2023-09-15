@@ -106,7 +106,7 @@ class ObjectVisitorTest extends Specification {
     final target = new CustomClass(name: 'cycle')
     target.cycle = target
 
-    when: 'we visit a clas with a self reference'
+    when: 'we visit a class with a self reference'
     ObjectVisitor.visit(target, visitor, Integer.MAX_VALUE, Integer.MAX_VALUE)
 
     then: 'we only visit the class once'
