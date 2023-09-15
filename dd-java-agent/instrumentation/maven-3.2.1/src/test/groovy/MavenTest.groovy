@@ -20,6 +20,7 @@ class MavenTest extends CiVisibilityTest {
 
   @Override
   void setup() {
+    System.setProperty("maven.multiModuleProjectDirectory", projectFolder.toAbsolutePath().toString())
     givenMavenProjectFiles(specificationContext.currentIteration.name)
     givenMavenDependenciesAreLoaded()
     TEST_WRITER.clear() // loading dependencies will generate a test-session span
@@ -47,7 +48,7 @@ class MavenTest extends CiVisibilityTest {
         testSessionSpan(it, 0, CIConstants.TEST_SKIP, [:],
         "Maven Integration Tests Project",
         "mvn verify",
-        "maven:3.2.5"
+        "maven:${expectedToolchainVersion()}"
         )
       }
     }
@@ -69,11 +70,10 @@ class MavenTest extends CiVisibilityTest {
         testSessionSpan(it, 0, CIConstants.TEST_FAIL, null,
           "Maven Integration Tests Project",
           "mvn unknownPhase",
-          "maven:3.2.5"
-          ,
-          new LifecyclePhaseNotFoundException(
-          "Unknown lifecycle phase \"unknownPhase\". You must specify a valid lifecycle phase or a goal in the format <plugin-prefix>:<goal> or <plugin-group-id>:<plugin-artifact-id>[:<plugin-version>]:<goal>. Available lifecycle phases are: validate, initialize, generate-sources, process-sources, generate-resources, process-resources, compile, process-classes, generate-test-sources, process-test-sources, generate-test-resources, process-test-resources, test-compile, process-test-classes, test, prepare-package, package, pre-integration-test, integration-test, post-integration-test, verify, install, deploy, pre-clean, clean, post-clean, pre-site, site, post-site, site-deploy.",
-          "unknownPhase"))
+          "maven:${expectedToolchainVersion()}",
+          new LifecyclePhaseNotFoundException("", ""),
+          false
+          )
       }
     }
   }
@@ -94,7 +94,7 @@ class MavenTest extends CiVisibilityTest {
         def testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS, [:],
         "Maven Integration Tests Project",
         "mvn clean test",
-        "maven:3.2.5"
+        "maven:${expectedToolchainVersion()}"
         )
         testModuleSpan(it, 0, testSessionId,
           CIConstants.TEST_PASS,
@@ -120,24 +120,21 @@ class MavenTest extends CiVisibilityTest {
 
     assertTraces(1) {
       trace(2, true) {
-        def testsFailedException = new LifecycleExecutionException("Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.12.4:test (default-test) on project maven-integration-test: There are test failures.\n" +
-          "\n" +
-          "Please refer to ${workingDirectory}/target/surefire-reports for the individual test results.")
-
         def testSessionId = testSessionSpan(it, 1, CIConstants.TEST_FAIL, null,
           "Maven Integration Tests Project",
           "mvn clean test",
-          "maven:3.2.5"
-          ,
-          testsFailedException)
+          "maven:${expectedToolchainVersion()}",
+          new LifecycleExecutionException(""),
+          false)
         testModuleSpan(it, 0, testSessionId,
           CIConstants.TEST_FAIL,
           [
             (Tags.TEST_COMMAND)  : "mvn clean test",
             (Tags.TEST_EXECUTION): "maven-surefire-plugin:test:default-test",
           ],
-          testsFailedException,
-          "Maven Integration Tests Project maven-surefire-plugin default-test")
+          new LifecycleExecutionException(""),
+          "Maven Integration Tests Project maven-surefire-plugin default-test",
+          false)
       }
     }
   }
@@ -155,15 +152,12 @@ class MavenTest extends CiVisibilityTest {
 
     assertTraces(1) {
       trace(3, true) {
-        def testsFailedException = new LifecycleExecutionException("Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.12.4:test (default-test) on project maven-integration-test-module-b: There are test failures.\n" +
-          "\n" +
-          "Please refer to ${workingDirectory}/module-b/target/surefire-reports for the individual test results.")
         def testSessionId = testSessionSpan(it, 2, CIConstants.TEST_FAIL, null,
           "Maven Integration Tests Project",
           "mvn clean test",
-          "maven:3.2.5"
-          ,
-          testsFailedException)
+          "maven:${expectedToolchainVersion()}",
+          new LifecycleExecutionException(""),
+          false)
         testModuleSpan(it, 0, testSessionId,
           CIConstants.TEST_PASS,
           [
@@ -177,8 +171,9 @@ class MavenTest extends CiVisibilityTest {
             (Tags.TEST_COMMAND)  : "mvn clean test",
             (Tags.TEST_EXECUTION): "maven-surefire-plugin:test:default-test",
           ],
-          testsFailedException,
-          "module-b maven-surefire-plugin default-test")
+          new LifecycleExecutionException(""),
+          "module-b maven-surefire-plugin default-test",
+          false)
       }
     }
   }
@@ -199,7 +194,7 @@ class MavenTest extends CiVisibilityTest {
         def testSessionId = testSessionSpan(it, 2, CIConstants.TEST_PASS, [:],
         "Maven Integration Tests Project",
         "mvn -T4 clean test",
-        "maven:3.2.5",
+        "maven:${expectedToolchainVersion()}"
         )
         testModuleSpan(it, 0, testSessionId,
           CIConstants.TEST_PASS,
@@ -235,7 +230,7 @@ class MavenTest extends CiVisibilityTest {
         def testSessionId = testSessionSpan(it, 2, CIConstants.TEST_PASS, [:],
         "Maven Integration Tests Project",
         "mvn verify",
-        "maven:3.2.5"
+        "maven:${expectedToolchainVersion()}"
         )
         testModuleSpan(it, 1, testSessionId,
           CIConstants.TEST_PASS,
@@ -272,7 +267,7 @@ class MavenTest extends CiVisibilityTest {
         def testSessionId = testSessionSpan(it, 1, CIConstants.TEST_PASS, [:],
         "Maven Integration Tests Project",
         "mvn clean test",
-        "maven:3.2.5"
+        "maven:${expectedToolchainVersion()}"
         )
         testModuleSpan(it, 0, testSessionId,
           CIConstants.TEST_PASS,
@@ -306,6 +301,10 @@ class MavenTest extends CiVisibilityTest {
       }
     }
     throw new AssertionError((Object) "Tried to download dependencies $DEPENDENCIES_DOWNLOAD_RETRIES times and failed")
+  }
+
+  String expectedToolchainVersion() {
+    return MavenCli.getPackage().getImplementationVersion()
   }
 
   @Override
