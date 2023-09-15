@@ -13,6 +13,7 @@ addTestSuite('latestDepTest')
 
 dependencies {
   compileOnly group: 'org.apache.kafka', name: 'kafka-clients', version: '0.11.0.0'
+  compileOnly group: 'org.apache.kafka', name: 'kafka-clients', version: '2.6.0'
 
   testImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '0.11.0.0'
   testImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '1.3.3.RELEASE'

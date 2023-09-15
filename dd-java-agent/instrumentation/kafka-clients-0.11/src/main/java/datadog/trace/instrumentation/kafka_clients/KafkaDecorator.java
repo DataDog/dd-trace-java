@@ -19,6 +19,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
 import java.util.function.Function;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.record.TimestampType;
@@ -101,6 +102,9 @@ public class KafkaDecorator extends MessagingClientDecorator {
     return spanKind;
   }
 
+  /*public TracedDelegateKafkaProducer wrapProducer(Producer producer) {
+    return new TracedDelegateKafkaProducer(producer);
+  }*/
   public void onConsume(final AgentSpan span, final ConsumerRecord record, String consumerGroup) {
     if (record != null) {
       final String topic = record.topic() == null ? "kafka" : record.topic();
@@ -132,6 +136,7 @@ public class KafkaDecorator extends MessagingClientDecorator {
 
   public void onProduce(
       final AgentSpan span, final ProducerRecord record, final ProducerConfig producerConfig) {
+    System.out.println("Kafka - on produce");
     if (record != null) {
       if (record.partition() != null) {
         span.setTag(PARTITION, record.partition());

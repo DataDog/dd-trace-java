@@ -20,6 +20,7 @@ public class KafkaProducerCallback implements Callback {
 
   public KafkaProducerCallback(
       final Callback callback, final AgentSpan parent, final AgentSpan span) {
+    System.out.println("[KAFKA PRODUCER CALLBACK]");
     this.callback = callback;
     this.parent = parent;
     this.span = span;

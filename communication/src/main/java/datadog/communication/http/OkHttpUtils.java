@@ -307,6 +307,7 @@ public final class OkHttpUtils {
       OkHttpClient httpClient, HttpRetryPolicy retryPolicy, Request request) throws IOException {
     while (true) {
       try {
+	System.out.println("HTTP REQUEST: " + request);
         okhttp3.Response response = httpClient.newCall(request).execute();
         if (response.isSuccessful()) {
           return response;

@@ -89,6 +89,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
         timeSource,
         traceConfigSupplier,
         config);
+    System.out.println("AGENT URL: " + sharedCommunicationObjects.agentUrl.toString());
+    System.out.println("endpoint: " + V01_DATASTREAMS_ENDPOINT);
   }
 
   public DefaultDataStreamsMonitoring(

@@ -16,6 +16,7 @@ import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.S
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static org.apache.kafka.clients.producer.ProducerConfig.BOOTSTRAP_SERVERS_CONFIG;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -29,7 +30,11 @@ import org.apache.kafka.clients.ApiVersions;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.internals.Sender;
+import org.apache.kafka.clients.producer.internals.ProducerMetadata;
 import org.apache.kafka.common.record.RecordBatch;
+//import org.slf4j.Logger;
+//import org.slf4j.LoggerFactory;
 
 @AutoService(Instrumenter.class)
 public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
@@ -39,6 +44,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
     super("kafka");
   }
 
+  //private static final Logger log = LoggerFactory.getLogger(KafkaProducerInstrumentation.class);
   @Override
   public String instrumentedType() {
     return "org.apache.kafka.clients.producer.KafkaProducer";
@@ -70,8 +76,15 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
     public static AgentScope onEnter(
         @Advice.FieldValue("apiVersions") final ApiVersions apiVersions,
         @Advice.FieldValue("producerConfig") ProducerConfig producerConfig,
+        @Advice.FieldValue("sender") Sender sender,
+        @Advice.FieldValue("metadata") ProducerMetadata metadata,
         @Advice.Argument(value = 0, readOnly = false) ProducerRecord record,
         @Advice.Argument(value = 1, readOnly = false) Callback callback) {
+      System.out.println("[KAFKA PRODUCER] ON METHOD ENTER");
+      System.out.println(producerConfig.getList(BOOTSTRAP_SERVERS_CONFIG));
+      System.out.println(metadata);
+
+
       final AgentSpan parent = activeSpan();
       final AgentSpan span = startSpan(KAFKA_PRODUCE);
       PRODUCER_DECORATE.afterStart(span);
