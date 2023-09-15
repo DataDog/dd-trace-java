@@ -1,0 +1,98 @@
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'scala'
+apply plugin: 'call-site-instrumentation'
+
+// Since we are using different scala versions for different test sets,
+// we put the test classes in the baseTest test set so that the scala
+// version is not inherited
+addTestSuite('baseTest')
+addTestSuite('latestDepTest')
+addTestSuite('iastTest')
+addTestSuiteForDir 'latestDepIastTest', 'iastTest'
+
+muzzle {
+  pass {
+    group = 'org.apache.pekko'
+    module = 'pekko-http_2.12'
+    versions = "[1.0.0,)"
+    assertInverse = true
+
+    extraDependency 'org.apache.pekko:pekko-stream_2.12:1.0.1'
+  }
+  pass {
+    group = 'org.apache.pekko'
+    module = 'pekko-http_2.13'
+    versions = "[1.0.0,)"
+    assertInverse = true
+
+    extraDependency 'org.apache.pekko:pekko-stream_2.13:1.0.1'
+    extraDependency 'org.scala-lang.modules:scala-java8-compat_2.13:1.0.2'
+  }
+}
+
+configurations {
+  iastTestImplementation.extendsFrom(baseTestImplementation)
+
+  latestDepIastTestRuntimeOnly.extendsFrom(iastTestRuntimeOnly)
+}
+
+sourceSets {
+  latestDepTest.groovy.srcDir sourceSets.baseTest.groovy
+  latestDepTest.scala.srcDir sourceSets.baseTest.scala
+}
+
+dependencies {
+  compileOnly deps.scala212
+  compileOnly group: 'org.apache.pekko', name: 'pekko-http-core_2.12', version: '1.0.0'
+  compileOnly group: 'org.apache.pekko', name: 'pekko-http_2.12', version: '1.0.0'
+  compileOnly group: 'org.apache.pekko', name: 'pekko-stream_2.12', version: '1.0.1'
+
+  // These are the common dependencies that are inherited by the other test sets
+  testImplementation group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.6.0'
+  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:pekko-concurrent')
+  testImplementation project(':dd-java-agent:instrumentation:scala-concurrent')
+  testImplementation project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.10')
+  testImplementation project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.13')
+
+  baseTestImplementation deps.scala212
+  baseTestImplementation group: 'org.apache.pekko', name: 'pekko-http_2.12', version: '1.0.0'
+  baseTestImplementation group: 'org.apache.pekko', name: 'pekko-stream_2.12', version: '1.0.1'
+
+  iastTestImplementation group: 'com.github.pjfanning', name: 'pekko-http-jackson_2.12', version: '2.1.0'
+  iastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  iastTestCompileOnly group: 'de.thetaphi', name: 'forbiddenapis', version: '3.4'
+  iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
+  iastTestRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+
+  latestDepTestImplementation deps.scala213
+  latestDepTestImplementation group: 'org.apache.pekko', name: 'pekko-http_2.13', version: '1.+'
+  latestDepTestImplementation group: 'org.apache.pekko', name: 'pekko-stream_2.13', version: '1.+'
+  latestDepTestImplementation group: 'org.scala-lang.modules', name: 'scala-java8-compat_2.13', version: '1.+'
+
+  latestDepIastTestImplementation deps.scala213
+  latestDepIastTestImplementation group: 'org.apache.pekko', name: 'pekko-http_2.13', version: '1.+'
+  latestDepIastTestImplementation group: 'org.apache.pekko', name: 'pekko-stream_2.13', version: '1.+'
+  latestDepIastTestImplementation group: 'com.github.pjfanning', name: 'pekko-http-jackson_2.13', version: '2.+'
+  latestDepIastTestImplementation group: 'org.scala-lang.modules', name: 'scala-java8-compat_2.13', version: '1.+'
+  latestDepIastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+}
+
+tasks.named("test").configure {
+  dependsOn "baseTest"
+  dependsOn "iastTest"
+}
+
+tasks.named('latestDepTest').configure {
+  dependsOn "latestDepIastTest"
+}
+
+compileBaseTestGroovy {
+  classpath = classpath.plus(files(compileBaseTestScala.destinationDirectory))
+  dependsOn "compileBaseTestScala"
+}
+
+compileLatestDepTestGroovy {
+  classpath = classpath.plus(files(compileLatestDepTestScala.destinationDirectory))
+  dependsOn "compileLatestDepTestScala"
+}
