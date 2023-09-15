@@ -376,6 +376,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     'format2'  | 'test'
     'format3'  | 'Formatted%20like%3A%20%251%24s%20and%20%252%24s.'
     'format4'  | 'test'
+    'responseBody' | 'test'
   }
 
   void 'trust boundary violation with cookie propagation'() {

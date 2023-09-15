@@ -5,8 +5,10 @@ import java.io.IOException;
 import java.util.Locale;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -189,5 +191,11 @@ public class XssController {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  @GetMapping(value = "/responseBody", produces = MediaType.APPLICATION_JSON_VALUE)
+  @ResponseBody
+  public String responseBody(final HttpServletRequest request, final HttpServletResponse response) {
+    return request.getParameter("string");
   }
 }
