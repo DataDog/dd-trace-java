@@ -68,10 +68,9 @@ public class ObjectVisitor {
     while (!queue.isEmpty()) {
       final Context<?> current = queue.pop();
       final Object value = current.value;
-      if (visited.contains(value)) {
+      if (!visited.add(value)) {
         continue;
       }
-      visited.add(value);
       try {
         if (value instanceof Object[]) {
           visitArray(queue, (Context<Object[]>) current);
