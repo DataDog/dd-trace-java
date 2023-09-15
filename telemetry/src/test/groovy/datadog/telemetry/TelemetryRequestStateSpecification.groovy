@@ -11,15 +11,15 @@ import spock.lang.Specification
  * This test only verifies non-functional specifics that are not covered in TelemetryServiceSpecification
  */
 class TelemetryRequestStateSpecification extends Specification {
-  final HttpUrl httpUrl = HttpUrl.get("https://example.com")
+  final HttpUrl url = HttpUrl.get("https://example.com")
 
   def 'throw SerializationException in case of JSON nesting problem'() {
     setup:
-    def b = new TelemetryRequestState(RequestType.APP_STARTED, httpUrl)
+    def req = new TelemetryRequestState(RequestType.APP_STARTED)
 
     when:
-    b.beginRequest()
-    b.beginRequest()
+    req.beginRequest(false)
+    req.beginRequest(false)
 
     then:
     TelemetryRequestState.SerializationException ex = thrown()
@@ -29,12 +29,12 @@ class TelemetryRequestStateSpecification extends Specification {
 
   def 'throw SerializationException in case of more than one top-level JSON value'() {
     setup:
-    def b = new TelemetryRequestState(RequestType.APP_STARTED, httpUrl)
+    def req = new TelemetryRequestState(RequestType.APP_STARTED)
 
     when:
-    b.beginRequest()
-    b.endRequest()
-    b.beginRequest()
+    req.beginRequest(false)
+    req.endRequest(url)
+    req.beginRequest(false)
 
     then:
     TelemetryRequestState.SerializationException ex = thrown()
@@ -44,38 +44,38 @@ class TelemetryRequestStateSpecification extends Specification {
 
   def 'writeConfig must support values of Boolean, String, Integer, Double, Map<String, Object>'() {
     setup:
-    TelemetryRequestState rb = new TelemetryRequestState(RequestType.APP_CLIENT_CONFIGURATION_CHANGE, httpUrl)
+    TelemetryRequestState req = new TelemetryRequestState(RequestType.APP_CLIENT_CONFIGURATION_CHANGE)
     Map<String, Object> map = new HashMap<>()
     map.put("key1", "value1")
     map.put("key2", Double.parseDouble("432.32"))
     map.put("key3", 324)
 
     when:
-    rb.beginRequest()
+    req.beginRequest(false)
     // exclude request header to simplify assertion
-    drainToString(rb.request())
+    drainToString(req.request(url))
 
     then:
-    rb.beginConfiguration()
+    req.beginConfiguration()
     [
       new ConfigChange("string", "bar"),
       new ConfigChange("int", 2342),
       new ConfigChange("double", Double.valueOf("123.456")),
       new ConfigChange("map", map)
-    ].forEach { cc -> rb.writeConfiguration(cc) }
-    rb.endConfiguration()
+    ].forEach { cc -> req.writeConfiguration(cc) }
+    req.endConfiguration()
 
     then:
-    drainToString(rb.endRequest()) == ',"configuration":[{"name":"string","value":"bar","origin":"unknown"},{"name":"int","value":2342,"origin":"unknown"},{"name":"double","value":123.456,"origin":"unknown"},{"name":"map","value":{"key1":"value1","key2":432.32,"key3":324},"origin":"unknown"}]}'
+    drainToString(req.endRequest(url)) == ',"configuration":[{"name":"string","value":"bar","origin":"unknown"},{"name":"int","value":2342,"origin":"unknown"},{"name":"double","value":123.456,"origin":"unknown"},{"name":"map","value":{"key1":"value1","key2":432.32,"key3":324},"origin":"unknown"}]}'
   }
 
   def 'add debug flag'() {
     setup:
-    TelemetryRequestState rb = new TelemetryRequestState(RequestType.APP_STARTED, httpUrl, true)
+    TelemetryRequestState req = new TelemetryRequestState(RequestType.APP_STARTED)
 
     when:
-    rb.beginRequest()
-    def request = rb.endRequest()
+    req.beginRequest(true)
+    def request = req.endRequest(url)
 
     then:
     drainToString(request).contains("\"debug\":true")

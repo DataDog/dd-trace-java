@@ -1,10 +1,9 @@
 package datadog.telemetry
 
 import datadog.telemetry.dependency.Dependency
-import datadog.telemetry.api.Integration
-import datadog.telemetry.api.DistributionSeries
-
 import datadog.telemetry.api.ConfigChange
+import datadog.telemetry.api.DistributionSeries
+import datadog.telemetry.api.Integration
 import datadog.telemetry.api.LogMessage
 import datadog.telemetry.api.LogMessageLevel
 import datadog.telemetry.api.Metric

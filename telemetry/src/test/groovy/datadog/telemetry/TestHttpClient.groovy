@@ -22,11 +22,11 @@ class TestHttpClient extends HttpClient {
   }
 
   @Override
-  Result sendRequest(Request request) {
+  Result sendRequest(TelemetryRequest request) {
     if (mockResults.isEmpty()) {
       throw new IllegalStateException("Unexpected request has been sent. State expectations with `expectRequests` prior sending requests.")
     }
-    requests.add(new RequestAssertions(request))
+    requests.add(new RequestAssertions(request.httpRequest(getUrl())))
     return mockResults.poll()
   }
 

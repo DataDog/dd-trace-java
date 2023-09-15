@@ -12,7 +12,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
-import okhttp3.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -115,10 +114,8 @@ public class TelemetryService {
             EventSink.NOOP,
             messageBytesSoftLimit,
             RequestType.APP_CLOSING,
-            httpClient.getUrl(),
             debug);
-    Request request = telemetryRequest.httpRequest();
-    if (httpClient.sendRequest(request) != HttpClient.Result.SUCCESS) {
+    if (httpClient.sendRequest(telemetryRequest) != HttpClient.Result.SUCCESS) {
       log.error("Couldn't send app-closing event!");
     }
   }
@@ -144,17 +141,10 @@ public class TelemetryService {
     log.debug("Preparing app-started request");
     TelemetryRequest telemetryRequest =
         new TelemetryRequest(
-            eventSource,
-            eventSink,
-            messageBytesSoftLimit,
-            RequestType.APP_STARTED,
-            httpClient.getUrl(),
-            debug);
+            eventSource, eventSink, messageBytesSoftLimit, RequestType.APP_STARTED, debug);
     telemetryRequest.writeProducts();
     telemetryRequest.writeConfigurations();
-    Request request = telemetryRequest.httpRequest();
-
-    if (httpClient.sendRequest(request) == HttpClient.Result.SUCCESS) {
+    if (httpClient.sendRequest(telemetryRequest) == HttpClient.Result.SUCCESS) {
       // discard already sent buffered event on the successful attempt
       bufferedEvents = null;
       return true;
@@ -187,22 +177,12 @@ public class TelemetryService {
       log.debug("Preparing app-heartbeat request");
       telemetryRequest =
           new TelemetryRequest(
-              eventSource,
-              eventSink,
-              messageBytesSoftLimit,
-              RequestType.APP_HEARTBEAT,
-              httpClient.getUrl(),
-              debug);
+              eventSource, eventSink, messageBytesSoftLimit, RequestType.APP_HEARTBEAT, debug);
     } else {
       log.debug("Preparing message-batch request");
       telemetryRequest =
           new TelemetryRequest(
-              eventSource,
-              eventSink,
-              messageBytesSoftLimit,
-              RequestType.MESSAGE_BATCH,
-              httpClient.getUrl(),
-              debug);
+              eventSource, eventSink, messageBytesSoftLimit, RequestType.MESSAGE_BATCH, debug);
       telemetryRequest.writeHeartbeatEvent();
       telemetryRequest.writeConfigurationMessage();
       telemetryRequest.writeIntegrationsMessage();
@@ -212,9 +192,8 @@ public class TelemetryService {
       telemetryRequest.writeLogsMessage();
       isMoreDataAvailable = !this.eventSource.isEmpty();
     }
-    Request request = telemetryRequest.httpRequest();
 
-    HttpClient.Result result = httpClient.sendRequest(request);
+    HttpClient.Result result = httpClient.sendRequest(telemetryRequest);
     if (result == HttpClient.Result.SUCCESS) {
       log.debug("Telemetry request has been sent successfully.");
       bufferedEvents = null;

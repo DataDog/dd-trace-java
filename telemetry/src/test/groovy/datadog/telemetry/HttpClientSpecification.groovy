@@ -1,24 +1,26 @@
 package datadog.telemetry
 
+import datadog.telemetry.api.RequestType
 import okhttp3.Call
 import okhttp3.HttpUrl
 import okhttp3.MediaType
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
-import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody
 import spock.lang.Specification
 
 class HttpClientSpecification extends Specification {
 
-  def dummyRequest = new Request.Builder().url(HttpUrl.get("https://example.com")).build()
+  def dummyRequest() {
+    return new TelemetryRequest(Mock(EventSource), Mock(EventSink), 1000, RequestType.APP_STARTED, false)
+  }
 
   Call mockResponse(int code) {
     Stub(Call) {
       execute() >> {
         new Response.Builder()
-          .request(dummyRequest)
+          .request(dummyRequest().httpRequest(HttpUrl.get("https://example.com")))
           .protocol(Protocol.HTTP_1_1)
           .message("OK")
           .body(ResponseBody.create(MediaType.get("text/plain"), "OK"))
@@ -34,7 +36,7 @@ class HttpClientSpecification extends Specification {
 
   def 'map an http status code to the correct send result'() {
     when:
-    def result = httpClient.sendRequest(dummyRequest)
+    def result = httpClient.sendRequest(dummyRequest())
 
     then:
     result == sendResult
@@ -50,7 +52,7 @@ class HttpClientSpecification extends Specification {
 
   def 'catch IOException from OkHttpClient and return FAILURE'() {
     when:
-    def result = httpClient.sendRequest(dummyRequest)
+    def result = httpClient.sendRequest(dummyRequest())
 
     then:
     result == HttpClient.Result.FAILURE

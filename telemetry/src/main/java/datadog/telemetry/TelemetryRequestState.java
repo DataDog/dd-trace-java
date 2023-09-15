@@ -41,7 +41,6 @@ public class TelemetryRequestState extends RequestBody {
   private final JsonWriter bodyWriter = JsonWriter.of(body);
   private final RequestType requestType;
   private final Request.Builder requestBuilder;
-  private final boolean debug;
 
   /** Exists in a separate class to avoid startup toll */
   private static class CommonData {
@@ -65,25 +64,19 @@ public class TelemetryRequestState extends RequestBody {
 
   private static final CommonData commonData = new CommonData();
 
-  TelemetryRequestState(RequestType requestType, HttpUrl httpUrl) {
-    this(requestType, httpUrl, false);
-  }
-
-  TelemetryRequestState(RequestType requestType, HttpUrl httpUrl, boolean debug) {
+  TelemetryRequestState(RequestType requestType) {
     this.requestType = requestType;
     this.requestBuilder =
         new Request.Builder()
-            .url(httpUrl)
             .addHeader("Content-Type", String.valueOf(JSON))
             .addHeader("DD-Telemetry-API-Version", API_VERSION)
             .addHeader("DD-Telemetry-Request-Type", String.valueOf(this.requestType))
             .addHeader("DD-Client-Library-Language", "jvm")
             .addHeader("DD-Client-Library-Version", TracerVersion.TRACER_VERSION)
             .post(this);
-    this.debug = debug;
   }
 
-  public void beginRequest() {
+  public void beginRequest(boolean debug) {
     try {
       bodyWriter.beginObject();
       bodyWriter.name("api_version").value(API_VERSION);
@@ -132,7 +125,7 @@ public class TelemetryRequestState extends RequestBody {
     }
   }
 
-  public Request endRequest() {
+  public Request endRequest(HttpUrl url) {
     try {
       if (requestType == RequestType.APP_STARTED) {
         endSinglePayload();
@@ -141,7 +134,7 @@ public class TelemetryRequestState extends RequestBody {
       }
       bodyWriter.endObject(); // request
       requestBuilder.addHeader("Content-Length", String.valueOf(body.size()));
-      return request();
+      return request(url);
     } catch (Exception ex) {
       throw new SerializationException("end-request", ex);
     }
@@ -389,7 +382,8 @@ public class TelemetryRequestState extends RequestBody {
     // integrations - optional
   }
 
-  Request request() {
+  Request request(HttpUrl url) {
+    requestBuilder.url(url);
     return requestBuilder.build();
   }
 

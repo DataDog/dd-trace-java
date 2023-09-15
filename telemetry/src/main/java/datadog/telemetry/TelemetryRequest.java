@@ -24,17 +24,16 @@ public class TelemetryRequest {
       EventSink eventSink,
       long messageBytesSoftLimit,
       RequestType requestType,
-      HttpUrl httpUrl,
       boolean debug) {
     this.eventSource = eventSource;
     this.eventSink = eventSink;
     this.messageBytesSoftLimit = messageBytesSoftLimit;
-    this.telemetryRequestState = new TelemetryRequestState(requestType, httpUrl, debug);
-    this.telemetryRequestState.beginRequest();
+    this.telemetryRequestState = new TelemetryRequestState(requestType);
+    this.telemetryRequestState.beginRequest(debug);
   }
 
-  public Request httpRequest() {
-    return telemetryRequestState.endRequest();
+  public Request httpRequest(HttpUrl url) {
+    return telemetryRequestState.endRequest(url);
   }
 
   public void writeConfigurationMessage() {

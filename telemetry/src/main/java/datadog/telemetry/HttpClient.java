@@ -28,13 +28,14 @@ public class HttpClient {
     this.agentTelemetryUrl = agentUrl.newBuilder().addPathSegments(API_ENDPOINT).build();
   }
 
-  public HttpUrl getUrl() {
+  protected HttpUrl getUrl() {
     return agentTelemetryUrl;
   }
 
-  public Result sendRequest(Request request) {
-    String requestType = request.header(DD_TELEMETRY_REQUEST_TYPE);
-    try (Response response = httpClient.newCall(request).execute()) {
+  public Result sendRequest(TelemetryRequest request) {
+    Request httpRequest = request.httpRequest(getUrl());
+    String requestType = httpRequest.header(DD_TELEMETRY_REQUEST_TYPE);
+    try (Response response = httpClient.newCall(httpRequest).execute()) {
       if (response.code() == 404) {
         log.debug("Telemetry endpoint is disabled, dropping {} message", requestType);
         return Result.NOT_FOUND;
