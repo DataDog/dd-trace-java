@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package datadog.smoketest.grpc;
+
+service Iast {
+  rpc ServerSideRequestForgery (UrlRequest) returns (Response) {
+  }
+}
+
+message UrlRequest {
+  string url = 1;
+}
+
+message Response {
+  string message = 1;
+}

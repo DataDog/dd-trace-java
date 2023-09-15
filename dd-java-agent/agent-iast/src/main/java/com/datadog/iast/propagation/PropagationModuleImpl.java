@@ -3,6 +3,7 @@ package com.datadog.iast.propagation;
 import static com.datadog.iast.model.Range.NOT_MARKED;
 import static com.datadog.iast.taint.Ranges.highestPriorityRange;
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
+import static com.datadog.iast.util.ObjectVisitor.State.CONTINUE;
 
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
@@ -10,12 +11,14 @@ import com.datadog.iast.model.Source;
 import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
+import com.datadog.iast.util.ObjectVisitor;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.Taintable;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class PropagationModuleImpl implements PropagationModule {
@@ -161,6 +164,26 @@ public class PropagationModuleImpl implements PropagationModule {
     final IastRequestContext ctx = (IastRequestContext) ctx_;
     final TaintedObjects taintedObjects = ctx.getTaintedObjects();
     taintedObjects.taintInputString(value, new Source(source, name, value));
+  }
+
+  @Override
+  public void taintDeeply(@Nullable final Object ctx_, final byte source, @Nonnull final Object o) {
+    if (ctx_ == null) {
+      return;
+    }
+    final IastRequestContext ctx = (IastRequestContext) ctx_;
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    ObjectVisitor.visit(
+        o,
+        (name, value) -> {
+          if (value instanceof String) {
+            final String stringValue = (String) value;
+            if (canBeTainted(stringValue)) {
+              taintedObjects.taintInputString(stringValue, new Source(source, name, stringValue));
+            }
+          }
+          return CONTINUE;
+        });
   }
 
   @Override
