@@ -1,20 +1,3 @@
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
-import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_LENGTH
-import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE
-import static io.netty.handler.codec.http.HttpHeaders.is100ContinueExpected
-import static io.netty.handler.codec.http.HttpResponseStatus.CONTINUE
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR
-import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1
-
 import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
@@ -42,6 +25,23 @@ import io.netty.handler.logging.LogLevel
 import io.netty.handler.logging.LoggingHandler
 import io.netty.util.CharsetUtil
 import spock.lang.Ignore
+
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
+import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_LENGTH
+import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE
+import static io.netty.handler.codec.http.HttpHeaders.is100ContinueExpected
+import static io.netty.handler.codec.http.HttpResponseStatus.CONTINUE
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR
+import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1
 
 abstract class Netty40ServerTest extends HttpServerTest<EventLoopGroup> {
 
@@ -165,7 +165,17 @@ abstract class Netty40ServerTest extends HttpServerTest<EventLoopGroup> {
   }
 
   @Override
+  protected boolean enabledFinishTimingChecks() {
+    true
+  }
+
+  @Override
   boolean testBlocking() {
+    true
+  }
+
+  @Override
+  boolean testBlockingOnResponse() {
     true
   }
 

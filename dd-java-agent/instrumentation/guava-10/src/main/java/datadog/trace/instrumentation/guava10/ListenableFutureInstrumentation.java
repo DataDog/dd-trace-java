@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.guava10;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static java.util.Collections.singletonMap;
+import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
@@ -32,6 +33,13 @@ public class ListenableFutureInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      this.packageName + ".GuavaAsyncResultSupportExtension",
+    };
+  }
+
+  @Override
   public Map<String, String> contextStore() {
     return singletonMap(Runnable.class.getName(), State.class.getName());
   }
@@ -39,8 +47,17 @@ public class ListenableFutureInstrumentation extends Instrumenter.Tracing
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
+        isConstructor(), ListenableFutureInstrumentation.class.getName() + "$AbstractFutureAdvice");
+    transformation.applyAdvice(
         named("addListener").and(takesArguments(Runnable.class, Executor.class)),
         ListenableFutureInstrumentation.class.getName() + "$AddListenerAdvice");
+  }
+
+  public static class AbstractFutureAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void init() {
+      GuavaAsyncResultSupportExtension.initialize();
+    }
   }
 
   public static class AddListenerAdvice {

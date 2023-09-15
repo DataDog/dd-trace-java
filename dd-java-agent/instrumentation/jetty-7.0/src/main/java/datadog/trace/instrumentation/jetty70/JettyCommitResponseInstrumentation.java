@@ -91,7 +91,10 @@ public final class JettyCommitResponseInstrumentation extends Instrumenter.AppSe
         if (brf != null) {
           boolean res =
               brf.tryCommitBlockingResponse(
-                  rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+                  requestContext.getTraceSegment(),
+                  rba.getStatusCode(),
+                  rba.getBlockingContentType(),
+                  rba.getExtraHeaders());
           if (res) {
             requestContext.getTraceSegment().effectivelyBlocked();
             return true;

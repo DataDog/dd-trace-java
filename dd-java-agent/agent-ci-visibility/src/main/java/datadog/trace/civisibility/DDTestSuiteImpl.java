@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTestSuite;
-import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -15,8 +14,10 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.context.SpanTestContext;
 import datadog.trace.civisibility.context.TestContext;
+import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.SourcePathResolver;
 import java.lang.reflect.Method;
 import javax.annotation.Nullable;
 
@@ -33,6 +34,7 @@ public class DDTestSuiteImpl implements DDTestSuite {
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
   private final MethodLinesResolver methodLinesResolver;
+  private final CoverageProbeStoreFactory coverageProbeStoreFactory;
   private final boolean parallelized;
 
   public DDTestSuiteImpl(
@@ -46,6 +48,7 @@ public class DDTestSuiteImpl implements DDTestSuite {
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
+      CoverageProbeStoreFactory coverageProbeStoreFactory,
       boolean parallelized) {
     this.moduleName = moduleName;
     this.moduleContext = moduleContext;
@@ -55,6 +58,7 @@ public class DDTestSuiteImpl implements DDTestSuite {
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
+    this.coverageProbeStoreFactory = coverageProbeStoreFactory;
     this.parallelized = parallelized;
 
     AgentSpan moduleSpan = this.moduleContext.getSpan();
@@ -185,6 +189,7 @@ public class DDTestSuiteImpl implements DDTestSuite {
         testDecorator,
         sourcePathResolver,
         methodLinesResolver,
-        codeowners);
+        codeowners,
+        coverageProbeStoreFactory);
   }
 }

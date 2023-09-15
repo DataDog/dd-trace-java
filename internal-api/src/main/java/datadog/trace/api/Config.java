@@ -46,6 +46,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_UPLOAD_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_VERIFY_BYTECODE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_START_DELAY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_BODY_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_PARAMS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HEALTH_METRICS_ENABLED;
@@ -121,6 +123,7 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_METRICS;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_TIMEOUT;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ADDITIONAL_CHILD_PROCESS_JVM_ARGS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENT_JAR_URI;
@@ -129,6 +132,8 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_BACKEND_A
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_PERCENTAGE_CALCULATION_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED;
@@ -139,6 +144,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UNSHA
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_GRADLE_SOURCE_SETS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION;
@@ -275,6 +281,8 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_BODY_AND_PARAMS_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_BODY_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_PARAMS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_INBOUND_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_OUTBOUND_METHODS;
@@ -645,13 +653,17 @@ public class Config {
   private final Long ciVisibilityModuleId;
   private final String ciVisibilityAgentJarUri;
   private final boolean ciVisibilityAutoConfigurationEnabled;
+  private final String ciVisibilityAdditionalChildProcessJvmArgs;
   private final boolean ciVisibilityCompilerPluginAutoConfigurationEnabled;
   private final boolean ciVisibilityCodeCoverageEnabled;
+  private final boolean ciVisibilityCodeCoveragePercentageCalculationEnabled;
+  private final String ciVisibilityCodeCoverageReportDumpDir;
   private final String ciVisibilityCompilerPluginVersion;
   private final String ciVisibilityJacocoPluginVersion;
   private final List<String> ciVisibilityJacocoPluginIncludes;
   private final List<String> ciVisibilityJacocoPluginExcludes;
   private final String[] ciVisibilityJacocoPluginExcludedClassnames;
+  private final List<String> ciVisibilityJacocoGradleSourceSets;
   private final Integer ciVisibilityDebugPort;
   private final boolean ciVisibilityGitUploadEnabled;
   private final boolean ciVisibilityGitUnshallowEnabled;
@@ -776,6 +788,8 @@ public class Config {
 
   private final boolean longRunningTraceEnabled;
   private final long longRunningTraceFlushInterval;
+  private final boolean elasticsearchBodyEnabled;
+  private final boolean elasticsearchParamsEnabled;
   private final boolean elasticsearchBodyAndParamsEnabled;
   private final boolean sparkTaskHistogramEnabled;
   private final boolean jaxRsExceptionAsErrorsEnabled;
@@ -857,6 +871,11 @@ public class Config {
     } else {
       secureRandom = configProvider.getBoolean(SECURE_RANDOM, DEFAULT_SECURE_RANDOM);
     }
+    elasticsearchBodyEnabled =
+        configProvider.getBoolean(ELASTICSEARCH_BODY_ENABLED, DEFAULT_ELASTICSEARCH_BODY_ENABLED);
+    elasticsearchParamsEnabled =
+        configProvider.getBoolean(
+            ELASTICSEARCH_PARAMS_ENABLED, DEFAULT_ELASTICSEARCH_PARAMS_ENABLED);
     elasticsearchBodyAndParamsEnabled =
         configProvider.getBoolean(
             ELASTICSEARCH_BODY_AND_PARAMS_ENABLED, DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED);
@@ -1484,12 +1503,18 @@ public class Config {
         configProvider.getBoolean(
             CIVISIBILITY_AUTO_CONFIGURATION_ENABLED,
             DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED);
+    ciVisibilityAdditionalChildProcessJvmArgs =
+        configProvider.getString(CIVISIBILITY_ADDITIONAL_CHILD_PROCESS_JVM_ARGS);
     ciVisibilityCompilerPluginAutoConfigurationEnabled =
         configProvider.getBoolean(
             CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED,
             DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED);
     ciVisibilityCodeCoverageEnabled =
         configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_ENABLED, true);
+    ciVisibilityCodeCoveragePercentageCalculationEnabled =
+        configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_PERCENTAGE_CALCULATION_ENABLED, true);
+    ciVisibilityCodeCoverageReportDumpDir =
+        configProvider.getString(CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR);
     ciVisibilityCompilerPluginVersion =
         configProvider.getString(
             CIVISIBILITY_COMPILER_PLUGIN_VERSION, DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION);
@@ -1505,6 +1530,9 @@ public class Config {
                     DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES)));
     ciVisibilityJacocoPluginExcludedClassnames =
         computeCiVisibilityJacocoPluginExcludedClassnames(ciVisibilityJacocoPluginExcludes);
+    ciVisibilityJacocoGradleSourceSets =
+        configProvider.getList(
+            CIVISIBILITY_JACOCO_GRADLE_SOURCE_SETS, Collections.singletonList("main"));
     ciVisibilityDebugPort = configProvider.getInteger(CIVISIBILITY_DEBUG_PORT);
     ciVisibilityGitUploadEnabled =
         configProvider.getBoolean(
@@ -2246,7 +2274,9 @@ public class Config {
 
   public static boolean isDatadogProfilerEnablementOverridden() {
     // old non-LTS versions without important backports
-    return Platform.isJavaVersion(18)
+    // also, we have no windows binaries
+    return Platform.isWindows()
+        || Platform.isJavaVersion(18)
         || Platform.isJavaVersion(16)
         || Platform.isJavaVersion(15)
         || Platform.isJavaVersion(14)
@@ -2453,12 +2483,24 @@ public class Config {
     return ciVisibilityAutoConfigurationEnabled;
   }
 
+  public String getCiVisibilityAdditionalChildProcessJvmArgs() {
+    return ciVisibilityAdditionalChildProcessJvmArgs;
+  }
+
   public boolean isCiVisibilityCompilerPluginAutoConfigurationEnabled() {
     return ciVisibilityCompilerPluginAutoConfigurationEnabled;
   }
 
   public boolean isCiVisibilityCodeCoverageEnabled() {
     return ciVisibilityCodeCoverageEnabled;
+  }
+
+  public boolean isCiVisibilityCodeCoveragePercentageCalculationEnabled() {
+    return ciVisibilityCodeCoveragePercentageCalculationEnabled;
+  }
+
+  public String getCiVisibilityCodeCoverageReportDumpDir() {
+    return ciVisibilityCodeCoverageReportDumpDir;
   }
 
   public String getCiVisibilityCompilerPluginVersion() {
@@ -2479,6 +2521,10 @@ public class Config {
 
   public String[] getCiVisibilityJacocoPluginExcludedClassnames() {
     return ciVisibilityJacocoPluginExcludedClassnames;
+  }
+
+  public List<String> getCiVisibilityJacocoGradleSourceSets() {
+    return ciVisibilityJacocoGradleSourceSets;
   }
 
   public Integer getCiVisibilityDebugPort() {
@@ -2797,6 +2843,14 @@ public class Config {
 
   public BitSet getGrpcClientErrorStatuses() {
     return grpcClientErrorStatuses;
+  }
+
+  public boolean isElasticsearchBodyEnabled() {
+    return elasticsearchBodyEnabled;
+  }
+
+  public boolean isElasticsearchParamsEnabled() {
+    return elasticsearchParamsEnabled;
   }
 
   public boolean isElasticsearchBodyAndParamsEnabled() {
@@ -3453,7 +3507,11 @@ public class Config {
   // This has to be placed after all other static fields to give them a chance to initialize
   @SuppressFBWarnings("SI_INSTANCE_BEFORE_FINALS_ASSIGNED")
   private static final Config INSTANCE =
-      new Config(ConfigProvider.getInstance(), InstrumenterConfig.get());
+      new Config(
+          Platform.isNativeImageBuilder()
+              ? ConfigProvider.withoutCollector()
+              : ConfigProvider.getInstance(),
+          InstrumenterConfig.get());
 
   public static Config get() {
     return INSTANCE;
@@ -3815,6 +3873,10 @@ public class Config {
         + longRunningTraceEnabled
         + ", longRunningTraceFlushInterval="
         + longRunningTraceFlushInterval
+        + ", elasticsearchBodyEnabled="
+        + elasticsearchBodyEnabled
+        + ", elasticsearchParamsEnabled="
+        + elasticsearchParamsEnabled
         + ", elasticsearchBodyAndParamsEnabled="
         + elasticsearchBodyAndParamsEnabled
         + ", traceFlushInterval="

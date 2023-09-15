@@ -358,36 +358,9 @@ public class DebuggerSinkTest {
   public void addSnapshotWithCorrelationIdsMethodProbe() throws URISyntaxException, IOException {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     DebuggerAgentHelper.injectSerializer(new JsonSnapshotSerializer());
-    CapturedContext entry = new CapturedContext();
-    entry.addFields(
-        new CapturedValue[] {
-          CapturedValue.of("dd.trace_id", "java.lang.String", "123"),
-          CapturedValue.of("dd.span_id", "java.lang.String", "456"),
-        });
     Snapshot snapshot = createSnapshot();
-    snapshot.setEntry(entry);
-    sink.addSnapshot(snapshot);
-    sink.flush(sink);
-    verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
-    String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
-    System.out.println(strPayload);
-    JsonSnapshotSerializer.IntakeRequest intakeRequest = assertOneIntakeRequest(strPayload);
-    assertEquals("123", intakeRequest.getTraceId());
-    assertEquals("456", intakeRequest.getSpanId());
-  }
-
-  @Test
-  public void addSnapshotWithCorrelationIdsLineProbe() throws URISyntaxException, IOException {
-    DebuggerSink sink = new DebuggerSink(config, batchUploader);
-    DebuggerAgentHelper.injectSerializer(new JsonSnapshotSerializer());
-    CapturedContext line = new CapturedContext();
-    line.addFields(
-        new CapturedValue[] {
-          CapturedValue.of("dd.trace_id", "java.lang.String", "123"),
-          CapturedValue.of("dd.span_id", "java.lang.String", "456"),
-        });
-    Snapshot snapshot = createSnapshot();
-    snapshot.addLine(line, 25);
+    snapshot.setTraceId("123");
+    snapshot.setSpanId("456");
     sink.addSnapshot(snapshot);
     sink.flush(sink);
     verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));

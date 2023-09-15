@@ -2,7 +2,7 @@ package datadog.trace.civisibility.coverage;
 
 import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
 import datadog.trace.api.civisibility.coverage.TestReport;
-import datadog.trace.api.civisibility.source.SourcePathResolver;
+import datadog.trace.civisibility.source.SourcePathResolver;
 import javax.annotation.Nullable;
 
 public class NoopCoverageProbeStore implements CoverageProbeStore {
@@ -20,7 +20,7 @@ public class NoopCoverageProbeStore implements CoverageProbeStore {
     return null;
   }
 
-  public static final class NoopCoverageProbeStoreFactory implements CoverageProbeStore.Factory {
+  public static final class NoopCoverageProbeStoreFactory implements CoverageProbeStoreFactory {
     @Override
     public void setTotalProbeCount(String className, int totalProbeCount) {}
 

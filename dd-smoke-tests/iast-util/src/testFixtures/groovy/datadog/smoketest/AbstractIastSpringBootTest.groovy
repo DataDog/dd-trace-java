@@ -110,6 +110,37 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     }
   }
 
+  void 'weak cipher vulnerability is present when calling key generator'() {
+    setup:
+    String url = "http://localhost:${httpPort}/weak_key_generator"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul ->
+      vul.type == 'WEAK_CIPHER' &&
+        vul.evidence.value == 'DES'
+    }
+  }
+
+  void 'weak cipher vulnerability is present when calling key generator with provider'() {
+    setup:
+    String url = "http://localhost:${httpPort}/weak_key_generator_with_provider"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul ->
+      vul.type == 'WEAK_CIPHER' &&
+        vul.evidence.value == 'DES'
+    }
+  }
+
+
   void 'insecure cookie vulnerability is present'() {
     setup:
     String url = "http://localhost:${httpPort}/insecure_cookie"
@@ -139,6 +170,19 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     response.isSuccessful()
     hasVulnerability { vul ->
       vul.type == 'HSTS_HEADER_MISSING'
+    }
+  }
+
+  void 'X content type options missing header vulnerability is present'() {
+    setup:
+    String url = "http://localhost:${httpPort}/xcontenttypeoptionsmissing"
+    def request = new Request.Builder().url(url).get().build()
+    when:
+    def response = client.newCall(request).execute()
+    then:
+    response.isSuccessful()
+    hasVulnerability { vul ->
+      vul.type == 'XCONTENTTYPE_HEADER_MISSING'
     }
   }
 

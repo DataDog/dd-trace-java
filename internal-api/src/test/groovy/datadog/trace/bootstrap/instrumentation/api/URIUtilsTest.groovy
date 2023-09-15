@@ -116,4 +116,19 @@ class URIUtilsTest extends DDSpecification {
     invalid.subSequence(1,3) == 'ei'
     invalid.charAt(3) == 'r' as char
   }
+
+  def "test safeConcat for code coverage"() {
+    setup:
+    def concat = URIUtils.safeConcat(first, second)
+    expect:
+    (concat == null && expected == null) || concat.toString() == expected
+    where:
+    first                                    | second                                   | expected
+    "http://localhost/"                      | "test/me"                                | "http://localhost/test/me"
+    "http://localhost"                       | "/test/me"                               | "http://localhost/test/me"
+    "http://localhost/"                      | "http://localhost/test/me"               | "http://localhost/test/me"
+    null                                     | null                                     | null
+    null                                     | "/test"                                  | "/test"
+    "http://localhost"                       | null                                     | "http://localhost/"
+  }
 }

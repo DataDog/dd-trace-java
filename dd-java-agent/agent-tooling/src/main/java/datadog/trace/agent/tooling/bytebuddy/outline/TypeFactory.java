@@ -66,6 +66,9 @@ final class TypeFactory {
     }
   }
 
+  private static final boolean OUTLINING_ENABLED =
+      InstrumenterConfig.get().isResolverOutliningEnabled();
+
   private static final TypeParser outlineTypeParser = new OutlineTypeParser();
 
   private static final TypeParser fullTypeParser = new FullTypeParser();
@@ -86,7 +89,7 @@ final class TypeFactory {
 
   boolean installing = false;
 
-  boolean createOutlines = true;
+  boolean createOutlines = OUTLINING_ENABLED;
 
   ClassLoader originalClassLoader;
 
@@ -152,7 +155,7 @@ final class TypeFactory {
   /** Temporarily turn off full description parsing; returns {@code true} if it was enabled. */
   boolean disableFullDescriptions() {
     boolean wasEnabled = !createOutlines;
-    createOutlines = true;
+    createOutlines = OUTLINING_ENABLED;
     return wasEnabled;
   }
 
@@ -171,7 +174,7 @@ final class TypeFactory {
 
     targetName = null;
     targetBytecode = null;
-    createOutlines = true;
+    createOutlines = OUTLINING_ENABLED;
   }
 
   private void clearReferences() {
@@ -369,7 +372,7 @@ final class TypeFactory {
         return doResolve(true);
       }
       // temporarily switch to generating (fast) outlines as that's all we need
-      createOutlines = true;
+      createOutlines = OUTLINING_ENABLED;
       try {
         return doResolve(true);
       } finally {

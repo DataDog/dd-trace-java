@@ -32,7 +32,6 @@ public class PathBindingPublishingHandler implements Handler {
       if (doDelegation) {
         ctx.next();
       } else {
-        activeSpan().getRequestContext().getTraceSegment().effectivelyBlocked();
         throw new BlockingException("Blocking request");
       }
     }
@@ -69,7 +68,10 @@ public class PathBindingPublishingHandler implements Handler {
       }
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
       blockResponseFunction.tryCommitBlockingResponse(
-          rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+          requestContext.getTraceSegment(),
+          rba.getStatusCode(),
+          rba.getBlockingContentType(),
+          rba.getExtraHeaders());
       return false;
     }
 

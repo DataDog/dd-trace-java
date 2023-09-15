@@ -144,6 +144,8 @@ class MavenSmokeTest extends Specification {
         resource == "Maven Smoke Tests Project" // project name
         verifyAll(metrics) {
           process_id > 0 // only applied to root spans
+          it["test.itr.tests_skipping.count"] == 1
+          it["test.code_coverage.lines_pct"] == 57
         }
         verifyAll(meta) {
           it["span.kind"] == "test_session_end"
@@ -155,9 +157,6 @@ class MavenSmokeTest extends Specification {
           it["test.itr.tests_skipping.type"] == "test"
           it["_dd.ci.itr.tests_skipped"] == "true"
         }
-        verifyAll(metrics) {
-          it["test.itr.tests_skipping.count"] == 1
-        }
       }
     }
 
@@ -167,20 +166,21 @@ class MavenSmokeTest extends Specification {
     verifyAll(moduleEndEvent) {
       verifyAll(content) {
         name == "maven.test_module"
-        resource == "Maven Smoke Tests Project test" // project name + execution goal
+        resource == "Maven Smoke Tests Project maven-surefire-plugin default-test" // project name + plugin name + execution ID
         test_session_id == sessionEndEvent.content.test_session_id
         test_module_id > 0
+        verifyAll(metrics) {
+          it["test.itr.tests_skipping.count"] == 1
+          it["test.code_coverage.lines_pct"] == 57
+        }
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
-          it["test.module"] == "Maven Smoke Tests Project test" // project name + execution goal
+          it["test.module"] == "Maven Smoke Tests Project maven-surefire-plugin default-test" // project name + plugin name + execution ID
           it["test.status"] == "pass"
           it["test.code_coverage.enabled"] == "true"
           it["test.itr.tests_skipping.enabled"] == "true"
           it["test.itr.tests_skipping.type"] == "test"
           it["_dd.ci.itr.tests_skipped"] == "true"
-        }
-        verifyAll(metrics) {
-          it["test.itr.tests_skipping.count"] == 1
         }
       }
     }
@@ -271,6 +271,10 @@ class MavenSmokeTest extends Specification {
         [
           filename: "src/test/java/datadog/smoke/TestSucceed.java",
           segments: [[7, -1, 7, -1, -1], [11, -1, 12, -1, -1]]
+        ],
+        [
+          filename: "src/main/java/datadog/smoke/Calculator.java",
+          segments: [[5, -1, 5, -1, -1]]
         ]
       ]
     ]
@@ -406,6 +410,7 @@ class MavenSmokeTest extends Specification {
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED)}=false," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_COVERAGE_SEGMENTS_ENABLED)}=true," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION)}=${JAVAC_PLUGIN_VERSION}," +
+        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR)}=/tmp/covtest," + // FIXME nikita: remove
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=${JACOCO_PLUGIN_VERSION}," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_INCLUDES)}=datadog.smoke.*," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${intakeServer.address.toString()}"

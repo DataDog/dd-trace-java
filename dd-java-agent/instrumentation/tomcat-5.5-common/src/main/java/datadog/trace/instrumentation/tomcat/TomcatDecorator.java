@@ -4,6 +4,7 @@ import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.gateway.BlockResponseFunction;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -145,9 +146,12 @@ public class TomcatDecorator
 
     @Override
     public boolean tryCommitBlockingResponse(
-        int statusCode, BlockingContentType bct, Map<String, String> extraHeaders) {
+        TraceSegment segment,
+        int statusCode,
+        BlockingContentType bct,
+        Map<String, String> extraHeaders) {
       return TomcatBlockingHelper.commitBlockingResponse(
-          request, request.getResponse(), statusCode, bct, extraHeaders);
+          segment, request, request.getResponse(), statusCode, bct, extraHeaders);
     }
   }
 }

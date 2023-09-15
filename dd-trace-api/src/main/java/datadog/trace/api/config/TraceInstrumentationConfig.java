@@ -111,8 +111,12 @@ public final class TraceInstrumentationConfig {
   public static final String RESOLVER_CACHE_CONFIG = "resolver.cache.config";
   public static final String RESOLVER_CACHE_DIR = "resolver.cache.dir";
   public static final String RESOLVER_USE_LOADCLASS = "resolver.use.loadclass";
+  public static final String RESOLVER_USE_URL_CACHES = "resolver.use.url.caches";
   public static final String RESOLVER_RESET_INTERVAL = "resolver.reset.interval";
   public static final String RESOLVER_NAMES_ARE_UNIQUE = "resolver.names.are.unique";
+
+  public static final String ELASTICSEARCH_BODY_ENABLED = "trace.elasticsearch.body.enabled";
+  public static final String ELASTICSEARCH_PARAMS_ENABLED = "trace.elasticsearch.params.enabled";
   public static final String ELASTICSEARCH_BODY_AND_PARAMS_ENABLED =
       "trace.elasticsearch.body-and-params.enabled";
 

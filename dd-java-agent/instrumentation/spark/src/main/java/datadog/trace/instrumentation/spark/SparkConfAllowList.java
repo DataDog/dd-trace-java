@@ -71,10 +71,13 @@ class SparkConfAllowList {
               "spark.job.description",
               "spark.jobGroup.id",
               "spark.sql.execution.id",
+              "sql.streaming.queryId",
+              "streaming.sql.batchId",
               "user"));
 
   public static boolean canCaptureApplicationParameter(String parameterName) {
-    return allowedApplicationParams.contains(parameterName);
+    return allowedApplicationParams.contains(parameterName)
+        || allowedJobParams.contains(parameterName);
   }
 
   public static boolean canCaptureJobParameter(String parameterName) {

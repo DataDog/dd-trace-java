@@ -18,10 +18,16 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_AGENT_JAR_URI = "civisibility.agent.jar.uri";
   public static final String CIVISIBILITY_AUTO_CONFIGURATION_ENABLED =
       "civisibility.auto.configuration.enabled";
+  public static final String CIVISIBILITY_ADDITIONAL_CHILD_PROCESS_JVM_ARGS =
+      "civisibility.additional.child.process.jvm.args";
   public static final String CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED =
       "civisibility.compiler.plugin.auto.configuration.enabled";
   public static final String CIVISIBILITY_CODE_COVERAGE_ENABLED =
       "civisibility.code.coverage.enabled";
+  public static final String CIVISIBILITY_CODE_COVERAGE_PERCENTAGE_CALCULATION_ENABLED =
+      "civisibility.code.coverage.percentage.calculation.enabled";
+  public static final String CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR =
+      "civisibility.code.coverage.report.dump.dir";
   public static final String CIVISIBILITY_COMPILER_PLUGIN_VERSION =
       "civisibility.compiler.plugin.version";
   public static final String CIVISIBILITY_JACOCO_PLUGIN_VERSION =
@@ -30,6 +36,8 @@ public final class CiVisibilityConfig {
       "civisibility.jacoco.plugin.includes";
   public static final String CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES =
       "civisibility.jacoco.plugin.excludes";
+  public static final String CIVISIBILITY_JACOCO_GRADLE_SOURCE_SETS =
+      "civisibility.jacoco.gradle.sourcesets";
   public static final String CIVISIBILITY_DEBUG_PORT = "civisibility.debug.port";
   public static final String CIVISIBILITY_GIT_UPLOAD_ENABLED = "civisibility.git.upload.enabled";
   public static final String CIVISIBILITY_GIT_UNSHALLOW_ENABLED =

@@ -288,6 +288,8 @@
 0 org.springframework.core.io.buffer.DataBuffer
 0 org.springframework.core.io.buffer.DefaultDataBuffer
 0 org.springframework.core.io.buffer.NettyDataBuffer
+# Need for IAST so propagation of tainted objects is complete in spring 2.7.5
+0 org.springframework.util.StreamUtils$NonClosingInputStream
 # There are some Mono implementation that get instrumented
 0 org.springframework.http.server.reactive.*
 2 org.springframework.instrument.*

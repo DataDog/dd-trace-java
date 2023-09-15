@@ -32,7 +32,7 @@ public class DelegatingRequestProducer implements HttpAsyncRequestProducer {
   @Override
   public HttpRequest generateRequest() throws IOException, HttpException {
     final HttpRequest request = delegate.generateRequest();
-    DECORATE.onRequest(span, request);
+    DECORATE.onRequest(span, new HostAndRequestAsHttpUriRequest(delegate.getTarget(), request));
 
     propagate().inject(span, request, SETTER);
     propagate()

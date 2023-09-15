@@ -23,8 +23,6 @@ excludedClassesCoverage += [
   'datadog.trace.core.StatusLogger',
   'datadog.trace.core.scopemanager.ContinuableScopeManager.ScopeStackThreadLocal',
   'datadog.trace.core.scopemanager.SingleContinuation',
-  'datadog.trace.core.SpanCorrelationImpl',
-  'datadog.trace.core.Base64Encoder',
   // FIXME: more test coverage needed
   'datadog.trace.core.CoreTracer',
   'datadog.trace.core.CoreTracer.1',
@@ -32,7 +30,6 @@ excludedClassesCoverage += [
   'datadog.trace.core.tagprocessor.QueryObfuscator.1',
   'datadog.trace.common.writer.TraceProcessingWorker.NonDaemonTraceSerializingHandler',
   // FIXME(DSM): test coverage needed
-  'datadog.trace.core.datastreams.DefaultDataStreamsMonitoring',
   'datadog.trace.core.datastreams.DataStreamContextInjector'
 ]
 

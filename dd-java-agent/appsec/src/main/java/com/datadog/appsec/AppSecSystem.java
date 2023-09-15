@@ -7,6 +7,7 @@ import com.datadog.appsec.event.EventDispatcher;
 import com.datadog.appsec.event.ReplaceableEventProducerService;
 import com.datadog.appsec.gateway.GatewayBridge;
 import com.datadog.appsec.gateway.RateLimiter;
+import com.datadog.appsec.powerwaf.PowerWAFModule;
 import com.datadog.appsec.util.AbortStartupException;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.appsec.api.blocking.Blocking;
@@ -23,8 +24,8 @@ import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.util.Strings;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -136,13 +137,10 @@ public class AppSecSystem {
   }
 
   private static void loadModules(EventDispatcher eventDispatcher) {
-    EventDispatcher.EventSubscriptionSet eventSubscriptionSet =
-        new EventDispatcher.EventSubscriptionSet();
     EventDispatcher.DataSubscriptionSet dataSubscriptionSet =
         new EventDispatcher.DataSubscriptionSet();
 
-    ServiceLoader<AppSecModule> modules =
-        ServiceLoader.load(AppSecModule.class, AppSecSystem.class.getClassLoader());
+    final List<AppSecModule> modules = Collections.singletonList(new PowerWAFModule());
     for (AppSecModule module : modules) {
       log.debug("Starting appsec module {}", module.getName());
       try {
@@ -155,10 +153,6 @@ public class AppSecSystem {
         continue;
       }
 
-      for (AppSecModule.EventSubscription sub : module.getEventSubscriptions()) {
-        eventSubscriptionSet.addSubscription(sub.eventType, sub);
-      }
-
       for (AppSecModule.DataSubscription sub : module.getDataSubscriptions()) {
         dataSubscriptionSet.addSubscription(sub.getSubscribedAddresses(), sub);
       }
@@ -166,29 +160,21 @@ public class AppSecSystem {
       STARTED_MODULES_INFO.put(module, module.getInfo());
     }
 
-    eventDispatcher.subscribeEvents(eventSubscriptionSet);
     eventDispatcher.subscribeDataAvailable(dataSubscriptionSet);
   }
 
   private static void reloadSubscriptions(
       ReplaceableEventProducerService replaceableEventProducerService) {
-    EventDispatcher.EventSubscriptionSet eventSubscriptionSet =
-        new EventDispatcher.EventSubscriptionSet();
     EventDispatcher.DataSubscriptionSet dataSubscriptionSet =
         new EventDispatcher.DataSubscriptionSet();
 
     EventDispatcher newEd = new EventDispatcher();
     for (AppSecModule module : STARTED_MODULES_INFO.keySet()) {
-      for (AppSecModule.EventSubscription sub : module.getEventSubscriptions()) {
-        eventSubscriptionSet.addSubscription(sub.eventType, sub);
-      }
-
       for (AppSecModule.DataSubscription sub : module.getDataSubscriptions()) {
         dataSubscriptionSet.addSubscription(sub.getSubscribedAddresses(), sub);
       }
     }
 
-    newEd.subscribeEvents(eventSubscriptionSet);
     newEd.subscribeDataAvailable(dataSubscriptionSet);
 
     replaceableEventProducerService.replaceEventProducerService(newEd);

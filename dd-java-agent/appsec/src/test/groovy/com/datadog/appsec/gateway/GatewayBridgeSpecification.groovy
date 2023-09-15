@@ -4,7 +4,6 @@ import com.datadog.appsec.AppSecSystem
 import com.datadog.appsec.config.TraceSegmentPostProcessor
 import com.datadog.appsec.event.EventDispatcher
 import com.datadog.appsec.event.EventProducerService
-import com.datadog.appsec.event.EventType
 import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.SingletonDataBundle
@@ -94,7 +93,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     Flow<AppSecRequestContext> startFlow = requestStartedCB.get()
 
     then:
-    1 * eventDispatcher.publishEvent(_ as AppSecRequestContext, EventType.REQUEST_START)
     Object producedCtx = startFlow.getResult()
     producedCtx instanceof AppSecRequestContext
     startFlow.action == Flow.Action.Noop.INSTANCE
@@ -145,7 +143,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('http.request.headers.accept', 'header_value')
     1 * traceSegment.setTagTop('http.response.headers.content-type', 'text/html; charset=UTF-8')
     1 * traceSegment.setTagTop('network.client.ip', '2001::1')
-    1 * eventDispatcher.publishEvent(mockAppSecCtx, EventType.REQUEST_END)
+    1 * mockAppSecCtx.closeAdditive()
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
   }
@@ -166,7 +164,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     then:
     11 * mockAppSecCtx.transferCollectedEvents() >> [event]
     11 * mockAppSecCtx.close()
-    11 * eventDispatcher.publishEvent(mockAppSecCtx, EventType.REQUEST_END)
+    11 * mockAppSecCtx.closeAdditive()
     10 * spanInfo.getTags() >> ['http.client_ip':'1.1.1.1']
     10 * traceSegment.setDataTop("appsec", _)
   }
@@ -393,7 +391,6 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void callInitAndCaptureCBs() {
     // force all callbacks to be registered
-    _ * eventDispatcher.allSubscribedEvents() >> [EventType.REQUEST_BODY_START, EventType.REQUEST_BODY_END]
     _ * eventDispatcher.allSubscribedDataAddresses() >> [KnownAddresses.REQUEST_PATH_PARAMS, KnownAddresses.REQUEST_BODY_OBJECT]
 
     1 * ig.registerCallback(EVENTS.requestStarted(), _) >> { requestStartedCB = it[1]; null }
@@ -531,7 +528,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     requestBodyStartCB.apply(ctx, supplier)
 
     then:
-    1 * eventDispatcher.publishEvent(ctx.data, EventType.REQUEST_BODY_START)
     ctx.data.storedRequestBody == 'foobar'
   }
 
@@ -549,7 +545,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     requestBodyDoneCB.apply(ctx, supplier)
 
     then:
-    1 * eventDispatcher.publishEvent(ctx.data, EventType.REQUEST_BODY_END)
     bundle.get(KnownAddresses.REQUEST_BODY_RAW) == 'foobar'
   }
 
@@ -567,7 +562,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     then:
     flow == NoopFlow.INSTANCE
     0 * eventDispatcher.getDataSubscribers(KnownAddresses.REQUEST_BODY_RAW)
-    0 * eventDispatcher.publishEvent(ctx.data, EventType.REQUEST_BODY_END)
   }
 
   void 'forward request body processed'() {

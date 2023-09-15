@@ -12,7 +12,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -117,13 +117,14 @@ public interface OverheadController {
 
     final NonBlockingSemaphore availableRequests;
 
-    final AtomicInteger executedRequests = new AtomicInteger(0);
+    final AtomicLong cumulativeCounter;
 
     final OverheadContext globalContext = new OverheadContext();
 
     public OverheadControllerImpl(final Config config, final AgentTaskScheduler taskScheduler) {
       sampling = computeSamplingParameter(config.getIastRequestSampling());
       availableRequests = maxConcurrentRequests(config.getIastMaxConcurrentRequests());
+      cumulativeCounter = new AtomicLong(sampling);
       if (taskScheduler != null) {
         taskScheduler.scheduleAtFixedRate(
             this::reset, 2 * RESET_PERIOD_SECONDS, RESET_PERIOD_SECONDS, TimeUnit.SECONDS);
@@ -132,11 +133,14 @@ public interface OverheadController {
 
     @Override
     public boolean acquireRequest() {
-      if (executedRequests.incrementAndGet() % sampling != 0) {
-        // Skipped by sampling
-        return false;
+      long prevValue = cumulativeCounter.getAndAdd(sampling);
+      long newValue = prevValue + sampling;
+      if (newValue / 100 == prevValue / 100 + 1) {
+        // Sample request
+        return availableRequests.acquire();
       }
-      return availableRequests.acquire();
+      // Skipped by sampling
+      return false;
     }
 
     @Override
@@ -165,14 +169,14 @@ public interface OverheadController {
 
     static int computeSamplingParameter(final float pct) {
       if (pct >= 100) {
-        return 1;
+        return 100;
       }
       if (pct <= 0) {
         // We don't support disabling IAST by setting it, so we set it to 100%.
         // TODO: We probably want a warning here.
-        return 1;
+        return 100;
       }
-      return Math.round(100 / pct);
+      return (int) pct;
     }
 
     static NonBlockingSemaphore maxConcurrentRequests(final int max) {

@@ -102,7 +102,7 @@ class MavenTest extends CiVisibilityTest {
             (Tags.TEST_COMMAND)  : "mvn clean test",
             (Tags.TEST_EXECUTION): "maven-surefire-plugin:test:default-test",
           ],
-          null, "Maven Integration Tests Project test")
+          null, "Maven Integration Tests Project maven-surefire-plugin default-test")
       }
     }
   }
@@ -137,7 +137,7 @@ class MavenTest extends CiVisibilityTest {
             (Tags.TEST_EXECUTION): "maven-surefire-plugin:test:default-test",
           ],
           testsFailedException,
-          "Maven Integration Tests Project test")
+          "Maven Integration Tests Project maven-surefire-plugin default-test")
       }
     }
   }
@@ -170,7 +170,7 @@ class MavenTest extends CiVisibilityTest {
             (Tags.TEST_COMMAND)  : "mvn clean test",
             (Tags.TEST_EXECUTION): "maven-surefire-plugin:test:default-test",
           ],
-          null, "module-a test")
+          null, "module-a maven-surefire-plugin default-test")
         testModuleSpan(it, 1, testSessionId,
           CIConstants.TEST_FAIL,
           [
@@ -178,7 +178,7 @@ class MavenTest extends CiVisibilityTest {
             (Tags.TEST_EXECUTION): "maven-surefire-plugin:test:default-test",
           ],
           testsFailedException,
-          "module-b test")
+          "module-b maven-surefire-plugin default-test")
       }
     }
   }
@@ -207,14 +207,14 @@ class MavenTest extends CiVisibilityTest {
             (Tags.TEST_COMMAND)  : "mvn -T4 clean test",
             (Tags.TEST_EXECUTION): "maven-surefire-plugin:test:default-test",
           ],
-          null, "module-a test")
+          null, "module-a maven-surefire-plugin default-test")
         testModuleSpan(it, 1, testSessionId,
           CIConstants.TEST_PASS,
           [
             (Tags.TEST_COMMAND)  : "mvn -T4 clean test",
             (Tags.TEST_EXECUTION): "maven-surefire-plugin:test:default-test",
           ],
-          null, "module-b test")
+          null, "module-b maven-surefire-plugin default-test")
       }
     }
   }
@@ -243,14 +243,14 @@ class MavenTest extends CiVisibilityTest {
             (Tags.TEST_COMMAND)  : "mvn verify",
             (Tags.TEST_EXECUTION): "maven-surefire-plugin:test:default-test",
           ],
-          null, "Maven Integration Tests Project test")
+          null, "Maven Integration Tests Project maven-surefire-plugin default-test")
         testModuleSpan(it, 0, testSessionId,
           CIConstants.TEST_PASS,
           [
             (Tags.TEST_COMMAND)  : "mvn verify",
             (Tags.TEST_EXECUTION): "maven-failsafe-plugin:integration-test:default",
           ],
-          null, "Maven Integration Tests Project integration-test")
+          null, "Maven Integration Tests Project maven-failsafe-plugin default")
       }
     }
   }
@@ -280,7 +280,7 @@ class MavenTest extends CiVisibilityTest {
             (Tags.TEST_COMMAND)  : "mvn clean test",
             (Tags.TEST_EXECUTION): "maven-surefire-plugin:test:default-test",
           ],
-          null, "Maven Integration Tests Project test")
+          null, "Maven Integration Tests Project maven-surefire-plugin default-test")
       }
     }
   }

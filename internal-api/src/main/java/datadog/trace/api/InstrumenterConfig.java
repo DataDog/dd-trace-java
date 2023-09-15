@@ -35,6 +35,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_NAMES_ARE_UNIQUE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_RESET_INTERVAL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
@@ -109,6 +110,7 @@ public class InstrumenterConfig {
   private final String resolverCacheDir;
   private final boolean resolverNamesAreUnique;
   private final boolean resolverUseLoadClass;
+  private final Boolean resolverUseUrlCaches;
   private final int resolverResetInterval;
 
   private final boolean runtimeContextFieldInjection;
@@ -184,6 +186,7 @@ public class InstrumenterConfig {
     resolverCacheDir = configProvider.getString(RESOLVER_CACHE_DIR);
     resolverNamesAreUnique = configProvider.getBoolean(RESOLVER_NAMES_ARE_UNIQUE, false);
     resolverUseLoadClass = configProvider.getBoolean(RESOLVER_USE_LOADCLASS, true);
+    resolverUseUrlCaches = configProvider.getBoolean(RESOLVER_USE_URL_CACHES);
     resolverResetInterval =
         Platform.isNativeImageBuilder()
             ? 0
@@ -335,6 +338,10 @@ public class InstrumenterConfig {
     return resolverUseLoadClass;
   }
 
+  public Boolean isResolverUseUrlCaches() {
+    return resolverUseUrlCaches;
+  }
+
   public int getResolverResetInterval() {
     return resolverResetInterval;
   }
@@ -439,6 +446,8 @@ public class InstrumenterConfig {
         + resolverNamesAreUnique
         + ", resolverUseLoadClass="
         + resolverUseLoadClass
+        + ", resolverUseUrlCaches="
+        + resolverUseUrlCaches
         + ", resolverResetInterval="
         + resolverResetInterval
         + ", runtimeContextFieldInjection="
