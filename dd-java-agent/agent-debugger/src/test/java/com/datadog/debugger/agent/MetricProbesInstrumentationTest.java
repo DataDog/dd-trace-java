@@ -4,7 +4,12 @@ import static com.datadog.debugger.probe.MetricProbe.MetricKind.COUNT;
 import static com.datadog.debugger.probe.MetricProbe.MetricKind.DISTRIBUTION;
 import static com.datadog.debugger.probe.MetricProbe.MetricKind.GAUGE;
 import static com.datadog.debugger.probe.MetricProbe.MetricKind.HISTOGRAM;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 
@@ -12,8 +17,8 @@ import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.probe.MetricProbe;
-import com.datadog.debugger.sink.Sink;
-import com.datadog.debugger.sink.Snapshot;
+import com.datadog.debugger.sink.DebuggerSink;
+import com.datadog.debugger.sink.ProbeStatusSink;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
@@ -32,6 +37,7 @@ import org.joor.Reflect;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 public class MetricProbesInstrumentationTest {
   private static final String LANGUAGE = "java";
@@ -43,9 +49,10 @@ public class MetricProbesInstrumentationTest {
   private static final String METRIC_PROBEID_TAG =
       "debugger.probeid:beae1807-f3b0-4ea8-a74f-826790c5e6f8";
 
+  private final List<DiagnosticMessage> currentDiagnostics = new ArrayList<>();
   private Instrumentation instr = ByteBuddyAgent.install();
   private ClassFileTransformer currentTransformer;
-  private MockSink mockSink;
+  private ProbeStatusSink probeStatusSink;
 
   @AfterEach
   public void after() {
@@ -125,9 +132,8 @@ public class MetricProbesInstrumentationTest {
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
     Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME));
-    Assertions.assertEquals(
-        "Unsupported constant value: 42.0 type: java.lang.Double",
-        mockSink.getCurrentDiagnostics().get(0).getMessage());
+    verify(probeStatusSink)
+        .addError(eq(METRIC_ID), eq("Unsupported constant value: 42.0 type: java.lang.Double"));
   }
 
   @Test
@@ -146,8 +152,7 @@ public class MetricProbesInstrumentationTest {
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
     Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME));
-    Assertions.assertEquals(
-        "Cannot resolve symbol value", mockSink.getCurrentDiagnostics().get(0).getMessage());
+    verify(probeStatusSink).addError(eq(METRIC_ID), eq("Cannot resolve symbol value"));
   }
 
   @Test
@@ -175,11 +180,10 @@ public class MetricProbesInstrumentationTest {
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
     Assertions.assertEquals(0, listener.counters.size());
-    Assertions.assertEquals(2, mockSink.getCurrentDiagnostics().size());
-    Assertions.assertEquals(
-        "Cannot resolve symbol value", mockSink.getCurrentDiagnostics().get(0).getMessage());
-    Assertions.assertEquals(
-        "Cannot resolve symbol invalid", mockSink.getCurrentDiagnostics().get(1).getMessage());
+    ArgumentCaptor<String> msgCaptor = ArgumentCaptor.forClass(String.class);
+    verify(probeStatusSink, times(2)).addError(any(), msgCaptor.capture());
+    Assertions.assertEquals("Cannot resolve symbol value", msgCaptor.getAllValues().get(0));
+    Assertions.assertEquals("Cannot resolve symbol invalid", msgCaptor.getAllValues().get(1));
   }
 
   @Test
@@ -398,8 +402,7 @@ public class MetricProbesInstrumentationTest {
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(48, result);
     Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME));
-    Assertions.assertEquals(
-        "Cannot resolve symbol foo", mockSink.getCurrentDiagnostics().get(0).getMessage());
+    verify(probeStatusSink).addError(eq(METRIC_ID), eq("Cannot resolve symbol foo"));
   }
 
   @Test
@@ -418,9 +421,10 @@ public class MetricProbesInstrumentationTest {
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(48, result);
     Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME));
-    Assertions.assertEquals(
-        "Incompatible type for expression: java.lang.String with expected types: [long]",
-        mockSink.getCurrentDiagnostics().get(0).getMessage());
+    verify(probeStatusSink)
+        .addError(
+            eq(METRIC_ID),
+            eq("Incompatible type for expression: java.lang.String with expected types: [long]"));
   }
 
   @Test
@@ -450,8 +454,7 @@ public class MetricProbesInstrumentationTest {
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
     Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME));
-    Assertions.assertEquals(
-        "Cannot resolve symbol foo", mockSink.getCurrentDiagnostics().get(0).getMessage());
+    verify(probeStatusSink).addError(eq(METRIC_ID), eq("Cannot resolve symbol foo"));
   }
 
   @Test
@@ -466,9 +469,10 @@ public class MetricProbesInstrumentationTest {
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
     Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME));
-    Assertions.assertEquals(
-        "Incompatible type for expression: java.lang.String with expected types: [long]",
-        mockSink.getCurrentDiagnostics().get(0).getMessage());
+    verify(probeStatusSink)
+        .addError(
+            eq(METRIC_ID),
+            eq("Incompatible type for expression: java.lang.String with expected types: [long]"));
   }
 
   @Test
@@ -594,7 +598,7 @@ public class MetricProbesInstrumentationTest {
     Assertions.assertEquals(143, result);
     Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME1));
     Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME2));
-    Assertions.assertTrue(mockSink.getCurrentDiagnostics().isEmpty());
+    verify(probeStatusSink, times(0)).addError(any(), anyString());
   }
 
   @Test
@@ -626,10 +630,10 @@ public class MetricProbesInstrumentationTest {
     Assertions.assertEquals(143, result);
     Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME1));
     Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME2));
-    Assertions.assertEquals(
-        "Cannot resolve field foovalue", mockSink.getCurrentDiagnostics().get(0).getMessage());
-    Assertions.assertEquals(
-        "Cannot resolve field foovalue", mockSink.getCurrentDiagnostics().get(1).getMessage());
+    ArgumentCaptor<String> strCaptor = ArgumentCaptor.forClass(String.class);
+    verify(probeStatusSink, times(2)).addError(any(), strCaptor.capture());
+    Assertions.assertEquals("Cannot resolve field foovalue", strCaptor.getAllValues().get(0));
+    Assertions.assertEquals("Cannot resolve field foovalue", strCaptor.getAllValues().get(1));
   }
 
   @Test
@@ -661,12 +665,14 @@ public class MetricProbesInstrumentationTest {
     Assertions.assertEquals(143, result);
     Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME1));
     Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME2));
+    ArgumentCaptor<String> strCaptor = ArgumentCaptor.forClass(String.class);
+    verify(probeStatusSink, times(2)).addError(any(), strCaptor.capture());
     Assertions.assertEquals(
         "Incompatible type for expression: java.lang.String with expected types: [long]",
-        mockSink.getCurrentDiagnostics().get(0).getMessage());
+        strCaptor.getAllValues().get(0));
     Assertions.assertEquals(
         "Incompatible type for expression: java.lang.String with expected types: [long]",
-        mockSink.getCurrentDiagnostics().get(1).getMessage());
+        strCaptor.getAllValues().get(1));
   }
 
   @Test
@@ -686,8 +692,7 @@ public class MetricProbesInstrumentationTest {
     int result = Reflect.on(testClass).call("main", "f").get();
     Assertions.assertEquals(42, result);
     Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME));
-    Assertions.assertEquals(
-        "Cannot resolve symbol fooValue", mockSink.getCurrentDiagnostics().get(0).getMessage());
+    verify(probeStatusSink).addError(eq(METRIC_ID), eq("Cannot resolve symbol fooValue"));
   }
 
   @Test
@@ -706,9 +711,10 @@ public class MetricProbesInstrumentationTest {
     int result = Reflect.on(testClass).call("main", "f").get();
     Assertions.assertEquals(42, result);
     Assertions.assertFalse(listener.counters.containsKey(METRIC_NAME));
-    Assertions.assertEquals(
-        "Incompatible type for expression: java.lang.String with expected types: [long]",
-        mockSink.getCurrentDiagnostics().get(0).getMessage());
+    verify(probeStatusSink)
+        .addError(
+            eq(METRIC_ID),
+            eq("Incompatible type for expression: java.lang.String with expected types: [long]"));
   }
 
   @Test
@@ -867,16 +873,16 @@ public class MetricProbesInstrumentationTest {
     int result = Reflect.on(testClass).call("main", "f").get();
     Assertions.assertEquals(42, result);
     Assertions.assertEquals(0, listener.gauges.size());
-    Assertions.assertEquals(3, mockSink.getCurrentDiagnostics().size());
+    ArgumentCaptor<String> strCaptor = ArgumentCaptor.forClass(String.class);
+    verify(probeStatusSink, times(3)).addError(any(), strCaptor.capture());
     Assertions.assertEquals(
-        "Unsupported type for len operation: java.lang.Object",
-        mockSink.getCurrentDiagnostics().get(0).getMessage());
+        "Unsupported type for len operation: java.lang.Object", strCaptor.getAllValues().get(0));
     Assertions.assertEquals(
         "Incompatible type for expression: java.lang.String with expected types: [long,double]",
-        mockSink.getCurrentDiagnostics().get(1).getMessage());
+        strCaptor.getAllValues().get(1));
     Assertions.assertEquals(
         "Incompatible type for expression: java.lang.Object with expected types: [long,double]",
-        mockSink.getCurrentDiagnostics().get(2).getMessage());
+        strCaptor.getAllValues().get(2));
   }
 
   @Test
@@ -949,9 +955,11 @@ public class MetricProbesInstrumentationTest {
     Assertions.assertEquals(42, result);
     Assertions.assertFalse(listener.gauges.containsKey(ARRAYSTRIDX_METRIC));
     Assertions.assertFalse(listener.gauges.containsKey(ARRAYOOBIDX_METRIC));
-    Assertions.assertEquals(
-        "Incompatible type for key: Type{mainType=Ljava/lang/String;, genericTypes=[]}, expected int or long",
-        mockSink.getCurrentDiagnostics().get(0).getMessage());
+    verify(probeStatusSink, times(2))
+        .addError(
+            eq(METRIC_ID),
+            eq(
+                "Incompatible type for key: Type{mainType=Ljava/lang/String;, genericTypes=[]}, expected int or long"));
   }
 
   @Test
@@ -1169,11 +1177,14 @@ public class MetricProbesInstrumentationTest {
     Config config = mock(Config.class);
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
-    currentTransformer = new DebuggerTransformer(config, configuration);
+    when(config.getFinalDebuggerSnapshotUrl())
+        .thenReturn("http://localhost:8126/debugger/v1/input");
+    probeStatusSink = mock(ProbeStatusSink.class);
+    currentTransformer =
+        new DebuggerTransformer(
+            config, configuration, null, new DebuggerSink(config, probeStatusSink));
     instr.addTransformer(currentTransformer);
     MetricForwarderListener listener = new MetricForwarderListener();
-    mockSink = new MockSink();
-    DebuggerAgentHelper.injectSink(mockSink);
     DebuggerContext.init(null, listener);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     return listener;
@@ -1263,29 +1274,6 @@ public class MetricProbesInstrumentationTest {
 
     public void setThrowing(boolean value) {
       this.throwing = value;
-    }
-  }
-
-  private static class MockSink implements Sink {
-
-    private final List<DiagnosticMessage> currentDiagnostics = new ArrayList<>();
-
-    @Override
-    public void addSnapshot(Snapshot snapshot) {}
-
-    @Override
-    public void skipSnapshot(String probeId, DebuggerContext.SkipCause cause) {}
-
-    @Override
-    public void addDiagnostics(ProbeId probeId, List<DiagnosticMessage> messages) {
-      for (DiagnosticMessage msg : messages) {
-        System.out.println(msg);
-      }
-      currentDiagnostics.addAll(messages);
-    }
-
-    public List<DiagnosticMessage> getCurrentDiagnostics() {
-      return currentDiagnostics;
     }
   }
 }
