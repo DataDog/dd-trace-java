@@ -1,9 +1,8 @@
 package datadog.trace.instrumentation.junit5;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
@@ -23,11 +22,16 @@ import org.junit.platform.engine.support.hierarchical.Node;
 import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService;
 
 @AutoService(Instrumenter.class)
-public class JUnit5ItrInstrumentation extends Instrumenter.CiVisibility
+public class JUnit5CucumberItrInstrumentation extends Instrumenter.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
-  public JUnit5ItrInstrumentation() {
-    super("ci-visibility", "junit-5");
+  public JUnit5CucumberItrInstrumentation() {
+    super("ci-visibility", "junit-5", "junit-5-cucumber");
+  }
+
+  @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    return hasClassNamed("io.cucumber.junit.platform.engine.CucumberTestEngine");
   }
 
   @Override
@@ -37,23 +41,20 @@ public class JUnit5ItrInstrumentation extends Instrumenter.CiVisibility
 
   @Override
   public String hierarchyMarkerType() {
-    return "org.junit.platform.engine.support.hierarchical.Node";
+    return "io.cucumber.junit.platform.engine.CucumberTestEngine";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()))
-        .and(implementsInterface(named("org.junit.platform.engine.TestDescriptor")))
-        // Cucumber has a dedicated instrumentation
-        .and(not(nameStartsWith("io.cucumber")))
-        // Spock has a dedicated instrumentation
-        .and(not(nameStartsWith("org.spockframework")));
+    return extendsClass(named("io.cucumber.junit.platform.engine.NodeDescriptor"))
+        // legacy Cucumber versions
+        .or(extendsClass(named("io.cucumber.junit.platform.engine.PickleDescriptor")));
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JUnitPlatformUtils", packageName + ".TestEventsHandlerHolder",
+      packageName + ".CucumberUtils", packageName + ".TestEventsHandlerHolder",
     };
   }
 
@@ -61,7 +62,7 @@ public class JUnit5ItrInstrumentation extends Instrumenter.CiVisibility
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         named("shouldBeSkipped").and(takesArguments(1)),
-        JUnit5ItrInstrumentation.class.getName() + "$JUnit5ItrAdvice");
+        JUnit5CucumberItrInstrumentation.class.getName() + "$JUnit5ItrAdvice");
   }
 
   /**
@@ -95,7 +96,7 @@ public class JUnit5ItrInstrumentation extends Instrumenter.CiVisibility
         }
       }
 
-      SkippableTest test = JUnitPlatformUtils.toSkippableTest(testDescriptor);
+      SkippableTest test = CucumberUtils.toSkippableTest(testDescriptor);
       if (test != null && TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
         skipResult = Node.SkipResult.skip(InstrumentationBridge.ITR_SKIP_REASON);
       }
