@@ -1,10 +1,7 @@
 package datadog.trace.api;
 
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
@@ -14,11 +11,6 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  * consumers. So this is based on a ConcurrentHashMap to deal with it.
  */
 public class ConfigCollector {
-
-  private static final Set<String> CONFIG_FILTER_LIST =
-      new HashSet<>(
-          Arrays.asList("DD_API_KEY", "dd.api-key", "dd.profiling.api-key", "dd.profiling.apikey"));
-
   private static final ConfigCollector INSTANCE = new ConfigCollector();
 
   private static final AtomicReferenceFieldUpdater<ConfigCollector, Map> COLLECTED_UPDATER =
@@ -31,8 +23,7 @@ public class ConfigCollector {
   }
 
   public void put(String key, Object value, ConfigOrigin origin) {
-    Object filteredValue = filterConfigEntry(key, value);
-    ConfigSetting setting = new ConfigSetting(key, filteredValue, origin);
+    ConfigSetting setting = new ConfigSetting(key, value, origin);
     collected.put(key, setting);
   }
 
@@ -41,8 +32,7 @@ public class ConfigCollector {
     Map<String, ConfigSetting> merged =
         new ConcurrentHashMap<>(keysAndValues.size() + collected.size());
     for (Map.Entry<String, Object> entry : keysAndValues.entrySet()) {
-      Object filteredValue = filterConfigEntry(entry.getKey(), entry.getValue());
-      ConfigSetting setting = new ConfigSetting(entry.getKey(), filteredValue, origin);
+      ConfigSetting setting = new ConfigSetting(entry.getKey(), entry.getValue(), origin);
       merged.put(entry.getKey(), setting);
     }
     while (true) {
@@ -63,9 +53,5 @@ public class ConfigCollector {
     } else {
       return Collections.emptyMap();
     }
-  }
-
-  private static Object filterConfigEntry(String key, Object value) {
-    return CONFIG_FILTER_LIST.contains(key) ? "<hidden>" : value;
   }
 }

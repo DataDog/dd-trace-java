@@ -8,8 +8,15 @@ import datadog.trace.api.config.JmxFetchConfig
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.iast.telemetry.Verbosity
+import datadog.trace.api.naming.SpanNaming
+import datadog.trace.bootstrap.config.provider.ConfigConverter
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.Strings
+
+import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL
+import static datadog.trace.api.UserEventTrackingMode.SAFE
 
 class ConfigCollectorTest extends DDSpecification {
 
@@ -18,7 +25,9 @@ class ConfigCollectorTest extends DDSpecification {
     injectEnvConfig(Strings.toEnvVar(configKey), configValue)
 
     expect:
-    ConfigCollector.get().collect().get(configKey) == configValue
+    def setting = ConfigCollector.get().collect().get(configKey)
+    setting.value == configValue
+    setting.origin == ConfigOrigin.ENV
 
     where:
     configKey                                                  | configValue
@@ -53,7 +62,7 @@ class ConfigCollectorTest extends DDSpecification {
     // ConfigProvider.getMergedMapWithOptionalMappings
     TracerConfig.HEADER_TAGS                                   | "e:five"
     // ConfigProvider.getIntegerRange
-    TracerConfig.HTTP_CLIENT_ERROR_STATUSES                    | "1:1"
+    TracerConfig.HTTP_CLIENT_ERROR_STATUSES                    | "400-402"
   }
 
   def "should collect merged data from multiple sources"() {
@@ -62,7 +71,9 @@ class ConfigCollectorTest extends DDSpecification {
     injectSysConfig(configKey, configValue2)
 
     expect:
-    ConfigCollector.get().collect().get(configKey) == expectedValue
+    def setting = ConfigCollector.get().collect().get(configKey)
+    setting.value == expectedValue
+    setting.origin == ConfigOrigin.JVM_PROP
 
     where:
     configKey                                                 | configValue1                                   | configValue2              | expectedValue
@@ -74,27 +85,29 @@ class ConfigCollectorTest extends DDSpecification {
     TracerConfig.HEADER_TAGS                                  | "j:ten"                                        | "e:five,b:six"            | "e:five,j:ten,b:six"
   }
 
-  def "default config settings are NOT collected"() {
+  def "default config settings are collected"() {
     expect:
-    !ConfigCollector.get().collect().containsKey(configKey)
+    def setting = ConfigCollector.get().collect().get(configKey)
+    setting.origin == ConfigOrigin.DEFAULT
+    setting.value == defaultValue
 
     where:
-    configKey                                                  | _
-    IastConfig.IAST_TELEMETRY_VERBOSITY                        | _
-    TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA                   | _
-    AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING         | _
-    GeneralConfig.APPLICATION_KEY                              | _
-    TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES         | _
-    JmxFetchConfig.JMX_FETCH_CHECK_PERIOD                      | _
-    CiVisibilityConfig.CIVISIBILITY_MODULE_ID                  | _
-    GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL                 | _
-    TracerConfig.TRACE_SAMPLE_RATE                             | _
-    TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS | _
-    IastConfig.IAST_WEAK_HASH_ALGORITHMS                       | _
-    TracerConfig.PROXY_NO_PROXY                                | _
-    TracerConfig.TRACE_PEER_SERVICE_MAPPING                    | _
-    TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING  | _
-    TracerConfig.HEADER_TAGS                                   | _
-    TracerConfig.HTTP_CLIENT_ERROR_STATUSES                    | _
+    configKey                                                  | defaultValue
+    IastConfig.IAST_TELEMETRY_VERBOSITY                        | Verbosity.INFORMATION.toString()
+    TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA                   | "v" + SpanNaming.SCHEMA_MIN_VERSION
+    AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING         | SAFE.toString()
+    GeneralConfig.APPLICATION_KEY                              | null
+    TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES         | null
+    JmxFetchConfig.JMX_FETCH_CHECK_PERIOD                      | null
+    CiVisibilityConfig.CIVISIBILITY_MODULE_ID                  | null
+    GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL                 | DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL
+    TracerConfig.TRACE_SAMPLE_RATE                             | null
+    TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS | null
+    IastConfig.IAST_WEAK_HASH_ALGORITHMS                       | DEFAULT_IAST_WEAK_HASH_ALGORITHMS.join(",")
+    TracerConfig.PROXY_NO_PROXY                                | null
+    TracerConfig.TRACE_PEER_SERVICE_MAPPING                    | ""
+    TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING  | ""
+    TracerConfig.HEADER_TAGS                                   | ""
+    TracerConfig.HTTP_CLIENT_ERROR_STATUSES                    | ConfigConverter.renderIntegerRange(DEFAULT_HTTP_CLIENT_ERROR_STATUSES)
   }
 }
