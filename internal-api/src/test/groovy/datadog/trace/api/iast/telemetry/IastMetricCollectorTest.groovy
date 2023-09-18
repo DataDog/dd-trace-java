@@ -214,8 +214,11 @@ class IastMetricCollectorTest extends DDSpecification {
     IastMetric.INSTRUMENTED_SINK   | VulnerabilityTypes.SQL_INJECTION
     IastMetric.EXECUTED_SINK       | VulnerabilityTypes.SQL_INJECTION
 
-    IastMetric.INSTRUMENTED_SINK   | VulnerabilityTypes.RESPONSE_HEADER // wrapped one
+    IastMetric.INSTRUMENTED_SINK   | VulnerabilityTypes.RESPONSE_HEADER // wrapped response headers
     IastMetric.EXECUTED_SINK       | VulnerabilityTypes.RESPONSE_HEADER
+
+    IastMetric.INSTRUMENTED_SINK   | VulnerabilityTypes.SPRING_RESPONSE // wrapped spring response
+    IastMetric.EXECUTED_SINK       | VulnerabilityTypes.SPRING_RESPONSE
 
     IastMetric.INSTRUMENTED_SOURCE | SourceTypes.REQUEST_HEADER_NAME
     IastMetric.EXECUTED_SOURCE     | SourceTypes.REQUEST_HEADER_NAME
