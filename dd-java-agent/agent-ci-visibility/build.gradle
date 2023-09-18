@@ -16,6 +16,7 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.DDBuildSystemSessionImpl",
   "datadog.trace.civisibility.DDTestFrameworkModuleImpl",
   "datadog.trace.civisibility.DDTestFrameworkModuleProxy",
+  "datadog.trace.civisibility.DDTestFrameworkModuleProxy.TestFrameworkData",
   "datadog.trace.civisibility.DDTestFrameworkSessionImpl",
   "datadog.trace.civisibility.DDTestFrameworkSessionProxy",
   "datadog.trace.civisibility.DDTestModuleImpl",
@@ -38,10 +39,6 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.config.ConfigurationApi.1",
   "datadog.trace.civisibility.config.ModuleExecutionSettingsFactoryImpl",
   "datadog.trace.civisibility.config.SkippableTestsSerializer",
-  "datadog.trace.civisibility.context.AbstractTestContext",
-  "datadog.trace.civisibility.context.EmptyTestContext",
-  "datadog.trace.civisibility.context.ParentProcessTestContext",
-  "datadog.trace.civisibility.context.SpanTestContext",
   "datadog.trace.civisibility.coverage.CoverageUtils",
   "datadog.trace.civisibility.coverage.CoverageUtils.RepoIndexFileLocator",
   "datadog.trace.civisibility.coverage.ExecutionDataAdapter",
@@ -75,6 +72,7 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.source.index.RepoIndexSourcePathResolver",
   "datadog.trace.civisibility.utils.ShellCommandExecutor",
   "datadog.trace.civisibility.utils.ShellCommandExecutor.OutputParser",
+  "datadog.trace.civisibility.utils.SpanUtils"
 ]
 
 dependencies {

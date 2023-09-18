@@ -9,17 +9,15 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.context.SpanTestContext;
-import datadog.trace.civisibility.context.TestContext;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
+import datadog.trace.civisibility.utils.SpanUtils;
 import javax.annotation.Nullable;
 
 public class DDTestSessionImpl implements DDTestSession {
-  private final AgentSpan span;
-  protected final TestContext context;
+  protected final AgentSpan span;
   protected final Config config;
   protected final TestDecorator testDecorator;
   protected final SourcePathResolver sourcePathResolver;
@@ -49,11 +47,13 @@ public class DDTestSessionImpl implements DDTestSession {
       span = startSpan(testDecorator.component() + ".test_session");
     }
 
-    context = new SpanTestContext(span, null);
-
     span.setSpanType(InternalSpanTypes.TEST_SESSION_END);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST_SESSION);
-    span.setTag(Tags.TEST_SESSION_ID, context.getId());
+    span.setTag(Tags.TEST_SESSION_ID, span.getSpanId());
+
+    // setting status to skip initially,
+    // as we do not know in advance whether the session will have any children
+    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
 
     span.setResourceName(projectName);
 
@@ -90,11 +90,6 @@ public class DDTestSessionImpl implements DDTestSession {
 
   @Override
   public void end(@Nullable Long endTime) {
-    String status = context.getStatus();
-    span.setTag(Tags.TEST_STATUS, status != null ? status : CIConstants.TEST_SKIP);
-
-    testDecorator.beforeFinish(span);
-
     if (endTime != null) {
       span.finish(endTime);
     } else {
@@ -105,7 +100,8 @@ public class DDTestSessionImpl implements DDTestSession {
   @Override
   public DDTestModuleImpl testModuleStart(String moduleName, @Nullable Long startTime) {
     return new DDTestModuleImpl(
-        context,
+        span.context(),
+        span.getSpanId(),
         moduleName,
         startTime,
         config,
@@ -113,6 +109,7 @@ public class DDTestSessionImpl implements DDTestSession {
         sourcePathResolver,
         codeowners,
         methodLinesResolver,
-        coverageProbeStoreFactory);
+        coverageProbeStoreFactory,
+        SpanUtils.propagateCiVisibilityTagsTo(span));
   }
 }

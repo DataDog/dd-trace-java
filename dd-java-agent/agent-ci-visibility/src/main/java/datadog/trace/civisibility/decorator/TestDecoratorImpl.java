@@ -84,9 +84,4 @@ public class TestDecoratorImpl implements TestDecorator {
 
     return span;
   }
-
-  @Override
-  public AgentSpan beforeFinish(AgentSpan span) {
-    return span;
-  }
 }

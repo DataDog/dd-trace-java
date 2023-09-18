@@ -3,9 +3,9 @@ package datadog.trace.civisibility;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.context.TestContext;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.coverage.CoverageUtils;
 import datadog.trace.civisibility.decorator.TestDecorator;
@@ -18,6 +18,7 @@ import java.net.InetSocketAddress;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import org.jacoco.core.analysis.IBundleCoverage;
 import org.jacoco.core.analysis.ICounter;
@@ -34,7 +35,8 @@ public class DDBuildSystemModuleImpl extends DDTestModuleImpl implements DDBuild
   private volatile boolean itrEnabled;
 
   public DDBuildSystemModuleImpl(
-      TestContext sessionContext,
+      AgentSpan.Context sessionSpanContext,
+      long sessionId,
       String moduleName,
       String repoRoot,
       String startCommand,
@@ -47,9 +49,11 @@ public class DDBuildSystemModuleImpl extends DDTestModuleImpl implements DDBuild
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
       CoverageProbeStoreFactory coverageProbeStoreFactory,
-      RepoIndexProvider repoIndexProvider) {
+      RepoIndexProvider repoIndexProvider,
+      Consumer<AgentSpan> onSpanFinish) {
     super(
-        sessionContext,
+        sessionSpanContext,
+        sessionId,
         moduleName,
         startTime,
         config,
@@ -57,7 +61,8 @@ public class DDBuildSystemModuleImpl extends DDTestModuleImpl implements DDBuild
         sourcePathResolver,
         codeowners,
         methodLinesResolver,
-        coverageProbeStoreFactory);
+        coverageProbeStoreFactory,
+        onSpanFinish);
     this.repoRoot = repoRoot;
     this.signalServerAddress = signalServerAddress;
     this.outputClassesDirs = outputClassesDirs;
@@ -68,13 +73,12 @@ public class DDBuildSystemModuleImpl extends DDTestModuleImpl implements DDBuild
 
   @Override
   public long getId() {
-    return context.getId();
+    return span.getSpanId();
   }
 
   @Override
   public BuildEventsHandler.ModuleInfo getModuleInfo() {
-    Long moduleId = context.getId();
-    Long sessionId = context.getParentId();
+    long moduleId = span.getSpanId();
     String signalServerHost =
         signalServerAddress != null ? signalServerAddress.getHostName() : null;
     int signalServerPort = signalServerAddress != null ? signalServerAddress.getPort() : 0;
@@ -132,8 +136,7 @@ public class DDBuildSystemModuleImpl extends DDTestModuleImpl implements DDBuild
   private File getCoverageReportFolder() {
     String coverageReportDumpDir = config.getCiVisibilityCodeCoverageReportDumpDir();
     if (coverageReportDumpDir != null) {
-      return Paths.get(coverageReportDumpDir, "session-" + context.getParentId(), moduleName)
-          .toFile();
+      return Paths.get(coverageReportDumpDir, "session-" + sessionId, moduleName).toFile();
     } else {
       return null;
     }

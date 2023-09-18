@@ -17,8 +17,8 @@ import javax.annotation.Nullable;
  */
 public class DDTestFrameworkSessionProxy implements DDTestFrameworkSession {
 
-  private final Long parentProcessSessionId;
-  private final Long parentProcessModuleId;
+  private final long parentProcessSessionId;
+  private final long parentProcessModuleId;
   private final Config config;
   private final TestDecorator testDecorator;
   private final SourcePathResolver sourcePathResolver;
@@ -29,8 +29,8 @@ public class DDTestFrameworkSessionProxy implements DDTestFrameworkSession {
   @Nullable private final InetSocketAddress signalServerAddress;
 
   public DDTestFrameworkSessionProxy(
-      Long parentProcessSessionId,
-      Long parentProcessModuleId,
+      long parentProcessSessionId,
+      long parentProcessModuleId,
       Config config,
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
